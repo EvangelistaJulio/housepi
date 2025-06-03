@@ -28,10 +28,11 @@
 //'   \item Parameter: n_rungs
 //' }
 //' @filed import_setup Import setup from R List.
-//' @filed import_infec_profile Import infectivity profile definition from R List.
-//' @filed import_param Import parameter definitions from R Data.Frame.
-//' @filed import_dataset Import dataset definitions from R Data.Frame.
+//' @filed import_dataset Import house indexed dataset from R Data.Frame.
+//' @filed import_datalist Import individual indexed datalist from R Data.Frame.
 //' @field import_multiplicity Imoprt multiplicity definitions from R Data.Frame.
+//' @filed import_param Import parameter definitions from R Data.Frame.
+//' @filed import_infec_profile Import infectivity profile definition from R List.
 //' @filed import_augm Import augmented variable definitions from R Data.Frame.
 //' @filed buil_all_rates Assign all contact and group rates.
 //' @field export_setup Return a List with current setup.
@@ -56,11 +57,12 @@ RCPP_MODULE(housepi_model_core)
         .method("evaluate", &MCMC::evaluate)
         .method("estimate_evidence", &MCMC::estimate_evidence)
         .method("import_setup", &MCMC::import_setup)
-        .method("import_infec_profile", &MCMC::import_infec_profile)
-        .method("import_param", &MCMC::import_param)
         .method("import_dataset", &MCMC::import_dataset)
-        .method("import_augm", &MCMC::import_augm)
+        .method("import_datalist", &MCMC::import_datalist)
         .method("import_multiplicity", &MCMC::import_multiplicity)
+        .method("import_param", &MCMC::import_param)
+        .method("import_infec_profile", &MCMC::import_infec_profile)
+        .method("import_augm", &MCMC::import_augm)
         .method("build_all_rates", &MCMC::build_all_rates)
         .method("export_setup", &MCMC::export_setup)
         .method("export_param", &MCMC::export_param)

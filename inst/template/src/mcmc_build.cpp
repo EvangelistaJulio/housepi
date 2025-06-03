@@ -22,58 +22,9 @@
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-/* Default seed of random number generator.  */
-std::int32_t _default_setup_seed()
-{
-    auto time_raw = std::chrono::steady_clock::now().time_since_epoch().count();
-    // ensure time_now is 64bit
-    std::uint64_t time_now = static_cast<std::uint64_t>(time_raw);
-    // xor between upper and lower part of time stamp
-    std::uint64_t mixed = time_now ^ (time_now >> 32);
-    // note: constrain to 32bit for compatibility with R (mask sign bit)
-    return static_cast<std::int32_t>(mixed & 0x7FFFFFFF);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  MCMC::Impl : constructor  ///////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-MCMC::Impl::Impl(std::function<double(Household &)> callback_house_loglike,
-                 std::function<void(Household &, indiv)> callback_update_cache)
-    : _infec_profile(*this),
-      _uniform_distr(0., 1.),
-      _callback_house_loglike(std::move(callback_house_loglike)),
-      _callback_update_cache(std::move(callback_update_cache))
-{
-    setup_seed = _default_setup_seed();
-}
-MCMC::Impl::~Impl() = default;
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  MCMC::Impl : methods (getter)  /////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Get the parameter value. */
-double MCMC::Impl::get_param(const parID &p) const
-{
-    return param_map.at(p).get();
-}
-
-/* Get pointer to the parameter. */
-const double *MCMC::Impl::get_param_pointer(const parID &p) const
-{
-    return param_map.at(p).get_pointer();
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  MCMC::Impl : methods (setter)  /////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Return the pseudo random number generator. */
-rnd_gen &MCMC::Impl::get_prng() { return (this->*_do_get_prng)(); }
-
-/* Draw a random variable uniformly distributed. */
-double MCMC::Impl::uniform() { return _uniform_distr(get_prng()); }
 
 /* Assign setup. */
 void MCMC::Impl::build_setup()
@@ -214,174 +165,12 @@ void MCMC::Impl::set_prng_seed()
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////  MCMC::Impl : methods (parameter moves)  /////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Set accept rates to zero. */
-void MCMC::Impl::init_move_counts()
-{
-    for (const parID &p : param_standard_infer_list + param_cache_infer_list)
-        param_map.at(p).reset_accept_rate();
-}
-
-/* propose a valid move (retrun true), otherwise update refusal (retrun false) */
-bool MCMC::Impl::propose_valid_param_move(const parID &p)
-{
-    Variable &this_par = param_map.at(p);
-
-    // set new value of the parameter and store the old to buffer
-    this_par.propose(_prng);
-
-    // recover buffer if not valid move
-    if (!this_par.valid_move())
-    {
-        this_par.recover_value();
-        return false;
-    }
-
-    return true;
-}
-
-/* Restore the parameter value in the buffer. */
-void MCMC::Impl::recover_parameter(const parID &p, bool cache_depen)
-{
-    // recover buffer value of parameter
-    param_map.at(p).recover_value();
-
-    // recover buffer value of full loglike
-    full_loglike = full_buffer;
-
-    // recover buffered loglikelihood in households
-    for (Household &house : house_vector)
-    {
-        house.recover_loglike_value();
-        if (cache_depen)
-            house.recover_all_cache();
-    }
-
-    // FIXME: this should not be recoverd if constant for example...
-    if (cache_depen)
-        recover_infec_profile();
-}
-
-/* Update the acceptance rate of the paramter. */
-void MCMC::Impl::update_param_accept_rate(const parID &p, bool is_accepted)
-{
-    param_map.at(p).update_accept_rate(is_accepted);
-}
-
-/* Adapt the parameter Metropolis move. */
-void MCMC::Impl::adapt_param_rule(const parID &p, double ratio)
-{
-    param_map.at(p).adapt_rule(ratio);
-}
-
-/* Metropolis-Hastings to accept or not current parameter move. */
-bool MCMC::Impl::accept_valid_param_move(const parID &p)
-{
-    const double D_ll = full_loglike - full_buffer;
-    const double move_logratio = param_map.at(p).get_move_logratio();
-    return uniform() < std::exp(setup_inv_T * D_ll + move_logratio);
-}
-
-/* Getter for full loglikelihood. */
-double MCMC::Impl::get_full_loglike() const
-{
-    return full_loglike;
-}
-
-/* Set new full loglikelihood value and buffer old value. */
-void MCMC::Impl::set_full_loglike(double new_ll)
-{
-    full_buffer = full_loglike;
-    full_loglike = new_ll;
-}
-
-/* Increment full loglikelohood by a delta, buffer old value. */
-void MCMC::Impl::increment_full_loglike(double delta)
-{
-    set_full_loglike(full_loglike + delta);
-}
-
-/* Compute statistics from sample of full loglikelihood. */
-const std::pair<double, double> MCMC::Impl::smpl_full_loglike_stats() const
-{
-    return tools::compute_stats(smpl_full_loglike);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////  MCMC::Impl : methods (diagnostics) ////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Init posterior sampling. */
-void MCMC::Impl::init_diagnostics()
-{
-    ulong sample_size = setup_c_sample_size * setup_n_chains;
-
-    // diagnostics over full loglikelihood
-    smpl_count = 0;
-    smpl_full_loglike.clear();
-    smpl_full_loglike = dbl_vec(sample_size);
-
-    // initialize  other diagnostic vectors
-    // UPDATE: I might want to store also power posterior sample
-    if (!is_power_post())
-    {
-        // diagnostics over parameters
-        for (const parID &p : param_standard_infer_list + param_cache_infer_list)
-            smpl_param_value[p] = dbl_vec(sample_size, HOUSEPI_NA_DOUBLE);
-
-        // diagnostics over households
-        // UPDATE: init a=only for selected households
-        for (size_t H : restrict_hh_indexes)
-            house_vector[H].init_diagnostics(sample_size);
-
-        // diagnostics over augmented variables
-        if (!tools::is_na(setup_id_trace))
-            for (const augmID &a : augm_list_infer + augm_list_func)
-                smpl_augm_value[a] = dbl_vec(sample_size, HOUSEPI_NA_DOUBLE);
-    }
-}
-
-/* Update Bayesian diagnostics */
-void MCMC::Impl::update_diagnostics()
-{
-    // diagnostics for full loglike
-    smpl_full_loglike[smpl_count] = get_full_loglike();
-
-    if (!is_power_post())
-    {
-        // diagnostics for all parameters
-        for (const parID &p : param_standard_infer_list + param_cache_infer_list)
-            smpl_param_value.at(p)[smpl_count] = get_param(p);
-
-        // diagnostics for selected households
-        for (size_t H : restrict_hh_indexes)
-            house_vector[H].update_diagnostics(smpl_count);
-
-        // diagnostics for individual followup
-        if (!tools::is_na(setup_id_trace))
-            for (const augmID &a : augm_list_infer + augm_list_func)
-                smpl_augm_value.at(a)[smpl_count] = house_vector[smpl_H_star].augm(smpl_i_star, a);
-    }
-
-    ++smpl_count;
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
 /* Assert dataset is not empty. */
 void MCMC::Impl::assert_proper_dataset()
 {
     if (house_vector.empty())
         throw std::length_error(
-            "Impossible to proceed. No database was found.");
+            "Unable to proceed. No database was found.");
 }
 
 /* Assert setup definitions are ok to proceed with mcmc sampling. */
@@ -440,9 +229,6 @@ void MCMC::Impl::assert_proper_mcmc_setup()
             "Nothing to sample. Check your parameter and augmented variable definitions.");
 }
 
-/* Tell if it's the case of power posteriors. */
-bool MCMC::Impl::is_power_post() const { return setup_n_rungs > 0; }
-
 /* The text to print in the Markov chian progress bar. */
 const std::string MCMC::Impl::fmt_progtxt()
 {
@@ -466,18 +252,18 @@ const std::string MCMC::Impl::fmt_progtxt()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign data after pre-processing. */
-void MCMC::Impl::build_dataset(const dict_str_vec &datatable)
+void MCMC::Impl::build_dataset(const dict_str_vec &input)
 {
     try
     {
-        if (!datatable.empty())
+        if (!input.empty())
         {
             // drop all previous data and prepare for new
             data_headers.clear();
-            for (const auto &x : datatable)
+            for (const auto &x : input)
                 data_headers.push_back(x.first);
 
-            n_individuals = datatable.at(data_headers[0]).size();
+            n_individuals = input.at(data_headers[0]).size();
             n_households = 0;
 
             house_vector.clear();
@@ -501,33 +287,31 @@ void MCMC::Impl::build_dataset(const dict_str_vec &datatable)
                 for (const std::string &key : data_headers)
                     if (key == "id")
                     {
-                        if (tools::is_na(datatable.at("id")[i]))
+                        id = input.at("id")[i];
+                        if (tools::is_na(id))
                             throw std::invalid_argument(
                                 "Missing id for individual in row n." + std::to_string(i + 2) + ".");
-                        else
-                            id = datatable.at("id")[i];
                     }
                     else if (key == "house_id")
                     {
-                        if (tools::is_na(datatable.at("house_id")[i]))
+                        house_id = input.at("house_id")[i];
+                        if (tools::is_na(house_id))
                             throw std::invalid_argument(
                                 "Missing house_id for individual in row n." + std::to_string(i + 2) + ".");
-                        else
-                            house_id = datatable.at("house_id")[i];
                     }
                     else if (key == "status")
                     {
                         // note: NA status is a missing status
-                        if (!tools::is_na(datatable.at("status")[i]))
-                            status = tools::stoi(datatable.at("status")[i], "individual status");
+                        if (!tools::is_na(input.at("status")[i]))
+                            status = tools::stoi(input.at("status")[i], "individual status");
                     }
-                    else if (tools::is_na(datatable.at(key)[i]))
+                    else if (tools::is_na(input.at(key)[i]))
                     {
                         data.emplace(key, HOUSEPI_NA_DOUBLE);
                         tools::warning("Found NA values in the database.");
                     }
                     else
-                        data.emplace(key, tools::stod(datatable.at(key)[i], "data \"" + key + "\""));
+                        data.emplace(key, tools::stod(input.at(key)[i], "data \"" + key + "\""));
 
                 // if household index doesn't exist, add new household
                 if (_hhid_to_index.find(house_id) == _hhid_to_index.end())
@@ -714,6 +498,109 @@ void MCMC::Impl::build_multiplicity(const dict_str_vec &table)
     catch (const std::exception &e)
     {
         tools::error({"While initializing multiplicities:",
+                      std::string(e.what())});
+    }
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  MCMC::Impl : build data list  /////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Assign data after pre-processing. */
+void MCMC::Impl::build_datalist(const dict_str_vec &input, const std::string &list_name)
+{
+    // alias for messages
+    std::string alias = "data list";
+    if (!tools::is_na(list_name))
+        alias += " \"" + list_name + "\"";
+
+    try
+    {
+        if (input.empty())
+        {
+            throw std::invalid_argument(
+                "Nothing to build: " + alias + " is empty.");
+        }
+        else
+        {
+            // data sequence headers
+            str_vec headers = {};
+            for (const auto &x : input)
+                headers.push_back(x.first);
+            const size_t n_rows = input.at(headers[0]).size();
+
+            // check for individual IDs
+            if (!contains(headers, "id"))
+                throw std::invalid_argument(
+                    "Missing individual identifier column \"id\" in " + alias + ".");
+            // remove "id"
+            headers.erase(std::remove(headers.begin(), headers.end(), "id"), headers.end());
+
+            // individual map for id -> index
+            // note: this could be moved elsewhere if required
+            std::unordered_map<std::string, size_t> id_to_index = {};
+            for (Household &house : house_vector)
+                for (Individual &member : house)
+                    if (id_to_index.find(member.id()) != id_to_index.end())
+                        throw std::invalid_argument(
+                            "Multiple individuals id equal to \"" + member.id() + "\"");
+                    else
+                        id_to_index.emplace(member.id(), member.index());
+
+            // datalist allocation
+            if (indiv_datalist.empty())
+                indiv_datalist.resize(n_individuals);
+
+            for (dataIDmap<dbl_vec> &this_map : indiv_datalist)
+                for (const std::string &key : headers)
+                {
+                    if (this_map.count(key) > 0)
+                        this_map[key].clear();
+                    this_map.emplace(key, dbl_vec({}));
+                }
+
+            // load individual data list
+            for (size_t r = 0; r < n_rows; ++r)
+            {
+                double x;
+                std::string id = input.at("id")[r];
+                if (tools::is_na(id))
+                    throw std::invalid_argument(
+                        "Invalid id for " + alias + " in row n." + std::to_string(r + 2) + ".");
+                else if (id_to_index.find(id) == id_to_index.end())
+                    throw std::invalid_argument(
+                        "Id " + id + " from " + alias + " unmatched in loaded dataset.");
+
+                dataIDmap<dbl_vec> &this_dict = indiv_datalist.at(id_to_index.at(id));
+                for (const std::string &key : data_headers)
+                {
+                    x = HOUSEPI_NA_DOUBLE;
+                    if (tools::is_na(input.at(key)[r]))
+                        tools::warning("Found NA values in " + alias + ".");
+                    else
+                        x = tools::stod(input.at(key)[r], alias + " \"" + key + "\"");
+
+                    // append (since vector is initialized to empty)
+                    this_dict[key].push_back(x);
+                }
+            }
+        }
+
+        // assign pointers to relative datalist to all individuals
+        for (Household &house : house_vector)
+            for (Individual &member : house)
+                member.assign_pointer_to_datalist(&indiv_datalist.at(member.index()));
+    }
+    catch (const std::exception &e)
+    {
+        tools::error({"While initializing " + alias + ":",
                       std::string(e.what())});
     }
 }

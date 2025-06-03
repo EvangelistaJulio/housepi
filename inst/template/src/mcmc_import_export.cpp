@@ -89,19 +89,52 @@ void MCMC::Impl::import_setup(const Rcpp::List &input)
     build_setup();
 }
 
-/* Import infectivity profile from R list and run build. */
-void MCMC::Impl::import_infec_profile(const Rcpp::List &input)
+/* Import data from R DataFrame and run build. */
+void MCMC::Impl::import_dataset(const Rcpp::DataFrame &input)
 {
+    dict_str_vec datatable = {};
     try
     {
-        rlist_to_map(input, _infec_profile.deflist);
+        rdataframe_to_map(input, datatable);
     }
     catch (const std::exception &e)
     {
-        tools::error({"While importing infectivity profile definitions:",
+        tools::error({"While reading dataset:",
                       std::string(e.what())});
     }
-    _infec_profile.build();
+    build_dataset(datatable);
+}
+
+/* Import data from R DataFrame and run build. */
+void MCMC::Impl::import_datalist(const Rcpp::DataFrame &input)
+{
+    dict_str_vec datatable = {};
+    try
+    {
+        rdataframe_to_map(input, datatable);
+    }
+    catch (const std::exception &e)
+    {
+        tools::error({"While reading datalist:",
+                      std::string(e.what())});
+    }
+    build_datalist(datatable);
+}
+
+/* Import multiplicity definitions from R DataFrame and run build. */
+void MCMC::Impl::import_multiplicity(const Rcpp::DataFrame &input)
+{
+    dict_str_vec multipltable = {};
+    try
+    {
+        rdataframe_to_map(input, multipltable);
+    }
+    catch (const std::exception &e)
+    {
+        tools::error({"While reading multiplicity:",
+                      std::string(e.what())});
+    }
+    build_multiplicity(multipltable);
 }
 
 /* Import params from R DataFrame and run build. */
@@ -134,36 +167,19 @@ void MCMC::Impl::import_augm(const Rcpp::DataFrame &input)
     build_augm();
 }
 
-/* Import data from R DataFrame and run build. */
-void MCMC::Impl::import_dataset(const Rcpp::DataFrame &input)
+/* Import infectivity profile from R list and run build. */
+void MCMC::Impl::import_infec_profile(const Rcpp::List &input)
 {
-    dict_str_vec datatable = {};
     try
     {
-        rdataframe_to_map(input, datatable);
+        rlist_to_map(input, _infec_profile.deflist);
     }
     catch (const std::exception &e)
     {
-        tools::error({"While reading dataset:",
+        tools::error({"While importing infectivity profile definitions:",
                       std::string(e.what())});
     }
-    build_dataset(datatable);
-}
-
-/* Import multiplicity definitions from R DataFrame and run build. */
-void MCMC::Impl::import_multiplicity(const Rcpp::DataFrame &input)
-{
-    dict_str_vec multipltable = {};
-    try
-    {
-        rdataframe_to_map(input, multipltable);
-    }
-    catch (const std::exception &e)
-    {
-        tools::error({"While reading multiplicity:",
-                      std::string(e.what())});
-    }
-    build_multiplicity(multipltable);
+    _infec_profile.build();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -531,8 +547,12 @@ Rcpp::List MCMC::Impl::showcase_infec_profile(int n_bins) const
 
     try
     {
-        // check the call makes sense
-        if (_infec_profile.profile == nullptr)
+        // check the call makes sense 
+        // UPDATE: it would be nace by selecting id_trace...
+        if (_infec_profile.is_augmented())
+            throw std::length_error(
+                "Export of augmented infectivity profile is not supported.");
+        else if (_infec_profile.profile == nullptr)
             throw std::length_error("No infectivity profile to export.");
 
         // produce a showcase of the distribution profile
@@ -608,11 +628,12 @@ Rcpp::List MCMC::showcase_infec_profile(int n_bins)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 void MCMC::import_setup(const Rcpp::List &x) { pImpl->import_setup(x); }
-void MCMC::import_infec_profile(const Rcpp::List &x) { pImpl->import_infec_profile(x); }
-void MCMC::import_param(const Rcpp::DataFrame &x) { pImpl->import_param(x); }
-void MCMC::import_augm(const Rcpp::DataFrame &x) { pImpl->import_augm(x); }
 void MCMC::import_dataset(const Rcpp::DataFrame &x) { pImpl->import_dataset(x); }
+void MCMC::import_datalist(const Rcpp::DataFrame &x) { pImpl->import_datalist(x); }
 void MCMC::import_multiplicity(const Rcpp::DataFrame &x) { pImpl->import_multiplicity(x); }
+void MCMC::import_param(const Rcpp::DataFrame &x) { pImpl->import_param(x); }
+void MCMC::import_infec_profile(const Rcpp::List &x) { pImpl->import_infec_profile(x); }
+void MCMC::import_augm(const Rcpp::DataFrame &x) { pImpl->import_augm(x); }
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -702,6 +723,22 @@ void MCMC::Impl::read_dataset(const std::string &f)
                       std::string(e.what())});
     }
     build_dataset(datatable);
+}
+
+/* Read datalist file and then run assignment. */
+void MCMC::Impl::read_datalist(const std::string &f)
+{
+    dict_str_vec input = {};
+    try
+    {
+        tools::read_csv_table(f, input);
+    }
+    catch (const std::exception &e)
+    {
+        tools::error({"While reading datalist:",
+                      std::string(e.what())});
+    }
+    build_datalist(input);
 }
 
 /* Read multiplicity file and then run assignment. */
@@ -994,7 +1031,6 @@ void MCMC::Impl::_aux_print_dataset_init_(const std::string &f)
 void MCMC::Impl::_aux_print_dataset_update_(const Household &house)
 {
     if (aux_data_ofstream.is_open())
-    {
         for (indiv i = 0; i < house.size(); ++i)
         {
             aux_data_ofstream << house.id(i)
@@ -1015,7 +1051,6 @@ void MCMC::Impl::_aux_print_dataset_update_(const Household &house)
 
             aux_data_ofstream << std::endl;
         }
-    }
     else
         throw std::runtime_error(
             "Output file closed unexpectedly.");
@@ -1042,12 +1077,13 @@ void MCMC::Impl::_aux_print_dataset_finalize_()
 //////////////////////////////////////////  MCMC : read  //////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void MCMC::read_dataset(const std::string &f) { pImpl->read_dataset(f); }
 void MCMC::read_setup(const std::string &f) { pImpl->read_setup(f); }
-void MCMC::read_param(const std::string &f) { pImpl->read_param(f); }
-void MCMC::read_infec_profile(const std::string &f) { pImpl->read_infec_profile(f); }
-void MCMC::read_augm(const std::string &f) { pImpl->read_augm(f); }
+void MCMC::read_dataset(const std::string &f) { pImpl->read_dataset(f); }
+void MCMC::read_datalist(const std::string &f) { pImpl->read_datalist(f); }
 void MCMC::read_multiplicity(const std::string &f) { pImpl->read_multiplicity(f); }
+void MCMC::read_param(const std::string &f) { pImpl->read_param(f); }
+void MCMC::read_augm(const std::string &f) { pImpl->read_augm(f); }
+void MCMC::read_infec_profile(const std::string &f) { pImpl->read_infec_profile(f); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////  MCMC : show, C++ print  ////////////////////////////////////

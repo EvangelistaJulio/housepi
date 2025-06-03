@@ -13,11 +13,10 @@
 #include "model.h"
 
 /* Assign all group rates to each individual. */
-void Model::assign_group_rate_to_individual(Household &house, indiv i)
+void Model::assign_group_rate_to_individual(Individual &member)
 {
 	rateID r;
-	UNUSED(house);
-	UNUSED(i);
+	UNUSED(member);
 
 	//----- infectivity -----//
 	r = "infectivity";
@@ -78,10 +77,10 @@ double Model::loglike_healthy(Household &house) const
 
 	double output = 0.;
 
-	for (indiv i : house.healthy_status_list())
+	for (indiv i : house.get_healthy_status_hhindexes())
 	{
 		double roi_cumul_i = 0;
-		for (indiv k : house.infected_status_list())
+		for (indiv k : house.get_infected_status_hhindexes())
 			roi_cumul_i += cumul_mtx[k][i] * house.group_rate(k, "infectivity");
 		roi_cumul_i *= house.group_rate(i, "susceptibility") * b;
 		output -= roi_cumul_i;
@@ -104,14 +103,14 @@ double Model::loglike_infectious(Household &house) const
 	const double a = param("alpha");
 	const double b = transmission_rate(house);
 
-	for (indiv i : house.infected_status_list())
+	for (indiv i : house.get_infected_status_hhindexes())
 		if (i != i0)
 		{
 			// Risk of infection from other household members `k`
 			double b_i = b * house.group_rate(i, "susceptibility");
 			double roi_inst_i = 0.;
 			double roi_cumul_i = 0.;
-			for (indiv k : house.infected_status_list())
+			for (indiv k : house.get_infected_status_hhindexes())
 				if (cumul_mtx[k][i] != 0)
 				{
 					double mu_k = house.group_rate(k, "infectivity");
@@ -140,7 +139,8 @@ double Model::loglike_infectious(Household &house) const
    WARNING: this function should not call any mutable parameter. */
 void Model::update_cache_dependecies(Household &house, indiv i)
 {
-	const double t_infec_i = house.augm(i, "infec_time");
+	Individual &member_i = house.get_member(i);
+	const double t_infec_i = member_i.augm("infec_time");
 
 	auto &inst_mtx = house.cache_double_matrix("inst");
 	auto &cumul_mtx = house.cache_double_matrix("cumul");
@@ -154,26 +154,28 @@ void Model::update_cache_dependecies(Household &house, indiv i)
 	//==============================//
 
 	// note: setting lut to 0 this is necessary because _houseROI_ is brute
-	for (indiv k : house.infected_status_list())
+	for (indiv k : house.get_infected_status_hhindexes())
 		if (k != i)
 		{
+			Individual &member_k = house.get_member(k);
+
 			inst_mtx[i][k] = 0.0;
 			cumul_mtx[i][k] = 0.0;
 			inst_mtx[k][i] = 0.0;
 			cumul_mtx[k][i] = 0.0;
 
-			double t_infec_k = house.augm(k, "infec_time");
+			double t_infec_k = member_k.augm("infec_time");
 			double gentime = t_infec_k - t_infec_i;
 
 			if (gentime > 0)
 			{ //----- `i` : infector, `k` : infectee -----//
-				inst_mtx[i][k] = infec_profile_inst(gentime);
-				cumul_mtx[i][k] = infec_profile_cumul(gentime);
+				inst_mtx[i][k] = infec_profile_inst(member_i, gentime);
+				cumul_mtx[i][k] = infec_profile_cumul(member_i, gentime);
 			}
 			else if (gentime < 0)
 			{ //----- `k` : infector, `i` : infectee -----//
-				inst_mtx[k][i] = infec_profile_inst(-gentime);
-				cumul_mtx[k][i] = infec_profile_cumul(-gentime);
+				inst_mtx[k][i] = infec_profile_inst(member_k, -gentime);
+				cumul_mtx[k][i] = infec_profile_cumul(member_k, -gentime);
 
 				//----- update first case -----//
 				if (t_infec_k < new_t0)
@@ -193,9 +195,9 @@ void Model::update_cache_dependecies(Household &house, indiv i)
 	//===============================//
 
 	double exposure = param("study_period") + house.augm(i0, "onset_time") - t_infec_i;
-	for (indiv k : house.healthy_status_list())
+	for (indiv k : house.get_healthy_status_hhindexes())
 	{
-		cumul_mtx[i][k] = infec_profile_cumul(exposure);
+		cumul_mtx[i][k] = infec_profile_cumul(member_i, exposure);
 		cumul_mtx[k][i] = 0.0;
 	}
 }
@@ -237,9 +239,10 @@ double Model::roi_inst_simulation(const std::vector<indiv> &infectors,
 	for (indiv k : infectors)
 	{
 		// `k` : infector, `i` : infectee
-		double gentime = t_infec_i - house.augm(k, "infec_time");
-		double mu_k = house.group_rate(k, "infectivity");
-		hh_roi_inst += infec_profile_inst(gentime) * mu_k;
+		Individual &member_k = house.get_member(k);
+		double gentime = t_infec_i - member_k.augm("infec_time");
+		double mu_k = member_k.group_rate("infectivity");
+		hh_roi_inst += infec_profile_inst(member_k, gentime) * mu_k;
 	}
 	hh_roi_inst *= house.group_rate(i, "susceptibility") * transmission_rate(house);
 
@@ -263,7 +266,7 @@ void Model::simulate_single_house(Household &house)
 	indiv i0;
 	if (house.n_infec_status() > 0)
 		// amongst pre-existing infected in data
-		i0 = house.infected_status_list().at(uniform() * house.n_infec_status());
+		i0 = house.get_infected_status_hhindexes().at(uniform() * house.n_infec_status());
 	else
 		// amongst all members
 		i0 = uniform() * house.size();
@@ -287,11 +290,12 @@ void Model::simulate_single_house(Household &house)
 	// infection of secondary cases following the first case
 	for (double t = t0 + Dt; (t < tf) && (house.n_healthy_status() > 0); t += Dt)
 	{
-		// store a copy of the vector of infected individuals
-		const std::vector<indiv> infectors = house.infected_status_list();
+		// store copies of infected/healthy individuals
+		const std::vector<indiv> infected = house.get_infected_status_hhindexes();
+		const std::vector<indiv> healthy = house.get_healthy_status_hhindexes();
 
-		for (indiv i : house.healthy_status_list())
-			if (uniform() >= exp(-roi_inst_simulation(infectors, house, i, t) * Dt))
+		for (indiv i : healthy)
+			if (uniform() >= exp(-roi_inst_simulation(infected, house, i, t) * Dt))
 			{
 				house.set_augm_value(i, "onset_time", t + house.augm(i, "incub_period"));
 				house.change_status(i, INFECTED_STATUS);
@@ -299,11 +303,11 @@ void Model::simulate_single_house(Household &house)
 	}
 
 	// format infected with unseen onset as healthy
-	for (indiv i : house.infected_status_list())
+	for (indiv i : house.get_infected_status_hhindexes())
 		if (house.augm(i, "onset_time") >= tf)
 			house.change_status(i, HEALTHY_STATUS);
 
 	// format all augmented variables of susceptibles
-	for (indiv i : house.healthy_status_list())
+	for (indiv i : house.get_healthy_status_hhindexes())
 		clear_all_augm(house, i);
 }

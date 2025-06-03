@@ -65,7 +65,7 @@ HousepiParameter <- R6::R6Class(
 
     #' @description
     #' Remove a given parameter.
-    #' 
+    #'
     #' @param name `character(1)`\cr
     #' Name of the parameter to remove.
     #' @param show_warnings `logical(1)`\cr

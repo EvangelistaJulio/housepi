@@ -339,10 +339,12 @@ Add a new augmented variable definition.
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$add_augm(
   name = NA,
   status = NA,
-  value = NA,
-  init_rand = FALSE,
   const = NA,
   discr = FALSE,
+  func = NA,
+  func_args = NULL,
+  value = NA,
+  init_rand = FALSE,
   model = NA,
   args = list(),
   min = NA,
@@ -363,6 +365,18 @@ Name of the augmented variable.}
 The associated status of the definition.
 Default NA is for all infectious.}
 
+\item{\code{const}}{\code{logical(1)}\cr
+If \code{FALSE} the augmented variable is treated as a constant.}
+
+\item{\code{discr}}{\code{logical(1)}\cr
+IF \code{TRUE} the augmenter variable is discrete.}
+
+\item{\code{func}}{\code{character()}\cr
+Name of the augmented function.}
+
+\item{\code{func_args}}{(named \code{list()}\cr
+Arguments of the augmented function.}
+
 \item{\code{value}}{\code{double(1)} | \code{character(1)}\cr
 One between:
 \itemize{
@@ -373,12 +387,6 @@ One between:
 
 \item{\code{init_rand}}{\code{character(1)}\cr
 If \code{TRUE} draw initial vale from model distribution.}
-
-\item{\code{const}}{\code{logical(1)}\cr
-If \code{FALSE} the augmented variable is treated as a constant.}
-
-\item{\code{discr}}{\code{logical(1)}\cr
-IF \code{TRUE} the augmenter variable is discrete.}
 
 \item{\code{model}}{\code{character(1)}\cr
 Name of the model distribution.}
@@ -600,15 +608,12 @@ One between:
 \subsection{Method \code{showcase_infec_profile()}}{
 Showcase instantaneous and cumulative values of infectivity profile.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$showcase_infec_profile(opts = list(), bins = 2000)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$showcase_infec_profile(bins = 2000)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{opts}}{\code{double()}\cr
-Additional values for the computation.}
-
 \item{\code{bins}}{\code{integer(1)}\cr
 Number of bins for continuous profile (ignored if discrete).}
 }

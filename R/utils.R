@@ -14,10 +14,10 @@
 #' Housepi stop utility
 #' @description
 #' Utility functions for error messages.
-#' 
+#'
 #' @param ...\cr
 #' Lists of messages printed in sequence on different lines.
-#' 
+#'
 #' @keywords internal
 stop_h <- function(...) {
   base::stop(paste(unlist(list(...)), collapse = "\n"),
@@ -29,10 +29,10 @@ stop_h <- function(...) {
 #' Housepi warning utility
 #' @description
 #' Utility functions for warning messages.
-#' 
+#'
 #' @param ...\cr
 #' Lists of messages printed in sequence on different lines.
-#' 
+#'
 #' @keywords internal
 warning_h <- function(...) {
   base::warning(paste(unlist(list(...)), collapse = "\n"),
@@ -75,9 +75,9 @@ require_suggested_library <- function(libname) {
 #'
 #' @keywords internal
 character_to_string_list <- function(mylist, max_print = 5) {
-  sms <- paste(lapply(mylist[1:min(max_print, length(mylist))], 
+  sms <- paste(lapply(mylist[seq_len(min(max_print, length(mylist)))],
                       function(x) paste0("\"", x, "\"")),
-              collapse = ", ")
+               collapse = ", ")
   if (length(mylist) > max_print) {
     sms <- paste0(sms, ", ...")
   }
@@ -337,7 +337,7 @@ retrieve_traces_results <- function(trs,
 ############################################################################
 ############################################################################
 
-#' @title 
+#' @title
 #' Default types
 #' @description
 #' Check that types are set correctly.
@@ -347,41 +347,55 @@ retrieve_traces_results <- function(trs,
 #' Vector of characters.
 #' @param values `list()`\cr
 #' List of values.
-#' 
+#'
 #' @return `character()`\cr
 #' Vector of characters.
 #'
 #' @keywords internal
 default_types_ <- function(types, values) {
+  valid_types <- list("S" = "scalar",
+                      "P" = "parameter",
+                      "D" = "dataset",
+                      "A" = "augmented")
+
   for (i in seq_along(types)) {
-    if (!is.na(types[i])) {
-      types[i] <- toupper(types[i])
-      if (!(types[i] %in% c("S", "P", "D", "A"))) {
+    k <- types[i]
+    y <- values[[i]]
+
+    if (is.na(k)) {
+      # no explicit type provided, then format for default types
+      if (is.na(y)) {
+        types[i] <- NA
+      } else if (is.numeric(y)) {
+        types[i] <- "S"
+      } else if (is.character(y)) {
+        if (is.na(suppressWarnings(as.numeric(y)))) {
+          types[i] <- "P"
+        } else {
+          types[i] <- "S"
+        }
+      } else {
+        types[i] <- "P"
+      }
+
+    } else {
+      # explicit type checking
+      k <- toupper(k)
+      if (!(k %in% names(valid_types))) {
+        valid_message <- paste(
+          sprintf("\"%s\"", names(valid_types)),
+          sprintf("(%s)", unlist(valid_types)),
+          collapse = ", "
+        )
+
         stop_h(
-          paste0("Invalid type \"", types[i], "\" for value \"", values[[i]], "\"."),
-          "Valid types are: \"S\" (scalar), \"P\" (parameter), \"D\" (dataset), \"A\" (augmented)"
+          paste0("Invalid type \"", k, "\" for value \"", y, "\"."),
+          valid_message
         )
       }
     }
   }
 
-  # format default values
-  for (i in which(is.na(types))) {
-    y <- values[[i]]
-    if (is.na(y)) {
-      types[i] <- NA
-    } else if (is.numeric(y)) {
-      types[i] <- "S"
-    } else if (is.character(y)) {
-      if (is.na(suppressWarnings(as.numeric(y)))) {
-        types[i] <- "P"
-      } else {
-        types[i] <- "S"
-      }
-    } else {
-      types[i] <- "P"
-    }
-  }
   return(types)
 }
 
@@ -389,7 +403,7 @@ default_types_ <- function(types, values) {
 #' Type split
 #' @description
 #' Split a typed string or character vector
-#'  
+#'
 #' @param lst `character()`\cr
 #' Vector of characters.
 #'
@@ -434,7 +448,7 @@ type_join_ <- function(x) {
 ############################################################################
 ############################################################################
 
-#' @title 
+#' @title
 #' Count unique function calls
 #' @description
 #' Count how many base functions are invoked to avoid double calls
@@ -451,7 +465,7 @@ count_unique_function_calls_ <- function(s) {
   sum(forbid %in% unlist(regmatches(s, gregexpr(reg_expr, s))))
 }
 
-#' @title 
+#' @title
 #' Extract augmented function equality
 #' @description
 #' Extract equality augmented function declaration
@@ -515,32 +529,32 @@ extract_func_arithmetic_ <- function(s, reg_expr, func_name) {
 #' Extract function name and argument from a function call string
 #'
 #' @description
-#' Parses a string and returns a list with the function name and argument. 
-#' Handles common mathematical functions and strips whitespace. 
+#' Parses a string and returns a list with the function name and argument.
+#' Handles common mathematical functions and strips whitespace.
 #' Raises an error if parentheses are unmatched.
 #'
 #' @param s `character(1)`\cr
 #' String representing a function call.
-#' @return 
+#' @return
 #' `list()`
-#' 
+#'
 #' @keywords internal
-extract_func_call_ <- function(s) { 
+extract_func_call_ <- function(s) {
   options <- c("pow", "sqrt", "exp", "log", "sin", "cos", "tan")
 
   if (count_unique_function_calls_(s) > 0) {
-    stop_h(sprintf( "Multiple functions invoked in definition \"%s\"", s))
+    stop_h(sprintf("Multiple functions invoked in definition \"%s\"", s))
   }
 
   # check parentheses are matched
   if (nchar(gsub("[^\\(]", "", s)) != nchar(gsub("[^\\)]", "", s))) {
     stop("Unmatched parentheses in input string")
   }
-  
+
   # extract function name and argument using regex
   m <- regexec("^([a-zA-Z_][a-zA-Z0-9_]*)\\((.*)\\)$", s)
   parts <- regmatches(s, m)[[1]]
-  
+
   if (length(parts) != 3) {
     stop_h("Input string must be a function call like func(x)")
   }
@@ -550,7 +564,7 @@ extract_func_call_ <- function(s) {
     stop_h(
       sprintf("Function '%s' is not supported.", func_name),
       find_closest_match(func_name, options, 1)
-      )
+    )
   }
 
   y <- type_split_(parts[3])
@@ -564,20 +578,20 @@ extract_func_call_ <- function(s) {
 #' Extract augmented function
 #' @description
 #' Extract augmented function declaration.
-#'  
+#'
 #' @param `character()`\cr
 #' Vector of characters.
-#' 
+#'
 #' @return `list()`cr
 #' function name, key, variable and type
-#' 
+#'
 #' @keywords internal
 extract_func_ <- function(s) {
   # remove spaces
   s <- gsub(" ", "", s)
 
   if (count_unique_function_calls_(s) > 1) {
-    stop_h(sprintf( "Multiple functions invoked in definition \"%s\"", s))
+    stop_h(sprintf("Multiple functions invoked in definition \"%s\"", s))
 
   } else if (grepl("[()]", s)) {
     return(extract_func_call_(s))

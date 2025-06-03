@@ -10,7 +10,7 @@
 # template.R
 #
 
-#' @title 
+#' @title
 #' Template models directory
 #' @description
 #' Returns the directory to housepi template models.
@@ -79,7 +79,7 @@ template_household_model <- function(name = NA,
         }
         rstudioapi::previewRd(info_file)
 
-      } else if (any(file.exists(source_files(path))) & isFALSE(replace)) {
+      } else if (any(file.exists(source_files(path))) && isFALSE(replace)) {
         #===== Asking for copying template to folder with model =====#
         warning_h(
           "A model already exists in the specified folder.",
@@ -135,7 +135,7 @@ template_household_model <- function(name = NA,
 #' @title
 #' Template assert expression
 #' @description
-#' Assert if a given string expression is present in 
+#' Assert if a given string expression is present in source file.
 #'
 #' @param refer_file `character(1)`\cr
 #' path/to/.refer containing the model source.
@@ -151,7 +151,7 @@ template_assert_expression <- function(refer_file, expression) {
   if (file.exists(refer_file)) {
     # read the script and extract parameters
     script <- readChar(refer_file, file.info(refer_file)$size)
-    
+
     # extract all calls in .refer source file
     matches <- stringr::str_match_all(script, expression)
     return(length(unlist(matches)) > 0)

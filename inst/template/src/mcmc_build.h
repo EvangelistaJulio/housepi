@@ -56,16 +56,25 @@ public:
     //=======================//
 
     Impl(std::function<double(Household &)> callback_house_loglike,
-         std::function<void(Household &, indiv)> callback_update_cache);
-    ~Impl();
+         std::function<void(Household &, indiv)> callback_update_cache)
+        : _infec_profile(*this),
+          _uniform_distr(0., 1.),
+          _callback_house_loglike(std::move(callback_house_loglike)),
+          _callback_update_cache(std::move(callback_update_cache))
+    {
+        setup_seed = tools::default_setup_seed();
+    }
+    ~Impl() = default;
 
     //===================================//
     //===== RANDOM NUMBER GENERATOR =====//
     //===================================//
 
-    rnd_gen &get_prng();
+    // reference to the pseudo random number generator.
+    rnd_gen &get_prng() { return (this->*_do_get_prng)(); }
+    // draw a random variable uniformly distributed
+    double uniform() { return _uniform_distr(get_prng()); }
     void set_prng_seed();
-    double uniform();
 
     //=================//
     //===== SETUP =====//
@@ -115,9 +124,10 @@ public:
     parIDmap<Variable> param_map = {}; // parameters dictionary
     bool _is_undef_params_ = false;    // undefined parameters valid only if infer
 
-    //----- Parameter - Getter -----//
-    double get_param(const parID &p) const;
-    const double *get_param_pointer(const parID &p) const;
+    // get value of the parameter
+    double get_param(const parID &p) const { return param_map.at(p).get(); }
+    // get pointer to the parameter
+    const double *get_param_pointer(const parID &p) const { return param_map.at(p).get_pointer(); }
 
     //----- Parameter - Setter -----//
     void init_parameters();
@@ -140,6 +150,7 @@ public:
     str_vec data_headers = {};
     size_t n_individuals = 0;
     size_t n_households = 0;
+    std::vector<dataIDmap<dbl_vec>> indiv_datalist = {};
     std::vector<Household> house_vector = {};
     std::vector<size_t> restrict_hh_indexes = {};
     std::unordered_map<std::string, size_t> _hhid_to_index = {};
@@ -177,8 +188,8 @@ public:
 
     //----- Augmented - Setter -----//
     void init_augmented_variables();
-    void clear_all_augm(Household &house, indiv i);
-    void assign_all_augm(Household &house, indiv i);
+    void clear_all_augm(Individual &member);
+    void assign_all_augm(Individual &member);
 
     //----- Augmented - State-Checkers -----//
     bool is_augm_any() const;
@@ -208,24 +219,30 @@ public:
         void recover_lookup();
         void update_lookup();
         void assign_template(std::map<std::string, std::string> &x);
+        void append_augm_definition();
 
         //===== GETTER =====//
-        bool is_lookup() const;
-        double inst(double t) const;
-        double cumul(double t) const;
+        bool is_lookup() const { return !_lookup_inst.empty(); }
+        bool is_augmented() const { return !_augm_infec_profile_deflist.empty(); }
+        
+        double inst(Individual &member, double t) { return (this->*_do_inst)(member, t); }
+        double cumul(Individual &member, double t) { return (this->*_do_cumul)(member, t); }
 
     private:
         MCMC::Impl &pImpl; // pointer to external class
         const str_vec _headers = {"name", "discr",
                                   "arg_key", "arg_val", "arg_at",
-                                  "min", "min_at",
-                                  "max", "max_at"};
+                                  "min", "min_at", "max", "max_at"};
         // lookup table
         size_t _size_lut = 0;
         dbl_vec _lookup_inst = {};
         dbl_vec _lookup_cumul = {};
         dbl_vec _lookup_buffer_inst = {};
         dbl_vec _lookup_buffer_cumul = {};
+        dict_str_str _augm_infec_profile_deflist = {};
+
+        void _build_generic();
+        void _build_augmented();
 
         void _assign_single_attribute(const std::string &key,
                                       const std::string &val,
@@ -236,18 +253,22 @@ public:
                                const str_vec &typs);
 
         //===== Functional methods for getter methods =====//
-        double (InfecProfile::*_do_inst)(double) const = &InfecProfile::__default_inst;
-        double (InfecProfile::*_do_cumul)(double) const = &InfecProfile::__default_cumul;
+        double (InfecProfile::*_do_inst)(Individual &, double) = &InfecProfile::__default_inst;
+        double (InfecProfile::*_do_cumul)(Individual &, double) = &InfecProfile::__default_cumul;
 
-        double __default_inst(double t) const;
-        double __default_cumul(double t) const;
-        double __lookup_inst(double t) const;
-        double __lookup_cumul(double t) const;
-    };
-    InfecProfile _infec_profile;
+        double __default_inst(Individual &member, double t);
+        double __default_cumul(Individual &member, double t);
+        double __lookup_inst(Individual &member, double t);
+        double __lookup_cumul(Individual &member, double t);
+        double __augm_inst(Individual &member, double t);
+        double __augm_cumul(Individual &member, double t);
+        double __error(Individual &member, double t);
+    } _infec_profile;
 
     void update_infec_profile();
     void recover_infec_profile();
+    double infec_profile_inst(Individual &member, double t) { return _infec_profile.inst(member, t);}
+    double infec_profile_cumul(Individual &member, double t) { return _infec_profile.cumul(member, t);}
 
     //===========================//
     //===== IMPORTS/EXPORTS =====//
@@ -257,11 +278,12 @@ public:
 
     //----- Rcpp IMPORTS -----//
     void import_setup(const Rcpp::List &input);
-    void import_infec_profile(const Rcpp::List &input);
-    void import_param(const Rcpp::DataFrame &input);
-    void import_augm(const Rcpp::DataFrame &input);
     void import_dataset(const Rcpp::DataFrame &input);
+    void import_datalist(const Rcpp::DataFrame &input);
     void import_multiplicity(const Rcpp::DataFrame &input);
+    void import_param(const Rcpp::DataFrame &input);
+    void import_infec_profile(const Rcpp::List &input);
+    void import_augm(const Rcpp::DataFrame &input);
 
     //----- Rcpp EXPORTS -----//
     Rcpp::DataFrame export_dataset();
@@ -276,12 +298,13 @@ public:
 
 #else
     //----- READ -----//
-    void read_dataset(const std::string &pathtofile);
     void read_setup(const std::string &pathtofile);
-    void read_param(const std::string &pathtofile);
-    void read_infec_profile(const std::string &pathtofile);
-    void read_augm(const std::string &pathtofile);
+    void read_dataset(const std::string &pathtofile);
+    void read_datalist(const std::string &pathtofile);
     void read_multiplicity(const std::string &pathtofile);
+    void read_param(const std::string &pathtofile);
+    void read_augm(const std::string &pathtofile);
+    void read_infec_profile(const std::string &pathtofile);
 
     //----- SHOW -----//
     void show_summary() const;
@@ -303,10 +326,11 @@ public:
     //=================//
 
     void build_setup();
+    void build_dataset(const dict_str_vec &input);
+    void build_datalist(const dict_str_vec &input, const std::string &list_name = HOUSEPI_NA_STRING);
+    void build_multiplicity(const dict_str_vec &input);
     void build_param();
     void build_augm();
-    void build_dataset(const dict_str_vec &input);
-    void build_multiplicity(const dict_str_vec &input);
 
     //=========================//
     //===== LOGLIKELIHOOD =====//
@@ -328,7 +352,8 @@ public:
     ulong chain = 1; // current chain
     ulong rung = 0;  // current thermodynamic rung
 
-    bool is_power_post() const;
+    // Flag ot tell if power posteriors
+    bool is_power_post() const { return setup_n_rungs > 0; }
     const std::string fmt_progtxt();
 
     void assert_proper_dataset();
@@ -400,29 +425,34 @@ private:
     void _build_augm_allocate_univocal_defs(const dict_str_vec &check);
     void _build_augm_clear_houses_and_set_id_trace();
 
-    double _type_to_double(const std::string &tkn_val,
-                           const std::string &tkn_typ,
-                           const Household &house, indiv i);
-    void _assign_augm_attributes(Household &house, indiv i, augmID a,
+    double _type_to_double(const Individual &member,
+                           const std::string &tkn_val,
+                           const std::string &tkn_typ);
+    void _assign_augm_attributes(Individual &member,
+                                 const augmID &a,
                                  const str_vec &keys,
                                  const str_vec &vals,
                                  const str_vec &typs,
                                  const std::vector<bool> &is_arg,
                                  bool is_var_model);
 
-    void _assign_augm_func_args(Household &house, indiv i, augmID a,
+    void _assign_augm_func_args(Individual &member,
+                                const augmID &a,
                                 const str_vec &keys,
                                 const str_vec &vals,
                                 const str_vec &typs);
-    void _assign_augm_func_range(Household &house, indiv i, augmID a,
+    void _assign_augm_func_range(Individual &member,
+                                 const augmID &a,
                                  const str_vec &vals,
                                  const str_vec &typs);
 
-    void _assign_augm_model_args(Household &house, indiv i, augmID a,
+    void _assign_augm_model_args(Individual &member,
+                                 const augmID &a,
                                  const str_vec &keys,
                                  const str_vec &vals,
                                  const str_vec &typs);
-    void _assign_augm_model_range(Household &house, indiv i, augmID a,
+    void _assign_augm_model_range(Individual &member,
+                                  const augmID &a,
                                   const str_vec &vals,
                                   const str_vec &typs);
 

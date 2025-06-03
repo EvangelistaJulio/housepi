@@ -439,7 +439,7 @@ HousepiGenerator <- R6::R6Class(
         choice <- "blank"
         warning_h(
           "No model specified. Falling back to \"blank\" model.",
-          "To show available templates, run function 'template_household_model'."
+          "To show available templates, run 'template_household_model'."
         )
 
       } else if (choice %in% list(".")) {
@@ -457,7 +457,7 @@ HousepiGenerator <- R6::R6Class(
       private$.quiet <- isTRUE(quiet)
 
       if (choice == "blank") {
-        # 1: Blank Model (Developer Mode) 
+        # 1: Blank Model (Developer Mode)
         private$.dll <- file.path(system.file(package = "housepi"),
                                   "template", "src",
                                   dll_file_ext("housepienvironment"))
@@ -478,7 +478,7 @@ HousepiGenerator <- R6::R6Class(
         # 4: Error
         stop_h(
           sprintf("\"%s\" is not a folder nor a template name.", choice),
-          "To show available templates, run function 'template_household_model'."
+          "To show available templates, run 'template_household_model'."
         )
       }
 

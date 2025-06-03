@@ -224,15 +224,12 @@ Wrapper of the Rcpp build_all_rates method.
 \subsection{Method \code{showcase_infec_profile()}}{
 Showcase instantaneous and cumulative values of infectivity profile.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiWrapper$showcase_infec_profile(opts = list(), bins = 2000)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiWrapper$showcase_infec_profile(bins = 2000)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{opts}}{\code{double()}\cr
-Additional values for the computation.}
-
 \item{\code{bins}}{\code{integer(1)}\cr
 Number of bins for continuous profile (ignored if discrete).}
 }

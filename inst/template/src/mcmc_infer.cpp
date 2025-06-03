@@ -176,6 +176,168 @@ void MCMC::Impl::init_parameters()
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////  MCMC::Impl : methods (parameter moves)  /////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Set accept rates to zero. */
+void MCMC::Impl::init_move_counts()
+{
+    for (const parID &p : param_standard_infer_list + param_cache_infer_list)
+        param_map.at(p).reset_accept_rate();
+}
+
+/* propose a valid move (retrun true), otherwise update refusal (retrun false) */
+bool MCMC::Impl::propose_valid_param_move(const parID &p)
+{
+    Variable &this_par = param_map.at(p);
+
+    // set new value of the parameter and store the old to buffer
+    this_par.propose(_prng);
+
+    // recover buffer if not valid move
+    if (!this_par.valid_move())
+    {
+        this_par.recover_value();
+        return false;
+    }
+
+    return true;
+}
+
+/* Restore the parameter value in the buffer. */
+void MCMC::Impl::recover_parameter(const parID &p, bool cache_depen)
+{
+    // recover buffer value of parameter
+    param_map.at(p).recover_value();
+
+    // recover buffer value of full loglike
+    full_loglike = full_buffer;
+
+    // recover buffered loglikelihood in households
+    for (Household &house : house_vector)
+    {
+        house.recover_loglike_value();
+        if (cache_depen)
+            house.recover_all_cache();
+    }
+
+    // FIXME: this should not be recoverd if constant for example...
+    if (cache_depen)
+        recover_infec_profile();
+}
+
+/* Update the acceptance rate of the paramter. */
+void MCMC::Impl::update_param_accept_rate(const parID &p, bool is_accepted)
+{
+    param_map.at(p).update_accept_rate(is_accepted);
+}
+
+/* Adapt the parameter Metropolis move. */
+void MCMC::Impl::adapt_param_rule(const parID &p, double ratio)
+{
+    param_map.at(p).adapt_rule(ratio);
+}
+
+/* Metropolis-Hastings to accept or not current parameter move. */
+bool MCMC::Impl::accept_valid_param_move(const parID &p)
+{
+    const double D_ll = full_loglike - full_buffer;
+    const double move_logratio = param_map.at(p).get_move_logratio();
+    return uniform() < std::exp(setup_inv_T * D_ll + move_logratio);
+}
+
+/* Getter for full loglikelihood. */
+double MCMC::Impl::get_full_loglike() const
+{
+    return full_loglike;
+}
+
+/* Set new full loglikelihood value and buffer old value. */
+void MCMC::Impl::set_full_loglike(double new_ll)
+{
+    full_buffer = full_loglike;
+    full_loglike = new_ll;
+}
+
+/* Increment full loglikelohood by a delta, buffer old value. */
+void MCMC::Impl::increment_full_loglike(double delta)
+{
+    set_full_loglike(full_loglike + delta);
+}
+
+/* Compute statistics from sample of full loglikelihood. */
+const std::pair<double, double> MCMC::Impl::smpl_full_loglike_stats() const
+{
+    return tools::compute_stats(smpl_full_loglike);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////  MCMC::Impl : methods (diagnostics) ////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Init posterior sampling. */
+void MCMC::Impl::init_diagnostics()
+{
+    ulong sample_size = setup_c_sample_size * setup_n_chains;
+
+    // diagnostics over full loglikelihood
+    smpl_count = 0;
+    smpl_full_loglike.clear();
+    smpl_full_loglike = dbl_vec(sample_size);
+
+    // initialize  other diagnostic vectors
+    // UPDATE: I might want to store also power posterior sample
+    if (!is_power_post())
+    {
+        // diagnostics over parameters
+        for (const parID &p : param_standard_infer_list + param_cache_infer_list)
+            smpl_param_value[p] = dbl_vec(sample_size, HOUSEPI_NA_DOUBLE);
+
+        // diagnostics over households
+        // UPDATE: init a=only for selected households
+        for (size_t H : restrict_hh_indexes)
+            house_vector[H].init_diagnostics(sample_size);
+
+        // diagnostics over augmented variables
+        if (!tools::is_na(setup_id_trace))
+            for (const augmID &a : augm_list_infer + augm_list_func)
+                smpl_augm_value[a] = dbl_vec(sample_size, HOUSEPI_NA_DOUBLE);
+    }
+}
+
+/* Update Bayesian diagnostics */
+void MCMC::Impl::update_diagnostics()
+{
+    // diagnostics for full loglike
+    smpl_full_loglike[smpl_count] = get_full_loglike();
+
+    if (!is_power_post())
+    {
+        // diagnostics for all parameters
+        for (const parID &p : param_standard_infer_list + param_cache_infer_list)
+            smpl_param_value.at(p)[smpl_count] = get_param(p);
+
+        // diagnostics for selected households
+        for (size_t H : restrict_hh_indexes)
+            house_vector[H].update_diagnostics(smpl_count);
+
+        // diagnostics for individual followup
+        if (!tools::is_na(setup_id_trace))
+            for (const augmID &a : augm_list_infer + augm_list_func)
+                smpl_augm_value.at(a)[smpl_count] = house_vector[smpl_H_star].augm(smpl_i_star, a);
+    }
+
+    ++smpl_count;
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////  MCMC : update house loglikelihood  ///////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -231,7 +393,7 @@ double MCMC::Impl::update_house_loglike(size_t R, const bool is_augm_ll, const b
     if (cache_depen)
     {
         house.buffer_all_cache();
-        for (const indiv &i : house.infected_status_list())
+        for (const indiv &i : house.get_infected_status_hhindexes())
             _update_cache_dependecies(house, i);
     }
 

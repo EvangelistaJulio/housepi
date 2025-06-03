@@ -155,7 +155,7 @@ void Model::simulate_single_house(Household &house)
 		n_old_gen = n_new_gen;
 		n_new_gen = 0;
 
-		// note : loop over 'house.healthy_status_list()' is not allowed
+		// note : loop over 'house.get_healthy_status_hhindexes()' is not allowed
 		// because of 'change_status'
 		for (indiv i = 0; i < house.size(); ++i)
 			if (house.status(i) == HEALTHY_STATUS)

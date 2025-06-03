@@ -195,7 +195,7 @@ List containing current parameter definitions.
 }
 
 \subsection{Returns}{
-\code{list()})
+\code{list()}
 }
 }
 \if{html}{\out{<hr>}}

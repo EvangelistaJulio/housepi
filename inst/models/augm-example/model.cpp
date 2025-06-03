@@ -28,7 +28,7 @@
 double Model::compute_house_obs_loglike(Household &house) const
 {
 	double output = 0.0;
-	for (indiv i : house.infected_status_list())
+	for (indiv i : house.get_infected_status_hhindexes())
 		output += house.augm(i, "log_proba");
 	return output;
 }

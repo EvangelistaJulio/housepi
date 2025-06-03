@@ -9,7 +9,6 @@
 #
 # group_rate.R
 #
-
 #' @title
 #' Assert dataset features
 #' @description
@@ -184,14 +183,14 @@ cpp_ifclause_emplace <- function(r, is_ref = FALSE) {
   # if condition
   condition <- paste(
     paste0(
-      sprintf("house.data(i, \"%s\") == ", names(r[mask])),
+      sprintf("member.data(\"%s\") == ", names(r[mask])),
       r[mask]
     ),
     collapse = ") && ("
   )
   # wrap all together
   c(sprintf("%sif ((%s))", ifelse(is_ref, "", "else "), condition),
-    ifelse(is_ref, 
+    ifelse(is_ref,
            cpp_emplace("REFERENCE", tab = TRUE, quote = FALSE),
            cpp_emplace(r[[".param.name"]], tab = TRUE, quote = TRUE))
   )
@@ -237,7 +236,7 @@ HousepiGroupRate <- R6::R6Class(
         rate_id <- names(self$defs[i]) # name of the rate
         this_def <- self$defs[[i]] # definition of the rate
         features <- as.list(this_def[["by"]]) # data features
-  
+
         new_logic_table <- list()
         if (all(is.na(features))) {
           this_script <- c(cpp_emplace("REFERENCE", tab = FALSE, quote = FALSE))
@@ -316,10 +315,10 @@ HousepiGroupRate <- R6::R6Class(
     .cpp_full_script = function(script) {
       return(
         paste(c(
-          "void Model::assign_group_rate_to_individual(Household &house, indiv i)",
+          "void Model::assign_group_rate_to_individual(Individual &member)",
           "{",
           ifelse(all(is.na(lapply(self$defs, `[[`, "by"))),
-                 "\trateID r;\n\tUNUSED(house);\n\tUNUSED(i);",
+                 "\trateID r;\n\tUNUSED(member);",
                  "\trateID r;"),
           script,
           "}"
@@ -503,7 +502,7 @@ HousepiGroupRate <- R6::R6Class(
         min = min, max = max, rule = rule, scale = scale
       )
 
-      # reorder 
+      # reorder
       y <- sort(names(self$defs))
       self$defs <- self$defs[y]
       self$param_defs <- self$param_defs[y]

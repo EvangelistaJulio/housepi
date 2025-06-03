@@ -199,7 +199,7 @@ namespace tools
         }
         catch (const std::invalid_argument &e)
         {
-            std::string sms = (errtxt.empty()) ? "" : "Impossible to import " + errtxt + ". ";
+            std::string sms = (errtxt.empty()) ? "" : "Unable to import " + errtxt + ". ";
             throw std::invalid_argument(sms + "Value \"" + input + "\" is not suitable to conversion.");
         }
     }
@@ -243,6 +243,25 @@ namespace tools
             return false;
         throw std::invalid_argument(
             "Unrecognized boolean value \"" + tkn + "\".");
+    }
+
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+
+    /* Default seed for pseudo random number generator.  */
+    std::int32_t default_setup_seed()
+    {
+        auto time_raw = std::chrono::steady_clock::now().time_since_epoch().count();
+        // ensure time_now is 64bit
+        std::uint64_t time_now = static_cast<std::uint64_t>(time_raw);
+        // xor between upper and lower part of time stamp
+        std::uint64_t mixed = time_now ^ (time_now >> 32);
+        // note: constrain to 32bit for compatibility with R (mask sign bit)
+        return static_cast<std::int32_t>(mixed & 0x7FFFFFFF);
     }
 
     //-----------------------------------------------------------------------------------------------//
@@ -374,7 +393,7 @@ namespace tools
             }
             else
                 throw std::runtime_error(
-                    "Impossible to open file \"" + pathtofile + "\".");
+                    "Unable to open file \"" + pathtofile + "\".");
         }
     }
 
@@ -413,7 +432,7 @@ namespace tools
             }
             else
                 throw std::runtime_error(
-                    "Impossible to open file \"" + pathtofile + "\".");
+                    "Unable to open file \"" + pathtofile + "\".");
         }
     }
 

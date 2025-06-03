@@ -97,11 +97,15 @@ HousepiAugmented <- R6::R6Class(
     # process constant or random
     .handle_constant_or_random = function(opts, value, from) {
       if (isTRUE(opts$const)) {
-        if (is.na(value)) stop_h("Missing value for constant augmented variable.")
+        if (is.na(value)) {
+          stop_h("Missing value for constant augmented variable.")
+        }
         opts$value <- type_split_(value)$val
         opts$value_at <- type_split_(value)$at
       } else if (isTRUE(opts$init_rand)) {
-        if (is.na(opts$model)) stop_h("Unknown model for random initialization.")
+        if (is.na(opts$model)) {
+          stop_h("Unknown model for random initialization.")
+        }
       } else {
         if (is.na(value)) {
           if (is.na(opts$model)) {
@@ -133,9 +137,10 @@ HousepiAugmented <- R6::R6Class(
             opts$rule <- "draw"
           }
         } else if (opts$rule != "draw") {
-          opts$scale <- type_split_(scale %||% 1)$val
-          opts$scale_at <- type_split_(scale %||% 1)$at
-
+          if (!is.na(scale)) {
+            opts$scale <- type_split_(scale)$val
+            opts$scale_at <- type_split_(scale)$at
+          }
           opts$from <- type_split_(from)$val
           opts$from_at <- type_split_(from)$at
         }
@@ -260,7 +265,7 @@ HousepiAugmented <- R6::R6Class(
     #' Default NA is for all infectious.
     #' @param show_warnings `logical(1)`\cr
     #' Wheter to show warnings or not. Default is `TRUE`.
-    #' 
+    #'
     #' @return `logical(1)`
     remove = function(x, status = NA, show_warnings = TRUE) {
       mask <- (self$defs[["name"]] == x)
@@ -373,7 +378,7 @@ HousepiAugmented <- R6::R6Class(
         min = NA, min_at = NA,
         max = NA, max_at = NA,
         rule = as.character(rule),
-        scale = NA, scale_at = NA,
+        scale = 1, scale_at = NA,
         from = NA, from_at = NA
       )
 

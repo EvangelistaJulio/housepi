@@ -40,11 +40,10 @@ double Model::person_to_person_risk() const
 //-----------------------------------------------------------------------------------------------//
 
 /* Assign all group rates to each individual. */
-void Model::assign_group_rate_to_individual(Household &house, indiv i)
+void Model::assign_group_rate_to_individual(Individual &member)
 {
 	rateID r;
-	UNUSED(house);
-	UNUSED(i);
+	UNUSED(member);
 
 	//----- community -----//
 	r = "community";
@@ -95,9 +94,9 @@ void Model::fill_house_escape_matrix(Household &house) const
 	auto &order = house.cache_integer_vector("order");
 
 	indiv m = 0;
-	for (indiv i : house.infected_status_list())
+	for (indiv i : house.get_infected_status_hhindexes())
 		order[m++] = i;
-	for (indiv s : house.healthy_status_list())
+	for (indiv s : house.get_healthy_status_hhindexes())
 		order[m++] = s;
 
 	//----- Assign values to LUT matrix -----//
@@ -193,7 +192,7 @@ void Model::simulate_single_house(Household &house)
 		std::swap(old_gen_set, new_gen_set);
 		new_gen_set.clear();
 
-		// note : loop over 'house.healthy_status_list()' is not allowed because of 'change_status'
+		// note : loop over 'house.get_healthy_status_hhindexes()' is not allowed because of 'change_status'
 		for (indiv i = 0; i < house.size(); ++i)
 			if (house.status(i) == HEALTHY_STATUS)
 			{

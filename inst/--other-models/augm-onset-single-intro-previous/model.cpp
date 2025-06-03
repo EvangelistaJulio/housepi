@@ -78,10 +78,10 @@ double Model::loglike_healthy(Household &house) const
 
 	double output = 0.;
 
-	for (indiv i : house.healthy_status_list())
+	for (indiv i : house.get_healthy_status_hhindexes())
 	{
 		double roi_cumul_i = 0;
-		for (indiv k : house.infected_status_list())
+		for (indiv k : house.get_infected_status_hhindexes())
 			roi_cumul_i += cumul_mtx[k][i] * house.group_rate(k, "infectivity");
 		roi_cumul_i *= house.group_rate(i, "susceptibility") * b;
 		output -= roi_cumul_i;
@@ -104,14 +104,14 @@ double Model::loglike_infectious(Household &house) const
 	const double a = param("alpha");
 	const double b = transmission_rate(house);
 
-	for (indiv i : house.infected_status_list())
+	for (indiv i : house.get_infected_status_hhindexes())
 		if (i != i0)
 		{
 			// Risk of infection from other household members `k`
 			double b_i = b * house.group_rate(i, "susceptibility");
 			double roi_inst_i = 0.;
 			double roi_cumul_i = 0.;
-			for (indiv k : house.infected_status_list())
+			for (indiv k : house.get_infected_status_hhindexes())
 				if (cumul_mtx[k][i] != 0)
 				{
 					double mu_k = house.group_rate(k, "infectivity");
@@ -156,7 +156,7 @@ void Model::update_extra_dependecies(Household &house, indiv i)
 	//==============================//
 
 	// note: setting lut to 0 this is necessary because _houseROI_ is brute
-	for (indiv k : house.infected_status_list())
+	for (indiv k : house.get_infected_status_hhindexes())
 		if (k != i)
 		{
 			inst_mtx[i][k] = 0.0;
@@ -196,7 +196,7 @@ void Model::update_extra_dependecies(Household &house, indiv i)
 	//===============================//
 
 	double exposure = param("study_period") + house.augm(i0, "onset_date") - t_infec_i;
-	for (indiv k : house.healthy_status_list())
+	for (indiv k : house.get_healthy_status_hhindexes())
 	{
 		cumul_mtx[i][k] = infec_profile_cumul(exposure, {incub_i});
 		cumul_mtx[k][i] = 0.0;
@@ -267,7 +267,7 @@ void Model::simulate_single_house(Household &house)
 	indiv i0;
 	if (house.n_infec_status() > 0)
 		// amongst pre-existing infected in data
-		i0 = house.infected_status_list().at(uniform() * house.n_infec_status());
+		i0 = house.get_infected_status_hhindexes().at(uniform() * house.n_infec_status());
 	else
 		// amongst all members
 		i0 = uniform() * house.size();
@@ -292,9 +292,9 @@ void Model::simulate_single_house(Household &house)
 	for (double t = t0 + Dt; (t < tf) && (house.n_healthy_status() > 0); t += Dt)
 	{
 		// store a copy of the vector of infected individuals
-		const std::vector<indiv> infectors = house.infected_status_list();
+		const std::vector<indiv> infectors = house.get_infected_status_hhindexes();
 
-		for (indiv i : house.healthy_status_list())
+		for (indiv i : house.get_healthy_status_hhindexes())
 			if (uniform() >= exp(-roi_inst_simulation(infectors, house, i, t) * Dt))
 			{
 				house.set_augm_value(i, "onset_date", t + house.augm(i, "incub_period"));
@@ -303,11 +303,11 @@ void Model::simulate_single_house(Household &house)
 	}
 
 	// format infected with unseen onset as healthy
-	for (indiv i : house.infected_status_list())
+	for (indiv i : house.get_infected_status_hhindexes())
 		if (house.augm(i, "onset_date") >= tf)
 			house.change_status(i, HEALTHY_STATUS);
 
 	// format all augmented variables of susceptibles
-	for (indiv i : house.healthy_status_list())
+	for (indiv i : house.get_healthy_status_hhindexes())
 		clear_all_augm(house, i);
 }

@@ -188,7 +188,7 @@ frame_apply <- function(frame_list, func) {
 #' @param frame_list `list()` | `data.frame`\cr
 #'
 #' @return `data.frame()`
-#' 
+#'
 #' @keywords internal
 frame_apply_mean <- function(frame_list) {
   frame_apply(frame_list, function(x) {
@@ -220,7 +220,7 @@ frame_apply_mean <- function(frame_list) {
 #' If `TRUE`, computes the upper credible interval. Else the lower.
 #'
 #' @return `data.frame()`
-#' 
+#'
 #' @keywords internal
 frame_apply_cri <- function(frame_list, cri_level = 0.95, upper = TRUE) {
   frame_apply(frame_list, function(x) {
@@ -321,7 +321,7 @@ HousepiPosteriorExpec <- R6::R6Class(
     #' If `FUN` is provided, additional arguments are ignored.
     initialize = function(house_model, FUN = NULL, progress = NA, ...) {
       if (is.null(FUN)) {
-        FUN = list(...)
+        FUN <- list(...)
       }
       if (is.null(FUN)) {
         stop_h("No measure was provided.")

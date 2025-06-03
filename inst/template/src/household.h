@@ -44,21 +44,23 @@ public:
 	~Individual();
 
 	//===== GETTER =====//
-	const std::string &id() const;
-	size_t index() const;
-	int status() const;
+	const std::string &id() const { return _id; }
+	size_t index() const { return _index; }
+	int status() const { return _status; }
 
-	double data(const dataID &d) const;
-	double group_rate(const rateID &r) const;
-	double augm(const augmID &a) const;
-	Variable &get_augm_variable(const augmID &a);
+	double data(const dataID &d) const { return _data_map.at(d); }
+	double datalist(const dataID &d, ushort i) const { return _datalist_ptr->at(d).at(i); }
+	double group_rate(const rateID &r) const { return _rate_map.at(r).get(); }
+	double augm(const augmID &a) const { return _augm_map.at(a).get(); }
+	Variable &get_augm_variable(const augmID &a) { return _augm_map.at(a); }
 
 	double get_augm_model_loglike() const;
 
 	//===== SETTER =====//
-	void set_status(int s);
+	void set_status(int s) { _status = s; }
+	void assign_pointer_to_datalist(dataIDmap<dbl_vec> *y) { _datalist_ptr = y; }
+	void clear_augm(const augmID &a) { _augm_map[a] = Variable(); }
 	void assign_all_group_rates(const rateIDmapvec<const double *> &ptrs);
-	void clear_augm(const augmID &a);
 	void assign_augm(const augmID &a,
 					 const std::string &name,
 					 double value,
@@ -87,9 +89,11 @@ private:
 	int _status = MISSING_STATUS;		 // status of the individual
 
 	// NOTE: I am forced to store numerical variables
-	dataIDmap<double> _data_map = {};	 // database associated
-	augmIDmap<Variable> _augm_map = {};	 // augmented variables
-	rateIDmap<GroupRate> _rate_map = {}; // group rates associated
+	dataIDmap<double> _data_map = {};	 // dataset
+	augmIDmap<Variable> _augm_map = {};	 // augmented
+	rateIDmap<GroupRate> _rate_map = {}; // group rates
+
+	dataIDmap<dbl_vec> *_datalist_ptr = nullptr; // datalist to be associated
 
 	std::vector<std::function<double()>> _augm_model_logpdfs = {};
 };
@@ -117,10 +121,104 @@ public:
 			  size_t index = SIZE_MAX);
 	~Household();
 
+	//====================//
+	//===== ITERATOR =====//
+	//====================//
+
+	auto begin() { return _members.begin(); }
+	auto end() { return _members.end(); }
+
+	// iterator
+	class ViewIterator
+	{
+		std::vector<Individual> *members_ptr;
+		std::vector<indiv> *indices_ptr;
+		size_t pos;
+
+	public:
+		using iterator_category = std::forward_iterator_tag;
+		using value_type = Individual;
+		using difference_type = std::ptrdiff_t;
+		using pointer = Individual *;
+		using reference = Individual &;
+
+		ViewIterator(std::vector<Individual> *m,
+					 std::vector<size_t> *i,
+					 size_t p)
+			: members_ptr(m), indices_ptr(i), pos(p) {}
+
+		reference operator*() const { return (*members_ptr)[(*indices_ptr)[pos]]; }
+		pointer operator->() const { return &(*members_ptr)[(*indices_ptr)[pos]]; }
+
+		ViewIterator &operator++()
+		{
+			++pos;
+			return *this;
+		}
+		ViewIterator operator++(int)
+		{
+			ViewIterator tmp = *this;
+			++(*this);
+			return tmp;
+		}
+
+		bool operator==(const ViewIterator &other) const { return pos == other.pos; }
+		bool operator!=(const ViewIterator &other) const { return !(*this == other); }
+	};
+
+	// range
+	struct View
+	{
+		std::vector<Individual> *members;
+		std::vector<indiv> *indices;
+
+		View(std::vector<Individual> *m, std::vector<indiv> *i)
+			: members(m), indices(i) {}
+
+		ViewIterator begin() { return {members, indices, 0}; }
+		ViewIterator end() { return {members, indices, indices->size()}; }
+	};
+
+	//==================//
+	//===== GETTER =====//
+	//==================//
+
+	// Individual Getter
+	const std::string &id(indiv i) const { return _members[i].id(); }
+	size_t index(indiv i) const { return _members[i].index(); }
+	Individual &get_member(indiv i) { return _members[i]; }
+
+	int status(indiv i) const { return _members[i].status(); }
+	double data(indiv i, const dataID &d) const { return _members[i].data(d); }
+	double group_rate(indiv i, const rateID &r) const { return _members[i].group_rate(r); }
+	double contact_rate(indiv from, indiv to) const { return *_contact_rates[from][to]; }
+	double augm(indiv i, const augmID &a) const { return _members[i].augm(a); }
+
+	// Household Getter
+	const std::string &house_id() const { return _house_id; }
+	size_t house_index() const { return _index; }
+	ushort size() const { return _house_size; }
+
+	ushort n_infec_status() const { return _n_infec; }
+	ushort n_healthy_status() const { return _n_healthy; }
+	ushort n_missing_status() const { return _n_missing; }
+
+	const std::vector<indiv> &get_infected_status_hhindexes() const { return _infec_list; }
+	const std::vector<indiv> &get_healthy_status_hhindexes() const { return _healthy_list; }
+	const std::vector<indiv> &get_missing_status_hhindexes() const { return _missing_list; }
+
+	View infected() { return View(&_members, &_infec_list); }
+	View healthy() { return View(&_members, &_healthy_list); }
+	View missing() { return View(&_members, &_infec_list); }
+
+	ulong multiplicity() const { return _house_multiplicity; }
+	size_t multiplicity_class_index() const { return _multiplicity_class; }
+	bool is_multiplicity_head_class() const { return (_index == _multiplicity_class); }
+
 	//==================//
 	//===== SETTER =====//
 	//==================//
-
+	
 	void set_multiplicity(ulong m, size_t class_idx);
 	void assign_member(size_t index,
 					   const std::string &id,
@@ -129,41 +227,7 @@ public:
 	bool change_status(indiv i, int new_status);
 	void assign_contact_rate(indiv from, indiv to, const double *x);
 
-	//==================//
-	//===== GETTER =====//
-	//==================//
-
-	const std::string &house_id() const;
-	size_t house_index() const;
-	ushort size() const;
-
-	ushort n_infec_status() const;
-	ushort n_healthy_status() const;
-	ushort n_missing_status() const;
-
-	const std::vector<indiv> &infected_status_list() const;
-	const std::vector<indiv> &healthy_status_list() const;
-	const std::vector<indiv> &missing_status_list() const;
-
-	ulong multiplicity() const;
-	size_t multiplicity_class_index() const;
-	bool is_multiplicity_head_class() const;
-
-	//======================//
-	//===== INDIVIDUAL =====//
-	//======================//
-
-	//----- Individual : Getter -----//
-	const std::string &id(indiv i) const;
-	size_t index(indiv i) const;
-	int status(indiv i) const;
-	double data(indiv i, const dataID &d) const;
-	double group_rate(indiv i, const rateID &r) const;
-	double contact_rate(indiv from, indiv to) const;
-	Individual &get_member(indiv i);
-
-	//----- Individual : Setter -----//
-	void assign_all_group_rates(indiv i, const rateIDmapvec<const double *> &x);
+	void set_augm_value(indiv i, const augmID &a, double x);
 
 	//============================//
 	//===== EXTRA ATTRIBUTES =====//
@@ -185,25 +249,18 @@ public:
 	void allocate_cache_double_matrix(const cacheID &e);
 	matrix<double> &cache_double_matrix(const cacheID &e);
 
-	//=====================//
-	//===== AUGMENTED =====//
-	//=====================//
-
-	double augm(indiv i, const augmID &a) const;
-	void set_augm_value(indiv i, const augmID &a, double x);
-	
 	//=========================//
 	//===== LOGLIKELIHOOD =====//
 	//=========================//
+
+	//----- Loglikelihood : Getter -----//
+	double get_augm_loglike() const { return _augm_loglike; }
+	double get_obs_loglike() const { return _obs_loglike; }
 
 	//----- Loglikelihood : Setter -----//
 	void set_augm_loglike(double x);
 	void set_obs_loglike(double x);
 	void recover_loglike_value();
-
-	//----- Loglikelihood : Getter -----//
-	double get_augm_loglike() const;
-	double get_obs_loglike() const;
 
 	//=======================//
 	//===== DIAGNOSTICS =====//
@@ -211,7 +268,7 @@ public:
 
 	void init_diagnostics(ulong sample_size);
 	void update_diagnostics(ulong count);
-	const dbl_vec &get_smpl_loglike() const;
+	const dbl_vec &get_smpl_loglike() const { return _smpl_loglike; }
 
 private:
 	std::string _house_id = HOUSEPI_NA_STRING; // user house id

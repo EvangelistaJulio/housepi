@@ -39,7 +39,7 @@ public:
 	void simulate_single_house(Household &house) override final;
 
 	//----- Rate Choices -----//
-	void assign_group_rate_to_individual(Household &house, indiv i) override final;
+	void assign_group_rate_to_individual(Individual &member) override final;
 };
 
 #endif // HOUSEPI__MODEL__H

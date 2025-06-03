@@ -35,5 +35,5 @@ void Model::init_model_for_inference()
 void Model::init_model_for_simulation()
 {
 	tools::error(
-		"Impossible to perform simulation with \"blank\" model.");
+		"Simulations with \"blank\" model are not supported.");
 }

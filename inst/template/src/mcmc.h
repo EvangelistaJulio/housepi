@@ -60,10 +60,8 @@ public:
 	void build_all_rates();
 	void emplace_group_rate(rateID r, parID p);
 	void emplace_contact_rate(parID p);
-	virtual void assign_group_rate_to_individual(Household &house, indiv i);
+	virtual void assign_group_rate_to_individual(Individual &member);
 	virtual void assign_contact_rate_to_household(Household &house, indiv from, indiv to);
-	void set_rate_per_group(Household &house, indiv i);
-	void set_rate_per_contact(Household &house);
 
 	//=================================//
 	//===== RAND NUMBER GENERATOR =====//
@@ -100,10 +98,12 @@ public:
 	//===== INFECTIVITY PROFILE =====//
 	//===============================//
 
-	virtual void init_infec_profile();
 	void assign_template_infec_profile(std::map<std::string, std::string> x);
-	double infec_profile_inst(double gener_time) const;
-	double infec_profile_cumul(double gener_time) const;
+	double infec_profile_inst(Individual &member, double t) const;
+	double infec_profile_cumul(Individual &member, double t) const;
+
+	/* Virtual method for user initialization of infectivity profile. */
+	virtual void init_infec_profile() {}
 
 	//====================================//
 	//===== EVALUATE (loglikelihood) =====//
@@ -142,11 +142,12 @@ public:
 	//========================//
 
 	void import_setup(const Rcpp::List &input);
-	void import_infec_profile(const Rcpp::List &input);
-	void import_param(const Rcpp::DataFrame &input);
 	void import_dataset(const Rcpp::DataFrame &input);
-	void import_augm(const Rcpp::DataFrame &input);
+	void import_datalist(const Rcpp::DataFrame &input);
 	void import_multiplicity(const Rcpp::DataFrame &input);
+	void import_param(const Rcpp::DataFrame &input);
+	void import_infec_profile(const Rcpp::List &input);
+	void import_augm(const Rcpp::DataFrame &input);
 
 	//========================//
 	//===== Rcpp EXPORTS =====//
@@ -169,12 +170,13 @@ public:
 	//===== READ =====//
 	//================//
 
-	void read_dataset(const std::string &pathtofile = HOUSEPI_NA_STRING);
 	void read_setup(const std::string &pathtofile = HOUSEPI_NA_STRING);
+	void read_dataset(const std::string &pathtofile = HOUSEPI_NA_STRING);
+	void read_datalist(const std::string &pathtofile = HOUSEPI_NA_STRING);
+	void read_multiplicity(const std::string &pathtofile = HOUSEPI_NA_STRING);
 	void read_param(const std::string &pathtofile = HOUSEPI_NA_STRING);
 	void read_infec_profile(const std::string &pathtofile = HOUSEPI_NA_STRING);
 	void read_augm(const std::string &pathtofile = HOUSEPI_NA_STRING);
-	void read_multiplicity(const std::string &pathtofile = HOUSEPI_NA_STRING);
 
 	//================//
 	//===== SHOW =====//
@@ -198,6 +200,9 @@ private:
 	//----- Group & Contact Rateas -----//
 	rateIDmapvec<parID> _individual_group_rates = {};
 	parID _pair_contact_rate = {};
+
+	void _assign_group_rate(Individual &member);
+	void _assign_contact_rate(Household &house);
 
 	//----- Simulation -----//
 	void _aux_init_simulate();

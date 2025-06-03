@@ -25,6 +25,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <unordered_map>
 #include <functional>
 #include <algorithm>
 
@@ -63,9 +64,13 @@ constexpr int MISSING_STATUS = -1; // missing status (<=)
 
 // group rates
 constexpr double REFERENCE_VALUE = 1.0;          // alias for reference value
-const std::string REFERENCE = "REFERENCE";       // name for reference choice
-const std::string CONTACT_RATE = "Contact";      // name for Contact rate
-const std::string MISSING_RATE = "MISSING_RATE"; // name for Contact rate
+const std::string REFERENCE = "REFERENCE";       // reference choice
+const std::string CONTACT_RATE = "Contact";      // contact rate
+const std::string MISSING_RATE = "MISSING_RATE"; // missing rate
+
+// auxiliary infectivity profile
+const std::string AUX_IP_GEN_TIME = "__gen_time__";           // augmented generation time
+const std::string AUX_IP_INST_PROFILE = "__infec_profile__"; // augmented infectivity profile
 
 // constants
 constexpr unsigned DEFAULT_MAX_SIZE = 30;    // default size for lookup table
@@ -120,12 +125,13 @@ using dbl_vec = std::vector<double>;
 using str_vec = std::vector<std::string>;
 using dict_str_str = std::map<std::string, std::string>;
 using dict_str_vec = std::map<std::string, str_vec>;
+using dict_dbl_vec = std::map<std::string, dbl_vec>;
 
 template <typename T>
 using matrix = std::vector<std::vector<T>>;
 
 //----- Aliases for improved readibility -----//
-using indiv = unsigned short int;
+using indiv = std::size_t;
 
 using __access_ID__ = std::string;
 
@@ -227,6 +233,9 @@ namespace tools
 
     // formatter for the case NA
     const std::string na_to_str(double x);
+
+    // default prng seed for the setup
+    std::int32_t default_setup_seed();
 
     // format a list of string options
     const std::string show_list(const str_vec &options,

@@ -42,15 +42,6 @@ Individual::Individual(size_t index,
 /* Individual deconstructor. */
 Individual::~Individual() = default;
 
-const std::string &Individual::id() const { return _id; }
-size_t Individual::index() const { return _index; }
-int Individual::status() const { return _status; }
-
-double Individual::data(const dataID &d) const { return _data_map.at(d); }
-double Individual::group_rate(const rateID &r) const { return _rate_map.at(r).get(); }
-double Individual::augm(const augmID &a) const { return _augm_map.at(a).get(); }
-Variable &Individual::get_augm_variable(const augmID &a) { return _augm_map.at(a); }
-
 double Individual::get_augm_model_loglike() const
 {
 	double indiv_loglike = 0.0;
@@ -62,8 +53,6 @@ double Individual::get_augm_model_loglike() const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  Individual : setter  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-void Individual::set_status(int s) { _status = s; }
 
 void Individual::assign_all_group_rates(const rateIDmapvec<const double *> &ptrs)
 {
@@ -79,8 +68,6 @@ void Individual::assign_all_group_rates(const rateIDmapvec<const double *> &ptrs
 			this->_rate_map[r] = GroupRate(r, vec_par_ptr);
 	}
 }
-
-void Individual::clear_augm(const augmID &a) { _augm_map[a] = Variable(); }
 
 /* Assign definitions for the augmented variable model. */
 void Individual::assign_augm(const augmID &a, const std::string &name,
@@ -307,45 +294,9 @@ void Household::recover_loglike_value()
 	_augm_loglike = _augm_buffer;
 }
 
-//===== GETTER =====//
-const std::string &Household::house_id() const { return _house_id; }
-size_t Household::house_index() const { return _index; }
-ushort Household::size() const { return _house_size; }
-
-const std::string &Household::id(indiv i) const { return _members[i].id(); }
-size_t Household::index(indiv i) const { return _members[i].index(); }
-
-ulong Household::multiplicity() const { return _house_multiplicity; }
-size_t Household::multiplicity_class_index() const { return _multiplicity_class; }
-bool Household::is_multiplicity_head_class() const { return (_index == _multiplicity_class); }
-
-int Household::status(indiv i) const { return _members[i].status(); }
-double Household::contact_rate(indiv from, indiv to) const { return *_contact_rates[from][to]; }
-Individual &Household::get_member(indiv i) { return _members[i]; }
-
-double Household::data(indiv i, const dataID &d) const { return _members[i].data(d); }
-double Household::group_rate(indiv i, const rateID &r) const { return _members[i].group_rate(r); }
-double Household::augm(indiv i, const augmID &a) const { return _members[i].augm(a); }
-
-ushort Household::n_infec_status() const { return _n_infec; }
-ushort Household::n_healthy_status() const { return _n_healthy; }
-ushort Household::n_missing_status() const { return _n_missing; }
-
-double Household::get_augm_loglike() const { return _augm_loglike; }
-double Household::get_obs_loglike() const { return _obs_loglike; }
-
-const std::vector<indiv> &Household::infected_status_list() const { return _infec_list; }
-const std::vector<indiv> &Household::healthy_status_list() const { return _healthy_list; }
-const std::vector<indiv> &Household::missing_status_list() const { return _missing_list; }
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  Household : setter  ///////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-void Household::assign_all_group_rates(indiv i, const rateIDmapvec<const double *> &x)
-{
-	_members[i].assign_all_group_rates(x);
-}
 
 /* Set a value for the augmented variable. */
 void Household::set_augm_value(indiv i, const augmID &a, double x)
@@ -369,9 +320,6 @@ void Household::update_diagnostics(ulong c)
 {
 	_smpl_loglike[c] = _obs_loglike / _house_multiplicity + _augm_loglike;
 }
-
-/* Return the loglikelihood sampled vector. */
-const dbl_vec &Household::get_smpl_loglike() const { return _smpl_loglike; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  Household : cache attributes  //////////////////////////////////

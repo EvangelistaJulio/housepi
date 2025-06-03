@@ -26,7 +26,7 @@
 HouseholdModel <- R6::R6Class(
   classname = "HouseholdModel",
   cloneable = TRUE,
-  lock_class=TRUE,
+  lock_class = TRUE,
 
   ############################################################################
   ################################## PRIVATE #################################
@@ -138,7 +138,7 @@ HouseholdModel <- R6::R6Class(
     .multiplicity_engine = function(dataset = NULL) {
       # check if model allows for multiplicity
       refer_file <- private$.model$reference
-      regular_expr <- '.multiplicity\\s*\\(\\s*\\)'
+      regular_expr <- ".multiplicity\\s*\\(\\s*\\)"
 
       if (template_assert_expression(refer_file, regular_expr)) {
 
@@ -160,7 +160,8 @@ HouseholdModel <- R6::R6Class(
           private$.require_dataset(),
           # dataset headers required by group rates
           unlist(lapply(
-            private$.group_rate$logic_tables, function(x) unlist(lapply(x, names))
+            private$.group_rate$logic_tables, 
+            function(x) unlist(lapply(x, names))
           ))
         )
         # remove logic tables auxiliary column names
@@ -181,14 +182,14 @@ HouseholdModel <- R6::R6Class(
 
         # create summary table with class_id and multiplicity
         multi_hh_table <- data.frame(class_id = sapply(hash_groups, `[`, 1),
-                                    multiplicity = lengths(hash_groups),
-                                    stringsAsFactors = FALSE)
+                                     multiplicity = lengths(hash_groups),
+                                     stringsAsFactors = FALSE)
 
         # use hashes to produce multiplicity table
         output <- data.frame(house_id = unique(dataset$house_id),
-                            multiplicity = 0,
-                            class_id = NA,
-                            stringsAsFactors = FALSE)
+                             multiplicity = 0,
+                             class_id = NA,
+                             stringsAsFactors = FALSE)
         rownames(output) <- output$house_id
         output[multi_hh_table$class_id, "multiplicity"] <- multi_hh_table$multiplicity
 
@@ -335,7 +336,8 @@ HouseholdModel <- R6::R6Class(
       if (isTRUE(abs(seed) > .Machine$integer.max)) {
         stop_h(
           "Supplied seed is not supported.",
-          sprintf("Maximum value for a integer in R is %.0f.", .Machine$integer.max)
+          sprintf("Maximum value for a integer in R is %.0f.",
+                  .Machine$integer.max)
         )
       }
       # import setup

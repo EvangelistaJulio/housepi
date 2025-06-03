@@ -15,10 +15,11 @@
 #'   \item Parameter: n_rungs
 #' }
 #' @filed import_setup Import setup from R List.
-#' @filed import_infec_profile Import infectivity profile definition from R List.
-#' @filed import_param Import parameter definitions from R Data.Frame.
-#' @filed import_dataset Import dataset definitions from R Data.Frame.
+#' @filed import_dataset Import house indexed dataset from R Data.Frame.
+#' @filed import_datalist Import individual indexed datalist from R Data.Frame.
 #' @field import_multiplicity Imoprt multiplicity definitions from R Data.Frame.
+#' @filed import_param Import parameter definitions from R Data.Frame.
+#' @filed import_infec_profile Import infectivity profile definition from R List.
 #' @filed import_augm Import augmented variable definitions from R Data.Frame.
 #' @filed buil_all_rates Assign all contact and group rates.
 #' @field export_setup Return a List with current setup.

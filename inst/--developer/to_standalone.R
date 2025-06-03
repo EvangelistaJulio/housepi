@@ -21,4 +21,3 @@ developer_export_to_standalone <- function(hhmodel, outpath) {
 }
 
 developer_export_to_standalone(hhmodel, outpath)
-

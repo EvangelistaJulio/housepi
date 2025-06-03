@@ -27,9 +27,9 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Convert a typed std::string to a double */
-double MCMC::Impl::_type_to_double(const std::string &value,
-                                   const std::string &type,
-                                   const Household &house, indiv i)
+double MCMC::Impl::_type_to_double(const Individual &member,
+                                   const std::string &value,
+                                   const std::string &type)
 {
     double output = HOUSEPI_NA_DOUBLE;
 
@@ -46,7 +46,7 @@ double MCMC::Impl::_type_to_double(const std::string &value,
             output = tools::stod(value, "argument with scalar type");
 
         else if (tools::stoupper(type) == TYPE_DATA)
-            output = house.data(i, value);
+            output = member.data(value);
 
         else if (tools::stoupper(type) == TYPE_PARAM)
             // NOTE: here it won't be straightforward to drop maps...
@@ -65,7 +65,8 @@ double MCMC::Impl::_type_to_double(const std::string &value,
 }
 
 /* Auxiliary method to assign attributes to augmented function or model. */
-void MCMC::Impl::_assign_augm_attributes(Household &house, indiv i, augmID a,
+void MCMC::Impl::_assign_augm_attributes(Individual &member,
+                                         const augmID &a,
                                          const str_vec &keys,
                                          const str_vec &vals,
                                          const str_vec &typs,
@@ -77,8 +78,7 @@ void MCMC::Impl::_assign_augm_attributes(Household &house, indiv i, augmID a,
         throw std::invalid_argument(
             "Mismatching attributes in definition of augmented variable \"" + a + "\".");
 
-    Individual &xmember = house.get_member(i);
-    Variable &xaugm = house.get_member(i).get_augm_variable(a);
+    Variable &xaugm = member.get_augm_variable(a);
 
     // loop over all attributes
     for (size_t k = 0; k < keys.size(); ++k)
@@ -99,7 +99,7 @@ void MCMC::Impl::_assign_augm_attributes(Household &house, indiv i, augmID a,
 
         else if (!tools::is_na(value) && tools::is_na(type))
             throw std::invalid_argument(
-                "Impossible to interpret default value of  \"" + value + "\". Please provide a type.");
+                "Unable to interpret default value of  \"" + value + "\". Please provide a type.");
 
         else if (tools::is_na(value) && !tools::is_na(type))
             tools::warning(
@@ -109,7 +109,7 @@ void MCMC::Impl::_assign_augm_attributes(Household &house, indiv i, augmID a,
             x = tools::stod(value, "argument with scalar type");
 
         else if (tools::stoupper(type) == TYPE_DATA)
-            x = xmember.data(value);
+            x = member.data(value);
 
         else if (tools::stoupper(type) == TYPE_PARAM)
         {
@@ -128,13 +128,13 @@ void MCMC::Impl::_assign_augm_attributes(Household &house, indiv i, augmID a,
             {
                 if (a == value)
                     throw std::invalid_argument(
-                        "Impossible to set argument equal to its value for \"" + a + "\".");
+                        "Unable to set argument equal to its value for \"" + a + "\".");
                 else
                 {
-                    Variable &other_augm = xmember.get_augm_variable(value);
+                    Variable &other_augm = member.get_augm_variable(value);
 
                     if (other_augm.is_constant())
-                        x = xmember.augm(value);
+                        x = member.augm(value);
                     else if (other_augm.is_function())
                         f = other_augm.get_function();
                     else
@@ -176,38 +176,42 @@ void MCMC::Impl::_assign_augm_attributes(Household &house, indiv i, augmID a,
 }
 
 /* Assign augmented function arguments. */
-void MCMC::Impl::_assign_augm_func_args(Household &house, indiv i, augmID a,
+void MCMC::Impl::_assign_augm_func_args(Individual &member,
+                                        const augmID &a,
                                         const str_vec &keys,
                                         const str_vec &vals,
                                         const str_vec &typs)
 {
-    _assign_augm_attributes(house, i, a, keys, vals, typs,
+    _assign_augm_attributes(member, a, keys, vals, typs,
                             std::vector<bool>(keys.size(), ATTR_ARGUMENT), VAR_FUNCTION);
 }
 /* Assign augmented function range. */
-void MCMC::Impl::_assign_augm_func_range(Household &house, indiv i, augmID a,
+void MCMC::Impl::_assign_augm_func_range(Individual &member,
+                                         const augmID &a,
                                          const str_vec &vals,
                                          const str_vec &typs)
 {
-    _assign_augm_attributes(house, i, a, {"min", "max"}, vals, typs,
+    _assign_augm_attributes(member, a, {"min", "max"}, vals, typs,
                             std::vector<bool>(2, ATTR_RANGE), VAR_FUNCTION);
 }
 
 /* Assign augmented model arguments. */
-void MCMC::Impl::_assign_augm_model_args(Household &house, indiv i, augmID a,
+void MCMC::Impl::_assign_augm_model_args(Individual &member,
+                                         const augmID &a,
                                          const str_vec &keys,
                                          const str_vec &vals,
                                          const str_vec &typs)
 {
-    _assign_augm_attributes(house, i, a, keys, vals, typs,
+    _assign_augm_attributes(member, a, keys, vals, typs,
                             std::vector<bool>(keys.size(), ATTR_ARGUMENT), VAR_MODEL);
 }
 /* Assign augmented model range. */
-void MCMC::Impl::_assign_augm_model_range(Household &house, indiv i, augmID a,
+void MCMC::Impl::_assign_augm_model_range(Individual &member,
+                                          const augmID &a,
                                           const str_vec &vals,
                                           const str_vec &typs)
 {
-    _assign_augm_attributes(house, i, a, {"min", "max"}, vals, typs,
+    _assign_augm_attributes(member, a, {"min", "max"}, vals, typs,
                             std::vector<bool>(2, ATTR_RANGE), VAR_MODEL);
 }
 
@@ -272,6 +276,12 @@ void MCMC::Impl::_build_augm_allocate_univocal_defs(const dict_str_vec &check)
         const std::string &a = pair.first;
         const str_vec &mylist = pair.second;
 
+        // check for reserved augmented names
+        for (const std::string &forbidden : {AUX_IP_GEN_TIME, AUX_IP_INST_PROFILE})
+            if (a == forbidden)
+                throw std::invalid_argument(
+                    "Augmtend variable \"" + forbidden + "\" is reserved. Please pick another name.");
+
         for (const std::string &status : mylist)
         {
             if (!tools::is_na(status))
@@ -284,7 +294,7 @@ void MCMC::Impl::_build_augm_allocate_univocal_defs(const dict_str_vec &check)
                 }
                 else
                     throw std::invalid_argument(
-                        "Impossible to associate augmented \"" + a + "\" for non infectious status.");
+                        "Unable to associate augmented \"" + a + "\" for non infectious status.");
             }
             else if (mylist.size() > 1)
                 throw std::invalid_argument(
@@ -301,8 +311,8 @@ void MCMC::Impl::_build_augm_clear_houses_and_set_id_trace()
 {
     // cleaer all augmented definitions
     for (Household &house : house_vector)
-        for (indiv i = 0; i < house.size(); ++i)
-            clear_all_augm(house, i);
+        for (Individual &member : house)
+            clear_all_augm(member);
 
     if (is_augm_sample())
     {
@@ -342,11 +352,14 @@ void MCMC::Impl::build_augm()
 {
     try
     {
+        // eventually append infectivity profile definition
+        _infec_profile.append_augm_definition();
         const dict_str_vec &deftable = _augm_deftable;
+
         if (!deftable.empty())
         {
             // check entries
-            str_vec headers = tools::headers_from_deftable(_augm_deftable);
+            str_vec headers = tools::headers_from_deftable(deftable);
             tools::check_for_missing_entries(headers, augm_file_headers);
             tools::check_for_unused_entries(headers, augm_file_headers);
 
@@ -391,7 +404,7 @@ void MCMC::Impl::build_augm()
                         if (tools::stobool(deftable.at("init_rand")[k]))
                             if (tools::is_na(deftable.at("model")[k]))
                                 throw std::invalid_argument(
-                                    "Impossible to initialize \"" + a + "\" without a model.");
+                                    "Unable to initialize \"" + a + "\" without a model.");
 
                     // read option for monte carlo proposer
                     if (!tools::is_na(deftable.at("rule")[k]))
@@ -466,12 +479,11 @@ bool MCMC::Impl::is_augm_generic() const { return augm_status_map_infer.empty();
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign augmented variables to single individual. */
-void MCMC::Impl::assign_all_augm(Household &house, indiv i)
+void MCMC::Impl::assign_all_augm(Individual &member)
 {
     try
     {
-        Individual &xmember = house.get_member(i);
-        int status = xmember.status();
+        int status = member.status();
         const dict_str_vec &deftab = _augm_deftable;
         std::map<augmID, size_t> indiv_augm_entries;
 
@@ -488,13 +500,13 @@ void MCMC::Impl::assign_all_augm(Household &house, indiv i)
 
                 // assign augmented variable placeholder
                 // FIXME: what if constant = T, discrete = T and value != integer?
-                xmember.assign_augm(a,
-                                    deftab.at("name")[k],
-                                    _type_to_double(deftab.at("value")[k], deftab.at("value_at")[k], house, i),
-                                    tools::stobool(deftab.at("discr")[k]),
-                                    tools::stobool(deftab.at("const")[k]),
-                                    deftab.at("func")[k],
-                                    deftab.at("model")[k]);
+                member.assign_augm(a,
+                                   deftab.at("name")[k],
+                                   _type_to_double(member, deftab.at("value")[k], deftab.at("value_at")[k]),
+                                   tools::stobool(deftab.at("discr")[k]),
+                                   tools::stobool(deftab.at("const")[k]),
+                                   deftab.at("func")[k],
+                                   deftab.at("model")[k]);
 
                 // add entry to individual augmented variable list
                 indiv_augm_entries.emplace(a, k);
@@ -506,16 +518,16 @@ void MCMC::Impl::assign_all_augm(Household &house, indiv i)
         {
             const augmID &a = pair.first;
             const size_t &k = pair.second;
-            Variable &xaugm = xmember.get_augm_variable(a);
+            Variable &xaugm = member.get_augm_variable(a);
 
             // assign arguments to model
-            _assign_augm_model_args(house, i, a,
+            _assign_augm_model_args(member, a,
                                     tools::parse_list_args(deftab.at("arg_key")[k]),
                                     tools::parse_list_args(deftab.at("arg_val")[k]),
                                     tools::parse_list_args(deftab.at("arg_at")[k]));
 
             // assign range to model
-            _assign_augm_model_range(house, i, a,
+            _assign_augm_model_range(member, a,
                                      {deftab.at("min")[k], deftab.at("max")[k]},
                                      {deftab.at("min_at")[k], deftab.at("max_at")[k]});
             xaugm.init_distr_reshaping();
@@ -523,12 +535,12 @@ void MCMC::Impl::assign_all_augm(Household &house, indiv i)
             if (xaugm.is_function())
             {
                 // assign arguments to function
-                _assign_augm_func_args(house, i, a,
+                _assign_augm_func_args(member, a,
                                        tools::parse_list_args(deftab.at("farg_key")[k]),
                                        tools::parse_list_args(deftab.at("farg_val")[k]),
                                        tools::parse_list_args(deftab.at("farg_at")[k]));
                 // assign range to function
-                _assign_augm_func_range(house, i, a,
+                _assign_augm_func_range(member, a,
                                         {deftab.at("min")[k], deftab.at("max")[k]},
                                         {deftab.at("min_at")[k], deftab.at("max_at")[k]});
                 xaugm.init_func_reshaping();
@@ -537,8 +549,8 @@ void MCMC::Impl::assign_all_augm(Household &house, indiv i)
             {
                 // assign proposer rule
                 xaugm.assign_proposer(deftab.at("rule")[k],
-                                      _type_to_double(deftab.at("scale")[k], deftab.at("scale_at")[k], house, i),
-                                      _type_to_double(deftab.at("from")[k], deftab.at("from_at")[k], house, i));
+                                      _type_to_double(member, deftab.at("scale")[k], deftab.at("scale_at")[k]),
+                                      _type_to_double(member, deftab.at("from")[k], deftab.at("from_at")[k]));
 
                 // random initialization
                 // UPDATE: I would like a more general switch for this
@@ -549,9 +561,9 @@ void MCMC::Impl::assign_all_augm(Household &house, indiv i)
 
         // initialize functional augmented model for individuals
         if (is_augm_generic())
-            xmember.init_augm_model(augm_list_model);
+            member.init_augm_model(augm_list_model);
         else
-            xmember.init_augm_model(augm_status_map_model[status]);
+            member.init_augm_model(augm_status_map_model[status]);
     }
     catch (const std::exception &e)
     {
@@ -561,11 +573,10 @@ void MCMC::Impl::assign_all_augm(Household &house, indiv i)
 }
 
 /* Clear all augmented definition of individual. */
-void MCMC::Impl::clear_all_augm(Household &house, indiv i)
+void MCMC::Impl::clear_all_augm(Individual &member)
 {
-    Individual &xmember = house.get_member(i);
     for (const augmID &a : augm_list_full)
-        xmember.clear_augm(a);
+        member.clear_augm(a);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -588,8 +599,8 @@ void MCMC::Impl::init_augmented_variables()
 
         // assign augmented variables
         for (Household &house : house_vector)
-            for (indiv i = 0; i < house.size(); ++i)
-                assign_all_augm(house, i);
+            for (Individual &member : house)
+                assign_all_augm(member);
     }
 }
 
@@ -604,7 +615,7 @@ void MCMC::Impl::init_augmented_variables()
 double MCMC::Impl::_compute_augm_model_loglike(Household &house)
 {
     double hh_loglike = 0.;
-    for (const indiv &i : house.infected_status_list())
+    for (const indiv &i : house.get_infected_status_hhindexes())
         hh_loglike += house.get_member(i).get_augm_model_loglike();
     return hh_loglike;
 }
@@ -670,7 +681,7 @@ double MCMC::Impl::move_augm_single_house(size_t H)
     double delta_ll = 0.;
     Household &house = house_vector[H];
     // Loop over infectious residents of the househould
-    for (const indiv &i : house.infected_status_list())
+    for (const indiv &i : house.get_infected_status_hhindexes())
         delta_ll += (this->*_do_move_augm_indiv)(house, i);
     return delta_ll;
 }

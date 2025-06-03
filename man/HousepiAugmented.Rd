@@ -76,13 +76,13 @@ Find augmented variables required by the model.
 \subsection{Method \code{remove()}}{
 Remove a given augmented variable
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiAugmented$remove(this, status = NA, show_warnings = TRUE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiAugmented$remove(x, status = NA, show_warnings = TRUE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{this}}{\code{character(1)}\cr
+\item{\code{x}}{\code{character(1)}\cr
 Name of the augmented variable to remove.}
 
 \item{\code{status}}{\code{integer(1)}\cr
@@ -93,6 +93,9 @@ Default NA is for all infectious.}
 Wheter to show warnings or not. Default is \code{TRUE}.}
 }
 \if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+\code{logical(1)}
 }
 }
 \if{html}{\out{<hr>}}
@@ -107,6 +110,7 @@ Add a new augmented variable definition.
   const = NA,
   discr = FALSE,
   func = NA,
+  func_args = NULL,
   value = NA,
   init_rand = FALSE,
   model = NA,
@@ -137,6 +141,9 @@ IF \code{TRUE} the augmenter variable is discrete.}
 
 \item{\code{func}}{\code{character()}\cr
 Name of the augmented function.}
+
+\item{\code{func_args}}{(named \code{list()}\cr
+Arguments of the augmented function.}
 
 \item{\code{value}}{\code{double(1)} | \code{character(1)}\cr
 One between:

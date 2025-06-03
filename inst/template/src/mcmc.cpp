@@ -43,8 +43,8 @@ double MCMC::param(const parID &p) const { return pImpl->get_param(p); }
 const double *MCMC::param_pointer(const parID &p) const { return pImpl->get_param_pointer(p); }
 
 //===== AUGMENTED VARIABLES =====//
-void MCMC::assign_all_augm(Household &house, indiv i) { pImpl->assign_all_augm(house, i); }
-void MCMC::clear_all_augm(Household &house, indiv i) { pImpl->clear_all_augm(house, i); }
+void MCMC::assign_all_augm(Household &house, indiv i) { pImpl->assign_all_augm(house.get_member(i)); }
+void MCMC::clear_all_augm(Household &house, indiv i) { pImpl->clear_all_augm(house.get_member(i)); }
 
 //===== EXTRA ATTRIBUTES =====//
 
@@ -93,10 +93,9 @@ double MCMC::compute_house_obs_loglike(Household &house) const
 };
 
 /* Assign group rate to an individual  */
-void MCMC::assign_group_rate_to_individual(Household &house, indiv i)
+void MCMC::assign_group_rate_to_individual(Individual &member)
 {
-    UNUSED(house);
-    UNUSED(i);
+    UNUSED(member);
 }
 
 /* Assign the contact patterns between a couple of individuals. */
@@ -121,9 +120,9 @@ void MCMC::build_all_rates()
     {
         for (Household &house : pImpl->house_vector)
         {
-            for (indiv i = 0; i < house.size(); ++i)
-                set_rate_per_group(house, i);
-            set_rate_per_contact(house);
+            for (Individual &member : house)
+                _assign_group_rate(member);
+            _assign_contact_rate(house);
         }
     }
     catch (const std::exception &e)
@@ -144,7 +143,7 @@ void MCMC::emplace_group_rate(rateID r, parID p)
 }
 
 /* Update model report and set group rates associate to new individual. */
-void MCMC::set_rate_per_group(Household &house, indiv i)
+void MCMC::_assign_group_rate(Individual &member)
 {
     try
     {
@@ -152,7 +151,7 @@ void MCMC::set_rate_per_group(Household &house, indiv i)
 
         // call user defined group rate assignmen
         _individual_group_rates.clear();
-        assign_group_rate_to_individual(house, i);
+        assign_group_rate_to_individual(member);
 
         // convert to dict_rates_ptr
         for (const auto &pair : _individual_group_rates)
@@ -173,7 +172,7 @@ void MCMC::set_rate_per_group(Household &house, indiv i)
                 {
                     if ((tools::is_na(p)) || (p == MISSING_RATE))
                         std::invalid_argument(
-                            "Missing rate \"" + r + "\" for individual " + house.id(i) + ".");
+                            "Missing rate \"" + r + "\" for individual " + member.id() + ".");
 
                     else if (p == REFERENCE)
                         vec_par_ptr.emplace_back(&REFERENCE_VALUE);
@@ -198,7 +197,7 @@ void MCMC::set_rate_per_group(Household &house, indiv i)
         }
 
         // pass the pointers to the individual
-        house.assign_all_group_rates(i, group_rates_ptrs);
+        member.assign_all_group_rates(group_rates_ptrs);
     }
     catch (const std::exception &e)
     {
@@ -214,7 +213,7 @@ void MCMC::set_rate_per_group(Household &house, indiv i)
 void MCMC::emplace_contact_rate(parID p) { _pair_contact_rate = p; }
 
 /* Set contact rate according to user assignement. */
-void MCMC::set_rate_per_contact(Household &house)
+void MCMC::_assign_contact_rate(Household &house)
 {
     try
     {

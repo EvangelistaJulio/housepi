@@ -4,10 +4,13 @@
 \alias{character_to_string_list}
 \title{Character to string list}
 \usage{
-character_to_string_list(mylist)
+character_to_string_list(mylist, max_print = 5)
 }
 \arguments{
-\item{`character()`\cr}{Vector of characters.}
+\item{max_print}{\code{integer(1)}\cr
+Maximum number of elements to print (default is 5).}
+
+\item{mylist`character()`\cr}{Vector of characters.}
 }
 \value{
 String formatted as a list of quoted words.

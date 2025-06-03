@@ -18,6 +18,7 @@ List of values.}
 Vector of characters.
 }
 \description{
-Format NA types with defaults according to values
+Check that types are set correctly.
+Format NA types with defaults according to values.
 }
 \keyword{internal}

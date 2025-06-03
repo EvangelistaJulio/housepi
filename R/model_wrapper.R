@@ -20,7 +20,7 @@
 #' Housepi Wrapper R6 Class
 #' @description
 #' Help with calling methods from the Rcpp model object.
-#' 
+#'
 #' @keywords internal
 HousepiWrapper <- R6::R6Class(
   classname = "HousepiWrapper",
@@ -34,9 +34,9 @@ HousepiWrapper <- R6::R6Class(
   private = list(
     # @description
     # Restore factored quanties.
-    # 
+    #
     # @param df `data.frame`\cr
-    # Dataset as output from rcpp model object. 
+    # Dataset as output from rcpp model object.
     #
     # @return `data.frame`
     .re_factor = function(df) {
@@ -75,7 +75,9 @@ HousepiWrapper <- R6::R6Class(
       if (missing(value)) {
         # vector of regular expression to use for assertion
         regular_expr <- c(
-          # from : .data(, "string" or augm(, 'string'
+          # from : .data("string" or .data('string'
+          '.data\\s*\\(\\s*["\'](.*?)["\']',
+          # from : .data(, "string" or .data(, 'string'
           '.data\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
         )
 
@@ -233,11 +235,11 @@ HousepiWrapper <- R6::R6Class(
         # convert factors to numeric and store levels
         self$factor_info <- list()
         for (col in setdiff(colnames(dataset), c("id", "house_id", "status"))) {
-          this_col <- dataset[[col]]
-          if (is.character(this_col) || is.factor(this_col) || is.logical(this_col)) {
-            this_col <- factor(this_col)
-            self$factor_info[[col]] <- levels(this_col)
-            dataset[[col]] <- as.integer(this_col)
+          x <- dataset[[col]]
+          if (is.character(x) || is.factor(x) || is.logical(x)) {
+            x <- factor(x)
+            self$factor_info[[col]] <- levels(x)
+            dataset[[col]] <- as.integer(x)
           }
         }
         # import data.frame in rcpp # note: it calls
