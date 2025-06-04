@@ -1,5 +1,10 @@
 library(testthat)
 
+test_that("Augmented definition error are recognized", {
+  augm <- housepi:::HousepiAugmented$new()
+  expect_error(augm$add(name = "infec", args = c(min = 0)))
+})
+
 test_that("Augmented variable definition is correct", {
   augm <- housepi:::HousepiAugmented$new()
 
@@ -32,7 +37,7 @@ test_that("Augmented function definition is correct", {
   expect_error(augm$add())
 
   # difference definition
-  augm$add(name = "dummy", value = " onset@A -   incub@A ")
+  augm$add(name = "dummy", value = " onset -   incub ")
   expect_equal(augm$defs$func, "sub")
   expect_equal(augm$defs$farg_key, "x/y")
   expect_equal(augm$defs$farg_val, "onset/incub")

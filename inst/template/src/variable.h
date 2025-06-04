@@ -57,20 +57,20 @@ public:
     //===== GETTER =====//
     //==================//
 
-    const std::string show_name() const;
-    double get_arg(ushort argID) const;
-    double get_from_value() const;
-    double propose(rnd_gen &prng, double start = 0.);
-    double logratio(double xold, double xnew) const;
-    double rand(rnd_gen &prng);
-    bool is_rule_start_from_zero() const;
+    const std::string show_name() const { return this->_proposer_name; }
+    double get_arg(ushort argID) const { return (_distr_ptr->get_arg)(argID); }
+    double get_from_value() const { return _from_value; }
+    double propose(rnd_gen &prng, double start) { return (this->*_do_propose)(prng, start); }
+    double logratio(double xold, double xnew) const { return (this->*_do_logratio)(xold, xnew); }
+    double rand(rnd_gen &prng) { return (_distr_ptr->rand)(prng); }
+    bool is_rule_start_from_zero() const { return _is_start_from_zero; }
 
     //==================//
     //===== SETTER =====//
     //==================//
 
-    virtual void user_reset();
-    void set_rule_start_value(double x);
+    virtual void user_reset() {}
+    void set_rule_start_value(double x) { _from_value = x; }
 
     //======================//
     //===== ADAPTATION =====//

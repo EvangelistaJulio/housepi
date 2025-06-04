@@ -140,8 +140,8 @@ void MCMC::Impl::build_param()
     }
     catch (const std::exception &e)
     {
-        tools::error({"While building parameter definitions:",
-                      std::string(e.what())});
+        tools::error("While building parameters:\n" +
+                     std::string(e.what()));
     }
 }
 
@@ -221,7 +221,6 @@ void MCMC::Impl::recover_parameter(const parID &p, bool cache_depen)
             house.recover_all_cache();
     }
 
-    // FIXME: this should not be recoverd if constant for example...
     if (cache_depen)
         recover_infec_profile();
 }
@@ -324,7 +323,7 @@ void MCMC::Impl::update_diagnostics()
         // diagnostics for individual followup
         if (!tools::is_na(setup_id_trace))
             for (const augmID &a : augm_list_infer + augm_list_func)
-                smpl_augm_value.at(a)[smpl_count] = house_vector[smpl_H_star].augm(smpl_i_star, a);
+                smpl_augm_value.at(a)[smpl_count] = smpl_individual_star->augm(a);
     }
 
     ++smpl_count;
@@ -352,7 +351,6 @@ void MCMC::Impl::update_full_loglike(const bool cache_depen)
     if (cache_depen)
         update_infec_profile();
 
-    // FIXME : to be checked in combination with openMP
 #pragma omp parallel for reduction(+ : new_ll)
     for (size_t R = 0; R < restrict_hh_indexes.size(); ++R)
     {
@@ -368,9 +366,9 @@ void MCMC::Impl::update_full_loglike(const bool cache_depen)
 #pragma omp critical
             {
                 if (!has_error.exchange(true))
-                    _error_message = {
-                        "While computing loglikelihood for house " + house_vector[restrict_hh_indexes[R]].house_id() + ":",
-                        std::string(e.what())};
+                    _error_message = "While computing loglikelihood for house " +
+                                     house_vector[restrict_hh_indexes[R]].house_id() + ":\n" +
+                                     std::string(e.what());
             }
         }
     }

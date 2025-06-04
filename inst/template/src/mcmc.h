@@ -81,8 +81,8 @@ public:
 	//===============================//
 
 	bool is_augm_model() const;
-	void assign_all_augm(Household &house, indiv i);
-	void clear_all_augm(Household &house, indiv i);
+	void assign_all_augm(Individual &member);
+	void clear_all_augm(Individual &member);
 
 	//============================//
 	//===== CACHE ATTRIBUTES =====//

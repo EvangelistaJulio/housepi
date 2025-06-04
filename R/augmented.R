@@ -94,6 +94,26 @@ HousepiAugmented <- R6::R6Class(
       return(opts)
     },
 
+    # process model arguments
+    .handle_model_arguments = function(opts, args) {
+      if (is.na(opts$model))  {
+        message <- sprintf(
+          "Spare arguments for augmented variable \"%s\".", opts$name
+        )
+        if ((!is.na(opts$func)) && is.na(opts$farg_key)) {
+          message <- c(message, "Did you mean 'func_args'?")
+        }
+        stop_h(message)
+
+      } else {
+        opts$arg_key <- type_join_(names(args))
+        opts$arg_val <- type_join_(type_split_(args)$val)
+        opts$arg_at  <- type_join_(type_split_(args)$at)
+      }
+
+      return(opts)
+    },
+
     # process constant or random
     .handle_constant_or_random = function(opts, value, from) {
       if (isTRUE(opts$const)) {
@@ -243,10 +263,12 @@ HousepiAugmented <- R6::R6Class(
     require = function(refer_file) {
       # vector of regular expression to use for assertion
       regular_expr <- c(
-        # from : .augm(, "string" or augm(, 'string'
-        '\\.augm\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']',
-        # from : .set_augm_value(, "string"
-        '\\.set_augm_value\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
+        # from : .augm("string"
+        '.augm\\s*\\(\\s*["\'](.*?)["\']',
+        # from : .get_augm_variable("string"
+        '.get_augm_variable\\s*\\(\\s*["\'](.*?)["\']',
+        # from : .set_augm_value("string"
+        '.set_augm_value\\s*\\(\\s*["\'](.*?)["\']'
       )
       # find required augmented variables from regular expressions
       return(c(
@@ -394,10 +416,8 @@ HousepiAugmented <- R6::R6Class(
         opts$init_rand <- opts$const <- opts$discr <- FALSE
       }
 
-      if (!is.na(opts$model) && length(args) > 0) {
-        opts$arg_key <- type_join_(names(args))
-        opts$arg_val <- type_join_(type_split_(args)$val)
-        opts$arg_at  <- type_join_(type_split_(args)$at)
+      if (length(args) > 0) {
+        opts <- private$.handle_model_arguments(opts, args)
       }
 
       if (is.na(opts$func)) {

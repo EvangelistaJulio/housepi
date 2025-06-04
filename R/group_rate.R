@@ -383,8 +383,8 @@ HousepiGroupRate <- R6::R6Class(
     require = function(refer_file) {
       # vector of regular expression to use for assertion
       regular_expr <- c(
-        # group rate from : .group_rate(..., "string"
-        '\\.group_rate\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
+        # group rate from : .group_rate("string"
+        '\\.group_rate\\s*\\(\\s*["\'](.*?)["\']'
       )
       # find required group rates from regular expressions
       return(template_find_requirement(refer_file, regular_expr))

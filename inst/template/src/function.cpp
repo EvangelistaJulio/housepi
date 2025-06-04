@@ -640,6 +640,7 @@ public:
     //==================//
     double return_value() const override final { return get_arg(0) * get_arg(1); }
 };
+
 //--- Division Function. ---//
 class Division_Function : public Function
 {
@@ -652,6 +653,7 @@ public:
     //===== GETTER =====//
     double return_value() const override final { return get_arg(0) / get_arg(1); }
 };
+
 //--- Power Function. ---//
 class Power_Function : public Function
 {
@@ -663,6 +665,19 @@ public:
 
     //===== GETTER =====//
     double return_value() const override final { return std::pow(get_arg(0), get_arg(1)); }
+};
+
+//--- Square Root Function. ---//
+class SquareRoot_Function : public Function
+{
+public:
+    //===== CONSTRUCTOR =====//
+    SquareRoot_Function()
+        : Function("sqrt", {"x"}, {1.}) {}
+    ~SquareRoot_Function() = default;
+
+    //===== GETTER =====//
+    double return_value() const override final { return std::sqrt(get_arg(0)); }
 };
 
 /* Exponential Function. */
@@ -677,17 +692,44 @@ public:
     //===== GETTER =====//
     double return_value() const override final { return std::exp(get_arg(0)); }
 };
+
 /* Logarithm Function. */
 class Logarithm_Function : public Function
 {
 public:
     //===== CONSTRUCTOR =====//
     Logarithm_Function()
-        : Function("exp", {"x"}, {1.}) {}
+        : Function("log", {"x"}, {1.}) {}
     ~Logarithm_Function() = default;
 
     //===== GETTER =====//
     double return_value() const override final { return std::log(get_arg(0)); }
+};
+
+/* Cosine Function. */
+class Cosine_Function : public Function
+{
+public:
+    //===== CONSTRUCTOR =====//
+    Cosine_Function()
+        : Function("cos", {"x"}, {1.}) {}
+    ~Cosine_Function() = default;
+
+    //===== GETTER =====//
+    double return_value() const override final { return std::cos(get_arg(0)); }
+};
+
+/* Sine Function. */
+class Sine_Function : public Function
+{
+public:
+    //===== CONSTRUCTOR =====//
+    Sine_Function()
+        : Function("sin", {"x"}, {1.}) {}
+    ~Sine_Function() = default;
+
+    //===== GETTER =====//
+    double return_value() const override final { return std::sin(get_arg(0)); }
 };
 
 //-----------------------------------------------------------------------------------------------//
@@ -696,6 +738,21 @@ public:
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
+
+std::shared_ptr<Function> CompositeFuncRegistry::get(const std::string &opt) const
+{
+    if (tools::is_na(opt))
+        return std::make_shared<Function>();
+    else
+        for (const auto &r : _registries)
+            if (r->valid_option(opt))
+                return r->get(opt);
+
+    throw std::invalid_argument(
+        "Unknown " + _name + " \"" + opt + "\"." + tools::find_closest(opt, _options));
+
+    return nullptr;
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  ArithmeticRegistry : methods  ////////////////////////////////
@@ -733,11 +790,20 @@ std::shared_ptr<Function> TranscendentalRegistry::get(const std::string &opt) co
     if (opt == "pow")
         return std::make_shared<Power_Function>();
 
+    else if (opt == "sqrt")
+        return std::make_shared<SquareRoot_Function>();
+
     else if (opt == "exp")
         return std::make_shared<Exponential_Function>();
 
     else if (opt == "log")
         return std::make_shared<Logarithm_Function>();
+
+    else if (opt == "cos")
+        return std::make_shared<Cosine_Function>();
+
+    else if (opt == "sin")
+        return std::make_shared<Sine_Function>();
 
     else
         return nullptr;

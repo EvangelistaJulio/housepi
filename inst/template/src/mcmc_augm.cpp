@@ -277,10 +277,12 @@ void MCMC::Impl::_build_augm_allocate_univocal_defs(const dict_str_vec &check)
         const str_vec &mylist = pair.second;
 
         // check for reserved augmented names
-        for (const std::string &forbidden : {AUX_IP_GEN_TIME, AUX_IP_INST_PROFILE})
-            if (a == forbidden)
+        for (const std::string &forbid : {AUX_IP_GEN_TIME,
+                                          AUX_IP_INST_PROFILE,
+                                          AUX_IP_CUMUL_PROFILE})
+            if (a == forbid)
                 throw std::invalid_argument(
-                    "Augmtend variable \"" + forbidden + "\" is reserved. Please pick another name.");
+                    "Augmtend variable \"" + forbid + "\" is reserved. Please, pick another name.");
 
         for (const std::string &status : mylist)
         {
@@ -318,23 +320,18 @@ void MCMC::Impl::_build_augm_clear_houses_and_set_id_trace()
     {
         if (!tools::is_na(setup_id_trace))
         {
-            smpl_H_star = n_households;
             for (Household &house : house_vector)
-                for (indiv i = 0; i < house.size(); ++i)
-                    if (!tools::is_na(setup_id_trace))
-                        if (house.id(i) == setup_id_trace)
-                        {
-                            smpl_H_star = house.house_index();
-                            smpl_i_star = i;
-                        }
+                for (Individual &member : house)
+                    if (member.id() == setup_id_trace)
+                        smpl_individual_star = &member;
 
-            if (smpl_H_star == n_households)
+            if (smpl_individual_star == nullptr)
             {
                 tools::warning(
                     "Ignoring id trace: no individual \"" + setup_id_trace + "\" was found.");
                 setup_id_trace = HOUSEPI_NA_STRING;
             }
-            else if (house_vector[smpl_H_star].status(smpl_i_star) < INFECTED_STATUS)
+            else if (smpl_individual_star->status() < INFECTED_STATUS)
                 tools::warning(
                     "Individual id \"" + setup_id_trace + "\" correspond to a healthy individual.");
         }
@@ -453,8 +450,8 @@ void MCMC::Impl::build_augm()
     }
     catch (const std::exception &e)
     {
-        tools::error({"While building augmented variable definitions:",
-                      std::string(e.what())});
+        tools::error("While building augmented variable:\n" +
+                     std::string(e.what()));
     }
 }
 
@@ -567,8 +564,8 @@ void MCMC::Impl::assign_all_augm(Individual &member)
     }
     catch (const std::exception &e)
     {
-        tools::error({"While initializing augmented variables:",
-                      std::string(e.what())});
+        throw std::runtime_error(
+            "While initializing augmented variables:\n" + std::string(e.what()));
     }
 }
 
@@ -654,9 +651,9 @@ void MCMC::Impl::move_all_augm()
 #pragma omp critical
                 {
                     if (!has_error.exchange(true))
-                        _error_message = {
-                            "While sampling augmented variables for household " + house_vector[H].house_id() + ":",
-                            std::string(e.what())};
+                        _error_message = "While sampling augmented variables for household " +
+                                         house_vector[H].house_id() + ":\n" +
+                                         std::string(e.what());
                 }
             }
         }

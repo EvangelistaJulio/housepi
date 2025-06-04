@@ -239,7 +239,7 @@ public:
         dbl_vec _lookup_cumul = {};
         dbl_vec _lookup_buffer_inst = {};
         dbl_vec _lookup_buffer_cumul = {};
-        dict_str_str _augm_infec_profile_deflist = {};
+        dict_str_vec _augm_infec_profile_deflist = {};
 
         void _build_generic();
         void _build_augmented();
@@ -315,7 +315,7 @@ public:
     //----- Cpp Prints -----//
     std::ofstream aux_data_ofstream;
     void _aux_print_dataset_init_(const std::string &pathtofile);
-    void _aux_print_dataset_update_(const Household &house);
+    void _aux_print_dataset_update_(Household &house);
     void _aux_print_dataset_finalize_();
 
     void print_infer_state(const std::string &pathtofile) const;
@@ -362,8 +362,7 @@ public:
     //----- Containers for posterior sample values -----//
     ulong smpl_count = 0;
     dbl_vec smpl_full_loglike = {};
-    size_t smpl_H_star = 0; // index of house to follow up
-    indiv smpl_i_star = 0;  // index of individual to follow up
+    Individual *smpl_individual_star = nullptr;
     parIDmap<dbl_vec> smpl_param_value = {};
     augmIDmap<dbl_vec> smpl_augm_value = {};
 
@@ -392,7 +391,7 @@ private:
     rnd_gen &_prng_unique_thread() { return _prng; }
 
     //----- parallelization ----//
-    std::vector<std::string> _error_message = {};
+    std::string _error_message = {};
 
 #ifdef _OPENMP
     std::vector<rnd_gen> _prng_parallel = {}; // parallel generators (for multi-threading)

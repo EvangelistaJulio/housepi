@@ -137,11 +137,11 @@ void Model::simulate_single_house(Household &house)
 	//===== GENERATION 0 : infection by community ======//
 	//==================================================//
 
-	for (indiv i = 0; i < house.size(); ++i)
+	for (Individual &member : house)
 		if (uniform() < commu_esc_proba)
-			house.change_status(i, HEALTHY_STATUS);
+			house.change_status(member, HEALTHY_STATUS);
 		else
-			house.change_status(i, INFECTED_STATUS);
+			house.change_status(member, INFECTED_STATUS);
 
 	//==============================================================//
 	//===== GENERATION >=1 : infection by previous generation ======//
@@ -155,14 +155,11 @@ void Model::simulate_single_house(Household &house)
 		n_old_gen = n_new_gen;
 		n_new_gen = 0;
 
-		// note : loop over 'house.get_healthy_status_hhindexes()' is not allowed
-		// because of 'change_status'
-		for (indiv i = 0; i < house.size(); ++i)
-			if (house.status(i) == HEALTHY_STATUS)
-				if (uniform() >= exp(n_old_gen * log_p2p_esc_proba))
-				{
-					house.change_status(i, INFECTED_STATUS);
-					++n_new_gen;
-				}
+		for (Individual &member : house.healthy())
+			if (uniform() >= exp(n_old_gen * log_p2p_esc_proba))
+			{
+				house.change_status(member, INFECTED_STATUS);
+				++n_new_gen;
+			}
 	}
 }

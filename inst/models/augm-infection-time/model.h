@@ -7,7 +7,7 @@
  */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////  * *** * E.G.AUGMENTED ONSET - SINGLE INTRODUCTION * *** *  ///////////////////
+/////////////////  * *** * AUGMENT INFECTION TIMES - SINGLE INTRODUCTION * *** *  /////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #ifndef HOUSEPI__MODEL__H
@@ -28,7 +28,9 @@ public:
 	double loglike_healthy(Household &house) const;
 	double loglike_infectious(Household &house) const;
 	double roi_inst_simulation(const std::vector<indiv> &infectors,
-							   Household &house, indiv i, double t_infec_i) const;
+							   Household &house,
+							   Individual &member_i,
+							   double t_infec_i) const;
 
 	//===== Override General Methods =====//
 	void init_infec_profile() override final;

@@ -370,12 +370,12 @@ default_types_ <- function(types, values) {
         types[i] <- "S"
       } else if (is.character(y)) {
         if (is.na(suppressWarnings(as.numeric(y)))) {
-          types[i] <- "P"
+          types[i] <- "A"
         } else {
           types[i] <- "S"
         }
       } else {
-        types[i] <- "P"
+        types[i] <- "A"
       }
 
     } else {

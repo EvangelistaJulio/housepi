@@ -97,7 +97,10 @@ HouseholdModel <- R6::R6Class(
     #
     # @return `character()`
     .require_augm = function() {
-      return(private$.augm$require(private$.model$reference))
+      return(c(
+        private$.augm$require(private$.model$reference), # by the model
+        private$.infec_profile$augm_required # by infectivity profile
+      ))
     },
 
     # @description

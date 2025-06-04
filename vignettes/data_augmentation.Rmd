@@ -57,15 +57,16 @@ Similarly to parameter, augmented variables require definitions for models and p
 In many applications, augmented variable definitions can also depend on the dataset or on model parameters to be inferred.
 
 We can link an argument value to its source with the character "\@", e.
-g. "onset_max\@D" will link to the value at individual data "onset_max".
+g.
+"onset_max\@D" will link to the value at individual data "onset_max".
 More in general, definition arguments `value`, `args`, `min`, `max`, `scale` and `from` can be linked to external values in the following ways
 
-| Origin     | Link Examples       | Symbol |
-|------------|---------------------|--------|
-| Scalar     | 14, "14", "14\@S"   | S      |
-| Parameter  | "mean", "mean\@P"   | P      |
-| Dataset    | "onset_max\@D"      | D      |
-| Augmented  | "infec_time\@A"     | A      |
+| Origin    | Link Examples       | Symbol |
+|-----------|---------------------|--------|
+| Augmented | "proba", "proba\@A" | A      |
+| Dataset   | "onset_max\@D"      | D      |
+| Parameter | "mean\@P"           | P      |
+| Scalar    | 14, "14", "14\@S"   | S      |
 
 The augmented variables are defined in the model with the methods `$add()` or `$load_augm_list()`.
 The first one is used to define a single augmented variable, while the second one allows to define multiple variables at once.
@@ -79,21 +80,21 @@ Then, we define the augmented variables `infec_time` and `onset_time` as uniform
 hhmodel$load_augm_list(
   # declare 'incub_period' as the difference
   # between augmented onset and infection times
-  incub_period = "onset_time@A - infec_time@A",
+  incub_period = "onset_time - infec_time",
 
   # explicit declaration of incubation period distribution
   proba = list(
     func = "gamma_meanvar", # gamma distribution (by mean and variance)
     func_args = c(
-      x = "incub_period@A", # compute from individual augmented 'incub_period'
-      mean = "mean",        # use model parameter 'mean'
-      var = "var"           # and 'var'
+      x = "incub_period",   # compute from individual augmented 'incub_period'
+      mean = "mean@P",      # use model parameter 'mean'
+      var = "var@P"         # and 'var'
     ),   
     max = 14                # truncation
   ),
 
   # declare the augmented variable 'log_proba'
-  log_proba = "log(proba@A)"
+  log_proba = "log(proba)"
 )
 
 # define the gamma distribution parameter to be inferred

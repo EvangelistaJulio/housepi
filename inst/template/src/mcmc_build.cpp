@@ -102,8 +102,8 @@ void MCMC::Impl::build_setup()
     }
     catch (const std::exception &e)
     {
-        tools::error({"While building setup definitions:",
-                      std::string(e.what())});
+        tools::error("While building setup definitions:" +
+                     std::string(e.what()));
     }
 }
 
@@ -345,8 +345,8 @@ void MCMC::Impl::build_dataset(const dict_str_vec &input)
     }
     catch (const std::exception &e)
     {
-        tools::error({"While initializing dataset:",
-                      std::string(e.what())});
+        tools::error("While initializing dataset:" +
+                     std::string(e.what()));
     }
 }
 
@@ -497,8 +497,8 @@ void MCMC::Impl::build_multiplicity(const dict_str_vec &table)
     }
     catch (const std::exception &e)
     {
-        tools::error({"While initializing multiplicities:",
-                      std::string(e.what())});
+        tools::error("While initializing multiplicities:" +
+                     std::string(e.what()));
     }
 }
 
@@ -600,7 +600,7 @@ void MCMC::Impl::build_datalist(const dict_str_vec &input, const std::string &li
     }
     catch (const std::exception &e)
     {
-        tools::error({"While initializing " + alias + ":",
-                      std::string(e.what())});
+        tools::error("While initializing " + alias + ":" +
+                     std::string(e.what()));
     }
 }

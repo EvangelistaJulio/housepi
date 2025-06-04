@@ -32,10 +32,10 @@ HousepiInfecProfile <- R6::R6Class(
 
   active = list(
     #' @field param_required `character()`\cr
-    #' Parameters required by infectivity profile variable definition.
+    #' Parameters required by infectivity profile definition.
     param_required = function(value) {
       if (missing(value)) {
-        required_param_set <- c()
+        requirements <- c()
         if (is.list(self$defs) && (length(self$defs) > 0)) {
           if (!any(is.na((self$defs[c("arg_val", "arg_at")])))) {
             aux <- data.frame(
@@ -43,12 +43,32 @@ HousepiInfecProfile <- R6::R6Class(
               keys = strsplit(self$defs[["arg_at"]], "/")[[1]]
             )
             aux <- aux[aux[["keys"]] == "P", "vals"]
-            required_param_set <- c(required_param_set, aux[!is.na(aux)])
+            requirements <- c(requirements, aux[!is.na(aux)])
           }
         }
-        return(required_param_set)
+        return(requirements)
       }
       stop_h("'param_required' is read only.")
+    },
+
+    #' @field augm_required `character()`\cr
+    #' Augmented variables required by infectivity profile definition.
+    augm_required = function(value) {
+      if (missing(value)) {
+        requirements <- c()
+        if (is.list(self$defs) && (length(self$defs) > 0)) {
+          if (!any(is.na((self$defs[c("arg_val", "arg_at")])))) {
+            aux <- data.frame(
+              vals = strsplit(self$defs[["arg_val"]], "/")[[1]],
+              keys = strsplit(self$defs[["arg_at"]], "/")[[1]]
+            )
+            aux <- aux[aux[["keys"]] == "A", "vals"]
+            requirements <- c(requirements, aux[!is.na(aux)])
+          }
+        }
+        return(requirements)
+      }
+      stop_h("'augm_required' is read only.")
     }
   ),
 

@@ -1,5 +1,5 @@
 ---
-title: "Augment Onset Times"
+title: "Augment Infection Times"
 output: 
   rmarkdown::html_vignette:
     toc: true
@@ -21,12 +21,12 @@ bayesplot::bayesplot_theme_set(ggplot2::theme_gray())
 bayesplot::color_scheme_set(scheme = "brightblue")
 ```
 
-In this vignette, we use the template model "ex-augm-onset-single-intro" where surveys are conditioned on single introduction and follow the times of onset.
+In this vignette, we use the template model "ex-augm-infec-single-intro" where surveys are conditioned on single introduction and follow the times of onset.
 For simplicity the model assumes no asymptomatic cases.
 This time we load the parameter definitions directly from the model template.
 
 ```{r}
-hhsimul <- housepi::HouseholdModel$new("augm-onset-single-intro")
+hhsimul <- housepi::HouseholdModel$new("augm-infection-time")
 
 # use example parameters associated to the template model
 hhsimul$load_param_template()
@@ -40,15 +40,15 @@ hhsimul$param_defs
 In `housepi` we follow the convention for infectivity profiles to be function of the generation time.
 Generation time is defined as the time from infection to transmission.
 
-Certain profiles will then be conditioned on individual incubation period $\tau$ as follows.
+Certain profiles will then depend on individual incubation periods $\tau$ as follows:
 
-| Time                       | Infector Condition    | Infectee Condition    |
-|----------------------------|-----------------------|-----------------------|
-| generation                 | \-                    | \-                    |
-| from onset to transmission | $\tau_{\rm infector}$ | \-                    |
-| serial                     | $\tau_{\rm infector}$ | $\tau_{\rm infectee}$ |
+| Delay | Infector Condition | Infectee Condition | Supported |
+|--------------------|------------------|------------------|------------------|
+| generation time | \- | \- | &check; |
+| from onset to transmission | $\tau_{\rm infector}$ | \- | &check; |
+| serial time | $\tau_{\rm infector}$ | $\tau_{\rm infectee}$ | &cross; |
 
-We can provide a custom infectivity proifle with the method `$add_infec_profile()`.
+We can provide a custom infectivity profile with the method `$add_infec_profile()`.
 At any moment, we can showcase the loaded profile as follows:
 
 ```{r, fig.width=6.5, fig.height=3, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
@@ -96,7 +96,7 @@ We propose the following definitions for the augmented variable.
 hhsimul$load_augm_list(
   
   # define 'infec_time' as the difference between onset and incubation
-  infec_time = "onset_time@A - incub_period@A",
+  infec_time = "onset_time - incub_period",
   
   # define an 'onset_time' for each individual
   onset_time = list(
@@ -110,11 +110,9 @@ hhsimul$load_augm_list(
     init_rand = TRUE,
     model = "gamma",
     # assign arguments of incubation period from parameter definitions
-    args = c(shape = "inc_shape",  scale = "inc_scale"),
+    args = c(shape = "inc_shape@P",  scale = "inc_scale@P"),
     max = 14
-  ),
-  # add infection time definition
-  infec_time = "onset_time@A - incub_period@A"
+  )
 )
 
 # append incubation period distribution parameters as constants
@@ -156,29 +154,26 @@ We can check that inference returns the parameters used for the simulation.
 
 ```{r}
 # make a deep clone of simulation object to re-use previous definitions
-hhmodel <- hhsimul$clone(deep = FALSE)
+hhmodel <- hhsimul$clone(deep = TRUE)
 
 # load definitions from list (automatically drop previous definitions)
 hhmodel$load_augm_list(
-  infec_time = "onset_time@A - incub_period@A",
-  
+  infec_time = "onset_time - incub_period",
   onset_time = list(
     value = "onset_date@D",
     rule = "norm", scale = 0.25, from = "onset_date@D"
   ),
-  
   incub_period = list(
     init_rand = TRUE,
-    model = "gamma", args = c(shape = "inc_shape", scale = "inc_scale"),
+    model = "gamma", args = c(shape = "inc_shape@P", scale = "inc_scale@P"),
     max = 14, rule = "draw"
   )
 )
 
 # perform the inference
 # note: NA onset dates of healthy individuals will raise a warning
-hhmodel$infer(simulated, n_chains = 3,
-              n_adapt = 2000, n_steps = 10000,
-              n_burnin = 1000, thin = 10,
+hhmodel$infer(simulated, n_chains = 3, n_steps = 10000,
+              n_adapt = 2000, n_burnin = 1000, thin = 10,
               seed = 3731, progress = 30)
 ```
 
@@ -228,20 +223,4 @@ cbind(Simulated = simul_param_defs[imask, ]$value, results) |>
   theme_vanilla() |>
   bold(j = ~ Parameter, bold = TRUE) |>
   autofit()
-```
-
-### Model Comparison
-
-We can estimate the model "evidence" (also known as "marginal loglikelihood") with the method of the power posteriors:
-
-```{r, eval=FALSE}
-# return the estimate of the model evidence
-evidence <- hhmodel$evidence(n_rungs = 30, n_burnin = 500, n_steps = 5000)
-
-ggplot(evidence$detail, aes(x = inv_temper, y = mean_loglike)) +
-  geom_line() +
-  geom_point() +
-  labs(x = "Inverse Temperature", y = "Mean Loglikelihood")
-
-evidence$estimate
 ```

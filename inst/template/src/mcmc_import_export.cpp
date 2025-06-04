@@ -83,8 +83,8 @@ void MCMC::Impl::import_setup(const Rcpp::List &input)
     }
     catch (const std::exception &e)
     {
-        tools::error({"While importing setup definitions:",
-                      std::string(e.what())});
+        tools::error("While importing setup definitions:\n" +
+                     std::string(e.what()));
     }
     build_setup();
 }
@@ -99,8 +99,8 @@ void MCMC::Impl::import_dataset(const Rcpp::DataFrame &input)
     }
     catch (const std::exception &e)
     {
-        tools::error({"While reading dataset:",
-                      std::string(e.what())});
+        tools::error("While reading dataset:\n" +
+                     std::string(e.what()));
     }
     build_dataset(datatable);
 }
@@ -115,8 +115,8 @@ void MCMC::Impl::import_datalist(const Rcpp::DataFrame &input)
     }
     catch (const std::exception &e)
     {
-        tools::error({"While reading datalist:",
-                      std::string(e.what())});
+        tools::error("While reading datalist:\n" +
+                     std::string(e.what()));
     }
     build_datalist(datatable);
 }
@@ -131,8 +131,8 @@ void MCMC::Impl::import_multiplicity(const Rcpp::DataFrame &input)
     }
     catch (const std::exception &e)
     {
-        tools::error({"While reading multiplicity:",
-                      std::string(e.what())});
+        tools::error("While reading multiplicity:" +
+                     std::string(e.what()));
     }
     build_multiplicity(multipltable);
 }
@@ -146,8 +146,8 @@ void MCMC::Impl::import_param(const Rcpp::DataFrame &input)
     }
     catch (const std::exception &e)
     {
-        tools::error({"While reading parameter definitions:",
-                      std::string(e.what())});
+        tools::error("While reading parameter definitions:" +
+                     std::string(e.what()));
     }
     build_param();
 }
@@ -161,8 +161,8 @@ void MCMC::Impl::import_augm(const Rcpp::DataFrame &input)
     }
     catch (const std::exception &e)
     {
-        tools::error({"While reading augmented definitions:",
-                      std::string(e.what())});
+        tools::error("While reading augmented definitions:" +
+                     std::string(e.what()));
     }
     build_augm();
 }
@@ -176,8 +176,8 @@ void MCMC::Impl::import_infec_profile(const Rcpp::List &input)
     }
     catch (const std::exception &e)
     {
-        tools::error({"While importing infectivity profile definitions:",
-                      std::string(e.what())});
+        tools::error("While importing infectivity profile definitions:\n" +
+                     std::string(e.what()));
     }
     _infec_profile.build();
 }
@@ -264,8 +264,8 @@ Rcpp::DataFrame MCMC::Impl::export_param() const
     }
     catch (const std::exception &e)
     {
-        tools::error({"While exporting parameter definitions:",
-                      std::string(e.what())});
+        tools::error("While exporting parameter definitions:\n" +
+                     std::string(e.what()));
     }
     return DataFrame();
 }
@@ -295,17 +295,17 @@ Rcpp::DataFrame MCMC::Impl::export_dataset()
         for (size_t s = 0; s < data_headers.size(); ++s)
             df_dbl.emplace_back(n_rows);
 
-        for (const Household &house : house_vector)
-            for (indiv i = 0; i < house.size(); ++i)
+        for (Household &house : house_vector)
+            for (Individual &member : house)
             {
-                df_index[r] = house.id(i);
+                df_index[r] = member.id();
                 df_house_index[r] = house.house_id();
-                df_status[r] = house.status(i);
+                df_status[r] = member.status();
 
                 size_t col = 0;
                 for (const dataID &d : data_headers)
                 {
-                    double x = house.data(i, d);
+                    double x = member.data(d);
                     df_dbl[col++][r] = tools::is_na(x) ? NA_REAL : x;
                 }
 
@@ -326,8 +326,8 @@ Rcpp::DataFrame MCMC::Impl::export_dataset()
     }
     catch (const std::exception &e)
     {
-        tools::error({"While exporting dataset:",
-                      std::string(e.what())});
+        tools::error("While exporting dataset:\n" +
+                     std::string(e.what()));
     }
     return DataFrame();
 }
@@ -377,8 +377,8 @@ Rcpp::DataFrame MCMC::Impl::export_data_report() const
     }
     catch (const std::exception &e)
     {
-        tools::error({"While exporting dataset report:",
-                      std::string(e.what())});
+        tools::error("While exporting dataset report:\n" +
+                     std::string(e.what()));
     }
     return DataFrame();
 }
@@ -412,8 +412,8 @@ Rcpp::DataFrame MCMC::Impl::export_house_size_report() const
     }
     catch (const std::exception &e)
     {
-        tools::error({"While exporting household size report:",
-                      std::string(e.what())});
+        tools::error("While exporting household size report:\n" +
+                     std::string(e.what()));
     }
     return DataFrame();
 }
@@ -439,8 +439,7 @@ Rcpp::NumericMatrix MCMC::Impl::export_traces() const
 
         // augmented variable of id trace
         if (!smpl_augm_value.empty())
-            for (const augmID &a : augm_list_infer + augm_list_func)
-                headers += {a + "_id_" + setup_id_trace};
+            headers += augm_list_infer + augm_list_func;
 
         // multiple chains
         if (setup_n_chains > 1)
@@ -487,8 +486,8 @@ Rcpp::NumericMatrix MCMC::Impl::export_traces() const
     }
     catch (const std::exception &e)
     {
-        tools::error({"While exporting MCMC traces:",
-                      std::string(e.what())});
+        tools::error("While exporting MCMC traces:\n" +
+                     std::string(e.what()));
     }
     return NumericMatrix();
 }
@@ -530,8 +529,8 @@ Rcpp::NumericMatrix MCMC::Impl::export_house_loglike_mtx() const
     }
     catch (const std::exception &e)
     {
-        tools::error({"While exporting household loglikelihood matrix:",
-                      std::string(e.what())});
+        tools::error("While exporting household loglikelihood matrix:\n" +
+                     std::string(e.what()));
     }
     return NumericMatrix();
 }
@@ -547,7 +546,7 @@ Rcpp::List MCMC::Impl::showcase_infec_profile(int n_bins) const
 
     try
     {
-        // check the call makes sense 
+        // check the call makes sense
         // UPDATE: it would be nace by selecting id_trace...
         if (_infec_profile.is_augmented())
             throw std::length_error(
@@ -592,8 +591,8 @@ Rcpp::List MCMC::Impl::showcase_infec_profile(int n_bins) const
     }
     catch (const std::exception &e)
     {
-        tools::error({"While exporting infectivity profile:",
-                      std::string(e.what())});
+        tools::error("While exporting infectivity profile:\n" +
+                     std::string(e.what()));
     }
     return List();
 }
@@ -658,8 +657,8 @@ void MCMC::Impl::read_setup(const std::string &f)
     }
     catch (const std::exception &e)
     {
-        tools::error({"While reading setup definitions:",
-                      std::string(e.what())});
+        tools::error("While reading setup definitions:" +
+                     std::string(e.what()));
     }
     build_setup();
 }
@@ -673,8 +672,8 @@ void MCMC::Impl::read_infec_profile(const std::string &f)
     }
     catch (const std::exception &e)
     {
-        tools::error({"While reading infectivity profile definitions:",
-                      std::string(e.what())});
+        tools::error("While reading infectivity profile definitions:" +
+                     std::string(e.what()));
     }
     _infec_profile.build();
 }
@@ -688,8 +687,8 @@ void MCMC::Impl::read_param(const std::string &f)
     }
     catch (const std::exception &e)
     {
-        tools::error({"While reading parameter definitions:",
-                      std::string(e.what())});
+        tools::error("While reading parameter definitions:\n" +
+                     std::string(e.what()));
     }
     build_param();
 }
@@ -703,8 +702,8 @@ void MCMC::Impl::read_augm(const std::string &f)
     }
     catch (const std::exception &e)
     {
-        tools::error({"While reading augmented definitions:",
-                      std::string(e.what())});
+        tools::error("While reading augmented definitions:\n" +
+                     std::string(e.what()));
     }
     build_augm();
 }
@@ -719,8 +718,8 @@ void MCMC::Impl::read_dataset(const std::string &f)
     }
     catch (const std::exception &e)
     {
-        tools::error({"While reading dataset:",
-                      std::string(e.what())});
+        tools::error("While reading dataset:\n" +
+                     std::string(e.what()));
     }
     build_dataset(datatable);
 }
@@ -735,8 +734,8 @@ void MCMC::Impl::read_datalist(const std::string &f)
     }
     catch (const std::exception &e)
     {
-        tools::error({"While reading datalist:",
-                      std::string(e.what())});
+        tools::error("While reading datalist:\n" +
+                     std::string(e.what()));
     }
     build_datalist(input);
 }
@@ -751,8 +750,8 @@ void MCMC::Impl::read_multiplicity(const std::string &f)
     }
     catch (const std::exception &e)
     {
-        tools::error({"While reading multiplicity:",
-                      std::string(e.what())});
+        tools::error("While reading multiplicity:\n" +
+                     std::string(e.what()));
     }
     build_multiplicity(datatable);
 }
@@ -950,7 +949,7 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
             // augmented variables
             if (is_augm_sample() && (!tools::is_na(setup_id_trace)))
                 for (const augmID &a : augm_list_infer + augm_list_func)
-                    inferstate_ofstream << C_DELIM << a + "_id_" + setup_id_trace;
+                    inferstate_ofstream << C_DELIM << a;
 
             // header chain
             if (setup_n_chains > 1)
@@ -1028,21 +1027,21 @@ void MCMC::Impl::_aux_print_dataset_init_(const std::string &f)
 }
 
 /* Print all augmented variables of each individual */
-void MCMC::Impl::_aux_print_dataset_update_(const Household &house)
+void MCMC::Impl::_aux_print_dataset_update_(Household &house)
 {
     if (aux_data_ofstream.is_open())
-        for (indiv i = 0; i < house.size(); ++i)
+        for (Individual &member : house)
         {
-            aux_data_ofstream << house.id(i)
+            aux_data_ofstream << member.id()
                               << C_DELIM << house.house_id()
-                              << C_DELIM << house.status(i);
+                              << C_DELIM << member.status();
             for (const dataID &d : data_headers)
-                aux_data_ofstream << C_DELIM << house.data(i, d);
+                aux_data_ofstream << C_DELIM << member.data(d);
 
             for (const augmID &a : augm_list_full)
-                if (house.status(i) == INFECTED_STATUS)
+                if (member.status() == INFECTED_STATUS)
                 {
-                    double x = house.augm(i, a);
+                    double x = member.augm(a);
                     aux_data_ofstream << C_DELIM
                                       << (tools::is_na(x) ? HOUSEPI_NA_DOUBLE : x);
                 }

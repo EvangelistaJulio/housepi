@@ -70,25 +70,6 @@ Proposer::Proposer(std::shared_ptr<Distribution> distr,
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  Base Proposer - getter  /////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-const std::string Proposer::show_name() const { return this->_proposer_name; }
-double Proposer::get_arg(ushort argID) const { return (_distr_ptr->get_arg)(argID); }
-double Proposer::get_from_value() const { return _from_value; }
-bool Proposer::is_rule_start_from_zero() const { return _is_start_from_zero; }
-double Proposer::propose(rnd_gen &prng, double start) { return (this->*_do_propose)(prng, start); }
-double Proposer::logratio(double xold, double xnew) const { return (this->*_do_logratio)(xold, xnew); }
-double Proposer::rand(rnd_gen &prng) { return (_distr_ptr->rand)(prng); }
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  Base Proposer - setter  /////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-void Proposer::user_reset() {};
-void Proposer::set_rule_start_value(double x) { _from_value = x; }
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  Base Proposer - adaptation  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -361,7 +342,8 @@ double Variable::get() const { return (this->*_do_get)(); }
 const double *Variable::__get_pointer_default() const { return &_value; }
 const double *Variable::__get_pointer_func_return() const
 {
-    tools::error("Impossible to return pointer to function variable \"" + _variable_name + "\".");
+    throw std::runtime_error(
+        "Impossible to return pointer to function variable \"" + _variable_name + "\".");
     return nullptr;
 }
 const double *Variable::get_pointer() const { return (this->*_do_get_pointer)(); }
@@ -429,7 +411,7 @@ void Variable::__set_value_default(double x)
 void Variable::__set_value_func_error(double x)
 {
     UNUSED(x);
-    tools::error(
+    throw std::runtime_error(
         "Impossible to set value to function  \"" + _variable_name + "\".");
 }
 
@@ -494,7 +476,7 @@ void Variable::init_distr_reshaping()
     _distr_ptr->init_reshaping(_is_discrete);
     // check that non-constant variable has non-zero dimensional range
     if ((!_is_constant) && (_distr_ptr->get_min() == _distr_ptr->get_max()))
-        tools::error(
+        throw std::invalid_argument(
             "Degenerate range " + _distr_ptr->show_range() + " defined for non constant variable \"" + show_name() + "\".");
 }
 
@@ -615,7 +597,6 @@ const std::string Variable::show_distr_name() const { return _distr_ptr->show_na
 const std::string Variable::show_distr_arg_names() const { return _distr_ptr->show_arg_names(); }
 const std::string Variable::show_distr_arg_values() const { return _distr_ptr->show_arg_values(); }
 const std::string Variable::show_distr_summary() const { return _distr_ptr->show_summary(); }
-
 
 const std::string Variable::show_func_summary() const { return _func_ptr->show_summary(); }
 

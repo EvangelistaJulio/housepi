@@ -137,7 +137,7 @@ To just load template definitions you can use the method `$add_template_param()`
 For further information on the available options for the definition of the parameter priors and MCMC proposer rule, see the vignette [Bayesian MCMC options](bayesian_mcmc_options.html).
 
 For models requiring augmented variables, the definition procedure is analogous.
-We discuss data augmentation and an example in the vignettes [Data Augmentation](data_augmentation.html) and [Augment Onset Times](augment_onset_times.html).
+We discuss data augmentation and an example in the vignettes [Data Augmentation](data_augmentation.html) and [Augment Infection Times](augment_infection_times.html).
 
 # Inference
 

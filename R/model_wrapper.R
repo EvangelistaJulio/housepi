@@ -75,10 +75,8 @@ HousepiWrapper <- R6::R6Class(
       if (missing(value)) {
         # vector of regular expression to use for assertion
         regular_expr <- c(
-          # from : member.data("string") or member.data('string')
-          'member.data\\s*\\(\\s*["\'](.*?)["\']\\s*\\)',
-          # from : house.data(..., "string") or house.data(..., 'string')
-          'house.data\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']\\s*\\)'
+          # from : .data("string")
+          '.data\\s*\\(\\s*["\'](.*?)["\']'
         )
 
         # retrieve required data headers from regular expressions

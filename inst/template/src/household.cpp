@@ -29,11 +29,13 @@
 
 /* Individual constructor. */
 Individual::Individual(size_t index,
+					   indiv hhindex,
 					   const std::string &id,
 					   int status,
 					   const dataIDmap<double> &data)
 {
 	_index = index;
+	_hhindex = hhindex;
 	_id = id;
 	_status = (status < MISSING_STATUS) ? MISSING_STATUS : status;
 	_data_map = data;
@@ -151,6 +153,7 @@ Household::Household(const std::string &house_id, size_t H)
 	_index = H;
 	_house_multiplicity = 1;
 	_multiplicity_class = H;
+	_house_size = 0;
 }
 Household::~Household() = default;
 
@@ -189,22 +192,23 @@ void Household::assign_member(size_t index,
 	}
 
 	//----- emplace new individual -----//
-	_members.emplace_back(index, id, status, data);
+	_members.emplace_back(index, _house_size, id, status, data);
 	++_house_size;
 }
 
 /* Change_status of individual i to new status (without controls).
 	NOTE : this introduces augmented variables -> it requires RJMCMC in case of inference. */
-bool Household::change_status(indiv i, int new_status)
+bool Household::change_status(Individual &member, int new_status)
 {
-	Individual &this_indiv = _members[i];
-	int old_status = this_indiv.status();
+	int old_status = member.status();
 
 	if (new_status == old_status)
 		return false;
 
 	else
 	{
+		indiv i = member.hhindex();
+
 		if (old_status >= INFECTED_STATUS)
 		{
 			--_n_infec;
@@ -222,7 +226,7 @@ bool Household::change_status(indiv i, int new_status)
 		}
 		else
 			throw std::runtime_error(
-				"Unknown status \"" + std::to_string(old_status) + "\" for individual " + this_indiv.id() + ".");
+				"Unknown status \"" + std::to_string(old_status) + "\" for individual " + member.id() + ".");
 
 		if (new_status >= INFECTED_STATUS)
 		{
@@ -241,9 +245,9 @@ bool Household::change_status(indiv i, int new_status)
 		}
 		else
 			throw std::runtime_error(
-				"Unknown new status \"" + std::to_string(new_status) + "\" for individual " + this_indiv.id() + ".");
+				"Unknown new status \"" + std::to_string(new_status) + "\" for individual " + member.id() + ".");
 
-		this_indiv.set_status(new_status);
+		member.set_status(new_status);
 		return true;
 	}
 }
@@ -292,16 +296,6 @@ void Household::recover_loglike_value()
 {
 	_obs_loglike = _obs_buffer;
 	_augm_loglike = _augm_buffer;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  Household : setter  ///////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Set a value for the augmented variable. */
-void Household::set_augm_value(indiv i, const augmID &a, double x)
-{
-	_members[i].get_augm_variable(a).set_value(x);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

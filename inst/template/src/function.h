@@ -240,8 +240,9 @@ public:
     //===== GETTER =====//
     //==================//
 
-    bool valid_option(const std::string &opt) const { return contains(_options, opt); }
+    const std::string &name() const { return _name; }
     const str_vec &get_options() const { return _options; }
+    virtual bool valid_option(const std::string &opt) { return contains(_options, opt); }
     virtual std::shared_ptr<Function> get(const std::string &opt) const = 0;
 
 protected:
@@ -267,20 +268,7 @@ public:
             _options += r->get_options();
     }
 
-    std::shared_ptr<Function> get(const std::string &opt) const override final
-    {
-        if (tools::is_na(opt))
-            return std::make_shared<Function>();
-        else
-            for (const auto &r : _registries)
-                if (r->valid_option(opt))
-                    return r->get(opt);
-
-        throw std::invalid_argument(
-            "Unknown " + _name + " \"" + opt + "\"." + tools::find_closest(opt, _options));
-
-        return nullptr;
-    }
+    std::shared_ptr<Function> get(const std::string &opt) const override final;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -300,13 +288,13 @@ public:
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////  TranscendentalRegistry : class  ////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
-
+    
 class TranscendentalRegistry : public FuncRegistry
 {
 public:
     TranscendentalRegistry()
-        : FuncRegistry("algebraic",
-                       {"pow", "exp", "log"}) {}
+        : FuncRegistry("transcendental",
+                       {"pow", "sqrt", "exp", "log", "cos", "sin"}) {}
 
     std::shared_ptr<Function> get(const std::string &name) const override final;
 };

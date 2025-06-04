@@ -3,8 +3,6 @@ library(testthat)
 test_that("Model class inconsistent calls", {
   # blank household model object
   hhmodel <- HouseholdModel$new("blank")
-  # cleanup at end of test
-  withr::defer(rm(hhmodel))
 
   # data
   expect_error(hhmodel$dataset)
@@ -26,15 +24,13 @@ test_that("Model class blank calls", {
 
   # blank household model object
   hhmodel <- HouseholdModel$new("blank")
-  # cleanup at end of test
-  withr::defer(rm(hhmodel))
 
   # templates
   expect_warning(hhmodel$load_param_template())
   expect_warning(hhmodel$load_augm_template())
 
   # zero loglikelihood
-  x <- hhmodel$loglikelihood()
+  expect_warning(x <- hhmodel$loglikelihood())
   expect_equal(x, 0)
 
   # blank simulation
@@ -43,12 +39,16 @@ test_that("Model class blank calls", {
 
 test_that("Numerical recipes and distributions are correct", {
   hhmodel <- housepi::HouseholdModel$new("blank")
-  withr::defer(rm(hhmodel))
+
+  # test that augmented infectivity profile is detected
+  hhmodel$add_infec_profile(
+    name = "beta", args = c(shape1 = "shape1@A", shape2 = "shape2@A"))
+  expect_error(hhmodel$showcase_infec_profile())
 
   # test regularised incomplete beta function #
   p <- list(shape1 = 0.02, shape2 = 105.6)
   hhmodel$add_infec_profile(name = "beta",
-                        args = c(shape1 = p$shape1, shape2 = p$shape2))
+                            args = c(shape1 = p$shape1, shape2 = p$shape2))
   profile <- hhmodel$showcase_infec_profile()$profile
   # instantaneous
   y <- stats::dbeta(profile$gentime, shape1 = p$shape1, shape2 = p$shape2)
@@ -90,14 +90,13 @@ test_that("Numerical recipes and distributions are correct", {
 test_that("Chain binomial models are coherent", {
   # loglikelihood from chain binomial model
   hhmodel1 <- HouseholdModel$new("chain-binomial")
-  withr::defer(rm(hhmodel1))
+
   hhmodel1$load_param_list(alpha = 0.15, beta = 0.22)
   ll1 <- hhmodel1$loglikelihood(housepi::survey)
 
   # loglikelihood from heterogeneous chain binomial model
   # with homogenous rates
   hhmodel2 <- HouseholdModel$new("chain-binomial-heterogeneous")
-  withr::defer(rm(hhmodel2))
 
   hhmodel2$load_param_list(alpha = 0.15, beta = 0.22)
   ll2 <- hhmodel2$loglikelihood(housepi::survey)
@@ -115,13 +114,39 @@ test_that("Augmentation example on incubation from delays is coherent", {
 
   # generate an instance of the household model class
   hhmodel <- HouseholdModel$new("augm-example")
-  withr::defer(rm(hhmodel))
   hhmodel$load_augm_list(
     proba = list(func = "gamma",
                  func_args = c(x = "ip@D", shape = shape, scale = scale)),
-    log_proba = "log(proba@A)"
+    log_proba = "log(proba)"
     )
 
-  expect_equal(hhmodel$loglikelihood(dataset), exact)
+  # warning for no structure
+  expect_warning(x <- hhmodel$loglikelihood(dataset))
+  expect_equal(x, exact)
 })
 
+test_that("Augmented function example returns expected distribution", {
+  hhmodel <- housepi::HouseholdModel$new("blank")
+
+  # define Box-Muller transformation
+  hhmodel$load_augm_list(
+    norm = list(model = "norm"),
+    u1 = list(model = "unif"),
+    u2 = list(model = "unif"),
+    log_u1 = "log(u1)",
+    two_log_u1 = "2 * log_u1",
+    m_two_log_u1 = "0 - two_log_u1",
+    sqrt_m_two_log_u1 = "sqrt(m_two_log_u1)",
+    two_pi_u2 = "6.283185 * u2",
+    cos_two_pi_u2 = "cos(two_pi_u2)",
+    z0 = "sqrt_m_two_log_u1 * cos_two_pi_u2"
+  )
+
+  hhmodel$infer(n_steps = 1e5, progress = 0)
+  sample_norm <- hhmodel$traces[, "norm"]
+  sample_boxmul <- hhmodel$traces[, "z0"]
+
+  expect_gt(stats::ks.test(sample_norm, sample_boxmul)$p.value, 0.05)
+  expect_gt(stats::t.test(sample_norm, sample_boxmul)$p.value, 0.05)
+  expect_gt(stats::var.test(sample_norm, sample_boxmul)$p.value, 0.05)
+})

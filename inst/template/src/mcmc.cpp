@@ -43,8 +43,8 @@ double MCMC::param(const parID &p) const { return pImpl->get_param(p); }
 const double *MCMC::param_pointer(const parID &p) const { return pImpl->get_param_pointer(p); }
 
 //===== AUGMENTED VARIABLES =====//
-void MCMC::assign_all_augm(Household &house, indiv i) { pImpl->assign_all_augm(house.get_member(i)); }
-void MCMC::clear_all_augm(Household &house, indiv i) { pImpl->clear_all_augm(house.get_member(i)); }
+void MCMC::assign_all_augm(Individual &member) { pImpl->assign_all_augm(member); }
+void MCMC::clear_all_augm(Individual &member) { pImpl->clear_all_augm(member); }
 
 //===== EXTRA ATTRIBUTES =====//
 
@@ -127,8 +127,8 @@ void MCMC::build_all_rates()
     }
     catch (const std::exception &e)
     {
-        tools::error({"While building group and contact rates:",
-                      std::string(e.what())});
+        tools::error("While building group and contact rates:\n" +
+                     std::string(e.what()));
     }
 }
 
@@ -306,7 +306,7 @@ void MCMC::infer()
                                   pImpl->fmt_progtxt(), pImpl->setup_progress);
 
         pImpl->run_monte_carlo(progressbar); // run Monte Carlo
-        progressbar.end();              // close progress bar
+        progressbar.end();                   // close progress bar
     }
     catch (std::exception &e)
     {
@@ -546,22 +546,22 @@ Rcpp::DataFrame MCMC::simulate()
                 simulate_single_house(house);
 
                 // store simulation
-                for (indiv i = 0; i < house.size(); ++i)
+                for (Individual &member : house)
                 {
-                    df_index[row] = house.id(i);
+                    df_index[row] = member.id();
                     df_house_index[row] = house.house_id();
-                    df_status[row] = house.status(i);
+                    df_status[row] = member.status();
 
                     size_t col = 0;
                     for (const dataID &d : _aux_data_headers)
                     {
-                        double x = house.data(i, d);
+                        double x = member.data(d);
                         df_dbl[col++][row] = tools::is_na(x) ? NA_REAL : x;
                     }
 
                     for (const augmID &a : pImpl->augm_list_full)
                     {
-                        double x = house.augm(i, a);
+                        double x = member.augm(a);
                         df_dbl[col++][row] = tools::is_na(x) ? NA_REAL : x;
                     }
 
@@ -570,8 +570,9 @@ Rcpp::DataFrame MCMC::simulate()
             }
             catch (const std::exception &e)
             {
-                tools::error({"While simulating house " + get_household(H).house_id() + " :",
-                              e.what()});
+                tools::error("While simulating house " +
+                             get_household(H).house_id() + " :\n" +
+                             std::string(e.what()));
             }
 
         // close progress bar
@@ -630,8 +631,8 @@ Rcpp::List MCMC::estimate_evidence(const std::string &scheme,
     }
     catch (const std::exception &e)
     {
-        tools::error({"While estimating evidence with power posteriors:",
-                      std::string(e.what())});
+        tools::error("While estimating evidence with power posteriors:\n" +
+                     std::string(e.what()));
     }
     return List();
 }
@@ -660,8 +661,8 @@ void MCMC::print_simulated_dataset(const std::string &pathtofile)
             }
             catch (const std::exception &e)
             {
-                tools::error({"While simulating house " + get_household(H).house_id() + " :",
-                              e.what()});
+                tools::error("While simulating house " + get_household(H).house_id() + " :\n" +
+                             e.what());
             }
 
         // close progress bar
@@ -704,8 +705,8 @@ void MCMC::print_evidence(const std::string &scheme, ulong n_rungs)
     }
     catch (const std::exception &e)
     {
-        tools::error({"While estimating evidence with power posteriors:",
-                      std::string(e.what())});
+        tools::error("While estimating evidence with power posteriors:\n" +
+                     std::string(e.what()));
     }
 }
 

@@ -69,8 +69,9 @@ const std::string CONTACT_RATE = "Contact";      // contact rate
 const std::string MISSING_RATE = "MISSING_RATE"; // missing rate
 
 // auxiliary infectivity profile
-const std::string AUX_IP_GEN_TIME = "__gen_time__";           // augmented generation time
-const std::string AUX_IP_INST_PROFILE = "__infec_profile__"; // augmented infectivity profile
+const std::string AUX_IP_GEN_TIME = "__gen_time__";         // augmented generation time
+const std::string AUX_IP_INST_PROFILE = "__profile_inst__"; // augmented instantaneous infectivity profile
+const std::string AUX_IP_CUMUL_PROFILE = "__profile_cumul__"; // augmented cumulative infectivity profile
 
 // constants
 constexpr unsigned DEFAULT_MAX_SIZE = 30;    // default size for lookup table
@@ -131,7 +132,7 @@ template <typename T>
 using matrix = std::vector<std::vector<T>>;
 
 //----- Aliases for improved readibility -----//
-using indiv = std::size_t;
+using indiv = unsigned short int;
 
 using __access_ID__ = std::string;
 
@@ -218,7 +219,6 @@ namespace tools
 
     // print error message to stderr
     void error(const std::string &txt);
-    void error(const std::vector<std::string> &txt);
 
     // convert to upper\lower case
     const std::string stolower(const std::string s);

@@ -123,13 +123,15 @@ void MCMC::Impl::InfecProfile::append_augm_definition()
 {
 	if (is_augmented())
 		for (const auto &pair : _augm_infec_profile_deflist)
-			pImpl._augm_deftable.at(pair.first).push_back(pair.second);
+		{
+			auto &aux = pImpl._augm_deftable.at(pair.first);
+			aux.insert(aux.end(), pair.second.begin(), pair.second.end());
+		}
 }
 
 /* Store values of the infectivity profile. */
 void MCMC::Impl::InfecProfile::init_lookup()
 {
-	// FIXME: add condition || (it's generic)
 	if (profile->is_discrete())
 	{
 		if (tools::is_na(profile->get_max()))
@@ -207,8 +209,8 @@ void MCMC::Impl::InfecProfile::build()
 	}
 	catch (const std::exception &e)
 	{
-		tools::error({"While building infectivity profile definition:",
-					  std::string(e.what())});
+		tools::error("While building infectivity profile:\n" +
+					 std::string(e.what()));
 	}
 }
 
@@ -216,6 +218,7 @@ void MCMC::Impl::InfecProfile::build()
 void MCMC::Impl::InfecProfile::_build_generic()
 {
 	bool is_discrete = true;
+	_augm_infec_profile_deflist.clear();
 
 	//----- Name -----//
 	if ((deflist.count("name")) && (!tools::is_na(deflist.at("name"))))
@@ -280,10 +283,6 @@ void MCMC::Impl::InfecProfile::_build_augmented()
 {
 	std::string func_name;
 
-	// FLAG
-	throw std::runtime_error("Still under development!");
-	// FLAG-END
-
 	profile = nullptr;
 	_do_inst = &InfecProfile::__error;
 	_do_cumul = &InfecProfile::__error;
@@ -293,25 +292,26 @@ void MCMC::Impl::InfecProfile::_build_augmented()
 	else
 		throw std::invalid_argument("Missing name.");
 
-	for (auto &c : pImpl.augm_file_headers)
-		_augm_infec_profile_deflist.emplace(c, HOUSEPI_NA_STRING);
-	_augm_infec_profile_deflist.at("const") = tools::truth(false);
-	_augm_infec_profile_deflist.at("init_rand") = tools::truth(false);
+	// initialize for generation time, instantaneous and cumulative profiles
+	for (auto &entry : pImpl.augm_file_headers)
+		_augm_infec_profile_deflist.emplace(entry, str_vec(3, HOUSEPI_NA_STRING));
 
-	// FIXME gentime to be adjust
+	_augm_infec_profile_deflist.at("const") = str_vec({tools::truth(true)}) + str_vec(2, tools::truth(false));
+	_augm_infec_profile_deflist.at("init_rand") = str_vec(3, tools::truth(false));
 
 	// match infectivity profile and augmented variable definition
-	// FIXME how about cumulative?
-	const dict_str_str matcher = {{"name", AUX_IP_INST_PROFILE},
-								  {"func", "name"},
-								  {"farg_key", "arg_key"},
-								  {"farg_val", "arg_val"},
-								  {"farg_at", "arg_at"},
-								  {"discr", "discr"},
-								  {"min", "min"},
-								  {"min_at", "min_at"},
-								  {"max", "max"},
-								  {"max_at", "max_at"}};
+	const dict_str_vec matcher = {
+		{"name", str_vec({AUX_IP_GEN_TIME, AUX_IP_INST_PROFILE, AUX_IP_CUMUL_PROFILE})},
+		{"func", str_vec({HOUSEPI_NA_STRING, "d" + func_name, "p" + func_name})},
+		{"farg_key", str_vec({HOUSEPI_NA_STRING}) + str_vec(2, deflist.at("arg_key"))},
+		{"farg_val", str_vec({HOUSEPI_NA_STRING}) + str_vec(2, deflist.at("arg_val"))},
+		{"farg_at", str_vec({HOUSEPI_NA_STRING}) + str_vec(2, deflist.at("arg_at"))},
+		{"discr", str_vec(3, deflist.at("discr"))},
+		{"min", str_vec({HOUSEPI_NA_STRING}) + str_vec(2, deflist.at("min"))},
+		{"min_at", str_vec({HOUSEPI_NA_STRING}) + str_vec(2, deflist.at("min_at"))},
+		{"max", str_vec({HOUSEPI_NA_STRING}) + str_vec(2, deflist.at("max"))},
+		{"max_at", str_vec({HOUSEPI_NA_STRING}) + str_vec(2, deflist.at("max_at"))}};
+
 	for (auto &pair : matcher)
 		_augm_infec_profile_deflist.at(pair.first) = pair.second;
 }
@@ -362,7 +362,6 @@ double MCMC::Impl::InfecProfile::__lookup_cumul(Individual &member, double t)
 		return _lookup_cumul.at(static_cast<size_t>(t));
 }
 
-
 /* Value of the instantaneous infectivity profile. */
 double MCMC::Impl::InfecProfile::__augm_inst(Individual &member, double t)
 {
@@ -374,7 +373,7 @@ double MCMC::Impl::InfecProfile::__augm_inst(Individual &member, double t)
 double MCMC::Impl::InfecProfile::__augm_cumul(Individual &member, double t)
 {
 	member.get_augm_variable(AUX_IP_GEN_TIME).set_value(t);
-	return HOUSEPI_NA_DOUBLE; // FIXME: how to enforce cumulative?
+	return member.augm(AUX_IP_CUMUL_PROFILE);
 }
 
 /* Error method. */
@@ -408,6 +407,7 @@ void MCMC::Impl::update_infec_profile()
 /* If infectivity profile is a lookup table, recover its buffered values. */
 void MCMC::Impl::recover_infec_profile()
 {
+	// UPDATE: this should not be recoverd if constant for example...
 	if (_infec_profile.is_lookup())
 		_infec_profile.recover_lookup();
 }

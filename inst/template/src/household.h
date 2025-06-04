@@ -36,16 +36,27 @@
 class Individual
 {
 public:
+	//=======================//
 	//===== CONSTRUCTOR =====//
+	//=======================//
+
 	Individual(size_t index = 0,
+			   indiv hhindex = 0,
 			   const std::string &id = HOUSEPI_NA_STRING,
 			   int status = MISSING_STATUS,
 			   const dataIDmap<double> &data = {});
 	~Individual();
 
+	bool operator==(const Individual &other) const { return _index == other._index; }
+	bool operator!=(const Individual &other) const { return !(*this == other); }
+
+	//==================//
 	//===== GETTER =====//
+	//==================//
+
 	const std::string &id() const { return _id; }
 	size_t index() const { return _index; }
+	indiv hhindex() const { return _hhindex; }
 	int status() const { return _status; }
 
 	double data(const dataID &d) const { return _data_map.at(d); }
@@ -56,8 +67,13 @@ public:
 
 	double get_augm_model_loglike() const;
 
+	//==================//
 	//===== SETTER =====//
+	//==================//
+
 	void set_status(int s) { _status = s; }
+
+	void set_augm_value(const augmID &a, double x) { _augm_map.at(a).set_value(x); }
 	void assign_pointer_to_datalist(dataIDmap<dbl_vec> *y) { _datalist_ptr = y; }
 	void clear_augm(const augmID &a) { _augm_map[a] = Variable(); }
 	void assign_all_group_rates(const rateIDmapvec<const double *> &ptrs);
@@ -85,7 +101,8 @@ private:
 	};
 
 	std::string _id = HOUSEPI_NA_STRING; // user id
-	size_t _index = 0;					 // internal index
+	size_t _index = 0;					 // housepi internal index
+	indiv _hhindex = 0;					 // household relative index
 	int _status = MISSING_STATUS;		 // status of the individual
 
 	// NOTE: I am forced to store numerical variables
@@ -131,8 +148,8 @@ public:
 	// iterator
 	class ViewIterator
 	{
-		std::vector<Individual> *members_ptr;
-		std::vector<indiv> *indices_ptr;
+		std::vector<Individual> &members_ptr;
+		std::vector<indiv> &indices;
 		size_t pos;
 
 	public:
@@ -142,13 +159,13 @@ public:
 		using pointer = Individual *;
 		using reference = Individual &;
 
-		ViewIterator(std::vector<Individual> *m,
-					 std::vector<size_t> *i,
+		ViewIterator(std::vector<Individual> &m,
+					 std::vector<indiv> &i,
 					 size_t p)
-			: members_ptr(m), indices_ptr(i), pos(p) {}
+			: members_ptr(m), indices(i), pos(p) {}
 
-		reference operator*() const { return (*members_ptr)[(*indices_ptr)[pos]]; }
-		pointer operator->() const { return &(*members_ptr)[(*indices_ptr)[pos]]; }
+		reference operator*() const { return members_ptr[indices[pos]]; }
+		pointer operator->() const { return &members_ptr[indices[pos]]; }
 
 		ViewIterator &operator++()
 		{
@@ -169,14 +186,14 @@ public:
 	// range
 	struct View
 	{
-		std::vector<Individual> *members;
-		std::vector<indiv> *indices;
+		std::vector<Individual> &members;
+		std::vector<indiv> &indices;
 
-		View(std::vector<Individual> *m, std::vector<indiv> *i)
+		View(std::vector<Individual> &m, std::vector<indiv> &i)
 			: members(m), indices(i) {}
 
 		ViewIterator begin() { return {members, indices, 0}; }
-		ViewIterator end() { return {members, indices, indices->size()}; }
+		ViewIterator end() { return {members, indices, indices.size()}; }
 	};
 
 	//==================//
@@ -186,13 +203,10 @@ public:
 	// Individual Getter
 	const std::string &id(indiv i) const { return _members[i].id(); }
 	size_t index(indiv i) const { return _members[i].index(); }
+	int status(indiv i) const { return _members[i].status(); }
 	Individual &get_member(indiv i) { return _members[i]; }
 
-	int status(indiv i) const { return _members[i].status(); }
-	double data(indiv i, const dataID &d) const { return _members[i].data(d); }
-	double group_rate(indiv i, const rateID &r) const { return _members[i].group_rate(r); }
 	double contact_rate(indiv from, indiv to) const { return *_contact_rates[from][to]; }
-	double augm(indiv i, const augmID &a) const { return _members[i].augm(a); }
 
 	// Household Getter
 	const std::string &house_id() const { return _house_id; }
@@ -207,9 +221,9 @@ public:
 	const std::vector<indiv> &get_healthy_status_hhindexes() const { return _healthy_list; }
 	const std::vector<indiv> &get_missing_status_hhindexes() const { return _missing_list; }
 
-	View infected() { return View(&_members, &_infec_list); }
-	View healthy() { return View(&_members, &_healthy_list); }
-	View missing() { return View(&_members, &_infec_list); }
+	View infected() { return View(_members, _infec_list); }
+	View healthy() { return View(_members, _healthy_list); }
+	View missing() { return View(_members, _infec_list); }
 
 	ulong multiplicity() const { return _house_multiplicity; }
 	size_t multiplicity_class_index() const { return _multiplicity_class; }
@@ -218,16 +232,15 @@ public:
 	//==================//
 	//===== SETTER =====//
 	//==================//
-	
+
 	void set_multiplicity(ulong m, size_t class_idx);
 	void assign_member(size_t index,
 					   const std::string &id,
 					   int status,
 					   const dataIDmap<double> &data);
-	bool change_status(indiv i, int new_status);
+	bool change_status(Individual &member, int new_status);
+	bool change_status(indiv i, int new_status) { return change_status(_members[i], new_status); }
 	void assign_contact_rate(indiv from, indiv to, const double *x);
-
-	void set_augm_value(indiv i, const augmID &a, double x);
 
 	//============================//
 	//===== EXTRA ATTRIBUTES =====//
@@ -272,7 +285,7 @@ public:
 
 private:
 	std::string _house_id = HOUSEPI_NA_STRING; // user house id
-	size_t _index = -1;						   // index of house
+	size_t _index = -1;						   // housepi internal index
 	ushort _house_size = 0;					   // n. of house members
 	ulong _house_multiplicity = 1;			   // n. of equivalent houses
 	size_t _multiplicity_class = -1;		   // index of multiplicity class
@@ -283,7 +296,7 @@ private:
 	ushort _n_healthy = 0; // n. memebers healthy status
 	ushort _n_missing = 0; // n. members missing status
 
-	// wheter members correspond to a given status or not
+	// list of members for each status
 	std::vector<indiv> _infec_list = {};
 	std::vector<indiv> _healthy_list = {};
 	std::vector<indiv> _missing_list = {};
