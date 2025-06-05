@@ -8,7 +8,7 @@ test_that("Model class inconsistent calls", {
   expect_error(hhmodel$dataset)
   # traces
   expect_error(hhmodel$traces)
-  expect_error(hhmodel$traces_results)
+  expect_error(hhmodel$estimates)
 
   # household traces
   expect_error(hhmodel$loo())

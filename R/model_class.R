@@ -466,16 +466,16 @@ HouseholdModel <- R6::R6Class(
       stop_h("'traces_no_loglike' is read only.")
     },
 
-    #' @field traces_results `data.frame`\cr
-    #' Results extracted from the traces of last inference.
-    traces_results = function(value) {
+    #' @field estimates `data.frame`\cr
+    #' Estimates from the posterior traces of the last inference.
+    estimates = function(value) {
       if (missing(value)) {
-        return(retrieve_traces_results(
+        return(estimate_from_traces(
           private$.model$traces_no_loglike,
           cri_level = private$.cri_level
         ))
       }
-      stop_h("'traces_results' is read only.")
+      stop_h("'estimates' is read only.")
     },
 
     #' @field cri_level `double(1)`\cr

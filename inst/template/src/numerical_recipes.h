@@ -112,7 +112,7 @@ namespace numr
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     /*
-     * FIXME: To better reference this:
+     * UPDATE: To better reference this:
      * Press, Teukolsky, Vetterling, and Flannery
      * Numerical Recipes 3rd Edition: The Art of Scientific Computing
      */

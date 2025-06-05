@@ -89,7 +89,7 @@ hhmodel$load_augm_list(
       x = "incub_period",   # compute from individual augmented 'incub_period'
       mean = "mean@P",      # use model parameter 'mean'
       var = "var@P"         # and 'var'
-    ),   
+    ),
     max = 14                # truncation
   ),
 
@@ -130,9 +130,9 @@ We can do so by providing the `id` of individual augmented variables we want to 
 
 ```{r}
 # ask for the traces of augmented variables for individual with id 7
-hhmodel$infer(dataset = dataset, n_steps = 10000, n_burnin = 500, thin = 8,
-              n_chains = 4, n_adapt = 2000, seed = 4349, progress = FALSE, 
-              id_trace = 7) 
+hhmodel$infer(dataset = dataset, n_steps = 10000, n_burnin = 500, 
+              thin = 8, n_chains = 4, n_adapt = 3000, 
+              seed = 4349, id_trace = 7, progress = FALSE) 
 ```
 
 Note: The warning tells us that our dataset has no demographic structure: it will be interpreted as single individuals living in separate households.
@@ -161,17 +161,17 @@ hhmodel <- housepi::HouseholdModel$new("blank")
 # with model (default Gibbs rule)
 hhmodel$drop_all()
 hhmodel$add_augm(name = "move_with_model", model = "norm")
-bayesplot::mcmc_trace(hhmodel$infer(progress = FALSE, seed = 1)$traces)
+bayesplot::mcmc_trace(hhmodel$infer(seed = 1)$traces)
 
 # random walk starting from 0 (without model)
 hhmodel$drop_all()
 hhmodel$add_augm(name = "random_walk", value = 0, rule = "norm")
-bayesplot::mcmc_trace(hhmodel$infer(progress = FALSE, seed = 2)$traces)
+bayesplot::mcmc_trace(hhmodel$infer(seed = 2)$traces)
 
 # independent normal moves from value 87 (without model)
 hhmodel$drop_all()
 hhmodel$add_augm(name = "independent_moves", rule = "norm", from = 87)
-bayesplot::mcmc_trace(hhmodel$infer(progress = FALSE, seed = 3)$traces)
+bayesplot::mcmc_trace(hhmodel$infer(seed = 3)$traces)
 ```
 
 ### A Note on Inverse Temperatures
@@ -187,5 +187,5 @@ hhmodel$add_augm(name = "tempered", model = "norm", rule = "norm")
 ```
 
 ```{r, fig.width=6.5, fig.height=2, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
-bayesplot::mcmc_trace(hhmodel$infer(progress = FALSE, seed = 1, inv_temper = 0.01)$traces)
+bayesplot::mcmc_trace(hhmodel$infer(seed = 1, inv_temper = 0.01)$traces)
 ```

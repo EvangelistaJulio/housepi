@@ -51,8 +51,14 @@ public:
 				 double domain_min = HOUSEPI_NA_DOUBLE,
 				 double domain_max = HOUSEPI_NA_DOUBLE,
 				 bool is_min_open = true,
-				 bool is_max_open = true);
-	virtual ~Distribution();
+				 bool is_max_open = true)
+		// each distribution has extra argument "x" for return_value
+		: Function(name, arg_name + str_vec({"x"}),
+				   arg_value + dbl_vec({HOUSEPI_NA_DOUBLE}),
+				   domain_min, domain_max, is_min_open, is_max_open)
+	{
+	}
+	virtual ~Distribution() = default;
 
 	//==================//
 	//===== GETTER =====//
@@ -95,13 +101,22 @@ protected:
 	//==================//
 	//===== GETTER =====//
 	//==================//
-	// note: distribution specific virtual methods
-	virtual double raw_pdf(double x) const;
-	virtual double raw_cdf(double x) const;
-	virtual double raw_logpdf(double x) const;
-	virtual double raw_logratio(double xold, double xnew) const;
-	virtual void update_args();
-	virtual double raw_rand(rnd_gen &prng);
+
+	virtual void update_args() {};
+
+	virtual double raw_rand(rnd_gen &) { throw std::invalid_argument(
+		"Called undefined method \"rand\" of distribution \"" + show_name() + "\"."); }
+
+	virtual double raw_pdf(double) const { throw std::invalid_argument(
+		"Called undefined method \"pdf\" of distribution \"" + show_name() + "\"."); }
+
+	virtual double raw_cdf(double) const { throw std::invalid_argument(
+		"Called undefined method \"cdf\" of distribution \"" + show_name() + "\"."); }
+
+	virtual double raw_logpdf(double) const { throw std::invalid_argument(
+		"Called undefined method \"logpdf\" of distribution \"" + show_name() + "\"."); }
+
+	virtual double raw_logratio(double, double) const { return 0.; }
 
 private:
 	double _rejection_sampling(rnd_gen &prng, double (Distribution::*func)(rnd_gen &));

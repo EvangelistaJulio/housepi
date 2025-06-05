@@ -143,7 +143,7 @@ Finally, we can visualize the differences (e. g. for susceptibility) with respec
 library(ggplot2)
 
 # compare inferred susceptibility group rates
-results <- hhmodel$traces_results
+results <- hhmodel$estimates
 sus_res <- results[startsWith(results$name, "sus_"), ]
 
 ggplot(sus_res, aes(x = name, y = mean, color = "coral")) +

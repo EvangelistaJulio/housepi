@@ -48,21 +48,29 @@ public:
     //===== GETTER =====//
     //==================//
 
-    double get() const;
-    const double *get_pointer() const;
-    const std::shared_ptr<Function> get_function() const;
-    bool is_scalar() const;
-    bool is_pointer() const;
-    bool is_function() const;
-    const std::string show() const;
-    const std::string show_name() const;
+    /* Get attribute value */
+    double get() const { return (this->*_do_get)(); }
+    /* Get pointer to attribute value. */
+    const double *get_pointer() const { return (this->*_do_get_pointer)(); }
+    /* Get pointer to attribute function. */
+    const std::shared_ptr<Function> get_function() const { return _func_ptr; }
+
+    bool is_scalar() const { return (!is_pointer()) && (!is_function()); }
+    bool is_pointer() const { return _ptr_to_value != nullptr; }
+    bool is_function() const { return _func_ptr != nullptr; }
+
+    const std::string show() const { return tools::na_to_str(get()); }
+    const std::string show_name() const { return _attribute_name; }
 
     //==================//
     //===== SETTER =====//
     //==================//
 
-    void set(double x);
-    void set_name(const std::string &name);
+    /* Set attribute value. */
+    void set(double x) { (this->*_do_set)(x); }
+
+    void set_name(const std::string &name) { _attribute_name = name; }
+
     void assign_scalar(double x);
     void assign_pointer(const double *y);
     void assign_function(const std::shared_ptr<Function> f);
@@ -75,20 +83,33 @@ private:
 
     // Functional getter //
     double (Attribute::*_do_get)() const = &Attribute::__get_default;
-    double __get_default() const;
-    double __get_from_pointer() const;
+    /* Get attribute value from internal value. */
+    double __get_default() const { return _value; }
+    /* Get attribute value from external value. */
+    double __get_from_pointer() const { return *(_ptr_to_value); }
+    /* Get attribute value from external function. */
     double __get_from_function() const;
 
     // Functional pointer getter //
     const double *(Attribute::*_do_get_pointer)() const = &Attribute::__get_pointer_default;
-    const double *__get_pointer_default() const;
-    const double *__get_pointer_from_pointer() const;
-    const double *__get_pointer_error() const;
+    /* Get pointer to attribute value internal value. */
+    const double *__get_pointer_default() const { return &_value; }
+    /* Get pointer to attribute value from external value. */
+    const double *__get_pointer_from_pointer() const { return _ptr_to_value; }
+    /* Get pointer to attribute error. */
+    const double *__get_pointer_error() const { throw std::runtime_error(
+        "Cannot return a pointer to attribute \"" + show_name() + "\"."); }
 
     // Functional setter //
     void (Attribute::*_do_set)(double) = &Attribute::__set_default;
-    void __set_default(double x);
-    void __set_error(double x);
+    /* Set attribute internal value. */
+    void __set_default(double x) { _value = x; }
+    /* Set error.
+     * note: so far set_arg is only used for adaptation.
+     * Pointer and fucntion attributes can't be set, but just assigned.
+     */
+    void __set_error(double) { throw std::runtime_error(
+        "Non scalar attribute \"" + show_name() + "\" cannot be changed."); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -116,21 +137,30 @@ public:
     //===== GETTER =====//
     //==================//
 
-    virtual double return_value() const;
+    /* Virtual function to return a value */
+    virtual double return_value() const { return 0.; }
 
-    ushort n_args() const;
+    /* Number of arguments. */
+    ushort n_args() const { return _n_args; }
+
     ushort find(const std::string &arg_name) const;
     ushort assert_arg(const std::string &arg_name) const;
-    double get_arg(ushort i) const;
-    double get_min() const;
-    double get_max() const;
-    const double *get_ptr_to_arg(ushort i) const;
-    const double *get_ptr_to_min() const;
-    const double *get_ptr_to_max() const;
 
-    bool below(double x) const;
-    bool above(double x) const;
-    bool valid(double x) const;
+    double get_arg(ushort i) const { return _arguments[i].get(); }
+    double get_min() const { return _range_min.get(); }
+    double get_max() const { return _range_max.get(); }
+
+    const double *get_ptr_to_arg(ushort i) const { return _arguments[i].get_pointer(); }
+    const double *get_ptr_to_min() const { return _range_min.get_pointer(); }
+    const double *get_ptr_to_max() const { return _range_max.get_pointer(); }
+
+    /* Returns TRUE if value x is below range minimum. */
+    bool below(double x) const { return (this->*_do_below)(x); }
+    /* Returns TRUE if value x is above range maximum. */
+    bool above(double x) const { return (this->*_do_above)(x); }
+    /* Returns TRUE if value x is within range. */
+    bool valid(double x) const { return (this->*_do_valid)(x); }
+
     ushort which_valid_case() const;
 
     //=============================//
@@ -141,17 +171,24 @@ public:
     void assign_attr(const std::string &arg_name, bool is_arg, const double *ptr_to_value);
     void assign_attr(const std::string &arg_name, bool is_arg, std::shared_ptr<Function> f);
 
-    void set_arg(ushort i, double new_value);
+    /* Set argument value. */
+    void set_arg(ushort i, double x) { _arguments[i].set(x); }
+
     void init_uniform_range();
     void init_functional_range(bool is_min_open, bool is_max_open);
-	virtual void init_reshaping(bool discrete);
+
+    /* Virtual function to initialize reshaping in Distribution, etc. */
+    virtual void init_reshaping(bool) {}
 
     //===== SHOW =====//
-    const std::string show_name() const;
+    /* Return function name. */
+    const std::string show_name() const { return _function_name; }
     const std::string show_arg_names() const;
     const std::string show_arg_values() const;
-    const std::string show_min() const;
-    const std::string show_max() const;
+    /* Return formatted range minimum. */
+    const std::string show_min() const { return _range_min.show(); }
+    /* Return formatted range maximum. */
+    const std::string show_max() const { return _range_max.show(); }
     const std::string show_range() const;
     const std::string show_summary() const;
 
@@ -186,21 +223,9 @@ private:
     bool (Function::*_do_valid)(double) const = &Function::__valid_always;
 
     //----- range : none ------//
-    bool __below_never(double x) const
-    {
-        UNUSED(x);
-        return false;
-    }
-    bool __above_never(double x) const
-    {
-        UNUSED(x);
-        return false;
-    }
-    bool __valid_always(double x) const
-    {
-        UNUSED(x);
-        return true;
-    }
+    bool __below_never(double) const { return false; }
+    bool __above_never(double) const { return false; }
+    bool __valid_always(double) const { return true; }
 
     //----- range : minimum -----//
     bool __below_open_min(double x) const { return (x <= _range_min.get()); }
@@ -288,7 +313,7 @@ public:
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////  TranscendentalRegistry : class  ////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
-    
+
 class TranscendentalRegistry : public FuncRegistry
 {
 public:

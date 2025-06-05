@@ -13,7 +13,7 @@
 
 #include <chrono>
 
-#include "mcmc_build.h"
+#include "mcmc_impl.h"
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -90,10 +90,10 @@ void MCMC::Impl::build_setup()
         }
 
         // define number of threads
-        set_n_threads();
+        _set_n_threads();
 
         // pseudo-random number generator seeding
-        set_prng_seed();
+        _set_prng_seed();
 
         // reset internal states
         chain = 1;         // current chain
@@ -102,13 +102,13 @@ void MCMC::Impl::build_setup()
     }
     catch (const std::exception &e)
     {
-        tools::error("While building setup definitions:" +
+        tools::error("While building setup definitions:\n" +
                      std::string(e.what()));
     }
 }
 
 /* Set the number of threads for parrell computations (default is 1). */
-void MCMC::Impl::set_n_threads()
+void MCMC::Impl::_set_n_threads()
 {
     if (setup_n_threads == 0)
         throw std::invalid_argument("N. of threads must be greater than 0.");
@@ -135,7 +135,7 @@ void MCMC::Impl::set_n_threads()
 }
 
 /* Assign seed for random generators. */
-void MCMC::Impl::set_prng_seed()
+void MCMC::Impl::_set_prng_seed()
 {
     // seed for the unique thread rand num generator
     _prng.seed(setup_seed);
@@ -166,7 +166,7 @@ void MCMC::Impl::set_prng_seed()
 //-----------------------------------------------------------------------------------------------//
 
 /* Assert dataset is not empty. */
-void MCMC::Impl::assert_proper_dataset()
+void MCMC::Impl::_assert_proper_dataset()
 {
     if (house_vector.empty())
         throw std::length_error(
@@ -174,7 +174,7 @@ void MCMC::Impl::assert_proper_dataset()
 }
 
 /* Assert setup definitions are ok to proceed with mcmc sampling. */
-void MCMC::Impl::assert_proper_mcmc_setup()
+void MCMC::Impl::_assert_proper_mcmc_setup()
 {
     if ((setup_inv_T < 0.) || (setup_inv_T > 1.))
         throw std::range_error(
@@ -230,9 +230,9 @@ void MCMC::Impl::assert_proper_mcmc_setup()
 }
 
 /* The text to print in the Markov chian progress bar. */
-const std::string MCMC::Impl::fmt_progtxt()
+const std::string MCMC::Impl::_fmt_progtxt()
 {
-    if (is_power_post())
+    if (_is_power_post())
         return "power post " + std::to_string(rung) + "/" + std::to_string(setup_n_rungs);
     else if (setup_n_chains > 1)
         return "sample " + std::to_string(chain) + "/" + std::to_string(setup_n_chains);
@@ -264,7 +264,6 @@ void MCMC::Impl::build_dataset(const dict_str_vec &input)
                 data_headers.push_back(x.first);
 
             n_individuals = input.at(data_headers[0]).size();
-            n_households = 0;
 
             house_vector.clear();
             restrict_hh_indexes.clear();
@@ -279,8 +278,8 @@ void MCMC::Impl::build_dataset(const dict_str_vec &input)
             for (size_t i = 0; i < n_individuals; ++i)
             {
                 // read individual data
-                std::string id = std::to_string(i + 1);                  // default id
-                std::string house_id = std::to_string(n_households + 1); // default house_id
+                std::string id = std::to_string(i + 1);                // default id
+                std::string house_id = std::to_string(n_houses() + 1); // default house_id
                 int status = MISSING_STATUS;
                 dataIDmap<double> data = {};
 
@@ -317,11 +316,11 @@ void MCMC::Impl::build_dataset(const dict_str_vec &input)
                 if (_hhid_to_index.find(house_id) == _hhid_to_index.end())
                 {
                     // map data index to household number
-                    _hhid_to_index.emplace(house_id, n_households);
+                    _hhid_to_index.emplace(house_id, n_houses());
                     // default choice for restricted indeces
-                    restrict_hh_indexes.push_back(n_households);
+                    restrict_hh_indexes.push_back(n_houses());
                     // create a new empty household
-                    house_vector.emplace_back(house_id, n_households++);
+                    house_vector.emplace_back(house_id, n_houses());
                 }
 
                 // extract the household reference
@@ -332,7 +331,7 @@ void MCMC::Impl::build_dataset(const dict_str_vec &input)
             }
 
             // update report for data
-            fill_report_data();
+            _fill_report_data();
 
             // clean up data entries for output files
             // eventually remove default headers to reorder them at the end
@@ -345,20 +344,20 @@ void MCMC::Impl::build_dataset(const dict_str_vec &input)
     }
     catch (const std::exception &e)
     {
-        tools::error("While initializing dataset:" +
+        tools::error("While initializing dataset:\n" +
                      std::string(e.what()));
     }
 }
 
 /* Use the loaded data to fill-in the respective report. */
-void MCMC::Impl::fill_report_data()
+void MCMC::Impl::_fill_report_data()
 {
     _report_indiv_ = {{"total", n_individuals},
                       {"missing", 0},
                       {"healthy", 0},
                       {"infected", 0}};
 
-    _report_house_ = {{"total", n_households},
+    _report_house_ = {{"total", n_houses()},
                       {"no cases", 0},
                       {"at least 1 case", 0},
                       {"at least 2 cases", 0}};
@@ -468,8 +467,8 @@ void MCMC::Impl::build_multiplicity(const dict_str_vec &table)
 
             // default choice for restricted household indexes
             restrict_hh_indexes.clear();
-            restrict_hh_indexes.resize(n_households);
-            for (size_t H = 0; H < n_households; ++H)
+            restrict_hh_indexes.resize(n_houses());
+            for (size_t H = 0; H < n_houses(); ++H)
             {
                 house_vector[H].set_multiplicity(1, H);
                 restrict_hh_indexes[H] = H;
@@ -477,12 +476,12 @@ void MCMC::Impl::build_multiplicity(const dict_str_vec &table)
         }
         else
         {
-            if (n_households != table.at("house_id").size())
+            if (n_houses() != table.at("house_id").size())
                 throw std::out_of_range(
                     "Multiplicity definitions have different dimensions than dataset.");
 
             restrict_hh_indexes.clear();
-            for (size_t r = 0; r < n_households; ++r)
+            for (size_t r = 0; r < n_houses(); ++r)
             {
                 size_t H = _hhid_to_index.at(table.at("house_id")[r]);
                 size_t H0 = _hhid_to_index.at(table.at("class_id")[r]);
@@ -497,7 +496,7 @@ void MCMC::Impl::build_multiplicity(const dict_str_vec &table)
     }
     catch (const std::exception &e)
     {
-        tools::error("While initializing multiplicities:" +
+        tools::error("While initializing multiplicities:\n" +
                      std::string(e.what()));
     }
 }
@@ -600,7 +599,160 @@ void MCMC::Impl::build_datalist(const dict_str_vec &input, const std::string &li
     }
     catch (const std::exception &e)
     {
-        tools::error("While initializing " + alias + ":" +
+        tools::error("While initializing " + alias + ":\n" +
                      std::string(e.what()));
+    }
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+/* Assign parameter definitions to dictionary. */
+void MCMC::Impl::build_param()
+{
+    try
+    {
+        // reference to parameter definition table
+        const dict_str_vec &deftable = _param_deftable;
+
+        if (!deftable.empty())
+        {
+            // check entries
+            str_vec headers = tools::headers_from_deftable(deftable);
+            tools::check_for_missing_entries(headers, param_file_headers);
+            tools::check_for_unused_entries(headers, param_file_headers);
+
+            // drop current list of parameters
+            param_map.clear();
+            param_const_list.clear();
+            param_standard_infer_list.clear();
+            param_cache_infer_list.clear();
+
+            //===== Load parameters from the row with options =====//
+            for (size_t k = 0; k < deftable.at("name").size(); ++k)
+            {
+                const std::string &name = deftable.at("name")[k]; // parameter name
+                double value = HOUSEPI_NA_DOUBLE;                 // init value
+                parID p = name;
+
+                // Add entry to shared parameter dictionary -----//
+                if (param_map.count(p))
+                {
+                    // parameter is already defined
+                    throw std::invalid_argument(
+                        "Parameter \"" + p + "\" has multiple definitions.");
+                }
+                else if (tools::stobool(deftable.at("const")[k]))
+                {
+                    // assign constant parameter to the set of variables
+                    if (tools::is_na(deftable.at("value")[k]))
+                        throw std::invalid_argument(
+                            "Undefined value for constant parameter \"" + name + "\".");
+                    else
+                        value = tools::stod(deftable.at("value")[k], "parameter");
+
+                    // assign constant parameter to the set of variables
+                    param_map.emplace(p, Variable(name, value));
+                    // update the lists of constant parameters
+                    param_const_list.push_back(p);
+                }
+                else
+                {
+                    // load value
+                    if (!tools::is_na(deftable.at("value")[k]))
+                        value = tools::stod(deftable.at("value")[k], "parameter");
+
+                    // load boolean flag for discrete variables
+                    bool is_discrete = false;
+                    if (!tools::is_na(deftable.at("discr")[k]))
+                        is_discrete = tools::stobool(deftable.at("discr")[k]);
+
+                    // load prior name
+                    const std::string &prior_name = deftable.at("prior")[k];
+
+                    // load rule name
+                    std::string rule_name = "draw";
+                    if (!tools::is_na(deftable.at("rule")[k]))
+                        rule_name = deftable.at("rule")[k];
+
+                    // load rule scale
+                    double rule_scale = 1.;
+                    if (!tools::is_na(deftable.at("scale")[k]))
+                        rule_scale = tools::stod(deftable.at("scale")[k]);
+
+                    //----- Create a new Parameter Variable -----//
+                    param_map.emplace(p, Variable(name, value, is_discrete));
+                    Variable &new_param = param_map.at(p);
+
+                    // assign a prior distribution to the parameter
+                    new_param.assign_distr(prior_name);
+
+                    // assign scalar arguments to prior distribution
+                    str_vec arg_key = tools::parse_list_args(deftable.at("arg_key")[k]);
+                    str_vec arg_val = tools::parse_list_args(deftable.at("arg_val")[k]);
+                    for (ushort c = 0; c < arg_key.size(); ++c)
+                        // UPDATE: is this check really necessary?
+                        if (!tools::is_na(arg_key[c]))
+                        {
+                            const std::string &x = arg_val[c];
+                            new_param.assign_distr_attr(
+                                arg_key[c], ATTR_ARGUMENT,
+                                (tools::is_na(x) ? HOUSEPI_NA_DOUBLE : tools::stod(x)));
+                        }
+
+                    // load parameter range
+                    double lower = HOUSEPI_NA_DOUBLE, upper = HOUSEPI_NA_DOUBLE;
+                    if (!tools::is_na(deftable.at("min")[k]))
+                        lower = tools::stod(deftable.at("min")[k], "parameter minimum");
+                    if (!tools::is_na(deftable.at("max")[k]))
+                        upper = tools::stod(deftable.at("max")[k], "parameter maximum");
+
+                    // set the range of values to the parameter
+                    if (!tools::is_na(lower))
+                        new_param.assign_distr_attr("min", ATTR_RANGE, lower);
+                    if (!tools::is_na(upper))
+                        new_param.assign_distr_attr("max", ATTR_RANGE, upper);
+                    new_param.init_distr_reshaping();
+
+                    // assign the rule for the proposer to the parameter
+                    new_param.assign_proposer(rule_name, rule_scale);
+
+                    // update the lists of parameters to be inferred
+                    param_standard_infer_list.push_back(p);
+                }
+            }
+        }
+    }
+    catch (const std::exception &e)
+    {
+        tools::error("While building parameters:\n" +
+                     std::string(e.what()));
+    }
+}
+
+/* Randomly initialize values of the parameters to be inferred */
+void MCMC::Impl::_init_parameters()
+{
+    for (const parID &p : param_standard_infer_list + param_cache_infer_list)
+    {
+        Variable &this_par = param_map.at(p);
+        // user initialization (for multiple chains)
+        this_par.user_reset();
+
+        if (setup_rand_init_params)
+        {
+            if (tools::is_na(this_par.show_distr_name()))
+                throw std::invalid_argument(
+                    "Parameters with undefined values are not allowed.");
+            else
+                this_par.rand(_prng);
+        }
+        else if (tools::is_na(this_par.get()))
+            throw std::invalid_argument(
+                "Value of parameter \"" + p + "\" is undefined with no random initialization.");
     }
 }

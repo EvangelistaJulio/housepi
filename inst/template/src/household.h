@@ -213,9 +213,9 @@ public:
 	size_t house_index() const { return _index; }
 	ushort size() const { return _house_size; }
 
-	ushort n_infec_status() const { return _n_infec; }
-	ushort n_healthy_status() const { return _n_healthy; }
-	ushort n_missing_status() const { return _n_missing; }
+	ushort n_infec_status() const { return _infec_list.size(); }
+	ushort n_healthy_status() const { return _healthy_list.size(); }
+	ushort n_missing_status() const { return _missing_list.size(); }
 
 	const std::vector<indiv> &get_infected_status_hhindexes() const { return _infec_list; }
 	const std::vector<indiv> &get_healthy_status_hhindexes() const { return _healthy_list; }
@@ -246,21 +246,23 @@ public:
 	//===== EXTRA ATTRIBUTES =====//
 	//============================//
 
-	bool is_any_cache();
+	/* Check if any cache quantity is associated to the household. */
+	bool is_any_cache() { return !(_cache_int_vec.empty() && _cache_dbl_vec.empty() && _cache_dbl_mtx.empty()); }
+
 	void buffer_all_cache();
 	void recover_all_cache();
 
-	//----- Vector of integers -----//
-	void allocate_cache_integer_vector(const cacheID &e);
-	int_vec &cache_integer_vector(const cacheID &e);
+	//----- Cached integer vector -----//
+	void assign_cache_integer_vector(const cacheID &e) { _cache_int_vec[e] = int_vec(size(), 0); }
+	int_vec &cache_integer_vector(const cacheID &e) { return _cache_int_vec.at(e); }
 
-	//----- Vector of doubles -----//
-	void allocate_cache_double_vector(const cacheID &e);
-	dbl_vec &cache_double_vector(const cacheID &e);
+	//----- Cached double vector -----//
+	void assign_cache_double_vector(const cacheID &e) { _cache_dbl_vec[e] = dbl_vec(size(), 0.); }
+	dbl_vec &cache_double_vector(const cacheID &e) { return _cache_dbl_vec.at(e); }
 
-	//----- Matrix of doubles -----//
-	void allocate_cache_double_matrix(const cacheID &e);
-	matrix<double> &cache_double_matrix(const cacheID &e);
+	//----- Cached double matrix -----//
+	void assign_cache_double_matrix(const cacheID &e) { _cache_dbl_mtx[e] = matrix<double>(size(), dbl_vec(size(), 0.)); }
+	matrix<double> &cache_double_matrix(const cacheID &e) { return _cache_dbl_mtx.at(e); }
 
 	//=========================//
 	//===== LOGLIKELIHOOD =====//
@@ -279,9 +281,13 @@ public:
 	//===== DIAGNOSTICS =====//
 	//=======================//
 
-	void init_diagnostics(ulong sample_size);
-	void update_diagnostics(ulong count);
 	const dbl_vec &get_smpl_loglike() const { return _smpl_loglike; }
+
+	/* Update the values for posterior sampling. */
+	void init_diagnostics(ulong sample_size) { _smpl_loglike = dbl_vec(sample_size); }
+
+	/* Update the values for posterior sampling. */
+	void update_diagnostics(ulong c) { _smpl_loglike[c] = _obs_loglike / _house_multiplicity + _augm_loglike; }
 
 private:
 	std::string _house_id = HOUSEPI_NA_STRING; // user house id
@@ -291,10 +297,6 @@ private:
 	size_t _multiplicity_class = -1;		   // index of multiplicity class
 
 	std::vector<Individual> _members = {}; // members
-
-	ushort _n_infec = 0;   // n. members with infected status
-	ushort _n_healthy = 0; // n. memebers healthy status
-	ushort _n_missing = 0; // n. members missing status
 
 	// list of members for each status
 	std::vector<indiv> _infec_list = {};

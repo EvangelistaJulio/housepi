@@ -43,7 +43,7 @@ double Model::person_to_person_risk() const
 void Model::assign_group_rate_to_individual(Individual &member)
 {
 	rateID r;
-	UNUSED(member);
+	(void)(member);
 
 	//----- community -----//
 	r = "community";
@@ -71,9 +71,9 @@ void Model::init_model_for_inference()
 			"A missing status was found : incompatible with the model.");
 
 	//===== Allocate memory for the escape matrix =====//
-	allocate_cache_house_integer_vector("order");
-	allocate_cache_house_double_vector("commu-escprob");
-	allocate_cache_house_double_matrix("p2p-escprob");
+	assign_cache_house_integer_vector("order");
+	assign_cache_house_double_vector("commu-escprob");
+	assign_cache_house_double_matrix("p2p-escprob");
 
 	//=====Initialize look-up-table to largest possible value=====//
 	bax::init_escape_patterns_lookuptable(get_report_hh_size("max cases").first);

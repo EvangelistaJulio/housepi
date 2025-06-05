@@ -28,6 +28,7 @@ class Model : public MCMC
 {
 	void init_model_for_inference() override final;
 	void init_model_for_simulation() override final;
+	double compute_house_obs_loglike(Household &) const override final;	
 };
 
 #endif // HOUSEPI__MODEL__H

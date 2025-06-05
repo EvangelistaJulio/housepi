@@ -56,13 +56,6 @@ housepi::template_household_model("chain-binomial")
 
 This command will open the relative documentation file in the Help window of your Rstudio session.
 
-```{=html}
-<!--
-Starting from a template we may want to create a custom model adapted to our study project.
-We will discuss guidelines on how to do this in the vignette [Customize Models](customize_models.html).
--->
-```
-
 ## Format of the Dataset
 
 Dataset can be provided as a numerical data.frame where individual information are organised by row.
@@ -94,13 +87,10 @@ Note that all methods for inference and simulation integrate dataset importation
 We can extract some summary information about the current dataset with the field `$summary`:
 
 ```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
-
-combined <- hhmodel$summary
-
 # show a summary of the dataset as a `flextable`
 library(flextable)
 
-flextable(combined) |>
+flextable(hhmodel$summary) |>
   theme_vanilla() |>
   set_formatter(pct = function(x) round(x, 1)) |>
   merge_v(j = ~ type) |>
@@ -121,14 +111,10 @@ A single parameter definition (prior and proposer rule needed for the Bayesian M
 # alpha : community transmission rate
 hhmodel$add_param(name = "alpha", # name matching the model source
                   prior = "unif", # uniform prior
-                  args = c(min = 0, max = 3), # arguments of the prior
                   rule = "lnorm") # mcmc proposer rule
 
 # beta : in-household person to person transmission rate
-hhmodel$add_param(name = "beta",
-                  prior = "unif",
-                  args = c(max = 3), # note: min=0 by default for "unif"
-                  rule = "lnorm")
+hhmodel$add_param(name = "beta", prior = "unif", rule = "lnorm")
 ```
 
 At any moment we can turn a parameter definition into a constant definition: it is sufficient to add the option `const = TRUE` (in such case a `value` must be provided).
@@ -161,11 +147,11 @@ hhmodel$infer(
 
 ```{r}
 # store summary of the posterior estimates
-results <- hhmodel$traces_results
-results
+estimates <- hhmodel$estimates
+estimates
 ```
 
-For diagnosticis analysis on the inference, we can extract the posterior traces directly from the field `$traces`.
+For diagnostic analysis on the inference, we can extract the posterior traces directly from the field `$traces`.
 We can use the function `mcmc_trace()` from [bayesplot](https://cran.r-project.org/web/packages/bayesplot/) to plot the traces:
 
 ```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
@@ -197,10 +183,10 @@ We call the method `$simulate()` after having provided parameter definitions (an
 # generate a new model object to use for simulation
 hhsimul <- housepi::HouseholdModel$new("chain-binomial")
 
-# define constant parameters from the inference results
+# define constant parameters from the inference estimates
 # note: definition without a prior assumes the parameter to be constant
-hhsimul$add_param(name = "alpha", value = results["alpha", "mean"])
-hhsimul$add_param(name = "beta", value = results["beta", "mean"])
+hhsimul$add_param(name = "alpha", value = estimates["alpha", "mean"])
+hhsimul$add_param(name = "beta", value = estimates["beta", "mean"])
 
 # build new model using the same demographic structure of dataset
 # override status of the dataset according to simulation

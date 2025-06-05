@@ -13,7 +13,7 @@
 
 #include <atomic>
 
-#include "mcmc_build.h"
+#include "mcmc_impl.h"
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -456,22 +456,6 @@ void MCMC::Impl::build_augm()
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  MCMC::Impl : state checkers   /////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Check if there are ant augmented variable definitions. */
-bool MCMC::Impl::is_augm_any() const { return !augm_list_full.empty(); }
-
-/* Check if there are non-constant augmented variable definitions. */
-bool MCMC::Impl::is_augm_sample() const { return !augm_list_infer.empty(); }
-
-/* Check if there are augmented variable definitions with a model. */
-bool MCMC::Impl::is_augm_model() const { return !augm_list_model.empty(); }
-
-/* Check if augmented variable definition are generic or not (i. e. individual status specific). */
-bool MCMC::Impl::is_augm_generic() const { return augm_status_map_infer.empty(); }
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////  MCMC::Impl : assign augmented variables  /////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -581,7 +565,7 @@ void MCMC::Impl::clear_all_augm(Individual &member)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Initialize augmented dependecies for all households. */
-void MCMC::Impl::init_augmented_variables()
+void MCMC::Impl::_init_augmented_variables()
 {
     if (is_augm_any())
     {
@@ -629,7 +613,7 @@ double MCMC::Impl::_compute_augm_model_loglike(Household &house)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Move augmented variables from all households. */
-void MCMC::Impl::move_all_augm()
+void MCMC::Impl::_move_all_augm()
 {
     if (is_augm_sample())
     {
@@ -637,14 +621,14 @@ void MCMC::Impl::move_all_augm()
         std::atomic<bool> has_error(false);
 
 #pragma omp parallel for reduction(+ : delta_ll)
-        for (size_t H = 0; H < n_households; ++H)
+        for (size_t H = 0; H < n_houses(); ++H)
         {
             if (has_error.load(std::memory_order_relaxed))
                 continue;
 
             try
             {
-                delta_ll += move_augm_single_house(H);
+                delta_ll += _move_augm_single_house(H);
             }
             catch (const std::exception &e)
             {
@@ -659,7 +643,7 @@ void MCMC::Impl::move_all_augm()
         }
 
         if (!_error_message.empty())
-            tools::error(_error_message);
+            throw std::runtime_error(_error_message);
 
         increment_full_loglike(delta_ll);
     }
@@ -673,7 +657,7 @@ void MCMC::Impl::move_all_augm()
 The move is performed one member at a time, one augmented variable at a time.
 */
 // UPDATE: smooth the incrementation by reference by just adding...
-double MCMC::Impl::move_augm_single_house(size_t H)
+double MCMC::Impl::_move_augm_single_house(size_t H)
 {
     double delta_ll = 0.;
     Household &house = house_vector[H];

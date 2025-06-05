@@ -12,7 +12,8 @@
  */
 
 #include <atomic>
-#include "mcmc_build.h"
+
+#include "mcmc_impl.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  MCMC : implementations  ///////////////////////////////////////
@@ -21,16 +22,21 @@
 //===== CONSTRUCTOR =====//
 MCMC::MCMC()
     : pImpl(std::make_unique<Impl>(
+          [this]()
+          { this->init_model_for_inference(); },
+          [this]()
+          { this->init_model_for_simulation(); },
+          [this]()
+          { this->init_infec_profile(); },
           [this](Household &h) -> double
           { return this->compute_house_obs_loglike(h); },
+          [this](Household &h)
+          { return this->simulate_single_house(h); },
           [this](Household &h, indiv i)
           { this->update_cache_dependecies(h, i); })) {}
 MCMC::~MCMC() = default;
 
 //===== DATA =====//
-Household &MCMC::get_household(size_t H) const { return pImpl->house_vector.at(H); }
-size_t MCMC::n_houses() const { return pImpl->n_households; }
-
 ulong MCMC::get_report_indiv(const std::string &key) const { return pImpl->get_report_indiv(key); }
 ulong MCMC::get_report_house(const std::string &key) const { return pImpl->get_report_house(key); }
 std::pair<ushort, ulong> MCMC::get_report_hh_size(const std::string &key) const { return pImpl->get_report_hh_size(key); }
@@ -49,61 +55,22 @@ void MCMC::clear_all_augm(Individual &member) { pImpl->clear_all_augm(member); }
 //===== EXTRA ATTRIBUTES =====//
 
 /* Extra integer vectors for all households. */
-void MCMC::allocate_cache_house_integer_vector(const cacheID &e)
+void MCMC::assign_cache_house_integer_vector(const cacheID &e)
 {
     for (size_t H : pImpl->restrict_hh_indexes)
-        pImpl->house_vector[H].allocate_cache_integer_vector(e);
+        pImpl->house_vector[H].assign_cache_integer_vector(e);
 }
 /* Extra double vectors for all households. */
-void MCMC::allocate_cache_house_double_vector(const cacheID &e)
+void MCMC::assign_cache_house_double_vector(const cacheID &e)
 {
     for (size_t H : pImpl->restrict_hh_indexes)
-        pImpl->house_vector[H].allocate_cache_double_vector(e);
+        pImpl->house_vector[H].assign_cache_double_vector(e);
 }
 /* Extra double square matrix for all households. */
-void MCMC::allocate_cache_house_double_matrix(const cacheID &e)
+void MCMC::assign_cache_house_double_matrix(const cacheID &e)
 {
     for (size_t H : pImpl->restrict_hh_indexes)
-        pImpl->house_vector[H].allocate_cache_double_matrix(e);
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  MCMC : methods (user defined)  ///////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Update cumulative and instantaneous person-to-person infectivity profiles according to an infector. */
-void MCMC::update_cache_dependecies(Household &house, indiv i)
-{
-    UNUSED(house);
-    UNUSED(i);
-}
-
-/* Compute the loglikelihood for a single household. */
-double MCMC::compute_house_obs_loglike(Household &house) const
-{
-    UNUSED(house);
-    return 0.0;
-};
-
-/* Assign group rate to an individual  */
-void MCMC::assign_group_rate_to_individual(Individual &member)
-{
-    UNUSED(member);
-}
-
-/* Assign the contact patterns between a couple of individuals. */
-void MCMC::assign_contact_rate_to_household(Household &house, indiv from, indiv to)
-{
-    UNUSED(house);
-    UNUSED(from);
-    UNUSED(to);
+        pImpl->house_vector[H].assign_cache_double_matrix(e);
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -135,12 +102,6 @@ void MCMC::build_all_rates()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  MCMC : set rate per group  ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Auxiliary wrapper to emplace_back */
-void MCMC::emplace_group_rate(rateID r, parID p)
-{
-    _individual_group_rates[r].emplace_back(p);
-}
 
 /* Update model report and set group rates associate to new individual. */
 void MCMC::_assign_group_rate(Individual &member)
@@ -209,9 +170,6 @@ void MCMC::_assign_group_rate(Individual &member)
 /////////////////////////////////  MCMC : set rate per contact  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Auxiliary wrapper to emplace_back */
-void MCMC::emplace_contact_rate(parID p) { _pair_contact_rate = p; }
-
 /* Set contact rate according to user assignement. */
 void MCMC::_assign_contact_rate(Household &house)
 {
@@ -228,18 +186,18 @@ void MCMC::_assign_contact_rate(Household &house)
 
                     if (!tools::is_na(_pair_contact_rate))
                     {
+                        const double *y = &REFERENCE_VALUE; // default reference rate
+
                         if (_pair_contact_rate == MISSING_RATE)
                             throw std::invalid_argument(
-                                "Missing contact rate for individuals " + house.id(k) + " and " + house.id(i) + " (household " + house.house_id() + ").");
+                                "Missing contact rate for individuals " + house.id(k) +
+                                " and " + house.id(i) + " (household " + house.house_id() + ").");
 
-                        else if (_pair_contact_rate == REFERENCE)
-                            // reference rate
-                            house.assign_contact_rate(k, i, &REFERENCE_VALUE);
-
-                        else
+                        else if (_pair_contact_rate != REFERENCE)
                             // parameter rate
-                            house.assign_contact_rate(k, i,
-                                                      pImpl->get_param_pointer(_pair_contact_rate));
+                            y = pImpl->get_param_pointer(_pair_contact_rate);
+
+                        house.assign_contact_rate(k, i, y);
                     }
                 }
     }
@@ -257,425 +215,61 @@ void MCMC::_assign_contact_rate(Household &house)
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  MCMC : display likelihood  ////////////////////////////////////
+////////////////////////////////////  MCMC : general methods  /////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Default method to only compute the loglikelihood and display it. */
-double MCMC::evaluate()
-{
-    try
-    {
-        pImpl->assert_proper_dataset();        // check if dataset is empty
-        pImpl->setup_n_chains = 0;             // use 0 chains as a state variable
-        pImpl->setup_rand_init_params = false; // disable random initialization // UPDATE
-        pImpl->init_parameters();              // check no undefined parameters
-        pImpl->init_augmented_variables();     // initialize augmented dependencies
-        init_infec_profile();                  // initialize user infectivity profile
-        init_model_for_inference();            // initialize model for inference
-        pImpl->update_full_loglike(true);      // initialize cache + full loglikelihood
-
-        return pImpl->get_full_loglike();
-    }
-    catch (const std::exception &e)
-    {
-        tools::error(e.what());
-    }
-
-    return HOUSEPI_NA_DOUBLE;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////  MCMC : infer  /////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Model specific initialization (e. g. cache variables, lookup tables, etc). */
-void MCMC::init_model_for_inference() {}
+double MCMC::evaluate() { return pImpl->evaluate(); }
 
 /* Performs the inference using Metropolis-Hastings. */
-void MCMC::infer()
-{
-    try
-    {
-        pImpl->assert_proper_dataset();    // check if dataset is empty
-        pImpl->assert_proper_mcmc_setup(); // check setup for mcmc sampling
-        init_infec_profile();              // initialize user infectivity profile
-        init_model_for_inference();        // user initialization model
-
-        // start progress bar and chrono
-        progress::Bar progressbar(pImpl->setup_c_n_sweeps * pImpl->setup_n_chains,
-                                  pImpl->fmt_progtxt(), pImpl->setup_progress);
-
-        pImpl->run_monte_carlo(progressbar); // run Monte Carlo
-        progressbar.end();                   // close progress bar
-    }
-    catch (std::exception &e)
-    {
-        tools::error(e.what());
-    }
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  MCMC : power posteriors  ///////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Power posteriors numerical integration for evidence.
-    -----
-    Ref: Friel, N., Hurn, M. & Wyse, J.
-    Improving power posterior estimation of statistical evidence.
-    Stat Comput 24, 709–723 (2014).
-*/
-const std::vector<dbl_vec> MCMC::power_posteriors(const std::string &scheme, ulong N)
-{
-    const str_vec options = {"adaptive", "power-fractions"};
-
-    pImpl->assert_proper_dataset();    // check if dataset is empty
-    pImpl->assert_proper_mcmc_setup(); // check setup for mcmc sampling
-
-    // initialize model for inference
-    init_model_for_inference();
-
-    // fix internal number of rungs (for progress bar)
-    if (N >= 2)
-        pImpl->setup_n_rungs = N;
-    else
-        throw std::invalid_argument("N. of rungs must be greater than 1.");
-
-    // buffer user setup to recover them later
-    const bool buffer_rand_init_params = pImpl->setup_rand_init_params;
-    const double buffer_inv_T = pImpl->setup_inv_T;
-
-    // implementation setup aliases
-    ulong &rung = pImpl->rung;      // current theromdynamic ladder rung
-    double &t = pImpl->setup_inv_T; // current inverse temperature
-    const ulong &n_rungs = pImpl->setup_n_rungs;
-    const ulong rung_sweeps = pImpl->setup_c_n_sweeps * pImpl->setup_n_chains;
-
-    // thermodynamic ladder estimates
-    std::pair<double, double> stats = {}; // results of stats computation
-    dbl_vec itm = {};                     // inverse temperature
-    dbl_vec avg = {};                     // mean loglikelihood
-    dbl_vec var = {};                     // variance loglikelihood
-
-    // start progress bar and chrono
-    progress::Bar progressbar(rung_sweeps * (n_rungs + 1),
-                              pImpl->fmt_progtxt(), pImpl->setup_progress);
-
-    //=================================//
-    //===== INVERSE TEMPERATURE 0 =====//
-    //=================================//
-
-    // UPDATE: should I use previous inference for itm = 1 if available?
-    // UPDATE: always under-estimate time if starting from itm = 0
-
-    pImpl->setup_rand_init_params = true;
-
-    rung = 0;
-    t = 0.0;
-    pImpl->run_monte_carlo(progressbar);
-    stats = pImpl->smpl_full_loglike_stats();
-
-    itm.push_back(t);
-    avg.push_back(stats.first);
-    var.push_back(stats.second);
-
-    pImpl->setup_rand_init_params = false;
-
-    if (scheme == "adaptive")
-    {
-        //===========================//
-        //===== ADAPTIVE LADDER =====//
-        //===========================//
-
-        //----- Inverse Temperature 1 -----//
-        rung = 1;
-        t = 1.0;
-        pImpl->run_monte_carlo(progressbar);
-        stats = pImpl->smpl_full_loglike_stats();
-
-        itm.push_back(t);
-        avg.push_back(stats.first);
-        var.push_back(stats.second);
-
-        //----- Inverse Temperatures (0, 1) -----//
-        size_t k = 0; // index to interval lower bound
-        bool is_right = false;
-        while (rung < n_rungs)
-        {
-            ++rung;
-
-            //----- adaptive choice of inverse temperature -----//
-            // intersection between tangents
-            double new_t = (avg[k + 1] - itm[k + 1] * var[k + 1] - avg[k] + itm[k] * var[k]) / (var[k] - var[k + 1]);
-            // otherwise weighted average
-            if ((new_t <= itm[k]) || (new_t >= itm[k + 1]))
-                new_t = itm[k] + var[k + 1] * (itm[k + 1] - itm[k]) / (var[k] + var[k + 1]);
-
-            //----- power posterior sampling -----//
-            t = new_t;
-            pImpl->run_monte_carlo(progressbar);
-            stats = pImpl->smpl_full_loglike_stats();
-
-            //----- find larger rectangular discretization error -----//
-            is_right = (itm[k + 1] - t) * (avg[k + 1] - stats.first) > (new_t - itm[k]) * (stats.first - avg[k]);
-
-            //----- insert in-between for all lists -----//
-            itm.insert(itm.begin() + k + 1, t);
-            avg.insert(avg.begin() + k + 1, stats.first);
-            var.insert(var.begin() + k + 1, stats.second);
-
-            // if right interval is chosen, index points to inserted as lower bound
-            k += (is_right);
-        }
-    }
-    else if (scheme == "power-fractions")
-    {
-        //==================================//
-        //===== POWER FRACTIONS LADDER =====//
-        //==================================//
-
-        //----- Inverse Temperatures (0, 1] -----//
-        for (rung = 1; rung <= n_rungs; ++rung)
-        {
-            // inverse tempearture = (rung / #rungs)^5
-            t = std::pow(static_cast<double>(rung) / n_rungs, 5);
-            pImpl->run_monte_carlo(progressbar);
-            stats = pImpl->smpl_full_loglike_stats();
-
-            itm.push_back(t);
-            avg.push_back(stats.first);
-            var.push_back(stats.second);
-        }
-    }
-    else
-        throw std::invalid_argument(
-            "Unknown power posterior scheme \"" + scheme + "\"." + tools::find_closest(scheme, options, 3));
-
-    //----- Close progress bar -----//
-    progressbar.end();
-
-    //----- Restore user setup -----//
-    t = buffer_inv_T;
-    pImpl->setup_rand_init_params = buffer_rand_init_params;
-
-    return {itm, avg, var};
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  MCMC : simulation  /////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Model specific initialization (e. g. cache variables, lookup tables, etc). */
-void MCMC::init_model_for_simulation() {}
-
-/* Model specific simulation for a single household. */
-void MCMC::simulate_single_house(Household &house) { UNUSED(house); }
-
-/* Auxiliary method to initialize simulations. */
-void MCMC::_aux_init_simulate()
-{
-    pImpl->assert_proper_dataset(); // check if dataset is empty
-    pImpl->setup_n_chains = 0;      // use 0 chains as a state variable
-
-    pImpl->setup_n_threads = 1; // impose no parallelization
-    pImpl->set_n_threads();
-
-    pImpl->setup_rand_init_params = false; // disable random parameter initialization
-    pImpl->init_parameters();              // check no undefined parameters
-    init_infec_profile();                  // initialize user infectivity profile
-    init_model_for_simulation();           // initialize model for simulation
-}
+void MCMC::infer() { pImpl->infer(); }
 
 #ifdef _HOUSEPI_RCPP
 /* Perform simulation and return simulated dataset. */
-Rcpp::DataFrame MCMC::simulate()
+Rcpp::DataFrame MCMC::simulate() { return pImpl->simulate(); }
+
+Rcpp::List MCMC::estimate_evidence(const std::string &scheme, ulong n_rungs)
 {
-    using namespace Rcpp;
-
-    try
-    {
-        size_t n_cols = pImpl->n_individuals;
-        size_t row = 0;
-        str_vec _aux_data_headers = pImpl->data_headers;
-        Rcpp::CharacterVector df_index = CharacterVector(n_cols);
-        Rcpp::CharacterVector df_house_index = CharacterVector(n_cols);
-        Rcpp::IntegerVector df_status = IntegerVector(n_cols);
-        std::vector<Rcpp::NumericVector> df_dbl = {};
-
-        // remove data columns if they have same name than augmented
-        str_vec &v = _aux_data_headers;
-        // UPDATE: why augm_list_full is still a set?
-        str_vec &y = pImpl->augm_list_full;
-        // remove augmented variable columns from data columns
-        auto new_end = std::remove_if(v.begin(), v.end(),
-                                      [&y](const dataID &elem)
-                                      {
-                                          return contains(y, elem);
-                                      });
-        v.erase(new_end, v.end());
-
-        // other data and augmented variable columns
-        for (size_t s = 0; s < _aux_data_headers.size() + pImpl->augm_list_full.size(); ++s)
-            df_dbl.emplace_back(n_cols);
-
-        //----- initialization -----//
-        _aux_init_simulate();
-        progress::Bar progressbar(n_houses(), "simulate",
-                                  pImpl->setup_progress);
-
-        //----- run simulation -----//
-        for (size_t H = 0; H < n_houses(); ++H, progressbar.update())
-            try
-            {
-                // deep copy of the household
-                Household house = get_household(H);
-                // inplace simlation
-                simulate_single_house(house);
-
-                // store simulation
-                for (Individual &member : house)
-                {
-                    df_index[row] = member.id();
-                    df_house_index[row] = house.house_id();
-                    df_status[row] = member.status();
-
-                    size_t col = 0;
-                    for (const dataID &d : _aux_data_headers)
-                    {
-                        double x = member.data(d);
-                        df_dbl[col++][row] = tools::is_na(x) ? NA_REAL : x;
-                    }
-
-                    for (const augmID &a : pImpl->augm_list_full)
-                    {
-                        double x = member.augm(a);
-                        df_dbl[col++][row] = tools::is_na(x) ? NA_REAL : x;
-                    }
-
-                    ++row;
-                }
-            }
-            catch (const std::exception &e)
-            {
-                tools::error("While simulating house " +
-                             get_household(H).house_id() + " :\n" +
-                             std::string(e.what()));
-            }
-
-        // close progress bar
-        progressbar.end();
-
-        // assign vectors to dataframe
-        DataFrame output = DataFrame::create(
-            _["id"] = std::move(df_index),
-            _["house_id"] = std::move(df_house_index),
-            _["status"] = std::move(df_status));
-
-        size_t col = 0;
-        for (const dataID &d : _aux_data_headers)
-            output.push_back(std::move(df_dbl[col++]), d);
-
-        for (const augmID &a : pImpl->augm_list_full)
-            output.push_back(std::move(df_dbl[col++]), a);
-
-        return output;
-    }
-    catch (std::exception &e)
-    {
-        tools::error(e.what());
-    }
-
-    return DataFrame::create();
+    return pImpl->estimate_evidence(scheme, n_rungs);
 }
 
-Rcpp::List MCMC::estimate_evidence(const std::string &scheme,
-                                   ulong n_rungs)
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////  MCMC : exports to Rcpp ////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+Rcpp::List MCMC::export_setup() const { return pImpl->export_setup(); }
+Rcpp::DataFrame MCMC::export_param() const { return pImpl->export_param(); }
+Rcpp::DataFrame MCMC::export_dataset() const { return pImpl->export_dataset(); }
+Rcpp::DataFrame MCMC::export_data_report() const { return pImpl->export_data_report(); }
+Rcpp::DataFrame MCMC::export_house_size_report() const { return pImpl->export_house_size_report(); }
+Rcpp::NumericMatrix MCMC::export_traces() const { return pImpl->export_traces(); }
+Rcpp::NumericMatrix MCMC::export_house_loglike_mtx() const { return pImpl->export_house_loglike_mtx(); }
+
+Rcpp::List MCMC::showcase_infec_profile(int n_bins)
 {
-    using namespace Rcpp;
-
-    try
-    {
-        double output = 0;
-        const std::vector<dbl_vec> pp = power_posteriors(scheme, n_rungs);
-        const dbl_vec &inv_tem = pp[0];
-        const dbl_vec &avg_vec = pp[1];
-        const dbl_vec &var_vec = pp[2];
-
-        for (ulong k = 0; k < n_rungs; ++k)
-        {
-            double d_inv_tem = inv_tem[k + 1] - inv_tem[k];
-            output += (avg_vec[k + 1] + avg_vec[k]) * d_inv_tem / 2.;
-            output += (var_vec[k] - var_vec[k + 1]) * d_inv_tem * d_inv_tem / 12.;
-        }
-
-        return List::create(
-            _["estimate"] = output,
-            _["scheme"] = scheme,
-            _["n_rungs"] = n_rungs,
-            _["inv_temper"] = wrap(inv_tem),
-            _["mean_loglike"] = wrap(avg_vec),
-            _["var_loglike"] = wrap(var_vec));
-    }
-    catch (const std::exception &e)
-    {
-        tools::error("While estimating evidence with power posteriors:\n" +
-                     std::string(e.what()));
-    }
-    return List();
+    init_infec_profile();
+    return pImpl->showcase_infec_profile(n_bins);
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  MCMC : imports from Rcpp ///////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void MCMC::import_setup(const Rcpp::List &x) { pImpl->import_setup(x); }
+void MCMC::import_dataset(const Rcpp::DataFrame &x) { pImpl->import_dataset(x); }
+void MCMC::import_datalist(const Rcpp::DataFrame &x) { pImpl->import_datalist(x); }
+void MCMC::import_multiplicity(const Rcpp::DataFrame &x) { pImpl->import_multiplicity(x); }
+void MCMC::import_param(const Rcpp::DataFrame &x) { pImpl->import_param(x); }
+void MCMC::import_infec_profile(const Rcpp::List &x) { pImpl->import_infec_profile(x); }
+void MCMC::import_augm(const Rcpp::DataFrame &x) { pImpl->import_augm(x); }
 
 #else
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////  MCMC : C++ prints  ///////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Print the simulated dataset to the provided file. */
-void MCMC::print_simulated_dataset(const std::string &pathtofile)
-{
-    pImpl->_aux_print_dataset_init_(pathtofile);
-
-    try
-    {
-        //----- initialization -----//
-        _aux_init_simulate();
-        progress::Bar progressbar(n_houses(), "simulate",
-                                  pImpl->setup_progress);
-
-        //----- run simulation -----//
-        for (size_t H = 0; H < n_houses(); ++H, progressbar.update())
-            try
-            {
-                Household house = get_household(H);       // deep copy of the household
-                simulate_single_house(house);             // inplace simulation
-                pImpl->_aux_print_dataset_update_(house); // print the simulated dataset
-            }
-            catch (const std::exception &e)
-            {
-                tools::error("While simulating house " + get_household(H).house_id() + " :\n" +
-                             e.what());
-            }
-
-        // close progress bar
-        progressbar.end();
-
-        // end output
-        pImpl->_aux_print_dataset_finalize_();
-    }
-    catch (std::exception &e)
-    {
-        tools::error(e.what());
-    }
-}
+void MCMC::print_simulated_dataset(const std::string &f) { pImpl->print_simulated_dataset(f); }
 
 /* Trapezoidal rule to estimate logarithm of marginal likelihood (evidence) with power posteriors.
     -----
@@ -683,31 +277,28 @@ void MCMC::print_simulated_dataset(const std::string &pathtofile)
     Improving power posterior estimation of statistical evidence.
     Stat Comput 24, 709–723 (2014).
 */
-void MCMC::print_evidence(const std::string &scheme, ulong n_rungs)
-{
-    try
-    {
-        double output = 0;
-        const std::vector<dbl_vec> pp = power_posteriors(scheme, n_rungs);
-        const dbl_vec &inv_tem = pp[0];
-        const dbl_vec &avg_vec = pp[1];
-        const dbl_vec &var_vec = pp[2];
+void MCMC::print_evidence(const std::string &scheme, ulong n_rungs) { pImpl->print_evidence(scheme, n_rungs); }
 
-        for (ulong k = 0; k < n_rungs; ++k)
-        {
-            double d_inv_tem = inv_tem[k + 1] - inv_tem[k];
-            output += (avg_vec[k + 1] + avg_vec[k]) * d_inv_tem / 2.;
-            output += (var_vec[k] - var_vec[k + 1]) * d_inv_tem * d_inv_tem / 12.;
-        }
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////  MCMC : read  //////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
-        // print result to stdout
-        tools::print_stdout(std::to_string(output) + "\n");
-    }
-    catch (const std::exception &e)
-    {
-        tools::error("While estimating evidence with power posteriors:\n" +
-                     std::string(e.what()));
-    }
-}
+void MCMC::read_setup(const std::string &f) { pImpl->read_setup(f); }
+void MCMC::read_dataset(const std::string &f) { pImpl->read_dataset(f); }
+void MCMC::read_datalist(const std::string &f) { pImpl->read_datalist(f); }
+void MCMC::read_multiplicity(const std::string &f) { pImpl->read_multiplicity(f); }
+void MCMC::read_param(const std::string &f) { pImpl->read_param(f); }
+void MCMC::read_augm(const std::string &f) { pImpl->read_augm(f); }
+void MCMC::read_infec_profile(const std::string &f) { pImpl->read_infec_profile(f); }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  MCMC : show, C++ print  ////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void MCMC::show_setup() const { pImpl->show_setup(); }
+void MCMC::show_all_params() const { pImpl->show_all_params(); }
+void MCMC::show_results() const { pImpl->show_results(); }
+void MCMC::show_summary() const { pImpl->show_summary(); }
+void MCMC::print_infer_state(const std::string &f) const { pImpl->print_infer_state(f); }
 
 #endif

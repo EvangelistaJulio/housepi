@@ -148,8 +148,8 @@ namespace tools
     void error(const std::string &txt)
     {
 #ifdef _HOUSEPI_RCPP
-        throw Rcpp::exception(txt.c_str(), false); 
-        //Rcpp::stop(txt);
+        throw Rcpp::exception(txt.c_str(), false);
+        // Rcpp::stop(txt);
 #else
         std::cerr << "\nError: " + txt + "\nExit...\n"
                   << std::endl;
@@ -662,7 +662,7 @@ namespace progress
         //===== CONSTRUCTOR =====//
         //=======================//
 
-        Impl(ulong total, const std::string &text, ulong thintime)
+        Impl(const std::string &text, ulong thintime)
         {
 #ifdef _HOUSEPI_RCPP
             Rcpp::checkUserInterrupt();
@@ -671,25 +671,9 @@ namespace progress
 #endif
 
             // load options
-            _state = 0;
-            _total = total;
+            _text = text;
             _verbose = thintime > 0;
             _thintime = thintime - 1;
-            _text = text;
-
-            // print initial message
-            if (_verbose)
-            {
-                std::ostringstream oss;
-
-                oss << _text << " |" << std::string(_barwidth, ' ') << "| "
-                    << tools::percentage(0., 0);
-                _display(oss.str());
-            }
-
-            // keep track of time
-            _start = steady_clock::now();
-            _lastprint = _start;
         };
         ~Impl() {};
 
@@ -699,6 +683,20 @@ namespace progress
 
         /* Set description text of progress bar. */
         void set_text(const std::string &text) { _text = text; }
+
+        /* Start progressbar clock and display firs message. */
+        void open(ulong total)
+        {
+#ifdef _HOUSEPI_RCPP
+            Rcpp::checkUserInterrupt();
+#endif
+
+            // initialize internal fields
+            _total = total;
+            _start = steady_clock::now();
+            _lastprint = _start;
+            _state = 0;
+        }
 
         /* Update progress bar given the progress state. */
         void update()
@@ -713,6 +711,17 @@ namespace progress
                 seconds elapsed = duration_cast<seconds>(now - _start);
                 seconds missing = duration_cast<seconds>(elapsed * (1. / progress - 1.));
 
+                // print initial message
+                if (!_is_opened())
+                    if (static_cast<ulong>(missing.count()) > _thintime)
+                    {
+                        std::ostringstream oss;
+                        oss << _text << " |" << std::string(_barwidth, ' ') << "| "
+                            << tools::percentage(0., 0);
+                        _display(oss.str());
+                    }
+
+                // print update message
                 if (static_cast<ulong>(duration_cast<seconds>(now - _lastprint).count()) > _thintime)
                 {
                     const unsigned where = progress * _barwidth;
@@ -733,8 +742,18 @@ namespace progress
             ++_state;
         }
 
-        /*  End the progress bar. */
-        void end()
+        /* End the progress bar because of a crash. */
+        void crash() const
+        {
+#ifdef _HOUSEPI_RCPP
+            Rcpp::checkUserInterrupt();
+#endif
+            if ((_verbose) && (!_is_closed()))
+                _display("\n");
+        }
+
+        /*  Close the progress bar. */
+        void close()
         {
 #ifdef _HOUSEPI_RCPP
             Rcpp::checkUserInterrupt();
@@ -743,13 +762,18 @@ namespace progress
             {
                 seconds elapsed = duration_cast<seconds>(steady_clock::now() - _start);
 
-                std::ostringstream oss;
-                oss << "\r" << _text << " |";
-                for (unsigned u = 0; u < _barwidth; u++)
-                    oss << _symbol;
-                oss << "| " << fmt_time(elapsed)
-                    << std::string(25, ' ') << "\n";
-                _display(oss.str());
+                if (static_cast<ulong>(elapsed.count()) > _thintime)
+                {
+                    std::ostringstream oss;
+                    oss << "\r" << _text << " |";
+                    for (unsigned u = 0; u < _barwidth; u++)
+                        oss << _symbol;
+                    oss << "| " << fmt_time(elapsed)
+                        << std::string(25, ' ') << "\n";
+                    _display(oss.str());
+                }
+
+                _state = _total;
             }
         }
 
@@ -767,7 +791,13 @@ namespace progress
         ulong _thintime = 0;
 
         /* Function to display the progress bar. */
-        void _display(const std::string &sms) { tools::print_stdout(sms); }
+        void _display(const std::string &sms) const { tools::print_stdout(sms); }
+
+        /* Tell if progressbar has been closed. */
+        bool _is_opened() const { return (_total > 0) && (_state > 0); }
+
+        /* Tell if progressbar has been closed. */
+        bool _is_closed() const { return (_total > 0) && (_state == _total); }
     };
 
     //-----------------------------------------------------------------------------------------------//
@@ -781,8 +811,8 @@ namespace progress
     ///////////////////////////////////////  Bar : Constructor  ///////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    Bar::Bar(ulong total, const std::string &text, ulong thintime)
-        : pImpl(std::make_unique<Impl>(total, text, thintime)) {}
+    Bar::Bar(const std::string &text, ulong thintime)
+        : pImpl(std::make_unique<Impl>(text, thintime)) {}
     Bar::~Bar() = default;
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -790,7 +820,9 @@ namespace progress
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     void Bar::set_text(const std::string &text) { pImpl->set_text(text); }
+    void Bar::open(ulong total) { pImpl->open(total); }
     void Bar::update() { pImpl->update(); }
-    void Bar::end() { pImpl->end(); }
+    void Bar::crash() const { pImpl->crash(); }
+    void Bar::close() { pImpl->close(); }
 
 } // PROGRESS NAMESPACE

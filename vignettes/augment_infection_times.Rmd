@@ -5,7 +5,7 @@ output:
     toc: true
     toc_depth: 3
 vignette: >
-  %\VignetteIndexEntry{Augment Onset Times}
+  %\VignetteIndexEntry{Augment Infection Times}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 editor_options: 
@@ -202,7 +202,7 @@ Finally we wrap all together to compare to parameters used for simulation.
 
 ```{r}
 # collect the results
-results <- hhmodel$traces_results
+results <- hhmodel$estimates
 
 # compare results to parameter values used for simulation
 simul_param_defs <- hhsimul$param_defs

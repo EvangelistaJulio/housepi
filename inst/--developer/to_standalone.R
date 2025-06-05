@@ -3,7 +3,7 @@
 outpath <- "../housepi/inst/standalone/"
 
 developer_export_to_standalone <- function(hhmodel, outpath) {
-  write.csv(hhmodel$dataset,
+  write.csv(hhmodel$.__enclos_env__$private$.model$.__enclos_env__$private$.rcpp$export_dataset(),
             file.path(outpath, "data.tmp"),
             quote = FALSE, row.names = FALSE)
   write.csv(hhmodel$augm_defs,

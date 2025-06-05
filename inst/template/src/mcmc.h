@@ -50,18 +50,24 @@ public:
 	//===== DATA =====//
 	//================//
 
-	Household &get_household(size_t H) const;
-	size_t n_houses() const;
 	ulong get_report_indiv(const std::string &key) const;
 	ulong get_report_house(const std::string &key) const;
 	std::pair<ushort, ulong> get_report_hh_size(const std::string &key) const;
 
 	//----- Group & Contact Rates -----//
+	// UPDATE: group and contact rates should just be imported
+	// i.e. not re-compilation
 	void build_all_rates();
-	void emplace_group_rate(rateID r, parID p);
-	void emplace_contact_rate(parID p);
-	virtual void assign_group_rate_to_individual(Individual &member);
-	virtual void assign_contact_rate_to_household(Household &house, indiv from, indiv to);
+
+	/* Auxiliary wrapper to emplace_back */
+	void emplace_group_rate(rateID r, parID p) { _individual_group_rates[r].emplace_back(p); }
+	/* Auxiliary wrapper to emplace_back */
+	void emplace_contact_rate(parID p) { _pair_contact_rate = p; }
+
+	/* Assign group rate to an individual  */
+	virtual void assign_group_rate_to_individual(Individual &) {}
+	/* Assign the contact patterns between a couple of individuals. */
+	virtual void assign_contact_rate_to_household(Household &, indiv, indiv) {}
 
 	//=================================//
 	//===== RAND NUMBER GENERATOR =====//
@@ -80,7 +86,6 @@ public:
 	//===== AUGMENTED VARIABLES =====//
 	//===============================//
 
-	bool is_augm_model() const;
 	void assign_all_augm(Individual &member);
 	void clear_all_augm(Individual &member);
 
@@ -88,11 +93,12 @@ public:
 	//===== CACHE ATTRIBUTES =====//
 	//============================//
 
-	virtual void update_cache_dependecies(Household &house, indiv i);
+	/* Update cahced augmeted dependecies. */
+	virtual void update_cache_dependecies(Household &, indiv) {}
 
-	void allocate_cache_house_integer_vector(const cacheID &e);
-	void allocate_cache_house_double_vector(const cacheID &e);
-	void allocate_cache_house_double_matrix(const cacheID &e);
+	void assign_cache_house_integer_vector(const cacheID &e);
+	void assign_cache_house_double_vector(const cacheID &e);
+	void assign_cache_house_double_matrix(const cacheID &e);
 
 	//===============================//
 	//===== INFECTIVITY PROFILE =====//
@@ -109,30 +115,32 @@ public:
 	//===== EVALUATE (loglikelihood) =====//
 	//====================================//
 
-	virtual double compute_house_obs_loglike(Household &house) const;
-	double update_house_loglike(size_t r, const bool is_augm_ll, const bool cache_depen);
+	/* Compute the loglikelihood for a single household. */
+	virtual double compute_house_obs_loglike(Household &) const { throw std::runtime_error(
+		"Called virtual loglikelihood method of undefined model."); }
 	double evaluate();
 
 	//=================//
 	//===== INFER =====//
 	//=================//
 
-	virtual void init_model_for_inference();
+	/* Inference specific initialization (e. g. cache variables, lookup tables, etc). */
+	virtual void init_model_for_inference() {}
 	void infer();
-
-	//----- Marginal Loglikelihood (Power Posteriors) -----//
-	const std::vector<dbl_vec> power_posteriors(const std::string &scheme,
-												ulong n_rungs);
 
 	//====================//
 	//===== SIMULATE =====//
 	//====================//
 
-	virtual void init_model_for_simulation();
-	virtual void simulate_single_house(Household &house);
+	/* Simulation specific initialization (e. g. cache variables, lookup tables, etc). */
+	virtual void init_model_for_simulation() {}
+
+	/* Simulation for a single household. */
+	virtual void simulate_single_house(Household &house) {}
 
 #ifdef _HOUSEPI_RCPP
 
+	//----- C++ Print -----//
 	Rcpp::DataFrame simulate();
 	Rcpp::List estimate_evidence(const std::string &scheme,
 								 ulong n_rungs);
@@ -164,6 +172,9 @@ public:
 
 #else
 
+	//----- C++ Print -----//
+	void print_infer_state(const std::string &output_filename = HOUSEPI_NA_STRING) const;
+	void print_simulated_dataset(const std::string &output_filename = HOUSEPI_NA_STRING);
 	void print_evidence(const std::string &scheme, ulong n_rungs);
 
 	//================//
@@ -187,9 +198,6 @@ public:
 	void show_summary() const;
 	void show_results() const;
 
-	//----- C++ Print -----//
-	void print_infer_state(const std::string &output_filename = HOUSEPI_NA_STRING) const;
-	void print_simulated_dataset(const std::string &output_filename = HOUSEPI_NA_STRING);
 #endif
 
 private:
@@ -203,9 +211,6 @@ private:
 
 	void _assign_group_rate(Individual &member);
 	void _assign_contact_rate(Household &house);
-
-	//----- Simulation -----//
-	void _aux_init_simulate();
 };
 
 #endif // HOUSEPI__MCMC__H

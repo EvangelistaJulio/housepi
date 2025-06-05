@@ -21,24 +21,6 @@
 //-----------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////  Base Distribution - constructor  ////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-Distribution::Distribution(const std::string &name,
-                           const str_vec &arg_name,
-                           const dbl_vec &arg_value,
-                           double domain_min,
-                           double domain_max,
-                           bool is_min_open,
-                           bool is_max_open)
-    // each distribution has extra argument "x" for return_value
-    : Function(name, arg_name + str_vec({"x"}), arg_value + dbl_vec({HOUSEPI_NA_DOUBLE}),
-               domain_min, domain_max, is_min_open, is_max_open)
-{
-}
-Distribution::~Distribution() = default;
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////  Base Distribution - wrapper  //////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -77,44 +59,6 @@ double Distribution::__return_cdf() const
         return 1.;
     else
         return cdf(x);
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  Base Distribution - virtual  //////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-double Distribution::raw_pdf(double x) const
-{
-    UNUSED(x);
-    throw std::invalid_argument(
-        "Attempt to call undefined method \"pdf\" of distribution \"" + show_name() + "\".");
-}
-double Distribution::raw_cdf(double x) const
-{
-    UNUSED(x);
-    throw std::invalid_argument(
-        "Attempt to call undefined method \"cdf\" of distribution \"" + show_name() + "\".");
-}
-double Distribution::raw_logpdf(double x) const
-{
-    UNUSED(x);
-
-    throw std::invalid_argument(
-        "Attempt to call undefined method \"logpdf\" of distribution \"" + show_name() + "\".");
-}
-double Distribution::raw_logratio(double xold, double xnew) const
-{
-    UNUSED(xold);
-    UNUSED(xnew);
-
-    return 0.;
-}
-void Distribution::update_args() {};
-double Distribution::raw_rand(rnd_gen &prng)
-{
-    UNUSED(prng);
-    throw std::invalid_argument(
-        "Attempt to call undefined method \"rand\" of distribution \"" + show_name() + "\".");
 }
 
 //-----------------------------------------------------------------------------------------------//

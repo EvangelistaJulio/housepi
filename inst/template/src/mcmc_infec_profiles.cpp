@@ -11,7 +11,7 @@
  *
  */
 
-#include "mcmc_build.h"
+#include "mcmc_impl.h"
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -321,18 +321,16 @@ void MCMC::Impl::InfecProfile::_build_augmented()
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Default method for instantaneous infectivity profile. */
-double MCMC::Impl::InfecProfile::__default_inst(Individual &member, double t)
+double MCMC::Impl::InfecProfile::__default_inst(Individual &, double t)
 {
-	UNUSED(member);
 	if (profile->valid(t))
 		return profile->pdf(t);
 	else
 		return 0.;
 }
 /* Default method for cumulative infectivity profile. */
-double MCMC::Impl::InfecProfile::__default_cumul(Individual &member, double t)
+double MCMC::Impl::InfecProfile::__default_cumul(Individual &, double t)
 {
-	UNUSED(member);
 	if (profile->below(t))
 		return 0.;
 	else if (profile->above(t))
@@ -342,18 +340,16 @@ double MCMC::Impl::InfecProfile::__default_cumul(Individual &member, double t)
 }
 
 /* Lookup method for discrete instantaneous infectivity profile. */
-double MCMC::Impl::InfecProfile::__lookup_inst(Individual &member, double t)
+double MCMC::Impl::InfecProfile::__lookup_inst(Individual &, double t)
 {
-	UNUSED(member);
 	if (profile->valid(t) && (t < _size_lut))
 		return _lookup_inst.at(static_cast<size_t>(t));
 	else
 		return 0;
 }
 /* Lookup method for discrete cumulative infectivity profile. */
-double MCMC::Impl::InfecProfile::__lookup_cumul(Individual &member, double t)
+double MCMC::Impl::InfecProfile::__lookup_cumul(Individual &, double t)
 {
-	UNUSED(member);
 	if (profile->below(t))
 		return 0.;
 	else if ((t >= _size_lut) || (profile->above(t)))
@@ -377,13 +373,10 @@ double MCMC::Impl::InfecProfile::__augm_cumul(Individual &member, double t)
 }
 
 /* Error method. */
-double MCMC::Impl::InfecProfile::__error(Individual &member, double t)
+double MCMC::Impl::InfecProfile::__error(Individual &, double)
 {
-	UNUSED(member);
-	UNUSED(t);
 	throw std::runtime_error(
-		"Internal error. Call to generic infectivity profile augmented for each individual.");
-	return HOUSEPI_NA_DOUBLE;
+		"Caled generic infectivity profile while augmented for each individual.");
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -398,7 +391,7 @@ double MCMC::Impl::InfecProfile::__error(Individual &member, double t)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* If infectivity profile is a lookup table, store its values. */
-void MCMC::Impl::update_infec_profile()
+void MCMC::Impl::_update_infec_profile()
 {
 	if (_infec_profile.is_lookup())
 		_infec_profile.update_lookup();

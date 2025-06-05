@@ -21,63 +21,17 @@
 //-----------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  Attribute : getter //////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool Attribute::is_scalar() const { return (!is_pointer()) && (!is_function()); }
-bool Attribute::is_pointer() const { return _ptr_to_value != nullptr; }
-bool Attribute::is_function() const { return _func_ptr != nullptr; }
-const std::string Attribute::show() const { return tools::na_to_str(get()); }
-const std::string Attribute::show_name() const { return _attribute_name; }
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  Attribute : get (functional) /////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Get attribute value */
-double Attribute::get() const { return (this->*_do_get)(); }
-
-/* Get attribute value internal value. */
-double Attribute::__get_default() const { return _value; }
-
-/* Get attribute value from external value. */
-double Attribute::__get_from_pointer() const { return *(_ptr_to_value); }
-
-/* Set attribute value internal value. */
-double Attribute::__get_from_function() const { return _func_ptr->return_value(); }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////  Attribute : get_pointer (functional) /////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Get pointer to attribute value. */
-const double *Attribute::get_pointer() const { return (this->*_do_get_pointer)(); }
-
-/* Get pointer to attribute value internal value. */
-const double *Attribute::__get_pointer_default() const { return &_value; }
-
-/* Get pointer to attribute value from external value. */
-const double *Attribute::__get_pointer_from_pointer() const { return _ptr_to_value; }
-
-/* Get pointer to attribute error. */
-const double *Attribute::__get_pointer_error() const
-{
-    throw std::runtime_error(
-        "Cannot return a pointer to attribute \"" + _attribute_name + "\".");
-    return nullptr;
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  Attribute : get_function ////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-const std::shared_ptr<Function> Attribute::get_function() const { return _func_ptr; }
-
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  Attribute : setter //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Attribute::set_name(const std::string &name) { _attribute_name = name; }
 void Attribute::assign_scalar(double x)
 {
     _do_get = &Attribute::__get_default;
@@ -106,25 +60,8 @@ void Attribute::assign_function(const std::shared_ptr<Function> f)
     _func_ptr = f;
 }
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  Attribute : set (functional) /////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Set attribute value. */
-void Attribute::set(double x) { (this->*_do_set)(x); }
-
-/* Set attribute internal value. */
-void Attribute::__set_default(double x) { _value = x; }
-
-/* Set error. */
-void Attribute::__set_error(double x)
-{
-    // note: so far set_arg is only used for adaptation.
-    // Pointer and fucntion attributes can't be set, but just assigned.
-    UNUSED(x);
-    throw std::runtime_error(
-        "Non scalar attribute \"" + _attribute_name + "\" cannot be changed.");
-}
+    /* Get attribute value from external function. */
+    double Attribute::__get_from_function() const { return _func_ptr->return_value(); }
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -189,12 +126,6 @@ Function::~Function() = default;
 ////////////////////////////////////  Base Function : Getter  ///////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Virtual function to return a value */
-double Function::return_value() const { return 0.; }
-
-/* Number of arguments. */
-ushort Function::n_args() const { return _n_args; }
-
 /* Auxiliary function to retrieve the index of a given attribute by name. */
 ushort Function::find(const std::string &arg_name) const
 {
@@ -214,25 +145,10 @@ ushort Function::assert_arg(const std::string &arg_name) const
         for (ushort c = 0; c < _n_args; ++c)
             options.push_back(_arguments[c].show_name());
         throw std::invalid_argument(
-            "Unknown argument \"" + arg_name + "\" for \"" + _function_name + "\"." + tools::find_closest(arg_name, options));
+            "Unknown argument \"" + arg_name + "\" for \"" + show_name() + "\"." + tools::find_closest(arg_name, options));
     }
     return i;
 }
-
-double Function::get_arg(ushort i) const { return _arguments[i].get(); }
-double Function::get_min() const { return _range_min.get(); }
-double Function::get_max() const { return _range_max.get(); }
-
-const double *Function::get_ptr_to_arg(ushort i) const { return _arguments[i].get_pointer(); }
-const double *Function::get_ptr_to_min() const { return _range_min.get_pointer(); }
-const double *Function::get_ptr_to_max() const { return _range_max.get_pointer(); }
-
-/* Returns TRUE if value x is below range minimum. */
-bool Function::below(double x) const { return (this->*_do_below)(x); }
-/* Returns TRUE if value x is above range maximum. */
-bool Function::above(double x) const { return (this->*_do_above)(x); }
-/* Returns TRUE if value x is within range. */
-bool Function::valid(double x) const { return (this->*_do_valid)(x); }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////  Base Function : set range  ////////////////////////////////////
@@ -340,13 +256,6 @@ void Function::init_functional_range(bool is_min_open, bool is_max_open)
     }
 }
 
-/* Virtual function to initialize reshaping in Distribution, etc. */
-void Function::init_reshaping(bool discrete) { UNUSED(discrete); }
-
-/* Return formatted range minimum. */
-const std::string Function::show_min() const { return _range_min.show(); }
-/* Return formatted range maximum. */
-const std::string Function::show_max() const { return _range_max.show(); }
 /* Return formatted range. */
 const std::string Function::show_range() const
 {
@@ -388,9 +297,6 @@ const std::string Function::show_range() const
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////  Base Function : Arguments  /////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Set argument value. */
-void Function::set_arg(ushort i, double x) { _arguments[i].set(x); }
 
 //--- Assign scalar argument or range value. ---//
 void Function::assign_attr(const std::string &arg_name, bool is_arg, double x)
@@ -531,9 +437,6 @@ void Function::_assign_range_function(const std::string &range_name, const std::
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////  Base Function : Show  /////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Return function name. */
-const std::string Function::show_name() const { return _function_name; }
 
 /* Return formatted argument names of the distribution. */
 const std::string Function::show_arg_names() const

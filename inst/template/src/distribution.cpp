@@ -53,26 +53,10 @@ protected:
     std::uniform_real_distribution<double> distr_gen;
 
     //===== GETTER =====//
-    double raw_pdf(double x) const override final
-    {
-        UNUSED(x);
-        return 1.;
-    }
-    double raw_cdf(double x) const override final
-    {
-        return x;
-    }
-    double raw_logpdf(double x) const override final
-    {
-        UNUSED(x);
-        return 0.;
-    }
-    double raw_logratio(double xold, double xnew) const override final
-    {
-        UNUSED(xold);
-        UNUSED(xnew);
-        return 0.;
-    }
+    double raw_pdf(double) const override final { return 1.; }
+    double raw_cdf(double x) const override final { return x; }
+    double raw_logpdf(double) const override final { return 0.; }
+    double raw_logratio(double, double) const override final { return 0.; }
     double raw_rand(rnd_gen &prng) override final
     {
         const double r = distr_gen(prng);
@@ -563,11 +547,7 @@ public:
     ~Poisson_Distribution() = default;
 
     //===== SETTER =====//
-    void init_reshaping(bool discrete) override final
-    {
-        UNUSED(discrete);
-        init_min_zero_discr_defined_reshaping();
-    }
+    void init_reshaping(bool) override final { init_min_zero_discr_defined_reshaping(); }
 
 protected:
     std::poisson_distribution<unsigned> distr_gen;
@@ -622,10 +602,8 @@ public:
     ~Binomial_Distribution() = default;
 
     //===== SETTER =====//
-    void init_reshaping(bool discrete) override final
+    void init_reshaping(bool) override final
     {
-        UNUSED(discrete);
-
         if (get_min() < 0.)
             throw std::invalid_argument(
                 "Invalid min value " + show_min() + " for distribution \"" + show_name() + "\".");
@@ -690,11 +668,7 @@ public:
     ~NegativeBinomial_Distribution() = default;
 
     //===== SETTER =====//
-    void init_reshaping(bool discrete) override final
-    {
-        UNUSED(discrete);
-        init_min_zero_discr_defined_reshaping();
-    }
+    void init_reshaping(bool) override final { init_min_zero_discr_defined_reshaping(); }
 
 protected:
     std::negative_binomial_distribution<unsigned> distr_gen;
@@ -747,9 +721,8 @@ public:
     ~Geometric_Distribution() = default;
 
     //===== SETTER =====//
-    void init_reshaping(bool discrete) override final
+    void init_reshaping(bool) override final
     {
-        UNUSED(discrete);
         init_min_zero_discr_defined_reshaping();
     }
 

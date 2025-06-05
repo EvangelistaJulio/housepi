@@ -69,8 +69,8 @@ const std::string CONTACT_RATE = "Contact";      // contact rate
 const std::string MISSING_RATE = "MISSING_RATE"; // missing rate
 
 // auxiliary infectivity profile
-const std::string AUX_IP_GEN_TIME = "__gen_time__";         // augmented generation time
-const std::string AUX_IP_INST_PROFILE = "__profile_inst__"; // augmented instantaneous infectivity profile
+const std::string AUX_IP_GEN_TIME = "__gen_time__";           // augmented generation time
+const std::string AUX_IP_INST_PROFILE = "__profile_inst__";   // augmented instantaneous infectivity profile
 const std::string AUX_IP_CUMUL_PROFILE = "__profile_cumul__"; // augmented cumulative infectivity profile
 
 // constants
@@ -107,12 +107,6 @@ using rnd_gen = std::mt19937_64;
 #else
 using rnd_gen = std::mt19937;
 #endif
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////  MACROS  /////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-#define UNUSED(x) (void)(x) // MACRO to avoid 'unused' warnings from compiler
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////  TYPEDEF  /////////////////////////////////////////////
@@ -286,16 +280,16 @@ namespace progress
     {
     public:
         //===== CONSTRUCTOR =====//
-        Bar(ulong total,
-            const std::string &text = "",
+        Bar(const std::string &text = "",
             ulong thintime = 1);
         ~Bar();
 
         //===== SETTER =====//
         void set_text(const std::string &text);
-        void start();
+        void open(ulong total);
         void update();
-        void end();
+        void crash() const;
+        void close();
 
     private:
         class Impl; // Pointer to Implementation

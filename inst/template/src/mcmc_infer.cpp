@@ -13,160 +13,7 @@
 
 #include <atomic>
 
-#include "mcmc_build.h"
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/* Assign parameter definitions to dictionary. */
-void MCMC::Impl::build_param()
-{
-    try
-    {
-        // reference to parameter definition table
-        const dict_str_vec &deftable = _param_deftable;
-
-        if (!deftable.empty())
-        {
-            // check entries
-            str_vec headers = tools::headers_from_deftable(deftable);
-            tools::check_for_missing_entries(headers, param_file_headers);
-            tools::check_for_unused_entries(headers, param_file_headers);
-
-            // drop current list of parameters
-            param_map.clear();
-            param_const_list.clear();
-            param_standard_infer_list.clear();
-            param_cache_infer_list.clear();
-
-            //===== Load parameters from the row with options =====//
-            for (size_t k = 0; k < deftable.at("name").size(); ++k)
-            {
-                const std::string &name = deftable.at("name")[k]; // parameter name
-                double value = HOUSEPI_NA_DOUBLE;                 // init value
-                parID p = name;
-
-                // Add entry to shared parameter dictionary -----//
-                if (param_map.count(p))
-                {
-                    // parameter is already defined
-                    throw std::invalid_argument(
-                        "Parameter \"" + p + "\" has multiple definitions.");
-                }
-                else if (tools::stobool(deftable.at("const")[k]))
-                {
-                    // assign constant parameter to the set of variables
-                    if (tools::is_na(deftable.at("value")[k]))
-                        throw std::invalid_argument(
-                            "Undefined value for constant parameter \"" + name + "\".");
-                    else
-                        value = tools::stod(deftable.at("value")[k], "parameter");
-
-                    // assign constant parameter to the set of variables
-                    param_map.emplace(p, Variable(name, value));
-                    // update the lists of constant parameters
-                    param_const_list.push_back(p);
-                }
-                else
-                {
-                    // load value
-                    if (!tools::is_na(deftable.at("value")[k]))
-                        value = tools::stod(deftable.at("value")[k], "parameter");
-
-                    // load boolean flag for discrete variables
-                    bool is_discrete = false;
-                    if (!tools::is_na(deftable.at("discr")[k]))
-                        is_discrete = tools::stobool(deftable.at("discr")[k]);
-
-                    // load prior name
-                    const std::string &prior_name = deftable.at("prior")[k];
-
-                    // load rule name
-                    std::string rule_name = "draw";
-                    if (!tools::is_na(deftable.at("rule")[k]))
-                        rule_name = deftable.at("rule")[k];
-
-                    // load rule scale
-                    double rule_scale = 1.;
-                    if (!tools::is_na(deftable.at("scale")[k]))
-                        rule_scale = tools::stod(deftable.at("scale")[k]);
-
-                    //----- Create a new Parameter Variable -----//
-                    param_map.emplace(p, Variable(name, value, is_discrete));
-                    Variable &new_param = param_map.at(p);
-
-                    // assign a prior distribution to the parameter
-                    new_param.assign_distr(prior_name);
-
-                    // assign scalar arguments to prior distribution
-                    str_vec arg_key = tools::parse_list_args(deftable.at("arg_key")[k]);
-                    str_vec arg_val = tools::parse_list_args(deftable.at("arg_val")[k]);
-                    for (ushort c = 0; c < arg_key.size(); ++c)
-                        // UPDATE: is this check really necessary?
-                        if (!tools::is_na(arg_key[c]))
-                        {
-                            const std::string &x = arg_val[c];
-                            new_param.assign_distr_attr(
-                                arg_key[c], ATTR_ARGUMENT,
-                                (tools::is_na(x) ? HOUSEPI_NA_DOUBLE : tools::stod(x)));
-                        }
-
-                    // load parameter range
-                    double lower = HOUSEPI_NA_DOUBLE, upper = HOUSEPI_NA_DOUBLE;
-                    if (!tools::is_na(deftable.at("min")[k]))
-                        lower = tools::stod(deftable.at("min")[k], "parameter minimum");
-                    if (!tools::is_na(deftable.at("max")[k]))
-                        upper = tools::stod(deftable.at("max")[k], "parameter maximum");
-
-                    // set the range of values to the parameter
-                    if (!tools::is_na(lower))
-                        new_param.assign_distr_attr("min", ATTR_RANGE, lower);
-                    if (!tools::is_na(upper))
-                        new_param.assign_distr_attr("max", ATTR_RANGE, upper);
-                    new_param.init_distr_reshaping();
-
-                    // assign the rule for the proposer to the parameter
-                    new_param.assign_proposer(rule_name, rule_scale);
-
-                    // update the lists of parameters to be inferred
-                    param_standard_infer_list.push_back(p);
-                }
-            }
-        }
-    }
-    catch (const std::exception &e)
-    {
-        tools::error("While building parameters:\n" +
-                     std::string(e.what()));
-    }
-}
-
-/* Randomly initialize values of the parameters to be inferred */
-void MCMC::Impl::init_parameters()
-{
-    for (const parID &p : param_standard_infer_list + param_cache_infer_list)
-    {
-        Variable &this_par = param_map.at(p);
-        // user initialization (for multiple chains)
-        this_par.user_reset();
-
-        if (setup_rand_init_params)
-        {
-            if (tools::is_na(this_par.show_distr_name()))
-                throw std::invalid_argument(
-                    "Parameters with undefined values are not allowed.");
-            else
-                this_par.rand(_prng);
-        }
-        else if (tools::is_na(this_par.get()))
-            throw std::invalid_argument(
-                "Value of parameter \"" + p + "\" is undefined with no random initialization.");
-    }
-}
+#include "mcmc_impl.h"
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -180,7 +27,7 @@ void MCMC::Impl::init_parameters()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Set accept rates to zero. */
-void MCMC::Impl::init_move_counts()
+void MCMC::Impl::_init_move_counts()
 {
     for (const parID &p : param_standard_infer_list + param_cache_infer_list)
         param_map.at(p).reset_accept_rate();
@@ -225,18 +72,6 @@ void MCMC::Impl::recover_parameter(const parID &p, bool cache_depen)
         recover_infec_profile();
 }
 
-/* Update the acceptance rate of the paramter. */
-void MCMC::Impl::update_param_accept_rate(const parID &p, bool is_accepted)
-{
-    param_map.at(p).update_accept_rate(is_accepted);
-}
-
-/* Adapt the parameter Metropolis move. */
-void MCMC::Impl::adapt_param_rule(const parID &p, double ratio)
-{
-    param_map.at(p).adapt_rule(ratio);
-}
-
 /* Metropolis-Hastings to accept or not current parameter move. */
 bool MCMC::Impl::accept_valid_param_move(const parID &p)
 {
@@ -245,37 +80,12 @@ bool MCMC::Impl::accept_valid_param_move(const parID &p)
     return uniform() < std::exp(setup_inv_T * D_ll + move_logratio);
 }
 
-/* Getter for full loglikelihood. */
-double MCMC::Impl::get_full_loglike() const
-{
-    return full_loglike;
-}
-
-/* Set new full loglikelihood value and buffer old value. */
-void MCMC::Impl::set_full_loglike(double new_ll)
-{
-    full_buffer = full_loglike;
-    full_loglike = new_ll;
-}
-
-/* Increment full loglikelohood by a delta, buffer old value. */
-void MCMC::Impl::increment_full_loglike(double delta)
-{
-    set_full_loglike(full_loglike + delta);
-}
-
-/* Compute statistics from sample of full loglikelihood. */
-const std::pair<double, double> MCMC::Impl::smpl_full_loglike_stats() const
-{
-    return tools::compute_stats(smpl_full_loglike);
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////  MCMC::Impl : methods (diagnostics) ////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Init posterior sampling. */
-void MCMC::Impl::init_diagnostics()
+void MCMC::Impl::_init_infer_diagnostics()
 {
     ulong sample_size = setup_c_sample_size * setup_n_chains;
 
@@ -286,7 +96,7 @@ void MCMC::Impl::init_diagnostics()
 
     // initialize  other diagnostic vectors
     // UPDATE: I might want to store also power posterior sample
-    if (!is_power_post())
+    if (!_is_power_post())
     {
         // diagnostics over parameters
         for (const parID &p : param_standard_infer_list + param_cache_infer_list)
@@ -305,12 +115,12 @@ void MCMC::Impl::init_diagnostics()
 }
 
 /* Update Bayesian diagnostics */
-void MCMC::Impl::update_diagnostics()
+void MCMC::Impl::_update_infer_diagnostics()
 {
     // diagnostics for full loglike
-    smpl_full_loglike[smpl_count] = get_full_loglike();
+    smpl_full_loglike[smpl_count] = full_loglike;
 
-    if (!is_power_post())
+    if (!_is_power_post())
     {
         // diagnostics for all parameters
         for (const parID &p : param_standard_infer_list + param_cache_infer_list)
@@ -341,7 +151,7 @@ void MCMC::Impl::update_diagnostics()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Compute new loglikelihood, store old value in buffer. Same for households. */
-void MCMC::Impl::update_full_loglike(const bool cache_depen)
+void MCMC::Impl::_update_full_loglike(bool cache_depen)
 {
     const bool is_augm_ll = is_augm_model();
     double new_ll = 0.0;
@@ -349,7 +159,7 @@ void MCMC::Impl::update_full_loglike(const bool cache_depen)
 
     // buffer infectivity profile if lookup tables are active
     if (cache_depen)
-        update_infec_profile();
+        _update_infec_profile();
 
 #pragma omp parallel for reduction(+ : new_ll)
     for (size_t R = 0; R < restrict_hh_indexes.size(); ++R)
@@ -359,7 +169,7 @@ void MCMC::Impl::update_full_loglike(const bool cache_depen)
 
         try
         {
-            new_ll += update_house_loglike(R, is_augm_ll, cache_depen);
+            new_ll += _update_house_loglike(R, is_augm_ll, cache_depen);
         }
         catch (const std::exception &e)
         {
@@ -373,7 +183,7 @@ void MCMC::Impl::update_full_loglike(const bool cache_depen)
         }
     }
     if (!_error_message.empty())
-        tools::error(_error_message);
+        throw std::runtime_error(_error_message);
 
     set_full_loglike(new_ll);
 }
@@ -383,7 +193,7 @@ void MCMC::Impl::update_full_loglike(const bool cache_depen)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Update and return contribution of given household to full logliklehood. */
-double MCMC::Impl::update_house_loglike(size_t R, const bool is_augm_ll, const bool cache_depen)
+double MCMC::Impl::_update_house_loglike(size_t R, bool is_augm_ll, bool cache_depen)
 {
     Household &house = house_vector[restrict_hh_indexes[R]];
 
@@ -415,7 +225,7 @@ double MCMC::Impl::update_house_loglike(size_t R, const bool is_augm_ll, const b
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Attempt to move a single parameter for the given inverse temperature. */
-bool MCMC::Impl::move_single_parameter(const parID &p, bool cache_depen)
+bool MCMC::Impl::_move_single_parameter(const parID &p, bool cache_depen)
 {
     bool is_accepted = false;
     // proceed only if the new value is consistent
@@ -423,7 +233,7 @@ bool MCMC::Impl::move_single_parameter(const parID &p, bool cache_depen)
     if (propose_valid_param_move(p))
     {
         // if cache depending on parameter, update and buffer cache
-        update_full_loglike(cache_depen);
+        _update_full_loglike(cache_depen);
 
         // perform Metropolis-Hastings to accept or not move
         if (accept_valid_param_move(p))
@@ -443,41 +253,43 @@ bool MCMC::Impl::move_single_parameter(const parID &p, bool cache_depen)
 //-----------------------------------------------------------------------------------------------//
 
 /* Move all model parameters. */
-void MCMC::Impl::move_all()
+void MCMC::Impl::_move_all()
 {
     // move augmented variables if any
-    move_all_augm();
+    _move_all_augm();
 
     // move all simple model parameters
     for (const parID &p : param_standard_infer_list)
-        move_single_parameter(p, false);
+        _move_single_parameter(p, false);
 
     // move parameters with cache dependecies
     for (const parID &p : param_cache_infer_list)
-        move_single_parameter(p, true);
+        _move_single_parameter(p, true);
 }
 
 /* Move all augmented variables and model parameters and adapt their rule arguments. */
-void MCMC::Impl::move_all_and_adapt_parameters(ulong step)
+void MCMC::Impl::_move_all_and_adapt_params(ulong step)
 {
     // move augmented variables if
-    move_all_augm();
+    _move_all_augm();
 
     // move all model parameters and adapt their rule arguments
-    double adapt_ratio = static_cast<double>(step) / setup_n_adapt;
+    const double ratio = static_cast<double>(step) / setup_n_adapt;
 
     // move all simple model parameters
     for (const parID &p : param_standard_infer_list)
     {
-        update_param_accept_rate(p, move_single_parameter(p, false));
-        adapt_param_rule(p, adapt_ratio);
+        Variable &this_param = param_map.at(p);
+        this_param.update_accept_rate(_move_single_parameter(p, false));
+        this_param.adapt_rule(ratio);
     }
 
     // move parameters with cache dependecies
     for (const parID &p : param_cache_infer_list)
     {
-        update_param_accept_rate(p, move_single_parameter(p, true));
-        adapt_param_rule(p, adapt_ratio);
+        Variable &this_param = param_map.at(p);
+        this_param.update_accept_rate(_move_single_parameter(p, true));
+        this_param.adapt_rule(ratio);
     }
 }
 
@@ -494,40 +306,497 @@ void MCMC::Impl::move_all_and_adapt_parameters(ulong step)
 
 /* Markov chain core, used for inference and power posteriors.
     note: sweep is the number of previously completed thin sweeps. */
-void MCMC::Impl::run_monte_carlo(progress::Bar &progressbar)
+void MCMC::Impl::_run_monte_carlo(progress::Bar &progressbar)
 {
     //==========================//
     //===== Initialization =====//
     //==========================//
 
-    init_diagnostics(); // initialize diagnostics
+    _init_infer_diagnostics(); // initialize diagnostics
 
     // run multiple MCMC chains&
     for (chain = 1; chain <= setup_n_chains; ++chain)
     {
         // update progressbar text
-        progressbar.set_text(fmt_progtxt());
-        init_parameters();          // init parameter inference
-        init_augmented_variables(); // init augmented dependencies
-        update_full_loglike(true);  // init cache + full loglikelihood
-        init_move_counts();         // init move counts for adaptive
+        progressbar.set_text(_fmt_progtxt());
+        _init_parameters();          // init parameter inference
+        _init_augmented_variables(); // init augmented dependencies
+        _update_full_loglike(true);  // init cache + full loglikelihood
+        _init_move_counts();         // init move counts for adaptive
 
         // (Finite) Adaptative Iterations
         for (ulong i = 0; i < setup_n_adapt; i += setup_thin, progressbar.update())
             for (ulong t = 1; t <= setup_thin; ++t)
-                move_all_and_adapt_parameters(i + t);
+                _move_all_and_adapt_params(i + t);
 
         // Burn-in Iterations
         for (ulong i = 0; i < setup_n_burnin; i += setup_thin, progressbar.update())
             for (ulong t = 1; t <= setup_thin; ++t)
-                move_all();
+                _move_all();
 
         // Posterior sampling
         for (ulong i = setup_n_burnin; i < setup_n_steps; i += setup_thin, progressbar.update())
         {
             for (ulong t = 1; t <= setup_thin; ++t)
-                move_all();
-            update_diagnostics(); // store sample
+                _move_all();
+            _update_infer_diagnostics(); // store sample
         }
     }
 }
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////  MCMC::Impl : evaluate loglikelihood  /////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Initialize model and compute the loglikelihood. */
+double MCMC::Impl::evaluate()
+{
+    try
+    {
+        _assert_proper_dataset();       // check if dataset is empty
+        setup_n_chains = 0;             // use 0 chains as a state variable
+        setup_rand_init_params = false; // disable random initialization // UPDATE
+        _init_parameters();             // check no undefined parameters
+        _init_augmented_variables();    // initialize augmented dependencies
+        _init_infec_profile();          // initialize user infectivity profile
+        _init_model_for_inference();    // initialize model for inference
+        _update_full_loglike(true);     // initialize cache + full loglikelihood
+
+        return full_loglike;
+    }
+    catch (const std::exception &e)
+    {
+        tools::error(e.what());
+    }
+
+    return HOUSEPI_NA_DOUBLE;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  MCMC::Impl : inference  ////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Performs the inference using Metropolis-Hastings. */
+void MCMC::Impl::infer()
+{
+    progress::Bar progressbar(_fmt_progtxt(), setup_progress);
+
+    try
+    {
+        _assert_proper_dataset();    // check if dataset is empty
+        _assert_proper_mcmc_setup(); // check setup for mcmc sampling
+        _init_infec_profile();       // initialize user infectivity profile
+        _init_model_for_inference(); // user initialization model
+
+        progressbar.open(setup_c_n_sweeps * setup_n_chains); // open progress bar
+        _run_monte_carlo(progressbar);                       // run Monte Carlo
+        progressbar.close();                                 // close progress bar
+    }
+    catch (std::exception &e)
+    {
+        progressbar.crash();
+        tools::error(e.what());
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////  MCMC::Impl : power posteriors  /////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Power posteriors numerical integration for evidence.
+    -----
+    Ref: Friel, N., Hurn, M. & Wyse, J.
+    Improving power posterior estimation of statistical evidence.
+    Stat Comput 24, 709–723 (2014).
+*/
+const std::vector<dbl_vec> MCMC::Impl::_power_posteriors(const std::string &scheme, ulong n_rungs)
+{
+    // declare progress
+    progress::Bar progressbar(_fmt_progtxt(), setup_progress);
+
+    try
+    {
+        //==========================//
+        //===== INITIALIZATION =====//
+        //==========================//
+
+        const str_vec options = {"adaptive", "power-fractions"};
+        if (!contains(options, scheme))
+            throw std::invalid_argument("Unknown power posterior scheme \"" + scheme + "\"." +
+                                        tools::find_closest(scheme, options, 3));
+
+        _assert_proper_dataset();    // check if dataset is empty
+        _assert_proper_mcmc_setup(); // check setup for mcmc sampling
+
+        // fix internal number of rungs (for progress bar)
+        if (n_rungs >= 2)
+            setup_n_rungs = n_rungs;
+        else
+            throw std::invalid_argument("N. of rungs must be greater than 1.");
+
+        // initialize model for inference
+        _init_model_for_inference();
+
+        // implementation setup aliases
+        double &t = setup_inv_T; // current inverse temperature
+
+        //----- Buffer user setup -----//
+        double buffer_inv_T = t;
+        bool buffer_rand_init_params = setup_rand_init_params;
+
+        // thermodynamic ladder estimates
+        std::pair<double, double> stats = {}; // results of stats computation
+        dbl_vec itm = {};                     // inverse temperature
+        dbl_vec avg = {};                     // mean loglikelihood
+        dbl_vec var = {};                     // variance loglikelihood
+
+        //=================================//
+        //===== INVERSE TEMPERATURE 0 =====//
+        //=================================//
+
+        progressbar.open((setup_c_n_sweeps * setup_n_chains) * (setup_n_rungs + 1));
+
+        // UPDATE: should I use previous inference for itm = 1 if available?
+        // UPDATE: always under-estimate time if starting from itm = 0
+
+        setup_rand_init_params = true;
+
+        rung = 0;
+        t = 0.0;
+        _run_monte_carlo(progressbar);
+        stats = _smpl_full_loglike_stats();
+
+        itm.push_back(t);
+        avg.push_back(stats.first);
+        var.push_back(stats.second);
+
+        setup_rand_init_params = false;
+
+        if (scheme == "adaptive")
+        {
+            //===========================//
+            //===== ADAPTIVE LADDER =====//
+            //===========================//
+
+            //----- Inverse Temperature 1 -----//
+            rung = 1;
+            t = 1.0;
+            _run_monte_carlo(progressbar);
+            stats = _smpl_full_loglike_stats();
+
+            itm.push_back(t);
+            avg.push_back(stats.first);
+            var.push_back(stats.second);
+
+            //----- Inverse Temperatures (0, 1) -----//
+            size_t k = 0; // index to interval lower bound
+            bool is_right = false;
+            while (rung < n_rungs)
+            {
+                ++rung;
+
+                //----- adaptive choice of inverse temperature -----//
+                // intersection between tangents
+                double new_t = (avg[k + 1] - itm[k + 1] * var[k + 1] - avg[k] + itm[k] * var[k]) / (var[k] - var[k + 1]);
+                // otherwise weighted average
+                if ((new_t <= itm[k]) || (new_t >= itm[k + 1]))
+                    new_t = itm[k] + var[k + 1] * (itm[k + 1] - itm[k]) / (var[k] + var[k + 1]);
+
+                //----- power posterior sampling -----//
+                t = new_t;
+                _run_monte_carlo(progressbar);
+                stats = _smpl_full_loglike_stats();
+
+                //----- find larger rectangular discretization error -----//
+                is_right = (itm[k + 1] - t) * (avg[k + 1] - stats.first) > (new_t - itm[k]) * (stats.first - avg[k]);
+
+                //----- insert in-between for all lists -----//
+                itm.insert(itm.begin() + k + 1, t);
+                avg.insert(avg.begin() + k + 1, stats.first);
+                var.insert(var.begin() + k + 1, stats.second);
+
+                // if right interval is chosen, index points to inserted as lower bound
+                k += (is_right);
+            }
+        }
+        else if (scheme == "power-fractions")
+        {
+            //==================================//
+            //===== POWER FRACTIONS LADDER =====//
+            //==================================//
+
+            //----- Inverse Temperatures (0, 1] -----//
+            for (rung = 1; rung <= n_rungs; ++rung)
+            {
+                // inverse tempearture = (rung / #rungs)^5
+                t = std::pow(static_cast<double>(rung) / n_rungs, 5);
+                _run_monte_carlo(progressbar);
+                stats = _smpl_full_loglike_stats();
+
+                itm.push_back(t);
+                avg.push_back(stats.first);
+                var.push_back(stats.second);
+            }
+        }
+
+        //----- Close progress bar -----//
+        progressbar.close();
+
+        //----- Restore user setup -----//
+        t = buffer_inv_T;
+        setup_rand_init_params = buffer_rand_init_params;
+
+        return {itm, avg, var};
+    }
+    catch (const std::exception &e)
+    {
+        progressbar.crash();
+        throw e;
+    }
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  MCMC : impl : simulation  /////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Auxiliary method to initialize simulations. */
+void MCMC::Impl::_aux_init_simulate()
+{
+    _assert_proper_dataset(); // check if dataset is empty
+    setup_n_chains = 0;       // use 0 chains as a state variable
+
+    setup_n_threads = 1; // impose no parallelization
+    _set_n_threads();
+
+    setup_rand_init_params = false; // disable random parameter initialization
+    _init_parameters();             // check no undefined parameters
+    _init_infec_profile();          // initialize user infectivity profile
+    _init_model_for_simulation();   // initialize model for simulation
+}
+
+#ifdef _HOUSEPI_RCPP
+/* Perform simulation and return simulated dataset. */
+Rcpp::DataFrame MCMC::Impl::simulate()
+{
+    using namespace Rcpp;
+
+    progress::Bar progressbar("simulate", setup_progress);
+
+    try
+    {
+        size_t n_cols = n_individuals;
+        size_t row = 0;
+        str_vec _aux_data_headers = data_headers;
+        Rcpp::CharacterVector df_index = CharacterVector(n_cols);
+        Rcpp::CharacterVector df_house_index = CharacterVector(n_cols);
+        Rcpp::IntegerVector df_status = IntegerVector(n_cols);
+        std::vector<Rcpp::NumericVector> df_dbl = {};
+
+        // remove data columns if they have same name than augmented
+        str_vec &v = _aux_data_headers;
+        // UPDATE: why augm_list_full is still a set?
+        str_vec &y = augm_list_full;
+        // remove augmented variable columns from data columns
+        auto new_end = std::remove_if(v.begin(), v.end(),
+                                      [&y](const dataID &elem)
+                                      {
+                                          return contains(y, elem);
+                                      });
+        v.erase(new_end, v.end());
+
+        // other data and augmented variable columns
+        for (size_t s = 0; s < _aux_data_headers.size() + augm_list_full.size(); ++s)
+            df_dbl.emplace_back(n_cols);
+
+        //----- initialization -----//
+        _aux_init_simulate();
+        progressbar.open(n_houses());
+
+        //----- run simulation -----//
+        for (Household house : house_vector) // deep copy of the household
+            try
+            {
+                // inplace simlation
+                _simulate_single_house(house);
+
+                // store simulation
+                for (Individual &member : house)
+                {
+                    df_index[row] = member.id();
+                    df_house_index[row] = house.house_id();
+                    df_status[row] = member.status();
+
+                    size_t col = 0;
+                    for (const dataID &d : _aux_data_headers)
+                    {
+                        double x = member.data(d);
+                        df_dbl[col++][row] = tools::is_na(x) ? NA_REAL : x;
+                    }
+
+                    for (const augmID &a : augm_list_full)
+                    {
+                        double x = member.augm(a);
+                        df_dbl[col++][row] = tools::is_na(x) ? NA_REAL : x;
+                    }
+
+                    ++row;
+                }
+            }
+            catch (const std::exception &e)
+            {
+                throw std::runtime_error("While simulating house " +
+                                         house.house_id() + " :\n" +
+                                         std::string(e.what()));
+            }
+
+        // close progress bar
+        progressbar.close();
+
+        // assign vectors to dataframe
+        DataFrame output = DataFrame::create(
+            _["id"] = std::move(df_index),
+            _["house_id"] = std::move(df_house_index),
+            _["status"] = std::move(df_status));
+
+        size_t col = 0;
+        for (const dataID &d : _aux_data_headers)
+            output.push_back(std::move(df_dbl[col++]), d);
+
+        for (const augmID &a : augm_list_full)
+            output.push_back(std::move(df_dbl[col++]), a);
+
+        return output;
+    }
+    catch (std::exception &e)
+    {
+        progressbar.crash();
+        tools::error(e.what());
+    }
+
+    return DataFrame::create();
+}
+
+Rcpp::List MCMC::Impl::estimate_evidence(const std::string &scheme, ulong n_rungs)
+{
+    using namespace Rcpp;
+
+    try
+    {
+        double output = 0;
+        const std::vector<dbl_vec> pp = _power_posteriors(scheme, n_rungs);
+        const dbl_vec &inv_tem = pp[0];
+        const dbl_vec &avg_vec = pp[1];
+        const dbl_vec &var_vec = pp[2];
+
+        for (ulong k = 0; k < n_rungs; ++k)
+        {
+            double d_inv_tem = inv_tem[k + 1] - inv_tem[k];
+            output += (avg_vec[k + 1] + avg_vec[k]) * d_inv_tem / 2.;
+            output += (var_vec[k] - var_vec[k + 1]) * d_inv_tem * d_inv_tem / 12.;
+        }
+
+        return List::create(
+            _["estimate"] = output,
+            _["scheme"] = scheme,
+            _["n_rungs"] = n_rungs,
+            _["inv_temper"] = wrap(inv_tem),
+            _["mean_loglike"] = wrap(avg_vec),
+            _["var_loglike"] = wrap(var_vec));
+    }
+    catch (const std::exception &e)
+    {
+        tools::error("While estimating evidence with power posteriors:\n" +
+                     std::string(e.what()));
+    }
+    return List();
+}
+
+#else
+
+/* Print the simulated dataset to the provided file. */
+void MCMC::Impl::print_simulated_dataset(const std::string &pathtofile)
+{
+    progress::Bar progressbar("simulate", setup_progress);
+
+    try
+    {
+        //----- initialization -----//
+        _aux_print_dataset_init_(pathtofile);
+        _aux_init_simulate();
+
+        progressbar.open(n_houses()); // open progress bar
+
+        //----- run simulation -----//
+        // note: deep copy of the household
+        for (Household house : house_vector)
+            try
+            {
+                _simulate_single_house(house);     // inplace simulation
+                _aux_print_dataset_update_(house); // print the simulated dataset
+                progressbar.update();
+            }
+            catch (const std::exception &e)
+            {
+                throw std::runtime_error("While simulating house " +
+                                         house.house_id() + " :\n" +
+                                         e.what());
+            }
+
+        progressbar.close();            // close progress bar
+        _aux_print_dataset_finalize_(); // finalize output
+    }
+    catch (std::exception &e)
+    {
+        progressbar.crash();
+        tools::error(e.what());
+    }
+}
+
+/* Trapezoidal rule to estimate logarithm of marginal likelihood (evidence) with power posteriors.
+    -----
+    Ref: Friel, N., Hurn, M. & Wyse, J.
+    Improving power posterior estimation of statistical evidence.
+    Stat Comput 24, 709–723 (2014).
+*/
+void MCMC::Impl::print_evidence(const std::string &scheme, ulong n_rungs)
+{
+    try
+    {
+        double output = 0;
+        const std::vector<dbl_vec> pp = _power_posteriors(scheme, n_rungs);
+        const dbl_vec &inv_tem = pp[0];
+        const dbl_vec &avg_vec = pp[1];
+        const dbl_vec &var_vec = pp[2];
+
+        for (ulong k = 0; k < n_rungs; ++k)
+        {
+            double d_inv_tem = inv_tem[k + 1] - inv_tem[k];
+            output += (avg_vec[k + 1] + avg_vec[k]) * d_inv_tem / 2.;
+            output += (var_vec[k] - var_vec[k + 1]) * d_inv_tem * d_inv_tem / 12.;
+        }
+
+        // print result to stdout
+        tools::print_stdout(std::to_string(output) + "\n");
+    }
+    catch (const std::exception &e)
+    {
+        tools::error("While estimating evidence with power posteriors:\n" +
+                     std::string(e.what()));
+    }
+}
+
+#endif

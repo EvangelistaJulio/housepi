@@ -16,7 +16,7 @@
 void Model::assign_group_rate_to_individual(Individual &member)
 {
 	rateID r;
-	UNUSED(member);
+	(void)(member);
 
 	//----- infectivity -----//
 	r = "infectivity";
@@ -46,11 +46,11 @@ void Model::init_infec_profile()
 void Model::init_model_for_inference()
 {
 	// integer for index of introduction case
-	allocate_cache_house_integer_vector("intro_case");
+	assign_cache_house_integer_vector("intro_case");
 
 	// matrices for the instantaneous and cumulative infectivity profiles
-	allocate_cache_house_double_matrix("inst");
-	allocate_cache_house_double_matrix("cumul");
+	assign_cache_house_double_matrix("inst");
+	assign_cache_house_double_matrix("cumul");
 }
 
 /* Initialize parameters and augmented variables. */
@@ -70,8 +70,8 @@ double Model::loglike_healthy(Household &house) const
 {
 	const indiv i0 = house.cache_integer_vector("intro_case")[0];
 	Individual &member_0 = house.get_member(i0);
-	const double a_cumul = param("alpha") * (param("study_period") + member_0.augm("incub_period"));
-	const double b = transmission_rate(house);
+	const double alpha_cumul = param("alpha") * (param("study_period") + member_0.augm("incub_period"));
+	const double beta = transmission_rate(house);
 
 	// load pre-computed cumulative infectivity profiles
 	const auto &cumul_mtx = house.cache_double_matrix("cumul");
@@ -80,11 +80,10 @@ double Model::loglike_healthy(Household &house) const
 	for (Individual &member_i : house.healthy())
 	{
 		indiv i = member_i.hhindex();
-		double roi_cumul_i = 0;
+		double roi_cumul = 0;
 		for (Individual &member_k : house.infected())
-			roi_cumul_i += cumul_mtx[member_k.hhindex()][i] * member_k.group_rate("infectivity");
-		roi_cumul_i *= member_i.group_rate("susceptibility") * b;
-		output -= a_cumul + roi_cumul_i;
+			roi_cumul += cumul_mtx[member_k.hhindex()][i] * member_k.group_rate("infectivity");
+		output -= alpha_cumul + member_i.group_rate("susceptibility") * beta * roi_cumul;
 	}
 
 	return output;
@@ -101,8 +100,8 @@ double Model::loglike_infectious(Household &house) const
 	const auto &inst_mtx = house.cache_double_matrix("inst");
 	const auto &cumul_mtx = house.cache_double_matrix("cumul");
 
-	const double a = param("alpha");
-	const double b = transmission_rate(house);
+	const double alpha = param("alpha");
+	const double beta = transmission_rate(house);
 
 	for (Individual &member_i : house.infected())
 	{
@@ -110,7 +109,7 @@ double Model::loglike_infectious(Household &house) const
 		if (member_i != member_0)
 		{
 			// Risk of infection from other household members `k`
-			double b_i = b * member_i.group_rate("susceptibility");
+			double b_i = beta * member_i.group_rate("susceptibility");
 			double roi_inst_i = 0.;
 			double roi_cumul_i = 0.;
 			for (Individual &member_k : house.infected())
@@ -128,8 +127,8 @@ double Model::loglike_infectious(Household &house) const
 			roi_cumul_i *= b_i;
 
 			// Risk of infection from community
-			roi_inst_i += a;
-			roi_cumul_i += a * (member_i.augm("infec_time") - t_intro);
+			roi_inst_i += alpha;
+			roi_cumul_i += alpha * (member_i.augm("infec_time") - t_intro);
 
 			output += log(roi_inst_i) - roi_cumul_i;
 		}

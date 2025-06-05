@@ -176,20 +176,13 @@ void Household::assign_member(size_t index,
 {
 	//----- update status lists within the household -----//
 	if (status >= INFECTED_STATUS)
-	{
-		++_n_infec;
 		_infec_list.push_back(_house_size);
-	}
+
 	else if (status == HEALTHY_STATUS)
-	{
-		++_n_healthy;
 		_healthy_list.push_back(_house_size);
-	}
+
 	else
-	{
-		++_n_missing;
 		_missing_list.push_back(_house_size);
-	}
 
 	//----- emplace new individual -----//
 	_members.emplace_back(index, _house_size, id, status, data);
@@ -210,39 +203,27 @@ bool Household::change_status(Individual &member, int new_status)
 		indiv i = member.hhindex();
 
 		if (old_status >= INFECTED_STATUS)
-		{
-			--_n_infec;
 			_infec_list.erase(std::find(_infec_list.begin(), _infec_list.end(), i));
-		}
+
 		else if (old_status == HEALTHY_STATUS)
-		{
-			--_n_healthy;
 			_healthy_list.erase(std::find(_healthy_list.begin(), _healthy_list.end(), i));
-		}
+
 		else if (old_status == MISSING_STATUS)
-		{
-			--_n_missing;
 			_missing_list.erase(std::find(_missing_list.begin(), _missing_list.end(), i));
-		}
+
 		else
 			throw std::runtime_error(
 				"Unknown status \"" + std::to_string(old_status) + "\" for individual " + member.id() + ".");
 
 		if (new_status >= INFECTED_STATUS)
-		{
-			++_n_infec;
 			_infec_list.push_back(i);
-		}
+
 		else if (new_status == HEALTHY_STATUS)
-		{
-			++_n_healthy;
 			_healthy_list.push_back(i);
-		}
+
 		else if (new_status == MISSING_STATUS)
-		{
-			++_n_missing;
 			_missing_list.push_back(i);
-		}
+
 		else
 			throw std::runtime_error(
 				"Unknown new status \"" + std::to_string(new_status) + "\" for individual " + member.id() + ".");
@@ -291,7 +272,7 @@ void Household::set_augm_loglike(double x)
 	_augm_loglike = x;
 }
 
-/* Restore previous values of the loglikelihood. */
+/* Recover previous values of the loglikelihood. */
 void Household::recover_loglike_value()
 {
 	_obs_loglike = _obs_buffer;
@@ -299,31 +280,8 @@ void Household::recover_loglike_value()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  Household : augmented moves  //////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Update the values for posterior sampling. */
-void Household::init_diagnostics(ulong sample_size)
-{
-	_smpl_loglike.clear();
-	_smpl_loglike = dbl_vec(sample_size);
-}
-
-/* Update the values for posterior sampling. */
-void Household::update_diagnostics(ulong c)
-{
-	_smpl_loglike[c] = _obs_loglike / _house_multiplicity + _augm_loglike;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  Household : cache attributes  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Check if any cache quantity is associated to the household. */
-bool Household::is_any_cache()
-{
-	return !(_cache_int_vec.empty() && _cache_dbl_vec.empty() && _cache_dbl_mtx.empty());
-}
 
 /* Deep copies of cache attributes in the buffer */
 void Household::buffer_all_cache()
@@ -340,15 +298,3 @@ void Household::recover_all_cache()
 	_cache_dbl_vec.swap(_buffer_cache_dbl_vec);
 	_cache_dbl_mtx.swap(_buffer_cache_dbl_mtx);
 }
-
-//----- Extra integer vector -----//
-void Household::allocate_cache_integer_vector(const cacheID &e) { _cache_int_vec[e] = int_vec(size(), 0); }
-int_vec &Household::cache_integer_vector(const cacheID &e) { return _cache_int_vec.at(e); }
-
-//----- Extra double vector -----//
-void Household::allocate_cache_double_vector(const cacheID &e) { _cache_dbl_vec[e] = dbl_vec(size(), 0.); }
-dbl_vec &Household::cache_double_vector(const cacheID &e) { return _cache_dbl_vec.at(e); }
-
-//----- Extra double matrix -----//
-void Household::allocate_cache_double_matrix(const cacheID &e) { _cache_dbl_mtx[e] = matrix<double>(size(), dbl_vec(size(), 0.)); }
-matrix<double> &Household::cache_double_matrix(const cacheID &e) { return _cache_dbl_mtx.at(e); }

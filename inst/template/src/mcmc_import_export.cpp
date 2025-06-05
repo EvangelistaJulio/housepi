@@ -11,7 +11,7 @@
  *
  */
 
-#include "mcmc_build.h"
+#include "mcmc_impl.h"
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -131,7 +131,7 @@ void MCMC::Impl::import_multiplicity(const Rcpp::DataFrame &input)
     }
     catch (const std::exception &e)
     {
-        tools::error("While reading multiplicity:" +
+        tools::error("While reading multiplicity:\n" +
                      std::string(e.what()));
     }
     build_multiplicity(multipltable);
@@ -146,7 +146,7 @@ void MCMC::Impl::import_param(const Rcpp::DataFrame &input)
     }
     catch (const std::exception &e)
     {
-        tools::error("While reading parameter definitions:" +
+        tools::error("While reading parameter definitions:\n" +
                      std::string(e.what()));
     }
     build_param();
@@ -161,7 +161,7 @@ void MCMC::Impl::import_augm(const Rcpp::DataFrame &input)
     }
     catch (const std::exception &e)
     {
-        tools::error("While reading augmented definitions:" +
+        tools::error("While reading augmented definitions:\n" +
                      std::string(e.what()));
     }
     build_augm();
@@ -366,7 +366,7 @@ Rcpp::DataFrame MCMC::Impl::export_data_report() const
             type[k] = "household";
             comment[k] = pair.first;
             counts[k] = pair.second;
-            pct[k] = 100. * static_cast<double>(pair.second) / n_households;
+            pct[k] = 100. * static_cast<double>(pair.second) / n_houses();
             ++k;
         }
 
@@ -429,7 +429,7 @@ Rcpp::NumericMatrix MCMC::Impl::export_traces() const
 
     try
     {
-        // UPDATE: I shall allow for export even if is_power_post
+        // UPDATE: I shall allow for export even if _is_power_post
         if (smpl_full_loglike.empty())
             throw std::length_error("No traces to export were found.");
 
@@ -504,11 +504,11 @@ Rcpp::NumericMatrix MCMC::Impl::export_house_loglike_mtx() const
 
         // create a NumericMatrix with n_house columns
         ulong sample_size = setup_n_chains * setup_c_sample_size;
-        NumericMatrix output(sample_size, n_households);
-        CharacterVector headers(n_households);
+        NumericMatrix output(sample_size, n_houses());
+        CharacterVector headers(n_houses());
 
         // assign each NumericVector to a column of the matrix
-        for (size_t H = 0; H < n_households; ++H)
+        for (size_t H = 0; H < n_houses(); ++H)
         {
             size_t H0 = house_vector[H].multiplicity_class_index();
             output(_, H) = NumericVector(wrap(house_vector[H0].get_smpl_loglike()));
@@ -604,43 +604,6 @@ Rcpp::List MCMC::Impl::showcase_infec_profile(int n_bins) const
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  MCMC : exports to Rcpp ////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-Rcpp::List MCMC::export_setup() const { return pImpl->export_setup(); }
-Rcpp::DataFrame MCMC::export_param() const { return pImpl->export_param(); }
-Rcpp::DataFrame MCMC::export_dataset() const { return pImpl->export_dataset(); }
-Rcpp::DataFrame MCMC::export_data_report() const { return pImpl->export_data_report(); }
-Rcpp::DataFrame MCMC::export_house_size_report() const { return pImpl->export_house_size_report(); }
-Rcpp::NumericMatrix MCMC::export_traces() const { return pImpl->export_traces(); }
-Rcpp::NumericMatrix MCMC::export_house_loglike_mtx() const { return pImpl->export_house_loglike_mtx(); }
-
-Rcpp::List MCMC::showcase_infec_profile(int n_bins)
-{
-    init_infec_profile();
-    return pImpl->showcase_infec_profile(n_bins);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  MCMC : imports from Rcpp ///////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-void MCMC::import_setup(const Rcpp::List &x) { pImpl->import_setup(x); }
-void MCMC::import_dataset(const Rcpp::DataFrame &x) { pImpl->import_dataset(x); }
-void MCMC::import_datalist(const Rcpp::DataFrame &x) { pImpl->import_datalist(x); }
-void MCMC::import_multiplicity(const Rcpp::DataFrame &x) { pImpl->import_multiplicity(x); }
-void MCMC::import_param(const Rcpp::DataFrame &x) { pImpl->import_param(x); }
-void MCMC::import_infec_profile(const Rcpp::List &x) { pImpl->import_infec_profile(x); }
-void MCMC::import_augm(const Rcpp::DataFrame &x) { pImpl->import_augm(x); }
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
 #else
 
 #include <fstream>
@@ -657,7 +620,7 @@ void MCMC::Impl::read_setup(const std::string &f)
     }
     catch (const std::exception &e)
     {
-        tools::error("While reading setup definitions:" +
+        tools::error("While reading setup definitions:\n" +
                      std::string(e.what()));
     }
     build_setup();
@@ -672,7 +635,7 @@ void MCMC::Impl::read_infec_profile(const std::string &f)
     }
     catch (const std::exception &e)
     {
-        tools::error("While reading infectivity profile definitions:" +
+        tools::error("While reading infectivity profile definitions:\n" +
                      std::string(e.what()));
     }
     _infec_profile.build();
@@ -790,20 +753,20 @@ void MCMC::Impl::show_summary() const
         << "\n    * n. of missing status : "
         << _trail_percent_(get_report_indiv("missing"), n_individuals);
 
-    oss << "\nn. of households: " << n_households
+    oss << "\nn. of households: " << n_houses()
         << "\n    * with no cases: "
-        << _trail_percent_(get_report_house("no cases"), n_households)
+        << _trail_percent_(get_report_house("no cases"), n_houses())
         << "\n    * with at least 1 case: "
-        << _trail_percent_(get_report_house("at least 1 case"), n_households)
+        << _trail_percent_(get_report_house("at least 1 case"), n_houses())
         << "\n    * with at least 2 cases: "
-        << _trail_percent_(get_report_house("at least 2 cases"), n_households);
+        << _trail_percent_(get_report_house("at least 2 cases"), n_houses());
 
     oss << "\nmax n. house cases: " << get_report_hh_size("max cases").first
-        << _aux_percent_(get_report_hh_size("max cases").second, n_households)
+        << _aux_percent_(get_report_hh_size("max cases").second, n_houses())
         << "\nmin n. house members: " << get_report_hh_size("min size").first
-        << _aux_percent_(get_report_hh_size("min size").second, n_households)
+        << _aux_percent_(get_report_hh_size("min size").second, n_houses())
         << "\nmax n. house members: " << get_report_hh_size("max size").first
-        << _aux_percent_(get_report_hh_size("max size").second, n_households);
+        << _aux_percent_(get_report_hh_size("max size").second, n_houses());
 
     tools::print_stdout(oss.str() + "\n");
 }
@@ -1064,34 +1027,5 @@ void MCMC::Impl::_aux_print_dataset_finalize_()
         throw std::runtime_error(
             "Output file closed unexpectedly.");
 }
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////  MCMC : read  //////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-void MCMC::read_setup(const std::string &f) { pImpl->read_setup(f); }
-void MCMC::read_dataset(const std::string &f) { pImpl->read_dataset(f); }
-void MCMC::read_datalist(const std::string &f) { pImpl->read_datalist(f); }
-void MCMC::read_multiplicity(const std::string &f) { pImpl->read_multiplicity(f); }
-void MCMC::read_param(const std::string &f) { pImpl->read_param(f); }
-void MCMC::read_augm(const std::string &f) { pImpl->read_augm(f); }
-void MCMC::read_infec_profile(const std::string &f) { pImpl->read_infec_profile(f); }
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  MCMC : show, C++ print  ////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-void MCMC::show_setup() const { pImpl->show_setup(); }
-void MCMC::show_all_params() const { pImpl->show_all_params(); }
-void MCMC::show_results() const { pImpl->show_results(); }
-void MCMC::show_summary() const { pImpl->show_summary(); }
-void MCMC::print_infer_state(const std::string &f) const { pImpl->print_infer_state(f); }
 
 #endif
