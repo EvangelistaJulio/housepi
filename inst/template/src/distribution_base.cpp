@@ -352,6 +352,15 @@ void Distribution::init_min_zero_discr_defined_reshaping()
 //////////////////////////////  Distribution : showcase (method)  ///////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* Tell if all arguments (excpet x argument) are defined. */
+bool Distribution::is_able_to_showcase() const 
+{
+    for (ushort i = 0; i < n_args() - 1; ++i)
+        if (tools::is_na(get_arg(i)))
+            return false;
+    return true;
+}
+
 /* Return values to showcase the profile of the distribution. */
 const std::vector<dbl_vec> Distribution::showcase(int n_bins, double ytol) const
 {

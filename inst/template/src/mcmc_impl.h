@@ -190,6 +190,12 @@ public:
     std::map<int, std::vector<augmID>> augm_status_map_model = {};
     std::map<int, std::vector<augmID>> augm_status_map_infer = {};
 
+    /* Augmented list with variable to be exported. */
+    const std::vector<augmID> augm_list_export() const
+    {
+        return subtr(augm_list_full, {AUX_IP_GEN_TIME, AUX_IP_INST_PROFILE, AUX_IP_CUMUL_PROFILE});
+    }
+
     //----- Augmented - Setter -----//
     void _init_augmented_variables();
     void clear_all_augm(Individual &member);
@@ -226,7 +232,7 @@ public:
         void init_lookup();
         void recover_lookup();
         void update_lookup();
-        void assign_template(std::map<std::string, std::string> &x);
+        void assign_template(dict_str_str &x);
         void append_augm_definition();
 
         //===== GETTER =====//
@@ -249,8 +255,8 @@ public:
         dbl_vec _lookup_buffer_cumul = {};
         dict_str_vec _augm_infec_profile_deflist = {};
 
-        void _build_generic();
-        void _build_augmented();
+        void _build_generic_profile();
+        void _build_augmented_profile();
 
         void _assign_single_attribute(const std::string &key,
                                       const std::string &val,
@@ -270,7 +276,6 @@ public:
         double __lookup_cumul(Individual &member, double t);
         double __augm_inst(Individual &member, double t);
         double __augm_cumul(Individual &member, double t);
-        double __error(Individual &member, double t);
     } _infec_profile;
 
     void _update_infec_profile();
@@ -423,7 +428,7 @@ private:
     std::function<void()> _callback_init_simulation;
     std::function<void()> _callback_init_infec_profile;
     std::function<double(Household &)> _callback_house_loglike;
-    std::function<void(Household &)> _callback_simulate_house;    
+    std::function<void(Household &)> _callback_simulate_house;
     std::function<void(Household &, indiv)> _callback_update_cache;
 
     void _init_model_for_inference() { _callback_init_inference(); }
@@ -444,7 +449,7 @@ private:
     //----- build augmented : auxiliary methods -----//
     const dict_str_vec _build_augm_name_status_check();
     void _build_augm_allocate_univocal_defs(const dict_str_vec &check);
-    void _build_augm_clear_houses_and_set_id_trace();
+    void _build_augm_set_id_trace();
 
     double _type_to_double(const Individual &member,
                            const std::string &tkn_val,

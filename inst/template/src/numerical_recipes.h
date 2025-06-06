@@ -132,8 +132,9 @@ namespace numr
                     return sum * std::exp(-z + shape * std::log(z) - std::lgamma(shape));
             }
 
-            throw std::overflow_error("Overflow in gamma_p function.");
-            return HOUSEPI_NA_DOUBLE;
+            throw std::overflow_error(
+                "Overflow in gamma_p function for x/scale=" + std::to_string(z) +
+                ", shape=" + std::to_string(shape) + ".");
         }
 
         /* Upper regularized incomplete gamma function using continued fraction. */
@@ -163,8 +164,9 @@ namespace numr
                     return 1. - std::exp(-z + shape * std::log(z) - std::lgamma(shape)) * h;
             }
 
-            throw std::overflow_error("Overflow in gamma_p function.");
-            return HOUSEPI_NA_DOUBLE;
+            throw std::overflow_error(
+                "Overflow in gamma_p function for x/scale=" + std::to_string(z) +
+                ", shape=" + std::to_string(shape) + ".");
         }
     }
 
@@ -231,8 +233,9 @@ namespace numr
                     return h;
             }
 
-            throw std::overflow_error("Overflow in ibeta function.");
-            return HOUSEPI_NA_DOUBLE;
+            throw std::overflow_error(
+                "Overflow in ibeta function for x=" + std::to_string(x) +
+                ", a=" + std::to_string(a) + ", b=" + std::to_string(b) + ".");
         }
     }
 

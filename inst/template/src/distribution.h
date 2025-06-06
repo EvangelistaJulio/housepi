@@ -85,6 +85,7 @@ public:
 	//===== SHOW =====//
 	//================//
 
+	bool is_able_to_showcase() const;
 	const std::vector<dbl_vec> showcase(int n_bins = 2000,
 										double ytol = 1.e-5) const;
 

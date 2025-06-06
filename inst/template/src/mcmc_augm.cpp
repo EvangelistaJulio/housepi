@@ -133,9 +133,7 @@ void MCMC::Impl::_assign_augm_attributes(Individual &member,
                 {
                     Variable &other_augm = member.get_augm_variable(value);
 
-                    if (other_augm.is_constant())
-                        x = member.augm(value);
-                    else if (other_augm.is_function())
+                    if (other_augm.is_function())
                         f = other_augm.get_function();
                     else
                         y = other_augm.get_pointer();
@@ -276,14 +274,6 @@ void MCMC::Impl::_build_augm_allocate_univocal_defs(const dict_str_vec &check)
         const std::string &a = pair.first;
         const str_vec &mylist = pair.second;
 
-        // check for reserved augmented names
-        for (const std::string &forbid : {AUX_IP_GEN_TIME,
-                                          AUX_IP_INST_PROFILE,
-                                          AUX_IP_CUMUL_PROFILE})
-            if (a == forbid)
-                throw std::invalid_argument(
-                    "Augmtend variable \"" + forbid + "\" is reserved. Please, pick another name.");
-
         for (const std::string &status : mylist)
         {
             if (!tools::is_na(status))
@@ -307,15 +297,9 @@ void MCMC::Impl::_build_augm_allocate_univocal_defs(const dict_str_vec &check)
     }
 }
 
-/* Allocate memory for augmented variables to each individual.
-Search individual id for augmented traces follow-up. */
-void MCMC::Impl::_build_augm_clear_houses_and_set_id_trace()
+/* Search individual id for augmented traces follow-up. */
+void MCMC::Impl::_build_augm_set_id_trace()
 {
-    // cleaer all augmented definitions
-    for (Household &house : house_vector)
-        for (Individual &member : house)
-            clear_all_augm(member);
-
     if (is_augm_sample())
     {
         if (!tools::is_na(setup_id_trace))
@@ -339,7 +323,7 @@ void MCMC::Impl::_build_augm_clear_houses_and_set_id_trace()
     else if (!tools::is_na(setup_id_trace))
     {
         tools::warning(
-            "Ignoring id trace: no augmented variables to be inferred was provided.");
+            "Ignoring id trace: no augmented variables to infer.");
         setup_id_trace = HOUSEPI_NA_STRING;
     }
 }
@@ -351,6 +335,7 @@ void MCMC::Impl::build_augm()
     {
         // eventually append infectivity profile definition
         _infec_profile.append_augm_definition();
+
         const dict_str_vec &deftable = _augm_deftable;
 
         if (!deftable.empty())
@@ -445,7 +430,12 @@ void MCMC::Impl::build_augm()
             }
 
             // end assigment in the households
-            _build_augm_clear_houses_and_set_id_trace();
+            _build_augm_set_id_trace();
+
+            // Allocate memory for augmented variables to each individual.
+            for (Household &house : house_vector)
+                for (Individual &member : house)
+                    clear_all_augm(member);
         }
     }
     catch (const std::exception &e)

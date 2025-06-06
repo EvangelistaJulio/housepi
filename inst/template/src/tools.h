@@ -189,6 +189,17 @@ bool contains(const Container &c, const T &value)
     return std::find(c.begin(), c.end(), value) != c.end();
 }
 
+// return all elements of first vector, but those contained in second
+template <typename T>
+std::vector<T> subtr(std::vector<T> v, const std::vector<T> &w)
+{
+    auto new_end = std::remove_if(v.begin(), v.end(),
+                                  [&w](const T &i)
+                                  { return contains(w, i); });
+    v.erase(new_end, v.end());
+    return v;
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  Basic Tools Functions  //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////

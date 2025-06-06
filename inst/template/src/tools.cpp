@@ -132,9 +132,9 @@ namespace tools
         {
 #ifdef _HOUSEPI_RCPP
             // Rcpp::warning(txt);
-            Rf_warningcall(R_NilValue, "%s\n", txt.c_str());
+            Rf_warningcall(R_NilValue, "%s", txt.c_str());
 #else
-            std::cerr << "\nWarning: " + txt << std::endl;
+            std::cerr << "Warning: " + txt << std::endl;
 #endif
             _issued_warnings_.insert(txt);
         }
@@ -151,7 +151,7 @@ namespace tools
         throw Rcpp::exception(txt.c_str(), false);
         // Rcpp::stop(txt);
 #else
-        std::cerr << "\nError: " + txt + "\nExit...\n"
+        std::cerr << "Error: " + txt + "\nExit..."
                   << std::endl;
         std::exit(EXIT_FAILURE);
 #endif
@@ -711,16 +711,6 @@ namespace progress
                 seconds elapsed = duration_cast<seconds>(now - _start);
                 seconds missing = duration_cast<seconds>(elapsed * (1. / progress - 1.));
 
-                // print initial message
-                if (!_is_opened())
-                    if (static_cast<ulong>(missing.count()) > _thintime)
-                    {
-                        std::ostringstream oss;
-                        oss << _text << " |" << std::string(_barwidth, ' ') << "| "
-                            << tools::percentage(0., 0);
-                        _display(oss.str());
-                    }
-
                 // print update message
                 if (static_cast<ulong>(duration_cast<seconds>(now - _lastprint).count()) > _thintime)
                 {
@@ -737,6 +727,15 @@ namespace progress
 
                     _lastprint = steady_clock::now();
                 }
+                else if (!_is_opened())
+                    // eventually print initial message
+                    if (static_cast<ulong>(missing.count()) > _thintime)
+                    {
+                        std::ostringstream oss;
+                        oss << _text << " |" << std::string(_barwidth, ' ') << "| "
+                            << tools::percentage(0., 0);
+                        _display(oss.str());
+                    }
             }
 
             ++_state;

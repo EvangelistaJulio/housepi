@@ -136,7 +136,8 @@ public:
 	virtual void init_model_for_simulation() {}
 
 	/* Simulation for a single household. */
-	virtual void simulate_single_house(Household &house) {}
+	virtual void simulate_single_house(Household &) { throw std::runtime_error(
+		"Called virtual simulation method of undefined model."); }
 
 #ifdef _HOUSEPI_RCPP
 

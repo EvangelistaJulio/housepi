@@ -548,11 +548,14 @@ Rcpp::List MCMC::Impl::showcase_infec_profile(int n_bins) const
     {
         // check the call makes sense
         // UPDATE: it would be nace by selecting id_trace...
-        if (_infec_profile.is_augmented())
+        if (_infec_profile.profile == nullptr)
+            throw std::length_error("No infectivity profile to export.");
+        else if (_infec_profile.is_augmented())
             throw std::length_error(
                 "Export of augmented infectivity profile is not supported.");
-        else if (_infec_profile.profile == nullptr)
-            throw std::length_error("No infectivity profile to export.");
+        else if (!_infec_profile.profile->is_able_to_showcase())
+            throw std::length_error(
+                "Cannot export infectivity profile with undefined arguments.");
 
         // produce a showcase of the distribution profile
         std::vector<dbl_vec> values = _infec_profile.profile->showcase(n_bins);
@@ -979,7 +982,7 @@ void MCMC::Impl::_aux_print_dataset_init_(const std::string &f)
             aux_data_ofstream << C_DELIM << d;
 
         // print augmented variables headers
-        for (const augmID &a : augm_list_full)
+        for (const augmID &a : augm_list_export())
             aux_data_ofstream << C_DELIM << a;
 
         aux_data_ofstream << std::endl;
@@ -1001,7 +1004,7 @@ void MCMC::Impl::_aux_print_dataset_update_(Household &house)
             for (const dataID &d : data_headers)
                 aux_data_ofstream << C_DELIM << member.data(d);
 
-            for (const augmID &a : augm_list_full)
+            for (const augmID &a : augm_list_export())
                 if (member.status() == INFECTED_STATUS)
                 {
                     double x = member.augm(a);

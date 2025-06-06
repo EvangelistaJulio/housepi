@@ -214,6 +214,28 @@ void MCMC::_assign_contact_rate(Household &house)
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  MCMC : infectivity profile  //////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Assign default infectivity profile during user model initialization. */
+void MCMC::assign_template_infec_profile(std::map<std::string, std::string> x)
+{
+	pImpl->_infec_profile.assign_template(x);
+}
+
+/* Value of the instantaneous infectivity profile. */
+double MCMC::infec_profile_inst(Individual &infector, double t) const
+{
+	return pImpl->_infec_profile.inst(infector, t);
+}
+
+/* Value of the cumulative infectivity profile. */
+double MCMC::infec_profile_cumul(Individual &infector, double t) const
+{
+	return pImpl->_infec_profile.cumul(infector, t);
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////  MCMC : general methods  /////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -201,10 +201,10 @@ public:
 	//==================//
 
 	// Individual Getter
-	const std::string &id(indiv i) const { return _members[i].id(); }
-	size_t index(indiv i) const { return _members[i].index(); }
-	int status(indiv i) const { return _members[i].status(); }
-	Individual &get_member(indiv i) { return _members[i]; }
+	const std::string &id(indiv i) const { return _members.at(i).id(); }
+	size_t index(indiv i) const { return _members.at(i).index(); }
+	int status(indiv i) const { return _members.at(i).status(); }
+	Individual &get_member(indiv i) { return _members.at(i); }
 
 	double contact_rate(indiv from, indiv to) const { return *_contact_rates[from][to]; }
 
@@ -239,7 +239,7 @@ public:
 					   int status,
 					   const dataIDmap<double> &data);
 	bool change_status(Individual &member, int new_status);
-	bool change_status(indiv i, int new_status) { return change_status(_members[i], new_status); }
+	bool change_status(indiv i, int new_status) { return change_status(_members.at(i), new_status); }
 	void assign_contact_rate(indiv from, indiv to, const double *x);
 
 	//============================//

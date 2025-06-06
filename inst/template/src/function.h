@@ -161,6 +161,7 @@ public:
     /* Returns TRUE if value x is within range. */
     bool valid(double x) const { return (this->*_do_valid)(x); }
 
+    /* Internal code to define the type of range. */
     ushort which_valid_case() const;
 
     //=============================//

@@ -600,26 +600,15 @@ Rcpp::DataFrame MCMC::Impl::simulate()
     {
         size_t n_cols = n_individuals;
         size_t row = 0;
-        str_vec _aux_data_headers = data_headers;
+        str_vec _aux_augm_headers = augm_list_export();
+        str_vec _aux_data_headers = subtr(data_headers, _aux_augm_headers);
         Rcpp::CharacterVector df_index = CharacterVector(n_cols);
         Rcpp::CharacterVector df_house_index = CharacterVector(n_cols);
         Rcpp::IntegerVector df_status = IntegerVector(n_cols);
         std::vector<Rcpp::NumericVector> df_dbl = {};
 
-        // remove data columns if they have same name than augmented
-        str_vec &v = _aux_data_headers;
-        // UPDATE: why augm_list_full is still a set?
-        str_vec &y = augm_list_full;
-        // remove augmented variable columns from data columns
-        auto new_end = std::remove_if(v.begin(), v.end(),
-                                      [&y](const dataID &elem)
-                                      {
-                                          return contains(y, elem);
-                                      });
-        v.erase(new_end, v.end());
-
         // other data and augmented variable columns
-        for (size_t s = 0; s < _aux_data_headers.size() + augm_list_full.size(); ++s)
+        for (size_t s = 0; s < _aux_data_headers.size() + _aux_augm_headers.size(); ++s)
             df_dbl.emplace_back(n_cols);
 
         //----- initialization -----//
@@ -647,7 +636,7 @@ Rcpp::DataFrame MCMC::Impl::simulate()
                         df_dbl[col++][row] = tools::is_na(x) ? NA_REAL : x;
                     }
 
-                    for (const augmID &a : augm_list_full)
+                    for (const augmID &a : _aux_augm_headers)
                     {
                         double x = member.augm(a);
                         df_dbl[col++][row] = tools::is_na(x) ? NA_REAL : x;
@@ -676,7 +665,7 @@ Rcpp::DataFrame MCMC::Impl::simulate()
         for (const dataID &d : _aux_data_headers)
             output.push_back(std::move(df_dbl[col++]), d);
 
-        for (const augmID &a : augm_list_full)
+        for (const augmID &a : _aux_augm_headers)
             output.push_back(std::move(df_dbl[col++]), a);
 
         return output;

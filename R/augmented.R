@@ -541,16 +541,15 @@ HousepiAugmented <- R6::R6Class(
       unused_set <- template_find_unused(requirements, defined)
       # drop unused augmented variables
 
+
       if (length(unused_set) > 0) {
         warning_h(
-          sprintf("Dropping unused augmented variable%s %s",
-                  ifelse(length(unused_set) > 1, "s:", ""),
+          sprintf("Augmented variable%s declared but not used: %s",
+                  ifelse(length(unused_set) > 1, "s", ""),
                   character_to_string_list(unused_set)),
-          find_closest_match(unused_set, requirements)
+          find_closest_match(unused_set, requirements),
+          "Unused augmented variables should be dropped."
         )
-        for (name in unused_set) {
-          self$remove(name)
-        }
       }
 
       # find missing augmented variables

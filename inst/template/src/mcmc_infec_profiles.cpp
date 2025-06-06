@@ -77,13 +77,13 @@ void MCMC::Impl::InfecProfile::_assign_single_attribute(const std::string &key,
 
 	else if (at == TYPE_PARAM)
 	{
-		if (!pImpl.param_map.at(val).is_constant())
+		if (pImpl.param_map.at(val).is_constant())
+			profile->assign_attr(key, is_arg, pImpl.get_param(val));
+		else
 		{
 			profile->assign_attr(key, is_arg, pImpl.get_param_pointer(val));
 			pImpl.make_param_cache_dependent(val);
 		}
-		else
-			profile->assign_attr(key, is_arg, pImpl.get_param(val));
 	}
 
 	else if (at == TYPE_SCALAR)
@@ -99,7 +99,7 @@ void MCMC::Impl::InfecProfile::_assign_single_attribute(const std::string &key,
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Function to assign a template to infectivity profile. */
-void MCMC::Impl::InfecProfile::assign_template(std::map<std::string, std::string> &x)
+void MCMC::Impl::InfecProfile::assign_template(dict_str_str &x)
 {
 	if (deflist.empty())
 	{
@@ -118,15 +118,29 @@ void MCMC::Impl::InfecProfile::assign_template(std::map<std::string, std::string
 	}
 }
 
-/* Append infectivity profile to augmented variable definitions. */
+/* Append infectivity profile to augmented variable definitions.
+ * UPDATE: problematic in case of redefinitions of infectivity profile
+ */
 void MCMC::Impl::InfecProfile::append_augm_definition()
 {
 	if (is_augmented())
+	{
+		// check for reserved augmented names
+		for (const std::string &a : pImpl._augm_deftable.at("name"))
+			for (const std::string &forbid : {AUX_IP_GEN_TIME,
+											  AUX_IP_INST_PROFILE,
+											  AUX_IP_CUMUL_PROFILE})
+				if (a == forbid)
+					throw std::invalid_argument(
+						"Augmented variable \"" + forbid + "\" is reserved. Please, pick another name.");
+
+		// append new definitions
 		for (const auto &pair : _augm_infec_profile_deflist)
 		{
 			auto &aux = pImpl._augm_deftable.at(pair.first);
 			aux.insert(aux.end(), pair.second.begin(), pair.second.end());
 		}
+	}
 }
 
 /* Store values of the infectivity profile. */
@@ -144,7 +158,7 @@ void MCMC::Impl::InfecProfile::init_lookup()
 		_lookup_buffer_inst.resize(_size_lut);
 		_lookup_buffer_cumul.resize(_size_lut);
 
-		update_lookup();
+		// update_lookup(); // FIXME
 
 		_do_inst = &InfecProfile::__lookup_inst;
 		_do_cumul = &InfecProfile::__lookup_cumul;
@@ -174,8 +188,9 @@ void MCMC::Impl::InfecProfile::update_lookup()
 
 	for (size_t i = 1; i < _size_lut; ++i)
 	{
-		Individual dummy;
-		double x = __default_inst(dummy, i);
+		// note: I pass dummy Individual using the fact that
+		// __default_inst doesn't depende on Individual
+		double x = __default_inst(*pImpl.smpl_individual_star, i);
 		_lookup_inst[i] = x;
 		_lookup_cumul[i] = x + _lookup_cumul[i - 1];
 	}
@@ -202,9 +217,9 @@ void MCMC::Impl::InfecProfile::build()
 					is_augm = true;
 
 			if (is_augm)
-				_build_augmented();
+				_build_augmented_profile();
 			else
-				_build_generic();
+				_build_generic_profile();
 		}
 	}
 	catch (const std::exception &e)
@@ -215,7 +230,7 @@ void MCMC::Impl::InfecProfile::build()
 }
 
 /* Build for generic infectivity profile. */
-void MCMC::Impl::InfecProfile::_build_generic()
+void MCMC::Impl::InfecProfile::_build_generic_profile()
 {
 	bool is_discrete = true;
 	_augm_infec_profile_deflist.clear();
@@ -279,13 +294,13 @@ void MCMC::Impl::InfecProfile::_build_generic()
 }
 
 /* Build for individual augmented function infectivity profile. */
-void MCMC::Impl::InfecProfile::_build_augmented()
+void MCMC::Impl::InfecProfile::_build_augmented_profile()
 {
 	std::string func_name;
 
 	profile = nullptr;
-	_do_inst = &InfecProfile::__error;
-	_do_cumul = &InfecProfile::__error;
+	_do_inst = &InfecProfile::__augm_inst;
+	_do_cumul = &InfecProfile::__augm_cumul;
 
 	if ((deflist.count("name")) && (!tools::is_na(deflist.at("name"))))
 		func_name = deflist.at("name");
@@ -296,21 +311,40 @@ void MCMC::Impl::InfecProfile::_build_augmented()
 	for (auto &entry : pImpl.augm_file_headers)
 		_augm_infec_profile_deflist.emplace(entry, str_vec(3, HOUSEPI_NA_STRING));
 
-	_augm_infec_profile_deflist.at("const") = str_vec({tools::truth(true)}) + str_vec(2, tools::truth(false));
+	_augm_infec_profile_deflist.at("const") = str_vec(3, tools::truth(false));
+	_augm_infec_profile_deflist.at("discr") = str_vec(3, deflist.at("discr"));
 	_augm_infec_profile_deflist.at("init_rand") = str_vec(3, tools::truth(false));
+
+	// auxiliary vector of string with single NA option for generation time
+	const str_vec aux_str({HOUSEPI_NA_STRING});
+
+	// adjust arguments to connect to generation time
+	std::string arg_key = deflist.at("arg_key");
+	if (!tools::is_na(arg_key))
+		arg_key += C_LIST_DELIM;
+	arg_key += "x";
+
+	std::string arg_val = deflist.at("arg_val");
+	if (!tools::is_na(arg_val))
+		arg_val += C_LIST_DELIM;
+	arg_val += AUX_IP_GEN_TIME;
+
+	std::string arg_at = deflist.at("arg_at");
+	if (!tools::is_na(arg_at))
+		arg_at += C_LIST_DELIM;
+	arg_at += "A";
 
 	// match infectivity profile and augmented variable definition
 	const dict_str_vec matcher = {
 		{"name", str_vec({AUX_IP_GEN_TIME, AUX_IP_INST_PROFILE, AUX_IP_CUMUL_PROFILE})},
 		{"func", str_vec({HOUSEPI_NA_STRING, "d" + func_name, "p" + func_name})},
-		{"farg_key", str_vec({HOUSEPI_NA_STRING}) + str_vec(2, deflist.at("arg_key"))},
-		{"farg_val", str_vec({HOUSEPI_NA_STRING}) + str_vec(2, deflist.at("arg_val"))},
-		{"farg_at", str_vec({HOUSEPI_NA_STRING}) + str_vec(2, deflist.at("arg_at"))},
-		{"discr", str_vec(3, deflist.at("discr"))},
-		{"min", str_vec({HOUSEPI_NA_STRING}) + str_vec(2, deflist.at("min"))},
-		{"min_at", str_vec({HOUSEPI_NA_STRING}) + str_vec(2, deflist.at("min_at"))},
-		{"max", str_vec({HOUSEPI_NA_STRING}) + str_vec(2, deflist.at("max"))},
-		{"max_at", str_vec({HOUSEPI_NA_STRING}) + str_vec(2, deflist.at("max_at"))}};
+		{"farg_key", aux_str + str_vec(2, arg_key)},
+		{"farg_val", aux_str + str_vec(2, arg_val)},
+		{"farg_at", aux_str + str_vec(2, arg_at)},
+		{"min", aux_str + str_vec(2, deflist.at("min"))},
+		{"min_at", aux_str + str_vec(2, deflist.at("min_at"))},
+		{"max", aux_str + str_vec(2, deflist.at("max"))},
+		{"max_at", aux_str + str_vec(2, deflist.at("max_at"))}};
 
 	for (auto &pair : matcher)
 		_augm_infec_profile_deflist.at(pair.first) = pair.second;
@@ -372,13 +406,6 @@ double MCMC::Impl::InfecProfile::__augm_cumul(Individual &member, double t)
 	return member.augm(AUX_IP_CUMUL_PROFILE);
 }
 
-/* Error method. */
-double MCMC::Impl::InfecProfile::__error(Individual &, double)
-{
-	throw std::runtime_error(
-		"Caled generic infectivity profile while augmented for each individual.");
-}
-
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -403,26 +430,4 @@ void MCMC::Impl::recover_infec_profile()
 	// UPDATE: this should not be recoverd if constant for example...
 	if (_infec_profile.is_lookup())
 		_infec_profile.recover_lookup();
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  MCMC : infectivity profile  //////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Assign default infectivity profile during user model initialization. */
-void MCMC::assign_template_infec_profile(std::map<std::string, std::string> x)
-{
-	pImpl->_infec_profile.assign_template(x);
-}
-
-/* Value of the instantaneous infectivity profile. */
-double MCMC::infec_profile_inst(Individual &infector, double t) const
-{
-	return pImpl->_infec_profile.inst(infector, t);
-}
-
-/* Value of the cumulative infectivity profile. */
-double MCMC::infec_profile_cumul(Individual &infector, double t) const
-{
-	return pImpl->_infec_profile.cumul(infector, t);
 }
