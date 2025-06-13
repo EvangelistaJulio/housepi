@@ -222,7 +222,7 @@ void Model::update_cache_dependecies(Household &house, indiv i)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Compute the log-likelihood within household. */
-double Model::compute_house_obs_loglike(Household &house) const
+double Model::compute_household_obs_loglike(Household &house) const
 {
 	return loglike_healthy(house) + loglike_infectious(house);
 }
@@ -264,7 +264,7 @@ double Model::roi_inst_simulation(const std::vector<indiv> &infectors,
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Poisson point process to simulate outbreak in a single household. */
-void Model::simulate_single_house(Household &house)
+void Model::simulate_single_household(Household &house)
 {
 	const double Dt = 0.05;
 

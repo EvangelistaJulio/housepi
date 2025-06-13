@@ -429,7 +429,7 @@ double Model::compute_single_house_loglike(int h)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Poisson point process to simulate outbreak in a single household. */
-void Model::simulate_single_house(int h)
+void Model::simulate_single_household(int h)
 {
 	// note: incub periods are initialized according to option in augm file
 	// note: first cases are already initialized

@@ -98,7 +98,7 @@ public:
 	void assign_contact_rate_to_household(int h, int from, int to) override;
 
 	//=====Override Methods for Simulations=====//
-	void simulate_single_house(int h) override;
+	void simulate_single_household(int h) override;
 	void format_augmented_data() override;
 };
 

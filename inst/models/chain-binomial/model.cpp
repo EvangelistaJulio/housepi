@@ -61,7 +61,7 @@ void Model::init_model_for_inference()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Compute the log-likelihood within household. */
-double Model::compute_house_obs_loglike(Household &house) const
+double Model::compute_household_obs_loglike(Household &house) const
 {
 	double log_likelihood = 0.;
 
@@ -128,7 +128,7 @@ double Model::compute_house_obs_loglike(Household &house) const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Simulate the infection within a household. */
-void Model::simulate_single_house(Household &house)
+void Model::simulate_single_household(Household &house)
 {
 	double commu_esc_proba = exp(-community_risk());
 	double log_p2p_esc_proba = -person_to_person_risk();

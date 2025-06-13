@@ -34,8 +34,8 @@ class Model : public MCMC
 
 	//===== Override MCMC methods =====//
 	void init_model_for_inference() override final;
-	double compute_house_obs_loglike(Household &house) const override final;	
-	void simulate_single_house(Household &house) override final;
+	double compute_household_obs_loglike(Household &house) const override final;	
+	void simulate_single_household(Household &house) override final;
 };
 
 #endif // HOUSEPI__MODEL__H

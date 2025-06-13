@@ -586,8 +586,8 @@ void MCMC::Impl::_init_augmented_variables()
 double MCMC::Impl::_compute_augm_model_loglike(Household &house)
 {
     double hh_loglike = 0.;
-    for (const indiv &i : house.get_infected_status_hhindexes())
-        hh_loglike += house.get_member(i).get_augm_model_loglike();
+    for (Individual &member : house.infected())
+        hh_loglike += member.get_augm_model_loglike();
     return hh_loglike;
 }
 
@@ -691,7 +691,7 @@ double MCMC::Impl::_metropolis_augm_single_move(Household &house, indiv i, const
         house.buffer_all_cache();
         _update_cache_dependecies(house, i);
 
-        double new_obs_ll = _compute_house_obs_loglike(house);
+        double new_obs_ll = _compute_household_obs_loglike(house);
         // UPDATE: I don't need to recompute for all individuals
         double new_augm_value = _compute_augm_model_loglike(house);
 

@@ -29,9 +29,9 @@ MCMC::MCMC()
           [this]()
           { this->init_infec_profile(); },
           [this](Household &h) -> double
-          { return this->compute_house_obs_loglike(h); },
+          { return this->compute_household_obs_loglike(h); },
           [this](Household &h)
-          { return this->simulate_single_house(h); },
+          { return this->simulate_single_household(h); },
           [this](Household &h, indiv i)
           { this->update_cache_dependecies(h, i); })) {}
 MCMC::~MCMC() = default;

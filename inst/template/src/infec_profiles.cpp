@@ -111,7 +111,7 @@ protected:
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////// ViralLoad_Cortier25 : class ////////////////////////////////
+/////////////////////////////////// InfecProfile_Cortier25 : class ////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /*
 
@@ -122,27 +122,28 @@ public:
 	//===== CONSTRUCTOR =====//
 	InfecProfile_Cortier25()
 		: Distribution("cortier25",
-					   {"shape", "base_vl", "refer_vl", "max_vl",
-						"prolif_time", "clear_time"},
-					   {2.5, -2, 0.5, 8, 2.4, 3.1},
+					   {"shape", "refer_vl", "base_vl", "max_vl",
+						"prolif_period", "clear_period"},
+					   {2.5, 0.5, -2, 8, 2.4, 3.1},
 					   0., HOUSEPI_NA_DOUBLE, false, false) {}
 	~InfecProfile_Cortier25() = default;
 
 	//===== SETTER =====//
 	void init_reshaping(bool discrete) override final
 	{
+		// FIXME: I don't want truncation renormalization since no distribution
 		init_min_zero_reshaping(discrete, false);
 	}
 
 protected:
 	double raw_pdf(double x) const override final
 	{
-		const double s = get_arg(0);	   // 'shape'
-		const double vl0 = get_arg(1);	   // 'base_vl'
-		const double vref = get_arg(2);	   // 'refer_vl'
-		const double v = get_arg(3) - vl0; // 'max_vl' - 'base_vl'
-		const double Tp = get_arg(4);	   // 'prolif_time'
-		const double Tc = get_arg(5);	   // 'clear_time'
+		const double s = get_arg(0);				// 'shape'
+		const double vref = get_arg(1);				// 'refer_vl'
+		const double vl0 = get_arg(2) / vref;		// 'base_vl' / 'refer_vl'
+		const double v = (get_arg(3) - vl0) / vref; // ('max_vl' - 'base_vl') / 'refer_vl'
+		const double Tp = get_arg(4);				// 'prolif_period'
+		const double Tc = get_arg(5);				// 'clear_period'
 
 		const double dt = x / Tp; // normalized time interval
 		const double r = Tc / Tp; // ratio clear / proliferation time
@@ -156,10 +157,10 @@ protected:
 			return 0.;
 
 		else if (dt <= 1.)
-			return pow((vl0 + v * dt) / vref, s);
+			return pow(vl0 + v * dt, s);
 
 		else if (dt < 1. + r * (1. - thres))
-			return pow((vl0 + v * (1. + r - dt) / r) / vref, s);
+			return pow(vl0 + v * (1. + r - dt) / r, s);
 
 		else
 			return 0.;
@@ -167,19 +168,19 @@ protected:
 
 	double raw_cdf(double x) const override final
 	{
-		const double s = get_arg(0);	   // 'shape'
-		const double vl0 = get_arg(1);	   // 'baseline_vl'
-		const double vref = get_arg(2);	   // 'reference_vl'
-		const double v = get_arg(3) - vl0; // 'maximum_vl' - 'baseline_vl'
-		const double Tp = get_arg(4);	   // 'prolif_time'
-		const double Tc = get_arg(5);	   // 'clear_time'
+		const double s = get_arg(0);				// 'shape'
+		const double vref = get_arg(1);				// 'refer_vl'
+		const double vl0 = get_arg(2) / vref;		// 'base_vl' / 'refer_vl'
+		const double v = (get_arg(3) - vl0) / vref; // ('max_vl' - 'base_vl') / 'refer_vl'
+		const double Tp = get_arg(4);				// 'prolif_period'
+		const double Tc = get_arg(5);				// 'clear_period'
 
 		const double dt = x / Tp; // normalized time interval
 		const double r = Tc / Tp; // ratio clear / proliferation time
 
 		const double thres = std::max(0., -vl0 / v); // threshold VL > 0
 
-		const double den = v * (s + 1.) * pow(vref, s) / Tp;
+		const double den = v * (s + 1.) / Tp;
 
 		if (thres >= 1)
 			return 0.;

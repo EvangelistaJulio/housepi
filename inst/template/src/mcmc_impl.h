@@ -58,7 +58,7 @@ public:
     Impl(std::function<void()> callback_init_inference,
          std::function<void()> callback_init_simulation,
          std::function<void()> callback_init_infec_profile,
-         std::function<double(Household &)> callback_house_loglike,
+         std::function<double(Household &)> callback_household_loglike,
          std::function<void(Household &)> callback_simulate_house,
          std::function<void(Household &, indiv)> callback_update_cache)
         : _infec_profile(*this),
@@ -66,7 +66,7 @@ public:
           _callback_init_inference(std::move(callback_init_inference)),
           _callback_init_simulation(std::move(callback_init_simulation)),
           _callback_init_infec_profile(std::move(callback_init_infec_profile)),
-          _callback_house_loglike(std::move(callback_house_loglike)),
+          _callback_house_loglike(std::move(callback_household_loglike)),
           _callback_simulate_house(std::move(callback_simulate_house)),
           _callback_update_cache(std::move(callback_update_cache))
     {
@@ -434,9 +434,16 @@ private:
     void _init_model_for_inference() { _callback_init_inference(); }
     void _init_model_for_simulation() { _callback_init_simulation(); }
     void _init_infec_profile() { _callback_init_infec_profile(); }
-    double _compute_house_obs_loglike(Household &h) { return _callback_house_loglike(h); }
-    void _simulate_single_house(Household &h) { _callback_simulate_house(h); }
+    double _compute_household_obs_loglike(Household &h) { return _callback_house_loglike(h); }
+    void _simulate_single_household(Household &h) { _callback_simulate_house(h); }
     void _update_cache_dependecies(Household &h, indiv i) { _callback_update_cache(h, i); }
+
+    double _compute_and_set_household_obs_loglike(Household &h)
+    {
+        const double output = _callback_house_loglike(h);
+        h.set_obs_loglike(output);
+        return output;
+    }
 
     //=================//
     //===== BUILD =====//
@@ -500,6 +507,12 @@ private:
 
     //----- Metropolis : augmented loglikelihood -----//
     double _compute_augm_model_loglike(Household &house);
+    double _compute_and_set_augm_model_loglike(Household &house)
+    {
+        const double output = _compute_augm_model_loglike(house);
+        house.set_augm_loglike(output);
+        return output;
+    }
 
     //----- Metropolis : augmented moves -----//
     void _move_all_augm();

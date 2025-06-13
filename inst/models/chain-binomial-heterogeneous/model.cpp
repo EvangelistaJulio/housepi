@@ -134,7 +134,7 @@ void Model::fill_house_escape_matrix(Household &house) const
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Compute the log-likelihood for a single household. */
-double Model::compute_house_obs_loglike(Household &house) const
+double Model::compute_household_obs_loglike(Household &house) const
 {
 	//===== Fill Escape Probabilities =====//
 	fill_house_escape_matrix(house);
@@ -160,7 +160,7 @@ double Model::compute_house_obs_loglike(Household &house) const
 
 /* Simulate the infection within a household. */
 // UPDATE : collapse to fill_house_escape_matrix(house)
-void Model::simulate_single_house(Household &house)
+void Model::simulate_single_household(Household &house)
 {
 	const double commu_transm_rate = community_risk();
 	const double p2p_transm_rate = person_to_person_risk();

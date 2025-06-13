@@ -192,7 +192,9 @@ void MCMC::Impl::_update_full_loglike(bool cache_depen)
 ///////////////////////////////  MCMC : update house loglikelihood  ///////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Update and return contribution of given household to full logliklehood. */
+/* Update and return contribution of given household to full logliklehood.
+ * NOTE: house multiplicity doesn't work with data augmentation
+ */
 double MCMC::Impl::_update_house_loglike(size_t R, bool is_augm_ll, bool cache_depen)
 {
     Household &house = house_vector[restrict_hh_indexes[R]];
@@ -206,16 +208,11 @@ double MCMC::Impl::_update_house_loglike(size_t R, bool is_augm_ll, bool cache_d
     }
 
     // update household observation loglikelihood
-    double output = _compute_house_obs_loglike(house);
-    house.set_obs_loglike(output);
+    double output = _compute_and_set_household_obs_loglike(house);
 
-    // update household augmented loglikelihood
-    // NOTE: house multiplicity doesn't work with data augmentation
+    // update household augmented loglikelihood 
     if (is_augm_ll)
-    {
-        house.set_augm_loglike(_compute_augm_model_loglike(house));
-        output += house.get_augm_loglike();
-    }
+        output += _compute_and_set_augm_model_loglike(house);
 
     return output;
 }
@@ -620,7 +617,7 @@ Rcpp::DataFrame MCMC::Impl::simulate()
             try
             {
                 // inplace simlation
-                _simulate_single_house(house);
+                _simulate_single_household(house);
 
                 // store simulation
                 for (Individual &member : house)
@@ -734,7 +731,7 @@ void MCMC::Impl::print_simulated_dataset(const std::string &pathtofile)
         for (Household house : house_vector)
             try
             {
-                _simulate_single_house(house);     // inplace simulation
+                _simulate_single_household(house); // inplace simulation
                 _aux_print_dataset_update_(house); // print the simulated dataset
                 progressbar.update();
             }
