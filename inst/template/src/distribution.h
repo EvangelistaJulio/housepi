@@ -240,78 +240,94 @@ private:
 /* Distributions Registry base class. */
 class DistrRegistry : public FuncRegistry
 {
+	using FactoryFunc = std::function<std::shared_ptr<Function>()>;
+	using FactoryDistr = std::function<std::shared_ptr<Distribution>()>;
+
 public:
-	DistrRegistry(std::string name, str_vec options)
-		: FuncRegistry(name, options) {}
+	DistrRegistry(const std::string &name)
+		: FuncRegistry(name) {}
 	virtual ~DistrRegistry() = default;
+
+	//==================//
+	//===== GETTER =====//
+	//==================//
+
+	/* Override get_options method of generic function with distribution. */
+	const str_vec get_options() const override final;
 
 	/* Override get method of generic function with distribution. */
 	std::shared_ptr<Function> get(const std::string &opt) const override final;
 
 	/* Override valid options to allow for cumulative distribution call.*/
-	bool valid_option(const std::string &opt) override final;
+	bool is_valid_option(const std::string &opt) const override final;
 
-	virtual std::shared_ptr<Distribution> get_distr(const std::string &opt) const = 0;
+	virtual std::shared_ptr<Distribution> get_distr(const std::string &opt) const;
+
+	//==================//
+	//===== SETTER =====//
+	//==================//
+
+	void register_distr(const std::string &opt, FactoryDistr creator);
+	void register_func(const std::string &opt, FactoryFunc creator) override final;
 
 private:
-	bool _is_r_like_prefix = false;
-	bool _is_return_cumul = false;
+	std::unordered_map<std::string, FactoryDistr> _factory_map = {};
 };
+
+/* Register a Distribution derived class T to DistrRegistry derived class C. */
+template <typename C, typename T>
+void register_distr(const std::string &opt)
+{
+	static_assert(std::is_base_of<Distribution, T>::value,
+				  "T must be derived from Distribution");
+	if (C::inst().is_valid_option(opt))
+		tools::warning("Overwritten " + C::inst().name() + "\"" + "\".");
+	C::inst().register_distr(opt, []()
+							 { return std::make_shared<T>(); });
+}
+
+/* Compose registries to get a distribution from them. */
+std::shared_ptr<Distribution> compose_distr_registries(const std::string &opt,
+													   const std::string &name,
+													   const std::vector<const DistrRegistry *> &registries);
 
 /* Continuos Distributions Registry class. */
 class ContinuosDistrRegistry : public DistrRegistry
 {
 public:
-	ContinuosDistrRegistry()
-		: DistrRegistry("continuos distribution",
-						{"unif", "norm", "lnorm",
-						 "beta", "gamma", "gamma_meanvar",
-						 "rayleigh", "weibull", "exp"}) {}
-	~ContinuosDistrRegistry() = default;
+	static ContinuosDistrRegistry &inst();
 
-	std::shared_ptr<Distribution> get_distr(const std::string &opt) const override final;
+private:
+	ContinuosDistrRegistry();
 };
+
+template <typename T>
+void register_continuos_distr(const std::string &opt) { register_distr<ContinuosDistrRegistry, T>(opt); }
 
 /* Discrete Distributions Registry. */
 class DiscreteDistrRegistry : public DistrRegistry
 {
 public:
-	DiscreteDistrRegistry()
-		: DistrRegistry("discrete distribution",
-						{"pois", "binom", "nbinom", "geom"}) {}
-	~DiscreteDistrRegistry() = default;
-
-	std::shared_ptr<Distribution> get_distr(const std::string &opt) const override final;
-};
-
-/* Composite Distribution Registry. */
-class CompositeDistrRegistry : public DistrRegistry
-{
-public:
-	CompositeDistrRegistry(std::string name,
-						   std::vector<std::shared_ptr<DistrRegistry>> registries);
-	~CompositeDistrRegistry() = default;
-
-	std::shared_ptr<Distribution> get_distr(const std::string &opt) const override final;
+	static DiscreteDistrRegistry &inst();
 
 private:
-	std::vector<std::shared_ptr<DistrRegistry>> _registries;
+	DiscreteDistrRegistry();
 };
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  InfecProfileRegistry : class  //////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
+template <typename T>
+void register_discrete_distr(const std::string &opt) { register_distr<DiscreteDistrRegistry, T>(opt); }
 
 /* Infectivity Profile Registry. */
 class InfecProfileRegistry : public DistrRegistry
 {
 public:
-	InfecProfileRegistry()
-		: DistrRegistry("infectivity profile",
-						{"ferretti20", "cortier25"}) {}
-	~InfecProfileRegistry() = default;
+	static InfecProfileRegistry &inst();
 
-	std::shared_ptr<Distribution> get_distr(const std::string &opt) const override final;
+private:
+	InfecProfileRegistry();
 };
+
+template <typename T>
+void register_infec_profile(const std::string &opt) { register_distr<InfecProfileRegistry, T>(opt); }
 
 #endif // HOUSEPI__DISTRIBUTION__H

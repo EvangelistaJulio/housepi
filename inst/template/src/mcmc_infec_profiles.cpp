@@ -238,12 +238,12 @@ void MCMC::Impl::InfecProfile::_build_generic_profile()
 	//----- Name -----//
 	if ((deflist.count("name")) && (!tools::is_na(deflist.at("name"))))
 	{
-		profile = CompositeDistrRegistry(
-					  "infectivity profile",
-					  {std::make_shared<InfecProfileRegistry>(),
-					   std::make_shared<ContinuosDistrRegistry>(),
-					   std::make_shared<DiscreteDistrRegistry>()})
-					  .get_distr(deflist.at("name"));
+		profile = compose_distr_registries(
+			deflist.at("name"),
+			"infectivity profile",
+			{&InfecProfileRegistry::inst(),
+			 &ContinuosDistrRegistry::inst(),
+			 &DiscreteDistrRegistry::inst()});
 	}
 	else
 		throw std::invalid_argument("Missing name.");

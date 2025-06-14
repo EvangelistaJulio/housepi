@@ -215,14 +215,19 @@ protected:
 /////////////////////////////////  InfecProfileRegistry : class  ////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-std::shared_ptr<Distribution> InfecProfileRegistry::get_distr(const std::string &opt) const
+InfecProfileRegistry::InfecProfileRegistry()
+	: DistrRegistry("infectivity profile")
 {
-	if (opt == "ferretti20")
-		return std::make_shared<InfecProfile_Ferretti20>();
+	register_distr("ferretti20", []()
+				   { return std::make_shared<InfecProfile_Ferretti20>(); });
+	// UPDATE: this is not a distribution...
+	register_distr("cortier25", []()
+				   { return std::make_shared<InfecProfile_Cortier25>(); });
+}
 
-	else if (opt == "cortier25") // UPDATE: this is not a distribution...
-		return std::make_shared<InfecProfile_Cortier25>();
-
-	else
-		return nullptr;
+// Singleton pattern
+InfecProfileRegistry &InfecProfileRegistry::inst()
+{
+	static InfecProfileRegistry _inst;
+	return _inst;
 }

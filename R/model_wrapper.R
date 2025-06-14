@@ -309,6 +309,14 @@ HousepiWrapper <- R6::R6Class(
     },
 
     #' @description
+    #' Export dataset formatted for C++ standalone.
+    #'
+    #' @return `data.frame`
+    export_dataset_to_standalone = function() {
+      return(private$.rcpp$export_dataset())
+    },
+    
+    #' @description
     #' Showcase instantaneous and cumulative values of infectivity profile.
     #'
     #' @param bins `integer(1)`\cr

@@ -163,7 +163,7 @@ HouseholdModel <- R6::R6Class(
           private$.require_dataset(),
           # dataset headers required by group rates
           unlist(lapply(
-            private$.group_rate$logic_tables, 
+            private$.group_rate$logic_tables,
             function(x) unlist(lapply(x, names))
           ))
         )
@@ -362,6 +362,29 @@ HouseholdModel <- R6::R6Class(
         private$.model$import_augm(self$augm_defs)
       }
 
+      invisible(self)
+    },
+
+
+    # UPDATE:
+    # this could be designed to be more helpful
+    # e. g. create a standalone folder somewhere with correct links to headers
+    .export_to_cpp_standalone = function(outpath = "../housepi/inst/standalone/") {
+      write.csv(private$.model$export_dataset_to_standalone(),
+                file.path(outpath, "data.tmp"),
+                quote = FALSE, row.names = FALSE)
+      write.csv(self$augm_defs,
+                file.path(outpath, "augm.tmp"),
+                quote = FALSE, row.names = FALSE)
+      write.csv(self$param_defs,
+                file.path(outpath, "param.tmp"),
+                quote = FALSE, row.names = FALSE)
+      write.table(t(as.data.frame(self$setup)),
+                  file.path(outpath, "setup.tmp"),
+                  row.names = TRUE, col.names = FALSE, sep = ",", quote = FALSE)
+      write.table(t(as.data.frame(self$infec_profile_defs)),
+                  file.path(outpath, "infec.tmp"),
+                  row.names = TRUE, col.names = FALSE, sep = ",", quote = FALSE)
       invisible(self)
     }
   ),

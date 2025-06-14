@@ -766,56 +766,59 @@ protected:
 //-----------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  Distribution Registry  ///////////////////////////////////
+///////////////////////////////  Continuos Distribution Registry  ///////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-std::shared_ptr<Distribution> ContinuosDistrRegistry::get_distr(const std::string &opt) const
+ContinuosDistrRegistry::ContinuosDistrRegistry()
+    : DistrRegistry("continuos distribution")
 {
-    if (opt == "unif")
-        return std::make_shared<Uniform_Distribution>();
-
-    else if (opt == "norm")
-        return std::make_shared<Normal_Distribution>();
-
-    else if (opt == "lnorm")
-        return std::make_shared<Lognormal_Distribution>();
-
-    else if (opt == "beta")
-        return std::make_shared<Beta_Distribution>();
-
-    else if (opt == "gamma")
-        return std::make_shared<Gamma_Distribution>();
-
-    else if (opt == "gamma_meanvar")
-        return std::make_shared<GammaMeanVar_Distribution>();
-
-    else if (opt == "rayleigh")
-        return std::make_shared<Rayleigh_Distribution>();
-
-    else if (opt == "weibull")
-        return std::make_shared<Weibull_Distribution>();
-
-    else if (opt == "exp")
-        return std::make_shared<Exponential_Distribution>();
-
-    else
-        return nullptr;
+    this->register_distr("unif", []()
+                         { return std::make_shared<Uniform_Distribution>(); });
+    this->register_distr("norm", []()
+                         { return std::make_shared<Normal_Distribution>(); });
+    this->register_distr("lnorm", []()
+                         { return std::make_shared<Lognormal_Distribution>(); });
+    this->register_distr("beta", []()
+                         { return std::make_shared<Beta_Distribution>(); });
+    this->register_distr("gamma", []()
+                         { return std::make_shared<Gamma_Distribution>(); });
+    this->register_distr("gamma_meanvar", []()
+                         { return std::make_shared<GammaMeanVar_Distribution>(); });
+    this->register_distr("rayleigh", []()
+                         { return std::make_shared<Rayleigh_Distribution>(); });
+    this->register_distr("weibull", []()
+                         { return std::make_shared<Weibull_Distribution>(); });
+    this->register_distr("exp", []()
+                         { return std::make_shared<Exponential_Distribution>(); });
 }
 
-std::shared_ptr<Distribution> DiscreteDistrRegistry::get_distr(const std::string &opt) const
+// Singleton pattern
+ContinuosDistrRegistry &ContinuosDistrRegistry::inst()
 {
-    if (opt == "pois")
-        return std::make_shared<Poisson_Distribution>();
+    static ContinuosDistrRegistry _inst;
+    return _inst;
+}
 
-    else if (opt == "binom")
-        return std::make_shared<Binomial_Distribution>();
+/////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////  Continuos Distribution Registry  ///////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
-    else if (opt == "nbinom")
-        return std::make_shared<NegativeBinomial_Distribution>();
+DiscreteDistrRegistry::DiscreteDistrRegistry()
+    : DistrRegistry("discrete distribution")
+{
+    this->register_distr("pois", []()
+                         { return std::make_shared<Poisson_Distribution>(); });
+    this->register_distr("binom", []()
+                         { return std::make_shared<Binomial_Distribution>(); });
+    this->register_distr("nbinom", []()
+                         { return std::make_shared<NegativeBinomial_Distribution>(); });
+    this->register_distr("geom", []()
+                         { return std::make_shared<Geometric_Distribution>(); });
+}
 
-    else if (opt == "geom")
-        return std::make_shared<Geometric_Distribution>();
-
-    else
-        return nullptr;
+// Singleton pattern
+DiscreteDistrRegistry &DiscreteDistrRegistry::inst()
+{
+    static DiscreteDistrRegistry _inst;
+    return _inst;
 }

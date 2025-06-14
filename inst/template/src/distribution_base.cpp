@@ -353,7 +353,7 @@ void Distribution::init_min_zero_discr_defined_reshaping()
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Tell if all arguments (excpet x argument) are defined. */
-bool Distribution::is_able_to_showcase() const 
+bool Distribution::is_able_to_showcase() const
 {
     for (ushort i = 0; i < n_args() - 1; ++i)
         if (tools::is_na(get_arg(i)))
@@ -437,63 +437,92 @@ double Distribution::__d_e_v__check__pdf__norm(int n_bins,
     return m;
 }
 
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  Composite Distribution Registry  //////////////////////////////
+/////////////////////////////////  Distribution Registry : getter  //////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool DistrRegistry::valid_option(const std::string &opt)
+const str_vec DistrRegistry::get_options() const
 {
-    bool output = false;
-    _is_r_like_prefix = false;
-    _is_return_cumul = false;
+    str_vec keys;
+    keys.reserve(_factory_map.size());
+    for (const auto &pair : _factory_map)
+        keys.push_back(pair.first);
+    return keys;
+}
 
-    // try for default name or R-like prefix
-    if (contains(_options, opt))
-        output = true;
-    else if (contains(_options, opt.substr(1)))
-    {
-        _is_r_like_prefix = true;
-        output = true;
-    }
+/* Try for default distribution name, otherwise with R-like prefix. */
+bool DistrRegistry::is_valid_option(const std::string &opt) const
+{
+    const str_vec options = get_options();
+    if (contains(options, opt))
+        return true;
+    else if (contains(options, opt.substr(1)))
+        return true;
+    return false;
+}
 
-    // if prefix, see if cumulative
-    if (_is_r_like_prefix)
-        _is_return_cumul = opt.substr(0, 1) == "p";
-
-    return output;
+std::shared_ptr<Distribution> DistrRegistry::get_distr(const std::string &opt) const
+{
+    auto it = _factory_map.find(opt);
+    if (it != _factory_map.end())
+        return it->second();
+    return nullptr;
 }
 
 std::shared_ptr<Function> DistrRegistry::get(const std::string &opt) const
 {
-    auto output = _is_r_like_prefix ? get_distr(opt.substr(1)) : get_distr(opt);
-    if (_is_return_cumul)
-        output->set_return_cumul();
+    const str_vec options = get_options();
+    bool is_R_like_prefix = false;
+
+    // try for default name or R-like prefix
+    if (!contains(options, opt))
+        if (contains(options, opt.substr(1)))
+            is_R_like_prefix = true;
+
+    auto output = is_R_like_prefix ? get_distr(opt.substr(1)) : get_distr(opt);
+
+    // if there's a prefix, see if cumulative and in case set it
+    if (is_R_like_prefix)
+        if (opt.substr(0, 1) == "p")
+            output->set_return_cumul();
+
     return output;
 }
 
-/* Constructor of Composite Distribution Registry. */
-CompositeDistrRegistry::CompositeDistrRegistry(std::string name,
-                                               std::vector<std::shared_ptr<DistrRegistry>> registries)
-    : DistrRegistry(name, {}), _registries(std::move(registries))
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////  Distribution Registry : setter  //////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+void DistrRegistry::register_distr(const std::string &opt, FactoryDistr creator)
 {
-    for (const auto &r : _registries)
-    {
-        const str_vec &this_opts = r->get_options();
-        _options.insert(_options.end(), this_opts.begin(), this_opts.end());
-    }
+    _factory_map[opt] = creator;
 }
 
-/* Get distribution method of Composite Distribution Registry. */
-std::shared_ptr<Distribution> CompositeDistrRegistry::get_distr(const std::string &opt) const
+void DistrRegistry::register_func(const std::string &, FactoryFunc) { throw std::invalid_argument(
+    "Impossible to register a function in distribution registry \"" + name() + "\"."); }
+
+std::shared_ptr<Distribution> compose_distr_registries(const std::string &opt,
+                                                       const std::string &name,
+                                                       const std::vector<const DistrRegistry *> &registries)
 {
+    str_vec options = {};
+
     if (tools::is_na(opt))
         return std::make_shared<Distribution>();
     else
-        for (const auto &r : _registries)
-            if (r->valid_option(opt))
+        for (auto &r : registries)
+            if (r->is_valid_option(opt))
                 return r->get_distr(opt);
+            else
+                options += r->get_options();
 
     throw std::invalid_argument(
-        "Unknown " + _name + " \"" + opt + "\"." + tools::find_closest(opt, _options));
-    return nullptr;
+        "Unknown " + name + " \"" + opt + "\"." + tools::find_closest(opt, options));
 }

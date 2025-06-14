@@ -60,8 +60,8 @@ void Attribute::assign_function(const std::shared_ptr<Function> f)
     _func_ptr = f;
 }
 
-    /* Get attribute value from external function. */
-    double Attribute::__get_from_function() const { return _func_ptr->return_value(); }
+/* Get attribute value from external function. */
+double Attribute::__get_from_function() const { return _func_ptr->return_value(); }
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -609,30 +609,43 @@ public:
     double return_value() const override final { return std::log(get_arg(0)); }
 };
 
-/* Cosine Function. */
-class Cosine_Function : public Function
-{
-public:
-    //===== CONSTRUCTOR =====//
-    Cosine_Function()
-        : Function("cos", {"x"}, {1.}) {}
-    ~Cosine_Function() = default;
-
-    //===== GETTER =====//
-    double return_value() const override final { return std::cos(get_arg(0)); }
-};
-
 /* Sine Function. */
 class Sine_Function : public Function
 {
 public:
     //===== CONSTRUCTOR =====//
     Sine_Function()
-        : Function("sin", {"x"}, {1.}) {}
+        : Function("sin", {"x"}, {0.}) {}
     ~Sine_Function() = default;
 
     //===== GETTER =====//
     double return_value() const override final { return std::sin(get_arg(0)); }
+};
+
+/* Cosine Function. */
+class Cosine_Function : public Function
+{
+public:
+    //===== CONSTRUCTOR =====//
+    Cosine_Function()
+        : Function("cos", {"x"}, {0.}) {}
+    ~Cosine_Function() = default;
+
+    //===== GETTER =====//
+    double return_value() const override final { return std::cos(get_arg(0)); }
+};
+
+/* Tangent Function. */
+class Tangent_Function : public Function
+{
+public:
+    //===== CONSTRUCTOR =====//
+    Tangent_Function()
+        : Function("tan", {"x"}, {0.}) {}
+    ~Tangent_Function() = default;
+
+    //===== GETTER =====//
+    double return_value() const override final { return std::tan(get_arg(0)); }
 };
 
 //-----------------------------------------------------------------------------------------------//
@@ -642,72 +655,91 @@ public:
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-std::shared_ptr<Function> CompositeFuncRegistry::get(const std::string &opt) const
+const str_vec FuncRegistry::get_options() const
 {
+    str_vec keys;
+    keys.reserve(_factory_map.size());
+    for (const auto &pair : _factory_map)
+        keys.push_back(pair.first);
+    return keys;
+}
+
+std::shared_ptr<Function> FuncRegistry::get(const std::string &opt) const
+{
+    auto it = _factory_map.find(opt);
+    if (it != _factory_map.end())
+        return it->second();
+    return nullptr;
+}
+
+std::shared_ptr<Function> compose_func_registries(const std::string &opt, const std::string &name,
+                                                  const std::vector<const FuncRegistry *> &registries)
+{
+    str_vec options = {};
+
     if (tools::is_na(opt))
         return std::make_shared<Function>();
     else
-        for (const auto &r : _registries)
-            if (r->valid_option(opt))
+        for (const auto &r : registries)
+            if (r->is_valid_option(opt))
                 return r->get(opt);
+            else
+                options += r->get_options();
 
     throw std::invalid_argument(
-        "Unknown " + _name + " \"" + opt + "\"." + tools::find_closest(opt, _options));
-
-    return nullptr;
+        "Unknown " + name + " \"" + opt + "\"." + tools::find_closest(opt, options));
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  ArithmeticRegistry : methods  ////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Auxiliary hidden template to return the chosen distribution. */
-std::shared_ptr<Function> ArithmeticRegistry::get(const std::string &opt) const
+ArithmeticRegistry::ArithmeticRegistry() : FuncRegistry("algebraic function")
 {
-    if (opt == "eq")
-        return std::make_shared<Equality_Function>();
+    this->register_func("eq", []()
+                        { return std::make_shared<Equality_Function>(); });
+    this->register_func("add", []()
+                        { return std::make_shared<Addition_Function>(); });
+    this->register_func("sub", []()
+                        { return std::make_shared<Subtraction_Function>(); });
+    this->register_func("mult", []()
+                        { return std::make_shared<Multiplication_Function>(); });
+    this->register_func("div", []()
+                        { return std::make_shared<Division_Function>(); });
+}
 
-    else if (opt == "add")
-        return std::make_shared<Addition_Function>();
-
-    else if (opt == "sub")
-        return std::make_shared<Subtraction_Function>();
-
-    else if (opt == "mult")
-        return std::make_shared<Multiplication_Function>();
-
-    else if (opt == "div")
-        return std::make_shared<Division_Function>();
-
-    else
-        return nullptr;
+// Singleton pattern
+ArithmeticRegistry &ArithmeticRegistry::inst()
+{
+    static ArithmeticRegistry _inst;
+    return _inst;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////  TranscendentalRegistry : methods  //////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Auxiliary hidden template to return the chosen distribution. */
-std::shared_ptr<Function> TranscendentalRegistry::get(const std::string &opt) const
+TranscendentalRegistry::TranscendentalRegistry() : FuncRegistry("transcendental function")
 {
-    if (opt == "pow")
-        return std::make_shared<Power_Function>();
+    this->register_func("pow", []()
+                        { return std::make_shared<Power_Function>(); });
+    this->register_func("sqrt", []()
+                        { return std::make_shared<SquareRoot_Function>(); });
+    this->register_func("exp", []()
+                        { return std::make_shared<Exponential_Function>(); });
+    this->register_func("log", []()
+                        { return std::make_shared<Logarithm_Function>(); });
+    this->register_func("sin", []()
+                        { return std::make_shared<Sine_Function>(); });
+    this->register_func("cos", []()
+                        { return std::make_shared<Cosine_Function>(); });
+    this->register_func("tan", []()
+                        { return std::make_shared<Tangent_Function>(); });
+}
 
-    else if (opt == "sqrt")
-        return std::make_shared<SquareRoot_Function>();
-
-    else if (opt == "exp")
-        return std::make_shared<Exponential_Function>();
-
-    else if (opt == "log")
-        return std::make_shared<Logarithm_Function>();
-
-    else if (opt == "cos")
-        return std::make_shared<Cosine_Function>();
-
-    else if (opt == "sin")
-        return std::make_shared<Sine_Function>();
-
-    else
-        return nullptr;
+// Singleton pattern
+TranscendentalRegistry &TranscendentalRegistry::inst()
+{
+    static TranscendentalRegistry _inst;
+    return _inst;
 }

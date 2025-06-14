@@ -518,7 +518,8 @@ namespace tools
             for (size_t i = 1; i < max_print; ++i)
                 oss << ", \"" << options[i] << "\"";
             if (options.size() > max_print)
-                oss << ", ...";
+                oss << ", ..";
+            oss << ".";
             return oss.str();
         }
     }
@@ -548,9 +549,9 @@ namespace tools
             return "";
         else if (closest.empty())
             if (options.size() == 1)
-                return " Available option is " + show_list(options) + ".";
+                return " Available option is " + show_list(options);
             else
-                return " Available options are: " + show_list(options) + ".";
+                return " Available options are: " + show_list(options);
         else
             return " Did you mean \"" + closest + "\"?";
     }
@@ -572,10 +573,10 @@ namespace tools
             {
                 if (missing.size() == 1)
                     throw std::invalid_argument(
-                        "Missing column " + show_list(missing) + ".");
+                        "Missing column " + show_list(missing));
                 else
                     throw std::invalid_argument(
-                        "Missing columns: " + show_list(missing) + ".");
+                        "Missing columns: " + show_list(missing));
             }
         }
     }

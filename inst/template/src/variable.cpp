@@ -62,12 +62,12 @@ Proposer::Proposer(std::shared_ptr<Distribution> distr,
 
 /* Proposer constructor from Distribution name. */
 Proposer::Proposer(const std::string &name,
-    double rule_scale,
-    double rule_start_value,
-    const std::vector<ushort> &args_to_adapt,
-    bool is_discrete)
-: Proposer(ContinuosDistrRegistry().get_distr(name),
-rule_scale, rule_start_value, args_to_adapt, is_discrete) {}
+                   double rule_scale,
+                   double rule_start_value,
+                   const std::vector<ushort> &args_to_adapt,
+                   bool is_discrete)
+    : Proposer(ContinuosDistrRegistry::inst().get_distr(name),
+               rule_scale, rule_start_value, args_to_adapt, is_discrete) {}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  Base Proposer - adaptation  ///////////////////////////////////
@@ -283,14 +283,14 @@ void Variable::init(const std::string &name, double value,
     {
         _do_get = &Variable::__get_func_return;
         _do_get_pointer = &Variable::__get_pointer_func_return;
-        _func_ptr = CompositeFuncRegistry(
-                        "function",
-                        {std::make_shared<ArithmeticRegistry>(),
-                         std::make_shared<TranscendentalRegistry>(),
-                         std::make_shared<ContinuosDistrRegistry>(),
-                         std::make_shared<DiscreteDistrRegistry>(),
-                         std::make_shared<InfecProfileRegistry>()})
-                        .get(func_name);
+        _func_ptr = compose_func_registries(
+            func_name,
+            "function",
+            {&ArithmeticRegistry::inst(),
+             &TranscendentalRegistry::inst(),
+             &ContinuosDistrRegistry::inst(),
+             &DiscreteDistrRegistry::inst(),
+             &InfecProfileRegistry::inst()});
         _is_constant = false;
     }
 }
@@ -302,11 +302,11 @@ void Variable::init(const std::string &name, double value,
 /* Assign distribution with constant arguments. */
 void Variable::assign_distr(const std::string &distr_name)
 {
-    _distr_ptr = CompositeDistrRegistry(
-                     "distribution",
-                     {std::make_shared<ContinuosDistrRegistry>(),
-                      std::make_shared<DiscreteDistrRegistry>()})
-                     .get_distr(distr_name);
+    _distr_ptr = compose_distr_registries(
+        distr_name,
+        "distribution",
+        {&ContinuosDistrRegistry::inst(),
+         &DiscreteDistrRegistry::inst()});
 }
 /* Initialize distribution reshaping. */
 void Variable::init_distr_reshaping()

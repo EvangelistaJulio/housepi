@@ -253,13 +253,15 @@ private:
 
 class FuncRegistry
 {
+    using FactoryFunc = std::function<std::shared_ptr<Function>()>;
+
 public:
     //=======================//
     //===== CONSTRUCTOR =====//
     //=======================//
 
-    FuncRegistry(const std::string &name, const str_vec &options)
-        : _name(name), _options(options) {}
+    FuncRegistry(const std::string &name)
+        : _name(name) {}
     virtual ~FuncRegistry() = default;
 
     //==================//
@@ -267,62 +269,69 @@ public:
     //==================//
 
     const std::string &name() const { return _name; }
-    const str_vec &get_options() const { return _options; }
-    virtual bool valid_option(const std::string &opt) { return contains(_options, opt); }
-    virtual std::shared_ptr<Function> get(const std::string &opt) const = 0;
+    virtual const str_vec get_options() const;
+    virtual bool is_valid_option(const std::string &opt) const { return contains(get_options(), opt); }
+    virtual std::shared_ptr<Function> get(const std::string &opt) const;
 
-protected:
-    std::string _name;
-    str_vec _options;
-};
+    //==================//
+    //===== SETTER =====//
+    //==================//
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  CompositeRegistry : class  /////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
+    virtual void register_func(const std::string &opt, FactoryFunc creator) { _factory_map[opt] = creator; }
 
-class CompositeFuncRegistry : public FuncRegistry
-{
 private:
-    std::vector<std::shared_ptr<FuncRegistry>> _registries;
-
-public:
-    CompositeFuncRegistry(const std::string &name,
-                          std::vector<std::shared_ptr<FuncRegistry>> registries)
-        : FuncRegistry(name, {}), _registries(std::move(registries))
-    {
-        for (const auto &r : _registries)
-            _options += r->get_options();
-    }
-
-    std::shared_ptr<Function> get(const std::string &opt) const override final;
+    std::string _name;
+    std::unordered_map<std::string, FactoryFunc> _factory_map = {};
 };
 
+/* Register a Function derived class T to FungRegistry derived class C. */
+template <typename C, typename T>
+void register_func(const std::string &opt)
+{
+    static_assert(std::is_base_of<Function, T>::value,
+                  "T must be derived from Function.");
+                  
+    if (C::inst().is_valid_option(opt))
+        tools::warning("Overwritten " + C::inst().name() + " \"" + opt + "\".");
+    C::inst().register_func(opt, []()
+                            { return std::make_shared<T>(); });
+}
+
+/* Compose registries to get a function from them. */
+std::shared_ptr<Function> compose_func_registries(const std::string &opt,
+                                                  const std::string &name,
+                                                  const std::vector<const FuncRegistry *> &registries);
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  ArithmeticRegistry : class  ////////////////////////////////
+////////////////////////////////////  ArithmeticRegistry : class  ///////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 class ArithmeticRegistry : public FuncRegistry
 {
 public:
-    ArithmeticRegistry()
-        : FuncRegistry("algebraic",
-                       {"eq", "add", "sub", "mult", "div"}) {}
+    static ArithmeticRegistry &inst();
 
-    std::shared_ptr<Function> get(const std::string &name) const override final;
+private:
+    ArithmeticRegistry();
 };
 
+template <typename T>
+void register_arithmetic_func(const std::string &opt) { register_func<ArithmeticRegistry, T>(opt); }
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  TranscendentalRegistry : class  ////////////////////////////////
+////////////////////////////////////  TranscendentalRegistry : class  ///////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 class TranscendentalRegistry : public FuncRegistry
 {
 public:
-    TranscendentalRegistry()
-        : FuncRegistry("transcendental",
-                       {"pow", "sqrt", "exp", "log", "cos", "sin"}) {}
+    static TranscendentalRegistry &inst();
 
-    std::shared_ptr<Function> get(const std::string &name) const override final;
+private:
+    TranscendentalRegistry();
 };
+
+template <typename T>
+void register_transcendental_func(const std::string &opt) { register_func<TranscendentalRegistry, T>(opt); }
 
 #endif // HOUSEPI__FUNCTION__H
