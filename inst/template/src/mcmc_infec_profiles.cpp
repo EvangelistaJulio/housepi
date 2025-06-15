@@ -99,23 +99,27 @@ void MCMC::Impl::InfecProfile::_assign_single_attribute(const std::string &key,
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Function to assign a template to infectivity profile. */
-void MCMC::Impl::InfecProfile::assign_template(dict_str_str &x)
+void MCMC::Impl::InfecProfile::assign_template()
 {
+	// if deflist not empty, build has already been called
 	if (deflist.empty())
-	{
-		if (!x.count("name"))
-			throw std::invalid_argument("Missing name for infectivity profile template.");
+		// if no template, assume no need for an infectivity profile
+		if (!deflist_template.empty())
+		{
+			if (!deflist_template.count("name"))
+				throw std::invalid_argument(
+					"Missing name for infectivity profile template.");
 
-		for (const std::string &key : _headers)
-			if (!x.count(key))
-				x.emplace(key, HOUSEPI_NA_STRING);
+			for (const std::string &key : _headers)
+				if (!deflist_template.count(key))
+					deflist_template.emplace(key, HOUSEPI_NA_STRING);
 
-		if (tools::is_na(x.at("discr")))
-			x["discr"] = "false";
+			if (tools::is_na(deflist_template.at("discr")))
+				deflist_template["discr"] = "false";
 
-		deflist = x;
-		build();
-	}
+			deflist = deflist_template;
+			build();
+		}
 }
 
 /* Append infectivity profile to augmented variable definitions.

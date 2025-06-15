@@ -57,7 +57,6 @@ public:
 
     Impl(std::function<void()> callback_init_inference,
          std::function<void()> callback_init_simulation,
-         std::function<void()> callback_init_infec_profile,
          std::function<double(Household &)> callback_household_loglike,
          std::function<void(Household &)> callback_simulate_house,
          std::function<void(Household &, indiv)> callback_update_cache)
@@ -65,7 +64,6 @@ public:
           _uniform_distr(0., 1.),
           _callback_init_inference(std::move(callback_init_inference)),
           _callback_init_simulation(std::move(callback_init_simulation)),
-          _callback_init_infec_profile(std::move(callback_init_infec_profile)),
           _callback_house_loglike(std::move(callback_household_loglike)),
           _callback_simulate_house(std::move(callback_simulate_house)),
           _callback_update_cache(std::move(callback_update_cache))
@@ -218,7 +216,8 @@ public:
     class InfecProfile
     {
     public:
-        std::map<std::string, std::string> deflist = {};
+        dict_str_str deflist = {};
+        dict_str_str deflist_template = {};
         std::shared_ptr<Distribution> profile = nullptr;
 
         //===== CONSTRUCTOR =====//
@@ -232,7 +231,7 @@ public:
         void init_lookup();
         void recover_lookup();
         void update_lookup();
-        void assign_template(dict_str_str &x);
+        void assign_template();
         void append_augm_definition();
 
         //===== GETTER =====//
@@ -426,14 +425,12 @@ private:
 
     std::function<void()> _callback_init_inference;
     std::function<void()> _callback_init_simulation;
-    std::function<void()> _callback_init_infec_profile;
     std::function<double(Household &)> _callback_house_loglike;
     std::function<void(Household &)> _callback_simulate_house;
     std::function<void(Household &, indiv)> _callback_update_cache;
 
     void _init_model_for_inference() { _callback_init_inference(); }
     void _init_model_for_simulation() { _callback_init_simulation(); }
-    void _init_infec_profile() { _callback_init_infec_profile(); }
     double _compute_household_obs_loglike(Household &h) { return _callback_house_loglike(h); }
     void _simulate_single_household(Household &h) { _callback_simulate_house(h); }
     void _update_cache_dependecies(Household &h, indiv i) { _callback_update_cache(h, i); }

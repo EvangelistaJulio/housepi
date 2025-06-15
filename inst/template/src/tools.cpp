@@ -592,11 +592,11 @@ namespace tools
 
         if (unused.size() == 1)
             throw std::invalid_argument(
-                "Unknown option " + show_list(unused) + "." + find_closest(unused[0], options));
+                "Unknown option " + show_list(unused) + find_closest(unused[0], options));
 
         else if (unused.size() > 1)
             throw std::invalid_argument(
-                "Unknown options: " + show_list(unused) + "." + find_closest(HOUSEPI_NA_STRING, options, 0));
+                "Unknown options: " + show_list(unused) + find_closest(HOUSEPI_NA_STRING, options, 0));
     }
 
 } // TOOLS NAMESPACE

@@ -33,7 +33,7 @@ public:
 							   double t_infec_i) const;
 
 	//===== Override General Methods =====//
-	void init_infec_profile() override final;
+	void init_user_advanced_setup() override final;
 	void init_model_for_inference() override final;
 	void init_model_for_simulation() override final;
 	void update_cache_dependecies(Household &house, indiv i) override final;

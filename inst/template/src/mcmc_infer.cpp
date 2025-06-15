@@ -210,7 +210,7 @@ double MCMC::Impl::_update_house_loglike(size_t R, bool is_augm_ll, bool cache_d
     // update household observation loglikelihood
     double output = _compute_and_set_household_obs_loglike(house);
 
-    // update household augmented loglikelihood 
+    // update household augmented loglikelihood
     if (is_augm_ll)
         output += _compute_and_set_augm_model_loglike(house);
 
@@ -357,14 +357,14 @@ double MCMC::Impl::evaluate()
 {
     try
     {
-        _assert_proper_dataset();       // check if dataset is empty
-        setup_n_chains = 0;             // use 0 chains as a state variable
-        setup_rand_init_params = false; // disable random initialization // UPDATE
-        _init_parameters();             // check no undefined parameters
-        _init_augmented_variables();    // initialize augmented dependencies
-        _init_infec_profile();          // initialize user infectivity profile
-        _init_model_for_inference();    // initialize model for inference
-        _update_full_loglike(true);     // initialize cache + full loglikelihood
+        _assert_proper_dataset();         // check if dataset is empty
+        setup_n_chains = 0;               // use 0 chains as a state variable
+        setup_rand_init_params = false;   // disable random initialization // UPDATE
+        _init_parameters();               // check no undefined parameters
+        _init_augmented_variables();      // initialize augmented dependencies
+        _infec_profile.assign_template(); // assign infectivity profile template
+        _init_model_for_inference();      // initialize model for inference
+        _update_full_loglike(true);       // initialize cache + full loglikelihood
 
         return full_loglike;
     }
@@ -387,10 +387,10 @@ void MCMC::Impl::infer()
 
     try
     {
-        _assert_proper_dataset();    // check if dataset is empty
-        _assert_proper_mcmc_setup(); // check setup for mcmc sampling
-        _init_infec_profile();       // initialize user infectivity profile
-        _init_model_for_inference(); // user initialization model
+        _assert_proper_dataset();         // check if dataset is empty
+        _assert_proper_mcmc_setup();      // check setup for mcmc sampling
+        _infec_profile.assign_template(); // assign infectivity profile template
+        _init_model_for_inference();      // user initialization model
 
         progressbar.open(setup_c_n_sweeps * setup_n_chains); // open progress bar
         _run_monte_carlo(progressbar);                       // run Monte Carlo
@@ -579,10 +579,10 @@ void MCMC::Impl::_aux_init_simulate()
     setup_n_threads = 1; // impose no parallelization
     _set_n_threads();
 
-    setup_rand_init_params = false; // disable random parameter initialization
-    _init_parameters();             // check no undefined parameters
-    _init_infec_profile();          // initialize user infectivity profile
-    _init_model_for_simulation();   // initialize model for simulation
+    setup_rand_init_params = false;   // disable random parameter initialization
+    _init_parameters();               // check no undefined parameters
+    _infec_profile.assign_template(); // assign infectivity profile template
+    _init_model_for_simulation();     // initialize model for simulation
 }
 
 #ifdef _HOUSEPI_RCPP

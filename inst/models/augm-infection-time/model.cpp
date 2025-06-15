@@ -12,6 +12,17 @@
 
 #include "model.h"
 
+// flag to keep discrete time implementation on the same script
+// UPDATE: there should be an automatic switch for this...
+//#define _IS_DISCRETE_TIME
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
 /* Assign all group rates to each individual. */
 void Model::assign_group_rate_to_individual(Individual &member)
 {
@@ -32,13 +43,13 @@ void Model::assign_group_rate_to_individual(Individual &member)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Initialize infectivity profile. */
-void Model::init_infec_profile()
+void Model::init_user_advanced_setup()
 {
-	// default infectivity profile: gamma
+	// template infectivity profile: gamma
 	// otherwise user defined
-	assign_template_infec_profile({{"name", "reparam_gamma"},
-								   {"arg_name", "mean/var"},
-								   {"arg_value", "2/1"},
+	assign_template_infec_profile({{"name", "gamma_meanvar"},
+								   {"arg_key", "mean/var"},
+								   {"arg_val", "2/1"},
 								   {"arg_at", "S/S"}});
 }
 
@@ -104,11 +115,10 @@ double Model::loglike_infectious(Household &house) const
 	const double beta = transmission_rate(house);
 
 	for (Individual &member_i : house.infected())
-	{
-		indiv i = member_i.hhindex();
 		if (member_i != member_0)
 		{
 			// Risk of infection from other household members `k`
+			indiv i = member_i.hhindex();
 			double b_i = beta * member_i.group_rate("susceptibility");
 			double roi_inst_i = 0.;
 			double roi_cumul_i = 0.;
@@ -128,11 +138,15 @@ double Model::loglike_infectious(Household &house) const
 
 			// Risk of infection from community
 			roi_inst_i += alpha;
-			roi_cumul_i += alpha * (member_i.augm("infec_time") - t_intro);
 
-			output += log(roi_inst_i) - roi_cumul_i;
+#ifdef _IS_DISCRETE_TIME
+			roi_cumul_i += alpha * (member_i.augm("infec_time") - 1. - t_intro);
+			output += std::log(1. - std::exp(-roi_inst_i)) - roi_cumul_i;
+#else
+			roi_cumul_i += alpha * (member_i.augm("infec_time") - t_intro);
+			output += std::log(roi_inst_i) - roi_cumul_i;
+#endif
 		}
-	}
 
 	return output;
 }
@@ -177,12 +191,20 @@ void Model::update_cache_dependecies(Household &house, indiv i)
 			if (gentime > 0)
 			{ //----- `i` : infector, `k` : infectee -----//
 				inst_mtx[i][k] = infec_profile_inst(member_i, gentime);
+#ifdef _IS_DISCRETE_TIME
+				cumul_mtx[i][k] = infec_profile_cumul(member_i, gentime - 1);
+#else
 				cumul_mtx[i][k] = infec_profile_cumul(member_i, gentime);
+#endif
 			}
 			else if (gentime < 0)
 			{ //----- `k` : infector, `i` : infectee -----//
 				inst_mtx[k][i] = infec_profile_inst(member_k, -gentime);
+#ifdef _IS_DISCRETE_TIME
+				cumul_mtx[k][i] = infec_profile_cumul(member_k, -gentime - 1);
+#else
 				cumul_mtx[k][i] = infec_profile_cumul(member_k, -gentime);
+#endif
 
 				//----- update first case -----//
 				if (t_infec_k < new_t0)
@@ -266,7 +288,11 @@ double Model::roi_inst_simulation(const std::vector<indiv> &infectors,
 /* Poisson point process to simulate outbreak in a single household. */
 void Model::simulate_single_household(Household &house)
 {
+#ifdef _IS_DISCRETE_TIME
+	const double Dt = 1;
+#else
 	const double Dt = 0.05;
+#endif
 
 	//=================================================//
 	//===== GENERATION 0 : by single introduction =====//

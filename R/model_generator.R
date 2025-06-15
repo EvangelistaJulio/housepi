@@ -303,7 +303,6 @@ HousepiGenerator <- R6::R6Class(
       # expose internally the module
       package <- tools::file_path_sans_ext(basename(private$.dll))
       m <- Rcpp::Module("housepi_model_core", PACKAGE = package)
-
       return(m$ModelHousepi$new())
     },
 
@@ -497,6 +496,8 @@ HousepiGenerator <- R6::R6Class(
         # compile model
         private$.compile()
         private$.rcpp <- private$.new_rcpp_model()
+        # init user advanced setup
+        private$.rcpp$init_user_advanced_setup()
 
       } else if (is.null(private$.rcpp)) {
         # load if not already generated

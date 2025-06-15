@@ -17,6 +17,7 @@
 //' @name ModelHousepi
 //' @title Internal housepi model
 //' @description Perform inference and simulation from the model.
+//' @field init_user_advanced_setup Load user advance setup.
 //' @field infer Perform MCMC inference of the model parameters. \itemize{
 //'   \item Parameter: output_file - The file path where the output will be saved
 //'   \item Parameter: progbar - show the progress bar
@@ -52,6 +53,7 @@ RCPP_MODULE(housepi_model_core)
 
     class_<MCMC>("McmcHousepi")
         .constructor()
+        .method("init_user_advanced_setup", &MCMC::init_user_advanced_setup)
         .method("infer", &MCMC::infer)
         .method("simulate", &MCMC::simulate)
         .method("evaluate", &MCMC::evaluate)

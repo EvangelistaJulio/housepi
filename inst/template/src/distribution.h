@@ -281,7 +281,7 @@ void register_distr(const std::string &opt)
 	static_assert(std::is_base_of<Distribution, T>::value,
 				  "T must be derived from Distribution");
 	if (C::inst().is_valid_option(opt))
-		tools::warning("Overwritten " + C::inst().name() + "\"" + "\".");
+		tools::warning("Overwritten " + C::inst().name() + " \"" + opt + "\".");
 	C::inst().register_distr(opt, []()
 							 { return std::make_shared<T>(); });
 }

@@ -26,8 +26,6 @@ MCMC::MCMC()
           { this->init_model_for_inference(); },
           [this]()
           { this->init_model_for_simulation(); },
-          [this]()
-          { this->init_infec_profile(); },
           [this](Household &h) -> double
           { return this->compute_household_obs_loglike(h); },
           [this](Household &h)
@@ -218,22 +216,22 @@ void MCMC::_assign_contact_rate(Household &house)
 /////////////////////////////////////  MCMC : infectivity profile  //////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Assign default infectivity profile during user model initialization. */
-void MCMC::assign_template_infec_profile(std::map<std::string, std::string> x)
+/* Assign template infectivity profile to use if no user defined. */
+void MCMC::assign_template_infec_profile(const dict_str_str x)
 {
-	pImpl->_infec_profile.assign_template(x);
+    pImpl->_infec_profile.deflist_template = x;
 }
 
 /* Value of the instantaneous infectivity profile. */
 double MCMC::infec_profile_inst(Individual &infector, double t) const
 {
-	return pImpl->_infec_profile.inst(infector, t);
+    return pImpl->_infec_profile.inst(infector, t);
 }
 
 /* Value of the cumulative infectivity profile. */
 double MCMC::infec_profile_cumul(Individual &infector, double t) const
 {
-	return pImpl->_infec_profile.cumul(infector, t);
+    return pImpl->_infec_profile.cumul(infector, t);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -266,12 +264,7 @@ Rcpp::DataFrame MCMC::export_data_report() const { return pImpl->export_data_rep
 Rcpp::DataFrame MCMC::export_house_size_report() const { return pImpl->export_house_size_report(); }
 Rcpp::NumericMatrix MCMC::export_traces() const { return pImpl->export_traces(); }
 Rcpp::NumericMatrix MCMC::export_house_loglike_mtx() const { return pImpl->export_house_loglike_mtx(); }
-
-Rcpp::List MCMC::showcase_infec_profile(int n_bins)
-{
-    init_infec_profile();
-    return pImpl->showcase_infec_profile(n_bins);
-}
+Rcpp::List MCMC::showcase_infec_profile(int n_bins) { return pImpl->showcase_infec_profile(n_bins); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////  MCMC : imports from Rcpp ///////////////////////////////////

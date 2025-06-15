@@ -46,6 +46,9 @@ public:
 	MCMC();
 	virtual ~MCMC();
 
+	/* Virtual method for user initialization of aumented setup. */
+	virtual void init_user_advanced_setup() {}
+
 	//================//
 	//===== DATA =====//
 	//================//
@@ -104,12 +107,9 @@ public:
 	//===== INFECTIVITY PROFILE =====//
 	//===============================//
 
-	void assign_template_infec_profile(std::map<std::string, std::string> x);
+	void assign_template_infec_profile(const dict_str_str x);
 	double infec_profile_inst(Individual &member, double t) const;
 	double infec_profile_cumul(Individual &member, double t) const;
-
-	/* Virtual method for user initialization of infectivity profile. */
-	virtual void init_infec_profile() {}
 
 	//====================================//
 	//===== EVALUATE (loglikelihood) =====//

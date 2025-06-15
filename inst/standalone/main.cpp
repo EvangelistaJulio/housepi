@@ -162,6 +162,7 @@ int main(int argc, char *argv[])
 
     //----- Initialize the custom Model object -----//
     std::unique_ptr<Model> user_model = std::make_unique<Model>();
+    user_model->init_user_advanced_setup();
 
     // 1) Load Data
     user_model->read_dataset(dataset_file);
