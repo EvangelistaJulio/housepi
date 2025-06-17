@@ -286,11 +286,12 @@ private:
 
 /* Register a Function derived class T to FungRegistry derived class C. */
 template <typename C, typename T>
-void register_func(const std::string &opt)
+void register_func()
 {
     static_assert(std::is_base_of<Function, T>::value,
                   "T must be derived from Function.");
-                  
+
+    const std::string &opt = T().show_name();
     if (C::inst().is_valid_option(opt))
         tools::warning("Overwritten " + C::inst().name() + " \"" + opt + "\".");
     C::inst().register_func(opt, []()
@@ -316,7 +317,7 @@ private:
 };
 
 template <typename T>
-void register_arithmetic_func(const std::string &opt) { register_func<ArithmeticRegistry, T>(opt); }
+void register_arithmetic_func() { register_func<ArithmeticRegistry, T>(); }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////  TranscendentalRegistry : class  ///////////////////////////
@@ -332,6 +333,23 @@ private:
 };
 
 template <typename T>
-void register_transcendental_func(const std::string &opt) { register_func<TranscendentalRegistry, T>(opt); }
+void register_transcendental_func() { register_func<TranscendentalRegistry, T>(); }
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////  UserFuncRegistry : class  //////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+class UserFuncRegistry : public FuncRegistry
+{
+public:
+    static UserFuncRegistry &inst();
+
+private:
+    UserFuncRegistry();
+};
+
+template <typename T>
+void register_user_function() { register_func<UserFuncRegistry, T>(); }
+
 
 #endif // HOUSEPI__FUNCTION__H

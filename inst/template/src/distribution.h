@@ -276,10 +276,12 @@ private:
 
 /* Register a Distribution derived class T to DistrRegistry derived class C. */
 template <typename C, typename T>
-void register_distr(const std::string &opt)
+void register_distr()
 {
 	static_assert(std::is_base_of<Distribution, T>::value,
 				  "T must be derived from Distribution");
+				  
+	const std::string &opt = T().show_name();
 	if (C::inst().is_valid_option(opt))
 		tools::warning("Overwritten " + C::inst().name() + " \"" + opt + "\".");
 	C::inst().register_distr(opt, []()
@@ -302,7 +304,7 @@ private:
 };
 
 template <typename T>
-void register_continuos_distr(const std::string &opt) { register_distr<ContinuosDistrRegistry, T>(opt); }
+void register_continuos_distr() { register_distr<ContinuosDistrRegistry, T>(); }
 
 /* Discrete Distributions Registry. */
 class DiscreteDistrRegistry : public DistrRegistry
@@ -315,7 +317,7 @@ private:
 };
 
 template <typename T>
-void register_discrete_distr(const std::string &opt) { register_distr<DiscreteDistrRegistry, T>(opt); }
+void register_discrete_distr() { register_distr<DiscreteDistrRegistry, T>(); }
 
 /* Infectivity Profile Registry. */
 class InfecProfileRegistry : public DistrRegistry
@@ -328,6 +330,6 @@ private:
 };
 
 template <typename T>
-void register_infec_profile(const std::string &opt) { register_distr<InfecProfileRegistry, T>(opt); }
+void register_infec_profile() { register_distr<InfecProfileRegistry, T>(); }
 
 #endif // HOUSEPI__DISTRIBUTION__H

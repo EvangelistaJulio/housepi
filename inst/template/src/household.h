@@ -60,7 +60,7 @@ public:
 	int status() const { return _status; }
 
 	double data(const dataID &d) const { return _data_map.at(d); }
-	double datalist(const dataID &d, ushort i) const { return _datalist_ptr->at(d).at(i); }
+	const dbl_vec &datalist(const dataID &d) const { return _datalist_ptr->at(d); }
 	double group_rate(const rateID &r) const { return _rate_map.at(r).get(); }
 	double augm(const augmID &a) const { return _augm_map.at(a).get(); }
 	Variable &get_augm_variable(const augmID &a) { return _augm_map.at(a); }
