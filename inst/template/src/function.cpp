@@ -83,6 +83,12 @@ Function::Function(const std::string &name,
                    bool is_min_open,
                    bool is_max_open)
 {
+    // FIXME
+    // attribute x should be at at last position and automatic
+    // FIXME
+
+    bool is_x_default = contains(arg_name, "X");
+
     // name of the function
     _function_name = name;
 
@@ -95,15 +101,23 @@ Function::Function(const std::string &name,
             << arg_value.size() << " values.";
         throw std::length_error(oss.str());
     }
-    _n_args = arg_name.size();
+    _n_args = arg_name.size() - (is_x_default);
 
     // assign default arguments
-    _arguments = new Attribute[arg_name.size()];
-    for (ushort c = 0; c < _n_args; ++c)
-    {
-        _arguments[c].set_name(arg_name[c]);
-        _arguments[c].set(arg_value[c]);
-    }
+    _arguments = new Attribute[_n_args + 1];
+    // by convention, last argument is "x" and 0 by default
+    _arguments[_n_args].set_name("x");
+    _arguments[_n_args].set(0);
+
+    ushort c = 0;
+    for (ushort k = 0; k < arg_name.size(); ++k)
+        if (arg_name[k] == "x")
+            _arguments[_n_args].set(arg_value[k]);
+        else
+        {
+            _arguments[c].set_name(arg_name[k]);
+            _arguments[c++].set(arg_value[k]);
+        }
 
     //----- assign domain -----//
     // NOTE: at the moment only place where to set open ranges
@@ -126,28 +140,30 @@ Function::~Function() = default;
 ////////////////////////////////////  Base Function : Getter  ///////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Auxiliary function to retrieve the index of a given attribute by name. */
-ushort Function::find(const std::string &arg_name) const
+/* Tell if all arguments are defined, except for 'x' argument. */
+bool Function::is_able_to_showcase() const
 {
-    for (ushort c = 0; c < _n_args; ++c)
-        if (_arguments[c].show_name() == arg_name)
-            return c;
-    return _n_args;
+    for (ushort i = 0; i < _n_args; ++i)
+        if (tools::is_na(get_arg(i)))
+            return false;
+    return true;
 }
 
 /* Assert argument exists at assignment. Returns it's index. */
 ushort Function::assert_arg(const std::string &arg_name) const
 {
-    ushort i = this->find(arg_name);
-    if (i == _n_args)
-    {
-        str_vec options = {};
+    if (arg_name == "x")
+        return _n_args; // by convention, last argument is "x"
+    else
         for (ushort c = 0; c < _n_args; ++c)
-            options.push_back(_arguments[c].show_name());
-        throw std::invalid_argument(
-            "Unknown argument \"" + arg_name + "\" for \"" + show_name() + "\"." + tools::find_closest(arg_name, options));
-    }
-    return i;
+            if (_arguments[c].show_name() == arg_name)
+                return c;
+
+    str_vec options = {};
+    for (ushort c = 0; c < _n_args; ++c)
+        options.push_back(_arguments[c].show_name());
+    throw std::invalid_argument(
+        "Unknown argument \"" + arg_name + "\" for \"" + show_name() + "\"." + tools::find_closest(arg_name, options));
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -496,11 +512,11 @@ class Equality_Function : public Function
 public:
     //===== CONSTRUCTOR =====//
     Equality_Function()
-        : Function("identity", {"x"}, {0.}) {}
+        : Function("eq") {}
     ~Equality_Function() = default;
 
     //===== GETTER =====//
-    double return_value() const override final { return get_arg(0); }
+    double return_value(double x) const override final { return x; }
 };
 
 //--- Addition Function. ---//
@@ -509,11 +525,11 @@ class Addition_Function : public Function
 public:
     //===== CONSTRUCTOR =====//
     Addition_Function()
-        : Function("add", {"x", "y"}, {0., 0.}) {}
+        : Function("add", {"y"}, {0.}) {}
     ~Addition_Function() = default;
 
     //===== GETTER =====//
-    double return_value() const override final { return get_arg(0) + get_arg(1); }
+    double return_value(double x) const override final { return x + get_arg(0); }
 };
 
 //--- Subtraction Function. ---//
@@ -522,11 +538,11 @@ class Subtraction_Function : public Function
 public:
     //===== CONSTRUCTOR =====//
     Subtraction_Function()
-        : Function("sum", {"x", "y"}, {0., 0.}) {}
+        : Function("sum", {"y"}, {0.}) {}
     ~Subtraction_Function() = default;
 
     //===== GETTER =====//
-    double return_value() const override final { return get_arg(0) - get_arg(1); }
+    double return_value(double x) const override final { return x - get_arg(0); }
 };
 
 //--- Multiplication Function. ---//
@@ -535,13 +551,13 @@ class Multiplication_Function : public Function
 public:
     //===== CONSTRUCTOR =====//
     Multiplication_Function()
-        : Function("mult", {"x", "y"}, {0., 1.}) {}
+        : Function("mult", {"y"}, {1.}) {}
     ~Multiplication_Function() = default;
 
     //==================//
     //===== GETTER =====//
     //==================//
-    double return_value() const override final { return get_arg(0) * get_arg(1); }
+    double return_value(double x) const override final { return x * get_arg(0); }
 };
 
 //--- Division Function. ---//
@@ -550,11 +566,11 @@ class Division_Function : public Function
 public:
     //===== CONSTRUCTOR =====//
     Division_Function()
-        : Function("div", {"x", "y"}, {0., 1.}) {}
+        : Function("div", {"y"}, {1.}) {}
     ~Division_Function() = default;
 
     //===== GETTER =====//
-    double return_value() const override final { return get_arg(0) / get_arg(1); }
+    double return_value(double x) const override final { return x / get_arg(0); }
 };
 
 //--- Power Function. ---//
@@ -563,11 +579,11 @@ class Power_Function : public Function
 public:
     //===== CONSTRUCTOR =====//
     Power_Function()
-        : Function("pow", {"x", "y"}, {0., 1.}) {}
+        : Function("pow", {"y"}, {1.}) {}
     ~Power_Function() = default;
 
     //===== GETTER =====//
-    double return_value() const override final { return std::pow(get_arg(0), get_arg(1)); }
+    double return_value(double x) const override final { return std::pow(x, get_arg(0)); }
 };
 
 //--- Square Root Function. ---//
@@ -576,11 +592,11 @@ class SquareRoot_Function : public Function
 public:
     //===== CONSTRUCTOR =====//
     SquareRoot_Function()
-        : Function("sqrt", {"x"}, {1.}) {}
+        : Function("sqrt") {}
     ~SquareRoot_Function() = default;
 
     //===== GETTER =====//
-    double return_value() const override final { return std::sqrt(get_arg(0)); }
+    double return_value(double x) const override final { return std::sqrt(x); }
 };
 
 /* Exponential Function. */
@@ -589,11 +605,11 @@ class Exponential_Function : public Function
 public:
     //===== CONSTRUCTOR =====//
     Exponential_Function()
-        : Function("exp", {"x"}, {0.}) {}
+        : Function("exp") {}
     ~Exponential_Function() = default;
 
     //===== GETTER =====//
-    double return_value() const override final { return std::exp(get_arg(0)); }
+    double return_value(double x) const override final { return std::exp(x); }
 };
 
 /* Logarithm Function. */
@@ -606,7 +622,7 @@ public:
     ~Logarithm_Function() = default;
 
     //===== GETTER =====//
-    double return_value() const override final { return std::log(get_arg(0)); }
+    double return_value(double x) const override final { return std::log(x); }
 };
 
 /* Sine Function. */
@@ -615,11 +631,11 @@ class Sine_Function : public Function
 public:
     //===== CONSTRUCTOR =====//
     Sine_Function()
-        : Function("sin", {"x"}, {0.}) {}
+        : Function("sin") {}
     ~Sine_Function() = default;
 
     //===== GETTER =====//
-    double return_value() const override final { return std::sin(get_arg(0)); }
+    double return_value(double x) const override final { return std::sin(x); }
 };
 
 /* Cosine Function. */
@@ -628,11 +644,11 @@ class Cosine_Function : public Function
 public:
     //===== CONSTRUCTOR =====//
     Cosine_Function()
-        : Function("cos", {"x"}, {0.}) {}
+        : Function("cos") {}
     ~Cosine_Function() = default;
 
     //===== GETTER =====//
-    double return_value() const override final { return std::cos(get_arg(0)); }
+    double return_value(double x) const override final { return std::cos(x); }
 };
 
 /* Tangent Function. */
@@ -641,11 +657,11 @@ class Tangent_Function : public Function
 public:
     //===== CONSTRUCTOR =====//
     Tangent_Function()
-        : Function("tan", {"x"}, {0.}) {}
+        : Function("tan") {}
     ~Tangent_Function() = default;
 
     //===== GETTER =====//
-    double return_value() const override final { return std::tan(get_arg(0)); }
+    double return_value(double x) const override final { return std::tan(x); }
 };
 
 //-----------------------------------------------------------------------------------------------//

@@ -270,6 +270,7 @@ void Variable::init(const std::string &name, double value,
 {
     if (tools::is_na(func_name))
     {
+        _do_operator_return = &Variable::__operator_return_error;
         _do_get = &Variable::__get_default;
         _do_get_pointer = &Variable::__get_pointer_default;
 
@@ -281,6 +282,7 @@ void Variable::init(const std::string &name, double value,
     }
     else
     {
+        _do_operator_return = &Variable::__operator_return_func;
         _do_get = &Variable::__get_func_return;
         _do_get_pointer = &Variable::__get_pointer_func_return;
         _func_ptr = compose_func_registries(

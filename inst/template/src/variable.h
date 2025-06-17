@@ -153,6 +153,8 @@ public:
     }
     ~Variable() = default;
 
+    double operator()(double x) const { return (this->*_do_operator_return)(x); }
+
     //==================//
     //===== GETTER =====//
     //==================//
@@ -277,6 +279,11 @@ private:
     //==================//
     //===== GETTER =====//
     //==================//
+
+    double (Variable::*_do_operator_return)(double) const = &Variable::__operator_return_error;
+    double __operator_return_error(double ) const { throw std::runtime_error(
+        "Variable \"" + show_name() + "\" is not a function."); }
+    double __operator_return_func(double x) const { return _func_ptr->return_value(x); }
 
     double (Variable::*_do_get)() const = &Variable::__get_default;
     double __get_default() const { return _value; }

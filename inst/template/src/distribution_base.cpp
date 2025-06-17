@@ -33,15 +33,13 @@ double Distribution::logratio(double xold, double xnew) const
 }
 double Distribution::rand(rnd_gen &prng)
 {
-    update_args();
+    update_args(); // UPDATE: random generator classes should be redisgned to deal with this
     return (this->*_do_rand)(prng);
 }
 
 /* Function-like return value for probability density. */
-double Distribution::__return_pdf() const
+double Distribution::__return_pdf(double x) const
 {
-    const double x = get_arg(n_args() - 1);
-
     if (valid(x))
         return pdf(x);
     else
@@ -49,10 +47,8 @@ double Distribution::__return_pdf() const
 }
 
 /* Function-like return value for cumulative distribution. */
-double Distribution::__return_cdf() const
+double Distribution::__return_cdf(double x) const
 {
-    const double x = get_arg(n_args() - 1);
-
     if (below(x))
         return 0.;
     else if (above(x))
@@ -351,15 +347,6 @@ void Distribution::init_min_zero_discr_defined_reshaping()
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////  Distribution : showcase (method)  ///////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Tell if all arguments (excpet x argument) are defined. */
-bool Distribution::is_able_to_showcase() const
-{
-    for (ushort i = 0; i < n_args() - 1; ++i)
-        if (tools::is_na(get_arg(i)))
-            return false;
-    return true;
-}
 
 /* Return values to showcase the profile of the distribution. */
 const std::vector<dbl_vec> Distribution::showcase(int n_bins, double ytol) const

@@ -69,7 +69,6 @@ const std::string CONTACT_RATE = "Contact";      // contact rate
 const std::string MISSING_RATE = "MISSING_RATE"; // missing rate
 
 // auxiliary infectivity profile
-const std::string AUX_IP_GEN_TIME = "__gen_time__";           // augmented generation time
 const std::string AUX_IP_INST_PROFILE = "__profile_inst__";   // augmented instantaneous infectivity profile
 const std::string AUX_IP_CUMUL_PROFILE = "__profile_cumul__"; // augmented cumulative infectivity profile
 

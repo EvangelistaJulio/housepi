@@ -131,8 +131,7 @@ void MCMC::Impl::InfecProfile::append_augm_definition()
 	{
 		// check for reserved augmented names
 		for (const std::string &a : pImpl._augm_deftable.at("name"))
-			for (const std::string &forbid : {AUX_IP_GEN_TIME,
-											  AUX_IP_INST_PROFILE,
+			for (const std::string &forbid : {AUX_IP_INST_PROFILE,
 											  AUX_IP_CUMUL_PROFILE})
 				if (a == forbid)
 					throw std::invalid_argument(
@@ -326,29 +325,26 @@ void MCMC::Impl::InfecProfile::_build_augmented_profile()
 	std::string arg_key = deflist.at("arg_key");
 	if (!tools::is_na(arg_key))
 		arg_key += C_LIST_DELIM;
-	arg_key += "x";
 
 	std::string arg_val = deflist.at("arg_val");
 	if (!tools::is_na(arg_val))
 		arg_val += C_LIST_DELIM;
-	arg_val += AUX_IP_GEN_TIME;
 
 	std::string arg_at = deflist.at("arg_at");
 	if (!tools::is_na(arg_at))
 		arg_at += C_LIST_DELIM;
-	arg_at += "A";
 
 	// match infectivity profile and augmented variable definition
 	const dict_str_vec matcher = {
-		{"name", str_vec({AUX_IP_GEN_TIME, AUX_IP_INST_PROFILE, AUX_IP_CUMUL_PROFILE})},
-		{"func", str_vec({HOUSEPI_NA_STRING, "d" + func_name, "p" + func_name})},
-		{"farg_key", aux_str + str_vec(2, arg_key)},
-		{"farg_val", aux_str + str_vec(2, arg_val)},
-		{"farg_at", aux_str + str_vec(2, arg_at)},
-		{"min", aux_str + str_vec(2, deflist.at("min"))},
-		{"min_at", aux_str + str_vec(2, deflist.at("min_at"))},
-		{"max", aux_str + str_vec(2, deflist.at("max"))},
-		{"max_at", aux_str + str_vec(2, deflist.at("max_at"))}};
+		{"name", str_vec({AUX_IP_INST_PROFILE, AUX_IP_CUMUL_PROFILE})},
+		{"func", str_vec({"d" + func_name, "p" + func_name})},
+		{"farg_key", str_vec(2, arg_key)},
+		{"farg_val", str_vec(2, arg_val)},
+		{"farg_at", str_vec(2, arg_at)},
+		{"min", str_vec(2, deflist.at("min"))},
+		{"min_at", str_vec(2, deflist.at("min_at"))},
+		{"max", str_vec(2, deflist.at("max"))},
+		{"max_at", str_vec(2, deflist.at("max_at"))}};
 
 	for (auto &pair : matcher)
 		_augm_infec_profile_deflist.at(pair.first) = pair.second;
@@ -399,15 +395,13 @@ double MCMC::Impl::InfecProfile::__lookup_cumul(Individual &, double t)
 /* Value of the instantaneous infectivity profile. */
 double MCMC::Impl::InfecProfile::__augm_inst(Individual &member, double t)
 {
-	member.get_augm_variable(AUX_IP_GEN_TIME).set_value(t);
-	return member.augm(AUX_IP_INST_PROFILE);
+	return member.get_augm_variable(AUX_IP_INST_PROFILE)(t);
 }
 
 /* Value of the cumulative infectivity profile. */
 double MCMC::Impl::InfecProfile::__augm_cumul(Individual &member, double t)
 {
-	member.get_augm_variable(AUX_IP_GEN_TIME).set_value(t);
-	return member.augm(AUX_IP_CUMUL_PROFILE);
+	return member.get_augm_variable(AUX_IP_CUMUL_PROFILE)(t);
 }
 
 //-----------------------------------------------------------------------------------------------//

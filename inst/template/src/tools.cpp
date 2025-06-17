@@ -772,6 +772,8 @@ namespace progress
                         << std::string(25, ' ') << "\n";
                     _display(oss.str());
                 }
+                else
+                    _display("\n");
 
                 _state = _total;
             }

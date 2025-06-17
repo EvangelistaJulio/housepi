@@ -52,9 +52,7 @@ public:
 				 double domain_max = HOUSEPI_NA_DOUBLE,
 				 bool is_min_open = true,
 				 bool is_max_open = true)
-		// each distribution has extra argument "x" for return_value
-		: Function(name, arg_name + str_vec({"x"}),
-				   arg_value + dbl_vec({HOUSEPI_NA_DOUBLE}),
+		: Function(name, arg_name, arg_value,
 				   domain_min, domain_max, is_min_open, is_max_open)
 	{
 	}
@@ -72,7 +70,7 @@ public:
 	double rand(rnd_gen &prng);
 
 	// note: as a function, distribution is defined by its pdf or cdf
-	double return_value() const override { return (this->*_do_return_value)(); }
+	double return_value(double x) const override { return (this->*_do_return_value)(x); }
 
 	//==================//
 	//===== SETTER =====//
@@ -85,7 +83,6 @@ public:
 	//===== SHOW =====//
 	//================//
 
-	bool is_able_to_showcase() const;
 	const std::vector<dbl_vec> showcase(int n_bins = 2000,
 										double ytol = 1.e-5) const;
 
@@ -123,10 +120,10 @@ private:
 	double _rejection_sampling(rnd_gen &prng, double (Distribution::*func)(rnd_gen &));
 
 	//===== Functional methods for return_value =====//
-	double (Distribution::*_do_return_value)() const = &Distribution::__return_pdf;
+	double (Distribution::*_do_return_value)(double) const = &Distribution::__return_pdf;
 
-	double __return_pdf() const;
-	double __return_cdf() const;
+	double __return_pdf(double x) const;
+	double __return_cdf(double x) const;
 
 	//===== Functional methods for public getter methods =====//
 	double (Distribution::*_do_pdf)(double) const = &Distribution::__default_pdf;
@@ -280,7 +277,7 @@ void register_distr()
 {
 	static_assert(std::is_base_of<Distribution, T>::value,
 				  "T must be derived from Distribution");
-				  
+
 	const std::string &opt = T().show_name();
 	if (C::inst().is_valid_option(opt))
 		tools::warning("Overwritten " + C::inst().name() + " \"" + opt + "\".");

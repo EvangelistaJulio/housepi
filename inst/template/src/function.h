@@ -133,19 +133,19 @@ public:
              bool is_max_open = true);
     virtual ~Function();
 
+    double operator()(double x) const { return return_value(x); }
+
     //==================//
     //===== GETTER =====//
     //==================//
 
     /* Virtual function to return a value */
-    virtual double return_value() const { return 0.; }
+    virtual double return_value(double) const { return 0.; }
+    /* By convention, the argument 'x' is automatically the last one. */
+    double return_value() const { return return_value(get_arg(_n_args)); }
 
-    /* Number of arguments. */
-    ushort n_args() const { return _n_args; }
-
-    ushort find(const std::string &arg_name) const;
+    bool is_able_to_showcase() const;
     ushort assert_arg(const std::string &arg_name) const;
-
     double get_arg(ushort i) const { return _arguments[i].get(); }
     double get_min() const { return _range_min.get(); }
     double get_max() const { return _range_max.get(); }
@@ -350,6 +350,5 @@ private:
 
 template <typename T>
 void register_user_function() { register_func<UserFuncRegistry, T>(); }
-
 
 #endif // HOUSEPI__FUNCTION__H

@@ -191,7 +191,7 @@ public:
     /* Augmented list with variable to be exported. */
     const std::vector<augmID> augm_list_export() const
     {
-        return subtr(augm_list_full, {AUX_IP_GEN_TIME, AUX_IP_INST_PROFILE, AUX_IP_CUMUL_PROFILE});
+        return subtr(augm_list_full, {AUX_IP_INST_PROFILE, AUX_IP_CUMUL_PROFILE});
     }
 
     //----- Augmented - Setter -----//
