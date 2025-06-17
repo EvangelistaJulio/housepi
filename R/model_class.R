@@ -275,21 +275,6 @@ HouseholdModel <- R6::R6Class(
     },
 
     # @description
-    # Import only parameters and infectivity profile for a minimal build.
-    .build_minimal = function() {
-      # assert parameter definitions before importing
-      private$.assert_param()
-      private$.model$import_param(self$param_defs)
-
-      # infectivity profile
-      if (length(private$.infec_profile$defs) > 0) {
-        private$.model$import_infec_profile(private$.infec_profile$defs)
-      }
-
-      invisible(self)
-    },
-
-    # @description
     # Full model build with complete list of definitions.
     #
     # @param dataset `data.frame`\cr
@@ -328,10 +313,18 @@ HouseholdModel <- R6::R6Class(
                            seed = NA, progress = FALSE) {
       # import dataset
       self$import_dataset(dataset, .hold = FALSE)
-      # run model pre-build
-      private$.build_minimal()
+
+      # assert parameter definitions before importing
+      private$.assert_param()
+      private$.model$import_param(self$param_defs)
+
       # assert augmented variable definitions
       private$.assert_augm()
+
+      # infectivity profile
+      if (length(private$.infec_profile$defs) > 0) {
+        private$.model$import_infec_profile(private$.infec_profile$defs)
+      }
 
       # individual id for blank model augmented traces
       if (private$.model$is_blank && is.na(id_trace)) id_trace <- 1
@@ -972,8 +965,18 @@ HouseholdModel <- R6::R6Class(
     #' @return
     #' `list()`
     showcase_infec_profile = function(bins = 2000) {
-      # internal build function
-      private$.build_minimal()
+      # assert parameter definitions before importing
+      requirements <- private$.infec_profile$param_required
+      if (length(requirements) > 0) {
+        private$.param$assert(requirements)
+        private$.model$import_param(self$param_defs)
+      }
+
+      # infectivity profile
+      if (length(private$.infec_profile$defs) > 0) {
+        private$.model$import_infec_profile(private$.infec_profile$defs)
+      }
+
       return(private$.model$showcase_infec_profile(bins = bins))
     },
 
