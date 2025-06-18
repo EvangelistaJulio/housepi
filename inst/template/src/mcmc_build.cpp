@@ -259,7 +259,7 @@ void MCMC::Impl::build_dataset(const dict_str_vec &input)
         if (!input.empty())
         {
             // drop all previous data and prepare for new
-            data_headers.clear();
+            str_vec data_headers = {};
             for (const auto &x : input)
                 data_headers.push_back(x.first);
 
@@ -281,7 +281,7 @@ void MCMC::Impl::build_dataset(const dict_str_vec &input)
                 std::string id = std::to_string(i + 1);                // default id
                 std::string house_id = std::to_string(n_houses() + 1); // default house_id
                 int status = MISSING_STATUS;
-                dataIDmap<double> data = {};
+                data_key_map<double> data = {};
 
                 for (const std::string &key : data_headers)
                     if (key == "id")
@@ -332,14 +332,6 @@ void MCMC::Impl::build_dataset(const dict_str_vec &input)
 
             // update report for data
             _fill_report_data();
-
-            // clean up data entries for output files
-            // eventually remove default headers to reorder them at the end
-            const str_vec def_data_headers = {"house_id", "id", "status"};
-            for (const std::string &col : def_data_headers)
-                data_headers.erase(
-                    std::remove(data_headers.begin(), data_headers.end(), col),
-                    data_headers.end());
         }
     }
     catch (const std::exception &e)
@@ -557,7 +549,7 @@ void MCMC::Impl::build_datalist(const dict_str_vec &input, const std::string &li
             if (indiv_datalist.empty())
                 indiv_datalist.resize(n_individuals);
 
-            for (dataIDmap<dbl_vec> &this_map : indiv_datalist)
+            for (data_key_map<dbl_vec> &this_map : indiv_datalist)
                 for (const std::string &key : headers)
                 {
                     if (this_map.count(key) > 0)
@@ -574,11 +566,15 @@ void MCMC::Impl::build_datalist(const dict_str_vec &input, const std::string &li
                     throw std::invalid_argument(
                         "Invalid id for " + alias + " in row n." + std::to_string(r + 2) + ".");
                 else if (id_to_index.find(id) == id_to_index.end())
-                    throw std::invalid_argument(
-                        "Id " + id + " from " + alias + " unmatched in loaded dataset.");
+                    if (house_vector.empty())
+                        throw std::invalid_argument(
+                            "Datalist definition before dataset is not supported.");
+                    else
+                        throw std::invalid_argument(
+                            "Id \"" + id + "\" from " + alias + " has no match in loaded dataset.");
 
-                dataIDmap<dbl_vec> &this_dict = indiv_datalist.at(id_to_index.at(id));
-                for (const std::string &key : data_headers)
+                data_key_map<dbl_vec> &this_dict = indiv_datalist.at(id_to_index.at(id));
+                for (const std::string &key : headers)
                 {
                     x = HOUSEPI_NA_DOUBLE;
                     if (tools::is_na(input.at(key)[r]))
@@ -637,7 +633,7 @@ void MCMC::Impl::build_param()
             {
                 const std::string &name = deftable.at("name")[k]; // parameter name
                 double value = HOUSEPI_NA_DOUBLE;                 // init value
-                parID p = name;
+                par_key p = name;
 
                 // Add entry to shared parameter dictionary -----//
                 if (param_map.count(p))
@@ -737,7 +733,7 @@ void MCMC::Impl::build_param()
 /* Randomly initialize values of the parameters to be inferred */
 void MCMC::Impl::_init_parameters()
 {
-    for (const parID &p : param_standard_infer_list + param_cache_infer_list)
+    for (const par_key &p : param_standard_infer_list + param_cache_infer_list)
     {
         Variable &this_par = param_map.at(p);
         // user initialization (for multiple chains)

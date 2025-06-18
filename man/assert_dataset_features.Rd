@@ -4,12 +4,12 @@
 \alias{assert_dataset_features}
 \title{Assert dataset features}
 \usage{
-assert_dataset_features(features, data_headers)
+assert_dataset_features(features, dataset_headers)
 }
 \arguments{
 \item{features}{Features as list of dataset column names}
 
-\item{data_headers}{Headers of the dataset.}
+\item{dataset_headers}{Headers of the dataset.}
 }
 \description{
 Assert that features are present in dataset,

@@ -16,15 +16,15 @@
 #'
 #' @param features
 #' Features as list of dataset column names
-#' @param data_headers
+#' @param dataset_headers
 #' Headers of the dataset.
 #'
 #' @keywords internal
-assert_dataset_features <- function(features, data_headers) {
+assert_dataset_features <- function(features, dataset_headers) {
   # assert that features are present
   missing <- c()
   for (this in features) {
-    if (!(this %in% data_headers)) {
+    if (!(this %in% dataset_headers)) {
       missing <- c(missing, this)
     }
   }

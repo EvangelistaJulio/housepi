@@ -5,7 +5,7 @@
 \alias{HouseholdModel}
 \title{Household Model R6 Class}
 \description{
-Compile household model, manage your data and parameters from a single class.
+Compile household model, manage your dataset and parameters from a single class.
 }
 \references{
 Cauchemez, et al. (2009)
@@ -59,8 +59,8 @@ Traces of last inference.}
 \item{\code{traces_no_loglike}}{\code{matrix()} | \code{list()} of \code{matrix()}\cr
 Traces of last inference without loglikelihood.}
 
-\item{\code{traces_results}}{\code{data.frame}\cr
-Results extracted from the traces of last inference.}
+\item{\code{estimates}}{\code{data.frame}\cr
+Estimates from the posterior traces of the last inference.}
 
 \item{\code{cri_level}}{\code{double(1)}\cr
 Level for the credible interval.
@@ -79,6 +79,7 @@ Value between 0.5 and 1 (default is 0.95).}
 \item \href{#method-HouseholdModel-drop_group_rate_defs}{\code{HouseholdModel$drop_group_rate_defs()}}
 \item \href{#method-HouseholdModel-drop_all}{\code{HouseholdModel$drop_all()}}
 \item \href{#method-HouseholdModel-import_dataset}{\code{HouseholdModel$import_dataset()}}
+\item \href{#method-HouseholdModel-import_datalist}{\code{HouseholdModel$import_datalist()}}
 \item \href{#method-HouseholdModel-add_param}{\code{HouseholdModel$add_param()}}
 \item \href{#method-HouseholdModel-load_param_list}{\code{HouseholdModel$load_param_list()}}
 \item \href{#method-HouseholdModel-load_param_template}{\code{HouseholdModel$load_param_template()}}
@@ -211,7 +212,7 @@ Drop all current definitions.
 \if{html}{\out{<a id="method-HouseholdModel-import_dataset"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdModel-import_dataset}{}}}
 \subsection{Method \code{import_dataset()}}{
-Import a new dataset.
+Import a new dataset and drop previous.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$import_dataset(dataset = NULL, .hold = TRUE)}\if{html}{\out{</div>}}
 }
@@ -225,6 +226,24 @@ A data.frame containing the dataset with individual information by row.}
 \item{\code{.hold}}{\code{logical(1)}\cr
 If \code{FALSE} does not ultimate model build. Default is \code{TRUE}.
 For internal use.}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HouseholdModel-import_datalist"></a>}}
+\if{latex}{\out{\hypertarget{method-HouseholdModel-import_datalist}{}}}
+\subsection{Method \code{import_datalist()}}{
+Import a new datalist and drop previous.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$import_datalist(datalist = NULL)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{datalist}}{\code{data.frame}\cr
+A data.frame containing the dataset with individual information by row.}
 }
 \if{html}{\out{</div>}}
 }
@@ -470,7 +489,7 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 \if{html}{\out{<a id="method-HouseholdModel-add_group_rate"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdModel-add_group_rate}{}}}
 \subsection{Method \code{add_group_rate()}}{
-Add definitions of a group rate by given data feature(s).
+Add definitions of a group rate by given dataset feature(s).
 Reference value has unitary rate and can be specified
 (default is most represented group).
 \subsection{Usage}{

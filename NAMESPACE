@@ -2,6 +2,7 @@
 
 export(HouseholdModel)
 export(HouseholdSampler)
+export(housepi_traces_to_coda)
 export(measure_cases_by_house_size)
 export(measure_sar_by_house_size)
 export(template_household_model)

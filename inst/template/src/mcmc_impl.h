@@ -123,35 +123,34 @@ public:
                                         "prior", "arg_key", "arg_val",
                                         "min", "max",
                                         "rule", "scale"};
-    std::vector<parID> param_const_list = {};
-    std::vector<parID> param_standard_infer_list = {};
-    std::vector<parID> param_cache_infer_list = {};
+    std::vector<par_key> param_const_list = {};
+    std::vector<par_key> param_standard_infer_list = {};
+    std::vector<par_key> param_cache_infer_list = {};
 
-    parIDmap<Variable> param_map = {}; // parameters dictionary
+    par_key_map<Variable> param_map = {}; // parameters dictionary
     bool _is_undef_params_ = false;    // undefined parameters valid only if infer
 
     // get value of the parameter
-    double get_param(const parID &p) const { return param_map.at(p).get(); }
+    double get_param(const par_key &p) const { return param_map.at(p).get(); }
     // get pointer to the parameter
-    const double *get_param_pointer(const parID &p) const { return param_map.at(p).get_pointer(); }
+    const double *get_param_pointer(const par_key &p) const { return param_map.at(p).get_pointer(); }
 
     //----- Parameter - Setter -----//
     void _init_parameters();
     void make_param_cache_dependent(const std::string &par_name);
 
     //----- Parameter - Metropolis-Hastings -----//
-    bool propose_valid_param_move(const parID &p);
-    bool accept_valid_param_move(const parID &p);
-    void recover_parameter(const parID &p, bool cache_depen);
+    bool propose_valid_param_move(const par_key &p);
+    bool accept_valid_param_move(const par_key &p);
+    void recover_parameter(const par_key &p, bool cache_depen);
 
     //==========================//
     //===== HOUSEHOLD DATA =====//
     //==========================//
 
     //----- Household Data - Attributes -----//
-    str_vec data_headers = {};
     size_t n_individuals = 0;
-    std::vector<dataIDmap<dbl_vec>> indiv_datalist = {};
+    std::vector<data_key_map<dbl_vec>> indiv_datalist = {};
     std::vector<Household> house_vector = {};
     std::vector<size_t> restrict_hh_indexes = {};
     std::unordered_map<std::string, size_t> _hhid_to_index = {};
@@ -181,15 +180,15 @@ public:
                                        "max", "max_at",
                                        "rule", "scale", "scale_at",
                                        "from", "from_at"};
-    std::vector<augmID> augm_list_full = {};
-    std::vector<augmID> augm_list_model = {};
-    std::vector<augmID> augm_list_infer = {};
-    std::vector<augmID> augm_list_func = {};
-    std::map<int, std::vector<augmID>> augm_status_map_model = {};
-    std::map<int, std::vector<augmID>> augm_status_map_infer = {};
+    std::vector<augm_key> augm_list_full = {};
+    std::vector<augm_key> augm_list_model = {};
+    std::vector<augm_key> augm_list_infer = {};
+    std::vector<augm_key> augm_list_func = {};
+    std::map<int, std::vector<augm_key>> augm_status_map_model = {};
+    std::map<int, std::vector<augm_key>> augm_status_map_infer = {};
 
     /* Augmented list with variable to be exported. */
-    const std::vector<augmID> augm_list_export() const
+    const std::vector<augm_key> augm_list_export() const
     {
         return subtr(augm_list_full, {AUX_IP_INST_PROFILE, AUX_IP_CUMUL_PROFILE});
     }
@@ -315,7 +314,8 @@ public:
 
     //----- Rcpp EXPORTS -----//
     Rcpp::DataFrame export_dataset();
-    Rcpp::DataFrame export_data_report() const;
+    Rcpp::DataFrame export_datalist();
+    Rcpp::DataFrame export_dataset_report() const;
     Rcpp::DataFrame export_house_size_report() const;
 
     Rcpp::List export_setup() const;
@@ -347,7 +347,7 @@ public:
     void show_results() const;
 
     //----- Cpp Prints -----//
-    std::ofstream aux_data_ofstream;
+    std::ofstream aux_dataset_ofstream;
     void _aux_print_dataset_init_(const std::string &pathtofile);
     void _aux_print_dataset_update_(Household &house);
     void _aux_print_dataset_finalize_();
@@ -394,8 +394,8 @@ public:
     ulong smpl_count = 0;
     dbl_vec smpl_full_loglike = {};
     Individual *smpl_individual_star = nullptr;
-    parIDmap<dbl_vec> smpl_param_value = {};
-    augmIDmap<dbl_vec> smpl_augm_value = {};
+    par_key_map<dbl_vec> smpl_param_value = {};
+    augm_key_map<dbl_vec> smpl_augm_value = {};
 
     void infer();
 
@@ -459,7 +459,7 @@ private:
                            const std::string &tkn_val,
                            const std::string &tkn_typ);
     void _assign_augm_attributes(Individual &member,
-                                 const augmID &a,
+                                 const augm_key &a,
                                  const str_vec &keys,
                                  const str_vec &vals,
                                  const str_vec &typs,
@@ -467,22 +467,22 @@ private:
                                  bool is_var_model);
 
     void _assign_augm_func_args(Individual &member,
-                                const augmID &a,
+                                const augm_key &a,
                                 const str_vec &keys,
                                 const str_vec &vals,
                                 const str_vec &typs);
     void _assign_augm_func_range(Individual &member,
-                                 const augmID &a,
+                                 const augm_key &a,
                                  const str_vec &vals,
                                  const str_vec &typs);
 
     void _assign_augm_model_args(Individual &member,
-                                 const augmID &a,
+                                 const augm_key &a,
                                  const str_vec &keys,
                                  const str_vec &vals,
                                  const str_vec &typs);
     void _assign_augm_model_range(Individual &member,
-                                  const augmID &a,
+                                  const augm_key &a,
                                   const str_vec &vals,
                                   const str_vec &typs);
 
@@ -500,7 +500,7 @@ private:
     void _move_all_and_adapt_params(ulong step);
 
     //----- Metropolis - parameter moves -----//
-    bool _move_single_parameter(const parID &p, bool cache_depen);
+    bool _move_single_parameter(const par_key &p, bool cache_depen);
 
     //----- Metropolis : augmented loglikelihood -----//
     double _compute_augm_model_loglike(Household &house);
@@ -514,7 +514,7 @@ private:
     //----- Metropolis : augmented moves -----//
     void _move_all_augm();
     double _move_augm_single_house(size_t H);
-    double _metropolis_augm_single_move(Household &house, indiv i, const augmID &a);
+    double _metropolis_augm_single_move(Household &house, indiv i, const augm_key &a);
 
     double (MCMC::Impl::*_do_move_augm_indiv)(Household &, indiv) = &MCMC::Impl::__move_augm_indiv_generic;
     double __move_augm_indiv_generic(Household &house, indiv i);

@@ -63,9 +63,9 @@ public:
 	void build_all_rates();
 
 	/* Auxiliary wrapper to emplace_back */
-	void emplace_group_rate(rateID r, parID p) { _individual_group_rates[r].emplace_back(p); }
+	void emplace_group_rate(rate_key r, par_key p) { _individual_group_rates[r].emplace_back(p); }
 	/* Auxiliary wrapper to emplace_back */
-	void emplace_contact_rate(parID p) { _pair_contact_rate = p; }
+	void emplace_contact_rate(par_key p) { _pair_contact_rate = p; }
 
 	/* Assign group rate to an individual  */
 	virtual void assign_group_rate_to_individual(Individual &) {}
@@ -82,8 +82,8 @@ public:
 	//===== PARAMETERS =====//
 	//======================//
 
-	double param(const parID &p) const;
-	const double *param_pointer(const parID &p) const;
+	double param(const par_key &p) const;
+	const double *param_pointer(const par_key &p) const;
 
 	//===============================//
 	//===== AUGMENTED VARIABLES =====//
@@ -99,9 +99,9 @@ public:
 	/* Update cahced augmeted dependecies. */
 	virtual void update_cache_dependecies(Household &, indiv) {}
 
-	void assign_cache_house_integer_vector(const cacheID &e);
-	void assign_cache_house_double_vector(const cacheID &e);
-	void assign_cache_house_double_matrix(const cacheID &e);
+	void assign_cache_house_integer_vector(const cache_key &e);
+	void assign_cache_house_double_vector(const cache_key &e);
+	void assign_cache_house_double_matrix(const cache_key &e);
 
 	//===============================//
 	//===== INFECTIVITY PROFILE =====//
@@ -165,7 +165,8 @@ public:
 	Rcpp::List export_setup() const;
 	Rcpp::DataFrame export_param() const;
 	Rcpp::DataFrame export_dataset() const;
-	Rcpp::DataFrame export_data_report() const;
+	Rcpp::DataFrame export_datalist() const;
+	Rcpp::DataFrame export_dataset_report() const;
 	Rcpp::DataFrame export_house_size_report() const;
 	Rcpp::NumericMatrix export_traces() const;
 	Rcpp::NumericMatrix export_house_loglike_mtx() const;
@@ -207,8 +208,8 @@ private:
 	std::unique_ptr<Impl> pImpl;
 
 	//----- Group & Contact Rateas -----//
-	rateIDmapvec<parID> _individual_group_rates = {};
-	parID _pair_contact_rate = {};
+	rate_key_mapvec<par_key> _individual_group_rates = {};
+	par_key _pair_contact_rate = {};
 
 	void _assign_group_rate(Individual &member);
 	void _assign_contact_rate(Household &house);

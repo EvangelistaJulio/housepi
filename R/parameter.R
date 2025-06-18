@@ -343,7 +343,7 @@ HousepiParameter <- R6::R6Class(
       # drop unused parameters
       if (length(unused_set) > 0) {
         warning_h(
-          sprintf("Dropping unused parameter%s %s",
+          sprintf("Dropping unused parameter%s %s.",
                   ifelse(length(unused_set) > 1, "s:", ""),
                   character_to_string_list(unused_set)),
           find_closest_match(unused_set, requirements)

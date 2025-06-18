@@ -15,7 +15,7 @@
 /* Assign all group rates to each individual. */
 void Model::assign_group_rate_to_individual(Household &house, indiv i)
 {
-	rateID r;
+	rate_key r;
 	UNUSED(house);
 	UNUSED(i);
 

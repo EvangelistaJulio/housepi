@@ -13,11 +13,17 @@ Help with calling methods from the Rcpp model object.
 \section{Public fields}{
 \if{html}{\out{<div class="r6-fields">}}
 \describe{
-\item{\code{last_data_cols}}{\code{character()}\cr
+\item{\code{last_dataset_cols}}{\code{character()}\cr
 Headers of the last dataset imported.}
 
-\item{\code{factor_info}}{\code{list()}\cr
+\item{\code{last_datalist_cols}}{\code{character()}\cr
+Headers of the last datalist imported.}
+
+\item{\code{dataset_levels}}{\code{list()}\cr
 List of levels of the factors in the dataset.}
+
+\item{\code{datalist_levels}}{\code{list()}\cr
+List of levels of the factors in the datalist.}
 }
 \if{html}{\out{</div>}}
 }
@@ -25,10 +31,12 @@ List of levels of the factors in the dataset.}
 \if{html}{\out{<div class="r6-active-bindings">}}
 \describe{
 \item{\code{dataset}}{\code{data.frame}\cr
-Dataset with individual level information of current dataset.
-If the case, it also return the associated augmented variables.}
+Dataset with individual level information of current dataset.}
 
-\item{\code{data_required}}{\code{character()}\cr
+\item{\code{datalist}}{\code{data.frame}\cr
+Datalist with multiple rows per individual for a given id.}
+
+\item{\code{dataset_required}}{\code{character()}\cr
 Dataset headers required by the model.}
 
 \item{\code{summary}}{\code{data.frame}\cr
@@ -56,12 +64,14 @@ Household loglikelihood traces.}
 \itemize{
 \item \href{#method-HousepiWrapper-assert}{\code{HousepiWrapper$assert()}}
 \item \href{#method-HousepiWrapper-import_dataset}{\code{HousepiWrapper$import_dataset()}}
+\item \href{#method-HousepiWrapper-import_datalist}{\code{HousepiWrapper$import_datalist()}}
 \item \href{#method-HousepiWrapper-import_setup}{\code{HousepiWrapper$import_setup()}}
 \item \href{#method-HousepiWrapper-import_param}{\code{HousepiWrapper$import_param()}}
 \item \href{#method-HousepiWrapper-import_augm}{\code{HousepiWrapper$import_augm()}}
 \item \href{#method-HousepiWrapper-import_infec_profile}{\code{HousepiWrapper$import_infec_profile()}}
 \item \href{#method-HousepiWrapper-import_multiplicity}{\code{HousepiWrapper$import_multiplicity()}}
 \item \href{#method-HousepiWrapper-build_all_rates}{\code{HousepiWrapper$build_all_rates()}}
+\item \href{#method-HousepiWrapper-export_dataset_to_standalone}{\code{HousepiWrapper$export_dataset_to_standalone()}}
 \item \href{#method-HousepiWrapper-showcase_infec_profile}{\code{HousepiWrapper$showcase_infec_profile()}}
 \item \href{#method-HousepiWrapper-evaluate}{\code{HousepiWrapper$evaluate()}}
 \item \href{#method-HousepiWrapper-infer}{\code{HousepiWrapper$infer()}}
@@ -85,13 +95,13 @@ Household loglikelihood traces.}
 \subsection{Method \code{assert()}}{
 Assert if dataset headers match implementation file.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiWrapper$assert(data_headers, requirements)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiWrapper$assert(dataset_headers, requirements)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{data_headers}}{\code{character()}\cr
+\item{\code{dataset_headers}}{\code{character()}\cr
 Vector with the dataset headers.}
 
 \item{\code{requirements}}{\code{character()}\cr
@@ -113,6 +123,24 @@ Wrapper of Rcpp method to import dataset.
 \if{html}{\out{<div class="arguments">}}
 \describe{
 \item{\code{dataset}}{\code{data.frame}\cr
+Dataset with rowise individual information.}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HousepiWrapper-import_datalist"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiWrapper-import_datalist}{}}}
+\subsection{Method \code{import_datalist()}}{
+Wrapper of Rcpp method to import datalist.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HousepiWrapper$import_datalist(datalist)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{datalist}}{\code{data.frame}\cr
 Dataset with rowise individual information.}
 }
 \if{html}{\out{</div>}}
@@ -217,6 +245,19 @@ Wrapper of the Rcpp build_all_rates method.
 \if{html}{\out{<div class="r">}}\preformatted{HousepiWrapper$build_all_rates()}\if{html}{\out{</div>}}
 }
 
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HousepiWrapper-export_dataset_to_standalone"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiWrapper-export_dataset_to_standalone}{}}}
+\subsection{Method \code{export_dataset_to_standalone()}}{
+Export dataset formatted for C++ standalone.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HousepiWrapper$export_dataset_to_standalone()}\if{html}{\out{</div>}}
+}
+
+\subsection{Returns}{
+\code{data.frame}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HousepiWrapper-showcase_infec_profile"></a>}}

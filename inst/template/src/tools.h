@@ -29,11 +29,11 @@
 #include <functional>
 #include <algorithm>
 
-/* DEVELOPER: flag used to predispose to different wrapper
+/* DEVELOPER: flag used to predispose to different wrapper*/
 #ifndef _HOUSEPI_RCPP
 #define _HOUSEPI_RCPP
 #endif
-*/
+
 
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
@@ -127,28 +127,28 @@ using matrix = std::vector<std::vector<T>>;
 //----- Aliases for improved readibility -----//
 using indiv = unsigned short int;
 
-using __access_ID__ = std::string;
+using __access_key__ = std::string;
 
-using parID = __access_ID__;
-using augmID = __access_ID__;
-using dataID = __access_ID__;
-using rateID = __access_ID__;
-using cacheID = __access_ID__;
+using par_key = __access_key__;
+using augm_key = __access_key__;
+using data_key = __access_key__;
+using rate_key = __access_key__;
+using cache_key = __access_key__;
 
 #include <unordered_map>
 template <typename T>
-using parIDmap = std::unordered_map<parID, T>;
+using par_key_map = std::unordered_map<par_key, T>;
 template <typename T>
-using augmIDmap = std::unordered_map<augmID, T>;
+using augm_key_map = std::unordered_map<augm_key, T>;
 template <typename T>
-using dataIDmap = std::unordered_map<dataID, T>;
+using data_key_map = std::unordered_map<data_key, T>;
 template <typename T>
-using rateIDmap = std::unordered_map<rateID, T>;
+using rate_key_map = std::unordered_map<rate_key, T>;
 template <typename T>
-using cacheIDmap = std::unordered_map<cacheID, T>;
+using cache_key_map = std::unordered_map<cache_key, T>;
 
 template <typename T>
-using rateIDmapvec = rateIDmap<std::vector<T>>;
+using rate_key_mapvec = rate_key_map<std::vector<T>>;
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//

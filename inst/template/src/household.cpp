@@ -32,7 +32,7 @@ Individual::Individual(size_t index,
 					   indiv hhindex,
 					   const std::string &id,
 					   int status,
-					   const dataIDmap<double> &data)
+					   const data_key_map<double> &data)
 {
 	_index = index;
 	_hhindex = hhindex;
@@ -44,6 +44,11 @@ Individual::Individual(size_t index,
 /* Individual deconstructor. */
 Individual::~Individual() = default;
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////  Individual : getter  //////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Value of loglikelihood associated to augmented variable models within individual. */
 double Individual::get_augm_model_loglike() const
 {
 	double indiv_loglike = 0.0;
@@ -52,15 +57,48 @@ double Individual::get_augm_model_loglike() const
 	return indiv_loglike;
 }
 
+/* Individual dataset keys. */
+const std::vector<data_key> Individual::keys_dataset() const
+{
+	std::vector<data_key> keys = {};
+	for (const auto &pair : _data_map)
+		keys.push_back(pair.first);
+	return keys;
+}
+/* Individual datalist keys. */
+const std::vector<data_key> Individual::keys_datalist() const
+{
+	std::vector<data_key> keys = {};
+	for (const auto &pair : *_datalist_ptr)
+		keys.push_back(pair.first);
+	return keys;
+}
+/* Individual group rate keys. */
+const std::vector<rate_key> Individual::keys_group_rate() const
+{
+	std::vector<data_key> keys = {};
+	for (const auto &pair : _rate_map)
+		keys.push_back(pair.first);
+	return keys;
+}
+/* Individual augmented variable keys. */
+const std::vector<augm_key> Individual::keys_augm() const
+{
+	std::vector<augm_key> keys = {};
+	for (const auto &pair : _augm_map)
+		keys.push_back(pair.first);
+	return keys;
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  Individual : setter  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Individual::assign_all_group_rates(const rateIDmapvec<const double *> &ptrs)
+void Individual::assign_all_group_rates(const rate_key_mapvec<const double *> &ptrs)
 {
 	for (const auto &pair : ptrs)
 	{
-		rateID r = pair.first;
+		rate_key r = pair.first;
 		std::vector<const double *> vec_par_ptr = pair.second;
 
 		if (vec_par_ptr.empty())
@@ -72,7 +110,7 @@ void Individual::assign_all_group_rates(const rateIDmapvec<const double *> &ptrs
 }
 
 /* Assign definitions for the augmented variable model. */
-void Individual::assign_augm(const augmID &a, const std::string &name,
+void Individual::assign_augm(const augm_key &a, const std::string &name,
 							 double value, bool is_discrete, bool is_constant,
 							 const std::string &func_name,
 							 const std::string &model_name)
@@ -83,10 +121,10 @@ void Individual::assign_augm(const augmID &a, const std::string &name,
 }
 
 /* Associate functional methods for augmented model pdfs. */
-void Individual::init_augm_model(const std::vector<augmID> &augm_model_list)
+void Individual::init_augm_model(const std::vector<augm_key> &augm_model_list)
 {
 	_augm_model_logpdfs.clear();
-	for (const augmID &a : augm_model_list)
+	for (const augm_key &a : augm_model_list)
 	{
 		const Variable &xaugm = _augm_map.at(a);
 		_augm_model_logpdfs.emplace_back([&xaugm]()
@@ -134,7 +172,7 @@ double Individual::GroupRate::get() const
 		output *= *pointers[r];
 
 	return output;
-} 
+}
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -172,7 +210,7 @@ void Household::set_multiplicity(ulong m, size_t class_idx)
 void Household::assign_member(size_t index,
 							  const std::string &id,
 							  int status,
-							  const dataIDmap<double> &data)
+							  const data_key_map<double> &data)
 {
 	//----- update status lists within the household -----//
 	if (status >= INFECTED_STATUS)

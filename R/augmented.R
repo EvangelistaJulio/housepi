@@ -228,11 +228,11 @@ HousepiAugmented <- R6::R6Class(
       stop_h("'augm_required' is read only.")
     },
 
-    #' @field data_required `character()`\cr
+    #' @field dataset_required `character()`\cr
     #' Find data required by augmented variable definitions.
-    data_required = function(value) {
+    dataset_required = function(value) {
       if (missing(value)) return(private$.find_def_required("D"))
-      stop_h("'data_required' is read only.")
+      stop_h("'dataset_required' is read only.")
     }
   ),
 
@@ -544,7 +544,7 @@ HousepiAugmented <- R6::R6Class(
 
       if (length(unused_set) > 0) {
         warning_h(
-          sprintf("Augmented variable%s declared but not used: %s",
+          sprintf("Augmented variable%s declared but not used: %s.",
                   ifelse(length(unused_set) > 1, "s", ""),
                   character_to_string_list(unused_set)),
           find_closest_match(unused_set, requirements),

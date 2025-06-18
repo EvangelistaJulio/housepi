@@ -105,9 +105,9 @@ Function::Function(const std::string &name,
 
     // assign default arguments
     _arguments = new Attribute[_n_args + 1];
-    // by convention, last argument is "x" and 0 by default
+    // by convention, last argument is "x" and NA by default
     _arguments[_n_args].set_name("x");
-    _arguments[_n_args].set(0);
+    _arguments[_n_args].set(HOUSEPI_NA_DOUBLE);
 
     ushort c = 0;
     for (ushort k = 0; k < arg_name.size(); ++k)
@@ -618,7 +618,7 @@ class Logarithm_Function : public Function
 public:
     //===== CONSTRUCTOR =====//
     Logarithm_Function()
-        : Function("log", {"x"}, {1.}) {}
+        : Function("log") {}
     ~Logarithm_Function() = default;
 
     //===== GETTER =====//

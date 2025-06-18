@@ -19,7 +19,10 @@ Infectivity profile definition list.}
 \if{html}{\out{<div class="r6-active-bindings">}}
 \describe{
 \item{\code{param_required}}{\code{character()}\cr
-Parameters required by infectivity profile variable definition.}
+Parameters required by infectivity profile definition.}
+
+\item{\code{augm_required}}{\code{character()}\cr
+Augmented variables required by infectivity profile definition.}
 }
 \if{html}{\out{</div>}}
 }

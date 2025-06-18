@@ -398,9 +398,9 @@ double Model::compute_single_house_loglike(int h)
 	for (int i : house_vector[h].get_infected_status_hhindexes)
 	{
 		// Contribution of model associated to augmented variables
-		for (std::string augmID : augm_with_model_set)
+		for (std::string augm_key : augm_with_model_set)
 		{
-			loglike_house += house_vector[h].members[i].augm_model_logpdf(augmID);
+			loglike_house += house_vector[h].members[i].augm_model_logpdf(augm_key);
 		}
 
 		// Contribution of secondary cases

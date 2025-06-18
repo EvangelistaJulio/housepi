@@ -10,6 +10,30 @@
 # model_wrapper.R
 #
 
+#' @title 
+#' Cpp Data Refactor
+#' @description
+#' Restore factored quanties on dataset return from Cpp implementation.
+#'
+#' @param df `data.frame`\cr
+#' Dataset as output from rcpp model object.
+#' @param levels `list()`\ce
+#' Levels of the factors in the dataset.
+#' 
+#' @return `data.frame`
+#' 
+#' @keywords internal
+cpp_data_refactor = function(df, levels) {
+  for (col in names(levels)) {
+    df[[col]] <- factor(
+      df[[col]],
+      levels = seq_along(levels[[col]]),
+      labels = levels[[col]]
+    )
+  }
+  return(df)
+}
+
 ############################################################################
 ############################################################################
 ############################## Housepi Wrapper #############################
@@ -28,50 +52,39 @@ HousepiWrapper <- R6::R6Class(
   cloneable = TRUE,
 
   ############################################################################
-  ################################# PRIVATE ##################################
-  ############################################################################
-
-  private = list(
-    # @description
-    # Restore factored quanties.
-    #
-    # @param df `data.frame`\cr
-    # Dataset as output from rcpp model object.
-    #
-    # @return `data.frame`
-    .re_factor = function(df) {
-      for (col in names(self$factor_info)) {
-        df[[col]] <- factor(
-          df[[col]],
-          levels = seq_along(self$factor_info[[col]]),
-          labels = self$factor_info[[col]]
-        )
-      }
-      return(df)
-    }
-  ),
-
-  ############################################################################
   ################################## ACTIVE ##################################
   ############################################################################
 
   active = list(
     #' @field dataset `data.frame`\cr
     #' Dataset with individual level information of current dataset.
-    #' If the case, it also return the associated augmented variables.
     dataset = function(value) {
       if (missing(value)) {
         if (is.null(private$.rcpp)) {
           stop_h("Impossible to export dataset before model build.")
         }
-        return(private$.re_factor(private$.rcpp$export_dataset()))
+        return(cpp_data_refactor(private$.rcpp$export_dataset(),
+                                 self$dataset_levels))
       }
       stop_h("'dataset' is read only.")
     },
 
-    #' @field data_required `character()`\cr
+    #' @field datalist `data.frame`\cr
+    #' Datalist with multiple rows indexed by individual.
+    datalist = function(value) {
+      if (missing(value)) {
+        if (is.null(private$.rcpp)) {
+          stop_h("Impossible to export datalist before model build.")
+        }
+        return(cpp_data_refactor(private$.rcpp$export_datalist(),
+                                 self$datalist_levels))
+      }
+      stop_h("'datalist' is read only.")
+    },
+
+    #' @field dataset_required `character()`\cr
     #' Dataset headers required by the model.
-    data_required = function(value) {
+    dataset_required = function(value) {
       if (missing(value)) {
         # vector of regular expression to use for assertion
         regular_expr <- c(
@@ -79,11 +92,11 @@ HousepiWrapper <- R6::R6Class(
           '.data\\s*\\(\\s*["\'](.*?)["\']'
         )
 
-        # retrieve required data headers from regular expressions
+        # retrieve required dataset headers from regular expressions
         refer_file <- self$reference
         return(template_find_requirement(refer_file, regular_expr))
       }
-      stop_h("'data_required' is read only.")
+      stop_h("'dataset_required' is read only.")
     },
 
     #' @field summary `data.frame`\cr
@@ -93,7 +106,7 @@ HousepiWrapper <- R6::R6Class(
         if (is.null(private$.rcpp)) {
           stop_h("Impossible to export dataset before model build.")
         }
-        return(private$.rcpp$export_data_report())
+        return(private$.rcpp$export_dataset_report())
       }
       stop_h("'summary' is read only.")
     },
@@ -193,25 +206,33 @@ HousepiWrapper <- R6::R6Class(
   ############################################################################
 
   public = list(
-    #' @field last_data_cols `character()`\cr
+    #' @field last_dataset_cols `character()`\cr
     #' Headers of the last dataset imported.
-    last_data_cols = NULL,
+    last_dataset_cols = NULL,
 
-    #' @field factor_info `list()`\cr
+    #' @field last_datalist_cols `character()`\cr
+    #' Headers of the last datalist imported.
+    last_datalist_cols = NULL,
+
+    #' @field dataset_levels `list()`\cr
     #' List of levels of the factors in the dataset.
-    factor_info = NULL,
+    dataset_levels = NULL,
+
+    #' @field datalist_levels `list()`\cr
+    #' List of levels of the factors in the datalist.
+    datalist_levels = NULL,
 
     #' @description
     #' Assert if dataset headers match implementation file.
     #'
-    #' @param data_headers `character()`\cr
+    #' @param dataset_headers `character()`\cr
     #' Vector with the dataset headers.
     #' @param requirements `character()`\cr
     #' Vector containing required parameters.
-    assert = function(data_headers, requirements) {
-      # find missing data headers
+    assert = function(dataset_headers, requirements) {
+      # find missing dataset headers
       missing_set <- template_find_missing(requirements,
-                                           data_headers)
+                                           dataset_headers)
       if (length(missing_set) > 0) {
         stop_h(
           sprintf("Missing dataset header%s for:",
@@ -231,21 +252,45 @@ HousepiWrapper <- R6::R6Class(
     import_dataset = function(dataset) {
       if (length(dataset) > 0) {
         # convert factors to numeric and store levels
-        self$factor_info <- list()
+        self$dataset_levels <- list()
         for (col in setdiff(colnames(dataset), c("id", "house_id", "status"))) {
           x <- dataset[[col]]
           if (is.character(x) || is.factor(x) || is.logical(x)) {
             x <- factor(x)
-            self$factor_info[[col]] <- levels(x)
+            self$dataset_levels[[col]] <- levels(x)
             dataset[[col]] <- as.integer(x)
           }
         }
         # import data.frame in rcpp # note: it calls
         private$.rcpp$import_dataset(dataset)
         # store column names
-        self$last_data_cols <- colnames(dataset)
+        self$last_dataset_cols <- colnames(dataset)
       }
+      invisible(self)
+    },
 
+    #' @description
+    #' Wrapper of Rcpp method to import datalist.
+    #'
+    #' @param datalist `data.frame`\cr
+    #' Dataset with rowise individual information.
+    import_datalist = function(datalist) {
+      if (length(datalist) > 0) {
+        # convert factors to numeric and store levels
+        self$datalist_levels <- list()
+        for (col in setdiff(colnames(datalist), c("id", "house_id", "status"))) {
+          x <- datalist[[col]]
+          if (is.character(x) || is.factor(x) || is.logical(x)) {
+            x <- factor(x)
+            self$datalist_levels[[col]] <- levels(x)
+            datalist[[col]] <- as.integer(x)
+          }
+        }
+        # import data.frame in rcpp # note: it calls
+        private$.rcpp$import_datalist(datalist)
+        # store column names
+        self$last_datalist_cols <- colnames(datalist)
+      }
       invisible(self)
     },
 
@@ -354,7 +399,8 @@ HousepiWrapper <- R6::R6Class(
     #'
     #' @return `data.frame`
     simulate = function() {
-      return(private$.re_factor(private$.rcpp$simulate()))
+      return(cpp_data_refactor(private$.rcpp$simulate(),
+                               self$dataset_levels))
     },
 
     #' @description

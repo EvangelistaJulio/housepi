@@ -80,6 +80,8 @@ character_to_string_list <- function(mylist, max_print = 5) {
                collapse = ", ")
   if (length(mylist) > max_print) {
     sms <- paste0(sms, ", ...")
+  } else {
+    sms <- paste0(sms, ".")
   }
   return(sms)
 }
@@ -117,7 +119,7 @@ find_closest_match <- function(input,
 
     if (!all(idxs)) {
       output <- c(output,
-        sprintf("Available option%s %s",
+        sprintf("Available option%s %s.",
                 ifelse(length(options) > 1, "s are:", " is"),
                 character_to_string_list(options))
       )
@@ -252,9 +254,9 @@ template_dll_file <- function(path) {
 ############################################################################
 
 #' @title
-#' Coerce traces to coda.
+#' Convert `housepi` traces to coda.
 #' @description
-#' Convert HouseholdModel traces to coda.
+#' Convert traces export from a `housepi` HouseholdModel to coda.
 #'
 #' @param trs
 #' Traces as exported from HouseholdModel.
@@ -262,8 +264,8 @@ template_dll_file <- function(path) {
 #' @return
 #' `coda::mcmc` | `coda::mcmc.list`
 #'
-#' @keywords internal
-coerce_traces_to_coda <- function(trs) {
+#' @export
+housepi_traces_to_coda <- function(trs) {
   if (require_suggested_library("coda")) {
     if ((methods::is(trs, "mcmc") || methods::is(trs, "mcmc.list"))) {
       return(trs)

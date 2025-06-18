@@ -4,6 +4,7 @@
 #' @name ModelHousepi
 #' @title Internal housepi model
 #' @description Perform inference and simulation from the model.
+#' @field init_user_advanced_setup Load user advance setup.
 #' @field infer Perform MCMC inference of the model parameters. \itemize{
 #'   \item Parameter: output_file - The file path where the output will be saved
 #'   \item Parameter: progbar - show the progress bar
@@ -25,7 +26,7 @@
 #' @field export_setup Return a List with current setup.
 #' @field export_param Return a DataFrame with current parameters.
 #' @field export_dataset Return a DataFrame with current database.
-#' @field export_data_report Return a DataFrame with a report of the current database.
+#' @field export_dataset_report Return a DataFrame with a report of the current database.
 #' @field export_house_size_report Return a DataFrame with a report of household sizes.
 #' @field export_traces Return a DataFrame with MCMC traces.
 #' @field export_house_loglike_mtx Return a NumericMatrix with household loglikelihood traces.

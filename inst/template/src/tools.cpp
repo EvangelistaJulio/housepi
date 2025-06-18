@@ -33,14 +33,12 @@ namespace tools
     /* Internal check for std::string representing NA. */
     bool is_na(const std::string &txt)
     {
-        const str_vec forbidden = {"<NA>", "NA", "NAN"};
-
         if (txt.size() == 0)
             return true;
         else if (txt == HOUSEPI_NA_STRING)
             return true;
         else
-            for (const std::string &txtnan : forbidden)
+            for (const std::string &txtnan : {"<NA>", "NA", "NAN"})
                 if (stoupper(txt) == txtnan)
                     return true;
 
@@ -691,6 +689,9 @@ namespace progress
 #ifdef _HOUSEPI_RCPP
             Rcpp::checkUserInterrupt();
 #endif
+            if (total == 0)
+                throw std::invalid_argument(
+                    "Progressbar total should be greater than 0.");
 
             // initialize internal fields
             _total = total;
@@ -705,6 +706,9 @@ namespace progress
 #ifdef _HOUSEPI_RCPP
             Rcpp::checkUserInterrupt();
 #endif
+            // update internal state
+            ++_state;
+
             if (_verbose)
             {
                 const double progress = static_cast<double>(_state) / _total;
@@ -728,18 +732,16 @@ namespace progress
 
                     _lastprint = steady_clock::now();
                 }
-                else if (!_is_opened())
-                    // eventually print initial message
+                else if (_lastprint == _start) // eventually print initial message
                     if (static_cast<ulong>(missing.count()) > _thintime)
                     {
                         std::ostringstream oss;
-                        oss << _text << " |" << std::string(_barwidth, ' ') << "| "
+                        oss << _text << " |"
+                            << std::string(_barwidth, ' ') << "| "
                             << tools::percentage(0., 0);
                         _display(oss.str());
                     }
             }
-
-            ++_state;
         }
 
         /* End the progress bar because of a crash. */
@@ -748,7 +750,7 @@ namespace progress
 #ifdef _HOUSEPI_RCPP
             Rcpp::checkUserInterrupt();
 #endif
-            if ((_verbose) && (!_is_closed()))
+            if ((_verbose) && (_state > 0) && (_state < _total))
                 _display("\n");
         }
 
@@ -772,8 +774,6 @@ namespace progress
                         << std::string(25, ' ') << "\n";
                     _display(oss.str());
                 }
-                else
-                    _display("\n");
 
                 _state = _total;
             }
@@ -794,12 +794,6 @@ namespace progress
 
         /* Function to display the progress bar. */
         void _display(const std::string &sms) const { tools::print_stdout(sms); }
-
-        /* Tell if progressbar has been closed. */
-        bool _is_opened() const { return (_total > 0) && (_state > 0); }
-
-        /* Tell if progressbar has been closed. */
-        bool _is_closed() const { return (_total > 0) && (_state == _total); }
     };
 
     //-----------------------------------------------------------------------------------------------//

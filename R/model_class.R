@@ -19,7 +19,7 @@
 #' @title
 #' Household Model R6 Class
 #' @description
-#' Compile household model, manage your data and parameters from a single class.
+#' Compile household model, manage your dataset and parameters from a single class.
 #'
 #' @export HouseholdModel
 #' @docType class
@@ -47,24 +47,24 @@ HouseholdModel <- R6::R6Class(
     .require_dataset = function() {
       requirements <- c()
       if (!private$.model$is_blank) {
-        requirements <- private$.model$data_required
+        requirements <- private$.model$dataset_required
       }
       return(c(
         requirements, # by the model
-        private$.augm$data_required # by augmented variable
+        private$.augm$dataset_required # by augmented variable
       ))
     },
 
     # @description
     # Assert if dataset headers match requirements.
     #
-    # @param data_headers `character()`\cr
+    # @param dataset_headers `character()`\cr
     # Vector with the dataset headers.
-    .assert_dataset = function(data_headers) {
-      if (length(data_headers) == 0) {
+    .assert_dataset = function(dataset_headers) {
+      if (length(dataset_headers) == 0) {
         stop_h("Impossible to proceed. No database was provided.")
       }
-      private$.model$assert(data_headers, private$.require_dataset())
+      private$.model$assert(dataset_headers, private$.require_dataset())
       invisible(self)
     },
 
@@ -148,13 +148,13 @@ HouseholdModel <- R6::R6Class(
         # note: this might be a modeler error
         if (length(private$.require_augm()) > 0) {
           warning_h(
-            "Model with data augmentation called multiplicity engine."
+            "Model with augmentated variable called multiplicity engine."
           )
         }
 
         # if dataset not provided, load previous
         # UPDATE: this "back & forth" of dataset is not optimal!
-        if ((length(dataset) == 0) && (length(private$.model$last_data_cols) > 0)) {
+        if ((length(dataset) == 0) && (length(private$.model$last_dataset_cols) > 0)) {
           dataset <- self$dataset
         }
 
@@ -221,13 +221,13 @@ HouseholdModel <- R6::R6Class(
     .build_group_rate = function(dataset = NULL, .hold = TRUE) {
       # if dataset not provided, load previous
       # UPDATE: this "back & forth" of dataset is not optimal!
-      if ((length(dataset) == 0) && (length(private$.model$last_data_cols) > 0)) {
+      if ((length(dataset) == 0) && (length(private$.model$last_dataset_cols) > 0)) {
         dataset <- self$dataset
       }
 
       # assert and implement group rates
       is_updated <- private$.group_rate$cpp_assert(
-        dataset, private$.model$reference, private$.model$factor_info
+        dataset, private$.model$reference, private$.model$dataset_levels
       )
 
       # proceed only if group rate definitions have been updated
@@ -267,7 +267,7 @@ HouseholdModel <- R6::R6Class(
         self$load_param_list(from = new_param_defs, append = TRUE)
       }
 
-      # perform standard generation and data importation
+      # perform standard generation and dataset importation
       private$.model$generate()
       private$.model$import_dataset(dataset)
 
@@ -327,7 +327,15 @@ HouseholdModel <- R6::R6Class(
       }
 
       # individual id for blank model augmented traces
-      if (private$.model$is_blank && is.na(id_trace)) id_trace <- 1
+      # if no default columns, assume debugging mode 
+      # UPDATE: not robust in case of dataset with only default columns
+      if (private$.model$is_blank && is.na(id_trace)) {
+        if (length(setdiff(private$.model$last_dataset_cols,
+                           c("house_id", "id", "status"))) == 0) {
+          id_trace <- "hh_01_1"
+        }
+      }
+
       # control that seed is 32bit
       if (isTRUE(abs(seed) > .Machine$integer.max)) {
         stop_h(
@@ -396,10 +404,16 @@ HouseholdModel <- R6::R6Class(
 
     #' @field dataset `data.frame`\cr
     #' Dataset with individual level information of current dataset.
-    #' If the case, it also return the associated augmented variables.
     dataset = function(value) {
       if (missing(value)) return(private$.model$dataset)
       else self$import_dataset(value, .hold = TRUE)
+    },
+
+    #' @field datalist `data.frame`\cr
+    #' Datalist with multiple rows indexed by individual.
+    datalist = function(value) {
+      if (missing(value)) return(private$.model$datalist)
+      else self$import_datalist(value)
     },
 
     #' @field summary `data.frame`\cr
@@ -545,6 +559,12 @@ HouseholdModel <- R6::R6Class(
         name = name, quiet = quiet
       )$generate()
 
+      if (private$.model$is_blank) {
+        self$import_dataset(data.frame(
+          id = c("hh_01_1"), house_id = c("hh_01"), status = c(1)
+        ))
+      }
+
       # credible interval level
       self$cri_level <- cri_level
 
@@ -629,7 +649,7 @@ HouseholdModel <- R6::R6Class(
     ############################################################################
 
     #' @description
-    #' Import a new dataset.
+    #' Import a new dataset and drop previous.
     #'
     #' @param dataset `data.frame`\cr
     #' A data.frame containing the dataset with individual information by row.
@@ -637,21 +657,7 @@ HouseholdModel <- R6::R6Class(
     #' If `FALSE` does not ultimate model build. Default is `TRUE`.
     #' For internal use.
     import_dataset = function(dataset = NULL, .hold = TRUE) {
-
-      if (private$.model$is_blank) {
-        if (length(dataset) > 0) {
-          # UPDATE: actually it could be nice to allow for this
-          warning_h(
-            "Impossible to provide a dataset with blank model.",
-            "Falling back to default dataset."
-          )
-        }
-        # blank dataset (id_trace <- 1)
-        dataset <- data.frame(id = c(1),
-                              house_id = c("HH_1"),
-                              status = c(1))
-
-      } else if (length(dataset) > 0) {
+      if (length(dataset) > 0) {
         # check that dataset type is correct
         if (!is.data.frame(dataset)) {
           stop_h(
@@ -665,7 +671,7 @@ HouseholdModel <- R6::R6Class(
 
       } else {
         # assert headers of last imported dataset
-        private$.assert_dataset(private$.model$last_data_cols)
+        private$.assert_dataset(private$.model$last_dataset_cols)
       }
 
       if (length(private$.group_rate$defs) > 0) {
@@ -674,10 +680,27 @@ HouseholdModel <- R6::R6Class(
 
       } else {
         # default model generation and dataset import
+        # FIXME: is this re-generation necessary anymore?
         private$.model$generate()
         private$.model$import_dataset(dataset)
       }
 
+      invisible(self)
+    },
+
+    #' @description
+    #' Import a new datalist and drop previous.
+    #'
+    #' @param datalist `data.frame`\cr
+    #' A data.frame containing the dataset with individual information by row.
+    import_datalist = function(datalist = NULL) {
+      if (!is.data.frame(datalist)) {
+        stop_h(
+          "Unsupported type for datalist.",
+          "Datalist should be a data.frame."
+        )
+      }
+      private$.model$import_datalist(datalist)
       invisible(self)
     },
 
@@ -866,7 +889,7 @@ HouseholdModel <- R6::R6Class(
     ############################################################################
 
     #' @description
-    #' Add definitions of a group rate by given data feature(s).
+    #' Add definitions of a group rate by given dataset feature(s).
     #' Reference value has unitary rate and can be specified
     #' (default is most represented group).
     #'

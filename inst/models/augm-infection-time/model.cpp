@@ -26,7 +26,7 @@
 /* Assign all group rates to each individual. */
 void Model::assign_group_rate_to_individual(Individual &member)
 {
-	rateID r;
+	rate_key r;
 	(void)(member);
 
 	//----- infectivity -----//

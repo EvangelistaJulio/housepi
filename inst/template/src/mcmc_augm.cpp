@@ -66,7 +66,7 @@ double MCMC::Impl::_type_to_double(const Individual &member,
 
 /* Auxiliary method to assign attributes to augmented function or model. */
 void MCMC::Impl::_assign_augm_attributes(Individual &member,
-                                         const augmID &a,
+                                         const augm_key &a,
                                          const str_vec &keys,
                                          const str_vec &vals,
                                          const str_vec &typs,
@@ -175,7 +175,7 @@ void MCMC::Impl::_assign_augm_attributes(Individual &member,
 
 /* Assign augmented function arguments. */
 void MCMC::Impl::_assign_augm_func_args(Individual &member,
-                                        const augmID &a,
+                                        const augm_key &a,
                                         const str_vec &keys,
                                         const str_vec &vals,
                                         const str_vec &typs)
@@ -185,7 +185,7 @@ void MCMC::Impl::_assign_augm_func_args(Individual &member,
 }
 /* Assign augmented function range. */
 void MCMC::Impl::_assign_augm_func_range(Individual &member,
-                                         const augmID &a,
+                                         const augm_key &a,
                                          const str_vec &vals,
                                          const str_vec &typs)
 {
@@ -195,7 +195,7 @@ void MCMC::Impl::_assign_augm_func_range(Individual &member,
 
 /* Assign augmented model arguments. */
 void MCMC::Impl::_assign_augm_model_args(Individual &member,
-                                         const augmID &a,
+                                         const augm_key &a,
                                          const str_vec &keys,
                                          const str_vec &vals,
                                          const str_vec &typs)
@@ -205,7 +205,7 @@ void MCMC::Impl::_assign_augm_model_args(Individual &member,
 }
 /* Assign augmented model range. */
 void MCMC::Impl::_assign_augm_model_range(Individual &member,
-                                          const augmID &a,
+                                          const augm_key &a,
                                           const str_vec &vals,
                                           const str_vec &typs)
 {
@@ -238,14 +238,14 @@ const dict_str_vec MCMC::Impl::_build_augm_name_status_check()
         const std::string &a = deftable.at("name")[k];
         const std::string &status = deftable.at("status")[k];
 
-        // check that augmID and status are correct
+        // check that augm_key and status are correct
         if (tools::is_na(a))
             throw std::invalid_argument(
                 "Augmented variable name can not be undefined.");
 
         else if (output.count(a))
         {
-            // check no multiple augmID with same status
+            // check no multiple augm_key with same status
             const str_vec &mylist = output.at(a);
             if (!contains(mylist, status))
                 output.at(a).push_back(status);
@@ -281,8 +281,8 @@ void MCMC::Impl::_build_augm_allocate_univocal_defs(const dict_str_vec &check)
                 int s = tools::stoi(status, "augmented status");
                 if (s >= INFECTED_STATUS)
                 {
-                    augm_status_map_infer.emplace(s, std::vector<augmID>{});
-                    augm_status_map_model.emplace(s, std::vector<augmID>{});
+                    augm_status_map_infer.emplace(s, std::vector<augm_key>{});
+                    augm_status_map_model.emplace(s, std::vector<augm_key>{});
                 }
                 else
                     throw std::invalid_argument(
@@ -456,7 +456,7 @@ void MCMC::Impl::assign_all_augm(Individual &member)
     {
         int status = member.status();
         const dict_str_vec &deftab = _augm_deftable;
-        std::map<augmID, size_t> indiv_augm_entries;
+        std::map<augm_key, size_t> indiv_augm_entries;
 
         // loop over augmented variable definitions to assign placheholders
         for (size_t k = 0; k < deftab.at("name").size(); ++k)
@@ -467,7 +467,7 @@ void MCMC::Impl::assign_all_augm(Individual &member)
             // assign augmented variable if undefined status | corresponding status
             if (tools::is_na(augm_status) || (status == tools::stoi(augm_status, "augmented status")))
             {
-                augmID a = deftab.at("name")[k]; // UPDATE : index to be implemented
+                augm_key a = deftab.at("name")[k]; // UPDATE : index to be implemented
 
                 // assign augmented variable placeholder
                 // FIXME: what if constant = T, discrete = T and value != integer?
@@ -487,7 +487,7 @@ void MCMC::Impl::assign_all_augm(Individual &member)
         // assign attributes to augmented variables
         for (const auto &pair : indiv_augm_entries)
         {
-            const augmID &a = pair.first;
+            const augm_key &a = pair.first;
             const size_t &k = pair.second;
             Variable &xaugm = member.get_augm_variable(a);
 
@@ -546,7 +546,7 @@ void MCMC::Impl::assign_all_augm(Individual &member)
 /* Clear all augmented definition of individual. */
 void MCMC::Impl::clear_all_augm(Individual &member)
 {
-    for (const augmID &a : augm_list_full)
+    for (const augm_key &a : augm_list_full)
         member.clear_augm(a);
 }
 
@@ -662,7 +662,7 @@ double MCMC::Impl::__move_augm_indiv_generic(Household &house, indiv i)
 {
     double delta_ll = 0.;
     // Loop over augmented variables of infectious
-    for (const augmID &a : augm_list_infer)
+    for (const augm_key &a : augm_list_infer)
         delta_ll += _metropolis_augm_single_move(house, i, a);
     return delta_ll;
 }
@@ -672,13 +672,13 @@ double MCMC::Impl::__move_augm_indiv_by_status(Household &house, indiv i)
 {
     double delta_ll = 0.;
     // Loop over augmented variables of infectious
-    for (const augmID &a : augm_status_map_infer.at(house.status(i)))
+    for (const augm_key &a : augm_status_map_infer.at(house.status(i)))
         delta_ll += _metropolis_augm_single_move(house, i, a);
     return delta_ll;
 }
 
 /* Take care of a a single augmented Metropolis move. */
-double MCMC::Impl::_metropolis_augm_single_move(Household &house, indiv i, const augmID &a)
+double MCMC::Impl::_metropolis_augm_single_move(Household &house, indiv i, const augm_key &a)
 {
     Variable &xaugm = house.get_member(i).get_augm_variable(a);
 

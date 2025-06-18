@@ -42,7 +42,7 @@ double Model::person_to_person_risk() const
 /* Assign all group rates to each individual. */
 void Model::assign_group_rate_to_individual(Individual &member)
 {
-	rateID r;
+	rate_key r;
 	(void)(member);
 
 	//----- community -----//

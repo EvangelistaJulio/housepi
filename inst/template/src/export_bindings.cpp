@@ -39,7 +39,7 @@
 //' @field export_setup Return a List with current setup.
 //' @field export_param Return a DataFrame with current parameters.
 //' @field export_dataset Return a DataFrame with current database.
-//' @field export_data_report Return a DataFrame with a report of the current database.
+//' @field export_dataset_report Return a DataFrame with a report of the current database.
 //' @field export_house_size_report Return a DataFrame with a report of household sizes.
 //' @field export_traces Return a DataFrame with MCMC traces.
 //' @field export_house_loglike_mtx Return a NumericMatrix with household loglikelihood traces.
@@ -69,7 +69,8 @@ RCPP_MODULE(housepi_model_core)
         .method("export_setup", &MCMC::export_setup)
         .method("export_param", &MCMC::export_param)
         .method("export_dataset", &MCMC::export_dataset)
-        .method("export_data_report", &MCMC::export_data_report)
+        .method("export_datalist", &MCMC::export_datalist)
+        .method("export_dataset_report", &MCMC::export_dataset_report)
         .method("export_house_size_report", &MCMC::export_house_size_report)
         .method("export_traces", &MCMC::export_traces)
         .method("export_house_loglike_mtx", &MCMC::export_house_loglike_mtx)

@@ -17,6 +17,6 @@ Expression.}
 \code{logical(1)}
 }
 \description{
-Assert if a given string expression is present in
+Assert if a given string expression is present in source file.
 }
 \keyword{internal}

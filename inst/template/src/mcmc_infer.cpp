@@ -29,12 +29,12 @@
 /* Set accept rates to zero. */
 void MCMC::Impl::_init_move_counts()
 {
-    for (const parID &p : param_standard_infer_list + param_cache_infer_list)
+    for (const par_key &p : param_standard_infer_list + param_cache_infer_list)
         param_map.at(p).reset_accept_rate();
 }
 
 /* propose a valid move (retrun true), otherwise update refusal (retrun false) */
-bool MCMC::Impl::propose_valid_param_move(const parID &p)
+bool MCMC::Impl::propose_valid_param_move(const par_key &p)
 {
     Variable &this_par = param_map.at(p);
 
@@ -52,7 +52,7 @@ bool MCMC::Impl::propose_valid_param_move(const parID &p)
 }
 
 /* Restore the parameter value in the buffer. */
-void MCMC::Impl::recover_parameter(const parID &p, bool cache_depen)
+void MCMC::Impl::recover_parameter(const par_key &p, bool cache_depen)
 {
     // recover buffer value of parameter
     param_map.at(p).recover_value();
@@ -73,7 +73,7 @@ void MCMC::Impl::recover_parameter(const parID &p, bool cache_depen)
 }
 
 /* Metropolis-Hastings to accept or not current parameter move. */
-bool MCMC::Impl::accept_valid_param_move(const parID &p)
+bool MCMC::Impl::accept_valid_param_move(const par_key &p)
 {
     const double D_ll = full_loglike - full_buffer;
     const double move_logratio = param_map.at(p).get_move_logratio();
@@ -99,7 +99,7 @@ void MCMC::Impl::_init_infer_diagnostics()
     if (!_is_power_post())
     {
         // diagnostics over parameters
-        for (const parID &p : param_standard_infer_list + param_cache_infer_list)
+        for (const par_key &p : param_standard_infer_list + param_cache_infer_list)
             smpl_param_value[p] = dbl_vec(sample_size, HOUSEPI_NA_DOUBLE);
 
         // diagnostics over households
@@ -109,7 +109,7 @@ void MCMC::Impl::_init_infer_diagnostics()
 
         // diagnostics over augmented variables
         if (!tools::is_na(setup_id_trace))
-            for (const augmID &a : augm_list_infer + augm_list_func)
+            for (const augm_key &a : augm_list_infer + augm_list_func)
                 smpl_augm_value[a] = dbl_vec(sample_size, HOUSEPI_NA_DOUBLE);
     }
 }
@@ -123,7 +123,7 @@ void MCMC::Impl::_update_infer_diagnostics()
     if (!_is_power_post())
     {
         // diagnostics for all parameters
-        for (const parID &p : param_standard_infer_list + param_cache_infer_list)
+        for (const par_key &p : param_standard_infer_list + param_cache_infer_list)
             smpl_param_value.at(p)[smpl_count] = get_param(p);
 
         // diagnostics for selected households
@@ -132,7 +132,7 @@ void MCMC::Impl::_update_infer_diagnostics()
 
         // diagnostics for individual followup
         if (!tools::is_na(setup_id_trace))
-            for (const augmID &a : augm_list_infer + augm_list_func)
+            for (const augm_key &a : augm_list_infer + augm_list_func)
                 smpl_augm_value.at(a)[smpl_count] = smpl_individual_star->augm(a);
     }
 
@@ -222,11 +222,11 @@ double MCMC::Impl::_update_house_loglike(size_t R, bool is_augm_ll, bool cache_d
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Attempt to move a single parameter for the given inverse temperature. */
-bool MCMC::Impl::_move_single_parameter(const parID &p, bool cache_depen)
+bool MCMC::Impl::_move_single_parameter(const par_key &p, bool cache_depen)
 {
     bool is_accepted = false;
     // proceed only if the new value is consistent
-    // otherwise automatically execute refuse_move(parID)
+    // otherwise automatically execute refuse_move(par_key)
     if (propose_valid_param_move(p))
     {
         // if cache depending on parameter, update and buffer cache
@@ -256,11 +256,11 @@ void MCMC::Impl::_move_all()
     _move_all_augm();
 
     // move all simple model parameters
-    for (const parID &p : param_standard_infer_list)
+    for (const par_key &p : param_standard_infer_list)
         _move_single_parameter(p, false);
 
     // move parameters with cache dependecies
-    for (const parID &p : param_cache_infer_list)
+    for (const par_key &p : param_cache_infer_list)
         _move_single_parameter(p, true);
 }
 
@@ -274,7 +274,7 @@ void MCMC::Impl::_move_all_and_adapt_params(ulong step)
     const double ratio = static_cast<double>(step) / setup_n_adapt;
 
     // move all simple model parameters
-    for (const parID &p : param_standard_infer_list)
+    for (const par_key &p : param_standard_infer_list)
     {
         Variable &this_param = param_map.at(p);
         this_param.update_accept_rate(_move_single_parameter(p, false));
@@ -282,7 +282,7 @@ void MCMC::Impl::_move_all_and_adapt_params(ulong step)
     }
 
     // move parameters with cache dependecies
-    for (const parID &p : param_cache_infer_list)
+    for (const par_key &p : param_cache_infer_list)
     {
         Variable &this_param = param_map.at(p);
         this_param.update_accept_rate(_move_single_parameter(p, true));
@@ -598,14 +598,15 @@ Rcpp::DataFrame MCMC::Impl::simulate()
         size_t n_cols = n_individuals;
         size_t row = 0;
         str_vec _aux_augm_headers = augm_list_export();
-        str_vec _aux_data_headers = subtr(data_headers, _aux_augm_headers);
+        str_vec _aux_dataset_headers = subtr(house_vector[0].get_member(0).keys_dataset(),
+                                             _aux_augm_headers);
         Rcpp::CharacterVector df_index = CharacterVector(n_cols);
         Rcpp::CharacterVector df_house_index = CharacterVector(n_cols);
         Rcpp::IntegerVector df_status = IntegerVector(n_cols);
         std::vector<Rcpp::NumericVector> df_dbl = {};
 
         // other data and augmented variable columns
-        for (size_t s = 0; s < _aux_data_headers.size() + _aux_augm_headers.size(); ++s)
+        for (size_t s = 0; s < _aux_dataset_headers.size() + _aux_augm_headers.size(); ++s)
             df_dbl.emplace_back(n_cols);
 
         //----- initialization -----//
@@ -627,13 +628,13 @@ Rcpp::DataFrame MCMC::Impl::simulate()
                     df_status[row] = member.status();
 
                     size_t col = 0;
-                    for (const dataID &d : _aux_data_headers)
+                    for (const data_key &d : _aux_dataset_headers)
                     {
                         double x = member.data(d);
                         df_dbl[col++][row] = tools::is_na(x) ? NA_REAL : x;
                     }
 
-                    for (const augmID &a : _aux_augm_headers)
+                    for (const augm_key &a : _aux_augm_headers)
                     {
                         double x = member.augm(a);
                         df_dbl[col++][row] = tools::is_na(x) ? NA_REAL : x;
@@ -659,10 +660,10 @@ Rcpp::DataFrame MCMC::Impl::simulate()
             _["status"] = std::move(df_status));
 
         size_t col = 0;
-        for (const dataID &d : _aux_data_headers)
+        for (const data_key &d : _aux_dataset_headers)
             output.push_back(std::move(df_dbl[col++]), d);
 
-        for (const augmID &a : _aux_augm_headers)
+        for (const augm_key &a : _aux_augm_headers)
             output.push_back(std::move(df_dbl[col++]), a);
 
         return output;

@@ -44,7 +44,7 @@ public:
 			   indiv hhindex = 0,
 			   const std::string &id = HOUSEPI_NA_STRING,
 			   int status = MISSING_STATUS,
-			   const dataIDmap<double> &data = {});
+			   const data_key_map<double> &data = {});
 	~Individual();
 
 	bool operator==(const Individual &other) const { return _index == other._index; }
@@ -59,13 +59,18 @@ public:
 	indiv hhindex() const { return _hhindex; }
 	int status() const { return _status; }
 
-	double data(const dataID &d) const { return _data_map.at(d); }
-	const dbl_vec &datalist(const dataID &d) const { return _datalist_ptr->at(d); }
-	double group_rate(const rateID &r) const { return _rate_map.at(r).get(); }
-	double augm(const augmID &a) const { return _augm_map.at(a).get(); }
-	Variable &get_augm_variable(const augmID &a) { return _augm_map.at(a); }
+	double data(const data_key &d) const { return _data_map.at(d); }
+	const dbl_vec &datalist(const data_key &d) const { return _datalist_ptr->at(d); }
+	double group_rate(const rate_key &r) const { return _rate_map.at(r).get(); }
+	double augm(const augm_key &a) const { return _augm_map.at(a).get(); }
+	Variable &get_augm_variable(const augm_key &a) { return _augm_map.at(a); }
 
 	double get_augm_model_loglike() const;
+
+	const std::vector<data_key> keys_dataset() const;
+	const std::vector<data_key> keys_datalist() const;
+	const std::vector<rate_key> keys_group_rate() const;
+	const std::vector<augm_key> keys_augm() const;
 
 	//==================//
 	//===== SETTER =====//
@@ -73,18 +78,18 @@ public:
 
 	void set_status(int s) { _status = s; }
 
-	void set_augm_value(const augmID &a, double x) { _augm_map.at(a).set_value(x); }
-	void assign_pointer_to_datalist(dataIDmap<dbl_vec> *y) { _datalist_ptr = y; }
-	void clear_augm(const augmID &a) { _augm_map[a] = Variable(); }
-	void assign_all_group_rates(const rateIDmapvec<const double *> &ptrs);
-	void assign_augm(const augmID &a,
+	void set_augm_value(const augm_key &a, double x) { _augm_map.at(a).set_value(x); }
+	void assign_pointer_to_datalist(data_key_map<dbl_vec> *y) { _datalist_ptr = y; }
+	void clear_augm(const augm_key &a) { _augm_map[a] = Variable(); }
+	void assign_all_group_rates(const rate_key_mapvec<const double *> &ptrs);
+	void assign_augm(const augm_key &a,
 					 const std::string &name,
 					 double value,
 					 bool is_discrete,
 					 bool is_constant,
 					 const std::string &func_name,
 					 const std::string &model_name);
-	void init_augm_model(const std::vector<augmID> &augm_model_list);
+	void init_augm_model(const std::vector<augm_key> &augm_model_list);
 
 private:
 	// individual group rate nested class
@@ -106,11 +111,11 @@ private:
 	int _status = MISSING_STATUS;		 // status of the individual
 
 	// NOTE: I am forced to store numerical variables
-	dataIDmap<double> _data_map = {};	 // dataset
-	augmIDmap<Variable> _augm_map = {};	 // augmented
-	rateIDmap<GroupRate> _rate_map = {}; // group rates
+	data_key_map<double> _data_map = {};	 // dataset
+	augm_key_map<Variable> _augm_map = {};	 // augmented
+	rate_key_map<GroupRate> _rate_map = {}; // group rates
 
-	dataIDmap<dbl_vec> *_datalist_ptr = nullptr; // datalist to be associated
+	data_key_map<dbl_vec> *_datalist_ptr = nullptr; // datalist to be associated
 
 	std::vector<std::function<double()>> _augm_model_logpdfs = {};
 };
@@ -237,7 +242,7 @@ public:
 	void assign_member(size_t index,
 					   const std::string &id,
 					   int status,
-					   const dataIDmap<double> &data);
+					   const data_key_map<double> &data);
 	bool change_status(Individual &member, int new_status);
 	bool change_status(indiv i, int new_status) { return change_status(_members.at(i), new_status); }
 	void assign_contact_rate(indiv from, indiv to, const double *x);
@@ -253,16 +258,16 @@ public:
 	void recover_all_cache();
 
 	//----- Cached integer vector -----//
-	void assign_cache_integer_vector(const cacheID &e) { _cache_int_vec[e] = int_vec(size(), 0); }
-	int_vec &cache_integer_vector(const cacheID &e) { return _cache_int_vec.at(e); }
+	void assign_cache_integer_vector(const cache_key &e) { _cache_int_vec[e] = int_vec(size(), 0); }
+	int_vec &cache_integer_vector(const cache_key &e) { return _cache_int_vec.at(e); }
 
 	//----- Cached double vector -----//
-	void assign_cache_double_vector(const cacheID &e) { _cache_dbl_vec[e] = dbl_vec(size(), 0.); }
-	dbl_vec &cache_double_vector(const cacheID &e) { return _cache_dbl_vec.at(e); }
+	void assign_cache_double_vector(const cache_key &e) { _cache_dbl_vec[e] = dbl_vec(size(), 0.); }
+	dbl_vec &cache_double_vector(const cache_key &e) { return _cache_dbl_vec.at(e); }
 
 	//----- Cached double matrix -----//
-	void assign_cache_double_matrix(const cacheID &e) { _cache_dbl_mtx[e] = matrix<double>(size(), dbl_vec(size(), 0.)); }
-	matrix<double> &cache_double_matrix(const cacheID &e) { return _cache_dbl_mtx.at(e); }
+	void assign_cache_double_matrix(const cache_key &e) { _cache_dbl_mtx[e] = matrix<double>(size(), dbl_vec(size(), 0.)); }
+	matrix<double> &cache_double_matrix(const cache_key &e) { return _cache_dbl_mtx.at(e); }
 
 	//=========================//
 	//===== LOGLIKELIHOOD =====//
@@ -319,14 +324,14 @@ private:
 	//===== EXTRA ATTRIBUTES =====//
 
 	//----- Extra Attributes -----//
-	cacheIDmap<int_vec> _cache_int_vec = {};
-	cacheIDmap<dbl_vec> _cache_dbl_vec = {};
-	cacheIDmap<matrix<double>> _cache_dbl_mtx = {};
+	cache_key_map<int_vec> _cache_int_vec = {};
+	cache_key_map<dbl_vec> _cache_dbl_vec = {};
+	cache_key_map<matrix<double>> _cache_dbl_mtx = {};
 
 	//----- Buffer EXTRA Attributes -----//
-	cacheIDmap<int_vec> _buffer_cache_int_vec = {};
-	cacheIDmap<dbl_vec> _buffer_cache_dbl_vec = {};
-	cacheIDmap<matrix<double>> _buffer_cache_dbl_mtx = {};
+	cache_key_map<int_vec> _buffer_cache_int_vec = {};
+	cache_key_map<dbl_vec> _buffer_cache_dbl_vec = {};
+	cache_key_map<matrix<double>> _buffer_cache_dbl_mtx = {};
 };
 
 #endif // HOUSEPI__HOUSEHOLD__H

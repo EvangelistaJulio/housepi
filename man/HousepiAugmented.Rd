@@ -24,7 +24,7 @@ Find parameters required by augmented variable definitions.}
 \item{\code{augm_required}}{\code{character()}\cr
 Find augmented required by augmented variable definitions.}
 
-\item{\code{data_required}}{\code{character()}\cr
+\item{\code{dataset_required}}{\code{character()}\cr
 Find data required by augmented variable definitions.}
 }
 \if{html}{\out{</div>}}

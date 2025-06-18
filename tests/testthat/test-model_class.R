@@ -4,8 +4,6 @@ test_that("Model class inconsistent calls", {
   # blank household model object
   hhmodel <- HouseholdModel$new("blank")
 
-  # data
-  expect_error(hhmodel$dataset)
   # traces
   expect_error(hhmodel$traces)
   expect_error(hhmodel$estimates)
@@ -24,6 +22,18 @@ test_that("Model class blank calls", {
 
   # blank household model object
   hhmodel <- HouseholdModel$new("blank")
+
+  # blank default dataset
+  expect_true(all(hhmodel$dataset == data.frame(
+    id = c("hh_01_1"), house_id = c("hh_01"), status = 1
+  )))
+
+  # correct datalist call
+  datalist <- data.frame(id = "hh_01_1",
+                         time = seq(3),
+                         measure = seq(3)**3)
+  hhmodel$datalist <- datalist
+  expect_true(all(hhmodel$datalist == datalist))
 
   # templates
   expect_warning(hhmodel$load_param_template())
@@ -123,6 +133,25 @@ test_that("Augmentation example on incubation from delays is coherent", {
   # warning for no structure
   expect_warning(x <- hhmodel$loglikelihood(dataset))
   expect_equal(x, exact)
+})
+
+test_that("Arithmetic function with undefined x return NaN", {
+  hhmodel <- HouseholdModel$new("augm-example")
+
+  # NA values
+  expect_warning(
+    hhmodel$dataset <- data.frame(house_id = seq(3), id = seq(3),
+                                  status = 1, test = c(5.5, NA, -1.5))
+  )
+  # NaN + something = NaN
+  hhmodel$load_augm_list(noise = list(model = "norm"),
+                         log_proba = "test@D + noise")
+  # NA loglikelihood
+  expect_error(hhmodel$infer())
+
+  # log(NaN) = NaN
+  hhmodel$load_augm_list(log_proba = "log(test@D)")
+  expect_error(hhmodel$infer())
 })
 
 test_that("Augmented function example returns expected distribution", {

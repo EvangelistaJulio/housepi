@@ -43,8 +43,8 @@ std::pair<ushort, ulong> MCMC::get_report_hh_size(const std::string &key) const 
 double MCMC::uniform() { return pImpl->uniform(); }
 
 //===== PARAMETERS =====//
-double MCMC::param(const parID &p) const { return pImpl->get_param(p); }
-const double *MCMC::param_pointer(const parID &p) const { return pImpl->get_param_pointer(p); }
+double MCMC::param(const par_key &p) const { return pImpl->get_param(p); }
+const double *MCMC::param_pointer(const par_key &p) const { return pImpl->get_param_pointer(p); }
 
 //===== AUGMENTED VARIABLES =====//
 void MCMC::assign_all_augm(Individual &member) { pImpl->assign_all_augm(member); }
@@ -53,19 +53,19 @@ void MCMC::clear_all_augm(Individual &member) { pImpl->clear_all_augm(member); }
 //===== EXTRA ATTRIBUTES =====//
 
 /* Extra integer vectors for all households. */
-void MCMC::assign_cache_house_integer_vector(const cacheID &e)
+void MCMC::assign_cache_house_integer_vector(const cache_key &e)
 {
     for (size_t H : pImpl->restrict_hh_indexes)
         pImpl->house_vector[H].assign_cache_integer_vector(e);
 }
 /* Extra double vectors for all households. */
-void MCMC::assign_cache_house_double_vector(const cacheID &e)
+void MCMC::assign_cache_house_double_vector(const cache_key &e)
 {
     for (size_t H : pImpl->restrict_hh_indexes)
         pImpl->house_vector[H].assign_cache_double_vector(e);
 }
 /* Extra double square matrix for all households. */
-void MCMC::assign_cache_house_double_matrix(const cacheID &e)
+void MCMC::assign_cache_house_double_matrix(const cache_key &e)
 {
     for (size_t H : pImpl->restrict_hh_indexes)
         pImpl->house_vector[H].assign_cache_double_matrix(e);
@@ -106,7 +106,7 @@ void MCMC::_assign_group_rate(Individual &member)
 {
     try
     {
-        rateIDmapvec<const double *> group_rates_ptrs = {};
+        rate_key_mapvec<const double *> group_rates_ptrs = {};
 
         // call user defined group rate assignmen
         _individual_group_rates.clear();
@@ -115,7 +115,7 @@ void MCMC::_assign_group_rate(Individual &member)
         // convert to dict_rates_ptr
         for (const auto &pair : _individual_group_rates)
         {
-            rateID r = pair.first;
+            rate_key r = pair.first;
 
             if (r == CONTACT_RATE)
                 throw std::invalid_argument(
@@ -127,7 +127,7 @@ void MCMC::_assign_group_rate(Individual &member)
                 bool is_all_reference = true; // all reference state
                 std::vector<const double *> vec_par_ptr = {};
 
-                for (const parID &p : pair.second)
+                for (const par_key &p : pair.second)
                 {
                     if ((tools::is_na(p)) || (p == MISSING_RATE))
                         std::invalid_argument(
@@ -260,7 +260,8 @@ Rcpp::List MCMC::estimate_evidence(const std::string &scheme, ulong n_rungs)
 Rcpp::List MCMC::export_setup() const { return pImpl->export_setup(); }
 Rcpp::DataFrame MCMC::export_param() const { return pImpl->export_param(); }
 Rcpp::DataFrame MCMC::export_dataset() const { return pImpl->export_dataset(); }
-Rcpp::DataFrame MCMC::export_data_report() const { return pImpl->export_data_report(); }
+Rcpp::DataFrame MCMC::export_datalist() const { return pImpl->export_datalist(); }
+Rcpp::DataFrame MCMC::export_dataset_report() const { return pImpl->export_dataset_report(); }
 Rcpp::DataFrame MCMC::export_house_size_report() const { return pImpl->export_house_size_report(); }
 Rcpp::NumericMatrix MCMC::export_traces() const { return pImpl->export_traces(); }
 Rcpp::NumericMatrix MCMC::export_house_loglike_mtx() const { return pImpl->export_house_loglike_mtx(); }
