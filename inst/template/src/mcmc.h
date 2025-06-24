@@ -97,7 +97,7 @@ public:
 	//============================//
 
 	/* Update cahced augmeted dependecies. */
-	virtual void update_cache_dependecies(Household &, indiv) {}
+	virtual void update_cache_dependecies(Household &, Individual &) {}
 
 	void assign_cache_house_integer_vector(const cache_key &e);
 	void assign_cache_house_double_vector(const cache_key &e);
@@ -175,21 +175,21 @@ public:
 #else
 
 	//----- C++ Print -----//
-	void print_infer_state(const std::string &output_filename = HOUSEPI_NA_STRING) const;
-	void print_simulated_dataset(const std::string &output_filename = HOUSEPI_NA_STRING);
+	void print_infer_state(const std::string &output_filename = HSP_NA_STRING) const;
+	void print_simulated_dataset(const std::string &output_filename = HSP_NA_STRING);
 	void print_evidence(const std::string &scheme, ulong n_rungs);
 
 	//================//
 	//===== READ =====//
 	//================//
 
-	void read_setup(const std::string &pathtofile = HOUSEPI_NA_STRING);
-	void read_dataset(const std::string &pathtofile = HOUSEPI_NA_STRING);
-	void read_datalist(const std::string &pathtofile = HOUSEPI_NA_STRING);
-	void read_multiplicity(const std::string &pathtofile = HOUSEPI_NA_STRING);
-	void read_param(const std::string &pathtofile = HOUSEPI_NA_STRING);
-	void read_infec_profile(const std::string &pathtofile = HOUSEPI_NA_STRING);
-	void read_augm(const std::string &pathtofile = HOUSEPI_NA_STRING);
+	void read_setup(const std::string &pathtofile = HSP_NA_STRING);
+	void read_dataset(const std::string &pathtofile = HSP_NA_STRING);
+	void read_datalist(const std::string &pathtofile = HSP_NA_STRING);
+	void read_multiplicity(const std::string &pathtofile = HSP_NA_STRING);
+	void read_param(const std::string &pathtofile = HSP_NA_STRING);
+	void read_infec_profile(const std::string &pathtofile = HSP_NA_STRING);
+	void read_augm(const std::string &pathtofile = HSP_NA_STRING);
 
 	//================//
 	//===== SHOW =====//

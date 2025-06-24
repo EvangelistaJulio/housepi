@@ -50,7 +50,7 @@ void MCMC::Impl::InfecProfile::_assign_arguments(const str_vec &keys,
 
 	// loop over all arguments
 	for (size_t k = 0; k < keys.size(); ++k)
-		_assign_single_attribute(keys[k], vals[k], typs[k], ATTR_ARGUMENT);
+		_assign_single_attribute(keys[k], vals[k], typs[k], HSP_ATTR_ARGUMENT);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -112,7 +112,7 @@ void MCMC::Impl::InfecProfile::assign_template()
 
 			for (const std::string &key : _headers)
 				if (!deflist_template.count(key))
-					deflist_template.emplace(key, HOUSEPI_NA_STRING);
+					deflist_template.emplace(key, HSP_NA_STRING);
 
 			if (tools::is_na(deflist_template.at("discr")))
 				deflist_template["discr"] = "false";
@@ -184,6 +184,10 @@ void MCMC::Impl::InfecProfile::recover_lookup()
 void MCMC::Impl::InfecProfile::update_lookup()
 {
 	recover_lookup();
+	
+	// note: I pass dummy Individual using the fact that
+	// __default_inst doesn't depende on Individual // UPDATE?
+	Individual dummy_member = Individual();
 
 	// Set infectivity to 0 on the same day
 	_lookup_inst[0] = 0.;
@@ -191,9 +195,7 @@ void MCMC::Impl::InfecProfile::update_lookup()
 
 	for (size_t i = 1; i < _size_lut; ++i)
 	{
-		// note: I pass dummy Individual using the fact that
-		// __default_inst doesn't depende on Individual
-		double x = __default_inst(*pImpl.smpl_individual_star, i);
+		double x = __default_inst(dummy_member, i);
 		_lookup_inst[i] = x;
 		_lookup_cumul[i] = x + _lookup_cumul[i - 1];
 	}
@@ -265,12 +267,12 @@ void MCMC::Impl::InfecProfile::_build_generic_profile()
 	//----- Range minimum -----//
 	_assign_single_attribute("min",
 							 (is_discrete) ? "1" : "0", TYPE_SCALAR,
-							 ATTR_RANGE);
+							 HSP_ATTR_RANGE);
 
 	if (deflist.count("min") && deflist.count("min_at"))
 		_assign_single_attribute("min",
 								 deflist.at("min"), deflist.at("min_at"),
-								 ATTR_RANGE);
+								 HSP_ATTR_RANGE);
 
 	// check infectivity profile minimum is correct
 	if (is_discrete)
@@ -287,7 +289,7 @@ void MCMC::Impl::InfecProfile::_build_generic_profile()
 	if (deflist.count("max") && deflist.count("max_at"))
 		_assign_single_attribute("max",
 								 deflist.at("max"), deflist.at("max_at"),
-								 ATTR_RANGE);
+								 HSP_ATTR_RANGE);
 
 	//----- Reshaping -----//
 	profile->init_reshaping(is_discrete);
@@ -312,14 +314,14 @@ void MCMC::Impl::InfecProfile::_build_augmented_profile()
 
 	// initialize for generation time, instantaneous and cumulative profiles
 	for (auto &entry : pImpl.augm_file_headers)
-		_augm_infec_profile_deflist.emplace(entry, str_vec(3, HOUSEPI_NA_STRING));
+		_augm_infec_profile_deflist.emplace(entry, str_vec(3, HSP_NA_STRING));
 
 	_augm_infec_profile_deflist.at("const") = str_vec(3, tools::truth(false));
 	_augm_infec_profile_deflist.at("discr") = str_vec(3, deflist.at("discr"));
 	_augm_infec_profile_deflist.at("init_rand") = str_vec(3, tools::truth(false));
 
 	// auxiliary vector of string with single NA option for generation time
-	const str_vec aux_str({HOUSEPI_NA_STRING});
+	const str_vec aux_str({HSP_NA_STRING});
 
 	// adjust arguments to connect to generation time
 	std::string arg_key = deflist.at("arg_key");
@@ -423,9 +425,10 @@ void MCMC::Impl::_update_infec_profile()
 }
 
 /* If infectivity profile is a lookup table, recover its buffered values. */
-void MCMC::Impl::recover_infec_profile()
+void MCMC::Impl::recover_infec_profile(bool is_cache_depen)
 {
 	// UPDATE: this should not be recoverd if constant for example...
-	if (_infec_profile.is_lookup())
-		_infec_profile.recover_lookup();
+	if (is_cache_depen)
+		if (_infec_profile.is_lookup())
+			_infec_profile.recover_lookup();
 }

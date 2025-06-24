@@ -34,7 +34,7 @@ List of levels of the factors in the datalist.}
 Dataset with individual level information of current dataset.}
 
 \item{\code{datalist}}{\code{data.frame}\cr
-Datalist with multiple rows per individual for a given id.}
+Datalist with multiple rows indexed by individual.}
 
 \item{\code{dataset_required}}{\code{character()}\cr
 Dataset headers required by the model.}
@@ -72,6 +72,7 @@ Household loglikelihood traces.}
 \item \href{#method-HousepiWrapper-import_multiplicity}{\code{HousepiWrapper$import_multiplicity()}}
 \item \href{#method-HousepiWrapper-build_all_rates}{\code{HousepiWrapper$build_all_rates()}}
 \item \href{#method-HousepiWrapper-export_dataset_to_standalone}{\code{HousepiWrapper$export_dataset_to_standalone()}}
+\item \href{#method-HousepiWrapper-export_datalist_to_standalone}{\code{HousepiWrapper$export_datalist_to_standalone()}}
 \item \href{#method-HousepiWrapper-showcase_infec_profile}{\code{HousepiWrapper$showcase_infec_profile()}}
 \item \href{#method-HousepiWrapper-evaluate}{\code{HousepiWrapper$evaluate()}}
 \item \href{#method-HousepiWrapper-infer}{\code{HousepiWrapper$infer()}}
@@ -253,6 +254,19 @@ Wrapper of the Rcpp build_all_rates method.
 Export dataset formatted for C++ standalone.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiWrapper$export_dataset_to_standalone()}\if{html}{\out{</div>}}
+}
+
+\subsection{Returns}{
+\code{data.frame}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HousepiWrapper-export_datalist_to_standalone"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiWrapper-export_datalist_to_standalone}{}}}
+\subsection{Method \code{export_datalist_to_standalone()}}{
+Export datalist formatted for C++ standalone.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HousepiWrapper$export_datalist_to_standalone()}\if{html}{\out{</div>}}
 }
 
 \subsection{Returns}{

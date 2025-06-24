@@ -92,7 +92,7 @@ template_household_model <- function(name = NA,
         if (dir.exists(path)) {
           templ_files <- c("model.cpp",
                            "model.h",
-                           "template_params.R",
+                           "template_param.R",
                            "template_info.Rd")
           for (f in templ_files) {
             from_file <- file.path(template_models_dir(), name, f)

@@ -59,7 +59,7 @@ public:
          std::function<void()> callback_init_simulation,
          std::function<double(Household &)> callback_household_loglike,
          std::function<void(Household &)> callback_simulate_house,
-         std::function<void(Household &, indiv)> callback_update_cache)
+         std::function<void(Household &, Individual &)> callback_update_cache)
         : _infec_profile(*this),
           _uniform_distr(0., 1.),
           _callback_init_inference(std::move(callback_init_inference)),
@@ -90,7 +90,7 @@ public:
     const str_vec setup_file_headers = {"sample_size", "seed", "n_chains",
                                         "n_steps", "n_adapt", "thin",
                                         "n_burnin", "rand_init", "n_threads",
-                                        "inv_temper", "id_trace", "progress"};
+                                        "id_trace", "progress"};
 
     std::int32_t setup_seed;            // random generator seed
     bool setup_rand_init_params = true; // random initialization of parameters
@@ -106,7 +106,7 @@ public:
     double setup_inv_T = 1.;      // inverse temperature
     unsigned setup_n_threads = 1; // number of OMP threads
 
-    std::string setup_id_trace = HOUSEPI_NA_STRING; // augmented trace to save
+    str_vec setup_id_trace = {}; // augmented trace to save
 
     ulong setup_c_sample_size = 0; // single chain sample size
     ulong setup_c_n_sweeps = 0;    // single chain n. of sweeps
@@ -128,7 +128,7 @@ public:
     std::vector<par_key> param_cache_infer_list = {};
 
     par_key_map<Variable> param_map = {}; // parameters dictionary
-    bool _is_undef_params_ = false;    // undefined parameters valid only if infer
+    bool _is_undef_params_ = false;       // undefined parameters valid only if infer
 
     // get value of the parameter
     double get_param(const par_key &p) const { return param_map.at(p).get(); }
@@ -277,7 +277,7 @@ public:
     } _infec_profile;
 
     void _update_infec_profile();
-    void recover_infec_profile();
+    void recover_infec_profile(bool is_cache_depen);
     double infec_profile_inst(Individual &member, double t) { return _infec_profile.inst(member, t); }
     double infec_profile_cumul(Individual &member, double t) { return _infec_profile.cumul(member, t); }
 
@@ -287,7 +287,7 @@ public:
 
     void build_setup();
     void build_dataset(const dict_str_vec &input);
-    void build_datalist(const dict_str_vec &input, const std::string &list_name = HOUSEPI_NA_STRING);
+    void build_datalist(const dict_str_vec &input);
     void build_multiplicity(const dict_str_vec &input);
     void build_param();
     void build_augm();
@@ -327,8 +327,8 @@ public:
 #else
 
     //----- C++ Print -----//
-    void print_infer_state(const std::string &output_filename = HOUSEPI_NA_STRING) const;
-    void print_simulated_dataset(const std::string &output_filename = HOUSEPI_NA_STRING);
+    void print_infer_state(const std::string &output_filename = HSP_NA_STRING) const;
+    void print_simulated_dataset(const std::string &output_filename = HSP_NA_STRING);
     void print_evidence(const std::string &scheme, ulong n_rungs);
 
     //----- READ -----//
@@ -351,6 +351,7 @@ public:
     void _aux_print_dataset_init_(const std::string &pathtofile);
     void _aux_print_dataset_update_(Household &house);
     void _aux_print_dataset_finalize_();
+    const std::string _aux_print_id_trace() const;
 
 #endif
 
@@ -393,9 +394,12 @@ public:
     //----- Containers for posterior sample values -----//
     ulong smpl_count = 0;
     dbl_vec smpl_full_loglike = {};
-    Individual *smpl_individual_star = nullptr;
     par_key_map<dbl_vec> smpl_param_value = {};
-    augm_key_map<dbl_vec> smpl_augm_value = {};
+    std::vector<dbl_vec> smpl_house_loglike = {};
+
+    // optional augmented posterior sample
+    std::vector<Individual *> smpl_individual_star = {};
+    std::vector<augm_key_map<dbl_vec>> smpl_augm_value = {};
 
     void infer();
 
@@ -427,13 +431,12 @@ private:
     std::function<void()> _callback_init_simulation;
     std::function<double(Household &)> _callback_house_loglike;
     std::function<void(Household &)> _callback_simulate_house;
-    std::function<void(Household &, indiv)> _callback_update_cache;
+    std::function<void(Household &, Individual &)> _callback_update_cache;
 
     void _init_model_for_inference() { _callback_init_inference(); }
     void _init_model_for_simulation() { _callback_init_simulation(); }
-    double _compute_household_obs_loglike(Household &h) { return _callback_house_loglike(h); }
     void _simulate_single_household(Household &h) { _callback_simulate_house(h); }
-    void _update_cache_dependecies(Household &h, indiv i) { _callback_update_cache(h, i); }
+    void _update_cache_dependecies(Household &h, Individual &i) { _callback_update_cache(h, i); }
 
     double _compute_and_set_household_obs_loglike(Household &h)
     {
@@ -502,23 +505,14 @@ private:
     //----- Metropolis - parameter moves -----//
     bool _move_single_parameter(const par_key &p, bool cache_depen);
 
-    //----- Metropolis : augmented loglikelihood -----//
-    double _compute_augm_model_loglike(Household &house);
-    double _compute_and_set_augm_model_loglike(Household &house)
-    {
-        const double output = _compute_augm_model_loglike(house);
-        house.set_augm_loglike(output);
-        return output;
-    }
-
     //----- Metropolis : augmented moves -----//
     void _move_all_augm();
     double _move_augm_single_house(size_t H);
-    double _metropolis_augm_single_move(Household &house, indiv i, const augm_key &a);
+    double _metropolis_augm_single_move(Household &house, Individual &member, const augm_key &a);
 
-    double (MCMC::Impl::*_do_move_augm_indiv)(Household &, indiv) = &MCMC::Impl::__move_augm_indiv_generic;
-    double __move_augm_indiv_generic(Household &house, indiv i);
-    double __move_augm_indiv_by_status(Household &house, indiv i);
+    double (MCMC::Impl::*_do_move_augm_indiv)(Household &, Individual &) = &MCMC::Impl::__move_augm_indiv_generic;
+    double __move_augm_indiv_generic(Household &house, Individual &member);
+    double __move_augm_indiv_by_status(Household &house, Individual &member);
 
     //----- Metropolis : power posteriors -----//
     const std::vector<dbl_vec> _power_posteriors(const std::string &scheme, ulong N);

@@ -35,7 +35,7 @@
 //-----------------------------------------------------------------------------------------------//
 
 /* Display a decorator for a section (if VERBOSE) */
-void print_decorator(const std::string &title, bool verbose = true, const std::string &txt = HOUSEPI_NA_STRING)
+void print_decorator(const std::string &title, bool verbose = true, const std::string &txt = HSP_NA_STRING)
 {
     const ulong decor_left = 3;   // left size of decorator
     const ulong decor_width = 65; // total size of decorator
@@ -60,6 +60,9 @@ void print_decorator(const std::string &title, bool verbose = true, const std::s
 /* Main function for the standalone version of 'housepi'. */
 int main(int argc, char *argv[])
 {
+    using tools::stoupper;
+    using tools::stolower;
+
     int carg_i = 1;   // command line iterator
     std::string carg; // command line argument
 
@@ -69,13 +72,14 @@ int main(int argc, char *argv[])
     ulong num_rungs = 0;           // n. rungs power posteriors
 
     // paths/to/files for import
-    std::string augm_file = HOUSEPI_NA_STRING;
-    std::string dataset_file = HOUSEPI_NA_STRING;
-    std::string infec_profile_file = HOUSEPI_NA_STRING;
-    std::string multiplicity_file = HOUSEPI_NA_STRING;
-    std::string output_file = HOUSEPI_NA_STRING;
-    std::string param_file = HOUSEPI_NA_STRING;
-    std::string setup_file = HOUSEPI_NA_STRING;
+    std::string augm_file = HSP_NA_STRING;
+    std::string dataset_file = HSP_NA_STRING;
+    std::string datalist_file = HSP_NA_STRING;
+    std::string infec_profile_file = HSP_NA_STRING;
+    std::string multiplicity_file = HSP_NA_STRING;
+    std::string output_file = HSP_NA_STRING;
+    std::string param_file = HSP_NA_STRING;
+    std::string setup_file = HSP_NA_STRING;
 
     bool verbose = false; // verbose option
 
@@ -94,7 +98,7 @@ int main(int argc, char *argv[])
         carg = std::string(argv[carg_i]); // update command line argument
 
         // Command line argument asking for help
-        if (carg == std::string("-h") or carg == std::string("--help"))
+        if (stoupper(carg) == "-H" || stolower(carg) == "--help")
         {
             // Show the manual using man and installed manpages
             // UPDATE : produce a manual
@@ -104,40 +108,43 @@ int main(int argc, char *argv[])
             tools::error(oss.str());
         }
 
-        else if (carg == std::string("--evidence"))
+        else if (stolower(carg) == "--evidence")
             num_rungs = tools::stoul(argv[++carg_i], "number of rungs");
 
-        else if (carg == std::string("--loglikelihood"))
+        else if (stolower(carg) == "--loglikelihood")
             is_loglikelihood = true;
 
-        else if (carg == std::string("--infer"))
+        else if (stolower(carg) == "--infer")
             is_infer = true;
 
-        else if (carg == std::string("--simulate"))
+        else if (stolower(carg) == "--simulate")
             is_simulate = true;
 
-        else if (carg == std::string("-a") || carg == std::string("--augmented"))
+        else if (stoupper(carg) == "-A" || stolower(carg) == "--augmented")
             augm_file = argv[++carg_i];
 
-        else if (carg == std::string("-d") || carg == std::string("--dataset"))
+        else if (stoupper(carg) == "-D" || stolower(carg) == "--dataset")
             dataset_file = argv[++carg_i];
 
-        else if (carg == std::string("-i") || carg == std::string("--infec-profile"))
+        else if (stoupper(carg) == "-L" || stolower(carg) == "--datalist")
+            dataset_file = argv[++carg_i];
+
+        else if (stoupper(carg) == "-I" || stolower(carg) == "--infec-profile")
             infec_profile_file = argv[++carg_i];
 
-        else if (carg == std::string("-m") || carg == std::string("--multiplicity"))
+        else if (stoupper(carg) == "-M" || stolower(carg) == "--multiplicity")
             multiplicity_file = argv[++carg_i];
 
-        else if (carg == std::string("-o") || carg == std::string("--output"))
+        else if (stoupper(carg) == "-O" || stolower(carg) == "--output")
             output_file = argv[++carg_i];
 
-        else if (carg == std::string("-p") || carg == std::string("--parameter"))
+        else if (stoupper(carg) == "-P" || stolower(carg) == "--parameter")
             param_file = argv[++carg_i];
 
-        else if (carg == std::string("-s") || carg == std::string("--setup"))
+        else if (stoupper(carg) == "-S" || stolower(carg) == "--setup")
             setup_file = argv[++carg_i];
 
-        else if ((carg == std::string("-v")) || carg == std::string("--verbose"))
+        else if (stoupper(carg) == "-V" || stolower(carg) == "--verbose")
             verbose = true;
 
         else
@@ -166,6 +173,7 @@ int main(int argc, char *argv[])
 
     // 1) Load Data
     user_model->read_dataset(dataset_file);
+    user_model->read_datalist(datalist_file);
 
     // 2) Load Setup
     user_model->read_setup(setup_file);
@@ -223,7 +231,7 @@ int main(int argc, char *argv[])
             user_model->show_results();
         }
 
-        if (output_file != HOUSEPI_NA_STRING)
+        if (output_file != HSP_NA_STRING)
         {
             print_decorator("Inference::infer state", verbose,
                             "# save: " + output_file);
@@ -233,7 +241,7 @@ int main(int argc, char *argv[])
 
     else if (is_simulate)
     { //===== Simulation Study =====//
-        if (output_file != HOUSEPI_NA_STRING)
+        if (output_file != HSP_NA_STRING)
         {
             print_decorator("Simulation", verbose,
                             "# save: " + output_file);

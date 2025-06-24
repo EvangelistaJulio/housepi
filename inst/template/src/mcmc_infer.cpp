@@ -52,7 +52,7 @@ bool MCMC::Impl::propose_valid_param_move(const par_key &p)
 }
 
 /* Restore the parameter value in the buffer. */
-void MCMC::Impl::recover_parameter(const par_key &p, bool cache_depen)
+void MCMC::Impl::recover_parameter(const par_key &p, bool is_cache_depen)
 {
     // recover buffer value of parameter
     param_map.at(p).recover_value();
@@ -63,13 +63,13 @@ void MCMC::Impl::recover_parameter(const par_key &p, bool cache_depen)
     // recover buffered loglikelihood in households
     for (Household &house : house_vector)
     {
-        house.recover_loglike_value();
-        if (cache_depen)
-            house.recover_all_cache();
+        house.recover_buffer_values(is_cache_depen);
+        if (is_augm_sample())
+            for (Individual &member : house.infected())
+                member.recover_augm_model_loglike();
     }
 
-    if (cache_depen)
-        recover_infec_profile();
+    recover_infec_profile(is_cache_depen);
 }
 
 /* Metropolis-Hastings to accept or not current parameter move. */
@@ -84,7 +84,7 @@ bool MCMC::Impl::accept_valid_param_move(const par_key &p)
 //////////////////////////////  MCMC::Impl : methods (diagnostics) ////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Init posterior sampling. */
+/* Init posterior sampling. UPDATE: */
 void MCMC::Impl::_init_infer_diagnostics()
 {
     ulong sample_size = setup_c_sample_size * setup_n_chains;
@@ -92,48 +92,82 @@ void MCMC::Impl::_init_infer_diagnostics()
     // diagnostics over full loglikelihood
     smpl_count = 0;
     smpl_full_loglike.clear();
-    smpl_full_loglike = dbl_vec(sample_size);
+    smpl_full_loglike.reserve(sample_size);
+    smpl_full_loglike.assign(sample_size, HSP_NA_DOUBLE);
 
     // initialize  other diagnostic vectors
     // UPDATE: I might want to store also power posterior sample
     if (!_is_power_post())
     {
-        // diagnostics over parameters
+        // sample over households
+        smpl_house_loglike.clear();
+        smpl_house_loglike.resize(restrict_hh_indexes.size());
+        for (size_t R = 0; R < restrict_hh_indexes.size(); ++R)
+        {
+            smpl_house_loglike[R].clear();
+            smpl_house_loglike[R].reserve(sample_size);
+            smpl_house_loglike[R].assign(sample_size, HSP_NA_DOUBLE);
+        }
+
+        // sample over parameters
         for (const par_key &p : param_standard_infer_list + param_cache_infer_list)
-            smpl_param_value[p] = dbl_vec(sample_size, HOUSEPI_NA_DOUBLE);
+        {
+            smpl_param_value[p].clear();
+            smpl_param_value[p].reserve(sample_size);
+            smpl_param_value[p].assign(sample_size, HSP_NA_DOUBLE);
+        }
 
-        // diagnostics over households
-        // UPDATE: init a=only for selected households
-        for (size_t H : restrict_hh_indexes)
-            house_vector[H].init_diagnostics(sample_size);
-
-        // diagnostics over augmented variables
-        if (!tools::is_na(setup_id_trace))
-            for (const augm_key &a : augm_list_infer + augm_list_func)
-                smpl_augm_value[a] = dbl_vec(sample_size, HOUSEPI_NA_DOUBLE);
+        // sample over augmented variables
+        if (!setup_id_trace.empty())
+        {
+            smpl_augm_value.clear();
+            smpl_augm_value.resize(smpl_individual_star.size());
+            for (size_t k = 0; k < smpl_individual_star.size(); ++k)
+            {
+                smpl_augm_value[k].clear();
+                smpl_augm_value[k].reserve((augm_list_infer + augm_list_func).size());
+                for (const augm_key &a : augm_list_infer + augm_list_func)
+                {
+                    smpl_augm_value[k][a].clear();
+                    smpl_augm_value[k][a].reserve(sample_size);
+                    smpl_augm_value[k][a].assign(sample_size, HSP_NA_DOUBLE);
+                }
+            }
+        }
     }
 }
 
 /* Update Bayesian diagnostics */
 void MCMC::Impl::_update_infer_diagnostics()
 {
-    // diagnostics for full loglike
+    // store sample of the full loglikelihood
     smpl_full_loglike[smpl_count] = full_loglike;
 
     if (!_is_power_post())
     {
-        // diagnostics for all parameters
+        // store sample for all parameters to be inferred
         for (const par_key &p : param_standard_infer_list + param_cache_infer_list)
             smpl_param_value.at(p)[smpl_count] = get_param(p);
 
-        // diagnostics for selected households
-        for (size_t H : restrict_hh_indexes)
-            house_vector[H].update_diagnostics(smpl_count);
+        // store sample for restricted households
+        for (size_t R = 0; R < restrict_hh_indexes.size(); ++R)
+        {
+            Household &house = house_vector[restrict_hh_indexes[R]];
+            double x = house.get_obs_loglike() / house.multiplicity();
+            for (Individual &member : house.infected())
+                x += member.get_augm_model_loglike();
+            smpl_house_loglike[R][smpl_count] = x;
+        }
 
-        // diagnostics for individual followup
-        if (!tools::is_na(setup_id_trace))
-            for (const augm_key &a : augm_list_infer + augm_list_func)
-                smpl_augm_value.at(a)[smpl_count] = smpl_individual_star->augm(a);
+        // store sample for individual augmented variable followup
+        if (!setup_id_trace.empty())
+            for (size_t k = 0; k < smpl_individual_star.size(); ++k)
+            {
+                auto &smpl_augm_value_k = smpl_augm_value[k];
+                Individual *member_star = smpl_individual_star[k];
+                for (const augm_key &a : augm_list_infer + augm_list_func)
+                    smpl_augm_value_k[a][smpl_count] = member_star->augm(a);
+            }
     }
 
     ++smpl_count;
@@ -203,16 +237,17 @@ double MCMC::Impl::_update_house_loglike(size_t R, bool is_augm_ll, bool cache_d
     if (cache_depen)
     {
         house.buffer_all_cache();
-        for (const indiv &i : house.get_infected_status_hhindexes())
-            _update_cache_dependecies(house, i);
+        for (Individual &member : house.infected())
+            _update_cache_dependecies(house, member);
     }
 
     // update household observation loglikelihood
     double output = _compute_and_set_household_obs_loglike(house);
 
-    // update household augmented loglikelihood
+    // update individual augmented loglikelihood
     if (is_augm_ll)
-        output += _compute_and_set_augm_model_loglike(house);
+        for (Individual &member : house.infected())
+            output += member.compute_and_set_augm_model_loglike();
 
     return output;
 }
@@ -373,7 +408,7 @@ double MCMC::Impl::evaluate()
         tools::error(e.what());
     }
 
-    return HOUSEPI_NA_DOUBLE;
+    return HSP_NA_DOUBLE;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

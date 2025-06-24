@@ -318,8 +318,8 @@ HousepiGroupRate <- R6::R6Class(
           "void Model::assign_group_rate_to_individual(Individual &member)",
           "{",
           ifelse(all(is.na(lapply(self$defs, `[[`, "by"))),
-                 "\trateID r;\n\t(void)(member);",
-                 "\trateID r;"),
+                 "\trate_key r;\n\t(void)(member);",
+                 "\trate_key r;"),
           script,
           "}"
         ), collapse = "\n")

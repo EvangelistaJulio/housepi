@@ -10,4 +10,7 @@
 # zzz.R
 #
 
+Rcpp::loadModule("housepi_function", TRUE)
+Rcpp::loadModule("housepi_distribution", TRUE)
+Rcpp::loadModule("housepi_infec_profile", TRUE)
 Rcpp::loadModule("housepi_model_core", TRUE)

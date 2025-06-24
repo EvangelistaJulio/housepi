@@ -14,38 +14,330 @@
 #include <Rcpp.h>
 #include "model.h"
 
+class FunctionHousepi
+{
+private:
+    std::shared_ptr<Function> _func_ptr;
+
+public:
+    //=======================//
+    //===== CONSTRUCTOR =====//
+    //=======================//
+
+    FunctionHousepi(std::string name, Rcpp::List args, Rcpp::List range)
+    {
+        try
+        {
+            _func_ptr = compose_func_registries(
+                name, "function",
+                {&UserFuncRegistry::inst(),
+                 &TranscendentalRegistry::inst(),
+                 &ArithmeticRegistry::inst()});
+
+            // assign arguments
+            if (args.size() > 0)
+            {
+                const Rcpp::CharacterVector arg_names = args.names();
+                for (size_t i = 0; i < arg_names.size(); ++i)
+                    _func_ptr->assign_attr(Rcpp::as<std::string>(arg_names[i]),
+                                           HSP_ATTR_ARGUMENT,
+                                           Rcpp::as<double>(args[i]));
+            }
+
+            // assign range
+            if (range.size() > 2)
+                throw std::runtime_error("Range must be a numeric vector of length 2.");
+            else if (range.size() > 0)
+            {
+                const Rcpp::CharacterVector range_names = range.names();
+                for (size_t i = 0; i < range_names.size(); ++i)
+                    _func_ptr->assign_attr(Rcpp::as<std::string>(range_names[i]),
+                                           HSP_ATTR_RANGE,
+                                           Rcpp::as<double>(range[i]));
+            }
+        }
+        catch (const std::exception &e)
+        {
+            tools::error(
+                "While initializing function \"" + name + "\":\n" + e.what());
+        }
+    }
+    ~FunctionHousepi() = default;
+
+    //==================//
+    //===== GETTER =====//
+    //==================//
+
+    Rcpp::NumericVector call(Rcpp::NumericVector x)
+    {
+        try
+        {
+            const size_t n = x.size();
+            Rcpp::NumericVector y(n);
+            for (size_t i = 0; i < n; ++i)
+                y[i] = _func_ptr->return_value(x[i]);
+            return y;
+        }
+        catch (const std::exception &e)
+        {
+            tools::error(
+                "While calling function \"" + _func_ptr->show_name() + "\":\n" + e.what());
+        }
+        return Rcpp::NumericVector();
+    }
+};
+
+class DistributionHousepi
+{
+private:
+    std::shared_ptr<Distribution> _distr_ptr;
+
+public:
+    //=======================//
+    //===== CONSTRUCTOR =====//
+    //=======================//
+
+    DistributionHousepi(std::string name, Rcpp::List args, Rcpp::List range)
+    {
+        try
+        {
+            _distr_ptr = compose_distr_registries(
+                name, "distribution",
+                {&ContinuosDistrRegistry::inst(),
+                 &DiscreteDistrRegistry::inst()});
+
+            // assign arguments
+            if (args.size() > 0)
+            {
+                const Rcpp::CharacterVector arg_names = args.names();
+                for (size_t i = 0; i < arg_names.size(); ++i)
+                    _distr_ptr->assign_attr(Rcpp::as<std::string>(arg_names[i]),
+                                            HSP_ATTR_ARGUMENT,
+                                            Rcpp::as<double>(args[i]));
+            }
+
+            // assign range
+            if (range.size() > 2)
+                throw std::runtime_error("Range must be a numeric vector of length 2.");
+            else if (range.size() > 0)
+            {
+                const Rcpp::CharacterVector range_names = range.names();
+                for (size_t i = 0; i < range_names.size(); ++i)
+                    _distr_ptr->assign_attr(Rcpp::as<std::string>(range_names[i]),
+                                            HSP_ATTR_RANGE,
+                                            Rcpp::as<double>(range[i]));
+            }
+        }
+        catch (const std::exception &e)
+        {
+            tools::error(
+                "While initializing distribution \"" + name + "\":\n" + e.what());
+        }
+    }
+    ~DistributionHousepi() = default;
+
+    //==================//
+    //===== GETTER =====//
+    //==================//
+
+    Rcpp::NumericVector call(Rcpp::NumericVector x)
+    {
+        try
+        {
+            const size_t n = x.size();
+            Rcpp::NumericVector y(n);
+            for (size_t i = 0; i < n; ++i)
+                y[i] = _distr_ptr->return_value(x[i]);
+            return y;
+        }
+        catch (const std::exception &e)
+        {
+            tools::error(
+                "While calling distribution \"" + _distr_ptr->show_name() + "\":\n" + e.what());
+        }
+        return Rcpp::NumericVector();
+    }
+};
+
+class InfecProfileHousepi
+{
+private:
+    std::shared_ptr<Distribution> _infprof_ptr;
+
+public:
+    //=======================//
+    //===== CONSTRUCTOR =====//
+    //=======================//
+
+    InfecProfileHousepi(std::string name, Rcpp::List args, Rcpp::List range)
+    {
+        try
+        {
+            _infprof_ptr = compose_distr_registries(
+                name, "infectivity profile",
+                {&InfecProfileRegistry::inst(),
+                 &ContinuosDistrRegistry::inst(),
+                 &DiscreteDistrRegistry::inst()});
+
+            // assign arguments
+            if (args.size() > 0)
+            {
+                const Rcpp::CharacterVector arg_names = args.names();
+                for (size_t i = 0; i < arg_names.size(); ++i)
+                    _infprof_ptr->assign_attr(Rcpp::as<std::string>(arg_names[i]),
+                                              HSP_ATTR_ARGUMENT,
+                                              Rcpp::as<double>(args[i]));
+            }
+
+            // assign range
+            if (range.size() > 2)
+                throw std::runtime_error("Range must be a numeric vector of length 2.");
+            else if (range.size() > 0)
+            {
+                const Rcpp::CharacterVector range_names = range.names();
+                for (size_t i = 0; i < range_names.size(); ++i)
+                    _infprof_ptr->assign_attr(Rcpp::as<std::string>(range_names[i]),
+                                              HSP_ATTR_RANGE,
+                                              Rcpp::as<double>(range[i]));
+            }
+        }
+        catch (const std::exception &e)
+        {
+            tools::error(
+                "While initializing distribution \"" + name + "\":\n" + e.what());
+        }
+    }
+    ~InfecProfileHousepi() = default;
+
+    //==================//
+    //===== GETTER =====//
+    //==================//
+
+    Rcpp::NumericVector call(Rcpp::NumericVector x)
+    {
+        try
+        {
+            const size_t n = x.size();
+            Rcpp::NumericVector y(n);
+            for (size_t i = 0; i < n; ++i)
+                y[i] = _infprof_ptr->return_value(x[i]);
+            return y;
+        }
+        catch (const std::exception &e)
+        {
+            tools::error(
+                "While calling infectivity profile \"" + _infprof_ptr->show_name() + "\":\n" + e.what());
+        }
+        return Rcpp::NumericVector();
+    }
+};
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+//' @name FunctionHousepi
+//' @title Housepi Function
+//' @description Call housepi registered function.
+//' @field initialize\cr \itemize{
+//'   \item Parameter: name `character(1)`\cr Name of the function.
+//'   \item Parameter: args `numeric()`\cr Custom arguments.
+//'   \item Parameter: range `numeric()`\cr Minimum and maximum range of the function.
+//' }
+//' @field call\cr \itemize{
+//'   \item Parameter: x `numeric()`\cr Input vector.
+//' }
+//' @return `numeric()`
+
+RCPP_MODULE(housepi_function)
+{
+    using namespace Rcpp;
+
+    class_<FunctionHousepi>("FunctionHousepi")
+        .constructor<std::string, Rcpp::List, Rcpp::List>()
+        .method("call", &FunctionHousepi::call);
+}
+
+//' @name DistributionHousepi
+//' @title Housepi Distribution
+//' @description Call housepi registered distribution.
+//' @field initialize\cr \itemize{
+//'   \item Parameter: name `character(1)`\cr Name of the distribution.
+//'   \item Parameter: args `numeric()`\cr Custom arguments.
+//'   \item Parameter: range `numeric()`\cr Minimum and maximum range of the distribution.
+//' }
+//' @field call\cr \itemize{
+//'   \item Parameter: x `numeric()`\cr Input vector.
+//' }
+//' @return `numeric()`
+
+RCPP_MODULE(housepi_distribution)
+{
+    using namespace Rcpp;
+
+    class_<DistributionHousepi>("DistributionHousepi")
+        .constructor<std::string, Rcpp::List, Rcpp::List>()
+        .method("call", &DistributionHousepi::call);
+}
+
+//' @name InfecProfileHousepi
+//' @title Housepi Infectivity Profile
+//' @description Call housepi registered infectivity profile.
+//' @field initialize\cr \itemize{
+//'   \item Parameter: name `character(1)`\cr Name of the profile.
+//'   \item Parameter: args `numeric()`\cr Custom arguments.
+//'   \item Parameter: range `numeric()`\cr Minimum and maximum range of the profile.
+//' }
+//' @field call\cr \itemize{
+//'   \item Parameter: x `numeric()`\cr Input vector.
+//' }
+//' @return `numeric()`
+
+RCPP_MODULE(housepi_infec_profile)
+{
+    using namespace Rcpp;
+
+    class_<InfecProfileHousepi>("InfecProfileHousepi")
+        .constructor<std::string, Rcpp::List, Rcpp::List>()
+        .method("call", &InfecProfileHousepi::call);
+}
+
 //' @name ModelHousepi
 //' @title Internal housepi model
 //' @description Perform inference and simulation from the model.
-//' @field init_user_advanced_setup Load user advance setup.
-//' @field infer Perform MCMC inference of the model parameters. \itemize{
+//' @field init_user_advanced_setup
+//' Load user advance setup.
+//' @field infer\cr Perform MCMC inference of the model parameters. \itemize{
 //'   \item Parameter: output_file - The file path where the output will be saved
 //'   \item Parameter: progbar - show the progress bar
 //' }
-//' @field simulate Load a simulated database.
-//' @field evaluate Evaluate the loglikelihood according to the current state.
-//' @field estimate_evidence Evaluate the logarithm of the marginal likelihood with the method of power posteriors. \itemize{
+//' @field simulate\cr Load a simulated database.
+//' @field evaluate\cr Evaluate the loglikelihood according to the current state.
+//' @field estimate_evidence\cr Evaluate the logarithm of the marginal likelihood with the method of power posteriors. \itemize{
 //'   \item Parameter: scheme
 //'   \item Parameter: n_rungs
 //' }
-//' @filed import_setup Import setup from R List.
-//' @filed import_dataset Import house indexed dataset from R Data.Frame.
-//' @filed import_datalist Import individual indexed datalist from R Data.Frame.
-//' @field import_multiplicity Imoprt multiplicity definitions from R Data.Frame.
-//' @filed import_param Import parameter definitions from R Data.Frame.
-//' @filed import_infec_profile Import infectivity profile definition from R List.
-//' @filed import_augm Import augmented variable definitions from R Data.Frame.
-//' @filed buil_all_rates Assign all contact and group rates.
-//' @field export_setup Return a List with current setup.
-//' @field export_param Return a DataFrame with current parameters.
-//' @field export_dataset Return a DataFrame with current database.
-//' @field export_dataset_report Return a DataFrame with a report of the current database.
-//' @field export_house_size_report Return a DataFrame with a report of household sizes.
-//' @field export_traces Return a DataFrame with MCMC traces.
-//' @field export_house_loglike_mtx Return a NumericMatrix with household loglikelihood traces.
-//' @field showcase_infec_profile Return a List with a showcase of the infectivity profile.
-//' @field show_full_build Show all build messages.
-//' @field show_summary Show a summary of the current database.
+//' @field import_setup\cr Import setup from R List.
+//' @field import_dataset\cr Import house indexed dataset from R Data.Frame.
+//' @field import_datalist\cr Import individual indexed datalist from R Data.Frame.
+//' @field import_multiplicity\cr Imoprt multiplicity definitions from R Data.Frame.
+//' @field import_param\cr Import parameter definitions from R Data.Frame.
+//' @field import_infec_profile\cr Import infectivity profile definition from R List.
+//' @field import_augm\cr Import augmented variable definitions from R Data.Frame.
+//' @field buil_all_rates\cr Assign all contact and group rates.
+//' @field export_setup\cr Return a List with current setup.
+//' @field export_param\cr Return a DataFrame with current parameters.
+//' @field export_dataset\cr Return a DataFrame with current database.
+//' @field export_dataset_report\cr Return a DataFrame with a report of the current database.
+//' @field export_house_size_report\cr Return a DataFrame with a report of household sizes.
+//' @field export_traces\cr Return a DataFrame with MCMC traces.
+//' @field export_house_loglike_mtx\cr Return a NumericMatrix with household loglikelihood traces.
+//' @field showcase_infec_profile\cr Return a List with a showcase of the infectivity profile.
+//' @field show_full_build\cr Show all build messages.
+//' @field show_summary\cr Show a summary of the current database.
 
 RCPP_MODULE(housepi_model_core)
 {

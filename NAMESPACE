@@ -2,6 +2,9 @@
 
 export(HouseholdModel)
 export(HouseholdSampler)
+export(housepi_distribution)
+export(housepi_function)
+export(housepi_infec_profile)
 export(housepi_traces_to_coda)
 export(measure_cases_by_house_size)
 export(measure_sar_by_house_size)

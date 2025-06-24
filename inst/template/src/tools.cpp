@@ -35,10 +35,10 @@ namespace tools
     {
         if (txt.size() == 0)
             return true;
-        else if (txt == HOUSEPI_NA_STRING)
+        else if (txt == HSP_NA_STRING)
             return true;
         else
-            for (const std::string &txtnan : {"<NA>", "NA", "NAN"})
+            for (const std::string txtnan : {"<NA>", "NA", "NAN"})
                 if (stoupper(txt) == txtnan)
                     return true;
 
@@ -221,7 +221,7 @@ namespace tools
     /* Converter to string checking for NA values. */
     const std::string na_to_str(double x)
     {
-        return is_na(x) ? HOUSEPI_NA_STRING : std::to_string(x);
+        return is_na(x) ? HSP_NA_STRING : std::to_string(x);
     }
 
     /* Convert std::string to boolean variable. */
@@ -270,7 +270,7 @@ namespace tools
 
         // check for undefined
         if (is_na(tkn))
-            tkn = HOUSEPI_NA_STRING;
+            tkn = HSP_NA_STRING;
 
         return tkn;
     }
@@ -308,7 +308,7 @@ namespace tools
 
             // last column is empty
             for (size_t i = n_cols; i < headers.size(); i++)
-                this_row.emplace(headers[i], HOUSEPI_NA_STRING);
+                this_row.emplace(headers[i], HSP_NA_STRING);
 
             return true;
         }
@@ -594,7 +594,7 @@ namespace tools
 
         else if (unused.size() > 1)
             throw std::invalid_argument(
-                "Unknown options: " + show_list(unused) + find_closest(HOUSEPI_NA_STRING, options, 0));
+                "Unknown options: " + show_list(unused) + find_closest(HSP_NA_STRING, options, 0));
     }
 
 } // TOOLS NAMESPACE
@@ -656,6 +656,23 @@ namespace progress
     */
     class Bar::Impl
     {
+    private:
+        const std::string _symbol = u8"\u25A0"; // bar decorator
+        unsigned _barwidth = 40;                // bar total size
+        bool _verbose = true;                   // wheter to show bar
+        bool _is_print = false;                 // wheter bar is printing
+
+        ulong _state = 0;       // current iteration
+        ulong _total = 0;       // total number of iterations
+        std::string _text = ""; // current text to show
+
+        steady_clock::time_point _start;
+        steady_clock::time_point _lastprint;
+        ulong _thintime = 0;
+
+        /* Function to display the progress bar. */
+        void _display(const std::string &sms) const { tools::print_stdout(sms); }
+
     public:
         //=======================//
         //===== CONSTRUCTOR =====//
@@ -698,6 +715,7 @@ namespace progress
             _start = steady_clock::now();
             _lastprint = _start;
             _state = 0;
+            _is_print = false;
         }
 
         /* Update progress bar given the progress state. */
@@ -731,8 +749,9 @@ namespace progress
                     _display(oss.str());
 
                     _lastprint = steady_clock::now();
+                    _is_print = true;
                 }
-                else if (_lastprint == _start) // eventually print initial message
+                else if (!_is_print) // eventually print initial message
                     if (static_cast<ulong>(missing.count()) > _thintime)
                     {
                         std::ostringstream oss;
@@ -740,6 +759,8 @@ namespace progress
                             << std::string(_barwidth, ' ') << "| "
                             << tools::percentage(0., 0);
                         _display(oss.str());
+
+                        _is_print = true;
                     }
             }
         }
@@ -750,7 +771,7 @@ namespace progress
 #ifdef _HOUSEPI_RCPP
             Rcpp::checkUserInterrupt();
 #endif
-            if ((_verbose) && (_state > 0) && (_state < _total))
+            if (_is_print)
                 _display("\n");
         }
 
@@ -774,26 +795,11 @@ namespace progress
                         << std::string(25, ' ') << "\n";
                     _display(oss.str());
                 }
-
-                _state = _total;
             }
+
+            _is_print = false;
+            _state = _total;
         }
-
-    private:
-        const std::string _symbol = u8"\u25A0"; // bar decorator
-        unsigned _barwidth = 40;                // bar total size
-        bool _verbose = true;                   // wheter to show bar
-
-        ulong _state = 0;       // current iteration
-        ulong _total = 0;       // total number of iterations
-        std::string _text = ""; // current text to show
-
-        steady_clock::time_point _start;
-        steady_clock::time_point _lastprint;
-        ulong _thintime = 0;
-
-        /* Function to display the progress bar. */
-        void _display(const std::string &sms) const { tools::print_stdout(sms); }
     };
 
     //-----------------------------------------------------------------------------------------------//

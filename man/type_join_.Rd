@@ -7,7 +7,8 @@
 type_join_(x)
 }
 \arguments{
-\item{`character()`\cr}{Vector of characters.}
+\item{x}{\code{character()}\cr
+Vector of characters.}
 }
 \value{
 \code{character(1)}\cr

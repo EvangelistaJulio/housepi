@@ -45,11 +45,11 @@ public:
 	//===== CONSTRUCTOR =====//
 	//=======================//
 
-	Distribution(const std::string &name = HOUSEPI_NA_STRING,
+	Distribution(const std::string &name = HSP_NA_STRING,
 				 const str_vec &arg_name = {},
 				 const dbl_vec &arg_value = {},
-				 double domain_min = HOUSEPI_NA_DOUBLE,
-				 double domain_max = HOUSEPI_NA_DOUBLE,
+				 double domain_min = HSP_NA_DOUBLE,
+				 double domain_max = HSP_NA_DOUBLE,
 				 bool is_min_open = true,
 				 bool is_max_open = true)
 		: Function(name, arg_name, arg_value,
@@ -264,8 +264,14 @@ public:
 	//===== SETTER =====//
 	//==================//
 
-	void register_distr(const std::string &opt, FactoryDistr creator);
-	void register_func(const std::string &opt, FactoryFunc creator) override final;
+	template <typename T>
+	void register_distr()
+	{
+		static_assert(std::is_base_of<Distribution, T>::value,
+					  "T must be derived from Distribution");
+		_factory_map[T().show_name()] = []()
+		{ return std::make_shared<T>(); };
+	}
 
 private:
 	std::unordered_map<std::string, FactoryDistr> _factory_map = {};
@@ -275,58 +281,48 @@ private:
 template <typename C, typename T>
 void register_distr()
 {
-	static_assert(std::is_base_of<Distribution, T>::value,
-				  "T must be derived from Distribution");
-
-	const std::string &opt = T().show_name();
-	if (C::inst().is_valid_option(opt))
-		tools::warning("Overwritten " + C::inst().name() + " \"" + opt + "\".");
-	C::inst().register_distr(opt, []()
-							 { return std::make_shared<T>(); });
+	static_assert(std::is_base_of<DistrRegistry, C>::value,
+				  "C must be derived from DistrRegistry");
+	C::inst().template register_distr<T>();
 }
+
+#define DECLARE_HOUSEPI_DISTRIBUTION_REGISTRY(ClassName, Description) \
+	class ClassName : public DistrRegistry                            \
+	{                                                                 \
+	public:                                                           \
+		static ClassName &inst();                                     \
+                                                                      \
+	private:                                                          \
+		ClassName() : DistrRegistry(Description) {}                   \
+	};
+DECLARE_HOUSEPI_DISTRIBUTION_REGISTRY(ContinuosDistrRegistry, "continuos distribution")
+DECLARE_HOUSEPI_DISTRIBUTION_REGISTRY(DiscreteDistrRegistry, "discrete distribution")
+DECLARE_HOUSEPI_DISTRIBUTION_REGISTRY(InfecProfileRegistry, "infectivity profile")
+
+/* Register a Distribution derived class T to DistrRegistry derived class R. */
+template <typename R, typename T>
+struct Static_Distribution_Registatror
+{
+	Static_Distribution_Registatror()
+	{
+		static_assert(std::is_base_of<DistrRegistry, R>::value,
+					  "R must be derived from DistrRegistry.");
+		R::inst().template register_distr<T>();
+	}
+};
+#define REGISTER_HOUSEPI_DISTRIBUTION(R, T)          \
+	namespace                                        \
+	{                                                \
+		static Static_Distribution_Registatror<R, T> \
+			housepi_register_##T##_to_##R;           \
+	}
+#define REGISTER_USER_CONTINUOS_DISTRIBUTION(T) REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, T)
+#define REGISTER_USER_DISCRETE_DISTRIBUTION(T) REGISTER_HOUSEPI_DISTRIBUTION(DiscreteDistrRegistry, T)
+#define REGISTER_USER_INFEC_PROFILE(T) REGISTER_HOUSEPI_DISTRIBUTION(InfecProfileRegistry, T)
 
 /* Compose registries to get a distribution from them. */
 std::shared_ptr<Distribution> compose_distr_registries(const std::string &opt,
 													   const std::string &name,
 													   const std::vector<const DistrRegistry *> &registries);
-
-/* Continuos Distributions Registry class. */
-class ContinuosDistrRegistry : public DistrRegistry
-{
-public:
-	static ContinuosDistrRegistry &inst();
-
-private:
-	ContinuosDistrRegistry();
-};
-
-template <typename T>
-void register_continuos_distr() { register_distr<ContinuosDistrRegistry, T>(); }
-
-/* Discrete Distributions Registry. */
-class DiscreteDistrRegistry : public DistrRegistry
-{
-public:
-	static DiscreteDistrRegistry &inst();
-
-private:
-	DiscreteDistrRegistry();
-};
-
-template <typename T>
-void register_discrete_distr() { register_distr<DiscreteDistrRegistry, T>(); }
-
-/* Infectivity Profile Registry. */
-class InfecProfileRegistry : public DistrRegistry
-{
-public:
-	static InfecProfileRegistry &inst();
-
-private:
-	InfecProfileRegistry();
-};
-
-template <typename T>
-void register_infec_profile() { register_distr<InfecProfileRegistry, T>(); }
 
 #endif // HOUSEPI__DISTRIBUTION__H

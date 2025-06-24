@@ -21,14 +21,6 @@
 //-----------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  Attribute : get (functional) /////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////  Attribute : get_pointer (functional) /////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  Attribute : setter //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -46,7 +38,7 @@ void Attribute::assign_pointer(const double *y)
     _do_get = &Attribute::__get_from_pointer;
     _do_get_pointer = &Attribute::__get_pointer_from_pointer;
     _do_set = &Attribute::__set_error;
-    _value = HOUSEPI_NA_DOUBLE;
+    _value = HSP_NA_DOUBLE;
     _ptr_to_value = y;
     _func_ptr = nullptr;
 }
@@ -55,7 +47,7 @@ void Attribute::assign_function(const std::shared_ptr<Function> f)
     _do_get = &Attribute::__get_from_function;
     _do_get_pointer = &Attribute::__get_pointer_error;
     _do_set = &Attribute::__set_error;
-    _value = HOUSEPI_NA_DOUBLE;
+    _value = HSP_NA_DOUBLE;
     _ptr_to_value = nullptr;
     _func_ptr = f;
 }
@@ -74,6 +66,8 @@ double Attribute::__get_from_function() const { return _func_ptr->return_value()
 //////////////////////////////////  Function : constructor  /////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+const std::string HSP_X_ = "x";
+
 /* Initial defaults for function. */
 Function::Function(const std::string &name,
                    const str_vec &arg_name,
@@ -83,11 +77,7 @@ Function::Function(const std::string &name,
                    bool is_min_open,
                    bool is_max_open)
 {
-    // FIXME
-    // attribute x should be at at last position and automatic
-    // FIXME
-
-    bool is_x_default = contains(arg_name, "X");
+    bool is_x_default = contains(arg_name, HSP_X_);
 
     // name of the function
     _function_name = name;
@@ -106,12 +96,12 @@ Function::Function(const std::string &name,
     // assign default arguments
     _arguments = new Attribute[_n_args + 1];
     // by convention, last argument is "x" and NA by default
-    _arguments[_n_args].set_name("x");
-    _arguments[_n_args].set(HOUSEPI_NA_DOUBLE);
+    _arguments[_n_args].set_name(HSP_X_);
+    _arguments[_n_args].set(HSP_NA_DOUBLE);
 
     ushort c = 0;
     for (ushort k = 0; k < arg_name.size(); ++k)
-        if (arg_name[k] == "x")
+        if (arg_name[k] == HSP_X_)
             _arguments[_n_args].set(arg_value[k]);
         else
         {
@@ -144,7 +134,7 @@ Function::~Function() = default;
 bool Function::is_able_to_showcase() const
 {
     for (ushort i = 0; i < _n_args; ++i)
-        if (tools::is_na(get_arg(i)))
+        if (tools::is_na(arg(i)))
             return false;
     return true;
 }
@@ -152,7 +142,7 @@ bool Function::is_able_to_showcase() const
 /* Assert argument exists at assignment. Returns it's index. */
 ushort Function::assert_arg(const std::string &arg_name) const
 {
-    if (arg_name == "x")
+    if (arg_name == HSP_X_)
         return _n_args; // by convention, last argument is "x"
     else
         for (ushort c = 0; c < _n_args; ++c)
@@ -317,7 +307,7 @@ const std::string Function::show_range() const
 //--- Assign scalar argument or range value. ---//
 void Function::assign_attr(const std::string &arg_name, bool is_arg, double x)
 {
-    if (is_arg == ATTR_ARGUMENT)
+    if (is_arg == HSP_ATTR_ARGUMENT)
         _assign_arg_scalar(arg_name, x);
     else
         _assign_range_scalar(arg_name, x);
@@ -330,7 +320,7 @@ void Function::assign_attr(const std::string &arg_name, bool is_arg, const doubl
         throw std::invalid_argument(
             "Invalid pointer argument \"" + arg_name + "\" for \"" + _function_name + "\".");
 
-    if (is_arg == ATTR_ARGUMENT)
+    if (is_arg == HSP_ATTR_ARGUMENT)
         _assign_arg_pointer(arg_name, y);
     else
         _assign_range_pointer(arg_name, y);
@@ -346,7 +336,7 @@ void Function::assign_attr(const std::string &arg_name, bool is_arg, std::shared
         throw std::invalid_argument(
             "Cannot assign function \"" + _function_name + "\" to its own argument \"" + arg_name + "\".");
 
-    if (is_arg == ATTR_ARGUMENT)
+    if (is_arg == HSP_ATTR_ARGUMENT)
         _assign_arg_function(arg_name, f);
     else
         _assign_range_function(arg_name, f);
@@ -465,7 +455,7 @@ const std::string Function::show_arg_names() const
         return output;
     }
 
-    return HOUSEPI_NA_STRING;
+    return HSP_NA_STRING;
 }
 
 /* Return formatted argument names of the distribution. */
@@ -479,7 +469,7 @@ const std::string Function::show_arg_values() const
         return output;
     }
 
-    return HOUSEPI_NA_STRING;
+    return HSP_NA_STRING;
 }
 
 /* Return formatted function summary. */
@@ -498,171 +488,6 @@ const std::string Function::show_summary() const
 
     return output;
 }
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/* Equality Function. */
-class Equality_Function : public Function
-{
-public:
-    //===== CONSTRUCTOR =====//
-    Equality_Function()
-        : Function("eq") {}
-    ~Equality_Function() = default;
-
-    //===== GETTER =====//
-    double return_value(double x) const override final { return x; }
-};
-
-//--- Addition Function. ---//
-class Addition_Function : public Function
-{
-public:
-    //===== CONSTRUCTOR =====//
-    Addition_Function()
-        : Function("add", {"y"}, {0.}) {}
-    ~Addition_Function() = default;
-
-    //===== GETTER =====//
-    double return_value(double x) const override final { return x + get_arg(0); }
-};
-
-//--- Subtraction Function. ---//
-class Subtraction_Function : public Function
-{
-public:
-    //===== CONSTRUCTOR =====//
-    Subtraction_Function()
-        : Function("sum", {"y"}, {0.}) {}
-    ~Subtraction_Function() = default;
-
-    //===== GETTER =====//
-    double return_value(double x) const override final { return x - get_arg(0); }
-};
-
-//--- Multiplication Function. ---//
-class Multiplication_Function : public Function
-{
-public:
-    //===== CONSTRUCTOR =====//
-    Multiplication_Function()
-        : Function("mult", {"y"}, {1.}) {}
-    ~Multiplication_Function() = default;
-
-    //==================//
-    //===== GETTER =====//
-    //==================//
-    double return_value(double x) const override final { return x * get_arg(0); }
-};
-
-//--- Division Function. ---//
-class Division_Function : public Function
-{
-public:
-    //===== CONSTRUCTOR =====//
-    Division_Function()
-        : Function("div", {"y"}, {1.}) {}
-    ~Division_Function() = default;
-
-    //===== GETTER =====//
-    double return_value(double x) const override final { return x / get_arg(0); }
-};
-
-//--- Power Function. ---//
-class Power_Function : public Function
-{
-public:
-    //===== CONSTRUCTOR =====//
-    Power_Function()
-        : Function("pow", {"y"}, {1.}) {}
-    ~Power_Function() = default;
-
-    //===== GETTER =====//
-    double return_value(double x) const override final { return std::pow(x, get_arg(0)); }
-};
-
-//--- Square Root Function. ---//
-class SquareRoot_Function : public Function
-{
-public:
-    //===== CONSTRUCTOR =====//
-    SquareRoot_Function()
-        : Function("sqrt") {}
-    ~SquareRoot_Function() = default;
-
-    //===== GETTER =====//
-    double return_value(double x) const override final { return std::sqrt(x); }
-};
-
-/* Exponential Function. */
-class Exponential_Function : public Function
-{
-public:
-    //===== CONSTRUCTOR =====//
-    Exponential_Function()
-        : Function("exp") {}
-    ~Exponential_Function() = default;
-
-    //===== GETTER =====//
-    double return_value(double x) const override final { return std::exp(x); }
-};
-
-/* Logarithm Function. */
-class Logarithm_Function : public Function
-{
-public:
-    //===== CONSTRUCTOR =====//
-    Logarithm_Function()
-        : Function("log") {}
-    ~Logarithm_Function() = default;
-
-    //===== GETTER =====//
-    double return_value(double x) const override final { return std::log(x); }
-};
-
-/* Sine Function. */
-class Sine_Function : public Function
-{
-public:
-    //===== CONSTRUCTOR =====//
-    Sine_Function()
-        : Function("sin") {}
-    ~Sine_Function() = default;
-
-    //===== GETTER =====//
-    double return_value(double x) const override final { return std::sin(x); }
-};
-
-/* Cosine Function. */
-class Cosine_Function : public Function
-{
-public:
-    //===== CONSTRUCTOR =====//
-    Cosine_Function()
-        : Function("cos") {}
-    ~Cosine_Function() = default;
-
-    //===== GETTER =====//
-    double return_value(double x) const override final { return std::cos(x); }
-};
-
-/* Tangent Function. */
-class Tangent_Function : public Function
-{
-public:
-    //===== CONSTRUCTOR =====//
-    Tangent_Function()
-        : Function("tan") {}
-    ~Tangent_Function() = default;
-
-    //===== GETTER =====//
-    double return_value(double x) const override final { return std::tan(x); }
-};
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -693,7 +518,10 @@ std::shared_ptr<Function> compose_func_registries(const std::string &opt, const 
 {
     str_vec options = {};
 
-    if (tools::is_na(opt))
+    if (registries.empty())
+        throw std::invalid_argument(
+            "No function registries provided for \"" + name + "\".");
+    else if (tools::is_na(opt))
         return std::make_shared<Function>();
     else
         for (const auto &r : registries)
@@ -706,67 +534,91 @@ std::shared_ptr<Function> compose_func_registries(const std::string &opt, const 
         "Unknown " + name + " \"" + opt + "\"." + tools::find_closest(opt, options));
 }
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  ArithmeticRegistry : methods  ////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
 
-ArithmeticRegistry::ArithmeticRegistry() : FuncRegistry("algebraic function")
+#define IMPLEMENT_HOUSEPI_FUNCTION_REGISTRY(ClassName) \
+    ClassName &ClassName::inst()                       \
+    {                                                  \
+        static ClassName _inst;                        \
+        return _inst;                                  \
+    }
+
+IMPLEMENT_HOUSEPI_FUNCTION_REGISTRY(ArithmeticRegistry)
+
+/* Equality Function. */
+class Equality_Function : public Function
 {
-    this->register_func("eq", []()
-                        { return std::make_shared<Equality_Function>(); });
-    this->register_func("add", []()
-                        { return std::make_shared<Addition_Function>(); });
-    this->register_func("sub", []()
-                        { return std::make_shared<Subtraction_Function>(); });
-    this->register_func("mult", []()
-                        { return std::make_shared<Multiplication_Function>(); });
-    this->register_func("div", []()
-                        { return std::make_shared<Division_Function>(); });
-}
+public:
+    //===== CONSTRUCTOR =====//
+    Equality_Function()
+        : Function("eq") {}
+    ~Equality_Function() = default;
 
-// Singleton pattern
-ArithmeticRegistry &ArithmeticRegistry::inst()
+    //===== GETTER =====//
+    double return_value(double x) const override final { return x; }
+};
+
+// transcendental_functions.cpp
+#define DEFINE_ARITHMETIC_FUNCTION(ClassName, FunctionName, Symbol, DefaultY)          \
+    class ClassName : public Function                                                  \
+    {                                                                                  \
+    public:                                                                            \
+        ClassName() : Function(FunctionName, {"y"}, {DefaultY}) {}                     \
+        ~ClassName() = default;                                                        \
+        double return_value(double x) const override final { return x Symbol arg(0); } \
+    };
+DEFINE_ARITHMETIC_FUNCTION(Addition_Function, "add", +, 0.0)
+DEFINE_ARITHMETIC_FUNCTION(Subtraction_Function, "sub", -, 0.0)
+DEFINE_ARITHMETIC_FUNCTION(Multiplication_Function, "mult", *, 1.0)
+DEFINE_ARITHMETIC_FUNCTION(Division_Function, "div", /, 1.0)
+
+REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Equality_Function)
+REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Addition_Function)
+REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Subtraction_Function)
+REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Multiplication_Function)
+REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Division_Function)
+
+IMPLEMENT_HOUSEPI_FUNCTION_REGISTRY(TranscendentalRegistry)
+
+//* Power Function. *//
+class Power_Function : public Function
 {
-    static ArithmeticRegistry _inst;
-    return _inst;
-}
+public:
+    //===== CONSTRUCTOR =====//
+    Power_Function()
+        : Function("pow", {"y"}, {1.}) {}
+    ~Power_Function() = default;
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////  TranscendentalRegistry : methods  //////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
+    //===== GETTER =====//
+    double return_value(double x) const override final { return std::pow(x, arg(0)); }
+};
 
-TranscendentalRegistry::TranscendentalRegistry() : FuncRegistry("transcendental function")
-{
-    this->register_func("pow", []()
-                        { return std::make_shared<Power_Function>(); });
-    this->register_func("sqrt", []()
-                        { return std::make_shared<SquareRoot_Function>(); });
-    this->register_func("exp", []()
-                        { return std::make_shared<Exponential_Function>(); });
-    this->register_func("log", []()
-                        { return std::make_shared<Logarithm_Function>(); });
-    this->register_func("sin", []()
-                        { return std::make_shared<Sine_Function>(); });
-    this->register_func("cos", []()
-                        { return std::make_shared<Cosine_Function>(); });
-    this->register_func("tan", []()
-                        { return std::make_shared<Tangent_Function>(); });
-}
+#define DEFINE_TRANSCENDENTAL_FUNCTION(ClassName, FunctionName)                             \
+    class ClassName : public Function                                                       \
+    {                                                                                       \
+    public:                                                                                 \
+        ClassName() : Function(#FunctionName) {}                                            \
+        ~ClassName() = default;                                                             \
+        double return_value(double x) const override final { return std::FunctionName(x); } \
+    };
+DEFINE_TRANSCENDENTAL_FUNCTION(SquareRoot_Function, sqrt)
+DEFINE_TRANSCENDENTAL_FUNCTION(Exponential_Function, exp)
+DEFINE_TRANSCENDENTAL_FUNCTION(Logarithm_Function, log)
+DEFINE_TRANSCENDENTAL_FUNCTION(Sine_Function, sin)
+DEFINE_TRANSCENDENTAL_FUNCTION(Cosine_Function, cos)
+DEFINE_TRANSCENDENTAL_FUNCTION(Tangent_Function, tan)
 
-// Singleton pattern
-TranscendentalRegistry &TranscendentalRegistry::inst()
-{
-    static TranscendentalRegistry _inst;
-    return _inst;
-}
+REGISTER_HOUSEPI_FUNCTION(TranscendentalRegistry, Power_Function)
+REGISTER_HOUSEPI_FUNCTION(TranscendentalRegistry, SquareRoot_Function)
+REGISTER_HOUSEPI_FUNCTION(TranscendentalRegistry, Exponential_Function)
+REGISTER_HOUSEPI_FUNCTION(TranscendentalRegistry, Logarithm_Function)
+REGISTER_HOUSEPI_FUNCTION(TranscendentalRegistry, Sine_Function)
+REGISTER_HOUSEPI_FUNCTION(TranscendentalRegistry, Cosine_Function)
+REGISTER_HOUSEPI_FUNCTION(TranscendentalRegistry, Tangent_Function)
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  UserFuncRegistry : methods  ////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-UserFuncRegistry::UserFuncRegistry() : FuncRegistry("user function") {}
-UserFuncRegistry &UserFuncRegistry::inst()
-{
-    static UserFuncRegistry _inst;
-    return _inst;
-}
+IMPLEMENT_HOUSEPI_FUNCTION_REGISTRY(UserFuncRegistry)

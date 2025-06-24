@@ -48,13 +48,24 @@ Individual::~Individual() = default;
 //////////////////////////////////////  Individual : getter  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Value of loglikelihood associated to augmented variable models within individual. */
-double Individual::get_augm_model_loglike() const
+/* Value of loglikelihood associated to augmented variable models within individual.
+ * Store the loglikelihood of individual augmented variables. 
+ */
+double Individual::compute_and_set_augm_model_loglike()
 {
-	double indiv_loglike = 0.0;
+	double x = 0.0;
 	for (const std::function<double()> &f : _augm_model_logpdfs)
-		indiv_loglike += f();
-	return indiv_loglike;
+		x += f();
+
+	if (tools::is_na(x))
+		throw std::runtime_error(
+			"Individual \"" + _id + "\" augmented loglikelihood return NaN value.");
+
+	// set computed value and store old in buffer
+	_augm_buffer = _augm_loglike;
+	_augm_loglike = x;
+
+	return x;
 }
 
 /* Individual dataset keys. */
@@ -285,41 +296,30 @@ void Household::assign_contact_rate(indiv from, indiv to, const double *x)
 /* Store the loglikelihood of household observation. */
 void Household::set_obs_loglike(double x)
 {
-	if ((tools::is_na(_obs_loglike)) && (std::isinf(_obs_loglike)))
-		throw std::runtime_error(
-			"NaN value found in household observation loglikelihood.");
 	if (tools::is_na(x))
 		throw std::runtime_error(
-			"NaN value set as household observation loglikelihood.");
+			"Household \"" + _house_id + "\" observation loglikelihood return NaN value.");
 
 	_obs_buffer = _obs_loglike;
 	_obs_loglike = x;
 }
 
-/* Store the loglikelihood of household augmented variables. */
-void Household::set_augm_loglike(double x)
-{
-	if ((tools::is_na(_augm_loglike)) && (std::isinf(_augm_loglike)))
-		throw std::runtime_error(
-			"NaN value found in household augmented variables loglikelihood.");
-	if (tools::is_na(x))
-		throw std::runtime_error(
-			"NaN value set as household augmented variables loglikelihood.");
-
-	_augm_buffer = _augm_loglike;
-	_augm_loglike = x;
-}
-
-/* Recover previous values of the loglikelihood. */
-void Household::recover_loglike_value()
-{
-	_obs_loglike = _obs_buffer;
-	_augm_loglike = _augm_buffer;
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  Household : cache attributes  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Recover previous values of the loglikelihood and cached depedencies. */
+void Household::recover_buffer_values(bool is_cache_depen)
+{
+	_obs_loglike = _obs_buffer;
+	if (is_cache_depen)
+	{
+		// swap buffer into  cache attributes
+		_cache_int_vec.swap(_buffer_cache_int_vec);
+		_cache_dbl_vec.swap(_buffer_cache_dbl_vec);
+		_cache_dbl_mtx.swap(_buffer_cache_dbl_mtx);
+	}
+}
 
 /* Deep copies of cache attributes in the buffer */
 void Household::buffer_all_cache()
@@ -327,12 +327,4 @@ void Household::buffer_all_cache()
 	_buffer_cache_int_vec = _cache_int_vec;
 	_buffer_cache_dbl_vec = _cache_dbl_vec;
 	_buffer_cache_dbl_mtx = _cache_dbl_mtx;
-}
-
-/* Swap buffer into  cache attributes */
-void Household::recover_all_cache()
-{
-	_cache_int_vec.swap(_buffer_cache_int_vec);
-	_cache_dbl_vec.swap(_buffer_cache_dbl_vec);
-	_cache_dbl_mtx.swap(_buffer_cache_dbl_mtx);
 }

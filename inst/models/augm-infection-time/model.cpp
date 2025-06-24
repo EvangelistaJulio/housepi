@@ -158,9 +158,9 @@ double Model::loglike_infectious(Household &house) const
 /* Store cumulative and instantaneous infectivity profiles according to an infector.
    WARNING: unpredictable behavior if i is not an infector.
    WARNING: this function should not call any mutable parameter. */
-void Model::update_cache_dependecies(Household &house, indiv i)
+void Model::update_cache_dependecies(Household &house, Individual &member_i)
 {
-	Individual &member_i = house.get_member(i);
+	indiv i = member_i.hhindex();
 	const double t_infec_i = member_i.augm("infec_time");
 
 	auto &inst_mtx = house.cache_double_matrix("inst");

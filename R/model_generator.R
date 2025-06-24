@@ -124,9 +124,7 @@ HousepiGenerator <- R6::R6Class(
     # If `FALSE` recompile the model at every new session.
     # @param force `logical(1)`\cr
     # If `TRUE` compile even if a cached model already exists.
-    .new_custom_model = function(source_dir,
-                                 as_template,
-                                 force) {
+    .new_custom_model = function(source_dir, as_template, force) {
       # asses if model choice requires recompilation
       private$.need_compile <- TRUE
 
@@ -312,16 +310,16 @@ HousepiGenerator <- R6::R6Class(
     deep_clone = function(name, value) {
       # make a new instance of rcpp model object
       if (name == ".rcpp") {
-        output <- private$.new_rcpp_model()
-        output$import_setup(
-          data.frame(lapply(value$export_setup(), as.character))
-        )
-        output$import_dataset(
-          data.frame(lapply(value$export_dataset(), as.character))
-        )
-        return(output)
+        if (is.null(value)) {
+          output <- NULL
+        } else {
+          output <- private$.new_rcpp_model()
+          output$import_setup(fmt_setup_input_(value$export_setup()))
+          output$import_dataset(fmt_data_input_(value$export_dataset()))
+          output$import_datalist(fmt_data_input_(value$export_datalist()))
+          return(output)
+        }
       }
-
       # for all other fields, just return the value
       return(value)
     }

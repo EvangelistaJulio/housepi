@@ -76,10 +76,10 @@ public:
     void assign_function(const std::shared_ptr<Function> f);
 
 private:
-    std::string _attribute_name = HOUSEPI_NA_STRING; // name of argument
-    double _value = HOUSEPI_NA_DOUBLE;               // internal value
-    const double *_ptr_to_value = nullptr;           // pointer to value
-    std::shared_ptr<Function> _func_ptr = nullptr;   // pointer to function
+    std::string _attribute_name = HSP_NA_STRING;   // name of argument
+    double _value = HSP_NA_DOUBLE;                 // internal value
+    const double *_ptr_to_value = nullptr;         // pointer to value
+    std::shared_ptr<Function> _func_ptr = nullptr; // pointer to function
 
     // Functional getter //
     double (Attribute::*_do_get)() const = &Attribute::__get_default;
@@ -124,11 +124,11 @@ public:
     //===== CONSTRUCTOR =====//
     //=======================//
 
-    Function(const std::string &name = HOUSEPI_NA_STRING,
+    Function(const std::string &name = HSP_NA_STRING,
              const str_vec &arg_name = {},
              const dbl_vec &arg_value = {},
-             double domain_min = HOUSEPI_NA_DOUBLE,
-             double domain_max = HOUSEPI_NA_DOUBLE,
+             double domain_min = HSP_NA_DOUBLE,
+             double domain_max = HSP_NA_DOUBLE,
              bool is_min_open = true,
              bool is_max_open = true);
     virtual ~Function();
@@ -142,11 +142,11 @@ public:
     /* Virtual function to return a value */
     virtual double return_value(double) const { return 0.; }
     /* By convention, the argument 'x' is automatically the last one. */
-    double return_value() const { return return_value(get_arg(_n_args)); }
+    double return_value() const { return return_value(arg(_n_args)); }
 
     bool is_able_to_showcase() const;
     ushort assert_arg(const std::string &arg_name) const;
-    double get_arg(ushort i) const { return _arguments[i].get(); }
+    double arg(ushort i) const { return _arguments[i].get(); }
     double get_min() const { return _range_min.get(); }
     double get_max() const { return _range_max.get(); }
 
@@ -194,7 +194,7 @@ public:
     const std::string show_summary() const;
 
 private:
-    std::string _function_name = HOUSEPI_NA_STRING;
+    std::string _function_name = HSP_NA_STRING;
 
     //===== Arguments =====//
     Attribute *_arguments = nullptr;
@@ -277,78 +277,57 @@ public:
     //===== SETTER =====//
     //==================//
 
-    virtual void register_func(const std::string &opt, FactoryFunc creator) { _factory_map[opt] = creator; }
+    template <typename T>
+    void register_func()
+    {
+		static_assert(std::is_base_of<Function, T>::value,
+					  "T must be derived from Function");
+        _factory_map[T().show_name()] = []()
+        { return std::make_shared<T>(); };
+    }
 
 private:
     std::string _name;
     std::unordered_map<std::string, FactoryFunc> _factory_map = {};
 };
 
-/* Register a Function derived class T to FungRegistry derived class C. */
-template <typename C, typename T>
-void register_func()
-{
-    static_assert(std::is_base_of<Function, T>::value,
-                  "T must be derived from Function.");
+/* Separate functions registries. */
+#define DECLARE_HOUSEPI_FUNCTION_REGISTRY(ClassName, Description) \
+    class ClassName : public FuncRegistry                         \
+    {                                                             \
+    public:                                                       \
+        static ClassName &inst();                                 \
+                                                                  \
+    private:                                                      \
+        ClassName() : FuncRegistry(Description) {}                \
+    };
+DECLARE_HOUSEPI_FUNCTION_REGISTRY(ArithmeticRegistry, "arithmetic function")
+DECLARE_HOUSEPI_FUNCTION_REGISTRY(TranscendentalRegistry, "transcendental function")
+DECLARE_HOUSEPI_FUNCTION_REGISTRY(UserFuncRegistry, "user function")
 
-    const std::string &opt = T().show_name();
-    if (C::inst().is_valid_option(opt))
-        tools::warning("Overwritten " + C::inst().name() + " \"" + opt + "\".");
-    C::inst().register_func(opt, []()
-                            { return std::make_shared<T>(); });
-}
+/* Register a Function derived class T to FungRegistry derived class R. */
+template <typename R, typename T>
+struct Static_Function_Registatror
+{
+    Static_Function_Registatror()
+    {
+        static_assert(std::is_base_of<FuncRegistry, R>::value,
+                      "R must be derived from FuncRegistry.");
+        R::inst().template register_func<T>();
+    }
+};
+#define REGISTER_HOUSEPI_FUNCTION(R, T)                           \
+    namespace                                                     \
+    {                                                             \
+        static Static_Function_Registatror<R, T> \
+            housepi_register_##T##_to_##R;                        \
+    }
+
+#define REGISTER_USER_FUNCTION(T) REGISTER_HOUSEPI_FUNCTION(UserFuncRegistry, T)
 
 /* Compose registries to get a function from them. */
 std::shared_ptr<Function> compose_func_registries(const std::string &opt,
                                                   const std::string &name,
                                                   const std::vector<const FuncRegistry *> &registries);
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  ArithmeticRegistry : class  ///////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-class ArithmeticRegistry : public FuncRegistry
-{
-public:
-    static ArithmeticRegistry &inst();
-
-private:
-    ArithmeticRegistry();
-};
-
-template <typename T>
-void register_arithmetic_func() { register_func<ArithmeticRegistry, T>(); }
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  TranscendentalRegistry : class  ///////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-class TranscendentalRegistry : public FuncRegistry
-{
-public:
-    static TranscendentalRegistry &inst();
-
-private:
-    TranscendentalRegistry();
-};
-
-template <typename T>
-void register_transcendental_func() { register_func<TranscendentalRegistry, T>(); }
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////  UserFuncRegistry : class  //////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-class UserFuncRegistry : public FuncRegistry
-{
-public:
-    static UserFuncRegistry &inst();
-
-private:
-    UserFuncRegistry();
-};
-
-template <typename T>
-void register_user_function() { register_func<UserFuncRegistry, T>(); }
 
 #endif // HOUSEPI__FUNCTION__H

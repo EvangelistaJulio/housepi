@@ -23,8 +23,10 @@ Stat Comput. 2014;24: 709-723. doi:10.1007/s11222-013-9397-1
 Model name.}
 
 \item{\code{dataset}}{\code{data.frame}\cr
-Dataset with individual level information of current dataset.
-If the case, it also return the associated augmented variables.}
+Dataset with individual level information of current dataset.}
+
+\item{\code{datalist}}{\code{data.frame}\cr
+Datalist with multiple rows indexed by individual.}
 
 \item{\code{summary}}{\code{data.frame}\cr
 A summary of statuses in the dataset.}
@@ -660,7 +662,6 @@ and store internally the chain traces.
   n_threads = 1,
   rand_init = TRUE,
   id_trace = NA,
-  inv_temper = 1,
   seed = NA,
   progress = TRUE
 )}\if{html}{\out{</div>}}
@@ -702,10 +703,6 @@ Controls random initialization of parameters:
 
 \item{\code{id_trace}}{\code{character(1)} \cr
 Individual identifier for augmented trace plots. Default is \code{NA}.}
-
-\item{\code{inv_temper}}{\code{double(1)} \cr
-Inverse temperature parameter.
-Typically set to 1 for standard MCMC sampling.}
 
 \item{\code{seed}}{\code{integer(1)} \cr
 Seed for the random number generator.

@@ -32,8 +32,8 @@ public:
     //===== CONSTRUCTOR =====//
     Uniform_Distribution()
         : Distribution("unif", {"min", "max"}, {0., 1.},
-                       HOUSEPI_NA_DOUBLE, HOUSEPI_NA_DOUBLE, false, false),
-          distr_gen(get_arg(0), get_arg(1))
+                       HSP_NA_DOUBLE, HSP_NA_DOUBLE, false, false),
+          distr_gen(arg(0), arg(1))
     {
         init_uniform_range(); // ensure range matches arguments
     }
@@ -60,7 +60,7 @@ protected:
     double raw_rand(rnd_gen &prng) override final
     {
         const double r = distr_gen(prng);
-        return get_arg(0) * (1 - r) + get_arg(1) * r;
+        return arg(0) * (1 - r) + arg(1) * r;
     }
 };
 
@@ -75,8 +75,8 @@ public:
     //===== CONSTRUCTOR =====//
     Normal_Distribution()
         : Distribution("norm", {"mean", "sd"}, {0., 1.},
-                       HOUSEPI_NA_DOUBLE, HOUSEPI_NA_DOUBLE, false, false),
-          distr_gen(get_arg(0), get_arg(1)) {}
+                       HSP_NA_DOUBLE, HSP_NA_DOUBLE, false, false),
+          distr_gen(arg(0), arg(1)) {}
     ~Normal_Distribution() = default;
 
     //===== SETTER =====//
@@ -105,26 +105,11 @@ protected:
     std::normal_distribution<double> distr_gen;
 
     //===== GETTER =====//
-    double raw_pdf(double x) const override final
-    {
-        return numr::normal::pdf(x, get_arg(0), get_arg(1));
-    }
-    double raw_cdf(double x) const override final
-    {
-        return numr::normal::cdf(x, get_arg(0), get_arg(1));
-    }
-    double raw_logpdf(double x) const override final
-    {
-        return numr::normal::logpdf(x, get_arg(0), get_arg(1));
-    }
-    double raw_logratio(double xold, double xnew) const override final
-    {
-        return numr::normal::logratio(xold, xnew, get_arg(0), get_arg(1));
-    }
-    double raw_rand(rnd_gen &prng) override final
-    {
-        return get_arg(0) + get_arg(1) * distr_gen(prng);
-    }
+    double raw_pdf(double x) const override final { return numr::normal::pdf(x, arg(0), arg(1)); }
+    double raw_cdf(double x) const override final { return numr::normal::cdf(x, arg(0), arg(1)); }
+    double raw_logpdf(double x) const override final { return numr::normal::logpdf(x, arg(0), arg(1)); }
+    double raw_logratio(double xold, double xnew) const override final { return numr::normal::logratio(xold, xnew, arg(0), arg(1)); }
+    double raw_rand(rnd_gen &prng) override final { return arg(0) + arg(1) * distr_gen(prng); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -138,15 +123,12 @@ public:
     //===== CONSTRUCTOR =====//
     Lognormal_Distribution()
         : Distribution("lnorm", {"meanlog", "sdlog"}, {0., 1.},
-                       0., HOUSEPI_NA_DOUBLE, false, false),
-          distr_gen(get_arg(0), get_arg(1)) {}
+                       0., HSP_NA_DOUBLE, false, false),
+          distr_gen(arg(0), arg(1)) {}
     ~Lognormal_Distribution() = default;
 
     //===== SETTER =====//
-    void init_reshaping(bool discrete) override final
-    {
-        init_min_zero_reshaping(discrete, false);
-    }
+    void init_reshaping(bool discrete) override final { init_min_zero_reshaping(discrete, false); }
 
 protected:
     std::lognormal_distribution<double> distr_gen;
@@ -154,30 +136,15 @@ protected:
     //===== SETTER =====//
     void update_args() override final
     {
-        distr_gen.param(std::lognormal_distribution<double>::param_type(get_arg(0), get_arg(1)));
+        distr_gen.param(std::lognormal_distribution<double>::param_type(arg(0), arg(1)));
     }
 
     //===== GETTER =====//
-    double raw_pdf(double x) const override final
-    {
-        return numr::lognormal::pdf(x, get_arg(0), get_arg(1));
-    }
-    double raw_cdf(double x) const override final
-    {
-        return numr::lognormal::cdf(x, get_arg(0), get_arg(1));
-    }
-    double raw_logpdf(double x) const override final
-    {
-        return numr::lognormal::logpdf(x, get_arg(0), get_arg(1));
-    }
-    double raw_logratio(double xold, double xnew) const override final
-    {
-        return numr::lognormal::logratio(xold, xnew, get_arg(0), get_arg(1));
-    }
-    double raw_rand(rnd_gen &prng) override final
-    {
-        return distr_gen(prng);
-    }
+    double raw_pdf(double x) const override final { return numr::lognormal::pdf(x, arg(0), arg(1)); }
+    double raw_cdf(double x) const override final { return numr::lognormal::cdf(x, arg(0), arg(1)); }
+    double raw_logpdf(double x) const override final { return numr::lognormal::logpdf(x, arg(0), arg(1)); }
+    double raw_logratio(double xold, double xnew) const override final { return numr::lognormal::logratio(xold, xnew, arg(0), arg(1)); }
+    double raw_rand(rnd_gen &prng) override final { return distr_gen(prng); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -192,7 +159,7 @@ public:
     Beta_Distribution()
         : Distribution("beta", {"shape1", "shape2"}, {1., 1.},
                        0., 1., true, true),
-          gamma_1(get_arg(0), 1.), gamma_2(get_arg(1), 1.) {}
+          gamma_1(arg(0), 1.), gamma_2(arg(1), 1.) {}
     ~Beta_Distribution() = default;
 
     //==== SETTER =====//
@@ -223,27 +190,18 @@ protected:
     //==== SETTER =====//
     void update_args() override final
     {
-        gamma_1.param(std::gamma_distribution<double>::param_type(get_arg(0), 1.));
-        gamma_2.param(std::gamma_distribution<double>::param_type(get_arg(1), 1.));
+        gamma_1.param(std::gamma_distribution<double>::param_type(arg(0), 1.));
+        gamma_2.param(std::gamma_distribution<double>::param_type(arg(1), 1.));
     }
 
     //==== GETTER =====//
-    double raw_pdf(double x) const override final
-    {
-        return numr::beta::pdf(x, get_arg(0), get_arg(1));
-    }
-    double raw_cdf(double x) const override final
-    {
-        return numr::beta::cdf(x, get_arg(0), get_arg(1));
-    }
+    double raw_pdf(double x) const override final { return numr::beta::pdf(x, arg(0), arg(1)); }
+    double raw_cdf(double x) const override final { return numr::beta::cdf(x, arg(0), arg(1)); }
     double raw_logpdf(double x) const override final
     {
-        return numr::beta::logpdf(x, get_arg(0), get_arg(1));
+        return numr::beta::logpdf(x, arg(0), arg(1));
     }
-    double raw_logratio(double xold, double xnew) const override final
-    {
-        return numr::beta::logratio(xold, xnew, get_arg(0), get_arg(1));
-    }
+    double raw_logratio(double xold, double xnew) const override final { return numr::beta::logratio(xold, xnew, arg(0), arg(1)); }
     double raw_rand(rnd_gen &prng) override final
     {
         double x1 = gamma_1(prng);
@@ -263,8 +221,8 @@ public:
     //===== CONSTRUCTOR =====//
     Gamma_Distribution()
         : Distribution("gamma", {"shape", "scale"}, {1., 1.},
-                       0., HOUSEPI_NA_DOUBLE, false, false),
-          distr_gen(get_arg(0), get_arg(1)) {}
+                       0., HSP_NA_DOUBLE, false, false),
+          distr_gen(arg(0), arg(1)) {}
     ~Gamma_Distribution() = default;
 
     //==== SETTER =====//
@@ -279,30 +237,15 @@ protected:
     //==== SETTER =====//
     void update_args() override final
     {
-        distr_gen.param(std::gamma_distribution<double>::param_type(get_arg(0), get_arg(1)));
+        distr_gen.param(std::gamma_distribution<double>::param_type(arg(0), arg(1)));
     }
 
     //==== GETTER =====//
-    double raw_pdf(double x) const override final
-    {
-        return numr::gamma::pdf(x, get_arg(0), get_arg(1));
-    }
-    double raw_cdf(double x) const override final
-    {
-        return numr::gamma::cdf(x, get_arg(0), get_arg(1));
-    }
-    double raw_logpdf(double x) const override final
-    {
-        return numr::gamma::logpdf(x, get_arg(0), get_arg(1));
-    }
-    double raw_logratio(double xold, double xnew) const override final
-    {
-        return numr::gamma::logratio(xold, xnew, get_arg(0), get_arg(1));
-    }
-    double raw_rand(rnd_gen &prng) override final
-    {
-        return distr_gen(prng);
-    }
+    double raw_pdf(double x) const override final { return numr::gamma::pdf(x, arg(0), arg(1)); }
+    double raw_cdf(double x) const override final { return numr::gamma::cdf(x, arg(0), arg(1)); }
+    double raw_logpdf(double x) const override final { return numr::gamma::logpdf(x, arg(0), arg(1)); }
+    double raw_logratio(double xold, double xnew) const override final { return numr::gamma::logratio(xold, xnew, arg(0), arg(1)); }
+    double raw_rand(rnd_gen &prng) override final { return distr_gen(prng); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -316,8 +259,8 @@ public:
     //===== CONSTRUCTOR =====//
     GammaMeanVar_Distribution()
         : Distribution("gamma_meanvar", {"mean", "var"}, {1., 1.},
-                       0., HOUSEPI_NA_DOUBLE, false, false),
-          distr_gen(get_arg(0), get_arg(1)) {}
+                       0., HSP_NA_DOUBLE, false, false),
+          distr_gen(arg(0), arg(1)) {}
     ~GammaMeanVar_Distribution() = default;
 
     //==== SETTER =====//
@@ -332,34 +275,34 @@ protected:
     //==== SETTER =====//
     void update_args() override final
     {
-        const double m = get_arg(0);
-        const double v = get_arg(1);
+        const double m = arg(0);
+        const double v = arg(1);
         distr_gen.param(std::gamma_distribution<double>::param_type((m * m) / v, v / m));
     }
 
     //==== GETTER =====//
     double raw_pdf(double x) const override final
     {
-        const double m = get_arg(0);
-        const double v = get_arg(1);
+        const double m = arg(0);
+        const double v = arg(1);
         return numr::gamma::pdf(x, (m * m) / v, v / m);
     }
     double raw_cdf(double x) const override final
     {
-        const double m = get_arg(0);
-        const double v = get_arg(1);
+        const double m = arg(0);
+        const double v = arg(1);
         return numr::gamma::cdf(x, (m * m) / v, v / m);
     }
     double raw_logpdf(double x) const override final
     {
-        const double m = get_arg(0);
-        const double v = get_arg(1);
+        const double m = arg(0);
+        const double v = arg(1);
         return numr::gamma::logpdf(x, (m * m) / v, v / m);
     }
     double raw_logratio(double xold, double xnew) const override final
     {
-        const double m = get_arg(0);
-        const double v = get_arg(1);
+        const double m = arg(0);
+        const double v = arg(1);
         return numr::gamma::logratio(xold, xnew, (m * m) / v, v / m);
     }
     double raw_rand(rnd_gen &prng) override final
@@ -379,7 +322,7 @@ public:
     //===== CONSTRUCTOR =====//
     Rayleigh_Distribution()
         : Distribution("rayleigh", {"scale"}, {1.},
-                       0., HOUSEPI_NA_DOUBLE, false, false),
+                       0., HSP_NA_DOUBLE, false, false),
           unif_gen(0., 1.) {}
     ~Rayleigh_Distribution() = default;
 
@@ -393,26 +336,11 @@ protected:
     std::uniform_real_distribution<double> unif_gen;
 
     //===== GETTER =====//
-    double raw_pdf(double x) const override final
-    {
-        return numr::rayleigh::pdf(x, get_arg(0));
-    }
-    double raw_cdf(double x) const override final
-    {
-        return numr::rayleigh::cdf(x, get_arg(0));
-    }
-    double raw_logpdf(double x) const override final
-    {
-        return numr::rayleigh::logpdf(x, get_arg(0));
-    }
-    double raw_logratio(double xold, double xnew) const override final
-    {
-        return numr::rayleigh::logratio(xold, xnew, get_arg(0));
-    }
-    double raw_rand(rnd_gen &prng) override final
-    {
-        return get_arg(0) * sqrt(-2 * std::log(unif_gen(prng)));
-    }
+    double raw_pdf(double x) const override final { return numr::rayleigh::pdf(x, arg(0)); }
+    double raw_cdf(double x) const override final { return numr::rayleigh::cdf(x, arg(0)); }
+    double raw_logpdf(double x) const override final { return numr::rayleigh::logpdf(x, arg(0)); }
+    double raw_logratio(double xold, double xnew) const override final { return numr::rayleigh::logratio(xold, xnew, arg(0)); }
+    double raw_rand(rnd_gen &prng) override final { return arg(0) * sqrt(-2 * std::log(unif_gen(prng))); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -426,15 +354,12 @@ public:
     //===== CONSTRUCTOR =====//
     Weibull_Distribution()
         : Distribution("weibull", {"shape", "scale"}, {1., 1.},
-                       0., HOUSEPI_NA_DOUBLE, false, false),
-          distr_gen(get_arg(0), get_arg(1)) {}
+                       0., HSP_NA_DOUBLE, false, false),
+          distr_gen(arg(0), arg(1)) {}
     ~Weibull_Distribution() = default;
 
     //===== SETTER =====//
-    void init_reshaping(bool discrete) override final
-    {
-        init_min_zero_reshaping(discrete, false);
-    }
+    void init_reshaping(bool discrete) override final { init_min_zero_reshaping(discrete, false); }
 
 protected:
     std::weibull_distribution<double> distr_gen;
@@ -442,30 +367,15 @@ protected:
     //===== SETTER =====//
     void update_args() override final
     {
-        distr_gen.param(std::weibull_distribution<double>::param_type(get_arg(0), get_arg(1)));
+        distr_gen.param(std::weibull_distribution<double>::param_type(arg(0), arg(1)));
     }
 
     //===== GETTER =====//
-    double raw_pdf(double x) const override final
-    {
-        return numr::weibull::pdf(x, get_arg(0), get_arg(1));
-    }
-    double raw_cdf(double x) const override final
-    {
-        return numr::weibull::cdf(x, get_arg(0), get_arg(1));
-    }
-    double raw_logpdf(double x) const override final
-    {
-        return numr::weibull::logpdf(x, get_arg(0), get_arg(1));
-    }
-    double raw_logratio(double xold, double xnew) const override final
-    {
-        return numr::weibull::logratio(xold, xnew, get_arg(0), get_arg(1));
-    }
-    double raw_rand(rnd_gen &prng) override final
-    {
-        return distr_gen(prng);
-    }
+    double raw_pdf(double x) const override final { return numr::weibull::pdf(x, arg(0), arg(1)); }
+    double raw_cdf(double x) const override final { return numr::weibull::cdf(x, arg(0), arg(1)); }
+    double raw_logpdf(double x) const override final { return numr::weibull::logpdf(x, arg(0), arg(1)); }
+    double raw_logratio(double xold, double xnew) const override final { return numr::weibull::logratio(xold, xnew, arg(0), arg(1)); }
+    double raw_rand(rnd_gen &prng) override final { return distr_gen(prng); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -479,46 +389,25 @@ public:
     //===== CONSTRUCTOR =====//
     Exponential_Distribution()
         : Distribution("exp", {"rate"}, {1.},
-                       0., HOUSEPI_NA_DOUBLE, false, false),
-          distr_gen(get_arg(0)) {}
+                       0., HSP_NA_DOUBLE, false, false),
+          distr_gen(arg(0)) {}
     ~Exponential_Distribution() = default;
 
     //===== SETTER =====//
-    void init_reshaping(bool discrete) override final
-    {
-        init_min_zero_reshaping(discrete, false);
-    }
+    void init_reshaping(bool discrete) override final { init_min_zero_reshaping(discrete, false); }
 
 protected:
     std::exponential_distribution<double> distr_gen;
 
     //===== SETTER =====//
-    void update_args() override final
-    {
-        distr_gen.param(std::exponential_distribution<double>::param_type(get_arg(0)));
-    }
+    void update_args() override final { distr_gen.param(std::exponential_distribution<double>::param_type(arg(0))); }
 
     //===== GETTER =====//
-    double raw_pdf(double x) const override final
-    {
-        return numr::exponential::pdf(x, get_arg(0));
-    }
-    double raw_cdf(double x) const override final
-    {
-        return numr::exponential::cdf(x, get_arg(0));
-    }
-    double raw_logpdf(double x) const override final
-    {
-        return numr::exponential::logpdf(x, get_arg(0));
-    }
-    double raw_logratio(double xold, double xnew) const override final
-    {
-        return numr::exponential::logratio(xold, xnew, get_arg(0));
-    }
-    double raw_rand(rnd_gen &prng) override final
-    {
-        return distr_gen(prng);
-    }
+    double raw_pdf(double x) const override final { return numr::exponential::pdf(x, arg(0)); }
+    double raw_cdf(double x) const override final { return numr::exponential::cdf(x, arg(0)); }
+    double raw_logpdf(double x) const override final { return numr::exponential::logpdf(x, arg(0)); }
+    double raw_logratio(double xold, double xnew) const override final { return numr::exponential::logratio(xold, xnew, arg(0)); }
+    double raw_rand(rnd_gen &prng) override final { return distr_gen(prng); }
 };
 
 //-----------------------------------------------------------------------------------------------//
@@ -539,7 +428,7 @@ public:
     //===== CONSTRUCTOR =====//
     Poisson_Distribution()
         : Distribution("pois", {"lambda"}, {1.},
-                       0., HOUSEPI_NA_DOUBLE, false, false),
+                       0., HSP_NA_DOUBLE, false, false),
           distr_gen(1.)
     {
         init_functional_discretization(D_DISCR_TYPE_DFND);
@@ -553,32 +442,14 @@ protected:
     std::poisson_distribution<unsigned> distr_gen;
 
     //===== SETTER =====//
-    void update_args() override final
-    {
-        distr_gen.param(std::poisson_distribution<unsigned>::param_type(get_arg(0)));
-    }
+    void update_args() override final { distr_gen.param(std::poisson_distribution<unsigned>::param_type(arg(0))); }
 
     //===== GETTER =====//
-    double raw_pdf(double x) const override final
-    {
-        return numr::poisson::pdf(x, get_arg(0));
-    }
-    double raw_cdf(double x) const override final
-    {
-        return numr::poisson::cdf(x, get_arg(0));
-    }
-    double raw_logpdf(double x) const override final
-    {
-        return numr::poisson::logpdf(x, get_arg(0));
-    }
-    double raw_logratio(double xold, double xnew) const override final
-    {
-        return numr::poisson::logratio(xold, xnew, get_arg(0));
-    }
-    double raw_rand(rnd_gen &prng) override final
-    {
-        return distr_gen(prng);
-    }
+    double raw_pdf(double x) const override final { return numr::poisson::pdf(x, arg(0)); }
+    double raw_cdf(double x) const override final { return numr::poisson::cdf(x, arg(0)); }
+    double raw_logpdf(double x) const override final { return numr::poisson::logpdf(x, arg(0)); }
+    double raw_logratio(double xold, double xnew) const override final { return numr::poisson::logratio(xold, xnew, arg(0)); }
+    double raw_rand(rnd_gen &prng) override final { return distr_gen(prng); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -592,11 +463,11 @@ public:
     //===== CONSTRUCTOR =====//
     Binomial_Distribution()
         : Distribution("binom", {"size", "prob"}, {4, 0.5},
-                       0., HOUSEPI_NA_DOUBLE, false, false),
-          distr_gen(get_arg(0), get_arg(1))
+                       0., HSP_NA_DOUBLE, false, false),
+          distr_gen(arg(0), arg(1))
     {
         init_functional_discretization(D_DISCR_TYPE_DFND);
-        assign_attr("max", ATTR_RANGE, get_ptr_to_arg(0));
+        assign_attr("max", HSP_ATTR_RANGE, get_ptr_to_arg(0));
         init_functional_range(false, false);
     }
     ~Binomial_Distribution() = default;
@@ -609,9 +480,9 @@ public:
                 "Invalid min value " + show_min() + " for distribution \"" + show_name() + "\".");
         else if ((get_min() > 0.) || (get_ptr_to_arg(0) != get_ptr_to_max()))
         {
-            if (get_max() > get_arg(0))
+            if (get_max() > arg(0))
                 throw std::invalid_argument(
-                    "Invalid max value " + show_max() + " for distribution \"" + show_name() + "\" with size " + std::to_string(get_arg(0)) + ".");
+                    "Invalid max value " + show_max() + " for distribution \"" + show_name() + "\" with size " + std::to_string(arg(0)) + ".");
             init_functional_range(false, false);
             init_functional_truncation(D_DISCR_TYPE_DFND);
         }
@@ -623,30 +494,15 @@ protected:
     //===== SETTER =====//
     void update_args() override final
     {
-        distr_gen.param(std::binomial_distribution<unsigned>::param_type(get_arg(0), get_arg(1)));
+        distr_gen.param(std::binomial_distribution<unsigned>::param_type(arg(0), arg(1)));
     }
 
     //===== GETTER =====//
-    double raw_pdf(double x) const override final
-    {
-        return numr::binomial::pdf(x, get_arg(0), get_arg(1));
-    }
-    double raw_cdf(double x) const override final
-    {
-        return numr::binomial::cdf(x, get_arg(0), get_arg(1));
-    }
-    double raw_logpdf(double x) const override final
-    {
-        return numr::binomial::logpdf(x, get_arg(0), get_arg(1));
-    }
-    double raw_logratio(double xold, double xnew) const override final
-    {
-        return numr::binomial::logratio(xold, xnew, get_arg(0), get_arg(1));
-    }
-    double raw_rand(rnd_gen &prng) override final
-    {
-        return distr_gen(prng);
-    }
+    double raw_pdf(double x) const override final { return numr::binomial::pdf(x, arg(0), arg(1)); }
+    double raw_cdf(double x) const override final { return numr::binomial::cdf(x, arg(0), arg(1)); }
+    double raw_logpdf(double x) const override final { return numr::binomial::logpdf(x, arg(0), arg(1)); }
+    double raw_logratio(double xold, double xnew) const override final { return numr::binomial::logratio(xold, xnew, arg(0), arg(1)); }
+    double raw_rand(rnd_gen &prng) override final { return distr_gen(prng); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -660,8 +516,8 @@ public:
     //===== CONSTRUCTOR =====//
     NegativeBinomial_Distribution()
         : Distribution("nbinom", {"size", "prob"}, {4, .5},
-                       0., HOUSEPI_NA_DOUBLE, false, false),
-          distr_gen(get_arg(0), get_arg(1))
+                       0., HSP_NA_DOUBLE, false, false),
+          distr_gen(arg(0), arg(1))
     {
         init_functional_discretization(D_DISCR_TYPE_DFND);
     }
@@ -674,32 +530,14 @@ protected:
     std::negative_binomial_distribution<unsigned> distr_gen;
 
     //===== SETTER =====//
-    void update_args() override final
-    {
-        distr_gen.param(std::negative_binomial_distribution<unsigned>::param_type(get_arg(0), get_arg(1)));
-    }
+    void update_args() override final { distr_gen.param(std::negative_binomial_distribution<unsigned>::param_type(arg(0), arg(1))); }
 
     //===== GETTER =====//
-    double raw_pdf(double x) const override final
-    {
-        return numr::negbinomial::pdf(x, get_arg(0), get_arg(1));
-    }
-    double raw_cdf(double x) const override final
-    {
-        return numr::negbinomial::cdf(x, get_arg(0), get_arg(1));
-    }
-    double raw_logpdf(double x) const override final
-    {
-        return numr::negbinomial::logpdf(x, get_arg(0), get_arg(1));
-    }
-    double raw_logratio(double xold, double xnew) const override final
-    {
-        return numr::negbinomial::logratio(xold, xnew, get_arg(0), get_arg(1));
-    }
-    double raw_rand(rnd_gen &prng) override final
-    {
-        return distr_gen(prng);
-    }
+    double raw_pdf(double x) const override final { return numr::negbinomial::pdf(x, arg(0), arg(1)); }
+    double raw_cdf(double x) const override final { return numr::negbinomial::cdf(x, arg(0), arg(1)); }
+    double raw_logpdf(double x) const override final { return numr::negbinomial::logpdf(x, arg(0), arg(1)); }
+    double raw_logratio(double xold, double xnew) const override final { return numr::negbinomial::logratio(xold, xnew, arg(0), arg(1)); }
+    double raw_rand(rnd_gen &prng) override final { return distr_gen(prng); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -713,18 +551,15 @@ public:
     //===== CONSTRUCTOR =====//
     Geometric_Distribution()
         : Distribution("geom", {"proba"}, {0.5},
-                       0., HOUSEPI_NA_DOUBLE, false, false),
-          distr_gen(get_arg(0))
+                       0., HSP_NA_DOUBLE, false, false),
+          distr_gen(arg(0))
     {
         init_functional_discretization(D_DISCR_TYPE_DFND);
     }
     ~Geometric_Distribution() = default;
 
     //===== SETTER =====//
-    void init_reshaping(bool) override final
-    {
-        init_min_zero_discr_defined_reshaping();
-    }
+    void init_reshaping(bool) override final { init_min_zero_discr_defined_reshaping(); }
 
 protected:
     std::geometric_distribution<unsigned> distr_gen;
@@ -732,29 +567,132 @@ protected:
     //===== SETTER =====//
     void update_args() override final
     {
-        distr_gen.param(std::geometric_distribution<unsigned>::param_type(get_arg(0)));
+        distr_gen.param(std::geometric_distribution<unsigned>::param_type(arg(0)));
     }
 
     //===== GETTER =====//
+    double raw_pdf(double x) const override final { return numr::geometric::pdf(x, arg(0)); }
+    double raw_cdf(double x) const override final { return numr::geometric::cdf(x, arg(0)); }
+    double raw_logpdf(double x) const override final { return numr::geometric::logpdf(x, arg(0)); }
+    double raw_logratio(double xold, double xnew) const override final { return numr::geometric::logratio(xold, xnew, arg(0)); }
+    double raw_rand(rnd_gen &prng) override final { return distr_gen(prng); }
+};
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+#define IMPLEMENT_HOUSEPI_DISTRIBUTION_REGISTRY(ClassName) \
+    ClassName &ClassName::inst()                           \
+    {                                                      \
+        static ClassName _inst;                            \
+        return _inst;                                      \
+    }
+
+IMPLEMENT_HOUSEPI_DISTRIBUTION_REGISTRY(ContinuosDistrRegistry)
+REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, Uniform_Distribution)
+REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, Normal_Distribution)
+REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, Lognormal_Distribution)
+REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, Beta_Distribution)
+REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, Gamma_Distribution)
+REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, GammaMeanVar_Distribution)
+REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, Rayleigh_Distribution)
+REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, Weibull_Distribution)
+REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, Exponential_Distribution)
+
+IMPLEMENT_HOUSEPI_DISTRIBUTION_REGISTRY(DiscreteDistrRegistry)
+REGISTER_HOUSEPI_DISTRIBUTION(DiscreteDistrRegistry, Poisson_Distribution)
+REGISTER_HOUSEPI_DISTRIBUTION(DiscreteDistrRegistry, Binomial_Distribution)
+REGISTER_HOUSEPI_DISTRIBUTION(DiscreteDistrRegistry, NegativeBinomial_Distribution)
+REGISTER_HOUSEPI_DISTRIBUTION(DiscreteDistrRegistry, Geometric_Distribution)
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////// InfecProfile_Ferretti20 : class ////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/*
+The infectivity profile is considered equal to the distribution
+of the Time from Onset of Symptoms to Transmission 't_ost':
+>	t_ost = <time infection infectee> - <time onset infector>
+Its distribution is modeled as a skew-logistic distribution (generalized logistic type I),
+where the pre-symptomatic values are rescaled as a function of the incubation time 'incub'.
+The arguments to provide are :
+  0) "shape";
+  1) "loc";
+  2) "scale";
+  3) "mean_incub" (mean incubation period);
+  4) "incub_period" (individual incubation period);
+Note: symtoms can occur after infection (pre-symptomatic transmission),
+i. e. 't_ost' can be negative.
+----
+Ref:
+----
+Ferretti L, Ledda A, Wymant C, Zhao L, Ledda V, Abeler-Dorner L, et al.
+The timing of COVID-19 transmission.
+medRxiv; 2020. p. 2020.09.04.20188516. doi:10.1101/2020.09.04.20188516
+ */
+class InfecProfile_Ferretti20 : public Distribution
+{
+public:
+    //===== CONSTRUCTOR =====//
+    InfecProfile_Ferretti20()
+        : Distribution("ferretti20",
+                       {"shape", "loc", "scale", "mean_incub", "incub_period"},
+                       {5.85, -4.0, 1.85, 5.8, 5.8},
+                       0., HSP_NA_DOUBLE, false, false) {}
+    ~InfecProfile_Ferretti20() = default;
+
+    //===== SETTER =====//
+    void init_reshaping(bool discrete) override final { init_min_zero_reshaping(discrete, false); }
+
+protected:
     double raw_pdf(double x) const override final
     {
-        return numr::geometric::pdf(x, get_arg(0));
+        const double a = arg(0); // 'shape'
+        const double m = arg(1); // 'loc'
+        const double s = arg(2); // 'scale'
+        const double T = arg(3); // 'mean_incub'
+        const double i = arg(4); // 'incub_period'
+        double tOST = x - i;     // time from onset to transmission
+
+        const double norm_pdf = (s / a) * (1. + (i / T - 1.) * std::pow(1 + std::exp(m / s), -a) - (i / T) * std::pow(1. + std::exp((m + T) / s), -a));
+
+        if (tOST < 0)
+            tOST *= (T / i);
+
+        return std::exp((m - tOST) / s) * std::pow(1. + std::exp((m - tOST) / s), -a - 1.) / norm_pdf;
     }
+
     double raw_cdf(double x) const override final
     {
-        return numr::geometric::cdf(x, get_arg(0));
-    }
-    double raw_logpdf(double x) const override final
-    {
-        return numr::geometric::logpdf(x, get_arg(0));
-    }
-    double raw_logratio(double xold, double xnew) const override final
-    {
-        return numr::geometric::logratio(xold, xnew, get_arg(0));
-    }
-    double raw_rand(rnd_gen &prng) override final
-    {
-        return distr_gen(prng);
+        const double a = arg(0);   // 'shape'
+        const double m = arg(1);   // 'loc'
+        const double s = arg(2);   // 'scale'
+        const double T = arg(3);   // 'mean_incub'
+        const double i = arg(4);   // 'incub_period'
+        const double tOST = x - i; // time from onset to transmission
+
+        const double norm_cdf = (1. + (i / T - 1.) * std::pow(1 + exp(m / s), -a) - (i / T) * (std::pow(1. + exp((m + T) / s), -a)));
+
+        if (tOST < 0) // Integrate from -incub_period to tOST
+            return (i / T) * (std::pow(1. + exp((m - tOST * T / i) / s), -a) - std::pow(1. + exp((m + T) / s), -a)) / norm_cdf;
+
+        else
+        {
+            // Integrate from -incub to 0
+            const double F0 = (i / T) * (std::pow(1. + std::exp(m / s), -a) - std::pow(1. + std::exp((m + T) / s), -a));
+            // Integrate from 0 to t_ost
+            return (F0 + std::pow(1. + std::exp((m - tOST) / s), -a) - std::pow(1. + std::exp(m / s), -a)) / norm_cdf;
+        }
     }
 };
 
@@ -765,60 +703,5 @@ protected:
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////  Continuos Distribution Registry  ///////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-ContinuosDistrRegistry::ContinuosDistrRegistry()
-    : DistrRegistry("continuos distribution")
-{
-    this->register_distr("unif", []()
-                         { return std::make_shared<Uniform_Distribution>(); });
-    this->register_distr("norm", []()
-                         { return std::make_shared<Normal_Distribution>(); });
-    this->register_distr("lnorm", []()
-                         { return std::make_shared<Lognormal_Distribution>(); });
-    this->register_distr("beta", []()
-                         { return std::make_shared<Beta_Distribution>(); });
-    this->register_distr("gamma", []()
-                         { return std::make_shared<Gamma_Distribution>(); });
-    this->register_distr("gamma_meanvar", []()
-                         { return std::make_shared<GammaMeanVar_Distribution>(); });
-    this->register_distr("rayleigh", []()
-                         { return std::make_shared<Rayleigh_Distribution>(); });
-    this->register_distr("weibull", []()
-                         { return std::make_shared<Weibull_Distribution>(); });
-    this->register_distr("exp", []()
-                         { return std::make_shared<Exponential_Distribution>(); });
-}
-
-// Singleton pattern
-ContinuosDistrRegistry &ContinuosDistrRegistry::inst()
-{
-    static ContinuosDistrRegistry _inst;
-    return _inst;
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////  Continuos Distribution Registry  ///////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-DiscreteDistrRegistry::DiscreteDistrRegistry()
-    : DistrRegistry("discrete distribution")
-{
-    this->register_distr("pois", []()
-                         { return std::make_shared<Poisson_Distribution>(); });
-    this->register_distr("binom", []()
-                         { return std::make_shared<Binomial_Distribution>(); });
-    this->register_distr("nbinom", []()
-                         { return std::make_shared<NegativeBinomial_Distribution>(); });
-    this->register_distr("geom", []()
-                         { return std::make_shared<Geometric_Distribution>(); });
-}
-
-// Singleton pattern
-DiscreteDistrRegistry &DiscreteDistrRegistry::inst()
-{
-    static DiscreteDistrRegistry _inst;
-    return _inst;
-}
+IMPLEMENT_HOUSEPI_DISTRIBUTION_REGISTRY(InfecProfileRegistry)
+REGISTER_HOUSEPI_DISTRIBUTION(InfecProfileRegistry, InfecProfile_Ferretti20)

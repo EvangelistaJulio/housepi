@@ -81,7 +81,7 @@ void Proposer::adapt(double ratio)
     for (ushort c = 0; c < _n_args_to_adapt; ++c)
     {
         ushort arg_id = _args_to_adapt_list[c];
-        (_distr_ptr->set_arg)(arg_id, (_distr_ptr->get_arg)(arg_id)*factor);
+        (_distr_ptr->set_arg)(arg_id, (_distr_ptr->arg)(arg_id)*factor);
     }
 }
 
@@ -92,9 +92,9 @@ void Proposer::adapt(double ratio)
 const std::string Proposer::show_scale() const
 {
     if (_n_args_to_adapt == 0)
-        return HOUSEPI_NA_STRING;
+        return HSP_NA_STRING;
     else
-        return std::to_string(std::fabs((_distr_ptr->get_arg)(_args_to_adapt_list[0])));
+        return std::to_string(std::fabs((_distr_ptr->arg)(_args_to_adapt_list[0])));
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -133,8 +133,8 @@ class Uniform_Proposer : public Proposer
 {
 public:
     //===== CONSTRUCTOR =====//
-    Uniform_Proposer(double rule_scale = HOUSEPI_NA_DOUBLE,
-                     double rule_from = HOUSEPI_NA_DOUBLE,
+    Uniform_Proposer(double rule_scale = HSP_NA_DOUBLE,
+                     double rule_from = HSP_NA_DOUBLE,
                      bool is_discrete = false)
         : Proposer("unif", rule_scale, rule_from, {0, 1}, is_discrete)
     {
@@ -150,8 +150,8 @@ public:
     //===== SETTER =====//
     void user_reset() override final
     {
-        _distr_ptr->assign_attr("min", ATTR_ARGUMENT, -_user_rule_scale);
-        _distr_ptr->assign_attr("max", ATTR_ARGUMENT, _user_rule_scale);
+        _distr_ptr->assign_attr("min", HSP_ATTR_ARGUMENT, -_user_rule_scale);
+        _distr_ptr->assign_attr("max", HSP_ATTR_ARGUMENT, _user_rule_scale);
     }
 };
 
@@ -163,8 +163,8 @@ class Normal_Proposer : public Proposer
 {
 public:
     //===== CONSTRUCTOR =====//
-    Normal_Proposer(double rule_scale = HOUSEPI_NA_DOUBLE,
-                    double rule_from = HOUSEPI_NA_DOUBLE,
+    Normal_Proposer(double rule_scale = HSP_NA_DOUBLE,
+                    double rule_from = HSP_NA_DOUBLE,
                     bool is_discrete = false)
         : Proposer("norm", rule_scale, rule_from, {1}, is_discrete)
     {
@@ -183,8 +183,8 @@ public:
     //===== SETTER =====//
     void user_reset() override final
     {
-        _distr_ptr->assign_attr("mean", ATTR_ARGUMENT, 0.);
-        _distr_ptr->assign_attr("sd", ATTR_ARGUMENT, _user_rule_scale);
+        _distr_ptr->assign_attr("mean", HSP_ATTR_ARGUMENT, 0.);
+        _distr_ptr->assign_attr("sd", HSP_ATTR_ARGUMENT, _user_rule_scale);
     }
 };
 
@@ -197,7 +197,7 @@ class Lognorm_Proposer : public Proposer
 public:
     //===== CONSTRUCTOR =====//
     Lognorm_Proposer(double rule_scale = 1.,
-                     double rule_from = HOUSEPI_NA_DOUBLE,
+                     double rule_from = HSP_NA_DOUBLE,
                      bool is_discrete = false)
         : Proposer("lnorm", rule_scale, rule_from, {1}, is_discrete)
     {
@@ -216,8 +216,8 @@ public:
     //===== SETTER =====//
     void user_reset() override final
     {
-        _distr_ptr->assign_attr("meanlog", ATTR_ARGUMENT, 0.);
-        _distr_ptr->assign_attr("sdlog", ATTR_ARGUMENT, _user_rule_scale);
+        _distr_ptr->assign_attr("meanlog", HSP_ATTR_ARGUMENT, 0.);
+        _distr_ptr->assign_attr("sdlog", HSP_ATTR_ARGUMENT, _user_rule_scale);
     }
 };
 
@@ -229,9 +229,9 @@ public:
 //-----------------------------------------------------------------------------------------------//
 
 /* Switchboard to select the custom metropolis proposer rule. */
-std::shared_ptr<Proposer> proposer_switch(const std::string &rule_name = HOUSEPI_NA_STRING,
-                                          double rule_scale = HOUSEPI_NA_DOUBLE,
-                                          double rule_from = HOUSEPI_NA_DOUBLE,
+std::shared_ptr<Proposer> proposer_switch(const std::string &rule_name = HSP_NA_STRING,
+                                          double rule_scale = HSP_NA_DOUBLE,
+                                          double rule_from = HSP_NA_DOUBLE,
                                           bool is_discrete = false)
 {
     const str_vec options = {"draw", "unif", "norm", "lnorm"};
@@ -288,8 +288,9 @@ void Variable::init(const std::string &name, double value,
         _func_ptr = compose_func_registries(
             func_name,
             "function",
-            {&ArithmeticRegistry::inst(),
+            {&UserFuncRegistry::inst(),
              &TranscendentalRegistry::inst(),
+             &ArithmeticRegistry::inst(),
              &ContinuosDistrRegistry::inst(),
              &DiscreteDistrRegistry::inst(),
              &InfecProfileRegistry::inst()});

@@ -208,9 +208,22 @@ trunc_ctime <- function(path) {
   return(max(trunc(file.info(path)$ctime)))
 }
 
-# say if source files modified after dll or new installation
-untracked_changes <- function(model_choice, dll) {
-  last_mod <- trunc_ctime(source_files(model_choice))
+#' @title
+#' Untracjed Changes
+#' @description
+#' Tell if source files was modified or if a more recent installation exists.
+#'
+#' @param source_dir `character(1)`\cr
+#' Path to source directory.
+#' @param dll `character(1)`\cr
+#' Expected dynamic library file name.
+#'
+#' @return
+#' `bool`
+#'
+#' @keywords internal
+untracked_changes <- function(source_dir, dll) {
+  last_mod <- trunc_ctime(source_files(source_dir))
 
   # last changed should be older than installation time
   housepi_dir <- file.path(system.file(package = "housepi"), "template")
@@ -223,7 +236,7 @@ untracked_changes <- function(model_choice, dll) {
 # Optional helper files
 helper_files <- function(path) {
   helper_names <- paste0("template_",
-                         c("params.R", "info.Rd", "augm.R"))
+                         c("param.R", "info.Rd", "augm.R"))
   return(file.path(path, helper_names))
 }
 
@@ -432,7 +445,7 @@ type_split_ <- function(lst) {
 #' @description
 #' Join elements of a dictionary to pass to csv
 #'
-#' @param `character()`\cr
+#' @param x `character()`\cr
 #' Vector of characters.
 #'
 #' @return `character(1)`\cr
@@ -441,6 +454,45 @@ type_split_ <- function(lst) {
 #' @keywords internal
 type_join_ <- function(x) {
   return(paste(x, collapse = "/"))
+}
+
+#' @title
+#' Format setup input
+#' @description
+#' Format elements of a list to pass to import_setup Rcpp method.
+#'
+#' @param defs `list()`\cr
+#' List of setup command
+#'
+#' @return `character()`
+#'
+#' @keywords internal
+fmt_setup_input_ <- function(defs) {
+  # change scientific notation locally
+  withr::local_options(list(scipen = 500))
+  # correct id trace vector
+  if ("id_trace" %in% names(defs)) {
+    y <- unlist(defs$id_trace)
+    if (is.null(y)) defs$id_trace <- NA
+    else defs$id_trace <- type_join_(unique(defs$id_trace))
+  }
+  return(data.frame(lapply(defs, as.character)))
+}
+
+#' @title
+#' Format data input
+#' @description
+#' Format elements of dataset (or datalist) to pass to import Rcpp method.
+#'
+#' @param df `data.frame()`\cr
+#' Dataest or datalist.
+#'
+#' @return `character()`
+#'
+#' @keywords internal
+fmt_data_input_ <- function(df) {
+  if (is.null(df)) return(NULL)
+  else return(data.frame(lapply(df, as.character)))
 }
 
 ############################################################################
@@ -618,4 +670,95 @@ extract_func_ <- function(s) {
   } else {
     return(list(func = NA, key = NA, val = NA, at = NA))
   }
+}
+
+
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+
+#' @title
+#' Housepi Function
+#' @description
+#' Call housepi registered function.
+#'
+#' @param name `character(1)`\cr
+#' Name of the function.
+#' @param x `numeric()`\cr
+#' Input vector.
+#' @param args `numeric()`\cr
+#' Additional arguments.
+#' @param range `numeric()`\cr
+#' Minimum and maximum range of the function.
+#'
+#' @return
+#' `numeric()`
+#'
+#' @export
+housepi_function <- function(name, x,
+                             args = numeric(), range = numeric()) {
+  housepi_dir <- file.path(system.file(package = "housepi"), "template")
+  dll <- file.path(housepi_dir, "src", dll_file_ext("housepienvironment"))
+  dyn.load(dll)
+  m <- Rcpp::Module("housepi_function", PACKAGE = "housepienvironment")
+  y <- m$FunctionHousepi$new(name, args, range)
+  return(y$call(x))
+}
+
+#' @title
+#' Housepi Distribution
+#' @description
+#' Call housepi registered distribution.
+#'
+#' @param name `character(1)`\cr
+#' Name of the distribution.
+#' @param x `numeric()`\cr
+#' Input vector.
+#' @param args `numeric()`\cr
+#' Additional arguments.
+#' @param range `numeric()`\cr
+#' Minimum and maximum range of the distribution.
+#'
+#' @return
+#' `numeric()`
+#'
+#' @export
+housepi_distribution <- function(name, x,
+                                 args = numeric(), range = numeric()) {
+  housepi_dir <- file.path(system.file(package = "housepi"), "template")
+  dll <- file.path(housepi_dir, "src", dll_file_ext("housepienvironment"))
+  dyn.load(dll)
+  m <- Rcpp::Module("housepi_distribution", PACKAGE = "housepienvironment")
+  y <- m$DistributionHousepi$new(name, args, range)
+  return(y$call(x))
+}
+
+#' @title
+#' Housepi Infectivity Profile
+#' @description
+#' Call housepi registered infectivity profile.
+#'
+#' @param name `character(1)`\cr
+#' Name of the infectivity profile
+#' @param x `numeric()`\cr
+#' Input vector.
+#' @param args `numeric()`\cr
+#' Additional arguments.
+#' @param range `numeric()`\cr
+#' Minimum and maximum range of the profile.
+#'
+#' @return
+#' `numeric()`
+#'
+#' @export
+housepi_infec_profile <- function(name, x,
+                                  args = numeric(), range = numeric()) {
+  housepi_dir <- file.path(system.file(package = "housepi"), "template")
+  dll <- file.path(housepi_dir, "src", dll_file_ext("housepienvironment"))
+  dyn.load(dll)
+  m <- Rcpp::Module("housepi_infec_profile", PACKAGE = "housepienvironment")
+  y <- m$InfecProfileHousepi$new(name, args, range)
+  return(y$call(x))
 }

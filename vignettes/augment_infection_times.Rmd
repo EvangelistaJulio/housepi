@@ -213,14 +213,14 @@ inames <- simul_param_defs[imask, ]$name
 ```{r, message = FALSE, warning = FALSE,}
 library(dplyr)
 library(flextable)
-cbind(Simulated = simul_param_defs[imask, ]$value, results) |>
-  tibble::rownames_to_column("Parameter") |>
-  mutate(Inferred = sprintf("%0.4f [%0.4f, %0.4f]",
+cbind(simulated = simul_param_defs[imask, ]$value, results) |>
+  tibble::rownames_to_column("parameter") |>
+  mutate(inferred = sprintf("%0.4f [%0.4f, %0.4f]",
                             mean, cri_lower, cri_upper)) |>
   select(-mean, -sd, -cri_lower, -cri_upper) |>
   flextable() |>
   separate_header() |>
   theme_vanilla() |>
-  bold(j = ~ Parameter, bold = TRUE) |>
+  bold(j = ~ parameter, bold = TRUE) |>
   autofit()
 ```

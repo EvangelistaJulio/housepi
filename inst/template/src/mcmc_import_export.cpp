@@ -23,8 +23,7 @@
 #ifdef _HOUSEPI_RCPP
 
 /* Convert R List into map<string, string>. */
-void rlist_to_map(const Rcpp::List &list,
-                  std::map<std::string, std::string> &output)
+void rlist_to_map(const Rcpp::List &list, dict_str_str &output)
 {
     using namespace Rcpp;
 
@@ -39,19 +38,21 @@ void rlist_to_map(const Rcpp::List &list,
 }
 
 /* Convert R dataframe into map<string, vector<string>>. */
-void rdataframe_to_map(const Rcpp::DataFrame &df,
-                       dict_str_vec &output)
+void rdataframe_to_map(const Rcpp::DataFrame &df, dict_str_vec &output)
 {
     using namespace Rcpp;
 
-    CharacterVector keys = df.names();
-
-    output.clear();
-    for (R_xlen_t i = 0; i < df.size(); ++i)
+    if (df.nrows() > 0)
     {
-        CharacterVector col_str = as<CharacterVector>(df[i]);
-        str_vec col_data(col_str.begin(), col_str.end());
-        output[as<std::string>(keys[i])] = std::move(col_data);
+        output.clear();
+        CharacterVector keys = df.names();
+
+        for (R_xlen_t i = 0; i < df.size(); ++i)
+        {
+            CharacterVector col_str = as<CharacterVector>(df[i]);
+            str_vec col_data(col_str.begin(), col_str.end());
+            output[as<std::string>(keys[i])] = std::move(col_data);
+        }
     }
 }
 
@@ -59,7 +60,7 @@ void rdataframe_to_map(const Rcpp::DataFrame &df,
 Rcpp::String stoRString(const std::string &x)
 {
     if (tools::is_na(x))
-        return HOUSEPI_NA_STRING;
+        return HSP_NA_STRING;
     return Rcpp::String(x);
 }
 
@@ -200,9 +201,8 @@ Rcpp::List MCMC::Impl::export_setup() const
                         _["rand_init"] = setup_rand_init_params,
                         _["seed"] = setup_seed,
                         _["n_threads"] = setup_n_threads,
-                        _["id_trace"] = setup_id_trace,
-                        _["progress"] = setup_progress,
-                        _["inv_temper"] = setup_inv_T);
+                        _["id_trace"] = wrap(setup_id_trace),
+                        _["progress"] = setup_progress);
 }
 
 /* Export current parameter configurations to R DataFrame. */
@@ -282,7 +282,7 @@ Rcpp::DataFrame MCMC::Impl::export_dataset()
     try
     {
         if (n_individuals == 0)
-            throw std::length_error("No dataset to export.");
+            return DataFrame();
 
         size_t n_rows = n_individuals;
         Rcpp::CharacterVector df_index = CharacterVector(n_rows);
@@ -345,11 +345,11 @@ Rcpp::DataFrame MCMC::Impl::export_datalist()
     try
     {
         if (indiv_datalist.size() == 0)
-            throw std::length_error("No datalist to export.");
+            return DataFrame();
 
         // retrieve datalist headers
         str_vec headers = house_vector[0].get_member(0).keys_datalist();
-        
+
         // retrieve total number of rows
         size_t n_rows = 0;
         for (size_t i = 0; i < n_individuals; ++i)
@@ -501,7 +501,14 @@ Rcpp::NumericMatrix MCMC::Impl::export_traces() const
 
         // augmented variable of id trace
         if (!smpl_augm_value.empty())
-            headers += augm_list_infer + augm_list_func;
+        {
+            if (smpl_individual_star.size() == 1)
+                headers += augm_list_infer + augm_list_func;
+            else
+                for (size_t k = 0; k < smpl_individual_star.size(); ++k)
+                    for (const augm_key &a : augm_list_infer + augm_list_func)
+                        headers += {smpl_individual_star[k]->id() + "__" + a};
+        }
 
         // multiple chains
         if (setup_n_chains > 1)
@@ -521,8 +528,12 @@ Rcpp::NumericMatrix MCMC::Impl::export_traces() const
 
         // augmented variables
         if (!smpl_augm_value.empty())
-            for (const augm_key &a : augm_list_infer + augm_list_func)
-                output(_, col++) = NumericVector(wrap(smpl_augm_value.at(a)));
+            for (size_t k = 0; k < smpl_individual_star.size(); ++k)
+            {
+                const auto &smpl_augm_value_k = smpl_augm_value[k];
+                for (const augm_key &a : augm_list_infer + augm_list_func)
+                    output(_, col++) = NumericVector(wrap(smpl_augm_value_k.at(a)));
+            }
 
         // retrieve chain identities
         if (setup_n_chains > 1)
@@ -562,18 +573,24 @@ Rcpp::NumericMatrix MCMC::Impl::export_house_loglike_mtx() const
     try
     {
         if (smpl_full_loglike.empty())
-            tools::error("No traces to export were found.");
+            throw std::length_error("No traces to export were found.");
 
         // create a NumericMatrix with n_house columns
         ulong sample_size = setup_n_chains * setup_c_sample_size;
         NumericMatrix output(sample_size, n_houses());
         CharacterVector headers(n_houses());
 
+        // retrieve restricted index by general index of multiplicity head class
+        std::unordered_map<size_t, size_t> restr_idx_map = {};
+        restr_idx_map.reserve(restrict_hh_indexes.size());
+        for (size_t R = 0; R < restrict_hh_indexes.size(); ++R)
+            restr_idx_map.emplace(restrict_hh_indexes[R], R);
+
         // assign each NumericVector to a column of the matrix
         for (size_t H = 0; H < n_houses(); ++H)
         {
-            size_t H0 = house_vector[H].multiplicity_class_index();
-            output(_, H) = NumericVector(wrap(house_vector[H0].get_smpl_loglike()));
+            size_t R = restr_idx_map.at(house_vector[H].multiplicity_class_index());
+            output(_, H) = NumericVector(wrap(smpl_house_loglike[R]));
             headers[H] = house_vector[H].house_id();
         }
 
@@ -847,6 +864,18 @@ void MCMC::Impl::show_summary() const
 //////////////////////////////////////  MCMC : show setup  ////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+const std::string MCMC::Impl::_aux_print_id_trace() const
+{
+    std::string output = HSP_NA_STRING;
+    if (!smpl_individual_star.empty())
+    {
+        std::string output = smpl_individual_star[0]->id();
+        for (ushort k = 1; k < smpl_individual_star.size(); ++k)
+            output += C_LIST_DELIM + smpl_individual_star[k]->id();
+    }
+    return output;
+}
+
 /* Show the complete choices for the setup. */
 void MCMC::Impl::show_setup() const
 {
@@ -862,8 +891,7 @@ void MCMC::Impl::show_setup() const
         << "\nthin" << C_DELIM << setup_thin
         << "\nrand_init" << C_DELIM << tools::truth(setup_rand_init_params)
         << "\nprogress" << C_DELIM << tools::truth(setup_progress)
-        << "\nid_trace" << C_DELIM << setup_id_trace
-        << "\ninv_temper" << C_DELIM << setup_inv_T
+        << "\nid_trace" << C_DELIM << _aux_print_id_trace()
         << "\n";
 
     tools::print_stdout(oss.str());
@@ -975,9 +1003,18 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
                 inferstate_ofstream << C_DELIM << p;
 
             // augmented variables
-            if (is_augm_sample() && (!tools::is_na(setup_id_trace)))
-                for (const augm_key &a : augm_list_infer + augm_list_func)
-                    inferstate_ofstream << C_DELIM << a;
+
+            // augmented variable of id trace
+            if (!smpl_augm_value.empty())
+            {
+                if (smpl_individual_star.size() == 1)
+                    for (const augm_key &a : augm_list_infer + augm_list_func)
+                        inferstate_ofstream << C_DELIM << a;
+                else
+                    for (size_t k = 0; k < smpl_individual_star.size(); ++k)
+                        for (const augm_key &a : augm_list_infer + augm_list_func)
+                            inferstate_ofstream << smpl_individual_star[k]->id() + "__" + a;
+            }
 
             // header chain
             if (setup_n_chains > 1)
@@ -1005,11 +1042,12 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
                         inferstate_ofstream << C_DELIM << std::setprecision(5)
                                             << std::fixed << smpl_param_value.at(p)[i];
 
-                    // print selected augmented variables
-                    if (is_augm_sample() && (!tools::is_na(setup_id_trace)))
-                        for (const augm_key &a : augm_list_infer + augm_list_func)
-                            inferstate_ofstream << C_DELIM << std::setprecision(5)
-                                                << std::fixed << smpl_augm_value.at(a)[i];
+                    // print augmented variable of id trace
+                    if (!smpl_augm_value.empty())
+                        for (size_t k = 0; k < smpl_individual_star.size(); ++k)
+                            for (const augm_key &a : augm_list_infer + augm_list_func)
+                                inferstate_ofstream << C_DELIM << std::setprecision(5)
+                                                    << std::fixed << smpl_augm_value[k].at(a)[i];
 
                     // print which chain
                     if (setup_n_chains > 1)
@@ -1040,7 +1078,7 @@ void MCMC::Impl::_aux_print_dataset_init_(const std::string &f)
         aux_dataset_ofstream << "id" << C_DELIM << "house_id" << C_DELIM << "status";
 
         // print other data headers
-        for (const data_key &d : dataset_headers)
+        for (const data_key &d : house_vector[0].get_member(0).keys_dataset())
             aux_dataset_ofstream << C_DELIM << d;
 
         // print augmented variables headers
@@ -1061,20 +1099,16 @@ void MCMC::Impl::_aux_print_dataset_update_(Household &house)
         for (Individual &member : house)
         {
             aux_dataset_ofstream << member.id()
-                              << C_DELIM << house.house_id()
-                              << C_DELIM << member.status();
-            for (const data_key &d : dataset_headers)
+                                 << C_DELIM << house.house_id()
+                                 << C_DELIM << member.status();
+            for (const data_key &d : house_vector[0].get_member(0).keys_dataset())
                 aux_dataset_ofstream << C_DELIM << member.data(d);
 
             for (const augm_key &a : augm_list_export())
                 if (member.status() == INFECTED_STATUS)
-                {
-                    double x = member.augm(a);
-                    aux_dataset_ofstream << C_DELIM
-                                      << (tools::is_na(x) ? HOUSEPI_NA_DOUBLE : x);
-                }
+                    aux_dataset_ofstream << tools::na_to_str(member.augm(a));
                 else
-                    aux_dataset_ofstream << C_DELIM << HOUSEPI_NA_DOUBLE;
+                    aux_dataset_ofstream << C_DELIM << HSP_NA_DOUBLE;
 
             aux_dataset_ofstream << std::endl;
         }

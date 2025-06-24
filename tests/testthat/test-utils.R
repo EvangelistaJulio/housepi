@@ -1,6 +1,21 @@
 library(testthat)
 
-test_that("String function extraction", {
+test_that("Function exported from housepi are correct", {
+
+  x <- c(0, 1, 5, 10, 50, 100, 500, 1000)
+
+  expect_true(all(housepi:::housepi_function("pow", x) == x))
+  expect_true(all(housepi:::housepi_function("pow", x, args = c(y = 2)) == x^2))
+  expect_true(all(housepi:::housepi_function("pow", x, args = c(y = -3)) == x^(-3)))
+  expect_true(all(housepi:::housepi_function("exp", x) == exp(x)))
+  expect_true(all(housepi:::housepi_function("log", x) == log(x)))
+  expect_true(all(housepi:::housepi_function("sin", x) == sin(x)))
+  expect_true(all(housepi:::housepi_function("cos", x) == cos(x)))
+  expect_true(all(housepi:::housepi_function("sin", x) == sin(x)))
+  expect_true(all(housepi:::housepi_function("tan", x) == tan(x)))
+})
+
+test_that("String function extraction returns expected results", {
   x <- housepi:::extract_func_("=alpha@P")
   expect_equal(x$func, "eq")
   expect_equal(x$key, "x")

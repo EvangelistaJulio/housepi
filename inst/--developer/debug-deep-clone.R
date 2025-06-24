@@ -1,5 +1,6 @@
-library(testthat)
+#library(testthat)
 
+options(error = NULL)
 source("R/utils.R")
 source("R/template.R")
 source("R/augmented.R")
@@ -11,9 +12,14 @@ source("R/model_generator.R")
 source("R/model_wrapper.R")
 source("R/model_class.R")
 
-# load or compile custom package
-hhmodel <- HouseholdModel$new("augm-onset-single-intro")
+# debug deep clone of housepi wrapper class
+hhwrap <- HousepiWrapper$new("chain-binomial")
+hhclone <- hhwrap$clone(deep = TRUE)
+hhwrap$generate()
+hhclone <- hhwrap$clone(deep = TRUE)
 
+# devug deep clone of final hosuepi model class
+hhmodel <- HouseholdModel$new("chain-binomial")
 # FIXME early clone breaks it
 hhclone <- hhmodel$clone(deep = TRUE)
 

@@ -297,8 +297,6 @@ HouseholdModel <- R6::R6Class(
     # If `TRUE` the initial value of the parameters is drawn from prior.
     # @param id_trace `character(1)`\cr
     # Individual identifier to show augmented traces. Default is NA.
-    # @param inv_temper `double(1)`\cr
-    # Value of the inverse temperature.
     # For standard usage this is 1.
     # @param seed `integer(1)`\cr
     # Seed of the random number generator.
@@ -309,7 +307,7 @@ HouseholdModel <- R6::R6Class(
                            sample_size = NA, n_steps = 0,
                            n_burnin = 0, thin = 1, n_adapt = 0,
                            n_chains = 1, n_threads = 1,
-                           rand_init = TRUE, id_trace = NA, inv_temper = 1.0,
+                           rand_init = TRUE, id_trace = NA,
                            seed = NA, progress = FALSE) {
       # import dataset
       self$import_dataset(dataset, .hold = FALSE)
@@ -350,8 +348,7 @@ HouseholdModel <- R6::R6Class(
         n_steps = n_steps, thin = thin,
         n_burnin = n_burnin, n_adapt = n_adapt, n_chains = n_chains,
         n_threads = n_threads, rand_init = rand_init,
-        id_trace = id_trace, inv_temper = inv_temper,
-        seed = seed, progress = as.integer(progress)
+        id_trace = id_trace, seed = seed, progress = as.integer(progress)
       ))
 
       # build group & contact rates
@@ -372,7 +369,10 @@ HouseholdModel <- R6::R6Class(
     # e. g. create a standalone folder somewhere with correct links to headers
     .export_to_cpp_standalone = function(outpath = "../housepi/inst/standalone/") {
       write.csv(private$.model$export_dataset_to_standalone(),
-                file.path(outpath, "data.tmp"),
+                file.path(outpath, "dataset.tmp"),
+                quote = FALSE, row.names = FALSE)
+      write.csv(private$.model$export_datalist_to_standalone(),
+                file.path(outpath, "datalist.tmp"),
                 quote = FALSE, row.names = FALSE)
       write.csv(self$augm_defs,
                 file.path(outpath, "augm.tmp"),
@@ -773,7 +773,7 @@ HouseholdModel <- R6::R6Class(
       } else {
         # retrieve the template parameters file
         private$.param$load_template(
-          file.path(private$.model$path, "template_params.R"),
+          file.path(private$.model$path, "template_param.R"),
           private$.param$require(private$.model$reference),
           isTRUE(append)
         )
@@ -1033,9 +1033,6 @@ HouseholdModel <- R6::R6Class(
     #' - If `FALSE` initial value definitions are used.
     #' @param id_trace `character(1)` \cr
     #' Individual identifier for augmented trace plots. Default is `NA`.
-    #' @param inv_temper `double(1)` \cr
-    #' Inverse temperature parameter.
-    #' Typically set to 1 for standard MCMC sampling.
     #' @param seed `integer(1)` \cr
     #' Seed for the random number generator.
     #' - If a specific integer is provided, sets the random number generator seed.
@@ -1049,15 +1046,14 @@ HouseholdModel <- R6::R6Class(
                      sample_size = NA, n_steps = 10000,
                      n_burnin = 0, thin = 1, n_adapt = 0,
                      n_chains = 1, n_threads = 1,
-                     rand_init = TRUE, id_trace = NA, inv_temper = 1.0,
+                     rand_init = TRUE, id_trace = NA,
                      seed = NA, progress = TRUE) {
       # internal build function
       private$.build_full(dataset = dataset, sample_size = sample_size,
                           n_steps = n_steps, n_burnin = n_burnin, thin = thin,
                           n_adapt = n_adapt, n_chains = n_chains,
                           n_threads = n_threads, rand_init = rand_init,
-                          id_trace = id_trace, inv_temper = inv_temper,
-                          seed = seed, progress = progress)
+                          id_trace = id_trace, seed = seed, progress = progress)
       private$.multiplicity_engine(dataset = dataset)
 
       # infer method from cpp model object

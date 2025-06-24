@@ -31,7 +31,7 @@ double MCMC::Impl::_type_to_double(const Individual &member,
                                    const std::string &value,
                                    const std::string &type)
 {
-    double output = HOUSEPI_NA_DOUBLE;
+    double output = HSP_NA_DOUBLE;
 
     if (!(tools::is_na(value) && tools::is_na(type)))
     {
@@ -90,7 +90,7 @@ void MCMC::Impl::_assign_augm_attributes(Individual &member,
         bool flag = is_arg[k];
 
         // outputs
-        double x = HOUSEPI_NA_DOUBLE;
+        double x = HSP_NA_DOUBLE;
         const double *y = nullptr;
         std::shared_ptr<Function> f = nullptr;
 
@@ -118,7 +118,7 @@ void MCMC::Impl::_assign_augm_attributes(Individual &member,
             else
             {
                 y = get_param_pointer(value);
-                if (is_var_model == VAR_FUNCTION)
+                if (is_var_model == HSP_VAR_FUNCTION)
                     make_param_cache_dependent(value);
             }
         }
@@ -151,21 +151,21 @@ void MCMC::Impl::_assign_augm_attributes(Individual &member,
         // final assignment
         if (!tools::is_na(x)) // scalar attribute
         {
-            if (is_var_model == VAR_MODEL)
+            if (is_var_model == HSP_VAR_MODEL)
                 xaugm.assign_distr_attr(key, flag, x);
             else
                 xaugm.assign_func_attr(key, flag, x);
         }
         else if (y != nullptr) // pointer attribute
         {
-            if (is_var_model == VAR_MODEL)
+            if (is_var_model == HSP_VAR_MODEL)
                 xaugm.assign_distr_attr(key, flag, y);
             else
                 xaugm.assign_func_attr(key, flag, y);
         }
         else if (f != nullptr) // function attribute
         {
-            if (is_var_model == VAR_MODEL)
+            if (is_var_model == HSP_VAR_MODEL)
                 xaugm.assign_distr_attr(key, flag, f);
             else
                 xaugm.assign_func_attr(key, flag, f);
@@ -181,7 +181,7 @@ void MCMC::Impl::_assign_augm_func_args(Individual &member,
                                         const str_vec &typs)
 {
     _assign_augm_attributes(member, a, keys, vals, typs,
-                            std::vector<bool>(keys.size(), ATTR_ARGUMENT), VAR_FUNCTION);
+                            std::vector<bool>(keys.size(), HSP_ATTR_ARGUMENT), HSP_VAR_FUNCTION);
 }
 /* Assign augmented function range. */
 void MCMC::Impl::_assign_augm_func_range(Individual &member,
@@ -190,7 +190,7 @@ void MCMC::Impl::_assign_augm_func_range(Individual &member,
                                          const str_vec &typs)
 {
     _assign_augm_attributes(member, a, {"min", "max"}, vals, typs,
-                            std::vector<bool>(2, ATTR_RANGE), VAR_FUNCTION);
+                            std::vector<bool>(2, HSP_ATTR_RANGE), HSP_VAR_FUNCTION);
 }
 
 /* Assign augmented model arguments. */
@@ -201,7 +201,7 @@ void MCMC::Impl::_assign_augm_model_args(Individual &member,
                                          const str_vec &typs)
 {
     _assign_augm_attributes(member, a, keys, vals, typs,
-                            std::vector<bool>(keys.size(), ATTR_ARGUMENT), VAR_MODEL);
+                            std::vector<bool>(keys.size(), HSP_ATTR_ARGUMENT), HSP_VAR_MODEL);
 }
 /* Assign augmented model range. */
 void MCMC::Impl::_assign_augm_model_range(Individual &member,
@@ -210,7 +210,7 @@ void MCMC::Impl::_assign_augm_model_range(Individual &member,
                                           const str_vec &typs)
 {
     _assign_augm_attributes(member, a, {"min", "max"}, vals, typs,
-                            std::vector<bool>(2, ATTR_RANGE), VAR_MODEL);
+                            std::vector<bool>(2, HSP_ATTR_RANGE), HSP_VAR_MODEL);
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -300,31 +300,33 @@ void MCMC::Impl::_build_augm_allocate_univocal_defs(const dict_str_vec &check)
 /* Search individual id for augmented traces follow-up. */
 void MCMC::Impl::_build_augm_set_id_trace()
 {
-    if (is_augm_sample())
+    if (!setup_id_trace.empty())
     {
-        if (!tools::is_na(setup_id_trace))
+        if (is_augm_sample())
         {
             for (Household &house : house_vector)
                 for (Individual &member : house)
-                    if (member.id() == setup_id_trace)
-                        smpl_individual_star = &member;
+                    if (contains(setup_id_trace, member.id()))
+                        smpl_individual_star.push_back(&member);
 
-            if (smpl_individual_star == nullptr)
+            if (smpl_individual_star.empty())
             {
                 tools::warning(
-                    "Ignoring id trace: no individual \"" + setup_id_trace + "\" was found.");
-                setup_id_trace = HOUSEPI_NA_STRING;
+                    "Ignoring id trace for individual" + tools::show_list(setup_id_trace));
+                setup_id_trace.clear();
             }
-            else if (smpl_individual_star->status() < INFECTED_STATUS)
-                tools::warning(
-                    "Individual id \"" + setup_id_trace + "\" correspond to a healthy individual.");
+            else
+                for (Individual *member : smpl_individual_star)
+                    if (member->status() < INFECTED_STATUS)
+                        tools::warning(
+                            "Ignornig trace of healthy individual id \"" + member->id() + "\".");
         }
-    }
-    else if (!tools::is_na(setup_id_trace))
-    {
-        tools::warning(
-            "Ignoring id trace: no augmented variables to infer.");
-        setup_id_trace = HOUSEPI_NA_STRING;
+        else
+        {
+            tools::warning(
+                "Ignoring id trace: no augmented variables to infer.");
+            setup_id_trace.clear();
+        }
     }
 }
 
@@ -582,22 +584,6 @@ void MCMC::Impl::_init_augmented_variables()
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-/* Compute loglikelihood term associated to augmented models. */
-double MCMC::Impl::_compute_augm_model_loglike(Household &house)
-{
-    double hh_loglike = 0.;
-    for (Individual &member : house.infected())
-        hh_loglike += member.get_augm_model_loglike();
-    return hh_loglike;
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////  MCMC : move all augmented variables  /////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -652,35 +638,35 @@ double MCMC::Impl::_move_augm_single_house(size_t H)
     double delta_ll = 0.;
     Household &house = house_vector[H];
     // Loop over infectious residents of the househould
-    for (const indiv &i : house.get_infected_status_hhindexes())
-        delta_ll += (this->*_do_move_augm_indiv)(house, i);
+    for (Individual &member_i : house.infected())
+        delta_ll += (this->*_do_move_augm_indiv)(house, member_i);
     return delta_ll;
 }
 
 /* Generic move augmented variables one by one. */
-double MCMC::Impl::__move_augm_indiv_generic(Household &house, indiv i)
+double MCMC::Impl::__move_augm_indiv_generic(Household &house, Individual &member_i)
 {
     double delta_ll = 0.;
     // Loop over augmented variables of infectious
     for (const augm_key &a : augm_list_infer)
-        delta_ll += _metropolis_augm_single_move(house, i, a);
+        delta_ll += _metropolis_augm_single_move(house, member_i, a);
     return delta_ll;
 }
 
 /* Move augmented variables by status one variable at a time. */
-double MCMC::Impl::__move_augm_indiv_by_status(Household &house, indiv i)
+double MCMC::Impl::__move_augm_indiv_by_status(Household &house, Individual &member_i)
 {
     double delta_ll = 0.;
     // Loop over augmented variables of infectious
-    for (const augm_key &a : augm_status_map_infer.at(house.status(i)))
-        delta_ll += _metropolis_augm_single_move(house, i, a);
+    for (const augm_key &a : augm_status_map_infer.at(member_i.status()))
+        delta_ll += _metropolis_augm_single_move(house, member_i, a);
     return delta_ll;
 }
 
 /* Take care of a a single augmented Metropolis move. */
-double MCMC::Impl::_metropolis_augm_single_move(Household &house, indiv i, const augm_key &a)
+double MCMC::Impl::_metropolis_augm_single_move(Household &house, Individual &member, const augm_key &a)
 {
-    Variable &xaugm = house.get_member(i).get_augm_variable(a);
+    Variable &xaugm = member.get_augm_variable(a);
 
     xaugm.propose(get_prng()); // propose new value and buffer old
 
@@ -689,23 +675,21 @@ double MCMC::Impl::_metropolis_augm_single_move(Household &house, indiv i, const
     {
         // update dependencies to perform computations
         house.buffer_all_cache();
-        _update_cache_dependecies(house, i);
-
-        double new_obs_ll = _compute_household_obs_loglike(house);
-        // UPDATE: I don't need to recompute for all individuals
-        double new_augm_value = _compute_augm_model_loglike(house);
+        _update_cache_dependecies(house, member);
 
         // Metropolis-Hastings algorithm
-        const double D_ll = new_obs_ll + new_augm_value - house.get_obs_loglike() - house.get_augm_loglike();
+        double D_ll = -(house.get_obs_loglike() + member.get_augm_model_loglike());
+        D_ll += member.compute_and_set_augm_model_loglike();
+        D_ll += _compute_and_set_household_obs_loglike(house);
+
         if (uniform() < std::exp(setup_inv_T * D_ll - xaugm.propose_logratio()))
-        {
-            house.set_obs_loglike(new_obs_ll);
-            house.set_augm_loglike(new_augm_value);
             return D_ll;
-        }
         else
+        {
             // else recover cached values
-            house.recover_all_cache();
+            house.recover_buffer_values(true);
+            member.recover_augm_model_loglike();
+        }
     }
     // else recover buffered value
     xaugm.recover_value();

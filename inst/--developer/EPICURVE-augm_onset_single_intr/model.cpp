@@ -93,10 +93,10 @@ double epi_curve_cumul(double t) { return interpolate_by_date(t, Cumul_EPI_Curve
 /* Probability distribution function for the Infectivity Profile. */
 double Infectivity_Profile_Function::pdf(double tost, double t_incub)
 {
-	double a = get_arg(0); // shape argument
-	double m = get_arg(1); // location argument
-	double s = get_arg(2); // shape argument
-	double T = get_arg(3); // mean incubation period argument
+	double a = arg(0); // shape argument
+	double m = arg(1); // location argument
+	double s = arg(2); // shape argument
+	double T = arg(3); // mean incubation period argument
 
 	double norm_pdf = (s / a) * (1. + (t_incub / T - 1.) * pow(1 + exp(m / s), -a) - (t_incub / T) * (pow(1. + exp((m + T) / s), -a)));
 
@@ -114,10 +114,10 @@ double Infectivity_Profile_Function::pdf(double tost, double t_incub)
 /* Cumulative distribution function forthe Infectivity Profile. */
 double Infectivity_Profile_Function::cdf(double tost, double t_incub)
 {
-	double a = get_arg(0); // shape argument
-	double m = get_arg(1); // location argument
-	double s = get_arg(2); // shape argument
-	double T = get_arg(3); // mean incubation period argument
+	double a = arg(0); // shape argument
+	double m = arg(1); // location argument
+	double s = arg(2); // shape argument
+	double T = arg(3); // mean incubation period argument
 
 	double norm_cdf = (1. + (t_incub / T - 1.) * pow(1 + exp(m / s), -a) - (t_incub / T) * (pow(1. + exp((m + T) / s), -a)));
 

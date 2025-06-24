@@ -30,7 +30,7 @@ MCMC::MCMC()
           { return this->compute_household_obs_loglike(h); },
           [this](Household &h)
           { return this->simulate_single_household(h); },
-          [this](Household &h, indiv i)
+          [this](Household &h, Individual &i)
           { this->update_cache_dependecies(h, i); })) {}
 MCMC::~MCMC() = default;
 
@@ -179,7 +179,7 @@ void MCMC::_assign_contact_rate(Household &house)
                 // note : from 'k' --> to 'i'
                 if (k != i)
                 {
-                    _pair_contact_rate = HOUSEPI_NA_STRING;
+                    _pair_contact_rate = HSP_NA_STRING;
                     assign_contact_rate_to_household(house, k, i);
 
                     if (!tools::is_na(_pair_contact_rate))

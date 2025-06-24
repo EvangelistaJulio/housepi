@@ -10,7 +10,7 @@
 # model_wrapper.R
 #
 
-#' @title 
+#' @title
 #' Cpp Data Refactor
 #' @description
 #' Restore factored quanties on dataset return from Cpp implementation.
@@ -19,9 +19,9 @@
 #' Dataset as output from rcpp model object.
 #' @param levels `list()`\ce
 #' Levels of the factors in the dataset.
-#' 
+#'
 #' @return `data.frame`
-#' 
+#'
 #' @keywords internal
 cpp_data_refactor = function(df, levels) {
   for (col in names(levels)) {
@@ -262,7 +262,7 @@ HousepiWrapper <- R6::R6Class(
           }
         }
         # import data.frame in rcpp # note: it calls
-        private$.rcpp$import_dataset(dataset)
+        private$.rcpp$import_dataset(fmt_data_input_(dataset))
         # store column names
         self$last_dataset_cols <- colnames(dataset)
       }
@@ -287,7 +287,7 @@ HousepiWrapper <- R6::R6Class(
           }
         }
         # import data.frame in rcpp # note: it calls
-        private$.rcpp$import_datalist(datalist)
+        private$.rcpp$import_datalist(fmt_data_input_(datalist))
         # store column names
         self$last_datalist_cols <- colnames(datalist)
       }
@@ -300,9 +300,7 @@ HousepiWrapper <- R6::R6Class(
     #' @param defs `list()`\cr
     #' List of setup definitions.
     import_setup = function(defs) {
-      # change scientific notation locally
-      withr::local_options(list(scipen = 500))
-      private$.rcpp$import_setup(lapply(defs, as.character))
+      private$.rcpp$import_setup(fmt_setup_input_(defs))
       invisible(self)
     },
 
@@ -360,7 +358,15 @@ HousepiWrapper <- R6::R6Class(
     export_dataset_to_standalone = function() {
       return(private$.rcpp$export_dataset())
     },
-    
+
+    #' @description
+    #' Export datalist formatted for C++ standalone.
+    #'
+    #' @return `data.frame`
+    export_datalist_to_standalone = function() {
+      return(private$.rcpp$export_datalist())
+    },
+
     #' @description
     #' Showcase instantaneous and cumulative values of infectivity profile.
     #'

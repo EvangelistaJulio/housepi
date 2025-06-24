@@ -42,13 +42,13 @@ public:
 
     Proposer() {};
     Proposer(std::shared_ptr<Distribution>,
-             double rule_scale = HOUSEPI_NA_DOUBLE,
-             double rule_start_value = HOUSEPI_NA_DOUBLE,
+             double rule_scale = HSP_NA_DOUBLE,
+             double rule_start_value = HSP_NA_DOUBLE,
              const std::vector<ushort> &args_to_adapt = {},
              bool is_discrete = false);
     Proposer(const std::string &distr_name,
-             double rule_scale = HOUSEPI_NA_DOUBLE,
-             double rule_start_value = HOUSEPI_NA_DOUBLE,
+             double rule_scale = HSP_NA_DOUBLE,
+             double rule_start_value = HSP_NA_DOUBLE,
              const std::vector<ushort> &args_to_adapt = {},
              bool is_discrete = false);
     virtual ~Proposer() {};
@@ -58,7 +58,7 @@ public:
     //==================//
 
     const std::string show_name() const { return this->_proposer_name; }
-    double get_arg(ushort argID) const { return (_distr_ptr->get_arg)(argID); }
+    double get_arg(ushort argID) const { return (_distr_ptr->arg)(argID); }
     double get_from_value() const { return _from_value; }
     double propose(rnd_gen &prng, double start) { return (this->*_do_propose)(prng, start); }
     double logratio(double xold, double xnew) const { return (this->*_do_logratio)(xold, xnew); }
@@ -98,12 +98,12 @@ public:
     const std::string show_scale() const;
 
 protected:
-    std::string _proposer_name = HOUSEPI_NA_STRING;
+    std::string _proposer_name = HSP_NA_STRING;
     std::shared_ptr<Distribution> _distr_ptr;
 
     double _user_rule_scale = 1.;           // scale of the Metropolis rule
     bool _is_start_from_zero = false;       // wheter to move from given value
-    double _from_value = HOUSEPI_NA_DOUBLE; // given value where to start from
+    double _from_value = HSP_NA_DOUBLE; // given value where to start from
 
     double _accept_rate = 0.;    // acceptance rate
     ulong _n_proposed_moves = 0; // number of proposed moves
@@ -140,11 +140,11 @@ public:
     //===== CONSTRUCTOR =====//
     //=======================//
 
-    Variable(const std::string &name = HOUSEPI_NA_STRING,
-             double value = HOUSEPI_NA_DOUBLE,
+    Variable(const std::string &name = HSP_NA_STRING,
+             double value = HSP_NA_DOUBLE,
              bool is_discrete = false,
              bool is_constant = true,
-             const std::string &func_name = HOUSEPI_NA_STRING)
+             const std::string &func_name = HSP_NA_STRING)
         : _func_ptr(std::make_shared<Function>()),
           _distr_ptr(std::make_shared<Distribution>()),
           _prop_ptr(std::make_shared<Proposer>())
@@ -176,7 +176,7 @@ public:
 
     void init(const std::string &name, double value, bool is_discrete,
               bool is_constant = true,
-              const std::string &func_name = HOUSEPI_NA_STRING);
+              const std::string &func_name = HSP_NA_STRING);
 
     /* Set value to variable. */
     void set_value(double x) { (this->*_do_set_value)(x); }
@@ -202,7 +202,7 @@ public:
     void init_func_reshaping() { _func_ptr->init_reshaping(_is_discrete); }
 
     //----- Pointer to distribution -----//
-    void assign_distr(const std::string &distr_name = HOUSEPI_NA_STRING);
+    void assign_distr(const std::string &distr_name = HSP_NA_STRING);
 
     /* Assign a scalar argument to distribution. */
     void assign_distr_attr(const std::string &a, bool is_arg, double x) { _distr_ptr->assign_attr(a, is_arg, x); }
@@ -214,9 +214,9 @@ public:
     void init_distr_reshaping();
 
     //----- Pointer to proposer -----//
-    void assign_proposer(const std::string &rule_name = HOUSEPI_NA_STRING,
-                         double rule_scale = HOUSEPI_NA_DOUBLE,
-                         double rule_from = HOUSEPI_NA_DOUBLE);
+    void assign_proposer(const std::string &rule_name = HSP_NA_STRING,
+                         double rule_scale = HSP_NA_DOUBLE,
+                         double rule_from = HSP_NA_DOUBLE);
 
     //===============================//
     //===== METROPOLIS-HASTINGS =====//
@@ -268,11 +268,11 @@ private:
     std::shared_ptr<Distribution> _distr_ptr; // prior\model distribution of the variable
     std::shared_ptr<Proposer> _prop_ptr;      // Monte Carlo proposer
 
-    std::string _variable_name = HOUSEPI_NA_STRING; // name of variable
-    double _value = HOUSEPI_NA_DOUBLE;              // value
-    double _buffer_value = HOUSEPI_NA_DOUBLE;       // buffered value
+    std::string _variable_name = HSP_NA_STRING; // name of variable
+    double _value = HSP_NA_DOUBLE;              // value
+    double _buffer_value = HSP_NA_DOUBLE;       // buffered value
 
-    double _user_value = HOUSEPI_NA_DOUBLE; // initial user defined value
+    double _user_value = HSP_NA_DOUBLE; // initial user defined value
     bool _is_discrete = false;              // wheter discrete or not
     bool _is_constant = true;               // wheter constant or not
 

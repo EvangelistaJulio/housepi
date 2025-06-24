@@ -29,11 +29,11 @@
 #include <functional>
 #include <algorithm>
 
-/* DEVELOPER: flag used to predispose to different wrapper*/
+/* DEVELOPER: flag used to predispose to different wrapper
 #ifndef _HOUSEPI_RCPP
 #define _HOUSEPI_RCPP
 #endif
-
+*/
 
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
@@ -47,23 +47,31 @@
 //////////////////////////////////////  GLOBAL VARIABLES  ///////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+// attribute aliases
+#define HSP_ATTR_ARGUMENT true // default argument
+#define HSP_ATTR_RANGE false   // range argument
+
+// variable parts aliases
+#define HSP_VAR_FUNCTION false // pass to Variable function
+#define HSP_VAR_MODEL true     //  pass to Variable model
+
 // NA value for double
 #ifdef _HOUSEPI_RCPP
-const double HOUSEPI_NA_DOUBLE = NA_REAL;
+const double HSP_NA_DOUBLE = NA_REAL;
 #else
-const double HOUSEPI_NA_DOUBLE = std::numeric_limits<double>::quiet_NaN();
+const double HSP_NA_DOUBLE = std::numeric_limits<double>::quiet_NaN();
 #endif
 
 // NA value for string
-const std::string HOUSEPI_NA_STRING = "<NA>";
+const std::string HSP_NA_STRING = "<NA>";
 
 // status aliases
-constexpr int INFECTED_STATUS = 1; // infected status (>=)
-constexpr int HEALTHY_STATUS = 0;  // healthy status (==)
-constexpr int MISSING_STATUS = -1; // missing status (<=)
+#define INFECTED_STATUS 1 // infected status (>=)
+#define HEALTHY_STATUS 0  // healthy status (==)
+#define MISSING_STATUS -1 // missing status (<=)
 
 // group rates
-constexpr double REFERENCE_VALUE = 1.0;          // alias for reference value
+constexpr double REFERENCE_VALUE = 1.0;                      // alias for reference value
 const std::string REFERENCE = "REFERENCE";       // reference choice
 const std::string CONTACT_RATE = "Contact";      // contact rate
 const std::string MISSING_RATE = "MISSING_RATE"; // missing rate
@@ -76,14 +84,6 @@ const std::string AUX_IP_CUMUL_PROFILE = "__profile_cumul__"; // augmented cumul
 constexpr unsigned DEFAULT_MAX_SIZE = 30;    // default size for lookup table
 constexpr unsigned MAX_NUM_ATTEMPTS = 100;   // max n. of attempts for initialization
 constexpr double TARGET_ACCEPT_RATE = 0.234; // target acceptation rate for MCMC
-
-// attribute aliases
-#define ATTR_ARGUMENT true // default argument
-#define ATTR_RANGE false   // range argument
-
-// variable parts aliases
-#define VAR_FUNCTION false // pass to Variable function
-#define VAR_MODEL true     //  pass to Variable model
 
 // file formatters
 constexpr char C_DELIM = ',';      // file delimiter

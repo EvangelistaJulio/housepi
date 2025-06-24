@@ -36,7 +36,7 @@ public:
 	void init_user_advanced_setup() override final;
 	void init_model_for_inference() override final;
 	void init_model_for_simulation() override final;
-	void update_cache_dependecies(Household &house, indiv i) override final;
+	void update_cache_dependecies(Household &house, Individual &member_i) override final;
 	double compute_household_obs_loglike(Household &house) const override final;
 	void simulate_single_household(Household &house) override final;
 

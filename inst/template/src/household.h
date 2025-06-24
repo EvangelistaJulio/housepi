@@ -40,22 +40,22 @@ public:
 	//===== CONSTRUCTOR =====//
 	//=======================//
 
-	Individual(size_t index = 0,
-			   indiv hhindex = 0,
-			   const std::string &id = HOUSEPI_NA_STRING,
-			   int status = MISSING_STATUS,
-			   const data_key_map<double> &data = {});
+	Individual() {}
+	Individual(size_t index,
+			   indiv hhindex,
+			   const std::string &id,
+			   int status,
+			   const data_key_map<double> &data);
 	~Individual();
 
-	bool operator==(const Individual &other) const { return _index == other._index; }
-	bool operator!=(const Individual &other) const { return !(*this == other); }
+	bool operator==(const Individual &other) const { return this->_index == other._index; }
+	bool operator!=(const Individual &other) const { return this->_index != other._index; }
 
 	//==================//
 	//===== GETTER =====//
 	//==================//
 
 	const std::string &id() const { return _id; }
-	size_t index() const { return _index; }
 	indiv hhindex() const { return _hhindex; }
 	int status() const { return _status; }
 
@@ -64,8 +64,6 @@ public:
 	double group_rate(const rate_key &r) const { return _rate_map.at(r).get(); }
 	double augm(const augm_key &a) const { return _augm_map.at(a).get(); }
 	Variable &get_augm_variable(const augm_key &a) { return _augm_map.at(a); }
-
-	double get_augm_model_loglike() const;
 
 	const std::vector<data_key> keys_dataset() const;
 	const std::vector<data_key> keys_datalist() const;
@@ -91,6 +89,14 @@ public:
 					 const std::string &model_name);
 	void init_augm_model(const std::vector<augm_key> &augm_model_list);
 
+	//=========================//
+	//===== LOGLIKELIHOOD =====//
+	//=========================//
+
+	double get_augm_model_loglike() const { return _augm_loglike; }
+	double compute_and_set_augm_model_loglike();
+	void recover_augm_model_loglike() { _augm_loglike = _augm_buffer; };
+
 private:
 	// individual group rate nested class
 	struct GroupRate
@@ -99,25 +105,27 @@ private:
 		ushort n_rates = 0;
 		const double **pointers = {};
 
-		GroupRate(const std::string &name = HOUSEPI_NA_STRING,
+		GroupRate(const std::string &name = HSP_NA_STRING,
 				  const std::vector<const double *> &pointers = {});
 		~GroupRate();
 		double get() const;
 	};
 
-	std::string _id = HOUSEPI_NA_STRING; // user id
-	size_t _index = 0;					 // housepi internal index
-	indiv _hhindex = 0;					 // household relative index
-	int _status = MISSING_STATUS;		 // status of the individual
+	std::string _id = HSP_NA_STRING; // user id
+	size_t _index = 0;				 // housepi internal index
+	indiv _hhindex = 0;				 // household relative index
+	int _status = MISSING_STATUS;	 // status of the individual
 
 	// NOTE: I am forced to store numerical variables
-	data_key_map<double> _data_map = {};	 // dataset
-	augm_key_map<Variable> _augm_map = {};	 // augmented
+	data_key_map<double> _data_map = {};	// dataset
+	augm_key_map<Variable> _augm_map = {};	// augmented
 	rate_key_map<GroupRate> _rate_map = {}; // group rates
 
 	data_key_map<dbl_vec> *_datalist_ptr = nullptr; // datalist to be associated
 
 	std::vector<std::function<double()>> _augm_model_logpdfs = {};
+	double _augm_loglike = 0; // current augmented model loglikelihood
+	double _augm_buffer = 0;  // buffer augmented model loglikelihood
 };
 
 //-----------------------------------------------------------------------------------------------//
@@ -139,7 +147,7 @@ public:
 	//===== CONSTRUCTOR =====//
 	//=======================//
 
-	Household(const std::string &house_id = HOUSEPI_NA_STRING,
+	Household(const std::string &house_id = HSP_NA_STRING,
 			  size_t index = SIZE_MAX);
 	~Household();
 
@@ -207,7 +215,6 @@ public:
 
 	// Individual Getter
 	const std::string &id(indiv i) const { return _members.at(i).id(); }
-	size_t index(indiv i) const { return _members.at(i).index(); }
 	int status(indiv i) const { return _members.at(i).status(); }
 	Individual &get_member(indiv i) { return _members.at(i); }
 
@@ -248,14 +255,13 @@ public:
 	void assign_contact_rate(indiv from, indiv to, const double *x);
 
 	//============================//
-	//===== EXTRA ATTRIBUTES =====//
+	//===== CACHE ATTRIBUTES =====//
 	//============================//
 
 	/* Check if any cache quantity is associated to the household. */
 	bool is_any_cache() { return !(_cache_int_vec.empty() && _cache_dbl_vec.empty() && _cache_dbl_mtx.empty()); }
 
 	void buffer_all_cache();
-	void recover_all_cache();
 
 	//----- Cached integer vector -----//
 	void assign_cache_integer_vector(const cache_key &e) { _cache_int_vec[e] = int_vec(size(), 0); }
@@ -273,33 +279,17 @@ public:
 	//===== LOGLIKELIHOOD =====//
 	//=========================//
 
-	//----- Loglikelihood : Getter -----//
-	double get_augm_loglike() const { return _augm_loglike; }
 	double get_obs_loglike() const { return _obs_loglike; }
-
-	//----- Loglikelihood : Setter -----//
-	void set_augm_loglike(double x);
 	void set_obs_loglike(double x);
-	void recover_loglike_value();
 
-	//=======================//
-	//===== DIAGNOSTICS =====//
-	//=======================//
-
-	const dbl_vec &get_smpl_loglike() const { return _smpl_loglike; }
-
-	/* Update the values for posterior sampling. */
-	void init_diagnostics(ulong sample_size) { _smpl_loglike = dbl_vec(sample_size); }
-
-	/* Update the values for posterior sampling. */
-	void update_diagnostics(ulong c) { _smpl_loglike[c] = _obs_loglike / _house_multiplicity + _augm_loglike; }
+	void recover_buffer_values(bool is_cache_depen);
 
 private:
-	std::string _house_id = HOUSEPI_NA_STRING; // user house id
-	size_t _index = -1;						   // housepi internal index
-	ushort _house_size = 0;					   // n. of house members
-	ulong _house_multiplicity = 1;			   // n. of equivalent houses
-	size_t _multiplicity_class = -1;		   // index of multiplicity class
+	std::string _house_id = HSP_NA_STRING; // user house id
+	size_t _index = -1;					   // housepi internal index
+	ushort _house_size = 0;				   // n. of house members
+	ulong _house_multiplicity = 1;		   // n. of equivalent houses
+	size_t _multiplicity_class = -1;	   // index of multiplicity class
 
 	std::vector<Individual> _members = {}; // members
 
@@ -313,11 +303,8 @@ private:
 
 	//===== LOGLIKELIHOOD =====//
 
-	double _obs_loglike = 0;  // current observation loglikelihood
-	double _augm_loglike = 0; // current augmented model loglikelihood
-
+	double _obs_loglike = 0; // current observation loglikelihood
 	double _obs_buffer = 0;	 // buffer observation loglikelihood
-	double _augm_buffer = 0; // buffer augmented model loglikelihood
 
 	dbl_vec _smpl_loglike = {}; // diagnostics
 

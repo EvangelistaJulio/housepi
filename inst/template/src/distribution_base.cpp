@@ -487,21 +487,16 @@ std::shared_ptr<Function> DistrRegistry::get(const std::string &opt) const
 /////////////////////////////////  Distribution Registry : setter  //////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-void DistrRegistry::register_distr(const std::string &opt, FactoryDistr creator)
-{
-    _factory_map[opt] = creator;
-}
-
-void DistrRegistry::register_func(const std::string &, FactoryFunc) { throw std::invalid_argument(
-    "Impossible to register a function in distribution registry \"" + name() + "\"."); }
-
 std::shared_ptr<Distribution> compose_distr_registries(const std::string &opt,
                                                        const std::string &name,
                                                        const std::vector<const DistrRegistry *> &registries)
 {
     str_vec options = {};
 
-    if (tools::is_na(opt))
+    if (registries.empty())
+        throw std::invalid_argument(
+            "No distribution registries provided for \"" + name + "\".");
+    else if (tools::is_na(opt))
         return std::make_shared<Distribution>();
     else
         for (auto &r : registries)

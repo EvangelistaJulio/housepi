@@ -34,7 +34,7 @@ void MCMC::Impl::build_setup()
         // reference to definition list
         const dict_str_str &deflist = _setup_deflist;
 
-        if (!deflist.empty())
+        if (deflist.size() > 0)
         {
             // check entries
             str_vec headers = tools::headers_from_deflist(_setup_deflist);
@@ -80,13 +80,9 @@ void MCMC::Impl::build_setup()
             if (deflist.count("rand_init") && (!tools::is_na(deflist.at("rand_init"))))
                 setup_rand_init_params = tools::stobool(deflist.at("rand_init"));
 
-            // Inverse Temperature
-            if (deflist.count("inv_temper") && (!tools::is_na(deflist.at("inv_temper"))))
-                setup_inv_T = tools::stod(deflist.at("inv_temper"), "inverse temperature");
-
             // Individual ID for Augmented Trace
             if (deflist.count("id_trace") && (!tools::is_na(deflist.at("id_trace"))))
-                setup_id_trace = deflist.at("id_trace");
+                setup_id_trace = tools::parse_list_args(deflist.at("id_trace"));
         }
 
         // define number of threads
@@ -168,7 +164,7 @@ void MCMC::Impl::_set_prng_seed()
 /* Assert dataset is not empty. */
 void MCMC::Impl::_assert_proper_dataset()
 {
-    if (house_vector.empty())
+    if (house_vector.size() == 0)
         throw std::length_error(
             "Unable to proceed. No database was found.");
 }
@@ -198,18 +194,22 @@ void MCMC::Impl::_assert_proper_mcmc_setup()
     if (setup_c_sample_size == 0)
     {
         if (setup_n_steps < 1)
-            throw std::out_of_range("N. of steps must be greater than 0.");
+            throw std::out_of_range(
+                "N. of steps must be greater than 0.");
 
         if (setup_n_burnin >= setup_n_steps)
-            throw std::out_of_range("Burn-in must be smaller than n. of steps.");
+            throw std::out_of_range(
+                "Burn-in must be smaller than n. of steps.");
 
-        if (setup_thin >= setup_n_steps)
-            throw std::out_of_range("Thinning must be smaller than n. of steps. ");
+        if (setup_thin > setup_n_steps)
+            throw std::out_of_range(
+                "Thinning must be smaller than (or equal to) n. of steps. ");
 
         setup_c_sample_size = (setup_n_steps - setup_n_burnin) / setup_thin;
 
         if (setup_c_sample_size == 0)
-            throw std::out_of_range("Choice of steps, burn-in and thin return a 0 sample size.");
+            throw std::out_of_range(
+                "Choice of steps, burn-in and thin return a 0 sample size.");
     }
     else
         setup_n_steps = setup_n_burnin + setup_c_sample_size * setup_thin;
@@ -221,7 +221,8 @@ void MCMC::Impl::_assert_proper_mcmc_setup()
 
     // check if there is a dataset
     if (n_individuals == 0)
-        throw std::length_error("Dataset is empty or was not provided.");
+        throw std::length_error(
+            "Dataset is empty or was not provided.");
 
     // check if there is actually something to sample
     if (((param_standard_infer_list + param_cache_infer_list).empty()) && (!is_augm_sample()))
@@ -256,7 +257,7 @@ void MCMC::Impl::build_dataset(const dict_str_vec &input)
 {
     try
     {
-        if (!input.empty())
+        if (input.size() > 0)
         {
             // drop all previous data and prepare for new
             str_vec data_headers = {};
@@ -306,7 +307,7 @@ void MCMC::Impl::build_dataset(const dict_str_vec &input)
                     }
                     else if (tools::is_na(input.at(key)[i]))
                     {
-                        data.emplace(key, HOUSEPI_NA_DOUBLE);
+                        data.emplace(key, HSP_NA_DOUBLE);
                         tools::warning("Found NA values in the database.");
                     }
                     else
@@ -450,10 +451,10 @@ void MCMC::Impl::build_multiplicity(const dict_str_vec &table)
 {
     try
     {
-        if (is_augm_any() || table.empty())
+        if (is_augm_any() || (table.size() == 0))
         {
             // note: multiplicities are not compatible with data augmentation
-            if (!table.empty())
+            if (table.size() > 0)
                 tools::warning(
                     "Data augmentation is incompatible with multiplicity simplification.");
 
@@ -505,21 +506,11 @@ void MCMC::Impl::build_multiplicity(const dict_str_vec &table)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign data after pre-processing. */
-void MCMC::Impl::build_datalist(const dict_str_vec &input, const std::string &list_name)
+void MCMC::Impl::build_datalist(const dict_str_vec &input)
 {
-    // alias for messages
-    std::string alias = "data list";
-    if (!tools::is_na(list_name))
-        alias += " \"" + list_name + "\"";
-
     try
     {
-        if (input.empty())
-        {
-            throw std::invalid_argument(
-                "Nothing to build: " + alias + " is empty.");
-        }
-        else
+        if (input.size() > 0)
         {
             // data sequence headers
             str_vec headers = {};
@@ -530,20 +521,21 @@ void MCMC::Impl::build_datalist(const dict_str_vec &input, const std::string &li
             // check for individual IDs
             if (!contains(headers, "id"))
                 throw std::invalid_argument(
-                    "Missing individual identifier column \"id\" in " + alias + ".");
+                    "Missing individual identifier column \"id\" in datalist.");
             // remove "id"
             headers.erase(std::remove(headers.begin(), headers.end(), "id"), headers.end());
 
             // individual map for id -> index
             // note: this could be moved elsewhere if required
             std::unordered_map<std::string, size_t> id_to_index = {};
+            size_t c = 0;
             for (Household &house : house_vector)
                 for (Individual &member : house)
                     if (id_to_index.find(member.id()) != id_to_index.end())
                         throw std::invalid_argument(
                             "Multiple individuals id equal to \"" + member.id() + "\"");
                     else
-                        id_to_index.emplace(member.id(), member.index());
+                        id_to_index.emplace(member.id(), c++);
 
             // datalist allocation
             if (indiv_datalist.empty())
@@ -564,39 +556,41 @@ void MCMC::Impl::build_datalist(const dict_str_vec &input, const std::string &li
                 std::string id = input.at("id")[r];
                 if (tools::is_na(id))
                     throw std::invalid_argument(
-                        "Invalid id for " + alias + " in row n." + std::to_string(r + 2) + ".");
+                        "Invalid id for datalist in row n." + std::to_string(r + 2) + ".");
                 else if (id_to_index.find(id) == id_to_index.end())
+                {
                     if (house_vector.empty())
                         throw std::invalid_argument(
                             "Datalist definition before dataset is not supported.");
                     else
                         throw std::invalid_argument(
-                            "Id \"" + id + "\" from " + alias + " has no match in loaded dataset.");
+                            "Id \"" + id + "\" from datalist has no match in loaded dataset.");
+                }
 
                 data_key_map<dbl_vec> &this_dict = indiv_datalist.at(id_to_index.at(id));
                 for (const std::string &key : headers)
                 {
-                    x = HOUSEPI_NA_DOUBLE;
+                    x = HSP_NA_DOUBLE;
                     if (tools::is_na(input.at(key)[r]))
-                        tools::warning("Found NA values in " + alias + ".");
+                        tools::warning("Found NA values in datalist.");
                     else
-                        x = tools::stod(input.at(key)[r], alias + " \"" + key + "\"");
+                        x = tools::stod(input.at(key)[r], "datalist \"" + key + "\"");
 
                     // append (since vector is initialized to empty)
                     this_dict[key].push_back(x);
                 }
             }
-        }
 
-        // assign pointers to relative datalist to all individuals
-        for (Household &house : house_vector)
-            for (Individual &member : house)
-                member.assign_pointer_to_datalist(&indiv_datalist.at(member.index()));
+            // assign pointers to relative datalist to all individuals
+            c = 0;
+            for (Household &house : house_vector)
+                for (Individual &member : house)
+                    member.assign_pointer_to_datalist(&indiv_datalist.at(c++));
+        }
     }
     catch (const std::exception &e)
     {
-        tools::error("While initializing " + alias + ":\n" +
-                     std::string(e.what()));
+        tools::error("While initializing datalist:\n" + std::string(e.what()));
     }
 }
 
@@ -615,7 +609,7 @@ void MCMC::Impl::build_param()
         // reference to parameter definition table
         const dict_str_vec &deftable = _param_deftable;
 
-        if (!deftable.empty())
+        if (deftable.size() > 0)
         {
             // check entries
             str_vec headers = tools::headers_from_deftable(deftable);
@@ -632,7 +626,7 @@ void MCMC::Impl::build_param()
             for (size_t k = 0; k < deftable.at("name").size(); ++k)
             {
                 const std::string &name = deftable.at("name")[k]; // parameter name
-                double value = HOUSEPI_NA_DOUBLE;                 // init value
+                double value = HSP_NA_DOUBLE;                     // init value
                 par_key p = name;
 
                 // Add entry to shared parameter dictionary -----//
@@ -696,12 +690,12 @@ void MCMC::Impl::build_param()
                         {
                             const std::string &x = arg_val[c];
                             new_param.assign_distr_attr(
-                                arg_key[c], ATTR_ARGUMENT,
-                                (tools::is_na(x) ? HOUSEPI_NA_DOUBLE : tools::stod(x)));
+                                arg_key[c], HSP_ATTR_ARGUMENT,
+                                (tools::is_na(x) ? HSP_NA_DOUBLE : tools::stod(x)));
                         }
 
                     // load parameter range
-                    double lower = HOUSEPI_NA_DOUBLE, upper = HOUSEPI_NA_DOUBLE;
+                    double lower = HSP_NA_DOUBLE, upper = HSP_NA_DOUBLE;
                     if (!tools::is_na(deftable.at("min")[k]))
                         lower = tools::stod(deftable.at("min")[k], "parameter minimum");
                     if (!tools::is_na(deftable.at("max")[k]))
@@ -709,9 +703,9 @@ void MCMC::Impl::build_param()
 
                     // set the range of values to the parameter
                     if (!tools::is_na(lower))
-                        new_param.assign_distr_attr("min", ATTR_RANGE, lower);
+                        new_param.assign_distr_attr("min", HSP_ATTR_RANGE, lower);
                     if (!tools::is_na(upper))
-                        new_param.assign_distr_attr("max", ATTR_RANGE, upper);
+                        new_param.assign_distr_attr("max", HSP_ATTR_RANGE, upper);
                     new_param.init_distr_reshaping();
 
                     // assign the rule for the proposer to the parameter
