@@ -98,10 +98,6 @@ HousepiInfecProfile <- R6::R6Class(
     #' IF `TRUE` the profile is discrete.
     #' @param args (named `list()`\cr
     #' Arguments (eventually with types) for the profile.
-    #' @param min `double(1)` | `character(1)`\cr
-    #' One between:
-    #' - Scalar value;
-    #' - Parameter name (followed by `@P`).
     #' @param max `double(1)` | `character(1)`\cr
     #' One between:
     #' - Scalar value;
@@ -109,12 +105,11 @@ HousepiInfecProfile <- R6::R6Class(
     add = function(name,
                    discr = FALSE,
                    args = list(),
-                   min = NA,
                    max = NA) {
       #----- name -----#
-      if (is.na(name)) {
-        stop_h("Incomplete definition: missing name.")
-      }
+      if (is.na(name)) stop_h(
+        "Incomplete definition: missing name."
+      )
 
       #----- arguments -----#
       arg_key_ <- NA
@@ -126,14 +121,6 @@ HousepiInfecProfile <- R6::R6Class(
         tmp <- type_split_(args)
         arg_val_ <- type_join_(tmp$val)
         arg_at_ <- type_join_(tmp$at)
-      }
-
-      #----- minimum value -----#
-      min_ <- NA
-      min_at_ <- NA
-      if (!is.na(min)) {
-        min_ <- type_split_(min)$val
-        min_at_ <- type_split_(min)$at
       }
 
       #----- maximum value -----#

@@ -327,10 +327,7 @@ public:
     ~Rayleigh_Distribution() = default;
 
     //===== SETTER =====//
-    void init_reshaping(bool discrete) override final
-    {
-        init_min_zero_reshaping(discrete, false);
-    }
+    void init_reshaping(bool discrete) override final { init_min_zero_reshaping(discrete, false); }
 
 protected:
     std::uniform_real_distribution<double> unif_gen;

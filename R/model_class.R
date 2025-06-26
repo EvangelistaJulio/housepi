@@ -61,9 +61,9 @@ HouseholdModel <- R6::R6Class(
     # @param dataset_headers `character()`\cr
     # Vector with the dataset headers.
     .assert_dataset = function(dataset_headers) {
-      if (length(dataset_headers) == 0) {
-        stop_h("Impossible to proceed. No database was provided.")
-      }
+      if (length(dataset_headers) == 0) stop_h(
+        "Impossible to proceed. No database was provided."
+      )
       private$.model$assert(dataset_headers, private$.require_dataset())
       invisible(self)
     },
@@ -146,11 +146,9 @@ HouseholdModel <- R6::R6Class(
       if (template_assert_expression(refer_file, regular_expr)) {
 
         # note: this might be a modeler error
-        if (length(private$.require_augm()) > 0) {
-          warning_h(
-            "Model with augmentated variable called multiplicity engine."
-          )
-        }
+        if (length(private$.require_augm()) > 0) warning_h(
+          "Model with augmentated variable called multiplicity engine."
+        )
 
         # if dataset not provided, load previous
         # UPDATE: this "back & forth" of dataset is not optimal!
@@ -335,13 +333,12 @@ HouseholdModel <- R6::R6Class(
       }
 
       # control that seed is 32bit
-      if (isTRUE(abs(seed) > .Machine$integer.max)) {
-        stop_h(
-          "Supplied seed is not supported.",
-          sprintf("Maximum value for a integer in R is %.0f.",
-                  .Machine$integer.max)
-        )
-      }
+      if (isTRUE(abs(seed) > .Machine$integer.max)) stop_h(
+        "Supplied seed is not supported.",
+        sprintf("Maximum value for a integer in R is %.0f.",
+                .Machine$integer.max)
+      )
+  
       # import setup
       private$.model$import_setup(list(
         sample_size = ifelse(is.na(sample_size), 0, sample_size),
@@ -499,12 +496,10 @@ HouseholdModel <- R6::R6Class(
     #' @field estimates `data.frame`\cr
     #' Estimates from the posterior traces of the last inference.
     estimates = function(value) {
-      if (missing(value)) {
-        return(estimate_from_traces(
-          private$.model$traces_no_loglike,
-          cri_level = private$.cri_level
-        ))
-      }
+      if (missing(value)) return(estimate_from_traces(
+        private$.model$traces_no_loglike,
+        cri_level = private$.cri_level
+      ))
       stop_h("'estimates' is read only.")
     },
 
@@ -512,15 +507,18 @@ HouseholdModel <- R6::R6Class(
     #' Level for the credible interval.
     #' Value between 0.5 and 1 (default is 0.95).
     cri_level = function(value) {
-      if (missing(value)) {
-        return(private$.cri_level)
-      } else if ((value <= 0.5) || (value >= 1)) {
-        stop_h(
-          "Credible interval level must be a value between 0.5 and 1."
-        )
-      } else {
-        private$.cri_level <- value
-      }
+      if (missing(value)) return(private$.cri_level)
+      else if ((value <= 0.5) || (value >= 1)) stop_h(
+        "Credible interval level must be a value between 0.5 and 1."
+      )
+      else private$.cri_level <- value
+    },
+
+    #' @field path_to_dll `character(1)`\cr
+    #' Path to dynamic library file of the model.
+    path_to_dll = function(value) {
+      if (missing(value)) return(private$.model$path_to_dll)
+      stop_h("'path_to_dll' is read only.")
     }
   ),
 
@@ -559,11 +557,9 @@ HouseholdModel <- R6::R6Class(
         name = name, quiet = quiet
       )$generate()
 
-      if (private$.model$is_blank) {
-        self$import_dataset(data.frame(
-          id = c("hh_01_1"), house_id = c("hh_01"), status = c(1)
-        ))
-      }
+      if (private$.model$is_blank) self$import_dataset(data.frame(
+        id = c("hh_01_1"), house_id = c("hh_01"), status = c(1)
+      ))
 
       # credible interval level
       self$cri_level <- cri_level
@@ -586,12 +582,10 @@ HouseholdModel <- R6::R6Class(
     help = function() {
       if (requireNamespace("rstudioapi", quietly = TRUE)) {
         templ_info_file <- file.path(private$.model$path, "template_info.Rd")
-        if (!file.exists((templ_info_file))) {
-          stop_h(
-            "Impossible to show model description.",
-            "No template info was found."
-          )
-        }
+        if (!file.exists((templ_info_file))) stop_h(
+          "Impossible to show model description.",
+          "No template info was found."
+        )
         rstudioapi::previewRd(templ_info_file)
 
       } else if (interactive()) {
@@ -659,12 +653,10 @@ HouseholdModel <- R6::R6Class(
     import_dataset = function(dataset = NULL, .hold = TRUE) {
       if (length(dataset) > 0) {
         # check that dataset type is correct
-        if (!is.data.frame(dataset)) {
-          stop_h(
-            "Unsupported type for dataset.",
-            "Dataset should be a data.frame."
-          )
-        }
+        if (!is.data.frame(dataset)) stop_h(
+          "Unsupported type for dataset.",
+          "Dataset should be a data.frame."
+        )
 
         # assert dataset headers
         private$.assert_dataset(colnames(dataset))
@@ -694,12 +686,10 @@ HouseholdModel <- R6::R6Class(
     #' @param datalist `data.frame`\cr
     #' A data.frame containing the dataset with individual information by row.
     import_datalist = function(datalist = NULL) {
-      if (!is.data.frame(datalist)) {
-        stop_h(
-          "Unsupported type for datalist.",
-          "Datalist should be a data.frame."
-        )
-      }
+      if (!is.data.frame(datalist)) stop_h(
+        "Unsupported type for datalist.",
+        "Datalist should be a data.frame."
+      )
       private$.model$import_datalist(datalist)
       invisible(self)
     },
@@ -767,17 +757,15 @@ HouseholdModel <- R6::R6Class(
     #' If `TRUE` append missing parameter definitions.
     #' If `FALSE` drop all pre-existing definitions (default).
     load_param_template = function(append = FALSE) {
-      if (private$.model$is_blank) {
-        warning_h("No template parameters available for blank model.")
-
-      } else {
-        # retrieve the template parameters file
-        private$.param$load_template(
-          file.path(private$.model$path, "template_param.R"),
-          private$.param$require(private$.model$reference),
-          isTRUE(append)
-        )
-      }
+      if (private$.model$is_blank) warning_h(
+        "No template parameters available for blank model."
+      )
+      # retrieve the template parameters file
+      else private$.param$load_template(
+        file.path(private$.model$path, "template_param.R"),
+        private$.param$require(private$.model$reference),
+        isTRUE(append)
+      )
       invisible(self)
     },
 
@@ -869,18 +857,15 @@ HouseholdModel <- R6::R6Class(
     #' If `TRUE` append missing augmented variable definitions.
     #' If `FALSE` drop all pre-existing definitions (default).
     load_augm_template = function(append = FALSE) {
-      if (private$.model$is_blank) {
-        warning_h("No template augmented variables available for blank model.")
-
-      } else {
-        # retrieve the template augmented file
-        private$.augm$load_template(
-          file.path(private$.model$path, "template_augm.R"),
-          private$.augm$require(private$.model$reference),
-          isTRUE(append)
-        )
-      }
-
+      if (private$.model$is_blank) warning_h(
+        "No template augmented variables available for blank model."
+      )
+      # retrieve the template augmented file
+      else private$.augm$load_template(
+        file.path(private$.model$path, "template_augm.R"),
+        private$.augm$require(private$.model$reference),
+        isTRUE(append)
+      )
       invisible(self)
     },
 

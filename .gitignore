@@ -47,6 +47,7 @@ Thumbs.db
 *.Rhistory
 *.Rapp.history
 *.RData
+*.Rproj
 *.Rproj.user/
 *.Rbuildignore
 *.Rproj.user/**

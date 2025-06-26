@@ -184,7 +184,7 @@ void MCMC::Impl::InfecProfile::recover_lookup()
 void MCMC::Impl::InfecProfile::update_lookup()
 {
 	recover_lookup();
-	
+
 	// note: I pass dummy Individual using the fact that
 	// __default_inst doesn't depende on Individual // UPDATE?
 	Individual dummy_member = Individual();
@@ -254,7 +254,9 @@ void MCMC::Impl::InfecProfile::_build_generic_profile()
 		throw std::invalid_argument("Missing name.");
 
 	//----- Discrete -----//
-	if (!profile->is_discrete()) // not defined discrete
+	if (profile->is_discrete()) // defined discrete
+		is_discrete = true;
+	else // not defined discrete
 		if (deflist.count("discr"))
 			is_discrete = tools::stobool(deflist.at("discr"));
 
@@ -265,25 +267,12 @@ void MCMC::Impl::InfecProfile::_build_generic_profile()
 						  tools::parse_list_args(deflist.at("arg_at")));
 
 	//----- Range minimum -----//
+	if (deflist.count("min") || deflist.count("min_at"))
+		throw std::invalid_argument(
+			"Impossible to provide custom minimum for infectivity profile.");
 	_assign_single_attribute("min",
 							 (is_discrete) ? "1" : "0", TYPE_SCALAR,
 							 HSP_ATTR_RANGE);
-
-	if (deflist.count("min") && deflist.count("min_at"))
-		_assign_single_attribute("min",
-								 deflist.at("min"), deflist.at("min_at"),
-								 HSP_ATTR_RANGE);
-
-	// check infectivity profile minimum is correct
-	if (is_discrete)
-	{
-		if (profile->get_min() < 1.)
-			throw std::invalid_argument(
-				"Minimum of discrete infectivity profile must be >= 1.");
-	}
-	else if (profile->get_min() < 0.)
-		throw std::invalid_argument(
-			"Minimum of continuos infectivity profile must be >= 0.");
 
 	//----- Range maximum -----//
 	if (deflist.count("max") && deflist.count("max_at"))
@@ -312,14 +301,6 @@ void MCMC::Impl::InfecProfile::_build_augmented_profile()
 	else
 		throw std::invalid_argument("Missing name.");
 
-	// initialize for generation time, instantaneous and cumulative profiles
-	for (auto &entry : pImpl.augm_file_headers)
-		_augm_infec_profile_deflist.emplace(entry, str_vec(3, HSP_NA_STRING));
-
-	_augm_infec_profile_deflist.at("const") = str_vec(3, tools::truth(false));
-	_augm_infec_profile_deflist.at("discr") = str_vec(3, deflist.at("discr"));
-	_augm_infec_profile_deflist.at("init_rand") = str_vec(3, tools::truth(false));
-
 	// auxiliary vector of string with single NA option for generation time
 	const str_vec aux_str({HSP_NA_STRING});
 
@@ -336,6 +317,21 @@ void MCMC::Impl::InfecProfile::_build_augmented_profile()
 	if (!tools::is_na(arg_at))
 		arg_at += C_LIST_DELIM;
 
+	// range minimum
+	if (deflist.count("min") || deflist.count("min_at"))
+		throw std::invalid_argument(
+			"Impossible to provide custom minimum for infectivity profile.");
+
+	// initialize for instantaneous and cumulative profiles
+	bool is_discrete = tools::stobool(deflist.at("discr"));
+
+	for (auto &entry : pImpl.augm_file_headers)
+		_augm_infec_profile_deflist.emplace(entry, str_vec(2, HSP_NA_STRING));
+		
+	_augm_infec_profile_deflist.at("const") = str_vec(2, tools::truth(false));
+	_augm_infec_profile_deflist.at("discr") = str_vec(2, tools::truth(is_discrete));
+	_augm_infec_profile_deflist.at("init_rand") = str_vec(2, tools::truth(false));
+
 	// match infectivity profile and augmented variable definition
 	const dict_str_vec matcher = {
 		{"name", str_vec({AUX_IP_INST_PROFILE, AUX_IP_CUMUL_PROFILE})},
@@ -343,8 +339,8 @@ void MCMC::Impl::InfecProfile::_build_augmented_profile()
 		{"farg_key", str_vec(2, arg_key)},
 		{"farg_val", str_vec(2, arg_val)},
 		{"farg_at", str_vec(2, arg_at)},
-		{"min", str_vec(2, deflist.at("min"))},
-		{"min_at", str_vec(2, deflist.at("min_at"))},
+		{"min", str_vec(2, (is_discrete) ? "1" : "0")},
+		{"min_at", str_vec(2, TYPE_SCALAR)},
 		{"max", str_vec(2, deflist.at("max"))},
 		{"max_at", str_vec(2, deflist.at("max_at"))}};
 
@@ -418,10 +414,10 @@ double MCMC::Impl::InfecProfile::__augm_cumul(Individual &member, double t)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* If infectivity profile is a lookup table, store its values. */
-void MCMC::Impl::_update_infec_profile()
+void MCMC::Impl::update_infec_profile()
 {
-	if (_infec_profile.is_lookup())
-		_infec_profile.update_lookup();
+	if (infec_profile.is_lookup())
+		infec_profile.update_lookup();
 }
 
 /* If infectivity profile is a lookup table, recover its buffered values. */
@@ -429,6 +425,6 @@ void MCMC::Impl::recover_infec_profile(bool is_cache_depen)
 {
 	// UPDATE: this should not be recoverd if constant for example...
 	if (is_cache_depen)
-		if (_infec_profile.is_lookup())
-			_infec_profile.recover_lookup();
+		if (infec_profile.is_lookup())
+			infec_profile.recover_lookup();
 }

@@ -127,13 +127,13 @@ using matrix = std::vector<std::vector<T>>;
 //----- Aliases for improved readibility -----//
 using indiv = unsigned short int;
 
-using __access_key__ = std::string;
+using _access_key_ = std::string;
 
-using par_key = __access_key__;
-using augm_key = __access_key__;
-using data_key = __access_key__;
-using rate_key = __access_key__;
-using cache_key = __access_key__;
+using par_key = _access_key_;
+using augm_key = _access_key_;
+using data_key = _access_key_;
+using rate_key = _access_key_;
+using cache_key = _access_key_;
 
 #include <unordered_map>
 template <typename T>
@@ -290,12 +290,12 @@ namespace progress
     {
     public:
         //===== CONSTRUCTOR =====//
-        Bar(const std::string &text = "",
-            ulong thintime = 1);
+        Bar();
         ~Bar();
 
         //===== SETTER =====//
         void set_text(const std::string &text);
+        void set_thintime(ulong thintime);
         void open(ulong total);
         void update();
         void crash() const;

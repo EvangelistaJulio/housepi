@@ -300,20 +300,31 @@ void MCMC::Impl::_build_augm_allocate_univocal_defs(const dict_str_vec &check)
 /* Search individual id for augmented traces follow-up. */
 void MCMC::Impl::_build_augm_set_id_trace()
 {
-    if (!setup_id_trace.empty())
+    if (!setup.id_trace.empty())
     {
         if (is_augm_sample())
         {
+            // check id agross all individuals
+            str_vec aux_check_already_stored_id = {};
             for (Household &house : house_vector)
                 for (Individual &member : house)
-                    if (contains(setup_id_trace, member.id()))
-                        smpl_individual_star.push_back(&member);
+                    if (contains(setup.id_trace, member.id()))
+                    {
+                        if (contains(aux_check_already_stored_id, member.id()))
+                            throw std::invalid_argument(
+                                "Multiple individuals share the same id trace \"" + member.id() + "\".");
+                        else
+                        {
+                            aux_check_already_stored_id.push_back(member.id());
+                            smpl_individual_star.push_back(&member);
+                        }
+                    }
 
             if (smpl_individual_star.empty())
             {
                 tools::warning(
-                    "Ignoring id trace for individual" + tools::show_list(setup_id_trace));
-                setup_id_trace.clear();
+                    "Ignoring id trace for individual" + tools::show_list(setup.id_trace));
+                setup.id_trace.clear();
             }
             else
                 for (Individual *member : smpl_individual_star)
@@ -325,7 +336,7 @@ void MCMC::Impl::_build_augm_set_id_trace()
         {
             tools::warning(
                 "Ignoring id trace: no augmented variables to infer.");
-            setup_id_trace.clear();
+            setup.id_trace.clear();
         }
     }
 }
@@ -336,7 +347,7 @@ void MCMC::Impl::build_augm()
     try
     {
         // eventually append infectivity profile definition
-        _infec_profile.append_augm_definition();
+        infec_profile.append_augm_definition();
 
         const dict_str_vec &deftable = _augm_deftable;
 
@@ -528,7 +539,7 @@ void MCMC::Impl::assign_all_augm(Individual &member)
                 // random initialization
                 // UPDATE: I would like a more general switch for this
                 if (tools::stobool(deftab.at("init_rand")[k]))
-                    xaugm.rand(get_prng());
+                    xaugm.rand(setup.prng());
             }
         }
 
@@ -557,7 +568,7 @@ void MCMC::Impl::clear_all_augm(Individual &member)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Initialize augmented dependecies for all households. */
-void MCMC::Impl::_init_augmented_variables()
+void MCMC::Impl::init_augmented_variables()
 {
     if (is_augm_any())
     {
@@ -611,15 +622,15 @@ void MCMC::Impl::_move_all_augm()
 #pragma omp critical
                 {
                     if (!has_error.exchange(true))
-                        _error_message = "While sampling augmented variables for household " +
+                        error_message = "While sampling augmented variables for household " +
                                          house_vector[H].house_id() + ":\n" +
                                          std::string(e.what());
                 }
             }
         }
 
-        if (!_error_message.empty())
-            throw std::runtime_error(_error_message);
+        if (!error_message.empty())
+            throw std::runtime_error(error_message);
 
         increment_full_loglike(delta_ll);
     }
@@ -668,7 +679,7 @@ double MCMC::Impl::_metropolis_augm_single_move(Household &house, Individual &me
 {
     Variable &xaugm = member.get_augm_variable(a);
 
-    xaugm.propose(get_prng()); // propose new value and buffer old
+    xaugm.propose(setup.prng()); // propose new value and buffer old
 
     // proceed only if the new value is consistent
     if (xaugm.valid_move())
@@ -682,7 +693,7 @@ double MCMC::Impl::_metropolis_augm_single_move(Household &house, Individual &me
         D_ll += member.compute_and_set_augm_model_loglike();
         D_ll += _compute_and_set_household_obs_loglike(house);
 
-        if (uniform() < std::exp(setup_inv_T * D_ll - xaugm.propose_logratio()))
+        if (setup.unif() < std::exp(setup.inv_T * D_ll - xaugm.propose_logratio()))
             return D_ll;
         else
         {

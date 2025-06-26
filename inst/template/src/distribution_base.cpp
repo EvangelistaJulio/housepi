@@ -401,8 +401,7 @@ const std::vector<dbl_vec> Distribution::showcase(int n_bins, double ytol) const
 }
 
 /* Developer method to check for normalization. */
-double Distribution::__d_e_v__check__pdf__norm(int n_bins,
-                                               double ytol) const
+double Distribution::__d_e_v__check__pdf__norm(int n_bins, double ytol) const
 {
     // produce a showcase of the distribution profile
     const std::vector<dbl_vec> values = showcase(n_bins, ytol);
@@ -435,7 +434,7 @@ double Distribution::__d_e_v__check__pdf__norm(int n_bins,
 /////////////////////////////////  Distribution Registry : getter  //////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-const str_vec DistrRegistry::get_options() const
+const str_vec DistributionRegistry::get_options() const
 {
     str_vec keys;
     keys.reserve(_factory_map.size());
@@ -445,25 +444,17 @@ const str_vec DistrRegistry::get_options() const
 }
 
 /* Try for default distribution name, otherwise with R-like prefix. */
-bool DistrRegistry::is_valid_option(const std::string &opt) const
+bool DistributionRegistry::is_valid_option(const std::string &opt) const
 {
     const str_vec options = get_options();
     if (contains(options, opt))
         return true;
     else if (contains(options, opt.substr(1)))
-        return true;
+        return contains(str_vec({"d", "p"}), opt.substr(0, 1));
     return false;
 }
 
-std::shared_ptr<Distribution> DistrRegistry::get_distr(const std::string &opt) const
-{
-    auto it = _factory_map.find(opt);
-    if (it != _factory_map.end())
-        return it->second();
-    return nullptr;
-}
-
-std::shared_ptr<Function> DistrRegistry::get(const std::string &opt) const
+std::shared_ptr<Function> DistributionRegistry::get(const std::string &opt) const
 {
     const str_vec options = get_options();
     bool is_R_like_prefix = false;
@@ -483,19 +474,26 @@ std::shared_ptr<Function> DistrRegistry::get(const std::string &opt) const
     return output;
 }
 
+std::shared_ptr<Distribution> DistributionRegistry::get_distr(const std::string &opt) const
+{
+    auto it = _factory_map.find(opt);
+    if (it != _factory_map.end())
+        return it->second();
+    return nullptr;
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  Distribution Registry : setter  //////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 std::shared_ptr<Distribution> compose_distr_registries(const std::string &opt,
                                                        const std::string &name,
-                                                       const std::vector<const DistrRegistry *> &registries)
+                                                       const std::vector<const DistributionRegistry *> &registries)
 {
     str_vec options = {};
 
     if (registries.empty())
-        throw std::invalid_argument(
-            "No distribution registries provided for \"" + name + "\".");
+        throw std::invalid_argument("No registries provided for \"" + name + "\".");
     else if (tools::is_na(opt))
         return std::make_shared<Distribution>();
     else

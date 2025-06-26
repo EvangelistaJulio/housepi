@@ -14,223 +14,76 @@
 #include <Rcpp.h>
 #include "model.h"
 
-class FunctionHousepi
-{
-private:
-    std::shared_ptr<Function> _func_ptr;
+// macro to define RCPP wrapper classes to export to R
+#define DEFINE_HOUSEPI_RCPP_WRAPPER_CLASS(WrapperName, type_string, registry_list)                \
+    class WrapperName##Housepi                                                                    \
+    {                                                                                             \
+    private:                                                                                      \
+        std::shared_ptr<Function> _ptr;                                                           \
+                                                                                                  \
+    public:                                                                                       \
+        WrapperName##Housepi(std::string name, Rcpp::List args, Rcpp::List range, bool is_discr)  \
+        {                                                                                         \
+            try                                                                                   \
+            {                                                                                     \
+                _ptr = compose_func_registries(name, type_string, registry_list);                 \
+                                                                                                  \
+                if (args.size() > 0)                                                              \
+                {                                                                                 \
+                    const Rcpp::CharacterVector arg_names = args.names();                         \
+                    for (R_xlen_t i = 0; i < arg_names.size(); ++i)                               \
+                        _ptr->assign_attr(Rcpp::as<std::string>(arg_names[i]),                    \
+                                          HSP_ATTR_ARGUMENT,                                      \
+                                          Rcpp::as<double>(args[i]));                             \
+                }                                                                                 \
+                                                                                                  \
+                if (range.size() > 2)                                                             \
+                    throw std::runtime_error("Range must be a numeric vector of length 2.");      \
+                else if (range.size() > 0)                                                        \
+                {                                                                                 \
+                    const Rcpp::CharacterVector range_names = range.names();                      \
+                    for (R_xlen_t i = 0; i < range_names.size(); ++i)                             \
+                        _ptr->assign_attr(Rcpp::as<std::string>(range_names[i]),                  \
+                                          HSP_ATTR_RANGE,                                         \
+                                          Rcpp::as<double>(range[i]));                            \
+                }                                                                                 \
+                                                                                                  \
+                _ptr->init_reshaping(is_discr);                                                   \
+            }                                                                                     \
+            catch (const std::exception &e)                                                       \
+            {                                                                                     \
+                tools::error(                                                                     \
+                    "While initializing " type_string " \"" + name + "\":\n" + e.what());         \
+            }                                                                                     \
+        }                                                                                         \
+        ~WrapperName##Housepi() = default;                                                        \
+                                                                                                  \
+        Rcpp::NumericVector call(Rcpp::NumericVector x)                                           \
+        {                                                                                         \
+            try                                                                                   \
+            {                                                                                     \
+                const R_xlen_t n = x.size();                                                      \
+                Rcpp::NumericVector y(n);                                                         \
+                for (R_xlen_t i = 0; i < n; ++i)                                                  \
+                    y[i] = _ptr->return_value(x[i]);                                              \
+                return y;                                                                         \
+            }                                                                                     \
+            catch (const std::exception &e)                                                       \
+            {                                                                                     \
+                tools::error(                                                                     \
+                    "While calling " type_string " \"" + _ptr->show_name() + "\":\n" + e.what()); \
+            }                                                                                     \
+            return Rcpp::NumericVector();                                                         \
+        }                                                                                         \
+    };
 
-public:
-    //=======================//
-    //===== CONSTRUCTOR =====//
-    //=======================//
-
-    FunctionHousepi(std::string name, Rcpp::List args, Rcpp::List range)
-    {
-        try
-        {
-            _func_ptr = compose_func_registries(
-                name, "function",
-                {&UserFuncRegistry::inst(),
-                 &TranscendentalRegistry::inst(),
-                 &ArithmeticRegistry::inst()});
-
-            // assign arguments
-            if (args.size() > 0)
-            {
-                const Rcpp::CharacterVector arg_names = args.names();
-                for (size_t i = 0; i < arg_names.size(); ++i)
-                    _func_ptr->assign_attr(Rcpp::as<std::string>(arg_names[i]),
-                                           HSP_ATTR_ARGUMENT,
-                                           Rcpp::as<double>(args[i]));
-            }
-
-            // assign range
-            if (range.size() > 2)
-                throw std::runtime_error("Range must be a numeric vector of length 2.");
-            else if (range.size() > 0)
-            {
-                const Rcpp::CharacterVector range_names = range.names();
-                for (size_t i = 0; i < range_names.size(); ++i)
-                    _func_ptr->assign_attr(Rcpp::as<std::string>(range_names[i]),
-                                           HSP_ATTR_RANGE,
-                                           Rcpp::as<double>(range[i]));
-            }
-        }
-        catch (const std::exception &e)
-        {
-            tools::error(
-                "While initializing function \"" + name + "\":\n" + e.what());
-        }
-    }
-    ~FunctionHousepi() = default;
-
-    //==================//
-    //===== GETTER =====//
-    //==================//
-
-    Rcpp::NumericVector call(Rcpp::NumericVector x)
-    {
-        try
-        {
-            const size_t n = x.size();
-            Rcpp::NumericVector y(n);
-            for (size_t i = 0; i < n; ++i)
-                y[i] = _func_ptr->return_value(x[i]);
-            return y;
-        }
-        catch (const std::exception &e)
-        {
-            tools::error(
-                "While calling function \"" + _func_ptr->show_name() + "\":\n" + e.what());
-        }
-        return Rcpp::NumericVector();
-    }
-};
-
-class DistributionHousepi
-{
-private:
-    std::shared_ptr<Distribution> _distr_ptr;
-
-public:
-    //=======================//
-    //===== CONSTRUCTOR =====//
-    //=======================//
-
-    DistributionHousepi(std::string name, Rcpp::List args, Rcpp::List range)
-    {
-        try
-        {
-            _distr_ptr = compose_distr_registries(
-                name, "distribution",
-                {&ContinuosDistrRegistry::inst(),
-                 &DiscreteDistrRegistry::inst()});
-
-            // assign arguments
-            if (args.size() > 0)
-            {
-                const Rcpp::CharacterVector arg_names = args.names();
-                for (size_t i = 0; i < arg_names.size(); ++i)
-                    _distr_ptr->assign_attr(Rcpp::as<std::string>(arg_names[i]),
-                                            HSP_ATTR_ARGUMENT,
-                                            Rcpp::as<double>(args[i]));
-            }
-
-            // assign range
-            if (range.size() > 2)
-                throw std::runtime_error("Range must be a numeric vector of length 2.");
-            else if (range.size() > 0)
-            {
-                const Rcpp::CharacterVector range_names = range.names();
-                for (size_t i = 0; i < range_names.size(); ++i)
-                    _distr_ptr->assign_attr(Rcpp::as<std::string>(range_names[i]),
-                                            HSP_ATTR_RANGE,
-                                            Rcpp::as<double>(range[i]));
-            }
-        }
-        catch (const std::exception &e)
-        {
-            tools::error(
-                "While initializing distribution \"" + name + "\":\n" + e.what());
-        }
-    }
-    ~DistributionHousepi() = default;
-
-    //==================//
-    //===== GETTER =====//
-    //==================//
-
-    Rcpp::NumericVector call(Rcpp::NumericVector x)
-    {
-        try
-        {
-            const size_t n = x.size();
-            Rcpp::NumericVector y(n);
-            for (size_t i = 0; i < n; ++i)
-                y[i] = _distr_ptr->return_value(x[i]);
-            return y;
-        }
-        catch (const std::exception &e)
-        {
-            tools::error(
-                "While calling distribution \"" + _distr_ptr->show_name() + "\":\n" + e.what());
-        }
-        return Rcpp::NumericVector();
-    }
-};
-
-class InfecProfileHousepi
-{
-private:
-    std::shared_ptr<Distribution> _infprof_ptr;
-
-public:
-    //=======================//
-    //===== CONSTRUCTOR =====//
-    //=======================//
-
-    InfecProfileHousepi(std::string name, Rcpp::List args, Rcpp::List range)
-    {
-        try
-        {
-            _infprof_ptr = compose_distr_registries(
-                name, "infectivity profile",
-                {&InfecProfileRegistry::inst(),
-                 &ContinuosDistrRegistry::inst(),
-                 &DiscreteDistrRegistry::inst()});
-
-            // assign arguments
-            if (args.size() > 0)
-            {
-                const Rcpp::CharacterVector arg_names = args.names();
-                for (size_t i = 0; i < arg_names.size(); ++i)
-                    _infprof_ptr->assign_attr(Rcpp::as<std::string>(arg_names[i]),
-                                              HSP_ATTR_ARGUMENT,
-                                              Rcpp::as<double>(args[i]));
-            }
-
-            // assign range
-            if (range.size() > 2)
-                throw std::runtime_error("Range must be a numeric vector of length 2.");
-            else if (range.size() > 0)
-            {
-                const Rcpp::CharacterVector range_names = range.names();
-                for (size_t i = 0; i < range_names.size(); ++i)
-                    _infprof_ptr->assign_attr(Rcpp::as<std::string>(range_names[i]),
-                                              HSP_ATTR_RANGE,
-                                              Rcpp::as<double>(range[i]));
-            }
-        }
-        catch (const std::exception &e)
-        {
-            tools::error(
-                "While initializing distribution \"" + name + "\":\n" + e.what());
-        }
-    }
-    ~InfecProfileHousepi() = default;
-
-    //==================//
-    //===== GETTER =====//
-    //==================//
-
-    Rcpp::NumericVector call(Rcpp::NumericVector x)
-    {
-        try
-        {
-            const size_t n = x.size();
-            Rcpp::NumericVector y(n);
-            for (size_t i = 0; i < n; ++i)
-                y[i] = _infprof_ptr->return_value(x[i]);
-            return y;
-        }
-        catch (const std::exception &e)
-        {
-            tools::error(
-                "While calling infectivity profile \"" + _infprof_ptr->show_name() + "\":\n" + e.what());
-        }
-        return Rcpp::NumericVector();
-    }
-};
+// macro to define RCPP wrapper module
+#define DEFINE_HOUSEPI_RCPP_WRAPPER_MODULE(WrapperName, type_string, registry_list)  \
+    DEFINE_HOUSEPI_RCPP_WRAPPER_CLASS(WrapperName, type_string, FUNCTION_REGISTRIES) \
+                                                                                     \
+    Rcpp::class_<WrapperName##Housepi>(#WrapperName "Housepi")                       \
+        .constructor<std::string, Rcpp::List, Rcpp::List, bool>()                    \
+        .method("call", &WrapperName##Housepi::call);
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -252,14 +105,9 @@ public:
 //' }
 //' @return `numeric()`
 
-RCPP_MODULE(housepi_function)
-{
-    using namespace Rcpp;
-
-    class_<FunctionHousepi>("FunctionHousepi")
-        .constructor<std::string, Rcpp::List, Rcpp::List>()
-        .method("call", &FunctionHousepi::call);
-}
+#define FUNCTION_REGISTRIES {&UserFuncRegistry::inst(), &TranscendentalRegistry::inst(), &ArithmeticRegistry::inst()}
+RCPP_MODULE(housepi_function){
+    DEFINE_HOUSEPI_RCPP_WRAPPER_MODULE(Function, "function", FUNCTION_REGISTRIES)}
 
 //' @name DistributionHousepi
 //' @title Housepi Distribution
@@ -274,14 +122,9 @@ RCPP_MODULE(housepi_function)
 //' }
 //' @return `numeric()`
 
-RCPP_MODULE(housepi_distribution)
-{
-    using namespace Rcpp;
-
-    class_<DistributionHousepi>("DistributionHousepi")
-        .constructor<std::string, Rcpp::List, Rcpp::List>()
-        .method("call", &DistributionHousepi::call);
-}
+#define DISTRIBUTION_REGISTRIES {&ContinuosDistrRegistry::inst(), &DiscreteDistrRegistry::inst()}
+RCPP_MODULE(housepi_distribution){
+    DEFINE_HOUSEPI_RCPP_WRAPPER_MODULE(Distribution, "distribution", DISTRIBUTION_REGISTRIES)}
 
 //' @name InfecProfileHousepi
 //' @title Housepi Infectivity Profile
@@ -296,14 +139,9 @@ RCPP_MODULE(housepi_distribution)
 //' }
 //' @return `numeric()`
 
-RCPP_MODULE(housepi_infec_profile)
-{
-    using namespace Rcpp;
-
-    class_<InfecProfileHousepi>("InfecProfileHousepi")
-        .constructor<std::string, Rcpp::List, Rcpp::List>()
-        .method("call", &InfecProfileHousepi::call);
-}
+#define INFEC_PROFILE_REGISTRIES {&InfecProfileRegistry::inst(), &ContinuosDistrRegistry::inst(), &DiscreteDistrRegistry::inst()}
+RCPP_MODULE(housepi_infec_profile){
+    DEFINE_HOUSEPI_RCPP_WRAPPER_MODULE(InfecProfile, "infectivity profile", INFEC_PROFILE_REGISTRIES)}
 
 //' @name ModelHousepi
 //' @title Internal housepi model
@@ -341,9 +179,7 @@ RCPP_MODULE(housepi_infec_profile)
 
 RCPP_MODULE(housepi_model_core)
 {
-    using namespace Rcpp;
-
-    class_<MCMC>("McmcHousepi")
+    Rcpp::class_<MCMC>("McmcHousepi")
         .constructor()
         .method("init_user_advanced_setup", &MCMC::init_user_advanced_setup)
         .method("infer", &MCMC::infer)
@@ -368,7 +204,7 @@ RCPP_MODULE(housepi_model_core)
         .method("export_house_loglike_mtx", &MCMC::export_house_loglike_mtx)
         .method("showcase_infec_profile", &MCMC::showcase_infec_profile);
 
-    class_<Model>("ModelHousepi")
+    Rcpp::class_<Model>("ModelHousepi")
         .constructor()
         .derives<MCMC>("McmcHousepi");
 }

@@ -24,13 +24,11 @@
 #'
 #' @keywords internal
 cpp_data_refactor = function(df, levels) {
-  for (col in names(levels)) {
-    df[[col]] <- factor(
-      df[[col]],
-      levels = seq_along(levels[[col]]),
-      labels = levels[[col]]
-    )
-  }
+  for (col in names(levels)) df[[col]] <- factor(
+    df[[col]],
+    levels = seq_along(levels[[col]]),
+    labels = levels[[col]]
+  )
   return(df)
 }
 
@@ -60,9 +58,9 @@ HousepiWrapper <- R6::R6Class(
     #' Dataset with individual level information of current dataset.
     dataset = function(value) {
       if (missing(value)) {
-        if (is.null(private$.rcpp)) {
-          stop_h("Impossible to export dataset before model build.")
-        }
+        if (is.null(private$.rcpp)) stop_h(
+          "Impossible to export dataset before model build."
+        )
         return(cpp_data_refactor(private$.rcpp$export_dataset(),
                                  self$dataset_levels))
       }
@@ -73,9 +71,9 @@ HousepiWrapper <- R6::R6Class(
     #' Datalist with multiple rows indexed by individual.
     datalist = function(value) {
       if (missing(value)) {
-        if (is.null(private$.rcpp)) {
-          stop_h("Impossible to export datalist before model build.")
-        }
+        if (is.null(private$.rcpp)) stop_h(
+          "Impossible to export datalist before model build."
+        )
         return(cpp_data_refactor(private$.rcpp$export_datalist(),
                                  self$datalist_levels))
       }
@@ -103,9 +101,9 @@ HousepiWrapper <- R6::R6Class(
     #' A summary of statuses in the dataset.
     summary = function(value) {
       if (missing(value)) {
-        if (is.null(private$.rcpp)) {
-          stop_h("Impossible to export dataset before model build.")
-        }
+        if (is.null(private$.rcpp)) stop_h(
+          "Impossible to export dataset before model build."
+        )
         return(private$.rcpp$export_dataset_report())
       }
       stop_h("'summary' is read only.")
@@ -115,9 +113,9 @@ HousepiWrapper <- R6::R6Class(
     #' A summary of house sizes in the dataset.
     summary_house_size = function(value) {
       if (missing(value)) {
-        if (is.null(private$.rcpp)) {
-          stop_h("Impossible to export dataset before model build.")
-        }
+        if (is.null(private$.rcpp)) stop_h(
+          "Impossible to export dataset before model build."
+        )
         return(private$.rcpp$export_house_size_report())
       }
       stop_h("'summary_house_size' is read only.")
@@ -127,9 +125,9 @@ HousepiWrapper <- R6::R6Class(
     #' Last setup used by the build process.
     setup = function(value) {
       if (missing(value)) {
-        if (is.null(private$.rcpp)) {
-          stop_h("Impossible to export setup before model build.")
-        }
+        if (is.null(private$.rcpp)) stop_h(
+          "Impossible to export setup before model build."
+        )
         return(private$.rcpp$export_setup())
       }
       stop_h("'setup' is read only.")
@@ -146,20 +144,14 @@ HousepiWrapper <- R6::R6Class(
           # load traces from last inference
           df <- private$.rcpp$export_traces()
 
-          if (dim(df)[1] == 0) {
-            # note: this should never be possible...
-            stop_h("Traces are empty.")
+          if (dim(df)[1] == 0) stop_h("Traces are empty.")
 
-          } else if ("CHAIN__" %in% colnames(df)) {
-            df_list <- lapply(
-              split(seq_len(nrow(df)), df[, "CHAIN__"]),
-              function(idx) df[idx, colnames(df) != "CHAIN__", drop = FALSE]
-            )
-            return(df_list)
+          else if ("CHAIN__" %in% colnames(df)) return(lapply(
+            split(seq_len(nrow(df)), df[, "CHAIN__"]),
+            function(idx) df[idx, colnames(df) != "CHAIN__", drop = FALSE]
+          ))
 
-          } else {
-            return(df)
-          }
+          else return(df)
         }
       }
       stop_h("'traces' is read only.")
@@ -170,13 +162,10 @@ HousepiWrapper <- R6::R6Class(
     traces_no_loglike = function(value) {
       if (missing(value)) {
         trs <- self$traces
-        if (is.list(trs)) {
-          return(lapply(trs, function(x) {
-            x <- x[, colnames(x) != "loglikelihood", drop = FALSE]
-          }))
-        } else {
-          return(trs[, colnames(trs) != "loglikelihood", drop = FALSE])
-        }
+        if (is.list(trs)) return(lapply(trs, function(x) {
+          x <- x[, colnames(x) != "loglikelihood", drop = FALSE]
+        }))
+        else return(trs[, colnames(trs) != "loglikelihood", drop = FALSE])
       }
       stop_h("'traces_no_loglike' is read only.")
     },
@@ -186,18 +175,23 @@ HousepiWrapper <- R6::R6Class(
     house_loglike_mtx = function(value) {
       if (missing(value)) {
         # check model has been built
-        if (is.null(private$.rcpp)) {
-          stop_h("Impossible to export household traces before inference.")
-        }
+        if (is.null(private$.rcpp)) stop_h(
+          "Impossible to export household traces before inference."
+        )
         # extract household loglikelihood traces
         df <- private$.rcpp$export_house_loglike_mtx()
         # check
-        if (dim(df)[1] == 0) {
-          stop_h("Household traces are empty.")
-        }
+        if (dim(df)[1] == 0) stop_h("Household traces are empty.")
         return(df)
       }
       stop_h("'household_loglike_traces' is read only.")
+    },
+
+    #' @field path_to_dll `character(1)`\cr
+    #' Path to dynamic library file of the model.
+    path_to_dll = function(value) {
+      if (missing(value)) return(private$.dll)
+      stop_h("'path_to_dll' is read only.")
     }
   ),
 
@@ -233,14 +227,11 @@ HousepiWrapper <- R6::R6Class(
       # find missing dataset headers
       missing_set <- template_find_missing(requirements,
                                            dataset_headers)
-      if (length(missing_set) > 0) {
-        stop_h(
-          sprintf("Missing dataset header%s for:",
-                  ifelse(length(missing_set) > 1, "s", "")),
-          character_to_string_list(missing_set)
-        )
-      }
-
+      if (length(missing_set) > 0) stop_h(
+        sprintf("Missing dataset header%s for:",
+                ifelse(length(missing_set) > 1, "s", "")),
+        character_to_string_list(missing_set)
+      )
       invisible(self)
     },
 

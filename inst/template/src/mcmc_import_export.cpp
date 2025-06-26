@@ -80,7 +80,7 @@ void MCMC::Impl::import_setup(const Rcpp::List &input)
 {
     try
     {
-        rlist_to_map(input, _setup_deflist);
+        rlist_to_map(input, setup.deflist);
     }
     catch (const std::exception &e)
     {
@@ -173,14 +173,14 @@ void MCMC::Impl::import_infec_profile(const Rcpp::List &input)
 {
     try
     {
-        rlist_to_map(input, _infec_profile.deflist);
+        rlist_to_map(input, infec_profile.deflist);
     }
     catch (const std::exception &e)
     {
         tools::error("While importing infectivity profile definitions:\n" +
                      std::string(e.what()));
     }
-    _infec_profile.build();
+    infec_profile.build();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -188,21 +188,21 @@ void MCMC::Impl::import_infec_profile(const Rcpp::List &input)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Export current setup configurations to R List. */
-Rcpp::List MCMC::Impl::export_setup() const
+Rcpp::List MCMC::Impl::Setup::export_defs() const
 {
     using namespace Rcpp;
 
-    return List::create(_["n_chains"] = setup_n_chains,
-                        _["sample_size"] = setup_c_sample_size,
-                        _["n_steps"] = setup_n_steps,
-                        _["n_adapt"] = setup_n_adapt,
-                        _["n_burnin"] = setup_n_burnin,
-                        _["thin"] = setup_thin,
-                        _["rand_init"] = setup_rand_init_params,
-                        _["seed"] = setup_seed,
-                        _["n_threads"] = setup_n_threads,
-                        _["id_trace"] = wrap(setup_id_trace),
-                        _["progress"] = setup_progress);
+    return List::create(_["n_chains"] = n_chains,
+                        _["sample_size"] = c_sample_size,
+                        _["n_steps"] = n_steps,
+                        _["n_adapt"] = n_adapt,
+                        _["n_burnin"] = n_burnin,
+                        _["thin"] = thin,
+                        _["rand_init"] = rand_init_params,
+                        _["seed"] = seed,
+                        _["n_threads"] = n_threads,
+                        _["id_trace"] = wrap(id_trace),
+                        _["progress"] = progress);
 }
 
 /* Export current parameter configurations to R DataFrame. */
@@ -503,19 +503,19 @@ Rcpp::NumericMatrix MCMC::Impl::export_traces() const
         if (!smpl_augm_value.empty())
         {
             if (smpl_individual_star.size() == 1)
-                headers += augm_list_infer + augm_list_func;
+                headers += augm_list_export();
             else
                 for (size_t k = 0; k < smpl_individual_star.size(); ++k)
-                    for (const augm_key &a : augm_list_infer + augm_list_func)
+                    for (const augm_key &a : augm_list_export())
                         headers += {smpl_individual_star[k]->id() + "__" + a};
         }
 
         // multiple chains
-        if (setup_n_chains > 1)
+        if (setup.n_chains > 1)
             headers += {"CHAIN__"};
 
         //----- NumericMatrix with traces -----//
-        NumericMatrix output(setup_n_chains * setup_c_sample_size,
+        NumericMatrix output(setup.n_chains * setup.c_sample_size,
                              headers.size());
         size_t col = 0;
 
@@ -531,17 +531,17 @@ Rcpp::NumericMatrix MCMC::Impl::export_traces() const
             for (size_t k = 0; k < smpl_individual_star.size(); ++k)
             {
                 const auto &smpl_augm_value_k = smpl_augm_value[k];
-                for (const augm_key &a : augm_list_infer + augm_list_func)
+                for (const augm_key &a : augm_list_export())
                     output(_, col++) = NumericVector(wrap(smpl_augm_value_k.at(a)));
             }
 
         // retrieve chain identities
-        if (setup_n_chains > 1)
+        if (setup.n_chains > 1)
         {
-            IntegerVector df_chain(setup_c_sample_size * setup_n_chains);
-            for (size_t c = 0; c < setup_n_chains; ++c)
-                std::fill(df_chain.begin() + c * setup_c_sample_size,
-                          df_chain.begin() + (c + 1) * setup_c_sample_size, c + 1);
+            IntegerVector df_chain(setup.c_sample_size * setup.n_chains);
+            for (size_t c = 0; c < setup.n_chains; ++c)
+                std::fill(df_chain.begin() + c * setup.c_sample_size,
+                          df_chain.begin() + (c + 1) * setup.c_sample_size, c + 1);
             output(_, col++) = df_chain;
         }
 
@@ -549,10 +549,10 @@ Rcpp::NumericMatrix MCMC::Impl::export_traces() const
         colnames(output) = CharacterVector(wrap(headers));
 
         //----- associate row names -----//
-        IntegerVector sweep(setup_c_sample_size * setup_n_chains);
-        for (size_t c = 0; c < setup_n_chains; ++c)
-            for (size_t k = 0; k < setup_c_sample_size; k++)
-                sweep[k + c * setup_c_sample_size] = setup_n_burnin + (k + 1) * setup_thin;
+        IntegerVector sweep(setup.c_sample_size * setup.n_chains);
+        for (size_t c = 0; c < setup.n_chains; ++c)
+            for (size_t k = 0; k < setup.c_sample_size; k++)
+                sweep[k + c * setup.c_sample_size] = setup.n_burnin + (k + 1) * setup.thin;
         rownames(output) = CharacterVector(wrap(sweep));
 
         return output;
@@ -576,7 +576,7 @@ Rcpp::NumericMatrix MCMC::Impl::export_house_loglike_mtx() const
             throw std::length_error("No traces to export were found.");
 
         // create a NumericMatrix with n_house columns
-        ulong sample_size = setup_n_chains * setup_c_sample_size;
+        ulong sample_size = setup.n_chains * setup.c_sample_size;
         NumericMatrix output(sample_size, n_houses());
         CharacterVector headers(n_houses());
 
@@ -598,10 +598,10 @@ Rcpp::NumericMatrix MCMC::Impl::export_house_loglike_mtx() const
         colnames(output) = headers;
 
         // associate row names
-        IntegerVector sweep(setup_c_sample_size * setup_n_chains);
-        for (size_t c = 0; c < setup_n_chains; ++c)
-            for (size_t k = 0; k < setup_c_sample_size; ++k)
-                sweep[k + c * setup_c_sample_size] = setup_n_burnin + (k + 1) * setup_thin;
+        IntegerVector sweep(setup.c_sample_size * setup.n_chains);
+        for (size_t c = 0; c < setup.n_chains; ++c)
+            for (size_t k = 0; k < setup.c_sample_size; ++k)
+                sweep[k + c * setup.c_sample_size] = setup.n_burnin + (k + 1) * setup.thin;
         rownames(output) = CharacterVector(wrap(sweep));
 
         return output;
@@ -627,17 +627,17 @@ Rcpp::List MCMC::Impl::showcase_infec_profile(int n_bins) const
     {
         // check the call makes sense
         // UPDATE: it would be nace by selecting id_trace...
-        if (_infec_profile.profile == nullptr)
+        if (infec_profile.profile == nullptr)
             throw std::length_error("No infectivity profile to export.");
-        else if (_infec_profile.is_augmented())
+        else if (infec_profile.is_augmented())
             throw std::length_error(
                 "Export of augmented infectivity profile is not supported.");
-        else if (!_infec_profile.profile->is_able_to_showcase())
+        else if (!infec_profile.profile->is_able_to_showcase())
             throw std::length_error(
                 "Cannot export infectivity profile with undefined arguments.");
 
         // produce a showcase of the distribution profile
-        std::vector<dbl_vec> values = _infec_profile.profile->showcase(n_bins);
+        std::vector<dbl_vec> values = infec_profile.profile->showcase(n_bins);
 
         // compute mean and variance
         const dbl_vec &x = values[0];
@@ -648,7 +648,7 @@ Rcpp::List MCMC::Impl::showcase_infec_profile(int n_bins) const
         double m = x[0] * prob[0] + x[N - 1] * prob[N - 1];
         double m2 = x[0] * x[0] * prob[0] + x[N - 1] * x[N - 1] * prob[N - 1];
         // integration wiht trapezoidal rule for continuos case
-        if (!_infec_profile.profile->is_discrete())
+        if (!infec_profile.profile->is_discrete())
         {
             m *= 0.5;
             m2 *= 0.5;
@@ -663,8 +663,8 @@ Rcpp::List MCMC::Impl::showcase_infec_profile(int n_bins) const
         m2 *= Dx;
 
         return List::create(
-            _["name"] = _infec_profile.profile->show_name(),
-            _["discr"] = _infec_profile.profile->is_discrete(),
+            _["name"] = infec_profile.profile->show_name(),
+            _["discr"] = infec_profile.profile->is_discrete(),
             _["mean"] = m,
             _["var"] = m2 - m * m,
             _["gentime"] = wrap(values[0]),
@@ -698,7 +698,7 @@ void MCMC::Impl::read_setup(const std::string &f)
 {
     try
     {
-        tools::read_csv_list(f, _setup_deflist);
+        tools::read_csv_list(f, setup.deflist);
     }
     catch (const std::exception &e)
     {
@@ -713,14 +713,14 @@ void MCMC::Impl::read_infec_profile(const std::string &f)
 {
     try
     {
-        tools::read_csv_list(f, _infec_profile.deflist);
+        tools::read_csv_list(f, infec_profile.deflist);
     }
     catch (const std::exception &e)
     {
         tools::error("While reading infectivity profile definitions:\n" +
                      std::string(e.what()));
     }
-    _infec_profile.build();
+    infec_profile.build();
 }
 
 /* Read parameter definitions and run assignment. */
@@ -864,37 +864,35 @@ void MCMC::Impl::show_summary() const
 //////////////////////////////////////  MCMC : show setup  ////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-const std::string MCMC::Impl::_aux_print_id_trace() const
-{
-    std::string output = HSP_NA_STRING;
-    if (!smpl_individual_star.empty())
-    {
-        std::string output = smpl_individual_star[0]->id();
-        for (ushort k = 1; k < smpl_individual_star.size(); ++k)
-            output += C_LIST_DELIM + smpl_individual_star[k]->id();
-    }
-    return output;
-}
-
 /* Show the complete choices for the setup. */
-void MCMC::Impl::show_setup() const
+std::string MCMC::Impl::Setup::show() const
 {
     // common setup variables
     std::ostringstream oss;
-    oss << "seed" << C_DELIM << setup_seed
-        << "\nn_threads" << C_DELIM << setup_n_threads
-        << "\nn_chains" << C_DELIM << setup_n_chains
-        << "\nsample_size" << C_DELIM << setup_c_sample_size
-        << "\nn_steps" << C_DELIM << setup_n_steps
-        << "\nn_adapt" << C_DELIM << setup_n_adapt
-        << "\nn_burnin" << C_DELIM << setup_n_burnin
-        << "\nthin" << C_DELIM << setup_thin
-        << "\nrand_init" << C_DELIM << tools::truth(setup_rand_init_params)
-        << "\nprogress" << C_DELIM << tools::truth(setup_progress)
-        << "\nid_trace" << C_DELIM << _aux_print_id_trace()
-        << "\n";
+    oss << "seed" << C_DELIM << seed
+        << "\nn_threads" << C_DELIM << n_threads
+        << "\nn_chains" << C_DELIM << n_chains
+        << "\nsample_size" << C_DELIM << c_sample_size
+        << "\nn_steps" << C_DELIM << n_steps
+        << "\nn_adapt" << C_DELIM << n_adapt
+        << "\nn_burnin" << C_DELIM << n_burnin
+        << "\nthin" << C_DELIM << thin
+        << "\nrand_init" << C_DELIM << tools::truth(rand_init_params)
+        << "\nprogress" << C_DELIM << tools::truth(progress);
+    return oss.str();
+}
 
-    tools::print_stdout(oss.str());
+void MCMC::Impl::show_setup() const
+{
+    std::string id_trace_txt = HSP_NA_STRING;
+    if (!smpl_individual_star.empty())
+    {
+        id_trace_txt = smpl_individual_star[0]->id();
+        for (ushort k = 1; k < smpl_individual_star.size(); ++k)
+            id_trace_txt += C_LIST_DELIM + smpl_individual_star[k]->id();
+    }
+
+    tools::print_stdout(setup.show() + "\nid_trace" + C_DELIM + id_trace_txt + "\n");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1002,35 +1000,33 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
             for (const par_key &p : param_standard_infer_list + param_cache_infer_list)
                 inferstate_ofstream << C_DELIM << p;
 
-            // augmented variables
-
             // augmented variable of id trace
             if (!smpl_augm_value.empty())
             {
                 if (smpl_individual_star.size() == 1)
-                    for (const augm_key &a : augm_list_infer + augm_list_func)
+                    for (const augm_key &a : augm_list_export())
                         inferstate_ofstream << C_DELIM << a;
                 else
                     for (size_t k = 0; k < smpl_individual_star.size(); ++k)
-                        for (const augm_key &a : augm_list_infer + augm_list_func)
+                        for (const augm_key &a : augm_list_export())
                             inferstate_ofstream << smpl_individual_star[k]->id() + "__" + a;
             }
 
             // header chain
-            if (setup_n_chains > 1)
+            if (setup.n_chains > 1)
                 inferstate_ofstream << C_DELIM << "CHAIN__";
 
             inferstate_ofstream << std::endl;
 
             //----- VALUES -----//
 
-            for (size_t c = 0; c < setup_n_chains; ++c)
-                for (size_t k = 0; k < setup_c_sample_size; k++)
+            for (size_t c = 0; c < setup.n_chains; ++c)
+                for (size_t k = 0; k < setup.c_sample_size; k++)
                 {
-                    size_t i = k + c * setup_c_sample_size;
+                    size_t i = k + c * setup.c_sample_size;
 
                     // print iteration
-                    ulong sweep = setup_n_burnin + (k + 1) * setup_thin;
+                    ulong sweep = setup.n_burnin + (k + 1) * setup.thin;
                     inferstate_ofstream << sweep;
 
                     // print loglikelihood
@@ -1045,12 +1041,12 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
                     // print augmented variable of id trace
                     if (!smpl_augm_value.empty())
                         for (size_t k = 0; k < smpl_individual_star.size(); ++k)
-                            for (const augm_key &a : augm_list_infer + augm_list_func)
+                            for (const augm_key &a : augm_list_export())
                                 inferstate_ofstream << C_DELIM << std::setprecision(5)
                                                     << std::fixed << smpl_augm_value[k].at(a)[i];
 
                     // print which chain
-                    if (setup_n_chains > 1)
+                    if (setup.n_chains > 1)
                         inferstate_ofstream << C_DELIM << (c + 1);
 
                     inferstate_ofstream << std::endl;

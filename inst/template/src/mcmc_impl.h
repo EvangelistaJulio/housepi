@@ -60,58 +60,97 @@ public:
          std::function<double(Household &)> callback_household_loglike,
          std::function<void(Household &)> callback_simulate_house,
          std::function<void(Household &, Individual &)> callback_update_cache)
-        : _infec_profile(*this),
-          _uniform_distr(0., 1.),
+        : setup(),
+          infec_profile(*this),
           _callback_init_inference(std::move(callback_init_inference)),
           _callback_init_simulation(std::move(callback_init_simulation)),
           _callback_house_loglike(std::move(callback_household_loglike)),
           _callback_simulate_house(std::move(callback_simulate_house)),
-          _callback_update_cache(std::move(callback_update_cache))
-    {
-        setup_seed = tools::default_setup_seed();
-    }
+          _callback_update_cache(std::move(callback_update_cache)) {}
     ~Impl() = default;
-
-    //===================================//
-    //===== RANDOM NUMBER GENERATOR =====//
-    //===================================//
-
-    // reference to the pseudo random number generator.
-    rnd_gen &get_prng() { return (this->*_do_get_prng)(); }
-    // draw a random variable uniformly distributed
-    double uniform() { return _uniform_distr(get_prng()); }
-    void _set_prng_seed();
 
     //=================//
     //===== SETUP =====//
     //=================//
 
-    //----- Setup - Attributes -----//
-    const str_vec setup_file_headers = {"sample_size", "seed", "n_chains",
-                                        "n_steps", "n_adapt", "thin",
-                                        "n_burnin", "rand_init", "n_threads",
-                                        "id_trace", "progress"};
+    struct Setup
+    {
+        Setup() : _unif(0., 1.) { seed = tools::default_setup_seed(); }
+        ~Setup() = default;
 
-    std::int32_t setup_seed;            // random generator seed
-    bool setup_rand_init_params = true; // random initialization of parameters
-    ulong setup_progress = 1;           // thinning seconds for progress bar
+        dict_str_str deflist = {}; // definition list
+        const str_vec file_headers = {"sample_size", "seed", "n_chains",
+                                      "n_steps", "n_adapt", "thin",
+                                      "n_burnin", "rand_init", "n_threads",
+                                      "id_trace", "progress"};
 
-    ulong setup_n_chains = 1; // n. chains
-    ulong setup_n_steps = 1;  // n. iterations
-    ulong setup_n_adapt = 0;  // n. (finite) adaptive steps
-    ulong setup_thin = 1;     // n. thinning iterations
-    ulong setup_n_burnin = 0; // n. burnin iterations
-    ulong setup_n_rungs = 0;  // n. of rungs
+        std::int32_t seed;            // random generator seed
+        bool rand_init_params = true; // random initialization of parameters
+        ulong progress = 1;           // thinning seconds for progress bar
+        ulong n_chains = 1;           // n. chains
+        ulong n_steps = 1;            // n. iterations
+        ulong n_adapt = 0;            // n. (finite) adaptive steps
+        ulong thin = 1;               // n. thinning iterations
+        ulong n_burnin = 0;           // n. burnin iterations
+        ulong n_rungs = 0;            // n. of rungs
+        ulong c_sample_size = 0;      // single chain sample size
+        ulong c_n_sweeps = 0;         // single chain n. of sweeps
+        double inv_T = 1.;            // inverse temperature
+        unsigned n_threads = 1;       // number of OMP threads
+        str_vec id_trace = {};        // augmented trace to save
 
-    double setup_inv_T = 1.;      // inverse temperature
-    unsigned setup_n_threads = 1; // number of OMP threads
+        // state variables for MCMC sampling
+        ulong chain = 1; // current chain
+        ulong rung = 0;  // current thermodynamic rung
 
-    str_vec setup_id_trace = {}; // augmented trace to save
+        bool is_power_post() const { return n_rungs > 0; }
+        const std::string fmt_progtxt();
 
-    ulong setup_c_sample_size = 0; // single chain sample size
-    ulong setup_c_n_sweeps = 0;    // single chain n. of sweeps
+        void build();
+        void assert_mcmc_setup();
+        void set_n_threads();
 
-    void _set_n_threads();
+        //----- Progress bar -----//
+        void prog_set_text(const std::string &text = HSP_NA_STRING)
+        {
+            _progressbar.set_text((text == HSP_NA_STRING) ? fmt_progtxt() : text);
+        }
+        void prog_declare(const std::string &text = HSP_NA_STRING)
+        {
+            prog_set_text(text);
+            _progressbar.set_thintime(progress);
+        }
+        void prog_open(ulong total) { _progressbar.open(total); }
+        void prog_update() { _progressbar.update(); }
+        void prog_close() { _progressbar.close(); }
+        void prog_crash() { _progressbar.crash(); }
+
+        //----- Pseudo Random Number Geenerator -----//
+        void set_prng_seed();
+        rnd_gen &prng() { return (this->*_do_get_prng)(); }
+        double unif() { return _unif(prng()); }
+
+#ifdef _HOUSEPI_RCPP
+        Rcpp::List export_defs() const;
+#else
+        std::string show() const;
+#endif
+
+    private:
+        progress::Bar _progressbar; // progress bar
+
+        rnd_gen _prng; // Mersenne Twister 19937 generator (32 or 64 bit)
+        rnd_gen &(MCMC::Impl::Setup::*_do_get_prng)();
+        rnd_gen &_prng_unique_thread() { return _prng; }
+        std::uniform_real_distribution<double> _unif; // uniform sampler
+
+#ifdef _OPENMP
+        std::vector<rnd_gen> _prng_parallel = {}; // parallel generators (for multi-threading)
+        rnd_gen &_prng_parallel_threads() { return _prng_parallel[omp_get_thread_num()]; }
+#endif
+    } setup;
+
+    std::string error_message = {}; // error message for the last exception
 
     //=====================//
     //===== PARAMETER =====//
@@ -136,7 +175,7 @@ public:
     const double *get_param_pointer(const par_key &p) const { return param_map.at(p).get_pointer(); }
 
     //----- Parameter - Setter -----//
-    void _init_parameters();
+    void init_parameters();
     void make_param_cache_dependent(const std::string &par_name);
 
     //----- Parameter - Metropolis-Hastings -----//
@@ -161,7 +200,7 @@ public:
     std::map<std::string, std::pair<ushort, ulong>> _report_hh_size_ = {};
 
     size_t n_houses() const { return house_vector.size(); }
-    void _fill_report_data();
+    void fill_report_data();
     ulong get_report_indiv(const std::string &key) const;
     ulong get_report_house(const std::string &key) const;
     std::pair<ushort, ulong> get_report_hh_size(const std::string &key) const;
@@ -187,14 +226,14 @@ public:
     std::map<int, std::vector<augm_key>> augm_status_map_model = {};
     std::map<int, std::vector<augm_key>> augm_status_map_infer = {};
 
-    /* Augmented list with variable to be exported. */
     const std::vector<augm_key> augm_list_export() const
     {
-        return subtr(augm_list_full, {AUX_IP_INST_PROFILE, AUX_IP_CUMUL_PROFILE});
+        return subtr(augm_list_infer + augm_list_func,
+                     {AUX_IP_INST_PROFILE, AUX_IP_CUMUL_PROFILE});
     }
 
     //----- Augmented - Setter -----//
-    void _init_augmented_variables();
+    void init_augmented_variables();
     void clear_all_augm(Individual &member);
     void assign_all_augm(Individual &member);
 
@@ -212,7 +251,7 @@ public:
     //===== INFECTIVITY PROFILE =====//
     //===============================//
 
-    class InfecProfile
+    struct InfecProfile
     {
     public:
         dict_str_str deflist = {};
@@ -274,12 +313,12 @@ public:
         double __lookup_cumul(Individual &member, double t);
         double __augm_inst(Individual &member, double t);
         double __augm_cumul(Individual &member, double t);
-    } _infec_profile;
+    } infec_profile;
 
-    void _update_infec_profile();
+    void update_infec_profile();
     void recover_infec_profile(bool is_cache_depen);
-    double infec_profile_inst(Individual &member, double t) { return _infec_profile.inst(member, t); }
-    double infec_profile_cumul(Individual &member, double t) { return _infec_profile.cumul(member, t); }
+    double infec_profile_inst(Individual &member, double t) { return infec_profile.inst(member, t); }
+    double infec_profile_cumul(Individual &member, double t) { return infec_profile.cumul(member, t); }
 
     //=================//
     //===== BUILD =====//
@@ -318,7 +357,7 @@ public:
     Rcpp::DataFrame export_dataset_report() const;
     Rcpp::DataFrame export_house_size_report() const;
 
-    Rcpp::List export_setup() const;
+    Rcpp::List export_setup() const { return setup.export_defs(); }
     Rcpp::DataFrame export_param() const;
     Rcpp::NumericMatrix export_traces() const;
     Rcpp::NumericMatrix export_house_loglike_mtx() const;
@@ -351,18 +390,31 @@ public:
     void _aux_print_dataset_init_(const std::string &pathtofile);
     void _aux_print_dataset_update_(Household &house);
     void _aux_print_dataset_finalize_();
-    const std::string _aux_print_id_trace() const;
 
 #endif
 
-    //=========================//
-    //===== LOGLIKELIHOOD =====//
-    //=========================//
+    //===============================//
+    //===== METROPOLIS-HASTINGS =====//
+    //===============================//
 
     double full_loglike = 0.; // current full loglikelihood
     double full_buffer = 0.;  // buffer loglikelihood
 
+    //----- Containers for posterior sample values -----//
+    ulong smpl_count = 0;
+    dbl_vec smpl_full_loglike = {};
+    par_key_map<dbl_vec> smpl_param_value = {};
+    std::vector<dbl_vec> smpl_house_loglike = {};
+
+    // optional augmented posterior sample
+    std::vector<Individual *> smpl_individual_star = {};
+    std::vector<augm_key_map<dbl_vec>> smpl_augm_value = {};
+
+    void assert_proper_dataset();
+    void assert_proper_mcmc_setup();
+
     double evaluate();
+    void infer();
 
     /* Set new full loglikelihood value and buffer old value. */
     void set_full_loglike(double new_ll)
@@ -377,52 +429,7 @@ public:
     /* Compute statistics from sample of full loglikelihood. */
     const std::pair<double, double> _smpl_full_loglike_stats() const { return tools::compute_stats(smpl_full_loglike); }
 
-    //===============================//
-    //===== METROPOLIS-HASTINGS =====//
-    //===============================//
-
-    ulong chain = 1; // current chain
-    ulong rung = 0;  // current thermodynamic rung
-
-    // Flag ot tell if power posteriors
-    bool _is_power_post() const { return setup_n_rungs > 0; }
-    const std::string _fmt_progtxt();
-
-    void _assert_proper_dataset();
-    void _assert_proper_mcmc_setup();
-
-    //----- Containers for posterior sample values -----//
-    ulong smpl_count = 0;
-    dbl_vec smpl_full_loglike = {};
-    par_key_map<dbl_vec> smpl_param_value = {};
-    std::vector<dbl_vec> smpl_house_loglike = {};
-
-    // optional augmented posterior sample
-    std::vector<Individual *> smpl_individual_star = {};
-    std::vector<augm_key_map<dbl_vec>> smpl_augm_value = {};
-
-    void infer();
-
 private:
-    //===================================//
-    //===== RANDOM NUMBER GENERATOR =====//
-    //===================================//
-
-    rnd_gen _prng; // Mersenne Twister 19937 generator (32 or 64 bit)
-    rnd_gen &(MCMC::Impl::*_do_get_prng)();
-    rnd_gen &_prng_unique_thread() { return _prng; }
-
-    //----- parallelization ----//
-    std::string _error_message = {};
-
-#ifdef _OPENMP
-    std::vector<rnd_gen> _prng_parallel = {}; // parallel generators (for multi-threading)
-    rnd_gen &_prng_parallel_threads() { return _prng_parallel[omp_get_thread_num()]; }
-#endif
-
-    //----- uniform sampler -----//
-    std::uniform_real_distribution<double> _uniform_distr;
-
     //=======================================//
     //===== CALLBACKS (VIRTUAL METHODS) =====//
     //=======================================//
@@ -449,7 +456,6 @@ private:
     //===== BUILD =====//
     //=================//
 
-    dict_str_str _setup_deflist = {};
     dict_str_vec _param_deftable = {};
     dict_str_vec _augm_deftable = {};
 
@@ -495,10 +501,10 @@ private:
 
     void _init_move_counts();
     void _init_infer_diagnostics();
-    void _update_infer_diagnostics();
+    void _update_posterior_sample();
     void _update_full_loglike(bool cache_depen);
     double _update_house_loglike(size_t R, bool is_augm_ll, bool cache_depen);
-    void _run_monte_carlo(progress::Bar &progbar);
+    void _run_monte_carlo();
     void _move_all();
     void _move_all_and_adapt_params(ulong step);
 

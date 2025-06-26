@@ -235,15 +235,15 @@ private:
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Distributions Registry base class. */
-class DistrRegistry : public FuncRegistry
+class DistributionRegistry : public FunctionRegistry
 {
 	using FactoryFunc = std::function<std::shared_ptr<Function>()>;
 	using FactoryDistr = std::function<std::shared_ptr<Distribution>()>;
 
 public:
-	DistrRegistry(const std::string &name)
-		: FuncRegistry(name) {}
-	virtual ~DistrRegistry() = default;
+	DistributionRegistry(const std::string &name)
+		: FunctionRegistry(name) {}
+	virtual ~DistributionRegistry() = default;
 
 	//==================//
 	//===== GETTER =====//
@@ -277,44 +277,44 @@ private:
 	std::unordered_map<std::string, FactoryDistr> _factory_map = {};
 };
 
-/* Register a Distribution derived class T to DistrRegistry derived class C. */
+/* Register a Distribution derived class T to DistributionRegistry derived class C. */
 template <typename C, typename T>
 void register_distr()
 {
-	static_assert(std::is_base_of<DistrRegistry, C>::value,
-				  "C must be derived from DistrRegistry");
+	static_assert(std::is_base_of<DistributionRegistry, C>::value,
+				  "C must be derived from DistributionRegistry");
 	C::inst().template register_distr<T>();
 }
 
 #define DECLARE_HOUSEPI_DISTRIBUTION_REGISTRY(ClassName, Description) \
-	class ClassName : public DistrRegistry                            \
+	class ClassName : public DistributionRegistry                     \
 	{                                                                 \
 	public:                                                           \
 		static ClassName &inst();                                     \
                                                                       \
 	private:                                                          \
-		ClassName() : DistrRegistry(Description) {}                   \
+		ClassName() : DistributionRegistry(Description) {}            \
 	};
 DECLARE_HOUSEPI_DISTRIBUTION_REGISTRY(ContinuosDistrRegistry, "continuos distribution")
 DECLARE_HOUSEPI_DISTRIBUTION_REGISTRY(DiscreteDistrRegistry, "discrete distribution")
 DECLARE_HOUSEPI_DISTRIBUTION_REGISTRY(InfecProfileRegistry, "infectivity profile")
 
-/* Register a Distribution derived class T to DistrRegistry derived class R. */
+/* Register a Distribution derived class T to DistributionRegistry derived class R. */
 template <typename R, typename T>
-struct Static_Distribution_Registatror
+struct StaticDistributionRegistatror
 {
-	Static_Distribution_Registatror()
+	StaticDistributionRegistatror()
 	{
-		static_assert(std::is_base_of<DistrRegistry, R>::value,
-					  "R must be derived from DistrRegistry.");
+		static_assert(std::is_base_of<DistributionRegistry, R>::value,
+					  "R must be derived from DistributionRegistry.");
 		R::inst().template register_distr<T>();
 	}
 };
-#define REGISTER_HOUSEPI_DISTRIBUTION(R, T)          \
-	namespace                                        \
-	{                                                \
-		static Static_Distribution_Registatror<R, T> \
-			housepi_register_##T##_to_##R;           \
+#define REGISTER_HOUSEPI_DISTRIBUTION(R, T)        \
+	namespace                                      \
+	{                                              \
+		static StaticDistributionRegistatror<R, T> \
+			housepi_register_##T##_to_##R;         \
 	}
 #define REGISTER_USER_CONTINUOS_DISTRIBUTION(T) REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, T)
 #define REGISTER_USER_DISCRETE_DISTRIBUTION(T) REGISTER_HOUSEPI_DISTRIBUTION(DiscreteDistrRegistry, T)
@@ -323,6 +323,6 @@ struct Static_Distribution_Registatror
 /* Compose registries to get a distribution from them. */
 std::shared_ptr<Distribution> compose_distr_registries(const std::string &opt,
 													   const std::string &name,
-													   const std::vector<const DistrRegistry *> &registries);
+													   const std::vector<const DistributionRegistry *> &registries);
 
 #endif // HOUSEPI__DISTRIBUTION__H

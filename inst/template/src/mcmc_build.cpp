@@ -26,75 +26,74 @@
 /////////////////////////////////  MCMC::Impl : methods (setter)  /////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+void MCMC::Impl::Setup::build()
+{
+    if (deflist.size() > 0)
+    {
+        // check entries
+        str_vec headers = tools::headers_from_deflist(deflist);
+        tools::check_for_unused_entries(headers, file_headers);
+
+        // Random Initialization of Parameters
+        if (deflist.count("progress") && (!tools::is_na(deflist.at("progress"))))
+            progress = tools::stoul(deflist.at("progress"));
+
+        // N. of Threads
+        if (deflist.count("n_threads") && (!tools::is_na(deflist.at("n_threads"))))
+            n_threads = tools::stoi(deflist.at("n_threads"), "n. of threads");
+
+        // PRNG Seed
+        if (deflist.count("seed") && (!tools::is_na(deflist.at("seed"))))
+            seed = tools::stoi32(deflist.at("seed"), "random seed");
+
+        // N. of Chains
+        if (deflist.count("n_chains") && (!tools::is_na(deflist.at("n_chains"))))
+            n_chains = tools::stoul(deflist.at("n_chains"), "n. of chains");
+
+        // Single Chain Sample Size
+        if (deflist.count("sample_size") && (!tools::is_na(deflist.at("sample_size"))))
+            c_sample_size = tools::stoul(deflist.at("sample_size"), "sample size");
+
+        // N. of Steps
+        if (deflist.count("n_steps") && (!tools::is_na(deflist.at("n_steps"))))
+            n_steps = tools::stoul(deflist.at("n_steps"), "n. of steps");
+
+        // N. of Adaptive Steps
+        if (deflist.count("n_adapt") && (!tools::is_na(deflist.at("n_adapt"))))
+            n_adapt = tools::stoul(deflist.at("n_adapt"), "n. of adaptive steps");
+
+        // N. of Thinning Steps
+        if (deflist.count("thin") && (!tools::is_na(deflist.at("thin"))))
+            thin = tools::stoul(deflist.at("thin"), "thin");
+
+        // N. of Steps to "Burn-In"
+        if (deflist.count("n_burnin") && (!tools::is_na(deflist.at("n_burnin"))))
+            n_burnin = tools::stoul(deflist.at("n_burnin"), "burn-in");
+
+        // Random Initialization of Parameters
+        if (deflist.count("rand_init") && (!tools::is_na(deflist.at("rand_init"))))
+            rand_init_params = tools::stobool(deflist.at("rand_init"));
+
+        // Individual ID for Augmented Trace
+        if (deflist.count("id_trace") && (!tools::is_na(deflist.at("id_trace"))))
+            id_trace = tools::parse_list_args(deflist.at("id_trace"));
+    }
+
+    // reset internal states
+    chain = 1;   // current chain
+    rung = 0;    // current thermodynamic rung
+    n_rungs = 0; // number of rungs
+
+    set_n_threads(); // define number of threads
+    set_prng_seed(); // pseudo-random number generator seeding
+}
+
 /* Assign setup. */
 void MCMC::Impl::build_setup()
 {
     try
     {
-        // reference to definition list
-        const dict_str_str &deflist = _setup_deflist;
-
-        if (deflist.size() > 0)
-        {
-            // check entries
-            str_vec headers = tools::headers_from_deflist(_setup_deflist);
-            tools::check_for_unused_entries(headers, setup_file_headers);
-
-            // Random Initialization of Parameters
-            if (deflist.count("progress") && (!tools::is_na(deflist.at("progress"))))
-                setup_progress = tools::stoul(deflist.at("progress"));
-
-            // N. of Threads
-            if (deflist.count("n_threads") && (!tools::is_na(deflist.at("n_threads"))))
-                setup_n_threads = tools::stoi(deflist.at("n_threads"), "n. of threads");
-
-            // PRNG Seed
-            if (deflist.count("seed") && (!tools::is_na(deflist.at("seed"))))
-                setup_seed = tools::stoi32(deflist.at("seed"), "random seed");
-
-            // N. of Chains
-            if (deflist.count("n_chains") && (!tools::is_na(deflist.at("n_chains"))))
-                setup_n_chains = tools::stoul(deflist.at("n_chains"), "n. of chains");
-
-            // Single Chain Sample Size
-            if (deflist.count("sample_size") && (!tools::is_na(deflist.at("sample_size"))))
-                setup_c_sample_size = tools::stoul(deflist.at("sample_size"), "sample size");
-
-            // N. of Steps
-            if (deflist.count("n_steps") && (!tools::is_na(deflist.at("n_steps"))))
-                setup_n_steps = tools::stoul(deflist.at("n_steps"), "n. of steps");
-
-            // N. of Adaptive Steps
-            if (deflist.count("n_adapt") && (!tools::is_na(deflist.at("n_adapt"))))
-                setup_n_adapt = tools::stoul(deflist.at("n_adapt"), "n. of adaptive steps");
-
-            // N. of Thinning Steps
-            if (deflist.count("thin") && (!tools::is_na(deflist.at("thin"))))
-                setup_thin = tools::stoul(deflist.at("thin"), "thin");
-
-            // N. of Steps to "Burn-In"
-            if (deflist.count("n_burnin") && (!tools::is_na(deflist.at("n_burnin"))))
-                setup_n_burnin = tools::stoul(deflist.at("n_burnin"), "burn-in");
-
-            // Random Initialization of Parameters
-            if (deflist.count("rand_init") && (!tools::is_na(deflist.at("rand_init"))))
-                setup_rand_init_params = tools::stobool(deflist.at("rand_init"));
-
-            // Individual ID for Augmented Trace
-            if (deflist.count("id_trace") && (!tools::is_na(deflist.at("id_trace"))))
-                setup_id_trace = tools::parse_list_args(deflist.at("id_trace"));
-        }
-
-        // define number of threads
-        _set_n_threads();
-
-        // pseudo-random number generator seeding
-        _set_prng_seed();
-
-        // reset internal states
-        chain = 1;         // current chain
-        rung = 0;          // current thermodynamic rung
-        setup_n_rungs = 0; // number of rungs
+        setup.build();
     }
     catch (const std::exception &e)
     {
@@ -104,54 +103,113 @@ void MCMC::Impl::build_setup()
 }
 
 /* Set the number of threads for parrell computations (default is 1). */
-void MCMC::Impl::_set_n_threads()
+void MCMC::Impl::Setup::set_n_threads()
 {
-    if (setup_n_threads == 0)
+    if (n_threads == 0)
         throw std::invalid_argument("N. of threads must be greater than 0.");
 
 #ifdef _OPENMP
     unsigned int max_threads = omp_get_num_procs();
 
-    if (setup_n_threads > max_threads)
+    if (n_threads > max_threads)
     {
         tools::warning(
             "N. of threads reduced to " + std::to_string(max_threads) + " available processors.");
-        setup_n_threads = max_threads;
+        n_threads = max_threads;
     }
 
     // declare the global number of omp threads
-    omp_set_num_threads(setup_n_threads);
+    omp_set_num_threads(n_threads);
 
 #else
-    if (setup_n_threads != 1)
+    if (n_threads != 1)
         tools::warning("Parallelization with OpenMP not supported.");
 
-    setup_n_threads = 1;
+    n_threads = 1;
 #endif
 }
 
 /* Assign seed for random generators. */
-void MCMC::Impl::_set_prng_seed()
+void MCMC::Impl::Setup::set_prng_seed()
 {
     // seed for the unique thread rand num generator
-    _prng.seed(setup_seed);
-    _do_get_prng = &Impl::_prng_unique_thread;
+    _prng.seed(seed);
+    _do_get_prng = &Impl::Setup::_prng_unique_thread;
 
 #ifdef _OPENMP
     // seeds for the case of parallelization
-    if (setup_n_threads > 1)
+    if (n_threads > 1)
     {
         // create different generators for different parallel threads
         // note: they are used only to parallelize data augmentantion
-        _do_get_prng = &Impl::_prng_parallel_threads;
+        _do_get_prng = &Impl::Setup::_prng_parallel_threads;
 
         std::uniform_int_distribution<unsigned long> seed_generator(0, 0XFFFFFFFF);
 
-        _prng_parallel.reserve(setup_n_threads);
-        for (unsigned n = 0; n < setup_n_threads; ++n)
+        _prng_parallel.reserve(n_threads);
+        for (unsigned n = 0; n < n_threads; ++n)
             _prng_parallel[n].seed(seed_generator(_prng));
     }
 #endif
+}
+
+void MCMC::Impl::Setup::assert_mcmc_setup()
+{
+    if ((inv_T < 0.) || (inv_T > 1.))
+        throw std::range_error(
+            "Inverse temperature " + std::to_string(inv_T) + " out of range [0, 1].");
+
+    if ((n_chains > 1) && (rand_init_params == false))
+    {
+        tools::warning(
+            "Unable to fix initial parameters when running multiple chains.");
+        rand_init_params = true;
+    }
+    else if (n_chains < 1)
+        throw std::out_of_range("N. of chains must be greater than 0.");
+
+    if (thin == 0)
+    {
+        tools::warning("Thinning equal to 0 interpreted as 1.");
+        thin = 1;
+    }
+
+    if (c_sample_size == 0)
+    {
+        if (n_steps < 1)
+            throw std::out_of_range(
+                "N. of steps must be greater than 0.");
+        if (n_burnin >= n_steps)
+            throw std::out_of_range(
+                "Burn-in must be smaller than n. of steps.");
+        if (thin > n_steps)
+            throw std::out_of_range(
+                "Thinning must be smaller than (or equal to) n. of steps. ");
+
+        c_sample_size = (n_steps - n_burnin) / thin;
+
+        if (c_sample_size == 0)
+            throw std::out_of_range(
+                "Choice of steps, burn-in and thin return a 0 sample size.");
+    }
+    else
+        n_steps = n_burnin + c_sample_size * thin;
+
+    // assign number of sweeps
+    c_n_sweeps = n_adapt / thin;
+    c_n_sweeps += n_burnin / thin;
+    c_n_sweeps += c_sample_size;
+}
+
+/* The text to print in the Markov chian progress bar. */
+const std::string MCMC::Impl::Setup::fmt_progtxt()
+{
+    if (is_power_post())
+        return "power post " + std::to_string(rung) + "/" + std::to_string(n_rungs);
+    else if (n_chains > 1)
+        return "sample " + std::to_string(chain) + "/" + std::to_string(n_chains);
+    else
+        return "sample";
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -162,7 +220,7 @@ void MCMC::Impl::_set_prng_seed()
 //-----------------------------------------------------------------------------------------------//
 
 /* Assert dataset is not empty. */
-void MCMC::Impl::_assert_proper_dataset()
+void MCMC::Impl::assert_proper_dataset()
 {
     if (house_vector.size() == 0)
         throw std::length_error(
@@ -170,54 +228,9 @@ void MCMC::Impl::_assert_proper_dataset()
 }
 
 /* Assert setup definitions are ok to proceed with mcmc sampling. */
-void MCMC::Impl::_assert_proper_mcmc_setup()
+void MCMC::Impl::assert_proper_mcmc_setup()
 {
-    if ((setup_inv_T < 0.) || (setup_inv_T > 1.))
-        throw std::range_error(
-            "Inverse temperature " + std::to_string(setup_inv_T) + " out of range [0, 1].");
-
-    if ((setup_n_chains > 1) && (setup_rand_init_params == false))
-    {
-        tools::warning(
-            "Unable to fix initial parameters when running multiple chains.");
-        setup_rand_init_params = true;
-    }
-    else if (setup_n_chains < 1)
-        throw std::out_of_range("N. of chains must be greater than 0.");
-
-    if (setup_thin == 0)
-    {
-        tools::warning("Thinning equal to 0 interpreted as 1.");
-        setup_thin = 1;
-    }
-
-    if (setup_c_sample_size == 0)
-    {
-        if (setup_n_steps < 1)
-            throw std::out_of_range(
-                "N. of steps must be greater than 0.");
-
-        if (setup_n_burnin >= setup_n_steps)
-            throw std::out_of_range(
-                "Burn-in must be smaller than n. of steps.");
-
-        if (setup_thin > setup_n_steps)
-            throw std::out_of_range(
-                "Thinning must be smaller than (or equal to) n. of steps. ");
-
-        setup_c_sample_size = (setup_n_steps - setup_n_burnin) / setup_thin;
-
-        if (setup_c_sample_size == 0)
-            throw std::out_of_range(
-                "Choice of steps, burn-in and thin return a 0 sample size.");
-    }
-    else
-        setup_n_steps = setup_n_burnin + setup_c_sample_size * setup_thin;
-
-    // assign number of sweeps
-    setup_c_n_sweeps = setup_n_adapt / setup_thin;
-    setup_c_n_sweeps += setup_n_burnin / setup_thin;
-    setup_c_n_sweeps += setup_c_sample_size;
+    setup.assert_mcmc_setup();
 
     // check if there is a dataset
     if (n_individuals == 0)
@@ -228,17 +241,6 @@ void MCMC::Impl::_assert_proper_mcmc_setup()
     if (((param_standard_infer_list + param_cache_infer_list).empty()) && (!is_augm_sample()))
         throw std::length_error(
             "Nothing to sample. Check your parameter and augmented variable definitions.");
-}
-
-/* The text to print in the Markov chian progress bar. */
-const std::string MCMC::Impl::_fmt_progtxt()
-{
-    if (_is_power_post())
-        return "power post " + std::to_string(rung) + "/" + std::to_string(setup_n_rungs);
-    else if (setup_n_chains > 1)
-        return "sample " + std::to_string(chain) + "/" + std::to_string(setup_n_chains);
-    else
-        return "sample";
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -332,7 +334,7 @@ void MCMC::Impl::build_dataset(const dict_str_vec &input)
             }
 
             // update report for data
-            _fill_report_data();
+            fill_report_data();
         }
     }
     catch (const std::exception &e)
@@ -343,7 +345,7 @@ void MCMC::Impl::build_dataset(const dict_str_vec &input)
 }
 
 /* Use the loaded data to fill-in the respective report. */
-void MCMC::Impl::_fill_report_data()
+void MCMC::Impl::fill_report_data()
 {
     _report_indiv_ = {{"total", n_individuals},
                       {"missing", 0},
@@ -725,7 +727,7 @@ void MCMC::Impl::build_param()
 }
 
 /* Randomly initialize values of the parameters to be inferred */
-void MCMC::Impl::_init_parameters()
+void MCMC::Impl::init_parameters()
 {
     for (const par_key &p : param_standard_infer_list + param_cache_infer_list)
     {
@@ -733,13 +735,13 @@ void MCMC::Impl::_init_parameters()
         // user initialization (for multiple chains)
         this_par.user_reset();
 
-        if (setup_rand_init_params)
+        if (setup.rand_init_params)
         {
             if (tools::is_na(this_par.show_distr_name()))
                 throw std::invalid_argument(
                     "Parameters with undefined values are not allowed.");
             else
-                this_par.rand(_prng);
+                this_par.rand(setup.prng());
         }
         else if (tools::is_na(this_par.get()))
             throw std::invalid_argument(

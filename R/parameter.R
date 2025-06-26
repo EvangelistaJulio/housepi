@@ -79,12 +79,10 @@ HousepiParameter <- R6::R6Class(
         self$defs <- self$defs[!mask, ]
         return(TRUE)
 
-      } else {
-        if (isTRUE(show_warnings)) {
-          warning_h(
-            sprintf("Attempt to remove unknown parameter \"%s\".", name)
-          )
-        }
+      } else if (isTRUE(show_warnings)) {
+        warning_h(
+          sprintf("Attempt to remove unknown parameter \"%s\".", name)
+        )
       }
 
       return(FALSE)
@@ -124,29 +122,23 @@ HousepiParameter <- R6::R6Class(
                    scale = NA,
                    min = NA,
                    max = NA) {
-      if (is.na(name)) {
-        stop_h("Incomplete definition: missing name.")
-      }
+      if (is.na(name)) stop_h(
+        "Incomplete definition: missing name."
+      )
 
       # remove previous definition if it exists
-      if (self$remove(name, FALSE)) {
-        warning_h(
-          sprintf("Overwriting \"%s\" definition.", name)
-        )
-      }
+      if (self$remove(name, FALSE)) warning_h(
+        sprintf("Overwriting \"%s\" definition.", name)
+      )
 
       # assume it's a constant if a prior is not provided
-      if (is.na(const)) {
-        const <- is.na(prior)
-      }
+      if (is.na(const)) const <- is.na(prior)
 
       if (isTRUE(const)) {
         # check that value is provided
-        if (is.na(value)) {
-          stop_h(
-            sprintf("Missing value for constant parameter \"%s\".", name)
-          )
-        }
+        if (is.na(value)) stop_h(
+          sprintf("Missing value for constant parameter \"%s\".", name)
+        )
         # append constant parameter
         self$defs <- rbind(
           self$defs,
@@ -168,11 +160,9 @@ HousepiParameter <- R6::R6Class(
 
       } else {
         # prior to tell if constant
-        if (is.na(prior)) {
-          stop_h(
-            sprintf("No prior provided for parameter \"%s\".", name)
-          )
-        }
+        if (is.na(prior)) stop_h(
+          sprintf("No prior provided for parameter \"%s\".", name)
+        )
 
         # prior arguments
         arg_key_ <- NA
@@ -236,14 +226,11 @@ HousepiParameter <- R6::R6Class(
         this_def <- as.list(definitions[[i]])
         def_name <- names(definitions[i])
         if (length(names(this_def)) == 0) {
-          if (length(this_def) == 1) {
-            names(this_def) <- "value"
-          } else {
-            stop_h(
-              sprintf("Wrong definition for parameter \"%s\"", def_name),
-              "Provide a definition list or a scalar (if constant)."
-            )
-          }
+          if (length(this_def) == 1) names(this_def) <- "value"
+          else stop_h(
+            sprintf("Wrong definition for parameter \"%s\"", def_name),
+            "Provide a definition list or a scalar (if constant)."
+          )
         }
         this_def$name <- def_name
         do.call(self$add, this_def)
@@ -277,18 +264,14 @@ HousepiParameter <- R6::R6Class(
           } else {
             missing_set <- template_find_missing(requirements,
                                                  self$defs[["name"]])
-            if (length(missing_set) == 0) {
-              warning_h(
-                "No template parameters to append.",
-                "Definitions are complete."
-              )
-            } else if (!all(missing_set %in% names(templ_defs))) {
-              stop_h(
-                "No template found for the missing parameters."
-              )
-            } else {
-              self$load_list(from = templ_defs[missing_set], append = TRUE)
-            }
+            if (length(missing_set) == 0) warning_h(
+              "No template parameters to append.",
+              "Definitions are complete."
+            )
+            else if (!all(missing_set %in% names(templ_defs))) stop_h(
+              "No template found for the missing parameters."
+            )
+            else self$load_list(from = templ_defs[missing_set], append = TRUE)
           }
         } else {
           self$load_list(from = templ_defs, append = FALSE)
@@ -353,13 +336,11 @@ HousepiParameter <- R6::R6Class(
 
       # find missing parameters
       missing_set <- template_find_missing(requirements, defined)
-      if (length(missing_set) > 0) {
-        stop_h(
-          sprintf("Missing parameter definition%s for:",
-                  ifelse(length(missing_set) > 1, "s", "")),
-          character_to_string_list(missing_set)
-        )
-      }
+      if (length(missing_set) > 0) stop_h(
+        sprintf("Missing parameter definition%s for:",
+                ifelse(length(missing_set) > 1, "s", "")),
+        character_to_string_list(missing_set)
+      )
 
       invisible(self)
     }

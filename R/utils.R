@@ -49,15 +49,10 @@ internal_setup_error <- function() {
 
 # check if suggested library is installed
 require_suggested_library <- function(libname) {
-  if (requireNamespace(libname, quietly = TRUE)) {
-    return(TRUE)
-  } else {
-    stop_h(
-      sprintf("Attempt to call missing library \"%s\".", libname),
-      sprintf("Install it running: install.packages(\"%s\")", libname)
-    )
-    return(FALSE)
-  }
+  if (!requireNamespace(libname, quietly = TRUE)) stop_h(
+    sprintf("Attempt to call missing library \"%s\".", libname),
+    sprintf("Install it running: install.packages(\"%s\")", libname)
+  )
 }
 
 #' @title
@@ -78,12 +73,8 @@ character_to_string_list <- function(mylist, max_print = 5) {
   sms <- paste(lapply(mylist[seq_len(min(max_print, length(mylist)))],
                       function(x) paste0("\"", x, "\"")),
                collapse = ", ")
-  if (length(mylist) > max_print) {
-    sms <- paste0(sms, ", ...")
-  } else {
-    sms <- paste0(sms, ".")
-  }
-  return(sms)
+  if (length(mylist) > max_print) return(paste0(sms, ", ..."))
+  else return(paste0(sms, "."))
 }
 
 #' @title
@@ -142,11 +133,8 @@ overwrite <- function(from, to, ...) {
 
 # Define a custom get function (like in Python dictionaries)
 get_val_ <- function(lst, key, default = NA) {
-  if (key %in% names(lst)) {
-    return(lst[[key]])
-  } else {
-    return(default)
-  }
+  if (key %in% names(lst)) return(lst[[key]])
+  else return(default)
 }
 
 #' @title
@@ -167,13 +155,9 @@ load_definition_list <- function(..., from = NULL) {
   definitions <- list(...)
 
   if (length(definitions) == 0) {
-    if (length(from) == 0) {
-      stop_h("No definitions provided.")
-    } else if (is.list(from)) {
-      definitions <- from
-    } else {
-      stop_h("Argument 'from' should be a list.")
-    }
+    if (length(from) == 0) stop_h("No definitions provided.")
+    else if (is.list(from)) definitions <- from
+    else stop_h("Argument 'from' should be a list.")
   } else if (any(names(definitions) == "")) {
     stop_h("Found definition without name.")
   }
@@ -203,9 +187,9 @@ source_files <- function(path) {
   return(file.path(path, paste0("model.", c("cpp", "h"))))
 }
 
-# return time of creation truncated
-trunc_ctime <- function(path) {
-  return(max(trunc(file.info(path)$ctime)))
+# return time of modification truncated
+trunc_mtime <- function(path) {
+  return(max(trunc(file.info(path)$mtime)))
 }
 
 #' @title
@@ -223,14 +207,14 @@ trunc_ctime <- function(path) {
 #'
 #' @keywords internal
 untracked_changes <- function(source_dir, dll) {
-  last_mod <- trunc_ctime(source_files(source_dir))
+  last_mod <- trunc_mtime(source_files(source_dir))
 
   # last changed should be older than installation time
   housepi_dir <- file.path(system.file(package = "housepi"), "template")
   check_src_files <- list.files(housepi_dir, full.names = TRUE)
-  install_time <- trunc_ctime(check_src_files)
+  install_time <- trunc_mtime(check_src_files)
 
-  return(any(trunc_ctime(dll) < c(last_mod, install_time)))
+  return(any(trunc_mtime(dll) < c(last_mod, install_time)))
 }
 
 # Optional helper files
@@ -260,6 +244,24 @@ template_dll_file <- function(path) {
   return(file.path(path, dll_file_ext(template_name(path))))
 }
 
+# Get template name from DLL file
+get_template_from_dll <- function(dll) {
+  if (is.null(dll) || is.na(dll) || !file.exists(dll)) return(NA)
+  else return(tools::file_path_sans_ext(basename(dll)))
+}
+
+# Get Rcpp module from DLL file
+get_rcpp_module <- function(module_name, hhmodel = NULL) {
+  dll <- ifelse(is.null(hhmodel), NA, hhmodel$path_to_dll)
+  if (is.na(dll)) {
+    housepi_dir <- file.path(system.file(package = "housepi"), "template")
+    dll <- file.path(housepi_dir, "src", dll_file_ext("housepienvironment"))
+  }
+  dyn.load(dll)
+  package <- get_template_from_dll(dll)
+  return(Rcpp::Module("housepi_infec_profile", PACKAGE = package))
+}
+
 ############################################################################
 ############################################################################
 ############################################################################
@@ -279,29 +281,28 @@ template_dll_file <- function(path) {
 #'
 #' @export
 housepi_traces_to_coda <- function(trs) {
-  if (require_suggested_library("coda")) {
-    if ((methods::is(trs, "mcmc") || methods::is(trs, "mcmc.list"))) {
-      return(trs)
+  require_suggested_library("coda")
+  if ((methods::is(trs, "mcmc") || methods::is(trs, "mcmc.list"))) {
+    return(trs)
 
-    } else if (is.matrix(trs) || (is.data.frame(trs))) {
-      sweeps <- as.integer(rownames(df))
-      return(coda::mcmc(data = trs,
-                        start = sweeps[1],
-                        end = sweeps[length(sweeps)],
-                        thin = sweeps[2] - sweeps[1]))
+  } else if (is.matrix(trs) || (is.data.frame(trs))) {
+    sweeps <- as.integer(rownames(df))
+    return(coda::mcmc(data = trs,
+                      start = sweeps[1],
+                      end = sweeps[length(sweeps)],
+                      thin = sweeps[2] - sweeps[1]))
 
-    } else if (is.list(trs)) {
-      sweeps <- as.integer(rownames(trs[[1]]))
-      df_list <- lapply(trs, function(x) {
-        coda::mcmc(
-          data = x,
-          start = sweeps[1],
-          end = sweeps[length(sweeps)],
-          thin = sweeps[2] - sweeps[1]
-        )
-      })
-      return(coda::as.mcmc.list(df_list))
-    }
+  } else if (is.list(trs)) {
+    sweeps <- as.integer(rownames(trs[[1]]))
+    df_list <- lapply(trs, function(x) {
+      coda::mcmc(
+        data = x,
+        start = sweeps[1],
+        end = sweeps[length(sweeps)],
+        thin = sweeps[2] - sweeps[1]
+      )
+    })
+    return(coda::as.mcmc.list(df_list))
   }
 }
 
@@ -321,28 +322,24 @@ housepi_traces_to_coda <- function(trs) {
 #'
 #' @keywords internal
 estimate_from_traces <- function(trs, cri_level = 0.95) {
-  if ((cri_level <= 0) || (cri_level >= 1)) {
-    stop_h(
-      "Credible interval level must be a value between 0 and 1."
-    )
-  }
+
+  if ((cri_level <= 0) || (cri_level >= 1)) stop_h(
+    "Credible interval level must be a value between 0 and 1."
+  )
+  cri_lower <- 0.5 - 0.5 * cri_level
+  cri_upper <- 0.5 + 0.5 * cri_level
 
   # change in case of multiple chains
   if (is.list(trs)) trs <- do.call(rbind, trs)
 
-  cri_lower <- 0.5 - 0.5 * cri_level
-  cri_upper <- 0.5 + 0.5 * cri_level
-  out <- data.frame(
-    name = NA,
+  return(data.frame(
+    name = colnames(trs),
     mean = apply(trs, 2, mean, na.rm = TRUE),
     sd = apply(trs, 2, sd, na.rm = TRUE),
     cri_lower = apply(trs, 2, quantile, probs = cri_lower, na.rm = TRUE),
     cri_upper = apply(trs, 2, quantile, probs = cri_upper, na.rm = TRUE),
     check.names = FALSE
-  )
-  out$name <- rownames(out)
-
-  return(out)
+  ))
 }
 
 ############################################################################
@@ -378,41 +375,29 @@ default_types_ <- function(types, values) {
 
     if (is.na(k)) {
       # no explicit type provided, then format for default types
-      if (is.na(y)) {
-        types[i] <- NA
-      } else if (is.numeric(y)) {
-        types[i] <- "S"
-      } else if (is.character(y)) {
-        if (is.na(suppressWarnings(as.numeric(y)))) {
-          types[i] <- "A"
-        } else {
-          types[i] <- "S"
-        }
-      } else {
-        types[i] <- "A"
-      }
+      if (is.na(y)) types[i] <- NA
+      else if (is.numeric(y)) types[i] <- "S"
+      else if (is.character(y)) types[i] <- ifelse(
+        is.na(suppressWarnings(as.numeric(y))), "A", "S"
+      )
+      else types[i] <- "A"
 
     } else {
       # explicit type checking
       k <- toupper(k)
-      if (!(k %in% names(valid_types))) {
-        valid_message <- paste(
+      if (!(k %in% names(valid_types))) stop_h(
+        paste0("Invalid type \"", k, "\" for value \"", y, "\"."),
+        paste(
           sprintf("\"%s\"", names(valid_types)),
           sprintf("(%s)", unlist(valid_types)),
           collapse = ", "
         )
-
-        stop_h(
-          paste0("Invalid type \"", k, "\" for value \"", y, "\"."),
-          valid_message
-        )
-      }
+      )
     }
   }
 
   return(types)
 }
-
 # @title
 #' Type split
 #' @description
@@ -532,12 +517,11 @@ count_unique_function_calls_ <- function(s) {
 extract_func_equality_ <- function(s) {
   # split according to the regular expression
   y <- strsplit(s, "=")[[1]]
-  if (length(y) != 2) {
-    stop_h(
-      "Invalid number of arguments for equality.",
-      "Expected 1 argument, found ", length(y), "."
-    )
-  }
+  if (length(y) != 2) stop_h(
+    "Invalid number of arguments for equality.",
+    "Expected 1 argument, found ", length(y), "."
+  )
+  
   y <- type_split_(y[-1])
 
   return(list(
@@ -564,12 +548,10 @@ extract_func_equality_ <- function(s) {
 extract_func_arithmetic_ <- function(s, reg_expr, func_name) {
   # split according to the regular expression
   y <- strsplit(s, reg_expr)[[1]]
-  if (length(y) != 2) {
-    stop_h(
-      "Invalid number of arguments for ", func_name, ".",
-      "Expected 2 argument, found ", length(y), "."
-    )
-  }
+  if (length(y) != 2) stop_h(
+    "Invalid number of arguments for ", func_name, ".",
+    "Expected 2 argument, found ", length(y), "."
+  )
   y <- type_split_(y)
 
   return(list(
@@ -595,35 +577,33 @@ extract_func_arithmetic_ <- function(s, reg_expr, func_name) {
 extract_func_call_ <- function(s) {
   options <- c("pow", "sqrt", "exp", "log", "sin", "cos", "tan")
 
-  if (count_unique_function_calls_(s) > 0) {
-    stop_h(sprintf("Multiple functions invoked in definition \"%s\"", s))
-  }
+  if (count_unique_function_calls_(s) > 0) stop_h(
+    sprintf("Multiple functions invoked in definition \"%s\"", s)
+  )
 
   # check parentheses are matched
-  if (nchar(gsub("[^\\(]", "", s)) != nchar(gsub("[^\\)]", "", s))) {
-    stop("Unmatched parentheses in input string")
-  }
+  if (nchar(gsub("[^\\(]", "", s)) != nchar(gsub("[^\\)]", "", s))) stop(
+    "Unmatched parentheses in input string"
+  )
 
   # extract function name and argument using regex
   m <- regexec("^([a-zA-Z_][a-zA-Z0-9_]*)\\((.*)\\)$", s)
   parts <- regmatches(s, m)[[1]]
 
-  if (length(parts) != 3) {
-    stop_h("Input string must be a function call like func(x)")
-  }
+  if (length(parts) != 3) stop_h(
+    "Input string must be a function call like func(x)"
+  )
 
   func_name <- parts[2]
-  if (!(func_name %in% options)) {
-    stop_h(
-      sprintf("Function '%s' is not supported.", func_name),
-      find_closest_match(func_name, options, 1)
-    )
-  }
+  if (!(func_name %in% options)) stop_h(
+    sprintf("Function '%s' is not supported.", func_name),
+    find_closest_match(func_name, options, 1)
+  )
 
   y <- type_split_(parts[3])
-  if (length(y$val) != 1) {
-    stop_h(sprintf("Function '%s' expects exactly one argument.", func_name))
-  }
+  if (length(y$val) != 1) stop_h(
+    sprintf("Function '%s' expects exactly one argument.", func_name)
+  )
   return(list(func = func_name, key = "x", val = y$val, at = y$at))
 }
 
@@ -643,33 +623,24 @@ extract_func_ <- function(s) {
   # remove spaces
   s <- gsub(" ", "", s)
 
-  if (count_unique_function_calls_(s) > 1) {
-    stop_h(sprintf("Multiple functions invoked in definition \"%s\"", s))
+  if (count_unique_function_calls_(s) > 1) stop_h(
+    sprintf("Multiple functions invoked in definition \"%s\"", s)
+  )
+  else if (grepl("[()]", s)) return(extract_func_call_(s))
 
-  } else if (grepl("[()]", s)) {
-    return(extract_func_call_(s))
+  else if (grepl("=", s)) return(extract_func_equality_(s))
+    
+  else if (grepl("\\+", s)) return(extract_func_arithmetic_(s, "\\+", "add"))
 
-  } else if (grepl("=", s)) {
-    return(extract_func_equality_(s))
+  else if (grepl("\\*", s)) return(extract_func_arithmetic_(s, "\\*", "mult"))
 
-  } else if (grepl("\\+", s)) {
-    return(extract_func_arithmetic_(s, "\\+", "add"))
+  else if (grepl("-", s)) return(extract_func_arithmetic_(s, "-", "sub"))
 
-  } else if (grepl("\\*", s)) {
-    return(extract_func_arithmetic_(s, "\\*", "mult"))
+  else if (grepl("/", s)) return(extract_func_arithmetic_(s, "/", "div"))
 
-  } else if (grepl("-", s)) {
-    return(extract_func_arithmetic_(s, "-", "sub"))
+  else if (grepl("\\^", s)) return(extract_func_arithmetic_(s, "\\^", "pow"))
 
-  } else if (grepl("/", s)) {
-    return(extract_func_arithmetic_(s, "/", "div"))
-
-  } else if (grepl("\\^", s)) {
-    return(extract_func_arithmetic_(s, "\\^", "pow"))
-
-  } else {
-    return(list(func = NA, key = NA, val = NA, at = NA))
-  }
+  else return(list(func = NA, key = NA, val = NA, at = NA))
 }
 
 
@@ -688,23 +659,28 @@ extract_func_ <- function(s) {
 #' Name of the function.
 #' @param x `numeric()`\cr
 #' Input vector.
+#' @param discr `logical(1)`\cr
+#' If `TRUE` discretize the function.
 #' @param args `numeric()`\cr
 #' Additional arguments.
-#' @param range `numeric()`\cr
-#' Minimum and maximum range of the function.
+#' @param min `double(1)`\cr
+#' Value of the minimum.
+#' @param max `double(1)`\cr
+#' Value of the maximum.
+#' @param hhmodel `HouseholdModel`\cr
+#' Custom household model to load from.
 #'
 #' @return
 #' `numeric()`
 #'
 #' @export
-housepi_function <- function(name, x,
-                             args = numeric(), range = numeric()) {
-  housepi_dir <- file.path(system.file(package = "housepi"), "template")
-  dll <- file.path(housepi_dir, "src", dll_file_ext("housepienvironment"))
-  dyn.load(dll)
-  m <- Rcpp::Module("housepi_function", PACKAGE = "housepienvironment")
-  y <- m$FunctionHousepi$new(name, args, range)
-  return(y$call(x))
+housepi_function <- function(name, x, discr = FALSE, args = numeric(), 
+                             min = NA, max = NA, hhmodel = NULL) {
+  range <- c()
+  if (!is.na(min)) range <- c(min, range)
+  if (!is.na(max)) range <- c(range, max) 
+  m <- get_rcpp_module("housepi_function", hhmodel)
+  return(m$FunctionHousepi$new(name, args, range, discr)$call(x))
 }
 
 #' @title
@@ -716,23 +692,28 @@ housepi_function <- function(name, x,
 #' Name of the distribution.
 #' @param x `numeric()`\cr
 #' Input vector.
+#' @param discr `logical(1)`\cr
+#' If `TRUE` discretize the distribution.
 #' @param args `numeric()`\cr
 #' Additional arguments.
-#' @param range `numeric()`\cr
-#' Minimum and maximum range of the distribution.
+#' @param min `double(1)`\cr
+#' Value of the minimum.
+#' @param max `double(1)`\cr
+#' Value of the maximum.
+#' @param hhmodel `HouseholdModel`\cr
+#' Custom household model to load from.
 #'
 #' @return
 #' `numeric()`
 #'
 #' @export
-housepi_distribution <- function(name, x,
-                                 args = numeric(), range = numeric()) {
-  housepi_dir <- file.path(system.file(package = "housepi"), "template")
-  dll <- file.path(housepi_dir, "src", dll_file_ext("housepienvironment"))
-  dyn.load(dll)
-  m <- Rcpp::Module("housepi_distribution", PACKAGE = "housepienvironment")
-  y <- m$DistributionHousepi$new(name, args, range)
-  return(y$call(x))
+housepi_distribution <- function(name, x, discr = FALSE, args = numeric(), 
+                                 min = NA, max = NA, hhmodel = NULL) {  
+  range <- c()
+  if (!is.na(min)) range <- c(min, range)
+  if (!is.na(max)) range <- c(range, max)   
+  m <- get_rcpp_module("housepi_distribution", hhmodel)
+  return(m$DistributionHousepi$new(name, args, range)$call(x))
 }
 
 #' @title
@@ -744,21 +725,23 @@ housepi_distribution <- function(name, x,
 #' Name of the infectivity profile
 #' @param x `numeric()`\cr
 #' Input vector.
+#' @param discr `logical(1)`\cr
+#' If `TRUE` discretize the infectivity profile.
 #' @param args `numeric()`\cr
 #' Additional arguments.
-#' @param range `numeric()`\cr
-#' Minimum and maximum range of the profile.
+#' @param max `double(1)`\cr
+#' Value of the maximum.
+#' @param hhmodel `HouseholdModel`\cr
+#' Custom household model to load from.
 #'
 #' @return
 #' `numeric()`
 #'
 #' @export
-housepi_infec_profile <- function(name, x,
-                                  args = numeric(), range = numeric()) {
-  housepi_dir <- file.path(system.file(package = "housepi"), "template")
-  dll <- file.path(housepi_dir, "src", dll_file_ext("housepienvironment"))
-  dyn.load(dll)
-  m <- Rcpp::Module("housepi_infec_profile", PACKAGE = "housepienvironment")
-  y <- m$InfecProfileHousepi$new(name, args, range)
-  return(y$call(x))
+housepi_infec_profile <- function(name, x, discr = FALSE, args = numeric(), 
+                                  max = NA, hhmodel = NULL) {
+  range <- c()
+  if (!is.na(max)) range <- c(range, max)                                 
+  m <- get_rcpp_module("housepi_infec_profile", hhmodel)
+  return(m$InfecProfileHousepi$new(name, args, range, discr)$call(x))
 }

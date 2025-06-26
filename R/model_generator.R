@@ -45,12 +45,10 @@ HousepiGenerator <- R6::R6Class(
     # The path to source code
     .assert_source_files = function(source_dir) {
       for (file_name in source_files(source_dir)) {
-        if (!file.exists(file_name)) {
-          stop_h(
-            sprintf("File \"%s\" was not found.", file_name),
-            "Check your model directory."
-          )
-        }
+        if (!file.exists(file_name)) stop_h(
+          sprintf("File \"%s\" was not found.", file_name),
+          "Check your model directory."
+        )
       }
       invisible(self)
     },
@@ -94,22 +92,19 @@ HousepiGenerator <- R6::R6Class(
       }
 
       # warn for unused extra variables
-      if (length(unused_set) > 0) {
-        warning_h(
-          sprintf("Allocated extra variable%s not used in the model: %s",
-                  ifelse(length(unused_set) > 1, "s", ""),
-                  character_to_string_list(unused_set)),
-          find_closest_match(unused_set, requirements)
-        )
-      }
+      if (length(unused_set) > 0) warning_h(
+        sprintf("Allocated extra variable%s not used in the model: %s",
+                ifelse(length(unused_set) > 1, "s", ""),
+                character_to_string_list(unused_set)),
+        find_closest_match(unused_set, requirements)
+      )
+
       # error for not allocated extra variables
-      if (length(missing_set) > 0) {
-        stop_h(
-          sprintf("Missing allocation for extra variable%s in the model:",
-                  ifelse(length(missing_set) > 1, "s", "")),
-          character_to_string_list(missing_set)
-        )
-      }
+      if (length(missing_set) > 0) stop_h(
+        sprintf("Missing allocation for extra variable%s in the model:",
+                ifelse(length(missing_set) > 1, "s", "")),
+        character_to_string_list(missing_set)
+      )
 
       invisible(self)
     },
@@ -141,12 +136,10 @@ HousepiGenerator <- R6::R6Class(
 
         if (!dir.exists(private$.cache_dir)) {
           if (!dir.create(private$.cache_dir, recursive = TRUE,
-                          showWarnings = FALSE)) {
-            stop_h(
-              "Impossibile to create a cache directory for compilation.",
-              "Check your user permissions."
-            )
-          }
+                          showWarnings = FALSE)) stop_h(
+            "Impossibile to create a cache directory for compilation.",
+            "Check your user permissions."
+          )
         }
 
         if (as_template) {
@@ -299,8 +292,7 @@ HousepiGenerator <- R6::R6Class(
       # load dynamic library
       dyn.load(private$.dll)
       # expose internally the module
-      package <- tools::file_path_sans_ext(basename(private$.dll))
-      m <- Rcpp::Module("housepi_model_core", PACKAGE = package)
+      m <- Rcpp::Module("housepi_model_core", PACKAGE = get_template_from_dll(private$.dll))
       return(m$ModelHousepi$new())
     },
 
@@ -365,12 +357,10 @@ HousepiGenerator <- R6::R6Class(
         # reference script
         output <- dirname(private$.dll)
         # check if reference file exists
-        if (!dir.exists(output)) {
-          stop_h(
-            sprintf("Impossible to find environment path: \"%s\".", output),
-            "Try to re-generate the model with 'force = TRUE'."
-          )
-        }
+        if (!dir.exists(output)) stop_h(
+          sprintf("Impossible to find environment path: \"%s\".", output),
+          "Try to re-generate the model with 'force = TRUE'."
+        )
         return(output)
       }
       stop_h("'path' is read only.")

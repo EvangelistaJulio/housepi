@@ -29,17 +29,13 @@ HousepiAugmented <- R6::R6Class(
     # handle existing definition
     .handle_existing_definition = function(name, status) {
       # check for missing name
-      if (is.na(name)) {
-        stop_h("Incomplete definition: missing name.")
-      }
+      if (is.na(name)) stop_h("Incomplete definition: missing name.")
 
-      # remove previous definition # FIXME: why stop?
-      if (self$remove(name, status, FALSE)) {
-        warning_h(sprintf(
-          "Overwriting existing \"%s\" definition%s",
-          name, ifelse(is.na(status), ".", sprintf(" for status %d.", status))
-        ))
-      }
+      # remove previous definition
+      else if (self$remove(name, status, FALSE)) warning_h(sprintf(
+        "Overwriting existing \"%s\" definition%s",
+        name, ifelse(is.na(status), ".", sprintf(" for status %d.", status))
+      ))
       invisible(self)
     },
 
@@ -117,15 +113,15 @@ HousepiAugmented <- R6::R6Class(
     # process constant or random
     .handle_constant_or_random = function(opts, value, from) {
       if (isTRUE(opts$const)) {
-        if (is.na(value)) {
-          stop_h("Missing value for constant augmented variable.")
-        }
+        if (is.na(value)) stop_h(
+          "Missing value for constant augmented variable."
+        )
         opts$value <- type_split_(value)$val
         opts$value_at <- type_split_(value)$at
       } else if (isTRUE(opts$init_rand)) {
-        if (is.na(opts$model)) {
-          stop_h("Unknown model for random initialization.")
-        }
+        if (is.na(opts$model)) stop_h(
+          "Unknown model for random initialization."
+        )
       } else {
         if (is.na(value)) {
           if (is.na(opts$model)) {
@@ -151,11 +147,8 @@ HousepiAugmented <- R6::R6Class(
     .handle_proposer_rule = function(opts, scale, from) {
       if (isFALSE(opts$const)) {
         if (is.na(opts$rule)) {
-          if (is.na(opts$model)) {
-            opts$const <- TRUE
-          } else {
-            opts$rule <- "draw"
-          }
+          if (is.na(opts$model)) opts$const <- TRUE
+          else opts$rule <- "draw"
         } else if (opts$rule != "draw") {
           if (!is.na(scale)) {
             opts$scale <- type_split_(scale)$val
@@ -454,17 +447,14 @@ HousepiAugmented <- R6::R6Class(
         this_def <- as.list(definitions[[i]])
         def_name <- names(definitions[i])
         if (length(names(this_def)) == 0) {
-          if (length(this_def) == 1) {
-            names(this_def) <- "value"
-          } else {
-            stop_h(
-              sprintf(
-                "Wrong definition for augmented variable \"%s\".", def_name
-              ),
-              "Provide a definition list.",
-              "Alternative: if constant, a scalar or a typed value."
-            )
-          }
+          if (length(this_def) == 1) names(this_def) <- "value"
+          else stop_h(
+            sprintf(
+              "Wrong definition for augmented variable \"%s\".", def_name
+            ),
+            "Provide a definition list.",
+            "Alternative: if constant, a scalar or a typed value."
+          )
         }
         this_def$name <- def_name
         do.call(self$add, this_def)
@@ -502,18 +492,14 @@ HousepiAugmented <- R6::R6Class(
             missing_set <- template_find_missing(requirements,
                                                  self$defs[["name"]])
 
-            if (length(missing_set) == 0) {
-              warning_h(
-                "No template augmented variable to append.",
-                "Definitions are complete."
-              )
-            } else if (!all(missing_set %in% names(templ_defs))) {
-              stop_h(
-                "No template found for the missing augmented variables."
-              )
-            } else {
-              self$load_list(from = templ_defs[missing_set], append = TRUE)
-            }
+            if (length(missing_set) == 0) warning_h(
+              "No template augmented variable to append.",
+              "Definitions are complete."
+            )
+            else if (!all(missing_set %in% names(templ_defs))) stop_h(
+              "No template found for the missing augmented variables."
+            )
+            else self$load_list(from = templ_defs[missing_set], append = TRUE)
           }
         } else {
           self$load_list(from = templ_defs, append = FALSE)
@@ -542,25 +528,21 @@ HousepiAugmented <- R6::R6Class(
       # drop unused augmented variables
 
 
-      if (length(unused_set) > 0) {
-        warning_h(
-          sprintf("Augmented variable%s declared but not used: %s.",
-                  ifelse(length(unused_set) > 1, "s", ""),
-                  character_to_string_list(unused_set)),
-          find_closest_match(unused_set, requirements),
-          "Unused augmented variables should be dropped."
-        )
-      }
+      if (length(unused_set) > 0) warning_h(
+        sprintf("Augmented variable%s declared but not used: %s.",
+                ifelse(length(unused_set) > 1, "s", ""),
+                character_to_string_list(unused_set)),
+        find_closest_match(unused_set, requirements),
+        "Unused augmented variables should be dropped."
+      )
 
       # find missing augmented variables
       missing_set <- template_find_missing(requirements, defined)
-      if (length(missing_set) > 0) {
-        stop_h(
-          sprintf("Missing augmented variable definition%s for:",
-                  ifelse(length(missing_set) > 1, "s", "")),
-          character_to_string_list(missing_set)
-        )
-      }
+      if (length(missing_set) > 0) stop_h(
+        sprintf("Missing augmented variable definition%s for:",
+                ifelse(length(missing_set) > 1, "s", "")),
+        character_to_string_list(missing_set)
+      )
 
       invisible(self)
     }

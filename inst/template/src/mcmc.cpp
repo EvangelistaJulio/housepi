@@ -40,7 +40,7 @@ ulong MCMC::get_report_house(const std::string &key) const { return pImpl->get_r
 std::pair<ushort, ulong> MCMC::get_report_hh_size(const std::string &key) const { return pImpl->get_report_hh_size(key); }
 
 //===== RAND NUMBER GENERATOR =====//
-double MCMC::uniform() { return pImpl->uniform(); }
+double MCMC::uniform() { return pImpl->setup.unif(); }
 
 //===== PARAMETERS =====//
 double MCMC::param(const par_key &p) const { return pImpl->get_param(p); }
@@ -219,19 +219,19 @@ void MCMC::_assign_contact_rate(Household &house)
 /* Assign template infectivity profile to use if no user defined. */
 void MCMC::assign_template_infec_profile(const dict_str_str x)
 {
-    pImpl->_infec_profile.deflist_template = x;
+    pImpl->infec_profile.deflist_template = x;
 }
 
 /* Value of the instantaneous infectivity profile. */
 double MCMC::infec_profile_inst(Individual &infector, double t) const
 {
-    return pImpl->_infec_profile.inst(infector, t);
+    return pImpl->infec_profile.inst(infector, t);
 }
 
 /* Value of the cumulative infectivity profile. */
 double MCMC::infec_profile_cumul(Individual &infector, double t) const
 {
-    return pImpl->_infec_profile.cumul(infector, t);
+    return pImpl->infec_profile.cumul(infector, t);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

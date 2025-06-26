@@ -678,18 +678,13 @@ namespace progress
         //===== CONSTRUCTOR =====//
         //=======================//
 
-        Impl(const std::string &text, ulong thintime)
+        Impl()
         {
 #ifdef _HOUSEPI_RCPP
             Rcpp::checkUserInterrupt();
             // change barwidth according to console width
             _barwidth = Rcpp::as<unsigned>(Rcpp::Function("getOption")("width")) / 2;
 #endif
-
-            // load options
-            _text = text;
-            _verbose = thintime > 0;
-            _thintime = thintime - 1;
         };
         ~Impl() {};
 
@@ -699,6 +694,13 @@ namespace progress
 
         /* Set description text of progress bar. */
         void set_text(const std::string &text) { _text = text; }
+
+        /* Set description text of progress bar. */
+        void set_thintime(ulong thintime)
+        {
+            _verbose = thintime > 0;
+            _thintime = thintime - 1;
+        }
 
         /* Start progressbar clock and display firs message. */
         void open(ulong total)
@@ -813,8 +815,8 @@ namespace progress
     ///////////////////////////////////////  Bar : Constructor  ///////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    Bar::Bar(const std::string &text, ulong thintime)
-        : pImpl(std::make_unique<Impl>(text, thintime)) {}
+    Bar::Bar()
+        : pImpl(std::make_unique<Impl>()) {}
     Bar::~Bar() = default;
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -822,6 +824,7 @@ namespace progress
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     void Bar::set_text(const std::string &text) { pImpl->set_text(text); }
+    void Bar::set_thintime(ulong thintime) { pImpl->set_thintime(thintime); }
     void Bar::open(ulong total) { pImpl->open(total); }
     void Bar::update() { pImpl->update(); }
     void Bar::crash() const { pImpl->crash(); }

@@ -28,15 +28,10 @@ template_models_dir <- function() {
 #'
 #' @keywords internal
 show_model_names <- function() {
-
   cli::cli_alert_info("Available template models:")
   ulid <- cli::cli_ul()
-
-  for (name in list.files(template_models_dir())) {
-    cli::cli_li(name)
-  }
+  for (name in list.files(template_models_dir())) cli::cli_li(name)
   cli::cli_end(ulid)
-
   invisible()
 }
 
@@ -55,9 +50,7 @@ show_model_names <- function() {
 #' Default is `FALSE`.
 #'
 #' @export
-template_household_model <- function(name = NA,
-                                     path = NA,
-                                     replace = FALSE) {
+template_household_model <- function(name = NA, path = NA, replace = FALSE) {
 
   if (is.na(name)) {
     #===== Asking for model names =====#
@@ -69,14 +62,11 @@ template_household_model <- function(name = NA,
       if (is.na(path)) {
         #===== Asking for model description =====#
         info_file <- file.path(template_models_dir(),
-                               name,
-                               "template_info.Rd")
-        if (!file.exists((info_file))) {
-          stop_h(
-            "Impossible to show model description",
-            "No template info were foun for the chosen model."
-          )
-        }
+                               name, "template_info.Rd")
+        if (!file.exists(info_file)) stop_h(
+          "Impossible to show model description",
+          "No template info were foun for the chosen model."
+        )
         rstudioapi::previewRd(info_file)
 
       } else if (any(file.exists(source_files(path))) && isFALSE(replace)) {

@@ -81,7 +81,7 @@ void Proposer::adapt(double ratio)
     for (ushort c = 0; c < _n_args_to_adapt; ++c)
     {
         ushort arg_id = _args_to_adapt_list[c];
-        (_distr_ptr->set_arg)(arg_id, (_distr_ptr->arg)(arg_id)*factor);
+        (_distr_ptr->set_arg)(arg_id, factor * (_distr_ptr->arg)(arg_id));
     }
 }
 

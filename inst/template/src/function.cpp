@@ -496,7 +496,7 @@ const std::string Function::show_summary() const
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-const str_vec FuncRegistry::get_options() const
+const str_vec FunctionRegistry::get_options() const
 {
     str_vec keys;
     keys.reserve(_factory_map.size());
@@ -505,7 +505,7 @@ const str_vec FuncRegistry::get_options() const
     return keys;
 }
 
-std::shared_ptr<Function> FuncRegistry::get(const std::string &opt) const
+std::shared_ptr<Function> FunctionRegistry::get(const std::string &opt) const
 {
     auto it = _factory_map.find(opt);
     if (it != _factory_map.end())
@@ -514,13 +514,12 @@ std::shared_ptr<Function> FuncRegistry::get(const std::string &opt) const
 }
 
 std::shared_ptr<Function> compose_func_registries(const std::string &opt, const std::string &name,
-                                                  const std::vector<const FuncRegistry *> &registries)
+                                                      const std::vector<const FunctionRegistry *> &registries)
 {
     str_vec options = {};
 
     if (registries.empty())
-        throw std::invalid_argument(
-            "No function registries provided for \"" + name + "\".");
+        throw std::invalid_argument("No registries provided for \"" + name + "\".");
     else if (tools::is_na(opt))
         return std::make_shared<Function>();
     else

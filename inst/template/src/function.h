@@ -251,7 +251,7 @@ private:
 ////////////////////////////////////////  Registry : class  /////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FuncRegistry
+class FunctionRegistry
 {
     using FactoryFunc = std::function<std::shared_ptr<Function>()>;
 
@@ -260,9 +260,9 @@ public:
     //===== CONSTRUCTOR =====//
     //=======================//
 
-    FuncRegistry(const std::string &name)
+    FunctionRegistry(const std::string &name)
         : _name(name) {}
-    virtual ~FuncRegistry() = default;
+    virtual ~FunctionRegistry() = default;
 
     //==================//
     //===== GETTER =====//
@@ -280,8 +280,8 @@ public:
     template <typename T>
     void register_func()
     {
-		static_assert(std::is_base_of<Function, T>::value,
-					  "T must be derived from Function");
+        static_assert(std::is_base_of<Function, T>::value,
+                      "T must be derived from Function");
         _factory_map[T().show_name()] = []()
         { return std::make_shared<T>(); };
     }
@@ -293,13 +293,13 @@ private:
 
 /* Separate functions registries. */
 #define DECLARE_HOUSEPI_FUNCTION_REGISTRY(ClassName, Description) \
-    class ClassName : public FuncRegistry                         \
+    class ClassName : public FunctionRegistry                     \
     {                                                             \
     public:                                                       \
         static ClassName &inst();                                 \
                                                                   \
     private:                                                      \
-        ClassName() : FuncRegistry(Description) {}                \
+        ClassName() : FunctionRegistry(Description) {}            \
     };
 DECLARE_HOUSEPI_FUNCTION_REGISTRY(ArithmeticRegistry, "arithmetic function")
 DECLARE_HOUSEPI_FUNCTION_REGISTRY(TranscendentalRegistry, "transcendental function")
@@ -307,20 +307,20 @@ DECLARE_HOUSEPI_FUNCTION_REGISTRY(UserFuncRegistry, "user function")
 
 /* Register a Function derived class T to FungRegistry derived class R. */
 template <typename R, typename T>
-struct Static_Function_Registatror
+struct StaticFunctionRegistatror
 {
-    Static_Function_Registatror()
+    StaticFunctionRegistatror()
     {
-        static_assert(std::is_base_of<FuncRegistry, R>::value,
-                      "R must be derived from FuncRegistry.");
+        static_assert(std::is_base_of<FunctionRegistry, R>::value,
+                      "R must be derived from FunctionRegistry.");
         R::inst().template register_func<T>();
     }
 };
-#define REGISTER_HOUSEPI_FUNCTION(R, T)                           \
-    namespace                                                     \
-    {                                                             \
-        static Static_Function_Registatror<R, T> \
-            housepi_register_##T##_to_##R;                        \
+#define REGISTER_HOUSEPI_FUNCTION(R, T)        \
+    namespace                                  \
+    {                                          \
+        static StaticFunctionRegistatror<R, T> \
+            housepi_register_##T##_to_##R;     \
     }
 
 #define REGISTER_USER_FUNCTION(T) REGISTER_HOUSEPI_FUNCTION(UserFuncRegistry, T)
@@ -328,6 +328,6 @@ struct Static_Function_Registatror
 /* Compose registries to get a function from them. */
 std::shared_ptr<Function> compose_func_registries(const std::string &opt,
                                                   const std::string &name,
-                                                  const std::vector<const FuncRegistry *> &registries);
+                                                  const std::vector<const FunctionRegistry *> &registries);
 
 #endif // HOUSEPI__FUNCTION__H

@@ -24,11 +24,8 @@
 #' @export
 measure_sar_by_house_size <- function(dataset) {
   # check that dataset is consistent
-  if (length(dataset) == 0) {
-    stop_h("No valid dataset was provided.")
-  } else {
-    dataset <- as.data.frame(dataset)
-  }
+  if (length(dataset) == 0) stop_h("No valid dataset was provided.")
+  else dataset <- as.data.frame(dataset)
 
   # in tidyverse it would be
   # dataset |>
@@ -71,11 +68,8 @@ measure_sar_by_house_size <- function(dataset) {
 #' @export
 measure_cases_by_house_size <- function(dataset) {
   # check that dataset is consistent
-  if (length(dataset) == 0) {
-    stop_h("No valid dataset was provided.")
-  } else {
-    dataset <- as.data.frame(dataset)
-  }
+  if (length(dataset) == 0) stop_h("No valid dataset was provided.")
+  else dataset <- as.data.frame(dataset)
 
   # in tidyverse it would be
   # dataset |>
@@ -192,18 +186,13 @@ frame_apply <- function(frame_list, func) {
 #' @keywords internal
 frame_apply_mean <- function(frame_list) {
   frame_apply(frame_list, function(x) {
-    if (all(is.na(x))) {
-      NA
-    } else if (all(is.numeric(x))) {
-      mean(x, na.rm = TRUE)
-    } else if (length(unique(x)) == 1) {
-      unique(x)
-    } else {
-      stop_h(
-        "Undefined mean for non numeric, non unique values.",
-        "Check output of your posterioir measure function."
-      )
-    }
+    if (all(is.na(x))) return(NA)
+    else if (all(is.numeric(x))) return(mean(x, na.rm = TRUE))
+    else if (length(unique(x)) == 1) return(unique(x))
+    else stop_h(
+      "Undefined mean for non numeric, non unique values.",
+      "Check output of your posterioir measure function."
+    )
   })
 }
 
@@ -223,22 +212,16 @@ frame_apply_mean <- function(frame_list) {
 #'
 #' @keywords internal
 frame_apply_cri <- function(frame_list, cri_level = 0.95, upper = TRUE) {
+  p <- 0.5 + ifelse(isTRUE(upper), 0.5, -0.5) * cri_level
   frame_apply(frame_list, function(x) {
-    if (all(is.na(x))) {
-      NA
-    } else if (all(is.numeric(x))) {
-      probs <- 0.5 + ifelse(isTRUE(upper), 0.5, -0.5) * cri_level
-      stats::quantile(x, probs = probs, na.rm = TRUE)
-    } else if (length(unique(x)) == 1) {
-      unique(x)
-    } else {
-      stop_h(
-        "Undefined credible interval for non numeric, non unique values.",
-        "Check output of your posterioir measure function."
-      )
-    }
+    if (all(is.na(x))) return(NA)
+    else if (all(is.numeric(x))) return(stats::quantile(x, probs = p, na.rm = TRUE))
+    else if (length(unique(x)) == 1) return(unique(x))
+    else stop_h(
+      "Undefined credible interval for non numeric, non unique values.",
+      "Check output of your posterioir measure function."
+    )
   })
-
 }
 
 ############################################################################
@@ -320,12 +303,8 @@ HousepiPosteriorExpec <- R6::R6Class(
     #' Named arguments with respective functions.
     #' If `FUN` is provided, additional arguments are ignored.
     initialize = function(house_model, FUN = NULL, progress = NA, ...) {
-      if (is.null(FUN)) {
-        FUN <- list(...)
-      }
-      if (is.null(FUN)) {
-        stop_h("No measure was provided.")
-      }
+      if (is.null(FUN)) FUN <- list(...)
+      if (is.null(FUN)) stop_h("No measure was provided.")
 
       # function to be applied also in the case of multiple measures
       apply_func <- ifelse(
@@ -380,15 +359,12 @@ HousepiPosteriorExpec <- R6::R6Class(
       }
 
       # apply loop function
-      if (isTRUE(progress)) {
-        output <- lapply(
-          cli::cli_progress_along(seq_len(n_rep), name = "simulations",
-                                  type = "tasks", clear = FALSE),
-          loop_func
-        )
-      } else {
-        output <- lapply(seq_len(n_rep), loop_func)
-      }
+      if (isTRUE(progress)) output <- lapply(
+        cli::cli_progress_along(seq_len(n_rep), name = "simulations",
+                                type = "tasks", clear = FALSE),
+        loop_func
+      )
+      else output <- lapply(seq_len(n_rep), loop_func)
 
       if (is.list(FUN)) {
         output <- lapply(names(FUN), function(x) lapply(output, `[[`, x))
