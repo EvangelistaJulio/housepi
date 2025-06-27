@@ -93,19 +93,19 @@ void Model::fill_house_escape_matrix(Household &house) const
 	//----- ordered members group rates : 1) infectious, 2) susceptibles -----//
 	auto &order = house.cache_integer_vector("order");
 
-	indiv m = 0;
-	for (indiv i : house.get_infected_status_hhindexes())
-		order[m++] = i;
-	for (indiv s : house.get_healthy_status_hhindexes())
-		order[m++] = s;
+	size_t m = 0;
+	for (const Individual &member_i : house.infected())
+		order[m++] = static_cast<int>(member_i);
+	for (const Individual &member_s : house.healthy())
+		order[m++] = static_cast<int>(member_s);
 
 	//----- Assign values to LUT matrix -----//
 	auto &commu_escprob = house.cache_double_vector("commu-escprob");
 	auto &p2p_escprob = house.cache_double_matrix("p2p-escprob");
 
-	for (indiv c = 0; c < house.size(); ++c)
+	for (size_t c = 0; c < house.size(); ++c)
 	{
-		Individual &member_c = house.get_member(order[c]);
+		const Individual &member_c = house.get_member(order[c]);
 		double infect_c = member_c.group_rate("infectivity");
 		double susc_house_c = member_c.group_rate("susceptibility");
 
@@ -113,9 +113,9 @@ void Model::fill_house_escape_matrix(Household &house) const
 		commu_escprob[c] = exp(-commu_transm_rate * member_c.group_rate("community"));
 
 		//----- person-to-person -----//
-		for (indiv r = 0; r < c; ++r)
+		for (size_t r = 0; r < c; ++r)
 		{
-			Individual &member_r = house.get_member(order[r]);
+			const Individual &member_r = house.get_member(order[r]);
 
 			// [c] : infector -> [r] : infectee
 			p2p_escprob[c][r] = exp(-infect_c * p2p_transm_rate * member_r.group_rate("susceptibility"));
@@ -134,7 +134,7 @@ void Model::fill_house_escape_matrix(Household &house) const
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Compute the log-likelihood for a single household. */
-double Model::compute_household_obs_loglike(Household &house) const
+double Model::compute_household_obs_loglike(Household &house)
 {
 	//===== Fill Escape Probabilities =====//
 	fill_house_escape_matrix(house);
@@ -169,7 +169,7 @@ void Model::simulate_single_household(Household &house)
 	//===== GENERATION 0 : infection by community =====//
 	//=================================================//
 
-	std::vector<Individual*> new_gen_set = {};
+	std::vector<Individual *> new_gen_set = {};
 
 	for (Individual &member : house)
 		if (uniform() < exp(-commu_transm_rate * member.group_rate("community")))
@@ -184,7 +184,7 @@ void Model::simulate_single_household(Household &house)
 	//===== GENERATION >=1 : infection by previous generation =====//
 	//=============================================================//
 
-	std::vector<Individual*> old_gen_set = {};
+	std::vector<Individual *> old_gen_set = {};
 
 	while ((house.n_healthy_status() > 0) && (!new_gen_set.empty()))
 	{

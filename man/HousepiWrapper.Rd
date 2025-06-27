@@ -56,6 +56,9 @@ Export the traces of last inference call without loglikelihood.}
 
 \item{\code{house_loglike_mtx}}{\code{matrix()}\cr
 Household loglikelihood traces.}
+
+\item{\code{path_to_dll}}{\code{character(1)}\cr
+Path to dynamic library file of the model.}
 }
 \if{html}{\out{</div>}}
 }

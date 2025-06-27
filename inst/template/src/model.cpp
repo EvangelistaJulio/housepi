@@ -33,4 +33,4 @@ void Model::init_model_for_simulation() { tools::error(
 	"Simulations with \"blank\" model are not supported."); }
 
 /* Unitary likelihood. */
-double Model::compute_household_obs_loglike(Household &) const { return 0.; }
+double Model::compute_household_obs_loglike(Household &) { return 0.; }

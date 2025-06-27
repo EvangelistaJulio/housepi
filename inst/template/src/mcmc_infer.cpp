@@ -154,7 +154,7 @@ void MCMC::Impl::_update_posterior_sample()
         {
             Household &house = house_vector[restrict_hh_indexes[R]];
             double x = house.get_obs_loglike() / house.multiplicity();
-            for (Individual &member : house.infected())
+            for (const Individual &member : house.infected())
                 x += member.get_augm_model_loglike();
             smpl_house_loglike[R][smpl_count] = x;
         }
@@ -164,7 +164,7 @@ void MCMC::Impl::_update_posterior_sample()
             for (size_t k = 0; k < smpl_individual_star.size(); ++k)
             {
                 auto &smpl_augm_value_k = smpl_augm_value[k];
-                Individual *member_star = smpl_individual_star[k];
+                const Individual *member_star = smpl_individual_star[k];
                 for (const augm_key &a : augm_list_infer + augm_list_func)
                     smpl_augm_value_k[a][smpl_count] = member_star->augm(a);
             }
@@ -630,7 +630,7 @@ Rcpp::DataFrame MCMC::Impl::simulate()
 
     try
     {
-        setup.prog_declare("simulate");
+        setup.prog_declare("simulate"); // declare current progress bar
 
         const size_t n_cols = n_individuals;
         const str_vec _aux_augm_headers = subtr(augm_list_full,
@@ -656,11 +656,10 @@ Rcpp::DataFrame MCMC::Impl::simulate()
         for (Household house : house_vector) // deep copy of the household
             try
             {
-                // inplace simlation
                 _simulate_single_household(house);
 
                 // store simulation
-                for (Individual &member : house)
+                for (const Individual &member : house)
                 {
                     df_index[row] = member.id();
                     df_house_index[row] = house.house_id();
@@ -681,13 +680,13 @@ Rcpp::DataFrame MCMC::Impl::simulate()
 
                     ++row;
                 }
+
                 setup.prog_update(); // update progress bar
             }
             catch (const std::exception &e)
             {
-                throw std::runtime_error("While simulating house " +
-                                         house.house_id() + " :\n" +
-                                         std::string(e.what()));
+                throw std::runtime_error(
+                    "While simulating house \"" + house.house_id() + "\":\n" + std::string(e.what()));
             }
 
         // close progress bar

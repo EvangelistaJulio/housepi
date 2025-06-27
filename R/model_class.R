@@ -323,7 +323,7 @@ HouseholdModel <- R6::R6Class(
       }
 
       # individual id for blank model augmented traces
-      # if no default columns, assume debugging mode 
+      # if no default columns, assume debugging mode
       # UPDATE: not robust in case of dataset with only default columns
       if (private$.model$is_blank && is.na(id_trace)) {
         if (length(setdiff(private$.model$last_dataset_cols,
@@ -338,7 +338,7 @@ HouseholdModel <- R6::R6Class(
         sprintf("Maximum value for a integer in R is %.0f.",
                 .Machine$integer.max)
       )
-  
+
       # import setup
       private$.model$import_setup(list(
         sample_size = ifelse(is.na(sample_size), 0, sample_size),
@@ -360,10 +360,11 @@ HouseholdModel <- R6::R6Class(
       invisible(self)
     },
 
-
     # UPDATE:
     # this could be designed to be more helpful
     # e. g. create a standalone folder somewhere with correct links to headers
+    # FIXME:
+    # setup is broken, follow method in copy to fix it
     .export_to_cpp_standalone = function(outpath = "../housepi/inst/standalone/") {
       write.csv(private$.model$export_dataset_to_standalone(),
                 file.path(outpath, "dataset.tmp"),
@@ -377,7 +378,7 @@ HouseholdModel <- R6::R6Class(
       write.csv(self$param_defs,
                 file.path(outpath, "param.tmp"),
                 quote = FALSE, row.names = FALSE)
-      write.table(t(as.data.frame(self$setup)),
+      write.table(t(as.data.frame(fmt_setup_input_(self$setup))),
                   file.path(outpath, "setup.tmp"),
                   row.names = TRUE, col.names = FALSE, sep = ",", quote = FALSE)
       write.table(t(as.data.frame(self$infec_profile_defs)),
@@ -949,18 +950,14 @@ HouseholdModel <- R6::R6Class(
     #' If `TRUE` the profile is discrete.
     #' @param args named `list()`\cr
     #' Arguments (eventually with types) for the profile.
-    #' @param min `double(1)` | `character(1)`\cr
-    #' One between:
-    #' - Scalar value;
-    #' - Parameter name (optionally followed by `@P`).
     #' @param max `double(1)` | `character(1)`\cr
     #' One between:
     #' - Scalar value;
     #' - Parameter name (optionally followed by `@P`).
     add_infec_profile = function(name, discr = FALSE,
-                                 args = list(), min = NA, max = NA) {
+                                 args = list(), max = NA) {
       private$.infec_profile$add(name = name, discr = discr,
-                                 args = args, min = min, max = max)
+                                 args = args, max = max)
       invisible(self)
     },
 

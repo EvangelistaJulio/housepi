@@ -70,7 +70,7 @@ public:
 	/* Assign group rate to an individual  */
 	virtual void assign_group_rate_to_individual(Individual &) {}
 	/* Assign the contact patterns between a couple of individuals. */
-	virtual void assign_contact_rate_to_household(Household &, indiv, indiv) {}
+	virtual void assign_contact_rate_to_household(Household &, const Individual &, const Individual &) {}
 
 	//=================================//
 	//===== RAND NUMBER GENERATOR =====//
@@ -108,15 +108,15 @@ public:
 	//===============================//
 
 	void assign_template_infec_profile(const dict_str_str x);
-	double infec_profile_inst(Individual &member, double t) const;
-	double infec_profile_cumul(Individual &member, double t) const;
+	double infec_profile_inst(const Individual &member, double t) const;
+	double infec_profile_cumul(const Individual &member, double t) const;
 
 	//====================================//
 	//===== EVALUATE (loglikelihood) =====//
 	//====================================//
 
 	/* Compute the loglikelihood for a single household. */
-	virtual double compute_household_obs_loglike(Household &) const { throw std::runtime_error(
+	virtual double compute_household_obs_loglike(Household &) { throw std::runtime_error(
 		"Called virtual loglikelihood method of undefined model."); }
 	double evaluate();
 
@@ -170,7 +170,8 @@ public:
 	Rcpp::DataFrame export_house_size_report() const;
 	Rcpp::NumericMatrix export_traces() const;
 	Rcpp::NumericMatrix export_house_loglike_mtx() const;
-	Rcpp::List showcase_infec_profile(int n_bins);
+	Rcpp::List showcase_infec_profile(int n_bins) const;
+	Rcpp::List export_for_debug(const std::string &house_id) const;
 
 #else
 

@@ -4,7 +4,15 @@
 \alias{housepi_distribution}
 \title{Housepi Distribution}
 \usage{
-housepi_distribution(name, x, args = numeric(), range = numeric())
+housepi_distribution(
+  name,
+  x,
+  discr = FALSE,
+  args = numeric(),
+  min = NA,
+  max = NA,
+  hhmodel = NULL
+)
 }
 \arguments{
 \item{name}{\code{character(1)}\cr
@@ -13,11 +21,20 @@ Name of the distribution.}
 \item{x}{\code{numeric()}\cr
 Input vector.}
 
+\item{discr}{\code{logical(1)}\cr
+If \code{TRUE} discretize the distribution.}
+
 \item{args}{\code{numeric()}\cr
 Additional arguments.}
 
-\item{range}{\code{numeric()}\cr
-Minimum and maximum range of the distribution.}
+\item{min}{\code{double(1)}\cr
+Value of the minimum.}
+
+\item{max}{\code{double(1)}\cr
+Value of the maximum.}
+
+\item{hhmodel}{\code{HouseholdModel}\cr
+Custom household model to load from.}
 }
 \value{
 \code{numeric()}

@@ -29,7 +29,7 @@
 
 /* Individual constructor. */
 Individual::Individual(size_t index,
-					   indiv hhindex,
+					   size_t hhindex,
 					   const std::string &id,
 					   int status,
 					   const data_key_map<double> &data)
@@ -80,8 +80,9 @@ const std::vector<data_key> Individual::keys_dataset() const
 const std::vector<data_key> Individual::keys_datalist() const
 {
 	std::vector<data_key> keys = {};
-	for (const auto &pair : *_datalist_ptr)
-		keys.push_back(pair.first);
+	if (_datalist_ptr != nullptr)
+		for (const auto &pair : *_datalist_ptr)
+			keys.push_back(pair.first);
 	return keys;
 }
 /* Individual group rate keys. */
@@ -225,7 +226,7 @@ void Household::assign_member(size_t index,
 {
 	//----- update status lists within the household -----//
 	if (status >= INFECTED_STATUS)
-		_infec_list.push_back(_house_size);
+		_infected_list.push_back(_house_size);
 
 	else if (status == HEALTHY_STATUS)
 		_healthy_list.push_back(_house_size);
@@ -249,10 +250,10 @@ bool Household::change_status(Individual &member, int new_status)
 
 	else
 	{
-		indiv i = member.hhindex();
+		const size_t i = static_cast<size_t>(member);
 
 		if (old_status >= INFECTED_STATUS)
-			_infec_list.erase(std::find(_infec_list.begin(), _infec_list.end(), i));
+			_infected_list.erase(std::find(_infected_list.begin(), _infected_list.end(), i));
 
 		else if (old_status == HEALTHY_STATUS)
 			_healthy_list.erase(std::find(_healthy_list.begin(), _healthy_list.end(), i));
@@ -265,7 +266,7 @@ bool Household::change_status(Individual &member, int new_status)
 				"Unknown status \"" + std::to_string(old_status) + "\" for individual " + member.id() + ".");
 
 		if (new_status >= INFECTED_STATUS)
-			_infec_list.push_back(i);
+			_infected_list.push_back(i);
 
 		else if (new_status == HEALTHY_STATUS)
 			_healthy_list.push_back(i);
@@ -284,7 +285,7 @@ bool Household::change_status(Individual &member, int new_status)
 
 /* Associate a pointer to parameter value for the contact from->to.
 Allocate memory if it  */
-void Household::assign_contact_rate(indiv from, indiv to, const double *x)
+void Household::assign_contact_rate(size_t from, size_t to, const double *x)
 {
 	// initialize contact rate matrix if necessary
 	if (_contact_rates.empty())

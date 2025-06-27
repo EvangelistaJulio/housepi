@@ -147,6 +147,43 @@ associate_param_names <- function(this_table,
 }
 
 #' @title
+#' Tidy-up Group Rate Tables
+#' @description
+#' Combine list with group rate definition into a single dataframe
+#'
+#' @param all_tables `list()`\cr
+#' List containing definitions for each group rate.
+#'
+#' @return
+#' `data.frame`
+#'
+#' @keywords internal
+tidyup_group_rate_tables <- function(all_tables) {
+  # tidy version of group rate tables
+  dfs <- lapply(names(all_tables), function(rate) {
+    this_table <- all_tables[[rate]]
+    if (length(this_table) == 0) df <- data.frame(.param.name = "REFERENCE")
+    else df <- this_table[[1]][, names(this_table[[1]]) != ".counts"]
+    return(cbind(.group.rate = rate, df))
+  })
+  
+  # all unique column names
+  all_cols <- unique(unlist(lapply(dfs, names)))
+  
+  # Add missing columns with NA
+  dfs <- lapply(dfs, function(df) {
+    missing_cols <- setdiff(all_cols, names(df))
+    df[missing_cols] <- NA
+    return(df[all_cols])
+  })
+  
+  combined_df <- do.call(rbind, dfs)
+  rownames(combined_df) <- NULL
+  
+  return(combined_df)
+}
+
+#' @title
 #' C++ group rate emplacement
 #' @description
 #' Construct the C++ group rate emplacement.

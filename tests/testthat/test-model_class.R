@@ -55,30 +55,6 @@ test_that("Numerical recipes and distributions are correct", {
     name = "beta", args = c(shape1 = "shape1@A", shape2 = "shape2@A"))
   expect_error(hhmodel$showcase_infec_profile())
 
-  # test regularised incomplete beta function #
-  p <- list(shape1 = 0.02, shape2 = 105.6)
-  hhmodel$add_infec_profile(name = "beta",
-                            args = c(shape1 = p$shape1, shape2 = p$shape2))
-  profile <- hhmodel$showcase_infec_profile()$profile
-  # instantaneous
-  y <- stats::dbeta(profile$gentime, shape1 = p$shape1, shape2 = p$shape2)
-  expect_equal(profile$inst, y)
-  # cumulative
-  y <- stats::pbeta(profile$gentime, shape1 = p$shape1, shape2 = p$shape2)
-  expect_equal(profile$cumul, y)
-
-  # test regularised incomplete gamma function #
-  p <- list(shape = 0.5, scale = 10.3)
-  hhmodel$add_infec_profile(name = "gamma",
-                            args = c(shape = p$shape, scale = p$scale))
-  profile <- hhmodel$showcase_infec_profile()$profile
-  # instantaneous
-  y <- stats::dgamma(profile$gentime, shape = p$shape, scale = p$scale)
-  expect_equal(profile$inst, y)
-  # cumulative
-  y <- stats::pgamma(profile$gentime, shape = p$shape, scale = p$scale)
-  expect_equal(profile$cumul, y)
-
   # test binomial cdf #
   # discrete infectivity starts from 1: test truncation
   p <- list(size = 12, prob = 0.2)
@@ -178,4 +154,95 @@ test_that("Augmented function example returns expected distribution", {
   expect_gt(stats::ks.test(sample_norm, sample_boxmul)$p.value, 0.05)
   expect_gt(stats::t.test(sample_norm, sample_boxmul)$p.value, 0.05)
   expect_gt(stats::var.test(sample_norm, sample_boxmul)$p.value, 0.05)
+})
+
+test_that("Augmented infection times model has correct loglikelihood", {
+  library(housepi)
+  
+  infec_profile_inst <- function(x, param) {
+    dgamma(x, shape = param$shape, scale = param$scale)
+  }
+  
+  infec_profile_cumul <- function(x, param) {
+    pgamma(x, shape = param$shape, scale = param$scale)
+  }
+  
+  transmission_rate <- function(house, param) {
+    param$beta * (param$size_ref / dim(house)[1]) ^ param$gamma
+  }
+  
+  loglike_healthy <- function(house, param) {
+    i0 <- which(house$infec_time == min(house$infec_time, na.rm = TRUE))
+    member_0 <- house[i0, ]
+    
+    alpha_cumul <- param$alpha * (param$study_period + member_0$incub_period)
+    beta <- transmission_rate(house, param)
+    
+    output <- 0
+    for (i in which(house$status == 0)) {
+      roi_cumul <- 0
+      for (k in which(house$status == 1)) {
+        t_infec_k <- house[k, "infec_time"]
+        exposure <- param$study_period + member_0$onset_time - t_infec_k
+        roi_cumul <- roi_cumul + infec_profile_cumul(exposure, param)
+      }
+      output <- output - alpha_cumul - beta * roi_cumul
+    }
+    
+    return(output)
+  }
+  
+  loglike_infectious <- function(house, param) {
+    output <- 0.
+    i0 <- which(house$infec_time == min(house$infec_time, na.rm = TRUE))
+    member_0 <- house[i0, ]
+    t_intro <- member_0$infec_time
+    
+    alpha <- param$alpha
+    beta <- transmission_rate(house, param)
+    
+    for (i in which(house$status == 1)) {
+      if (i != i0) {
+        t_infec_i <- house[i, "infec_time"]
+        roi_inst_i <- 0.
+        roi_cumul_i <- 0.
+        for (k in which(house$status == 1)) {
+          t_infec_k <- house[k, "infec_time"]
+          gentime <- t_infec_i - t_infec_k
+          if (gentime > 0) {
+            roi_inst_i <- roi_inst_i + infec_profile_inst(gentime, param)
+            roi_cumul_i <- roi_cumul_i + infec_profile_cumul(gentime, param)
+          }
+        }
+        
+        roi_inst_i <- roi_inst_i * beta + alpha
+        roi_cumul_i <- roi_cumul_i * beta + alpha * (t_infec_i - t_intro)
+        output <- output + log(roi_inst_i) - roi_cumul_i
+      }
+    }
+    
+    return(output)
+  }
+  
+  house <- data.frame(id = sprintf("hh_01_%s", seq(1, 7)),
+                      house_id = "hh_01",
+                      status = c(1, 1, 1, 0, 0, 0, 0),
+                      infec_time = c(0.0, 2.7, 3.6, NA, NA, NA, NA),
+                      incub_period = c(2.5, 3.1, 2.0, NA, NA, NA, NA))
+  house$onset_time <- house$infec_time + house$incub_period
+  
+  param <- list(alpha = 1e-04, beta = 0.07, gamma = 0.9,
+                size_ref = 4, study_period = 45, shape = 2, scale = 1.1)
+  
+  hhmodel <- HouseholdModel$new("augm-infection-time")
+  hhmodel$dataset <- house
+  hhmodel$param_defs <- param
+  hhmodel$augm_defs <- list(infec_time = "infec_time@D",
+                            incub_period = "incub_period@D",
+                            onset_time = "onset_time@D")
+  hhmodel$add_infec_profile(name = "dgamma", 
+                            args = c(shape = "shape@P", scale = "scale@P"))
+  
+  expect_equal(hhmodel$loglikelihood(), 
+               loglike_healthy(house, param) + loglike_infectious(house, param))
 })

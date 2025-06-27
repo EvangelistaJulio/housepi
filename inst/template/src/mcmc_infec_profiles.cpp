@@ -214,7 +214,7 @@ void MCMC::Impl::InfecProfile::build()
 
 			// check if definition is generic or augmented
 			str_vec types = tools::parse_list_args(deflist.at("arg_at"));
-			types += {deflist.at("min_at"), deflist.at("max_at")};
+			types += {deflist.at("max_at")};
 
 			bool is_augm = false;
 			for (const std::string &at : types)
@@ -267,9 +267,6 @@ void MCMC::Impl::InfecProfile::_build_generic_profile()
 						  tools::parse_list_args(deflist.at("arg_at")));
 
 	//----- Range minimum -----//
-	if (deflist.count("min") || deflist.count("min_at"))
-		throw std::invalid_argument(
-			"Impossible to provide custom minimum for infectivity profile.");
 	_assign_single_attribute("min",
 							 (is_discrete) ? "1" : "0", TYPE_SCALAR,
 							 HSP_ATTR_RANGE);
@@ -327,7 +324,7 @@ void MCMC::Impl::InfecProfile::_build_augmented_profile()
 
 	for (auto &entry : pImpl.augm_file_headers)
 		_augm_infec_profile_deflist.emplace(entry, str_vec(2, HSP_NA_STRING));
-		
+
 	_augm_infec_profile_deflist.at("const") = str_vec(2, tools::truth(false));
 	_augm_infec_profile_deflist.at("discr") = str_vec(2, tools::truth(is_discrete));
 	_augm_infec_profile_deflist.at("init_rand") = str_vec(2, tools::truth(false));
@@ -353,7 +350,7 @@ void MCMC::Impl::InfecProfile::_build_augmented_profile()
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Default method for instantaneous infectivity profile. */
-double MCMC::Impl::InfecProfile::__default_inst(Individual &, double t)
+double MCMC::Impl::InfecProfile::__default_inst(const Individual &, double t)
 {
 	if (profile->valid(t))
 		return profile->pdf(t);
@@ -361,7 +358,7 @@ double MCMC::Impl::InfecProfile::__default_inst(Individual &, double t)
 		return 0.;
 }
 /* Default method for cumulative infectivity profile. */
-double MCMC::Impl::InfecProfile::__default_cumul(Individual &, double t)
+double MCMC::Impl::InfecProfile::__default_cumul(const Individual &, double t)
 {
 	if (profile->below(t))
 		return 0.;
@@ -372,7 +369,7 @@ double MCMC::Impl::InfecProfile::__default_cumul(Individual &, double t)
 }
 
 /* Lookup method for discrete instantaneous infectivity profile. */
-double MCMC::Impl::InfecProfile::__lookup_inst(Individual &, double t)
+double MCMC::Impl::InfecProfile::__lookup_inst(const Individual &, double t)
 {
 	if (profile->valid(t) && (t < _size_lut))
 		return _lookup_inst.at(static_cast<size_t>(t));
@@ -380,7 +377,7 @@ double MCMC::Impl::InfecProfile::__lookup_inst(Individual &, double t)
 		return 0;
 }
 /* Lookup method for discrete cumulative infectivity profile. */
-double MCMC::Impl::InfecProfile::__lookup_cumul(Individual &, double t)
+double MCMC::Impl::InfecProfile::__lookup_cumul(const Individual &, double t)
 {
 	if (profile->below(t))
 		return 0.;
@@ -391,13 +388,13 @@ double MCMC::Impl::InfecProfile::__lookup_cumul(Individual &, double t)
 }
 
 /* Value of the instantaneous infectivity profile. */
-double MCMC::Impl::InfecProfile::__augm_inst(Individual &member, double t)
+double MCMC::Impl::InfecProfile::__augm_inst(const Individual &member, double t)
 {
 	return member.get_augm_variable(AUX_IP_INST_PROFILE)(t);
 }
 
 /* Value of the cumulative infectivity profile. */
-double MCMC::Impl::InfecProfile::__augm_cumul(Individual &member, double t)
+double MCMC::Impl::InfecProfile::__augm_cumul(const Individual &member, double t)
 {
 	return member.get_augm_variable(AUX_IP_CUMUL_PROFILE)(t);
 }

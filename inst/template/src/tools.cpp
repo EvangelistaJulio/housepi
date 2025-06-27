@@ -350,40 +350,48 @@ namespace tools
 
     /* Read csv list store in pathtofile and store it parsed in csv_parsed_list. */
     void read_csv_list(const std::string &pathtofile,
-                       dict_str_str &csv_parsed_list)
+                       dict_str_str &csv_parsed_list,
+                       const std::string &def_name)
     {
-
-        if (!is_na(pathtofile))
+        try
         {
-            std::ifstream input(pathtofile.c_str());
-
-            if (input.is_open())
+            if (!is_na(pathtofile))
             {
-                csv_parsed_list.clear();
+                std::ifstream input(pathtofile.c_str());
 
-                // Create a std::stringstream of the current line
-                for (std::string line; getline(input, line);)
+                if (input.is_open())
                 {
-                    std::string name, choice;
-                    std::istringstream iss(line);
+                    csv_parsed_list.clear();
 
-                    //===== NAME =====//
-                    if (!getline(iss, name, C_DELIM))
-                        throw std::runtime_error(
-                            "Unable to extract list name. Check file line \"" + line + "\".");
+                    // Create a std::stringstream of the current line
+                    for (std::string line; getline(input, line);)
+                    {
+                        std::string name, choice;
+                        std::istringstream iss(line);
 
-                    //===== CHOICE =====//
-                    if (!getline(iss, choice))
-                        throw std::runtime_error(
-                            "Unable to extract list value. Check file line \"" + line + "\".");
+                        //===== NAME =====//
+                        if (!getline(iss, name, C_DELIM))
+                            throw std::runtime_error(
+                                "Unable to extract list name. Check file line \"" + line + "\".");
 
-                    // add the new setup
-                    csv_parsed_list.emplace(strcleaner(name), strcleaner(choice));
+                        //===== CHOICE =====//
+                        if (!getline(iss, choice))
+                            throw std::runtime_error(
+                                "Unable to extract list value. Check file line \"" + line + "\".");
+
+                        // add the new setup
+                        csv_parsed_list.emplace(strcleaner(name), strcleaner(choice));
+                    }
                 }
+                else
+                    throw std::runtime_error(
+                        "Unable to open file \"" + pathtofile + "\".");
             }
-            else
-                throw std::runtime_error(
-                    "Unable to open file \"" + pathtofile + "\".");
+        }
+        catch (const std::exception &e)
+        {
+            tools::error("While reading " + def_name + " definitions:\n" +
+                         std::string(e.what()));
         }
     }
 
@@ -398,33 +406,103 @@ namespace tools
 
     /* Read csv table in pathtofile and store it parsed in csv_parsed_table. */
     void read_csv_table(const std::string &pathtofile,
-                        dict_str_vec &csv_parsed_table)
+                        dict_str_vec &csv_parsed_table,
+                        const std::string &def_name)
     {
-        if (!is_na(pathtofile))
+        try
         {
-            std::ifstream input(pathtofile.c_str());
-
-            if (input.is_open())
+            if (!is_na(pathtofile))
             {
-                // read and check for valid headers
-                const str_vec headers = read_column_headers(input);
+                std::ifstream input(pathtofile.c_str());
 
-                // clean all content of previous table
-                csv_parsed_table.clear();
-
-                dict_str_str this_row = {};
-                while (read_row_by_headers(input, headers, this_row))
+                if (input.is_open())
                 {
-                    for (const auto &x : this_row)
-                        csv_parsed_table[x.first].push_back(x.second);
-                    this_row.clear();
+                    // read and check for valid headers
+                    const str_vec headers = read_column_headers(input);
+
+                    // clean all content of previous table
+                    csv_parsed_table.clear();
+
+                    dict_str_str this_row = {};
+                    while (read_row_by_headers(input, headers, this_row))
+                    {
+                        for (const auto &x : this_row)
+                            csv_parsed_table[x.first].push_back(x.second);
+                        this_row.clear();
+                    }
                 }
+                else
+                    throw std::runtime_error(
+                        "Unable to open file \"" + pathtofile + "\".");
             }
-            else
-                throw std::runtime_error(
-                    "Unable to open file \"" + pathtofile + "\".");
+        }
+        catch (const std::exception &e)
+        {
+            tools::error("While reading " + def_name + " definitions:\n" +
+                         std::string(e.what()));
         }
     }
+
+#ifdef _HOUSEPI_RCPP
+
+    /* Format C++ string into Rcpp string. */
+    Rcpp::String stoRString(const std::string &x)
+    {
+        if (tools::is_na(x))
+            return HSP_NA_STRING;
+        return Rcpp::String(x);
+    }
+
+    /* Convert R List into map<string, string>. */
+    void rlist_to_map(const Rcpp::List &list, dict_str_str &output, const std::string &def_name)
+    {
+        using namespace Rcpp;
+
+        try
+        {
+            CharacterVector keys = list.names();
+
+            output.clear();
+            for (R_xlen_t i = 0; i < list.size(); ++i)
+            {
+                RObject element = list[i];
+                output[as<std::string>(keys[i])] = as<std::string>(wrap(element));
+            }
+        }
+        catch (const std::exception &e)
+        {
+            tools::error(
+                "While importing " + def_name + " definitions:\n" + std::string(e.what()));
+        }
+    }
+
+    /* Convert R dataframe into map<string, vector<string>>. */
+    void rdataframe_to_map(const Rcpp::DataFrame &df, dict_str_vec &output, const std::string &def_name)
+    {
+        using namespace Rcpp;
+
+        try
+        {
+            if (df.nrows() > 0)
+            {
+                output.clear();
+                CharacterVector keys = df.names();
+
+                for (R_xlen_t i = 0; i < df.size(); ++i)
+                {
+                    CharacterVector col_str = as<CharacterVector>(df[i]);
+                    str_vec col_data(col_str.begin(), col_str.end());
+                    output[as<std::string>(keys[i])] = std::move(col_data);
+                }
+            }
+        }
+        catch (const std::exception &e)
+        {
+            tools::error(
+                "While importing " + def_name + " definitions:\n" + std::string(e.what()));
+        }
+    }
+#endif
 
     //-----------------------------------------------------------------------------------------------//
     //-----------------------------------------------------------------------------------------------//
@@ -660,7 +738,7 @@ namespace progress
         const std::string _symbol = u8"\u25A0"; // bar decorator
         unsigned _barwidth = 40;                // bar total size
         bool _verbose = true;                   // wheter to show bar
-        bool _is_print = false;                 // wheter bar is printing
+        bool _is_bar_print = false;             // wheter bar is printing
 
         ulong _state = 0;       // current iteration
         ulong _total = 0;       // total number of iterations
@@ -670,8 +748,14 @@ namespace progress
         steady_clock::time_point _lastprint;
         ulong _thintime = 0;
 
+        void _print(const std::string &sms) const { tools::print_stdout(sms); }
+
         /* Function to display the progress bar. */
-        void _display(const std::string &sms) const { tools::print_stdout(sms); }
+        void _bar(const std::string &sms) const { (this->*_do_bar)(sms); }
+
+        void (Impl::*_do_bar)(const std::string &) const = &Impl::_bar_carriage_return;
+        void _bar_carriage_return(const std::string &sms) const { _print("\r" + sms); }
+        void _bar_new_line(const std::string &sms) const { _print(sms + "\n"); }
 
     public:
         //=======================//
@@ -684,6 +768,13 @@ namespace progress
             Rcpp::checkUserInterrupt();
             // change barwidth according to console width
             _barwidth = Rcpp::as<unsigned>(Rcpp::Function("getOption")("width")) / 2;
+
+            // change if R interactive environment
+            bool is_interactive = Rcpp::as<bool>(Rcpp::Function("interactive")());
+            if (is_interactive)
+                _do_bar = &Impl::_bar_carriage_return;
+            else
+                _do_bar = &Impl::_bar_new_line;
 #endif
         };
         ~Impl() {};
@@ -717,7 +808,7 @@ namespace progress
             _start = steady_clock::now();
             _lastprint = _start;
             _state = 0;
-            _is_print = false;
+            _is_bar_print = false;
         }
 
         /* Update progress bar given the progress state. */
@@ -748,21 +839,23 @@ namespace progress
                         << tools::percentage(progress, 0) << " "
                         << fmt_time(elapsed) << "<" << fmt_time(missing)
                         << std::string(10, ' ');
-                    _display(oss.str());
+                    _bar(oss.str());
 
                     _lastprint = steady_clock::now();
-                    _is_print = true;
+                    _is_bar_print = true;
                 }
-                else if (!_is_print) // eventually print initial message
+                else if (!_is_bar_print) // eventually print initial message
                     if (static_cast<ulong>(missing.count()) > _thintime)
                     {
                         std::ostringstream oss;
                         oss << _text << " |"
                             << std::string(_barwidth, ' ') << "| "
                             << tools::percentage(0., 0);
-                        _display(oss.str());
+                        if (_do_bar == &Impl::_bar_new_line)
+                            oss << "\n";
+                        _print(oss.str());
 
-                        _is_print = true;
+                        _is_bar_print = true;
                     }
             }
         }
@@ -773,8 +866,8 @@ namespace progress
 #ifdef _HOUSEPI_RCPP
             Rcpp::checkUserInterrupt();
 #endif
-            if (_is_print)
-                _display("\n");
+            if (_is_bar_print)
+                _print("\n");
         }
 
         /*  Close the progress bar. */
@@ -790,16 +883,16 @@ namespace progress
                 if (static_cast<ulong>(elapsed.count()) > _thintime)
                 {
                     std::ostringstream oss;
-                    oss << "\r" << _text << " |";
+                    oss << _text << " |";
                     for (unsigned u = 0; u < _barwidth; u++)
                         oss << _symbol;
                     oss << "| " << fmt_time(elapsed)
                         << std::string(25, ' ') << "\n";
-                    _display(oss.str());
+                    _bar(oss.str());
                 }
             }
 
-            _is_print = false;
+            _is_bar_print = false;
             _state = _total;
         }
     };

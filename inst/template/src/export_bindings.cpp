@@ -77,14 +77,6 @@
         }                                                                                         \
     };
 
-// macro to define RCPP wrapper module
-#define DEFINE_HOUSEPI_RCPP_WRAPPER_MODULE(WrapperName, type_string, registry_list)  \
-    DEFINE_HOUSEPI_RCPP_WRAPPER_CLASS(WrapperName, type_string, FUNCTION_REGISTRIES) \
-                                                                                     \
-    Rcpp::class_<WrapperName##Housepi>(#WrapperName "Housepi")                       \
-        .constructor<std::string, Rcpp::List, Rcpp::List, bool>()                    \
-        .method("call", &WrapperName##Housepi::call);
-
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -105,9 +97,15 @@
 //' }
 //' @return `numeric()`
 
+RCPP_MODULE(housepi_function)
+{
 #define FUNCTION_REGISTRIES {&UserFuncRegistry::inst(), &TranscendentalRegistry::inst(), &ArithmeticRegistry::inst()}
-RCPP_MODULE(housepi_function){
-    DEFINE_HOUSEPI_RCPP_WRAPPER_MODULE(Function, "function", FUNCTION_REGISTRIES)}
+    DEFINE_HOUSEPI_RCPP_WRAPPER_CLASS(Function, "function", FUNCTION_REGISTRIES);
+
+    Rcpp::class_<FunctionHousepi>("FunctionHousepi")
+        .constructor<std::string, Rcpp::List, Rcpp::List, bool>()
+        .method("call", &FunctionHousepi::call);
+}
 
 //' @name DistributionHousepi
 //' @title Housepi Distribution
@@ -121,10 +119,15 @@ RCPP_MODULE(housepi_function){
 //'   \item Parameter: x `numeric()`\cr Input vector.
 //' }
 //' @return `numeric()`
-
+RCPP_MODULE(housepi_distribution)
+{
 #define DISTRIBUTION_REGISTRIES {&ContinuosDistrRegistry::inst(), &DiscreteDistrRegistry::inst()}
-RCPP_MODULE(housepi_distribution){
-    DEFINE_HOUSEPI_RCPP_WRAPPER_MODULE(Distribution, "distribution", DISTRIBUTION_REGISTRIES)}
+    DEFINE_HOUSEPI_RCPP_WRAPPER_CLASS(Distribution, "distribution", DISTRIBUTION_REGISTRIES);
+
+    Rcpp::class_<DistributionHousepi>("DistributionHousepi")
+        .constructor<std::string, Rcpp::List, Rcpp::List, bool>()
+        .method("call", &DistributionHousepi::call);
+}
 
 //' @name InfecProfileHousepi
 //' @title Housepi Infectivity Profile
@@ -140,8 +143,14 @@ RCPP_MODULE(housepi_distribution){
 //' @return `numeric()`
 
 #define INFEC_PROFILE_REGISTRIES {&InfecProfileRegistry::inst(), &ContinuosDistrRegistry::inst(), &DiscreteDistrRegistry::inst()}
-RCPP_MODULE(housepi_infec_profile){
-    DEFINE_HOUSEPI_RCPP_WRAPPER_MODULE(InfecProfile, "infectivity profile", INFEC_PROFILE_REGISTRIES)}
+RCPP_MODULE(housepi_infec_profile)
+{
+    DEFINE_HOUSEPI_RCPP_WRAPPER_CLASS(InfecProfile, "infectivity profile", INFEC_PROFILE_REGISTRIES);
+
+    Rcpp::class_<InfecProfileHousepi>("InfecProfileHousepi")
+        .constructor<std::string, Rcpp::List, Rcpp::List, bool>()
+        .method("call", &InfecProfileHousepi::call);
+}
 
 //' @name ModelHousepi
 //' @title Internal housepi model
@@ -173,6 +182,7 @@ RCPP_MODULE(housepi_infec_profile){
 //' @field export_house_size_report\cr Return a DataFrame with a report of household sizes.
 //' @field export_traces\cr Return a DataFrame with MCMC traces.
 //' @field export_house_loglike_mtx\cr Return a NumericMatrix with household loglikelihood traces.
+//' @field export_for_debug\cr Return a List with full household and model details in order to debug.
 //' @field showcase_infec_profile\cr Return a List with a showcase of the infectivity profile.
 //' @field show_full_build\cr Show all build messages.
 //' @field show_summary\cr Show a summary of the current database.
@@ -202,6 +212,7 @@ RCPP_MODULE(housepi_model_core)
         .method("export_house_size_report", &MCMC::export_house_size_report)
         .method("export_traces", &MCMC::export_traces)
         .method("export_house_loglike_mtx", &MCMC::export_house_loglike_mtx)
+        .method("export_for_debug", &MCMC::export_for_debug)
         .method("showcase_infec_profile", &MCMC::showcase_infec_profile);
 
     Rcpp::class_<Model>("ModelHousepi")

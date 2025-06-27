@@ -135,7 +135,7 @@ HousepiInfecProfile <- R6::R6Class(
       self$defs <- list(
         name = name, discr = isTRUE(discr),
         arg_key = arg_key_, arg_val = arg_val_, arg_at = arg_at_,
-        min = min_, min_at = min_at_, max = max_, max_at = max_at_
+        max = max_, max_at = max_at_
       )
 
       invisible(self)

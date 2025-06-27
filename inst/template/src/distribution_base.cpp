@@ -476,9 +476,12 @@ std::shared_ptr<Function> DistributionRegistry::get(const std::string &opt) cons
 
 std::shared_ptr<Distribution> DistributionRegistry::get_distr(const std::string &opt) const
 {
-    auto it = _factory_map.find(opt);
-    if (it != _factory_map.end())
-        return it->second();
+    if (_factory_map.find(opt) != _factory_map.end())
+        return _factory_map.find(opt)->second();
+
+    else if (_factory_map.find(opt.substr(1)) != _factory_map.end())
+        return _factory_map.find(opt.substr(1))->second();
+
     return nullptr;
 }
 

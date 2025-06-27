@@ -120,8 +120,8 @@ The choice of non default group rates requires model recompilation, which is cal
 
 ```{r}
 # inference with minimal setup (for didactical purposes only)
-hhmodel$infer(dataset, n_steps = 10000, n_adapt = 1000, seed = 713,
-              n_burnin = 1000, thin = 10, progress = 10)
+hhmodel$infer(n_chains = 4, n_steps = 5000, thin = 8, n_adapt = 1000, 
+              n_burnin = 1000, seed = 713, progress = 30)
 ```
 
 ```{r, fig.width=6.5, fig.height=6, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}

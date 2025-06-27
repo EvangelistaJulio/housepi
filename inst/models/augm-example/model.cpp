@@ -25,10 +25,10 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Compute the log-likelihood within household. */
-double Model::compute_household_obs_loglike(Household &house) const
+double Model::compute_household_obs_loglike(Household &house)
 {
 	double output = 0.0;
-	for (Individual &member : house.infected())
+	for (const Individual &member : house.infected())
 		output += member.augm("log_proba");
 	return output;
 }

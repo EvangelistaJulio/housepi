@@ -29,11 +29,11 @@
 #include <functional>
 #include <algorithm>
 
-/* DEVELOPER: flag used to predispose to different wrapper
+/* DEVELOPER: flag used to predispose to different wrapper*/
 #ifndef _HOUSEPI_RCPP
 #define _HOUSEPI_RCPP
 #endif
-*/
+
 
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
@@ -71,7 +71,7 @@ const std::string HSP_NA_STRING = "<NA>";
 #define MISSING_STATUS -1 // missing status (<=)
 
 // group rates
-constexpr double REFERENCE_VALUE = 1.0;                      // alias for reference value
+constexpr double REFERENCE_VALUE = 1.0;          // alias for reference value
 const std::string REFERENCE = "REFERENCE";       // reference choice
 const std::string CONTACT_RATE = "Contact";      // contact rate
 const std::string MISSING_RATE = "MISSING_RATE"; // missing rate
@@ -125,8 +125,6 @@ template <typename T>
 using matrix = std::vector<std::vector<T>>;
 
 //----- Aliases for improved readibility -----//
-using indiv = unsigned short int;
-
 using _access_key_ = std::string;
 
 using par_key = _access_key_;
@@ -257,9 +255,17 @@ namespace tools
 
     // read csv files
     void read_csv_list(const std::string &pathtofile,
-                       dict_str_str &csv_parsed_list);
+                       dict_str_str &csv_parsed_list,
+                       const std::string &def_name);
     void read_csv_table(const std::string &pathtofile,
-                        dict_str_vec &csv_parsed_table);
+                        dict_str_vec &csv_parsed_table,
+                        const std::string &def_name);
+
+#ifdef _HOUSEPI_RCPP
+    Rcpp::String stoRString(const std::string &x);
+    void rlist_to_map(const Rcpp::List &list, dict_str_str &output, const std::string &def_name);
+    void rdataframe_to_map(const Rcpp::DataFrame &df, dict_str_vec &output, const std::string &def_name);
+#endif
 
     const str_vec headers_from_deflist(const dict_str_str &deflist);
     const str_vec headers_from_deftable(const dict_str_vec &deftable);

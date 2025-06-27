@@ -42,7 +42,7 @@ public:
 
 	Individual() {}
 	Individual(size_t index,
-			   indiv hhindex,
+			   size_t hhindex,
 			   const std::string &id,
 			   int status,
 			   const data_key_map<double> &data);
@@ -56,14 +56,22 @@ public:
 	//==================//
 
 	const std::string &id() const { return _id; }
-	indiv hhindex() const { return _hhindex; }
-	int status() const { return _status; }
+	operator size_t() const { return _hhindex; }
 
+	int status() const { return _status; }
 	double data(const data_key &d) const { return _data_map.at(d); }
-	const dbl_vec &datalist(const data_key &d) const { return _datalist_ptr->at(d); }
+	const dbl_vec &datalist(const data_key &d) const
+	{
+		if (_datalist_ptr == nullptr)
+			throw std::invalid_argument(
+				"Individual \"" + _id + "\" has no datalist entries.");
+		else
+			return _datalist_ptr->at(d);
+	}
 	double group_rate(const rate_key &r) const { return _rate_map.at(r).get(); }
 	double augm(const augm_key &a) const { return _augm_map.at(a).get(); }
 	Variable &get_augm_variable(const augm_key &a) { return _augm_map.at(a); }
+	const Variable &get_augm_variable(const augm_key &a) const { return _augm_map.at(a); }
 
 	const std::vector<data_key> keys_dataset() const;
 	const std::vector<data_key> keys_datalist() const;
@@ -113,7 +121,7 @@ private:
 
 	std::string _id = HSP_NA_STRING; // user id
 	size_t _index = 0;				 // housepi internal index
-	indiv _hhindex = 0;				 // household relative index
+	size_t _hhindex = 0;			 // household relative index
 	int _status = MISSING_STATUS;	 // status of the individual
 
 	// NOTE: I am forced to store numerical variables
@@ -157,28 +165,29 @@ public:
 
 	auto begin() { return _members.begin(); }
 	auto end() { return _members.end(); }
+	auto begin() const { return _members.begin(); }
+	auto end() const { return _members.end(); }
 
-	// iterator
+	// T should be Individual for mutable access
+	// or const Individual for const access.
+	template <typename T>
 	class ViewIterator
 	{
-		std::vector<Individual> &members_ptr;
-		std::vector<indiv> &indices;
+		// conditional to select the vector type if constant or not
+		using VectorType = std::conditional_t<std::is_const<T>::value, const std::vector<Individual>, std::vector<Individual>>;
+
+		VectorType &members_ptr;			// Either vector<Individual>& or const vector<Individual>&
+		const std::vector<size_t> &indices; // indices always read-only
 		size_t pos;
 
 	public:
-		using iterator_category = std::forward_iterator_tag;
-		using value_type = Individual;
-		using difference_type = std::ptrdiff_t;
-		using pointer = Individual *;
-		using reference = Individual &;
-
-		ViewIterator(std::vector<Individual> &m,
-					 std::vector<indiv> &i,
+		ViewIterator(VectorType &m,
+					 const std::vector<size_t> &i,
 					 size_t p)
 			: members_ptr(m), indices(i), pos(p) {}
 
-		reference operator*() const { return members_ptr[indices[pos]]; }
-		pointer operator->() const { return &members_ptr[indices[pos]]; }
+		T &operator*() const { return members_ptr[indices[pos]]; }
+		T *operator->() const { return &members_ptr[indices[pos]]; }
 
 		ViewIterator &operator++()
 		{
@@ -196,46 +205,55 @@ public:
 		bool operator!=(const ViewIterator &other) const { return !(*this == other); }
 	};
 
-	// range
-	struct View
+	template <typename T>
+	class View
 	{
-		std::vector<Individual> &members;
-		std::vector<indiv> &indices;
+		// conditional to select the vector type if constant or not
+		using VectorType = std::conditional_t<std::is_const<T>::value, const std::vector<Individual>, std::vector<Individual>>;
+		using iterator = ViewIterator<T>;
 
-		View(std::vector<Individual> &m, std::vector<indiv> &i)
+	public:
+		VectorType &members;
+		const std::vector<size_t> &indices;
+
+		View(VectorType &m, const std::vector<size_t> &i)
 			: members(m), indices(i) {}
 
-		ViewIterator begin() { return {members, indices, 0}; }
-		ViewIterator end() { return {members, indices, indices.size()}; }
+		iterator begin() { return iterator(members, indices, 0); }
+		iterator end() { return iterator(members, indices, indices.size()); }
 	};
+
+	View<Individual> infected() { return View<Individual>(_members, _infected_list); }
+	View<Individual> healthy() { return View<Individual>(_members, _healthy_list); }
+	View<Individual> missing() { return View<Individual>(_members, _missing_list); }
+	View<const Individual> infected() const { return View<const Individual>(_members, _infected_list); }
+	View<const Individual> healthy() const { return View<const Individual>(_members, _healthy_list); }
+	View<const Individual> missing() const { return View<const Individual>(_members, _missing_list); }
+
+	const std::vector<size_t> &infected_hhindexes() const { return _infected_list; }
+	const std::vector<size_t> &healthy_hhindexes() const { return _healthy_list; }
+	const std::vector<size_t> &missing_hhindexes() const { return _missing_list; }
 
 	//==================//
 	//===== GETTER =====//
 	//==================//
 
 	// Individual Getter
-	const std::string &id(indiv i) const { return _members.at(i).id(); }
-	int status(indiv i) const { return _members.at(i).status(); }
-	Individual &get_member(indiv i) { return _members.at(i); }
+	const std::string &id(size_t i) const { return _members.at(i).id(); }
+	int status(size_t i) const { return _members.at(i).status(); }
+	Individual &get_member(size_t i) { return _members.at(i); }
+	const Individual &get_member(size_t i) const { return _members.at(i); }
 
-	double contact_rate(indiv from, indiv to) const { return *_contact_rates[from][to]; }
+	double contact_rate(size_t from, size_t to) const { return *_contact_rates[from][to]; }
 
 	// Household Getter
 	const std::string &house_id() const { return _house_id; }
 	size_t house_index() const { return _index; }
-	ushort size() const { return _house_size; }
+	size_t size() const { return _house_size; }
 
-	ushort n_infec_status() const { return _infec_list.size(); }
-	ushort n_healthy_status() const { return _healthy_list.size(); }
-	ushort n_missing_status() const { return _missing_list.size(); }
-
-	const std::vector<indiv> &get_infected_status_hhindexes() const { return _infec_list; }
-	const std::vector<indiv> &get_healthy_status_hhindexes() const { return _healthy_list; }
-	const std::vector<indiv> &get_missing_status_hhindexes() const { return _missing_list; }
-
-	View infected() { return View(_members, _infec_list); }
-	View healthy() { return View(_members, _healthy_list); }
-	View missing() { return View(_members, _infec_list); }
+	size_t n_infec_status() const { return _infected_list.size(); }
+	size_t n_healthy_status() const { return _healthy_list.size(); }
+	size_t n_missing_status() const { return _missing_list.size(); }
 
 	ulong multiplicity() const { return _house_multiplicity; }
 	size_t multiplicity_class_index() const { return _multiplicity_class; }
@@ -251,8 +269,8 @@ public:
 					   int status,
 					   const data_key_map<double> &data);
 	bool change_status(Individual &member, int new_status);
-	bool change_status(indiv i, int new_status) { return change_status(_members.at(i), new_status); }
-	void assign_contact_rate(indiv from, indiv to, const double *x);
+	bool change_status(size_t i, int new_status) { return change_status(_members.at(i), new_status); }
+	void assign_contact_rate(size_t from, size_t to, const double *x);
 
 	//============================//
 	//===== CACHE ATTRIBUTES =====//
@@ -260,20 +278,22 @@ public:
 
 	/* Check if any cache quantity is associated to the household. */
 	bool is_any_cache() { return !(_cache_int_vec.empty() && _cache_dbl_vec.empty() && _cache_dbl_mtx.empty()); }
-
 	void buffer_all_cache();
 
 	//----- Cached integer vector -----//
 	void assign_cache_integer_vector(const cache_key &e) { _cache_int_vec[e] = int_vec(size(), 0); }
 	int_vec &cache_integer_vector(const cache_key &e) { return _cache_int_vec.at(e); }
+	const int_vec &cache_integer_vector(const cache_key &e) const { return _cache_int_vec.at(e); }
 
 	//----- Cached double vector -----//
 	void assign_cache_double_vector(const cache_key &e) { _cache_dbl_vec[e] = dbl_vec(size(), 0.); }
 	dbl_vec &cache_double_vector(const cache_key &e) { return _cache_dbl_vec.at(e); }
+	const dbl_vec &cache_double_vector(const cache_key &e) const { return _cache_dbl_vec.at(e); }
 
 	//----- Cached double matrix -----//
 	void assign_cache_double_matrix(const cache_key &e) { _cache_dbl_mtx[e] = matrix<double>(size(), dbl_vec(size(), 0.)); }
 	matrix<double> &cache_double_matrix(const cache_key &e) { return _cache_dbl_mtx.at(e); }
+	const matrix<double> &cache_double_matrix(const cache_key &e) const { return _cache_dbl_mtx.at(e); }
 
 	//=========================//
 	//===== LOGLIKELIHOOD =====//
@@ -294,9 +314,9 @@ private:
 	std::vector<Individual> _members = {}; // members
 
 	// list of members for each status
-	std::vector<indiv> _infec_list = {};
-	std::vector<indiv> _healthy_list = {};
-	std::vector<indiv> _missing_list = {};
+	std::vector<size_t> _infected_list = {};
+	std::vector<size_t> _healthy_list = {};
+	std::vector<size_t> _missing_list = {};
 
 	// contact rate pointers
 	matrix<const double *> _contact_rates;

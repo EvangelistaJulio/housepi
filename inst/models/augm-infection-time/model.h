@@ -23,11 +23,11 @@ class Model : public MCMC
 {
 public:
 	//===== Model dependent methods =====//
-	double transmission_rate(Household &house) const;
+	double transmission_rate(const Household &house) const;
 
-	double loglike_healthy(Household &house) const;
-	double loglike_infectious(Household &house) const;
-	double roi_inst_simulation(const std::vector<indiv> &infectors,
+	double loglike_healthy(const Household &house) const;
+	double loglike_infectious(const Household &house) const;
+	double roi_inst_simulation(const std::vector<size_t> &infectors,
 							   Household &house,
 							   Individual &member_i,
 							   double t_infec_i) const;
@@ -37,7 +37,7 @@ public:
 	void init_model_for_inference() override final;
 	void init_model_for_simulation() override final;
 	void update_cache_dependecies(Household &house, Individual &member_i) override final;
-	double compute_household_obs_loglike(Household &house) const override final;
+	double compute_household_obs_loglike(Household &house) override final;
 	void simulate_single_household(Household &house) override final;
 
 	//----- Rate Choices -----//

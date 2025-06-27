@@ -174,13 +174,12 @@ void MCMC::_assign_contact_rate(Household &house)
     try
     {
         // loop over all couples
-        for (indiv k = 0; k < house.size(); ++k)     // from
-            for (indiv i = 0; i < house.size(); ++i) // to
-                // note : from 'k' --> to 'i'
-                if (k != i)
+        for (const Individual &member_k : house)     // from : member_k
+            for (const Individual &member_i : house) // -> to : member_i
+                if (member_k != member_i)
                 {
                     _pair_contact_rate = HSP_NA_STRING;
-                    assign_contact_rate_to_household(house, k, i);
+                    assign_contact_rate_to_household(house, member_k, member_i);
 
                     if (!tools::is_na(_pair_contact_rate))
                     {
@@ -188,14 +187,14 @@ void MCMC::_assign_contact_rate(Household &house)
 
                         if (_pair_contact_rate == MISSING_RATE)
                             throw std::invalid_argument(
-                                "Missing contact rate for individuals " + house.id(k) +
-                                " and " + house.id(i) + " (household " + house.house_id() + ").");
+                                "Missing contact rate for individuals " + member_k.id() +
+                                " and " + member_i.id() + " (household " + house.house_id() + ").");
 
                         else if (_pair_contact_rate != REFERENCE)
                             // parameter rate
                             y = pImpl->get_param_pointer(_pair_contact_rate);
 
-                        house.assign_contact_rate(k, i, y);
+                        house.assign_contact_rate(static_cast<size_t>(member_k), static_cast<size_t>(member_i), y);
                     }
                 }
     }
@@ -223,13 +222,13 @@ void MCMC::assign_template_infec_profile(const dict_str_str x)
 }
 
 /* Value of the instantaneous infectivity profile. */
-double MCMC::infec_profile_inst(Individual &infector, double t) const
+double MCMC::infec_profile_inst(const Individual &infector, double t) const
 {
     return pImpl->infec_profile.inst(infector, t);
 }
 
 /* Value of the cumulative infectivity profile. */
-double MCMC::infec_profile_cumul(Individual &infector, double t) const
+double MCMC::infec_profile_cumul(const Individual &infector, double t) const
 {
     return pImpl->infec_profile.cumul(infector, t);
 }
@@ -265,7 +264,8 @@ Rcpp::DataFrame MCMC::export_dataset_report() const { return pImpl->export_datas
 Rcpp::DataFrame MCMC::export_house_size_report() const { return pImpl->export_house_size_report(); }
 Rcpp::NumericMatrix MCMC::export_traces() const { return pImpl->export_traces(); }
 Rcpp::NumericMatrix MCMC::export_house_loglike_mtx() const { return pImpl->export_house_loglike_mtx(); }
-Rcpp::List MCMC::showcase_infec_profile(int n_bins) { return pImpl->showcase_infec_profile(n_bins); }
+Rcpp::List MCMC::showcase_infec_profile(int n_bins) const { return pImpl->showcase_infec_profile(n_bins); }
+Rcpp::List MCMC::export_for_debug(const std::string &house_id) const { return pImpl->export_for_debug(house_id); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////  MCMC : imports from Rcpp ///////////////////////////////////

@@ -83,8 +83,7 @@ public:
 	//===== SHOW =====//
 	//================//
 
-	const std::vector<dbl_vec> showcase(int n_bins = 2000,
-										double ytol = 1.e-5) const;
+	const std::vector<dbl_vec> showcase(int n_bins = 2000, double ytol = 1.e-5) const;
 
 protected:
 	//==================//

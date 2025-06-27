@@ -276,14 +276,14 @@ public:
         bool is_lookup() const { return !_lookup_inst.empty(); }
         bool is_augmented() const { return !_augm_infec_profile_deflist.empty(); }
 
-        double inst(Individual &member, double t) { return (this->*_do_inst)(member, t); }
-        double cumul(Individual &member, double t) { return (this->*_do_cumul)(member, t); }
+        double inst(const Individual &member, double t) { return (this->*_do_inst)(member, t); }
+        double cumul(const Individual &member, double t) { return (this->*_do_cumul)(member, t); }
 
     private:
         MCMC::Impl &pImpl; // pointer to external class
         const str_vec _headers = {"name", "discr",
                                   "arg_key", "arg_val", "arg_at",
-                                  "min", "min_at", "max", "max_at"};
+                                  "max", "max_at"};
         // lookup table
         size_t _size_lut = 0;
         dbl_vec _lookup_inst = {};
@@ -304,27 +304,26 @@ public:
                                const str_vec &typs);
 
         //===== Functional methods for getter methods =====//
-        double (InfecProfile::*_do_inst)(Individual &, double) = &InfecProfile::__default_inst;
-        double (InfecProfile::*_do_cumul)(Individual &, double) = &InfecProfile::__default_cumul;
+        double (InfecProfile::*_do_inst)(const Individual &, double) = &InfecProfile::__default_inst;
+        double (InfecProfile::*_do_cumul)(const Individual &, double) = &InfecProfile::__default_cumul;
 
-        double __default_inst(Individual &member, double t);
-        double __default_cumul(Individual &member, double t);
-        double __lookup_inst(Individual &member, double t);
-        double __lookup_cumul(Individual &member, double t);
-        double __augm_inst(Individual &member, double t);
-        double __augm_cumul(Individual &member, double t);
+        double __default_inst(const Individual &member, double t);
+        double __default_cumul(const Individual &member, double t);
+        double __lookup_inst(const Individual &member, double t);
+        double __lookup_cumul(const Individual &member, double t);
+        double __augm_inst(const Individual &member, double t);
+        double __augm_cumul(const Individual &member, double t);
     } infec_profile;
 
     void update_infec_profile();
     void recover_infec_profile(bool is_cache_depen);
-    double infec_profile_inst(Individual &member, double t) { return infec_profile.inst(member, t); }
-    double infec_profile_cumul(Individual &member, double t) { return infec_profile.cumul(member, t); }
+    double infec_profile_inst(const Individual &member, double t) { return infec_profile.inst(member, t); }
+    double infec_profile_cumul(const Individual &member, double t) { return infec_profile.cumul(member, t); }
 
     //=================//
     //===== BUILD =====//
     //=================//
 
-    void build_setup();
     void build_dataset(const dict_str_vec &input);
     void build_datalist(const dict_str_vec &input);
     void build_multiplicity(const dict_str_vec &input);
@@ -362,6 +361,8 @@ public:
     Rcpp::NumericMatrix export_traces() const;
     Rcpp::NumericMatrix export_house_loglike_mtx() const;
     Rcpp::List showcase_infec_profile(int n_bins) const;
+
+    Rcpp::List export_for_debug(const std::string &house_id) const;
 
 #else
 
@@ -407,7 +408,7 @@ public:
     std::vector<dbl_vec> smpl_house_loglike = {};
 
     // optional augmented posterior sample
-    std::vector<Individual *> smpl_individual_star = {};
+    std::vector<const Individual *> smpl_individual_star = {};
     std::vector<augm_key_map<dbl_vec>> smpl_augm_value = {};
 
     void assert_proper_dataset();

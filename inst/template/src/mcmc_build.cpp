@@ -28,72 +28,66 @@
 
 void MCMC::Impl::Setup::build()
 {
-    if (deflist.size() > 0)
-    {
-        // check entries
-        str_vec headers = tools::headers_from_deflist(deflist);
-        tools::check_for_unused_entries(headers, file_headers);
-
-        // Random Initialization of Parameters
-        if (deflist.count("progress") && (!tools::is_na(deflist.at("progress"))))
-            progress = tools::stoul(deflist.at("progress"));
-
-        // N. of Threads
-        if (deflist.count("n_threads") && (!tools::is_na(deflist.at("n_threads"))))
-            n_threads = tools::stoi(deflist.at("n_threads"), "n. of threads");
-
-        // PRNG Seed
-        if (deflist.count("seed") && (!tools::is_na(deflist.at("seed"))))
-            seed = tools::stoi32(deflist.at("seed"), "random seed");
-
-        // N. of Chains
-        if (deflist.count("n_chains") && (!tools::is_na(deflist.at("n_chains"))))
-            n_chains = tools::stoul(deflist.at("n_chains"), "n. of chains");
-
-        // Single Chain Sample Size
-        if (deflist.count("sample_size") && (!tools::is_na(deflist.at("sample_size"))))
-            c_sample_size = tools::stoul(deflist.at("sample_size"), "sample size");
-
-        // N. of Steps
-        if (deflist.count("n_steps") && (!tools::is_na(deflist.at("n_steps"))))
-            n_steps = tools::stoul(deflist.at("n_steps"), "n. of steps");
-
-        // N. of Adaptive Steps
-        if (deflist.count("n_adapt") && (!tools::is_na(deflist.at("n_adapt"))))
-            n_adapt = tools::stoul(deflist.at("n_adapt"), "n. of adaptive steps");
-
-        // N. of Thinning Steps
-        if (deflist.count("thin") && (!tools::is_na(deflist.at("thin"))))
-            thin = tools::stoul(deflist.at("thin"), "thin");
-
-        // N. of Steps to "Burn-In"
-        if (deflist.count("n_burnin") && (!tools::is_na(deflist.at("n_burnin"))))
-            n_burnin = tools::stoul(deflist.at("n_burnin"), "burn-in");
-
-        // Random Initialization of Parameters
-        if (deflist.count("rand_init") && (!tools::is_na(deflist.at("rand_init"))))
-            rand_init_params = tools::stobool(deflist.at("rand_init"));
-
-        // Individual ID for Augmented Trace
-        if (deflist.count("id_trace") && (!tools::is_na(deflist.at("id_trace"))))
-            id_trace = tools::parse_list_args(deflist.at("id_trace"));
-    }
-
-    // reset internal states
-    chain = 1;   // current chain
-    rung = 0;    // current thermodynamic rung
-    n_rungs = 0; // number of rungs
-
-    set_n_threads(); // define number of threads
-    set_prng_seed(); // pseudo-random number generator seeding
-}
-
-/* Assign setup. */
-void MCMC::Impl::build_setup()
-{
     try
     {
-        setup.build();
+        if (deflist.size() > 0)
+        {
+            // check entries
+            str_vec headers = tools::headers_from_deflist(deflist);
+            tools::check_for_unused_entries(headers, file_headers);
+
+            // Random Initialization of Parameters
+            if (deflist.count("progress") && (!tools::is_na(deflist.at("progress"))))
+                progress = tools::stoul(deflist.at("progress"));
+
+            // N. of Threads
+            if (deflist.count("n_threads") && (!tools::is_na(deflist.at("n_threads"))))
+                n_threads = tools::stoi(deflist.at("n_threads"), "n. of threads");
+
+            // PRNG Seed
+            if (deflist.count("seed") && (!tools::is_na(deflist.at("seed"))))
+                seed = tools::stoi32(deflist.at("seed"), "random seed");
+
+            // N. of Chains
+            if (deflist.count("n_chains") && (!tools::is_na(deflist.at("n_chains"))))
+                n_chains = tools::stoul(deflist.at("n_chains"), "n. of chains");
+
+            // Single Chain Sample Size
+            if (deflist.count("sample_size") && (!tools::is_na(deflist.at("sample_size"))))
+                c_sample_size = tools::stoul(deflist.at("sample_size"), "sample size");
+
+            // N. of Steps
+            if (deflist.count("n_steps") && (!tools::is_na(deflist.at("n_steps"))))
+                n_steps = tools::stoul(deflist.at("n_steps"), "n. of steps");
+
+            // N. of Adaptive Steps
+            if (deflist.count("n_adapt") && (!tools::is_na(deflist.at("n_adapt"))))
+                n_adapt = tools::stoul(deflist.at("n_adapt"), "n. of adaptive steps");
+
+            // N. of Thinning Steps
+            if (deflist.count("thin") && (!tools::is_na(deflist.at("thin"))))
+                thin = tools::stoul(deflist.at("thin"), "thin");
+
+            // N. of Steps to "Burn-In"
+            if (deflist.count("n_burnin") && (!tools::is_na(deflist.at("n_burnin"))))
+                n_burnin = tools::stoul(deflist.at("n_burnin"), "burn-in");
+
+            // Random Initialization of Parameters
+            if (deflist.count("rand_init") && (!tools::is_na(deflist.at("rand_init"))))
+                rand_init_params = tools::stobool(deflist.at("rand_init"));
+
+            // Individual ID for Augmented Trace
+            if (deflist.count("id_trace") && (!tools::is_na(deflist.at("id_trace"))))
+                id_trace = tools::parse_list_args(deflist.at("id_trace"));
+        }
+
+        // reset internal states
+        chain = 1;   // current chain
+        rung = 0;    // current thermodynamic rung
+        n_rungs = 0; // number of rungs
+
+        set_n_threads(); // define number of threads
+        set_prng_seed(); // pseudo-random number generator seeding
     }
     catch (const std::exception &e)
     {
@@ -531,8 +525,8 @@ void MCMC::Impl::build_datalist(const dict_str_vec &input)
             // note: this could be moved elsewhere if required
             std::unordered_map<std::string, size_t> id_to_index = {};
             size_t c = 0;
-            for (Household &house : house_vector)
-                for (Individual &member : house)
+            for (const Household &house : house_vector)
+                for (const Individual &member : house)
                     if (id_to_index.find(member.id()) != id_to_index.end())
                         throw std::invalid_argument(
                             "Multiple individuals id equal to \"" + member.id() + "\"");

@@ -259,7 +259,7 @@ get_rcpp_module <- function(module_name, hhmodel = NULL) {
   }
   dyn.load(dll)
   package <- get_template_from_dll(dll)
-  return(Rcpp::Module("housepi_infec_profile", PACKAGE = package))
+  return(Rcpp::Module(module_name, PACKAGE = package))
 }
 
 ############################################################################
@@ -713,7 +713,7 @@ housepi_distribution <- function(name, x, discr = FALSE, args = numeric(),
   if (!is.na(min)) range <- c(min, range)
   if (!is.na(max)) range <- c(range, max)   
   m <- get_rcpp_module("housepi_distribution", hhmodel)
-  return(m$DistributionHousepi$new(name, args, range)$call(x))
+  return(m$DistributionHousepi$new(name, args, range, discr)$call(x))
 }
 
 #' @title

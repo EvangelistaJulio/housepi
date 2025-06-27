@@ -17,7 +17,7 @@
 #'
 #' @param df `data.frame`\cr
 #' Dataset as output from rcpp model object.
-#' @param levels `list()`\ce
+#' @param levels `list()`\cr
 #' Levels of the factors in the dataset.
 #'
 #' @return `data.frame`
@@ -54,6 +54,13 @@ HousepiWrapper <- R6::R6Class(
   ############################################################################
 
   active = list(
+    #' @field path_to_dll `character(1)`\cr
+    #' Path to dynamic library file of the model.
+    path_to_dll = function(value) {
+      if (missing(value)) return(private$.dll)
+      stop_h("'path_to_dll' is read only.")
+    },
+
     #' @field dataset `data.frame`\cr
     #' Dataset with individual level information of current dataset.
     dataset = function(value) {
@@ -185,14 +192,8 @@ HousepiWrapper <- R6::R6Class(
         return(df)
       }
       stop_h("'household_loglike_traces' is read only.")
-    },
-
-    #' @field path_to_dll `character(1)`\cr
-    #' Path to dynamic library file of the model.
-    path_to_dll = function(value) {
-      if (missing(value)) return(private$.dll)
-      stop_h("'path_to_dll' is read only.")
     }
+
   ),
 
   ############################################################################
@@ -356,6 +357,17 @@ HousepiWrapper <- R6::R6Class(
     #' @return `data.frame`
     export_datalist_to_standalone = function() {
       return(private$.rcpp$export_datalist())
+    },
+
+    #' @description
+    #' Export a list containing full house and model details.
+    #' 
+    #' @param house_id `character(1)`\cr
+    #' Household id to export.
+    #'
+    #' @return `list()`
+    export_state_for_debug = function(house_id) {
+      return(private$.rcpp$export_for_debug(house_id))
     },
 
     #' @description

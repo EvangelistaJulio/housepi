@@ -51,7 +51,7 @@ New instance of class
 \subsection{Method \code{add()}}{
 Add definition of infectivity profile.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiInfecProfile$add(name, discr = FALSE, args = list(), min = NA, max = NA)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiInfecProfile$add(name, discr = FALSE, args = list(), max = NA)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -65,13 +65,6 @@ IF \code{TRUE} the profile is discrete.}
 
 \item{\code{args}}{(named \code{list()}\cr
 Arguments (eventually with types) for the profile.}
-
-\item{\code{min}}{\code{double(1)} | \code{character(1)}\cr
-One between:
-\itemize{
-\item Scalar value;
-\item Parameter name (followed by \verb{@P}).
-}}
 
 \item{\code{max}}{\code{double(1)} | \code{character(1)}\cr
 One between:

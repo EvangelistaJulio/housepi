@@ -123,7 +123,7 @@ public:
     //===== CONSTRUCTOR =====//
     Lognormal_Distribution()
         : Distribution("lnorm", {"meanlog", "sdlog"}, {0., 1.},
-                       0., HSP_NA_DOUBLE, false, false),
+                       0., HSP_NA_DOUBLE, true, false),
           distr_gen(arg(0), arg(1)) {}
     ~Lognormal_Distribution() = default;
 
@@ -226,10 +226,7 @@ public:
     ~Gamma_Distribution() = default;
 
     //==== SETTER =====//
-    void init_reshaping(bool discrete) override final
-    {
-        init_min_zero_reshaping(discrete, false);
-    }
+    void init_reshaping(bool discrete) override final { init_min_zero_reshaping(discrete, false); }
 
 protected:
     std::gamma_distribution<double> distr_gen;

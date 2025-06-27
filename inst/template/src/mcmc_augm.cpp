@@ -56,6 +56,10 @@ double MCMC::Impl::_type_to_double(const Individual &member,
                 throw std::invalid_argument(
                     "Parameter to be inferred \"" + value + "\" assigned as constant argument.");
 
+        else if (tools::stoupper(type) == TYPE_AUGM)
+            throw std::invalid_argument(
+                "Value initialization with other augmented variable is not supported.");
+
         else
             throw std::invalid_argument(
                 "Unknown variable type specifier \"" + type + "\".");
@@ -306,8 +310,8 @@ void MCMC::Impl::_build_augm_set_id_trace()
         {
             // check id agross all individuals
             str_vec aux_check_already_stored_id = {};
-            for (Household &house : house_vector)
-                for (Individual &member : house)
+            for (const Household &house : house_vector)
+                for (const Individual &member : house)
                     if (contains(setup.id_trace, member.id()))
                     {
                         if (contains(aux_check_already_stored_id, member.id()))
@@ -323,11 +327,11 @@ void MCMC::Impl::_build_augm_set_id_trace()
             if (smpl_individual_star.empty())
             {
                 tools::warning(
-                    "Ignoring id trace for individual" + tools::show_list(setup.id_trace));
+                    "Ignoring id trace for individual " + tools::show_list(setup.id_trace));
                 setup.id_trace.clear();
             }
             else
-                for (Individual *member : smpl_individual_star)
+                for (const Individual *member : smpl_individual_star)
                     if (member->status() < INFECTED_STATUS)
                         tools::warning(
                             "Ignornig trace of healthy individual id \"" + member->id() + "\".");
@@ -623,8 +627,8 @@ void MCMC::Impl::_move_all_augm()
                 {
                     if (!has_error.exchange(true))
                         error_message = "While sampling augmented variables for household " +
-                                         house_vector[H].house_id() + ":\n" +
-                                         std::string(e.what());
+                                        house_vector[H].house_id() + ":\n" +
+                                        std::string(e.what());
                 }
             }
         }

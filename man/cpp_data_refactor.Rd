@@ -10,7 +10,7 @@ cpp_data_refactor(df, levels)
 \item{df}{\code{data.frame}\cr
 Dataset as output from rcpp model object.}
 
-\item{levels}{\code{list()}\ce
+\item{levels}{\code{list()}\cr
 Levels of the factors in the dataset.}
 }
 \value{

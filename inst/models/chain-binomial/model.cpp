@@ -20,16 +20,10 @@
 //------------------------------------------- \/ ------------------------------------------------//
 
 /* [CHANGE-ME] Risk of infection from the community. */
-double Model::community_risk() const
-{
-	return param("alpha");
-}
+double Model::community_risk() const { return param("alpha"); }
 
 /* [CHANGE-ME] Risk of infection from another household member. */
-double Model::person_to_person_risk() const
-{
-	return param("beta");
-}
+double Model::person_to_person_risk() const { return param("beta"); }
 
 //------------------------------------------- /\ ------------------------------------------------//
 //------------------------------------------- || ------------------------------------------------//
@@ -61,7 +55,7 @@ void Model::init_model_for_inference()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Compute the log-likelihood within household. */
-double Model::compute_household_obs_loglike(Household &house) const
+double Model::compute_household_obs_loglike(Household &house)
 {
 	double log_likelihood = 0.;
 
@@ -99,7 +93,7 @@ double Model::compute_household_obs_loglike(Household &house) const
 			for (size_t i = 1; i < gen_counts.size(); ++i)
 			{
 				// GENERATION (i) : infected by previous generation i - 1
-				tmp += gen_counts[i] * log(1. - exp(gen_counts[i - 1] * log_p2p_esc_proba));
+				tmp += gen_counts[i] * std::log(1. - std::exp(gen_counts[i - 1] * log_p2p_esc_proba));
 
 				// GENERATION (i) : escaped from other generations g, i. e. 0 <= g < i - 1
 				for (size_t j = 0; j < i - 1; ++j)
@@ -107,10 +101,10 @@ double Model::compute_household_obs_loglike(Household &house) const
 			}
 
 			// times n. of equivalent configurations returning the same kind of generation
-			sero_positive_term += bax::Multipl_Gener_LookupTable[n_positive][c] * exp(tmp);
+			sero_positive_term += bax::Multipl_Gener_LookupTable[n_positive][c] * std::exp(tmp);
 		}
 
-		log_likelihood += log(sero_positive_term);
+		log_likelihood += std::log(sero_positive_term);
 	}
 
 	return log_likelihood * house.multiplicity();

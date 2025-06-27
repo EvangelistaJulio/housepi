@@ -23,7 +23,7 @@ class Model : public MCMC
 {
 public:
 	//===== Override General Methods =====//
-	double compute_household_obs_loglike(Household &house) const override final;
+	double compute_household_obs_loglike(Household &house) override final;
 };
 
 #endif // HOUSEPI__MODEL__H

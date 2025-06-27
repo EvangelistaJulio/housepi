@@ -67,6 +67,9 @@ Estimates from the posterior traces of the last inference.}
 \item{\code{cri_level}}{\code{double(1)}\cr
 Level for the credible interval.
 Value between 0.5 and 1 (default is 0.95).}
+
+\item{\code{path_to_dll}}{\code{character(1)}\cr
+Path to dynamic library file of the model.}
 }
 \if{html}{\out{</div>}}
 }
