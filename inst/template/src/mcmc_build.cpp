@@ -26,7 +26,7 @@
 /////////////////////////////////  MCMC::Impl : methods (setter)  /////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void MCMC::Impl::Setup::build()
+void MCMC::Impl::Setup::build(const dict_str_str &deflist)
 {
     try
     {
@@ -91,7 +91,7 @@ void MCMC::Impl::Setup::build()
     }
     catch (const std::exception &e)
     {
-        tools::error("While building setup definitions:\n" +
+        tools::error("While initializing setup definitions:\n" +
                      std::string(e.what()));
     }
 }
@@ -498,6 +498,118 @@ void MCMC::Impl::build_multiplicity(const dict_str_vec &table)
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////  MCMC : build group rates  ///////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Convert to a dictionary of parameter pointers and pass the pointers to the individual */
+void MCMC::Impl::GroupRates::_assign_rate_as_ptrs(Individual &member,
+                                                  const rate_key_mapvec<par_key> &these_rates)
+{
+    rate_key_mapvec<const double *> rate_ptrs = {};
+
+    for (const auto &pair : these_rates)
+    {
+        const rate_key &r = pair.first;
+
+        if (contains(str_vec({CONTACT_RATE, MISSING_RATE}), r))
+            throw std::invalid_argument(
+                "The group rate name \"" + r + "\" is reserved. Choose a different one.");
+
+        else if (!tools::is_na(r))
+        {
+            bool is_all_reference = true;                 // all reference state
+            std::vector<const double *> vec_par_ptr = {}; // parameter pointers
+
+            for (const par_key &p : pair.second)
+            {
+                if ((tools::is_na(p)) || (p == MISSING_RATE))
+                    std::invalid_argument(
+                        "Missing rate \"" + r + "\" for individual \"" + member.id() + "\".");
+
+                else if (p == REFERENCE)
+                    vec_par_ptr.emplace_back(&REFERENCE_VALUE);
+
+                else
+                {
+                    is_all_reference = false;
+                    vec_par_ptr.emplace_back(pImpl.get_param_pointer(p));
+                }
+            }
+
+            // simplify for the combined reference values
+            if (is_all_reference)
+                rate_ptrs[r] = {&REFERENCE_VALUE};
+            else
+                rate_ptrs[r] = vec_par_ptr;
+        }
+    }
+
+    member.assign_all_group_rates(rate_ptrs);
+}
+
+/* Update model report and set group rates associate to new individual. */
+void MCMC::Impl::GroupRates::build(const dict_str_vec &deftable)
+{
+    try
+    {
+        // check that tempalte headers are present
+        str_vec headers = tools::headers_from_deftable(deftable);
+        tools::check_for_missing_entries(headers, _headers);
+
+        // remove template headers to keep only dataset
+        headers = subtr(headers, _headers);
+
+        // check that required dataset columns are present
+        const str_vec dataset_headers = pImpl.house_vector[0].get_member(0).keys_dataset();
+        tools::check_for_unused_entries(headers, dataset_headers);
+
+        const size_t n_rows = deftable.at(".group.rate").size();
+
+        // loop over all household members
+        for (Household &house : pImpl.house_vector)
+            for (Individual &member : house)
+            {
+                rate_key_mapvec<par_key> these_rates = {};
+
+                // obtain group rates for given member
+                for (size_t row = 0; row < n_rows; ++row)
+                {
+                    // check if all conditions are satisfied
+                    bool tag = true;
+                    for (const data_key &d : headers)
+                        if (!tools::is_na(deftable.at(d)[row]))
+                            tag &= (member.data(d) == tools::stod(deftable.at(d)[row]));
+
+                    if (tag)
+                    {
+                        const rate_key &r = deftable.at(".group.rate")[row];
+                        const par_key &p = deftable.at(".param.name")[row];
+                        if (these_rates.count(r) == 0)
+                            these_rates.emplace(r, str_vec({p}));
+                        else
+                            these_rates[r].push_back(p);
+                    }
+                }
+
+                // assign rates to the individual
+                _assign_rate_as_ptrs(member, these_rates);
+            }
+    }
+    catch (const std::exception &e)
+    {
+        tools::error("While initializing group rates:\n" +
+                     std::string(e.what()));
+    }
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  MCMC::Impl : build data list  /////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -598,13 +710,10 @@ void MCMC::Impl::build_datalist(const dict_str_vec &input)
 //-----------------------------------------------------------------------------------------------//
 
 /* Assign parameter definitions to dictionary. */
-void MCMC::Impl::build_param()
+void MCMC::Impl::build_param(const dict_str_vec &deftable)
 {
     try
     {
-        // reference to parameter definition table
-        const dict_str_vec &deftable = _param_deftable;
-
         if (deftable.size() > 0)
         {
             // check entries
@@ -715,7 +824,7 @@ void MCMC::Impl::build_param()
     }
     catch (const std::exception &e)
     {
-        tools::error("While building parameters:\n" +
+        tools::error("While initializing parameters:\n" +
                      std::string(e.what()));
     }
 }

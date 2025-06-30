@@ -337,7 +337,22 @@ HousepiWrapper <- R6::R6Class(
     },
 
     #' @description
+    #' Wrapper of Rcpp method to import group rates definitions.
+    #'
+    #' @param defs `data.frame`\cr
+    #' Group rates definitions.
+    import_group_rates = function(defs) {
+      lvls <- self$dataset_levels
+      for (k in intersect(colnames(defs), names(lvls))) {
+        defs[[k]] <- as.integer(factor(defs[[k]], levels = lvls[[k]]))
+      }
+      private$.rcpp$import_group_rates(lapply(defs, as.character))
+      invisible(self)
+    },
+
+    #' @description
     #' Wrapper of the Rcpp build_all_rates method.
+    #' FIXME: temporary for contact rates, it will be dropped.
     build_all_rates = function() {
       private$.rcpp$build_all_rates()
       invisible(self)

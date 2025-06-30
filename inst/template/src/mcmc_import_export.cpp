@@ -28,46 +28,64 @@
 /* Import setup from R list and run build. */
 void MCMC::Impl::import_setup(const Rcpp::List &input)
 {
-    tools::rlist_to_map(input, setup.deflist, "setup");
-    setup.build();
+    dict_str_str deflist = {};
+    tools::rlist_to_map(input, deflist, "setup");
+    setup.build(deflist);
+    deflist.clear();
 }
 
 /* Import infectivity profile from R list and run build. */
 void MCMC::Impl::import_infec_profile(const Rcpp::List &input)
 {
-    tools::rlist_to_map(input, infec_profile.deflist, "infectivity profile");
-    infec_profile.build();
+    dict_str_str deflist = {};
+    tools::rlist_to_map(input, deflist, "infectivity profile");
+    infec_profile.build(deflist);
+    deflist.clear();
 }
 
 /* Import data from R DataFrame and run build. */
 void MCMC::Impl::import_dataset(const Rcpp::DataFrame &input)
 {
-    dict_str_vec datatable = {};
-    tools::rdataframe_to_map(input, datatable, "dataset");
-    build_dataset(datatable);
+    dict_str_vec deftable = {};
+    tools::rdataframe_to_map(input, deftable, "dataset");
+    build_dataset(deftable);
+    deftable.clear();
 }
 
 /* Import data from R DataFrame and run build. */
 void MCMC::Impl::import_datalist(const Rcpp::DataFrame &input)
 {
-    dict_str_vec datatable = {};
-    tools::rdataframe_to_map(input, datatable, "datalist");
-    build_datalist(datatable);
+    dict_str_vec deftable = {};
+    tools::rdataframe_to_map(input, deftable, "datalist");
+    build_datalist(deftable);
+    deftable.clear();
 }
 
 /* Import multiplicity definitions from R DataFrame and run build. */
 void MCMC::Impl::import_multiplicity(const Rcpp::DataFrame &input)
 {
-    dict_str_vec datatable = {};
-    tools::rdataframe_to_map(input, datatable, "multiplicity");
-    build_multiplicity(datatable);
+    dict_str_vec deftable = {};
+    tools::rdataframe_to_map(input, deftable, "multiplicity");
+    build_multiplicity(deftable);
+    deftable.clear();
+}
+
+/* Import multiplicity definitions from R DataFrame and run build. */
+void MCMC::Impl::import_group_rates(const Rcpp::DataFrame &input)
+{
+    dict_str_vec deftable = {};
+    tools::rdataframe_to_map(input, deftable, "multiplicity");
+    group_rates.build(deftable);
+    deftable.clear();
 }
 
 /* Import params from R DataFrame and run build. */
 void MCMC::Impl::import_param(const Rcpp::DataFrame &input)
 {
-    tools::rdataframe_to_map(input, _param_deftable, "parameter");
-    build_param();
+    dict_str_vec deftable = {};
+    tools::rdataframe_to_map(input, deftable, "parameter");
+    build_param(deftable);
+    deftable.clear();
 }
 
 /* Import data from R DataFrame then run build. */
@@ -683,9 +701,40 @@ Rcpp::List MCMC::Impl::export_for_debug(const std::string &house_id) const
                 output_datalist.push_back(datalist_dbl[col++], d);
         }
 
-        //-----------------------------------//
-        //----- Export parameter values -----//
-        //-----------------------------------//
+        //------------------------------//
+        //----- Export Group Rates -----//
+        //------------------------------//
+
+        DataFrame output_group_rate;
+        const str_vec cols_group_rate = house.get_member(0).keys_group_rate();
+
+        if (cols_group_rate.empty())
+            output_group_rate = DataFrame::create();
+        else
+        {
+            std::vector<Rcpp::NumericVector> group_rate_dbl;
+            group_rate_dbl.reserve(cols_group_rate.size());
+            for (size_t i = 0; i < cols_group_rate.size(); ++i)
+                group_rate_dbl.push_back(Rcpp::NumericVector(n_rows_dataset));
+
+            r = 0;
+            for (const Individual &member : house)
+            {
+                c = 0;
+                for (const rate_key &g : cols_group_rate)
+                    group_rate_dbl[c++][r] = member.group_rate(g);
+                ++r;
+            }
+
+            output_group_rate = DataFrame::create(_["id"] = dataset_id);
+            c = 0;
+            for (const data_key &g : cols_group_rate)
+                output_group_rate.push_back(group_rate_dbl[c++], g);
+        }
+
+        //-----------------------------//
+        //----- Export Parameters -----//
+        //-----------------------------//
 
         NumericVector output_param;
         if (param_map.empty())
@@ -706,6 +755,7 @@ Rcpp::List MCMC::Impl::export_for_debug(const std::string &house_id) const
 
         return List::create(_["dataset"] = output_dataset,
                             _["datalist"] = output_datalist,
+                            _["group_rates"] = output_group_rate,
                             _["param"] = output_param,
                             _["augm"] = output_augm);
     }
@@ -734,22 +784,28 @@ Rcpp::List MCMC::Impl::export_for_debug(const std::string &house_id) const
 /* Read Setup file and produce a definition list. */
 void MCMC::Impl::read_setup(const std::string &f)
 {
-    tools::read_csv_list(f, setup.deflist, "setup");
-    setup.build();
+    dict_str_str deflist = {};
+    tools::read_csv_list(f, deflist, "setup");
+    setup.build(deflist);
+    deflist.clear();
 }
 
 /* Read Setup file and produce a definition list. */
 void MCMC::Impl::read_infec_profile(const std::string &f)
 {
-    tools::read_csv_list(f, infec_profile.deflist, "infectivity profile");
-    infec_profile.build();
+    dict_str_str deflist = {};
+    tools::read_csv_list(f, deflist, "infectivity profile");
+    infec_profile.build(deflist);
+    deflist.clear();
 }
 
 /* Read parameter definitions and run assignment. */
 void MCMC::Impl::read_param(const std::string &f)
 {
-    tools::read_csv_table(f, _param_deftable, "parameter");
-    build_param();
+    dict_str_vec deftable = {};
+    tools::read_csv_table(f, deftable, "parameter");
+    build_param(deftable);
+    deftable.clear();
 }
 
 /* Read Model Augmented Variable file. */
@@ -783,6 +839,15 @@ void MCMC::Impl::read_multiplicity(const std::string &f)
     dict_str_vec deftable = {};
     tools::read_csv_table(f, deftable, "multiplicity");
     build_multiplicity(deftable);
+    deftable.clear();
+}
+
+/* Read group rate file and then run assignment. */
+void MCMC::Impl::read_group_rates(const std::string &f)
+{
+    dict_str_vec deftable = {};
+    tools::read_csv_table(f, deftable, "group rate");
+    group_rates.build(deftable);
     deftable.clear();
 }
 
@@ -972,8 +1037,7 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
         {
             //----- HEADERS -----//
             // header loglikelihood
-            inferstate_ofstream << "iteration"
-                                << C_DELIM << "loglikelihood";
+            inferstate_ofstream << "iteration" << C_DELIM << "loglikelihood";
 
             // header parameters
             for (const par_key &p : param_standard_infer_list + param_cache_infer_list)
@@ -1063,8 +1127,7 @@ void MCMC::Impl::_aux_print_dataset_init_(const std::string &f)
         aux_dataset_ofstream << std::endl;
     }
     else
-        throw std::runtime_error(
-            "Unable to open file: " + f);
+        throw std::runtime_error("Unable to open file: \"" + f + "\"");
 }
 
 /* Print all augmented variables of each individual */

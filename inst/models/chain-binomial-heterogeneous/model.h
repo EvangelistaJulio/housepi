@@ -30,9 +30,6 @@ class Model : public MCMC
 	void init_model_for_inference() override final;
 	double compute_household_obs_loglike(Household &house) override final;
 	void simulate_single_household(Household &house) override final;
-
-	//----- Rate Choices -----//
-	void assign_group_rate_to_individual(Individual &member) override final;
 };
 
 #endif // HOUSEPI__MODEL__H

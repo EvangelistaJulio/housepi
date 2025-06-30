@@ -171,6 +171,7 @@ RCPP_MODULE(housepi_infec_profile)
 //' @field import_dataset\cr Import house indexed dataset from R Data.Frame.
 //' @field import_datalist\cr Import individual indexed datalist from R Data.Frame.
 //' @field import_multiplicity\cr Imoprt multiplicity definitions from R Data.Frame.
+//' @field import_group_rates\cr Imoprt group rates definitions from R Data.Frame.
 //' @field import_param\cr Import parameter definitions from R Data.Frame.
 //' @field import_infec_profile\cr Import infectivity profile definition from R List.
 //' @field import_augm\cr Import augmented variable definitions from R Data.Frame.
@@ -200,6 +201,7 @@ RCPP_MODULE(housepi_model_core)
         .method("import_dataset", &MCMC::import_dataset)
         .method("import_datalist", &MCMC::import_datalist)
         .method("import_multiplicity", &MCMC::import_multiplicity)
+        .method("import_group_rates", &MCMC::import_group_rates)
         .method("import_param", &MCMC::import_param)
         .method("import_infec_profile", &MCMC::import_infec_profile)
         .method("import_augm", &MCMC::import_augm)

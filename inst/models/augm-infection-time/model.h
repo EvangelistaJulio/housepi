@@ -39,9 +39,6 @@ public:
 	void update_cache_dependecies(Household &house, Individual &member_i) override final;
 	double compute_household_obs_loglike(Household &house) override final;
 	void simulate_single_household(Household &house) override final;
-
-	//----- Rate Choices -----//
-	void assign_group_rate_to_individual(Individual &member) override final;
 };
 
 #endif // HOUSEPI__MODEL__H

@@ -24,24 +24,16 @@ assert_dataset_features <- function(features, dataset_headers) {
   # assert that features are present
   missing <- c()
   for (this in features) {
-    if (!(this %in% dataset_headers)) {
-      missing <- c(missing, this)
-    }
+    if (!(this %in% dataset_headers)) missing <- c(missing, this)
   }
-  if (length(missing) > 0) {
-    oss <- sprintf(
+  if (length(missing) > 0) stop_h(
+    sprintf(
       "Unknown feature%s: \"%s\"",
       ifelse(length(missing) > 1, "s", ""),
-      missing[[1]]
-    )
-    for (this in missing[-1]) {
-      oss <- sprintf("%s, \"%s\"", oss, this)
-    }
-    stop_h(
-      paste0(oss, "."),
-      "Check your features and dataset headers."
-    )
-  }
+      character_to_string_list(missing)
+    ),
+    "Check your features and dataset headers."
+  )
 }
 
 #' @title
@@ -72,23 +64,20 @@ group_rate_logic_table <- function(dataset, by) {
   names(uni_features) <- features
 
   # create a dataframe of all possible multi-features
-  logic_table <- expand.grid(uni_features)
+  y <- expand.grid(uni_features)
 
   # check that the multi-feature exists
-  multifeat_count <- apply(logic_table, 1, function(row) {
+  multifeat_count <- apply(y, 1, function(row) {
     sum(apply(dataset[features], 1, function(d_row) all(d_row == row)))
   })
 
-  # create the final truth table
-  logic_table <- logic_table[multifeat_count > 0, , drop = FALSE]
-
-  # reverse table to ease transcript
-  logic_table <- rev(logic_table)
+  # create the final truth table and reverse it
+  y <- rev(y[multifeat_count > 0, , drop = FALSE])
 
   # add counts
-  logic_table$.counts <- multifeat_count[multifeat_count > 0]
+  y$.counts <- multifeat_count[multifeat_count > 0]
 
-  return(logic_table)
+  return(y)
 }
 
 #' @title
@@ -126,9 +115,9 @@ associate_param_names <- function(this_table,
             function(row) all(row == unlist(reference[colmask])))
     ))
 
-    if (length(idx_refer) != 1) {
-      stop_h("Provided reference group is not valid.")
-    }
+    if (length(idx_refer) != 1) stop_h(
+      "Provided reference group is not valid."
+    )
   }
 
   # format prefix and associate parameter names
@@ -160,7 +149,7 @@ associate_param_names <- function(this_table,
 #' @keywords internal
 tidyup_group_rate_tables <- function(all_tables) {
   # tidy version of group rate tables
-  dfs <- lapply(names(all_tables), function(rate) {
+  df_list <- lapply(names(all_tables), function(rate) {
     this_table <- all_tables[[rate]]
     if (length(this_table) == 0) df <- data.frame(.param.name = "REFERENCE")
     else df <- this_table[[1]][, names(this_table[[1]]) != ".counts"]
@@ -168,69 +157,17 @@ tidyup_group_rate_tables <- function(all_tables) {
   })
   
   # all unique column names
-  all_cols <- unique(unlist(lapply(dfs, names)))
+  all_cols <- unique(unlist(lapply(df_list, names)))
   
   # Add missing columns with NA
-  dfs <- lapply(dfs, function(df) {
+  combined_df <- do.call(rbind, lapply(df_list, function(df) {
     missing_cols <- setdiff(all_cols, names(df))
     df[missing_cols] <- NA
     return(df[all_cols])
-  })
-  
-  combined_df <- do.call(rbind, dfs)
+  }))
   rownames(combined_df) <- NULL
   
   return(combined_df)
-}
-
-#' @title
-#' C++ group rate emplacement
-#' @description
-#' Construct the C++ group rate emplacement.
-#'
-#' @param x `character(1)`\cr
-#' Parameter associated to current group rate.
-#' @param tab `logical(1)`\cr
-#' If `TRUE` prints the tab (default).
-#' @param quote `logical(1)`\cr
-#' If `TRUE` prints the quotes (default).
-#'
-#' @return `character(1)`\cr
-#'
-#' @keywords internal
-cpp_emplace <- function(x, tab = TRUE, quote = TRUE) {
-  sprintf("%semplace_group_rate(r, %s);",
-          ifelse(isTRUE(tab), "\t", ""),
-          ifelse(isTRUE(quote), sprintf("\"%s\"", x), x))
-}
-
-#' @title
-#' C++ if clauses
-#' @description
-#' Construct the C++ if clauses plus emplacement.
-#'
-#' @param r
-#' row of the group rate
-#' @param is_ref
-#' if `TRUE` the if clause is "REFERENCE"
-#'
-#' @keywords internal
-cpp_ifclause_emplace <- function(r, is_ref = FALSE) {
-  mask <- setdiff(names(r), c(".counts", ".param.name"))
-  # if condition
-  condition <- paste(
-    paste0(
-      sprintf("member.data(\"%s\") == ", names(r[mask])),
-      r[mask]
-    ),
-    collapse = ") && ("
-  )
-  # wrap all together
-  c(sprintf("%sif ((%s))", ifelse(is_ref, "", "else "), condition),
-    ifelse(is_ref,
-           cpp_emplace("REFERENCE", tab = TRUE, quote = FALSE),
-           cpp_emplace(r[[".param.name"]], tab = TRUE, quote = TRUE))
-  )
 }
 
 ############################################################################
@@ -250,118 +187,13 @@ HousepiGroupRate <- R6::R6Class(
   cloneable = TRUE,
 
   ############################################################################
-  ################################## PRIVATE #################################
+  ################################## PRIVATE ##################################
   ############################################################################
 
   private = list(
-    .rate_script = NULL,
-
-    #' @description
-    #' Generate a script to be printed within source code model.cpp
-    #'
-    #' @param dataset `data.frame`\cr
-    #' Dataset to be considered.
-    #' @param factor_info `list()`\cr
-    #' Levels for each factorized feature.
-    .cpp_implement = function(dataset, factor_info) {
-
-      # initialize lines of the script
-      rate_script <- c()
-      self$logic_tables <- list()
-
-      for (i in seq_along(self$defs)) {
-        rate_id <- names(self$defs[i]) # name of the rate
-        this_def <- self$defs[[i]] # definition of the rate
-        features <- as.list(this_def[["by"]]) # data features
-
-        new_logic_table <- list()
-        if (all(is.na(features))) {
-          this_script <- c(cpp_emplace("REFERENCE", tab = FALSE, quote = FALSE))
-
-        } else {
-          features <- features[!is.na(features)]
-
-          # initialize group rate contribution to script
-          this_script <- c()
-
-          if (isFALSE(this_def[["independent"]])) {
-            features <- list(features)
-          }
-
-          # default prefix
-          prefix <- as.character(this_def[["prefix"]])
-          if (is.na(prefix)) {
-            prefix <- format_string(tolower(rate_id))
-            prefix <- substring(prefix, 1, 3)
-          }
-
-          for (this_feat in features) {
-            # 1. create logic table with group rates
-            this_table <- group_rate_logic_table(dataset, this_feat)
-            # associate names for parameters
-            this_table <- associate_param_names(
-              this_table, prefix, this_def$reference
-            )
-            new_logic_table[[length(new_logic_table) + 1]] <- this_table
-
-            # 2. create relative cpp script chunk
-            # factorize according to external factor information
-            for (col in names(factor_info)) {
-              if (col %in% colnames(this_table)) {
-                this_table[[col]] <- factor(
-                  this_table[[col]],
-                  levels = factor_info[[col]],
-                  labels = seq_along(factor_info[[col]])
-                )
-              }
-            }
-            # concatenate new lines to the script
-            # mask reference case
-            mask <- this_table$.param.name == "REFERENCE"
-            this_script <- c(
-              this_script,
-              cpp_ifclause_emplace(this_table[mask, ], TRUE), # reference
-              apply(this_table[!mask, ], 1, cpp_ifclause_emplace), # others
-              "else",
-              cpp_emplace("MISSING_RATE", tab = TRUE, quote = FALSE)
-            )
-          }
-        }
-
-        # append the new rate chunk of script
-        rate_script <- c(rate_script,
-                         "",
-                         sprintf("\t//----- %s -----//", rate_id),
-                         sprintf("\tr = \"%s\";", rate_id),
-                         sapply(this_script, function(x) paste0("\t", x)))
-        # store the new rate logic table
-        self$logic_tables[[rate_id]] <- new_logic_table
-      }
-
-      private$.rate_script <- private$.cpp_full_script(rate_script)
-      invisible(self)
-    },
-
-    #' @description
-    #' construct the C++ if clauses.
-    #'
-    #' @param script `list()`\cr
-    #' List of cpp script lines.
-    #'
-    #' @return `character(1)`
-    .cpp_full_script = function(script) {
-      return(
-        paste(c(
-          "void Model::assign_group_rate_to_individual(Individual &member)",
-          "{",
-          ifelse(all(is.na(lapply(self$defs, `[[`, "by"))),
-                 "\trate_key r;\n\t(void)(member);",
-                 "\trate_key r;"),
-          script,
-          "}"
-        ), collapse = "\n")
-      )
-    }
+    #' @field param_defs `list`\cr
+    #' List containing parameters definitions.
+    .param_defs = list()
   ),
 
   ############################################################################
@@ -369,21 +201,43 @@ HousepiGroupRate <- R6::R6Class(
   ############################################################################
 
   active = list(
-    #' @field param_group_rate_defs `list()`\cr
+    #' @field param_defs `list()`\cr
     #' List containing parameter definitions associated to group rates.
-    param_group_rate_defs  = function(value) {
+    param_defs = function(value) {
       if (missing(value)) {
         new_defs <- list()
         for (rate_id in names(self$logic_tables)) {
           for (this_table in self$logic_tables[[rate_id]]) {
             for (par_id in setdiff(this_table$.param.name, c("REFERENCE"))) {
-              new_defs[[par_id]] <- self$param_defs[[rate_id]]
+              new_defs[[par_id]] <- private$.param_defs[[rate_id]]
             }
           }
         }
         return(new_defs)
       }
-      stop_h("'param_group_rate_defs' is read only.")
+      stop_h("'param_defs' is read only.")
+    },
+
+    #' @field param_required `character()`\cr
+    #' List of parameter required by group rates.
+    param_required = function(value) {
+      if (missing(value)) {
+        requirements <- c()
+        for (rate_id in names(self$logic_tables)) {
+          for (this_table in self$logic_tables[[rate_id]]) {
+            requirements <- c(requirements, this_table$.param.name)
+          }
+        }
+        return(setdiff(unique(requirements), c("REFERENCE")))
+      }
+      stop_h("'param_required' is read only.")
+    },
+
+    #' @field param_defs `data.frame()`\cr
+    #' Data.Frame containg the combined list with group rate and parameter definitions.
+    tidy_table = function(value) {
+      if (missing(value)) return(tidyup_group_rate_tables(self$logic_tables))
+      stop_h("'tidy_table' is read only.")
     }
   ),
 
@@ -395,10 +249,6 @@ HousepiGroupRate <- R6::R6Class(
     #' @field defs `list`\cr
     #' List containing current group rate definitions.
     defs = list(),
-
-    #' @field param_defs `list`\cr
-    #' List containing parameters definitions.
-    param_defs = list(),
 
     #' @field logic_tables `list`\cr
     #' List containing table of parameters associated to each group rate.
@@ -434,13 +284,15 @@ HousepiGroupRate <- R6::R6Class(
     #' The group rate definition to remove.
     #' @param show_warnings `logical(1)`\cr
     #' Wheter to show warnings.
-    remove = function(rate_id,
-                      show_warnings = TRUE) {
+    #' 
+    #' @return
+    #' `logical(1)`
+    remove = function(rate_id, show_warnings = TRUE) {
 
       if (any(names(self$defs) == rate_id)) {
         # drop previous definition
         self$defs[rate_id] <- NULL
-        self$param_defs[rate_id] <- NULL
+        private$.param_defs[rate_id] <- NULL
         self$logic_tables[rate_id] <- NULL
         return(TRUE)
 
@@ -501,30 +353,24 @@ HousepiGroupRate <- R6::R6Class(
                    scale = 1) {
 
       # UPDATE: controls are missing
-      if (is.na(name)) {
-        stop_h("Incomplete definition: missing name.")
-      }
+      if (is.na(name)) stop_h(
+        "Incomplete definition: missing name."
+      )
 
       # remove previous definition if it exists
-      if (self$remove(name, FALSE)) {
-        warning_h(sprintf("Overwriting existing \"%s\" definition.", name))
-      }
+      if (self$remove(name, FALSE)) warning_h(
+        sprintf("Overwriting existing \"%s\" definition.", name)
+      )
 
       # load reference
       if (!is.null(reference)) {
-        if (length(by) != length(reference)) {
-          stop_h(
-            "Arguments 'by' and 'reference' should have the same dimension."
-          )
-        } else if (is.list(reference)) {
-          if (length(setdiff(names(reference), by)) != 0) {
-            stop_h("Unrecognized names in reference list.")
-          }
-
-        } else {
-          reference <- as.list(reference)
-          names(reference) <- by
-        }
+        if (length(by) != length(reference)) stop_h(
+          "Arguments 'by' and 'reference' should have the same dimension."
+        )
+        else if (length(setdiff(names(reference), by)) != 0) stop_h(
+          "Unrecognized names in reference list."
+        )
+        else reference <- setNames(as.list(reference), by)
       }
 
       # add new definition
@@ -534,7 +380,7 @@ HousepiGroupRate <- R6::R6Class(
       )
 
       # add parameter definitions
-      self$param_defs[[name]] <- list(
+      private$.param_defs[[name]] <- list(
         value = 1, prior = prior, args = args,
         min = min, max = max, rule = rule, scale = scale
       )
@@ -542,7 +388,7 @@ HousepiGroupRate <- R6::R6Class(
       # reorder
       y <- sort(names(self$defs))
       self$defs <- self$defs[y]
-      self$param_defs <- self$param_defs[y]
+      private$.param_defs <- private$.param_defs[y]
 
       invisible(self)
     },
@@ -569,16 +415,73 @@ HousepiGroupRate <- R6::R6Class(
       for (i in seq_along(definitions)){
         this_def <- as.list(definitions[[i]])
         def_name <- names(definitions[i])
-        if (length(names(this_def)) == 0) {
-          stop_h(
-            sprintf("Wrong definition for group rate \"%s\"", def_name),
-            "Provide a definition list."
-          )
-        }
+        if (length(names(this_def)) == 0) stop_h(
+          sprintf("Wrong definition for group rate \"%s\"", def_name),
+          "Provide a definition list."
+        )
         this_def$name <- def_name
         do.call(self$add, this_def)
       }
 
+      invisible(self)
+    },
+
+    #' @description
+    #' Implement group rate definition according to the dataset.
+    #'
+    #' @param dataset `data.frame`\cr
+    #' Dataset to be considered.
+    #' @param factor_info `list()`\cr
+    #' Levels for each factorized feature.
+    implement = function(dataset, factor_info) {
+      self$logic_tables <- list()
+
+      for (i in seq_along(self$defs)) {
+        rate_id <- names(self$defs[i]) # name of the rate
+        this_def <- self$defs[[i]] # definition of the rate
+        features <- as.list(this_def[["by"]]) # data features
+
+        new_logic_table <- list()
+        if (!all(is.na(features))) {
+          features <- features[!is.na(features)]
+
+          if (isFALSE(this_def[["independent"]])) features <- list(features)
+
+          # default prefix
+          prefix <- as.character(this_def[["prefix"]])
+          if (is.na(prefix)) {
+            prefix <- substring(format_string(tolower(rate_id)), 1, 3)
+          }
+
+          for (this_feat in features) {
+            # 1. create logic table with group rates
+            this_table <- group_rate_logic_table(dataset, this_feat)
+            # associate names for parameters
+            this_table <- associate_param_names(
+              this_table, prefix, this_def$reference
+            )
+            new_logic_table[[length(new_logic_table) + 1]] <- this_table
+
+            # 2. create relative cpp script chunk
+            # factorize according to external factor information
+            for (col in names(factor_info)) {
+              if (col %in% colnames(this_table)) {
+                this_table[[col]] <- factor(
+                  this_table[[col]],
+                  levels = factor_info[[col]],
+                  labels = seq_along(factor_info[[col]])
+                )
+              }
+            }
+            # concatenate new lines to the script
+            # mask reference case
+            mask <- this_table$.param.name == "REFERENCE"
+          }
+        }
+
+        # store the new rate logic table
+        self$logic_tables[[rate_id]] <- new_logic_table
+      }
       invisible(self)
     },
 
@@ -605,115 +508,9 @@ HousepiGroupRate <- R6::R6Class(
       }
 
       # find missing group rates and set defaults
-      missing_set <- template_find_missing(requirements, defined)
-      if (length(missing_set) > 0) {
-        for (this in missing_set) self$add(this, by = NA)
-      }
-
-      invisible(self)
-    },
-
-    #' @description
-    #' Implement group rate definitions.
-    #' Assert if implementated group rates are correct.
-    #'
-    #' @param dataset `data.frame`\cr
-    #' Dataset to be considered.
-    #' @param refer_file `character(1)`\cr
-    #' Path/to/model.cpp source code.
-    #' @param factor_info `list()`\cr
-    #' Levels for each factorized feature.
-    #'
-    #' @return `logical(1)`\cr
-    #' `TRUE` if definitions exist and are up to date.
-    cpp_assert = function(dataset, refer_file, factor_info) {
-      if (length(self$defs) > 0) {
-        self$assert(self$require(refer_file))
-
-        if (length(dataset) > 0) {
-          # produce associated script
-          private$.cpp_implement(dataset, factor_info)
-          # read source file
-          lines <- readLines(refer_file)
-          # check if the definitions are already implemented
-          return(stringr::str_detect(
-            paste(lines, collapse = "\n"),
-            stringr::fixed(private$.rate_script)
-          ))
-          # NOTE I chould also use str_squish as in:
-          # > str_detect(str_squish(big), fixed(str_squish(small)))
-          # but for the moment it tells me when I am not tidy
-        }
-      }
-
-      return(TRUE) # default is TRUE (i.e. no definitions)
-    },
-
-    #' @description
-    #' Overwrite script to source code 'model.cpp'.
-    #'
-    #' @param src_file `character(1)`\cr
-    #' Source file to modify.
-    cpp_write = function(src_file) {
-
-      # check that source file exists
-      if (!file.exists(src_file)) {
-        stop_h("Impossible to find reference file.")
-      }
-
-      # read source file
-      lines <- readLines(src_file)
-
-      # find the start of the method definition
-      start_line <- grep(
-        "^void\\s+Model::assign_group_rate_to_individual\\s*\\(",
-        lines
-      )
-
-      if (length(start_line) == 0) {
-        warning_h("Model does not accommodate for group rates.")
-
-      } else {
-
-        # locate method definition opening brace '{'
-        opening_brace_line <- NA
-        for (i in start_line:length(lines)) {
-          if (grepl("\\{", lines[i])) {
-            opening_brace_line <- i
-            break
-          }
-        }
-        if (is.na(opening_brace_line)) {
-          stop_h("Unmatched curly bracket found in reference code.")
-        }
-
-        # find method definition closing brace '}'
-        brace_level <- 0
-        end_line <- NA
-        for (i in opening_brace_line:length(lines)) {
-          # update brace level based on opening and closing braces
-          brace_level <- brace_level +
-            stringr::str_count(lines[i], "\\{") -
-            stringr::str_count(lines[i], "\\}")
-          # closing brace corresponds to level 0
-          if (brace_level == 0) {
-            end_line <- i
-            break
-          }
-        }
-        if (is.na(end_line)) {
-          stop_h("Unmatched curly bracket found in reference code.")
-        }
-
-        # define the new implementation
-        lines <- c(
-          lines[1:(start_line - 1)],
-          private$.rate_script,
-          lines[(end_line + 1):length(lines)]
-        )
-
-        # replace the source code
-        writeLines(lines, src_file)
+      missing <- template_find_missing(requirements, defined)
+      if (length(missing) > 0) {
+        for (this in missing) self$add(this, by = NA)
       }
 
       invisible(self)

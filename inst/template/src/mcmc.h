@@ -58,17 +58,12 @@ public:
 	std::pair<ushort, ulong> get_report_hh_size(const std::string &key) const;
 
 	//----- Group & Contact Rates -----//
-	// UPDATE: group and contact rates should just be imported
-	// i.e. not re-compilation
+	// UPDATE: also contact rates should just be imported
 	void build_all_rates();
 
 	/* Auxiliary wrapper to emplace_back */
-	void emplace_group_rate(rate_key r, par_key p) { _individual_group_rates[r].emplace_back(p); }
-	/* Auxiliary wrapper to emplace_back */
 	void emplace_contact_rate(par_key p) { _pair_contact_rate = p; }
 
-	/* Assign group rate to an individual  */
-	virtual void assign_group_rate_to_individual(Individual &) {}
 	/* Assign the contact patterns between a couple of individuals. */
 	virtual void assign_contact_rate_to_household(Household &, const Individual &, const Individual &) {}
 
@@ -154,6 +149,7 @@ public:
 	void import_dataset(const Rcpp::DataFrame &input);
 	void import_datalist(const Rcpp::DataFrame &input);
 	void import_multiplicity(const Rcpp::DataFrame &input);
+	void import_group_rates(const Rcpp::DataFrame &input);
 	void import_param(const Rcpp::DataFrame &input);
 	void import_infec_profile(const Rcpp::List &input);
 	void import_augm(const Rcpp::DataFrame &input);
@@ -188,6 +184,7 @@ public:
 	void read_dataset(const std::string &pathtofile = HSP_NA_STRING);
 	void read_datalist(const std::string &pathtofile = HSP_NA_STRING);
 	void read_multiplicity(const std::string &pathtofile = HSP_NA_STRING);
+	void read_group_rates(const std::string &pathtofile = HSP_NA_STRING);
 	void read_param(const std::string &pathtofile = HSP_NA_STRING);
 	void read_infec_profile(const std::string &pathtofile = HSP_NA_STRING);
 	void read_augm(const std::string &pathtofile = HSP_NA_STRING);
@@ -208,11 +205,9 @@ private:
 	class Impl;
 	std::unique_ptr<Impl> pImpl;
 
-	//----- Group & Contact Rateas -----//
-	rate_key_mapvec<par_key> _individual_group_rates = {};
+	//----- Contact Rateas -----//
 	par_key _pair_contact_rate = {};
 
-	void _assign_group_rate(Individual &member);
 	void _assign_contact_rate(Household &house);
 };
 

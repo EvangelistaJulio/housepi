@@ -29,11 +29,11 @@
 #include <functional>
 #include <algorithm>
 
-/* DEVELOPER: flag used to predispose to different wrapper*/
+/* DEVELOPER: flag used to predispose to different wrapper
 #ifndef _HOUSEPI_RCPP
 #define _HOUSEPI_RCPP
 #endif
-
+*/
 
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>

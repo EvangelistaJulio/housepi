@@ -210,9 +210,9 @@ IndividualSampler <- R6::R6Class(
       }
 
       # internal consistency check
-      if (!private$.check_internally()) {
-        stop_h("Internal inconsistency, check your encoding dictionary.")
-      }
+      if (!private$.check_internally()) stop_h(
+        "Internal inconsistency, check your encoding dictionary."
+      )
 
       invisible(self)
     },
@@ -259,10 +259,10 @@ IndividualSampler <- R6::R6Class(
     #' @param feats `numeric()`\cr
     #' Encoded features of each individual.
     decode = function(feats) {
-      output <- as.data.frame(
-        matrix(ncol = length(private$.enc_dict),
-               nrow = length(feats))
-      )
+      output <- as.data.frame(matrix(
+        ncol = length(private$.enc_dict),
+        nrow = length(feats)
+      ))
       colnames(output) <- names(private$.enc_dict)
 
       for (col in colnames(output)) {
@@ -369,12 +369,10 @@ HouseholdSampler <- R6::R6Class(
       if (!is.na(ascending)) private$.ascending <- ascending
 
       # extract household size
-      if (!("house_id" %in% colnames(dataset))) {
-        stop_h(
-          "No household structure provided in dataset.",
-          "Missing column 'house_id'."
-        )
-      }
+      if (!("house_id" %in% colnames(dataset))) stop_h(
+        "No household structure provided in dataset.",
+        "Missing column 'house_id'."
+      )
 
       df <- dataset
       hhsize <- table(df$house_id)
@@ -481,9 +479,9 @@ HouseholdSampler <- R6::R6Class(
     #' Number of households to sample.
     sample = function(size = 1) {
 
-      if (size < 1) {
-        stop_h("Sample size must be greater than 0.")
-      }
+      if (size < 1) stop_h(
+        "Sample size must be greater than 0."
+      )
 
       #----- single individual (size 1) households -----#
 

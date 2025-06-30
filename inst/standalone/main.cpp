@@ -75,6 +75,7 @@ int main(int argc, char *argv[])
     std::string augm_file = HSP_NA_STRING;
     std::string dataset_file = HSP_NA_STRING;
     std::string datalist_file = HSP_NA_STRING;
+    std::string group_rates_file = HSP_NA_STRING;
     std::string infec_profile_file = HSP_NA_STRING;
     std::string multiplicity_file = HSP_NA_STRING;
     std::string output_file = HSP_NA_STRING;
@@ -128,6 +129,9 @@ int main(int argc, char *argv[])
 
         else if (stoupper(carg) == "-L" || stolower(carg) == "--datalist")
             dataset_file = argv[++carg_i];
+
+        else if (stoupper(carg) == "-G" || stolower(carg) == "--group-rates")
+            group_rates_file = argv[++carg_i];
 
         else if (stoupper(carg) == "-I" || stolower(carg) == "--infec-profile")
             infec_profile_file = argv[++carg_i];
@@ -185,7 +189,8 @@ int main(int argc, char *argv[])
     user_model->read_infec_profile(infec_profile_file);
 
     // 5) Load Group & Contact Rates
-    user_model->build_all_rates();
+    user_model->read_group_rates(group_rates_file);
+    user_model->build_all_rates(); // temporary for contact rates
 
     // 6) Load Augmented Variables
     user_model->read_augm(augm_file);

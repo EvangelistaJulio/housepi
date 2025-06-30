@@ -84,83 +84,12 @@ void MCMC::build_all_rates()
     try
     {
         for (Household &house : pImpl->house_vector)
-        {
-            for (Individual &member : house)
-                _assign_group_rate(member);
             _assign_contact_rate(house);
-        }
     }
     catch (const std::exception &e)
     {
-        tools::error("While building group and contact rates:\n" +
+        tools::error("While initializing contact rates:\n" +
                      std::string(e.what()));
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  MCMC : set rate per group  ////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Update model report and set group rates associate to new individual. */
-void MCMC::_assign_group_rate(Individual &member)
-{
-    try
-    {
-        rate_key_mapvec<const double *> group_rates_ptrs = {};
-
-        // call user defined group rate assignmen
-        _individual_group_rates.clear();
-        assign_group_rate_to_individual(member);
-
-        // convert to dict_rates_ptr
-        for (const auto &pair : _individual_group_rates)
-        {
-            rate_key r = pair.first;
-
-            if (r == CONTACT_RATE)
-                throw std::invalid_argument(
-                    "The group rate name \"" + CONTACT_RATE + "\" is reserved. Choose a different one.");
-
-            else if (!tools::is_na(r))
-            {
-                // return parameter pointers
-                bool is_all_reference = true; // all reference state
-                std::vector<const double *> vec_par_ptr = {};
-
-                for (const par_key &p : pair.second)
-                {
-                    if ((tools::is_na(p)) || (p == MISSING_RATE))
-                        std::invalid_argument(
-                            "Missing rate \"" + r + "\" for individual " + member.id() + ".");
-
-                    else if (p == REFERENCE)
-                        vec_par_ptr.emplace_back(&REFERENCE_VALUE);
-
-                    else
-                    {
-                        is_all_reference = false;
-                        vec_par_ptr.emplace_back(pImpl->get_param_pointer(p));
-                    }
-                }
-
-                // simplify for the combined reference values
-                if (is_all_reference)
-                {
-                    vec_par_ptr.clear();
-                    vec_par_ptr = {&REFERENCE_VALUE};
-                }
-
-                // emplace
-                group_rates_ptrs[r] = vec_par_ptr;
-            }
-        }
-
-        // pass the pointers to the individual
-        member.assign_all_group_rates(group_rates_ptrs);
-    }
-    catch (const std::exception &e)
-    {
-        tools::error(e.what());
     }
 }
 
@@ -275,6 +204,7 @@ void MCMC::import_setup(const Rcpp::List &x) { pImpl->import_setup(x); }
 void MCMC::import_dataset(const Rcpp::DataFrame &x) { pImpl->import_dataset(x); }
 void MCMC::import_datalist(const Rcpp::DataFrame &x) { pImpl->import_datalist(x); }
 void MCMC::import_multiplicity(const Rcpp::DataFrame &x) { pImpl->import_multiplicity(x); }
+void MCMC::import_group_rates(const Rcpp::DataFrame &x) { pImpl->import_group_rates(x); }
 void MCMC::import_param(const Rcpp::DataFrame &x) { pImpl->import_param(x); }
 void MCMC::import_infec_profile(const Rcpp::List &x) { pImpl->import_infec_profile(x); }
 void MCMC::import_augm(const Rcpp::DataFrame &x) { pImpl->import_augm(x); }
@@ -303,6 +233,7 @@ void MCMC::read_setup(const std::string &f) { pImpl->read_setup(f); }
 void MCMC::read_dataset(const std::string &f) { pImpl->read_dataset(f); }
 void MCMC::read_datalist(const std::string &f) { pImpl->read_datalist(f); }
 void MCMC::read_multiplicity(const std::string &f) { pImpl->read_multiplicity(f); }
+void MCMC::read_group_rates(const std::string &f) { pImpl->read_group_rates(f); }
 void MCMC::read_param(const std::string &f) { pImpl->read_param(f); }
 void MCMC::read_augm(const std::string &f) { pImpl->read_augm(f); }
 void MCMC::read_infec_profile(const std::string &f) { pImpl->read_infec_profile(f); }

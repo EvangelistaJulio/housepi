@@ -324,15 +324,12 @@ HousepiParameter <- R6::R6Class(
       # point out parameters that are not used
       unused_set <- template_find_unused(requirements, defined)
       # drop unused parameters
-      if (length(unused_set) > 0) {
-        warning_h(
-          sprintf("Dropping unused parameter%s %s.",
-                  ifelse(length(unused_set) > 1, "s:", ""),
-                  character_to_string_list(unused_set)),
-          find_closest_match(unused_set, requirements)
-        )
-        for (name in unused_set) self$remove(name)
-      }
+      if (length(unused_set) > 0) warning_h(
+        sprintf("There were unused parameter%s %s.",
+                ifelse(length(unused_set) > 1, "s:", ""),
+                character_to_string_list(unused_set)),
+        find_closest_match(unused_set, requirements)
+      )
 
       # find missing parameters
       missing_set <- template_find_missing(requirements, defined)

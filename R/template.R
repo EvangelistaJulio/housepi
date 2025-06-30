@@ -36,9 +36,47 @@ show_model_names <- function() {
 }
 
 #' @title
-#' Template household model
+#' Copy Template to Path
 #' @description
 #' Copy a default model to a given directory.
+#'
+#' @param name `character(1)`\cr
+#' Name of template model. If `NA`, list of available templates.
+#' @param path `character(1)`\cr
+#' Where to copy the template scripts.
+#' If `NA`, show template model description in RStudio Help window.
+#'
+#' @keywords internal
+copy_template_to_path <- function(name, path) {
+  dir.create(path, recursive = TRUE, showWarnings = FALSE)
+  if (dir.exists(path)) {
+    templ_files <- c("model.cpp",
+                     "model.h",
+                     "template_param.R",
+                     "template_info.Rd")
+    for (f in templ_files) {
+      from_file <- file.path(template_models_dir(), name, f)
+      overwrite(from_file, file.path(path, f))
+    }
+    for (f in c("template_augm.R")) {
+      from_file <- file.path(template_models_dir(), name, f)
+      if (file.exists(from_file)) {
+        overwrite(from_file, file.path(path, f))
+      }
+    }
+
+  } else {
+    stop_h(
+      sprintf("Failed to create directory \"%s\".", path),
+      "Check your user permissions."
+    )
+  }
+}
+
+#' @title
+#' Template Household Model
+#' @description
+#' Navigate through housepi templates of household models.
 #'
 #' @param name `character(1)`\cr
 #' Name of template model. If `NA`, list of available templates.
@@ -78,30 +116,7 @@ template_household_model <- function(name = NA, path = NA, replace = FALSE) {
 
       } else {
         #===== Asking for copying template to empty folder =====#
-        dir.create(path, recursive = TRUE, showWarnings = FALSE)
-        if (dir.exists(path)) {
-          templ_files <- c("model.cpp",
-                           "model.h",
-                           "template_param.R",
-                           "template_info.Rd")
-          for (f in templ_files) {
-            from_file <- file.path(template_models_dir(), name, f)
-            overwrite(from_file, file.path(path, f))
-          }
-          for (f in c("template_augm.R")) {
-            from_file <- file.path(template_models_dir(),
-                                   name, f)
-            if (file.exists(from_file)) {
-              overwrite(from_file, file.path(path, f))
-            }
-          }
-
-        } else {
-          stop_h(
-            sprintf("Failed to create directory \"%s\".", path),
-            "Check your user permissions."
-          )
-        }
+        copy_template_to_path(name, path)
       }
 
     } else {
@@ -172,16 +187,14 @@ template_find_requirement <- function(refer_file, regular_expr) {
     script <- readChar(refer_file, file.info(refer_file)$size)
 
     # extract all calls in .refer source file
-    required_set <- c()
+    required <- c()
     for (reg in regular_expr) {
       matches <- stringr::str_match_all(script, reg)
-      required_set <- c(required_set, unlist(matches[[1]][, 2]))
+      required <- c(required, unlist(matches[[1]][, 2]))
     }
 
     # re-order alphabetically
-    if (!is.null(required_set)) {
-      required_set <- unique(required_set[order(required_set)])
-    }
+    if (!is.null(required)) required <- unique(required[order(required)])
 
   } else {
     warning_h(
@@ -189,10 +202,10 @@ template_find_requirement <- function(refer_file, regular_expr) {
       "Try to generate a new model object."
     )
 
-    required_set <- NULL
+    required <- NULL
   }
 
-  return(required_set)
+  return(required)
 }
 
 #' @title
@@ -200,73 +213,67 @@ template_find_requirement <- function(refer_file, regular_expr) {
 #' @description
 #' Compared required definitions to current definitions and find missing ones.
 #'
-#' @param required_set `character()`\cr
-#' Vector with necessary definitions.
-#' @param defined_set `character()`\cr
+#' @param required `character()`\cr
+#' Vector with required definitions.
+#' @param defined `character()`\cr
 #' Vector with current definitions.
 #'
 #' @return
 #' `character()`)
 #'
 #' @keywords internal
-template_find_missing <- function(required_set,
-                                  defined_set) {
-  if (length(required_set) == 0) {
-    missing_set <- NULL
+template_find_missing <- function(required, defined) {
+  if (length(required) == 0) {
+    missing <- NULL
 
-  } else if (length(defined_set) == 0) {
-    missing_set <- unlist(required_set)
+  } else if (length(defined) == 0) {
+    missing <- unlist(required)
 
   } else {
     # unique and ordered set of parameters
-    required_set <- unique(required_set[order(required_set)])
-    defined_set <- unique(defined_set[order(defined_set)])
+    required <- unique(required[order(required)])
+    defined <- unique(defined[order(defined)])
 
-    missing_set <- c()
-    for (name in required_set) {
-      if (!(name %in% defined_set)) {
-        missing_set <- c(missing_set, name)
-      }
+    missing <- c()
+    for (name in required) {
+      if (!(name %in% defined)) missing <- c(missing, name)
     }
   }
 
-  return(missing_set)
+  return(missing)
 }
 
 #' @title
-#' Template find unused
+#' Template Find Unused
 #' @description
-#' Compared required definitions to current definitions and find unused ones.
+#' Compared required definitions to current definitions and find not used ones.
 #'
-#' @param required_set `character()`\cr
-#' Vector with necessary definitions.
-#' @param regular_expr `character()`\cr
+#' @param required `character()`\cr
+#' Vector with required definitions.
+#' @param defined `character()`\cr
 #' Vector with current definitions.
 #'
 #' @return
 #' `character()`
 #'
 #' @keywords internal
-template_find_unused <- function(required_set,
-                                 defined_set) {
-  if (length(required_set) == 0) {
-    unused_set <- unlist(defined_set)
+template_find_unused <- function(required, defined) {
+  if (length(required) == 0) {
+    notused <- unlist(defined)
 
-  } else if (length(defined_set) == 0) {
-    unused_set <- NULL
+  } else if (length(defined) == 0) {
+    notused <- NULL
 
   } else {
     # unique and ordered set of parameters
-    required_set <- unique(required_set[order(required_set)])
-    defined_set <- unique(defined_set[order(defined_set)])
+    required <- unique(required[order(required)])
+    defined <- unique(defined[order(defined)])
 
-    unused_set <- c()
-    for (name in defined_set) {
-      if (!(name %in% required_set)) {
-        unused_set <- c(unused_set, name)
-      }
+    notused <- c()
+    for (name in defined) {
+      if (!(name %in% required)) notused <- c(notused, name)
     }
   }
 
-  return(unused_set)
+  return(notused)
 }

@@ -36,7 +36,7 @@ HouseholdModel <- R6::R6Class(
     .model = NULL,
     .param = NULL,
     .augm = NULL,
-    .group_rate = NULL,
+    .group_rates = NULL,
     .infec_profile = NULL,
     .cri_level = 0.95,
 
@@ -80,6 +80,7 @@ HouseholdModel <- R6::R6Class(
       }
       return(c(
         requirements, # by the model
+        private$.group_rates$param_required, # by group rates
         private$.augm$param_required, # by augmented variable
         private$.infec_profile$param_required # by infectivity profile
       ))
@@ -117,14 +118,14 @@ HouseholdModel <- R6::R6Class(
     #
     # @return `character()`
     .require_group_rate = function() {
-      return(private$.group_rate$require(private$.model$reference))
+      return(private$.group_rates$require(private$.model$reference))
     },
 
     # @description
     # Assert group rate definitions from the model implementation script.
     .assert_group_rate = function() {
       if (!private$.model$is_blank) {
-        private$.group_rate$assert(private$.require_group_rate())
+        private$.group_rates$assert(private$.require_group_rate())
       }
       invisible(self)
     },
@@ -161,7 +162,7 @@ HouseholdModel <- R6::R6Class(
           private$.require_dataset(),
           # dataset headers required by group rates
           unlist(lapply(
-            private$.group_rate$logic_tables,
+            private$.group_rates$logic_tables,
             function(x) unlist(lapply(x, names))
           ))
         )
@@ -211,63 +212,34 @@ HouseholdModel <- R6::R6Class(
     # @description
     # Pre-build to deal with group rates.
     #
-    # @param dataset `data.frame`\cr
-    # The dataset from which to extract group rates.
-    # @param .hold `logical(1)`\cr
-    # If `FALSE` does not ultimate model build.
-    # For internal use.
-    .build_group_rate = function(dataset = NULL, .hold = TRUE) {
-      # if dataset not provided, load previous
-      # UPDATE: this "back & forth" of dataset is not optimal!
-      if ((length(dataset) == 0) && (length(private$.model$last_dataset_cols) > 0)) {
-        dataset <- self$dataset
-      }
+    # @param dataset `data.frame` \cr
+    # Input dataset for simulation.
+    .build_group_rates = function() {
+      # proceed only if definitions exist
+      if (length(private$.group_rates$defs) > 0) {
 
-      # assert and implement group rates
-      is_updated <- private$.group_rate$cpp_assert(
-        dataset, private$.model$reference, private$.model$dataset_levels
-      )
+        # if dataset not provided, load previous
+        # UPDATE: count in the wrapper while storing dataset_levels
+        if (length(private$.model$last_dataset_cols) == 0) {
+          dataset <- NULL
+        } else {
+          dataset <- self$dataset
+        }
 
-      # proceed only if group rate definitions have been updated
-      if (isFALSE(.hold)) {
-        if (isFALSE(is_updated)) {
-          # force caching a new model
-          # UPDATE: can't I change in-place?
+        if (length(dataset) > 0) {
+          # implement group rates
+          private$.group_rates$implement(dataset, private$.model$dataset_levels)
 
-          # new model name
-          new_name <- private$.model$name
-          gr_label <- "+group+rates"
-          if (!stringr::str_detect(new_name, stringr::fixed(gr_label))) {
-            new_name <- paste0(new_name, gr_label)
+          # append parameter definitions if missing
+          new_param_defs <- private$.group_rates$param_defs
+          # find missing parameter definitions
+          mask <- setdiff(names(new_param_defs), self$param_defs$name)
+          new_param_defs <- new_param_defs[mask]
+          if (length(new_param_defs) > 0) {
+            self$load_param_list(from = new_param_defs, append = TRUE)
           }
-          # re-assign model object forcing copy of source to cache
-          private$.model <- HousepiWrapper$new(
-            private$.model$source_dir, as_template = FALSE,
-            quiet = private$.model$quiet, force = TRUE,
-            name = new_name
-          )
-
-          # write the cpp script for new group rates in the new cache file
-          private$.group_rate$cpp_write(
-            file.path(private$.model$cache_dir, "src", "model.cpp")
-          )
-          # save the new reference
-          private$.model$save_reference()
         }
       }
-
-      # append parameter definitions if missing
-      new_param_defs <- private$.group_rate$param_group_rate_defs
-      # find missing definitions
-      mask <- setdiff(names(new_param_defs), self$param_defs$name)
-      new_param_defs <- new_param_defs[mask]
-      if (length(new_param_defs) > 0) {
-        self$load_param_list(from = new_param_defs, append = TRUE)
-      }
-
-      # perform standard generation and dataset importation
-      private$.model$generate()
-      private$.model$import_dataset(dataset)
 
       invisible(self)
     },
@@ -308,11 +280,16 @@ HouseholdModel <- R6::R6Class(
                            rand_init = TRUE, id_trace = NA,
                            seed = NA, progress = FALSE) {
       # import dataset
-      self$import_dataset(dataset, .hold = FALSE)
+      self$import_dataset(dataset)
 
       # assert parameter definitions before importing
       private$.assert_param()
       private$.model$import_param(self$param_defs)
+
+      # group rates (import depends on param)
+      private$.model$import_group_rates(private$.group_rates$tidy_table)
+      # build contact rates (in development)
+      private$.model$build_all_rates()
 
       # assert augmented variable definitions
       private$.assert_augm()
@@ -348,10 +325,6 @@ HouseholdModel <- R6::R6Class(
         id_trace = id_trace, seed = seed, progress = as.integer(progress)
       ))
 
-      # build group & contact rates
-      # UPDATE: rebuild group rates <==> something has changed
-      private$.model$build_all_rates()
-
       # build augmented variables
       if (length(self$augm_defs) > 0) {
         private$.model$import_augm(self$augm_defs)
@@ -372,6 +345,16 @@ HouseholdModel <- R6::R6Class(
       write.csv(private$.model$export_datalist_to_standalone(),
                 file.path(outpath, "datalist.tmp"),
                 quote = FALSE, row.names = FALSE)
+
+      lvls <- private$.model$dataset_levels
+      defs <- self$group_rate_defs
+      for (k in intersect(colnames(defs), names(lvls))) {
+        defs[[k]] <- as.integer(factor(defs[[k]], levels = lvls[[k]]))
+      }
+      write.csv(defs,
+                file.path(outpath, "group_rates.tmp"),
+                quote = FALSE, row.names = FALSE)
+
       write.csv(self$augm_defs,
                 file.path(outpath, "augm.tmp"),
                 quote = FALSE, row.names = FALSE)
@@ -404,7 +387,7 @@ HouseholdModel <- R6::R6Class(
     #' Dataset with individual level information of current dataset.
     dataset = function(value) {
       if (missing(value)) return(private$.model$dataset)
-      else self$import_dataset(value, .hold = TRUE)
+      else self$import_dataset(value)
     },
 
     #' @field datalist `data.frame`\cr
@@ -459,7 +442,10 @@ HouseholdModel <- R6::R6Class(
     #' @field group_rate_defs `list`\cr
     #' List containing current group rate definitions.
     group_rate_defs = function(value) {
-      if (missing(value)) return(private$.group_rate$defs)
+      if (missing(value)) {
+        private$.build_group_rates()
+        return(private$.group_rates$tidy_table)
+      }
       else self$load_group_rate_list(from = value, append = FALSE)
     },
 
@@ -467,8 +453,8 @@ HouseholdModel <- R6::R6Class(
     #' List containing table of parameters associated to each group rate.
     group_rate_tables = function(value) {
       if (missing(value)) {
-        private$.build_group_rate(NULL, .hold = TRUE)
-        return(private$.group_rate$logic_tables)
+        private$.build_group_rates()
+        return(private$.group_rates$logic_tables)
       }
       stop_h("'group_rate_tables' is read only.")
     },
@@ -591,8 +577,7 @@ HouseholdModel <- R6::R6Class(
 
       } else if (interactive()) {
         # print as plain text in the console
-        txt <- capture.output(tools::Rd2txt(rd_file))
-        cat(txt, sep = "\n")
+        cat(capture.output(tools::Rd2txt(rd_file)), sep = "\n")
 
       } else {
         warning_h("Help method not supported in non-interactive mode.")
@@ -622,10 +607,10 @@ HouseholdModel <- R6::R6Class(
     #' @description
     #' Drop all current augmented variable definitions.
     drop_group_rate_defs = function() {
-      for (p in names(private$.group_rate$param_group_rate_defs)) {
+      for (p in names(private$.group_rates$param_defs)) {
         private$.param$remove(p, show_warnings = FALSE)
       }
-      private$.group_rate <- HousepiGroupRate$new()
+      private$.group_rates <- HousepiGroupRate$new()
       invisible(self)
     },
 
@@ -639,6 +624,17 @@ HouseholdModel <- R6::R6Class(
       invisible(self)
     },
 
+    #' @description
+    #' Export a list containing full house and model details.
+    #' 
+    #' @param house_id `character(1)`\cr
+    #' Household id to export.
+    #'
+    #' @return `list()`
+    export_state_for_debug = function(house_id) {
+      return(private$.model$export_state_for_debug(house_id))
+    },
+
     ############################################################################
     ############################################################################
     ############################################################################
@@ -648,10 +644,7 @@ HouseholdModel <- R6::R6Class(
     #'
     #' @param dataset `data.frame`\cr
     #' A data.frame containing the dataset with individual information by row.
-    #' @param .hold `logical(1)`\cr
-    #' If `FALSE` does not ultimate model build. Default is `TRUE`.
-    #' For internal use.
-    import_dataset = function(dataset = NULL, .hold = TRUE) {
+    import_dataset = function(dataset = NULL) {
       if (length(dataset) > 0) {
         # check that dataset type is correct
         if (!is.data.frame(dataset)) stop_h(
@@ -667,16 +660,12 @@ HouseholdModel <- R6::R6Class(
         private$.assert_dataset(private$.model$last_dataset_cols)
       }
 
-      if (length(private$.group_rate$defs) > 0) {
-        # special generation dealing with group rates
-        private$.build_group_rate(dataset, .hold = .hold)
+      # perform standard generation and dataset importation
+      private$.model$generate()
+      private$.model$import_dataset(dataset)
 
-      } else {
-        # default model generation and dataset import
-        # FIXME: is this re-generation necessary anymore?
-        private$.model$generate()
-        private$.model$import_dataset(dataset)
-      }
+      # implement group rates and build
+      private$.build_group_rates()
 
       invisible(self)
     },
@@ -917,11 +906,12 @@ HouseholdModel <- R6::R6Class(
                               args = list(meanlog = 0, sdlog = 3),
                               min = NA, max = 10,
                               rule = "lnorm", scale = 1) {
-      private$.group_rate$add(name = name, by = by, prefix = prefix,
+      private$.group_rates$add(name = name, by = by, prefix = prefix,
                               reference = reference, independent = independent,
                               prior = prior, args = args,
                               min = min, max = max,
                               rule = rule, scale = scale)
+      private$.build_group_rates()
       invisible(self)
     },
 
@@ -937,7 +927,7 @@ HouseholdModel <- R6::R6Class(
     #' If `TRUE` appends to current definitions.
     #' If `FALSE` drop all pre-existing definitions (default).
     load_group_rate_list = function(..., from = NA, append = FALSE) {
-      private$.group_rate$load_list(..., from = from, append = append)
+      private$.group_rates$load_list(..., from = from, append = append)
       invisible(self)
     },
 

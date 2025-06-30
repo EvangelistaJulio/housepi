@@ -39,25 +39,6 @@ double Model::person_to_person_risk() const
 //---------------------------------------- CHANGE-ME --------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-/* Assign all group rates to each individual. */
-void Model::assign_group_rate_to_individual(Individual &member)
-{
-	rate_key r;
-	(void)(member);
-
-	//----- community -----//
-	r = "community";
-	emplace_group_rate(r, REFERENCE);
-
-	//----- infectivity -----//
-	r = "infectivity";
-	emplace_group_rate(r, REFERENCE);
-
-	//----- susceptibility -----//
-	r = "susceptibility";
-	emplace_group_rate(r, REFERENCE);
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////  Model : initialize model  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////

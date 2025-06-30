@@ -61,6 +61,7 @@ public:
          std::function<void(Household &)> callback_simulate_house,
          std::function<void(Household &, Individual &)> callback_update_cache)
         : setup(),
+          group_rates(*this),
           infec_profile(*this),
           _callback_init_inference(std::move(callback_init_inference)),
           _callback_init_simulation(std::move(callback_init_simulation)),
@@ -78,7 +79,6 @@ public:
         Setup() : _unif(0., 1.) { seed = tools::default_setup_seed(); }
         ~Setup() = default;
 
-        dict_str_str deflist = {}; // definition list
         const str_vec file_headers = {"sample_size", "seed", "n_chains",
                                       "n_steps", "n_adapt", "thin",
                                       "n_burnin", "rand_init", "n_threads",
@@ -106,7 +106,7 @@ public:
         bool is_power_post() const { return n_rungs > 0; }
         const std::string fmt_progtxt();
 
-        void build();
+        void build(const dict_str_str &deflist);
         void assert_mcmc_setup();
         void set_n_threads();
 
@@ -247,6 +247,26 @@ public:
     /* Check if augmented variable definition are generic or not (i. e. individual status specific). */
     bool is_augm_generic() const { return augm_status_map_infer.empty(); }
 
+    //=======================//
+    //===== GROUP RATES =====//
+    //=======================//
+
+    struct GroupRates
+    {
+        GroupRates(MCMC::Impl &ptr)
+            : pImpl(ptr) {}
+        ~GroupRates() = default;
+
+        void build(const dict_str_vec &input);
+
+    private:
+        MCMC::Impl &pImpl; // pointer to external class
+        const str_vec _headers = {".group.rate", ".param.name"};
+
+        void _assign_rate_as_ptrs(Individual &member,
+                                  const rate_key_mapvec<par_key> &these_rates);
+    } group_rates;
+
     //===============================//
     //===== INFECTIVITY PROFILE =====//
     //===============================//
@@ -254,7 +274,6 @@ public:
     struct InfecProfile
     {
     public:
-        dict_str_str deflist = {};
         dict_str_str deflist_template = {};
         std::shared_ptr<Distribution> profile = nullptr;
 
@@ -265,11 +284,11 @@ public:
         ~InfecProfile() = default;
 
         //===== SETTER =====//
-        void build();
+        void build(const dict_str_str &deflist);
+        void assign_template();
         void init_lookup();
         void recover_lookup();
         void update_lookup();
-        void assign_template();
         void append_augm_definition();
 
         //===== GETTER =====//
@@ -292,8 +311,8 @@ public:
         dbl_vec _lookup_buffer_cumul = {};
         dict_str_vec _augm_infec_profile_deflist = {};
 
-        void _build_generic_profile();
-        void _build_augmented_profile();
+        void _build_generic_profile(const dict_str_str &deflist);
+        void _build_augmented_profile(const dict_str_str &deflist);
 
         void _assign_single_attribute(const std::string &key,
                                       const std::string &val,
@@ -327,7 +346,7 @@ public:
     void build_dataset(const dict_str_vec &input);
     void build_datalist(const dict_str_vec &input);
     void build_multiplicity(const dict_str_vec &input);
-    void build_param();
+    void build_param(const dict_str_vec &input);
     void build_augm();
 
     //===========================//
@@ -346,6 +365,7 @@ public:
     void import_dataset(const Rcpp::DataFrame &input);
     void import_datalist(const Rcpp::DataFrame &input);
     void import_multiplicity(const Rcpp::DataFrame &input);
+    void import_group_rates(const Rcpp::DataFrame &input);
     void import_param(const Rcpp::DataFrame &input);
     void import_infec_profile(const Rcpp::List &input);
     void import_augm(const Rcpp::DataFrame &input);
@@ -376,6 +396,7 @@ public:
     void read_dataset(const std::string &pathtofile);
     void read_datalist(const std::string &pathtofile);
     void read_multiplicity(const std::string &pathtofile);
+    void read_group_rates(const std::string &pathtofile);
     void read_param(const std::string &pathtofile);
     void read_augm(const std::string &pathtofile);
     void read_infec_profile(const std::string &pathtofile);

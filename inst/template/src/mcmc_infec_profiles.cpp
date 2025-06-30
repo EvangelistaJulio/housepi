@@ -101,8 +101,8 @@ void MCMC::Impl::InfecProfile::_assign_single_attribute(const std::string &key,
 /* Function to assign a template to infectivity profile. */
 void MCMC::Impl::InfecProfile::assign_template()
 {
-	// if deflist not empty, build has already been called
-	if (deflist.empty())
+	// if not previous build proceed with template
+	if (profile == nullptr || _augm_infec_profile_deflist.empty())
 		// if no template, assume no need for an infectivity profile
 		if (!deflist_template.empty())
 		{
@@ -117,8 +117,7 @@ void MCMC::Impl::InfecProfile::assign_template()
 			if (tools::is_na(deflist_template.at("discr")))
 				deflist_template["discr"] = "false";
 
-			deflist = deflist_template;
-			build();
+			build(deflist_template);
 		}
 }
 
@@ -202,7 +201,7 @@ void MCMC::Impl::InfecProfile::update_lookup()
 }
 
 /* Build infectivity profile distribution . */
-void MCMC::Impl::InfecProfile::build()
+void MCMC::Impl::InfecProfile::build(const dict_str_str &deflist)
 {
 	try
 	{
@@ -222,9 +221,9 @@ void MCMC::Impl::InfecProfile::build()
 					is_augm = true;
 
 			if (is_augm)
-				_build_augmented_profile();
+				_build_augmented_profile(deflist);
 			else
-				_build_generic_profile();
+				_build_generic_profile(deflist);
 		}
 	}
 	catch (const std::exception &e)
@@ -235,7 +234,7 @@ void MCMC::Impl::InfecProfile::build()
 }
 
 /* Build for generic infectivity profile. */
-void MCMC::Impl::InfecProfile::_build_generic_profile()
+void MCMC::Impl::InfecProfile::_build_generic_profile(const dict_str_str &deflist)
 {
 	bool is_discrete = true;
 	_augm_infec_profile_deflist.clear();
@@ -285,7 +284,7 @@ void MCMC::Impl::InfecProfile::_build_generic_profile()
 }
 
 /* Build for individual augmented function infectivity profile. */
-void MCMC::Impl::InfecProfile::_build_augmented_profile()
+void MCMC::Impl::InfecProfile::_build_augmented_profile(const dict_str_str &deflist)
 {
 	std::string func_name;
 
