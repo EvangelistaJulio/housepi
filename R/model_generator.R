@@ -38,6 +38,52 @@ HousepiGenerator <- R6::R6Class(
     .need_compile = FALSE,
     .rcpp = NULL,
 
+    # @field .last_dataset_cols `character()`\cr
+    # Headers of the last dataset imported.
+    .last_dataset_cols = NULL,
+
+    # @field .last_datalist_cols `character()`\cr
+    # Headers of the last datalist imported.
+    .last_datalist_cols = NULL,
+
+    # @field .dataset_levels `list()`\cr
+    # List of levels of the factors in the dataset.
+    .dataset_levels = NULL,
+
+    # @field .datalist_levels `list()`\cr
+    # List of levels of the factors in the datalist.
+    .datalist_levels = NULL,
+
+    .cri_level = 0.95,
+
+    ############################################################################
+    ############################################################################
+    ############################################################################
+
+    # @description
+    # When x$clone(deep=TRUE) is called, the deep_clone gets invoked once for
+    # each field, with the name and value.
+    deep_clone = function(name, value) {
+      # make a new instance of rcpp model object
+      if (name == ".rcpp") {
+        if (is.null(value)) {
+          output <- NULL
+        } else {
+          output <- private$.new_rcpp_model()
+          output$import_setup(fmt_setup_input_(value$export_setup()))
+          output$import_dataset(fmt_data_input_(value$export_dataset()))
+          output$import_datalist(fmt_data_input_(value$export_datalist()))
+          return(output)
+        }
+      }
+      # for all other fields, just return the value
+      return(value)
+    },
+
+    ############################################################################
+    ############################################################################
+    ############################################################################
+
     # @description
     # Assert source files exist.
     #
@@ -250,7 +296,7 @@ HousepiGenerator <- R6::R6Class(
       }
 
       # Create a reference script
-      self$save_reference()
+      private$.save_reference()
 
       invisible(self)
     },
@@ -275,7 +321,7 @@ HousepiGenerator <- R6::R6Class(
 
       # compile the dynamic library
       pkgbuild::compile_dll(private$.cache_dir,
-                            quiet = self$quiet,
+                            quiet = private$.quiet,
                             debug = FALSE)
       private$.need_compile <- FALSE
 
@@ -296,24 +342,110 @@ HousepiGenerator <- R6::R6Class(
       return(m$ModelHousepi$new())
     },
 
-    # @description
-    # When x$clone(deep=TRUE) is called, the deep_clone gets invoked once for
-    # each field, with the name and value.
-    deep_clone = function(name, value) {
-      # make a new instance of rcpp model object
-      if (name == ".rcpp") {
-        if (is.null(value)) {
-          output <- NULL
-        } else {
-          output <- private$.new_rcpp_model()
-          output$import_setup(fmt_setup_input_(value$export_setup()))
-          output$import_dataset(fmt_data_input_(value$export_dataset()))
-          output$import_datalist(fmt_data_input_(value$export_datalist()))
-          return(output)
-        }
+    ############################################################################
+    ############################################################################
+    ############################################################################
+
+    # @description Generate the Rcpp model object.
+    # If necessary, it recompiles only the model script.
+    .generate = function() {
+      if (private$.need_compile) {
+        # compile model
+        private$.compile()
+        private$.rcpp <- private$.new_rcpp_model()
+        # init user advanced setup
+        private$.rcpp$init_user_advanced_setup()
+
+      } else if (is.null(private$.rcpp)) {
+        # load if not already generated
+        private$.rcpp <- private$.new_rcpp_model()
       }
-      # for all other fields, just return the value
-      return(value)
+
+      invisible(self)
+    },
+
+    # @description Save the reference script.
+    .save_reference = function() {
+      # reference script
+      refer_file <- file.path(dirname(private$.dll), ".refer")
+      overwrite(file.path(private$.cache_dir, "src", "model.cpp"),
+                refer_file)
+
+      invisible(self)
+    },
+
+    # @description Wheter model is blank.
+    # @return `logical(1)`
+    .is_blank = function() {
+      return(private$.name == "blank")
+    },
+
+    # @description Envirnoment path.
+    # @return `character(1)`
+    .path = function() {
+      # reference script
+      output <- dirname(private$.dll)
+      # check if reference file exists
+      if (!dir.exists(output)) stop_h(
+        sprintf("Impossible to find environment path: \"%s\".", output),
+        "Try to re-generate the model with 'force = TRUE'."
+      )
+      return(output)
+    },
+
+    # @description Reference script.
+    # @return `character(1)`
+    .reference = function() {
+      if (private$.is_blank()) {
+        output <- file.path(private$.source_dir, "model.cpp")
+      } else {
+        # reference script
+        output <- file.path(private$.path(), ".refer")
+        # check if reference file exists
+        if (!file.exists(output)) stop_h(
+          sprintf("Impossible to find reference file: \"%s\".", output),
+          "Try to re-generate the model with 'force = TRUE'."
+        )
+      }
+      return(output)
+    },
+
+    ############################################################################
+    ############################################################################
+    ############################################################################
+
+    # @description 
+    # Dataset headers required by the model.
+    # @return `character()`
+    .dataset_required = function() {
+      # vector of regular expression to use for assertion
+      regular_expr <- c(
+        # from : .data("string")
+        '.data\\s*\\(\\s*["\'](.*?)["\']'
+      )
+
+      # retrieve required dataset headers from regular expressions
+      refer_file <- private$.reference()
+      return(template_find_requirement(refer_file, regular_expr))
+    },
+
+    # @description 
+    # Assert if dataset headers match implementation file.
+    # @param dataset_headers `character()`\cr
+    # Vector with the dataset headers.
+    .assert_dataset = function(dataset_headers) {
+      if (length(dataset_headers) == 0) stop_h(
+        "Impossible to proceed. No database was provided."
+      )
+      # find missing dataset headers
+      requirements <- private$.require_dataset()
+      miss <- template_find_missing(requirements, dataset_headers)
+      if (length(miss) > 0) stop_h(
+        sprintf("Missing dataset header%s for:",
+                ifelse(length(miss) > 1, "s", "")),
+        character_to_string_list(miss)
+      )
+      invisible(self)
     }
   ),
 
@@ -329,68 +461,96 @@ HousepiGenerator <- R6::R6Class(
       stop_h("'name' is read only.")
     },
 
-    #' @field cache_dir `character(1)`\cr
-    #' Cache directory where the compilation is stored.
-    cache_dir = function(value) {
-      if (missing(value)) return(private$.cache_dir)
-      stop_h("'cache_dir' is read only.")
+    #' @field cri_level `double(1)`\cr
+    #' Level for the credible interval.
+    #' Value between 0.5 and 1 (default is 0.95).
+    cri_level = function(value) {
+      if (missing(value)) return(private$.cri_level)
+      else if ((value <= 0.5) || (value >= 1)) stop_h(
+        "Credible interval level must be a value between 0.5 and 1."
+      )
+      else private$.cri_level <- value
     },
 
-    #' @field is_blank `logical(1)`\cr
-    #' Wheter model is blank.
-    is_blank = function(value) {
-      if (missing(value)) return(private$.name == "blank")
-      stop_h("'is_blank' is read only.")
+    #' @field path_to_dll `character(1)`\cr
+    #' Path to dynamic library file of the model.
+    path_to_dll = function(value) {
+      if (missing(value)) return(private$.dll)
+      stop_h("'path_to_dll' is read only.")
     },
 
-    #' @field quiet `logical(1)`\cr
-    #' Wheter quiet option is on.
-    quiet = function(value) {
-      if (missing(value)) return(private$.quiet)
-      stop_h("'quiet' is read only.")
+    #' @field setup `list()`\cr
+    #' Last setup used by the build process.
+    setup = function(value) {
+      if (missing(value)) return(private$.rcpp$export_setup())
+      stop_h("'setup' is read only.")
     },
 
-    #' @field path `character(1)`\cr
-    #' Envirnoment path.
-    path = function(value) {
+    #' @field summary `data.frame`\cr
+    #' A summary of statuses in the dataset.
+    summary = function(value) {
+      if (missing(value)) return(private$.rcpp$export_dataset_report())
+      stop_h("'summary' is read only.")
+    },
+
+    #' @field summary_house_size `data.frame`\cr
+    #' A summary of house sizes in the dataset.
+    summary_house_size = function(value) {
+      if (missing(value)) return(private$.rcpp$export_house_size_report())
+      stop_h("'summary_house_size' is read only.")
+    },
+
+    #' @field traces `matrix()` | `list()` of `matrix()`\cr
+    #' Traces of last inference.
+    traces = function(value) {
       if (missing(value)) {
-        # reference script
-        output <- dirname(private$.dll)
-        # check if reference file exists
-        if (!dir.exists(output)) stop_h(
-          sprintf("Impossible to find environment path: \"%s\".", output),
-          "Try to re-generate the model with 'force = TRUE'."
-        )
-        return(output)
+        # load traces from last inference
+        df <- private$.rcpp$export_traces()
+
+        if (dim(df)[1] == 0) stop_h("Traces are empty.")
+        else if ("CHAIN__" %in% colnames(df)) return(lapply(
+          split(seq_len(nrow(df)), df[, "CHAIN__"]),
+          function(idx) df[idx, colnames(df) != "CHAIN__", drop = FALSE]
+        ))
+        else return(df)
       }
-      stop_h("'path' is read only.")
+      stop_h("'traces' is read only.")
     },
 
-    #' @field source_dir `character(1)`\cr
-    #' Directory containing the orginal source code.
-    source_dir = function(value) {
-      if (missing(value)) return(private$.source_dir)
-      stop_h("'source_dir' is read only.")
-    },
-
-    #' @field reference `character(1)`\cr
-    #' Reference script.
-    reference = function(value) {
+    #' @field traces_no_loglike `matrix()` | `list()` of `matrix()`\cr
+    #' Traces of last inference without loglikelihood.
+    traces_no_loglike = function(value) {
       if (missing(value)) {
-        if (self$is_blank) {
-          output <- file.path(self$source_dir, "model.cpp")
-        } else {
-          # reference script
-          output <- file.path(self$path, ".refer")
-          # check if reference file exists
-          if (!file.exists(output)) stop_h(
-            sprintf("Impossible to find reference file: \"%s\".", output),
-            "Try to re-generate the model with 'force = TRUE'."
-          )
-        }
-        return(output)
+        trs <- self$traces
+        if (is.list(trs)) return(lapply(trs, function(x) {
+          x <- x[, colnames(x) != "loglikelihood", drop = FALSE]
+        }))
+        else return(trs[, colnames(trs) != "loglikelihood", drop = FALSE])
       }
-      stop_h("'reference' is read only.")
+      stop_h("'traces_no_loglike' is read only.")
+    },
+
+    #' @field estimates `data.frame`\cr
+    #' Estimates from the posterior traces of the last inference.
+    estimates = function(value) {
+      if (missing(value)) return(estimate_from_traces(
+        self$traces_no_loglike,
+        cri_level = private$.cri_level
+      ))
+      stop_h("'estimates' is read only.")
+    },
+
+    #' @field house_loglike_mtx `matrix()`\cr
+    #' Traces of household loglikelihoods.
+    house_loglike_mtx = function(value) {
+      if (missing(value)) {
+        # extract household loglikelihood traces
+        df <- private$.rcpp$export_house_loglike_mtx()
+        # check
+        if (dim(df)[1] == 0) stop_h("Household traces are empty.")
+        return(df)
+      }
+      stop_h("'house_loglike_mtx' is read only.")
     }
   ),
 
@@ -467,41 +627,50 @@ HousepiGenerator <- R6::R6Class(
         )
       }
 
+      # finally compile if necessary
+      private$.generate()
+
       invisible(self)
     },
 
-    ############################################################################
-    ############################################################################
-    ############################################################################
+    #' @description
+    #' Override the default printing behavior.
+    print = function() {
+      cli::cli_alert_info("Household model {.pkg {self$name}}.")
+      invisible(self)
+    },
 
     #' @description
-    #' Generate the Rcpp model object.
-    #' If necessary, it recompiles only the model script.
-    generate = function() {
-      if (private$.need_compile) {
-        # compile model
-        private$.compile()
-        private$.rcpp <- private$.new_rcpp_model()
-        # init user advanced setup
-        private$.rcpp$init_user_advanced_setup()
+    #' Show model description in RStudio Help window.
+    help = function() {
+      if (requireNamespace("rstudioapi", quietly = TRUE)) {
+        info_file <- file.path(private$.path(), "template_info.Rd")
+        if (!file.exists((info_file))) stop_h(
+          "Impossible to show model description.",
+          "No template info was found."
+        )
+        rstudioapi::previewRd(info_file)
 
-      } else if (is.null(private$.rcpp)) {
-        # load if not already generated
-        private$.rcpp <- private$.new_rcpp_model()
+      } else if (interactive()) {
+        # print as plain text in the console
+        cat(capture.output(tools::Rd2txt(rd_file)), sep = "\n")
+
+      } else {
+        warning_h("Help method not supported in non-interactive mode.")
       }
 
       invisible(self)
     },
 
     #' @description
-    #' Save the reference script.
-    save_reference = function() {
-      # reference script
-      refer_file <- file.path(dirname(private$.dll), ".refer")
-      overwrite(file.path(private$.cache_dir, "src", "model.cpp"),
-                refer_file)
-
-      invisible(self)
+    #' Export a snapshot of current household and model state.
+    #' 
+    #' @param house_id `character(1)`\cr
+    #' Household id to export.
+    #'
+    #' @return `list()`
+    export_house_state_snapshot = function(house_id) {
+      return(private$.rcpp$export_house_state_snapshot(house_id))
     }
   )
 )

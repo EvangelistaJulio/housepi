@@ -454,19 +454,25 @@ namespace tools
     }
 
     /* Convert R List into map<string, string>. */
-    void rlist_to_map(const Rcpp::List &list, dict_str_str &output, const std::string &def_name)
+    void rlist_to_map(SEXP input, dict_str_str &output, const std::string &def_name)
     {
         using namespace Rcpp;
 
         try
         {
-            CharacterVector keys = list.names();
-
             output.clear();
-            for (R_xlen_t i = 0; i < list.size(); ++i)
+
+            if (!Rf_isNull(input))
             {
-                RObject element = list[i];
-                output[as<std::string>(keys[i])] = as<std::string>(wrap(element));
+                List list(input);
+                CharacterVector keys = list.names();
+
+                for (R_xlen_t i = 0; i < list.size(); ++i)
+                {
+                    CharacterVector element = list[i];
+                    std::string value = as<std::string>(wrap(element[0]));
+                    output[as<std::string>(keys[i])] = value;
+                }
             }
         }
         catch (const std::exception &e)
@@ -477,15 +483,17 @@ namespace tools
     }
 
     /* Convert R dataframe into map<string, vector<string>>. */
-    void rdataframe_to_map(const Rcpp::DataFrame &df, dict_str_vec &output, const std::string &def_name)
+    void rdataframe_to_map(SEXP input, dict_str_vec &output, const std::string &def_name)
     {
         using namespace Rcpp;
 
         try
         {
-            if (df.nrows() > 0)
+            output.clear();
+
+            if (!Rf_isNull(input))
             {
-                output.clear();
+                Rcpp::DataFrame df(input);
                 CharacterVector keys = df.names();
 
                 for (R_xlen_t i = 0; i < df.size(); ++i)

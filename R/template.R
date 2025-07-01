@@ -179,30 +179,27 @@ template_assert_expression <- function(refer_file, expression) {
 #'
 #' @keywords internal
 template_find_requirement <- function(refer_file, regular_expr) {
+  required <- c()
 
   # check if reference file exists
   if (file.exists(refer_file)) {
-
     # read the script and extract parameters
     script <- readChar(refer_file, file.info(refer_file)$size)
 
     # extract all calls in .refer source file
-    required <- c()
     for (reg in regular_expr) {
       matches <- stringr::str_match_all(script, reg)
       required <- c(required, unlist(matches[[1]][, 2]))
     }
 
     # re-order alphabetically
-    if (!is.null(required)) required <- unique(required[order(required)])
+    if (length(required) > 0) required <- unique(required[order(required)])
 
   } else {
     warning_h(
       sprintf("Impossible to find reference file \"%s\".", refer_file),
       "Try to generate a new model object."
     )
-
-    required <- NULL
   }
 
   return(required)
@@ -224,23 +221,23 @@ template_find_requirement <- function(refer_file, regular_expr) {
 #' @keywords internal
 template_find_missing <- function(required, defined) {
   if (length(required) == 0) {
-    missing <- NULL
+    miss <- NULL
 
   } else if (length(defined) == 0) {
-    missing <- unlist(required)
+    miss <- unlist(required)
 
   } else {
     # unique and ordered set of parameters
     required <- unique(required[order(required)])
     defined <- unique(defined[order(defined)])
 
-    missing <- c()
+    miss <- c()
     for (name in required) {
-      if (!(name %in% defined)) missing <- c(missing, name)
+      if (!(name %in% defined)) miss <- c(miss, name)
     }
   }
 
-  return(missing)
+  return(miss)
 }
 
 #' @title
@@ -276,4 +273,16 @@ template_find_unused <- function(required, defined) {
   }
 
   return(notused)
+}
+
+#' @title
+#' Template Blank Dataset
+#' @description
+#' Template dataset associated to 'blank' model.
+#'
+#' @return `data.frame`
+#'
+#' @keywords internal
+template_blank_dataset_ <- function() {
+  data.frame(id = c("hh_01_1"), house_id = c("hh_01"), status = c(1))
 }

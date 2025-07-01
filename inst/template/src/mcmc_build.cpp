@@ -30,7 +30,7 @@ void MCMC::Impl::Setup::build(const dict_str_str &deflist)
 {
     try
     {
-        if (deflist.size() > 0)
+        if (!deflist.empty())
         {
             // check entries
             str_vec headers = tools::headers_from_deflist(deflist);
@@ -253,7 +253,7 @@ void MCMC::Impl::build_dataset(const dict_str_vec &input)
 {
     try
     {
-        if (input.size() > 0)
+        if (!input.empty())
         {
             // drop all previous data and prepare for new
             str_vec data_headers = {};
@@ -451,7 +451,7 @@ void MCMC::Impl::build_multiplicity(const dict_str_vec &table)
         if (is_augm_any() || (table.size() == 0))
         {
             // note: multiplicities are not compatible with data augmentation
-            if (table.size() > 0)
+            if (!table.empty())
                 tools::warning(
                     "Data augmentation is incompatible with multiplicity simplification.");
 
@@ -553,7 +553,7 @@ void MCMC::Impl::GroupRates::build(const dict_str_vec &deftable)
 {
     try
     {
-        if (deftable.size() > 0)
+        if (!deftable.empty())
         {
             // check that tempalte headers are present
             str_vec headers = tools::headers_from_deftable(deftable);
@@ -622,7 +622,7 @@ void MCMC::Impl::build_datalist(const dict_str_vec &input)
 {
     try
     {
-        if (input.size() > 0)
+        if (!input.empty())
         {
             // data sequence headers
             str_vec headers = {};
@@ -716,7 +716,7 @@ void MCMC::Impl::build_param(const dict_str_vec &deftable)
 {
     try
     {
-        if (deftable.size() > 0)
+        if (!deftable.empty())
         {
             // check entries
             str_vec headers = tools::headers_from_deftable(deftable);

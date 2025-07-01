@@ -24,10 +24,11 @@ test_that("Model class blank calls", {
   hhmodel <- HouseholdModel$new("blank")
 
   # blank default dataset
-  expect_true(all(hhmodel$dataset == housepi:::get_blank_dataset_()))
+  dataset <- housepi:::template_blank_dataset_()
+  expect_true(all(hhmodel$dataset == dataset))
 
   # correct datalist call
-  datalist <- data.frame(id = "hh_01_1",
+  datalist <- data.frame(id = dataset$id,
                          time = seq(3),
                          measure = seq(3)**3)
   hhmodel$datalist <- datalist

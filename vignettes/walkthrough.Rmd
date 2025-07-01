@@ -76,11 +76,8 @@ Status $s_{i}$ should be an integer value satisfying the following convention:
 The `housepi` package comes with a few synthetic dataset to be used for testing.
 
 ```{r}
-# load a household survey we can use to do testing
-data("survey", package = "housepi")
-
 # import dataset
-hhmodel$import_dataset(survey)
+hhmodel$dataset <- housepi::survey
 ```
 
 Note that all methods for inference and simulation integrate dataset importation.
@@ -141,7 +138,7 @@ hhmodel$infer(
   n_adapt = 1000,   # finite adaptation steps before sampling
   n_chains = 4,     # number of independent chains
   seed = 6043,      # internal random number generator seed
-  n_threads = 1     # number of threads
+  n_threads = 1    # number of threads
 ) 
 ```
 

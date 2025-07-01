@@ -193,6 +193,11 @@ public:
     const std::string show_range() const;
     const std::string show_summary() const;
 
+#ifdef _HOUSEPI_RCPP
+    Rcpp::List export_arg_list() const;
+    Rcpp::List export_range_list() const;
+#endif
+
 private:
     std::string _function_name = HSP_NA_STRING;
 

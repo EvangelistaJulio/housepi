@@ -263,8 +263,8 @@ namespace tools
 
 #ifdef _HOUSEPI_RCPP
     Rcpp::String stoRString(const std::string &x);
-    void rlist_to_map(const Rcpp::List &list, dict_str_str &output, const std::string &def_name);
-    void rdataframe_to_map(const Rcpp::DataFrame &df, dict_str_vec &output, const std::string &def_name);
+    void rlist_to_map(SEXP input, dict_str_str &output, const std::string &def_name);
+    void rdataframe_to_map(SEXP input, dict_str_vec &output, const std::string &def_name);
 #endif
 
     const str_vec headers_from_deflist(const dict_str_str &deflist);

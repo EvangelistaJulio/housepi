@@ -145,14 +145,14 @@ public:
 	//===== Rcpp IMPORTS =====//
 	//========================//
 
-	void import_setup(const Rcpp::List &input);
-	void import_dataset(const Rcpp::DataFrame &input);
-	void import_datalist(const Rcpp::DataFrame &input);
-	void import_multiplicity(const Rcpp::DataFrame &input);
-	void import_group_rates(const Rcpp::DataFrame &input);
-	void import_param(const Rcpp::DataFrame &input);
-	void import_infec_profile(const Rcpp::List &input);
-	void import_augm(const Rcpp::DataFrame &input);
+	void import_setup(SEXP input);
+	void import_dataset(SEXP input);
+	void import_datalist(SEXP input);
+	void import_multiplicity(SEXP input);
+	void import_group_rates(SEXP input);
+	void import_param(SEXP input);
+	void import_infec_profile(SEXP input);
+	void import_augm(SEXP input);
 
 	//========================//
 	//===== Rcpp EXPORTS =====//

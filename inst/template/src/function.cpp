@@ -489,6 +489,32 @@ const std::string Function::show_summary() const
     return output;
 }
 
+#ifdef _HOUSEPI_RCPP
+/* Export argument list to R.*/
+Rcpp::List Function::export_arg_list() const
+{
+    using namespace Rcpp;
+
+    List output = List::create();
+
+    for (size_t k = 0; k < _n_args; ++k)
+        output.push_back(_arguments[k].get(), _arguments[k].show_name());
+
+    return (output);
+}
+
+/* Export range list to R.*/
+Rcpp::List Function::export_range_list() const
+{
+    using namespace Rcpp;
+
+    List output = List::create(_["min"] = _range_min.get(),
+                               _["max"] = _range_max.get());
+
+    return (output);
+}
+#endif
+
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -514,7 +540,7 @@ std::shared_ptr<Function> FunctionRegistry::get(const std::string &opt) const
 }
 
 std::shared_ptr<Function> compose_func_registries(const std::string &opt, const std::string &name,
-                                                      const std::vector<const FunctionRegistry *> &registries)
+                                                  const std::vector<const FunctionRegistry *> &registries)
 {
     str_vec options = {};
 

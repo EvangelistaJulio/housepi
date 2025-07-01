@@ -37,8 +37,7 @@ compile_template_library <- function(pkgname) {
     dll <- template_dll_file(m)
     if (isFALSE(file.exists(dll)) || untracked_changes(m, dll)) {
       cli::cli_alert_info("Compiling {.pkg {basename(m)}}")
-      HousepiGenerator$new(m, as_template = TRUE,
-                           force = FALSE, quiet = FALSE)$generate()
+      HousepiGenerator$new(m, as_template = TRUE, quiet = FALSE)
     }
   }
 }

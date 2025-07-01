@@ -26,7 +26,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Import setup from R list and run build. */
-void MCMC::Impl::import_setup(const Rcpp::List &input)
+void MCMC::Impl::import_setup(SEXP input)
 {
     dict_str_str deflist = {};
     tools::rlist_to_map(input, deflist, "setup");
@@ -35,7 +35,7 @@ void MCMC::Impl::import_setup(const Rcpp::List &input)
 }
 
 /* Import infectivity profile from R list and run build. */
-void MCMC::Impl::import_infec_profile(const Rcpp::List &input)
+void MCMC::Impl::import_infec_profile(SEXP input)
 {
     dict_str_str deflist = {};
     tools::rlist_to_map(input, deflist, "infectivity profile");
@@ -44,7 +44,7 @@ void MCMC::Impl::import_infec_profile(const Rcpp::List &input)
 }
 
 /* Import data from R DataFrame and run build. */
-void MCMC::Impl::import_dataset(const Rcpp::DataFrame &input)
+void MCMC::Impl::import_dataset(SEXP input)
 {
     dict_str_vec deftable = {};
     tools::rdataframe_to_map(input, deftable, "dataset");
@@ -53,7 +53,7 @@ void MCMC::Impl::import_dataset(const Rcpp::DataFrame &input)
 }
 
 /* Import data from R DataFrame and run build. */
-void MCMC::Impl::import_datalist(const Rcpp::DataFrame &input)
+void MCMC::Impl::import_datalist(SEXP input)
 {
     dict_str_vec deftable = {};
     tools::rdataframe_to_map(input, deftable, "datalist");
@@ -62,7 +62,7 @@ void MCMC::Impl::import_datalist(const Rcpp::DataFrame &input)
 }
 
 /* Import multiplicity definitions from R DataFrame and run build. */
-void MCMC::Impl::import_multiplicity(const Rcpp::DataFrame &input)
+void MCMC::Impl::import_multiplicity(SEXP input)
 {
     dict_str_vec deftable = {};
     tools::rdataframe_to_map(input, deftable, "multiplicity");
@@ -71,7 +71,7 @@ void MCMC::Impl::import_multiplicity(const Rcpp::DataFrame &input)
 }
 
 /* Import multiplicity definitions from R DataFrame and run build. */
-void MCMC::Impl::import_group_rates(const Rcpp::DataFrame &input)
+void MCMC::Impl::import_group_rates(SEXP input)
 {
     dict_str_vec deftable = {};
     tools::rdataframe_to_map(input, deftable, "multiplicity");
@@ -80,7 +80,7 @@ void MCMC::Impl::import_group_rates(const Rcpp::DataFrame &input)
 }
 
 /* Import params from R DataFrame and run build. */
-void MCMC::Impl::import_param(const Rcpp::DataFrame &input)
+void MCMC::Impl::import_param(SEXP input)
 {
     dict_str_vec deftable = {};
     tools::rdataframe_to_map(input, deftable, "parameter");
@@ -89,7 +89,7 @@ void MCMC::Impl::import_param(const Rcpp::DataFrame &input)
 }
 
 /* Import data from R DataFrame then run build. */
-void MCMC::Impl::import_augm(const Rcpp::DataFrame &input)
+void MCMC::Impl::import_augm(SEXP input)
 {
     tools::rdataframe_to_map(input, _augm_deftable, "augmented");
     build_augm();

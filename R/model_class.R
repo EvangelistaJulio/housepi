@@ -10,18 +10,6 @@
 # model_class.R
 #
 
-#' @title
-#' Get Blank Dataset
-#' @description
-#' Template dataset associated to 'blank' model.
-#'
-#' @return `data.frame`
-#'
-#' @keywords internal
-get_blank_dataset_ <- function() {
-  data.frame(id = c("hh_01_1"), house_id = c("hh_01"), status = c(1))
-}
-
 ############################################################################
 ############################################################################
 ############################## Household Model #############################
@@ -37,6 +25,7 @@ get_blank_dataset_ <- function() {
 #' @docType class
 HouseholdModel <- R6::R6Class(
   classname = "HouseholdModel",
+  inherit = HousepiGenerator,
   cloneable = TRUE,
   lock_class = TRUE,
 
@@ -45,12 +34,10 @@ HouseholdModel <- R6::R6Class(
   ############################################################################
 
   private = list(
-    .model = NULL,
     .param = NULL,
     .augm = NULL,
     .group_rates = NULL,
     .infec_profile = NULL,
-    .cri_level = 0.95,
 
     # @description
     # Dataset headers required by implementation file and other definitions.
@@ -58,8 +45,8 @@ HouseholdModel <- R6::R6Class(
     # @return `character()`
     .require_dataset = function() {
       requirements <- c()
-      if (!private$.model$is_blank) {
-        requirements <- private$.model$dataset_required
+      if (!private$.is_blank()) {
+        requirements <- private$.dataset_required()
       }
       return(c(
         requirements, # by the model
@@ -68,27 +55,14 @@ HouseholdModel <- R6::R6Class(
     },
 
     # @description
-    # Assert if dataset headers match requirements.
-    #
-    # @param dataset_headers `character()`\cr
-    # Vector with the dataset headers.
-    .assert_dataset = function(dataset_headers) {
-      if (length(dataset_headers) == 0) stop_h(
-        "Impossible to proceed. No database was provided."
-      )
-      private$.model$assert(dataset_headers, private$.require_dataset())
-      invisible(self)
-    },
-
-    # @description
     # Parameters required by implementation file and other definitions.
     #
     # @return `character()`
     .require_param = function() {
-      if (private$.model$is_blank) {
+      if (private$.is_blank()) {
         requirements <- self$param_defs$name
       } else {
-        requirements <- private$.param$require(private$.model$reference)
+        requirements <- private$.param$require(private$.reference())
       }
       return(c(
         requirements, # by the model
@@ -111,7 +85,7 @@ HouseholdModel <- R6::R6Class(
     # @return `character()`
     .require_augm = function() {
       return(c(
-        private$.augm$require(private$.model$reference), # by the model
+        private$.augm$require(private$.reference()), # by the model
         private$.infec_profile$augm_required # by infectivity profile
       ))
     },
@@ -119,7 +93,7 @@ HouseholdModel <- R6::R6Class(
     # @description
     # Assert if augmented definitions match the requirements.
     .assert_augm = function() {
-      if (!private$.model$is_blank) {
+      if (!private$.is_blank()) {
         private$.augm$assert(private$.require_augm())
       }
       invisible(self)
@@ -130,15 +104,92 @@ HouseholdModel <- R6::R6Class(
     #
     # @return `character()`
     .require_group_rate = function() {
-      return(private$.group_rates$require(private$.model$reference))
+      return(private$.group_rates$require(private$.reference()))
     },
 
     # @description
     # Assert group rate definitions from the model implementation script.
     .assert_group_rate = function() {
-      if (!private$.model$is_blank) {
+      if (!private$.is_blank()) {
         private$.group_rates$assert(private$.require_group_rate())
       }
+      invisible(self)
+    },
+
+    ############################################################################
+    ############################################################################
+    ############################################################################
+
+    # @description
+    # Import a new dataset and drop previous.
+    #
+    # @param dataset `data.frame`\cr
+    # A data.frame containing the dataset with individual information by row.
+    .import_dataset = function(dataset = NULL) {
+      if (length(dataset) > 0) {
+        # check that dataset type is correct
+        if (!is.data.frame(dataset)) stop_h(
+          "Unsupported type for dataset.",
+          "Dataset should be a data.frame."
+        )
+
+        # assert dataset headers
+        private$.assert_dataset(colnames(dataset))
+
+        # convert factors to numeric and store levels
+        private$.dataset_levels <- list()
+        for (col in setdiff(colnames(dataset), c("id", "house_id", "status"))) {
+          x <- dataset[[col]]
+          if (is.character(x) || is.factor(x) || is.logical(x)) {
+            x <- factor(x)
+            private$.dataset_levels[[col]] <- levels(x)
+            dataset[[col]] <- as.integer(x)
+          }
+        }
+
+        # import data.frame in rcpp # note: it calls
+        private$.rcpp$import_dataset(fmt_data_input_(dataset))
+        # store column names
+        private$.last_dataset_cols <- colnames(dataset)
+
+      } else {
+        # assert headers of last imported dataset
+        private$.assert_dataset(private$.last_dataset_cols)
+      }
+
+      # implement group rates and build
+      private$.build_group_rates()
+
+      invisible(self)
+    },
+
+    # @description
+    # Import a new datalist and drop previous.
+    #
+    # @param datalist `data.frame`\cr
+    # A data.frame containing the dataset with individual information by row.
+    .import_datalist = function(datalist = NULL) {
+      if (!is.data.frame(datalist)) stop_h(
+        "Unsupported type for datalist.",
+        "Datalist should be a data.frame."
+      )
+
+      # convert factors to numeric and store levels
+      private$.datalist_levels <- list()
+      for (col in setdiff(colnames(datalist), c("id", "house_id", "status"))) {
+        x <- datalist[[col]]
+        if (is.character(x) || is.factor(x) || is.logical(x)) {
+          x <- factor(x)
+          private$.datalist_levels[[col]] <- levels(x)
+          datalist[[col]] <- as.integer(x)
+        }
+      }
+
+      # import data.frame in rcpp
+      private$.rcpp$import_datalist(fmt_data_input_(datalist))
+      # store column names
+      private$.last_datalist_cols <- colnames(datalist)
+    
       invisible(self)
     },
 
@@ -153,7 +204,7 @@ HouseholdModel <- R6::R6Class(
     # A data.frame containing the dataset.
     .multiplicity_engine = function(dataset = NULL) {
       # check if model allows for multiplicity
-      refer_file <- private$.model$reference
+      refer_file <- private$.reference()
       regular_expr <- ".multiplicity\\s*\\(\\s*\\)"
 
       if (template_assert_expression(refer_file, regular_expr)) {
@@ -165,7 +216,7 @@ HouseholdModel <- R6::R6Class(
 
         # if dataset not provided, load previous
         # UPDATE: this "back & forth" of dataset is not optimal!
-        if ((length(dataset) == 0) && (length(private$.model$last_dataset_cols) > 0)) {
+        if ((length(dataset) == 0) && (length(private$.last_dataset_cols) > 0)) {
           dataset <- self$dataset
         }
 
@@ -200,18 +251,18 @@ HouseholdModel <- R6::R6Class(
                                      stringsAsFactors = FALSE)
 
         # use hashes to produce multiplicity table
-        output <- data.frame(house_id = unique(dataset$house_id),
-                             multiplicity = 0,
-                             class_id = NA,
-                             stringsAsFactors = FALSE)
-        rownames(output) <- output$house_id
-        output[multi_hh_table$class_id, "multiplicity"] <- multi_hh_table$multiplicity
+        defs <- data.frame(house_id = unique(dataset$house_id),
+                           multiplicity = 0,
+                           class_id = NA,
+                           stringsAsFactors = FALSE)
+        rownames(defs) <- defs$house_id
+        defs[multi_hh_table$class_id, "multiplicity"] <- multi_hh_table$multiplicity
 
         for (i in seq_len(nrow(multi_hh_table))) {
-          output[hash_groups[[i]], "class_id"] <- multi_hh_table$class_id[i]
+          defs[hash_groups[[i]], "class_id"] <- multi_hh_table$class_id[i]
         }
         # call rcpp method
-        private$.model$import_multiplicity(output)
+        private$.rcpp$import_multiplicity(defs)
       }
 
       invisible(self)
@@ -228,7 +279,7 @@ HouseholdModel <- R6::R6Class(
     # Input dataset for simulation.
     .build_group_rates = function() {
       # assert definitions are complete
-      refer_file <- private$.model$reference
+      refer_file <- private$.reference()
       requirements <- private$.group_rates$require(refer_file)
       private$.group_rates$assert(requirements)
 
@@ -236,14 +287,14 @@ HouseholdModel <- R6::R6Class(
       if (length(private$.group_rates$defs) > 0) {
         # if dataset not provided, load previous
         # UPDATE: count in the wrapper while storing dataset_levels
-        if (length(private$.model$last_dataset_cols) == 0) {
+        if (length(private$.last_dataset_cols) == 0) {
           dataset <- NULL
         } else {
           dataset <- self$dataset
         }
 
         # implement group rates
-        private$.group_rates$implement(dataset, private$.model$dataset_levels)
+        private$.group_rates$implement(dataset, private$.dataset_levels)
 
         # append parameter definitions if missing
         new_param_defs <- private$.group_rates$param_defs
@@ -294,31 +345,36 @@ HouseholdModel <- R6::R6Class(
                            rand_init = TRUE, id_trace = NA,
                            seed = NA, progress = FALSE) {
       # import dataset
-      self$import_dataset(dataset)
+      private$.import_dataset(dataset)
 
       # assert parameter definitions before importing
       private$.assert_param()
-      private$.model$import_param(self$param_defs)
+      private$.rcpp$import_param(self$param_defs)
 
       # group rates (import depends on param)
+      defs <- self$group_rate_defs
+      lvls <- private$.dataset_levels
+      for (k in intersect(colnames(defs), names(lvls))) {
+        defs[[k]] <- as.integer(factor(defs[[k]], levels = lvls[[k]]))
+      }
+      private$.rcpp$import_group_rates(defs)
 
-      private$.model$import_group_rates(self$group_rate_defs)
       # build contact rates (in development)
-      private$.model$build_all_rates()
+      private$.rcpp$build_all_rates()
 
       # assert augmented variable definitions
       private$.assert_augm()
 
       # infectivity profile
-      private$.model$import_infec_profile(private$.infec_profile$defs)
+      private$.rcpp$import_infec_profile(private$.infec_profile$defs)
 
       # individual id for blank model augmented traces
       # if no default columns, assume debugging mode
-      if (private$.model$is_blank && is.na(id_trace)) {
+      if (private$.is_blank() && is.na(id_trace)) {
         # UPDATE: not robust in case of dataset with only default columns
-        if (length(setdiff(private$.model$last_dataset_cols,
+        if (length(setdiff(private$.last_dataset_cols,
                            c("house_id", "id", "status"))) == 0) {
-          id_trace <- get_blank_dataset_()$id
+          id_trace <- template_blank_dataset_()$id
         }
       }
 
@@ -330,17 +386,17 @@ HouseholdModel <- R6::R6Class(
       )
 
       # import setup
-      private$.model$import_setup(list(
+      private$.rcpp$import_setup(fmt_setup_input_(list(
         sample_size = ifelse(is.na(sample_size), 0, sample_size),
         n_steps = n_steps, thin = thin,
         n_burnin = n_burnin, n_adapt = n_adapt, n_chains = n_chains,
         n_threads = n_threads, rand_init = rand_init,
         id_trace = id_trace, seed = seed, progress = as.integer(progress)
-      ))
+      )))
 
       # build augmented variables
       if (length(self$augm_defs) > 0) {
-        private$.model$import_augm(self$augm_defs)
+        private$.rcpp$import_augm(self$augm_defs)
       }
 
       invisible(self)
@@ -352,14 +408,14 @@ HouseholdModel <- R6::R6Class(
     # FIXME:
     # setup is broken, follow method in copy to fix it
     .export_to_cpp_standalone = function(outpath = "../housepi/inst/standalone/") {
-      write.csv(private$.model$export_dataset_to_standalone(),
+      write.csv(private$.rcpp$export_dataset(),
                 file.path(outpath, "dataset.tmp"),
                 quote = FALSE, row.names = FALSE)
-      write.csv(private$.model$export_datalist_to_standalone(),
+      write.csv(private$.rcpp$export_datalist(),
                 file.path(outpath, "datalist.tmp"),
                 quote = FALSE, row.names = FALSE)
 
-      lvls <- private$.model$dataset_levels
+      lvls <- private$.dataset_levels
       defs <- self$group_rate_defs
       for (k in intersect(colnames(defs), names(lvls))) {
         defs[[k]] <- as.integer(factor(defs[[k]], levels = lvls[[k]]))
@@ -389,46 +445,30 @@ HouseholdModel <- R6::R6Class(
   ############################################################################
 
   active = list(
-    #' @field name `character(1)`\cr
-    #' Model name.
-    name = function(value) {
-      if (missing(value)) return(private$.model$name)
-      stop_h("'name' is read only.")
-    },
-
     #' @field dataset `data.frame`\cr
     #' Dataset with individual level information of current dataset.
     dataset = function(value) {
-      if (missing(value)) return(private$.model$dataset)
-      else self$import_dataset(value)
+      if (missing(value)) {
+        if (is.null(private$.rcpp)) stop_h(
+          "Impossible to export dataset before model build."
+        )
+        return(cpp_data_refactor(private$.rcpp$export_dataset(),
+                                 private$.dataset_levels))
+      }
+      else private$.import_dataset(value)
     },
 
     #' @field datalist `data.frame`\cr
     #' Datalist with multiple rows indexed by individual.
     datalist = function(value) {
-      if (missing(value)) return(private$.model$datalist)
-      else self$import_datalist(value)
-    },
-
-    #' @field summary `data.frame`\cr
-    #' A summary of statuses in the dataset.
-    summary = function(value) {
-      if (missing(value)) return(private$.model$summary)
-      stop_h("'summary' is read only.")
-    },
-
-    #' @field summary_house_size `data.frame`\cr
-    #' A summary of house sizes in the dataset.
-    summary_house_size = function(value) {
-      if (missing(value)) return(private$.model$summary_house_size)
-      stop_h("'summary_house_size' is read only.")
-    },
-
-    #' @field setup `list()`\cr
-    #' Last setup used by the build process.
-    setup = function(value) {
-      if (missing(value)) return(private$.model$setup)
-      stop_h("'setup' is read only.")
+      if (missing(value)) {
+        if (is.null(private$.rcpp)) stop_h(
+          "Impossible to export datalist before model build."
+        )
+        return(cpp_data_refactor(private$.rcpp$export_datalist(),
+                                 private$.datalist_levels))
+      }
+      else private$.import_datalist(value)
     },
 
     #' @field param_defs `data.frame`\cr
@@ -460,55 +500,6 @@ HouseholdModel <- R6::R6Class(
         return(private$.group_rates$tidy_table)
       }
       else self$load_group_rate_list(from = value, append = FALSE)
-    },
-
-    #' @field house_loglike_mtx `matrix()`\cr
-    #' Traces of household loglikelihoods.
-    house_loglike_mtx = function(value) {
-      if (missing(value)) return(private$.model$house_loglike_mtx)
-      stop_h("'house_loglike_mtx' is read only.")
-    },
-
-    #' @field traces `matrix()` | `list()` of `matrix()`\cr
-    #' Traces of last inference.
-    traces = function(value) {
-      if (missing(value)) return(private$.model$traces)
-      stop_h("'traces' is read only.")
-    },
-
-    #' @field traces_no_loglike `matrix()` | `list()` of `matrix()`\cr
-    #' Traces of last inference without loglikelihood.
-    traces_no_loglike = function(value) {
-      if (missing(value)) return(private$.model$traces_no_loglike)
-      stop_h("'traces_no_loglike' is read only.")
-    },
-
-    #' @field estimates `data.frame`\cr
-    #' Estimates from the posterior traces of the last inference.
-    estimates = function(value) {
-      if (missing(value)) return(estimate_from_traces(
-        private$.model$traces_no_loglike,
-        cri_level = private$.cri_level
-      ))
-      stop_h("'estimates' is read only.")
-    },
-
-    #' @field cri_level `double(1)`\cr
-    #' Level for the credible interval.
-    #' Value between 0.5 and 1 (default is 0.95).
-    cri_level = function(value) {
-      if (missing(value)) return(private$.cri_level)
-      else if ((value <= 0.5) || (value >= 1)) stop_h(
-        "Credible interval level must be a value between 0.5 and 1."
-      )
-      else private$.cri_level <- value
-    },
-
-    #' @field path_to_dll `character(1)`\cr
-    #' Path to dynamic library file of the model.
-    path_to_dll = function(value) {
-      if (missing(value)) return(private$.model$path_to_dll)
-      stop_h("'path_to_dll' is read only.")
     }
   ),
 
@@ -544,46 +535,15 @@ HouseholdModel <- R6::R6Class(
       # initialize internal fields
       self$drop_all()
 
-      # generate model
-      private$.model <- HousepiWrapper$new(
-        choice = choice, as_template = as_template, force = force,
-        name = name, quiet = quiet
-      )$generate()
+      # generate model wrapper
+      super$initialize(choice = choice, as_template = as_template, 
+                       force = force, name = name, quiet = quiet)
 
       # import blank template dataset
-      if (private$.model$is_blank) self$import_dataset(get_blank_dataset_())
+      if (private$.is_blank()) private$.import_dataset(template_blank_dataset_())
 
       # credible interval level
       self$cri_level <- cri_level
-
-      invisible(self)
-    },
-
-    #' @description
-    #' Override the default printing behavior.
-    print = function() {
-      cli::cli_alert_info("Household model {.pkg {self$name}}.")
-      invisible(self)
-    },
-
-    #' @description
-    #' Show model description in RStudio Help window.
-    help = function() {
-      if (requireNamespace("rstudioapi", quietly = TRUE)) {
-        templ_info_file <- file.path(private$.model$path, "template_info.Rd")
-        if (!file.exists((templ_info_file))) stop_h(
-          "Impossible to show model description.",
-          "No template info was found."
-        )
-        rstudioapi::previewRd(templ_info_file)
-
-      } else if (interactive()) {
-        # print as plain text in the console
-        cat(capture.output(tools::Rd2txt(rd_file)), sep = "\n")
-
-      } else {
-        warning_h("Help method not supported in non-interactive mode.")
-      }
 
       invisible(self)
     },
@@ -626,65 +586,6 @@ HouseholdModel <- R6::R6Class(
       self$drop_augm_defs()
       self$drop_group_rate_defs()
       private$.infec_profile <- HousepiInfecProfile$new()
-      invisible(self)
-    },
-
-    #' @description
-    #' Export a list containing full house and model details.
-    #' 
-    #' @param house_id `character(1)`\cr
-    #' Household id to export.
-    #'
-    #' @return `list()`
-    export_state_for_debug = function(house_id) {
-      return(private$.model$export_state_for_debug(house_id))
-    },
-
-    ############################################################################
-    ############################################################################
-    ############################################################################
-
-    #' @description
-    #' Import a new dataset and drop previous.
-    #'
-    #' @param dataset `data.frame`\cr
-    #' A data.frame containing the dataset with individual information by row.
-    import_dataset = function(dataset = NULL) {
-      if (length(dataset) > 0) {
-        # check that dataset type is correct
-        if (!is.data.frame(dataset)) stop_h(
-          "Unsupported type for dataset.",
-          "Dataset should be a data.frame."
-        )
-
-        # assert dataset headers
-        private$.assert_dataset(colnames(dataset))
-
-      } else {
-        # assert headers of last imported dataset
-        private$.assert_dataset(private$.model$last_dataset_cols)
-      }
-
-      # dataset importation
-      private$.model$import_dataset(dataset)
-
-      # implement group rates and build
-      private$.build_group_rates()
-
-      invisible(self)
-    },
-
-    #' @description
-    #' Import a new datalist and drop previous.
-    #'
-    #' @param datalist `data.frame`\cr
-    #' A data.frame containing the dataset with individual information by row.
-    import_datalist = function(datalist = NULL) {
-      if (!is.data.frame(datalist)) stop_h(
-        "Unsupported type for datalist.",
-        "Datalist should be a data.frame."
-      )
-      private$.model$import_datalist(datalist)
       invisible(self)
     },
 
@@ -751,13 +652,13 @@ HouseholdModel <- R6::R6Class(
     #' If `TRUE` append missing parameter definitions.
     #' If `FALSE` drop all pre-existing definitions (default).
     load_param_template = function(append = FALSE) {
-      if (private$.model$is_blank) warning_h(
+      if (private$.is_blank()) warning_h(
         "No template parameters available for blank model."
       )
       # retrieve the template parameters file
       else private$.param$load_template(
-        file.path(private$.model$path, "template_param.R"),
-        private$.param$require(private$.model$reference),
+        file.path(private$.path(), "template_param.R"),
+        private$.param$require(private$.reference()),
         isTRUE(append)
       )
       invisible(self)
@@ -851,13 +752,13 @@ HouseholdModel <- R6::R6Class(
     #' If `TRUE` append missing augmented variable definitions.
     #' If `FALSE` drop all pre-existing definitions (default).
     load_augm_template = function(append = FALSE) {
-      if (private$.model$is_blank) warning_h(
+      if (private$.is_blank()) warning_h(
         "No template augmented variables available for blank model."
       )
       # retrieve the template augmented file
       else private$.augm$load_template(
-        file.path(private$.model$path, "template_augm.R"),
-        private$.augm$require(private$.model$reference),
+        file.path(private$.path(), "template_augm.R"),
+        private$.augm$require(private$.reference()),
         isTRUE(append)
       )
       invisible(self)
@@ -956,6 +857,8 @@ HouseholdModel <- R6::R6Class(
 
     #' @description
     #' Showcase instantaneous and cumulative values of infectivity profile.
+    #' UPDATE: this should be dropped and just parameters should be exported
+    #' to then be passed to housepi_infec_profile
     #'
     #' @param bins `integer(1)`\cr
     #' Number of bins for continuous profile (ignored if discrete).
@@ -963,34 +866,27 @@ HouseholdModel <- R6::R6Class(
     #' @return
     #' `list()`
     showcase_infec_profile = function(bins = 2000) {
+      # load options
+      bins <- as.integer(bins)
+
       # assert parameter definitions before importing
       requirements <- private$.infec_profile$param_required
       if (length(requirements) > 0) {
         private$.param$assert(requirements)
-        private$.model$import_param(self$param_defs)
+        private$.rcpp$import_param(self$param_defs)
       }
 
       # infectivity profile
-      if (length(private$.infec_profile$defs) > 0) {
-        private$.model$import_infec_profile(private$.infec_profile$defs)
-      }
+      private$.rcpp$import_infec_profile(private$.infec_profile$defs)
 
-      return(private$.model$showcase_infec_profile(bins = bins))
-    },
+      # call Rcpp method
+      output <- private$.rcpp$showcase_infec_profile(bins)
+      # reformat dataframe
+      mask <- c("gentime", "inst", "cumul")
+      output$profile <- as.data.frame(output[mask])
+      output[mask] <- NULL
 
-    ############################################################################
-    ############################################################################
-    ############################################################################
-
-    #' @description
-    #' Export a snapshot of current household and model state.
-    #' 
-    #' @param house_id `character(1)`\cr
-    #' Household id to export.
-    #'
-    #' @return `list()`
-    export_house_state_snapshot = function(house_id) {
-      return(private$.model$export_house_state_snapshot(house_id))
+      return(output)
     },
 
     ############################################################################
@@ -1047,7 +943,7 @@ HouseholdModel <- R6::R6Class(
       private$.multiplicity_engine(dataset = dataset)
 
       # infer method from cpp model object
-      private$.model$infer()
+      private$.rcpp$infer()
       invisible(self)
     },
 
@@ -1074,7 +970,7 @@ HouseholdModel <- R6::R6Class(
                           seed = seed, progress = progress)
 
       # call method from internal Rcpp object
-      return(private$.model$simulate())
+      return(cpp_data_refactor(private$.rcpp$simulate(), private$.dataset_levels))
     },
 
     #' @description
@@ -1134,7 +1030,7 @@ HouseholdModel <- R6::R6Class(
       # internal build function
       private$.build_full(dataset = dataset, seed = seed, rand_init = FALSE)
       private$.multiplicity_engine(dataset = dataset)
-      return(private$.model$evaluate())
+      return(private$.rcpp$evaluate())
     },
 
     #' @description
@@ -1193,8 +1089,19 @@ HouseholdModel <- R6::R6Class(
                           rand_init = TRUE, seed = seed, progress = progress)
       private$.multiplicity_engine(dataset = dataset)
 
+      # load options
+      scheme <- as.character(scheme)
+      n_rungs <- as.integer(n_rungs)
+
       # evaluate marginal from the internal Rcpp object
-      return(private$.model$evidence(scheme = scheme, n_rungs = n_rungs))
+      output <- private$.rcpp$estimate_evidence(scheme, n_rungs)
+
+      # reformat dataframe
+      mask <- c("inv_temper", "mean_loglike", "var_loglike")
+      output$detail <- as.data.frame(output[mask])
+      output[mask] <- NULL
+
+      return(output)
     }
   )
 )

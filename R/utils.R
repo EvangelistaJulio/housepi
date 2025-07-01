@@ -480,6 +480,30 @@ fmt_data_input_ <- function(df) {
   else return(data.frame(lapply(df, as.character)))
 }
 
+#' @title
+#' Cpp Data Refactor
+#' @description
+#' Restore factored quanties on dataset return from Cpp implementation.
+#'
+#' @param df `data.frame`\cr
+#' Dataset as output from rcpp model object.
+#' @param levels `list()`\cr
+#' Levels of the factors in the dataset.
+#'
+#' @return `data.frame`
+#'
+#' @keywords internal
+cpp_data_refactor = function(df, levels) {
+  if ((length(df) > 0) && (length(levels) > 0)) {
+    for (col in names(levels)) df[[col]] <- factor(
+      df[[col]],
+      levels = seq_along(levels[[col]]),
+      labels = levels[[col]]
+    )
+  }
+  return(df)
+}
+
 ############################################################################
 ############################################################################
 ############################################################################

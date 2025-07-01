@@ -200,14 +200,14 @@ Rcpp::List MCMC::export_house_state_snapshot(const std::string &house_id) const 
 /////////////////////////////////////  MCMC : imports from Rcpp ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void MCMC::import_setup(const Rcpp::List &x) { pImpl->import_setup(x); }
-void MCMC::import_dataset(const Rcpp::DataFrame &x) { pImpl->import_dataset(x); }
-void MCMC::import_datalist(const Rcpp::DataFrame &x) { pImpl->import_datalist(x); }
-void MCMC::import_multiplicity(const Rcpp::DataFrame &x) { pImpl->import_multiplicity(x); }
-void MCMC::import_group_rates(const Rcpp::DataFrame &x) { pImpl->import_group_rates(x); }
-void MCMC::import_param(const Rcpp::DataFrame &x) { pImpl->import_param(x); }
-void MCMC::import_infec_profile(const Rcpp::List &x) { pImpl->import_infec_profile(x); }
-void MCMC::import_augm(const Rcpp::DataFrame &x) { pImpl->import_augm(x); }
+void MCMC::import_setup(SEXP input) { pImpl->import_setup(input); }
+void MCMC::import_dataset(SEXP input) { pImpl->import_dataset(input); }
+void MCMC::import_datalist(SEXP input) { pImpl->import_datalist(input); }
+void MCMC::import_multiplicity(SEXP input) { pImpl->import_multiplicity(input); }
+void MCMC::import_group_rates(SEXP input) { pImpl->import_group_rates(input); }
+void MCMC::import_param(SEXP input) { pImpl->import_param(input); }
+void MCMC::import_infec_profile(SEXP input) { pImpl->import_infec_profile(input); }
+void MCMC::import_augm(SEXP input) { pImpl->import_augm(input); }
 
 #else
 ///////////////////////////////////////////////////////////////////////////////////////////////////
