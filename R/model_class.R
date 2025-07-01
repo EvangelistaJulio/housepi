@@ -10,6 +10,18 @@
 # model_class.R
 #
 
+#' @title
+#' Get Blank Dataset
+#' @description
+#' Template dataset associated to 'blank' model.
+#'
+#' @return `data.frame`
+#'
+#' @keywords internal
+get_blank_dataset_ <- function() {
+  data.frame(id = c("hh_01_1"), house_id = c("hh_01"), status = c(1))
+}
+
 ############################################################################
 ############################################################################
 ############################## Household Model #############################
@@ -215,9 +227,13 @@ HouseholdModel <- R6::R6Class(
     # @param dataset `data.frame` \cr
     # Input dataset for simulation.
     .build_group_rates = function() {
+      # assert definitions are complete
+      refer_file <- private$.model$reference
+      requirements <- private$.group_rates$require(refer_file)
+      private$.group_rates$assert(requirements)
+
       # proceed only if definitions exist
       if (length(private$.group_rates$defs) > 0) {
-
         # if dataset not provided, load previous
         # UPDATE: count in the wrapper while storing dataset_levels
         if (length(private$.model$last_dataset_cols) == 0) {
@@ -226,18 +242,16 @@ HouseholdModel <- R6::R6Class(
           dataset <- self$dataset
         }
 
-        if (length(dataset) > 0) {
-          # implement group rates
-          private$.group_rates$implement(dataset, private$.model$dataset_levels)
+        # implement group rates
+        private$.group_rates$implement(dataset, private$.model$dataset_levels)
 
-          # append parameter definitions if missing
-          new_param_defs <- private$.group_rates$param_defs
-          # find missing parameter definitions
-          mask <- setdiff(names(new_param_defs), self$param_defs$name)
-          new_param_defs <- new_param_defs[mask]
-          if (length(new_param_defs) > 0) {
-            self$load_param_list(from = new_param_defs, append = TRUE)
-          }
+        # append parameter definitions if missing
+        new_param_defs <- private$.group_rates$param_defs
+        # find missing parameter definitions
+        mask <- setdiff(names(new_param_defs), self$param_defs$name)
+        new_param_defs <- new_param_defs[mask]
+        if (length(new_param_defs) > 0) {
+          self$load_param_list(from = new_param_defs, append = TRUE)
         }
       }
 
@@ -287,7 +301,8 @@ HouseholdModel <- R6::R6Class(
       private$.model$import_param(self$param_defs)
 
       # group rates (import depends on param)
-      private$.model$import_group_rates(private$.group_rates$tidy_table)
+
+      private$.model$import_group_rates(self$group_rate_defs)
       # build contact rates (in development)
       private$.model$build_all_rates()
 
@@ -295,17 +310,15 @@ HouseholdModel <- R6::R6Class(
       private$.assert_augm()
 
       # infectivity profile
-      if (length(private$.infec_profile$defs) > 0) {
-        private$.model$import_infec_profile(private$.infec_profile$defs)
-      }
+      private$.model$import_infec_profile(private$.infec_profile$defs)
 
       # individual id for blank model augmented traces
       # if no default columns, assume debugging mode
-      # UPDATE: not robust in case of dataset with only default columns
       if (private$.model$is_blank && is.na(id_trace)) {
+        # UPDATE: not robust in case of dataset with only default columns
         if (length(setdiff(private$.model$last_dataset_cols,
                            c("house_id", "id", "status"))) == 0) {
-          id_trace <- "hh_01_1"
+          id_trace <- get_blank_dataset_()$id
         }
       }
 
@@ -449,16 +462,6 @@ HouseholdModel <- R6::R6Class(
       else self$load_group_rate_list(from = value, append = FALSE)
     },
 
-    #' @field group_rate_tables `list`\cr
-    #' List containing table of parameters associated to each group rate.
-    group_rate_tables = function(value) {
-      if (missing(value)) {
-        private$.build_group_rates()
-        return(private$.group_rates$logic_tables)
-      }
-      stop_h("'group_rate_tables' is read only.")
-    },
-
     #' @field house_loglike_mtx `matrix()`\cr
     #' Traces of household loglikelihoods.
     house_loglike_mtx = function(value) {
@@ -538,21 +541,20 @@ HouseholdModel <- R6::R6Class(
     #' If `TRUE` hide `pkgbuild` compilation commands (default).
     initialize = function(choice = NA, as_template = FALSE, force = FALSE,
                           name = NA, cri_level = 0.95, quiet = TRUE) {
+      # initialize internal fields
+      self$drop_all()
+
       # generate model
       private$.model <- HousepiWrapper$new(
         choice = choice, as_template = as_template, force = force,
         name = name, quiet = quiet
       )$generate()
 
-      if (private$.model$is_blank) self$import_dataset(data.frame(
-        id = c("hh_01_1"), house_id = c("hh_01"), status = c(1)
-      ))
+      # import blank template dataset
+      if (private$.model$is_blank) self$import_dataset(get_blank_dataset_())
 
       # credible interval level
       self$cri_level <- cri_level
-
-      # initialize internal fields
-      self$drop_all()
 
       invisible(self)
     },
@@ -607,8 +609,11 @@ HouseholdModel <- R6::R6Class(
     #' @description
     #' Drop all current augmented variable definitions.
     drop_group_rate_defs = function() {
-      for (p in names(private$.group_rates$param_defs)) {
-        private$.param$remove(p, show_warnings = FALSE)
+      # remove associated parameters
+      if (!is.null(private$.group_rates)) {
+        for (p in names(private$.group_rates$param_defs)) {
+          private$.param$remove(p, show_warnings = FALSE)
+        }
       }
       private$.group_rates <- HousepiGroupRate$new()
       invisible(self)
@@ -660,8 +665,7 @@ HouseholdModel <- R6::R6Class(
         private$.assert_dataset(private$.model$last_dataset_cols)
       }
 
-      # perform standard generation and dataset importation
-      private$.model$generate()
+      # dataset importation
       private$.model$import_dataset(dataset)
 
       # implement group rates and build
@@ -911,7 +915,6 @@ HouseholdModel <- R6::R6Class(
                               prior = prior, args = args,
                               min = min, max = max,
                               rule = rule, scale = scale)
-      private$.build_group_rates()
       invisible(self)
     },
 
@@ -973,6 +976,21 @@ HouseholdModel <- R6::R6Class(
       }
 
       return(private$.model$showcase_infec_profile(bins = bins))
+    },
+
+    ############################################################################
+    ############################################################################
+    ############################################################################
+
+    #' @description
+    #' Export a snapshot of current household and model state.
+    #' 
+    #' @param house_id `character(1)`\cr
+    #' Household id to export.
+    #'
+    #' @return `list()`
+    export_house_state_snapshot = function(house_id) {
+      return(private$.model$export_house_state_snapshot(house_id))
     },
 
     ############################################################################

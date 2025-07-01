@@ -39,9 +39,7 @@ hhmodel$param_defs
 ## Format dataset features
 
 Suppose our analysis wants to explore age and gender-based effects within a household survey dataset.
-We can create categorical groupings to stratify individuals based on their age, sex, etc to association individual group rates.
-Current model allows for a number of group rates (use `$help()` method to learn more), among which the individual `"susceptibility"`. 
-We can associate it as follows:
+We start by creating categorical groupings to stratify individuals based on their age, sex, etc and then associate individual group rates.
 
 ```{r}
 # load the dataset from the housepi package
@@ -50,23 +48,23 @@ dataset <- housepi::survey
 # create an age group binary variable child/adult
 dataset$agegroup <- ifelse(dataset$age <= 15, "child", "adult")
 
-# associate susceptibility group rate by column agegroup
-hhmodel$add_group_rate("susceptibility", by = "agegroup")
-```
-
-Definitions will add a new parameter for each group, except from the reference group.
-By the default, definition assumes the reference group to be the one with the largest number of counts.
-To manually provide a `reference`, the corresponding argument should be set equal to the corresponding group value.
-In order to see the effects of the group rate definitions on the model, a dataset must be imported:
-
-```{r}
 # import dataset from active field
 hhmodel$dataset <- dataset
+```
+
+Current loaded model allows for a number of group rates, among which the individual `"susceptibility"` (use `$help()` method to learn more). We can define it with the method `$add_group_rate()`. 
+By default, all group rates without a definition will be treated as associated to the reference (i.~e. `1`). Definitions will add a new parameter for each group, except for the reference group.
+By the default, definition assumes the reference group to be the one with the largest number of counts.
+To manually provide a `reference`, the corresponding argument should be set equal to the corresponding group value.
+
+```{r}
+# associate susceptibility group rate by column agegroup
+hhmodel$add_group_rate("susceptibility", by = "agegroup")
 
 # inspect group rate definitions
-hhmodel$group_rate_tables
+# note: to show group rate definitions, import a dataset before
+hhmodel$group_rate_defs
 ```
-By default, all group rates without a definition will be treated as equal to the reference. 
 To return a group rate to its default, overwrite its definition with argument `by` set to `NA`. 
 To drop all previous definitions use the method `$drop_group_rate_defs()`.
 
@@ -83,7 +81,7 @@ hhmodel$add_group_rate("susceptibility", by = c("sex", "agegroup"),
                        reference = list(sex = "F", agegroup = "adult"))
 
 # show correspoding tables with independent associations
-hhmodel$group_rate_tables$susceptibility
+hhmodel$group_rate_defs
 ```
 
 By the default, parameters associated to each grouping are assumed independent, i.e. the group rates is the product of the two parameters. 
@@ -98,7 +96,7 @@ hhmodel$add_group_rate("susceptibility", by = c("sex", "agegroup"),
                        independent = FALSE)
 
 # show table with dependent associations
-hhmodel$group_rate_tables$susceptibility
+hhmodel$group_rate_defs
 ```
 
 ## Proceed with Analysis
@@ -114,11 +112,7 @@ hhmodel$load_group_rate_list(
   infectivity = list(by = "agegroup"),
   susceptibility = list(by = c("agegroup", "sex"), independent = FALSE)
 )
-```
 
-The choice of non default group rates requires model recompilation, which is called automatically
-
-```{r}
 # inference with minimal setup (for didactical purposes only)
 hhmodel$infer(n_chains = 4, n_steps = 5000, thin = 8, n_adapt = 1000, 
               n_burnin = 1000, seed = 713, progress = 30)

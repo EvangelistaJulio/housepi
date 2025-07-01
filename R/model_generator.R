@@ -383,12 +383,10 @@ HousepiGenerator <- R6::R6Class(
           # reference script
           output <- file.path(self$path, ".refer")
           # check if reference file exists
-          if (!file.exists(output)) {
-            stop_h(
-              sprintf("Impossible to find reference file: \"%s\".", output),
-              "Try to re-generate the model with 'force = TRUE'."
-            )
-          }
+          if (!file.exists(output)) stop_h(
+            sprintf("Impossible to find reference file: \"%s\".", output),
+            "Try to re-generate the model with 'force = TRUE'."
+          )
         }
         return(output)
       }

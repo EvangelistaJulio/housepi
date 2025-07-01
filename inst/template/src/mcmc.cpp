@@ -194,7 +194,7 @@ Rcpp::DataFrame MCMC::export_house_size_report() const { return pImpl->export_ho
 Rcpp::NumericMatrix MCMC::export_traces() const { return pImpl->export_traces(); }
 Rcpp::NumericMatrix MCMC::export_house_loglike_mtx() const { return pImpl->export_house_loglike_mtx(); }
 Rcpp::List MCMC::showcase_infec_profile(int n_bins) const { return pImpl->showcase_infec_profile(n_bins); }
-Rcpp::List MCMC::export_for_debug(const std::string &house_id) const { return pImpl->export_for_debug(house_id); }
+Rcpp::List MCMC::export_house_state_snapshot(const std::string &house_id) const { return pImpl->export_house_state_snapshot(house_id); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////  MCMC : imports from Rcpp ///////////////////////////////////

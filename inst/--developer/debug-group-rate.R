@@ -28,12 +28,11 @@ hhmodel$load_group_rate_list(
   susceptibility = list(by = c("agegroup", "sex"), independent = TRUE)
 )
 
+private <- hhmodel$.__enclos_env__$private
+
 # THIS is WRONG
+# 1: community is missing
+# 2: susceptibiltiy has multiple 
 hhmodel$group_rate_defs
 
-
-# compact definition from list
-hhmodel$load_group_rate_list(
-  infectivity = list(by = "agegroup"),
-  susceptibility = list(by = c("agegroup", "sex"), independent = FALSE)
-)
+private$.export_to_cpp_standalone()

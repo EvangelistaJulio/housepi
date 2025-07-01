@@ -7,7 +7,7 @@
 #
 # Copyright (C) 2025 CAMAGLIA Francesco - Institut Pasteur, Paris (France).
 #
-# group_rate.R
+# group_rates.R
 #
 #' @title
 #' Assert dataset features
@@ -28,7 +28,7 @@ assert_dataset_features <- function(features, dataset_headers) {
   }
   if (length(missing) > 0) stop_h(
     sprintf(
-      "Unknown feature%s: \"%s\"",
+      "Unknown feature%s: %s",
       ifelse(length(missing) > 1, "s", ""),
       character_to_string_list(missing)
     ),
@@ -149,12 +149,18 @@ associate_param_names <- function(this_table,
 #' @keywords internal
 tidyup_group_rate_tables <- function(all_tables) {
   # tidy version of group rate tables
-  df_list <- lapply(names(all_tables), function(rate) {
+  drop_counts <- function(x) x[, colnames(x) != ".counts"]
+  cbind_rate <- function(x, rate) cbind(.group.rate = rate, x)
+  df_list <- c()
+  for (rate in names(all_tables)) {
     this_table <- all_tables[[rate]]
-    if (length(this_table) == 0) df <- data.frame(.param.name = "REFERENCE")
-    else df <- this_table[[1]][, names(this_table[[1]]) != ".counts"]
-    return(cbind(.group.rate = rate, df))
-  })
+    if (length(this_table) == 0) {
+      df <- list(data.frame(.group.rate = rate, .param.name = "REFERENCE"))
+    } else {
+      df <- lapply(this_table, function(x) cbind_rate(drop_counts(x), rate))
+    }
+    df_list <- c(df_list, df)
+  }
   
   # all unique column names
   all_cols <- unique(unlist(lapply(df_list, names)))
@@ -482,6 +488,7 @@ HousepiGroupRate <- R6::R6Class(
         # store the new rate logic table
         self$logic_tables[[rate_id]] <- new_logic_table
       }
+
       invisible(self)
     },
 

@@ -304,10 +304,11 @@ void MCMC::Impl::build_dataset(const dict_str_vec &input)
                     else if (tools::is_na(input.at(key)[i]))
                     {
                         data.emplace(key, HSP_NA_DOUBLE);
-                        tools::warning("Found NA values in the database.");
                     }
                     else
+                    {
                         data.emplace(key, tools::stod(input.at(key)[i], "data \"" + key + "\""));
+                    }
 
                 // if household index doesn't exist, add new household
                 if (_hhid_to_index.find(house_id) == _hhid_to_index.end())
@@ -552,48 +553,51 @@ void MCMC::Impl::GroupRates::build(const dict_str_vec &deftable)
 {
     try
     {
-        // check that tempalte headers are present
-        str_vec headers = tools::headers_from_deftable(deftable);
-        tools::check_for_missing_entries(headers, _headers);
+        if (deftable.size() > 0)
+        {
+            // check that tempalte headers are present
+            str_vec headers = tools::headers_from_deftable(deftable);
+            tools::check_for_missing_entries(headers, _headers);
 
-        // remove template headers to keep only dataset
-        headers = subtr(headers, _headers);
+            // remove template headers to keep only dataset
+            headers = subtr(headers, _headers);
 
-        // check that required dataset columns are present
-        const str_vec dataset_headers = pImpl.house_vector[0].get_member(0).keys_dataset();
-        tools::check_for_unused_entries(headers, dataset_headers);
+            // check that required dataset columns are present
+            const str_vec dataset_headers = pImpl.house_vector[0].get_member(0).keys_dataset();
+            tools::check_for_unused_entries(headers, dataset_headers);
 
-        const size_t n_rows = deftable.at(".group.rate").size();
+            const size_t n_rows = deftable.at(".group.rate").size();
 
-        // loop over all household members
-        for (Household &house : pImpl.house_vector)
-            for (Individual &member : house)
-            {
-                rate_key_mapvec<par_key> these_rates = {};
-
-                // obtain group rates for given member
-                for (size_t row = 0; row < n_rows; ++row)
+            // loop over all household members
+            for (Household &house : pImpl.house_vector)
+                for (Individual &member : house)
                 {
-                    // check if all conditions are satisfied
-                    bool tag = true;
-                    for (const data_key &d : headers)
-                        if (!tools::is_na(deftable.at(d)[row]))
-                            tag &= (member.data(d) == tools::stod(deftable.at(d)[row]));
+                    rate_key_mapvec<par_key> these_rates = {};
 
-                    if (tag)
+                    // obtain group rates for given member
+                    for (size_t row = 0; row < n_rows; ++row)
                     {
-                        const rate_key &r = deftable.at(".group.rate")[row];
-                        const par_key &p = deftable.at(".param.name")[row];
-                        if (these_rates.count(r) == 0)
-                            these_rates.emplace(r, str_vec({p}));
-                        else
-                            these_rates[r].push_back(p);
-                    }
-                }
+                        // check if all conditions are satisfied
+                        bool tag = true;
+                        for (const data_key &d : headers)
+                            if (!tools::is_na(deftable.at(d)[row]))
+                                tag &= (member.data(d) == tools::stod(deftable.at(d)[row]));
 
-                // assign rates to the individual
-                _assign_rate_as_ptrs(member, these_rates);
-            }
+                        if (tag)
+                        {
+                            const rate_key &r = deftable.at(".group.rate")[row];
+                            const par_key &p = deftable.at(".param.name")[row];
+                            if (these_rates.count(r) == 0)
+                                these_rates.emplace(r, str_vec({p}));
+                            else
+                                these_rates[r].push_back(p);
+                        }
+                    }
+
+                    // assign rates to the individual
+                    _assign_rate_as_ptrs(member, these_rates);
+                }
+        }
     }
     catch (const std::exception &e)
     {
@@ -679,9 +683,7 @@ void MCMC::Impl::build_datalist(const dict_str_vec &input)
                 for (const std::string &key : headers)
                 {
                     x = HSP_NA_DOUBLE;
-                    if (tools::is_na(input.at(key)[r]))
-                        tools::warning("Found NA values in datalist.");
-                    else
+                    if (!tools::is_na(input.at(key)[r]))
                         x = tools::stod(input.at(key)[r], "datalist \"" + key + "\"");
 
                     // append (since vector is initialized to empty)

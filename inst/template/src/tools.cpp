@@ -832,7 +832,7 @@ namespace progress
                 {
                     const unsigned where = progress * _barwidth;
                     std::ostringstream oss;
-                    oss << "\r" << _text << " |";
+                    oss << _text << " |";
                     for (unsigned u = 0; u < where; ++u)
                         oss << _symbol;
                     oss << std::string(_barwidth - where, ' ') << "| "
@@ -887,7 +887,9 @@ namespace progress
                     for (unsigned u = 0; u < _barwidth; u++)
                         oss << _symbol;
                     oss << "| " << fmt_time(elapsed)
-                        << std::string(25, ' ') << "\n";
+                        << std::string(25, ' ');
+                    if (_do_bar == &Impl::_bar_carriage_return)
+                        oss << "\n";
                     _bar(oss.str());
                 }
             }

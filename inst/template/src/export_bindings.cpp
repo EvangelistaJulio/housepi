@@ -183,7 +183,7 @@ RCPP_MODULE(housepi_infec_profile)
 //' @field export_house_size_report\cr Return a DataFrame with a report of household sizes.
 //' @field export_traces\cr Return a DataFrame with MCMC traces.
 //' @field export_house_loglike_mtx\cr Return a NumericMatrix with household loglikelihood traces.
-//' @field export_for_debug\cr Return a List with full household and model details in order to debug.
+//' @field export_house_state_snapshot\cr Return a List with a snapshot containing full household and model details.
 //' @field showcase_infec_profile\cr Return a List with a showcase of the infectivity profile.
 //' @field show_full_build\cr Show all build messages.
 //' @field show_summary\cr Show a summary of the current database.
@@ -214,7 +214,7 @@ RCPP_MODULE(housepi_model_core)
         .method("export_house_size_report", &MCMC::export_house_size_report)
         .method("export_traces", &MCMC::export_traces)
         .method("export_house_loglike_mtx", &MCMC::export_house_loglike_mtx)
-        .method("export_for_debug", &MCMC::export_for_debug)
+        .method("export_house_state_snapshot", &MCMC::export_house_state_snapshot)
         .method("showcase_infec_profile", &MCMC::showcase_infec_profile);
 
     Rcpp::class_<Model>("ModelHousepi")

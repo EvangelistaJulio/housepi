@@ -24,11 +24,13 @@
 #'
 #' @keywords internal
 cpp_data_refactor = function(df, levels) {
-  for (col in names(levels)) df[[col]] <- factor(
-    df[[col]],
-    levels = seq_along(levels[[col]]),
-    labels = levels[[col]]
-  )
+  if ((length(df) > 0) && (length(levels) > 0)) {
+    for (col in names(levels)) df[[col]] <- factor(
+      df[[col]],
+      levels = seq_along(levels[[col]]),
+      labels = levels[[col]]
+    )
+  }
   return(df)
 }
 
@@ -253,6 +255,7 @@ HousepiWrapper <- R6::R6Class(
             dataset[[col]] <- as.integer(x)
           }
         }
+
         # import data.frame in rcpp # note: it calls
         private$.rcpp$import_dataset(fmt_data_input_(dataset))
         # store column names
@@ -283,6 +286,40 @@ HousepiWrapper <- R6::R6Class(
         # store column names
         self$last_datalist_cols <- colnames(datalist)
       }
+      invisible(self)
+    },
+
+    #' @description
+    #' Wrapper of Rcpp method to import multiplicity definitions.
+    #'
+    #' @param defs `data.frame`\cr
+    #' Multiplicity definitions.
+    import_multiplicity = function(defs) {
+      private$.rcpp$import_multiplicity(lapply(defs, as.character))
+      invisible(self)
+    },
+
+    #' @description
+    #' Wrapper of Rcpp method to import group rates definitions.
+    #'
+    #' @param defs `data.frame`\cr
+    #' Group rates definitions.
+    import_group_rates = function(defs) {
+      if (length(defs > 0)) {
+        lvls <- self$dataset_levels
+        for (k in intersect(colnames(defs), names(lvls))) {
+          defs[[k]] <- as.integer(factor(defs[[k]], levels = lvls[[k]]))
+        }
+        private$.rcpp$import_group_rates(lapply(defs, as.character))
+      }
+      invisible(self)
+    },
+
+    #' @description
+    #' Wrapper of the Rcpp build_all_rates method.
+    #' FIXME: temporary for contact rates, it will be dropped.
+    build_all_rates = function() {
+      private$.rcpp$build_all_rates()
       invisible(self)
     },
 
@@ -322,39 +359,9 @@ HousepiWrapper <- R6::R6Class(
     #' @param defs `list()`\cr
     #' Infectivity profile definitions.
     import_infec_profile = function(defs) {
-      private$.rcpp$import_infec_profile(lapply(defs, as.character))
-      invisible(self)
-    },
-
-    #' @description
-    #' Wrapper of Rcpp method to import multiplicity definitions.
-    #'
-    #' @param defs `data.frame`\cr
-    #' Multiplicity definitions.
-    import_multiplicity = function(defs) {
-      private$.rcpp$import_multiplicity(lapply(defs, as.character))
-      invisible(self)
-    },
-
-    #' @description
-    #' Wrapper of Rcpp method to import group rates definitions.
-    #'
-    #' @param defs `data.frame`\cr
-    #' Group rates definitions.
-    import_group_rates = function(defs) {
-      lvls <- self$dataset_levels
-      for (k in intersect(colnames(defs), names(lvls))) {
-        defs[[k]] <- as.integer(factor(defs[[k]], levels = lvls[[k]]))
+      if (length(defs) > 0) {
+        private$.rcpp$import_infec_profile(lapply(defs, as.character))
       }
-      private$.rcpp$import_group_rates(lapply(defs, as.character))
-      invisible(self)
-    },
-
-    #' @description
-    #' Wrapper of the Rcpp build_all_rates method.
-    #' FIXME: temporary for contact rates, it will be dropped.
-    build_all_rates = function() {
-      private$.rcpp$build_all_rates()
       invisible(self)
     },
 
@@ -375,14 +382,14 @@ HousepiWrapper <- R6::R6Class(
     },
 
     #' @description
-    #' Export a list containing full house and model details.
+    #' Export a snapshot of current household and model state.
     #' 
     #' @param house_id `character(1)`\cr
     #' Household id to export.
     #'
     #' @return `list()`
-    export_state_for_debug = function(house_id) {
-      return(private$.rcpp$export_for_debug(house_id))
+    export_house_state_snapshot = function(house_id) {
+      return(private$.rcpp$export_house_state_snapshot(house_id))
     },
 
     #' @description

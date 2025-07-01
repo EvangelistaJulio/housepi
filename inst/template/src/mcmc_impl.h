@@ -382,7 +382,7 @@ public:
     Rcpp::NumericMatrix export_house_loglike_mtx() const;
     Rcpp::List showcase_infec_profile(int n_bins) const;
 
-    Rcpp::List export_for_debug(const std::string &house_id) const;
+    Rcpp::List export_house_state_snapshot(const std::string &house_id) const;
 
 #else
 

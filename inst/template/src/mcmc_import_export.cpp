@@ -196,14 +196,14 @@ Rcpp::DataFrame MCMC::Impl::export_dataset()
         if (n_individuals == 0)
             return DataFrame();
 
-        size_t n_rows = n_individuals;
+        const size_t n_rows = n_individuals;
         Rcpp::CharacterVector dataset_index = CharacterVector(n_rows);
         Rcpp::CharacterVector dataset_house_index = CharacterVector(n_rows);
         Rcpp::IntegerVector dataset_status = IntegerVector(n_rows);
         std::vector<Rcpp::NumericVector> dataset_dbl = {};
 
         // retrieve datalist headers
-        str_vec headers = house_vector[0].get_member(0).keys_dataset();
+        const str_vec headers = house_vector[0].get_member(0).keys_dataset();
 
         // other non standard dataset columns
         for (size_t s = 0; s < headers.size(); ++s)
@@ -592,11 +592,11 @@ Rcpp::List MCMC::Impl::showcase_infec_profile(int n_bins) const
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////  MCMC : Impl : infectivity profile export ///////////////////////////
+////////////////////////////////  MCMC : Impl : house state snapshot //////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Export a list containing all relevant information for a debug. */
-Rcpp::List MCMC::Impl::export_for_debug(const std::string &house_id) const
+Rcpp::List MCMC::Impl::export_house_state_snapshot(const std::string &house_id) const
 {
     using namespace Rcpp;
 

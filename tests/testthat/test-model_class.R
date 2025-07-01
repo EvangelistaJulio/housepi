@@ -24,9 +24,7 @@ test_that("Model class blank calls", {
   hhmodel <- HouseholdModel$new("blank")
 
   # blank default dataset
-  expect_true(all(hhmodel$dataset == data.frame(
-    id = c("hh_01_1"), house_id = c("hh_01"), status = 1
-  )))
+  expect_true(all(hhmodel$dataset == housepi:::get_blank_dataset_()))
 
   # correct datalist call
   datalist <- data.frame(id = "hh_01_1",
@@ -115,10 +113,8 @@ test_that("Arithmetic function with undefined x return NaN", {
   hhmodel <- HouseholdModel$new("augm-example")
 
   # NA values
-  expect_warning(
-    hhmodel$dataset <- data.frame(house_id = seq(3), id = seq(3),
-                                  status = 1, test = c(5.5, NA, -1.5))
-  )
+  hhmodel$dataset <- data.frame(house_id = seq(3), id = seq(3),
+                                status = 1, test = c(5.5, NA, -1.5))
   # NaN + something = NaN
   hhmodel$load_augm_list(noise = list(model = "norm"),
                          log_proba = "test@D + noise")
@@ -157,7 +153,6 @@ test_that("Augmented function example returns expected distribution", {
 })
 
 test_that("Augmented infection times model has correct loglikelihood", {
-  library(housepi)
   
   infec_profile_inst <- function(x, param) {
     dgamma(x, shape = param$shape, scale = param$scale)
