@@ -10,7 +10,6 @@
  * mcmc_impl.h
  *
  */
-
 #ifndef HOUSEPI__MCMC__IMPL__H
 #define HOUSEPI__MCMC__IMPL__H
 
@@ -55,29 +54,30 @@ public:
     //===== CONSTRUCTOR =====//
     //=======================//
 
-    Impl(std::function<void()> callback_init_inference,
-         std::function<void()> callback_init_simulation,
-         std::function<double(Household &)> callback_household_loglike,
-         std::function<void(Household &)> callback_simulate_house,
-         std::function<void(Household &, Individual &)> callback_update_cache)
-        : setup(),
-          group_rates(*this),
-          infec_profile(*this),
-          _callback_init_inference(std::move(callback_init_inference)),
-          _callback_init_simulation(std::move(callback_init_simulation)),
-          _callback_house_loglike(std::move(callback_household_loglike)),
-          _callback_simulate_house(std::move(callback_simulate_house)),
-          _callback_update_cache(std::move(callback_update_cache)) {}
+    Impl(std::function<void()> func_init_inference,
+         std::function<void()> func_init_simulation,
+         std::function<double(Household &)> func_household_loglike,
+         std::function<void(Household &)> func_simulate_house,
+         std::function<void(Household &, Individual &)> func_update_cache)
+        : setup(*this), param(*this), dataset(*this), datalist(*this),
+          group_rates(*this), augm(*this), infec_profile(*this),
+          callback_init_inference_(std::move(func_init_inference)),
+          callback_init_simulation_(std::move(func_init_simulation)),
+          callback_house_loglike_(std::move(func_household_loglike)),
+          callback_simulate_house_(std::move(func_simulate_house)),
+          callback_update_cache_(std::move(func_update_cache)) {}
     ~Impl() = default;
 
     //=================//
     //===== SETUP =====//
     //=================//
 
-    struct Setup
+    /* Implementation of Setup. */
+    struct ImplSetup
     {
-        Setup() : _unif(0., 1.) { seed = tools::default_setup_seed(); }
-        ~Setup() = default;
+        ImplSetup(MCMC::Impl &ptr)
+            : pImpl_(ptr), unif_(0., 1.) { seed = tools::default_setup_seed(); }
+        ~ImplSetup() = default;
 
         const str_vec file_headers = {"sample_size", "seed", "n_chains",
                                       "n_steps", "n_adapt", "thin",
@@ -113,40 +113,45 @@ public:
         //----- Progress bar -----//
         void prog_set_text(const std::string &text = HSP_NA_STRING)
         {
-            _progressbar.set_text((text == HSP_NA_STRING) ? fmt_progtxt() : text);
+            progressbar_.set_text((text == HSP_NA_STRING) ? fmt_progtxt() : text);
         }
         void prog_declare(const std::string &text = HSP_NA_STRING)
         {
             prog_set_text(text);
-            _progressbar.set_thintime(progress);
+            progressbar_.set_thintime(progress);
         }
-        void prog_open(ulong total) { _progressbar.open(total); }
-        void prog_update() { _progressbar.update(); }
-        void prog_close() { _progressbar.close(); }
-        void prog_crash() { _progressbar.crash(); }
+        void prog_open(ulong total) { progressbar_.open(total); }
+        void prog_update() { progressbar_.update(); }
+        void prog_close() { progressbar_.close(); }
+        void prog_crash() { progressbar_.crash(); }
 
         //----- Pseudo Random Number Geenerator -----//
         void set_prng_seed();
-        rnd_gen &prng() { return (this->*_do_get_prng)(); }
-        double unif() { return _unif(prng()); }
+        rnd_gen &prng() { return (this->*get_prng_)(); }
+        double unif() { return unif_(prng()); }
 
 #ifdef _HOUSEPI_RCPP
-        Rcpp::List export_defs() const;
+        void rcpp_import(SEXP input);
+        Rcpp::List rcpp_export() const;
 #else
+        void read(const std::string &pathtofile);
         std::string show() const;
 #endif
 
     private:
-        progress::Bar _progressbar; // progress bar
+        const std::string section_name_ = "setup";
+        MCMC::Impl &pImpl_; // pointer to external class
 
-        rnd_gen _prng; // Mersenne Twister 19937 generator (32 or 64 bit)
-        rnd_gen &(MCMC::Impl::Setup::*_do_get_prng)();
-        rnd_gen &_prng_unique_thread() { return _prng; }
-        std::uniform_real_distribution<double> _unif; // uniform sampler
+        progress::Bar progressbar_; // progress bar
+
+        rnd_gen prng_; // Mersenne Twister 19937 generator (32 or 64 bit)
+        rnd_gen &(MCMC::Impl::ImplSetup::*get_prng_)();
+        rnd_gen &do_prng_unique_thread_() { return prng_; }
+        std::uniform_real_distribution<double> unif_; // uniform sampler
 
 #ifdef _OPENMP
-        std::vector<rnd_gen> _prng_parallel = {}; // parallel generators (for multi-threading)
-        rnd_gen &_prng_parallel_threads() { return _prng_parallel[omp_get_thread_num()]; }
+        std::vector<rnd_gen> prng_parallel_ = {}; // parallel generators (for multi-threading)
+        rnd_gen &do_prng_parallel_threads_() { return prng_parallel_[omp_get_thread_num()]; }
 #endif
     } setup;
 
@@ -156,400 +161,548 @@ public:
     //===== PARAMETER =====//
     //=====================//
 
-    //----- Parameter - Attributes -----//
-    const str_vec param_file_headers = {"name", "value",
-                                        "const", "discr",
-                                        "prior", "arg_key", "arg_val",
-                                        "min", "max",
-                                        "rule", "scale"};
-    std::vector<par_key> param_const_list = {};
-    std::vector<par_key> param_standard_infer_list = {};
-    std::vector<par_key> param_cache_infer_list = {};
-
-    par_key_map<Variable> param_map = {}; // parameters dictionary
-    bool _is_undef_params_ = false;       // undefined parameters valid only if infer
-
-    // get value of the parameter
-    double get_param(const par_key &p) const { return param_map.at(p).get(); }
-    // get pointer to the parameter
-    const double *get_param_pointer(const par_key &p) const { return param_map.at(p).get_pointer(); }
-
-    //----- Parameter - Setter -----//
-    void init_parameters();
-    void make_param_cache_dependent(const std::string &par_name);
-
-    //----- Parameter - Metropolis-Hastings -----//
-    bool propose_valid_param_move(const par_key &p);
-    bool accept_valid_param_move(const par_key &p);
-    void recover_parameter(const par_key &p, bool cache_depen);
-
-    //==========================//
-    //===== HOUSEHOLD DATA =====//
-    //==========================//
-
-    //----- Household Data - Attributes -----//
-    size_t n_individuals = 0;
-    std::vector<data_key_map<dbl_vec>> indiv_datalist = {};
-    std::vector<Household> house_vector = {};
-    std::vector<size_t> restrict_hh_indexes = {};
-    std::unordered_map<std::string, size_t> _hhid_to_index = {};
-
-    //----- Data - Reports -----//
-    std::map<std::string, ulong> _report_indiv_ = {};
-    std::map<std::string, ulong> _report_house_ = {};
-    std::map<std::string, std::pair<ushort, ulong>> _report_hh_size_ = {};
-
-    size_t n_houses() const { return house_vector.size(); }
-    void fill_report_data();
-    ulong get_report_indiv(const std::string &key) const;
-    ulong get_report_house(const std::string &key) const;
-    std::pair<ushort, ulong> get_report_hh_size(const std::string &key) const;
-
-    //=====================//
-    //===== AUGMENTED =====//
-    //=====================//
-
-    //----- Augmented - Attributes -----//
-    const str_vec augm_file_headers = {"name", "status",
-                                       "func", "farg_key", "farg_val", "farg_at",
-                                       "value", "value_at", "init_rand",
-                                       "const", "discr",
-                                       "model", "arg_key", "arg_val", "arg_at",
-                                       "min", "min_at",
-                                       "max", "max_at",
-                                       "rule", "scale", "scale_at",
-                                       "from", "from_at"};
-    std::vector<augm_key> augm_list_full = {};
-    std::vector<augm_key> augm_list_model = {};
-    std::vector<augm_key> augm_list_infer = {};
-    std::vector<augm_key> augm_list_func = {};
-    std::map<int, std::vector<augm_key>> augm_status_map_model = {};
-    std::map<int, std::vector<augm_key>> augm_status_map_infer = {};
-
-    const std::vector<augm_key> augm_list_export() const
+    /* Implementation of Parameters. */
+    struct ImplParameter
     {
-        return subtr(augm_list_infer + augm_list_func,
-                     {AUX_IP_INST_PROFILE, AUX_IP_CUMUL_PROFILE});
-    }
+        const str_vec file_headers = {"name", "value",
+                                      "const", "discr",
+                                      "prior", "arg_key", "arg_val",
+                                      "min", "max",
+                                      "rule", "scale"};
+        std::vector<par_key> list_const = {};
+        std::vector<par_key> list_sample_standard = {};
+        std::vector<par_key> list_sample_cache = {};
+        std::vector<par_key> list_sample = {};
 
-    //----- Augmented - Setter -----//
-    void init_augmented_variables();
-    void clear_all_augm(Individual &member);
-    void assign_all_augm(Individual &member);
+        par_key_map<Variable> dictionary = {}; // parameters dictionary
+        par_key_map<dbl_vec> smpl_values = {}; // values of the sample
 
-    //----- Augmented - State-Checkers -----//
-    /* Check if there are ant augmented variable definitions. */
-    bool is_augm_any() const { return !augm_list_full.empty(); }
-    /* Check if there are non-constant augmented variable definitions. */
-    bool is_augm_sample() const { return !augm_list_infer.empty(); }
-    /* Check if there are augmented variable definitions with a model. */
-    bool is_augm_model() const { return !augm_list_model.empty(); }
-    /* Check if augmented variable definition are generic or not (i. e. individual status specific). */
-    bool is_augm_generic() const { return augm_status_map_infer.empty(); }
+        //===== CONSTRUCTOR =====//
+        ImplParameter(MCMC::Impl &ptr)
+            : pImpl_(ptr) {}
+        ~ImplParameter() = default;
+
+        //===== GETTER =====//
+        // get value of the parameter
+        double get(const par_key &p) const { return dictionary.at(p).get(); }
+        // get pointer to the parameter
+        const double *get_ptr(const par_key &p) const { return dictionary.at(p).get_ptr(); }
+
+        // flag to check if there are parameters to sample
+        bool is_sample() const { return !list_sample.empty(); }
+
+        //===== SETTER =====//
+        void build(const dict_str_vec &input);
+        void make_cache_dependent(const par_key &p);
+        void init();
+
+        void init_traces(ulong sample_size);
+        void update_traces(ulong smpl_count);
+
+#ifdef _HOUSEPI_RCPP
+        void rcpp_import(SEXP input);
+        Rcpp::NumericVector rcpp_snapshot() const;
+        Rcpp::DataFrame rcpp_export() const;
+#else
+        void read(const std::string &pathtofile);
+        void show() const;
+        void show_results() const;
+#endif
+    private:
+        const std::string section_name_ = "parameter";
+        MCMC::Impl &pImpl_; // pointer to external class
+    } param;
+
+    //=====================//
+    //=====  DATASET  =====//
+    //=====================//
+
+    /* Implementation of Dataset. */
+    struct ImplDataSet
+    {
+        //===== CONSTRUCTOR =====//
+        ImplDataSet(MCMC::Impl &ptr)
+            : pImpl_(ptr) {}
+        ~ImplDataSet() = default;
+
+        Household &operator()(size_t H) { return house_vector_[H]; }
+        const Household &operator()(const std::string &house_id) const
+        {
+            if (!hhid_to_index_.count(house_id))
+                throw std::invalid_argument(
+                    "Index \"" + house_id + "\" does not match any household in the dataset.");
+            return house_vector_.at(hhid_to_index_.at(house_id));
+        }
+
+        //===== GETTER =====//
+        size_t n_houses() const { return house_vector_.size(); }
+        size_t n_restricted_houses() const { return restrict_indexes_.size(); }
+        size_t n_individuals() const { return n_individuals_; }
+        void fill_report_data();
+        ulong get_report_indiv(const std::string &key) const;
+        ulong get_report_house(const std::string &key) const;
+        std::pair<ushort, ulong> get_report_hh_size(const std::string &key) const;
+        bool is_empty() const { return house_vector_.empty(); }
+        const str_vec &headers() const { return headers_; }
+        Household copy(size_t H) const { return house_vector_[H]; }
+
+        //===== SETTER =====//
+        void build(const dict_str_vec &input);
+        void build_multiplicity(const dict_str_vec &input);
+        void assign_cache_integer_vector(const cache_key &e);
+        void assign_cache_double_vector(const cache_key &e);
+        void assign_cache_double_matrix(const cache_key &e);
+        void init_traces(ulong sample_size);
+        void update_traces(ulong smpl_count);
+
+        //===== ITERATORS =====//
+        auto begin() { return house_vector_.begin(); }
+        auto begin() const { return house_vector_.begin(); }
+        auto end() { return house_vector_.end(); }
+        auto end() const { return house_vector_.end(); }
+
+        // T can be Individual or const Individual
+        template <typename T>
+        class ViewIterator
+        {
+            // conditional to select the vector type if constant or not
+            using VectorType = std::conditional_t<std::is_const<T>::value,
+                                                  const std::vector<Household>,
+                                                  std::vector<Household>>;
+
+            VectorType &pVector;
+            const std::vector<size_t> &indexes;
+            size_t pos;
+
+        public:
+            ViewIterator(VectorType &m, const std::vector<size_t> &i, size_t p)
+                : pVector(m), indexes(i), pos(p) {}
+
+            T &operator*() const { return pVector[indexes[pos]]; }
+            T *operator->() const { return &pVector[indexes[pos]]; }
+
+            ViewIterator &operator++()
+            {
+                ++pos;
+                return *this;
+            }
+            ViewIterator operator++(int)
+            {
+                ViewIterator tmp = *this;
+                ++(*this);
+                return tmp;
+            }
+
+            bool operator==(const ViewIterator &other) const { return pos == other.pos; }
+            bool operator!=(const ViewIterator &other) const { return !(*this == other); }
+        };
+
+        template <typename T>
+        class View
+        {
+            // conditional to select the vector type if constant or not
+            using VectorType = std::conditional_t<std::is_const<T>::value, const std::vector<Household>, std::vector<Household>>;
+            using iterator = ViewIterator<T>;
+
+        public:
+            VectorType &vec;
+            const std::vector<size_t> &indexes;
+
+            View(VectorType &m, const std::vector<size_t> &i)
+                : vec(m), indexes(i) {}
+
+            iterator begin() { return iterator(vec, indexes, 0); }
+            iterator end() { return iterator(vec, indexes, indexes.size()); }
+        };
+
+        View<Household> restricted() { return View<Household>(house_vector_, restrict_indexes_); }
+        View<const Household> restricted() const { return View<const Household>(house_vector_, restrict_indexes_); }
+        Household &restricted(size_t R) { return house_vector_[restrict_indexes_[R]]; }
+
+        //===== IMPORT/EXPORT =====//
+#ifdef _HOUSEPI_RCPP
+        void rcpp_import(SEXP input);
+        void rcpp_import_multiplicity(SEXP input);
+
+        Rcpp::DataFrame rcpp_snapshot(const std::string &house_id) const;
+        Rcpp::DataFrame rcpp_export() const;
+        Rcpp::DataFrame rcpp_export_report() const;
+        Rcpp::DataFrame rcpp_export_size_report() const;
+        Rcpp::NumericMatrix rcpp_export_traces() const;
+#else
+        void read(const std::string &pathtofile);
+        void read_multiplicity(const std::string &pathtofile);
+        void show_summary() const;
+
+        void print_open(const std::string &pathtofile);
+        void print_update(Household &house);
+        void print_close();
+#endif
+    private:
+        const std::string section_name_ = "dataset";
+        MCMC::Impl &pImpl_; // pointer to external class
+
+        str_vec headers_ = {};
+
+        size_t n_individuals_ = 0;
+        std::vector<Household> house_vector_ = {};
+        std::unordered_map<std::string, size_t> hhid_to_index_ = {};
+        std::vector<size_t> restrict_indexes_ = {};
+
+        std::vector<dbl_vec> smpl_values_ = {};
+
+        std::map<std::string, ulong> report_indiv_ = {};
+        std::map<std::string, ulong> report_house_ = {};
+        std::map<std::string, std::pair<ushort, ulong>> report_size_ = {};
+
+        std::ofstream aux_dataset_ofstream_;
+    } dataset;
+
+    //======================//
+    //=====  DATALIST  =====//
+    //======================//
+
+    /* Implementation of Individual Datalist. */
+    struct ImplDataList
+    {
+        //===== CONSTRUCTOR =====//
+        ImplDataList(MCMC::Impl &ptr)
+            : pImpl_(ptr) {}
+        ~ImplDataList() = default;
+
+        //===== GETTER =====//
+        bool is_empty() const { return indiv_datalist_.empty(); }
+        const str_vec &headers() const { return headers_; }
+
+        //===== SETTER =====//
+        void build(const dict_str_vec &input);
+
+        //===== IMPORT/EXPORT =====//
+#ifdef _HOUSEPI_RCPP
+        void rcpp_import(SEXP input);
+
+        Rcpp::DataFrame rcpp_snapshot(const std::string &house_id) const;
+        Rcpp::DataFrame rcpp_export() const;
+#else
+        void read(const std::string &pathtofile);
+#endif
+    private:
+        const std::string section_name_ = "datalist";
+        MCMC::Impl &pImpl_; // pointer to external class
+        str_vec headers_ = {};
+        std::vector<data_key_map<dbl_vec>> indiv_datalist_ = {};
+    } datalist;
 
     //=======================//
     //===== GROUP RATES =====//
     //=======================//
 
-    struct GroupRates
+    /* Implementation of Group Rates. */
+    struct ImplGroupRates
     {
-        GroupRates(MCMC::Impl &ptr)
-            : pImpl(ptr) {}
-        ~GroupRates() = default;
+        //===== CONSTRUCTOR =====//
+        ImplGroupRates(MCMC::Impl &ptr)
+            : pImpl_(ptr) {}
+        ~ImplGroupRates() = default;
 
+        //===== GETTER =====//
+        bool is_empty() const { return headers_.empty(); }
+
+        //===== SETTER =====//
         void build(const dict_str_vec &input);
 
+        //===== IMPORT/EXPORT =====//
+#ifdef _HOUSEPI_RCPP
+        void rcpp_import(SEXP input);
+        Rcpp::DataFrame rcpp_snapshot(const std::string &house_id) const;
+#else
+        void read(const std::string &pathtofile);
+#endif
     private:
-        MCMC::Impl &pImpl; // pointer to external class
-        const str_vec _headers = {".group.rate", ".param.name"};
+        const std::string section_name_ = "group rates";
+        MCMC::Impl &pImpl_; // pointer to external class
 
-        void _assign_rate_as_ptrs(Individual &member,
+        const str_vec file_headers_ = {"group_rate", "param_name"};
+        str_vec headers_ = {};
+
+        void assign_rate_as_ptrs_(Individual &member,
                                   const rate_key_mapvec<par_key> &these_rates);
     } group_rates;
+
+    //=====================//
+    //===== AUGMENTED =====//
+    //=====================//
+
+    /* Implementation of Augmented Variables. */
+    struct ImplAugmented
+    {
+        dict_str_vec deftable = {};
+        const str_vec file_headers = {"name", "status",
+                                      "func", "farg_key", "farg_val", "farg_at",
+                                      "value", "value_at", "init_rand",
+                                      "const", "discr",
+                                      "model", "arg_key", "arg_val", "arg_at",
+                                      "min", "min_at",
+                                      "max", "max_at",
+                                      "rule", "scale", "scale_at",
+                                      "from", "from_at"};
+
+        std::vector<augm_key> list_full = {};
+        std::vector<augm_key> list_model = {};
+        std::vector<augm_key> list_sample = {};
+        std::vector<augm_key> list_func = {};
+        std::map<int, std::vector<augm_key>> status_map_model = {};
+        std::map<int, std::vector<augm_key>> status_map_infer = {};
+
+        // optional augmented posterior sample
+        std::vector<const Individual *> smpl_individuals = {};
+        std::vector<augm_key_map<dbl_vec>> smpl_values = {};
+
+        //===== CONSTRUCTOR =====//
+        ImplAugmented(MCMC::Impl &ptr)
+            : pImpl_(ptr) {}
+        ~ImplAugmented() = default;
+
+        //===== SETTER =====//
+        void build();
+        void init();
+
+        void clear_all(Individual &member);
+        void assign_all(Individual &member);
+
+        void init_traces(ulong sample_size);
+        void update_traces(ulong smpl_count);
+
+        //===== GETTER =====//
+        const std::vector<augm_key> list_export() const
+        {
+            return list_sample + list_func - str_vec({AUX_IP_INST_PROFILE, AUX_IP_CUMUL_PROFILE});
+        }
+
+        /* Flag if there are ant augmented variable definitions. */
+        bool is_any() const { return !list_full.empty(); }
+        /* Flag if there are non-constant augmented variable definitions. */
+        bool is_sample() const { return !list_sample.empty(); }
+        /* Flag if there are augmented variable definitions with a model. */
+        bool is_model() const { return !list_model.empty(); }
+        /* Flag if augmented variable definition are generic or not (i. e. individual status specific). */
+        bool is_generic() const { return status_map_infer.empty(); }
+        /* Flag if augmented traces are stored. */
+        bool is_traces() const { return !smpl_individuals.empty(); }
+
+#ifdef _HOUSEPI_RCPP
+        void rcpp_import(SEXP input);
+        Rcpp::DataFrame rcpp_snapshot(const std::string &house_id) const;
+#else
+        void read(const std::string &pathtofile);
+#endif
+
+    private:
+        const std::string section_name_ = "augmented variables";
+        MCMC::Impl &pImpl_; // pointer to external class
+
+        const dict_str_vec check_name_status_(const dict_str_vec &deftable);
+        void allocate_univocal_defs_(const dict_str_vec &check);
+        void set_id_trace_(str_vec &id_trace);
+
+        double type_to_double_(const Individual &member,
+                               const std::string &tkn_val, const std::string &tkn_typ);
+        void assign_attributes_(Individual &member, const augm_key &a,
+                                const str_vec &keys, const str_vec &vals, const str_vec &typs,
+                                const std::vector<bool> &is_arg, bool is_var_model);
+
+        void assign_func_args_(Individual &member, const augm_key &a,
+                               const str_vec &keys, const str_vec &vals, const str_vec &typs);
+        void assign_func_range_(Individual &member, const augm_key &a,
+                                const str_vec &vals, const str_vec &typs);
+
+        void assign_model_args_(Individual &member, const augm_key &a,
+                                const str_vec &keys, const str_vec &vals, const str_vec &typs);
+        void assign_model_range_(Individual &member, const augm_key &a,
+                                 const str_vec &vals, const str_vec &typs);
+    } augm;
 
     //===============================//
     //===== INFECTIVITY PROFILE =====//
     //===============================//
 
-    struct InfecProfile
+    /* Implementation of Infectivity Profile. */
+    struct ImplInfecProfile
     {
     public:
-        dict_str_str deflist_template = {};
-        std::shared_ptr<Distribution> profile = nullptr;
-
         //===== CONSTRUCTOR =====//
-        InfecProfile(MCMC::Impl &ptr)
-            : profile(std::make_unique<Distribution>()),
-              pImpl(ptr) {}
-        ~InfecProfile() = default;
+        ImplInfecProfile(MCMC::Impl &ptr)
+            : pImpl_(ptr),
+              profile_(std::make_unique<Distribution>()) {}
+        ~ImplInfecProfile() = default;
 
         //===== SETTER =====//
         void build(const dict_str_str &deflist);
-        void assign_template();
-        void init_lookup();
-        void recover_lookup();
-        void update_lookup();
+        void assign_template(const dict_str_str &deflist);
         void append_augm_definition();
+        void init();
+        void update(bool is_cache_depen);
+        void recover(bool is_cache_depen);
 
         //===== GETTER =====//
-        bool is_lookup() const { return !_lookup_inst.empty(); }
-        bool is_augmented() const { return !_augm_infec_profile_deflist.empty(); }
+        bool is_lookup() const { return !lookup_inst_.empty(); }
+        bool is_augmented() const { return !augm_infec_profile_deflist_.empty(); }
 
-        double inst(const Individual &member, double t) { return (this->*_do_inst)(member, t); }
-        double cumul(const Individual &member, double t) { return (this->*_do_cumul)(member, t); }
-
-    private:
-        MCMC::Impl &pImpl; // pointer to external class
-        const str_vec _headers = {"name", "discr",
-                                  "arg_key", "arg_val", "arg_at",
-                                  "max", "max_at"};
-        // lookup table
-        size_t _size_lut = 0;
-        dbl_vec _lookup_inst = {};
-        dbl_vec _lookup_cumul = {};
-        dbl_vec _lookup_buffer_inst = {};
-        dbl_vec _lookup_buffer_cumul = {};
-        dict_str_vec _augm_infec_profile_deflist = {};
-
-        void _build_generic_profile(const dict_str_str &deflist);
-        void _build_augmented_profile(const dict_str_str &deflist);
-
-        void _assign_single_attribute(const std::string &key,
-                                      const std::string &val,
-                                      const std::string &at,
-                                      bool is_arg);
-        void _assign_arguments(const str_vec &keys,
-                               const str_vec &vals,
-                               const str_vec &typs);
-
-        //===== Functional methods for getter methods =====//
-        double (InfecProfile::*_do_inst)(const Individual &, double) = &InfecProfile::__default_inst;
-        double (InfecProfile::*_do_cumul)(const Individual &, double) = &InfecProfile::__default_cumul;
-
-        double __default_inst(const Individual &member, double t);
-        double __default_cumul(const Individual &member, double t);
-        double __lookup_inst(const Individual &member, double t);
-        double __lookup_cumul(const Individual &member, double t);
-        double __augm_inst(const Individual &member, double t);
-        double __augm_cumul(const Individual &member, double t);
-    } infec_profile;
-
-    void update_infec_profile();
-    void recover_infec_profile(bool is_cache_depen);
-    double infec_profile_inst(const Individual &member, double t) { return infec_profile.inst(member, t); }
-    double infec_profile_cumul(const Individual &member, double t) { return infec_profile.cumul(member, t); }
-
-    //=================//
-    //===== BUILD =====//
-    //=================//
-
-    void build_dataset(const dict_str_vec &input);
-    void build_datalist(const dict_str_vec &input);
-    void build_multiplicity(const dict_str_vec &input);
-    void build_param(const dict_str_vec &input);
-    void build_augm();
-
-    //===========================//
-    //===== IMPORTS/EXPORTS =====//
-    //===========================//
+        double inst(const Individual &member, double t) { return (this->*inst_)(member, t); }
+        double cumul(const Individual &member, double t) { return (this->*cumul_)(member, t); }
 
 #ifdef _HOUSEPI_RCPP
+        void rcpp_import(SEXP input);
 
-    //----- C++ Print -----//
-    Rcpp::DataFrame simulate();
-    Rcpp::List estimate_evidence(const std::string &scheme,
-                                 ulong n_rungs);
-
-    //----- Rcpp IMPORTS -----//
-    void import_setup(SEXP input);
-    void import_dataset(SEXP input);
-    void import_datalist(SEXP input);
-    void import_multiplicity(SEXP input);
-    void import_group_rates(SEXP input);
-    void import_param(SEXP input);
-    void import_infec_profile(SEXP input);
-    void import_augm(SEXP input);
-
-    //----- Rcpp EXPORTS -----//
-    Rcpp::DataFrame export_dataset();
-    Rcpp::DataFrame export_datalist();
-    Rcpp::DataFrame export_dataset_report() const;
-    Rcpp::DataFrame export_house_size_report() const;
-
-    Rcpp::List export_setup() const { return setup.export_defs(); }
-    Rcpp::DataFrame export_param() const;
-    Rcpp::NumericMatrix export_traces() const;
-    Rcpp::NumericMatrix export_house_loglike_mtx() const;
-    Rcpp::List showcase_infec_profile(int n_bins) const;
-
-    Rcpp::List export_house_state_snapshot(const std::string &house_id) const;
-
+        Rcpp::DataFrame rcpp_snapshot(const std::string &house_id) const;
+        Rcpp::List rcpp_showcase(int n_bins) const;
 #else
-
-    //----- C++ Print -----//
-    void print_infer_state(const std::string &output_filename = HSP_NA_STRING) const;
-    void print_simulated_dataset(const std::string &output_filename = HSP_NA_STRING);
-    void print_evidence(const std::string &scheme, ulong n_rungs);
-
-    //----- READ -----//
-    void read_setup(const std::string &pathtofile);
-    void read_dataset(const std::string &pathtofile);
-    void read_datalist(const std::string &pathtofile);
-    void read_multiplicity(const std::string &pathtofile);
-    void read_group_rates(const std::string &pathtofile);
-    void read_param(const std::string &pathtofile);
-    void read_augm(const std::string &pathtofile);
-    void read_infec_profile(const std::string &pathtofile);
-
-    //----- SHOW -----//
-    void show_summary() const;
-    void show_setup() const;
-    void show_all_params() const;
-    void show_results() const;
-
-    //----- Cpp Prints -----//
-    std::ofstream aux_dataset_ofstream;
-    void _aux_print_dataset_init_(const std::string &pathtofile);
-    void _aux_print_dataset_update_(Household &house);
-    void _aux_print_dataset_finalize_();
-
+        void read(const std::string &pathtofile);
 #endif
 
-    //===============================//
-    //===== METROPOLIS-HASTINGS =====//
-    //===============================//
+    private:
+        const std::string section_name_ = "infectivity profile";
+        MCMC::Impl &pImpl_; // pointer to external class
+        std::shared_ptr<Distribution> profile_ = nullptr;
+        dict_str_str deflist_template_ = {};
 
-    double full_loglike = 0.; // current full loglikelihood
-    double full_buffer = 0.;  // buffer loglikelihood
+        const str_vec headers_ = {"name", "discr",
+                                  "arg_key", "arg_val", "arg_at",
+                                  "max", "max_at"};
 
-    //----- Containers for posterior sample values -----//
-    ulong smpl_count = 0;
-    dbl_vec smpl_full_loglike = {};
-    par_key_map<dbl_vec> smpl_param_value = {};
-    std::vector<dbl_vec> smpl_house_loglike = {};
+        // lookup table
+        size_t size_lut_ = 0;
+        dbl_vec lookup_inst_ = {};
+        dbl_vec lookup_cumul_ = {};
+        dbl_vec lookup_buffer_inst_ = {};
+        dbl_vec lookup_buffer_cumul_ = {};
+        // augmented function
+        dict_str_vec augm_infec_profile_deflist_ = {};
 
-    // optional augmented posterior sample
-    std::vector<const Individual *> smpl_individual_star = {};
-    std::vector<augm_key_map<dbl_vec>> smpl_augm_value = {};
+        void init_lookup_();
 
-    void assert_proper_dataset();
-    void assert_proper_mcmc_setup();
+        void build_generic_profile_(const dict_str_str &deflist);
+        void build_augmented_profile_(const dict_str_str &deflist);
+
+        void assign_single_attribute_(const std::string &key, const std::string &val, const std::string &at,
+                                      bool is_arg);
+        void assign_arguments_(const str_vec &keys, const str_vec &vals, const str_vec &typs);
+
+        //===== Functional methods for getter methods =====//
+        double (ImplInfecProfile::*inst_)(const Individual &, double) = &ImplInfecProfile::do_inst_default_;
+        double do_inst_default_(const Individual &member, double t);
+        double do_inst_lookup_(const Individual &member, double t);
+        double do_inst_augm_(const Individual &member, double t);
+
+        double (ImplInfecProfile::*cumul_)(const Individual &, double) = &ImplInfecProfile::do_cumul_default_;
+        double do_cumul_default_(const Individual &member, double t);
+        double do_cumul_lookup_(const Individual &member, double t);
+        double do_cumul_augm_(const Individual &member, double t);
+    } infec_profile;
+
+    //=================================//
+    //=====  METROPOLIS-HASTINGS  =====//
+    //=================================//
 
     double evaluate();
     void infer();
 
-    /* Set new full loglikelihood value and buffer old value. */
-    void set_full_loglike(double new_ll)
-    {
-        full_buffer = full_loglike;
-        full_loglike = new_ll;
-    }
+#ifdef _HOUSEPI_RCPP
+    //----- C++ Print -----//
+    Rcpp::DataFrame simulate();
+    Rcpp::List evidence(const std::string &scheme, ulong n_rungs);
 
-    /* Increment full loglikelohood by a delta, buffer old value. */
-    void increment_full_loglike(double delta) { set_full_loglike(full_loglike + delta); }
-
-    /* Compute statistics from sample of full loglikelihood. */
-    const std::pair<double, double> _smpl_full_loglike_stats() const { return tools::compute_stats(smpl_full_loglike); }
+    //----- Rcpp EXPORTS -----//
+    Rcpp::NumericMatrix export_traces() const;
+    Rcpp::List export_house_state_snapshot(const std::string &house_id) const;
+#else
+    //----- C++ Print -----//
+    void print_infer_state(const std::string &output_filename = HSP_NA_STRING) const;
+    void print_simulated_dataset(const std::string &output_filename = HSP_NA_STRING);
+    void print_evidence(const std::string &scheme, ulong n_rungs);
+#endif
 
 private:
     //=======================================//
     //===== CALLBACKS (VIRTUAL METHODS) =====//
     //=======================================//
 
-    std::function<void()> _callback_init_inference;
-    std::function<void()> _callback_init_simulation;
-    std::function<double(Household &)> _callback_house_loglike;
-    std::function<void(Household &)> _callback_simulate_house;
-    std::function<void(Household &, Individual &)> _callback_update_cache;
+    std::function<void()> callback_init_inference_;
+    std::function<void()> callback_init_simulation_;
+    std::function<double(Household &)> callback_house_loglike_;
+    std::function<void(Household &)> callback_simulate_house_;
+    std::function<void(Household &, Individual &)> callback_update_cache_;
 
-    void _init_model_for_inference() { _callback_init_inference(); }
-    void _init_model_for_simulation() { _callback_init_simulation(); }
-    void _simulate_single_household(Household &h) { _callback_simulate_house(h); }
-    void _update_cache_dependecies(Household &h, Individual &i) { _callback_update_cache(h, i); }
+    void init_model_for_inferencee_() { callback_init_inference_(); }
+    void init_model_for_simulation_() { callback_init_simulation_(); }
+    void simulate_single_household_(Household &h) { callback_simulate_house_(h); }
+    void update_cache_dependecies_(Household &h, Individual &i) { callback_update_cache_(h, i); }
 
-    double _compute_and_set_household_obs_loglike(Household &h)
+    double compute_and_set_household_obs_loglike_(Household &h)
     {
-        const double output = _callback_house_loglike(h);
+        const double output = callback_house_loglike_(h);
         h.set_obs_loglike(output);
         return output;
     }
 
-    //=================//
-    //===== BUILD =====//
-    //=================//
+    //=================================//
+    //=====  METROPOLIS-HASTINGS  =====//
+    //=================================//
 
-    dict_str_vec _param_deftable = {};
-    dict_str_vec _augm_deftable = {};
+    double full_loglike_ = 0.; // current full loglikelihood
+    double full_buffer_ = 0.;  // buffer loglikelihood
 
-    //----- build augmented : auxiliary methods -----//
-    const dict_str_vec _build_augm_name_status_check();
-    void _build_augm_allocate_univocal_defs(const dict_str_vec &check);
-    void _build_augm_set_id_trace();
+    ulong smpl_count_ = 0;
+    dbl_vec smpl_full_loglike_ = {};
 
-    double _type_to_double(const Individual &member,
-                           const std::string &tkn_val,
-                           const std::string &tkn_typ);
-    void _assign_augm_attributes(Individual &member,
-                                 const augm_key &a,
-                                 const str_vec &keys,
-                                 const str_vec &vals,
-                                 const str_vec &typs,
-                                 const std::vector<bool> &is_arg,
-                                 bool is_var_model);
+    void assert_proper_dataset_();
+    void init_monte_carlo_();
 
-    void _assign_augm_func_args(Individual &member,
-                                const augm_key &a,
-                                const str_vec &keys,
-                                const str_vec &vals,
-                                const str_vec &typs);
-    void _assign_augm_func_range(Individual &member,
-                                 const augm_key &a,
-                                 const str_vec &vals,
-                                 const str_vec &typs);
+    /* Set new full loglikelihood value and buffer old value. */
+    void set_full_loglike_(double new_ll)
+    {
+        full_buffer_ = full_loglike_;
+        full_loglike_ = new_ll;
+    }
 
-    void _assign_augm_model_args(Individual &member,
-                                 const augm_key &a,
-                                 const str_vec &keys,
-                                 const str_vec &vals,
-                                 const str_vec &typs);
-    void _assign_augm_model_range(Individual &member,
-                                  const augm_key &a,
-                                  const str_vec &vals,
-                                  const str_vec &typs);
+    /* Increment full loglikelohood by a delta, buffer old value. */
+    void increment_full_loglike_(double delta) { set_full_loglike_(full_loglike_ + delta); }
 
-    //======================//
-    //===== METROPOLIS =====//
-    //======================//
-
-    void _init_move_counts();
-    void _init_infer_diagnostics();
-    void _update_posterior_sample();
-    void _update_full_loglike(bool cache_depen);
-    double _update_house_loglike(size_t R, bool is_augm_ll, bool cache_depen);
-    void _run_monte_carlo();
-    void _move_all();
-    void _move_all_and_adapt_params(ulong step);
+    void init_move_counts_();
+    void init_infer_diagnostics_();
+    void update_posterior_sample_();
+    void update_full_loglike_(bool cache_depen);
+    double update_house_loglike_(Household &house, bool is_augm_ll, bool is_cache_depen);
+    void run_monte_carlo_();
+    void move_all_();
+    void move_all_and_adapt_params_(ulong step);
 
     //----- Metropolis - parameter moves -----//
-    bool _move_single_parameter(const par_key &p, bool cache_depen);
+    bool move_single_parameter_(const par_key &p, bool cache_depen);
+    bool propose_valid_param_move_(const par_key &p);
+    bool accept_valid_param_move_(const par_key &p);
+    void recover_parameter_(const par_key &p, bool cache_depen);
 
     //----- Metropolis : augmented moves -----//
-    void _move_all_augm();
-    double _move_augm_single_house(size_t H);
-    double _metropolis_augm_single_move(Household &house, Individual &member, const augm_key &a);
+    void move_all_augm_();
+    double move_augm_single_house_(Household &house);
+    double metropolis_augm_single_move_(Household &house, Individual &member, const augm_key &a);
 
-    double (MCMC::Impl::*_do_move_augm_indiv)(Household &, Individual &) = &MCMC::Impl::__move_augm_indiv_generic;
-    double __move_augm_indiv_generic(Household &house, Individual &member);
-    double __move_augm_indiv_by_status(Household &house, Individual &member);
+    double (MCMC::Impl::*move_augm_indiv_)(Household &, Individual &) = &MCMC::Impl::do_move_augm_indiv_generic_;
+    double do_move_augm_indiv_generic_(Household &house, Individual &member);
+    double do_move_augm_indiv_by_status_(Household &house, Individual &member);
+
+    /* Compute statistics from sample of full loglikelihood. */
+    const std::pair<double, double> smpl_full_loglike_stats_() const { return tools::compute_stats(smpl_full_loglike_); }
 
     //----- Metropolis : power posteriors -----//
-    const std::vector<dbl_vec> _power_posteriors(const std::string &scheme, ulong N);
+    const std::vector<dbl_vec> power_posteriors_(const std::string &scheme, ulong N);
 
     //====================//
     //===== SIMULATE =====//
     //====================//
 
-    void _aux_init_simulate();
+    void aux_init_simulate_();
 };
 
 #endif // HOUSEPI__MCMC__IMPL__H

@@ -52,9 +52,9 @@ void Model::init_model_for_inference()
 			"A missing status was found : incompatible with the model.");
 
 	//===== Allocate memory for the escape matrix =====//
-	assign_cache_house_integer_vector("order");
-	assign_cache_house_double_vector("commu-escprob");
-	assign_cache_house_double_matrix("p2p-escprob");
+	cache_house_integer_vector("order");
+	cache_house_double_vector("commu-escprob");
+	cache_house_double_matrix("p2p-escprob");
 
 	//=====Initialize look-up-table to largest possible value=====//
 	bax::init_escape_patterns_lookuptable(get_report_hh_size("max cases").first);

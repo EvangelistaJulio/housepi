@@ -42,11 +42,11 @@ void Model::init_user_advanced_setup()
 void Model::init_model_for_inference()
 {
 	// integer for index of introduction case
-	assign_cache_house_integer_vector("intro_case");
+	cache_house_integer_vector("intro_case");
 
 	// matrices for the instantaneous and cumulative infectivity profiles
-	assign_cache_house_double_matrix("inst");
-	assign_cache_house_double_matrix("cumul");
+	cache_house_double_matrix("inst");
+	cache_house_double_matrix("cumul");
 }
 
 /* Initialize parameters and augmented variables. */

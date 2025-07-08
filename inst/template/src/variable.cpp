@@ -30,34 +30,34 @@ Proposer::Proposer(std::shared_ptr<Distribution> distr,
                    double rule_start_value,
                    const std::vector<ushort> &args_to_adapt,
                    bool is_discrete)
-    : _distr_ptr(distr)
+    : pDistr_(distr)
 {
     // default proposer name derives from distribution
-    _proposer_name = _distr_ptr->show_name();
+    proposer_name_ = pDistr_->show_name();
 
     // set to discrete
-    _distr_ptr->init_reshaping(is_discrete);
+    pDistr_->init_reshaping(is_discrete);
 
     // assign user rule scale
     if (!tools::is_na(rule_scale))
-        _user_rule_scale = std::fabs(rule_scale);
+        user_rule_scale_ = std::fabs(rule_scale);
 
     // by default proposal is from previous state
-    _is_start_from_zero = false;
+    is_start_from_zero_ = false;
 
     // proposal alwats starting by given value
     if (!tools::is_na(rule_start_value))
     {
-        _is_start_from_zero = true;
+        is_start_from_zero_ = true;
         set_rule_start_value(rule_start_value);
     }
 
     // load which are the parameter to be adapted
-    _n_args_to_adapt = args_to_adapt.size();
-    _args_to_adapt_list = new ushort[_n_args_to_adapt];
+    n_args_to_adapt_ = args_to_adapt.size();
+    args_to_adapt_list_ = new ushort[n_args_to_adapt_];
 
-    for (ushort c = 0; c < _n_args_to_adapt; ++c)
-        _args_to_adapt_list[c] = args_to_adapt.at(c);
+    for (ushort c = 0; c < n_args_to_adapt_; ++c)
+        args_to_adapt_list_[c] = args_to_adapt.at(c);
 };
 
 /* Proposer constructor from Distribution name. */
@@ -78,10 +78,10 @@ void Proposer::adapt(double ratio)
 {
     double factor = 1. + (1. - ratio) * (get_accept_rate() - TARGET_ACCEPT_RATE);
     // loop over all arguments to adapt
-    for (ushort c = 0; c < _n_args_to_adapt; ++c)
+    for (ushort c = 0; c < n_args_to_adapt_; ++c)
     {
-        ushort arg_id = _args_to_adapt_list[c];
-        (_distr_ptr->set_arg)(arg_id, factor * (_distr_ptr->arg)(arg_id));
+        ushort arg_id = args_to_adapt_list_[c];
+        (pDistr_->set_arg)(arg_id, factor * (pDistr_->arg)(arg_id));
     }
 }
 
@@ -91,10 +91,10 @@ void Proposer::adapt(double ratio)
 
 const std::string Proposer::show_scale() const
 {
-    if (_n_args_to_adapt == 0)
+    if (n_args_to_adapt_ == 0)
         return HSP_NA_STRING;
     else
-        return std::to_string(std::fabs((_distr_ptr->arg)(_args_to_adapt_list[0])));
+        return std::to_string(std::fabs((pDistr_->arg)(args_to_adapt_list_[0])));
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -114,13 +114,13 @@ public:
     //===== CONSTRUCTOR =====//
     Draw_Proposer(std::shared_ptr<Distribution> distr)
     {
-        _distr_ptr = distr;
+        pDistr_ = distr;
 
-        _proposer_name = "draw";
+        proposer_name_ = "draw";
         // proposer functional method
-        _do_propose = &Draw_Proposer::__propose_draw_rand;
+        propose_ = &Draw_Proposer::do_propose_draw_rand_;
         // logratio functional method
-        _do_logratio = &Draw_Proposer::__logratio_pdf;
+        logratio_ = &Draw_Proposer::do_logratio_pdf_;
     }
     ~Draw_Proposer() = default;
 };
@@ -141,17 +141,17 @@ public:
         // initialize
         user_reset();
         // proposer functional method
-        _do_propose = &Uniform_Proposer::__propose_sum_to_previous;
+        propose_ = &Uniform_Proposer::do_propose_sum_to_previous_;
         // logratio functional method
-        _do_logratio = &Uniform_Proposer::__logratio_symm;
+        logratio_ = &Uniform_Proposer::do_logratio_symm_;
     }
     ~Uniform_Proposer() = default;
 
     //===== SETTER =====//
     void user_reset() override final
     {
-        _distr_ptr->assign_attr("min", HSP_ATTR_ARGUMENT, -_user_rule_scale);
-        _distr_ptr->assign_attr("max", HSP_ATTR_ARGUMENT, _user_rule_scale);
+        pDistr_->assign_attr("min", HSP_ATTR_ARGUMENT, -user_rule_scale_);
+        pDistr_->assign_attr("max", HSP_ATTR_ARGUMENT, user_rule_scale_);
     }
 };
 
@@ -171,20 +171,20 @@ public:
         // initialize
         user_reset();
         // proposer functional method
-        _do_propose = &Normal_Proposer::__propose_sum_to_previous;
+        propose_ = &Normal_Proposer::do_propose_sum_to_previous_;
         // logratio functional method
         if (is_rule_start_from_zero())
-            _do_logratio = &Normal_Proposer::__logratio_sum_to_zero;
+            logratio_ = &Normal_Proposer::do_logratio_sum_to_zero_;
         else
-            _do_logratio = &Normal_Proposer::__logratio_symm;
+            logratio_ = &Normal_Proposer::do_logratio_symm_;
     }
     ~Normal_Proposer() = default;
 
     //===== SETTER =====//
     void user_reset() override final
     {
-        _distr_ptr->assign_attr("mean", HSP_ATTR_ARGUMENT, 0.);
-        _distr_ptr->assign_attr("sd", HSP_ATTR_ARGUMENT, _user_rule_scale);
+        pDistr_->assign_attr("mean", HSP_ATTR_ARGUMENT, 0.);
+        pDistr_->assign_attr("sd", HSP_ATTR_ARGUMENT, user_rule_scale_);
     }
 };
 
@@ -204,20 +204,20 @@ public:
         // initialize
         user_reset();
         // proposer functional method
-        _do_propose = &Lognorm_Proposer::__propose_times_previous;
+        propose_ = &Lognorm_Proposer::do_propose_times_previous_;
         // logratio functional method
         if (is_rule_start_from_zero())
-            _do_logratio = &Lognorm_Proposer::__logratio_times_zero;
+            logratio_ = &Lognorm_Proposer::do_logratio_times_zero_;
         else
-            _do_logratio = &Lognorm_Proposer::__logratio_lognorm_symm;
+            logratio_ = &Lognorm_Proposer::do_logratio_lognorm_symm_;
     }
     ~Lognorm_Proposer() = default;
 
     //===== SETTER =====//
     void user_reset() override final
     {
-        _distr_ptr->assign_attr("meanlog", HSP_ATTR_ARGUMENT, 0.);
-        _distr_ptr->assign_attr("sdlog", HSP_ATTR_ARGUMENT, _user_rule_scale);
+        pDistr_->assign_attr("meanlog", HSP_ATTR_ARGUMENT, 0.);
+        pDistr_->assign_attr("sdlog", HSP_ATTR_ARGUMENT, user_rule_scale_);
     }
 };
 
@@ -270,22 +270,22 @@ void Variable::init(const std::string &name, double value,
 {
     if (tools::is_na(func_name))
     {
-        _do_operator_return = &Variable::__operator_return_error;
-        _do_get = &Variable::__get_default;
-        _do_get_pointer = &Variable::__get_pointer_default;
+        return_value_ = &Variable::do_return_error_;
+        get_ = &Variable::do_get_default_;
+        get_ptr_ = &Variable::do_get_ptr_default_;
 
-        _variable_name = name;
-        _user_value = value;
-        _value = _user_value;
-        _is_discrete = is_discrete;
-        _is_constant = is_constant;
+        variable_name_ = name;
+        user_value_ = value;
+        value_ = user_value_;
+        is_discrete_ = is_discrete;
+        is_constant_ = is_constant;
     }
     else
     {
-        _do_operator_return = &Variable::__operator_return_func;
-        _do_get = &Variable::__get_func_return;
-        _do_get_pointer = &Variable::__get_pointer_func_return;
-        _func_ptr = compose_func_registries(
+        return_value_ = &Variable::do_return_func_;
+        get_ = &Variable::do_get_func_return_;
+        get_ptr_ = &Variable::do_get_ptr_func_return_;
+        pFunc_ = compose_func_registries(
             func_name,
             "function",
             {&UserFuncRegistry::inst(),
@@ -294,7 +294,7 @@ void Variable::init(const std::string &name, double value,
              &ContinuosDistrRegistry::inst(),
              &DiscreteDistrRegistry::inst(),
              &InfecProfileRegistry::inst()});
-        _is_constant = false;
+        is_constant_ = false;
     }
 }
 
@@ -305,7 +305,7 @@ void Variable::init(const std::string &name, double value,
 /* Assign distribution with constant arguments. */
 void Variable::assign_distr(const std::string &distr_name)
 {
-    _distr_ptr = compose_distr_registries(
+    pDistr_ = compose_distr_registries(
         distr_name,
         "distribution",
         {&ContinuosDistrRegistry::inst(),
@@ -314,11 +314,11 @@ void Variable::assign_distr(const std::string &distr_name)
 /* Initialize distribution reshaping. */
 void Variable::init_distr_reshaping()
 {
-    _distr_ptr->init_reshaping(_is_discrete);
+    pDistr_->init_reshaping(is_discrete_);
     // check that non-constant variable has non-zero dimensional range
-    if ((!_is_constant) && (_distr_ptr->get_min() == _distr_ptr->get_max()))
+    if ((!is_constant_) && (pDistr_->get_min() == pDistr_->get_max()))
         throw std::invalid_argument(
-            "Degenerate range " + _distr_ptr->show_range() + " defined for non constant variable \"" + show_name() + "\".");
+            "Degenerate range " + pDistr_->show_range() + " defined for non constant variable \"" + show_name() + "\".");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -333,50 +333,50 @@ void Variable::assign_proposer(const std::string &rule_name,
     if (tools::is_na(rule_name))
     {
         // if no rule is defined constant variable
-        _is_constant = true;
-        _do_propose = &Variable::__propose_error;
-        _prop_ptr = proposer_switch();
+        is_constant_ = true;
+        propose_ = &Variable::do_propose_error_;
+        pProp_ = proposer_switch();
     }
     else
     {
         // variable to sample
-        _is_constant = false;
+        is_constant_ = false;
 
         // define proposer rule with functional programming
         if (rule_name == "draw")
         {
             //----- Draw proposer rule -----//
             // assign the pointer to the proposer
-            _prop_ptr = std::make_shared<Draw_Proposer>(_distr_ptr);
+            pProp_ = std::make_shared<Draw_Proposer>(pDistr_);
 
             // sampler
-            _do_propose = &Variable::__propose_draw_sample;
+            propose_ = &Variable::do_propose_draw_sample_;
             // logratio
-            _do_move_logratio = &Variable::__move_logratio_draw;
+            move_logratio_ = &Variable::do_move_logratio_draw_;
             // validation
-            _do_valid_move = &Variable::__valid_move_draw;
+            valid_move_ = &Variable::do_valid_move_draw_;
         }
         else
         {
             //----- Other proposer rules -----//
             // value from which to start proposal
-            if ((!tools::is_na(rule_from)) && (!_distr_ptr->valid(rule_from)))
+            if ((!tools::is_na(rule_from)) && (!pDistr_->valid(rule_from)))
                 tools::warning(
                     "Proposer rule from value " + std::to_string(rule_from) + " out of range" + " {min:" + show_min() + ", max:" + show_max() + "}.");
 
             // assign the pointer to the proposer
-            _prop_ptr = proposer_switch(rule_name, rule_scale, rule_from, is_discrete());
+            pProp_ = proposer_switch(rule_name, rule_scale, rule_from, is_discrete());
 
             // raise a warning if "lnorm" rule when varaible can be negative
-            if ((_distr_ptr->get_min() < 0) && (rule_name == "lnorm"))
+            if ((pDistr_->get_min() < 0) && (rule_name == "lnorm"))
                 tools::warning(
-                    "Lognormal proposer rule for non-positive variable \"" + _variable_name + "\" .");
+                    "Lognormal proposer rule for non-positive variable \"" + variable_name_ + "\" .");
 
             // sampler
             if (is_from_zero())
-                _do_propose = &Variable::__propose_from_zero;
+                propose_ = &Variable::do_propose_from_zero_;
             else
-                _do_propose = &Variable::__propose_from_previous;
+                propose_ = &Variable::do_propose_from_previous_;
         }
     }
 }

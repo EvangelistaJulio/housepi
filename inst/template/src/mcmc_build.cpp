@@ -26,7 +26,7 @@
 /////////////////////////////////  MCMC::Impl : methods (setter)  /////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void MCMC::Impl::Setup::build(const dict_str_str &deflist)
+void MCMC::Impl::ImplSetup::build(const dict_str_str &deflist)
 {
     try
     {
@@ -97,7 +97,7 @@ void MCMC::Impl::Setup::build(const dict_str_str &deflist)
 }
 
 /* Set the number of threads for parrell computations (default is 1). */
-void MCMC::Impl::Setup::set_n_threads()
+void MCMC::Impl::ImplSetup::set_n_threads()
 {
     if (n_threads == 0)
         throw std::invalid_argument("N. of threads must be greater than 0.");
@@ -124,11 +124,11 @@ void MCMC::Impl::Setup::set_n_threads()
 }
 
 /* Assign seed for random generators. */
-void MCMC::Impl::Setup::set_prng_seed()
+void MCMC::Impl::ImplSetup::set_prng_seed()
 {
     // seed for the unique thread rand num generator
-    _prng.seed(seed);
-    _do_get_prng = &Impl::Setup::_prng_unique_thread;
+    prng_.seed(seed);
+    get_prng_ = &Impl::ImplSetup::do_prng_unique_thread_;
 
 #ifdef _OPENMP
     // seeds for the case of parallelization
@@ -136,18 +136,18 @@ void MCMC::Impl::Setup::set_prng_seed()
     {
         // create different generators for different parallel threads
         // note: they are used only to parallelize data augmentantion
-        _do_get_prng = &Impl::Setup::_prng_parallel_threads;
+        get_prng_ = &Impl::ImplSetup::do_prng_parallel_threads_;
 
         std::uniform_int_distribution<unsigned long> seed_generator(0, 0XFFFFFFFF);
 
-        _prng_parallel.reserve(n_threads);
+        prng_parallel_.reserve(n_threads);
         for (unsigned n = 0; n < n_threads; ++n)
-            _prng_parallel[n].seed(seed_generator(_prng));
+            prng_parallel_[n].seed(seed_generator(prng_));
     }
 #endif
 }
 
-void MCMC::Impl::Setup::assert_mcmc_setup()
+void MCMC::Impl::ImplSetup::assert_mcmc_setup()
 {
     if ((inv_T < 0.) || (inv_T > 1.))
         throw std::range_error(
@@ -196,7 +196,7 @@ void MCMC::Impl::Setup::assert_mcmc_setup()
 }
 
 /* The text to print in the Markov chian progress bar. */
-const std::string MCMC::Impl::Setup::fmt_progtxt()
+const std::string MCMC::Impl::ImplSetup::fmt_progtxt()
 {
     if (is_power_post())
         return "power post " + std::to_string(rung) + "/" + std::to_string(n_rungs);
@@ -214,27 +214,35 @@ const std::string MCMC::Impl::Setup::fmt_progtxt()
 //-----------------------------------------------------------------------------------------------//
 
 /* Assert dataset is not empty. */
-void MCMC::Impl::assert_proper_dataset()
+void MCMC::Impl::assert_proper_dataset_()
 {
-    if (house_vector.size() == 0)
+    if (dataset.n_houses() == 0)
         throw std::length_error(
             "Unable to proceed. No database was found.");
 }
 
 /* Assert setup definitions are ok to proceed with mcmc sampling. */
-void MCMC::Impl::assert_proper_mcmc_setup()
+void MCMC::Impl::init_monte_carlo_()
 {
     setup.assert_mcmc_setup();
 
     // check if there is a dataset
-    if (n_individuals == 0)
-        throw std::length_error(
-            "Dataset is empty or was not provided.");
+    assert_proper_dataset_();
 
     // check if there is actually something to sample
-    if (((param_standard_infer_list + param_cache_infer_list).empty()) && (!is_augm_sample()))
+    if (!(param.is_sample() || augm.is_sample()))
         throw std::length_error(
             "Nothing to sample. Check your parameter and augmented variable definitions.");
+
+    // wheter augmented variable are generic or status specific
+    if (augm.is_any())
+        if (augm.is_sample())
+        {
+            if (augm.is_generic())
+                move_augm_indiv_ = &MCMC::Impl::do_move_augm_indiv_generic_;
+            else
+                move_augm_indiv_ = &MCMC::Impl::do_move_augm_indiv_by_status_;
+        }
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -249,30 +257,30 @@ void MCMC::Impl::assert_proper_mcmc_setup()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign data after pre-processing. */
-void MCMC::Impl::build_dataset(const dict_str_vec &input)
+void MCMC::Impl::ImplDataSet::build(const dict_str_vec &input)
 {
     try
     {
         if (!input.empty())
         {
             // drop all previous data and prepare for new
-            str_vec data_headers = {};
+            headers_.clear();
             for (const auto &x : input)
-                data_headers.push_back(x.first);
+                headers_.push_back(x.first);
 
-            n_individuals = input.at(data_headers[0]).size();
+            n_individuals_ = input.at(headers_[0]).size();
 
-            house_vector.clear();
-            restrict_hh_indexes.clear();
-            _hhid_to_index.clear();
+            house_vector_.clear();
+            restrict_indexes_.clear();
+            hhid_to_index_.clear();
 
             // assess the presence of house IDs
-            if (!contains(data_headers, "house_id"))
+            if (!(headers_ % "house_id"))
                 tools::warning(
                     "Unknown household structure: missing data column \"house_id\".");
 
             // safe load of households
-            for (size_t i = 0; i < n_individuals; ++i)
+            for (size_t i = 0; i < n_individuals_; ++i)
             {
                 // read individual data
                 std::string id = std::to_string(i + 1);                // default id
@@ -280,7 +288,7 @@ void MCMC::Impl::build_dataset(const dict_str_vec &input)
                 int status = MISSING_STATUS;
                 data_key_map<double> data = {};
 
-                for (const std::string &key : data_headers)
+                for (const std::string &key : headers_)
                     if (key == "id")
                     {
                         id = input.at("id")[i];
@@ -311,22 +319,23 @@ void MCMC::Impl::build_dataset(const dict_str_vec &input)
                     }
 
                 // if household index doesn't exist, add new household
-                if (_hhid_to_index.find(house_id) == _hhid_to_index.end())
+                if (hhid_to_index_.find(house_id) == hhid_to_index_.end())
                 {
                     // map data index to household number
-                    _hhid_to_index.emplace(house_id, n_houses());
+                    hhid_to_index_.emplace(house_id, n_houses());
                     // default choice for restricted indeces
-                    restrict_hh_indexes.push_back(n_houses());
+                    restrict_indexes_.push_back(n_houses());
                     // create a new empty household
-                    house_vector.emplace_back(house_id, n_houses());
+                    house_vector_.emplace_back(house_id, n_houses());
                 }
 
                 // extract the household reference
-                Household &house = house_vector.at(_hhid_to_index.at(house_id));
+                Household &house = house_vector_.at(hhid_to_index_.at(house_id));
 
                 // assign the individual the respective household
                 house.assign_member(i, id, status, data);
             }
+            headers_ = headers_ - str_vec({"id", "house_id", "status"});
 
             // update report for data
             fill_report_data();
@@ -340,70 +349,70 @@ void MCMC::Impl::build_dataset(const dict_str_vec &input)
 }
 
 /* Use the loaded data to fill-in the respective report. */
-void MCMC::Impl::fill_report_data()
+void MCMC::Impl::ImplDataSet::fill_report_data()
 {
-    _report_indiv_ = {{"total", n_individuals},
-                      {"missing", 0},
-                      {"healthy", 0},
-                      {"infected", 0}};
+    report_indiv_ = {{"total", n_individuals_},
+                     {"missing", 0},
+                     {"healthy", 0},
+                     {"infected", 0}};
 
-    _report_house_ = {{"total", n_houses()},
-                      {"no cases", 0},
-                      {"at least 1 case", 0},
-                      {"at least 2 cases", 0}};
+    report_house_ = {{"total", n_houses()},
+                     {"no cases", 0},
+                     {"at least 1 case", 0},
+                     {"at least 2 cases", 0}};
 
-    _report_hh_size_ = {{"max cases", {0, 0}},
-                        {"min size", {1000, 0}},
-                        {"max size", {0, 0}}};
+    report_size_ = {{"max cases", {0, 0}},
+                    {"min size", {1000, 0}},
+                    {"max size", {0, 0}}};
 
     //===== Set Contact Rates and Perform Database Analysis =====//
-    for (const Household &house : house_vector)
+    for (const Household &house : house_vector_)
     {
         const ushort house_size = house.size();
         const ushort n_infec = house.n_infec_status();
 
-        _report_indiv_["missing"] += house.n_missing_status();
-        _report_indiv_["healthy"] += house.n_healthy_status();
-        _report_indiv_["infected"] += n_infec;
+        report_indiv_["missing"] += house.n_missing_status();
+        report_indiv_["healthy"] += house.n_healthy_status();
+        report_indiv_["infected"] += n_infec;
 
-        _report_house_["no cases"] += (n_infec == 0);
-        _report_house_["at least 1 case"] += (n_infec > 0);
-        _report_house_["at least 2 cases"] += (n_infec > 1);
+        report_house_["no cases"] += (n_infec == 0);
+        report_house_["at least 1 case"] += (n_infec > 0);
+        report_house_["at least 2 cases"] += (n_infec > 1);
 
         // max number of house cases
-        if (_report_hh_size_["max cases"].first < n_infec)
+        if (report_size_["max cases"].first < n_infec)
         {
-            _report_hh_size_["max cases"].first = n_infec;
-            _report_hh_size_["max cases"].second = 1;
+            report_size_["max cases"].first = n_infec;
+            report_size_["max cases"].second = 1;
         }
-        else if (_report_hh_size_["max cases"].first == n_infec)
-            ++_report_hh_size_["max cases"].second;
+        else if (report_size_["max cases"].first == n_infec)
+            ++report_size_["max cases"].second;
 
         // minimum house number of members
-        if (_report_hh_size_["min size"].first > house_size)
+        if (report_size_["min size"].first > house_size)
         {
-            _report_hh_size_["min size"].first = house_size;
-            _report_hh_size_["min size"].second = 1;
+            report_size_["min size"].first = house_size;
+            report_size_["min size"].second = 1;
         }
-        else if (_report_hh_size_["min size"].first == house_size)
-            ++_report_hh_size_["min size"].second;
+        else if (report_size_["min size"].first == house_size)
+            ++report_size_["min size"].second;
 
         // maximum house number of members
-        if (_report_hh_size_["max size"].first < house_size)
+        if (report_size_["max size"].first < house_size)
         {
-            _report_hh_size_["max size"].first = house_size;
-            _report_hh_size_["max size"].second = 1;
+            report_size_["max size"].first = house_size;
+            report_size_["max size"].second = 1;
         }
-        else if (_report_hh_size_["max size"].first == house_size)
-            ++_report_hh_size_["max size"].second;
+        else if (report_size_["max size"].first == house_size)
+            ++report_size_["max size"].second;
     }
 }
 
 /* Return a value from individaul data report. */
-ulong MCMC::Impl::get_report_indiv(const std::string &key) const
+ulong MCMC::Impl::ImplDataSet::get_report_indiv(const std::string &key) const
 {
-    if (_report_indiv_.count(key))
-        return _report_indiv_.at(key);
+    if (report_indiv_.count(key))
+        return report_indiv_.at(key);
     else
         throw std::invalid_argument(
             "Unknown individual report entry \"" + key + "\".");
@@ -411,10 +420,10 @@ ulong MCMC::Impl::get_report_indiv(const std::string &key) const
 }
 
 /* Return a value from household data report. */
-ulong MCMC::Impl::get_report_house(const std::string &key) const
+ulong MCMC::Impl::ImplDataSet::get_report_house(const std::string &key) const
 {
-    if (_report_house_.count(key))
-        return _report_house_.at(key);
+    if (report_house_.count(key))
+        return report_house_.at(key);
     else
         throw std::invalid_argument(
             "Unknown household report entry \"" + key + "\".");
@@ -422,14 +431,33 @@ ulong MCMC::Impl::get_report_house(const std::string &key) const
 }
 
 /* Return a value from household sizes report. */
-std::pair<ushort, ulong> MCMC::Impl::get_report_hh_size(const std::string &key) const
+std::pair<ushort, ulong> MCMC::Impl::ImplDataSet::get_report_hh_size(const std::string &key) const
 {
-    if (_report_hh_size_.count(key))
-        return _report_hh_size_.at(key);
+    if (report_size_.count(key))
+        return report_size_.at(key);
     else
         throw std::invalid_argument(
             "Unknown household sizes report entry \"" + key + "\".");
     return std::pair<ushort, ulong>({0, 0});
+}
+
+/* Extra integer vectors for all households. */
+void MCMC::Impl::ImplDataSet::assign_cache_integer_vector(const cache_key &e)
+{
+    for (Household &house : restricted())
+        house.assign_cache_integer_vector(e);
+}
+/* Extra double vectors for all households. */
+void MCMC::Impl::ImplDataSet::assign_cache_double_vector(const cache_key &e)
+{
+    for (Household &house : restricted())
+        house.assign_cache_double_vector(e);
+}
+/* Extra double square matrix for all households. */
+void MCMC::Impl::ImplDataSet::assign_cache_double_matrix(const cache_key &e)
+{
+    for (Household &house : restricted())
+        house.assign_cache_double_matrix(e);
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -444,11 +472,11 @@ std::pair<ushort, ulong> MCMC::Impl::get_report_hh_size(const std::string &key) 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Build multiplicities. */
-void MCMC::Impl::build_multiplicity(const dict_str_vec &table)
+void MCMC::Impl::ImplDataSet::build_multiplicity(const dict_str_vec &table)
 {
     try
     {
-        if (is_augm_any() || (table.size() == 0))
+        if (pImpl_.augm.is_any() || (table.size() == 0))
         {
             // note: multiplicities are not compatible with data augmentation
             if (!table.empty())
@@ -456,12 +484,12 @@ void MCMC::Impl::build_multiplicity(const dict_str_vec &table)
                     "Data augmentation is incompatible with multiplicity simplification.");
 
             // default choice for restricted household indexes
-            restrict_hh_indexes.clear();
-            restrict_hh_indexes.resize(n_houses());
+            restrict_indexes_.clear();
+            restrict_indexes_.resize(n_houses());
             for (size_t H = 0; H < n_houses(); ++H)
             {
-                house_vector[H].set_multiplicity(1, H);
-                restrict_hh_indexes[H] = H;
+                house_vector_[H].set_multiplicity(1, H);
+                restrict_indexes_[H] = H;
             }
         }
         else
@@ -470,17 +498,17 @@ void MCMC::Impl::build_multiplicity(const dict_str_vec &table)
                 throw std::out_of_range(
                     "Multiplicity definitions have different dimensions than dataset.");
 
-            restrict_hh_indexes.clear();
+            restrict_indexes_.clear();
             for (size_t r = 0; r < n_houses(); ++r)
             {
-                size_t H = _hhid_to_index.at(table.at("house_id")[r]);
-                size_t H0 = _hhid_to_index.at(table.at("class_id")[r]);
+                size_t H = hhid_to_index_.at(table.at("house_id")[r]);
+                size_t H0 = hhid_to_index_.at(table.at("class_id")[r]);
                 ulong m = tools::stoul(table.at("multiplicity")[r]);
 
-                house_vector[H].set_multiplicity(m, H0);
+                house_vector_[H].set_multiplicity(m, H0);
 
-                if (house_vector[H].is_multiplicity_head_class())
-                    restrict_hh_indexes.emplace_back(H);
+                if (house_vector_[H].is_multiplicity_head_class())
+                    restrict_indexes_.emplace_back(H);
             }
         }
     }
@@ -499,12 +527,110 @@ void MCMC::Impl::build_multiplicity(const dict_str_vec &table)
 //-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  MCMC::Impl : build data list  /////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Assign data after pre-processing. */
+void MCMC::Impl::ImplDataList::build(const dict_str_vec &input)
+{
+    try
+    {
+        if (!input.empty())
+        {
+            // data sequence headers
+            headers_.clear();
+            for (const auto &x : input)
+                headers_.push_back(x.first);
+            const size_t n_rows = input.at(headers_[0]).size();
+
+            // check for individual IDs
+            if (!(headers_ % "id"))
+                throw std::invalid_argument(
+                    "Missing individual identifier column \"id\" in datalist.");
+            // remove "id"
+            headers_ = headers_ - str_vec({"id"});
+
+            // individual map for id -> index
+            // note: this could be moved elsewhere if required
+            std::unordered_map<std::string, size_t> id_to_index = {};
+            size_t c = 0;
+            for (const Household &house : pImpl_.dataset)
+                for (const Individual &member : house)
+                    if (id_to_index.find(member.id()) != id_to_index.end())
+                        throw std::invalid_argument(
+                            "Multiple individuals id equal to \"" + member.id() + "\"");
+                    else
+                        id_to_index.emplace(member.id(), c++);
+
+            // datalist allocation
+            if (indiv_datalist_.empty())
+                indiv_datalist_.resize(pImpl_.dataset.n_individuals());
+
+            for (data_key_map<dbl_vec> &this_map : indiv_datalist_)
+                for (const std::string &key : headers_)
+                {
+                    if (this_map.count(key) > 0)
+                        this_map[key].clear();
+                    this_map.emplace(key, dbl_vec({}));
+                }
+
+            // load individual data list
+            for (size_t r = 0; r < n_rows; ++r)
+            {
+                double x;
+                std::string id = input.at("id")[r];
+                if (tools::is_na(id))
+                    throw std::invalid_argument(
+                        "Invalid id for datalist in row n." + std::to_string(r + 2) + ".");
+                else if (id_to_index.find(id) == id_to_index.end())
+                {
+                    if (pImpl_.dataset.is_empty())
+                        throw std::invalid_argument(
+                            "Datalist definition before dataset is not supported.");
+                    else
+                        throw std::invalid_argument(
+                            "Id \"" + id + "\" from datalist has no match in loaded dataset.");
+                }
+
+                data_key_map<dbl_vec> &this_dict = indiv_datalist_.at(id_to_index.at(id));
+                for (const std::string &key : headers_)
+                {
+                    x = HSP_NA_DOUBLE;
+                    if (!tools::is_na(input.at(key)[r]))
+                        x = tools::stod(input.at(key)[r], "datalist \"" + key + "\"");
+
+                    // append (since vector is initialized to empty)
+                    this_dict[key].push_back(x);
+                }
+            }
+
+            // assign pointers to relative datalist to all individuals
+            c = 0;
+            for (Household &house : pImpl_.dataset)
+                for (Individual &member : house)
+                    member.assign_pointer_to_datalist(&indiv_datalist_.at(c++));
+        }
+    }
+    catch (const std::exception &e)
+    {
+        tools::error("While initializing datalist:\n" + std::string(e.what()));
+    }
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////  MCMC : build group rates  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Convert to a dictionary of parameter pointers and pass the pointers to the individual */
-void MCMC::Impl::GroupRates::_assign_rate_as_ptrs(Individual &member,
-                                                  const rate_key_mapvec<par_key> &these_rates)
+void MCMC::Impl::ImplGroupRates::assign_rate_as_ptrs_(Individual &member,
+                                                      const rate_key_mapvec<par_key> &these_rates)
 {
     rate_key_mapvec<const double *> rate_ptrs = {};
 
@@ -512,7 +638,7 @@ void MCMC::Impl::GroupRates::_assign_rate_as_ptrs(Individual &member,
     {
         const rate_key &r = pair.first;
 
-        if (contains(str_vec({CONTACT_RATE, MISSING_RATE}), r))
+        if (str_vec({CONTACT_RATE, MISSING_RATE}) % r)
             throw std::invalid_argument(
                 "The group rate name \"" + r + "\" is reserved. Choose a different one.");
 
@@ -533,7 +659,7 @@ void MCMC::Impl::GroupRates::_assign_rate_as_ptrs(Individual &member,
                 else
                 {
                     is_all_reference = false;
-                    vec_par_ptr.emplace_back(pImpl.get_param_pointer(p));
+                    vec_par_ptr.emplace_back(pImpl_.param.get_ptr(p));
                 }
             }
 
@@ -549,158 +675,56 @@ void MCMC::Impl::GroupRates::_assign_rate_as_ptrs(Individual &member,
 }
 
 /* Update model report and set group rates associate to new individual. */
-void MCMC::Impl::GroupRates::build(const dict_str_vec &deftable)
+void MCMC::Impl::ImplGroupRates::build(const dict_str_vec &deftable)
 {
-    try
+    if (!deftable.empty())
     {
-        if (!deftable.empty())
-        {
-            // check that tempalte headers are present
-            str_vec headers = tools::headers_from_deftable(deftable);
-            tools::check_for_missing_entries(headers, _headers);
+        // check that tempalte headers are present
+        str_vec data_headers = tools::headers_from_deftable(deftable);
+        tools::check_for_missing_entries(data_headers, file_headers_);
 
-            // remove template headers to keep only dataset
-            headers = subtr(headers, _headers);
+        // remove template headers to keep only dataset
+        data_headers = data_headers - file_headers_;
+        // check that required dataset columns are present
+        tools::check_for_unused_entries(data_headers, pImpl_.dataset.headers());
 
-            // check that required dataset columns are present
-            const str_vec dataset_headers = pImpl.house_vector[0].get_member(0).keys_dataset();
-            tools::check_for_unused_entries(headers, dataset_headers);
+        const size_t n_rows = deftable.at("group_rate").size();
 
-            const size_t n_rows = deftable.at(".group.rate").size();
+        // store the names of the used group rates
+        headers_ = {};
+        for (const rate_key &g : deftable.at("group_rate"))
+            if (!(headers_ % g))
+                headers_.push_back(g);
 
-            // loop over all household members
-            for (Household &house : pImpl.house_vector)
-                for (Individual &member : house)
-                {
-                    rate_key_mapvec<par_key> these_rates = {};
-
-                    // obtain group rates for given member
-                    for (size_t row = 0; row < n_rows; ++row)
-                    {
-                        // check if all conditions are satisfied
-                        bool tag = true;
-                        for (const data_key &d : headers)
-                            if (!tools::is_na(deftable.at(d)[row]))
-                                tag &= (member.data(d) == tools::stod(deftable.at(d)[row]));
-
-                        if (tag)
-                        {
-                            const rate_key &r = deftable.at(".group.rate")[row];
-                            const par_key &p = deftable.at(".param.name")[row];
-                            if (these_rates.count(r) == 0)
-                                these_rates.emplace(r, str_vec({p}));
-                            else
-                                these_rates[r].push_back(p);
-                        }
-                    }
-
-                    // assign rates to the individual
-                    _assign_rate_as_ptrs(member, these_rates);
-                }
-        }
-    }
-    catch (const std::exception &e)
-    {
-        tools::error("While initializing group rates:\n" +
-                     std::string(e.what()));
-    }
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  MCMC::Impl : build data list  /////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Assign data after pre-processing. */
-void MCMC::Impl::build_datalist(const dict_str_vec &input)
-{
-    try
-    {
-        if (!input.empty())
-        {
-            // data sequence headers
-            str_vec headers = {};
-            for (const auto &x : input)
-                headers.push_back(x.first);
-            const size_t n_rows = input.at(headers[0]).size();
-
-            // check for individual IDs
-            if (!contains(headers, "id"))
-                throw std::invalid_argument(
-                    "Missing individual identifier column \"id\" in datalist.");
-            // remove "id"
-            headers.erase(std::remove(headers.begin(), headers.end(), "id"), headers.end());
-
-            // individual map for id -> index
-            // note: this could be moved elsewhere if required
-            std::unordered_map<std::string, size_t> id_to_index = {};
-            size_t c = 0;
-            for (const Household &house : house_vector)
-                for (const Individual &member : house)
-                    if (id_to_index.find(member.id()) != id_to_index.end())
-                        throw std::invalid_argument(
-                            "Multiple individuals id equal to \"" + member.id() + "\"");
-                    else
-                        id_to_index.emplace(member.id(), c++);
-
-            // datalist allocation
-            if (indiv_datalist.empty())
-                indiv_datalist.resize(n_individuals);
-
-            for (data_key_map<dbl_vec> &this_map : indiv_datalist)
-                for (const std::string &key : headers)
-                {
-                    if (this_map.count(key) > 0)
-                        this_map[key].clear();
-                    this_map.emplace(key, dbl_vec({}));
-                }
-
-            // load individual data list
-            for (size_t r = 0; r < n_rows; ++r)
+        // loop over all household members
+        for (Household &house : pImpl_.dataset)
+            for (Individual &member : house)
             {
-                double x;
-                std::string id = input.at("id")[r];
-                if (tools::is_na(id))
-                    throw std::invalid_argument(
-                        "Invalid id for datalist in row n." + std::to_string(r + 2) + ".");
-                else if (id_to_index.find(id) == id_to_index.end())
+                rate_key_mapvec<par_key> these_rates = {};
+
+                // obtain group rates for given member
+                for (size_t r = 0; r < n_rows; ++r)
                 {
-                    if (house_vector.empty())
-                        throw std::invalid_argument(
-                            "Datalist definition before dataset is not supported.");
-                    else
-                        throw std::invalid_argument(
-                            "Id \"" + id + "\" from datalist has no match in loaded dataset.");
+                    // check if all conditions are satisfied
+                    bool tag = true;
+                    for (const data_key &d : data_headers)
+                        if (!tools::is_na(deftable.at(d)[r]))
+                            tag &= (member.data(d) == tools::stod(deftable.at(d)[r]));
+
+                    if (tag)
+                    {
+                        const rate_key &g = deftable.at("group_rate")[r];
+                        const par_key &p = deftable.at("param_name")[r];
+                        if (these_rates.count(g) == 0)
+                            these_rates.emplace(g, str_vec({p}));
+                        else
+                            these_rates[g].push_back(p);
+                    }
                 }
 
-                data_key_map<dbl_vec> &this_dict = indiv_datalist.at(id_to_index.at(id));
-                for (const std::string &key : headers)
-                {
-                    x = HSP_NA_DOUBLE;
-                    if (!tools::is_na(input.at(key)[r]))
-                        x = tools::stod(input.at(key)[r], "datalist \"" + key + "\"");
-
-                    // append (since vector is initialized to empty)
-                    this_dict[key].push_back(x);
-                }
+                // assign rates to the individual
+                assign_rate_as_ptrs_(member, these_rates);
             }
-
-            // assign pointers to relative datalist to all individuals
-            c = 0;
-            for (Household &house : house_vector)
-                for (Individual &member : house)
-                    member.assign_pointer_to_datalist(&indiv_datalist.at(c++));
-        }
-    }
-    catch (const std::exception &e)
-    {
-        tools::error("While initializing datalist:\n" + std::string(e.what()));
     }
 }
 
@@ -712,7 +736,7 @@ void MCMC::Impl::build_datalist(const dict_str_vec &input)
 //-----------------------------------------------------------------------------------------------//
 
 /* Assign parameter definitions to dictionary. */
-void MCMC::Impl::build_param(const dict_str_vec &deftable)
+void MCMC::Impl::ImplParameter::build(const dict_str_vec &deftable)
 {
     try
     {
@@ -720,14 +744,15 @@ void MCMC::Impl::build_param(const dict_str_vec &deftable)
         {
             // check entries
             str_vec headers = tools::headers_from_deftable(deftable);
-            tools::check_for_missing_entries(headers, param_file_headers);
-            tools::check_for_unused_entries(headers, param_file_headers);
+            tools::check_for_missing_entries(headers, file_headers);
+            tools::check_for_unused_entries(headers, file_headers);
 
             // drop current list of parameters
-            param_map.clear();
-            param_const_list.clear();
-            param_standard_infer_list.clear();
-            param_cache_infer_list.clear();
+            dictionary.clear();
+            list_const.clear();
+            list_sample.clear();
+            list_sample_standard.clear();
+            list_sample_cache.clear();
 
             //===== Load parameters from the row with options =====//
             for (size_t k = 0; k < deftable.at("name").size(); ++k)
@@ -737,7 +762,7 @@ void MCMC::Impl::build_param(const dict_str_vec &deftable)
                 par_key p = name;
 
                 // Add entry to shared parameter dictionary -----//
-                if (param_map.count(p))
+                if (dictionary.count(p))
                 {
                     // parameter is already defined
                     throw std::invalid_argument(
@@ -753,9 +778,9 @@ void MCMC::Impl::build_param(const dict_str_vec &deftable)
                         value = tools::stod(deftable.at("value")[k], "parameter");
 
                     // assign constant parameter to the set of variables
-                    param_map.emplace(p, Variable(name, value));
+                    dictionary.emplace(p, Variable(name, value));
                     // update the lists of constant parameters
-                    param_const_list.push_back(p);
+                    list_const.push_back(p);
                 }
                 else
                 {
@@ -782,8 +807,8 @@ void MCMC::Impl::build_param(const dict_str_vec &deftable)
                         rule_scale = tools::stod(deftable.at("scale")[k]);
 
                     //----- Create a new Parameter Variable -----//
-                    param_map.emplace(p, Variable(name, value, is_discrete));
-                    Variable &new_param = param_map.at(p);
+                    dictionary.emplace(p, Variable(name, value, is_discrete));
+                    Variable &new_param = dictionary.at(p);
 
                     // assign a prior distribution to the parameter
                     new_param.assign_distr(prior_name);
@@ -818,10 +843,13 @@ void MCMC::Impl::build_param(const dict_str_vec &deftable)
                     // assign the rule for the proposer to the parameter
                     new_param.assign_proposer(rule_name, rule_scale);
 
-                    // update the lists of parameters to be inferred
-                    param_standard_infer_list.push_back(p);
+                    // update the lists of parameters to be sampled
+                    list_sample.push_back(p);
                 }
             }
+
+            // initialize all parameters to standard
+            list_sample_standard = list_sample;
         }
     }
     catch (const std::exception &e)
@@ -831,22 +859,34 @@ void MCMC::Impl::build_param(const dict_str_vec &deftable)
     }
 }
 
-/* Randomly initialize values of the parameters to be inferred */
-void MCMC::Impl::init_parameters()
+/* Adjust lists of parameters to be inferred making parameter as dependent on cache. */
+void MCMC::Impl::ImplParameter::make_cache_dependent(const par_key &p)
 {
-    for (const par_key &p : param_standard_infer_list + param_cache_infer_list)
+    // remove a parameter from standard if it was defined as such
+    if (!(list_sample_standard % p))
+        list_sample_standard = list_sample_standard - str_vec({p});
+
+    // add the parameter as cache
+    if (!(list_sample_cache % p))
+        list_sample_cache.push_back(p);
+}
+
+/* Randomly initialize values of the parameters to be inferred */
+void MCMC::Impl::ImplParameter::init()
+{
+    for (const par_key &p : list_sample)
     {
-        Variable &this_par = param_map.at(p);
+        Variable &this_par = dictionary.at(p);
         // user initialization (for multiple chains)
         this_par.user_reset();
 
-        if (setup.rand_init_params)
+        if (pImpl_.setup.rand_init_params)
         {
             if (tools::is_na(this_par.show_distr_name()))
                 throw std::invalid_argument(
                     "Parameters with undefined values are not allowed.");
             else
-                this_par.rand(setup.prng());
+                this_par.rand(pImpl_.setup.prng());
         }
         else if (tools::is_na(this_par.get()))
             throw std::invalid_argument(

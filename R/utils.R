@@ -458,8 +458,8 @@ fmt_setup_input_ <- function(defs) {
   # correct id trace vector
   if ("id_trace" %in% names(defs)) {
     y <- unlist(defs$id_trace)
-    if (is.null(y)) defs$id_trace <- NA
-    else defs$id_trace <- type_join_(unique(defs$id_trace))
+    if (length(y) == 0) defs$id_trace <- NA
+    else defs$id_trace <- type_join_(unique(y))
   }
   return(data.frame(lapply(defs, as.character)))
 }
@@ -489,17 +489,24 @@ fmt_data_input_ <- function(df) {
 #' Dataset as output from rcpp model object.
 #' @param levels `list()`\cr
 #' Levels of the factors in the dataset.
+#' @param headers `character()`\cr
+#' Headers of the columns.
 #'
 #' @return `data.frame`
 #'
 #' @keywords internal
-cpp_data_refactor = function(df, levels) {
-  if ((length(df) > 0) && (length(levels) > 0)) {
-    for (col in names(levels)) df[[col]] <- factor(
-      df[[col]],
-      levels = seq_along(levels[[col]]),
-      labels = levels[[col]]
-    )
+cpp_data_refactor = function(df, levels, headers) {
+  if (length(df) > 0) {
+    # re-factor
+    if (length(levels) > 0) {
+      for (col in names(levels)) df[[col]] <- factor(
+        df[[col]],
+        levels = seq_along(levels[[col]]),
+        labels = levels[[col]]
+      )
+    }
+    # re-order
+    df <- df[headers]
   }
   return(df)
 }
@@ -683,8 +690,6 @@ extract_func_ <- function(s) {
 #' Name of the function.
 #' @param x `numeric()`\cr
 #' Input vector.
-#' @param discr `logical(1)`\cr
-#' If `TRUE` discretize the function.
 #' @param args `numeric()`\cr
 #' Additional arguments.
 #' @param min `double(1)`\cr
@@ -698,13 +703,15 @@ extract_func_ <- function(s) {
 #' `numeric()`
 #'
 #' @export
-housepi_function <- function(name, x, discr = FALSE, args = numeric(), 
+housepi_function <- function(name, x, args = numeric(), 
                              min = NA, max = NA, hhmodel = NULL) {
   range <- c()
   if (!is.na(min)) range <- c(min, range)
   if (!is.na(max)) range <- c(range, max) 
+  args <- unlist(args)
   m <- get_rcpp_module("housepi_function", hhmodel)
-  return(m$FunctionHousepi$new(name, args, range, discr)$call(x))
+  # note: simple Function reshaping is never overwritten
+  return(m$FunctionHousepi$new(name, args, range, FALSE)$call(x))
 }
 
 #' @title
@@ -733,9 +740,11 @@ housepi_function <- function(name, x, discr = FALSE, args = numeric(),
 #' @export
 housepi_distribution <- function(name, x, discr = FALSE, args = numeric(), 
                                  min = NA, max = NA, hhmodel = NULL) {  
+
   range <- c()
   if (!is.na(min)) range <- c(min, range)
   if (!is.na(max)) range <- c(range, max)   
+  args <- unlist(args)
   m <- get_rcpp_module("housepi_distribution", hhmodel)
   return(m$DistributionHousepi$new(name, args, range, discr)$call(x))
 }
@@ -765,7 +774,8 @@ housepi_distribution <- function(name, x, discr = FALSE, args = numeric(),
 housepi_infec_profile <- function(name, x, discr = FALSE, args = numeric(), 
                                   max = NA, hhmodel = NULL) {
   range <- c()
-  if (!is.na(max)) range <- c(range, max)                                 
+  if (!is.na(max)) range <- c(range, max)          
+  args <- unlist(args)                       
   m <- get_rcpp_module("housepi_infec_profile", hhmodel)
   return(m$InfecProfileHousepi$new(name, args, range, discr)$call(x))
 }

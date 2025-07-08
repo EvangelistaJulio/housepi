@@ -46,16 +46,16 @@ public:
 	MCMC();
 	virtual ~MCMC();
 
-	/* Virtual method for user initialization of aumented setup. */
+	/* Virtual method for user initialization of advanced setup. */
 	virtual void init_user_advanced_setup() {}
 
 	//================//
 	//===== DATA =====//
 	//================//
 
-	ulong get_report_indiv(const std::string &key) const;
-	ulong get_report_house(const std::string &key) const;
-	std::pair<ushort, ulong> get_report_hh_size(const std::string &key) const;
+	ulong get_report_indiv(const std::string &s) const;
+	ulong get_report_house(const std::string &s) const;
+	std::pair<ushort, ulong> get_report_hh_size(const std::string &s) const;
 
 	//----- Group & Contact Rates -----//
 	// UPDATE: also contact rates should just be imported
@@ -94,9 +94,9 @@ public:
 	/* Update cahced augmeted dependecies. */
 	virtual void update_cache_dependecies(Household &, Individual &) {}
 
-	void assign_cache_house_integer_vector(const cache_key &e);
-	void assign_cache_house_double_vector(const cache_key &e);
-	void assign_cache_house_double_matrix(const cache_key &e);
+	void cache_house_integer_vector(const cache_key &e);
+	void cache_house_double_vector(const cache_key &e);
+	void cache_house_double_matrix(const cache_key &e);
 
 	//===============================//
 	//===== INFECTIVITY PROFILE =====//
@@ -138,7 +138,7 @@ public:
 
 	//----- C++ Print -----//
 	Rcpp::DataFrame simulate();
-	Rcpp::List estimate_evidence(const std::string &scheme,
+	Rcpp::List evidence(const std::string &scheme,
 								 ulong n_rungs);
 
 	//========================//
@@ -203,9 +203,10 @@ public:
 private:
 	//----- Pointer to Implementation -----//
 	class Impl;
-	std::unique_ptr<Impl> pImpl;
+	std::unique_ptr<Impl> pImpl_;
 
 	//----- Contact Rateas -----//
+	// UPDATE: this should be dropped in favour of table definitions
 	par_key _pair_contact_rate = {};
 
 	void _assign_contact_rate(Household &house);

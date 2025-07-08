@@ -26,34 +26,34 @@
 
 void Attribute::assign_scalar(double x)
 {
-    _do_get = &Attribute::__get_default;
-    _do_get_pointer = &Attribute::__get_pointer_default;
+    get_ = &Attribute::do_get_default_;
+    get_ptr_ = &Attribute::do_get_ptr_default_;
     _do_set = &Attribute::__set_default;
-    _value = x;
+    value_ = x;
     _ptr_to_value = nullptr;
-    _func_ptr = nullptr;
+    pFunc_ = nullptr;
 }
 void Attribute::assign_pointer(const double *y)
 {
-    _do_get = &Attribute::__get_from_pointer;
-    _do_get_pointer = &Attribute::__get_pointer_from_pointer;
+    get_ = &Attribute::__get_from_pointer;
+    get_ptr_ = &Attribute::__get_pointer_from_pointer;
     _do_set = &Attribute::__set_error;
-    _value = HSP_NA_DOUBLE;
+    value_ = HSP_NA_DOUBLE;
     _ptr_to_value = y;
-    _func_ptr = nullptr;
+    pFunc_ = nullptr;
 }
 void Attribute::assign_function(const std::shared_ptr<Function> f)
 {
-    _do_get = &Attribute::__get_from_function;
-    _do_get_pointer = &Attribute::__get_pointer_error;
+    get_ = &Attribute::__get_from_function;
+    get_ptr_ = &Attribute::__get_pointer_error;
     _do_set = &Attribute::__set_error;
-    _value = HSP_NA_DOUBLE;
+    value_ = HSP_NA_DOUBLE;
     _ptr_to_value = nullptr;
-    _func_ptr = f;
+    pFunc_ = f;
 }
 
 /* Get attribute value from external function. */
-double Attribute::__get_from_function() const { return _func_ptr->return_value(); }
+double Attribute::__get_from_function() const { return pFunc_->return_value(); }
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -77,43 +77,43 @@ Function::Function(const std::string &name,
                    bool is_min_open,
                    bool is_max_open)
 {
-    bool is_x_default = contains(arg_name, HSP_X_);
+    bool is_x_default = arg_name % HSP_X_;
 
     // name of the function
-    _function_name = name;
+    function_name_ = name;
 
     // number of arguments
     if (arg_name.size() != arg_value.size())
     {
         std::ostringstream oss;
-        oss << "Inconsistent arguments for \"" << _function_name << "\"."
+        oss << "Inconsistent arguments for \"" << function_name_ << "\"."
             << " Found " << arg_name.size() << " default names but "
             << arg_value.size() << " values.";
         throw std::length_error(oss.str());
     }
-    _n_args = arg_name.size() - (is_x_default);
+    n_args_ = arg_name.size() - (is_x_default);
 
     // assign default arguments
-    _arguments = new Attribute[_n_args + 1];
+    arguments_ = new Attribute[n_args_ + 1];
     // by convention, last argument is "x" and NA by default
-    _arguments[_n_args].set_name(HSP_X_);
-    _arguments[_n_args].set(HSP_NA_DOUBLE);
+    arguments_[n_args_].set_name(HSP_X_);
+    arguments_[n_args_].set(HSP_NA_DOUBLE);
 
     ushort c = 0;
     for (ushort k = 0; k < arg_name.size(); ++k)
         if (arg_name[k] == HSP_X_)
-            _arguments[_n_args].set(arg_value[k]);
+            arguments_[n_args_].set(arg_value[k]);
         else
         {
-            _arguments[c].set_name(arg_name[k]);
-            _arguments[c++].set(arg_value[k]);
+            arguments_[c].set_name(arg_name[k]);
+            arguments_[c++].set(arg_value[k]);
         }
 
     //----- assign domain -----//
     // NOTE: at the moment only place where to set open ranges
     // NOTE: not sure if setting pointer to smtg exiting the domain I still have control
-    _assign_range_scalar("min", domain_min);
-    _assign_range_scalar("max", domain_max);
+    assign_range_scalar_("min", domain_min);
+    assign_range_scalar_("max", domain_max);
     init_functional_range(is_min_open, is_max_open);
 }
 
@@ -133,7 +133,7 @@ Function::~Function() = default;
 /* Tell if all arguments are defined, except for 'x' argument. */
 bool Function::is_able_to_showcase() const
 {
-    for (ushort i = 0; i < _n_args; ++i)
+    for (ushort i = 0; i < n_args_; ++i)
         if (tools::is_na(arg(i)))
             return false;
     return true;
@@ -143,15 +143,15 @@ bool Function::is_able_to_showcase() const
 ushort Function::assert_arg(const std::string &arg_name) const
 {
     if (arg_name == HSP_X_)
-        return _n_args; // by convention, last argument is "x"
+        return n_args_; // by convention, last argument is "x"
     else
-        for (ushort c = 0; c < _n_args; ++c)
-            if (_arguments[c].show_name() == arg_name)
+        for (ushort c = 0; c < n_args_; ++c)
+            if (arguments_[c].show_name() == arg_name)
                 return c;
 
     str_vec options = {};
-    for (ushort c = 0; c < _n_args; ++c)
-        options.push_back(_arguments[c].show_name());
+    for (ushort c = 0; c < n_args_; ++c)
+        options.push_back(arguments_[c].show_name());
     throw std::invalid_argument(
         "Unknown argument \"" + arg_name + "\" for \"" + show_name() + "\"." + tools::find_closest(arg_name, options));
 }
@@ -164,8 +164,8 @@ ushort Function::assert_arg(const std::string &arg_name) const
 ushort Function::which_valid_case() const
 {
     // note: bounded if not pointing internally to NA
-    bool is_lower_bound = !(_range_min.is_scalar() && tools::is_na(_range_min.get()));
-    bool is_upper_bound = !(_range_max.is_scalar() && tools::is_na(_range_max.get()));
+    bool is_lower_bound = !(range_min_.is_scalar() && tools::is_na(range_min_.get()));
+    bool is_upper_bound = !(range_max_.is_scalar() && tools::is_na(range_max_.get()));
     return is_lower_bound + 2 * is_upper_bound;
 }
 
@@ -173,18 +173,18 @@ ushort Function::which_valid_case() const
 void Function::init_uniform_range()
 {
     // impose range minimum equal to argument minimum
-    Attribute &min_arg = _arguments[this->assert_arg("min")];
+    Attribute &min_arg = arguments_[this->assert_arg("min")];
     if (min_arg.is_function())
-        _range_min.assign_function(min_arg.get_function());
+        range_min_.assign_function(min_arg.get_function());
     else
-        _range_min.assign_pointer(min_arg.get_pointer());
+        range_min_.assign_pointer(min_arg.get_ptr());
 
     // impose range maximum equal to argument maximum
-    Attribute &max_arg = _arguments[this->assert_arg("max")];
+    Attribute &max_arg = arguments_[this->assert_arg("max")];
     if (max_arg.is_function())
-        _range_max.assign_function(max_arg.get_function());
+        range_max_.assign_function(max_arg.get_function());
     else
-        _range_max.assign_pointer(max_arg.get_pointer());
+        range_max_.assign_pointer(max_arg.get_ptr());
 }
 
 /* Set the range of validity of the value, and the corresponding validation function. */
@@ -193,68 +193,68 @@ void Function::init_functional_range(bool is_min_open, bool is_max_open)
     switch (which_valid_case())
     {
     case 0: //----- unbounded -----//
-        _do_below = &Function::__below_never;
-        _do_above = &Function::__above_never;
-        _do_valid = &Function::__valid_always;
+        below_ = &Function::do_below_never_;
+        above_ = &Function::do_above_never_;
+        valid_ = &Function::do_valid_always_;
         break;
 
     case 1: //----- lower bound -----//
-        _do_above = &Function::__above_never;
+        above_ = &Function::do_above_never_;
         if (is_min_open)
         {
-            _do_below = &Function::__below_open_min;
-            _do_valid = &Function::__valid_open_min;
+            below_ = &Function::do_below_open_min_;
+            valid_ = &Function::do_valid_open_min_;
         }
         else
         {
-            _do_below = &Function::__below_close_min;
-            _do_valid = &Function::__valid_close_min;
+            below_ = &Function::do_below_close_min_;
+            valid_ = &Function::do_valid_close_min_;
         }
         break;
 
     case 2: //----- upper bound -----//
-        _do_below = &Function::__below_never;
+        below_ = &Function::do_below_never_;
         if (is_max_open)
         {
-            _do_above = &Function::__above_open_max;
-            _do_valid = &Function::__valid_open_max;
+            above_ = &Function::do_above_open_max_;
+            valid_ = &Function::do_valid_open_max_;
         }
         else
         {
-            _do_above = &Function::__above_close_max;
-            _do_valid = &Function::__valid_close_max;
+            above_ = &Function::do_above_close_max_;
+            valid_ = &Function::do_valid_close_max_;
         }
         break;
 
     case 3: //----- within an interval -----//
         if ((is_min_open) && (is_max_open))
         {
-            _do_below = &Function::__below_open_min;
-            _do_above = &Function::__above_open_max;
-            _do_valid = &Function::__valid_both_open;
+            below_ = &Function::do_below_open_min_;
+            above_ = &Function::do_above_open_max_;
+            valid_ = &Function::do_valid_both_open_;
         }
         else if ((is_min_open) && (!is_max_open))
         {
-            _do_below = &Function::__below_open_min;
-            _do_above = &Function::__above_close_max;
-            _do_valid = &Function::__valid_open_min_close_max;
+            below_ = &Function::do_below_open_min_;
+            above_ = &Function::do_above_close_max_;
+            valid_ = &Function::do_valid_open_min_close_max_;
         }
         else if ((!is_min_open) && (is_max_open))
         {
-            _do_below = &Function::__below_close_min;
-            _do_above = &Function::__above_open_max;
-            _do_valid = &Function::__valid_close_min_open_max;
+            below_ = &Function::do_below_close_min_;
+            above_ = &Function::do_above_open_max_;
+            valid_ = &Function::do_valid_close_min_open_max_;
         }
         else
         {
-            _do_below = &Function::__below_close_min;
-            _do_above = &Function::__above_close_max;
-            _do_valid = &Function::__valid_both_close;
+            below_ = &Function::do_below_close_min_;
+            above_ = &Function::do_above_close_max_;
+            valid_ = &Function::do_valid_both_close_;
         }
 
         // check for consistency
-        bool wrong_open = (_do_valid != &Function::__valid_both_close) && (_range_min.get() >= _range_max.get());
-        bool wrong_close = (_do_valid == &Function::__valid_both_close) && (_range_min.get() > _range_max.get());
+        bool wrong_open = (valid_ != &Function::do_valid_both_close_) && (range_min_.get() >= range_max_.get());
+        bool wrong_close = (valid_ == &Function::do_valid_both_close_) && (range_min_.get() > range_max_.get());
         if (wrong_open || wrong_close)
             throw std::invalid_argument(
                 "Inconsistent range " + show_range() + ".");
@@ -265,31 +265,31 @@ void Function::init_functional_range(bool is_min_open, bool is_max_open)
 /* Return formatted range. */
 const std::string Function::show_range() const
 {
-    if (_do_valid == &Function::__valid_always)
+    if (valid_ == &Function::do_valid_always_)
         return "";
 
-    else if (_do_valid == &Function::__valid_open_min)
+    else if (valid_ == &Function::do_valid_open_min_)
         return "(" + show_min() + ", Inf)";
 
-    else if (_do_valid == &Function::__valid_close_min)
+    else if (valid_ == &Function::do_valid_close_min_)
         return "[" + show_min() + ", Inf)";
 
-    else if (_do_valid == &Function::__valid_open_max)
+    else if (valid_ == &Function::do_valid_open_max_)
         return "(-Inf, " + show_max() + ")";
 
-    else if (_do_valid == &Function::__valid_close_max)
+    else if (valid_ == &Function::do_valid_close_max_)
         return "(-Inf, " + show_max() + "]";
 
-    else if (_do_valid == &Function::__valid_both_open)
+    else if (valid_ == &Function::do_valid_both_open_)
         return "(" + show_min() + ", " + show_max() + ")";
 
-    else if (_do_valid == &Function::__valid_open_min_close_max)
+    else if (valid_ == &Function::do_valid_open_min_close_max_)
         return "(" + show_min() + ", " + show_max() + "]";
 
-    else if (_do_valid == &Function::__valid_close_min_open_max)
+    else if (valid_ == &Function::do_valid_close_min_open_max_)
         return "[" + show_min() + ", " + show_max() + ")";
 
-    else // (_do_valid == &Function::__valid_both_close)
+    else // (valid_ == &Function::do_valid_both_close_)
         return "[" + show_min() + ", " + show_max() + "]";
 }
 
@@ -308,9 +308,9 @@ const std::string Function::show_range() const
 void Function::assign_attr(const std::string &arg_name, bool is_arg, double x)
 {
     if (is_arg == HSP_ATTR_ARGUMENT)
-        _assign_arg_scalar(arg_name, x);
+        assign_arg_scalar_(arg_name, x);
     else
-        _assign_range_scalar(arg_name, x);
+        assign_range_scalar_(arg_name, x);
 }
 //* Assign pointer argument or range value. *//
 void Function::assign_attr(const std::string &arg_name, bool is_arg, const double *y)
@@ -318,12 +318,12 @@ void Function::assign_attr(const std::string &arg_name, bool is_arg, const doubl
     // check the function is different from the current one
     if (y == nullptr)
         throw std::invalid_argument(
-            "Invalid pointer argument \"" + arg_name + "\" for \"" + _function_name + "\".");
+            "Invalid pointer argument \"" + arg_name + "\" for \"" + function_name_ + "\".");
 
     if (is_arg == HSP_ATTR_ARGUMENT)
-        _assign_arg_pointer(arg_name, y);
+        assign_arg_pointer_(arg_name, y);
     else
-        _assign_range_pointer(arg_name, y);
+        assign_range_pointer_(arg_name, y);
 }
 //* Assign fucntion argument or range value. *//
 void Function::assign_attr(const std::string &arg_name, bool is_arg, std::shared_ptr<Function> f)
@@ -331,105 +331,105 @@ void Function::assign_attr(const std::string &arg_name, bool is_arg, std::shared
     // check the function is different from the current one
     if (f == nullptr)
         throw std::invalid_argument(
-            "Invalid function argument \"" + arg_name + "\" for \"" + _function_name + "\".");
+            "Invalid function argument \"" + arg_name + "\" for \"" + function_name_ + "\".");
     else if (f.get() == this)
         throw std::invalid_argument(
-            "Cannot assign function \"" + _function_name + "\" to its own argument \"" + arg_name + "\".");
+            "Cannot assign function \"" + function_name_ + "\" to its own argument \"" + arg_name + "\".");
 
     if (is_arg == HSP_ATTR_ARGUMENT)
-        _assign_arg_function(arg_name, f);
+        assign_arg_function_(arg_name, f);
     else
-        _assign_range_function(arg_name, f);
+        assign_range_function_(arg_name, f);
 }
 
 /* Assignment scalar argument. */
-void Function::_assign_arg_scalar(const std::string &arg_name, double x)
+void Function::assign_arg_scalar_(const std::string &arg_name, double x)
 {
     ushort i = this->assert_arg(arg_name);
-    _arguments[i].assign_scalar(x);
+    arguments_[i].assign_scalar(x);
 }
 /* Assignment pointer argument. */
-void Function::_assign_arg_pointer(const std::string &arg_name, const double *y)
+void Function::assign_arg_pointer_(const std::string &arg_name, const double *y)
 {
     ushort i = this->assert_arg(arg_name);
-    _arguments[i].assign_pointer(y);
+    arguments_[i].assign_pointer(y);
 }
 /* Assignment function argument. */
-void Function::_assign_arg_function(const std::string &arg_name, std::shared_ptr<Function> f)
+void Function::assign_arg_function_(const std::string &arg_name, std::shared_ptr<Function> f)
 {
     ushort i = this->assert_arg(arg_name);
-    _arguments[i].assign_function(f);
+    arguments_[i].assign_function(f);
 }
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////  Base Function : Range  ///////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign scalar range. */
-void Function::_assign_range_scalar(const std::string &range_name, double x)
+void Function::assign_range_scalar_(const std::string &range_name, double x)
 {
-    if (_function_name == "unif")
+    if (function_name_ == "unif")
     {
         if ((range_name != "min") && (range_name != "max"))
             throw std::invalid_argument(
-                "Unknown range name \"" + range_name + "\" for \"" + _function_name + "\".");
+                "Unknown range name \"" + range_name + "\" for \"" + function_name_ + "\".");
         else if (!tools::is_na(x))
-            _assign_arg_scalar(range_name, x);
+            assign_arg_scalar_(range_name, x);
     }
     else
     {
         if (range_name == "min")
-            _range_min.assign_scalar(x);
+            range_min_.assign_scalar(x);
         else if (range_name == "max")
-            _range_max.assign_scalar(x);
+            range_max_.assign_scalar(x);
         else
             throw std::invalid_argument(
-                "Unknown range name \"" + range_name + "\" for \"" + _function_name + "\".");
+                "Unknown range name \"" + range_name + "\" for \"" + function_name_ + "\".");
     }
 }
 
 /* Assign pointer range. */
-void Function::_assign_range_pointer(const std::string &range_name, const double *y)
+void Function::assign_range_pointer_(const std::string &range_name, const double *y)
 {
-    if (_function_name == "unif")
+    if (function_name_ == "unif")
     {
         if ((range_name != "min") && (range_name != "max"))
             throw std::invalid_argument(
-                "Unknown range name \"" + range_name + "\" for \"" + _function_name + "\".");
+                "Unknown range name \"" + range_name + "\" for \"" + function_name_ + "\".");
         else if (y != nullptr)
-            _assign_arg_pointer(range_name, y);
+            assign_arg_pointer_(range_name, y);
     }
     else
     {
         if (range_name == "min")
-            _range_min.assign_pointer(y);
+            range_min_.assign_pointer(y);
         else if (range_name == "max")
-            _range_max.assign_pointer(y);
+            range_max_.assign_pointer(y);
         else
             throw std::invalid_argument(
-                "Unknown range name \"" + range_name + "\" for \"" + _function_name + "\".");
+                "Unknown range name \"" + range_name + "\" for \"" + function_name_ + "\".");
     }
 }
 
 /* Assign function range. */
-void Function::_assign_range_function(const std::string &range_name, const std::shared_ptr<Function> f)
+void Function::assign_range_function_(const std::string &range_name, const std::shared_ptr<Function> f)
 {
-    if (_function_name == "unif")
+    if (function_name_ == "unif")
     {
         if ((range_name != "min") && (range_name != "max"))
             throw std::invalid_argument(
-                "Unknown range name \"" + range_name + "\" for \"" + _function_name + "\".");
+                "Unknown range name \"" + range_name + "\" for \"" + function_name_ + "\".");
         else if (f != nullptr)
-            _assign_arg_function(range_name, f);
+            assign_arg_function_(range_name, f);
     }
     else
     {
         if (range_name == "min")
-            _range_min.assign_function(f);
+            range_min_.assign_function(f);
         else if (range_name == "max")
-            _range_max.assign_function(f);
+            range_max_.assign_function(f);
         else
             throw std::invalid_argument(
-                "Unknown range name \"" + range_name + "\" for \"" + _function_name + "\".");
+                "Unknown range name \"" + range_name + "\" for \"" + function_name_ + "\".");
     }
 }
 
@@ -447,11 +447,11 @@ void Function::_assign_range_function(const std::string &range_name, const std::
 /* Return formatted argument names of the distribution. */
 const std::string Function::show_arg_names() const
 {
-    if (_n_args > 0)
+    if (n_args_ > 0)
     {
-        std::string output = _arguments[0].show_name();
-        for (ushort c = 1; c < _n_args; ++c)
-            output += C_LIST_DELIM + _arguments[c].show_name();
+        std::string output = arguments_[0].show_name();
+        for (ushort c = 1; c < n_args_; ++c)
+            output += C_LIST_DELIM + arguments_[c].show_name();
         return output;
     }
 
@@ -461,11 +461,11 @@ const std::string Function::show_arg_names() const
 /* Return formatted argument names of the distribution. */
 const std::string Function::show_arg_values() const
 {
-    if (_n_args > 0)
+    if (n_args_ > 0)
     {
-        std::string output = _arguments[0].show();
-        for (ushort c = 1; c < _n_args; ++c)
-            output += C_LIST_DELIM + _arguments[c].show();
+        std::string output = arguments_[0].show();
+        for (ushort c = 1; c < n_args_; ++c)
+            output += C_LIST_DELIM + arguments_[c].show();
         return output;
     }
 
@@ -476,14 +476,14 @@ const std::string Function::show_arg_values() const
 const std::string Function::show_summary() const
 {
     std::string output = show_name();
-    if (_n_args > 0)
+    if (n_args_ > 0)
     {
-        output += "(" + _arguments[0].show_name() + "=" + _arguments[0].show();
-        for (ushort c = 1; c < _n_args; ++c)
-            output += ", " + _arguments[c].show_name() + "=" + _arguments[c].show();
+        output += "(" + arguments_[0].show_name() + "=" + arguments_[0].show();
+        for (ushort c = 1; c < n_args_; ++c)
+            output += ", " + arguments_[c].show_name() + "=" + arguments_[c].show();
         output += ")";
     }
-    if (_do_valid != &Function::__valid_always)
+    if (valid_ != &Function::do_valid_always_)
         output += " : " + show_range();
 
     return output;
@@ -497,8 +497,8 @@ Rcpp::List Function::export_arg_list() const
 
     List output = List::create();
 
-    for (size_t k = 0; k < _n_args; ++k)
-        output.push_back(_arguments[k].get(), _arguments[k].show_name());
+    for (size_t k = 0; k < n_args_; ++k)
+        output.push_back(arguments_[k].get(), arguments_[k].show_name());
 
     return (output);
 }
@@ -508,8 +508,8 @@ Rcpp::List Function::export_range_list() const
 {
     using namespace Rcpp;
 
-    List output = List::create(_["min"] = _range_min.get(),
-                               _["max"] = _range_max.get());
+    List output = List::create(_["min"] = range_min_.get(),
+                               _["max"] = range_max_.get());
 
     return (output);
 }

@@ -77,8 +77,8 @@ const std::string CONTACT_RATE = "Contact";      // contact rate
 const std::string MISSING_RATE = "MISSING_RATE"; // missing rate
 
 // auxiliary infectivity profile
-const std::string AUX_IP_INST_PROFILE = "__profile_inst__";   // augmented instantaneous infectivity profile
-const std::string AUX_IP_CUMUL_PROFILE = "__profile_cumul__"; // augmented cumulative infectivity profile
+const std::string AUX_IP_INST_PROFILE = "profile_inst_";   // augmented instantaneous infectivity profile
+const std::string AUX_IP_CUMUL_PROFILE = "profile_cumul_"; // augmented cumulative infectivity profile
 
 // constants
 constexpr unsigned DEFAULT_MAX_SIZE = 30;    // default size for lookup table
@@ -125,15 +125,12 @@ template <typename T>
 using matrix = std::vector<std::vector<T>>;
 
 //----- Aliases for improved readibility -----//
-using _access_key_ = std::string;
+using par_key = std::string;
+using augm_key = std::string;
+using data_key = std::string;
+using rate_key = std::string;
+using cache_key = std::string;
 
-using par_key = _access_key_;
-using augm_key = _access_key_;
-using data_key = _access_key_;
-using rate_key = _access_key_;
-using cache_key = _access_key_;
-
-#include <unordered_map>
 template <typename T>
 using par_key_map = std::unordered_map<par_key, T>;
 template <typename T>
@@ -159,6 +156,13 @@ using rate_key_mapvec = rate_key_map<std::vector<T>>;
 ////////////////////////////////////  OPERATOR OVERLOADS  ///////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+// check if a given value is inside a container
+template <typename Container, typename T>
+bool operator%(const Container &c, const T &value)
+{
+    return std::find(c.begin(), c.end(), value) != c.end();
+}
+
 /* Concatenate with overloaded + operator. */
 template <typename T>
 std::vector<T> operator+(const std::vector<T> &x, const std::vector<T> &y)
@@ -179,20 +183,13 @@ std::vector<T> &operator+=(std::vector<T> &x, const std::vector<T> &y)
     return x;
 }
 
-// check if a given value is inside a container
-template <typename Container, typename T>
-bool contains(const Container &c, const T &value)
-{
-    return std::find(c.begin(), c.end(), value) != c.end();
-}
-
-// return all elements of first vector, but those contained in second
+// Remove all elements of first vector contained in second
 template <typename T>
-std::vector<T> subtr(std::vector<T> v, const std::vector<T> &w)
+std::vector<T> operator-(std::vector<T> v, const std::vector<T> &w)
 {
     auto new_end = std::remove_if(v.begin(), v.end(),
                                   [&w](const T &i)
-                                  { return contains(w, i); });
+                                  { return w % i; });
     v.erase(new_end, v.end());
     return v;
 }
@@ -254,17 +251,13 @@ namespace tools
                                   const char delim = C_LIST_DELIM);
 
     // read csv files
-    void read_csv_list(const std::string &pathtofile,
-                       dict_str_str &csv_parsed_list,
-                       const std::string &def_name);
-    void read_csv_table(const std::string &pathtofile,
-                        dict_str_vec &csv_parsed_table,
-                        const std::string &def_name);
+    const dict_str_str read_csv_list(const std::string &pathtofile);
+    const dict_str_vec read_csv_table(const std::string &pathtofile);
 
 #ifdef _HOUSEPI_RCPP
     Rcpp::String stoRString(const std::string &x);
-    void rlist_to_map(SEXP input, dict_str_str &output, const std::string &def_name);
-    void rdataframe_to_map(SEXP input, dict_str_vec &output, const std::string &def_name);
+    const dict_str_str rlist_to_map(SEXP input);
+    const dict_str_vec rdataframe_to_map(SEXP input);
 #endif
 
     const str_vec headers_from_deflist(const dict_str_str &deflist);
@@ -309,7 +302,7 @@ namespace progress
 
     private:
         class Impl; // Pointer to Implementation
-        std::unique_ptr<Impl> pImpl;
+        std::unique_ptr<Impl> pImpl_;
     };
 }
 

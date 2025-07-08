@@ -163,7 +163,7 @@ RCPP_MODULE(housepi_infec_profile)
 //' }
 //' @field simulate\cr Load a simulated database.
 //' @field evaluate\cr Evaluate the loglikelihood according to the current state.
-//' @field estimate_evidence\cr Evaluate the logarithm of the marginal likelihood with the method of power posteriors. \itemize{
+//' @field evidence\cr Evaluate the logarithm of the marginal likelihood with the method of power posteriors. \itemize{
 //'   \item Parameter: scheme
 //'   \item Parameter: n_rungs
 //' }
@@ -196,7 +196,7 @@ RCPP_MODULE(housepi_model_core)
         .method("infer", &MCMC::infer)
         .method("simulate", &MCMC::simulate)
         .method("evaluate", &MCMC::evaluate)
-        .method("estimate_evidence", &MCMC::estimate_evidence)
+        .method("evidence", &MCMC::evidence)
         .method("import_setup", &MCMC::import_setup)
         .method("import_dataset", &MCMC::import_dataset)
         .method("import_datalist", &MCMC::import_datalist)

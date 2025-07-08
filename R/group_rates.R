@@ -75,7 +75,7 @@ group_rate_logic_table <- function(dataset, by) {
   y <- rev(y[multifeat_count > 0, , drop = FALSE])
 
   # add counts
-  y$.counts <- multifeat_count[multifeat_count > 0]
+  y$counts <- multifeat_count[multifeat_count > 0]
 
   return(y)
 }
@@ -102,11 +102,11 @@ associate_param_names <- function(this_table,
                                   reference = NULL) {
   # column names to consider
   colmask <- setdiff(names(this_table),
-                     c(".counts", ".param.name"))
+                     c("counts", "param_name"))
 
   # extract reference index
   if (length(reference) == 0) {
-    idx_refer <- which.max(this_table$.counts)
+    idx_refer <- which.max(this_table$counts)
 
   } else {
     # find row
@@ -125,12 +125,12 @@ associate_param_names <- function(this_table,
                    paste0(prefix, "_"), "")
 
   # associate parameter names
-  this_table$.param.name <- apply(
+  this_table$param_name <- apply(
     this_table[colmask], 1, function(row) {
       paste0(prefix, paste(paste(colmask, row, sep = "_"), collapse = "_"))
     }
   )
-  this_table$.param.name[idx_refer] <- "REFERENCE"
+  this_table$param_name[idx_refer] <- "REFERENCE"
 
   return(this_table)
 }
@@ -149,13 +149,13 @@ associate_param_names <- function(this_table,
 #' @keywords internal
 tidyup_group_rate_tables <- function(all_tables) {
   # tidy version of group rate tables
-  drop_counts <- function(x) x[, colnames(x) != ".counts"]
-  cbind_rate <- function(x, rate) cbind(.group.rate = rate, x)
+  drop_counts <- function(x) x[, colnames(x) != "counts"]
+  cbind_rate <- function(x, rate) cbind(group_rate = rate, x)
   df_list <- c()
   for (rate in names(all_tables)) {
     this_table <- all_tables[[rate]]
     if (length(this_table) == 0) {
-      df <- list(data.frame(.group.rate = rate, .param.name = "REFERENCE"))
+      df <- list(data.frame(group_rate = rate, param_name = "REFERENCE"))
     } else {
       df <- lapply(this_table, function(x) cbind_rate(drop_counts(x), rate))
     }
@@ -214,7 +214,7 @@ HousepiGroupRate <- R6::R6Class(
         new_defs <- list()
         for (rate_id in names(self$logic_tables)) {
           for (this_table in self$logic_tables[[rate_id]]) {
-            for (par_id in setdiff(this_table$.param.name, c("REFERENCE"))) {
+            for (par_id in setdiff(this_table$param_name, c("REFERENCE"))) {
               new_defs[[par_id]] <- private$.param_defs[[rate_id]]
             }
           }
@@ -231,7 +231,7 @@ HousepiGroupRate <- R6::R6Class(
         requirements <- c()
         for (rate_id in names(self$logic_tables)) {
           for (this_table in self$logic_tables[[rate_id]]) {
-            requirements <- c(requirements, this_table$.param.name)
+            requirements <- c(requirements, this_table$param_name)
           }
         }
         return(setdiff(unique(requirements), c("REFERENCE")))
@@ -368,6 +368,16 @@ HousepiGroupRate <- R6::R6Class(
         sprintf("Overwriting existing \"%s\" definition.", name)
       )
 
+      if (!is.na(by)) {
+        if (isFALSE(is.character(by))) stop_h(
+          "Argument 'by' must be of type character."
+        ) 
+        else if (by %in% c("counts", "param_name", "group_rate")) stop_h(
+          sprintf("Feature name \"%s\" is a reserved word.", by),
+          "Please, rename feature and corresponding data column."
+        )
+      }
+
       # load reference
       if (!is.null(reference)) {
         if (length(by) != length(reference)) stop_h(
@@ -481,7 +491,7 @@ HousepiGroupRate <- R6::R6Class(
             }
             # concatenate new lines to the script
             # mask reference case
-            mask <- this_table$.param.name == "REFERENCE"
+            mask <- this_table$param_name == "REFERENCE"
           }
         }
 

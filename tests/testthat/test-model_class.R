@@ -28,7 +28,7 @@ test_that("Model class blank calls", {
   expect_true(all(hhmodel$dataset == dataset))
 
   # correct datalist call
-  datalist <- data.frame(id = dataset$id,
+  datalist <- data.frame(id = dataset$id[1],
                          time = seq(3),
                          measure = seq(3)**3)
   hhmodel$datalist <- datalist

@@ -27,16 +27,16 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Set accept rates to zero. */
-void MCMC::Impl::_init_move_counts()
+void MCMC::Impl::init_move_counts_()
 {
-    for (const par_key &p : param_standard_infer_list + param_cache_infer_list)
-        param_map.at(p).reset_accept_rate();
+    for (const par_key &p : param.list_sample)
+        param.dictionary.at(p).reset_accept_rate();
 }
 
 /* propose a valid move (retrun true), otherwise update refusal (return false) */
-bool MCMC::Impl::propose_valid_param_move(const par_key &p)
+bool MCMC::Impl::propose_valid_param_move_(const par_key &p)
 {
-    Variable &this_par = param_map.at(p);
+    Variable &this_par = param.dictionary.at(p);
 
     // set new value of the parameter and store the old to buffer
     this_par.propose(setup.prng());
@@ -52,31 +52,31 @@ bool MCMC::Impl::propose_valid_param_move(const par_key &p)
 }
 
 /* Restore the parameter value in the buffer. */
-void MCMC::Impl::recover_parameter(const par_key &p, bool is_cache_depen)
+void MCMC::Impl::recover_parameter_(const par_key &p, bool is_cache_depen)
 {
     // recover buffer value of parameter
-    param_map.at(p).recover_value();
+    param.dictionary.at(p).recover_value();
 
     // recover buffer value of full loglike
-    full_loglike = full_buffer;
+    full_loglike_ = full_buffer_;
 
     // recover buffered loglikelihood in households
-    for (Household &house : house_vector)
+    for (Household &house : dataset.restricted())
     {
         house.recover_buffer_values(is_cache_depen);
-        if (is_augm_sample())
+        if (augm.is_sample())
             for (Individual &member : house.infected())
                 member.recover_augm_model_loglike();
     }
 
-    recover_infec_profile(is_cache_depen);
+    infec_profile.recover(is_cache_depen);
 }
 
 /* Metropolis-Hastings to accept or not current parameter move. */
-bool MCMC::Impl::accept_valid_param_move(const par_key &p)
+bool MCMC::Impl::accept_valid_param_move_(const par_key &p)
 {
-    const double D_ll = full_loglike - full_buffer;
-    const double move_logratio = param_map.at(p).get_move_logratio();
+    const double D_ll = full_loglike_ - full_buffer_;
+    const double move_logratio = param.dictionary.at(p).get_move_logratio();
     return setup.unif() < std::exp(setup.inv_T * D_ll + move_logratio);
 }
 
@@ -84,93 +84,89 @@ bool MCMC::Impl::accept_valid_param_move(const par_key &p)
 //////////////////////////////  MCMC::Impl : methods (diagnostics) ////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* Initialize posterior sample of parameters. */
+void MCMC::Impl::ImplParameter::init_traces(ulong sample_size)
+{
+    smpl_values.clear();
+    smpl_values.reserve(list_sample.size());
+    for (const par_key &p : list_sample)
+    {
+        smpl_values[p].clear();
+        smpl_values[p].reserve(sample_size);
+        smpl_values[p].assign(sample_size, HSP_NA_DOUBLE);
+    }
+}
+
+/* Store current sample of parameters. */
+void MCMC::Impl::ImplParameter::update_traces(ulong smpl_count)
+{
+    for (const par_key &p : list_sample)
+        smpl_values.at(p)[smpl_count] = get(p);
+}
+
+/* Initialize posterior sample of parameters. */
+void MCMC::Impl::ImplDataSet::init_traces(ulong sample_size)
+{
+    // sample over households
+    smpl_values_.clear();
+    smpl_values_.resize(restrict_indexes_.size());
+    for (size_t R = 0; R < restrict_indexes_.size(); ++R)
+    {
+        smpl_values_[R].clear();
+        smpl_values_[R].reserve(sample_size);
+        smpl_values_[R].assign(sample_size, HSP_NA_DOUBLE);
+    }
+}
+
+/* Store current sample of loglikelihood for restricted households. */
+void MCMC::Impl::ImplDataSet::update_traces(ulong smpl_count)
+{
+    // store sample for restricted households
+    for (size_t R = 0; R < restrict_indexes_.size(); ++R)
+    {
+        Household &house = house_vector_[restrict_indexes_[R]];
+        double x = house.get_obs_loglike() / house.multiplicity();
+        for (const Individual &member : house.infected())
+            x += member.get_augm_model_loglike();
+        smpl_values_[R][smpl_count] = x;
+    }
+}
+
 /* Init posterior sampling. UPDATE: */
-void MCMC::Impl::_init_infer_diagnostics()
+void MCMC::Impl::init_infer_diagnostics_()
 {
     ulong sample_size = setup.c_sample_size * setup.n_chains;
 
     // diagnostics over full loglikelihood
-    smpl_count = 0;
-    smpl_full_loglike.clear();
-    smpl_full_loglike.reserve(sample_size);
-    smpl_full_loglike.assign(sample_size, HSP_NA_DOUBLE);
+    smpl_count_ = 0;
+    smpl_full_loglike_.clear();
+    smpl_full_loglike_.reserve(sample_size);
+    smpl_full_loglike_.assign(sample_size, HSP_NA_DOUBLE);
 
     // initialize  other diagnostic vectors
     // UPDATE: I might want to store also power posterior sample
     if (!setup.is_power_post())
     {
-        // sample over households
-        smpl_house_loglike.clear();
-        smpl_house_loglike.resize(restrict_hh_indexes.size());
-        for (size_t R = 0; R < restrict_hh_indexes.size(); ++R)
-        {
-            smpl_house_loglike[R].clear();
-            smpl_house_loglike[R].reserve(sample_size);
-            smpl_house_loglike[R].assign(sample_size, HSP_NA_DOUBLE);
-        }
-
-        // sample over parameters
-        for (const par_key &p : param_standard_infer_list + param_cache_infer_list)
-        {
-            smpl_param_value[p].clear();
-            smpl_param_value[p].reserve(sample_size);
-            smpl_param_value[p].assign(sample_size, HSP_NA_DOUBLE);
-        }
-
-        // sample over augmented variables
-        if (!setup.id_trace.empty())
-        {
-            smpl_augm_value.clear();
-            smpl_augm_value.resize(smpl_individual_star.size());
-            for (size_t k = 0; k < smpl_individual_star.size(); ++k)
-            {
-                smpl_augm_value[k].clear();
-                smpl_augm_value[k].reserve((augm_list_infer + augm_list_func).size());
-                for (const augm_key &a : augm_list_infer + augm_list_func)
-                {
-                    smpl_augm_value[k][a].clear();
-                    smpl_augm_value[k][a].reserve(sample_size);
-                    smpl_augm_value[k][a].assign(sample_size, HSP_NA_DOUBLE);
-                }
-            }
-        }
+        dataset.init_traces(sample_size);
+        param.init_traces(sample_size);
+        augm.init_traces(sample_size);
     }
 }
 
 /* Update Bayesian posterior sample. */
-void MCMC::Impl::_update_posterior_sample()
+void MCMC::Impl::update_posterior_sample_()
 {
     // store sample of the full loglikelihood
-    smpl_full_loglike[smpl_count] = full_loglike;
+    smpl_full_loglike_[smpl_count_] = full_loglike_;
 
     if (!setup.is_power_post())
     {
-        // store sample for all parameters to be inferred
-        for (const par_key &p : param_standard_infer_list + param_cache_infer_list)
-            smpl_param_value.at(p)[smpl_count] = get_param(p);
-
-        // store sample for restricted households
-        for (size_t R = 0; R < restrict_hh_indexes.size(); ++R)
-        {
-            Household &house = house_vector[restrict_hh_indexes[R]];
-            double x = house.get_obs_loglike() / house.multiplicity();
-            for (const Individual &member : house.infected())
-                x += member.get_augm_model_loglike();
-            smpl_house_loglike[R][smpl_count] = x;
-        }
-
-        // store sample for individual augmented variable followup
-        if (!setup.id_trace.empty())
-            for (size_t k = 0; k < smpl_individual_star.size(); ++k)
-            {
-                auto &smpl_augm_value_k = smpl_augm_value[k];
-                const Individual *member_star = smpl_individual_star[k];
-                for (const augm_key &a : augm_list_infer + augm_list_func)
-                    smpl_augm_value_k[a][smpl_count] = member_star->augm(a);
-            }
+        param.update_traces(smpl_count_);
+        dataset.update_traces(smpl_count_);
+        augm.update_traces(smpl_count_);
     }
 
-    ++smpl_count;
+    ++smpl_count_;
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -185,25 +181,26 @@ void MCMC::Impl::_update_posterior_sample()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Compute new loglikelihood, store old value in buffer. Same for households. */
-void MCMC::Impl::_update_full_loglike(bool cache_depen)
+void MCMC::Impl::update_full_loglike_(bool cache_depen)
 {
-    const bool is_augm_ll = is_augm_model();
+    const bool is_augm_ll = augm.is_model();
     double new_ll = 0.0;
     std::atomic<bool> has_error(false);
 
     // buffer infectivity profile if lookup tables are active
-    if (cache_depen)
-        update_infec_profile();
+    infec_profile.update(cache_depen);
 
 #pragma omp parallel for reduction(+ : new_ll)
-    for (size_t R = 0; R < restrict_hh_indexes.size(); ++R)
+    for (size_t R = 0; R < dataset.n_restricted_houses(); ++R)
     {
+        Household &house = dataset.restricted(R);
+
         if (has_error.load(std::memory_order_relaxed))
             continue;
 
         try
         {
-            new_ll += _update_house_loglike(R, is_augm_ll, cache_depen);
+            new_ll += update_house_loglike_(house, is_augm_ll, cache_depen);
         }
         catch (const std::exception &e)
         {
@@ -211,7 +208,7 @@ void MCMC::Impl::_update_full_loglike(bool cache_depen)
             {
                 if (!has_error.exchange(true))
                     error_message = "While computing loglikelihood for house " +
-                                    house_vector[restrict_hh_indexes[R]].house_id() + ":\n" +
+                                    house.house_id() + ":\n" +
                                     std::string(e.what());
             }
         }
@@ -219,7 +216,7 @@ void MCMC::Impl::_update_full_loglike(bool cache_depen)
     if (!error_message.empty())
         throw std::runtime_error(error_message);
 
-    set_full_loglike(new_ll);
+    set_full_loglike_(new_ll);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -229,20 +226,18 @@ void MCMC::Impl::_update_full_loglike(bool cache_depen)
 /* Update and return contribution of given household to full logliklehood.
  * NOTE: house multiplicity doesn't work with data augmentation
  */
-double MCMC::Impl::_update_house_loglike(size_t R, bool is_augm_ll, bool cache_depen)
+double MCMC::Impl::update_house_loglike_(Household &house, bool is_augm_ll, bool is_cache_depen)
 {
-    Household &house = house_vector[restrict_hh_indexes[R]];
-
     // buffer all household cache dependencies
-    if (cache_depen)
+    if (is_cache_depen)
     {
         house.buffer_all_cache();
         for (Individual &member : house.infected())
-            _update_cache_dependecies(house, member);
+            update_cache_dependecies_(house, member);
     }
 
     // update household observation loglikelihood
-    double output = _compute_and_set_household_obs_loglike(house);
+    double output = compute_and_set_household_obs_loglike_(house);
 
     // update individual augmented loglikelihood
     if (is_augm_ll)
@@ -257,21 +252,21 @@ double MCMC::Impl::_update_house_loglike(size_t R, bool is_augm_ll, bool cache_d
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Attempt to move a single parameter for the given inverse temperature. */
-bool MCMC::Impl::_move_single_parameter(const par_key &p, bool cache_depen)
+bool MCMC::Impl::move_single_parameter_(const par_key &p, bool cache_depen)
 {
     bool is_accepted = false;
     // proceed only if the new value is consistent
     // otherwise automatically execute refuse_move(par_key)
-    if (propose_valid_param_move(p))
+    if (propose_valid_param_move_(p))
     {
         // if cache depending on parameter, update and buffer cache
-        _update_full_loglike(cache_depen);
+        update_full_loglike_(cache_depen);
 
         // perform Metropolis-Hastings to accept or not move
-        if (accept_valid_param_move(p))
+        if (accept_valid_param_move_(p))
             is_accepted = true;
         else
-            recover_parameter(p, cache_depen);
+            recover_parameter_(p, cache_depen);
     }
 
     return is_accepted;
@@ -285,42 +280,42 @@ bool MCMC::Impl::_move_single_parameter(const par_key &p, bool cache_depen)
 //-----------------------------------------------------------------------------------------------//
 
 /* Move all model parameters. */
-void MCMC::Impl::_move_all()
+void MCMC::Impl::move_all_()
 {
     // move augmented variables if any
-    _move_all_augm();
+    move_all_augm_();
 
     // move all simple model parameters
-    for (const par_key &p : param_standard_infer_list)
-        _move_single_parameter(p, false);
+    for (const par_key &p : param.list_sample_standard)
+        move_single_parameter_(p, false);
 
     // move parameters with cache dependecies
-    for (const par_key &p : param_cache_infer_list)
-        _move_single_parameter(p, true);
+    for (const par_key &p : param.list_sample_cache)
+        move_single_parameter_(p, true);
 }
 
 /* Move all augmented variables and model parameters and adapt their rule arguments. */
-void MCMC::Impl::_move_all_and_adapt_params(ulong step)
+void MCMC::Impl::move_all_and_adapt_params_(ulong step)
 {
     // move augmented variables if
-    _move_all_augm();
+    move_all_augm_();
 
     // move all model parameters and adapt their rule arguments
     const double ratio = static_cast<double>(step) / setup.n_adapt;
 
     // move all simple model parameters
-    for (const par_key &p : param_standard_infer_list)
+    for (const par_key &p : param.list_sample_standard)
     {
-        Variable &this_param = param_map.at(p);
-        this_param.update_accept_rate(_move_single_parameter(p, false));
+        Variable &this_param = param.dictionary.at(p);
+        this_param.update_accept_rate(move_single_parameter_(p, false));
         this_param.adapt_rule(ratio);
     }
 
     // move parameters with cache dependecies
-    for (const par_key &p : param_cache_infer_list)
+    for (const par_key &p : param.list_sample_cache)
     {
-        Variable &this_param = param_map.at(p);
-        this_param.update_accept_rate(_move_single_parameter(p, true));
+        Variable &this_param = param.dictionary.at(p);
+        this_param.update_accept_rate(move_single_parameter_(p, true));
         this_param.adapt_rule(ratio);
     }
 }
@@ -338,41 +333,41 @@ void MCMC::Impl::_move_all_and_adapt_params(ulong step)
 
 /* Markov chain core, used for inference and power posteriors.
     note: sweep is the number of previously completed thin sweeps. */
-void MCMC::Impl::_run_monte_carlo()
+void MCMC::Impl::run_monte_carlo_()
 {
     //==========================//
     //===== Initialization =====//
     //==========================//
 
     ulong &chain = setup.chain; // current chain
-    _init_infer_diagnostics();  // initialize diagnostics
+    init_infer_diagnostics_();  // initialize diagnostics
 
     // run multiple MCMC chains&
     for (chain = 1; chain <= setup.n_chains; ++chain)
     {
         // update progressbar text
         setup.prog_set_text();      // update progress bar text
-        init_parameters();          // init parameter inference
-        init_augmented_variables(); // init augmented dependencies
-        _update_full_loglike(true); // init cache + full loglikelihood
-        _init_move_counts();        // init move counts for adaptive
+        param.init();               // init parameter inference
+        augm.init();                // init augmented variables
+        update_full_loglike_(true); // init cache + full loglikelihood
+        init_move_counts_();        // init move counts for adaptive
 
         // (Finite) Adaptative Iterations
         for (ulong i = 0; i < setup.n_adapt; i += setup.thin, setup.prog_update())
             for (ulong t = 1; t <= setup.thin; ++t)
-                _move_all_and_adapt_params(i + t);
+                move_all_and_adapt_params_(i + t);
 
         // Burn-in Iterations
         for (ulong i = 0; i < setup.n_burnin; i += setup.thin, setup.prog_update())
             for (ulong t = 1; t <= setup.thin; ++t)
-                _move_all();
+                move_all_();
 
         // Posterior sampling
         for (ulong i = setup.n_burnin; i < setup.n_steps; i += setup.thin, setup.prog_update())
         {
             for (ulong t = 1; t <= setup.thin; ++t)
-                _move_all();
-            _update_posterior_sample(); // store sample
+                move_all_();
+            update_posterior_sample_(); // store sample
         }
     }
 }
@@ -393,16 +388,16 @@ double MCMC::Impl::evaluate()
 {
     try
     {
-        assert_proper_dataset();         // check if dataset is empty
-        setup.n_chains = 0;              // use 0 chains as a state variable
-        setup.rand_init_params = false;  // disable random initialization // UPDATE
-        init_parameters();               // check no undefined parameters
-        init_augmented_variables();      // initialize augmented dependencies
-        infec_profile.assign_template(); // assign infectivity profile template
-        _init_model_for_inference();     // initialize model for inference
-        _update_full_loglike(true);      // initialize cache + full loglikelihood
+        assert_proper_dataset_();       // check if dataset is empty
+        setup.n_chains = 0;             // use 0 chains as a state variable
+        setup.rand_init_params = false; // disable random initialization // UPDATE
+        param.init();                   // check no undefined parameters
+        augm.init();                    // initialize augmented variables
+        infec_profile.init();           // assign infectivity profile template
+        init_model_for_inferencee_();   // initialize model for inference
+        update_full_loglike_(true);     // initialize cache + full loglikelihood
 
-        return full_loglike;
+        return full_loglike_;
     }
     catch (const std::exception &e)
     {
@@ -422,14 +417,13 @@ void MCMC::Impl::infer()
 
     try
     {
-        setup.prog_declare();            // declare current progress bar
-        assert_proper_dataset();         // check if dataset is empty
-        assert_proper_mcmc_setup();      // check setup for mcmc sampling
-        infec_profile.assign_template(); // assign infectivity profile template
-        _init_model_for_inference();     // user initialization model
+        setup.prog_declare();         // declare current progress bar
+        init_monte_carlo_();          // initialize mcmc sampling
+        infec_profile.init();         // assign infectivity profile template
+        init_model_for_inferencee_(); // user initialization model
 
         setup.prog_open(setup.c_n_sweeps * setup.n_chains); // open progress bar
-        _run_monte_carlo();                                 // run Monte Carlo
+        run_monte_carlo_();                                 // run Monte Carlo
         setup.prog_close();                                 // close progress bar
     }
     catch (std::exception &e)
@@ -443,13 +437,13 @@ void MCMC::Impl::infer()
 /////////////////////////////////  MCMC::Impl : power posteriors  /////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Power posteriors numerical integration for evidence.
+/* Trapezoidal rule to estimate logarithm of marginal likelihood (evidence) with power posteriors.
     -----
     Ref: Friel, N., Hurn, M. & Wyse, J.
     Improving power posterior estimation of statistical evidence.
     Stat Comput 24, 709–723 (2014).
 */
-const std::vector<dbl_vec> MCMC::Impl::_power_posteriors(const std::string &scheme, ulong n_rungs)
+const std::vector<dbl_vec> MCMC::Impl::power_posteriors_(const std::string &scheme, ulong n_rungs)
 {
     try
     {
@@ -458,12 +452,11 @@ const std::vector<dbl_vec> MCMC::Impl::_power_posteriors(const std::string &sche
         //==========================//
 
         const str_vec options = {"adaptive", "power-fractions"};
-        if (!contains(options, scheme))
+        if (!(options % scheme))
             throw std::invalid_argument("Unknown power posterior scheme \"" + scheme + "\"." +
                                         tools::find_closest(scheme, options, 3));
 
-        assert_proper_dataset();    // check if dataset is empty
-        assert_proper_mcmc_setup(); // check setup for mcmc sampling
+        init_monte_carlo_(); // initialize mcmc sampling
 
         // fix internal number of rungs (for progress bar)
         if (n_rungs >= 2)
@@ -476,7 +469,7 @@ const std::vector<dbl_vec> MCMC::Impl::_power_posteriors(const std::string &sche
         setup.prog_declare();
 
         // initialize model for inference
-        _init_model_for_inference();
+        init_model_for_inferencee_();
 
         // implementation setup aliases
         double &t = setup.inv_T; // current inverse temperature
@@ -504,8 +497,8 @@ const std::vector<dbl_vec> MCMC::Impl::_power_posteriors(const std::string &sche
 
         rung = 0;
         t = 0.0;
-        _run_monte_carlo();
-        stats = _smpl_full_loglike_stats();
+        run_monte_carlo_();
+        stats = smpl_full_loglike_stats_();
 
         itm.push_back(t);
         avg.push_back(stats.first);
@@ -522,8 +515,8 @@ const std::vector<dbl_vec> MCMC::Impl::_power_posteriors(const std::string &sche
             //----- Inverse Temperature 1 -----//
             rung = 1;
             t = 1.0;
-            _run_monte_carlo();
-            stats = _smpl_full_loglike_stats();
+            run_monte_carlo_();
+            stats = smpl_full_loglike_stats_();
 
             itm.push_back(t);
             avg.push_back(stats.first);
@@ -545,8 +538,8 @@ const std::vector<dbl_vec> MCMC::Impl::_power_posteriors(const std::string &sche
 
                 //----- power posterior sampling -----//
                 t = new_t;
-                _run_monte_carlo();
-                stats = _smpl_full_loglike_stats();
+                run_monte_carlo_();
+                stats = smpl_full_loglike_stats_();
 
                 //----- find larger rectangular discretization error -----//
                 is_right = (itm[k + 1] - t) * (avg[k + 1] - stats.first) > (new_t - itm[k]) * (stats.first - avg[k]);
@@ -571,8 +564,8 @@ const std::vector<dbl_vec> MCMC::Impl::_power_posteriors(const std::string &sche
             {
                 // inverse tempearture = (rung / #rungs)^5
                 t = std::pow(static_cast<double>(rung) / n_rungs, 5);
-                _run_monte_carlo();
-                stats = _smpl_full_loglike_stats();
+                run_monte_carlo_();
+                stats = smpl_full_loglike_stats_();
 
                 itm.push_back(t);
                 avg.push_back(stats.first);
@@ -608,18 +601,16 @@ const std::vector<dbl_vec> MCMC::Impl::_power_posteriors(const std::string &sche
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Auxiliary method to initialize simulations. */
-void MCMC::Impl::_aux_init_simulate()
+void MCMC::Impl::aux_init_simulate_()
 {
-    assert_proper_dataset(); // check if dataset is empty
-    setup.n_chains = 0;      // use 0 chains as a state variable
-
-    setup.n_threads = 1; // impose no parallelization
-    setup.set_n_threads();
-
-    setup.rand_init_params = false;  // disable random parameter initialization
-    init_parameters();               // check no undefined parameters
-    infec_profile.assign_template(); // assign infectivity profile template
-    _init_model_for_simulation();    // initialize model for simulation
+    assert_proper_dataset_();       // check if dataset is empty
+    setup.rand_init_params = false; // disable random parameter initialization
+    setup.n_chains = 0;             // use 0 chains as a state variable
+    setup.n_threads = 1;            // impose no parallelization
+    setup.set_n_threads();          // change accordingly
+    param.init();                   // check no undefined parameters
+    infec_profile.init();           // assign infectivity profile template
+    init_model_for_simulation_();   // initialize model for simulation
 }
 
 #ifdef _HOUSEPI_RCPP
@@ -632,11 +623,9 @@ Rcpp::DataFrame MCMC::Impl::simulate()
     {
         setup.prog_declare("simulate"); // declare current progress bar
 
-        const size_t n_cols = n_individuals;
-        const str_vec _aux_augm_headers = subtr(augm_list_full,
-                                                {AUX_IP_INST_PROFILE, AUX_IP_CUMUL_PROFILE});
-        const str_vec _aux_dataset_headers = subtr(house_vector[0].get_member(0).keys_dataset(),
-                                                   _aux_augm_headers);
+        const size_t n_cols = dataset.n_individuals();
+        const str_vec _aux_augm_headers = augm.list_full - str_vec({AUX_IP_INST_PROFILE, AUX_IP_CUMUL_PROFILE});
+        const str_vec _aux_dataset_headers = dataset.headers() - _aux_augm_headers;
 
         Rcpp::CharacterVector df_index = CharacterVector(n_cols);
         Rcpp::CharacterVector df_house_index = CharacterVector(n_cols);
@@ -648,15 +637,17 @@ Rcpp::DataFrame MCMC::Impl::simulate()
             df_dbl.emplace_back(n_cols);
 
         //----- initialization -----//
-        _aux_init_simulate();
-        setup.prog_open(n_houses());
+        aux_init_simulate_();
+        setup.prog_open(dataset.n_houses());
 
         //----- run simulation -----//
         size_t row = 0;
-        for (Household house : house_vector) // deep copy of the household
+        for (size_t H = 0; H < dataset.n_houses(); ++H)
+        {
+            Household house = dataset.copy(H); // deep copy of the household
             try
             {
-                _simulate_single_household(house);
+                simulate_single_household_(house);
 
                 // store simulation
                 for (const Individual &member : house)
@@ -688,6 +679,7 @@ Rcpp::DataFrame MCMC::Impl::simulate()
                 throw std::runtime_error(
                     "While simulating house \"" + house.house_id() + "\":\n" + std::string(e.what()));
             }
+        }
 
         // close progress bar
         setup.prog_close();
@@ -716,14 +708,14 @@ Rcpp::DataFrame MCMC::Impl::simulate()
     return DataFrame::create();
 }
 
-Rcpp::List MCMC::Impl::estimate_evidence(const std::string &scheme, ulong n_rungs)
+Rcpp::List MCMC::Impl::evidence(const std::string &scheme, ulong n_rungs)
 {
     using namespace Rcpp;
 
     try
     {
         double output = 0;
-        const std::vector<dbl_vec> pp = _power_posteriors(scheme, n_rungs);
+        const std::vector<dbl_vec> pp = power_posteriors_(scheme, n_rungs);
         const dbl_vec &inv_tem = pp[0];
         const dbl_vec &avg_vec = pp[1];
         const dbl_vec &var_vec = pp[2];
@@ -751,7 +743,6 @@ Rcpp::List MCMC::Impl::estimate_evidence(const std::string &scheme, ulong n_rung
 }
 
 #else
-
 /* Print the simulated dataset to the provided file. */
 void MCMC::Impl::print_simulated_dataset(const std::string &pathtofile)
 {
@@ -760,18 +751,18 @@ void MCMC::Impl::print_simulated_dataset(const std::string &pathtofile)
     {
         //----- initialization -----//
         setup.prog_declare("simulate");
-        _aux_print_dataset_init_(pathtofile);
-        _aux_init_simulate();
+        dataset.print_open(pathtofile);
+        aux_init_simulate_();
 
-        setup.prog_open(n_houses()); // open progress bar
+        setup.prog_open(dataset.n_houses()); // open progress bar
 
         //----- run simulation -----//
         // note: deep copy of the household
-        for (Household house : house_vector)
+        for (Household house : dataset)
             try
             {
-                _simulate_single_household(house); // inplace simulation
-                _aux_print_dataset_update_(house); // print the simulated dataset
+                simulate_single_household_(house); // inplace simulation
+                dataset.print_update(house);       // print the simulated dataset
                 setup.prog_update();               // update progress bar
             }
             catch (const std::exception &e)
@@ -780,8 +771,8 @@ void MCMC::Impl::print_simulated_dataset(const std::string &pathtofile)
                     "While simulating house \"" + house.house_id() + "\" :\n" + e.what());
             }
 
-        setup.prog_close();             // close progress bar
-        _aux_print_dataset_finalize_(); // finalize output
+        setup.prog_close();    // close progress bar
+        dataset.print_close(); // finalize output
     }
     catch (std::exception &e)
     {
@@ -801,7 +792,7 @@ void MCMC::Impl::print_evidence(const std::string &scheme, ulong n_rungs)
     try
     {
         double output = 0;
-        const std::vector<dbl_vec> pp = _power_posteriors(scheme, n_rungs);
+        const std::vector<dbl_vec> pp = power_posteriors_(scheme, n_rungs);
         const dbl_vec &inv_tem = pp[0];
         const dbl_vec &avg_vec = pp[1];
         const dbl_vec &var_vec = pp[2];
@@ -822,5 +813,4 @@ void MCMC::Impl::print_evidence(const std::string &scheme, ulong n_rungs)
                      std::string(e.what()));
     }
 }
-
 #endif

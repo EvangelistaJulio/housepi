@@ -230,7 +230,7 @@ HouseholdModel <- R6::R6Class(
           ))
         )
         # remove logic tables auxiliary column names
-        headers <- setdiff(unique(headers), c(".counts", ".param.name"))
+        headers <- setdiff(unique(headers), c("counts_", "param_name_"))
 
         # list of splitted dataset by house_id
         split_data <- split(dataset[c("status", headers)], dataset$house_id)
@@ -359,7 +359,7 @@ HouseholdModel <- R6::R6Class(
       }
       private$.rcpp$import_group_rates(defs)
 
-      # build contact rates (in development)
+      # build contact rates (UPDATE: in development)
       private$.rcpp$build_all_rates()
 
       # assert augmented variable definitions
@@ -374,7 +374,7 @@ HouseholdModel <- R6::R6Class(
         # UPDATE: not robust in case of dataset with only default columns
         if (length(setdiff(private$.last_dataset_cols,
                            c("house_id", "id", "status"))) == 0) {
-          id_trace <- template_blank_dataset_()$id
+          id_trace <- template_blank_dataset_()$id[1]
         }
       }
 
@@ -415,8 +415,8 @@ HouseholdModel <- R6::R6Class(
                 file.path(outpath, "datalist.tmp"),
                 quote = FALSE, row.names = FALSE)
 
-      lvls <- private$.dataset_levels
       defs <- self$group_rate_defs
+      lvls <- private$.dataset_levels
       for (k in intersect(colnames(defs), names(lvls))) {
         defs[[k]] <- as.integer(factor(defs[[k]], levels = lvls[[k]]))
       }
@@ -453,7 +453,8 @@ HouseholdModel <- R6::R6Class(
           "Impossible to export dataset before model build."
         )
         return(cpp_data_refactor(private$.rcpp$export_dataset(),
-                                 private$.dataset_levels))
+                                 private$.dataset_levels,
+                                 private$.last_dataset_cols))
       }
       else private$.import_dataset(value)
     },
@@ -466,7 +467,8 @@ HouseholdModel <- R6::R6Class(
           "Impossible to export datalist before model build."
         )
         return(cpp_data_refactor(private$.rcpp$export_datalist(),
-                                 private$.datalist_levels))
+                                 private$.datalist_levels,
+                                 private$.last_datalist_cols))
       }
       else private$.import_datalist(value)
     },
@@ -970,7 +972,9 @@ HouseholdModel <- R6::R6Class(
                           seed = seed, progress = progress)
 
       # call method from internal Rcpp object
-      return(cpp_data_refactor(private$.rcpp$simulate(), private$.dataset_levels))
+      return(cpp_data_refactor(private$.rcpp$simulate(),
+                               private$.dataset_levels,
+                               private$.last_dataset_cols))
     },
 
     #' @description

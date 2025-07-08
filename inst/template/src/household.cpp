@@ -34,11 +34,11 @@ Individual::Individual(size_t index,
 					   int status,
 					   const data_key_map<double> &data)
 {
-	_index = index;
-	_hhindex = hhindex;
-	_id = id;
-	_status = (status < MISSING_STATUS) ? MISSING_STATUS : status;
-	_data_map = data;
+	index_ = index;
+	hhindex_ = hhindex;
+	id_ = id;
+	status_ = (status < MISSING_STATUS) ? MISSING_STATUS : status;
+	data_map_ = data;
 }
 
 /* Individual deconstructor. */
@@ -54,52 +54,18 @@ Individual::~Individual() = default;
 double Individual::compute_and_set_augm_model_loglike()
 {
 	double x = 0.0;
-	for (const std::function<double()> &f : _augm_model_logpdfs)
+	for (const std::function<double()> &f : augm_model_logpdfs_)
 		x += f();
 
 	if (tools::is_na(x))
 		throw std::runtime_error(
-			"Individual \"" + _id + "\" augmented loglikelihood return NaN value.");
+			"Individual \"" + id_ + "\" augmented loglikelihood returned NaN.");
 
 	// set computed value and store old in buffer
-	_augm_buffer = _augm_loglike;
-	_augm_loglike = x;
+	augm_buffer_ = augm_loglike_;
+	augm_loglike_ = x;
 
 	return x;
-}
-
-/* Individual dataset keys. */
-const std::vector<data_key> Individual::keys_dataset() const
-{
-	std::vector<data_key> keys = {};
-	for (const auto &pair : _data_map)
-		keys.push_back(pair.first);
-	return keys;
-}
-/* Individual datalist keys. */
-const std::vector<data_key> Individual::keys_datalist() const
-{
-	std::vector<data_key> keys = {};
-	if (_datalist_ptr != nullptr)
-		for (const auto &pair : *_datalist_ptr)
-			keys.push_back(pair.first);
-	return keys;
-}
-/* Individual group rate keys. */
-const std::vector<rate_key> Individual::keys_group_rate() const
-{
-	std::vector<data_key> keys = {};
-	for (const auto &pair : _rate_map)
-		keys.push_back(pair.first);
-	return keys;
-}
-/* Individual augmented variable keys. */
-const std::vector<augm_key> Individual::keys_augm() const
-{
-	std::vector<augm_key> keys = {};
-	for (const auto &pair : _augm_map)
-		keys.push_back(pair.first);
-	return keys;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -115,9 +81,9 @@ void Individual::assign_all_group_rates(const rate_key_mapvec<const double *> &p
 
 		if (vec_par_ptr.empty())
 			std::invalid_argument(
-				"Missing rate \"" + r + "\" for individual " + _id + ".");
+				"Missing rate \"" + r + "\" for individual " + id_ + ".");
 		else
-			this->_rate_map[r] = GroupRate(r, vec_par_ptr);
+			this->rate_map_[r] = GroupRate(r, vec_par_ptr);
 	}
 }
 
@@ -127,7 +93,7 @@ void Individual::assign_augm(const augm_key &a, const std::string &name,
 							 const std::string &func_name,
 							 const std::string &model_name)
 {
-	Variable &this_augm = _augm_map.at(a);
+	Variable &this_augm = augm_map_.at(a);
 	this_augm.init(name, value, is_discrete, is_constant, func_name);
 	this_augm.assign_distr(model_name);
 }
@@ -135,11 +101,11 @@ void Individual::assign_augm(const augm_key &a, const std::string &name,
 /* Associate functional methods for augmented model pdfs. */
 void Individual::init_augm_model(const std::vector<augm_key> &augm_model_list)
 {
-	_augm_model_logpdfs.clear();
+	augm_model_logpdfs_.clear();
 	for (const augm_key &a : augm_model_list)
 	{
-		const Variable &xaugm = _augm_map.at(a);
-		_augm_model_logpdfs.emplace_back([&xaugm]()
+		const Variable &xaugm = augm_map_.at(a);
+		augm_model_logpdfs_.emplace_back([&xaugm]()
 										 { return xaugm.distr_logpdf(); });
 	}
 }
@@ -199,11 +165,11 @@ double Individual::GroupRate::get() const
 
 Household::Household(const std::string &house_id, size_t H)
 {
-	_house_id = house_id;
-	_index = H;
-	_house_multiplicity = 1;
-	_multiplicity_class = H;
-	_house_size = 0;
+	house_id_ = house_id;
+	index_ = H;
+	house_multiplicity_ = 1;
+	multiplicity_class_ = H;
+	house_size_ = 0;
 }
 Household::~Household() = default;
 
@@ -214,8 +180,8 @@ Household::~Household() = default;
 /* Assign a multiplicity to the household. */
 void Household::set_multiplicity(ulong m, size_t class_idx)
 {
-	_house_multiplicity = m;
-	_multiplicity_class = class_idx;
+	house_multiplicity_ = m;
+	multiplicity_class_ = class_idx;
 }
 
 /* Link an individual to the household. */
@@ -226,17 +192,17 @@ void Household::assign_member(size_t index,
 {
 	//----- update status lists within the household -----//
 	if (status >= INFECTED_STATUS)
-		_infected_list.push_back(_house_size);
+		infected_list_.push_back(house_size_);
 
 	else if (status == HEALTHY_STATUS)
-		_healthy_list.push_back(_house_size);
+		healthy_list_.push_back(house_size_);
 
 	else
-		_missing_list.push_back(_house_size);
+		missing_list_.push_back(house_size_);
 
 	//----- emplace new individual -----//
-	_members.emplace_back(index, _house_size, id, status, data);
-	++_house_size;
+	members_.emplace_back(index, house_size_, id, status, data);
+	++house_size_;
 }
 
 /* Change_status of individual i to new status (without controls).
@@ -253,26 +219,26 @@ bool Household::change_status(Individual &member, int new_status)
 		const size_t i = static_cast<size_t>(member);
 
 		if (old_status >= INFECTED_STATUS)
-			_infected_list.erase(std::find(_infected_list.begin(), _infected_list.end(), i));
+			infected_list_.erase(std::find(infected_list_.begin(), infected_list_.end(), i));
 
 		else if (old_status == HEALTHY_STATUS)
-			_healthy_list.erase(std::find(_healthy_list.begin(), _healthy_list.end(), i));
+			healthy_list_.erase(std::find(healthy_list_.begin(), healthy_list_.end(), i));
 
 		else if (old_status == MISSING_STATUS)
-			_missing_list.erase(std::find(_missing_list.begin(), _missing_list.end(), i));
+			missing_list_.erase(std::find(missing_list_.begin(), missing_list_.end(), i));
 
 		else
 			throw std::runtime_error(
 				"Unknown status \"" + std::to_string(old_status) + "\" for individual " + member.id() + ".");
 
 		if (new_status >= INFECTED_STATUS)
-			_infected_list.push_back(i);
+			infected_list_.push_back(i);
 
 		else if (new_status == HEALTHY_STATUS)
-			_healthy_list.push_back(i);
+			healthy_list_.push_back(i);
 
 		else if (new_status == MISSING_STATUS)
-			_missing_list.push_back(i);
+			missing_list_.push_back(i);
 
 		else
 			throw std::runtime_error(
@@ -288,10 +254,10 @@ Allocate memory if it  */
 void Household::assign_contact_rate(size_t from, size_t to, const double *x)
 {
 	// initialize contact rate matrix if necessary
-	if (_contact_rates.empty())
-		_contact_rates.resize(size(), std::vector<const double *>(size(), &REFERENCE_VALUE));
+	if (contact_rates_.empty())
+		contact_rates_.resize(size(), std::vector<const double *>(size(), &REFERENCE_VALUE));
 
-	_contact_rates[from][to] = x;
+	contact_rates_[from][to] = x;
 }
 
 /* Store the loglikelihood of household observation. */
@@ -299,10 +265,10 @@ void Household::set_obs_loglike(double x)
 {
 	if (tools::is_na(x))
 		throw std::runtime_error(
-			"Household \"" + _house_id + "\" observation loglikelihood return NaN value.");
+			"Household \"" + house_id_ + "\" observation loglikelihood returned NaN.");
 
-	_obs_buffer = _obs_loglike;
-	_obs_loglike = x;
+	obs_buffer_ = obs_loglike_;
+	obs_loglike_ = x;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -312,20 +278,20 @@ void Household::set_obs_loglike(double x)
 /* Recover previous values of the loglikelihood and cached depedencies. */
 void Household::recover_buffer_values(bool is_cache_depen)
 {
-	_obs_loglike = _obs_buffer;
+	obs_loglike_ = obs_buffer_;
 	if (is_cache_depen)
 	{
 		// swap buffer into  cache attributes
-		_cache_int_vec.swap(_buffer_cache_int_vec);
-		_cache_dbl_vec.swap(_buffer_cache_dbl_vec);
-		_cache_dbl_mtx.swap(_buffer_cache_dbl_mtx);
+		cache_int_vec_.swap(buffer_cache_int_vec_);
+		cache_dbl_vec_.swap(buffer_cache_dbl_vec_);
+		cache_dbl_mtx_.swap(buffer_cache_dbl_mtx_);
 	}
 }
 
 /* Deep copies of cache attributes in the buffer */
 void Household::buffer_all_cache()
 {
-	_buffer_cache_int_vec = _cache_int_vec;
-	_buffer_cache_dbl_vec = _cache_dbl_vec;
-	_buffer_cache_dbl_mtx = _cache_dbl_mtx;
+	buffer_cache_int_vec_ = cache_int_vec_;
+	buffer_cache_dbl_vec_ = cache_dbl_vec_;
+	buffer_cache_dbl_mtx_ = cache_dbl_mtx_;
 }

@@ -212,7 +212,7 @@ int main(int argc, char *argv[])
         print_decorator("Dataset");
         user_model->show_summary();
 
-        // Missing show_augm
+        // UPDATE: missing show_augm
     }
 
     //=====================//

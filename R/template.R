@@ -284,5 +284,7 @@ template_find_unused <- function(required, defined) {
 #'
 #' @keywords internal
 template_blank_dataset_ <- function() {
-  data.frame(id = c("hh_01_1"), house_id = c("hh_01"), status = c(1))
+  data.frame(id = c("hh_01_1", "hh_01_2"), 
+             house_id = "hh_01", 
+             status = c(1, 0))
 }
