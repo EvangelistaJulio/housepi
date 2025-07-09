@@ -1,7 +1,7 @@
 Package: housepi
 Type: Package
 Title: Household Epidemiological Modeling and Analysis
-Version: 0.7.1
+Version: 0.7.3
 Author:
     person("Francesco", "Camaglia", role = c("aut", "cre"), email = "francesco.camaglia@pasteur.fr")
 Maintainer: <francesco.camaglia@pasteur.fr>
@@ -18,7 +18,8 @@ Imports:
     R6,
     stringr, 
     withr,
-    cli
+    cli,
+    posterior
 RcppModules: user_model_module
 Roxygen: list(markdown = TRUE, r6 = TRUE)
 RoxygenNote: 7.3.2

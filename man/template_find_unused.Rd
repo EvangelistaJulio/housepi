@@ -2,21 +2,21 @@
 % Please edit documentation in R/template.R
 \name{template_find_unused}
 \alias{template_find_unused}
-\title{Template find unused}
+\title{Template Find Unused}
 \usage{
-template_find_unused(required_set, defined_set)
+template_find_unused(required, defined)
 }
 \arguments{
-\item{required_set}{\code{character()}\cr
-Vector with necessary definitions.}
+\item{required}{\code{character()}\cr
+Vector with required definitions.}
 
-\item{regular_expr}{\code{character()}\cr
+\item{defined}{\code{character()}\cr
 Vector with current definitions.}
 }
 \value{
 \code{character()}
 }
 \description{
-Compared required definitions to current definitions and find unused ones.
+Compared required definitions to current definitions and find not used ones.
 }
 \keyword{internal}

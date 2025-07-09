@@ -216,11 +216,11 @@ HousepiParameter <- R6::R6Class(
     load_list = function(...,
                          from = NULL,
                          append = FALSE) {
+      # remove previous definitions if not append
+      if (isFALSE(append)) self$defs <- NULL
+
       # load definition list
       definitions <- load_definition_list(..., from = from)
-
-      # remove previos definitions if not append
-      if (isFALSE(append)) self$defs <- NULL
 
       for (i in seq_along(definitions)){
         this_def <- as.list(definitions[[i]])

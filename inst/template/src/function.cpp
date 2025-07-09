@@ -491,27 +491,29 @@ const std::string Function::show_summary() const
 
 #ifdef _HOUSEPI_RCPP
 /* Export argument list to R.*/
-Rcpp::List Function::export_arg_list() const
+Rcpp::NumericVector Function::rcpp_export_args() const
 {
     using namespace Rcpp;
 
-    List output = List::create();
+    NumericVector vals(n_args_);
+    CharacterVector keys(n_args_);
 
     for (size_t k = 0; k < n_args_; ++k)
-        output.push_back(arguments_[k].get(), arguments_[k].show_name());
+    {
+        vals[k] = arguments_[k].get();
+        keys[k] = arguments_[k].show_name();
+    }
+    vals.names() = std::move(keys);
 
-    return (output);
+    return vals;
 }
 
 /* Export range list to R.*/
-Rcpp::List Function::export_range_list() const
+Rcpp::NumericVector Function::rcpp_export_range() const
 {
     using namespace Rcpp;
-
-    List output = List::create(_["min"] = range_min_.get(),
-                               _["max"] = range_max_.get());
-
-    return (output);
+    return NumericVector::create(_["min"] = range_min_.get(),
+                                 _["max"] = range_max_.get());
 }
 #endif
 

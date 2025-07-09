@@ -73,7 +73,8 @@ Status $s_{i}$ should be an integer value satisfying the following convention:
 
 ### Import a Dataset
 
-The `housepi` package comes with a few synthetic dataset to be used for testing.
+The `housepi` package comes with a few synthetic datasets to be used for testing.
+The most direct way to associate a dataset to a model is assigning it to the active method `$dataset`
 
 ```{r}
 # import dataset
@@ -131,44 +132,44 @@ After having provided all necessary definitions, we can perform inference with t
 ```{r}
 # run the Monte Carlo specifying setup options
 hhmodel$infer(
-  dataset = survey, # import the dataset as a data.frame #FLAG
-  n_steps = 20000,  # number of mcmc steps (per chain)
-  n_burnin = 1000,  # steps to burn
-  thin = 8,         # delay between sampling steps
-  n_adapt = 1000,   # finite adaptation steps before sampling
-  n_chains = 4,     # number of independent chains
-  seed = 6043,      # internal random number generator seed
-  n_threads = 1    # number of threads
+  n_steps = 20000, # number of mcmc steps (per chain)
+  n_burnin = 1000, # steps to burn
+  thin = 8,        # delay between sampling steps
+  n_adapt = 1000,  # finite adaptation steps before sampling
+  n_chains = 4,    # number of independent chains
+  seed = 6043,     # internal random number generator seed
+  n_threads = 1,   # number of threads
+  progress = FALSE # disable progress bar
 ) 
 ```
 
 *Note:* parallel computations are implemented with *openMP* which is not supported on latest macOS distributions, thus the option `n_threads` is not granted on such systems.
 
+We can extract the posterior traces directly from the field `$traces`. This will return a [posterior](https://cran.r-project.org/web/packages/posterior/) `draw` object than can be used to extract estimates
 ```{r}
-# store summary of the posterior estimates
-estimates <- hhmodel$estimates
-estimates
-```
-
-For diagnostic analysis on the inference, we can extract the posterior traces directly from the field `$traces`.
-We can use the function `mcmc_trace()` from [bayesplot](https://cran.r-project.org/web/packages/bayesplot/) to plot the traces:
-
-```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
-# export traces using an R6 field
+# export traces as posterior draws using an R6 field
 traces <- hhmodel$traces
 
+# compute summary of posterior draws
+estimates <- posterior::summarise_draws(traces)
+estimates
+```
+or in combination with [bayesplot](https://cran.r-project.org/web/packages/bayesplot/) `mcmc_trace()` to plot the traces 
+
+```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # visualize the traces of the first chain
 bayesplot::mcmc_trace(traces, facet_args = list(ncol = 1))
 ```
 
 ## Model Comparison
 
-To perform model comparison, one options os to use functions from the R package [loo](https://cloud.r-project.org/web/packages/loo/) in combination with the field `$house_loglike_mtx`.
-E.~g.~for WAIC:
+
+To perform model comparison, one options is to use functions from the R package [loo](https://cloud.r-project.org/web/packages/loo/). 
+We can extract the sample of pointwise loglikelihood for each household using the field `$house_loglike_traces` and compute (e. g.) the WAIC as follows
 
 ```{r}
 # widely applicable information criterion WAIC calling loo::waic
-loo::waic(hhmodel$house_loglike_mtx)
+loo::waic(posterior::as_draws_matrix(hhmodel$house_loglike_traces))
 ```
 
 Similarly can be done with for the LOO-CV (leave-one-out cross-validation) with the function `loo::loo()`.
@@ -176,7 +177,7 @@ Similarly can be done with for the LOO-CV (leave-one-out cross-validation) with 
 # Simulation
 
 In order to produce a simulation, our models require a pre-loaded dataset for the demographic structure of the households.
-We call the method `$simulate()` after having provided parameter definitions (analogous to the inference case)
+We then provide parameter definitions, here we use the method `$load_param_list`, particurly helpful for multiple parameter definitions. Finally, we can call the method `$simulate()` 
 
 ```{r}
 # generate a new model object to use for simulation
@@ -184,12 +185,14 @@ hhsimul <- housepi::HouseholdModel$new("chain-binomial")
 
 # define constant parameters from the inference estimates
 # note: definition without a prior assumes the parameter to be constant
-hhsimul$add_param(name = "alpha", value = estimates["alpha", "mean"])
-hhsimul$add_param(name = "beta", value = estimates["beta", "mean"])
+hhsimul$load_param_list(
+  alpha = subset(estimates, variable == "alpha")$mean,
+  beta = subset(estimates, variable == "beta")$mean
+)
 
 # build new model using the same demographic structure of dataset
 # override status of the dataset according to simulation
-simulated <- hhsimul$simulate(dataset = survey, seed = 5923)
+simulated <- hhsimul$simulate(dataset = housepi::survey, seed = 5923)
 ```
 
 ## Expected Cases by Size
@@ -209,9 +212,9 @@ To show both observed and expected cases by size, we can extract the formatted c
 cases_df <- expec$formatted_cases_table
 
 # format expected cases
-combined <- cases_df$expected
-mask_exp <- cases_df$expected$distr == "Expected"
-mask_cols <- setdiff(names(cases_df$expected), c("house_size", "distr"))
+combined <- cases_df$mean
+mask_exp <- cases_df$mean$distr == "Expected"
+mask_cols <- setdiff(names(cases_df$mean), c("house_size", "distr"))
 
 # format mean with its lower and upper credibile interval bounds
 combined[mask_exp, mask_cols] <- mapply(
@@ -219,9 +222,9 @@ combined[mask_exp, mask_cols] <- mapply(
     ifelse(is.na(m) | is.na(low) | is.na(up), NA,
            sprintf("%.0f [%.0f, %.0f]", m, low, up))
   },
-  cases_df$expected[mask_exp, mask_cols],
-  cases_df$cri_lower[mask_exp, mask_cols],
-  cases_df$cri_upper[mask_exp, mask_cols]
+  cases_df$mean[mask_exp, mask_cols],
+  cases_df$q5[mask_exp, mask_cols],
+  cases_df$q95[mask_exp, mask_cols]
 )
 
 # avoid separate_header regular expression to split house_size
@@ -264,9 +267,8 @@ library(ggplot2)
 col_dict <- c("Expected" = "coral", "Observed" = "black")
 ggplot(expec$sar, aes(x = house_size)) +
   # expected SAR
-  geom_point(aes(y = expected, color = "Expected")) +
-  geom_errorbar(aes(y = expected, ymin = cri_lower, ymax = cri_upper,
-                    color = "Expected"), 
+  geom_point(aes(y = mean, color = "Expected")) +
+  geom_errorbar(aes(y = mean, ymin = q5, ymax = q95, color = "Expected"), 
                 width = 0.2) +
   # observed SAR
   geom_point(aes(y = observed, color = "Observed")) +

@@ -322,9 +322,8 @@ HousepiPosteriorExpec <- R6::R6Class(
       # cleanup at end
       withr::defer(rm(hmc))
       # extract traces without loglikelihood
-      traces <- house_model$traces_no_loglike
-      # stuck multiple chains
-      if (is.list(traces)) traces <- do.call(rbind, traces)
+      traces <- as.data.frame(posterior::as_draws_matrix(house_model$traces))
+      traces$loglikelihood <- NULL
 
       # credible interval from the model
       private$.cri_level <- hmc$cri_level
@@ -353,6 +352,7 @@ HousepiPosteriorExpec <- R6::R6Class(
       loop_func <- function(r) {
         # associate parameters from posterior sample
         new_param_defs <- c(as.list(traces[r, ]), constants)
+        hmc$drop_param_defs()
         hmc$load_param_list(from = new_param_defs, append = FALSE)
         # run simulation and extract cases by house size
         apply_func(hmc$simulate(seed = rng_seeds[r], progress = FALSE))
@@ -439,6 +439,15 @@ combine_obs_exp <- function(obsdf, expdf) {
 ############################ Expected Cases By Size ########################
 ############################################################################
 ############################################################################
+
+# output naming convention
+naming_convention_ <- function(x, cri_level) {
+  qtag <- 100 * round(cri_level, 2)
+  x <- gsub("expected", "mean", x) 
+  x <- gsub("cri_lower", sprintf("q%.0f", 100 - qtag), x)
+  x <- gsub("cri_upper", sprintf("q%.0f", qtag), x) 
+  return(x)
+}
 
 #' @title
 #' Housepi Expected Cases By SIze
@@ -542,6 +551,7 @@ ExpectedCasesBySize <- R6::R6Class(
 
         # associate counts
         output$counts <- private$.counts$cases
+        colnames(output) <- naming_convention_(colnames(output), private$.cri_level)
 
         return(output)
       }
@@ -561,9 +571,11 @@ ExpectedCasesBySize <- R6::R6Class(
         na_df[] <- lapply(na_df, function(col) if (is.numeric(col)) NA else col)
         na_df$house_size <- cases$observed$house_size
 
-        return(list(expected = combine_obs_exp(cases$observed, cases$expected),
-                    cri_lower = combine_obs_exp(na_df, cases$cri_lower),
-                    cri_upper = combine_obs_exp(na_df, cases$cri_upper)))
+        output <- list(expected = combine_obs_exp(cases$observed, cases$expected),
+                       cri_lower = combine_obs_exp(na_df, cases$cri_lower),
+                       cri_upper = combine_obs_exp(na_df, cases$cri_upper))
+        names(output) <- naming_convention_(names(output), private$.cri_level)
+        return(output)
       }
       stop_h("'formatted_case_table' is read only.")
     }

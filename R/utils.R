@@ -268,78 +268,84 @@ get_rcpp_module <- function(module_name, hhmodel = NULL) {
 ############################################################################
 ############################################################################
 
+# split into a list of matrix
+split_traces_by_chain_ <- function(x) {
+  if (length(x) == 0) stop_h("Traces are empty.")
+  return(lapply(
+    split(seq_len(nrow(x)), x[, "_chain_"]),
+    function(idx) x[idx, colnames(x) != "_chain_", drop = FALSE]
+  ))
+}
+
 #' @title
-#' Convert `housepi` traces to coda.
+#' Convert `housepi` Rcpp traces to coda.
 #' @description
-#' Convert traces export from a `housepi` HouseholdModel to coda.
+#' Convert traces export from a Rcpp `housepi` model to coda.
 #'
 #' @param trs
-#' Traces as exported from HouseholdModel.
+#' Traces as exported from Rcpp `housepi` model.
+#'
+#' @return
+#' `posterior::draws`
+#'
+#' @export
+cpp_traces_to_posterior <- function(trs) {
+  if (methods::is(trs, "draws")) {
+    return(trs)
+
+  } else if (is.matrix(trs) || (is.data.frame(trs))) {
+    list_trs <- split_traces_by_chain_(trs)
+
+    # create empty array
+    n_chain <- length(list_trs)
+    par_names <- colnames(list_trs[[1]])
+    n_iter <- nrow(list_trs[[1]])
+    iter_names <- rownames(list_trs[[1]])
+    array_trs <- array(NA_real_, dim = c(n_iter, n_chain, length(par_names)),
+                       dimnames = list(iter_names, seq_len(n_chain), par_names))
+    # associate traces from Cpp
+    for (i in seq_along(list_trs)) array_trs[, i, ] <- list_trs[[i]]
+    output <- posterior::as_draws_df(array_trs)
+    output$.iteration <- as.integer(rownames(trs))
+    return (output)
+
+  } else stop_h(
+    "Unrecognized type for 'housepi' Rcpp traces export."
+  )
+}
+
+#' @title
+#' Convert `housepi` Rcpp traces to coda.
+#' @description
+#' Convert traces export from a Rcpp `housepi` model to coda.
+#'
+#' @param trs
+#' Traces as exported from Rcpp `housepi` model.
 #'
 #' @return
 #' `coda::mcmc` | `coda::mcmc.list`
 #'
 #' @export
-housepi_traces_to_coda <- function(trs) {
+cpp_traces_to_coda <- function(trs) {
   require_suggested_library("coda")
   if ((methods::is(trs, "mcmc") || methods::is(trs, "mcmc.list"))) {
     return(trs)
 
   } else if (is.matrix(trs) || (is.data.frame(trs))) {
-    sweeps <- as.integer(rownames(df))
-    return(coda::mcmc(data = trs,
-                      start = sweeps[1],
-                      end = sweeps[length(sweeps)],
-                      thin = sweeps[2] - sweeps[1]))
+    list_trs <- split_traces_by_chain_(trs)
+    sweeps <- as.integer(rownames(list_trs[[1]]))
+    list_coda_mcmc <- lapply(list_trs, function(x) coda::mcmc(
+      data = x,
+      start = sweeps[1],
+      end = sweeps[length(sweeps)],
+      thin = sweeps[2] - sweeps[1]
+    ))
+    if (length(list_coda_mcmc) == 1) return(list_coda_mcmc[[1]])
+    return(coda::as.mcmc.list(list_coda_mcmc))
 
-  } else if (is.list(trs)) {
-    sweeps <- as.integer(rownames(trs[[1]]))
-    df_list <- lapply(trs, function(x) {
-      coda::mcmc(
-        data = x,
-        start = sweeps[1],
-        end = sweeps[length(sweeps)],
-        thin = sweeps[2] - sweeps[1]
-      )
-    })
-    return(coda::as.mcmc.list(df_list))
-  }
-}
-
-#' @title
-#' Extract estimates from mcmc traces.
-#' @description
-#' Collects relevant statistics from the input mcmc traces.
-#'
-#' @param trs
-#' Traces as exported from HouseholdModel.
-#' @param cri_level `double(1)`\cr
-#' Level for the credible interval.
-#' Value between 0 and 1 (default is 0.95).
-#'
-#' @return
-#' `data.frame`
-#'
-#' @keywords internal
-estimate_from_traces <- function(trs, cri_level = 0.95) {
-
-  if ((cri_level <= 0) || (cri_level >= 1)) stop_h(
-    "Credible interval level must be a value between 0 and 1."
+  } else stop_h(
+    "Unrecognized type for 'housepi' Rcpp traces export."
   )
-  cri_lower <- 0.5 - 0.5 * cri_level
-  cri_upper <- 0.5 + 0.5 * cri_level
-
-  # change in case of multiple chains
-  if (is.list(trs)) trs <- do.call(rbind, trs)
-
-  return(data.frame(
-    name = colnames(trs),
-    mean = apply(trs, 2, mean, na.rm = TRUE),
-    sd = apply(trs, 2, sd, na.rm = TRUE),
-    cri_lower = apply(trs, 2, quantile, probs = cri_lower, na.rm = TRUE),
-    cri_upper = apply(trs, 2, quantile, probs = cri_upper, na.rm = TRUE),
-    check.names = FALSE
-  ))
 }
 
 ############################################################################
@@ -505,8 +511,8 @@ cpp_data_refactor = function(df, levels, headers) {
         labels = levels[[col]]
       )
     }
-    # re-order
-    df <- df[headers]
+    # re-order data and eventually extra columns
+    df <- df[c(headers, setdiff(colnames(df), headers))]
   }
   return(df)
 }

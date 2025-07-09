@@ -28,6 +28,11 @@
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
+// status aliases
+#define INFECTED_STATUS 1 // infected status (>=)
+#define HEALTHY_STATUS 0  // healthy status (==)
+#define MISSING_STATUS -1 // missing status (<=)
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////  Individual : class  ////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -59,6 +64,9 @@ public:
 	operator size_t() const { return hhindex_; }
 
 	int status() const { return status_; }
+	bool is_infected_status() const { return status_ >= INFECTED_STATUS; }
+	bool is_healthy_status() const { return status_ == HEALTHY_STATUS; }
+	bool is_missing_status() const { return status_ <= MISSING_STATUS; }
 	double data(const data_key &d) const { return data_map_.at(d); }
 	const dbl_vec &datalist(const data_key &d) const
 	{

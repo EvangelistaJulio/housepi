@@ -4,15 +4,7 @@
 \alias{housepi_function}
 \title{Housepi Function}
 \usage{
-housepi_function(
-  name,
-  x,
-  discr = FALSE,
-  args = numeric(),
-  min = NA,
-  max = NA,
-  hhmodel = NULL
-)
+housepi_function(name, x, args = numeric(), min = NA, max = NA, hhmodel = NULL)
 }
 \arguments{
 \item{name}{\code{character(1)}\cr
@@ -20,9 +12,6 @@ Name of the function.}
 
 \item{x}{\code{numeric()}\cr
 Input vector.}
-
-\item{discr}{\code{logical(1)}\cr
-If \code{TRUE} discretize the function.}
 
 \item{args}{\code{numeric()}\cr
 Additional arguments.}

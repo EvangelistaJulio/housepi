@@ -150,11 +150,11 @@ Rcpp::DataFrame MCMC::export_param() const { return pImpl_->param.rcpp_export();
 Rcpp::DataFrame MCMC::export_dataset() const { return pImpl_->dataset.rcpp_export(); }
 Rcpp::DataFrame MCMC::export_dataset_report() const { return pImpl_->dataset.rcpp_export_report(); }
 Rcpp::DataFrame MCMC::export_house_size_report() const { return pImpl_->dataset.rcpp_export_size_report(); }
-Rcpp::NumericMatrix MCMC::export_house_loglike_mtx() const { return pImpl_->dataset.rcpp_export_traces(); }
+Rcpp::NumericMatrix MCMC::export_house_loglike_traces() const { return pImpl_->dataset.rcpp_export_traces(); }
 Rcpp::DataFrame MCMC::export_datalist() const { return pImpl_->datalist.rcpp_export(); }
-Rcpp::NumericMatrix MCMC::export_traces() const { return pImpl_->export_traces(); }
+Rcpp::NumericMatrix MCMC::export_traces() const { return pImpl_->rcpp_export_traces(); }
 Rcpp::List MCMC::showcase_infec_profile(int n_bins) const { return pImpl_->infec_profile.rcpp_showcase(n_bins); }
-Rcpp::List MCMC::export_house_state_snapshot(const std::string &house_id) const { return pImpl_->export_house_state_snapshot(house_id); }
+Rcpp::List MCMC::export_house_snapshot(const std::string &house_id) const { return pImpl_->rcpp_export_house_snapshot(house_id); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////  MCMC : imports from Rcpp ///////////////////////////////////

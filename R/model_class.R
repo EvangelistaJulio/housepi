@@ -230,7 +230,7 @@ HouseholdModel <- R6::R6Class(
           ))
         )
         # remove logic tables auxiliary column names
-        headers <- setdiff(unique(headers), c("counts_", "param_name_"))
+        headers <- setdiff(unique(headers), c("counts", "param_name"))
 
         # list of splitted dataset by house_id
         split_data <- split(dataset[c("status", headers)], dataset$house_id)
@@ -452,9 +452,7 @@ HouseholdModel <- R6::R6Class(
         if (is.null(private$.rcpp)) stop_h(
           "Impossible to export dataset before model build."
         )
-        return(cpp_data_refactor(private$.rcpp$export_dataset(),
-                                 private$.dataset_levels,
-                                 private$.last_dataset_cols))
+        return(private$.refactor_dataset(private$.rcpp$export_dataset()))
       }
       else private$.import_dataset(value)
     },
@@ -466,9 +464,7 @@ HouseholdModel <- R6::R6Class(
         if (is.null(private$.rcpp)) stop_h(
           "Impossible to export datalist before model build."
         )
-        return(cpp_data_refactor(private$.rcpp$export_datalist(),
-                                 private$.datalist_levels,
-                                 private$.last_datalist_cols))
+        return(private$.refactor_datalist(private$.rcpp$export_datalist()))
       }
       else private$.import_datalist(value)
     },
@@ -972,9 +968,7 @@ HouseholdModel <- R6::R6Class(
                           seed = seed, progress = progress)
 
       # call method from internal Rcpp object
-      return(cpp_data_refactor(private$.rcpp$simulate(),
-                               private$.dataset_levels,
-                               private$.last_dataset_cols))
+      return(private$.refactor_dataset(private$.rcpp$simulate()))
     },
 
     #' @description

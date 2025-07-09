@@ -32,7 +32,7 @@ hhsampler$hierarchy
 
 The order of the definition is important, setting a "hierarchy" across covariates (this will be used for the modelling, see next section).
 Here sex `"F"` has priority on `"M"`, and ages `[25,50)`  have priority on ages `[0,15)`.
-Also, encoding implies an implicit representation of a dataset, e.~g.
+Also, encoding implies an implicit representation of a dataset, e. g.
 
 ```{r}
 # example house dataset

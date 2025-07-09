@@ -610,7 +610,9 @@ namespace tools
     }
 
     /* Check for missing entries given a vector of options. */
-    void check_for_missing_entries(const str_vec &entries, const str_vec &options)
+    void check_for_missing_entries(const str_vec &entries,
+                                   const str_vec &options,
+                                   const std::string &where)
     {
         // proceed only if there's a given vector of options
         if (!options.empty())
@@ -626,16 +628,18 @@ namespace tools
             {
                 if (missing.size() == 1)
                     throw std::invalid_argument(
-                        "Missing column " + show_list(missing));
+                        "Missing " + where + " " + show_list(missing));
                 else
                     throw std::invalid_argument(
-                        "Missing columns: " + show_list(missing));
+                        "Missing " + where + "s: " + show_list(missing));
             }
         }
     }
 
     /* Check for unused entries given a vector of options. */
-    void check_for_unused_entries(const str_vec &entries, const str_vec &options)
+    void check_for_unused_entries(const str_vec &entries,
+                                  const str_vec &options,
+                                  const std::string &where)
     {
         //----- check for unused entries -----//
         str_vec unused = {};
@@ -645,11 +649,11 @@ namespace tools
 
         if (unused.size() == 1)
             throw std::invalid_argument(
-                "Unknown option " + show_list(unused) + find_closest(unused[0], options));
+                "Unknown " + where + " " + show_list(unused) + find_closest(unused[0], options));
 
         else if (unused.size() > 1)
             throw std::invalid_argument(
-                "Unknown options: " + show_list(unused) + find_closest(HSP_NA_STRING, options, 0));
+                "Unknown " + where + "s: " + show_list(unused) + find_closest(HSP_NA_STRING, options, 0));
     }
 
 } // TOOLS NAMESPACE

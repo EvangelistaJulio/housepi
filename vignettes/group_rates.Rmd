@@ -53,7 +53,7 @@ hhmodel$dataset <- dataset
 ```
 
 Current loaded model allows for a number of group rates, among which the individual `"susceptibility"` (use `$help()` method to learn more). We can define it with the method `$add_group_rate()`. 
-By default, all group rates without a definition will be treated as associated to the reference (i.~e. `1`). Definitions will add a new parameter for each group, except for the reference group.
+By default, all group rates without a definition will be treated as associated to the reference (i. e. `1`). Definitions will add a new parameter for each group, except for the reference group.
 By the default, definition assumes the reference group to be the one with the largest number of counts.
 To manually provide a `reference`, the corresponding argument should be set equal to the corresponding group value.
 
@@ -115,11 +115,12 @@ hhmodel$load_group_rate_list(
 
 # inference with minimal setup (for didactical purposes only)
 hhmodel$infer(n_chains = 4, n_steps = 5000, thin = 8, n_adapt = 1000, 
-              n_burnin = 1000, seed = 713, progress = 30)
+              n_burnin = 1000, seed = 7713, progress = 20)
 ```
 
 ```{r, fig.width=6.5, fig.height=6, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
-bayesplot::mcmc_trace(hhmodel$traces)
+traces <- hhmodel$traces
+bayesplot::mcmc_trace(traces)
 ```
 
 The inference is performed with default assumptions for the prior, a log-normal prior (`meanlog = 0` and `sdlog = 3`) and log-normal proposer rule, as in [Cauchemez et al. (2009)](https://www.nejm.org/doi/full/10.1056/NEJMoa0905498). 
@@ -134,14 +135,31 @@ Finally, we can visualize the differences (e. g. for susceptibility) with respec
 
 ```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 
+library(dplyr)
 library(ggplot2)
 
-# compare inferred susceptibility group rates
-results <- hhmodel$estimates
-sus_res <- results[startsWith(results$name, "sus_"), ]
+# extract estimates from traces
+estimates <- posterior::summarise_draws(traces)
 
-ggplot(sus_res, aes(x = name, y = mean, color = "coral")) +
+# select estimates associated to group rate
+rate_id <- "susceptibility"
+# default prefix
+prefix <- paste0(substr(rate_id, 1, 3), "_") 
+results <- estimates[startsWith(estimates$variable, prefix), ]
+# rename results variable
+results$variable <- gsub("_", " ", sub(paste0("^", prefix), "", results$variable))
+
+# extract reference value and create a label
+tmp <- hhmodel$group_rate_defs |> 
+  filter(param_name == "REFERENCE" & group_rate == rate_id) |> 
+  select(-param_name, -group_rate)
+ylabel <- sprintf("%s (relative to %s)", rate_id, 
+                  paste(paste(names(tmp), tmp, sep = " "), collapse = " "))
+
+# compare inferred susceptibility group rates
+ggplot(results, aes(x = variable, y = mean)) +
   geom_hline(yintercept = 1, linetype = "dashed") +
-  geom_point() +
-  geom_errorbar(aes(ymin = cri_lower, ymax = cri_upper), width = 0.2)
+  geom_point(color = "coral", size = 2) +
+  geom_errorbar(aes(ymin = q5, ymax = q95), width = 0.2, color = "coral") +
+  labs(x = "", y = ylabel)
 ```

@@ -51,7 +51,8 @@ assert_dataset_features <- function(features, dataset_headers) {
 #'
 #' @keywords internal
 group_rate_logic_table <- function(dataset, by) {
-  features <- as.character(by)
+  # sort alphabetically the features
+  features <- sort(as.character(by))
 
   # convert features
   assert_dataset_features(features, colnames(dataset))
@@ -162,8 +163,9 @@ tidyup_group_rate_tables <- function(all_tables) {
     df_list <- c(df_list, df)
   }
   
-  # all unique column names
-  all_cols <- unique(unlist(lapply(df_list, names)))
+  # all unique column names reordered
+  all_cols <- unique(c("group_rate", "param_name",
+                       sort(unlist(lapply(df_list, names)))))
   
   # Add missing columns with NA
   combined_df <- do.call(rbind, lapply(df_list, function(df) {
@@ -197,8 +199,8 @@ HousepiGroupRate <- R6::R6Class(
   ############################################################################
 
   private = list(
-    #' @field param_defs `list`\cr
-    #' List containing parameters definitions.
+    # @field param_defs `list`\cr
+    # List containing parameters definitions.
     .param_defs = list()
   ),
 
@@ -239,7 +241,7 @@ HousepiGroupRate <- R6::R6Class(
       stop_h("'param_required' is read only.")
     },
 
-    #' @field param_defs `data.frame()`\cr
+    #' @field tidy_table `data.frame()`\cr
     #' Data.Frame containg the combined list with group rate and parameter definitions.
     tidy_table = function(value) {
       if (missing(value)) return(tidyup_group_rate_tables(self$logic_tables))
@@ -368,11 +370,12 @@ HousepiGroupRate <- R6::R6Class(
         sprintf("Overwriting existing \"%s\" definition.", name)
       )
 
-      if (!is.na(by)) {
+      forbidden <- c("counts", "param_name", "group_rate")
+      if (!all(is.na(by))) {
         if (isFALSE(is.character(by))) stop_h(
           "Argument 'by' must be of type character."
         ) 
-        else if (by %in% c("counts", "param_name", "group_rate")) stop_h(
+        else if (any(by %in% forbidden)) stop_h(
           sprintf("Feature name \"%s\" is a reserved word.", by),
           "Please, rename feature and corresponding data column."
         )

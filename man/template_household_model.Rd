@@ -2,7 +2,7 @@
 % Please edit documentation in R/template.R
 \name{template_household_model}
 \alias{template_household_model}
-\title{Template household model}
+\title{Template Household Model}
 \usage{
 template_household_model(name = NA, path = NA, replace = FALSE)
 }
@@ -19,5 +19,5 @@ If \code{TRUE}, replaces previous content of the path.
 Default is \code{FALSE}.}
 }
 \description{
-Copy a default model to a given directory.
+Navigate through housepi templates of household models.
 }

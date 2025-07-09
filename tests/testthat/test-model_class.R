@@ -6,7 +6,6 @@ test_that("Model class inconsistent calls", {
 
   # traces
   expect_error(hhmodel$traces)
-  expect_error(hhmodel$estimates)
 
   # household traces
   expect_error(hhmodel$loo())
@@ -145,8 +144,8 @@ test_that("Augmented function example returns expected distribution", {
   )
 
   hhmodel$infer(n_steps = 1e5, progress = 0)
-  sample_norm <- hhmodel$traces[, "norm"]
-  sample_boxmul <- hhmodel$traces[, "z0"]
+  sample_norm <- hhmodel$traces$norm
+  sample_boxmul <- hhmodel$traces$z0
 
   expect_gt(stats::ks.test(sample_norm, sample_boxmul)$p.value, 0.05)
   expect_gt(stats::t.test(sample_norm, sample_boxmul)$p.value, 0.05)

@@ -54,7 +54,7 @@ NULL
 #' }
 #' @field simulate\cr Load a simulated database.
 #' @field evaluate\cr Evaluate the loglikelihood according to the current state.
-#' @field estimate_evidence\cr Evaluate the logarithm of the marginal likelihood with the method of power posteriors. \itemize{
+#' @field evidence\cr Evaluate the logarithm of the marginal likelihood with the method of power posteriors. \itemize{
 #'   \item Parameter: scheme
 #'   \item Parameter: n_rungs
 #' }
@@ -62,6 +62,7 @@ NULL
 #' @field import_dataset\cr Import house indexed dataset from R Data.Frame.
 #' @field import_datalist\cr Import individual indexed datalist from R Data.Frame.
 #' @field import_multiplicity\cr Imoprt multiplicity definitions from R Data.Frame.
+#' @field import_group_rates\cr Imoprt group rates definitions from R Data.Frame.
 #' @field import_param\cr Import parameter definitions from R Data.Frame.
 #' @field import_infec_profile\cr Import infectivity profile definition from R List.
 #' @field import_augm\cr Import augmented variable definitions from R Data.Frame.
@@ -71,8 +72,9 @@ NULL
 #' @field export_dataset\cr Return a DataFrame with current database.
 #' @field export_dataset_report\cr Return a DataFrame with a report of the current database.
 #' @field export_house_size_report\cr Return a DataFrame with a report of household sizes.
-#' @field export_traces\cr Return a DataFrame with MCMC traces.
-#' @field export_house_loglike_mtx\cr Return a NumericMatrix with household loglikelihood traces.
+#' @field export_traces\cr Return a NumericMatrix with MCMC traces.
+#' @field export_house_loglike_traces\cr Return a NumericMatrix with household loglikelihood traces.
+#' @field export_house_snapshot\cr Return a List with a snapshot containing full household and model details.
 #' @field showcase_infec_profile\cr Return a List with a showcase of the infectivity profile.
 #' @field show_full_build\cr Show all build messages.
 #' @field show_summary\cr Show a summary of the current database.

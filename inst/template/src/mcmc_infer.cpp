@@ -414,7 +414,6 @@ double MCMC::Impl::evaluate()
 /* Performs the inference using Metropolis-Hastings. */
 void MCMC::Impl::infer()
 {
-
     try
     {
         setup.prog_declare();         // declare current progress bar

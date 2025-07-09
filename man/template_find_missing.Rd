@@ -4,13 +4,13 @@
 \alias{template_find_missing}
 \title{Template find missing}
 \usage{
-template_find_missing(required_set, defined_set)
+template_find_missing(required, defined)
 }
 \arguments{
-\item{required_set}{\code{character()}\cr
-Vector with necessary definitions.}
+\item{required}{\code{character()}\cr
+Vector with required definitions.}
 
-\item{defined_set}{\code{character()}\cr
+\item{defined}{\code{character()}\cr
 Vector with current definitions.}
 }
 \value{

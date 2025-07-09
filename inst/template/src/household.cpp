@@ -49,7 +49,7 @@ Individual::~Individual() = default;
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Value of loglikelihood associated to augmented variable models within individual.
- * Store the loglikelihood of individual augmented variables. 
+ * Store the loglikelihood of individual augmented variables.
  */
 double Individual::compute_and_set_augm_model_loglike()
 {
@@ -190,18 +190,19 @@ void Household::assign_member(size_t index,
 							  int status,
 							  const data_key_map<double> &data)
 {
-	//----- update status lists within the household -----//
-	if (status >= INFECTED_STATUS)
+	// emplace new individual
+	members_.emplace_back(index, house_size_, id, status, data);
+
+	// update status lists within the household
+	if (members_.back().is_infected_status())
 		infected_list_.push_back(house_size_);
 
-	else if (status == HEALTHY_STATUS)
+	else if (members_.back().is_healthy_status())
 		healthy_list_.push_back(house_size_);
 
 	else
 		missing_list_.push_back(house_size_);
 
-	//----- emplace new individual -----//
-	members_.emplace_back(index, house_size_, id, status, data);
 	++house_size_;
 }
 
@@ -209,44 +210,30 @@ void Household::assign_member(size_t index,
 	NOTE : this introduces augmented variables -> it requires RJMCMC in case of inference. */
 bool Household::change_status(Individual &member, int new_status)
 {
-	int old_status = member.status();
-
-	if (new_status == old_status)
-		return false;
-
-	else
+	if (new_status != member.status())
 	{
-		const size_t i = static_cast<size_t>(member);
+		const size_t i = static_cast<size_t>(member); // get within house index
 
-		if (old_status >= INFECTED_STATUS)
+		if (member.is_infected_status())
 			infected_list_.erase(std::find(infected_list_.begin(), infected_list_.end(), i));
-
-		else if (old_status == HEALTHY_STATUS)
+		else if (member.is_healthy_status())
 			healthy_list_.erase(std::find(healthy_list_.begin(), healthy_list_.end(), i));
-
-		else if (old_status == MISSING_STATUS)
+		else
 			missing_list_.erase(std::find(missing_list_.begin(), missing_list_.end(), i));
 
-		else
-			throw std::runtime_error(
-				"Unknown status \"" + std::to_string(old_status) + "\" for individual " + member.id() + ".");
+		// change member status
+		member.set_status(new_status);
 
-		if (new_status >= INFECTED_STATUS)
+		if (member.is_infected_status())
 			infected_list_.push_back(i);
-
-		else if (new_status == HEALTHY_STATUS)
+		else if (member.is_healthy_status())
 			healthy_list_.push_back(i);
-
-		else if (new_status == MISSING_STATUS)
+		else
 			missing_list_.push_back(i);
 
-		else
-			throw std::runtime_error(
-				"Unknown new status \"" + std::to_string(new_status) + "\" for individual " + member.id() + ".");
-
-		member.set_status(new_status);
 		return true;
 	}
+	return false;
 }
 
 /* Associate a pointer to parameter value for the contact from->to.

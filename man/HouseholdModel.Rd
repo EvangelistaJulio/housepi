@@ -16,26 +16,17 @@ Friel N, Hurn M, Wyse J.
 Improving power posterior estimation of statistical evidence.
 Stat Comput. 2014;24: 709-723. doi:10.1007/s11222-013-9397-1
 }
+\section{Super class}{
+\code{\link[housepi:HousepiGenerator]{housepi::HousepiGenerator}} -> \code{HouseholdModel}
+}
 \section{Active bindings}{
 \if{html}{\out{<div class="r6-active-bindings">}}
 \describe{
-\item{\code{name}}{\code{character(1)}\cr
-Model name.}
-
 \item{\code{dataset}}{\code{data.frame}\cr
 Dataset with individual level information of current dataset.}
 
 \item{\code{datalist}}{\code{data.frame}\cr
 Datalist with multiple rows indexed by individual.}
-
-\item{\code{summary}}{\code{data.frame}\cr
-A summary of statuses in the dataset.}
-
-\item{\code{summary_house_size}}{\code{data.frame}\cr
-A summary of house sizes in the dataset.}
-
-\item{\code{setup}}{\code{list()}\cr
-Last setup used by the build process.}
 
 \item{\code{param_defs}}{\code{data.frame}\cr
 Parameter formatted definitions.}
@@ -48,28 +39,6 @@ Infectivity profile definition list.}
 
 \item{\code{group_rate_defs}}{\code{list}\cr
 List containing current group rate definitions.}
-
-\item{\code{group_rate_tables}}{\code{list}\cr
-List containing table of parameters associated to each group rate.}
-
-\item{\code{house_loglike_mtx}}{\code{matrix()}\cr
-Traces of household loglikelihoods.}
-
-\item{\code{traces}}{\code{matrix()} | \code{list()} of \code{matrix()}\cr
-Traces of last inference.}
-
-\item{\code{traces_no_loglike}}{\code{matrix()} | \code{list()} of \code{matrix()}\cr
-Traces of last inference without loglikelihood.}
-
-\item{\code{estimates}}{\code{data.frame}\cr
-Estimates from the posterior traces of the last inference.}
-
-\item{\code{cri_level}}{\code{double(1)}\cr
-Level for the credible interval.
-Value between 0.5 and 1 (default is 0.95).}
-
-\item{\code{path_to_dll}}{\code{character(1)}\cr
-Path to dynamic library file of the model.}
 }
 \if{html}{\out{</div>}}
 }
@@ -77,14 +46,10 @@ Path to dynamic library file of the model.}
 \subsection{Public methods}{
 \itemize{
 \item \href{#method-HouseholdModel-new}{\code{HouseholdModel$new()}}
-\item \href{#method-HouseholdModel-print}{\code{HouseholdModel$print()}}
-\item \href{#method-HouseholdModel-help}{\code{HouseholdModel$help()}}
 \item \href{#method-HouseholdModel-drop_param_defs}{\code{HouseholdModel$drop_param_defs()}}
 \item \href{#method-HouseholdModel-drop_augm_defs}{\code{HouseholdModel$drop_augm_defs()}}
 \item \href{#method-HouseholdModel-drop_group_rate_defs}{\code{HouseholdModel$drop_group_rate_defs()}}
 \item \href{#method-HouseholdModel-drop_all}{\code{HouseholdModel$drop_all()}}
-\item \href{#method-HouseholdModel-import_dataset}{\code{HouseholdModel$import_dataset()}}
-\item \href{#method-HouseholdModel-import_datalist}{\code{HouseholdModel$import_datalist()}}
 \item \href{#method-HouseholdModel-add_param}{\code{HouseholdModel$add_param()}}
 \item \href{#method-HouseholdModel-load_param_list}{\code{HouseholdModel$load_param_list()}}
 \item \href{#method-HouseholdModel-load_param_template}{\code{HouseholdModel$load_param_template()}}
@@ -104,6 +69,15 @@ Path to dynamic library file of the model.}
 \item \href{#method-HouseholdModel-clone}{\code{HouseholdModel$clone()}}
 }
 }
+\if{html}{\out{
+<details open><summary>Inherited methods</summary>
+<ul>
+<li><span class="pkg-link" data-pkg="housepi" data-topic="HousepiGenerator" data-id="export_house_snapshot"><a href='../../housepi/html/HousepiGenerator.html#method-HousepiGenerator-export_house_snapshot'><code>housepi::HousepiGenerator$export_house_snapshot()</code></a></span></li>
+<li><span class="pkg-link" data-pkg="housepi" data-topic="HousepiGenerator" data-id="help"><a href='../../housepi/html/HousepiGenerator.html#method-HousepiGenerator-help'><code>housepi::HousepiGenerator$help()</code></a></span></li>
+<li><span class="pkg-link" data-pkg="housepi" data-topic="HousepiGenerator" data-id="print"><a href='../../housepi/html/HousepiGenerator.html#method-HousepiGenerator-print'><code>housepi::HousepiGenerator$print()</code></a></span></li>
+</ul>
+</details>
+}}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HouseholdModel-new"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdModel-new}{}}}
@@ -154,26 +128,6 @@ If \code{TRUE} hide \code{pkgbuild} compilation commands (default).}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModel-print"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModel-print}{}}}
-\subsection{Method \code{print()}}{
-Override the default printing behavior.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$print()}\if{html}{\out{</div>}}
-}
-
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModel-help"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModel-help}{}}}
-\subsection{Method \code{help()}}{
-Show model description in RStudio Help window.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$help()}\if{html}{\out{</div>}}
-}
-
-}
-\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HouseholdModel-drop_param_defs"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdModel-drop_param_defs}{}}}
 \subsection{Method \code{drop_param_defs()}}{
@@ -212,46 +166,6 @@ Drop all current definitions.
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$drop_all()}\if{html}{\out{</div>}}
 }
 
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModel-import_dataset"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModel-import_dataset}{}}}
-\subsection{Method \code{import_dataset()}}{
-Import a new dataset and drop previous.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$import_dataset(dataset = NULL, .hold = TRUE)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{dataset}}{\code{data.frame}\cr
-A data.frame containing the dataset with individual information by row.}
-
-\item{\code{.hold}}{\code{logical(1)}\cr
-If \code{FALSE} does not ultimate model build. Default is \code{TRUE}.
-For internal use.}
-}
-\if{html}{\out{</div>}}
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModel-import_datalist"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModel-import_datalist}{}}}
-\subsection{Method \code{import_datalist()}}{
-Import a new datalist and drop previous.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$import_datalist(datalist = NULL)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{datalist}}{\code{data.frame}\cr
-A data.frame containing the dataset with individual information by row.}
-}
-\if{html}{\out{</div>}}
-}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HouseholdModel-add_param"></a>}}
@@ -588,13 +502,7 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 \subsection{Method \code{add_infec_profile()}}{
 Add definition of infectivity profile.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$add_infec_profile(
-  name,
-  discr = FALSE,
-  args = list(),
-  min = NA,
-  max = NA
-)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$add_infec_profile(name, discr = FALSE, args = list(), max = NA)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -608,13 +516,6 @@ If \code{TRUE} the profile is discrete.}
 
 \item{\code{args}}{named \code{list()}\cr
 Arguments (eventually with types) for the profile.}
-
-\item{\code{min}}{\code{double(1)} | \code{character(1)}\cr
-One between:
-\itemize{
-\item Scalar value;
-\item Parameter name (optionally followed by \verb{@P}).
-}}
 
 \item{\code{max}}{\code{double(1)} | \code{character(1)}\cr
 One between:
@@ -631,6 +532,8 @@ One between:
 \if{latex}{\out{\hypertarget{method-HouseholdModel-showcase_infec_profile}{}}}
 \subsection{Method \code{showcase_infec_profile()}}{
 Showcase instantaneous and cumulative values of infectivity profile.
+UPDATE: this should be dropped and just parameters should be exported
+to then be passed to housepi_infec_profile
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$showcase_infec_profile(bins = 2000)}\if{html}{\out{</div>}}
 }

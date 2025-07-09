@@ -446,6 +446,26 @@ HousepiGenerator <- R6::R6Class(
         character_to_string_list(miss)
       )
       invisible(self)
+    },
+
+    ############################################################################
+    ############################################################################
+    ############################################################################
+
+    # @description 
+    # Assert if dataset headers match implementation file.
+    # @param dataset_headers `character()`\cr
+    # Vector with the dataset headers.
+    .refactor_dataset = function(x) {
+      cpp_data_refactor(x, private$.dataset_levels, private$.last_dataset_cols)
+    },
+
+    # @description 
+    # Assert if dataset headers match implementation file.
+    # @param dataset_headers `character()`\cr
+    # Vector with the dataset headers.
+    .refactor_datalist = function(x) {
+      cpp_data_refactor(x, private$.datalist_levels, private$.last_datalist_cols)
     }
   ),
 
@@ -500,57 +520,24 @@ HousepiGenerator <- R6::R6Class(
       stop_h("'summary_house_size' is read only.")
     },
 
-    #' @field traces `matrix()` | `list()` of `matrix()`\cr
-    #' Traces of last inference.
+    #' @field traces `posterior::draws_df`\cr
+    #' Posterior traces of last inference.
     traces = function(value) {
       if (missing(value)) {
-        # load traces from last inference
-        df <- private$.rcpp$export_traces()
-
-        if (dim(df)[1] == 0) stop_h("Traces are empty.")
-        else if ("CHAIN__" %in% colnames(df)) return(lapply(
-          split(seq_len(nrow(df)), df[, "CHAIN__"]),
-          function(idx) df[idx, colnames(df) != "CHAIN__", drop = FALSE]
-        ))
-        else return(df)
+        trs <- private$.rcpp$export_traces()
+        return(cpp_traces_to_posterior(trs))
       }
       stop_h("'traces' is read only.")
     },
 
-    #' @field traces_no_loglike `matrix()` | `list()` of `matrix()`\cr
-    #' Traces of last inference without loglikelihood.
-    traces_no_loglike = function(value) {
+    #' @field house_loglike_traces `posterior::draws_df`\cr
+    #' Traces of pointwise loglikelihood for all households.
+    house_loglike_traces = function(value) {
       if (missing(value)) {
-        trs <- self$traces
-        if (is.list(trs)) return(lapply(trs, function(x) {
-          x <- x[, colnames(x) != "loglikelihood", drop = FALSE]
-        }))
-        else return(trs[, colnames(trs) != "loglikelihood", drop = FALSE])
+        trs <- private$.rcpp$export_house_loglike_traces()
+        return(cpp_traces_to_posterior(trs))
       }
-      stop_h("'traces_no_loglike' is read only.")
-    },
-
-    #' @field estimates `data.frame`\cr
-    #' Estimates from the posterior traces of the last inference.
-    estimates = function(value) {
-      if (missing(value)) return(estimate_from_traces(
-        self$traces_no_loglike,
-        cri_level = private$.cri_level
-      ))
-      stop_h("'estimates' is read only.")
-    },
-
-    #' @field house_loglike_mtx `matrix()`\cr
-    #' Traces of household loglikelihoods.
-    house_loglike_mtx = function(value) {
-      if (missing(value)) {
-        # extract household loglikelihood traces
-        df <- private$.rcpp$export_house_loglike_mtx()
-        # check
-        if (dim(df)[1] == 0) stop_h("Household traces are empty.")
-        return(df)
-      }
-      stop_h("'house_loglike_mtx' is read only.")
+      stop_h("'house_loglike_traces' is read only.")
     }
   ),
 
@@ -663,14 +650,28 @@ HousepiGenerator <- R6::R6Class(
     },
 
     #' @description
-    #' Export a snapshot of current household and model state.
+    #' A snapshot of all current internal state of a given household.
     #' 
     #' @param house_id `character(1)`\cr
-    #' Household id to export.
-    #'
-    #' @return `list()`
-    export_house_state_snapshot = function(house_id) {
-      return(private$.rcpp$export_house_state_snapshot(house_id))
+    #' Id of the household to export.
+    #' 
+    #' @return
+    #' `list()`
+    export_house_snapshot = function(house_id) {
+      house_id <- as.character(house_id)
+      output <- private$.rcpp$export_house_snapshot(house_id)
+      output$dataset <- private$.refactor_dataset(output$dataset)
+      output$datalist <- private$.refactor_datalist(output$datalist)
+
+      # first draft to reformat infectivity profile output
+      lst <- output$infec_profile
+      df <- data.frame(id = lst$id, discr = lst$discr, name = lst$name,
+                       stringsAsFactors = FALSE)
+      df$args <- lst$args
+      df$range <- lst$range
+      output$infec_profile <- df
+
+      return(output)
     }
   )
 )

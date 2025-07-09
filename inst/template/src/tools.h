@@ -29,11 +29,11 @@
 #include <functional>
 #include <algorithm>
 
-/* DEVELOPER: flag used to predispose to different wrapper
+/* DEVELOPER: flag used to predispose to different wrapper*/
 #ifndef _HOUSEPI_RCPP
 #define _HOUSEPI_RCPP
 #endif
-*/
+
 
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
@@ -64,11 +64,6 @@ const double HSP_NA_DOUBLE = std::numeric_limits<double>::quiet_NaN();
 
 // NA value for string
 const std::string HSP_NA_STRING = "<NA>";
-
-// status aliases
-#define INFECTED_STATUS 1 // infected status (>=)
-#define HEALTHY_STATUS 0  // healthy status (==)
-#define MISSING_STATUS -1 // missing status (<=)
 
 // group rates
 constexpr double REFERENCE_VALUE = 1.0;          // alias for reference value
@@ -156,14 +151,14 @@ using rate_key_mapvec = rate_key_map<std::vector<T>>;
 ////////////////////////////////////  OPERATOR OVERLOADS  ///////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-// check if a given value is inside a container
+/// Check if container containes given value (% overload)
 template <typename Container, typename T>
 bool operator%(const Container &c, const T &value)
 {
     return std::find(c.begin(), c.end(), value) != c.end();
 }
 
-/* Concatenate with overloaded + operator. */
+/// Concatenate containers (+ overload)
 template <typename T>
 std::vector<T> operator+(const std::vector<T> &x, const std::vector<T> &y)
 {
@@ -174,7 +169,7 @@ std::vector<T> operator+(const std::vector<T> &x, const std::vector<T> &y)
     return vec;
 }
 
-/* Append with overloaded += operator. */
+/// Concatenate containers (+ overload)
 template <typename T>
 std::vector<T> &operator+=(std::vector<T> &x, const std::vector<T> &y)
 {
@@ -183,7 +178,7 @@ std::vector<T> &operator+=(std::vector<T> &x, const std::vector<T> &y)
     return x;
 }
 
-// Remove all elements of first vector contained in second
+/// Remove all elements of first containers contained in second (- overload)
 template <typename T>
 std::vector<T> operator-(std::vector<T> v, const std::vector<T> &w)
 {
@@ -267,8 +262,12 @@ namespace tools
     const std::pair<double, double> compute_stats(const dbl_vec &data);
 
     // check for unused entries from a vector of options and throw exception
-    void check_for_missing_entries(const str_vec &entries, const str_vec &options);
-    void check_for_unused_entries(const str_vec &entries, const str_vec &options);
+    void check_for_missing_entries(const str_vec &entries,
+                                   const str_vec &options,
+                                   const std::string &where = "column");
+    void check_for_unused_entries(const str_vec &entries,
+                                  const str_vec &options,
+                                  const std::string &where = "column");
 }
 
 //-----------------------------------------------------------------------------------------------//

@@ -33,9 +33,7 @@ In order to build locally your vignettes you will need to install the following 
 
 ```{r}
 # packages required for building vignettes
-vignettes_packages <- c("ggplot2", "flextable", "bayesplot", 
-                        "dplyr", "rstan", "loo")
-for (pkg in vignettes_packages) {
+for (pkg in c("ggplot2", "flextable", "bayesplot", "dplyr", "loo")) {
   if (!requireNamespace(pkg, quietly = TRUE)) install.packages(pkg)
 }
 ```

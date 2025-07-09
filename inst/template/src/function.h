@@ -181,21 +181,23 @@ public:
     /* Virtual function to initialize reshaping in Distribution, etc. */
     virtual void init_reshaping(bool) {}
 
+    //================//
     //===== SHOW =====//
-    /* Return function name. */
+    //================//
+
     const std::string show_name() const { return function_name_; }
     const std::string show_arg_names() const;
     const std::string show_arg_values() const;
-    /* Return formatted range minimum. */
+    
     const std::string show_min() const { return range_min_.show(); }
-    /* Return formatted range maximum. */
     const std::string show_max() const { return range_max_.show(); }
+
     const std::string show_range() const;
     const std::string show_summary() const;
 
 #ifdef _HOUSEPI_RCPP
-    Rcpp::List export_arg_list() const;
-    Rcpp::List export_range_list() const;
+    Rcpp::NumericVector rcpp_export_args() const;
+    Rcpp::NumericVector rcpp_export_range() const;
 #endif
 
 private:

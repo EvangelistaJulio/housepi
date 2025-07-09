@@ -133,6 +133,9 @@ public:
 #ifdef _HOUSEPI_RCPP
         void rcpp_import(SEXP input);
         Rcpp::List rcpp_export() const;
+
+        Rcpp::IntegerVector traces_chain_tags() const;
+        Rcpp::CharacterVector traces_iter_names() const;
 #else
         void read(const std::string &pathtofile);
         std::string show() const;
@@ -554,7 +557,7 @@ public:
 #ifdef _HOUSEPI_RCPP
         void rcpp_import(SEXP input);
 
-        Rcpp::DataFrame rcpp_snapshot(const std::string &house_id) const;
+        Rcpp::List rcpp_snapshot(const std::string &house_id) const;
         Rcpp::List rcpp_showcase(int n_bins) const;
 #else
         void read(const std::string &pathtofile);
@@ -613,8 +616,8 @@ public:
     Rcpp::List evidence(const std::string &scheme, ulong n_rungs);
 
     //----- Rcpp EXPORTS -----//
-    Rcpp::NumericMatrix export_traces() const;
-    Rcpp::List export_house_state_snapshot(const std::string &house_id) const;
+    Rcpp::NumericMatrix rcpp_export_traces() const;
+    Rcpp::List rcpp_export_house_snapshot(const std::string &house_id) const;
 #else
     //----- C++ Print -----//
     void print_infer_state(const std::string &output_filename = HSP_NA_STRING) const;

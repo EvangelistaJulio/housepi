@@ -422,32 +422,40 @@ void MCMC::Impl::ImplAugmented::build()
 /* Search individual id for augmented traces follow-up. */
 void MCMC::Impl::ImplAugmented::set_id_trace_(str_vec &id_trace)
 {
+    smpl_individuals.clear();
+
     if (!id_trace.empty())
     {
         if (is_sample())
         {
-            // check id agross all individuals
-            str_vec aux_check_already_stored_id = {};
+            smpl_individuals.clear();
+            smpl_individuals.reserve(id_trace.size());
+
+            // check id across all individuals
+            str_vec already_stored_id = {};
             for (const Household &house : pImpl_.dataset)
                 for (const Individual &member : house)
                     if (id_trace % member.id())
                     {
-                        if (aux_check_already_stored_id % member.id())
+                        if (already_stored_id % member.id())
                             throw std::invalid_argument(
                                 "Multiple individuals share the same id trace \"" + member.id() + "\".");
                         else
                         {
-                            aux_check_already_stored_id.push_back(member.id());
+                            already_stored_id.push_back(member.id());
                             smpl_individuals.push_back(&member);
                         }
                     }
 
+            // check all user request are satisfied
+            tools::check_for_missing_entries(already_stored_id, id_trace, "trace id");
+
             if (is_traces())
             {
                 for (const Individual *member : smpl_individuals)
-                    if (member->status() < INFECTED_STATUS)
+                    if (!member->is_infected_status())
                         tools::warning(
-                            "Ignornig trace of healthy individual id \"" + member->id() + "\".");
+                            "Ignornig trace of non infected individual id \"" + member->id() + "\".");
             }
             else
             {

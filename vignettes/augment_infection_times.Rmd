@@ -123,9 +123,9 @@ We then run a simulation with the method `simulate`.
 
 ```{r}
 # simulate using the data structure from the survey
-data("survey", package = "housepi")
-survey$status <- NA
-simulated <- hhsimul$simulate(survey, seed = 3413)
+dataset <- housepi::survey
+dataset$status <- NA
+simulated <- hhsimul$simulate(dataset, seed = 3413)
 
 # in addition to final status, we associated  augmented variables
 # incubation period onset time
@@ -174,26 +174,22 @@ hhmodel$load_augm_list(
 # note: NA onset dates of healthy individuals will raise a warning
 hhmodel$infer(simulated, n_chains = 3, n_steps = 10000,
               n_adapt = 2000, n_burnin = 1000, thin = 10,
-              seed = 3731, progress = 30)
+              seed = 3731, progress = 20)
 ```
 
 ```{r, message = FALSE, warning = FALSE, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
-# use bayesplot to plot the traces
+# use bayesplot to plot the posterior draws
 library(bayesplot)
 mcmc_trace(hhmodel$traces)
 ```
 
 ```{r, fig.width=5, fig.height=2.5, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
-# extract the traces without loglikelihood
-trs <- hhmodel$traces_no_loglike
-
 # compute Rhat values associate to inferred parameters
-array_mcmc <- simplify2array(lapply(trs, as.matrix))
-rhat <- apply(array_mcmc, ifelse(is.list(trs), 2, 3), rstan::Rhat)
+mask <- hhmodel$param_defs$name[!hhmodel$param_defs$const]
+rhat_values <- sapply(hhmodel$traces, posterior::rhat)[mask]
 
 # use bayesplot to showcase Rhat statistics
-mcmc_rhat(rhat) +
-  yaxis_text(hjust = 1)
+mcmc_rhat(rhat_values) + yaxis_text(hjust = 1)
 ```
 
 Here we performed R-hat diagnostics computing the values of $\hat{R}$ with [rstan](https://cran.r-project.org/web/packages/rstan/).
@@ -202,7 +198,9 @@ Finally we wrap all together to compare to parameters used for simulation.
 
 ```{r}
 # collect the results
-results <- hhmodel$estimates
+traces <- hhmodel$traces
+traces$loglikelihood <- NULL
+estimates <- posterior::summarise_draws(traces)
 
 # compare results to parameter values used for simulation
 simul_param_defs <- hhsimul$param_defs
@@ -213,14 +211,13 @@ inames <- simul_param_defs[imask, ]$name
 ```{r, message = FALSE, warning = FALSE,}
 library(dplyr)
 library(flextable)
-cbind(simulated = simul_param_defs[imask, ]$value, results) |>
+cbind(simulated = simul_param_defs[imask, ]$value, estimates) |>
   tibble::rownames_to_column("parameter") |>
-  mutate(inferred = sprintf("%0.4f [%0.4f, %0.4f]",
-                            mean, cri_lower, cri_upper)) |>
-  select(-mean, -sd, -cri_lower, -cri_upper) |>
+  mutate(inferred = sprintf("%0.4f [%0.4f, %0.4f]", mean, q5, q95)) |>
+  select(variable, simulated, inferred) |>
   flextable() |>
   separate_header() |>
   theme_vanilla() |>
-  bold(j = ~ parameter, bold = TRUE) |>
+  bold(j = ~ variable, bold = TRUE) |>
   autofit()
 ```

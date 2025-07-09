@@ -256,12 +256,19 @@ public:
     const std::string show_min() const { return pDistr_->show_min(); }
     const std::string show_max() const { return pDistr_->show_max(); }
 
+    const std::string show_func_name() const { return pFunc_->show_name(); }
     const std::string show_func_summary() const { return pFunc_->show_summary(); }
 
     const std::string show_prop_name() const { return pProp_->show_name(); }
     const std::string show_prop_arg_names() const { return pProp_->show_arg_names(); }
     const std::string show_prop_arg_values() const { return pProp_->show_arg_values(); }
     const std::string show_prop_scale() const { return pProp_->show_scale(); }
+
+#ifdef _HOUSEPI_RCPP
+    Rcpp::NumericVector rcpp_export_distr_args() const { return pDistr_->rcpp_export_args(); }
+    Rcpp::NumericVector rcpp_export_func_args() const { return pFunc_->rcpp_export_args(); }
+    Rcpp::NumericVector rcpp_export_range() const { return pDistr_->rcpp_export_range(); }
+#endif
 
 private:
     std::shared_ptr<Function> pFunc_;      // function

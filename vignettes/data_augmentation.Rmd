@@ -152,14 +152,9 @@ In the following examples we show the differences between move choices that can 
 As shown in the vignette [Bayesian MCMC options](bayesian_mcmc_options.html), we do the testing with the "blank" model.
 We always recommend a visual assesment before choosing a new move.
 
-```{r}
-# use default "blank" model to show some tests
-hhmodel <- housepi::HouseholdModel$new("blank")
-```
-
 ```{r, fig.width=6.5, fig.height=2, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
-# with model (default Gibbs rule)
-hhmodel$drop_all()
+# with model (default draw rule)
+hhmodel <- housepi::HouseholdModel$new("blank")
 hhmodel$add_augm(name = "move_with_model", model = "norm")
 bayesplot::mcmc_trace(hhmodel$infer(seed = 1)$traces)
 

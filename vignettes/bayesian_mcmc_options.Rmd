@@ -57,8 +57,14 @@ blank_model$infer()
 The warning just reminds us that we are using a dummy model.
 
 ```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
+# custom function to extract traces without loglikelihood
+traces_no_loglike <- function(model) {
+  mask <- model$param_defs$name[!model$param_defs$const]
+  posterior::subset_draws(model$traces, mask)
+}
+
 # density plot of the traces (w\o loglikelihood)
-bayesplot::mcmc_dens(blank_model$traces_no_loglike)
+bayesplot::mcmc_dens(traces_no_loglike(blank_model))
 ```
 
 ## Provide a Custom Range
@@ -76,7 +82,7 @@ blank_model$infer()
 ```
 
 ```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
-bayesplot::mcmc_dens(blank_model$traces_no_loglike)
+bayesplot::mcmc_dens(traces_no_loglike(blank_model))
 ```
 
 # Discrete Priors
@@ -101,7 +107,7 @@ blank_model$infer()
 
 ```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # plot the histograms
-bayesplot::mcmc_hist(blank_model$traces_no_loglike, binwidth = 1)
+bayesplot::mcmc_hist(traces_no_loglike(blank_model), binwidth = 1)
 ```
 
 ## How to Discretize Continuos Priors
@@ -123,7 +129,7 @@ blank_model$infer()
 
 ```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # plot the histograms
-bayesplot::mcmc_hist(blank_model$traces_no_loglike, binwidth = 1)
+bayesplot::mcmc_hist(traces_no_loglike(blank_model), binwidth = 1)
 ```
 
 # MCMC Proposer Rules
@@ -148,15 +154,13 @@ blank_model$infer(n_steps = 100)
 ```
 
 ```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
-bayesplot::mcmc_trace(blank_model$traces_no_loglike)
+bayesplot::mcmc_trace(traces_no_loglike(blank_model))
 ```
 Note that the proposer rule "lnorm" does not fit the case of negative values.
 
 ### Role of Finite Adaptation
 
 ```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
-
 blank_model$infer(n_steps = 100, n_adapt = 1000)
-
-bayesplot::mcmc_trace(blank_model$traces_no_loglike)
+bayesplot::mcmc_trace(traces_no_loglike(blank_model))
 ```

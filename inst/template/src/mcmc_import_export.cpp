@@ -371,8 +371,32 @@ Rcpp::DataFrame MCMC::Impl::ImplDataSet::rcpp_export_size_report() const
 /////////////////////////////////  MCMC : Impl : export traces  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+/// Chain tag of each trace entry.
+Rcpp::IntegerVector MCMC::Impl::ImplSetup::traces_chain_tags() const
+{
+    using namespace Rcpp;
+
+    IntegerVector output(c_sample_size * n_chains);
+    for (size_t c = 0; c < n_chains; ++c)
+        std::fill(output.begin() + c * c_sample_size,
+                  output.begin() + (c + 1) * c_sample_size, c + 1);
+    return output;
+}
+
+/// Iteration name of each trace entry.
+Rcpp::CharacterVector MCMC::Impl::ImplSetup::traces_iter_names() const
+{
+    using namespace Rcpp;
+
+    IntegerVector iteration(c_sample_size * n_chains);
+    for (size_t c = 0; c < n_chains; ++c)
+        for (size_t k = 0; k < c_sample_size; k++)
+            iteration[k + c * c_sample_size] = n_burnin + (k + 1) * thin;
+    return CharacterVector(wrap(iteration));
+}
+
 /* Export MCMC traces of parameter posterior samples. */
-Rcpp::NumericMatrix MCMC::Impl::export_traces() const
+Rcpp::NumericMatrix MCMC::Impl::rcpp_export_traces() const
 {
     using namespace Rcpp;
 
@@ -394,12 +418,11 @@ Rcpp::NumericMatrix MCMC::Impl::export_traces() const
             else
                 for (size_t k = 0; k < augm.smpl_individuals.size(); ++k)
                     for (const augm_key &a : augm.list_export())
-                        headers += {augm.smpl_individuals[k]->id() + "__" + a};
+                        headers += {augm.smpl_individuals[k]->id() + "_" + a};
         }
 
         // multiple chains
-        if (setup.n_chains > 1)
-            headers += {"CHAIN__"};
+        headers += {"_chain_"};
 
         //----- NumericMatrix with traces -----//
         NumericMatrix output(setup.n_chains * setup.c_sample_size,
@@ -422,25 +445,12 @@ Rcpp::NumericMatrix MCMC::Impl::export_traces() const
                     output(_, col++) = NumericVector(wrap(smpl_augm_value_k.at(a)));
             }
 
-        // retrieve chain identities
-        if (setup.n_chains > 1)
-        {
-            IntegerVector chain_col(setup.c_sample_size * setup.n_chains);
-            for (size_t c = 0; c < setup.n_chains; ++c)
-                std::fill(chain_col.begin() + c * setup.c_sample_size,
-                          chain_col.begin() + (c + 1) * setup.c_sample_size, c + 1);
-            output(_, col++) = chain_col;
-        }
-
-        //----- associate column names -----//
+        // asssociate chain tag
+        output(_, col++) = setup.traces_chain_tags();
+        // associate column names
         colnames(output) = CharacterVector(wrap(headers));
-
-        //----- associate row names -----//
-        IntegerVector sweep(setup.c_sample_size * setup.n_chains);
-        for (size_t c = 0; c < setup.n_chains; ++c)
-            for (size_t k = 0; k < setup.c_sample_size; k++)
-                sweep[k + c * setup.c_sample_size] = setup.n_burnin + (k + 1) * setup.thin;
-        rownames(output) = CharacterVector(wrap(sweep));
+        // associate row names
+        rownames(output) = setup.traces_iter_names();
 
         return output;
     }
@@ -467,14 +477,10 @@ Rcpp::NumericMatrix MCMC::Impl::ImplDataSet::rcpp_export_traces() const
             throw std::length_error("No traces to export were found.");
 
         // create a NumericMatrix with n_house columns
-        const ulong n_chains = pImpl_.setup.n_chains;
-        const ulong c_sample_size = pImpl_.setup.c_sample_size;
-        const ulong n_burnin = pImpl_.setup.n_burnin;
-        const ulong thin = pImpl_.setup.thin;
-
-        const ulong sample_size = n_chains * c_sample_size;
-        NumericMatrix output(sample_size, n_houses());
-        CharacterVector headers(n_houses());
+        const ulong sample_size = pImpl_.setup.n_chains * pImpl_.setup.c_sample_size;
+        NumericMatrix output(sample_size, n_houses() + 1);
+        CharacterVector columns(n_houses() + 1);
+        columns[n_houses()] = "_chain_";
 
         // retrieve restricted index by general index of multiplicity head class
         std::unordered_map<size_t, size_t> restr_idx_map = {};
@@ -487,18 +493,15 @@ Rcpp::NumericMatrix MCMC::Impl::ImplDataSet::rcpp_export_traces() const
         {
             size_t R = restr_idx_map.at(house_vector_[H].multiplicity_class_index());
             output(_, H) = NumericVector(wrap(smpl_values_[R]));
-            headers[H] = house_vector_[H].house_id();
+            columns[H] = house_vector_[H].house_id();
         }
 
+        // asssociate chain tag
+        output(_, n_houses()) = pImpl_.setup.traces_chain_tags();
         // associate column names
-        colnames(output) = headers;
-
+        colnames(output) = columns;
         // associate row names
-        IntegerVector sweep(sample_size);
-        for (size_t c = 0; c < n_chains; ++c)
-            for (size_t k = 0; k < c_sample_size; ++k)
-                sweep[k + c * c_sample_size] = n_burnin + (k + 1) * thin;
-        rownames(output) = CharacterVector(wrap(sweep));
+        rownames(output) = pImpl_.setup.traces_iter_names();
 
         return output;
     }
@@ -583,9 +586,7 @@ Rcpp::NumericVector MCMC::Impl::ImplParameter::rcpp_snapshot() const
 {
     using namespace Rcpp;
 
-    if (dictionary.empty())
-        return NumericVector::create();
-    else
+    if (!dictionary.empty())
     {
         NumericVector output = NumericVector(dictionary.size());
         CharacterVector names(dictionary.size());
@@ -600,6 +601,8 @@ Rcpp::NumericVector MCMC::Impl::ImplParameter::rcpp_snapshot() const
 
         return output;
     }
+
+    return NumericVector::create();
 }
 
 /* Export to R a snapshot of current state of house dataset. */
@@ -618,25 +621,23 @@ Rcpp::DataFrame MCMC::Impl::ImplDataSet::rcpp_snapshot(const std::string &house_
     for (size_t i = 0; i < headers_.size(); ++i)
         dataset_dbl.push_back(NumericVector(n_rows));
 
-    size_t r = 0, c = 0;
+    size_t r = 0;
     for (const Individual &member : house)
     {
         dataset_id[r] = member.id();
         dataset_house_id[r] = house.house_id();
         dataset_status[r] = member.status();
 
-        c = 0;
-        for (const data_key &d : headers_)
-            dataset_dbl[c++][r] = member.data(d);
+        for (size_t c = 0; c < headers_.size(); ++c)
+            dataset_dbl[c][r] = member.data(headers_[c]);
         ++r;
     }
 
     DataFrame output = DataFrame::create(_["id"] = std::move(dataset_id),
                                          _["house_id"] = std::move(dataset_house_id),
                                          _["status"] = std::move(dataset_status));
-    c = 0;
-    for (const data_key &d : headers_)
-        output.push_back(dataset_dbl[c++], d);
+    for (size_t c = 0; c < headers_.size(); ++c)
+        output.push_back(dataset_dbl[c], headers_[c]);
 
     return output;
 }
@@ -646,9 +647,7 @@ Rcpp::DataFrame MCMC::Impl::ImplDataList::rcpp_snapshot(const std::string &house
 {
     using namespace Rcpp;
 
-    if (is_empty())
-        return DataFrame::create();
-    else
+    if (!is_empty())
     {
         const Household &house = pImpl_.dataset(house_id);
         size_t n_rows = 0;
@@ -661,25 +660,24 @@ Rcpp::DataFrame MCMC::Impl::ImplDataList::rcpp_snapshot(const std::string &house
         for (size_t i = 0; i < headers_.size(); ++i)
             datalist_dbl.emplace_back(n_rows);
 
-        size_t r = 0, c = 0;
+        size_t r = 0;
         for (const Individual &member : house)
-            for (size_t i = 0; i < member.datalist(headers_[0]).size(); ++i, ++r)
+            for (size_t i = 0; i < member.datalist(headers_[0]).size(); ++i)
             {
                 datalist_id[r] = member.id();
-
-                c = 0;
-                for (const data_key &d : headers_)
-                    datalist_dbl[c++][r] = member.datalist(d)[i];
+                for (size_t c = 0; c < headers_.size(); ++c)
+                    datalist_dbl[c][r] = member.datalist(headers_[c])[i];
+                ++r;
             }
 
         // assign vectors to dataframe
         DataFrame output = DataFrame::create(_["id"] = std::move(datalist_id));
-        c = 0;
-        for (const data_key &d : headers_)
-            output.push_back(datalist_dbl[c++], d);
+        for (size_t c = 0; c < headers_.size(); ++c)
+            output.push_back(datalist_dbl[c], headers_[c]);
 
         return output;
     }
+    return DataFrame::create();
 }
 
 /* Export to R a snapshot of current state of house augmented variables. */
@@ -687,9 +685,7 @@ Rcpp::DataFrame MCMC::Impl::ImplGroupRates::rcpp_snapshot(const std::string &hou
 {
     using namespace Rcpp;
 
-    if (is_empty())
-        return DataFrame::create();
-    else
+    if (!is_empty())
     {
         const Household &house = pImpl_.dataset(house_id);
         const size_t n_rows = house.size();
@@ -700,23 +696,23 @@ Rcpp::DataFrame MCMC::Impl::ImplGroupRates::rcpp_snapshot(const std::string &hou
         for (size_t i = 0; i < headers_.size(); ++i)
             group_rate_dbl.push_back(NumericVector(n_rows));
 
-        size_t r = 0, c = 0;
+        size_t r = 0;
         for (const Individual &member : house)
         {
             dataset_id[r] = member.id();
 
-            c = 0;
-            for (const rate_key &g : headers_)
-                group_rate_dbl[c++][r] = member.group_rate(g);
+            for (size_t c = 0; c < headers_.size(); ++c)
+                group_rate_dbl[c][r] = member.group_rate(headers_[c]);
             ++r;
         }
 
         DataFrame output = DataFrame::create(_["id"] = dataset_id);
-        for (const data_key &g : headers_)
-            output.push_back(group_rate_dbl[c++], g);
+        for (size_t c = 0; c < headers_.size(); ++c)
+            output.push_back(group_rate_dbl[c], headers_[c]);
 
         return output;
     }
+    return DataFrame::create();
 }
 
 /* Export to R a snapshot of current state of house augmented variables. */
@@ -724,12 +720,9 @@ Rcpp::DataFrame MCMC::Impl::ImplAugmented::rcpp_snapshot(const std::string &hous
 {
     using namespace Rcpp;
 
-    const str_vec headers = list_full - str_vec({AUX_IP_INST_PROFILE,
-                                                 AUX_IP_CUMUL_PROFILE});
+    const str_vec headers = list_full - str_vec({AUX_IP_INST_PROFILE, AUX_IP_CUMUL_PROFILE});
 
-    if (headers.empty())
-        return DataFrame::create();
-    else
+    if (!headers.empty())
     {
         const Household &house = pImpl_.dataset(house_id);
         const size_t n_rows = house.size();
@@ -740,40 +733,93 @@ Rcpp::DataFrame MCMC::Impl::ImplAugmented::rcpp_snapshot(const std::string &hous
         for (size_t i = 0; i < headers.size(); ++i)
             augm_dbl.push_back(NumericVector(n_rows));
 
-        size_t r = 0, c = 0;
+        size_t r = 0;
         for (const Individual &member : house)
         {
             dataset_id[r] = member.id();
-
-            c = 0;
-            for (const augm_key &a : headers)
-                augm_dbl[c++][r] = member.augm(a);
+            for (size_t c = 0; c < headers.size(); ++c)
+                augm_dbl[c][r] = member.augm(headers[c]);
             ++r;
         }
 
         DataFrame output = DataFrame::create(_["id"] = dataset_id);
-        c = 0;
-        for (const augm_key &a : headers)
-            output.push_back(augm_dbl[c++], a);
+        for (size_t c = 0; c < headers.size(); ++c)
+            output.push_back(augm_dbl[c], headers[c]);
 
         return output;
     }
+    return DataFrame::create();
+}
+
+/* Export to R a snapshot of current state of house infectivity profile. */
+Rcpp::List MCMC::Impl::ImplInfecProfile::rcpp_snapshot(const std::string &house_id) const
+{
+    using namespace Rcpp;
+
+    if (is_augmented() || (profile_ != nullptr))
+    {
+        const Household &house = pImpl_.dataset(house_id);
+        const size_t n_rows = house.size();
+        CharacterVector dataset_id = CharacterVector(n_rows);
+
+        CharacterVector infprof_name(n_rows, NA_STRING);
+        LogicalVector infprof_discr(n_rows, NA_LOGICAL);
+        List infprof_range(n_rows);
+        List infprof_args(n_rows);
+
+        size_t r = 0;
+        for (const Individual &member : house)
+        {
+            dataset_id[r] = member.id();
+            if (member.is_infected_status())
+            {
+                if (is_augmented())
+                {
+                    const Variable &var = member.get_augm_variable(AUX_IP_INST_PROFILE);
+                    infprof_name[r] = var.show_func_name();
+                    infprof_discr[r] = var.is_discrete();
+                    infprof_args[r] = var.rcpp_export_func_args();
+                    infprof_range[r] = var.rcpp_export_range();
+                }
+                else
+                {
+                    infprof_name[r] = profile_->show_name();
+                    infprof_discr[r] = profile_->is_discrete();
+                    infprof_args[r] = profile_->rcpp_export_args();
+                    infprof_range[r] = profile_->rcpp_export_range();
+                }
+            }
+            else
+            {
+                infprof_args[r] = NumericVector(0);
+                infprof_range[r] = NumericVector(0);
+            }
+            ++r;
+        }
+
+        return List::create(_["id"] = dataset_id,
+                            _["discr"] = infprof_discr,
+                            _["name"] = infprof_name,
+                            _["args"] = infprof_args,
+                            _["range"] = infprof_range,
+                            _["stringsAsFactors"] = false);
+    }
+    return List::create();
 }
 
 /* Export a list containing all relevant information for a debug. */
-Rcpp::List MCMC::Impl::export_house_state_snapshot(const std::string &house_id) const
+Rcpp::List MCMC::Impl::rcpp_export_house_snapshot(const std::string &house_id) const
 {
     using namespace Rcpp;
 
     try
     {
-        if (dataset.is_empty())
-            return List::create();
-        else
+        if (!dataset.is_empty())
             return List::create(_["param"] = param.rcpp_snapshot(),
                                 _["dataset"] = dataset.rcpp_snapshot(house_id),
                                 _["datalist"] = datalist.rcpp_snapshot(house_id),
                                 _["group_rates"] = group_rates.rcpp_snapshot(house_id),
+                                _["infec_profile"] = infec_profile.rcpp_snapshot(house_id),
                                 _["augm"] = augm.rcpp_snapshot(house_id));
     }
     catch (const std::exception &e)
@@ -781,6 +827,7 @@ Rcpp::List MCMC::Impl::export_house_state_snapshot(const std::string &house_id) 
         tools::error("While exporting house \"" + house_id + "\" for debug:\n" +
                      std::string(e.what()));
     }
+    return List::create();
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -1049,10 +1096,7 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
             }
 
             // header chain
-            if (setup.n_chains > 1)
-                inferstate_ofstream << C_DELIM << "CHAIN__";
-
-            inferstate_ofstream << std::endl;
+            inferstate_ofstream << C_DELIM << "_chain_" << std::endl;
 
             //----- VALUES -----//
 
@@ -1082,10 +1126,7 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
                                                     << std::fixed << augm.smpl_values[k].at(a)[i];
 
                     // print which chain
-                    if (setup.n_chains > 1)
-                        inferstate_ofstream << C_DELIM << (c + 1);
-
-                    inferstate_ofstream << std::endl;
+                    inferstate_ofstream << C_DELIM << (c + 1) << std::endl;
                 }
 
             inferstate_ofstream.close();
@@ -1136,7 +1177,7 @@ void MCMC::Impl::ImplDataSet::print_update(Household &house)
                 aux_dataset_ofstream_ << C_DELIM << member.data(d);
 
             for (const augm_key &a : pImpl_.augm.list_export())
-                if (member.status() == INFECTED_STATUS)
+                if (member.is_infected_status())
                     aux_dataset_ofstream_ << tools::na_to_str(member.augm(a));
                 else
                     aux_dataset_ofstream_ << C_DELIM << HSP_NA_DOUBLE;

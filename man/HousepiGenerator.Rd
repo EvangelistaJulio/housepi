@@ -13,23 +13,27 @@ Help with generating Rcpp model object.
 \item{\code{name}}{\code{character(1)}\cr
 Model name.}
 
-\item{\code{cache_dir}}{\code{character(1)}\cr
-Cache directory where the compilation is stored.}
+\item{\code{cri_level}}{\code{double(1)}\cr
+Level for the credible interval.
+Value between 0.5 and 1 (default is 0.95).}
 
-\item{\code{is_blank}}{\code{logical(1)}\cr
-Wheter model is blank.}
+\item{\code{path_to_dll}}{\code{character(1)}\cr
+Path to dynamic library file of the model.}
 
-\item{\code{quiet}}{\code{logical(1)}\cr
-Wheter quiet option is on.}
+\item{\code{setup}}{\code{list()}\cr
+Last setup used by the build process.}
 
-\item{\code{path}}{\code{character(1)}\cr
-Envirnoment path.}
+\item{\code{summary}}{\code{data.frame}\cr
+A summary of statuses in the dataset.}
 
-\item{\code{source_dir}}{\code{character(1)}\cr
-Directory containing the orginal source code.}
+\item{\code{summary_house_size}}{\code{data.frame}\cr
+A summary of house sizes in the dataset.}
 
-\item{\code{reference}}{\code{character(1)}\cr
-Reference script.}
+\item{\code{traces}}{\code{posterior::draws_df}\cr
+Posterior traces of last inference.}
+
+\item{\code{house_loglike_traces}}{\code{posterior::draws_df}\cr
+Traces of pointwise loglikelihood for all households.}
 }
 \if{html}{\out{</div>}}
 }
@@ -37,8 +41,9 @@ Reference script.}
 \subsection{Public methods}{
 \itemize{
 \item \href{#method-HousepiGenerator-new}{\code{HousepiGenerator$new()}}
-\item \href{#method-HousepiGenerator-generate}{\code{HousepiGenerator$generate()}}
-\item \href{#method-HousepiGenerator-save_reference}{\code{HousepiGenerator$save_reference()}}
+\item \href{#method-HousepiGenerator-print}{\code{HousepiGenerator$print()}}
+\item \href{#method-HousepiGenerator-help}{\code{HousepiGenerator$help()}}
+\item \href{#method-HousepiGenerator-export_house_snapshot}{\code{HousepiGenerator$export_house_snapshot()}}
 \item \href{#method-HousepiGenerator-clone}{\code{HousepiGenerator$clone()}}
 }
 }
@@ -86,25 +91,45 @@ If \code{TRUE} hide \code{pkgbuild} compilation commands.}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiGenerator-generate"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiGenerator-generate}{}}}
-\subsection{Method \code{generate()}}{
-Generate the Rcpp model object.
-If necessary, it recompiles only the model script.
+\if{html}{\out{<a id="method-HousepiGenerator-print"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiGenerator-print}{}}}
+\subsection{Method \code{print()}}{
+Override the default printing behavior.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiGenerator$generate()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiGenerator$print()}\if{html}{\out{</div>}}
 }
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiGenerator-save_reference"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiGenerator-save_reference}{}}}
-\subsection{Method \code{save_reference()}}{
-Save the reference script.
+\if{html}{\out{<a id="method-HousepiGenerator-help"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiGenerator-help}{}}}
+\subsection{Method \code{help()}}{
+Show model description in RStudio Help window.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiGenerator$save_reference()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiGenerator$help()}\if{html}{\out{</div>}}
 }
 
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HousepiGenerator-export_house_snapshot"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiGenerator-export_house_snapshot}{}}}
+\subsection{Method \code{export_house_snapshot()}}{
+A snapshot of all current internal state of a given household.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HousepiGenerator$export_house_snapshot(house_id)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{house_id}}{\code{character(1)}\cr
+Id of the household to export.}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+\code{list()}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HousepiGenerator-clone"></a>}}
