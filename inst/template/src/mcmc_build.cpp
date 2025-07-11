@@ -30,6 +30,9 @@ void MCMC::Impl::ImplSetup::build(const dict_str_str &deflist)
 {
     try
     {
+        // default seed 
+        seed = tools::default_setup_seed();
+
         if (!deflist.empty())
         {
             // check entries

@@ -551,7 +551,7 @@ HouseholdSampler <- R6::R6Class(
       output <- rbind(hh_single, hh_greater)
       # format house id
       house_id_formatter <- function(x, size) {
-        sprintf(paste0("HH_%0", floor(log10(size) + 1), "d"), x)
+        sprintf(paste0("hh_%0", floor(log10(size) + 1), "d"), x)
       }
       output$house_id <- house_id_formatter(output$house_id, size)
       # associate individual index

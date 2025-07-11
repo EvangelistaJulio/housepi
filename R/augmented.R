@@ -125,13 +125,11 @@ HousepiAugmented <- R6::R6Class(
       } else {
         if (is.na(value)) {
           if (is.na(opts$model)) {
-            if (is.na(from)) {
-              stop_h("Incomplete definition: missing value.",
-                     "Alternative: provide a model and set 'init_rand = TRUE'.")
-            } else {
+            if (!is.na(from)) {
               opts$value <- type_split_(from)$val
               opts$value_at <- type_split_(from)$at
             }
+            # else: constant NA augmetned variable
           } else {
             opts$init_rand <- TRUE
           }

@@ -720,7 +720,7 @@ Rcpp::DataFrame MCMC::Impl::ImplAugmented::rcpp_snapshot(const std::string &hous
 {
     using namespace Rcpp;
 
-    const str_vec headers = list_full - str_vec({AUX_IP_INST_PROFILE, AUX_IP_CUMUL_PROFILE});
+    const str_vec headers = list_full - str_vec({HSP_PROFILE_INST, HSP_PROFILE_CUMUL});
 
     if (!headers.empty())
     {
@@ -775,7 +775,7 @@ Rcpp::List MCMC::Impl::ImplInfecProfile::rcpp_snapshot(const std::string &house_
             {
                 if (is_augmented())
                 {
-                    const Variable &var = member.get_augm_variable(AUX_IP_INST_PROFILE);
+                    const Variable &var = member.get_augm_variable(HSP_PROFILE_INST);
                     infprof_name[r] = var.show_func_name();
                     infprof_discr[r] = var.is_discrete();
                     infprof_args[r] = var.rcpp_export_func_args();
@@ -951,7 +951,7 @@ void MCMC::Impl::ImplDataSet::show_summary() const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Show the complete choices for the setup. */
-std::string MCMC::Impl::ImplSetup::show() const
+void MCMC::Impl::ImplSetup::show() const
 {
 
     std::string id_trace_txt = HSP_NA_STRING;
@@ -976,7 +976,7 @@ std::string MCMC::Impl::ImplSetup::show() const
         << "\nprogress" << C_DELIM << tools::truth(progress)
         << "\nid_trace" << C_DELIM << id_trace_txt
         << "\n";
-    return oss.str();
+    tools::print_stdout(oss.str());
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1178,7 +1178,7 @@ void MCMC::Impl::ImplDataSet::print_update(Household &house)
 
             for (const augm_key &a : pImpl_.augm.list_export())
                 if (member.is_infected_status())
-                    aux_dataset_ofstream_ << tools::na_to_str(member.augm(a));
+                    aux_dataset_ofstream_ << C_DELIM << tools::na_to_str(member.augm(a));
                 else
                     aux_dataset_ofstream_ << C_DELIM << HSP_NA_DOUBLE;
 

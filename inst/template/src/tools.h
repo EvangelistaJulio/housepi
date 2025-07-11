@@ -29,11 +29,8 @@
 #include <functional>
 #include <algorithm>
 
-/* DEVELOPER: flag used to predispose to different wrapper*/
-#ifndef _HOUSEPI_RCPP
-#define _HOUSEPI_RCPP
-#endif
-
+/// DEVELOPER: flag used to develop Rcpp chunks
+//#define _HOUSEPI_RCPP
 
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
@@ -72,8 +69,8 @@ const std::string CONTACT_RATE = "Contact";      // contact rate
 const std::string MISSING_RATE = "MISSING_RATE"; // missing rate
 
 // auxiliary infectivity profile
-const std::string AUX_IP_INST_PROFILE = "profile_inst_";   // augmented instantaneous infectivity profile
-const std::string AUX_IP_CUMUL_PROFILE = "profile_cumul_"; // augmented cumulative infectivity profile
+const std::string HSP_PROFILE_INST = "profile_inst_";   // augmented instantaneous infectivity profile
+const std::string HSP_PROFILE_CUMUL = "profile_cumul_"; // augmented cumulative infectivity profile
 
 // constants
 constexpr unsigned DEFAULT_MAX_SIZE = 30;    // default size for lookup table

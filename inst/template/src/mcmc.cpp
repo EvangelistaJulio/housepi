@@ -127,8 +127,8 @@ void MCMC::_assign_contact_rate(Household &house)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 void MCMC::assign_template_infec_profile(const dict_str_str x) { pImpl_->infec_profile.assign_template(x); }
-double MCMC::infec_profile_inst(const Individual &i, double t) const { return pImpl_->infec_profile.inst(i, t); }
-double MCMC::infec_profile_cumul(const Individual &i, double t) const { return pImpl_->infec_profile.cumul(i, t); }
+double MCMC::infec_profile_inst(const Individual &i, double t) const { return pImpl_->infec_profile.inst(&i, t); }
+double MCMC::infec_profile_cumul(const Individual &i, double t) const { return pImpl_->infec_profile.cumul(&i, t); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////  MCMC : general methods  /////////////////////////////////////

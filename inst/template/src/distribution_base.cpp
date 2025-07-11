@@ -52,7 +52,7 @@ double Distribution::do_return_cdf_(double x) const
     if (below(x))
         return 0.;
     else if (above(x))
-        return 1.;
+        return cdf(get_max());
     else
         return cdf(x);
 }

@@ -76,7 +76,7 @@ public:
     struct ImplSetup
     {
         ImplSetup(MCMC::Impl &ptr)
-            : pImpl_(ptr), unif_(0., 1.) { seed = tools::default_setup_seed(); }
+            : pImpl_(ptr), unif_(0., 1.) {}
         ~ImplSetup() = default;
 
         const str_vec file_headers = {"sample_size", "seed", "n_chains",
@@ -138,7 +138,7 @@ public:
         Rcpp::CharacterVector traces_iter_names() const;
 #else
         void read(const std::string &pathtofile);
-        std::string show() const;
+        void show() const;
 #endif
 
     private:
@@ -479,7 +479,7 @@ public:
         //===== GETTER =====//
         const std::vector<augm_key> list_export() const
         {
-            return list_sample + list_func - str_vec({AUX_IP_INST_PROFILE, AUX_IP_CUMUL_PROFILE});
+            return list_sample + list_func - str_vec({HSP_PROFILE_INST, HSP_PROFILE_CUMUL});
         }
 
         /* Flag if there are ant augmented variable definitions. */
@@ -548,11 +548,11 @@ public:
         void recover(bool is_cache_depen);
 
         //===== GETTER =====//
-        bool is_lookup() const { return !lookup_inst_.empty(); }
-        bool is_augmented() const { return !augm_infec_profile_deflist_.empty(); }
+        bool is_lookup() const { return inst_ == &ImplInfecProfile::do_inst_lookup_; }
+        bool is_augmented() const { return inst_ == &ImplInfecProfile::do_inst_augm_; }
 
-        double inst(const Individual &member, double t) { return (this->*inst_)(member, t); }
-        double cumul(const Individual &member, double t) { return (this->*cumul_)(member, t); }
+        double inst(const Individual *member, double t) { return (this->*inst_)(member, t); }
+        double cumul(const Individual *member, double t) { return (this->*cumul_)(member, t); }
 
 #ifdef _HOUSEPI_RCPP
         void rcpp_import(SEXP input);
@@ -592,15 +592,15 @@ public:
         void assign_arguments_(const str_vec &keys, const str_vec &vals, const str_vec &typs);
 
         //===== Functional methods for getter methods =====//
-        double (ImplInfecProfile::*inst_)(const Individual &, double) = &ImplInfecProfile::do_inst_default_;
-        double do_inst_default_(const Individual &member, double t);
-        double do_inst_lookup_(const Individual &member, double t);
-        double do_inst_augm_(const Individual &member, double t);
+        double (ImplInfecProfile::*inst_)(const Individual *, double) = &ImplInfecProfile::do_inst_default_;
+        double do_inst_default_(const Individual *member, double t);
+        double do_inst_lookup_(const Individual *member, double t);
+        double do_inst_augm_(const Individual *member, double t);
 
-        double (ImplInfecProfile::*cumul_)(const Individual &, double) = &ImplInfecProfile::do_cumul_default_;
-        double do_cumul_default_(const Individual &member, double t);
-        double do_cumul_lookup_(const Individual &member, double t);
-        double do_cumul_augm_(const Individual &member, double t);
+        double (ImplInfecProfile::*cumul_)(const Individual *, double) = &ImplInfecProfile::do_cumul_default_;
+        double do_cumul_default_(const Individual *member, double t);
+        double do_cumul_lookup_(const Individual *member, double t);
+        double do_cumul_augm_(const Individual *member, double t);
     } infec_profile;
 
     //=================================//

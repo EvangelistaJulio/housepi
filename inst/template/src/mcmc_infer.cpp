@@ -623,7 +623,7 @@ Rcpp::DataFrame MCMC::Impl::simulate()
         setup.prog_declare("simulate"); // declare current progress bar
 
         const size_t n_cols = dataset.n_individuals();
-        const str_vec _aux_augm_headers = augm.list_full - str_vec({AUX_IP_INST_PROFILE, AUX_IP_CUMUL_PROFILE});
+        const str_vec _aux_augm_headers = augm.list_full - str_vec({HSP_PROFILE_INST, HSP_PROFILE_CUMUL});
         const str_vec _aux_dataset_headers = dataset.headers() - _aux_augm_headers;
 
         Rcpp::CharacterVector df_index = CharacterVector(n_cols);
