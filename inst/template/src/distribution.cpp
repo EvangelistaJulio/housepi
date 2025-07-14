@@ -128,7 +128,7 @@ public:
     ~Lognormal_Distribution() = default;
 
     //===== SETTER =====//
-    void init_reshaping(bool discrete) override final { init_min_zero_reshaping(discrete, false); }
+    void init_reshaping(bool discrete) override final { init_reshaping_min_zero(discrete, false); }
 
 protected:
     std::lognormal_distribution<double> distr_gen;
@@ -167,15 +167,15 @@ public:
     {
         if (discrete)
             throw std::invalid_argument(
-                "Invalid option discrete for distribution \"" + show_name() + "\".");
+                "Invalid option discrete for distribution \"" + name() + "\".");
         init_functional_discretization(D_DISCR_TYPE_NONE);
 
         if (get_min() < 0)
             throw std::invalid_argument(
-                "Invalid min value " + show_min() + " for distribution \"" + show_name() + "\".");
+                "Invalid min value " + str_min() + " for distribution \"" + name() + "\".");
         else if (get_max() > 1)
             throw std::invalid_argument(
-                "Invalid max value " + show_max() + " for distribution \"" + show_name() + "\".");
+                "Invalid max value " + str_max() + " for distribution \"" + name() + "\".");
         else if ((get_min() > 0) || (get_max() < 1))
         {
             init_functional_range((get_min() == 0), (get_max() == 1));
@@ -226,7 +226,7 @@ public:
     ~Gamma_Distribution() = default;
 
     //==== SETTER =====//
-    void init_reshaping(bool discrete) override final { init_min_zero_reshaping(discrete, false); }
+    void init_reshaping(bool discrete) override final { init_reshaping_min_zero(discrete, false); }
 
 protected:
     std::gamma_distribution<double> distr_gen;
@@ -263,7 +263,7 @@ public:
     //==== SETTER =====//
     void init_reshaping(bool discrete) override final
     {
-        init_min_zero_reshaping(discrete, false);
+        init_reshaping_min_zero(discrete, false);
     }
 
 protected:
@@ -324,7 +324,7 @@ public:
     ~Rayleigh_Distribution() = default;
 
     //===== SETTER =====//
-    void init_reshaping(bool discrete) override final { init_min_zero_reshaping(discrete, false); }
+    void init_reshaping(bool discrete) override final { init_reshaping_min_zero(discrete, false); }
 
 protected:
     std::uniform_real_distribution<double> unif_gen;
@@ -353,7 +353,7 @@ public:
     ~Weibull_Distribution() = default;
 
     //===== SETTER =====//
-    void init_reshaping(bool discrete) override final { init_min_zero_reshaping(discrete, false); }
+    void init_reshaping(bool discrete) override final { init_reshaping_min_zero(discrete, false); }
 
 protected:
     std::weibull_distribution<double> distr_gen;
@@ -388,7 +388,7 @@ public:
     ~Exponential_Distribution() = default;
 
     //===== SETTER =====//
-    void init_reshaping(bool discrete) override final { init_min_zero_reshaping(discrete, false); }
+    void init_reshaping(bool discrete) override final { init_reshaping_min_zero(discrete, false); }
 
 protected:
     std::exponential_distribution<double> distr_gen;
@@ -430,7 +430,7 @@ public:
     ~Poisson_Distribution() = default;
 
     //===== SETTER =====//
-    void init_reshaping(bool) override final { init_min_zero_discr_defined_reshaping(); }
+    void init_reshaping(bool) override final { init_reshaping_min_zero_discr_defined(); }
 
 protected:
     std::poisson_distribution<unsigned> distr_gen;
@@ -461,7 +461,7 @@ public:
           distr_gen(arg(0), arg(1))
     {
         init_functional_discretization(D_DISCR_TYPE_DFND);
-        assign_attr("max", HSP_ATTR_RANGE, get_ptr_to_arg(0));
+        init_attr("max", HSP_ATTR_RANGE, get_ptr_to_arg(0));
         init_functional_range(false, false);
     }
     ~Binomial_Distribution() = default;
@@ -471,12 +471,12 @@ public:
     {
         if (get_min() < 0.)
             throw std::invalid_argument(
-                "Invalid min value " + show_min() + " for distribution \"" + show_name() + "\".");
+                "Invalid min value " + str_min() + " for distribution \"" + name() + "\".");
         else if ((get_min() > 0.) || (get_ptr_to_arg(0) != get_ptr_to_max()))
         {
             if (get_max() > arg(0))
                 throw std::invalid_argument(
-                    "Invalid max value " + show_max() + " for distribution \"" + show_name() + "\" with size " + std::to_string(arg(0)) + ".");
+                    "Invalid max value " + str_max() + " for distribution \"" + name() + "\" with size " + std::to_string(arg(0)) + ".");
             init_functional_range(false, false);
             init_functional_truncation(D_DISCR_TYPE_DFND);
         }
@@ -518,7 +518,7 @@ public:
     ~NegativeBinomial_Distribution() = default;
 
     //===== SETTER =====//
-    void init_reshaping(bool) override final { init_min_zero_discr_defined_reshaping(); }
+    void init_reshaping(bool) override final { init_reshaping_min_zero_discr_defined(); }
 
 protected:
     std::negative_binomial_distribution<unsigned> distr_gen;
@@ -553,7 +553,7 @@ public:
     ~Geometric_Distribution() = default;
 
     //===== SETTER =====//
-    void init_reshaping(bool) override final { init_min_zero_discr_defined_reshaping(); }
+    void init_reshaping(bool) override final { init_reshaping_min_zero_discr_defined(); }
 
 protected:
     std::geometric_distribution<unsigned> distr_gen;
@@ -646,7 +646,7 @@ public:
     ~InfecProfile_Ferretti20() = default;
 
     //===== SETTER =====//
-    void init_reshaping(bool discrete) override final { init_min_zero_reshaping(discrete, false); }
+    void init_reshaping(bool discrete) override final { init_reshaping_min_zero(discrete, false); }
 
 protected:
     double raw_pdf(double x) const override final

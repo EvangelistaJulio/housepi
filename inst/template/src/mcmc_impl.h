@@ -252,9 +252,9 @@ public:
         //===== SETTER =====//
         void build(const dict_str_vec &input);
         void build_multiplicity(const dict_str_vec &input);
-        void assign_cache_integer_vector(const cache_key &e);
-        void assign_cache_double_vector(const cache_key &e);
-        void assign_cache_double_matrix(const cache_key &e);
+        void init_cache_integer_vector(const cache_key &e);
+        void init_cache_double_vector(const cache_key &e);
+        void init_cache_double_matrix(const cache_key &e);
         void init_traces(ulong sample_size);
         void update_traces(ulong smpl_count);
 
@@ -428,8 +428,8 @@ public:
         const str_vec file_headers_ = {"group_rate", "param_name"};
         str_vec headers_ = {};
 
-        void assign_rate_as_ptrs_(Individual &member,
-                                  const rate_key_mapvec<par_key> &these_rates);
+        void init_rate_as_ptrs_(Individual &member,
+                                const rate_key_mapvec<par_key> &these_rates);
     } group_rates;
 
     //=====================//
@@ -471,7 +471,7 @@ public:
         void init();
 
         void clear_all(Individual &member);
-        void assign_all(Individual &member);
+        void init_all(Individual &member);
 
         void init_traces(ulong sample_size);
         void update_traces(ulong smpl_count);
@@ -510,19 +510,19 @@ public:
 
         double type_to_double_(const Individual &member,
                                const std::string &tkn_val, const std::string &tkn_typ);
-        void assign_attributes_(Individual &member, const augm_key &a,
-                                const str_vec &keys, const str_vec &vals, const str_vec &typs,
-                                const std::vector<bool> &is_arg, bool is_var_model);
+        void init_attributes_(Individual &member, const augm_key &a,
+                              const str_vec &keys, const str_vec &vals, const str_vec &typs,
+                              const std::vector<bool> &is_arg, bool is_var_model);
 
-        void assign_func_args_(Individual &member, const augm_key &a,
-                               const str_vec &keys, const str_vec &vals, const str_vec &typs);
-        void assign_func_range_(Individual &member, const augm_key &a,
-                                const str_vec &vals, const str_vec &typs);
+        void init_func_args_(Individual &member, const augm_key &a,
+                             const str_vec &keys, const str_vec &vals, const str_vec &typs);
+        void init_func_range_(Individual &member, const augm_key &a,
+                              const str_vec &vals, const str_vec &typs);
 
-        void assign_model_args_(Individual &member, const augm_key &a,
-                                const str_vec &keys, const str_vec &vals, const str_vec &typs);
-        void assign_model_range_(Individual &member, const augm_key &a,
-                                 const str_vec &vals, const str_vec &typs);
+        void init_model_args_(Individual &member, const augm_key &a,
+                              const str_vec &keys, const str_vec &vals, const str_vec &typs);
+        void init_model_range_(Individual &member, const augm_key &a,
+                               const str_vec &vals, const str_vec &typs);
     } augm;
 
     //===============================//
@@ -541,9 +541,8 @@ public:
 
         //===== SETTER =====//
         void build(const dict_str_str &deflist);
-        void assign_template(const dict_str_str &deflist);
+        void init_template(dict_str_str deflist);
         void append_augm_definition();
-        void init();
         void update(bool is_cache_depen);
         void recover(bool is_cache_depen);
 
@@ -556,9 +555,8 @@ public:
 
 #ifdef _HOUSEPI_RCPP
         void rcpp_import(SEXP input);
-
+        Rcpp::List rcpp_export() const;
         Rcpp::List rcpp_snapshot(const std::string &house_id) const;
-        Rcpp::List rcpp_showcase(int n_bins) const;
 #else
         void read(const std::string &pathtofile);
 #endif
@@ -566,8 +564,7 @@ public:
     private:
         const std::string section_name_ = "infectivity profile";
         MCMC::Impl &pImpl_; // pointer to external class
-        std::shared_ptr<Distribution> profile_ = nullptr;
-        dict_str_str deflist_template_ = {};
+        std::shared_ptr<Distribution> profile_;
 
         const str_vec headers_ = {"name", "discr",
                                   "arg_key", "arg_val", "arg_at",
@@ -587,20 +584,20 @@ public:
         void build_generic_profile_(const dict_str_str &deflist);
         void build_augmented_profile_(const dict_str_str &deflist);
 
-        void assign_single_attribute_(const std::string &key, const std::string &val, const std::string &at,
-                                      bool is_arg);
-        void assign_arguments_(const str_vec &keys, const str_vec &vals, const str_vec &typs);
+        void init_single_attribute_(const std::string &key, const std::string &val, const std::string &at,
+                                    bool is_arg);
+        void init_arguments_(const str_vec &keys, const str_vec &vals, const str_vec &typs);
 
         //===== Functional methods for getter methods =====//
         double (ImplInfecProfile::*inst_)(const Individual *, double) = &ImplInfecProfile::do_inst_default_;
-        double do_inst_default_(const Individual *member, double t);
-        double do_inst_lookup_(const Individual *member, double t);
-        double do_inst_augm_(const Individual *member, double t);
+        double do_inst_default_(const Individual *, double t) { profile_->pdf(t); }
+        double do_inst_augm_(const Individual *i, double t) { return i->get_augm_variable(HSP_PROFILE_INST)(t); }
+        double do_inst_lookup_(const Individual *, double t);
 
         double (ImplInfecProfile::*cumul_)(const Individual *, double) = &ImplInfecProfile::do_cumul_default_;
-        double do_cumul_default_(const Individual *member, double t);
-        double do_cumul_lookup_(const Individual *member, double t);
-        double do_cumul_augm_(const Individual *member, double t);
+        double do_cumul_default_(const Individual *, double t) { profile_->cdf(t); }
+        double do_cumul_augm_(const Individual *i, double t) { return i->get_augm_variable(HSP_PROFILE_CUMUL)(t); }
+        double do_cumul_lookup_(const Individual *, double t);
     } infec_profile;
 
     //=================================//

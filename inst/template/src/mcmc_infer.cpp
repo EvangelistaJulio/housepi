@@ -393,7 +393,6 @@ double MCMC::Impl::evaluate()
         setup.rand_init_params = false; // disable random initialization // UPDATE
         param.init();                   // check no undefined parameters
         augm.init();                    // initialize augmented variables
-        infec_profile.init();           // assign infectivity profile template
         init_model_for_inferencee_();   // initialize model for inference
         update_full_loglike_(true);     // initialize cache + full loglikelihood
 
@@ -418,7 +417,6 @@ void MCMC::Impl::infer()
     {
         setup.prog_declare();         // declare current progress bar
         init_monte_carlo_();          // initialize mcmc sampling
-        infec_profile.init();         // assign infectivity profile template
         init_model_for_inferencee_(); // user initialization model
 
         setup.prog_open(setup.c_n_sweeps * setup.n_chains); // open progress bar
@@ -608,7 +606,6 @@ void MCMC::Impl::aux_init_simulate_()
     setup.n_threads = 1;            // impose no parallelization
     setup.set_n_threads();          // change accordingly
     param.init();                   // check no undefined parameters
-    infec_profile.init();           // assign infectivity profile template
     init_model_for_simulation_();   // initialize model for simulation
 }
 

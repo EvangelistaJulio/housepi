@@ -229,8 +229,8 @@ namespace tools
     std::int32_t default_setup_seed();
 
     // format a list of string options
-    const std::string show_list(const str_vec &options,
-                                size_t max_print = 5);
+    const std::string str_list(const str_vec &options,
+                               size_t max_print = 5);
     // calculate Levenshtein distance
     ushort levenshtein(const std::string &s1, const std::string &s2);
     // find the closest match

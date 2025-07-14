@@ -306,6 +306,9 @@ HousepiGenerator <- R6::R6Class(
     # Note: I am tricking pkgbuild::compile_dll and R CMD INSTALL.
     # To avoid recompiling immutable files I just touch them.
     .compile = function() {
+      # drop previous instance
+      private$.rcpp <- NULL
+
       # source folder within cache directory
       cache_dir_src <- file.path(private$.cache_dir, "src")
       # remove object file
@@ -333,36 +336,22 @@ HousepiGenerator <- R6::R6Class(
     },
 
     # @description
-    # Return new instance of Rcpp Model.
+    # Initialize new instance of Rcpp Model.
     .new_rcpp_model = function() {
       # load dynamic library
       dyn.load(private$.dll)
       # expose internally the module
-      m <- Rcpp::Module("housepi_model_core", PACKAGE = get_template_from_dll(private$.dll))
-      return(m$ModelHousepi$new())
+      m <- Rcpp::Module(
+        "housepi_model_core",
+        PACKAGE = get_template_from_dll(private$.dll)
+      )$ModelHousepi$new()
+      m$init_advanced_setup()
+      return(m)
     },
 
     ############################################################################
     ############################################################################
     ############################################################################
-
-    # @description Generate the Rcpp model object.
-    # If necessary, it recompiles only the model script.
-    .generate = function() {
-      if (private$.need_compile) {
-        # compile model
-        private$.compile()
-        private$.rcpp <- private$.new_rcpp_model()
-        # init user advanced setup
-        private$.rcpp$init_user_advanced_setup()
-
-      } else if (is.null(private$.rcpp)) {
-        # load if not already generated
-        private$.rcpp <- private$.new_rcpp_model()
-      }
-
-      invisible(self)
-    },
 
     # @description Save the reference script.
     .save_reference = function() {
@@ -568,19 +557,16 @@ HousepiGenerator <- R6::R6Class(
                           name = NA, quiet = TRUE) {
       # check model choice
       if (is.na(choice)) {
-        choice <- "blank"
         warning_h(
           "No model specified. Falling back to \"blank\" model.",
           "To show available templates, run 'template_household_model'."
         )
-
-      } else if (choice %in% list(".")) {
-        # prohibit directories
-        stop_h(
-          sprintf("Invalid choice \"%s\" for housepi model.", choice),
-          "Move your implementation in a different folder."
-        )
+        choice <- "blank"
       }
+      else if (choice %in% list(".")) stop_h(
+        sprintf("Invalid choice \"%s\" for housepi model.", choice),
+        "Move your implementation in a different folder."
+      )
 
       # assign name to the model
       private$.name <- ifelse(is.na(name), basename(choice), name)
@@ -606,16 +592,15 @@ HousepiGenerator <- R6::R6Class(
         private$.source_dir <- file.path(template_models_dir(), choice)
         private$.dll <- template_dll_file(private$.source_dir)
 
-      } else {
-        # 4: Error
-        stop_h(
-          sprintf("\"%s\" is not a folder nor a template name.", choice),
-          "To show available templates, run 'template_household_model'."
-        )
-      }
+      } else stop_h(
+        sprintf("\"%s\" is not a folder nor a template name.", choice),
+        "To show available templates, run 'template_household_model'."
+      )
 
-      # finally compile if necessary
-      private$.generate()
+      # finally recompile only the model script, if necessary.
+      if (private$.need_compile) private$.compile()
+      # generate the Rcpp model object.
+      if (is.null(private$.rcpp)) private$.rcpp <- private$.new_rcpp_model()
 
       invisible(self)
     },
@@ -642,9 +627,9 @@ HousepiGenerator <- R6::R6Class(
         # print as plain text in the console
         cat(capture.output(tools::Rd2txt(rd_file)), sep = "\n")
 
-      } else {
-        warning_h("Help method not supported in non-interactive mode.")
-      }
+      } else warning_h(
+        "Help method not supported in non-interactive mode."
+      )
 
       invisible(self)
     },

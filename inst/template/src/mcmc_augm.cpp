@@ -69,7 +69,7 @@ double MCMC::Impl::ImplAugmented::type_to_double_(const Individual &member,
 }
 
 /* Auxiliary method to assign attributes to augmented function or model. */
-void MCMC::Impl::ImplAugmented::assign_attributes_(Individual &member,
+void MCMC::Impl::ImplAugmented::init_attributes_(Individual &member,
                                                    const augm_key &a,
                                                    const str_vec &keys,
                                                    const str_vec &vals,
@@ -156,64 +156,64 @@ void MCMC::Impl::ImplAugmented::assign_attributes_(Individual &member,
         if (!tools::is_na(x)) // scalar attribute
         {
             if (is_var_model == HSP_VAR_MODEL)
-                xaugm.assign_distr_attr(key, flag, x);
+                xaugm.init_distr_attr(key, flag, x);
             else
-                xaugm.assign_func_attr(key, flag, x);
+                xaugm.init_func_attr(key, flag, x);
         }
         else if (y != nullptr) // pointer attribute
         {
             if (is_var_model == HSP_VAR_MODEL)
-                xaugm.assign_distr_attr(key, flag, y);
+                xaugm.init_distr_attr(key, flag, y);
             else
-                xaugm.assign_func_attr(key, flag, y);
+                xaugm.init_func_attr(key, flag, y);
         }
         else if (f != nullptr) // function attribute
         {
             if (is_var_model == HSP_VAR_MODEL)
-                xaugm.assign_distr_attr(key, flag, f);
+                xaugm.init_distr_attr(key, flag, f);
             else
-                xaugm.assign_func_attr(key, flag, f);
+                xaugm.init_func_attr(key, flag, f);
         }
     }
 }
 
 /* Assign augmented function arguments. */
-void MCMC::Impl::ImplAugmented::assign_func_args_(Individual &member,
+void MCMC::Impl::ImplAugmented::init_func_args_(Individual &member,
                                                   const augm_key &a,
                                                   const str_vec &keys,
                                                   const str_vec &vals,
                                                   const str_vec &typs)
 {
-    assign_attributes_(member, a, keys, vals, typs,
+    init_attributes_(member, a, keys, vals, typs,
                        std::vector<bool>(keys.size(), HSP_ATTR_ARGUMENT), HSP_VAR_FUNCTION);
 }
 /* Assign augmented function range. */
-void MCMC::Impl::ImplAugmented::assign_func_range_(Individual &member,
+void MCMC::Impl::ImplAugmented::init_func_range_(Individual &member,
                                                    const augm_key &a,
                                                    const str_vec &vals,
                                                    const str_vec &typs)
 {
-    assign_attributes_(member, a, {"min", "max"}, vals, typs,
+    init_attributes_(member, a, {"min", "max"}, vals, typs,
                        std::vector<bool>(2, HSP_ATTR_RANGE), HSP_VAR_FUNCTION);
 }
 
 /* Assign augmented model arguments. */
-void MCMC::Impl::ImplAugmented::assign_model_args_(Individual &member,
+void MCMC::Impl::ImplAugmented::init_model_args_(Individual &member,
                                                    const augm_key &a,
                                                    const str_vec &keys,
                                                    const str_vec &vals,
                                                    const str_vec &typs)
 {
-    assign_attributes_(member, a, keys, vals, typs,
+    init_attributes_(member, a, keys, vals, typs,
                        std::vector<bool>(keys.size(), HSP_ATTR_ARGUMENT), HSP_VAR_MODEL);
 }
 /* Assign augmented model range. */
-void MCMC::Impl::ImplAugmented::assign_model_range_(Individual &member,
+void MCMC::Impl::ImplAugmented::init_model_range_(Individual &member,
                                                     const augm_key &a,
                                                     const str_vec &vals,
                                                     const str_vec &typs)
 {
-    assign_attributes_(member, a, {"min", "max"}, vals, typs,
+    init_attributes_(member, a, {"min", "max"}, vals, typs,
                        std::vector<bool>(2, HSP_ATTR_RANGE), HSP_VAR_MODEL);
 }
 
@@ -460,7 +460,7 @@ void MCMC::Impl::ImplAugmented::set_id_trace_(str_vec &id_trace)
             else
             {
                 tools::warning(
-                    "Ignoring id trace for individual " + tools::show_list(id_trace));
+                    "Ignoring id trace for individual " + tools::str_list(id_trace));
                 id_trace.clear();
             }
         }
@@ -519,7 +519,7 @@ void MCMC::Impl::ImplAugmented::clear_all(Individual &member)
 }
 
 /* Assign augmented variables to single individual. */
-void MCMC::Impl::ImplAugmented::assign_all(Individual &member)
+void MCMC::Impl::ImplAugmented::init_all(Individual &member)
 {
     try
     {
@@ -540,7 +540,7 @@ void MCMC::Impl::ImplAugmented::assign_all(Individual &member)
 
                 // assign augmented variable placeholder
                 // FIXME: what if constant = T, discrete = T and value != integer?
-                member.assign_augm(a,
+                member.init_augm(a,
                                    deftab.at("name")[k],
                                    type_to_double_(member, deftab.at("value")[k], deftab.at("value_at")[k]),
                                    tools::stobool(deftab.at("discr")[k]),
@@ -561,13 +561,13 @@ void MCMC::Impl::ImplAugmented::assign_all(Individual &member)
             Variable &xaugm = member.get_augm_variable(a);
 
             // assign arguments to model
-            assign_model_args_(member, a,
+            init_model_args_(member, a,
                                tools::parse_list_args(deftab.at("arg_key")[k]),
                                tools::parse_list_args(deftab.at("arg_val")[k]),
                                tools::parse_list_args(deftab.at("arg_at")[k]));
 
             // assign range to model
-            assign_model_range_(member, a,
+            init_model_range_(member, a,
                                 {deftab.at("min")[k], deftab.at("max")[k]},
                                 {deftab.at("min_at")[k], deftab.at("max_at")[k]});
             xaugm.init_distr_reshaping();
@@ -575,12 +575,12 @@ void MCMC::Impl::ImplAugmented::assign_all(Individual &member)
             if (xaugm.is_function())
             {
                 // assign arguments to function
-                assign_func_args_(member, a,
+                init_func_args_(member, a,
                                   tools::parse_list_args(deftab.at("farg_key")[k]),
                                   tools::parse_list_args(deftab.at("farg_val")[k]),
                                   tools::parse_list_args(deftab.at("farg_at")[k]));
                 // assign range to function
-                assign_func_range_(member, a,
+                init_func_range_(member, a,
                                    {deftab.at("min")[k], deftab.at("max")[k]},
                                    {deftab.at("min_at")[k], deftab.at("max_at")[k]});
                 xaugm.init_func_reshaping();
@@ -588,7 +588,7 @@ void MCMC::Impl::ImplAugmented::assign_all(Individual &member)
             else if (!xaugm.is_constant())
             {
                 // assign proposer rule
-                xaugm.assign_proposer(deftab.at("rule")[k],
+                xaugm.init_proposer(deftab.at("rule")[k],
                                       type_to_double_(member, deftab.at("scale")[k], deftab.at("scale_at")[k]),
                                       type_to_double_(member, deftab.at("from")[k], deftab.at("from_at")[k]));
 
@@ -622,7 +622,7 @@ void MCMC::Impl::ImplAugmented::init()
     if (is_any())
         for (Household &house : pImpl_.dataset)
             for (Individual &member : house)
-                assign_all(member);
+                init_all(member);
 }
 
 //-----------------------------------------------------------------------------------------------//

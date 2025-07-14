@@ -28,11 +28,10 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Initialize infectivity profile. */
-void Model::init_user_advanced_setup()
+void Model::init_advanced_setup()
 {
-	// template infectivity profile: gamma
-	// otherwise user defined
-	assign_template_infec_profile({{"name", "gamma_meanvar"},
+	// template infectivity profile (otherwise user defined)
+	init_infec_profile_template({{"name", "gamma_meanvar"},
 								   {"arg_key", "mean/var"},
 								   {"arg_val", "2/1"},
 								   {"arg_at", "S/S"}});
@@ -288,7 +287,7 @@ void Model::simulate_single_household(Household &house)
 	for (Individual &member : house)
 	{
 		house.change_status(member, (member == member_0) ? INFECTED_STATUS : HEALTHY_STATUS);
-		assign_all_augm(member);
+		init_all_augm(member);
 	}
 
 	//=============================================================//

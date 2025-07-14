@@ -15,66 +15,62 @@
 #include "model.h"
 
 // macro to define RCPP wrapper classes to export to R
-#define DEFINE_HOUSEPI_RCPP_WRAPPER_CLASS(WrapperName, type_string, registry_list)                \
-    class WrapperName##Housepi                                                                    \
-    {                                                                                             \
-    private:                                                                                      \
-        std::shared_ptr<Function> _ptr;                                                           \
-                                                                                                  \
-    public:                                                                                       \
-        WrapperName##Housepi(std::string name, Rcpp::List args, Rcpp::List range, bool is_discr)  \
-        {                                                                                         \
-            try                                                                                   \
-            {                                                                                     \
-                _ptr = compose_func_registries(name, type_string, registry_list);                 \
-                                                                                                  \
-                if (args.size() > 0)                                                              \
-                {                                                                                 \
-                    const Rcpp::CharacterVector arg_names = args.names();                         \
-                    for (R_xlen_t i = 0; i < arg_names.size(); ++i)                               \
-                        _ptr->assign_attr(Rcpp::as<std::string>(arg_names[i]),                    \
-                                          HSP_ATTR_ARGUMENT,                                      \
-                                          Rcpp::as<double>(args[i]));                             \
-                }                                                                                 \
-                                                                                                  \
-                if (range.size() > 2)                                                             \
-                    throw std::runtime_error("Range must be a numeric vector of length 2.");      \
-                else if (range.size() > 0)                                                        \
-                {                                                                                 \
-                    const Rcpp::CharacterVector range_names = range.names();                      \
-                    for (R_xlen_t i = 0; i < range_names.size(); ++i)                             \
-                        _ptr->assign_attr(Rcpp::as<std::string>(range_names[i]),                  \
-                                          HSP_ATTR_RANGE,                                         \
-                                          Rcpp::as<double>(range[i]));                            \
-                }                                                                                 \
-                                                                                                  \
-                _ptr->init_reshaping(is_discr);                                                   \
-            }                                                                                     \
-            catch (const std::exception &e)                                                       \
-            {                                                                                     \
-                tools::error(                                                                     \
-                    "While initializing " type_string " \"" + name + "\":\n" + e.what());         \
-            }                                                                                     \
-        }                                                                                         \
-        ~WrapperName##Housepi() = default;                                                        \
-                                                                                                  \
-        Rcpp::NumericVector call(Rcpp::NumericVector x)                                           \
-        {                                                                                         \
-            try                                                                                   \
-            {                                                                                     \
-                const R_xlen_t n = x.size();                                                      \
-                Rcpp::NumericVector y(n);                                                         \
-                for (R_xlen_t i = 0; i < n; ++i)                                                  \
-                    y[i] = _ptr->return_value(x[i]);                                              \
-                return y;                                                                         \
-            }                                                                                     \
-            catch (const std::exception &e)                                                       \
-            {                                                                                     \
-                tools::error(                                                                     \
-                    "While calling " type_string " \"" + _ptr->show_name() + "\":\n" + e.what()); \
-            }                                                                                     \
-            return Rcpp::NumericVector();                                                         \
-        }                                                                                         \
+#define DEFINE_HOUSEPI_RCPP_WRAPPER_CLASS(WrapperName, type_string, registry_list)               \
+    class WrapperName##Housepi                                                                   \
+    {                                                                                            \
+    private:                                                                                     \
+        std::shared_ptr<Function> _ptr;                                                          \
+                                                                                                 \
+    public:                                                                                      \
+        WrapperName##Housepi(std::string name, Rcpp::List args, Rcpp::List range, bool is_discr) \
+        {                                                                                        \
+            try                                                                                  \
+            {                                                                                    \
+                _ptr = compose_func_registries(name, type_string, registry_list);                \
+                                                                                                 \
+                if (args.size() > 0)                                                             \
+                {                                                                                \
+                    const Rcpp::CharacterVector arg_names = args.names();                        \
+                    for (R_xlen_t i = 0; i < arg_names.size(); ++i)                              \
+                        _ptr->init_attr(Rcpp::as<std::string>(arg_names[i]),                     \
+                                        HSP_ATTR_ARGUMENT,                                       \
+                                        Rcpp::as<double>(args[i]));                              \
+                }                                                                                \
+                                                                                                 \
+                const Rcpp::CharacterVector range_names = range.names();                         \
+                for (R_xlen_t i = 0; i < range_names.size(); ++i)                                \
+                    if (!tools::is_na(Rcpp::as<double>(range[i])))                               \
+                        _ptr->init_attr(Rcpp::as<std::string>(range_names[i]),                   \
+                                        HSP_ATTR_RANGE,                                          \
+                                        Rcpp::as<double>(range[i]));                             \
+                                                                                                 \
+                _ptr->init_reshaping(is_discr);                                                  \
+            }                                                                                    \
+            catch (const std::exception &e)                                                      \
+            {                                                                                    \
+                tools::error(                                                                    \
+                    "While initializing " type_string " \"" + name + "\":\n" + e.what());        \
+            }                                                                                    \
+        }                                                                                        \
+        ~WrapperName##Housepi() = default;                                                       \
+                                                                                                 \
+        Rcpp::NumericVector call(Rcpp::NumericVector x)                                          \
+        {                                                                                        \
+            try                                                                                  \
+            {                                                                                    \
+                const R_xlen_t n = x.size();                                                     \
+                Rcpp::NumericVector y(n);                                                        \
+                for (R_xlen_t i = 0; i < n; ++i)                                                 \
+                    y[i] = _ptr->return_value(x[i]);                                             \
+                return y;                                                                        \
+            }                                                                                    \
+            catch (const std::exception &e)                                                      \
+            {                                                                                    \
+                tools::error(                                                                    \
+                    "While calling " type_string " \"" + _ptr->name() + "\":\n" + e.what());     \
+            }                                                                                    \
+            return Rcpp::NumericVector();                                                        \
+        }                                                                                        \
     };
 
 //-----------------------------------------------------------------------------------------------//
@@ -155,11 +151,9 @@ RCPP_MODULE(housepi_infec_profile)
 //' @name ModelHousepi
 //' @title Internal housepi model
 //' @description Perform inference and simulation from the model.
-//' @field init_user_advanced_setup
-//' Load user advance setup.
 //' @field infer\cr Perform MCMC inference of the model parameters. \itemize{
 //'   \item Parameter: output_file - The file path where the output will be saved
-//'   \item Parameter: progbar - show the progress bar
+//'   \item Parameter: progbar - Display the progress bar
 //' }
 //' @field simulate\cr Load a simulated database.
 //' @field evaluate\cr Evaluate the loglikelihood according to the current state.
@@ -178,21 +172,19 @@ RCPP_MODULE(housepi_infec_profile)
 //' @field buil_all_rates\cr Assign all contact and group rates.
 //' @field export_setup\cr Return a List with current setup.
 //' @field export_param\cr Return a DataFrame with current parameters.
+//' @field export_infec_profile\cr Return a List with infectivity profile.
 //' @field export_dataset\cr Return a DataFrame with current database.
 //' @field export_dataset_report\cr Return a DataFrame with a report of the current database.
 //' @field export_house_size_report\cr Return a DataFrame with a report of household sizes.
 //' @field export_traces\cr Return a NumericMatrix with MCMC traces.
 //' @field export_house_loglike_traces\cr Return a NumericMatrix with household loglikelihood traces.
 //' @field export_house_snapshot\cr Return a List with a snapshot containing full household and model details.
-//' @field showcase_infec_profile\cr Return a List with a showcase of the infectivity profile.
-//' @field show_full_build\cr Show all build messages.
-//' @field show_summary\cr Show a summary of the current database.
 
 RCPP_MODULE(housepi_model_core)
 {
     Rcpp::class_<MCMC>("McmcHousepi")
         .constructor()
-        .method("init_user_advanced_setup", &MCMC::init_user_advanced_setup)
+        .method("init_advanced_setup", &MCMC::init_advanced_setup)
         .method("infer", &MCMC::infer)
         .method("simulate", &MCMC::simulate)
         .method("evaluate", &MCMC::evaluate)
@@ -208,14 +200,14 @@ RCPP_MODULE(housepi_model_core)
         .method("build_all_rates", &MCMC::build_all_rates)
         .method("export_setup", &MCMC::export_setup)
         .method("export_param", &MCMC::export_param)
+        .method("export_infec_profile", &MCMC::export_infec_profile)
         .method("export_dataset", &MCMC::export_dataset)
         .method("export_datalist", &MCMC::export_datalist)
         .method("export_dataset_report", &MCMC::export_dataset_report)
         .method("export_house_size_report", &MCMC::export_house_size_report)
         .method("export_traces", &MCMC::export_traces)
         .method("export_house_loglike_traces", &MCMC::export_house_loglike_traces)
-        .method("export_house_snapshot", &MCMC::export_house_snapshot)
-        .method("showcase_infec_profile", &MCMC::showcase_infec_profile);
+        .method("export_house_snapshot", &MCMC::export_house_snapshot);
 
     Rcpp::class_<Model>("ModelHousepi")
         .constructor()

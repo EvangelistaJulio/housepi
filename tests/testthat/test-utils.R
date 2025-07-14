@@ -103,3 +103,22 @@ test_that("String function extraction returns expected results", {
   expect_error(housepi:::extract_func_("log alpha@P )"))
   expect_error(housepi:::extract_func_("log ( alpha @ B )  "))
 })
+
+
+test_that("Numerical recipes and distributions are correct", {
+  x <- seq(1, 10, 1)
+  args <- list(size = 12, prob = 0.2)
+  prof_inst <- housepi_distribution("binom", x, args = args, min = 1)
+  prof_cumul <- housepi_distribution("pbinom", x, args = args, min = 1)
+
+  # truncation
+  shift <- stats::pbinom(0, size = args$size, prob = args$prob)
+  trunc <- 1. / (1. - shift)
+  # instantaneous
+  y <- stats::dbinom(x, size = args$size, prob = args$prob)
+  expect_equal(prof_inst, y * trunc)
+  
+  # cumulative
+  y <- stats::pbinom(x, size = args$size, prob = args$prob)
+  expect_equal(prof_cumul, (y - shift) * trunc)
+})

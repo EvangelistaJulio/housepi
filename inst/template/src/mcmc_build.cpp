@@ -336,7 +336,7 @@ void MCMC::Impl::ImplDataSet::build(const dict_str_vec &input)
                 Household &house = house_vector_.at(hhid_to_index_.at(house_id));
 
                 // assign the individual the respective household
-                house.assign_member(i, id, status, data);
+                house.init_member(i, id, status, data);
             }
             headers_ = headers_ - str_vec({"id", "house_id", "status"});
 
@@ -445,22 +445,22 @@ std::pair<ushort, ulong> MCMC::Impl::ImplDataSet::get_report_hh_size(const std::
 }
 
 /* Extra integer vectors for all households. */
-void MCMC::Impl::ImplDataSet::assign_cache_integer_vector(const cache_key &e)
+void MCMC::Impl::ImplDataSet::init_cache_integer_vector(const cache_key &e)
 {
     for (Household &house : restricted())
-        house.assign_cache_integer_vector(e);
+        house.init_cache_integer_vector(e);
 }
 /* Extra double vectors for all households. */
-void MCMC::Impl::ImplDataSet::assign_cache_double_vector(const cache_key &e)
+void MCMC::Impl::ImplDataSet::init_cache_double_vector(const cache_key &e)
 {
     for (Household &house : restricted())
-        house.assign_cache_double_vector(e);
+        house.init_cache_double_vector(e);
 }
 /* Extra double square matrix for all households. */
-void MCMC::Impl::ImplDataSet::assign_cache_double_matrix(const cache_key &e)
+void MCMC::Impl::ImplDataSet::init_cache_double_matrix(const cache_key &e)
 {
     for (Household &house : restricted())
-        house.assign_cache_double_matrix(e);
+        house.init_cache_double_matrix(e);
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -611,7 +611,7 @@ void MCMC::Impl::ImplDataList::build(const dict_str_vec &input)
             c = 0;
             for (Household &house : pImpl_.dataset)
                 for (Individual &member : house)
-                    member.assign_pointer_to_datalist(&indiv_datalist_.at(c++));
+                    member.init_pointer_to_datalist(&indiv_datalist_.at(c++));
         }
     }
     catch (const std::exception &e)
@@ -632,7 +632,7 @@ void MCMC::Impl::ImplDataList::build(const dict_str_vec &input)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Convert to a dictionary of parameter pointers and pass the pointers to the individual */
-void MCMC::Impl::ImplGroupRates::assign_rate_as_ptrs_(Individual &member,
+void MCMC::Impl::ImplGroupRates::init_rate_as_ptrs_(Individual &member,
                                                       const rate_key_mapvec<par_key> &these_rates)
 {
     rate_key_mapvec<const double *> rate_ptrs = {};
@@ -674,7 +674,7 @@ void MCMC::Impl::ImplGroupRates::assign_rate_as_ptrs_(Individual &member,
         }
     }
 
-    member.assign_all_group_rates(rate_ptrs);
+    member.init_all_group_rates(rate_ptrs);
 }
 
 /* Update model report and set group rates associate to new individual. */
@@ -726,7 +726,7 @@ void MCMC::Impl::ImplGroupRates::build(const dict_str_vec &deftable)
                 }
 
                 // assign rates to the individual
-                assign_rate_as_ptrs_(member, these_rates);
+                init_rate_as_ptrs_(member, these_rates);
             }
     }
 }
@@ -814,7 +814,7 @@ void MCMC::Impl::ImplParameter::build(const dict_str_vec &deftable)
                     Variable &new_param = dictionary.at(p);
 
                     // assign a prior distribution to the parameter
-                    new_param.assign_distr(prior_name);
+                    new_param.init_distr(prior_name);
 
                     // assign scalar arguments to prior distribution
                     str_vec arg_key = tools::parse_list_args(deftable.at("arg_key")[k]);
@@ -824,7 +824,7 @@ void MCMC::Impl::ImplParameter::build(const dict_str_vec &deftable)
                         if (!tools::is_na(arg_key[c]))
                         {
                             const std::string &x = arg_val[c];
-                            new_param.assign_distr_attr(
+                            new_param.init_distr_attr(
                                 arg_key[c], HSP_ATTR_ARGUMENT,
                                 (tools::is_na(x) ? HSP_NA_DOUBLE : tools::stod(x)));
                         }
@@ -838,13 +838,13 @@ void MCMC::Impl::ImplParameter::build(const dict_str_vec &deftable)
 
                     // set the range of values to the parameter
                     if (!tools::is_na(lower))
-                        new_param.assign_distr_attr("min", HSP_ATTR_RANGE, lower);
+                        new_param.init_distr_attr("min", HSP_ATTR_RANGE, lower);
                     if (!tools::is_na(upper))
-                        new_param.assign_distr_attr("max", HSP_ATTR_RANGE, upper);
+                        new_param.init_distr_attr("max", HSP_ATTR_RANGE, upper);
                     new_param.init_distr_reshaping();
 
                     // assign the rule for the proposer to the parameter
-                    new_param.assign_proposer(rule_name, rule_scale);
+                    new_param.init_proposer(rule_name, rule_scale);
 
                     // update the lists of parameters to be sampled
                     list_sample.push_back(p);
@@ -885,7 +885,7 @@ void MCMC::Impl::ImplParameter::init()
 
         if (pImpl_.setup.rand_init_params)
         {
-            if (tools::is_na(this_par.show_distr_name()))
+            if (tools::is_na(this_par.distr_name()))
                 throw std::invalid_argument(
                     "Parameters with undefined values are not allowed.");
             else

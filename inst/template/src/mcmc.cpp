@@ -45,13 +45,13 @@ double MCMC::param(const par_key &p) const { return pImpl_->param.get(p); }
 const double *MCMC::param_pointer(const par_key &p) const { return pImpl_->param.get_ptr(p); }
 
 //===== AUGMENTED VARIABLES =====//
-void MCMC::assign_all_augm(Individual &member) { pImpl_->augm.assign_all(member); }
+void MCMC::init_all_augm(Individual &member) { pImpl_->augm.init_all(member); }
 void MCMC::clear_all_augm(Individual &member) { pImpl_->augm.clear_all(member); }
 
 //===== CACHE ATTRIBUTES =====//
-void MCMC::cache_house_integer_vector(const cache_key &e) { pImpl_->dataset.assign_cache_integer_vector(e); }
-void MCMC::cache_house_double_vector(const cache_key &e) { pImpl_->dataset.assign_cache_double_vector(e); }
-void MCMC::cache_house_double_matrix(const cache_key &e) { pImpl_->dataset.assign_cache_double_matrix(e); }
+void MCMC::cache_house_integer_vector(const cache_key &e) { pImpl_->dataset.init_cache_integer_vector(e); }
+void MCMC::cache_house_double_vector(const cache_key &e) { pImpl_->dataset.init_cache_double_vector(e); }
+void MCMC::cache_house_double_matrix(const cache_key &e) { pImpl_->dataset.init_cache_double_matrix(e); }
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -66,7 +66,7 @@ void MCMC::build_all_rates()
     try
     {
         for (Household &house : pImpl_->dataset)
-            _assign_contact_rate(house);
+            init_contact_rates_(house);
     }
     catch (const std::exception &e)
     {
@@ -80,7 +80,7 @@ void MCMC::build_all_rates()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Set contact rate according to user assignement. */
-void MCMC::_assign_contact_rate(Household &house)
+void MCMC::init_contact_rates_(Household &house)
 {
     try
     {
@@ -90,7 +90,7 @@ void MCMC::_assign_contact_rate(Household &house)
                 if (member_k != member_i)
                 {
                     _pair_contact_rate = HSP_NA_STRING;
-                    assign_contact_rate_to_household(house, member_k, member_i);
+                    init_household_contact_rates(house, member_k, member_i);
 
                     if (!tools::is_na(_pair_contact_rate))
                     {
@@ -105,7 +105,7 @@ void MCMC::_assign_contact_rate(Household &house)
                             // parameter rate
                             y = pImpl_->param.get_ptr(_pair_contact_rate);
 
-                        house.assign_contact_rate(static_cast<size_t>(member_k), static_cast<size_t>(member_i), y);
+                        house.init_contact_rates(static_cast<size_t>(member_k), static_cast<size_t>(member_i), y);
                     }
                 }
     }
@@ -126,7 +126,7 @@ void MCMC::_assign_contact_rate(Household &house)
 /////////////////////////////////////  MCMC : infectivity profile  //////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-void MCMC::assign_template_infec_profile(const dict_str_str x) { pImpl_->infec_profile.assign_template(x); }
+void MCMC::init_infec_profile_template(dict_str_str x) { pImpl_->infec_profile.init_template(x); }
 double MCMC::infec_profile_inst(const Individual &i, double t) const { return pImpl_->infec_profile.inst(&i, t); }
 double MCMC::infec_profile_cumul(const Individual &i, double t) const { return pImpl_->infec_profile.cumul(&i, t); }
 
@@ -146,6 +146,7 @@ Rcpp::List MCMC::evidence(const std::string &scheme, ulong n_rungs) { return pIm
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Rcpp::List MCMC::export_setup() const { return pImpl_->setup.rcpp_export(); }
+Rcpp::List MCMC::export_infec_profile() const { return pImpl_->infec_profile.rcpp_export(); }
 Rcpp::DataFrame MCMC::export_param() const { return pImpl_->param.rcpp_export(); }
 Rcpp::DataFrame MCMC::export_dataset() const { return pImpl_->dataset.rcpp_export(); }
 Rcpp::DataFrame MCMC::export_dataset_report() const { return pImpl_->dataset.rcpp_export_report(); }
@@ -153,7 +154,6 @@ Rcpp::DataFrame MCMC::export_house_size_report() const { return pImpl_->dataset.
 Rcpp::NumericMatrix MCMC::export_house_loglike_traces() const { return pImpl_->dataset.rcpp_export_traces(); }
 Rcpp::DataFrame MCMC::export_datalist() const { return pImpl_->datalist.rcpp_export(); }
 Rcpp::NumericMatrix MCMC::export_traces() const { return pImpl_->rcpp_export_traces(); }
-Rcpp::List MCMC::showcase_infec_profile(int n_bins) const { return pImpl_->infec_profile.rcpp_showcase(n_bins); }
 Rcpp::List MCMC::export_house_snapshot(const std::string &house_id) const { return pImpl_->rcpp_export_house_snapshot(house_id); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

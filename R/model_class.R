@@ -486,7 +486,11 @@ HouseholdModel <- R6::R6Class(
     #' @field infec_profile_defs `list`\cr
     #' Infectivity profile definition list.
     infec_profile_defs = function(value) {
-      if (missing(value)) return(private$.infec_profile$defs)
+      if (missing(value)) {
+        defs <- private$.infec_profile$defs
+        if (!is.null(defs)) return(defs)
+        else return(private$.rcpp$export_infec_profile())
+      }
       else do.call(self$add_infec_profile, value)
     },
 
@@ -851,40 +855,6 @@ HouseholdModel <- R6::R6Class(
       private$.infec_profile$add(name = name, discr = discr,
                                  args = args, max = max)
       invisible(self)
-    },
-
-    #' @description
-    #' Showcase instantaneous and cumulative values of infectivity profile.
-    #' UPDATE: this should be dropped and just parameters should be exported
-    #' to then be passed to housepi_infec_profile
-    #'
-    #' @param bins `integer(1)`\cr
-    #' Number of bins for continuous profile (ignored if discrete).
-    #'
-    #' @return
-    #' `list()`
-    showcase_infec_profile = function(bins = 2000) {
-      # load options
-      bins <- as.integer(bins)
-
-      # assert parameter definitions before importing
-      requirements <- private$.infec_profile$param_required
-      if (length(requirements) > 0) {
-        private$.param$assert(requirements)
-        private$.rcpp$import_param(self$param_defs)
-      }
-
-      # infectivity profile
-      private$.rcpp$import_infec_profile(private$.infec_profile$defs)
-
-      # call Rcpp method
-      output <- private$.rcpp$showcase_infec_profile(bins)
-      # reformat dataframe
-      mask <- c("gentime", "inst", "cumul")
-      output$profile <- as.data.frame(output[mask])
-      output[mask] <- NULL
-
-      return(output)
     },
 
     ############################################################################

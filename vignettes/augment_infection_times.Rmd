@@ -21,11 +21,11 @@ bayesplot::bayesplot_theme_set(ggplot2::theme_gray())
 bayesplot::color_scheme_set(scheme = "brightblue")
 ```
 
-In this vignette, we use the template model "ex-augm-infec-single-intro" where surveys are conditioned on single introduction and follow the times of onset.
-For simplicity the model assumes no asymptomatic cases.
-This time we load the parameter definitions directly from the model template.
+In this vignette, we use the template model "augm-infection-time" where surveys are conditioned on single introduction.
+We load the parameter definitions directly from the model template.
 
 ```{r}
+# load augmented infection time template
 hhsimul <- housepi::HouseholdModel$new("augm-infection-time")
 
 # use example parameters associated to the template model
@@ -37,6 +37,7 @@ hhsimul$param_defs
 
 ## Infectivity Profile
 
+To model transmission, 
 In `housepi` we follow the convention for infectivity profiles to be function of the generation time.
 Generation time is defined as the time from infection to transmission.
 
@@ -48,44 +49,14 @@ Certain profiles will then depend on individual incubation periods $\tau$ as fol
 | from onset to transmission | $\tau_{\rm infector}$ | \- | &check; |
 | serial time | $\tau_{\rm infector}$ | $\tau_{\rm infectee}$ | &cross; |
 
-We can provide a custom infectivity profile with the method `$add_infec_profile()`.
-At any moment, we can showcase the loaded profile as follows:
+We can provide a custom infectivity profile with the method `$add_infec_profile()` as follows:
 
-```{r, fig.width=6.5, fig.height=3, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
+```{r}
 # we associate a gamma for infectivity profile
-hhsimul$add_infec_profile(name = "gamma",
-                          args = c(shape = 2.2, scale = 1.3))
-
-# extract profile and other general information
-infec <- hhsimul$showcase_infec_profile()
-
-# plot instantaneous and cumulative profile with ggplot2
-library(ggplot2)
-
-# format title with information from the export
-title <- sprintf("Infectivity Profile: %s [mean=%.1f, sd=%.1f]",
-                 stringr::str_to_title(infec$name),
-                 infec$mean, sqrt(infec$var))
-
-# coefficient to rescale cumulative
-rescale <- max(infec$profile$cumul) / max(infec$profile$inst)
-
-ggplot(infec$profile, aes(x = gentime)) +
-  # plot cumulative profile
-  theme(axis.ticks.y.right = element_line(color = "coral"),
-        axis.text.y.right = element_text(color = "coral"),
-        axis.title.y.right = element_text(color = "coral")) +
-  geom_line(aes(y = cumul / rescale), color = "coral") +
-  # plot instantaneous
-  geom_line(aes(y = inst)) +
-  # apply rescaling
-  scale_y_continuous(name = "Instantaneous",
-                     sec.axis = sec_axis(~. * rescale, name = "Cumulative")) +
-  labs(x = "Generation Time", title = title)
+hhsimul$add_infec_profile(name = "gamma", args = c(shape = 2.2, scale = 1.3))
 ```
 
 Bear in mind that each model requiring an infectivity profile has a default profile.
-For more details on how to customize infectivity profiles, check the vignette [Customize Models](customize_models.html).
 
 ## Simulate an Outbreak
 

@@ -10,8 +10,8 @@ source("R/model_generator.R")
 source("R/model_class.R")
 source("R/sampler_class.R")
 
-# CHECK:
-# I shall not pollute the registrations
-getDLLRegisteredRoutines("housepi")$`.Call`
-getDLLRegisteredRoutines("housepienvironment")$`.Call`
-getLoadedDLLs()
+## CHECK:
+##----------
+# getDLLRegisteredRoutines("housepi")$`.Call`
+# getDLLRegisteredRoutines("housepienvironment")$`.Call`
+# getLoadedDLLs()

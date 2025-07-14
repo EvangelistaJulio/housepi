@@ -24,39 +24,11 @@
 ////////////////////////////////  Base Distribution - wrapper  //////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Distribution::logratio(double xold, double xnew) const
-{
-    if (xold == xnew)
-        return 0.;
-    else
-        return (this->*logratio_)(xold, xnew);
-}
 double Distribution::rand(rnd_gen &prng)
 {
     update_args(); // UPDATE: random generator classes should be redisgned to deal with this
     return (this->*rand_)(prng);
 }
-
-/* Function-like return value for probability density. */
-double Distribution::do_return_pdf_(double x) const
-{
-    if (valid(x))
-        return pdf(x);
-    else
-        return 0.;
-}
-
-/* Function-like return value for cumulative distribution. */
-double Distribution::do_return_cdf_(double x) const
-{
-    if (below(x))
-        return 0.;
-    else if (above(x))
-        return cdf(get_max());
-    else
-        return cdf(x);
-}
-
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -65,8 +37,7 @@ double Distribution::do_return_cdf_(double x) const
 //-----------------------------------------------------------------------------------------------//
 
 /* Rejection sampling. */
-double Distribution::rejection_sampling_(rnd_gen &prng,
-                                         double (Distribution::*func)(rnd_gen &))
+double Distribution::rejec_sample_(rnd_gen &prng, double (Distribution::*func)(rnd_gen &))
 {
     double xnew = (this->*func)(prng);
 
@@ -75,72 +46,12 @@ double Distribution::rejection_sampling_(rnd_gen &prng,
     {
         if (n_attempts > MAX_NUM_ATTEMPTS)
             throw std::runtime_error(
-                "Exceeded attempts (N > " + std::to_string(MAX_NUM_ATTEMPTS) + ") in random draw of " + show_summary() + ".");
+                "Exceeded attempts (N > " + std::to_string(MAX_NUM_ATTEMPTS) + ") in random draw of " + str_summary() + ".");
         xnew = (this->*func)(prng);
         ++n_attempts;
     }
 
     return xnew;
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////  Base Distribution : discretized CENTER /////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-double Distribution::do_discr_center_pdf_(double x) const
-{
-    const double d = round(x);
-    return (this->*trunc_)(raw_cdf(d + .5) - raw_cdf(d - .5));
-}
-
-double Distribution::do_discr_center_cdf_(double x) const
-{
-    const double d = round(x);
-    return (this->*trunc_)((this->*shift_)(raw_cdf(d + .5)));
-}
-
-double Distribution::do_discr_center_logpdf_(double x) const
-{
-    return std::log(do_discr_center_pdf_(x));
-}
-
-double Distribution::do_discr_center_logratio_(double xold, double xnew) const
-{
-    const double dold = std::round(xold), dnew = std::round(xnew);
-    return std::log((raw_cdf(dnew + .5) - raw_cdf(dnew - .5)) / (raw_cdf(dold + .5) - raw_cdf(dold - .5)));
-}
-
-double Distribution::do_discr_center_rand_(rnd_gen &prng) { return static_cast<double>(std::lround(do_default_rand_(prng))); }
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////  Base Distribution : discretized LEFT  ////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-double Distribution::do_discr_left_pdf_(double x) const
-{
-    const double d = std::floor(x);
-    return (this->*trunc_)(raw_cdf(d + 1.) - raw_cdf(d));
-}
-
-double Distribution::do_discr_left_cdf_(double x) const
-{
-    return (this->*trunc_)((this->*shift_)(raw_cdf(std::floor(x) + 1.)));
-}
-
-double Distribution::do_discr_left_logpdf_(double x) const
-{
-    return std::log(do_discr_left_pdf_(x));
-}
-
-double Distribution::do_discr_left_logratio_(double xold, double xnew) const
-{
-    const double dold = std::floor(xold), dnew = std::floor(xnew);
-    return std::log((raw_cdf(dnew + 1.) - raw_cdf(dnew)) / (raw_cdf(dold + 1.) - raw_cdf(dold)));
-}
-
-double Distribution::do_discr_left_rand_(rnd_gen &prng)
-{
-    return std::floor(do_default_rand_(prng));
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -306,121 +217,35 @@ void Distribution::init_reshaping(bool discrete)
     init_functional_truncation(discr_case);
 }
 
-/* Frequent reshaping while domain has zero lower bound. */
-void Distribution::init_min_zero_reshaping(bool discrete, bool is_open_zero)
+/* Functional range for lower bound and no upper bound. */
+bool Distribution::init_range_min(double min_val, bool is_open_zero)
+{
+    if (get_min() < min_val)
+        throw std::invalid_argument(
+            "Invalid min value " + str_min() + " for distribution \"" + name() + "\".");
+    else if ((get_min() > min_val) || (!tools::is_na(get_max())))
+    {
+        init_functional_range(((is_open_zero) ? (get_min() == min_val) : false), false);
+        return true;
+    }
+    return false;
+}
+
+/* Frequent reshaping: domain has zero lower bound. */
+void Distribution::init_reshaping_min_zero(bool discrete, bool is_open_zero)
 {
     ushort discr_case = (discrete) ? D_DISCR_TYPE_LEFT : D_DISCR_TYPE_NONE;
     init_functional_discretization(discr_case);
-
-    if (get_min() < 0.)
-        throw std::invalid_argument(
-            "Invalid min value " + show_min() + " for distribution \"" + show_name() + "\".");
-    else if ((get_min() > 0.) || (!tools::is_na(get_max())))
-    {
-        init_functional_range(((is_open_zero) ? (get_min() == 0.) : false), false);
+    if (init_range_min(0., is_open_zero))
         init_functional_truncation(discr_case);
-    }
 }
 
-/* Frequent reshaping while domain has zero lower bound for discrete defined distributions. */
-void Distribution::init_min_zero_discr_defined_reshaping()
+/* Frequent reshaping: domain has zero lower bound for discrete defined distributions. */
+void Distribution::init_reshaping_min_zero_discr_defined()
 {
     init_functional_discretization(D_DISCR_TYPE_DFND);
-
-    if (get_min() < 0.)
-        throw std::invalid_argument(
-            "Invalid min value " + show_min() + " for distribution \"" + show_name() + "\".");
-    else if ((get_min() > 0.) || (!tools::is_na(get_max())))
-    {
-        init_functional_range(false, false);
+    if (init_range_min(0., false))
         init_functional_truncation(D_DISCR_TYPE_DFND);
-    }
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////  Distribution : showcase (method)  ///////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Return values to showcase the profile of the distribution. */
-const std::vector<dbl_vec> Distribution::showcase(int n_bins, double ytol) const
-{
-    if (n_bins < 1)
-        throw std::invalid_argument("Number of bins should be greater than 0.");
-
-    // pick extremes for the showcase
-    double lower = get_min();
-    double upper = get_max();
-
-    if (tools::is_na(upper))
-    {
-        upper = 10. + (tools::is_na(lower) ? 0 : lower);
-        while ((1. - cdf(upper) > ytol) && (upper < DEFAULT_MAX_SIZE))
-            ++upper;
-    }
-
-    if (tools::is_na(lower))
-    {
-        lower = -10.;
-        while ((cdf(lower) > ytol) && (lower > -DEFAULT_MAX_SIZE))
-            --lower;
-    }
-
-    // compute binning width
-    double delta_x = is_discrete() ? 1. : ((upper - lower) / n_bins);
-
-    // adjust extremes if interval is open
-    if (!valid(lower))
-        lower += delta_x;
-    if (!valid(upper))
-        upper -= delta_x;
-
-    // re-compute binning width
-    delta_x = is_discrete() ? 1. : ((upper - lower) / n_bins);
-
-    size_t N = (upper - lower) / delta_x;
-    dbl_vec gentime(N + 1);
-    dbl_vec inst(N + 1);
-    dbl_vec cumul(N + 1);
-
-    for (size_t i = 0; i <= N; ++i)
-    {
-        double x = lower + i * delta_x;
-        gentime[i] = x;
-        inst[i] = pdf(x);
-        cumul[i] = cdf(x);
-    }
-
-    return {gentime, inst, cumul};
-}
-
-/* Developer method to check for normalization. */
-double Distribution::develop_check_pdf_norm_(int n_bins, double ytol) const
-{
-    // produce a showcase of the distribution profile
-    const std::vector<dbl_vec> values = showcase(n_bins, ytol);
-
-    // compute mean and variance
-    const dbl_vec &x = values[0];
-    const dbl_vec &prob = values[1];
-    const size_t N = x.size();
-    const double Dx = x[1] - x[0];
-
-    // note: integration with trapezoidal rule for continuos case
-    double m = prob[0] + prob[N - 1];
-    if (is_discrete())
-        m *= 0.5;
-    for (size_t i = 1; i < N - 1; ++i)
-        m += prob[i];
-    m *= Dx;
-
-    return m;
 }
 
 //-----------------------------------------------------------------------------------------------//

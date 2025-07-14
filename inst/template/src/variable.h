@@ -57,7 +57,7 @@ public:
     //===== GETTER =====//
     //==================//
 
-    const std::string show_name() const { return this->proposer_name_; }
+    const std::string name() const { return this->proposer_name_; }
     double get_arg(ushort argID) const { return (pDistr_->arg)(argID); }
     double get_from_value() const { return from_value_; }
     double propose(rnd_gen &prng, double start) { return (this->*propose_)(prng, start); }
@@ -93,9 +93,9 @@ public:
     //===== SHOW =====//
     //================//
 
-    const std::string show_arg_names() const { return pDistr_->show_arg_names(); }
-    const std::string show_arg_values() const { return pDistr_->show_arg_values(); }
-    const std::string show_scale() const;
+    const std::string str_arg_names() const { return pDistr_->str_arg_names(); }
+    const std::string str_arg_values() const { return pDistr_->str_arg_values(); }
+    const std::string str_scale() const;
 
 protected:
     std::string proposer_name_ = HSP_NA_STRING;
@@ -192,31 +192,31 @@ public:
     }
 
     /* Assign a scalar argument to function. */
-    void assign_func_attr(const std::string &a, bool is_arg, double x) { pFunc_->assign_attr(a, is_arg, x); }
+    void init_func_attr(const std::string &a, bool is_arg, double x) { pFunc_->init_attr(a, is_arg, x); }
     /* Assign a pointer argument to function. */
-    void assign_func_attr(const std::string &a, bool is_arg, const double *y) { pFunc_->assign_attr(a, is_arg, y); }
+    void init_func_attr(const std::string &a, bool is_arg, const double *y) { pFunc_->init_attr(a, is_arg, y); }
     /* Assign a function attribute to function. */
-    void assign_func_attr(const std::string &a, bool is_arg, std::shared_ptr<Function> f) { pFunc_->assign_attr(a, is_arg, f); }
+    void init_func_attr(const std::string &a, bool is_arg, std::shared_ptr<Function> f) { pFunc_->init_attr(a, is_arg, f); }
 
     /* Initialize function reshaping. */
     void init_func_reshaping() { pFunc_->init_reshaping(is_discrete_); }
 
     //----- Pointer to distribution -----//
-    void assign_distr(const std::string &distr_name = HSP_NA_STRING);
+    void init_distr(const std::string &distr_name = HSP_NA_STRING);
 
     /* Assign a scalar argument to distribution. */
-    void assign_distr_attr(const std::string &a, bool is_arg, double x) { pDistr_->assign_attr(a, is_arg, x); }
+    void init_distr_attr(const std::string &a, bool is_arg, double x) { pDistr_->init_attr(a, is_arg, x); }
     /* Assign a pointer argument to distribution. */
-    void assign_distr_attr(const std::string &a, bool is_arg, const double *y) { pDistr_->assign_attr(a, is_arg, y); }
+    void init_distr_attr(const std::string &a, bool is_arg, const double *y) { pDistr_->init_attr(a, is_arg, y); }
     /* Assign a pointer argument to distribution. */
-    void assign_distr_attr(const std::string &a, bool is_arg, std::shared_ptr<Function> f) { pDistr_->assign_attr(a, is_arg, f); }
+    void init_distr_attr(const std::string &a, bool is_arg, std::shared_ptr<Function> f) { pDistr_->init_attr(a, is_arg, f); }
 
     void init_distr_reshaping();
 
     //----- Pointer to proposer -----//
-    void assign_proposer(const std::string &rule_name = HSP_NA_STRING,
-                         double rule_scale = HSP_NA_DOUBLE,
-                         double rule_from = HSP_NA_DOUBLE);
+    void init_proposer(const std::string &rule_name = HSP_NA_STRING,
+                       double rule_scale = HSP_NA_DOUBLE,
+                       double rule_from = HSP_NA_DOUBLE);
 
     //===============================//
     //===== METROPOLIS-HASTINGS =====//
@@ -245,24 +245,24 @@ public:
     //===== SHOW =====//
     //================//
 
-    const std::string show_name() const { return variable_name_; }
-    const std::string show_value() const { return tools::na_to_str(get()); }
+    const std::string name() const { return variable_name_; }
+    const std::string str() const { return tools::na_to_str(get()); }
 
-    const std::string show_distr_name() const { return pDistr_->show_name(); }
-    const std::string show_distr_arg_names() const { return pDistr_->show_arg_names(); }
-    const std::string show_distr_arg_values() const { return pDistr_->show_arg_values(); }
-    const std::string show_distr_summary() const { return pDistr_->show_summary(); }
+    const std::string distr_name() const { return pDistr_->name(); }
+    const std::string distr_str_arg_names() const { return pDistr_->str_arg_names(); }
+    const std::string distr_str_arg_values() const { return pDistr_->str_arg_values(); }
+    const std::string distr_str_summary() const { return pDistr_->str_summary(); }
 
-    const std::string show_min() const { return pDistr_->show_min(); }
-    const std::string show_max() const { return pDistr_->show_max(); }
+    const std::string str_min() const { return pDistr_->str_min(); }
+    const std::string str_max() const { return pDistr_->str_max(); }
 
-    const std::string show_func_name() const { return pFunc_->show_name(); }
-    const std::string show_func_summary() const { return pFunc_->show_summary(); }
+    const std::string func_name() const { return pFunc_->name(); }
+    const std::string func_str_summary() const { return pFunc_->str_summary(); }
 
-    const std::string show_prop_name() const { return pProp_->show_name(); }
-    const std::string show_prop_arg_names() const { return pProp_->show_arg_names(); }
-    const std::string show_prop_arg_values() const { return pProp_->show_arg_values(); }
-    const std::string show_prop_scale() const { return pProp_->show_scale(); }
+    const std::string prop_name() const { return pProp_->name(); }
+    const std::string prop_str_arg_names() const { return pProp_->str_arg_names(); }
+    const std::string prop_str_arg_values() const { return pProp_->str_arg_values(); }
+    const std::string prop_str_scale() const { return pProp_->str_scale(); }
 
 #ifdef _HOUSEPI_RCPP
     Rcpp::NumericVector rcpp_export_distr_args() const { return pDistr_->rcpp_export_args(); }
@@ -289,7 +289,7 @@ private:
 
     double (Variable::*return_value_)(double) const = &Variable::do_return_error_;
     double do_return_error_(double) const { throw std::runtime_error(
-        "Variable \"" + show_name() + "\" is not a function."); }
+        "Variable \"" + name() + "\" is not a function."); }
     double do_return_func_(double x) const { return pFunc_->return_value(x); }
 
     double (Variable::*get_)() const = &Variable::do_get_default_;
@@ -299,7 +299,7 @@ private:
     const double *(Variable::*get_ptr_)() const = &Variable::do_get_ptr_default_;
     const double *do_get_ptr_default_() const { return &value_; }
     const double *do_get_ptr_func_return_() const { throw std::runtime_error(
-        "Called pointer to function \"" + show_name() + "\"."); }
+        "Called pointer to function \"" + name() + "\"."); }
 
     //==================//
     //===== SETTER =====//
@@ -314,7 +314,7 @@ private:
     }
     /* Set value to function error. */
     void do_set_func_error_(double) { throw std::runtime_error(
-        "Value of function  \"" + show_name() + "\" cannot be changed."); }
+        "Value of function  \"" + name() + "\" cannot be changed."); }
 
     //===============================//
     //===== METROPOLIS-HASTINGS =====//
@@ -333,7 +333,7 @@ private:
     //----- Propose : functional methods -----//
     double (Variable::*propose_)(rnd_gen &) = &Variable::do_propose_error_;
     double do_propose_error_(rnd_gen &) { throw std::invalid_argument(
-        "Called unknown proposer for variable \"" + show_name() + "\"."); }
+        "Called unknown proposer for variable \"" + name() + "\"."); }
     double do_propose_draw_sample_(rnd_gen &prng) { return (pProp_->propose)(prng, 0); }
     double do_propose_from_previous_(rnd_gen &prng) { return (pProp_->propose)(prng, value_); }
     double do_propose_from_zero_(rnd_gen &prng) { return (pProp_->propose)(prng, pProp_->get_from_value()); }

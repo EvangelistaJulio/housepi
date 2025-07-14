@@ -78,8 +78,8 @@ namespace bax
 		return output;
 	}
 
-	/* Print the formula of the loglikelihood. */
-	const std::string EscapePattern::show()
+	/* String with the formula of the loglikelihood. */
+	const std::string EscapePattern::str()
 	{
 		std::ostringstream oss;
 
@@ -101,7 +101,7 @@ namespace bax
 				oss << "*(";
 			oss << "1";
 			for (size_t c = 0; c < _n_patterns; ++c)
-				oss << " - " << EscapePatterns_LookupTable[_N_star][_pattern_idxs[c]].show();
+				oss << " - " << EscapePatterns_LookupTable[_N_star][_pattern_idxs[c]].str();
 			if (_n_entries > 0)
 				oss << ")";
 		}
@@ -493,7 +493,7 @@ void auxiliary_chain_binomial_debugger(ushort max_num, ushort limit)
 		}
 
 		if (N_star < limit)
-			std::cerr << ChainBinomial_LookupTable[N_star].show() << std::endl;
+			std::cerr << ChainBinomial_LookupTable[N_star].str() << std::endl;
 
 		auto start = std::chrono::high_resolution_clock::now();
 		std::cerr << "likelihood: " << std::exp(chain_binomial_heter_loglikelihood(N_star, commu_esc_proba, p2p_esc_proba));

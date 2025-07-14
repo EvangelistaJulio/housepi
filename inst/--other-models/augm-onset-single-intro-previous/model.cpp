@@ -37,7 +37,7 @@ void Model::init_infec_profile()
 {
 	// default infectivity profile: gamma
 	// otherwise user defined
-	assign_template_infec_profile({{"name", "reparam_gamma"},
+	init_infec_profile_template({{"name", "reparam_gamma"},
 								   {"arg_name", "mean/var"},
 								   {"arg_value", "2/1"},
 								   {"arg_at", "S/S"}});
@@ -277,7 +277,7 @@ void Model::simulate_single_household(Household &house)
 	for (indiv i = 0; i < house.size(); ++i)
 	{
 		house.change_status(i, (i == i0) ? INFECTED_STATUS : HEALTHY_STATUS);
-		assign_all_augm(house, i);
+		init_all_augm(house, i);
 	}
 
 	//=============================================================//

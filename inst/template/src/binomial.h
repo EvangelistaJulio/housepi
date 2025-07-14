@@ -39,7 +39,7 @@ namespace bax
         void add_entry(ushort new_entry);
         void add_pattern(ulong new_pattern_idx);
         double likelihood(const dbl_vec &esc_mtx);
-        const std::string show();
+        const std::string str();
 
     private:
         const ushort _N_star;

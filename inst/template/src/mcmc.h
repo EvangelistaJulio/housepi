@@ -47,7 +47,7 @@ public:
 	virtual ~MCMC();
 
 	/* Virtual method for user initialization of advanced setup. */
-	virtual void init_user_advanced_setup() {}
+	virtual void init_advanced_setup() {}
 
 	//================//
 	//===== DATA =====//
@@ -65,7 +65,7 @@ public:
 	void emplace_contact_rate(par_key p) { _pair_contact_rate = p; }
 
 	/* Assign the contact patterns between a couple of individuals. */
-	virtual void assign_contact_rate_to_household(Household &, const Individual &, const Individual &) {}
+	virtual void init_household_contact_rates(Household &, const Individual &, const Individual &) {}
 
 	//=================================//
 	//===== RAND NUMBER GENERATOR =====//
@@ -84,7 +84,7 @@ public:
 	//===== AUGMENTED VARIABLES =====//
 	//===============================//
 
-	void assign_all_augm(Individual &member);
+	void init_all_augm(Individual &member);
 	void clear_all_augm(Individual &member);
 
 	//============================//
@@ -102,7 +102,7 @@ public:
 	//===== INFECTIVITY PROFILE =====//
 	//===============================//
 
-	void assign_template_infec_profile(const dict_str_str x);
+	void init_infec_profile_template(dict_str_str x);
 	double infec_profile_inst(const Individual &member, double t) const;
 	double infec_profile_cumul(const Individual &member, double t) const;
 
@@ -135,11 +135,10 @@ public:
 		"Called virtual simulation method of undefined model."); }
 
 #ifdef _HOUSEPI_RCPP
-
 	//----- C++ Print -----//
 	Rcpp::DataFrame simulate();
 	Rcpp::List evidence(const std::string &scheme,
-								 ulong n_rungs);
+						ulong n_rungs);
 
 	//========================//
 	//===== Rcpp IMPORTS =====//
@@ -159,6 +158,7 @@ public:
 	//========================//
 
 	Rcpp::List export_setup() const;
+	Rcpp::List export_infec_profile() const;
 	Rcpp::DataFrame export_param() const;
 	Rcpp::DataFrame export_dataset() const;
 	Rcpp::DataFrame export_datalist() const;
@@ -167,10 +167,7 @@ public:
 	Rcpp::NumericMatrix export_traces() const;
 	Rcpp::NumericMatrix export_house_loglike_traces() const;
 	Rcpp::List export_house_snapshot(const std::string &house_id) const;
-	Rcpp::List showcase_infec_profile(int n_bins) const;
-
 #else
-
 	//----- C++ Print -----//
 	void print_infer_state(const std::string &output_filename = HSP_NA_STRING) const;
 	void print_simulated_dataset(const std::string &output_filename = HSP_NA_STRING);
@@ -209,7 +206,7 @@ private:
 	// UPDATE: this should be dropped in favour of table definitions
 	par_key _pair_contact_rate = {};
 
-	void _assign_contact_rate(Household &house);
+	void init_contact_rates_(Household &house);
 };
 
 #endif // HOUSEPI__MCMC__H

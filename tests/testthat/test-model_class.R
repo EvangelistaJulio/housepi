@@ -45,32 +45,6 @@ test_that("Model class blank calls", {
   expect_error(hhmodel$simulate())
 })
 
-test_that("Numerical recipes and distributions are correct", {
-  hhmodel <- housepi::HouseholdModel$new("blank")
-
-  # test that augmented infectivity profile is detected
-  hhmodel$add_infec_profile(
-    name = "beta", args = c(shape1 = "shape1@A", shape2 = "shape2@A"))
-  expect_error(hhmodel$showcase_infec_profile())
-
-  # test binomial cdf #
-  # discrete infectivity starts from 1: test truncation
-  p <- list(size = 12, prob = 0.2)
-  hhmodel$add_infec_profile(name = "binom",
-                              args = c(size = p$size, prob = p$prob))
-  profile <- hhmodel$showcase_infec_profile()$profile
-  # truncation
-  shift <- stats::pbinom(0, size = p$size, prob = p$prob)
-  trunc <- 1. / (1. - shift)
-  # instantaneous
-  y <- stats::dbinom(profile$gentime, size = p$size, prob = p$prob)
-  expect_equal(profile$inst, y * trunc)
-
-  # cumulative
-  y <- stats::pbinom(profile$gentime, size = p$size, prob = p$prob)
-  expect_equal(profile$cumul, (y - shift) * trunc)
-})
-
 test_that("Chain binomial models are coherent", {
   # loglikelihood from chain binomial model
   hhmodel1 <- HouseholdModel$new("chain-binomial")

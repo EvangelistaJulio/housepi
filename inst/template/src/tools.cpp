@@ -558,7 +558,7 @@ namespace tools
     }
 
     /* Format a list of string options. */
-    const std::string show_list(const str_vec &options, size_t max_print)
+    const std::string str_list(const str_vec &options, size_t max_print)
     {
         if (options.empty())
             return "";
@@ -602,9 +602,9 @@ namespace tools
             return "";
         else if (closest.empty())
             if (options.size() == 1)
-                return " Available option is " + show_list(options);
+                return " Available option is " + str_list(options);
             else
-                return " Available options are: " + show_list(options);
+                return " Available options are: " + str_list(options);
         else
             return " Did you mean \"" + closest + "\"?";
     }
@@ -628,10 +628,10 @@ namespace tools
             {
                 if (missing.size() == 1)
                     throw std::invalid_argument(
-                        "Missing " + where + " " + show_list(missing));
+                        "Missing " + where + " " + str_list(missing));
                 else
                     throw std::invalid_argument(
-                        "Missing " + where + "s: " + show_list(missing));
+                        "Missing " + where + "s: " + str_list(missing));
             }
         }
     }
@@ -649,11 +649,11 @@ namespace tools
 
         if (unused.size() == 1)
             throw std::invalid_argument(
-                "Unknown " + where + " " + show_list(unused) + find_closest(unused[0], options));
+                "Unknown " + where + " " + str_list(unused) + find_closest(unused[0], options));
 
         else if (unused.size() > 1)
             throw std::invalid_argument(
-                "Unknown " + where + "s: " + show_list(unused) + find_closest(HSP_NA_STRING, options, 0));
+                "Unknown " + where + "s: " + str_list(unused) + find_closest(HSP_NA_STRING, options, 0));
     }
 
 } // TOOLS NAMESPACE

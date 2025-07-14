@@ -24,7 +24,7 @@
 //////////////////////////////////////  Attribute : setter //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Attribute::assign_scalar(double x)
+void Attribute::init_scalar(double x)
 {
     get_ = &Attribute::do_get_default_;
     get_ptr_ = &Attribute::do_get_ptr_default_;
@@ -33,7 +33,7 @@ void Attribute::assign_scalar(double x)
     _ptr_to_value = nullptr;
     pFunc_ = nullptr;
 }
-void Attribute::assign_pointer(const double *y)
+void Attribute::init_pointer(const double *y)
 {
     get_ = &Attribute::__get_from_pointer;
     get_ptr_ = &Attribute::__get_pointer_from_pointer;
@@ -42,7 +42,7 @@ void Attribute::assign_pointer(const double *y)
     _ptr_to_value = y;
     pFunc_ = nullptr;
 }
-void Attribute::assign_function(const std::shared_ptr<Function> f)
+void Attribute::init_function(const std::shared_ptr<Function> f)
 {
     get_ = &Attribute::__get_from_function;
     get_ptr_ = &Attribute::__get_pointer_error;
@@ -52,7 +52,8 @@ void Attribute::assign_function(const std::shared_ptr<Function> f)
     pFunc_ = f;
 }
 
-/* Get attribute value from external function. */
+/// Get attribute value from external function.
+/// note: this can't be moved to header becuase of forward declaration of Function
 double Attribute::__get_from_function() const { return pFunc_->return_value(); }
 
 //-----------------------------------------------------------------------------------------------//
@@ -96,7 +97,7 @@ Function::Function(const std::string &name,
     // assign default arguments
     arguments_ = new Attribute[n_args_ + 1];
     // by convention, last argument is "x" and NA by default
-    arguments_[n_args_].set_name(HSP_X_);
+    arguments_[n_args_].name(HSP_X_);
     arguments_[n_args_].set(HSP_NA_DOUBLE);
 
     ushort c = 0;
@@ -105,19 +106,17 @@ Function::Function(const std::string &name,
             arguments_[n_args_].set(arg_value[k]);
         else
         {
-            arguments_[c].set_name(arg_name[k]);
+            arguments_[c].name(arg_name[k]);
             arguments_[c++].set(arg_value[k]);
         }
 
     //----- assign domain -----//
     // NOTE: at the moment only place where to set open ranges
     // NOTE: not sure if setting pointer to smtg exiting the domain I still have control
-    assign_range_scalar_("min", domain_min);
-    assign_range_scalar_("max", domain_max);
+    init_range_scalar_("min", domain_min);
+    init_range_scalar_("max", domain_max);
     init_functional_range(is_min_open, is_max_open);
 }
-
-Function::~Function() = default;
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -130,15 +129,6 @@ Function::~Function() = default;
 ////////////////////////////////////  Base Function : Getter  ///////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Tell if all arguments are defined, except for 'x' argument. */
-bool Function::is_able_to_showcase() const
-{
-    for (ushort i = 0; i < n_args_; ++i)
-        if (tools::is_na(arg(i)))
-            return false;
-    return true;
-}
-
 /* Assert argument exists at assignment. Returns it's index. */
 ushort Function::assert_arg(const std::string &arg_name) const
 {
@@ -146,14 +136,14 @@ ushort Function::assert_arg(const std::string &arg_name) const
         return n_args_; // by convention, last argument is "x"
     else
         for (ushort c = 0; c < n_args_; ++c)
-            if (arguments_[c].show_name() == arg_name)
+            if (arguments_[c].name() == arg_name)
                 return c;
 
     str_vec options = {};
     for (ushort c = 0; c < n_args_; ++c)
-        options.push_back(arguments_[c].show_name());
+        options.push_back(arguments_[c].name());
     throw std::invalid_argument(
-        "Unknown argument \"" + arg_name + "\" for \"" + show_name() + "\"." + tools::find_closest(arg_name, options));
+        "Unknown argument \"" + arg_name + "\" for \"" + function_name_ + "\"." + tools::find_closest(arg_name, options));
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -175,16 +165,16 @@ void Function::init_uniform_range()
     // impose range minimum equal to argument minimum
     Attribute &min_arg = arguments_[this->assert_arg("min")];
     if (min_arg.is_function())
-        range_min_.assign_function(min_arg.get_function());
+        range_min_.init_function(min_arg.get_function());
     else
-        range_min_.assign_pointer(min_arg.get_ptr());
+        range_min_.init_pointer(min_arg.get_ptr());
 
     // impose range maximum equal to argument maximum
     Attribute &max_arg = arguments_[this->assert_arg("max")];
     if (max_arg.is_function())
-        range_max_.assign_function(max_arg.get_function());
+        range_max_.init_function(max_arg.get_function());
     else
-        range_max_.assign_pointer(max_arg.get_ptr());
+        range_max_.init_pointer(max_arg.get_ptr());
 }
 
 /* Set the range of validity of the value, and the corresponding validation function. */
@@ -257,40 +247,40 @@ void Function::init_functional_range(bool is_min_open, bool is_max_open)
         bool wrong_close = (valid_ == &Function::do_valid_both_close_) && (range_min_.get() > range_max_.get());
         if (wrong_open || wrong_close)
             throw std::invalid_argument(
-                "Inconsistent range " + show_range() + ".");
+                "Inconsistent range " + str_range() + ".");
         break;
     }
 }
 
 /* Return formatted range. */
-const std::string Function::show_range() const
+const std::string Function::str_range() const
 {
     if (valid_ == &Function::do_valid_always_)
         return "";
 
     else if (valid_ == &Function::do_valid_open_min_)
-        return "(" + show_min() + ", Inf)";
+        return "(" + str_min() + ", Inf)";
 
     else if (valid_ == &Function::do_valid_close_min_)
-        return "[" + show_min() + ", Inf)";
+        return "[" + str_min() + ", Inf)";
 
     else if (valid_ == &Function::do_valid_open_max_)
-        return "(-Inf, " + show_max() + ")";
+        return "(-Inf, " + str_max() + ")";
 
     else if (valid_ == &Function::do_valid_close_max_)
-        return "(-Inf, " + show_max() + "]";
+        return "(-Inf, " + str_max() + "]";
 
     else if (valid_ == &Function::do_valid_both_open_)
-        return "(" + show_min() + ", " + show_max() + ")";
+        return "(" + str_min() + ", " + str_max() + ")";
 
     else if (valid_ == &Function::do_valid_open_min_close_max_)
-        return "(" + show_min() + ", " + show_max() + "]";
+        return "(" + str_min() + ", " + str_max() + "]";
 
     else if (valid_ == &Function::do_valid_close_min_open_max_)
-        return "[" + show_min() + ", " + show_max() + ")";
+        return "[" + str_min() + ", " + str_max() + ")";
 
     else // (valid_ == &Function::do_valid_both_close_)
-        return "[" + show_min() + ", " + show_max() + "]";
+        return "[" + str_min() + ", " + str_max() + "]";
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -305,15 +295,15 @@ const std::string Function::show_range() const
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 //--- Assign scalar argument or range value. ---//
-void Function::assign_attr(const std::string &arg_name, bool is_arg, double x)
+void Function::init_attr(const std::string &arg_name, bool is_arg, double x)
 {
     if (is_arg == HSP_ATTR_ARGUMENT)
-        assign_arg_scalar_(arg_name, x);
+        init_arg_scalar_(arg_name, x);
     else
-        assign_range_scalar_(arg_name, x);
+        init_range_scalar_(arg_name, x);
 }
 //* Assign pointer argument or range value. *//
-void Function::assign_attr(const std::string &arg_name, bool is_arg, const double *y)
+void Function::init_attr(const std::string &arg_name, bool is_arg, const double *y)
 {
     // check the function is different from the current one
     if (y == nullptr)
@@ -321,12 +311,12 @@ void Function::assign_attr(const std::string &arg_name, bool is_arg, const doubl
             "Invalid pointer argument \"" + arg_name + "\" for \"" + function_name_ + "\".");
 
     if (is_arg == HSP_ATTR_ARGUMENT)
-        assign_arg_pointer_(arg_name, y);
+        init_arg_pointer_(arg_name, y);
     else
-        assign_range_pointer_(arg_name, y);
+        init_range_pointer_(arg_name, y);
 }
 //* Assign fucntion argument or range value. *//
-void Function::assign_attr(const std::string &arg_name, bool is_arg, std::shared_ptr<Function> f)
+void Function::init_attr(const std::string &arg_name, bool is_arg, std::shared_ptr<Function> f)
 {
     // check the function is different from the current one
     if (f == nullptr)
@@ -337,35 +327,33 @@ void Function::assign_attr(const std::string &arg_name, bool is_arg, std::shared
             "Cannot assign function \"" + function_name_ + "\" to its own argument \"" + arg_name + "\".");
 
     if (is_arg == HSP_ATTR_ARGUMENT)
-        assign_arg_function_(arg_name, f);
+        init_arg_function_(arg_name, f);
     else
-        assign_range_function_(arg_name, f);
+        init_range_function_(arg_name, f);
 }
 
 /* Assignment scalar argument. */
-void Function::assign_arg_scalar_(const std::string &arg_name, double x)
+void Function::init_arg_scalar_(const std::string &arg_name, double x)
 {
-    ushort i = this->assert_arg(arg_name);
-    arguments_[i].assign_scalar(x);
+    arguments_[assert_arg(arg_name)].init_scalar(x);
 }
 /* Assignment pointer argument. */
-void Function::assign_arg_pointer_(const std::string &arg_name, const double *y)
+void Function::init_arg_pointer_(const std::string &arg_name, const double *y)
 {
-    ushort i = this->assert_arg(arg_name);
-    arguments_[i].assign_pointer(y);
+    arguments_[assert_arg(arg_name)].init_pointer(y);
 }
 /* Assignment function argument. */
-void Function::assign_arg_function_(const std::string &arg_name, std::shared_ptr<Function> f)
+void Function::init_arg_function_(const std::string &arg_name, std::shared_ptr<Function> f)
 {
-    ushort i = this->assert_arg(arg_name);
-    arguments_[i].assign_function(f);
+    arguments_[assert_arg(arg_name)].init_function(f);
 }
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////  Base Function : Range  ///////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign scalar range. */
-void Function::assign_range_scalar_(const std::string &range_name, double x)
+void Function::init_range_scalar_(const std::string &range_name, double x)
 {
     if (function_name_ == "unif")
     {
@@ -373,14 +361,14 @@ void Function::assign_range_scalar_(const std::string &range_name, double x)
             throw std::invalid_argument(
                 "Unknown range name \"" + range_name + "\" for \"" + function_name_ + "\".");
         else if (!tools::is_na(x))
-            assign_arg_scalar_(range_name, x);
+            init_arg_scalar_(range_name, x);
     }
     else
     {
         if (range_name == "min")
-            range_min_.assign_scalar(x);
+            range_min_.init_scalar(x);
         else if (range_name == "max")
-            range_max_.assign_scalar(x);
+            range_max_.init_scalar(x);
         else
             throw std::invalid_argument(
                 "Unknown range name \"" + range_name + "\" for \"" + function_name_ + "\".");
@@ -388,7 +376,7 @@ void Function::assign_range_scalar_(const std::string &range_name, double x)
 }
 
 /* Assign pointer range. */
-void Function::assign_range_pointer_(const std::string &range_name, const double *y)
+void Function::init_range_pointer_(const std::string &range_name, const double *y)
 {
     if (function_name_ == "unif")
     {
@@ -396,14 +384,14 @@ void Function::assign_range_pointer_(const std::string &range_name, const double
             throw std::invalid_argument(
                 "Unknown range name \"" + range_name + "\" for \"" + function_name_ + "\".");
         else if (y != nullptr)
-            assign_arg_pointer_(range_name, y);
+            init_arg_pointer_(range_name, y);
     }
     else
     {
         if (range_name == "min")
-            range_min_.assign_pointer(y);
+            range_min_.init_pointer(y);
         else if (range_name == "max")
-            range_max_.assign_pointer(y);
+            range_max_.init_pointer(y);
         else
             throw std::invalid_argument(
                 "Unknown range name \"" + range_name + "\" for \"" + function_name_ + "\".");
@@ -411,7 +399,7 @@ void Function::assign_range_pointer_(const std::string &range_name, const double
 }
 
 /* Assign function range. */
-void Function::assign_range_function_(const std::string &range_name, const std::shared_ptr<Function> f)
+void Function::init_range_function_(const std::string &range_name, const std::shared_ptr<Function> f)
 {
     if (function_name_ == "unif")
     {
@@ -419,14 +407,14 @@ void Function::assign_range_function_(const std::string &range_name, const std::
             throw std::invalid_argument(
                 "Unknown range name \"" + range_name + "\" for \"" + function_name_ + "\".");
         else if (f != nullptr)
-            assign_arg_function_(range_name, f);
+            init_arg_function_(range_name, f);
     }
     else
     {
         if (range_name == "min")
-            range_min_.assign_function(f);
+            range_min_.init_function(f);
         else if (range_name == "max")
-            range_max_.assign_function(f);
+            range_max_.init_function(f);
         else
             throw std::invalid_argument(
                 "Unknown range name \"" + range_name + "\" for \"" + function_name_ + "\".");
@@ -445,13 +433,13 @@ void Function::assign_range_function_(const std::string &range_name, const std::
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Return formatted argument names of the distribution. */
-const std::string Function::show_arg_names() const
+const std::string Function::str_arg_names() const
 {
     if (n_args_ > 0)
     {
-        std::string output = arguments_[0].show_name();
+        std::string output = arguments_[0].name();
         for (ushort c = 1; c < n_args_; ++c)
-            output += C_LIST_DELIM + arguments_[c].show_name();
+            output += C_LIST_DELIM + arguments_[c].name();
         return output;
     }
 
@@ -459,13 +447,13 @@ const std::string Function::show_arg_names() const
 }
 
 /* Return formatted argument names of the distribution. */
-const std::string Function::show_arg_values() const
+const std::string Function::str_arg_values() const
 {
     if (n_args_ > 0)
     {
-        std::string output = arguments_[0].show();
+        std::string output = arguments_[0].str();
         for (ushort c = 1; c < n_args_; ++c)
-            output += C_LIST_DELIM + arguments_[c].show();
+            output += C_LIST_DELIM + arguments_[c].str();
         return output;
     }
 
@@ -473,18 +461,18 @@ const std::string Function::show_arg_values() const
 }
 
 /* Return formatted function summary. */
-const std::string Function::show_summary() const
+const std::string Function::str_summary() const
 {
-    std::string output = show_name();
+    std::string output = function_name_;
     if (n_args_ > 0)
     {
-        output += "(" + arguments_[0].show_name() + "=" + arguments_[0].show();
+        output += "(" + arguments_[0].name() + "=" + arguments_[0].str();
         for (ushort c = 1; c < n_args_; ++c)
-            output += ", " + arguments_[c].show_name() + "=" + arguments_[c].show();
+            output += ", " + arguments_[c].name() + "=" + arguments_[c].str();
         output += ")";
     }
     if (valid_ != &Function::do_valid_always_)
-        output += " : " + show_range();
+        output += " : " + str_range();
 
     return output;
 }
@@ -497,14 +485,12 @@ Rcpp::NumericVector Function::rcpp_export_args() const
 
     NumericVector vals(n_args_);
     CharacterVector keys(n_args_);
-
     for (size_t k = 0; k < n_args_; ++k)
     {
         vals[k] = arguments_[k].get();
-        keys[k] = arguments_[k].show_name();
+        keys[k] = arguments_[k].name();
     }
     vals.names() = std::move(keys);
-
     return vals;
 }
 

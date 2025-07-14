@@ -33,7 +33,7 @@ Proposer::Proposer(std::shared_ptr<Distribution> distr,
     : pDistr_(distr)
 {
     // default proposer name derives from distribution
-    proposer_name_ = pDistr_->show_name();
+    proposer_name_ = pDistr_->name();
 
     // set to discrete
     pDistr_->init_reshaping(is_discrete);
@@ -89,7 +89,7 @@ void Proposer::adapt(double ratio)
 ////////////////////////////////////  Base Show - adaptation  /////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-const std::string Proposer::show_scale() const
+const std::string Proposer::str_scale() const
 {
     if (n_args_to_adapt_ == 0)
         return HSP_NA_STRING;
@@ -150,8 +150,8 @@ public:
     //===== SETTER =====//
     void user_reset() override final
     {
-        pDistr_->assign_attr("min", HSP_ATTR_ARGUMENT, -user_rule_scale_);
-        pDistr_->assign_attr("max", HSP_ATTR_ARGUMENT, user_rule_scale_);
+        pDistr_->init_attr("min", HSP_ATTR_ARGUMENT, -user_rule_scale_);
+        pDistr_->init_attr("max", HSP_ATTR_ARGUMENT, user_rule_scale_);
     }
 };
 
@@ -183,8 +183,8 @@ public:
     //===== SETTER =====//
     void user_reset() override final
     {
-        pDistr_->assign_attr("mean", HSP_ATTR_ARGUMENT, 0.);
-        pDistr_->assign_attr("sd", HSP_ATTR_ARGUMENT, user_rule_scale_);
+        pDistr_->init_attr("mean", HSP_ATTR_ARGUMENT, 0.);
+        pDistr_->init_attr("sd", HSP_ATTR_ARGUMENT, user_rule_scale_);
     }
 };
 
@@ -216,8 +216,8 @@ public:
     //===== SETTER =====//
     void user_reset() override final
     {
-        pDistr_->assign_attr("meanlog", HSP_ATTR_ARGUMENT, 0.);
-        pDistr_->assign_attr("sdlog", HSP_ATTR_ARGUMENT, user_rule_scale_);
+        pDistr_->init_attr("meanlog", HSP_ATTR_ARGUMENT, 0.);
+        pDistr_->init_attr("sdlog", HSP_ATTR_ARGUMENT, user_rule_scale_);
     }
 };
 
@@ -286,8 +286,7 @@ void Variable::init(const std::string &name, double value,
         get_ = &Variable::do_get_func_return_;
         get_ptr_ = &Variable::do_get_ptr_func_return_;
         pFunc_ = compose_func_registries(
-            func_name,
-            "function",
+            func_name, "function",
             {&UserFuncRegistry::inst(),
              &TranscendentalRegistry::inst(),
              &ArithmeticRegistry::inst(),
@@ -303,7 +302,7 @@ void Variable::init(const std::string &name, double value,
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign distribution with constant arguments. */
-void Variable::assign_distr(const std::string &distr_name)
+void Variable::init_distr(const std::string &distr_name)
 {
     pDistr_ = compose_distr_registries(
         distr_name,
@@ -318,7 +317,7 @@ void Variable::init_distr_reshaping()
     // check that non-constant variable has non-zero dimensional range
     if ((!is_constant_) && (pDistr_->get_min() == pDistr_->get_max()))
         throw std::invalid_argument(
-            "Degenerate range " + pDistr_->show_range() + " defined for non constant variable \"" + show_name() + "\".");
+            "Degenerate range " + pDistr_->str_range() + " defined for non constant variable \"" + name() + "\".");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -326,9 +325,9 @@ void Variable::init_distr_reshaping()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign proposer. */
-void Variable::assign_proposer(const std::string &rule_name,
-                               double rule_scale,
-                               double rule_from)
+void Variable::init_proposer(const std::string &rule_name,
+                             double rule_scale,
+                             double rule_from)
 {
     if (tools::is_na(rule_name))
     {
@@ -362,7 +361,7 @@ void Variable::assign_proposer(const std::string &rule_name,
             // value from which to start proposal
             if ((!tools::is_na(rule_from)) && (!pDistr_->valid(rule_from)))
                 tools::warning(
-                    "Proposer rule from value " + std::to_string(rule_from) + " out of range" + " {min:" + show_min() + ", max:" + show_max() + "}.");
+                    "Proposer rule from value " + std::to_string(rule_from) + " out of range" + " {min:" + str_min() + ", max:" + str_max() + "}.");
 
             // assign the pointer to the proposer
             pProp_ = proposer_switch(rule_name, rule_scale, rule_from, is_discrete());

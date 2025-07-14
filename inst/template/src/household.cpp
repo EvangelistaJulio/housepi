@@ -41,9 +41,6 @@ Individual::Individual(size_t index,
 	data_map_ = data;
 }
 
-/* Individual deconstructor. */
-Individual::~Individual() = default;
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  Individual : getter  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -72,7 +69,7 @@ double Individual::compute_and_set_augm_model_loglike()
 //////////////////////////////////////  Individual : setter  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Individual::assign_all_group_rates(const rate_key_mapvec<const double *> &ptrs)
+void Individual::init_all_group_rates(const rate_key_mapvec<const double *> &ptrs)
 {
 	for (const auto &pair : ptrs)
 	{
@@ -88,14 +85,14 @@ void Individual::assign_all_group_rates(const rate_key_mapvec<const double *> &p
 }
 
 /* Assign definitions for the augmented variable model. */
-void Individual::assign_augm(const augm_key &a, const std::string &name,
+void Individual::init_augm(const augm_key &a, const std::string &name,
 							 double value, bool is_discrete, bool is_constant,
 							 const std::string &func_name,
 							 const std::string &model_name)
 {
 	Variable &this_augm = augm_map_.at(a);
 	this_augm.init(name, value, is_discrete, is_constant, func_name);
-	this_augm.assign_distr(model_name);
+	this_augm.init_distr(model_name);
 }
 
 /* Associate functional methods for augmented model pdfs. */
@@ -122,34 +119,16 @@ void Individual::init_augm_model(const std::vector<augm_key> &augm_model_list)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Individual::GroupRate::GroupRate(const std::string &name,
-								 const std::vector<const double *> &pointers)
+								 const std::vector<const double *> &ptrs)
 {
 	if (!tools::is_na(name))
 	{
-		if (pointers.empty())
+		if (ptrs.empty())
 			throw std::invalid_argument(
 				"No parameters associated to group rate \"" + name + "\".");
-
-		this->group_rate_name = name;
-		this->n_rates = pointers.size();
-		this->pointers = new const double *[pointers.size()];
-		for (ushort c = 0; c < this->n_rates; ++c)
-			this->pointers[c] = pointers.at(c);
+		name_ = name;
+		pointers_ = ptrs;
 	}
-}
-Individual::GroupRate::~GroupRate() = default;
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  Individual::Group Rate : getter  ////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-double Individual::GroupRate::get() const
-{
-	double output = 1.0;
-	for (ushort r = 0; r < n_rates; ++r)
-		output *= *pointers[r];
-
-	return output;
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -171,7 +150,6 @@ Household::Household(const std::string &house_id, size_t H)
 	multiplicity_class_ = H;
 	house_size_ = 0;
 }
-Household::~Household() = default;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  Household : setter  ///////////////////////////////////////
@@ -185,7 +163,7 @@ void Household::set_multiplicity(ulong m, size_t class_idx)
 }
 
 /* Link an individual to the household. */
-void Household::assign_member(size_t index,
+void Household::init_member(size_t index,
 							  const std::string &id,
 							  int status,
 							  const data_key_map<double> &data)
@@ -196,10 +174,8 @@ void Household::assign_member(size_t index,
 	// update status lists within the household
 	if (members_.back().is_infected_status())
 		infected_list_.push_back(house_size_);
-
 	else if (members_.back().is_healthy_status())
 		healthy_list_.push_back(house_size_);
-
 	else
 		missing_list_.push_back(house_size_);
 
@@ -238,7 +214,7 @@ bool Household::change_status(Individual &member, int new_status)
 
 /* Associate a pointer to parameter value for the contact from->to.
 Allocate memory if it  */
-void Household::assign_contact_rate(size_t from, size_t to, const double *x)
+void Household::init_contact_rates(size_t from, size_t to, const double *x)
 {
 	// initialize contact rate matrix if necessary
 	if (contact_rates_.empty())

@@ -20,7 +20,7 @@ public:
 	void init_reshaping(bool discrete) override final
 	{
 		// FIXME: I don't want truncation renormalization since no distribution
-		init_min_zero_reshaping(discrete, false);
+		init_reshaping_min_zero(discrete, false);
 	}
 
 protected:

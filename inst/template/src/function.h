@@ -59,8 +59,8 @@ public:
     bool is_pointer() const { return _ptr_to_value != nullptr; }
     bool is_function() const { return pFunc_ != nullptr; }
 
-    const std::string show() const { return tools::na_to_str(get()); }
-    const std::string show_name() const { return _attribute_name; }
+    const std::string str() const { return tools::na_to_str(get()); }
+    const std::string name() const { return _attribute_name; }
 
     //==================//
     //===== SETTER =====//
@@ -68,12 +68,11 @@ public:
 
     /* Set attribute value. */
     void set(double x) { (this->*_do_set)(x); }
+    void name(const std::string &name) { _attribute_name = name; }
 
-    void set_name(const std::string &name) { _attribute_name = name; }
-
-    void assign_scalar(double x);
-    void assign_pointer(const double *y);
-    void assign_function(const std::shared_ptr<Function> f);
+    void init_scalar(double x);
+    void init_pointer(const double *y);
+    void init_function(const std::shared_ptr<Function> f);
 
 private:
     std::string _attribute_name = HSP_NA_STRING;   // name of argument
@@ -98,7 +97,7 @@ private:
     const double *__get_pointer_from_pointer() const { return _ptr_to_value; }
     /* Get pointer to attribute error. */
     const double *__get_pointer_error() const { throw std::runtime_error(
-        "Cannot return a pointer to attribute \"" + show_name() + "\"."); }
+        "Cannot return a pointer to attribute \"" + _attribute_name + "\"."); }
 
     // Functional setter //
     void (Attribute::*_do_set)(double) = &Attribute::__set_default;
@@ -109,7 +108,7 @@ private:
      * Pointer and fucntion attributes can't be set, but just assigned.
      */
     void __set_error(double) { throw std::runtime_error(
-        "Non scalar attribute \"" + show_name() + "\" cannot be changed."); }
+        "Non scalar attribute \"" + _attribute_name + "\" cannot be changed."); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -131,7 +130,7 @@ public:
              double domain_max = HSP_NA_DOUBLE,
              bool is_min_open = true,
              bool is_max_open = true);
-    virtual ~Function();
+    virtual ~Function() = default;
 
     double operator()(double x) const { return return_value(x); }
 
@@ -144,7 +143,6 @@ public:
     /* By convention, the argument 'x' is automatically the last one. */
     double return_value() const { return return_value(arg(n_args_)); }
 
-    bool is_able_to_showcase() const;
     ushort assert_arg(const std::string &arg_name) const;
     double arg(ushort i) const { return arguments_[i].get(); }
     double get_min() const { return range_min_.get(); }
@@ -168,9 +166,9 @@ public:
     //===== ARGUMENTS & RANGE =====//
     //=============================//
 
-    void assign_attr(const std::string &arg_name, bool is_arg, double value);
-    void assign_attr(const std::string &arg_name, bool is_arg, const double *ptr_to_value);
-    void assign_attr(const std::string &arg_name, bool is_arg, std::shared_ptr<Function> f);
+    void init_attr(const std::string &arg_name, bool is_arg, double value);
+    void init_attr(const std::string &arg_name, bool is_arg, const double *ptr_to_value);
+    void init_attr(const std::string &arg_name, bool is_arg, std::shared_ptr<Function> f);
 
     /* Set argument value. */
     void set_arg(ushort i, double x) { arguments_[i].set(x); }
@@ -185,15 +183,15 @@ public:
     //===== SHOW =====//
     //================//
 
-    const std::string show_name() const { return function_name_; }
-    const std::string show_arg_names() const;
-    const std::string show_arg_values() const;
+    const std::string name() const { return function_name_; }
+    const std::string str_arg_names() const;
+    const std::string str_arg_values() const;
     
-    const std::string show_min() const { return range_min_.show(); }
-    const std::string show_max() const { return range_max_.show(); }
+    const std::string str_min() const { return range_min_.str(); }
+    const std::string str_max() const { return range_max_.str(); }
 
-    const std::string show_range() const;
-    const std::string show_summary() const;
+    const std::string str_range() const;
+    const std::string str_summary() const;
 
 #ifdef _HOUSEPI_RCPP
     Rcpp::NumericVector rcpp_export_args() const;
@@ -214,13 +212,13 @@ private:
     //=============================//
     //===== ARGUMENTS & RANGE =====//
     //=============================//
-    void assign_arg_scalar_(const std::string &arg_name, double value);
-    void assign_arg_pointer_(const std::string &arg_name, const double *ptr_to_value);
-    void assign_arg_function_(const std::string &arg_name, const std::shared_ptr<Function> f);
+    void init_arg_scalar_(const std::string &arg_name, double value);
+    void init_arg_pointer_(const std::string &arg_name, const double *ptr_to_value);
+    void init_arg_function_(const std::string &arg_name, const std::shared_ptr<Function> f);
 
-    void assign_range_scalar_(const std::string &range_name, double lower);
-    void assign_range_pointer_(const std::string &range_name, const double *ptr_to_lower);
-    void assign_range_function_(const std::string &range_name, const std::shared_ptr<Function> f);
+    void init_range_scalar_(const std::string &range_name, double lower);
+    void init_range_pointer_(const std::string &range_name, const double *ptr_to_lower);
+    void init_range_function_(const std::string &range_name, const std::shared_ptr<Function> f);
 
     //===== VALID =====//
     // note: for the moment range extremes can't be one open and other close
@@ -289,7 +287,7 @@ public:
     {
         static_assert(std::is_base_of<Function, T>::value,
                       "T must be derived from Function");
-        _factory_map[T().show_name()] = []()
+        _factory_map[T().name()] = []()
         { return std::make_shared<T>(); };
     }
 

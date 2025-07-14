@@ -51,7 +51,7 @@ public:
 			   const std::string &id,
 			   int status,
 			   const data_key_map<double> &data);
-	~Individual();
+	~Individual() = default;
 
 	bool operator==(const Individual &other) const { return this->index_ == other.index_; }
 	bool operator!=(const Individual &other) const { return this->index_ != other.index_; }
@@ -88,16 +88,16 @@ public:
 	void set_status(int s) { status_ = s; }
 
 	void set_augm_value(const augm_key &a, double x) { augm_map_.at(a).set_value(x); }
-	void assign_pointer_to_datalist(data_key_map<dbl_vec> *y) { pdatalist_ = y; }
+	void init_pointer_to_datalist(data_key_map<dbl_vec> *y) { pdatalist_ = y; }
 	void clear_augm(const augm_key &a) { augm_map_[a] = Variable(); }
-	void assign_all_group_rates(const rate_key_mapvec<const double *> &ptrs);
-	void assign_augm(const augm_key &a,
-					 const std::string &name,
-					 double value,
-					 bool is_discrete,
-					 bool is_constant,
-					 const std::string &func_name,
-					 const std::string &model_name);
+	void init_all_group_rates(const rate_key_mapvec<const double *> &ptrs);
+	void init_augm(const augm_key &a,
+				   const std::string &name,
+				   double value,
+				   bool is_discrete,
+				   bool is_constant,
+				   const std::string &func_name,
+				   const std::string &model_name);
 	void init_augm_model(const std::vector<augm_key> &augm_model_list);
 
 	//=========================//
@@ -112,14 +112,22 @@ private:
 	// individual group rate nested class
 	struct GroupRate
 	{
-		std::string group_rate_name = "";
-		ushort n_rates = 0;
-		const double **pointers = {};
-
+	public:
 		GroupRate(const std::string &name = HSP_NA_STRING,
-				  const std::vector<const double *> &pointers = {});
-		~GroupRate();
-		double get() const;
+				  const std::vector<const double *> &ptrs = {});
+		~GroupRate() = default;
+
+		double get() const
+		{
+			double output = 1.0;
+			for (const double *ptr : pointers_)
+				output *= *ptr;
+			return output;
+		}
+
+	private:
+		std::string name_ = "";
+		std::vector<const double *> pointers_ = {};
 	};
 
 	std::string id_ = HSP_NA_STRING; // user id
@@ -160,7 +168,7 @@ public:
 
 	Household(const std::string &house_id = HSP_NA_STRING,
 			  size_t index = SIZE_MAX);
-	~Household();
+	~Household() = default;
 
 	//=====================//
 	//===== ITERATORS =====//
@@ -265,13 +273,13 @@ public:
 	//==================//
 
 	void set_multiplicity(ulong m, size_t class_idx);
-	void assign_member(size_t index,
-					   const std::string &id,
-					   int status,
-					   const data_key_map<double> &data);
+	void init_member(size_t index,
+					 const std::string &id,
+					 int status,
+					 const data_key_map<double> &data);
 	bool change_status(Individual &member, int new_status);
 	bool change_status(size_t i, int new_status) { return change_status(members_.at(i), new_status); }
-	void assign_contact_rate(size_t from, size_t to, const double *x);
+	void init_contact_rates(size_t from, size_t to, const double *x);
 
 	//============================//
 	//===== CACHE ATTRIBUTES =====//
@@ -282,17 +290,17 @@ public:
 	void buffer_all_cache();
 
 	//----- Cached integer vector -----//
-	void assign_cache_integer_vector(const cache_key &e) { cache_int_vec_[e] = int_vec(size(), 0); }
+	void init_cache_integer_vector(const cache_key &e) { cache_int_vec_[e] = int_vec(size(), 0); }
 	int_vec &cache_integer_vector(const cache_key &e) { return cache_int_vec_.at(e); }
 	const int_vec &cache_integer_vector(const cache_key &e) const { return cache_int_vec_.at(e); }
 
 	//----- Cached double vector -----//
-	void assign_cache_double_vector(const cache_key &e) { cache_dbl_vec_[e] = dbl_vec(size(), 0.); }
+	void init_cache_double_vector(const cache_key &e) { cache_dbl_vec_[e] = dbl_vec(size(), 0.); }
 	dbl_vec &cache_double_vector(const cache_key &e) { return cache_dbl_vec_.at(e); }
 	const dbl_vec &cache_double_vector(const cache_key &e) const { return cache_dbl_vec_.at(e); }
 
 	//----- Cached double matrix -----//
-	void assign_cache_double_matrix(const cache_key &e) { cache_dbl_mtx_[e] = matrix<double>(size(), dbl_vec(size(), 0.)); }
+	void init_cache_double_matrix(const cache_key &e) { cache_dbl_mtx_[e] = matrix<double>(size(), dbl_vec(size(), 0.)); }
 	matrix<double> &cache_double_matrix(const cache_key &e) { return cache_dbl_mtx_.at(e); }
 	const matrix<double> &cache_double_matrix(const cache_key &e) const { return cache_dbl_mtx_.at(e); }
 

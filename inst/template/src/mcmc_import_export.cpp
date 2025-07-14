@@ -131,18 +131,18 @@ Rcpp::DataFrame MCMC::Impl::ImplParameter::rcpp_export() const
             V_constant[r] = this_par.is_constant();
             V_discrete[r] = this_par.is_discrete();
 
-            V_prior[r] = tools::stoRString(this_par.show_distr_name());
-            V_arg_name[r] = tools::stoRString(this_par.show_distr_arg_names());
-            V_arg_value[r] = tools::stoRString(this_par.show_distr_arg_values());
+            V_prior[r] = tools::stoRString(this_par.distr_name());
+            V_arg_name[r] = tools::stoRString(this_par.distr_str_arg_names());
+            V_arg_value[r] = tools::stoRString(this_par.distr_str_arg_values());
 
-            V_rule[r] = tools::stoRString(this_par.show_prop_name());
-            const std::string rule_scale = this_par.show_prop_scale();
+            V_rule[r] = tools::stoRString(this_par.prop_name());
+            const std::string rule_scale = this_par.prop_str_scale();
             V_rule_scale[r] = tools::is_na(rule_scale) ? NA_REAL : tools::stod(rule_scale);
 
-            const std::string min_val = this_par.show_min();
+            const std::string min_val = this_par.str_min();
             V_min[r] = tools::is_na(min_val) ? NA_REAL : tools::stod(min_val);
 
-            const std::string max_val = this_par.show_max();
+            const std::string max_val = this_par.str_max();
             V_max[r] = tools::is_na(max_val) ? NA_REAL : tools::stod(max_val);
         }
 
@@ -164,6 +164,19 @@ Rcpp::DataFrame MCMC::Impl::ImplParameter::rcpp_export() const
                      std::string(e.what()));
     }
     return DataFrame();
+}
+
+/* Export to R definitions of infectivity profile. */
+Rcpp::List MCMC::Impl::ImplInfecProfile::rcpp_export() const
+{
+    using namespace Rcpp;
+
+    if (profile_ != nullptr)
+        return List::create(_["name"] = profile_->name(),
+                            _["discr"] = profile_->is_discrete(),
+                            _["args"] = profile_->rcpp_export_args(),
+                            _["range"] = profile_->rcpp_export_range());
+    return List::create();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -514,70 +527,6 @@ Rcpp::NumericMatrix MCMC::Impl::ImplDataSet::rcpp_export_traces() const
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////  MCMC : Impl : infectivity profile export  //////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Export a showcase of the selected infectivity profile. */
-Rcpp::List MCMC::Impl::ImplInfecProfile::rcpp_showcase(int n_bins) const
-{
-    using namespace Rcpp;
-
-    try
-    {
-        // check the call makes sense
-        // UPDATE: it would be nice by selecting id_trace...
-        if (profile_ == nullptr)
-            throw std::length_error("No infectivity profile to export.");
-        else if (is_augmented())
-            throw std::length_error(
-                "Export of augmented infectivity profile is not supported.");
-        else if (!profile_->is_able_to_showcase())
-            throw std::length_error(
-                "Cannot export infectivity profile with undefined arguments.");
-
-        // produce a showcase of the distribution profile
-        std::vector<dbl_vec> values = profile_->showcase(n_bins);
-
-        // compute mean and variance
-        const dbl_vec &x = values[0];
-        const dbl_vec &prob = values[1];
-        const size_t N = x.size();
-        const double Dx = x[1] - x[0];
-
-        double m = x[0] * prob[0] + x[N - 1] * prob[N - 1];
-        double m2 = x[0] * x[0] * prob[0] + x[N - 1] * x[N - 1] * prob[N - 1];
-        // integration wiht trapezoidal rule for continuos case
-        if (!profile_->is_discrete())
-        {
-            m *= 0.5;
-            m2 *= 0.5;
-        }
-        for (size_t i = 1; i < N - 1; ++i)
-        {
-            m += x[i] * prob[i];
-            m2 += x[i] * x[i] * prob[i];
-        }
-
-        m *= Dx;
-        m2 *= Dx;
-
-        return List::create(_["name"] = profile_->show_name(),
-                            _["discr"] = profile_->is_discrete(),
-                            _["mean"] = m,
-                            _["var"] = m2 - m * m,
-                            _["gentime"] = wrap(values[0]),
-                            _["inst"] = wrap(values[1]),
-                            _["cumul"] = wrap(values[2]));
-    }
-    catch (const std::exception &e)
-    {
-        tools::error("While exporting infectivity profile:\n" +
-                     std::string(e.what()));
-    }
-    return List();
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////  MCMC : Impl : house state snapshot //////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -776,14 +725,14 @@ Rcpp::List MCMC::Impl::ImplInfecProfile::rcpp_snapshot(const std::string &house_
                 if (is_augmented())
                 {
                     const Variable &var = member.get_augm_variable(HSP_PROFILE_INST);
-                    infprof_name[r] = var.show_func_name();
+                    infprof_name[r] = var.func_name();
                     infprof_discr[r] = var.is_discrete();
                     infprof_args[r] = var.rcpp_export_func_args();
                     infprof_range[r] = var.rcpp_export_range();
                 }
                 else
                 {
-                    infprof_name[r] = profile_->show_name();
+                    infprof_name[r] = profile_->name();
                     infprof_discr[r] = profile_->is_discrete();
                     infprof_args[r] = profile_->rcpp_export_args();
                     infprof_range[r] = profile_->rcpp_export_range();
@@ -999,17 +948,17 @@ void MCMC::Impl::ImplParameter::show() const
     for (const par_key &p : all_params)
     {
         const Variable &aux = dictionary.at(p);
-        oss << aux.show_name()
-            << C_DELIM << aux.show_value()
+        oss << aux.name()
+            << C_DELIM << aux.str()
             << C_DELIM << tools::truth(aux.is_constant())
             << C_DELIM << tools::truth(aux.is_discrete())
-            << C_DELIM << aux.show_distr_name()
-            << C_DELIM << aux.show_distr_arg_names()
-            << C_DELIM << aux.show_distr_arg_values()
-            << C_DELIM << aux.show_prop_name()
-            << C_DELIM << aux.show_prop_scale()
-            << C_DELIM << aux.show_min()
-            << C_DELIM << aux.show_max()
+            << C_DELIM << aux.distr_name()
+            << C_DELIM << aux.distr_str_arg_names()
+            << C_DELIM << aux.distr_str_arg_values()
+            << C_DELIM << aux.prop_name()
+            << C_DELIM << aux.prop_str_scale()
+            << C_DELIM << aux.str_min()
+            << C_DELIM << aux.str_max()
             << "\n";
     }
 
@@ -1041,13 +990,13 @@ void MCMC::Impl::ImplParameter::show_results() const
             << C_DELIM << std::sqrt(stats.second)
             << C_DELIM << tools::truth(this_param.is_constant())
             << C_DELIM << tools::truth(this_param.is_discrete())
-            << C_DELIM << this_param.show_distr_name()
-            << C_DELIM << this_param.show_distr_arg_names()
-            << C_DELIM << this_param.show_distr_arg_values()
-            << C_DELIM << this_param.show_min()
-            << C_DELIM << this_param.show_max()
-            << C_DELIM << this_param.show_prop_name()
-            << C_DELIM << this_param.show_prop_scale()
+            << C_DELIM << this_param.distr_name()
+            << C_DELIM << this_param.distr_str_arg_names()
+            << C_DELIM << this_param.distr_str_arg_values()
+            << C_DELIM << this_param.str_min()
+            << C_DELIM << this_param.str_max()
+            << C_DELIM << this_param.prop_name()
+            << C_DELIM << this_param.prop_str_scale()
             << "\n";
     }
 
@@ -1198,5 +1147,4 @@ void MCMC::Impl::ImplDataSet::print_close()
         throw std::runtime_error(
             "Output file closed unexpectedly.");
 }
-
 #endif

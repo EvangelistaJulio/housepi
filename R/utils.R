@@ -93,9 +93,7 @@ character_to_string_list <- function(mylist, max_print = 5) {
 #' String with helpful comments
 #'
 #' @keywords internal
-find_closest_match <- function(input,
-                               options,
-                               min_dist = 2) {
+find_closest_match <- function(input, options, min_dist = 2) {
   output <- c()
 
   if ((length(options) > 0) && (min_dist > 0)) {
@@ -688,7 +686,7 @@ extract_func_ <- function(s) {
 ############################################################################
 
 #' @title
-#' Housepi Function
+#' Test Housepi Function
 #' @description
 #' Call housepi registered function.
 #'
@@ -709,19 +707,17 @@ extract_func_ <- function(s) {
 #' `numeric()`
 #'
 #' @export
-housepi_function <- function(name, x, args = numeric(), 
-                             min = NA, max = NA, hhmodel = NULL) {
-  range <- c()
-  if (!is.na(min)) range <- c(min, range)
-  if (!is.na(max)) range <- c(range, max) 
+test_housepi_function <- function(name, x, args = numeric(), 
+                                  min = NA, max = NA, hhmodel = NULL) {
   args <- unlist(args)
+  range <- c(min = min, max = max)
   m <- get_rcpp_module("housepi_function", hhmodel)
   # note: simple Function reshaping is never overwritten
   return(m$FunctionHousepi$new(name, args, range, FALSE)$call(x))
 }
 
 #' @title
-#' Housepi Distribution
+#' Test Housepi Distribution
 #' @description
 #' Call housepi registered distribution.
 #'
@@ -744,19 +740,16 @@ housepi_function <- function(name, x, args = numeric(),
 #' `numeric()`
 #'
 #' @export
-housepi_distribution <- function(name, x, discr = FALSE, args = numeric(), 
-                                 min = NA, max = NA, hhmodel = NULL) {  
-
-  range <- c()
-  if (!is.na(min)) range <- c(min, range)
-  if (!is.na(max)) range <- c(range, max)   
+test_housepi_distribution <- function(name, x, discr = FALSE, args = numeric(), 
+                                      min = NA, max = NA, hhmodel = NULL) {    
   args <- unlist(args)
+  range <- c(min = min, max = max)
   m <- get_rcpp_module("housepi_distribution", hhmodel)
   return(m$DistributionHousepi$new(name, args, range, discr)$call(x))
 }
 
 #' @title
-#' Housepi Infectivity Profile
+#' Test Housepi Infectivity Profile
 #' @description
 #' Call housepi registered infectivity profile.
 #'
@@ -777,11 +770,10 @@ housepi_distribution <- function(name, x, discr = FALSE, args = numeric(),
 #' `numeric()`
 #'
 #' @export
-housepi_infec_profile <- function(name, x, discr = FALSE, args = numeric(), 
-                                  max = NA, hhmodel = NULL) {
-  range <- c()
-  if (!is.na(max)) range <- c(range, max)          
-  args <- unlist(args)                       
+test_housepi_infec_profile <- function(name, x, discr = FALSE, args = numeric(), 
+                                       max = NA, hhmodel = NULL) {
+  args <- unlist(args)   
+  range <- c(max = max)                      
   m <- get_rcpp_module("housepi_infec_profile", hhmodel)
   return(m$InfecProfileHousepi$new(name, args, range, discr)$call(x))
 }
