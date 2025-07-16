@@ -40,15 +40,14 @@ If a maximum household size is set, larger sizes are not returned.}
 New instance of class
 \link[=ExpectedCasesBySize]{ExpectedCasesBySize}.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{ExpectedCasesBySize$new(house_model, progress = NA)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{ExpectedCasesBySize$new(model, progress = NA)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{house_model}}{\code{HouseholdModel}\cr
-Object of class
-\link[=HouseholdModel]{HouseholdModel}
+\item{\code{model}}{\code{HouseholdModel}\cr
+Object of class \link[=HouseholdModel]{HouseholdModel}
 containing all model definitions after having run \verb{$infer}.}
 
 \item{\code{progress}}{\code{logical(1)}\cr

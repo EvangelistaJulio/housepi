@@ -292,7 +292,7 @@ HousepiPosteriorExpec <- R6::R6Class(
     #' New instance of class
     #' [HousepiPosteriorExpec][housepi::HousepiPosteriorExpec].
     #'
-    #' @param house_model `HouseholdModel`\cr
+    #' @param model `HouseholdModel`\cr
     #' Object of class [HouseholdModel][housepi::HouseholdModel]
     #' with complete definitions and traces already stored.
     #' @param FUN `closure()` | `list()` of `closure()`\cr
@@ -302,7 +302,7 @@ HousepiPosteriorExpec <- R6::R6Class(
     #' @param ...
     #' Named arguments with respective functions.
     #' If `FUN` is provided, additional arguments are ignored.
-    initialize = function(house_model, FUN = NULL, progress = NA, ...) {
+    initialize = function(model, FUN = NULL, progress = NA, ...) {
       if (is.null(FUN)) FUN <- list(...)
       if (is.null(FUN)) stop_h("No measure was provided.")
 
@@ -314,15 +314,15 @@ HousepiPosteriorExpec <- R6::R6Class(
       )
 
       # initialize with results from observed dataset
-      private$.observed <- apply_func(house_model$dataset)
+      private$.observed <- apply_func(model$dataset)
 
       # deep clone model before proceeding
       # FIXME/UPDATE/NOTE: deep clone is not cloning traces
-      hmc <- house_model$clone(deep = TRUE)
+      hmc <- model$clone(deep = TRUE)
       # cleanup at end
       withr::defer(rm(hmc))
       # extract traces without loglikelihood
-      traces <- as.data.frame(posterior::as_draws_matrix(house_model$traces))
+      traces <- as.data.frame(posterior::as_draws_matrix(model$traces))
       traces$loglikelihood <- NULL
 
       # credible interval from the model
@@ -590,21 +590,20 @@ ExpectedCasesBySize <- R6::R6Class(
     #' New instance of class
     #' [ExpectedCasesBySize][housepi::ExpectedCasesBySize].
     #'
-    #' @param house_model `HouseholdModel`\cr
-    #' Object of class
-    #' [HouseholdModel][housepi::HouseholdModel]
+    #' @param model `HouseholdModel`\cr
+    #' Object of class [HouseholdModel][housepi::HouseholdModel]
     #' containing all model definitions after having run `$infer`.
     #' @param progress `logical(1)`\cr
     #' Progress of simulations. Default is inherited from the model.
-    initialize = function(house_model, progress = NA) {
+    initialize = function(model, progress = NA) {
       # ininitialize parent class HousepiPosteriorExpec
       super$initialize(
-        house_model,
+        model,
         FUN = c(cases_by_size = measure_cases_by_house_size,
                 sar = measure_sar_by_house_size),
         progress = progress
       )
-      private$.counts <- private$.count_non_zero_cases(house_model$dataset)
+      private$.counts <- private$.count_non_zero_cases(model$dataset)
 
       invisible(self)
     },

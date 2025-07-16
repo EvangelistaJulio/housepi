@@ -183,8 +183,7 @@ Rcpp::List MCMC::Impl::ImplInfecProfile::rcpp_export() const
 //////////////////////////////  MCMC : Impl  : dataset exports  //////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Export current data configurations to R DataFrame. */
-Rcpp::DataFrame MCMC::Impl::ImplDataSet::rcpp_export() const
+Rcpp::DataFrame MCMC::Impl::ImplDataSet::rcpp_export(const str_vec &columns, bool is_status) const
 {
     using namespace Rcpp;
 
@@ -197,10 +196,11 @@ Rcpp::DataFrame MCMC::Impl::ImplDataSet::rcpp_export() const
         CharacterVector dataset_id = CharacterVector(n_rows);
         CharacterVector dataset_house_id = CharacterVector(n_rows);
         IntegerVector dataset_status = IntegerVector(n_rows);
-        std::vector<NumericVector> dataset_dbl = {};
 
         // other non standard dataset columns
-        for (size_t s = 0; s < headers_.size(); ++s)
+        std::vector<NumericVector> dataset_dbl;
+        dataset_dbl.reserve(headers_.size());
+        for (size_t c = 0; c < headers_.size(); ++c)
             dataset_dbl.emplace_back(n_rows);
 
         size_t r = 0;
@@ -211,20 +211,17 @@ Rcpp::DataFrame MCMC::Impl::ImplDataSet::rcpp_export() const
                 dataset_house_id[r] = house.house_id();
                 dataset_status[r] = member.status();
 
-                size_t col = 0;
-                for (const data_key &d : headers_)
-                    dataset_dbl[col++][r] = member.data(d);
+                for (size_t c = 0; c < columns.size(); ++c)
+                    dataset_dbl[c][r] = member.data(columns[c]);
                 ++r;
             }
 
-        // assign vectors to dataframe
         DataFrame output = DataFrame::create(_["id"] = dataset_id,
-                                             _["house_id"] = dataset_house_id,
-                                             _["status"] = dataset_status);
-
-        size_t col = 0;
-        for (const data_key &d : headers_)
-            output.push_back(dataset_dbl[col++], d);
+                                             _["house_id"] = dataset_house_id);
+        if (is_status)
+            output.push_back(dataset_status, "status");
+        for (size_t c = 0; c < columns.size(); ++c)
+            output.push_back(dataset_dbl[c], columns[c]);
 
         return output;
     }
@@ -235,6 +232,7 @@ Rcpp::DataFrame MCMC::Impl::ImplDataSet::rcpp_export() const
     }
     return DataFrame();
 }
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////  MCMC : Impl  : export datalist  //////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -255,10 +253,11 @@ Rcpp::DataFrame MCMC::Impl::ImplDataList::rcpp_export() const
             n_rows += indiv_datalist_[i].at(headers_[0]).size();
 
         CharacterVector datalist_index = CharacterVector(n_rows);
-        std::vector<NumericVector> datalist_dbl = {};
 
         // other non standard datalist columns
-        for (size_t s = 0; s < headers_.size(); ++s)
+        std::vector<NumericVector> datalist_dbl = {};
+        datalist_dbl.reserve(headers_.size());
+        for (size_t c = 0; c < headers_.size(); ++c)
             datalist_dbl.emplace_back(n_rows);
 
         size_t r = 0;
@@ -267,18 +266,14 @@ Rcpp::DataFrame MCMC::Impl::ImplDataList::rcpp_export() const
                 for (size_t k = 0; k < member.datalist(headers_[0]).size(); ++k, ++r)
                 {
                     datalist_index[r] = member.id();
-
-                    size_t col = 0;
-                    for (const data_key &d : headers_)
-                        datalist_dbl[col++][r] = member.datalist(d)[k];
+                    for (size_t c = 0; c < headers_.size(); ++c)
+                        datalist_dbl[c][r] = member.datalist(headers_[c])[k];
                 }
 
         // assign vectors to dataframe
         DataFrame output = DataFrame::create(_["id"] = datalist_index);
-
-        size_t col = 0;
-        for (const data_key &d : headers_)
-            output.push_back(datalist_dbl[col++], d);
+        for (size_t c = 0; c < headers_.size(); ++c)
+            output.push_back(datalist_dbl[c], headers_[c]);
 
         return output;
     }
@@ -567,8 +562,8 @@ Rcpp::DataFrame MCMC::Impl::ImplDataSet::rcpp_snapshot(const std::string &house_
 
     std::vector<NumericVector> dataset_dbl;
     dataset_dbl.reserve(headers_.size());
-    for (size_t i = 0; i < headers_.size(); ++i)
-        dataset_dbl.push_back(NumericVector(n_rows));
+    for (size_t c = 0; c < headers_.size(); ++c)
+        dataset_dbl.emplace_back(NumericVector(n_rows));
 
     size_t r = 0;
     for (const Individual &member : house)
@@ -605,7 +600,9 @@ Rcpp::DataFrame MCMC::Impl::ImplDataList::rcpp_snapshot(const std::string &house
             n_rows += member.datalist(headers_[0]).size();
 
         CharacterVector datalist_id = CharacterVector(n_rows);
+
         std::vector<NumericVector> datalist_dbl = {};
+        datalist_dbl.reserve(headers_.size());
         for (size_t i = 0; i < headers_.size(); ++i)
             datalist_dbl.emplace_back(n_rows);
 
@@ -642,8 +639,8 @@ Rcpp::DataFrame MCMC::Impl::ImplGroupRates::rcpp_snapshot(const std::string &hou
 
         std::vector<NumericVector> group_rate_dbl;
         group_rate_dbl.reserve(headers_.size());
-        for (size_t i = 0; i < headers_.size(); ++i)
-            group_rate_dbl.push_back(NumericVector(n_rows));
+        for (size_t c = 0; c < headers_.size(); ++c)
+            group_rate_dbl.emplace_back(NumericVector(n_rows));
 
         size_t r = 0;
         for (const Individual &member : house)
@@ -679,8 +676,8 @@ Rcpp::DataFrame MCMC::Impl::ImplAugmented::rcpp_snapshot(const std::string &hous
 
         std::vector<NumericVector> augm_dbl;
         augm_dbl.reserve(headers.size());
-        for (size_t i = 0; i < headers.size(); ++i)
-            augm_dbl.push_back(NumericVector(n_rows));
+        for (size_t c = 0; c < headers.size(); ++c)
+            augm_dbl.emplace_back(NumericVector(n_rows));
 
         size_t r = 0;
         for (const Individual &member : house)

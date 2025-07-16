@@ -32,13 +32,13 @@ Expected values of the measure of the posterior sample.}
 New instance of class
 \link[=HousepiPosteriorExpec]{HousepiPosteriorExpec}.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiPosteriorExpec$new(house_model, FUN = NULL, progress = NA, ...)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiPosteriorExpec$new(model, FUN = NULL, progress = NA, ...)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{house_model}}{\code{HouseholdModel}\cr
+\item{\code{model}}{\code{HouseholdModel}\cr
 Object of class \link[=HouseholdModel]{HouseholdModel}
 with complete definitions and traces already stored.}
 

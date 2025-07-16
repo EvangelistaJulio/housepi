@@ -28,8 +28,8 @@ assert_dataset_features <- function(features, dataset_headers) {
   }
   if (length(missing) > 0) stop_h(
     sprintf(
-      "Unknown feature%s: %s",
-      ifelse(length(missing) > 1, "s", ""),
+      "Unknown feature%s %s",
+      ifelse(length(missing) > 1, "s:", ""),
       character_to_string_list(missing)
     ),
     "Check your features and dataset headers."
@@ -520,7 +520,7 @@ HousepiGroupRate <- R6::R6Class(
       if (length(unused_set) > 0) {
         for (this in unused_set) self$remove(this)
         stop_h(
-          sprintf("Dropped unused group rate%s %s.",
+          sprintf("Dropped unused group rate%s %s",
                   ifelse(length(unused_set) > 1, "s:", ""),
                   character_to_string_list(unused_set)),
           find_closest_match(unused_set, requirements, min_dist = 3)

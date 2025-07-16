@@ -621,7 +621,7 @@ void MCMC::Impl::ImplAugmented::init()
 {
     if (is_any())
         for (Household &house : pImpl_.dataset)
-            for (Individual &member : house)
+            for (Individual &member : house.infected())
                 init_all(member);
 }
 
@@ -661,8 +661,8 @@ void MCMC::Impl::move_all_augm_()
 #pragma omp critical
                 {
                     if (!has_error.exchange(true))
-                        error_message = "While sampling augmented variables for household " +
-                                        this_house.house_id() + ":\n" +
+                        error_message = "While sampling augmented variables for household \"" +
+                                        this_house.house_id() + "\":\n" +
                                         std::string(e.what());
                 }
             }

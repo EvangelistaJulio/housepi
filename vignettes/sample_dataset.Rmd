@@ -18,8 +18,11 @@ Let's assume that each individual can be represented with a single variable $\th
 We declare the covariates of interests at instatiation of the `HouseholdSampler` model class.
 
 ```{r}
+library(housepi)
+set.seed(42)
+
 # define individual features from dataset covariates assumed not independent
-hhsampler <- housepi::HouseholdSampler$new(
+hhsampler <- HouseholdSampler$new(
   # categorical data: levels to be considered
   sex = list(levels = c("M", "F")),
   # numerical data to be factorized: breaks for binning
@@ -88,7 +91,7 @@ where $p_1$ is the probability of finding a household with a single member in ou
 
 ```{r}
 # compute marginal distributions
-hhsampler$compute_marginals(housepi::survey)
+hhsampler$compute_marginals(survey)
 
 # sample 5 households
 hhsampler$sample(5)

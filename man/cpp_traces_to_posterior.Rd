@@ -15,3 +15,4 @@ cpp_traces_to_posterior(trs)
 \description{
 Convert traces export from a Rcpp \code{housepi} model to coda.
 }
+\keyword{internal}

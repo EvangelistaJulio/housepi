@@ -207,8 +207,8 @@ void MCMC::Impl::update_full_loglike_(bool cache_depen)
 #pragma omp critical
             {
                 if (!has_error.exchange(true))
-                    error_message = "While computing loglikelihood for house " +
-                                    house.house_id() + ":\n" +
+                    error_message = "While computing loglikelihood for house \"" +
+                                    house.house_id() + "\":\n" +
                                     std::string(e.what());
             }
         }
@@ -610,98 +610,90 @@ void MCMC::Impl::aux_init_simulate_()
 }
 
 #ifdef _HOUSEPI_RCPP
-/* Perform simulation and return simulated dataset. */
-Rcpp::DataFrame MCMC::Impl::simulate()
+//-- Perform a unique repetition. --//
+Rcpp::DataFrame MCMC::Impl::simulate_repetition()
 {
     using namespace Rcpp;
 
+    size_t n_cols = dataset.n_individuals();
+    int_vec df_status = int_vec(n_cols);
+    std::vector<dbl_vec> df_augm(augm.list_full.size(), dbl_vec(n_cols));
+
+    size_t row = 0;
+    for (Household house : dataset)
+        try
+        {
+            simulate_single_household_(house); // inplace simulation
+            for (const Individual &member : house)
+            {
+                df_status[row] = member.status();
+                for (size_t i = 0; i < augm.list_full.size(); ++i)
+                    df_augm[i][row] = member.augm(augm.list_full[i]);
+                ++row;
+            }
+        }
+        catch (const std::exception &e)
+        {
+            throw std::runtime_error(
+                "While simulating house \"" + house.house_id() + "\":\n" + std::string(e.what()));
+        }
+
+    List output = List::create(_["status"] = wrap(std::move(df_status)));
+    for (size_t i = 0; i < augm.list_full.size(); ++i)
+        output[augm.list_full[i]] = wrap(std::move(df_augm[i]));
+    return DataFrame(output);
+}
+
+//-- Perform simulation and return simulated dataset. --//
+Rcpp::List MCMC::Impl::simulate(size_t n_rep)
+{
+    using namespace Rcpp;
+    std::atomic<bool> has_error(false);
+
     try
     {
-        setup.prog_declare("simulate"); // declare current progress bar
-
-        const size_t n_cols = dataset.n_individuals();
-        const str_vec _aux_augm_headers = augm.list_full - str_vec({HSP_PROFILE_INST, HSP_PROFILE_CUMUL});
-        const str_vec _aux_dataset_headers = dataset.headers() - _aux_augm_headers;
-
-        Rcpp::CharacterVector df_index = CharacterVector(n_cols);
-        Rcpp::CharacterVector df_house_index = CharacterVector(n_cols);
-        Rcpp::IntegerVector df_status = IntegerVector(n_cols);
-        std::vector<Rcpp::NumericVector> df_dbl = {};
-
-        // other data and augmented variable columns
-        for (size_t s = 0; s < _aux_dataset_headers.size() + _aux_augm_headers.size(); ++s)
-            df_dbl.emplace_back(n_cols);
-
-        //----- initialization -----//
+        // initialization
         aux_init_simulate_();
-        setup.prog_open(dataset.n_houses());
+        setup.prog_open(dataset.n_houses() * n_rep);
 
-        //----- run simulation -----//
-        size_t row = 0;
-        for (size_t H = 0; H < dataset.n_houses(); ++H)
+        // run simulations
+        std::vector<DataFrame> results(n_rep);
+
+#pragma omp parallel for
+        for (ushort rep = 0; rep < n_rep; ++rep)
         {
-            Household house = dataset.copy(H); // deep copy of the household
+            if (has_error.load(std::memory_order_relaxed))
+                continue;
             try
             {
-                simulate_single_household_(house);
-
-                // store simulation
-                for (const Individual &member : house)
-                {
-                    df_index[row] = member.id();
-                    df_house_index[row] = house.house_id();
-                    df_status[row] = member.status();
-
-                    size_t col = 0;
-                    for (const data_key &d : _aux_dataset_headers)
-                    {
-                        double x = member.data(d);
-                        df_dbl[col++][row] = tools::is_na(x) ? NA_REAL : x;
-                    }
-
-                    for (const augm_key &a : _aux_augm_headers)
-                    {
-                        double x = member.augm(a);
-                        df_dbl[col++][row] = tools::is_na(x) ? NA_REAL : x;
-                    }
-
-                    ++row;
-                }
-
-                setup.prog_update(); // update progress bar
+                results[rep] = simulate_repetition();
             }
             catch (const std::exception &e)
             {
-                throw std::runtime_error(
-                    "While simulating house \"" + house.house_id() + "\":\n" + std::string(e.what()));
+#pragma omp critical
+                {
+                    if (!has_error.exchange(true))
+                        error_message = e.what();
+                }
             }
         }
 
+        // convert to Rcpp List
+        List output(n_rep);
+        for (ushort rep = 0; rep < n_rep; ++rep)
+            output[rep] = std::move(results[rep]);
+
         // close progress bar
         setup.prog_close();
-
-        // assign vectors to dataframe
-        DataFrame output = DataFrame::create(
-            _["id"] = std::move(df_index),
-            _["house_id"] = std::move(df_house_index),
-            _["status"] = std::move(df_status));
-
-        size_t col = 0;
-        for (const data_key &d : _aux_dataset_headers)
-            output.push_back(std::move(df_dbl[col++]), d);
-
-        for (const augm_key &a : _aux_augm_headers)
-            output.push_back(std::move(df_dbl[col++]), a);
 
         return output;
     }
     catch (std::exception &e)
     {
-        setup.prog_crash();
         tools::error(e.what());
     }
 
-    return DataFrame::create();
+    return List::create();
 }
 
 Rcpp::List MCMC::Impl::evidence(const std::string &scheme, ulong n_rungs)
@@ -742,7 +734,6 @@ Rcpp::List MCMC::Impl::evidence(const std::string &scheme, ulong n_rungs)
 /* Print the simulated dataset to the provided file. */
 void MCMC::Impl::print_simulated_dataset(const std::string &pathtofile)
 {
-
     try
     {
         //----- initialization -----//
@@ -764,7 +755,7 @@ void MCMC::Impl::print_simulated_dataset(const std::string &pathtofile)
             catch (const std::exception &e)
             {
                 throw std::runtime_error(
-                    "While simulating house \"" + house.house_id() + "\" :\n" + e.what());
+                    "While simulating house \"" + house.house_id() + "\":\n" + e.what());
             }
 
         setup.prog_close();    // close progress bar

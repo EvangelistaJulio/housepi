@@ -2,10 +2,11 @@
 # Generator token: 10BE3573-1514-4C36-9D1C-5A225CD40393
 
 #' @name FunctionHousepi
-#' @title Housepi Function
+#' @title Function from Housepi
 #' @description Call housepi registered function.
 #' @field initialize\cr \itemize{
 #'   \item Parameter: name `character(1)`\cr Name of the function.
+#'   \item Parameter: is_discr `logical(1)`\cr Wheter discrete (not used).
 #'   \item Parameter: args `numeric()`\cr Custom arguments.
 #'   \item Parameter: range `numeric()`\cr Minimum and maximum range of the function.
 #' }
@@ -16,10 +17,11 @@
 NULL
 
 #' @name DistributionHousepi
-#' @title Housepi Distribution
+#' @title Distribution from Housepi
 #' @description Call housepi registered distribution.
 #' @field initialize\cr \itemize{
 #'   \item Parameter: name `character(1)`\cr Name of the distribution.
+#'   \item Parameter: is_discr `logical(1)`\cr Wheter discrete.
 #'   \item Parameter: args `numeric()`\cr Custom arguments.
 #'   \item Parameter: range `numeric()`\cr Minimum and maximum range of the distribution.
 #' }
@@ -30,10 +32,11 @@ NULL
 NULL
 
 #' @name InfecProfileHousepi
-#' @title Housepi Infectivity Profile
+#' @title Infectivity Profile from Housepi
 #' @description Call housepi registered infectivity profile.
 #' @field initialize\cr \itemize{
 #'   \item Parameter: name `character(1)`\cr Name of the profile.
+#'   \item Parameter: is_discr `logical(1)`\cr Wheter discrete.
 #'   \item Parameter: args `numeric()`\cr Custom arguments.
 #'   \item Parameter: range `numeric()`\cr Minimum and maximum range of the profile.
 #' }
@@ -46,13 +49,12 @@ NULL
 #' @name ModelHousepi
 #' @title Internal housepi model
 #' @description Perform inference and simulation from the model.
-#' @field init_user_advanced_setup
-#' Load user advance setup.
 #' @field infer\cr Perform MCMC inference of the model parameters. \itemize{
 #'   \item Parameter: output_file - The file path where the output will be saved
-#'   \item Parameter: progbar - show the progress bar
+#'   \item Parameter: progbar - Display the progress bar
 #' }
-#' @field simulate\cr Load a simulated database.
+#' @field dataset_for_simulation\cr Dataset without status and augmented entries.
+#' @field simulate\cr Simulated status and augmented variables.
 #' @field evaluate\cr Evaluate the loglikelihood according to the current state.
 #' @field evidence\cr Evaluate the logarithm of the marginal likelihood with the method of power posteriors. \itemize{
 #'   \item Parameter: scheme
@@ -69,14 +71,12 @@ NULL
 #' @field buil_all_rates\cr Assign all contact and group rates.
 #' @field export_setup\cr Return a List with current setup.
 #' @field export_param\cr Return a DataFrame with current parameters.
+#' @field export_infec_profile\cr Return a List with infectivity profile.
 #' @field export_dataset\cr Return a DataFrame with current database.
 #' @field export_dataset_report\cr Return a DataFrame with a report of the current database.
 #' @field export_house_size_report\cr Return a DataFrame with a report of household sizes.
 #' @field export_traces\cr Return a NumericMatrix with MCMC traces.
 #' @field export_house_loglike_traces\cr Return a NumericMatrix with household loglikelihood traces.
 #' @field export_house_snapshot\cr Return a List with a snapshot containing full household and model details.
-#' @field showcase_infec_profile\cr Return a List with a showcase of the infectivity profile.
-#' @field show_full_build\cr Show all build messages.
-#' @field show_summary\cr Show a summary of the current database.
 NULL
 

@@ -26,8 +26,11 @@ Such models allow for a number of group rates which can then be changed accordin
 We provide an example here with the heterogeneous version of the chain binomial model.
 
 ```{r}
+library(housepi)
+set.seed(42)
+
 # load heterogeneous version of chain binomial
-hhmodel <- housepi::HouseholdModel$new("chain-binomial-heterogeneous")
+hhmodel <- HouseholdModel$new("chain-binomial-heterogeneous")
 
 # load parameter definitions  from template
 hhmodel$load_param_template()
@@ -43,7 +46,7 @@ We start by creating categorical groupings to stratify individuals based on thei
 
 ```{r}
 # load the dataset from the housepi package
-dataset <- housepi::survey
+dataset <- survey
 
 # create an age group binary variable child/adult
 dataset$agegroup <- ifelse(dataset$age <= 15, "child", "adult")
@@ -115,12 +118,13 @@ hhmodel$load_group_rate_list(
 
 # inference with minimal setup (for didactical purposes only)
 hhmodel$infer(n_chains = 4, n_steps = 5000, thin = 8, n_adapt = 1000, 
-              n_burnin = 1000, seed = 7713, progress = 20)
+              n_burnin = 1000, progress = 20)
 ```
 
 ```{r, fig.width=6.5, fig.height=6, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
+library(bayesplot)
 traces <- hhmodel$traces
-bayesplot::mcmc_trace(traces)
+mcmc_trace(traces)
 ```
 
 The inference is performed with default assumptions for the prior, a log-normal prior (`meanlog = 0` and `sdlog = 3`) and log-normal proposer rule, as in [Cauchemez et al. (2009)](https://www.nejm.org/doi/full/10.1056/NEJMoa0905498). 
@@ -135,11 +139,12 @@ Finally, we can visualize the differences (e. g. for susceptibility) with respec
 
 ```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 
+library(posterior)
 library(dplyr)
 library(ggplot2)
 
 # extract estimates from traces
-estimates <- posterior::summarise_draws(traces)
+estimates <- summarise_draws(traces)
 
 # select estimates associated to group rate
 rate_id <- "susceptibility"

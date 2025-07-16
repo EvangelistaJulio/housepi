@@ -1,7 +1,4 @@
 
-
-
-
 #' @title
 #' Generate Individual Delays
 #' @description
@@ -20,11 +17,7 @@
 generate_delays <- function(n = 223,
                             mean = 2.2,
                             var = 2.5,
-                            report_error = 0.73,
-                            seed = 1) {
-  # fix random seed
-  set.seed(seed)
-
+                            report_error = 0.73) {
   # time 1
   value_duration_1 <- 1:4
   proba_duration_1 <- c(0.28, 0.34, 0.26, 0.12)
@@ -57,14 +50,12 @@ generate_delays <- function(n = 223,
       }
     }
 
-    return(c(
-      t1 = t1,
-      t2 = t2,
-      t1_min = t1_min,
-      t1_max = t1_max,
-      t2_min = t2_min,
-      t2_max = t2_max
-    ))
+    return(c(t1 = t1,
+             t2 = t2,
+             t1_min = t1_min,
+             t1_max = t1_max,
+             t2_min = t2_min,
+             t2_max = t2_max))
   }
 
   full_dataset <- as.data.frame(t(sapply(1:n, simulate_delay_data)))

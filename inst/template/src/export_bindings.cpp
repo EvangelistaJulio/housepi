@@ -22,7 +22,7 @@
         std::shared_ptr<Function> _ptr;                                                          \
                                                                                                  \
     public:                                                                                      \
-        WrapperName##Housepi(std::string name, Rcpp::List args, Rcpp::List range, bool is_discr) \
+        WrapperName##Housepi(std::string name, bool is_discr, Rcpp::List args, Rcpp::List range) \
         {                                                                                        \
             try                                                                                  \
             {                                                                                    \
@@ -81,10 +81,11 @@
 //-----------------------------------------------------------------------------------------------//
 
 //' @name FunctionHousepi
-//' @title Housepi Function
+//' @title Function from Housepi
 //' @description Call housepi registered function.
 //' @field initialize\cr \itemize{
 //'   \item Parameter: name `character(1)`\cr Name of the function.
+//'   \item Parameter: is_discr `logical(1)`\cr Wheter discrete (not used).
 //'   \item Parameter: args `numeric()`\cr Custom arguments.
 //'   \item Parameter: range `numeric()`\cr Minimum and maximum range of the function.
 //' }
@@ -92,22 +93,22 @@
 //'   \item Parameter: x `numeric()`\cr Input vector.
 //' }
 //' @return `numeric()`
-
 RCPP_MODULE(housepi_function)
 {
 #define FUNCTION_REGISTRIES {&UserFuncRegistry::inst(), &TranscendentalRegistry::inst(), &ArithmeticRegistry::inst()}
     DEFINE_HOUSEPI_RCPP_WRAPPER_CLASS(Function, "function", FUNCTION_REGISTRIES);
 
     Rcpp::class_<FunctionHousepi>("FunctionHousepi")
-        .constructor<std::string, Rcpp::List, Rcpp::List, bool>()
+        .constructor<std::string, bool, Rcpp::List, Rcpp::List>()
         .method("call", &FunctionHousepi::call);
 }
 
 //' @name DistributionHousepi
-//' @title Housepi Distribution
+//' @title Distribution from Housepi
 //' @description Call housepi registered distribution.
 //' @field initialize\cr \itemize{
 //'   \item Parameter: name `character(1)`\cr Name of the distribution.
+//'   \item Parameter: is_discr `logical(1)`\cr Wheter discrete.
 //'   \item Parameter: args `numeric()`\cr Custom arguments.
 //'   \item Parameter: range `numeric()`\cr Minimum and maximum range of the distribution.
 //' }
@@ -121,15 +122,16 @@ RCPP_MODULE(housepi_distribution)
     DEFINE_HOUSEPI_RCPP_WRAPPER_CLASS(Distribution, "distribution", DISTRIBUTION_REGISTRIES);
 
     Rcpp::class_<DistributionHousepi>("DistributionHousepi")
-        .constructor<std::string, Rcpp::List, Rcpp::List, bool>()
+        .constructor<std::string, bool, Rcpp::List, Rcpp::List>()
         .method("call", &DistributionHousepi::call);
 }
 
 //' @name InfecProfileHousepi
-//' @title Housepi Infectivity Profile
+//' @title Infectivity Profile from Housepi
 //' @description Call housepi registered infectivity profile.
 //' @field initialize\cr \itemize{
 //'   \item Parameter: name `character(1)`\cr Name of the profile.
+//'   \item Parameter: is_discr `logical(1)`\cr Wheter discrete.
 //'   \item Parameter: args `numeric()`\cr Custom arguments.
 //'   \item Parameter: range `numeric()`\cr Minimum and maximum range of the profile.
 //' }
@@ -137,14 +139,13 @@ RCPP_MODULE(housepi_distribution)
 //'   \item Parameter: x `numeric()`\cr Input vector.
 //' }
 //' @return `numeric()`
-
 #define INFEC_PROFILE_REGISTRIES {&InfecProfileRegistry::inst(), &ContinuosDistrRegistry::inst(), &DiscreteDistrRegistry::inst()}
 RCPP_MODULE(housepi_infec_profile)
 {
     DEFINE_HOUSEPI_RCPP_WRAPPER_CLASS(InfecProfile, "infectivity profile", INFEC_PROFILE_REGISTRIES);
 
     Rcpp::class_<InfecProfileHousepi>("InfecProfileHousepi")
-        .constructor<std::string, Rcpp::List, Rcpp::List, bool>()
+        .constructor<std::string, bool, Rcpp::List, Rcpp::List>()
         .method("call", &InfecProfileHousepi::call);
 }
 
@@ -155,7 +156,8 @@ RCPP_MODULE(housepi_infec_profile)
 //'   \item Parameter: output_file - The file path where the output will be saved
 //'   \item Parameter: progbar - Display the progress bar
 //' }
-//' @field simulate\cr Load a simulated database.
+//' @field dataset_for_simulation\cr Dataset without status and augmented entries.
+//' @field simulate\cr Simulated status and augmented variables.
 //' @field evaluate\cr Evaluate the loglikelihood according to the current state.
 //' @field evidence\cr Evaluate the logarithm of the marginal likelihood with the method of power posteriors. \itemize{
 //'   \item Parameter: scheme
@@ -186,6 +188,7 @@ RCPP_MODULE(housepi_model_core)
         .constructor()
         .method("init_advanced_setup", &MCMC::init_advanced_setup)
         .method("infer", &MCMC::infer)
+        .method("dataset_for_simulation", &MCMC::dataset_for_simulation)
         .method("simulate", &MCMC::simulate)
         .method("evaluate", &MCMC::evaluate)
         .method("evidence", &MCMC::evidence)

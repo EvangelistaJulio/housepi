@@ -25,8 +25,11 @@ In this vignette, we use the template model "augm-infection-time" where surveys 
 We load the parameter definitions directly from the model template.
 
 ```{r}
+library(housepi)
+set.seed(42)
+
 # load augmented infection time template
-hhsimul <- housepi::HouseholdModel$new("augm-infection-time")
+hhsimul <- HouseholdModel$new("augm-infection-time")
 
 # use example parameters associated to the template model
 hhsimul$load_param_template()
@@ -65,10 +68,8 @@ We propose the following definitions for the augmented variable.
 ```{r}
 # associate defininitions from a list
 hhsimul$load_augm_list(
-  
   # define 'infec_time' as the difference between onset and incubation
   infec_time = "onset_time - incub_period",
-  
   # define an 'onset_time' for each individual
   onset_time = list(
     init_rand = TRUE,
@@ -94,9 +95,9 @@ We then run a simulation with the method `simulate`.
 
 ```{r}
 # simulate using the data structure from the survey
-dataset <- housepi::survey
+dataset <- survey
 dataset$status <- NA
-simulated <- hhsimul$simulate(dataset, seed = 3413)
+simulated <- hhsimul$simulate(dataset)
 
 # in addition to final status, we associated  augmented variables
 # incubation period onset time
@@ -143,21 +144,21 @@ hhmodel$load_augm_list(
 
 # perform the inference
 # note: NA onset dates of healthy individuals will raise a warning
-hhmodel$infer(simulated, n_chains = 3, n_steps = 10000,
-              n_adapt = 2000, n_burnin = 1000, thin = 10,
-              seed = 3731, progress = 20)
+hhmodel$infer(simulated, n_chains = 3, n_steps = 10000, n_adapt = 2000, 
+              n_burnin = 1000, thin = 10, progress = 20)
 ```
 
 ```{r, message = FALSE, warning = FALSE, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # use bayesplot to plot the posterior draws
 library(bayesplot)
-mcmc_trace(hhmodel$traces)
+traces <- hhmodel$traces
+mcmc_trace(traces)
 ```
 
 ```{r, fig.width=5, fig.height=2.5, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # compute Rhat values associate to inferred parameters
-mask <- hhmodel$param_defs$name[!hhmodel$param_defs$const]
-rhat_values <- sapply(hhmodel$traces, posterior::rhat)[mask]
+var_names <- hhmodel$param_defs$name[!hhmodel$param_defs$const]
+rhat_values <- sapply(var_names, function(v) posterior::rhat(traces[[v]]))
 
 # use bayesplot to showcase Rhat statistics
 mcmc_rhat(rhat_values) + yaxis_text(hjust = 1)
@@ -171,7 +172,7 @@ Finally we wrap all together to compare to parameters used for simulation.
 # collect the results
 traces <- hhmodel$traces
 traces$loglikelihood <- NULL
-estimates <- posterior::summarise_draws(traces)
+estimates <- summarise_draws(traces)
 
 # compare results to parameter values used for simulation
 simul_param_defs <- hhsimul$param_defs
@@ -180,10 +181,11 @@ inames <- simul_param_defs[imask, ]$name
 ```
 
 ```{r, message = FALSE, warning = FALSE,}
+library(tibble)
 library(dplyr)
 library(flextable)
 cbind(simulated = simul_param_defs[imask, ]$value, estimates) |>
-  tibble::rownames_to_column("parameter") |>
+  rownames_to_column("parameter") |>
   mutate(inferred = sprintf("%0.4f [%0.4f, %0.4f]", mean, q5, q95)) |>
   select(variable, simulated, inferred) |>
   flextable() |>

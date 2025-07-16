@@ -59,7 +59,6 @@ List containing current group rate definitions.}
 \item \href{#method-HouseholdModel-add_group_rate}{\code{HouseholdModel$add_group_rate()}}
 \item \href{#method-HouseholdModel-load_group_rate_list}{\code{HouseholdModel$load_group_rate_list()}}
 \item \href{#method-HouseholdModel-add_infec_profile}{\code{HouseholdModel$add_infec_profile()}}
-\item \href{#method-HouseholdModel-showcase_infec_profile}{\code{HouseholdModel$showcase_infec_profile()}}
 \item \href{#method-HouseholdModel-infer}{\code{HouseholdModel$infer()}}
 \item \href{#method-HouseholdModel-simulate}{\code{HouseholdModel$simulate()}}
 \item \href{#method-HouseholdModel-expec_posterior_measure}{\code{HouseholdModel$expec_posterior_measure()}}
@@ -525,29 +524,6 @@ One between:
 }}
 }
 \if{html}{\out{</div>}}
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HouseholdModel-showcase_infec_profile"></a>}}
-\if{latex}{\out{\hypertarget{method-HouseholdModel-showcase_infec_profile}{}}}
-\subsection{Method \code{showcase_infec_profile()}}{
-Showcase instantaneous and cumulative values of infectivity profile.
-UPDATE: this should be dropped and just parameters should be exported
-to then be passed to housepi_infec_profile
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdModel$showcase_infec_profile(bins = 2000)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{bins}}{\code{integer(1)}\cr
-Number of bins for continuous profile (ignored if discrete).}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-\code{list()}
 }
 }
 \if{html}{\out{<hr>}}

@@ -344,8 +344,29 @@ HouseholdModel <- R6::R6Class(
                            n_chains = 1, n_threads = 1,
                            rand_init = TRUE, id_trace = NA,
                            seed = NA, progress = FALSE) {
-      # import dataset
+      # build dataset
       private$.import_dataset(dataset)
+
+      # individual id for blank model augmented traces
+      # if no default columns, assume debugging mode
+      if (private$.is_blank() && is.na(id_trace)) {
+        # FIXME: not robust in case of dataset with only default columns
+        if (length(setdiff(private$.last_dataset_cols,
+                           c("house_id", "id", "status"))) == 0) {
+          id_trace <- template_blank_dataset_()$id[1]
+        }
+      }
+
+      # build setup
+      private$.rcpp$import_setup(fmt_setup_input_(list(
+        sample_size = ifelse(is.na(sample_size), 0, sample_size),
+        n_steps = n_steps, thin = thin,
+        n_burnin = n_burnin, n_adapt = n_adapt, n_chains = n_chains,
+        n_threads = n_threads, rand_init = rand_init,
+        id_trace = id_trace, 
+        seed = private$.adjust_seed(seed), 
+        progress = as.integer(progress)
+      )))
 
       # assert parameter definitions before importing
       private$.assert_param()
@@ -359,45 +380,17 @@ HouseholdModel <- R6::R6Class(
       }
       private$.rcpp$import_group_rates(defs)
 
-      # build contact rates (UPDATE: in development)
+      # build contact rates (FIXME: temporary)
       private$.rcpp$build_all_rates()
 
       # assert augmented variable definitions
       private$.assert_augm()
 
-      # infectivity profile
+      # build infectivity profile
       private$.rcpp$import_infec_profile(private$.infec_profile$defs)
 
-      # individual id for blank model augmented traces
-      # if no default columns, assume debugging mode
-      if (private$.is_blank() && is.na(id_trace)) {
-        # UPDATE: not robust in case of dataset with only default columns
-        if (length(setdiff(private$.last_dataset_cols,
-                           c("house_id", "id", "status"))) == 0) {
-          id_trace <- template_blank_dataset_()$id[1]
-        }
-      }
-
-      # control that seed is 32bit
-      if (isTRUE(abs(seed) > .Machine$integer.max)) stop_h(
-        "Supplied seed is not supported.",
-        sprintf("Maximum value for a integer in R is %.0f.",
-                .Machine$integer.max)
-      )
-
-      # import setup
-      private$.rcpp$import_setup(fmt_setup_input_(list(
-        sample_size = ifelse(is.na(sample_size), 0, sample_size),
-        n_steps = n_steps, thin = thin,
-        n_burnin = n_burnin, n_adapt = n_adapt, n_chains = n_chains,
-        n_threads = n_threads, rand_init = rand_init,
-        id_trace = id_trace, seed = seed, progress = as.integer(progress)
-      )))
-
       # build augmented variables
-      if (length(self$augm_defs) > 0) {
-        private$.rcpp$import_augm(self$augm_defs)
-      }
+      private$.rcpp$import_augm(self$augm_defs)
 
       invisible(self)
     },
@@ -937,8 +930,14 @@ HouseholdModel <- R6::R6Class(
       private$.build_full(dataset = dataset, rand_init = FALSE,
                           seed = seed, progress = progress)
 
-      # call method from internal Rcpp object
-      return(private$.refactor_dataset(private$.rcpp$simulate()))
+      # refactor static dataset of simulation
+      static_df <- private$.rcpp$dataset_for_simulation()
+
+      # bind simulated entries with static part
+      # UPDATE : n_rep = 1 for development
+      return(private$.refactor_dataset(
+        cbind(static_df, private$.rcpp$simulate(1)))
+      )
     },
 
     #' @description
@@ -958,9 +957,7 @@ HouseholdModel <- R6::R6Class(
     #' An instance of class
     #' [HousepiPosteriorExpec][housepi::HousepiPosteriorExpec].
     expec_posterior_measure = function(FUN = NULL, progress = NA, ...) {
-      return(
-        HousepiPosteriorExpec$new(self, FUN = FUN, progress = progress, ...)
-      )
+      HousepiPosteriorExpec$new(self, FUN = FUN, progress = progress, ...)
     },
 
     #' @description
@@ -977,9 +974,7 @@ HouseholdModel <- R6::R6Class(
     #' [ExpectedCasesBySize][housepi::ExpectedCasesBySize]
     #' containing method to compare observed and expected cases.
     expec_cases_by_house_size = function(progress = NA) {
-      return(
-        ExpectedCasesBySize$new(self, progress = progress)
-      )
+      ExpectedCasesBySize$new(self, progress = progress)
     },
 
     #' @description

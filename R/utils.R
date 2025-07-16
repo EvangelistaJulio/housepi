@@ -102,8 +102,7 @@ find_closest_match <- function(input, options, min_dist = 2) {
 
     if (any(idxs)) {
       closest <- options[apply(dists[idxs, , drop = FALSE], 1, which.min)]
-      output <- sprintf("Did you mean %s?",
-                        character_to_string_list(closest))
+      output <- sprintf("Did you mean \"%s\"?", closest)
     }
 
     if (!all(idxs)) {
@@ -249,8 +248,8 @@ get_template_from_dll <- function(dll) {
 }
 
 # Get Rcpp module from DLL file
-get_rcpp_module <- function(module_name, hhmodel = NULL) {
-  dll <- ifelse(is.null(hhmodel), NA, hhmodel$path_to_dll)
+get_rcpp_module <- function(module_name, model = NULL) {
+  dll <- ifelse(is.null(model), NA, model$path_to_dll)
   if (is.na(dll)) {
     housepi_dir <- file.path(system.file(package = "housepi"), "template")
     dll <- file.path(housepi_dir, "src", dll_file_ext("housepienvironment"))
@@ -286,7 +285,7 @@ split_traces_by_chain_ <- function(x) {
 #' @return
 #' `posterior::draws`
 #'
-#' @export
+#' @keywords internal
 cpp_traces_to_posterior <- function(trs) {
   if (methods::is(trs, "draws")) {
     return(trs)
@@ -323,7 +322,7 @@ cpp_traces_to_posterior <- function(trs) {
 #' @return
 #' `coda::mcmc` | `coda::mcmc.list`
 #'
-#' @export
+#' @keywords internal
 cpp_traces_to_coda <- function(trs) {
   require_suggested_library("coda")
   if ((methods::is(trs, "mcmc") || methods::is(trs, "mcmc.list"))) {
@@ -689,6 +688,8 @@ extract_func_ <- function(s) {
 #' Test Housepi Function
 #' @description
 #' Call housepi registered function.
+#' This function internally calls a large C++ class, 
+#' thus it is not optimized for repeated  operations.
 #'
 #' @param name `character(1)`\cr
 #' Name of the function.
@@ -700,26 +701,27 @@ extract_func_ <- function(s) {
 #' Value of the minimum.
 #' @param max `double(1)`\cr
 #' Value of the maximum.
-#' @param hhmodel `HouseholdModel`\cr
+#' @param model `HouseholdModel`\cr
 #' Custom household model to load from.
 #'
 #' @return
 #' `numeric()`
 #'
 #' @export
-test_housepi_function <- function(name, x, args = numeric(), 
-                                  min = NA, max = NA, hhmodel = NULL) {
-  args <- unlist(args)
-  range <- c(min = min, max = max)
-  m <- get_rcpp_module("housepi_function", hhmodel)
-  # note: simple Function reshaping is never overwritten
-  return(m$FunctionHousepi$new(name, args, range, FALSE)$call(x))
+test_function <- function(name, x, args = numeric(), 
+                          min = NA, max = NA, model = NULL) {
+  # note: for simple function no reshaping -> discr = FALSE
+  get_rcpp_module("housepi_function", model)$FunctionHousepi$new(
+    name, FALSE, unlist(args), c(min = min, max = max)
+  )$call(x)
 }
 
 #' @title
 #' Test Housepi Distribution
 #' @description
 #' Call housepi registered distribution.
+#' This function internally calls a large C++ class, 
+#' thus it is not optimized for repeated  operations.
 #'
 #' @param name `character(1)`\cr
 #' Name of the distribution.
@@ -733,25 +735,26 @@ test_housepi_function <- function(name, x, args = numeric(),
 #' Value of the minimum.
 #' @param max `double(1)`\cr
 #' Value of the maximum.
-#' @param hhmodel `HouseholdModel`\cr
+#' @param model `HouseholdModel`\cr
 #' Custom household model to load from.
 #'
 #' @return
 #' `numeric()`
 #'
 #' @export
-test_housepi_distribution <- function(name, x, discr = FALSE, args = numeric(), 
-                                      min = NA, max = NA, hhmodel = NULL) {    
-  args <- unlist(args)
-  range <- c(min = min, max = max)
-  m <- get_rcpp_module("housepi_distribution", hhmodel)
-  return(m$DistributionHousepi$new(name, args, range, discr)$call(x))
+test_distribution <- function(name, x, discr = FALSE, args = numeric(), 
+                              min = NA, max = NA, model = NULL) {    
+  get_rcpp_module("housepi_distribution", model)$DistributionHousepi$new(
+    name, discr, unlist(args), c(min = min, max = max)
+  )$call(x)
 }
 
 #' @title
 #' Test Housepi Infectivity Profile
 #' @description
 #' Call housepi registered infectivity profile.
+#' This function internally calls a large C++ class, 
+#' thus it is not optimized for repeated  operations.
 #'
 #' @param name `character(1)`\cr
 #' Name of the infectivity profile
@@ -763,17 +766,17 @@ test_housepi_distribution <- function(name, x, discr = FALSE, args = numeric(),
 #' Additional arguments.
 #' @param max `double(1)`\cr
 #' Value of the maximum.
-#' @param hhmodel `HouseholdModel`\cr
+#' @param model `HouseholdModel`\cr
 #' Custom household model to load from.
 #'
 #' @return
 #' `numeric()`
 #'
 #' @export
-test_housepi_infec_profile <- function(name, x, discr = FALSE, args = numeric(), 
-                                       max = NA, hhmodel = NULL) {
-  args <- unlist(args)   
-  range <- c(max = max)                      
-  m <- get_rcpp_module("housepi_infec_profile", hhmodel)
-  return(m$InfecProfileHousepi$new(name, args, range, discr)$call(x))
+test_infec_profile <- function(name, x, discr = FALSE, args = numeric(), 
+                               max = NA, model = NULL) {          
+  # UPDATE: the minimum should be imposed from within         
+  get_rcpp_module("housepi_infec_profile", model)$InfecProfileHousepi$new(
+    name, discr, unlist(args), c(min = ifelse(discr, 1, 0), max = max)
+  )$call(unlist(x))
 }

@@ -54,6 +54,8 @@ HousepiGenerator <- R6::R6Class(
     # List of levels of the factors in the datalist.
     .datalist_levels = NULL,
 
+    # @field .cri_level `numeric(1)`\cr
+    # Width of ther credible interval.
     .cri_level = 0.95,
 
     ############################################################################
@@ -100,23 +102,23 @@ HousepiGenerator <- R6::R6Class(
     },
 
     # @description
-    # Assert extra allocations in source code match calls.
+    # Assert cache allocations in source code match calls.
     #
     # @param source_dir `character(1)`\cr
     # The path to source code
-    .assert_extra = function(source_dir) {
+    .assert_cache = function(source_dir) {
       # use source file as a reference
       refer_file <- file.path(source_dir, "model.cpp")
 
       # dictionary of allocate\call functions
       checks <- list(
-        "allocate_extra_house_integer_vector" = ".extra_integer_vector",
-        "allocate_extra_house_double_vector" = ".extra_double_vector",
-        "allocate_extra_house_double_matrix" = ".extra_double_matrix"
+        "cache_house_integer_vector" = ".cache_integer_vector",
+        "cache_house_double_vector" = ".cache_double_vector",
+        "cache_house_double_matrix" = ".cache_double_matrix"
       )
 
-      missing_set <- c()
-      unused_set <- c()
+      miss <- c()
+      unused <- c()
       for (i in seq_along(checks)) {
         # regular expression
         reg <- '%s\\s*\\(\\s*["\'](.*?)["\']'
@@ -130,26 +132,24 @@ HousepiGenerator <- R6::R6Class(
         defined <- template_find_requirement(refer_file, reg_allocated)
 
         # point out extra variables
-        unused_set <- c(unused_set,
-                        template_find_unused(requirements, defined))
+        unused <- c(unused, template_find_unused(requirements, defined))
         # find missing extra variables
-        missing_set <- c(missing_set,
-                         template_find_missing(requirements, defined))
+        miss <- c(miss, template_find_missing(requirements, defined))
       }
 
       # warn for unused extra variables
-      if (length(unused_set) > 0) warning_h(
-        sprintf("Allocated extra variable%s not used in the model: %s",
-                ifelse(length(unused_set) > 1, "s", ""),
-                character_to_string_list(unused_set)),
-        find_closest_match(unused_set, requirements)
+      if (length(unused) > 0) warning_h(
+        sprintf("Cached but unused variable%s %s",
+                ifelse(length(unused) > 1, "s:", ""),
+                character_to_string_list(unused)),
+        find_closest_match(unused, requirements)
       )
 
       # error for not allocated extra variables
-      if (length(missing_set) > 0) stop_h(
-        sprintf("Missing allocation for extra variable%s in the model:",
-                ifelse(length(missing_set) > 1, "s", "")),
-        character_to_string_list(missing_set)
+      if (length(miss) > 0) stop_h(
+        sprintf("Called but not cached variable%s %s",
+                ifelse(length(miss) > 1, "s:", ""),
+                character_to_string_list(miss))
       )
 
       invisible(self)
@@ -226,7 +226,7 @@ HousepiGenerator <- R6::R6Class(
         # source directory must contain source files
         private$.assert_source_files(source_dir)
         # organize cache directory to perform compilation
-        private$.assert_extra(source_dir)
+        private$.assert_cache(source_dir)
         private$.copy_source_code(source_dir)
       }
 
@@ -399,6 +399,22 @@ HousepiGenerator <- R6::R6Class(
       return(output)
     },
 
+    # @description Reference script.
+    # @param seed `integer(1)`
+    # @return `integer(1)`
+    .adjust_seed = function(seed) {
+      max_r_int <- .Machine$integer.max
+      if (is.na(seed)) seed <- sample.int(max_r_int, 1)
+      else seed <- abs(seed)
+
+      # control that seed is 32bit (for custom seed)
+      if (seed > max_r_int) stop_h(
+        "Supplied seed is not supported.",
+        sprintf("Maximum value for an integer in R is %.0f.", max_r_int)
+      )
+      return(seed)
+    },
+
     ############################################################################
     ############################################################################
     ############################################################################
@@ -430,9 +446,9 @@ HousepiGenerator <- R6::R6Class(
       requirements <- private$.require_dataset()
       miss <- template_find_missing(requirements, dataset_headers)
       if (length(miss) > 0) stop_h(
-        sprintf("Missing dataset header%s for:",
-                ifelse(length(miss) > 1, "s", "")),
-        character_to_string_list(miss)
+        sprintf("Missing dataset column%s %s",
+                ifelse(length(miss) > 1, "s:", ""),
+                character_to_string_list(miss))
       )
       invisible(self)
     },
@@ -475,6 +491,7 @@ HousepiGenerator <- R6::R6Class(
     #' Value between 0.5 and 1 (default is 0.95).
     cri_level = function(value) {
       if (missing(value)) return(private$.cri_level)
+      else if (is.na(value)) stop_h("Credible interval cannot be NA.")
       else if ((value <= 0.5) || (value >= 1)) stop_h(
         "Credible interval level must be a value between 0.5 and 1."
       )

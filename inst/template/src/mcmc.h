@@ -136,9 +136,9 @@ public:
 
 #ifdef _HOUSEPI_RCPP
 	//----- C++ Print -----//
-	Rcpp::DataFrame simulate();
-	Rcpp::List evidence(const std::string &scheme,
-						ulong n_rungs);
+	Rcpp::DataFrame dataset_for_simulation() const;
+	Rcpp::List simulate(size_t n_rep);
+	Rcpp::List evidence(const std::string &scheme, ulong n_rungs);
 
 	//========================//
 	//===== Rcpp IMPORTS =====//

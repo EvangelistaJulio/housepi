@@ -27,8 +27,11 @@ Parameter definitions are associated as shown in the [Walkthrough](walkthrough.h
 To perform the sampling we consider the "blank" model, i. e. a data independent template model, with loglikelihood always equal to zero.
 
 ```{r, eval = TRUE}
+library(housepi)
+set.seed(42)
+
 # create an instance of the blank model
-blank_model <- housepi::HouseholdModel$new("blank")
+blank_model <- HouseholdModel$new("blank")
 ```
 
 # Continuous Priors
@@ -57,6 +60,8 @@ blank_model$infer()
 The warning just reminds us that we are using a dummy model.
 
 ```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
+library(bayesplot)
+
 # custom function to extract traces without loglikelihood
 traces_no_loglike <- function(model) {
   mask <- model$param_defs$name[!model$param_defs$const]
@@ -64,7 +69,7 @@ traces_no_loglike <- function(model) {
 }
 
 # density plot of the traces (w\o loglikelihood)
-bayesplot::mcmc_dens(traces_no_loglike(blank_model))
+mcmc_dens(traces_no_loglike(blank_model))
 ```
 
 ## Provide a Custom Range
@@ -82,13 +87,13 @@ blank_model$infer()
 ```
 
 ```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
-bayesplot::mcmc_dens(traces_no_loglike(blank_model))
+mcmc_dens(traces_no_loglike(blank_model))
 ```
 
 # Discrete Priors
 
 ```{r, include=FALSE}
-bayesplot::color_scheme_set(scheme = "orange")
+color_scheme_set(scheme = "orange")
 ```
 
 Here's the full list of available discrete distributions present in `housepi`:
@@ -97,8 +102,8 @@ Here's the full list of available discrete distributions present in `housepi`:
 # discrete distributions in housepi
 discrete_distrs <- c("pois", "binom", "nbinom", "geom")
 blank_model$drop_all()
-for (distr in discrete_distrs) {
-  blank_model$add_param(name = distr, prior = distr)
+for (d in discrete_distrs) {
+  blank_model$add_param(name = d, prior = d)
 }
 
 # perform the sampling 
@@ -107,7 +112,7 @@ blank_model$infer()
 
 ```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # plot the histograms
-bayesplot::mcmc_hist(traces_no_loglike(blank_model), binwidth = 1)
+mcmc_hist(traces_no_loglike(blank_model), binwidth = 1)
 ```
 
 ## How to Discretize Continuos Priors
@@ -119,8 +124,8 @@ Previous continuous priors can be chosen to be discretized simply by adding the 
 blank_model$drop_all()
 
 # add a parameter definition for each available distribution
-for (distr in available_distrs[available_distrs != "beta"]) {
-  blank_model$add_param(name = distr, prior = distr, discr = TRUE)
+for (d in available_distrs[available_distrs != "beta"]) {
+  blank_model$add_param(name = d, prior = d, discr = TRUE)
 }
 
 # perform the sampling 
@@ -129,13 +134,13 @@ blank_model$infer()
 
 ```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # plot the histograms
-bayesplot::mcmc_hist(traces_no_loglike(blank_model), binwidth = 1)
+mcmc_hist(traces_no_loglike(blank_model), binwidth = 1)
 ```
 
 # MCMC Proposer Rules
 
 ```{r, include=FALSE}
-bayesplot::color_scheme_set(scheme = "purple")
+color_scheme_set(scheme = "purple")
 ```
 
 ```{r}
@@ -145,16 +150,16 @@ blank_model$drop_all()
 available_proposer_rules <- c("draw", "unif", "norm", "lnorm")
 
 # add a parameter definition for each available proposer rule
-for (rule in available_proposer_rules) {
-  blank_model$add_param(name = paste("rule", rule), prior = "norm", 
-                        min = 0, rule = rule, scale = 0.1)
+for (r in available_proposer_rules) {
+  blank_model$add_param(name = paste("rule", r), prior = "norm", 
+                        min = 0, rule = r, scale = 0.1)
 }
 
 blank_model$infer(n_steps = 100)
 ```
 
 ```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
-bayesplot::mcmc_trace(traces_no_loglike(blank_model))
+mcmc_trace(traces_no_loglike(blank_model))
 ```
 Note that the proposer rule "lnorm" does not fit the case of negative values.
 
@@ -162,5 +167,5 @@ Note that the proposer rule "lnorm" does not fit the case of negative values.
 
 ```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 blank_model$infer(n_steps = 100, n_adapt = 1000)
-bayesplot::mcmc_trace(traces_no_loglike(blank_model))
+mcmc_trace(traces_no_loglike(blank_model))
 ```

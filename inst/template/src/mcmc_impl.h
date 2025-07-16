@@ -328,10 +328,11 @@ public:
         void rcpp_import_multiplicity(SEXP input);
 
         Rcpp::DataFrame rcpp_snapshot(const std::string &house_id) const;
-        Rcpp::DataFrame rcpp_export() const;
+        Rcpp::DataFrame rcpp_export(const str_vec&columns, bool is_status) const;
         Rcpp::DataFrame rcpp_export_report() const;
         Rcpp::DataFrame rcpp_export_size_report() const;
         Rcpp::NumericMatrix rcpp_export_traces() const;
+
 #else
         void read(const std::string &pathtofile);
         void read_multiplicity(const std::string &pathtofile);
@@ -590,12 +591,12 @@ public:
 
         //===== Functional methods for getter methods =====//
         double (ImplInfecProfile::*inst_)(const Individual *, double) = &ImplInfecProfile::do_inst_default_;
-        double do_inst_default_(const Individual *, double t) { profile_->pdf(t); }
+        double do_inst_default_(const Individual *, double t) { return profile_->pdf(t); }
         double do_inst_augm_(const Individual *i, double t) { return i->get_augm_variable(HSP_PROFILE_INST)(t); }
         double do_inst_lookup_(const Individual *, double t);
 
         double (ImplInfecProfile::*cumul_)(const Individual *, double) = &ImplInfecProfile::do_cumul_default_;
-        double do_cumul_default_(const Individual *, double t) { profile_->cdf(t); }
+        double do_cumul_default_(const Individual *, double t) { return profile_->cdf(t); }
         double do_cumul_augm_(const Individual *i, double t) { return i->get_augm_variable(HSP_PROFILE_CUMUL)(t); }
         double do_cumul_lookup_(const Individual *, double t);
     } infec_profile;
@@ -609,7 +610,10 @@ public:
 
 #ifdef _HOUSEPI_RCPP
     //----- C++ Print -----//
-    Rcpp::DataFrame simulate();
+    Rcpp::List simulate(size_t n_rep);
+    Rcpp::DataFrame simulate_conserved_output();
+    Rcpp::DataFrame simulate_repetition();
+
     Rcpp::List evidence(const std::string &scheme, ulong n_rungs);
 
     //----- Rcpp EXPORTS -----//

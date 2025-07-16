@@ -32,6 +32,10 @@ test_that("Model class blank calls", {
                          measure = seq(3)**3)
   hhmodel$datalist <- datalist
   expect_true(all(hhmodel$datalist == datalist))
+  
+  # factorization 
+  hhmodel$dataset <- housepi::survey
+  expect_true(all(hhmodel$dataset == housepi::survey))
 
   # templates
   expect_warning(hhmodel$load_param_template())
@@ -117,7 +121,7 @@ test_that("Augmented function example returns expected distribution", {
     z0 = "sqrt_m_two_log_u1 * cos_two_pi_u2"
   )
 
-  hhmodel$infer(n_steps = 1e5, progress = 0)
+  hhmodel$infer(n_steps = 5e5, progress = 0)
   sample_norm <- hhmodel$traces$norm
   sample_boxmul <- hhmodel$traces$z0
 

@@ -60,8 +60,8 @@ void print_decorator(const std::string &title, bool verbose = true, const std::s
 /* Main function for the standalone version of 'housepi'. */
 int main(int argc, char *argv[])
 {
-    using tools::stoupper;
     using tools::stolower;
+    using tools::stoupper;
 
     int carg_i = 1;   // command line iterator
     std::string carg; // command line argument
@@ -128,7 +128,7 @@ int main(int argc, char *argv[])
             dataset_file = argv[++carg_i];
 
         else if (stoupper(carg) == "-L" || stolower(carg) == "--datalist")
-            dataset_file = argv[++carg_i];
+            datalist_file = argv[++carg_i];
 
         else if (stoupper(carg) == "-G" || stolower(carg) == "--group-rates")
             group_rates_file = argv[++carg_i];

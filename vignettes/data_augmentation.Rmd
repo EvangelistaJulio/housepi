@@ -32,6 +32,9 @@ Instead we consider a simulated report documenting the days when a number of cas
 Assuming the incubation period to be described by a gamma distribution, we want to estimate the respective parameters augmenting the infection and onset times, modeled as uniformly distributed in the reported ranges.
 
 ```{r}
+library(housepi)
+set.seed(42)
+
 # use an example script for generate delays
 source("generate_delays.R")
 
@@ -48,7 +51,7 @@ We generate the model as showed in the [Walkthrough](walkthrough.html):
 
 ```{r}
 # generate an instance of the household model class
-hhmodel <- housepi::HouseholdModel$new("augm-example")
+hhmodel <- HouseholdModel$new("augm-example")
 ```
 
 ## Build Augmented Variables
@@ -132,19 +135,20 @@ We can do so by providing the `id` of individual augmented variables we want to 
 # ask for the traces of augmented variables for individual with id 7
 hhmodel$infer(dataset = dataset, n_steps = 10000, n_burnin = 500, 
               thin = 8, n_chains = 4, n_adapt = 3000, 
-              seed = 4349, id_trace = 7, progress = FALSE) 
+              id_trace = 7, progress = FALSE) 
 ```
 
 Note: The warning tells us that our dataset has no demographic structure: it will be interpreted as single individuals living in separate households.
 
 ```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
-bayesplot::mcmc_trace(hhmodel$traces)
+library(bayesplot)
+mcmc_trace(hhmodel$traces)
 ```
 
 ## Other Proposer Rules for the Augmented Variables
 
 ```{r, include=FALSE}
-bayesplot::color_scheme_set(scheme = "purple")
+color_scheme_set(scheme = "purple")
 ```
 
 When it comes to data augmentation, we might need to explore different options for the Monte Carlo moves.
@@ -154,17 +158,17 @@ We always recommend a visual assesment before choosing a new move.
 
 ```{r, fig.width=6.5, fig.height=2, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
 # with model (default draw rule)
-hhmodel <- housepi::HouseholdModel$new("blank")
+hhmodel <- HouseholdModel$new("blank")
 hhmodel$add_augm(name = "move_with_model", model = "norm")
-bayesplot::mcmc_trace(hhmodel$infer(seed = 1)$traces)
+mcmc_trace(hhmodel$infer()$traces)
 
 # random walk starting from 0 (without model)
 hhmodel$drop_all()
 hhmodel$add_augm(name = "random_walk", value = 0, rule = "norm")
-bayesplot::mcmc_trace(hhmodel$infer(seed = 2)$traces)
+mcmc_trace(hhmodel$infer()$traces)
 
 # independent normal moves from value 87 (without model)
 hhmodel$drop_all()
 hhmodel$add_augm(name = "independent_moves", rule = "norm", from = 87)
-bayesplot::mcmc_trace(hhmodel$infer(seed = 3)$traces)
+mcmc_trace(hhmodel$infer()$traces)
 ```
