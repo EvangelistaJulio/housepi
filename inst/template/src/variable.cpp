@@ -57,7 +57,7 @@ Proposer::Proposer(std::shared_ptr<Distribution> distr,
     args_to_adapt_list_ = new ushort[n_args_to_adapt_];
 
     for (ushort c = 0; c < n_args_to_adapt_; ++c)
-        args_to_adapt_list_[c] = args_to_adapt.at(c);
+        args_to_adapt_list_[c] = args_to_adapt[c];
 };
 
 /* Proposer constructor from Distribution name. */

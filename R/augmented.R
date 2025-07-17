@@ -168,8 +168,9 @@ HousepiAugmented <- R6::R6Class(
       return(opts)
     },
 
-    # from : augmented variable definitions
-    .find_def_required = function(key) {
+    # Definitions required by augmented variable definitions
+    # according to the "at" key of the definition (A, D, P).
+    .find_def_required = function(at) {
 
       # tuples (value, type) amongst definitions
       tuple_at_cols <- list(c("farg_val", "farg_at"),
@@ -177,7 +178,7 @@ HousepiAugmented <- R6::R6Class(
                             c("min", "min_at"), c("max", "max_at"),
                             c("scale", "scale_at"), c("from", "from_at"))
 
-      required_set <- c()
+      required <- c()
       if (length(self$defs) > 0) {
         for (tuple in tuple_at_cols) {
           xdef <- self$defs[tuple]
@@ -185,16 +186,16 @@ HousepiAugmented <- R6::R6Class(
             rw <- unlist(xdef[i, ])
             if (!any(is.na(rw))) {
               arg2par <- data.frame(
-                vals = strsplit(rw[1], "/")[[1]],
-                keys = strsplit(rw[2], "/")[[1]]
+                val = strsplit(rw[1], "/")[[1]],
+                at = strsplit(rw[2], "/")[[1]]
               )
-              required_set <- c(required_set,
-                                arg2par[arg2par$keys == key, "vals"])
+              required <- c(required, arg2par[arg2par$at == at, "val"])
             }
           }
         }
       }
-      return(unique(required_set))
+      # remove duplicates and add source name
+      return(set_source_name_(unique(required), "augmented"))
     }
   ),
 
@@ -262,10 +263,8 @@ HousepiAugmented <- R6::R6Class(
         '.set_augm_value\\s*\\(\\s*["\'](.*?)["\']'
       )
       # find required augmented variables from regular expressions
-      return(c(
-        template_find_requirement(refer_file, regular_expr),
-        self$augm_required
-      ))
+      output <- template_required_find(refer_file, regular_expr)
+      return(c(set_source_name_(output, "model"), self$augm_required))
     },
 
     #' @description
@@ -466,13 +465,13 @@ HousepiAugmented <- R6::R6Class(
     #'
     #' @param templ_file
     #' Path/to/.refer template file.
-    #' @param requirements `character()`\cr
+    #' @param required `character()`\cr
     #' Vector containing required parameters.
     #' @param append `logical(1)`\cr
     #' If `TRUE` append missing augmented variable definitions.
     #' If `FALSE` drop all pre-existing definitions (default).
     load_template = function(templ_file,
-                             requirements = NULL,
+                             required = NULL,
                              append = FALSE) {
       # check if template file exists
       if (file.exists((templ_file))) {
@@ -481,23 +480,22 @@ HousepiAugmented <- R6::R6Class(
 
         if (isTRUE(append)) {
           # check set of required augmented variables
-          if (length(requirements) == 0) {
+          if (length(required) == 0) {
             warning_h(
               "Appending template augmented variable definitions failed.",
               "Alternatively use option 'append = FALSE'."
             )
           } else {
-            missing_set <- template_find_missing(requirements,
-                                                 self$defs[["name"]])
+            miss <- template_missing_find(required, self$defs[["name"]])
 
-            if (length(missing_set) == 0) warning_h(
+            if (length(miss) == 0) warning_h(
               "No template augmented variable to append.",
               "Definitions are complete."
             )
-            else if (!all(missing_set %in% names(templ_defs))) stop_h(
+            else if (!all(miss %in% names(templ_defs))) stop_h(
               "No template found for the missing augmented variables."
             )
-            else self$load_list(from = templ_defs[missing_set], append = TRUE)
+            else self$load_list(from = templ_defs[miss], append = TRUE)
           }
         } else {
           self$load_list(from = templ_defs, append = FALSE)
@@ -516,30 +514,14 @@ HousepiAugmented <- R6::R6Class(
     #' @description
     #' Assert augmented definitions from the model implementation script.
     #'
-    #' @param requirements `character()`\cr
+    #' @param required `character()`\cr
     #' Vector containing required parameters.
-    assert = function(requirements) {
+    assert = function(required) {
       defined <- self$defs[["name"]]
-
       # point out augmented variables that are not used
-      unused_set <- template_find_unused(requirements, defined)
-      # drop unused augmented variables
-      if (length(unused_set) > 0) warning_h(
-        sprintf("Unused augmented variable definition%s %s",
-                ifelse(length(unused_set) > 1, "s:", ""),
-                character_to_string_list(unused_set)),
-        find_closest_match(unused_set, requirements),
-        "Unused augmented variables should be removed."
-      )
-
-      # find missing augmented variables
-      missing_set <- template_find_missing(requirements, defined)
-      if (length(missing_set) > 0) stop_h(
-        sprintf("Missing augmented variable definition%s %s",
-                ifelse(length(missing_set) > 1, "s:", ""),
-                character_to_string_list(missing_set))
-      )
-
+      template_not_used_warn(required, defined, "augmented variable")
+      # stop if augmented variables are missing
+      template_missing_stop(required, defined, "augmented variable")
       invisible(self)
     }
   )

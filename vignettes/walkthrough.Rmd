@@ -155,9 +155,7 @@ We can extract the posterior traces directly from the field `$traces`. This will
 traces <- hhmodel$traces
 
 # compute summary of posterior draws
-library(posterior)
-estimates <- summarise_draws(traces)
-# inspecte estimates as returned by 'posterior'
+estimates <- posterior::summarise_draws(traces)
 estimates
 ```
 or in combination with [bayesplot](https://cran.r-project.org/web/packages/bayesplot/) `mcmc_trace()` to plot the traces 
@@ -170,14 +168,13 @@ mcmc_trace(traces, facet_args = list(ncol = 1))
 
 ## Model Comparison
 
-
 To perform model comparison, one options is to use functions from the R package [loo](https://cloud.r-project.org/web/packages/loo/). 
 We can extract the sample of pointwise loglikelihood for each household using the field `$house_loglike_traces` and compute (e. g.) the WAIC as follows
-
+    
 ```{r}
 # widely applicable information criterion WAIC calling 'loo'
 library(loo)
-waic(as_draws_matrix(hhmodel$house_loglike_traces))
+waic(posterior::as_draws_matrix(hhmodel$house_loglike_traces))
 ```
 
 Similarly can be done with for the LOO-CV (leave-one-out cross-validation) with the function `loo()`.

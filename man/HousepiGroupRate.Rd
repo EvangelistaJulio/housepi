@@ -217,15 +217,15 @@ Levels for each factorized feature.}
 \if{html}{\out{<a id="method-HousepiGroupRate-assert"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiGroupRate-assert}{}}}
 \subsection{Method \code{assert()}}{
-Assert that group rate definitions match the requirement list.
+Assert that group rate definitions match the requirements.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiGroupRate$assert(requirements)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiGroupRate$assert(required)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{requirements}}{\code{character()}\cr
+\item{\code{required}}{\code{character()}\cr
 Vector containing required group rates.}
 }
 \if{html}{\out{</div>}}

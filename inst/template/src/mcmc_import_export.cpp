@@ -666,7 +666,7 @@ Rcpp::DataFrame MCMC::Impl::ImplAugmented::rcpp_snapshot(const std::string &hous
 {
     using namespace Rcpp;
 
-    const str_vec headers = list_full - str_vec({HSP_PROFILE_INST, HSP_PROFILE_CUMUL});
+    const str_vec headers = list_export();
 
     if (!headers.empty())
     {

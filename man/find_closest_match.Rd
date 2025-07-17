@@ -4,7 +4,7 @@
 \alias{find_closest_match}
 \title{Find closest match}
 \usage{
-find_closest_match(input, options, min_dist = 2)
+find_closest_match(input, options, min_dist = 1)
 }
 \arguments{
 \item{input}{\code{character(1)}\cr

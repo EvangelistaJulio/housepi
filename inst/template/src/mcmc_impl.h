@@ -480,7 +480,7 @@ public:
         //===== GETTER =====//
         const std::vector<augm_key> list_export() const
         {
-            return list_sample + list_func - str_vec({HSP_PROFILE_INST, HSP_PROFILE_CUMUL});
+            return list_full - str_vec({HSP_PROFILE_INST, HSP_PROFILE_CUMUL});
         }
 
         /* Flag if there are ant augmented variable definitions. */
@@ -637,7 +637,7 @@ private:
     std::function<void(Household &)> callback_simulate_house_;
     std::function<void(Household &, Individual &)> callback_update_cache_;
 
-    void init_model_for_inferencee_() { callback_init_inference_(); }
+    void init_model_for_inference_() { callback_init_inference_(); }
     void init_model_for_simulation_() { callback_init_simulation_(); }
     void simulate_single_household_(Household &h) { callback_simulate_house_(h); }
     void update_cache_dependecies_(Household &h, Individual &i) { callback_update_cache_(h, i); }

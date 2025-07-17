@@ -70,12 +70,12 @@ double MCMC::Impl::ImplAugmented::type_to_double_(const Individual &member,
 
 /* Auxiliary method to assign attributes to augmented function or model. */
 void MCMC::Impl::ImplAugmented::init_attributes_(Individual &member,
-                                                   const augm_key &a,
-                                                   const str_vec &keys,
-                                                   const str_vec &vals,
-                                                   const str_vec &typs,
-                                                   const std::vector<bool> &is_arg,
-                                                   bool is_var_model)
+                                                 const augm_key &a,
+                                                 const str_vec &keys,
+                                                 const str_vec &vals,
+                                                 const str_vec &typs,
+                                                 const std::vector<bool> &is_arg,
+                                                 bool is_var_model)
 {
     // check size validity of keys, values and type
     if ((keys.size() != vals.size()) || (typs.size() != vals.size()))
@@ -179,42 +179,42 @@ void MCMC::Impl::ImplAugmented::init_attributes_(Individual &member,
 
 /* Assign augmented function arguments. */
 void MCMC::Impl::ImplAugmented::init_func_args_(Individual &member,
-                                                  const augm_key &a,
-                                                  const str_vec &keys,
-                                                  const str_vec &vals,
-                                                  const str_vec &typs)
+                                                const augm_key &a,
+                                                const str_vec &keys,
+                                                const str_vec &vals,
+                                                const str_vec &typs)
 {
     init_attributes_(member, a, keys, vals, typs,
-                       std::vector<bool>(keys.size(), HSP_ATTR_ARGUMENT), HSP_VAR_FUNCTION);
+                     std::vector<bool>(keys.size(), HSP_ATTR_ARGUMENT), HSP_VAR_FUNCTION);
 }
 /* Assign augmented function range. */
 void MCMC::Impl::ImplAugmented::init_func_range_(Individual &member,
-                                                   const augm_key &a,
-                                                   const str_vec &vals,
-                                                   const str_vec &typs)
+                                                 const augm_key &a,
+                                                 const str_vec &vals,
+                                                 const str_vec &typs)
 {
     init_attributes_(member, a, {"min", "max"}, vals, typs,
-                       std::vector<bool>(2, HSP_ATTR_RANGE), HSP_VAR_FUNCTION);
+                     std::vector<bool>(2, HSP_ATTR_RANGE), HSP_VAR_FUNCTION);
 }
 
 /* Assign augmented model arguments. */
 void MCMC::Impl::ImplAugmented::init_model_args_(Individual &member,
-                                                   const augm_key &a,
-                                                   const str_vec &keys,
-                                                   const str_vec &vals,
-                                                   const str_vec &typs)
+                                                 const augm_key &a,
+                                                 const str_vec &keys,
+                                                 const str_vec &vals,
+                                                 const str_vec &typs)
 {
     init_attributes_(member, a, keys, vals, typs,
-                       std::vector<bool>(keys.size(), HSP_ATTR_ARGUMENT), HSP_VAR_MODEL);
+                     std::vector<bool>(keys.size(), HSP_ATTR_ARGUMENT), HSP_VAR_MODEL);
 }
 /* Assign augmented model range. */
 void MCMC::Impl::ImplAugmented::init_model_range_(Individual &member,
-                                                    const augm_key &a,
-                                                    const str_vec &vals,
-                                                    const str_vec &typs)
+                                                  const augm_key &a,
+                                                  const str_vec &vals,
+                                                  const str_vec &typs)
 {
     init_attributes_(member, a, {"min", "max"}, vals, typs,
-                       std::vector<bool>(2, HSP_ATTR_RANGE), HSP_VAR_MODEL);
+                     std::vector<bool>(2, HSP_ATTR_RANGE), HSP_VAR_MODEL);
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -541,12 +541,12 @@ void MCMC::Impl::ImplAugmented::init_all(Individual &member)
                 // assign augmented variable placeholder
                 // FIXME: what if constant = T, discrete = T and value != integer?
                 member.init_augm(a,
-                                   deftab.at("name")[k],
-                                   type_to_double_(member, deftab.at("value")[k], deftab.at("value_at")[k]),
-                                   tools::stobool(deftab.at("discr")[k]),
-                                   tools::stobool(deftab.at("const")[k]),
-                                   deftab.at("func")[k],
-                                   deftab.at("model")[k]);
+                                 deftab.at("name")[k],
+                                 type_to_double_(member, deftab.at("value")[k], deftab.at("value_at")[k]),
+                                 tools::stobool(deftab.at("discr")[k]),
+                                 tools::stobool(deftab.at("const")[k]),
+                                 deftab.at("func")[k],
+                                 deftab.at("model")[k]);
 
                 // add entry to individual augmented variable list
                 indiv_augm_entries.emplace(a, k);
@@ -562,35 +562,35 @@ void MCMC::Impl::ImplAugmented::init_all(Individual &member)
 
             // assign arguments to model
             init_model_args_(member, a,
-                               tools::parse_list_args(deftab.at("arg_key")[k]),
-                               tools::parse_list_args(deftab.at("arg_val")[k]),
-                               tools::parse_list_args(deftab.at("arg_at")[k]));
+                             tools::parse_list_args(deftab.at("arg_key")[k]),
+                             tools::parse_list_args(deftab.at("arg_val")[k]),
+                             tools::parse_list_args(deftab.at("arg_at")[k]));
 
             // assign range to model
             init_model_range_(member, a,
-                                {deftab.at("min")[k], deftab.at("max")[k]},
-                                {deftab.at("min_at")[k], deftab.at("max_at")[k]});
+                              {deftab.at("min")[k], deftab.at("max")[k]},
+                              {deftab.at("min_at")[k], deftab.at("max_at")[k]});
             xaugm.init_distr_reshaping();
 
             if (xaugm.is_function())
             {
                 // assign arguments to function
                 init_func_args_(member, a,
-                                  tools::parse_list_args(deftab.at("farg_key")[k]),
-                                  tools::parse_list_args(deftab.at("farg_val")[k]),
-                                  tools::parse_list_args(deftab.at("farg_at")[k]));
+                                tools::parse_list_args(deftab.at("farg_key")[k]),
+                                tools::parse_list_args(deftab.at("farg_val")[k]),
+                                tools::parse_list_args(deftab.at("farg_at")[k]));
                 // assign range to function
                 init_func_range_(member, a,
-                                   {deftab.at("min")[k], deftab.at("max")[k]},
-                                   {deftab.at("min_at")[k], deftab.at("max_at")[k]});
+                                 {deftab.at("min")[k], deftab.at("max")[k]},
+                                 {deftab.at("min_at")[k], deftab.at("max_at")[k]});
                 xaugm.init_func_reshaping();
             }
             else if (!xaugm.is_constant())
             {
                 // assign proposer rule
                 xaugm.init_proposer(deftab.at("rule")[k],
-                                      type_to_double_(member, deftab.at("scale")[k], deftab.at("scale_at")[k]),
-                                      type_to_double_(member, deftab.at("from")[k], deftab.at("from_at")[k]));
+                                    type_to_double_(member, deftab.at("scale")[k], deftab.at("scale_at")[k]),
+                                    type_to_double_(member, deftab.at("from")[k], deftab.at("from_at")[k]));
 
                 // random initialization
                 // UPDATE: I would like a more general switch for this

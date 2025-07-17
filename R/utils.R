@@ -63,18 +63,41 @@ require_suggested_library <- function(libname) {
 #' @param mylist`character()`\cr
 #' Vector of characters.
 #' @param max_print `integer(1)`\cr
-#' Maximum number of elements to print (default is 5).
+#' Maximum number of elements to print (default is 4).
 #'
 #' @return
 #' String formatted as a list of quoted words.
 #'
-#' @keywords internal
-character_to_string_list <- function(mylist, max_print = 5) {
+#' @noRd
+character_to_string_list <- function(mylist, max_print = 4) {
   sms <- paste(lapply(mylist[seq_len(min(max_print, length(mylist)))],
                       function(x) paste0("\"", x, "\"")),
                collapse = ", ")
   if (length(mylist) > max_print) return(paste0(sms, ", ..."))
   else return(paste0(sms, "."))
+}
+
+#' @title
+#' Character to phrase
+#' @description
+#' Collapse a character vector into a phrase.
+#'
+#' @param mylist`character()`\cr
+#' Vector of characters.
+#'
+#' @return
+#' String formatted as a phrase.
+#'
+#' @noRd
+character_to_phrase <- function(mylist) {
+  len_list <- length(mylist)
+  if (len_list == 0) return(NULL)
+  else if (len_list == 1) sms <- mylist
+  else {
+    sms <- paste(mylist[1:(len_list-1)], collapse = ", ")
+    sms <- paste(sms, "and", mylist[len_list])
+  }
+  return(paste0(sms, "."))
 }
 
 #' @title
@@ -93,7 +116,7 @@ character_to_string_list <- function(mylist, max_print = 5) {
 #' String with helpful comments
 #'
 #' @keywords internal
-find_closest_match <- function(input, options, min_dist = 2) {
+find_closest_match <- function(input, options, min_dist = 1) {
   output <- c()
 
   if ((length(options) > 0) && (min_dist > 0)) {
@@ -105,13 +128,11 @@ find_closest_match <- function(input, options, min_dist = 2) {
       output <- sprintf("Did you mean \"%s\"?", closest)
     }
 
-    if (!all(idxs)) {
-      output <- c(output,
-        sprintf("Available option%s %s.",
-                ifelse(length(options) > 1, "s are:", " is"),
-                character_to_string_list(options))
-      )
-    }
+    if (!all(idxs)) output <- c(output,
+      sprintf("Available option%s %s",
+              ifelse(length(options) > 1, "s are:", " is"),
+              character_to_string_list(options))
+    )
 
     return(output)
   }

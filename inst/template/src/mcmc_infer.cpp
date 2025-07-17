@@ -393,7 +393,7 @@ double MCMC::Impl::evaluate()
         setup.rand_init_params = false; // disable random initialization // UPDATE
         param.init();                   // check no undefined parameters
         augm.init();                    // initialize augmented variables
-        init_model_for_inferencee_();   // initialize model for inference
+        init_model_for_inference_();    // initialize model for inference
         update_full_loglike_(true);     // initialize cache + full loglikelihood
 
         return full_loglike_;
@@ -415,9 +415,9 @@ void MCMC::Impl::infer()
 {
     try
     {
-        setup.prog_declare();         // declare current progress bar
-        init_monte_carlo_();          // initialize mcmc sampling
-        init_model_for_inferencee_(); // user initialization model
+        setup.prog_declare();        // declare current progress bar
+        init_monte_carlo_();         // initialize mcmc sampling
+        init_model_for_inference_(); // user initialization model
 
         setup.prog_open(setup.c_n_sweeps * setup.n_chains); // open progress bar
         run_monte_carlo_();                                 // run Monte Carlo
@@ -466,7 +466,7 @@ const std::vector<dbl_vec> MCMC::Impl::power_posteriors_(const std::string &sche
         setup.prog_declare();
 
         // initialize model for inference
-        init_model_for_inferencee_();
+        init_model_for_inference_();
 
         // implementation setup aliases
         double &t = setup.inv_T; // current inverse temperature
@@ -617,7 +617,8 @@ Rcpp::DataFrame MCMC::Impl::simulate_repetition()
 
     size_t n_cols = dataset.n_individuals();
     int_vec df_status = int_vec(n_cols);
-    std::vector<dbl_vec> df_augm(augm.list_full.size(), dbl_vec(n_cols));
+    const str_vec augm_headers = augm.list_export();
+    std::vector<dbl_vec> df_augm(augm_headers.size(), dbl_vec(n_cols));
 
     size_t row = 0;
     for (Household house : dataset)
@@ -627,8 +628,8 @@ Rcpp::DataFrame MCMC::Impl::simulate_repetition()
             for (const Individual &member : house)
             {
                 df_status[row] = member.status();
-                for (size_t i = 0; i < augm.list_full.size(); ++i)
-                    df_augm[i][row] = member.augm(augm.list_full[i]);
+                for (size_t i = 0; i < augm_headers.size(); ++i)
+                    df_augm[i][row] = member.augm(augm_headers[i]);
                 ++row;
             }
         }
@@ -639,8 +640,8 @@ Rcpp::DataFrame MCMC::Impl::simulate_repetition()
         }
 
     List output = List::create(_["status"] = wrap(std::move(df_status)));
-    for (size_t i = 0; i < augm.list_full.size(); ++i)
-        output[augm.list_full[i]] = wrap(std::move(df_augm[i]));
+    for (size_t i = 0; i < augm_headers.size(); ++i)
+        output[augm_headers[i]] = wrap(std::move(df_augm[i]));
     return DataFrame(output);
 }
 

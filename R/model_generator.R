@@ -38,21 +38,21 @@ HousepiGenerator <- R6::R6Class(
     .need_compile = FALSE,
     .rcpp = NULL,
 
-    # @field .last_dataset_cols `character()`\cr
+    # @field .cols_dataset `character()`\cr
     # Headers of the last dataset imported.
-    .last_dataset_cols = NULL,
+    .cols_dataset = NULL,
 
-    # @field .last_datalist_cols `character()`\cr
+    # @field .cols_datalist `character()`\cr
     # Headers of the last datalist imported.
-    .last_datalist_cols = NULL,
+    .cols_datalist = NULL,
 
-    # @field .dataset_levels `list()`\cr
+    # @field .levels_dataset `list()`\cr
     # List of levels of the factors in the dataset.
-    .dataset_levels = NULL,
+    .levels_dataset = NULL,
 
-    # @field .datalist_levels `list()`\cr
+    # @field .levels_datalist `list()`\cr
     # List of levels of the factors in the datalist.
-    .datalist_levels = NULL,
+    .levels_datalist = NULL,
 
     # @field .cri_level `numeric(1)`\cr
     # Width of ther credible interval.
@@ -116,9 +116,9 @@ HousepiGenerator <- R6::R6Class(
         "cache_house_double_vector" = ".cache_double_vector",
         "cache_house_double_matrix" = ".cache_double_matrix"
       )
-
-      miss <- c()
-      unused <- c()
+    
+      required <- c()
+      defined <- c()
       for (i in seq_along(checks)) {
         # regular expression
         reg <- '%s\\s*\\(\\s*["\'](.*?)["\']'
@@ -128,29 +128,14 @@ HousepiGenerator <- R6::R6Class(
         reg_allocated <- sprintf(reg, names(checks)[[i]])
 
         # set of extra variables
-        requirements <- template_find_requirement(refer_file, reg_called)
-        defined <- template_find_requirement(refer_file, reg_allocated)
-
-        # point out extra variables
-        unused <- c(unused, template_find_unused(requirements, defined))
-        # find missing extra variables
-        miss <- c(miss, template_find_missing(requirements, defined))
+        required <- c(required, template_required_find(refer_file, reg_called))
+        defined <- c(defined, template_required_find(refer_file, reg_allocated))
       }
-
-      # warn for unused extra variables
-      if (length(unused) > 0) warning_h(
-        sprintf("Cached but unused variable%s %s",
-                ifelse(length(unused) > 1, "s:", ""),
-                character_to_string_list(unused)),
-        find_closest_match(unused, requirements)
-      )
-
-      # error for not allocated extra variables
-      if (length(miss) > 0) stop_h(
-        sprintf("Called but not cached variable%s %s",
-                ifelse(length(miss) > 1, "s:", ""),
-                character_to_string_list(miss))
-      )
+      required <- set_source_name_(unique(required), "model")
+      # point out unused cached variables
+      template_not_used_warn(required, defined, "cached variable")
+      # stop if cached variables are missing
+      template_missing_stop(required, defined, "cached variable")
 
       invisible(self)
     },
@@ -428,10 +413,10 @@ HousepiGenerator <- R6::R6Class(
         # from : .data("string")
         '.data\\s*\\(\\s*["\'](.*?)["\']'
       )
-
       # retrieve required dataset headers from regular expressions
       refer_file <- private$.reference()
-      return(template_find_requirement(refer_file, regular_expr))
+      output <- template_required_find(refer_file, regular_expr)
+      return(set_source_name_(output, "model"))
     },
 
     # @description 
@@ -443,13 +428,8 @@ HousepiGenerator <- R6::R6Class(
         "Impossible to proceed. No database was provided."
       )
       # find missing dataset headers
-      requirements <- private$.require_dataset()
-      miss <- template_find_missing(requirements, dataset_headers)
-      if (length(miss) > 0) stop_h(
-        sprintf("Missing dataset column%s %s",
-                ifelse(length(miss) > 1, "s:", ""),
-                character_to_string_list(miss))
-      )
+      required <- private$.dataset_required()
+      template_missing_stop(required, dataset_headers, "dataset")
       invisible(self)
     },
 
@@ -462,7 +442,7 @@ HousepiGenerator <- R6::R6Class(
     # @param dataset_headers `character()`\cr
     # Vector with the dataset headers.
     .refactor_dataset = function(x) {
-      cpp_data_refactor(x, private$.dataset_levels, private$.last_dataset_cols)
+      cpp_data_refactor(x, private$.levels_dataset, private$.cols_dataset)
     },
 
     # @description 
@@ -470,7 +450,7 @@ HousepiGenerator <- R6::R6Class(
     # @param dataset_headers `character()`\cr
     # Vector with the dataset headers.
     .refactor_datalist = function(x) {
-      cpp_data_refactor(x, private$.datalist_levels, private$.last_datalist_cols)
+      cpp_data_refactor(x, private$.levels_datalist, private$.cols_datalist)
     }
   ),
 
@@ -632,22 +612,7 @@ HousepiGenerator <- R6::R6Class(
     #' @description
     #' Show model description in RStudio Help window.
     help = function() {
-      if (requireNamespace("rstudioapi", quietly = TRUE)) {
-        info_file <- file.path(private$.path(), "template_info.Rd")
-        if (!file.exists((info_file))) stop_h(
-          "Impossible to show model description.",
-          "No template info was found."
-        )
-        rstudioapi::previewRd(info_file)
-
-      } else if (interactive()) {
-        # print as plain text in the console
-        cat(capture.output(tools::Rd2txt(rd_file)), sep = "\n")
-
-      } else warning_h(
-        "Help method not supported in non-interactive mode."
-      )
-
+      open_model_helper_(private$.path())
       invisible(self)
     },
 

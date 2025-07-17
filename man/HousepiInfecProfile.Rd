@@ -18,6 +18,9 @@ Infectivity profile definition list.}
 \section{Active bindings}{
 \if{html}{\out{<div class="r6-active-bindings">}}
 \describe{
+\item{\code{dataset_required}}{\code{character()}\cr
+Dataset entries required by infectivity profile definition.}
+
 \item{\code{param_required}}{\code{character()}\cr
 Parameters required by infectivity profile definition.}
 

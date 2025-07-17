@@ -138,13 +138,11 @@ hhmodel$param_defs
 Finally, we can visualize the differences (e. g. for susceptibility) with respect to the reference group:
 
 ```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
-
-library(posterior)
 library(dplyr)
 library(ggplot2)
 
 # extract estimates from traces
-estimates <- summarise_draws(traces)
+estimates <- posterior::summarise_draws(traces)
 
 # select estimates associated to group rate
 rate_id <- "susceptibility"

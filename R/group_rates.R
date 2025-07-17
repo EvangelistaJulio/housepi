@@ -230,13 +230,14 @@ HousepiGroupRate <- R6::R6Class(
     #' List of parameter required by group rates.
     param_required = function(value) {
       if (missing(value)) {
-        requirements <- c()
+        required <- c()
         for (rate_id in names(self$logic_tables)) {
           for (this_table in self$logic_tables[[rate_id]]) {
-            requirements <- c(requirements, this_table$param_name)
+            required <- c(required, this_table$param_name)
           }
         }
-        return(setdiff(unique(requirements), c("REFERENCE")))
+        output <- setdiff(unique(required), c("REFERENCE"))
+        return(set_source_name_(output, "group rate"))
       }
       stop_h("'param_required' is read only.")
     },
@@ -282,7 +283,8 @@ HousepiGroupRate <- R6::R6Class(
         '\\.group_rate\\s*\\(\\s*["\'](.*?)["\']'
       )
       # find required group rates from regular expressions
-      return(template_find_requirement(refer_file, regular_expr))
+      output <- template_required_find(refer_file, regular_expr)
+      return(set_source_name_(output, "model"))
     },
 
     #' @description
@@ -506,31 +508,31 @@ HousepiGroupRate <- R6::R6Class(
     },
 
     #' @description
-    #' Assert that group rate definitions match the requirement list.
+    #' Assert that group rate definitions match the requirements.
     #'
-    #' @param requirements `character()`\cr
+    #' @param required `character()`\cr
     #' Vector containing required group rates.
-    assert = function(requirements) {
-
+    assert = function(required) {
+      # load definitions
       defined <- names(self$defs)
 
+      # UPDATE
       # point out group rates that are not used
-      unused_set <- template_find_unused(requirements, defined)
+      notused <- template_not_used_find(required, defined)
       # drop unused group rates
-      if (length(unused_set) > 0) {
-        for (this in unused_set) self$remove(this)
+      if (length(notused) > 0) {
+        for (this in notused) self$remove(this)
         stop_h(
           sprintf("Dropped unused group rate%s %s",
-                  ifelse(length(unused_set) > 1, "s:", ""),
-                  character_to_string_list(unused_set)),
-          find_closest_match(unused_set, requirements, min_dist = 3)
+                  ifelse(length(notused) > 1, "s:", ""),
+                  character_to_string_list(notused)),
+          find_closest_match(notused, required, min_dist = 3)
         )
       }
 
-      # find missing group rates and set defaults
-      missing <- template_find_missing(requirements, defined)
-      if (length(missing) > 0) {
-        for (this in missing) self$add(this, by = NA)
+      # find missing group rates and set as default
+      for (g in template_missing_find(required, defined)) {
+        self$add(g, by = NA)
       }
 
       invisible(self)

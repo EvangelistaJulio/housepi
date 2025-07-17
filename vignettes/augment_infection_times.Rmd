@@ -172,22 +172,22 @@ Finally we wrap all together to compare to parameters used for simulation.
 # collect the results
 traces <- hhmodel$traces
 traces$loglikelihood <- NULL
-estimates <- summarise_draws(traces)
-
-# compare results to parameter values used for simulation
-simul_param_defs <- hhsimul$param_defs
-imask <- simul_param_defs$const == FALSE
-inames <- simul_param_defs[imask, ]$name
+estimates <- posterior::summarise_draws(traces)
 ```
 
-```{r, message = FALSE, warning = FALSE,}
-library(tibble)
+```{r, message = FALSE, warning = FALSE}
 library(dplyr)
 library(flextable)
-cbind(simulated = simul_param_defs[imask, ]$value, estimates) |>
-  rownames_to_column("parameter") |>
-  mutate(inferred = sprintf("%0.4f [%0.4f, %0.4f]", mean, q5, q95)) |>
-  select(variable, simulated, inferred) |>
+
+# compare results to parameter values used for simulation
+simul_param_defs <- hhsimul$param_defs |> 
+  as_tibble() |> filter(!const) |> 
+  select(name, value) |> rename(variable = name, simulated = value)
+  
+estimates |> 
+  summarise(variable = variable,
+            inferred = sprintf("%0.4f [%0.4f, %0.4f]", mean, q5, q95)) |>
+  inner_join(simul_param_defs) |>
   flextable() |>
   separate_header() |>
   theme_vanilla() |>

@@ -44,13 +44,12 @@ HouseholdModel <- R6::R6Class(
     #
     # @return `character()`
     .require_dataset = function() {
-      requirements <- c()
-      if (!private$.is_blank()) {
-        requirements <- private$.dataset_required()
-      }
+      required <- c()
+      if (!private$.is_blank()) required <- private$.dataset_required()
       return(c(
-        requirements, # by the model
-        private$.augm$dataset_required # by augmented variable
+        required, # by the model
+        private$.augm$dataset_required, # by augmented variable
+        private$.infec_profile$dataset_required # by infectivity profile
       ))
     },
 
@@ -59,13 +58,10 @@ HouseholdModel <- R6::R6Class(
     #
     # @return `character()`
     .require_param = function() {
-      if (private$.is_blank()) {
-        requirements <- self$param_defs$name
-      } else {
-        requirements <- private$.param$require(private$.reference())
-      }
+      if (private$.is_blank()) required <- self$param_defs$name
+      else required <- private$.param$require(private$.reference())
       return(c(
-        requirements, # by the model
+        required, # by the model
         private$.group_rates$param_required, # by group rates
         private$.augm$param_required, # by augmented variable
         private$.infec_profile$param_required # by infectivity profile
@@ -73,7 +69,7 @@ HouseholdModel <- R6::R6Class(
     },
 
     # @description
-    # Assert if parameter definitions match requirements
+    # Assert if parameter definitions match required
     .assert_param = function() {
       private$.param$assert(private$.require_param())
       invisible(self)
@@ -91,11 +87,9 @@ HouseholdModel <- R6::R6Class(
     },
 
     # @description
-    # Assert if augmented definitions match the requirements.
+    # Assert if augmented definitions match the required.
     .assert_augm = function() {
-      if (!private$.is_blank()) {
-        private$.augm$assert(private$.require_augm())
-      }
+      if (!private$.is_blank()) private$.augm$assert(private$.require_augm())
       invisible(self)
     },
 
@@ -137,12 +131,12 @@ HouseholdModel <- R6::R6Class(
         private$.assert_dataset(colnames(dataset))
 
         # convert factors to numeric and store levels
-        private$.dataset_levels <- list()
+        private$.levels_dataset <- list()
         for (col in setdiff(colnames(dataset), c("id", "house_id", "status"))) {
           x <- dataset[[col]]
           if (is.character(x) || is.factor(x) || is.logical(x)) {
             x <- factor(x)
-            private$.dataset_levels[[col]] <- levels(x)
+            private$.levels_dataset[[col]] <- levels(x)
             dataset[[col]] <- as.integer(x)
           }
         }
@@ -150,11 +144,11 @@ HouseholdModel <- R6::R6Class(
         # import data.frame in rcpp # note: it calls
         private$.rcpp$import_dataset(fmt_data_input_(dataset))
         # store column names
-        private$.last_dataset_cols <- colnames(dataset)
+        private$.cols_dataset <- colnames(dataset)
 
       } else {
         # assert headers of last imported dataset
-        private$.assert_dataset(private$.last_dataset_cols)
+        private$.assert_dataset(private$.cols_dataset)
       }
 
       # implement group rates and build
@@ -175,12 +169,12 @@ HouseholdModel <- R6::R6Class(
       )
 
       # convert factors to numeric and store levels
-      private$.datalist_levels <- list()
+      private$.levels_datalist <- list()
       for (col in setdiff(colnames(datalist), c("id", "house_id", "status"))) {
         x <- datalist[[col]]
         if (is.character(x) || is.factor(x) || is.logical(x)) {
           x <- factor(x)
-          private$.datalist_levels[[col]] <- levels(x)
+          private$.levels_datalist[[col]] <- levels(x)
           datalist[[col]] <- as.integer(x)
         }
       }
@@ -188,7 +182,7 @@ HouseholdModel <- R6::R6Class(
       # import data.frame in rcpp
       private$.rcpp$import_datalist(fmt_data_input_(datalist))
       # store column names
-      private$.last_datalist_cols <- colnames(datalist)
+      private$.cols_datalist <- colnames(datalist)
     
       invisible(self)
     },
@@ -216,7 +210,7 @@ HouseholdModel <- R6::R6Class(
 
         # if dataset not provided, load previous
         # UPDATE: this "back & forth" of dataset is not optimal!
-        if ((length(dataset) == 0) && (length(private$.last_dataset_cols) > 0)) {
+        if ((length(dataset) == 0) && (length(private$.cols_dataset) > 0)) {
           dataset <- self$dataset
         }
 
@@ -279,22 +273,17 @@ HouseholdModel <- R6::R6Class(
     # Input dataset for simulation.
     .build_group_rates = function() {
       # assert definitions are complete
-      refer_file <- private$.reference()
-      requirements <- private$.group_rates$require(refer_file)
-      private$.group_rates$assert(requirements)
+      private$.assert_group_rate()
 
       # proceed only if definitions exist
       if (length(private$.group_rates$defs) > 0) {
         # if dataset not provided, load previous
         # UPDATE: count in the wrapper while storing dataset_levels
-        if (length(private$.last_dataset_cols) == 0) {
-          dataset <- NULL
-        } else {
-          dataset <- self$dataset
-        }
+        if (length(private$.cols_dataset) == 0) dataset <- NULL
+        else dataset <- self$dataset
 
         # implement group rates
-        private$.group_rates$implement(dataset, private$.dataset_levels)
+        private$.group_rates$implement(dataset, private$.levels_dataset)
 
         # append parameter definitions if missing
         new_param_defs <- private$.group_rates$param_defs
@@ -351,7 +340,7 @@ HouseholdModel <- R6::R6Class(
       # if no default columns, assume debugging mode
       if (private$.is_blank() && is.na(id_trace)) {
         # FIXME: not robust in case of dataset with only default columns
-        if (length(setdiff(private$.last_dataset_cols,
+        if (length(setdiff(private$.cols_dataset,
                            c("house_id", "id", "status"))) == 0) {
           id_trace <- template_blank_dataset_()$id[1]
         }
@@ -374,7 +363,7 @@ HouseholdModel <- R6::R6Class(
 
       # group rates (import depends on param)
       defs <- self$group_rate_defs
-      lvls <- private$.dataset_levels
+      lvls <- private$.levels_dataset
       for (k in intersect(colnames(defs), names(lvls))) {
         defs[[k]] <- as.integer(factor(defs[[k]], levels = lvls[[k]]))
       }
@@ -409,7 +398,7 @@ HouseholdModel <- R6::R6Class(
                 quote = FALSE, row.names = FALSE)
 
       defs <- self$group_rate_defs
-      lvls <- private$.dataset_levels
+      lvls <- private$.levels_dataset
       for (k in intersect(colnames(defs), names(lvls))) {
         defs[[k]] <- as.integer(factor(defs[[k]], levels = lvls[[k]]))
       }

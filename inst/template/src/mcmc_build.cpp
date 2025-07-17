@@ -827,7 +827,7 @@ void MCMC::Impl::ImplParameter::build(const dict_str_vec &deftable)
 void MCMC::Impl::ImplParameter::make_cache_dependent(const par_key &p)
 {
     // remove a parameter from standard if it was defined as such
-    if (!(list_sample_standard % p))
+    if (list_sample_standard % p)
         list_sample_standard = list_sample_standard - str_vec({p});
 
     // add the parameter as cache

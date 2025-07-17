@@ -167,7 +167,7 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 \subsection{Method \code{load_template()}}{
 Load missing parameter from template definitions.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiParameter$load_template(templ_file, requirements = NULL, append = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiParameter$load_template(templ_file, required = NULL, append = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -175,7 +175,7 @@ Load missing parameter from template definitions.
 \describe{
 \item{\code{templ_file}}{Path/to/.refer template file.}
 
-\item{\code{requirements}}{\code{character()}\cr
+\item{\code{required}}{\code{character()}\cr
 Vector containing required parameters.}
 
 \item{\code{append}}{\code{logical(1)}\cr
@@ -204,13 +204,13 @@ List containing current parameter definitions.
 \subsection{Method \code{assert()}}{
 Assert parameter definitions match the requirement list.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiParameter$assert(requirements)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiParameter$assert(required)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{requirements}}{\code{character()}\cr
+\item{\code{required}}{\code{character()}\cr
 Vector containing required parameters.}
 }
 \if{html}{\out{</div>}}

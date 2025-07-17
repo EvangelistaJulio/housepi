@@ -60,7 +60,8 @@ HousepiParameter <- R6::R6Class(
         'emplace_group_rate\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
       )
       # retrieve required parameters from regular expressions
-      return(template_find_requirement(refer_file, regular_expr))
+      output <- template_required_find(refer_file, regular_expr)
+      return(set_source_name_(output, "model"))
     },
 
     #' @description
@@ -244,13 +245,13 @@ HousepiParameter <- R6::R6Class(
     #'
     #' @param templ_file
     #' Path/to/.refer template file.
-    #' @param requirements `character()`\cr
+    #' @param required `character()`\cr
     #' Vector containing required parameters.
     #' @param append `logical(1)`\cr
     #' If `TRUE` append missing parameter definitions.
     #' If `FALSE` drop all pre-existing definitions (default).
     load_template = function(templ_file,
-                             requirements = NULL,
+                             required = NULL,
                              append = FALSE) {
       # check if template file exists
       if (file.exists((templ_file))) {
@@ -259,19 +260,18 @@ HousepiParameter <- R6::R6Class(
 
         if (isTRUE(append)) {
           # check the set of required parameters
-          if (length(requirements) == 0) {
+          if (length(required) == 0) {
             warning_h("No parameter definitions required by the model.")
           } else {
-            missing_set <- template_find_missing(requirements,
-                                                 self$defs[["name"]])
-            if (length(missing_set) == 0) warning_h(
+            miss <- template_missing_find(required, self$defs[["name"]])
+            if (length(miss) == 0) warning_h(
               "No template parameters to append.",
               "Definitions are complete."
             )
-            else if (!all(missing_set %in% names(templ_defs))) stop_h(
+            else if (!all(miss %in% names(templ_defs))) stop_h(
               "No template found for the missing parameters."
             )
-            else self$load_list(from = templ_defs[missing_set], append = TRUE)
+            else self$load_list(from = templ_defs[miss], append = TRUE)
           }
         } else {
           self$load_list(from = templ_defs, append = FALSE)
@@ -316,30 +316,14 @@ HousepiParameter <- R6::R6Class(
     #' @description
     #' Assert parameter definitions match the requirement list.
     #'
-    #' @param requirements `character()`\cr
+    #' @param required `character()`\cr
     #' Vector containing required parameters.
-    assert = function(requirements) {
+    assert = function(required) {
       defined <- self$defs[["name"]]
-
       # point out parameters that are not used
-      unused_set <- template_find_unused(requirements, defined)
-      # drop unused parameters
-      if (length(unused_set) > 0) warning_h(
-        sprintf("Unused parameter definition%s %s",
-                ifelse(length(unused_set) > 1, "s:", ""),
-                character_to_string_list(unused_set)),
-        find_closest_match(unused_set, requirements),
-        "Unused augmented variables should be removed."
-      )
-
-      # find missing parameters
-      missing_set <- template_find_missing(requirements, defined)
-      if (length(missing_set) > 0) stop_h(
-        sprintf("Missing parameter definition%s %s",
-                ifelse(length(missing_set) > 1, "s:", ""),
-                character_to_string_list(missing_set))
-      )
-
+      template_not_used_warn(required, defined, "parameter")
+      # stop if parameters are missing
+      template_missing_stop(required, defined, "parameter")
       invisible(self)
     }
   )

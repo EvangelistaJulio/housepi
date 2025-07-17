@@ -27,47 +27,59 @@ HousepiInfecProfile <- R6::R6Class(
   cloneable = TRUE,
 
   ############################################################################
+  ################################## PRIVATE #################################
+  ############################################################################
+
+  private = list(
+    # Definitions required by augmented variable definitions
+    # according to the "at" key of the definition (A, D, P).
+    .find_def_required = function(at) {
+      # tuples (value, type) amongst definitions
+      tuple_at_cols <- list(c("arg_val", "arg_at"),
+                            c("max", "max_at"))
+
+      required <- c()
+      if (length(self$defs) > 0) {
+        for (tuple in tuple_at_cols) {
+          xdef <- self$defs[tuple]
+          rw <- unlist(xdef)
+          if (!any(is.na(rw))) {
+            arg2par <- data.frame(
+              val = strsplit(rw[1], "/")[[1]],
+              at = strsplit(rw[2], "/")[[1]]
+            )
+            required <- c(required, arg2par[arg2par$at == at, "val"])
+          }
+        }
+      }
+      # remove duplicates and add source name
+      return(set_source_name_(unique(required), "infectivity profile"))
+    }
+  ),
+
+  ############################################################################
   ################################## ACTIVE ##################################
   ############################################################################
 
   active = list(
+    #' @field dataset_required `character()`\cr
+    #' Dataset entries required by infectivity profile definition.
+    dataset_required = function(value) {
+      if (missing(value)) return(private$.find_def_required("D"))
+      stop_h("'dataset_required' is read only.")
+    },
+
     #' @field param_required `character()`\cr
     #' Parameters required by infectivity profile definition.
     param_required = function(value) {
-      if (missing(value)) {
-        requirements <- c()
-        if (is.list(self$defs) && (length(self$defs) > 0)) {
-          if (!any(is.na((self$defs[c("arg_val", "arg_at")])))) {
-            aux <- data.frame(
-              vals = strsplit(self$defs[["arg_val"]], "/")[[1]],
-              keys = strsplit(self$defs[["arg_at"]], "/")[[1]]
-            )
-            aux <- aux[aux[["keys"]] == "P", "vals"]
-            requirements <- c(requirements, aux[!is.na(aux)])
-          }
-        }
-        return(requirements)
-      }
+      if (missing(value)) return(private$.find_def_required("P"))
       stop_h("'param_required' is read only.")
     },
 
     #' @field augm_required `character()`\cr
     #' Augmented variables required by infectivity profile definition.
     augm_required = function(value) {
-      if (missing(value)) {
-        requirements <- c()
-        if (is.list(self$defs) && (length(self$defs) > 0)) {
-          if (!any(is.na((self$defs[c("arg_val", "arg_at")])))) {
-            aux <- data.frame(
-              vals = strsplit(self$defs[["arg_val"]], "/")[[1]],
-              keys = strsplit(self$defs[["arg_at"]], "/")[[1]]
-            )
-            aux <- aux[aux[["keys"]] == "A", "vals"]
-            requirements <- c(requirements, aux[!is.na(aux)])
-          }
-        }
-        return(requirements)
-      }
+      if (missing(value)) return(private$.find_def_required("A"))
       stop_h("'augm_required' is read only.")
     }
   ),
