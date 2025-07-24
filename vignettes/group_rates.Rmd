@@ -112,11 +112,11 @@ hhmodel$drop_group_rate_defs()
 
 # compact definition from list
 hhmodel$load_group_rate_list(
-  infectivity = list(by = "agegroup"),
+  infectivity = "agegroup", # implicit 'by' for single feature
   susceptibility = list(by = c("agegroup", "sex"), independent = FALSE)
 )
 
-# inference with minimal setup (for didactical purposes only)
+# inference with minimal setup
 hhmodel$infer(n_chains = 4, n_steps = 5000, thin = 8, n_adapt = 1000, 
               n_burnin = 1000, progress = 20)
 ```

@@ -63,7 +63,7 @@ void MCMC::Impl::ImplInfecProfile::init_single_attribute_(const std::string &key
 
 	else if (tools::stoupper(at) == TYPE_PARAM)
 	{
-		if (pImpl_.param.dictionary.at(val).is_constant())
+		if (pImpl_.param.at(val).is_constant())
 			profile_->init_attr(key, is_arg, pImpl_.param.get(val));
 		else
 		{

@@ -50,6 +50,7 @@ void MCMC::clear_all_augm(Individual &member) { pImpl_->augm.clear_all(member); 
 
 //===== CACHE ATTRIBUTES =====//
 void MCMC::cache_house_integer_vector(const cache_key &e) { pImpl_->dataset.init_cache_integer_vector(e); }
+void MCMC::cache_house_size_t_vector(const cache_key &e) { pImpl_->dataset.init_cache_size_t_vector(e); }
 void MCMC::cache_house_double_vector(const cache_key &e) { pImpl_->dataset.init_cache_double_vector(e); }
 void MCMC::cache_house_double_matrix(const cache_key &e) { pImpl_->dataset.init_cache_double_matrix(e); }
 

@@ -80,11 +80,9 @@ HousepiParameter <- R6::R6Class(
         self$defs <- self$defs[!mask, ]
         return(TRUE)
 
-      } else if (isTRUE(show_warnings)) {
-        warning_h(
-          sprintf("Attempt to remove unknown parameter \"%s\".", name)
-        )
-      }
+      } else if (isTRUE(show_warnings)) warning_h(
+        sprintf("Attempt to remove unknown parameter \"%s\".", name)
+      )
 
       return(FALSE)
     },
@@ -123,9 +121,7 @@ HousepiParameter <- R6::R6Class(
                    scale = NA,
                    min = NA,
                    max = NA) {
-      if (is.na(name)) stop_h(
-        "Incomplete definition: missing name."
-      )
+      if (is.na(name)) stop_h("Incomplete definition: missing name.")
 
       # remove previous definition if it exists
       if (self$remove(name, FALSE)) warning_h(
@@ -149,12 +145,9 @@ HousepiParameter <- R6::R6Class(
             discr = is.integer(value),
             value = value,
             prior = NA,
-            arg_key = NA,
-            arg_val = NA,
-            rule = NA,
-            scale = NA,
-            min = NA,
-            max = NA,
+            arg_key = NA, arg_val = NA,
+            min = NA, max = NA,
+            rule = NA, scale = NA,
             stringsAsFactors = FALSE
           )
         )
@@ -189,12 +182,9 @@ HousepiParameter <- R6::R6Class(
             discr = isTRUE(discr),
             value = value,
             prior = prior,
-            arg_key = arg_key_,
-            arg_val = arg_val_,
-            min = min,
-            max = max,
-            rule = rule,
-            scale = scale,
+            arg_key = arg_key_, arg_val = arg_val_,
+            min = min, max = max,
+            rule = rule, scale = scale,
             stringsAsFactors = FALSE
           )
         )

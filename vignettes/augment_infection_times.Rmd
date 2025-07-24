@@ -147,12 +147,21 @@ hhmodel$load_augm_list(
 hhmodel$infer(simulated, n_chains = 3, n_steps = 10000, n_adapt = 2000, 
               n_burnin = 1000, thin = 10, progress = 20)
 ```
+We can visualize traces vs expected values as follows
 
 ```{r, message = FALSE, warning = FALSE, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
+# select parameters used for the simulation
+library(dplyr)
+simul_param_defs <- hhsimul$param_defs |> filter(!const) |>
+  select(name, value) |> rename(parameter = name, simulated = value)
+
 # use bayesplot to plot the posterior draws
 library(bayesplot)
+library(ggplot2)
 traces <- hhmodel$traces
-mcmc_trace(traces)
+mcmc_trace(traces) +
+  geom_hline(data = simul_param_defs, aes(yintercept = simulated), 
+             colour = "coral", linewidth = 1)
 ```
 
 ```{r, fig.width=5, fig.height=2.5, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
@@ -176,21 +185,16 @@ estimates <- posterior::summarise_draws(traces)
 ```
 
 ```{r, message = FALSE, warning = FALSE}
-library(dplyr)
+# compare results to parameter values used for simulation
 library(flextable)
 
-# compare results to parameter values used for simulation
-simul_param_defs <- hhsimul$param_defs |> 
-  as_tibble() |> filter(!const) |> 
-  select(name, value) |> rename(variable = name, simulated = value)
-  
 estimates |> 
-  summarise(variable = variable,
+  summarise(parameter = variable,
             inferred = sprintf("%0.4f [%0.4f, %0.4f]", mean, q5, q95)) |>
   inner_join(simul_param_defs) |>
   flextable() |>
   separate_header() |>
   theme_vanilla() |>
-  bold(j = ~ variable, bold = TRUE) |>
+  bold(j = ~ parameter, bold = TRUE) |>
   autofit()
 ```

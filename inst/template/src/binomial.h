@@ -92,7 +92,8 @@ namespace bax
                                      ushort start, ushort loop);
 
     // recursive likelihood formulation lookuptable
-    void init_escape_patterns_lookuptable(ushort max_N);
+    void init_escape_patterns_lookuptable(ushort max_N,
+                                          bool clean_combinations = true);
     void recursive_escape_patterns_function(ushort N_star, ushort N,
                                             ushort_vec access_matrix,
                                             EscapePattern &father,

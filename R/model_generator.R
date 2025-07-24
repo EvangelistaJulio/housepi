@@ -113,6 +113,7 @@ HousepiGenerator <- R6::R6Class(
       # dictionary of allocate\call functions
       checks <- list(
         "cache_house_integer_vector" = ".cache_integer_vector",
+        "cache_house_size_t_vector" = ".cache_size_t_vector",
         "cache_house_double_vector" = ".cache_double_vector",
         "cache_house_double_matrix" = ".cache_double_matrix"
       )
@@ -417,20 +418,6 @@ HousepiGenerator <- R6::R6Class(
       refer_file <- private$.reference()
       output <- template_required_find(refer_file, regular_expr)
       return(set_source_name_(output, "model"))
-    },
-
-    # @description 
-    # Assert if dataset headers match implementation file.
-    # @param dataset_headers `character()`\cr
-    # Vector with the dataset headers.
-    .assert_dataset = function(dataset_headers) {
-      if (length(dataset_headers) == 0) stop_h(
-        "Impossible to proceed. No database was provided."
-      )
-      # find missing dataset headers
-      required <- private$.dataset_required()
-      template_missing_stop(required, dataset_headers, "dataset")
-      invisible(self)
     },
 
     ############################################################################

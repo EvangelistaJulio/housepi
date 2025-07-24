@@ -43,7 +43,7 @@ HouseholdModel <- R6::R6Class(
     # Dataset headers required by implementation file and other definitions.
     #
     # @return `character()`
-    .require_dataset = function() {
+    .get_all_dataset = function() {
       required <- c()
       if (!private$.is_blank()) required <- private$.dataset_required()
       return(c(
@@ -53,11 +53,24 @@ HouseholdModel <- R6::R6Class(
       ))
     },
 
+    # @description 
+    # Assert if dataset headers match implementation file.
+    # @param dataset_headers `character()`\cr
+    # Vector with the dataset headers.
+    .assert_dataset = function(dataset_headers) {
+      if (length(dataset_headers) == 0) stop_h(
+        "Impossible to proceed. No database was provided."
+      )
+      required <- private$.get_all_dataset()
+      template_missing_stop(required, dataset_headers, "dataset")
+      invisible(self)
+    },
+
     # @description
     # Parameters required by implementation file and other definitions.
     #
     # @return `character()`
-    .require_param = function() {
+    .get_all_param = function() {
       if (private$.is_blank()) required <- self$param_defs$name
       else required <- private$.param$require(private$.reference())
       return(c(
@@ -71,7 +84,7 @@ HouseholdModel <- R6::R6Class(
     # @description
     # Assert if parameter definitions match required
     .assert_param = function() {
-      private$.param$assert(private$.require_param())
+      private$.param$assert(private$.get_all_param())
       invisible(self)
     },
 
@@ -79,7 +92,7 @@ HouseholdModel <- R6::R6Class(
     # Augmented variables required by implementation file and other definitions.
     #
     # @return `character()`
-    .require_augm = function() {
+    .get_all_augm = function() {
       return(c(
         private$.augm$require(private$.reference()), # by the model
         private$.infec_profile$augm_required # by infectivity profile
@@ -89,7 +102,7 @@ HouseholdModel <- R6::R6Class(
     # @description
     # Assert if augmented definitions match the required.
     .assert_augm = function() {
-      if (!private$.is_blank()) private$.augm$assert(private$.require_augm())
+      if (!private$.is_blank()) private$.augm$assert(private$.get_all_augm())
       invisible(self)
     },
 
@@ -97,7 +110,7 @@ HouseholdModel <- R6::R6Class(
     # Group rates required by implementation file and other definitions.
     #
     # @return `character()`
-    .require_group_rate = function() {
+    .get_all_group_rate = function() {
       return(private$.group_rates$require(private$.reference()))
     },
 
@@ -105,7 +118,7 @@ HouseholdModel <- R6::R6Class(
     # Assert group rate definitions from the model implementation script.
     .assert_group_rate = function() {
       if (!private$.is_blank()) {
-        private$.group_rates$assert(private$.require_group_rate())
+        private$.group_rates$assert(private$.get_all_group_rate())
       }
       invisible(self)
     },
@@ -204,7 +217,7 @@ HouseholdModel <- R6::R6Class(
       if (template_assert_expression(refer_file, regular_expr)) {
 
         # note: this might be a modeler error
-        if (length(private$.require_augm()) > 0) warning_h(
+        if (length(private$.get_all_augm()) > 0) warning_h(
           "Model with augmentated variable called multiplicity engine."
         )
 
@@ -216,7 +229,7 @@ HouseholdModel <- R6::R6Class(
 
         headers <- c(
           # dataset headers required by implementation
-          private$.require_dataset(),
+          private$.get_all_dataset(),
           # dataset headers required by group rates
           unlist(lapply(
             private$.group_rates$logic_tables,
@@ -415,7 +428,7 @@ HouseholdModel <- R6::R6Class(
       write.table(t(as.data.frame(fmt_setup_input_(self$setup))),
                   file.path(outpath, "setup.tmp"),
                   row.names = TRUE, col.names = FALSE, sep = ",", quote = FALSE)
-      write.table(t(as.data.frame(self$infec_profile_defs)),
+      write.table(t(as.data.frame(private$.infec_profile$defs)),
                   file.path(outpath, "infec.tmp"),
                   row.names = TRUE, col.names = FALSE, sep = ",", quote = FALSE)
       invisible(self)

@@ -26,7 +26,7 @@
 
 double Distribution::rand(rnd_gen &prng)
 {
-    update_args(); // UPDATE: random generator classes should be redisgned to deal with this
+    update_args(); // UPDATE: random generator classes should be redesigned to deal with this
     return (this->*rand_)(prng);
 }
 //-----------------------------------------------------------------------------------------------//

@@ -24,11 +24,11 @@ Load your configuration from files, e. g. create temporary files:
 PARAM=param.tmp
 AUGM=augm.tmp
 SETUP=setup.tmp
-DATASET=dataset.tmp
-DATALIST=datalist.tmp
+DATSET=dataset.tmp
+DATLST=datalist.tmp
 GROUP=group_rates.tmp
 INFEC=infec.tmp
-CONFIG="-s ${SETUP} -p ${PARAM} -d ${DATASET} -l ${datalist} -a ${AUGM} -g ${GROUP} -i ${INFEC}"
+CONFIG="-s ${SETUP} -p ${PARAM} -d ${DATSET} -l ${DATLST} -a ${AUGM} -g ${GROUP} -i ${INFEC}"
 ```
 and store your output in
 ```

@@ -90,7 +90,7 @@ void Individual::init_augm(const augm_key &a, const std::string &name,
 							 const std::string &func_name,
 							 const std::string &model_name)
 {
-	Variable &this_augm = augm_map_.at(a);
+	Variable &this_augm = safe_at(augm_map_, a);
 	this_augm.init(name, value, is_discrete, is_constant, func_name);
 	this_augm.init_distr(model_name);
 }
@@ -101,7 +101,7 @@ void Individual::init_augm_model(const std::vector<augm_key> &augm_model_list)
 	augm_model_logpdfs_.clear();
 	for (const augm_key &a : augm_model_list)
 	{
-		const Variable &xaugm = augm_map_.at(a);
+		const Variable &xaugm = safe_at(augm_map_, a);
 		augm_model_logpdfs_.emplace_back([&xaugm]()
 										 { return xaugm.distr_logpdf(); });
 	}
@@ -246,6 +246,7 @@ void Household::recover_buffer_values(bool is_cache_depen)
 	{
 		// swap buffer into  cache attributes
 		cache_int_vec_.swap(buffer_cache_int_vec_);
+		cache_size_t_vec_.swap(buffer_cache_size_t_vec_);
 		cache_dbl_vec_.swap(buffer_cache_dbl_vec_);
 		cache_dbl_mtx_.swap(buffer_cache_dbl_mtx_);
 	}
@@ -255,6 +256,7 @@ void Household::recover_buffer_values(bool is_cache_depen)
 void Household::buffer_all_cache()
 {
 	buffer_cache_int_vec_ = cache_int_vec_;
+	buffer_cache_size_t_vec_ = cache_size_t_vec_;
 	buffer_cache_dbl_vec_ = cache_dbl_vec_;
 	buffer_cache_dbl_mtx_ = cache_dbl_mtx_;
 }

@@ -50,7 +50,7 @@ double MCMC::Impl::ImplAugmented::type_to_double_(const Individual &member,
 
         else if (tools::stoupper(type) == TYPE_PARAM)
             // NOTE: here it won't be straightforward to drop maps...
-            if (pImpl_.param.dictionary.at(value).is_constant())
+            if (pImpl_.param.at(value).is_constant())
                 output = pImpl_.param.get(value);
             else
                 throw std::invalid_argument(
@@ -117,7 +117,7 @@ void MCMC::Impl::ImplAugmented::init_attributes_(Individual &member,
 
         else if (tools::stoupper(type) == TYPE_PARAM)
         {
-            if (pImpl_.param.dictionary.at(value).is_constant())
+            if (pImpl_.param.at(value).is_constant())
                 x = pImpl_.param.get(value);
             else
             {

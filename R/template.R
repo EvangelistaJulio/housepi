@@ -270,7 +270,8 @@ template_missing_stop <- function(required, defined, family) {
             ifelse(len_miss > 1, "s", ""),
             character_to_string_list(miss)),
     sprintf("The %s definition%s required by %s",
-            family, ifelse(len_miss > 1, "s are", " is"),
+            family, 
+            ifelse(len_miss > 1, "s are", " is"),
             character_to_phrase(sources))
   )
   invisible()
@@ -322,7 +323,7 @@ template_not_used_warn <- function(required, defined, family) {
   len_not_used <- length(notused)
   if (len_not_used > 0) warning_h(
     sprintf("There %s %s unused %s definition%s: %s",
-            ifelse(len_miss > 1, "are", "is"), len_miss,
+            ifelse(len_not_used > 1, "are", "is"), len_not_used,
             len_not_used, family,
             ifelse(len_not_used > 1, "s", ""),
             character_to_string_list(notused)),

@@ -360,7 +360,7 @@ namespace bax
 	}
 
 	/* Initialize the Look Up Table of escape patterns and the access object. */
-	void init_escape_patterns_lookuptable(ushort max_N)
+	void init_escape_patterns_lookuptable(ushort max_N, bool clean_combinations)
 	{
 		//----- lookuptable with all combinations + complements -----//
 		init_combinations_lookuptable(max_N);
@@ -391,7 +391,8 @@ namespace bax
 		}
 
 		//----- deallocate memory of combinations lookup table -----//
-		clear_combinations_lookuptable();
+		if (clean_combinations)
+			clear_combinations_lookuptable();
 	}
 
 	// -----------------------------------------------------------------------------------------------------------//

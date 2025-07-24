@@ -290,8 +290,8 @@ get_rcpp_module <- function(module_name, model = NULL) {
 split_traces_by_chain_ <- function(x) {
   if (length(x) == 0) stop_h("Traces are empty.")
   return(lapply(
-    split(seq_len(nrow(x)), x[, "_chain_"]),
-    function(idx) x[idx, colnames(x) != "_chain_", drop = FALSE]
+    split(seq_len(nrow(x)), x[, "chain_"]),
+    function(idx) x[idx, colnames(x) != "chain_", drop = FALSE]
   ))
 }
 

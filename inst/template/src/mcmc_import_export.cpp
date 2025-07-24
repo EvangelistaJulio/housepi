@@ -126,7 +126,7 @@ Rcpp::DataFrame MCMC::Impl::ImplParameter::rcpp_export() const
         // fill datafrane columns
         for (size_t r = 0; r < n_rows; ++r)
         {
-            const Variable &this_par = dictionary.at(V_names[r]);
+            const Variable &this_par = safe_at(dictionary_, V_names[r]);
             V_value[r] = this_par.get();
             V_constant[r] = this_par.is_constant();
             V_discrete[r] = this_par.is_discrete();
@@ -430,7 +430,7 @@ Rcpp::NumericMatrix MCMC::Impl::rcpp_export_traces() const
         }
 
         // multiple chains
-        headers += {"_chain_"};
+        headers += {"chain_"};
 
         //----- NumericMatrix with traces -----//
         NumericMatrix output(setup.n_chains * setup.c_sample_size,
@@ -488,7 +488,7 @@ Rcpp::NumericMatrix MCMC::Impl::ImplDataSet::rcpp_export_traces() const
         const ulong sample_size = pImpl_.setup.n_chains * pImpl_.setup.c_sample_size;
         NumericMatrix output(sample_size, n_houses() + 1);
         CharacterVector columns(n_houses() + 1);
-        columns[n_houses()] = "_chain_";
+        columns[n_houses()] = "chain_";
 
         // retrieve restricted index by general index of multiplicity head class
         std::unordered_map<size_t, size_t> restr_idx_map = {};
@@ -530,13 +530,13 @@ Rcpp::NumericVector MCMC::Impl::ImplParameter::rcpp_snapshot() const
 {
     using namespace Rcpp;
 
-    if (!dictionary.empty())
+    if (!dictionary_.empty())
     {
-        NumericVector output = NumericVector(dictionary.size());
-        CharacterVector names(dictionary.size());
+        NumericVector output = NumericVector(dictionary_.size());
+        CharacterVector names(dictionary_.size());
 
         size_t c = 0;
-        for (const auto &this_param : dictionary)
+        for (const auto &this_param : dictionary_)
         {
             names[c] = this_param.first;
             output[c++] = this_param.second.get();
@@ -944,7 +944,7 @@ void MCMC::Impl::ImplParameter::show() const
     std::vector<par_key> all_params = list_sample + list_const;
     for (const par_key &p : all_params)
     {
-        const Variable &aux = dictionary.at(p);
+        const Variable &aux = safe_at(dictionary_, p);
         oss << aux.name()
             << C_DELIM << aux.str()
             << C_DELIM << tools::truth(aux.is_constant())
@@ -979,7 +979,7 @@ void MCMC::Impl::ImplParameter::show_results() const
 
     for (const par_key &p : list_sample)
     {
-        const Variable &this_param = dictionary.at(p);
+        const Variable &this_param = safe_at(dictionary_, p);
         const std::pair<double, double> stats = tools::compute_stats(smpl_values.at(p));
 
         oss << p
@@ -1042,7 +1042,7 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
             }
 
             // header chain
-            inferstate_ofstream << C_DELIM << "_chain_" << std::endl;
+            inferstate_ofstream << C_DELIM << "chain_" << std::endl;
 
             //----- VALUES -----//
 

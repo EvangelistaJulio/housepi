@@ -131,7 +131,7 @@ associate_param_names <- function(this_table,
       paste0(prefix, paste(paste(colmask, row, sep = "_"), collapse = "_"))
     }
   )
-  this_table$param_name[idx_refer] <- "REFERENCE"
+  this_table$param_name[idx_refer] <- "reference_"
 
   return(this_table)
 }
@@ -156,7 +156,7 @@ tidyup_group_rate_tables <- function(all_tables) {
   for (rate in names(all_tables)) {
     this_table <- all_tables[[rate]]
     if (length(this_table) == 0) {
-      df <- list(data.frame(group_rate = rate, param_name = "REFERENCE"))
+      df <- list(data.frame(group_rate = rate, param_name = "reference_"))
     } else {
       df <- lapply(this_table, function(x) cbind_rate(drop_counts(x), rate))
     }
@@ -216,7 +216,7 @@ HousepiGroupRate <- R6::R6Class(
         new_defs <- list()
         for (rate_id in names(self$logic_tables)) {
           for (this_table in self$logic_tables[[rate_id]]) {
-            for (par_id in setdiff(this_table$param_name, c("REFERENCE"))) {
+            for (par_id in setdiff(this_table$param_name, c("reference_"))) {
               new_defs[[par_id]] <- private$.param_defs[[rate_id]]
             }
           }
@@ -236,7 +236,7 @@ HousepiGroupRate <- R6::R6Class(
             required <- c(required, this_table$param_name)
           }
         }
-        output <- setdiff(unique(required), c("REFERENCE"))
+        output <- setdiff(unique(required), c("reference_"))
         return(set_source_name_(output, "group rate"))
       }
       stop_h("'param_required' is read only.")
@@ -436,10 +436,13 @@ HousepiGroupRate <- R6::R6Class(
       for (i in seq_along(definitions)){
         this_def <- as.list(definitions[[i]])
         def_name <- names(definitions[i])
-        if (length(names(this_def)) == 0) stop_h(
-          sprintf("Wrong definition for group rate \"%s\"", def_name),
-          "Provide a definition list."
-        )
+        if (length(names(this_def)) == 0) {
+          if (length(this_def) == 1) names(this_def) <- "by"
+          else stop_h(
+            sprintf("Wrong definition for parameter \"%s\"", def_name),
+            "Provide a definition list or a scalar (if constant)."
+          )
+        }
         this_def$name <- def_name
         do.call(self$add, this_def)
       }
@@ -496,7 +499,7 @@ HousepiGroupRate <- R6::R6Class(
             }
             # concatenate new lines to the script
             # mask reference case
-            mask <- this_table$param_name == "REFERENCE"
+            mask <- this_table$param_name == "reference_"
           }
         }
 

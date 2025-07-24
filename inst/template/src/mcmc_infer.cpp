@@ -30,13 +30,13 @@
 void MCMC::Impl::init_move_counts_()
 {
     for (const par_key &p : param.list_sample)
-        param.dictionary.at(p).reset_accept_rate();
+        param.at(p).reset_accept_rate();
 }
 
 /* propose a valid move (retrun true), otherwise update refusal (return false) */
 bool MCMC::Impl::propose_valid_param_move_(const par_key &p)
 {
-    Variable &this_par = param.dictionary.at(p);
+    Variable &this_par = param.at(p);
 
     // set new value of the parameter and store the old to buffer
     this_par.propose(setup.prng());
@@ -55,7 +55,7 @@ bool MCMC::Impl::propose_valid_param_move_(const par_key &p)
 void MCMC::Impl::recover_parameter_(const par_key &p, bool is_cache_depen)
 {
     // recover buffer value of parameter
-    param.dictionary.at(p).recover_value();
+    param.at(p).recover_value();
 
     // recover buffer value of full loglike
     full_loglike_ = full_buffer_;
@@ -76,7 +76,7 @@ void MCMC::Impl::recover_parameter_(const par_key &p, bool is_cache_depen)
 bool MCMC::Impl::accept_valid_param_move_(const par_key &p)
 {
     const double D_ll = full_loglike_ - full_buffer_;
-    const double move_logratio = param.dictionary.at(p).get_move_logratio();
+    const double move_logratio = param.at(p).get_move_logratio();
     return setup.unif() < std::exp(setup.inv_T * D_ll + move_logratio);
 }
 
@@ -101,7 +101,7 @@ void MCMC::Impl::ImplParameter::init_traces(ulong sample_size)
 void MCMC::Impl::ImplParameter::update_traces(ulong smpl_count)
 {
     for (const par_key &p : list_sample)
-        smpl_values.at(p)[smpl_count] = get(p);
+        smpl_values[p][smpl_count] = get(p);
 }
 
 /* Initialize posterior sample of parameters. */
@@ -254,22 +254,20 @@ double MCMC::Impl::update_house_loglike_(Household &house, bool is_augm_ll, bool
 /* Attempt to move a single parameter for the given inverse temperature. */
 bool MCMC::Impl::move_single_parameter_(const par_key &p, bool cache_depen)
 {
-    bool is_accepted = false;
     // proceed only if the new value is consistent
-    // otherwise automatically execute refuse_move(par_key)
+    // otherwise automatically refuse move
     if (propose_valid_param_move_(p))
     {
-        // if cache depending on parameter, update and buffer cache
+        // if parameter is cache dependent, update cache
         update_full_loglike_(cache_depen);
 
         // perform Metropolis-Hastings to accept or not move
         if (accept_valid_param_move_(p))
-            is_accepted = true;
+            return true; // accepted move
         else
             recover_parameter_(p, cache_depen);
     }
-
-    return is_accepted;
+    return false; // refused move
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -292,6 +290,35 @@ void MCMC::Impl::move_all_()
     // move parameters with cache dependecies
     for (const par_key &p : param.list_sample_cache)
         move_single_parameter_(p, true);
+
+    // FLAG
+    if (tools::is_na(full_loglike_))
+    {
+        std::ostringstream oss;
+        oss << setup.chain << "(" << smpl_count_ << ") : " << full_loglike_;
+        if (std::isnan(full_loglike_))
+            oss << " - Sample produced NaN values for the full loglikelihood.";
+        else
+            oss << " - R is over-interpreting NaN values!";
+        oss << std::endl;
+
+        double ll = 0;
+        for (Household &house : dataset)
+        {
+            double llo = house.get_obs_loglike(), lla = 0;
+            for (const Individual &member : house.infected())
+                lla += member.get_augm_model_loglike();
+            ll += llo + lla;
+            if (tools::is_na(llo) || tools::is_na(lla))
+                oss << "\nHousehold \"" << house.house_id() << "\" : "
+                    << "obs loglike = " << llo << ", "
+                    << "augm loglike = " << lla << std::endl;       
+        }
+        oss << "Checked loglikelihood = " << ll << std::endl;
+
+        tools::error(oss.str());
+    }
+    // FLAG-END
 }
 
 /* Move all augmented variables and model parameters and adapt their rule arguments. */
@@ -303,10 +330,12 @@ void MCMC::Impl::move_all_and_adapt_params_(ulong step)
     // move all model parameters and adapt their rule arguments
     const double ratio = static_cast<double>(step) / setup.n_adapt;
 
+    // UPDATE: loops can be improved with viewers
+
     // move all simple model parameters
     for (const par_key &p : param.list_sample_standard)
     {
-        Variable &this_param = param.dictionary.at(p);
+        Variable &this_param = param.at(p);
         this_param.update_accept_rate(move_single_parameter_(p, false));
         this_param.adapt_rule(ratio);
     }
@@ -314,7 +343,7 @@ void MCMC::Impl::move_all_and_adapt_params_(ulong step)
     // move parameters with cache dependecies
     for (const par_key &p : param.list_sample_cache)
     {
-        Variable &this_param = param.dictionary.at(p);
+        Variable &this_param = param.at(p);
         this_param.update_accept_rate(move_single_parameter_(p, true));
         this_param.adapt_rule(ratio);
     }

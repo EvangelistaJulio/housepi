@@ -1,16 +1,16 @@
 list(
   alpha = list(
-    value = 0.0001, prior = "unif", args = list(min = 0, max = 1),
-    rule = "lnorm", scale = 1
+    value = 0.0001, prior = "unif", args = c(min = 0, max = 1),
+    rule = "lnorm"
   ),
   beta = list(
-    value = 0.07, prior = "unif", args = list(min = 0, max = 1),
-    rule = "lnorm", scale = 1
+    value = 0.07, prior = "unif", args = c(min = 0, max = 1),
+    rule = "lnorm"
   ),
   gamma = list(
-    value = 0.9, prior = "unif", args = list(min = 0, max = 4),
-    rule = "norm", scale = 1
+    value = 0.9, prior = "unif", args = c(min = 0, max = 4),
+    rule = "norm"
   ),
-  size_ref = list(value = 4),
-  study_period = list(value = 45)
+  size_ref = 4,
+  study_period = 45
 )

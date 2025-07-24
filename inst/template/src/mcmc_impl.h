@@ -177,7 +177,6 @@ public:
         std::vector<par_key> list_sample_cache = {};
         std::vector<par_key> list_sample = {};
 
-        par_key_map<Variable> dictionary = {}; // parameters dictionary
         par_key_map<dbl_vec> smpl_values = {}; // values of the sample
 
         //===== CONSTRUCTOR =====//
@@ -186,10 +185,11 @@ public:
         ~ImplParameter() = default;
 
         //===== GETTER =====//
+        Variable &at(const par_key &p) { return safe_at(dictionary_, p); }
         // get value of the parameter
-        double get(const par_key &p) const { return dictionary.at(p).get(); }
+        double get(const par_key &p) const { return safe_at(dictionary_, p).get(); }
         // get pointer to the parameter
-        const double *get_ptr(const par_key &p) const { return dictionary.at(p).get_ptr(); }
+        const double *get_ptr(const par_key &p) const { return safe_at(dictionary_, p).get_ptr(); }
 
         // flag to check if there are parameters to sample
         bool is_sample() const { return !list_sample.empty(); }
@@ -214,6 +214,8 @@ public:
     private:
         const std::string section_name_ = "parameter";
         MCMC::Impl &pImpl_; // pointer to external class
+
+        par_key_map<Variable> dictionary_ = {}; // parameters dictionary
     } param;
 
     //=====================//
@@ -253,6 +255,7 @@ public:
         void build(const dict_str_vec &input);
         void build_multiplicity(const dict_str_vec &input);
         void init_cache_integer_vector(const cache_key &e);
+        void init_cache_size_t_vector(const cache_key &e);
         void init_cache_double_vector(const cache_key &e);
         void init_cache_double_matrix(const cache_key &e);
         void init_traces(ulong sample_size);

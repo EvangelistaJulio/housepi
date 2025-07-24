@@ -67,7 +67,7 @@ public:
 	bool is_infected_status() const { return status_ >= INFECTED_STATUS; }
 	bool is_healthy_status() const { return status_ == HEALTHY_STATUS; }
 	bool is_missing_status() const { return status_ <= MISSING_STATUS; }
-	double data(const data_key &d) const { return data_map_.at(d); }
+	double data(const data_key &d) const { return safe_at(data_map_, d); }
 	const dbl_vec &datalist(const data_key &d) const
 	{
 		if (pdatalist_ == nullptr)
@@ -76,10 +76,10 @@ public:
 		else
 			return pdatalist_->at(d);
 	}
-	double group_rate(const rate_key &r) const { return rate_map_.at(r).get(); }
-	double augm(const augm_key &a) const { return augm_map_.at(a).get(); }
-	Variable &get_augm_variable(const augm_key &a) { return augm_map_.at(a); }
-	const Variable &get_augm_variable(const augm_key &a) const { return augm_map_.at(a); }
+	double group_rate(const rate_key &r) const { return safe_at(rate_map_, r).get(); }
+	double augm(const augm_key &a) const { return safe_at(augm_map_, a).get(); }
+	Variable &get_augm_variable(const augm_key &a) { return safe_at(augm_map_, a); }
+	const Variable &get_augm_variable(const augm_key &a) const { return safe_at(augm_map_, a); }
 
 	//==================//
 	//===== SETTER =====//
@@ -87,7 +87,7 @@ public:
 
 	void set_status(int s) { status_ = s; }
 
-	void set_augm_value(const augm_key &a, double x) { augm_map_.at(a).set_value(x); }
+	void set_augm_value(const augm_key &a, double x) { safe_at(augm_map_, a).set_value(x); }
 	void init_pointer_to_datalist(data_key_map<dbl_vec> *y) { pdatalist_ = y; }
 	void clear_augm(const augm_key &a) { augm_map_[a] = Variable(); }
 	void init_all_group_rates(const rate_key_mapvec<const double *> &ptrs);
@@ -235,9 +235,11 @@ public:
 	View<Individual> infected() { return View<Individual>(members_, infected_list_); }
 	View<Individual> healthy() { return View<Individual>(members_, healthy_list_); }
 	View<Individual> missing() { return View<Individual>(members_, missing_list_); }
+	View<Individual> select(const std::vector<size_t> lst) { return View<Individual>(members_, lst); }
 	View<const Individual> infected() const { return View<const Individual>(members_, infected_list_); }
 	View<const Individual> healthy() const { return View<const Individual>(members_, healthy_list_); }
 	View<const Individual> missing() const { return View<const Individual>(members_, missing_list_); }
+	View<const Individual> select(const std::vector<size_t> lst) const { return View<const Individual>(members_, lst); }
 
 	const std::vector<size_t> &infected_hhindexes() const { return infected_list_; }
 	const std::vector<size_t> &healthy_hhindexes() const { return healthy_list_; }
@@ -294,6 +296,11 @@ public:
 	int_vec &cache_integer_vector(const cache_key &e) { return cache_int_vec_.at(e); }
 	const int_vec &cache_integer_vector(const cache_key &e) const { return cache_int_vec_.at(e); }
 
+	//----- Cached size_t vector -----//
+	void init_cache_size_t_vector(const cache_key &e) { cache_size_t_vec_[e] = std::vector<size_t>(size(), 0); }
+	std::vector<size_t> &cache_size_t_vector(const cache_key &e) { return cache_size_t_vec_.at(e); }
+	const std::vector<size_t> &cache_size_t_vector(const cache_key &e) const { return cache_size_t_vec_.at(e); }
+
 	//----- Cached double vector -----//
 	void init_cache_double_vector(const cache_key &e) { cache_dbl_vec_[e] = dbl_vec(size(), 0.); }
 	dbl_vec &cache_double_vector(const cache_key &e) { return cache_dbl_vec_.at(e); }
@@ -341,11 +348,13 @@ private:
 
 	//----- Extra Attributes -----//
 	cache_key_map<int_vec> cache_int_vec_ = {};
+	cache_key_map<std::vector<size_t>> cache_size_t_vec_ = {};
 	cache_key_map<dbl_vec> cache_dbl_vec_ = {};
 	cache_key_map<matrix<double>> cache_dbl_mtx_ = {};
 
 	//----- Buffer EXTRA Attributes -----//
 	cache_key_map<int_vec> buffer_cache_int_vec_ = {};
+	cache_key_map<std::vector<size_t>> buffer_cache_size_t_vec_ = {};
 	cache_key_map<dbl_vec> buffer_cache_dbl_vec_ = {};
 	cache_key_map<matrix<double>> buffer_cache_dbl_mtx_ = {};
 };

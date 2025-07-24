@@ -227,26 +227,28 @@ int main(int argc, char *argv[])
 
     else if (is_infer)
     { //===== Inference =====//
-        print_decorator("Inference", verbose);
-        user_model->infer();
-
-        if (verbose)
+        if (!tools::is_na(output_file))
         {
-            print_decorator("Inference::results");
-            user_model->show_results();
-        }
+            print_decorator("Inference", verbose);
+            user_model->infer();
 
-        if (output_file != HSP_NA_STRING)
-        {
             print_decorator("Inference::infer state", verbose,
                             "# save: " + output_file);
             user_model->print_infer_state(output_file);
+
+            if (verbose)
+            {
+                print_decorator("Inference::results");
+                user_model->show_results();
+            }
         }
+        else
+            tools::error("Missing output file for inference.");
     }
 
     else if (is_simulate)
     { //===== Simulation Study =====//
-        if (output_file != HSP_NA_STRING)
+        if (!tools::is_na(output_file))
         {
             print_decorator("Simulation", verbose,
                             "# save: " + output_file);

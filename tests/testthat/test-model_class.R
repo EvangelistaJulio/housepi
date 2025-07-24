@@ -66,6 +66,22 @@ test_that("Chain binomial models are coherent", {
   expect_equal(ll1, ll2)
 })
 
+test_that("Loglikelihood traces and pointwise traces are coherent", {
+  
+  hhmodel <- HouseholdModel$new("augm-infection-time")
+  hhmodel$load_param_template()
+  hhmodel$load_augm_template()
+  
+  hhmodel$load_group_rate_list(infectivity = "sex", 
+                               susceptibility = "sex")
+  hhmodel$infer(housepi::survey, sample_size = 10, thin = 5,
+                n_adapt = 50, n_burnin = 50)
+  total <- hhmodel$traces$loglikelihood
+  poitwise <- hhmodel$house_loglike_traces |> 
+    posterior::as_draws_matrix() |> rowSums() |> unname()
+  expect_equal(total, poitwise)
+})
+
 test_that("Augmentation example on incubation from delays is coherent", {
   # loglikelihood from simulated delays
   shape <- 2.0

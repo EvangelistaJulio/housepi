@@ -349,6 +349,7 @@ void MCMC::Impl::ImplDataSet::fill_report_data()
                      {"at least 2 cases", 0}};
 
     report_size_ = {{"max cases", {0, 0}},
+                    {"max miss", {0, 0}},
                     {"min size", {1000, 0}},
                     {"max size", {0, 0}}};
 
@@ -357,10 +358,12 @@ void MCMC::Impl::ImplDataSet::fill_report_data()
     {
         const ushort house_size = house.size();
         const ushort n_infec = house.n_infec_status();
+        const ushort n_miss = house.n_missing_status();
+        const ushort n_heal = house.n_healthy_status();
 
-        report_indiv_["missing"] += house.n_missing_status();
-        report_indiv_["healthy"] += house.n_healthy_status();
         report_indiv_["infected"] += n_infec;
+        report_indiv_["missing"] += n_miss;
+        report_indiv_["healthy"] += n_heal;
 
         report_house_["no cases"] += (n_infec == 0);
         report_house_["at least 1 case"] += (n_infec > 0);
@@ -374,6 +377,15 @@ void MCMC::Impl::ImplDataSet::fill_report_data()
         }
         else if (report_size_["max cases"].first == n_infec)
             ++report_size_["max cases"].second;
+
+        // max number of missing status
+        if (report_size_["max miss"].first < n_miss)
+        {
+            report_size_["max miss"].first = n_miss;
+            report_size_["max miss"].second = 1;
+        }
+        else if (report_size_["max miss"].first == n_miss)
+            ++report_size_["max miss"].second;
 
         // minimum house number of members
         if (report_size_["min size"].first > house_size)
@@ -398,6 +410,7 @@ void MCMC::Impl::ImplDataSet::fill_report_data()
 /* Return a value from individaul data report. */
 ulong MCMC::Impl::ImplDataSet::get_report_indiv(const std::string &key) const
 {
+    // UPDATE: this should be generalized to avoid double check with at
     if (report_indiv_.count(key))
         return report_indiv_.at(key);
     else
@@ -409,6 +422,7 @@ ulong MCMC::Impl::ImplDataSet::get_report_indiv(const std::string &key) const
 /* Return a value from household data report. */
 ulong MCMC::Impl::ImplDataSet::get_report_house(const std::string &key) const
 {
+    // UPDATE: this should be generalized to avoid double check with at
     if (report_house_.count(key))
         return report_house_.at(key);
     else
@@ -433,6 +447,12 @@ void MCMC::Impl::ImplDataSet::init_cache_integer_vector(const cache_key &e)
 {
     for (Household &house : restricted())
         house.init_cache_integer_vector(e);
+}
+/* Extra size_t vectors for all households. */
+void MCMC::Impl::ImplDataSet::init_cache_size_t_vector(const cache_key &e)
+{
+    for (Household &house : restricted())
+        house.init_cache_size_t_vector(e);
 }
 /* Extra double vectors for all households. */
 void MCMC::Impl::ImplDataSet::init_cache_double_vector(const cache_key &e)
@@ -718,7 +738,7 @@ void MCMC::Impl::ImplParameter::build(const dict_str_vec &deftable)
         tools::check_for_unused_entries(headers, file_headers);
 
         // drop current list of parameters
-        dictionary.clear();
+        dictionary_.clear();
         list_const.clear();
         list_sample.clear();
         list_sample_standard.clear();
@@ -732,7 +752,7 @@ void MCMC::Impl::ImplParameter::build(const dict_str_vec &deftable)
             par_key p = name;
 
             // Add entry to shared parameter dictionary -----//
-            if (dictionary.count(p))
+            if (dictionary_.count(p))
             {
                 // parameter is already defined
                 throw std::invalid_argument(
@@ -748,7 +768,7 @@ void MCMC::Impl::ImplParameter::build(const dict_str_vec &deftable)
                     value = tools::stod(deftable.at("value")[k], "parameter");
 
                 // assign constant parameter to the set of variables
-                dictionary.emplace(p, Variable(name, value));
+                dictionary_.emplace(p, Variable(name, value));
                 // update the lists of constant parameters
                 list_const.push_back(p);
             }
@@ -777,8 +797,8 @@ void MCMC::Impl::ImplParameter::build(const dict_str_vec &deftable)
                     rule_scale = tools::stod(deftable.at("scale")[k]);
 
                 //----- Create a new Parameter Variable -----//
-                dictionary.emplace(p, Variable(name, value, is_discrete));
-                Variable &new_param = dictionary.at(p);
+                dictionary_.emplace(p, Variable(name, value, is_discrete));
+                Variable &new_param = this->at(p);
 
                 // assign a prior distribution to the parameter
                 new_param.init_distr(prior_name);
@@ -840,7 +860,7 @@ void MCMC::Impl::ImplParameter::init()
 {
     for (const par_key &p : list_sample)
     {
-        Variable &this_par = dictionary.at(p);
+        Variable &this_par = this->at(p);
         // user initialization (for multiple chains)
         this_par.user_reset();
 

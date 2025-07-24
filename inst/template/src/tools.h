@@ -30,7 +30,7 @@
 #include <algorithm>
 
 /// DEVELOPER: flag used to develop Rcpp chunks
-//#define _HOUSEPI_RCPP
+// #define _HOUSEPI_RCPP
 
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
@@ -64,9 +64,9 @@ const std::string HSP_NA_STRING = "<NA>";
 
 // group rates
 constexpr double REFERENCE_VALUE = 1.0;          // alias for reference value
-const std::string REFERENCE = "REFERENCE";       // reference choice
-const std::string CONTACT_RATE = "Contact";      // contact rate
-const std::string MISSING_RATE = "MISSING_RATE"; // missing rate
+const std::string REFERENCE = "reference_";       // reference choice
+const std::string CONTACT_RATE = "contact";      // contact rate
+const std::string MISSING_RATE = "missing_rate_"; // missing rate
 
 // auxiliary infectivity profile
 const std::string HSP_PROFILE_INST = "profile_inst_";   // augmented instantaneous infectivity profile
@@ -175,7 +175,8 @@ std::vector<T> &operator+=(std::vector<T> &x, const std::vector<T> &y)
     return x;
 }
 
-/// Remove all elements of first containers contained in second (- overload)
+/// @brief Overload minus operator.
+/// Remove all elements of first containers contained in second.
 template <typename T>
 std::vector<T> operator-(std::vector<T> v, const std::vector<T> &w)
 {
@@ -184,6 +185,29 @@ std::vector<T> operator-(std::vector<T> v, const std::vector<T> &w)
                                   { return w % i; });
     v.erase(new_end, v.end());
     return v;
+}
+
+/// @brief Safely access an element in a map by key.
+/// If the key does not exist, an exception is thrown.
+/// @tparam T 
+/// @param m
+/// @param k 
+/// @return 
+template <typename T>
+inline const T &safe_at(const std::unordered_map<std::string, T> &m, const std::string &k)
+{
+    auto it = m.find(k);
+    if (it != m.end())
+        return it->second;
+    throw std::out_of_range("Unknown key \"" + k + "\".");
+}
+
+template <typename T>
+inline T& safe_at(std::unordered_map<std::string, T>& m, const std::string& k) {
+    auto it = m.find(k);
+    if (it != m.end())
+        return it->second;
+    throw std::out_of_range("Unknown key \"" + k + "\".");
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////

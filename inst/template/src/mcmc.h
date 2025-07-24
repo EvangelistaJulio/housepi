@@ -95,6 +95,7 @@ public:
 	virtual void update_cache_dependecies(Household &, Individual &) {}
 
 	void cache_house_integer_vector(const cache_key &e);
+	void cache_house_size_t_vector(const cache_key &e);
 	void cache_house_double_vector(const cache_key &e);
 	void cache_house_double_matrix(const cache_key &e);
 

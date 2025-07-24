@@ -23,6 +23,12 @@
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
+/* [CHANGE-ME] Transmission rate. */
+double Model::transmission_rate(const Household &house) const
+{
+	return param("beta") * std::pow(param("size_ref") / house.size(), param("gamma"));
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////  Model : initialization  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -32,9 +38,9 @@ void Model::init_advanced_setup()
 {
 	// template infectivity profile (otherwise user defined)
 	init_infec_profile_template({{"name", "gamma_meanvar"},
-								   {"arg_key", "mean/var"},
-								   {"arg_val", "2/1"},
-								   {"arg_at", "S/S"}});
+								 {"arg_key", "mean/var"},
+								 {"arg_val", "2/1"},
+								 {"arg_at", "S/S"}});
 }
 
 /* Initialize parameters and augmented variables. */
@@ -54,81 +60,12 @@ void Model::init_model_for_simulation()
 	init_model_for_inference();
 }
 
-/* [CHANGE-ME] Transmission rate. */
-double Model::transmission_rate(const Household &house) const
-{
-	return param("beta") * std::pow(param("size_ref") / house.size(), param("gamma"));
-}
-
-/* Cumulative Risk of Infection for susceptible individual i. */
-double Model::loglike_healthy(const Household &house) const
-{
-	const Individual &member_0 = house.get_member(house.cache_integer_vector("intro_case")[0]);
-	const double alpha_cumul = param("alpha") * (param("study_period") + member_0.augm("incub_period"));
-	const double beta = transmission_rate(house);
-
-	// load pre-computed cumulative infectivity profiles
-	const auto &cumul_mtx = house.cache_double_matrix("cumul");
-
-	double output = 0.;
-	for (const Individual &member_i : house.healthy())
-	{
-		double roi_cumul = 0;
-		for (const Individual &member_k : house.infected())
-			roi_cumul += cumul_mtx[member_k][member_i] * member_k.group_rate("infectivity");
-		output -= alpha_cumul + member_i.group_rate("susceptibility") * beta * roi_cumul;
-	}
-
-	return output;
-}
-
-/* Cumulative Risk of Infection for infectious individual i. */
-double Model::loglike_infectious(const Household &house) const
-{
-	double output = 0.;
-	const Individual &member_0 = house.get_member(house.cache_integer_vector("intro_case")[0]);
-	const double t_intro = member_0.augm("infec_time");
-
-	const auto &inst_mtx = house.cache_double_matrix("inst");
-	const auto &cumul_mtx = house.cache_double_matrix("cumul");
-
-	const double alpha = param("alpha");
-	const double beta = transmission_rate(house);
-
-	for (const Individual &member_i : house.infected())
-		if (member_i != member_0)
-		{
-			// Risk of infection from other household members `k`
-			double b_i = beta * member_i.group_rate("susceptibility");
-			double roi_inst_i = 0.;
-			double roi_cumul_i = 0.;
-			for (const Individual &member_k : house.infected())
-			{
-				if (cumul_mtx[member_k][member_i] != 0)
-				{
-					double mu_k = member_k.group_rate("infectivity");
-					roi_inst_i += inst_mtx[member_k][member_i] * mu_k;
-					roi_cumul_i += cumul_mtx[member_k][member_i] * mu_k;
-				}
-			}
-
-			roi_inst_i *= b_i;
-			roi_cumul_i *= b_i;
-
-			// Risk of infection from community
-			roi_inst_i += alpha;
-
-#ifdef _IS_DISCRETE_TIME
-			roi_cumul_i += alpha * (member_i.augm("infec_time") - 1. - t_intro);
-			output += std::log(1. - std::exp(-roi_inst_i)) - roi_cumul_i;
-#else
-			roi_cumul_i += alpha * (member_i.augm("infec_time") - t_intro);
-			output += std::log(roi_inst_i) - roi_cumul_i;
-#endif
-		}
-
-	return output;
-}
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////// Model : store dependencies of augmented variables  ///////////////////////
@@ -206,13 +143,6 @@ void Model::update_cache_dependecies(Household &house, Individual &member_i)
 	}
 }
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////  Model : compute single house log-likelihood  /////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -221,6 +151,76 @@ void Model::update_cache_dependecies(Household &house, Individual &member_i)
 double Model::compute_household_obs_loglike(Household &house)
 {
 	return loglike_healthy(house) + loglike_infectious(house);
+}
+
+/* Cumulative Risk of Infection for susceptible individual i. */
+double Model::loglike_healthy(const Household &house) const
+{
+	const Individual &member_0 = house.get_member(house.cache_integer_vector("intro_case")[0]);
+	const double alpha_cumul = param("alpha") * (param("study_period") + member_0.augm("incub_period"));
+	const double beta = transmission_rate(house);
+
+	// load pre-computed cumulative infectivity profiles
+	const auto &cumul_mtx = house.cache_double_matrix("cumul");
+
+	double output = 0.;
+	for (const Individual &member_i : house.healthy())
+	{
+		double roi_cumul = 0;
+		for (const Individual &member_k : house.infected())
+			roi_cumul += cumul_mtx[member_k][member_i] * member_k.group_rate("infectivity");
+		output -= alpha_cumul + member_i.group_rate("susceptibility") * beta * roi_cumul;
+	}
+
+	return output;
+}
+
+/* Cumulative Risk of Infection for infectious individual i. */
+double Model::loglike_infectious(const Household &house) const
+{
+	double output = 0.;
+	const Individual &member_0 = house.get_member(house.cache_integer_vector("intro_case")[0]);
+	const double t_intro = member_0.augm("infec_time");
+
+	const auto &inst_mtx = house.cache_double_matrix("inst");
+	const auto &cumul_mtx = house.cache_double_matrix("cumul");
+
+	const double alpha = param("alpha");
+	const double beta = transmission_rate(house);
+
+	for (const Individual &member_i : house.infected())
+		if (member_i != member_0)
+		{
+			// Risk of infection from other household members `k`
+			double b_i = beta * member_i.group_rate("susceptibility");
+			double roi_inst_i = 0.;
+			double roi_cumul_i = 0.;
+			for (const Individual &member_k : house.infected())
+			{
+				if (cumul_mtx[member_k][member_i] != 0)
+				{
+					double mu_k = member_k.group_rate("infectivity");
+					roi_inst_i += inst_mtx[member_k][member_i] * mu_k;
+					roi_cumul_i += cumul_mtx[member_k][member_i] * mu_k;
+				}
+			}
+
+			roi_inst_i *= b_i;
+			roi_cumul_i *= b_i;
+
+			// Risk of infection from community
+			roi_inst_i += alpha;
+
+#ifdef _IS_DISCRETE_TIME
+			roi_cumul_i += alpha * (member_i.augm("infec_time") - 1. - t_intro);
+			output += std::log(1. - std::exp(-roi_inst_i)) - roi_cumul_i;
+#else
+			roi_cumul_i += alpha * (member_i.augm("infec_time") - t_intro);
+			output += std::log(roi_inst_i) - roi_cumul_i;
+#endif
+		}
+
+	return output;
 }
 
 //-----------------------------------------------------------------------------------------------//
