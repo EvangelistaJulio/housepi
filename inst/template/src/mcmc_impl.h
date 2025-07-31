@@ -331,7 +331,7 @@ public:
         void rcpp_import_multiplicity(SEXP input);
 
         Rcpp::DataFrame rcpp_snapshot(const std::string &house_id) const;
-        Rcpp::DataFrame rcpp_export(const str_vec&columns, bool is_status) const;
+        Rcpp::DataFrame rcpp_export(const str_vec &columns, bool is_status) const;
         Rcpp::DataFrame rcpp_export_report() const;
         Rcpp::DataFrame rcpp_export_size_report() const;
         Rcpp::NumericMatrix rcpp_export_traces() const;
@@ -499,6 +499,7 @@ public:
 
 #ifdef _HOUSEPI_RCPP
         void rcpp_import(SEXP input);
+        Rcpp::DataFrame rcpp_export_dataset() const;
         Rcpp::DataFrame rcpp_snapshot(const std::string &house_id) const;
 #else
         void read(const std::string &pathtofile);

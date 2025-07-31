@@ -179,8 +179,39 @@ Rcpp::List MCMC::Impl::ImplInfecProfile::rcpp_export() const
     return List::create();
 }
 
+/* Export to R all augmented variables at the current state. */
+Rcpp::DataFrame MCMC::Impl::ImplAugmented::rcpp_export_dataset() const
+{
+    using namespace Rcpp;
+
+    const size_t n_cols = pImpl_.dataset.n_individuals();
+    const str_vec augm_headers = list_export();
+
+    int_vec status_col(n_cols);
+    std::vector<dbl_vec> augm_cols(augm_headers.size());
+    for (size_t i = 0; i < augm_headers.size(); ++i)
+        augm_cols[i] = dbl_vec(n_cols);
+
+    size_t row = 0;
+    for (Household &house : pImpl_.dataset)
+        for (const Individual &member : house)
+        {
+            status_col[row] = member.status();
+            for (size_t i = 0; i < augm_headers.size(); ++i)
+                augm_cols[i][row] = member.augm(augm_headers[i]);
+            ++row;
+        }
+
+    // create the ouput List
+    List output = List::create(_["status"] = wrap(std::move(status_col)));
+    for (size_t i = 0; i < augm_headers.size(); ++i)
+        output[augm_headers[i]] = wrap(std::move(augm_cols[i]));
+    // wrap the List as a DataFrame
+    return DataFrame(output);
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////  MCMC : Impl  : dataset exports  //////////////////////////////
+//////////////////////////////////  MCMC : Impl : dataset exports  ////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Rcpp::DataFrame MCMC::Impl::ImplDataSet::rcpp_export(const str_vec &columns, bool is_status) const

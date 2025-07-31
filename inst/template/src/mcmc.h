@@ -158,13 +158,14 @@ public:
 	//===== Rcpp EXPORTS =====//
 	//========================//
 
-	Rcpp::List export_setup() const;
-	Rcpp::List export_infec_profile() const;
-	Rcpp::DataFrame export_param() const;
 	Rcpp::DataFrame export_dataset() const;
 	Rcpp::DataFrame export_datalist() const;
 	Rcpp::DataFrame export_dataset_report() const;
 	Rcpp::DataFrame export_house_size_report() const;
+	Rcpp::List export_setup() const;
+	Rcpp::List export_infec_profile() const;
+	Rcpp::DataFrame export_param() const;
+	Rcpp::DataFrame export_augmented_dataset() const;
 	Rcpp::NumericMatrix export_traces() const;
 	Rcpp::NumericMatrix export_house_loglike_traces() const;
 	Rcpp::List export_house_snapshot(const std::string &house_id) const;

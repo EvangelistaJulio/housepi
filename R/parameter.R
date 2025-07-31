@@ -75,16 +75,11 @@ HousepiParameter <- R6::R6Class(
     remove = function(name,
                       show_warnings = TRUE) {
       mask <- (self$defs[["name"]] == name)
-      if (any(mask)) {
-        # drop previous definition
-        self$defs <- self$defs[!mask, ]
-        return(TRUE)
-
-      } else if (isTRUE(show_warnings)) warning_h(
+      if (any(mask)) self$defs <- self$defs[!mask, ]
+      else if (isTRUE(show_warnings)) warning_h(
         sprintf("Attempt to remove unknown parameter \"%s\".", name)
       )
-
-      return(FALSE)
+      return(any(mask))
     },
 
     #' @description
@@ -100,7 +95,7 @@ HousepiParameter <- R6::R6Class(
     #' Initial value of the parameter.
     #' @param prior `character(1)`\cr
     #' Name of the prior distribution.
-    #' @param args named `list()`\cr
+    #' @param args named `list`\cr
     #' Arguments for the prior distribution.
     #' @param rule `character(1)`\cr
     #' Name of the inference proposal rule.
@@ -199,7 +194,7 @@ HousepiParameter <- R6::R6Class(
     #'
     #' @param ...
     #' Named arguments with respective list of definition details.
-    #' @param from (named `list()`\cr
+    #' @param from named `list`\cr
     #' Named list of parameter definitions.
     #' @param append `logical(1)`\cr
     #' If `TRUE` appends to current definitions.
@@ -280,7 +275,7 @@ HousepiParameter <- R6::R6Class(
     #' @description
     #' List containing current parameter definitions.
     #'
-    #' @return `list()`
+    #' @return `list`
     as_list = function() {
       output <- list()
       for (r in seq_len(dim(self$defs)[1])) {

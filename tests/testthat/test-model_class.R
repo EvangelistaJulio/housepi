@@ -1,41 +1,37 @@
 library(testthat)
 
 test_that("Model class inconsistent calls", {
+  # Default blank 
+  expect_warning(HouseholdModel$new(), regexp = "Falling back to")
+  
   # blank household model object
   hhmodel <- HouseholdModel$new("blank")
 
-  # traces
-  expect_error(hhmodel$traces)
-
-  # household traces
-  expect_error(hhmodel$loo())
-  expect_error(hhmodel$waic())
-
   # inference without definitions
-  expect_error(hhmodel$infer())
+  expect_error(hhmodel$infer(), 
+               regexp = "Nothing to sample")
 })
 
 test_that("Model class blank calls", {
-
-  expect_warning(HouseholdModel$new())
-
   # blank household model object
   hhmodel <- HouseholdModel$new("blank")
 
   # blank default dataset
   dataset <- housepi:::template_blank_dataset_()
-  expect_true(all(hhmodel$dataset == dataset))
+  expect_equal(hhmodel$dataset, dataset)
 
   # correct datalist call
   datalist <- data.frame(id = dataset$id[1],
                          time = seq(3),
                          measure = seq(3)**3)
   hhmodel$datalist <- datalist
-  expect_true(all(hhmodel$datalist == datalist))
+  expect_equal(hhmodel$datalist, datalist)
   
   # factorization 
-  hhmodel$dataset <- housepi::survey
-  expect_true(all(hhmodel$dataset == housepi::survey))
+  complex_dataset <- housepi::survey
+  complex_dataset$dates <- as.Date(runif(dim(complex_dataset)[1], max = 100))
+  hhmodel$dataset <- complex_dataset
+  expect_equal(hhmodel$dataset, complex_dataset)
 
   # templates
   expect_warning(hhmodel$load_param_template())
@@ -66,21 +62,21 @@ test_that("Chain binomial models are coherent", {
   expect_equal(ll1, ll2)
 })
 
-test_that("Loglikelihood traces and pointwise traces are coherent", {
-  
-  hhmodel <- HouseholdModel$new("augm-infection-time")
-  hhmodel$load_param_template()
-  hhmodel$load_augm_template()
-  
-  hhmodel$load_group_rate_list(infectivity = "sex", 
-                               susceptibility = "sex")
-  hhmodel$infer(housepi::survey, sample_size = 10, thin = 5,
-                n_adapt = 50, n_burnin = 50)
-  total <- hhmodel$traces$loglikelihood
-  poitwise <- hhmodel$house_loglike_traces |> 
-    posterior::as_draws_matrix() |> rowSums() |> unname()
-  expect_equal(total, poitwise)
-})
+# FIXME: housepi::survey does not have onset_day
+# test_that("Loglikelihood traces and pointwise traces are coherent", {
+#   hhmodel <- HouseholdModel$new("augm-infection-time")
+#   hhmodel$load_param_template()
+#   hhmodel$load_augm_template()
+#   
+#   hhmodel$load_group_rate_list(infectivity = "sex", 
+#                                susceptibility = "sex")
+#   hhmodel$infer(housepi::survey, sample_size = 10, thin = 5,
+#                 n_adapt = 50, n_burnin = 50)
+#   total <- hhmodel$traces$loglikelihood
+#   poitwise <- hhmodel$house_loglike_traces |> 
+#     posterior::as_draws_matrix() |> rowSums() |> unname()
+#   expect_equal(total, poitwise)
+# })
 
 test_that("Augmentation example on incubation from delays is coherent", {
   # loglikelihood from simulated delays
@@ -235,3 +231,6 @@ test_that("Augmented infection times model has correct loglikelihood", {
   expect_equal(hhmodel$loglikelihood(), 
                loglike_healthy(house, param) + loglike_infectious(house, param))
 })
+
+
+

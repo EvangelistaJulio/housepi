@@ -142,22 +142,14 @@ HouseholdModel <- R6::R6Class(
 
         # assert dataset headers
         private$.assert_dataset(colnames(dataset))
-
-        # convert factors to numeric and store levels
-        private$.levels_dataset <- list()
-        for (col in setdiff(colnames(dataset), c("id", "house_id", "status"))) {
-          x <- dataset[[col]]
-          if (is.character(x) || is.factor(x) || is.logical(x)) {
-            x <- factor(x)
-            private$.levels_dataset[[col]] <- levels(x)
-            dataset[[col]] <- as.integer(x)
-          }
-        }
-
-        # import data.frame in rcpp # note: it calls
-        private$.rcpp$import_dataset(fmt_data_input_(dataset))
+        # convert factors
+        embed <- cpp_data_factorize(dataset)
+        # store levels
+        private$.info_dataset <- embed$info
         # store column names
-        private$.cols_dataset <- colnames(dataset)
+        private$.cols_dataset <- embed$cols
+        # import data.frame in rcpp
+        private$.rcpp$import_dataset(embed$data)
 
       } else {
         # assert headers of last imported dataset
@@ -181,21 +173,14 @@ HouseholdModel <- R6::R6Class(
         "Datalist should be a data.frame."
       )
 
-      # convert factors to numeric and store levels
-      private$.levels_datalist <- list()
-      for (col in setdiff(colnames(datalist), c("id", "house_id", "status"))) {
-        x <- datalist[[col]]
-        if (is.character(x) || is.factor(x) || is.logical(x)) {
-          x <- factor(x)
-          private$.levels_datalist[[col]] <- levels(x)
-          datalist[[col]] <- as.integer(x)
-        }
-      }
-
-      # import data.frame in rcpp
-      private$.rcpp$import_datalist(fmt_data_input_(datalist))
+      # convert factors
+      embed <- cpp_data_factorize(datalist)
+      # store levels
+      private$.info_datalist <- embed$info
       # store column names
-      private$.cols_datalist <- colnames(datalist)
+      private$.cols_datalist <- embed$cols
+      # import data.frame in rcpp
+      private$.rcpp$import_datalist(embed$data)
     
       invisible(self)
     },
@@ -296,7 +281,7 @@ HouseholdModel <- R6::R6Class(
         else dataset <- self$dataset
 
         # implement group rates
-        private$.group_rates$implement(dataset, private$.levels_dataset)
+        private$.group_rates$implement(dataset, private$.info_dataset)
 
         # append parameter definitions if missing
         new_param_defs <- private$.group_rates$param_defs
@@ -332,8 +317,8 @@ HouseholdModel <- R6::R6Class(
     # Number of threads for the parallelization of the loglikelihood.
     # @param rand_init `logical(1)`\cr
     # If `TRUE` the initial value of the parameters is drawn from prior.
-    # @param id_trace `character(1)`\cr
-    # Individual identifier to show augmented traces. Default is NA.
+    # @param id_trace `character()`\cr
+    # Individual identifiers to show augmented traces. 
     # For standard usage this is 1.
     # @param seed `integer(1)`\cr
     # Seed of the random number generator.
@@ -351,7 +336,7 @@ HouseholdModel <- R6::R6Class(
 
       # individual id for blank model augmented traces
       # if no default columns, assume debugging mode
-      if (private$.is_blank() && is.na(id_trace)) {
+      if (private$.is_blank() && all(is.na(id_trace))) {
         # FIXME: not robust in case of dataset with only default columns
         if (length(setdiff(private$.cols_dataset,
                            c("house_id", "id", "status"))) == 0) {
@@ -360,7 +345,7 @@ HouseholdModel <- R6::R6Class(
       }
 
       # build setup
-      private$.rcpp$import_setup(fmt_setup_input_(list(
+      private$.rcpp$import_setup(char_setup_input_(list(
         sample_size = ifelse(is.na(sample_size), 0, sample_size),
         n_steps = n_steps, thin = thin,
         n_burnin = n_burnin, n_adapt = n_adapt, n_chains = n_chains,
@@ -376,9 +361,9 @@ HouseholdModel <- R6::R6Class(
 
       # group rates (import depends on param)
       defs <- self$group_rate_defs
-      lvls <- private$.levels_dataset
-      for (k in intersect(colnames(defs), names(lvls))) {
-        defs[[k]] <- as.integer(factor(defs[[k]], levels = lvls[[k]]))
+      info <- private$.info_dataset
+      for (k in intersect(colnames(defs), names(info))) {
+        defs[[k]] <- as.integer(factor(defs[[k]], levels = info[[k]]$levels))
       }
       private$.rcpp$import_group_rates(defs)
 
@@ -411,9 +396,10 @@ HouseholdModel <- R6::R6Class(
                 quote = FALSE, row.names = FALSE)
 
       defs <- self$group_rate_defs
-      lvls <- private$.levels_dataset
-      for (k in intersect(colnames(defs), names(lvls))) {
-        defs[[k]] <- as.integer(factor(defs[[k]], levels = lvls[[k]]))
+      info <- private$.info_dataset
+      for (k in intersect(colnames(defs), names(info))) {
+        defs[[k]] <- as.integer(factor(defs[[k]], 
+                                levels = info[[k]]$levels))
       }
       write.csv(defs,
                 file.path(outpath, "group_rates.tmp"),
@@ -425,7 +411,7 @@ HouseholdModel <- R6::R6Class(
       write.csv(self$param_defs,
                 file.path(outpath, "param.tmp"),
                 quote = FALSE, row.names = FALSE)
-      write.table(t(as.data.frame(fmt_setup_input_(self$setup))),
+      write.table(t(as.data.frame(char_setup_input_(self$setup))),
                   file.path(outpath, "setup.tmp"),
                   row.names = TRUE, col.names = FALSE, sep = ",", quote = FALSE)
       write.table(t(as.data.frame(private$.infec_profile$defs)),
@@ -603,7 +589,7 @@ HouseholdModel <- R6::R6Class(
     #' If `TRUE` the parameter is discrete.
     #' @param prior `character(1)`\cr
     #' Name of the prior distribution.
-    #' @param args named `list()`\cr
+    #' @param args named `list`\cr
     #' Arguments for the prior distribution.
     #' @param rule `character(1)`\cr
     #' Name of the inference proposal rule.
@@ -632,7 +618,7 @@ HouseholdModel <- R6::R6Class(
     #'
     #' @param ...
     #' Named arguments with respective list of definition details.
-    #' @param from (named `list()`\cr
+    #' @param from named `list`\cr
     #' Named list of parameter definitions.
     #' @param append `logical(1)`\cr
     #' If `TRUE` appends to current definitions.
@@ -686,11 +672,11 @@ HouseholdModel <- R6::R6Class(
     #' IF `TRUE` the augmenter variable is discrete.
     #' @param func `character()`\cr
     #' Name of the augmented function.
-    #' @param func_args (named `list()`\cr
+    #' @param func_args named `list`\cr
     #' Arguments of the augmented function.
     #' @param model `character(1)`\cr
     #' Name of the model distribution.
-    #' @param args named `list()`\cr
+    #' @param args named `list`\cr
     #' Arguments for the model distribution.
     #' @param min `double(1)` | `character(1)`\cr
     #' Minimum value. One between:
@@ -732,7 +718,7 @@ HouseholdModel <- R6::R6Class(
     #'
     #' @param ...
     #' Named arguments with respective list of definition details.
-    #' @param from (named `list()`\cr
+    #' @param from named `list`\cr
     #' Named list of parameter definitions.
     #' @param append `logical(1)`\cr
     #' If `TRUE` appends to current definitions.
@@ -772,12 +758,12 @@ HouseholdModel <- R6::R6Class(
     #'
     #' @param name `character(1)`\cr
     #' Name of the group rate.
-    #' @param by `list()`\cr
+    #' @param by `list`\cr
     #' Feature(s) associated to group rate as dataset headers.
     #' Corresponding dataset column have to be categorical.
     #' @param prefix `character(1)`\cr
     #' Prefix to parameter names associated to the group rate.
-    #' @param reference named `list()`\cr
+    #' @param reference named `list`\cr
     #' Choose reference group providing corresponding features.
     #' Default is the group with the largest sample size.
     #' @param independent `logical(1)`\cr
@@ -786,7 +772,7 @@ HouseholdModel <- R6::R6Class(
     #' Name of the prior distribution.
     #' Default associated parameter definitions
     #' have prior "lnorm" and `args = list(meanlog = 0, sdlog = 3)`.
-    #' @param args named `list()`\cr
+    #' @param args named `list`\cr
     #' Arguments for the prior distribution.
     #' @param min `double(1)`\cr
     #' Value of the minimum.
@@ -822,7 +808,7 @@ HouseholdModel <- R6::R6Class(
     #'
     #' @param ...
     #' Named arguments with respective list of definition details.
-    #' @param from (named `list()`\cr
+    #' @param from named `list`\cr
     #' Named list of parameter definitions.
     #' @param append `logical(1)`\cr
     #' If `TRUE` appends to current definitions.
@@ -839,7 +825,7 @@ HouseholdModel <- R6::R6Class(
     #' Name of the infectivity profile.
     #' @param discr `logical(1)`\cr
     #' If `TRUE` the profile is discrete.
-    #' @param args named `list()`\cr
+    #' @param args named `list`\cr
     #' Arguments (eventually with types) for the profile.
     #' @param max `double(1)` | `character(1)`\cr
     #' One between:
@@ -880,8 +866,8 @@ HouseholdModel <- R6::R6Class(
     #' Controls random initialization of parameters:
     #' - If `TRUE` (default), initial values are ndomly drawn from the prior distribution;
     #' - If `FALSE` initial value definitions are used.
-    #' @param id_trace `character(1)` \cr
-    #' Individual identifier for augmented trace plots. Default is `NA`.
+    #' @param id_trace `character(s)` \cr
+    #' Individual identifiers for augmented trace plots.
     #' @param seed `integer(1)` \cr
     #' Seed for the random number generator.
     #' - If a specific integer is provided, sets the random number generator seed.
@@ -946,7 +932,7 @@ HouseholdModel <- R6::R6Class(
     #' Extract the posterior expectation of a given measure.
     #' Perform simulations over posterior sample generated by `$infer`.
     #'
-    #' @param FUN `closure()` | `list()` of `closure()`\cr
+    #' @param FUN `closure()` | `list` of `closure()`\cr
     #' Function(s) to extract the desired measure from a dataset.
     #' @param progress `logical(1)` | `numeric(1)`\cr
     #' Controls progress visualization. Default is inherited from the model.

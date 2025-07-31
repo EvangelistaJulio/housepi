@@ -169,15 +169,13 @@ mcmc_trace(traces, facet_args = list(ncol = 1))
 ## Model Comparison
 
 To perform model comparison, one options is to use functions from the R package [loo](https://cloud.r-project.org/web/packages/loo/). 
-We can extract the sample of pointwise loglikelihood for each household using the field `$house_loglike_traces` and compute (e. g.) the WAIC as follows
+We can extract the sample of pointwise loglikelihood for each household using the field `$house_loglike_traces` and compute for example the leave-one-out cross-validation as follows
     
 ```{r}
-# widely applicable information criterion WAIC calling 'loo'
+# LOO-CV (leave-one-out cross-validation)
 library(loo)
-waic(posterior::as_draws_matrix(hhmodel$house_loglike_traces))
+loo(posterior::as_draws_matrix(hhmodel$house_loglike_traces))
 ```
-
-Similarly can be done with for the LOO-CV (leave-one-out cross-validation) with the function `loo()`.
 
 # Simulation
 

@@ -30,7 +30,7 @@
 #include <algorithm>
 
 /// DEVELOPER: flag used to develop Rcpp chunks
-// #define _HOUSEPI_RCPP
+#define _HOUSEPI_RCPP
 
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>

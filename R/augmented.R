@@ -31,6 +31,14 @@ HousepiAugmented <- R6::R6Class(
       # check for missing name
       if (is.na(name)) stop_h("Incomplete definition: missing name.")
 
+      # wrong status
+      else if (!is.na(status) && !is.numeric(status)) stop_h(
+        "Wrong status: must be NA or a positive integer alue."
+      )
+      else if (!is.na(status) && (status <= 0)) stop_h(
+        "Wrong status: must be NA or a positive integer value."
+      )
+
       # remove previous definition
       else if (self$remove(name, status, FALSE)) warning_h(sprintf(
         "Overwriting existing \"%s\" definition%s",
@@ -72,19 +80,16 @@ HousepiAugmented <- R6::R6Class(
 
       } else {
         if (is.na(parsed$func)) {
-          if (is.na(opts$func)) {
-            stop_h("Augmented function not defined.")
-          } else {
+          if (is.na(opts$func)) stop_h("Augmented function not defined.")
+          else {
             opts$farg_key <- type_join_(names(func_args))
             opts$farg_val <- type_join_(type_split_(func_args)$val)
             opts$farg_at  <- type_join_(type_split_(func_args)$at)
           }
-        } else {
-          stop_h(
-            "Augmented function defined both implicitly and explicitly.",
-            "Use either implicit 'func' or 'func_args' argument."
-          )
-        }
+        } else stop_h(
+          "Augmented function defined both implicitly and explicitly.",
+          "Use either implicit 'func' or 'func_args' argument."
+        )
       }
 
       return(opts)
@@ -268,47 +273,36 @@ HousepiAugmented <- R6::R6Class(
     },
 
     #' @description
-    #' Remove a given augmented variable
+    #' Remove a given augmented variable.
     #'
     #' @param x `character(1)`\cr
     #' Name of the augmented variable to remove.
     #' @param status `integer(1)`\cr
     #' The associated status of the definition.
-    #' Default NA is for all infectious.
+    #' Default NA is for all infected status.
     #' @param show_warnings `logical(1)`\cr
-    #' Wheter to show warnings or not. Default is `TRUE`.
+    #' Whether to show warnings or not. Default is `TRUE`.
     #'
     #' @return `logical(1)`
     remove = function(x, status = NA, show_warnings = TRUE) {
       mask <- (self$defs[["name"]] == x)
       if (any(mask)) {
-        if (is.na(status)) {
-          # drop previous definition
-          self$defs <- self$defs[!mask, ]
-          return(TRUE)
-
-        } else {
+        if (is.na(status)) self$defs <- self$defs[!mask, ]
+        else {
           # check if same name and status
           mask <- mask & (self$defs[["status"]] == status)
           mask[is.na(mask)] <- FALSE
-          if (any(mask)) {
-            # drop previous definition
-            self$defs <- self$defs[!mask, ]
-            return(TRUE)
 
-          } else if (isTRUE(show_warnings)) {
-            warning_h(sprintf(
-              "Unknown augmented variable \"%s\" for status %d to remove.",
-              x, status
-            ))
-          }
+          if (any(mask)) self$defs <- self$defs[!mask, ]
+          else if (isTRUE(show_warnings)) warning_h(sprintf(
+            "Unknown augmented variable \"%s\" for status %d to remove.",
+            x, status
+          ))
         }
-
-      } else if (isTRUE(show_warnings)) {
-        warning_h(sprintf("Unknown augmented variable \"%s\" to remove.", x))
-      }
-
-      return(FALSE)
+      } else if (isTRUE(show_warnings)) warning_h(
+        sprintf("Unknown augmented variable \"%s\" to remove.", x)
+      )
+      return(any(mask))
     },
 
     #' @description
@@ -325,7 +319,7 @@ HousepiAugmented <- R6::R6Class(
     #' IF `TRUE` the augmenter variable is discrete.
     #' @param func `character()`\cr
     #' Name of the augmented function.
-    #' @param func_args (named `list()`\cr
+    #' @param func_args named `list`\cr
     #' Arguments of the augmented function.
     #' @param value `double(1)` | `character(1)`\cr
     #' One between:
@@ -336,7 +330,7 @@ HousepiAugmented <- R6::R6Class(
     #' If `TRUE` draw initial vale from model distribution.
     #' @param model `character(1)`\cr
     #' Name of the model distribution.
-    #' @param args (named `list()`\cr
+    #' @param args named `list`\cr
     #' Arguments for the model distribution.
     #' @param min `double(1)` | `character(1)`\cr
     #' Minimum value. One between:
@@ -427,7 +421,7 @@ HousepiAugmented <- R6::R6Class(
     #'
     #' @param ...
     #' Named arguments with respective list of definition details.
-    #' @param from (named `list()`\cr
+    #' @param from named `list`\cr
     #' Named list of parameter definitions.
     #' @param append `logical(1)`\cr
     #' If `TRUE` appends to current definitions.
@@ -446,15 +440,24 @@ HousepiAugmented <- R6::R6Class(
         if (length(names(this_def)) == 0) {
           if (length(this_def) == 1) names(this_def) <- "value"
           else stop_h(
-            sprintf(
-              "Wrong definition for augmented variable \"%s\".", def_name
-            ),
+            sprintf("Wrong definition for augmented variable \"%s\".", 
+                    def_name),
             "Provide a definition list.",
-            "Alternative: if constant, a scalar or a typed value."
+            "Alternative: if constant, provide a scalar or a typed value."
           )
         }
+        # associate name
         this_def$name <- def_name
-        do.call(self$add, this_def)
+        
+        # multi status definitions
+        if (is.null(this_def$status)) do.call(self$add, this_def)
+        else {
+          status_def <- this_def
+          for (s in this_def$status) {
+            status_def$status <- s
+            do.call(self$add, status_def)
+          }
+        }
       }
 
       invisible(self)
@@ -470,9 +473,7 @@ HousepiAugmented <- R6::R6Class(
     #' @param append `logical(1)`\cr
     #' If `TRUE` append missing augmented variable definitions.
     #' If `FALSE` drop all pre-existing definitions (default).
-    load_template = function(templ_file,
-                             required = NULL,
-                             append = FALSE) {
+    load_template = function(templ_file, required = NULL, append = FALSE) {
       # check if template file exists
       if (file.exists((templ_file))) {
         # template augmented variable definitions

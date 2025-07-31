@@ -141,7 +141,7 @@ associate_param_names <- function(this_table,
 #' @description
 #' Combine list with group rate definition into a single dataframe
 #'
-#' @param all_tables `list()`\cr
+#' @param all_tables `list`\cr
 #' List containing definitions for each group rate.
 #'
 #' @return
@@ -209,7 +209,7 @@ HousepiGroupRate <- R6::R6Class(
   ############################################################################
 
   active = list(
-    #' @field param_defs `list()`\cr
+    #' @field param_defs `list`\cr
     #' List containing parameter definitions associated to group rates.
     param_defs = function(value) {
       if (missing(value)) {
@@ -320,19 +320,19 @@ HousepiGroupRate <- R6::R6Class(
     #'
     #' @param name `character(1)`\cr
     #' Name of the group rate.
-    #' @param by `list()`\cr
+    #' @param by `list`\cr
     #' Feature(s) associated to group rate as dataset headers.
     #' Corresponding dataset column have to be categorical.
     #' @param prefix `character(1)`\cr
     #' Prefix to parameter names associated to the group rate.
-    #' @param reference (named `list()`\cr
+    #' @param reference named `list`\cr
     #' Choose reference group providing corresponding features.
     #' Default is the group with the largest sample size.
     #' @param independent
     #' If `TRUE` features are considered separately.
     #' @param prior `character(1)`\cr
     #' Name of the prior distribution.
-    #' @param args (named `list()`\cr
+    #' @param args named `list`\cr
     #' Arguments for the prior distribution.
     #' @param rule `character(1)`\cr
     #' Name of the inference proposal rule.
@@ -420,7 +420,7 @@ HousepiGroupRate <- R6::R6Class(
     #'
     #' @param ...
     #' Named arguments with respective list of definition details.
-    #' @param from (named `list()`\cr
+    #' @param from named `list`\cr
     #' Named list of parameter definitions.
     #' @param append `logical(1)`\cr
     #' If `TRUE` appends to current definitions.
@@ -455,14 +455,13 @@ HousepiGroupRate <- R6::R6Class(
     #'
     #' @param dataset `data.frame`\cr
     #' Dataset to be considered.
-    #' @param factor_info `list()`\cr
+    #' @param factor_info `list`\cr
     #' Levels for each factorized feature.
     implement = function(dataset, factor_info) {
       self$logic_tables <- list()
 
-      for (i in seq_along(self$defs)) {
-        rate_id <- names(self$defs[i]) # name of the rate
-        this_def <- self$defs[[i]] # definition of the rate
+      for (rate_id in names(self$defs)) {
+        this_def <- self$defs[[rate_id]] # definition of the rate
         features <- as.list(this_def[["by"]]) # data features
 
         new_logic_table <- list()
@@ -489,12 +488,15 @@ HousepiGroupRate <- R6::R6Class(
             # 2. create relative cpp script chunk
             # factorize according to external factor information
             for (col in names(factor_info)) {
+              lv <- factor_info[[col]]$levels
+              if (is.null(lv)) stop_h(
+                "Wrong group rate definition: \"", col, "\" has no levels."
+              )
+
               if (col %in% colnames(this_table)) {
-                this_table[[col]] <- factor(
-                  this_table[[col]],
-                  levels = factor_info[[col]],
-                  labels = seq_along(factor_info[[col]])
-                )
+                this_table[[col]] <- factor(this_table[[col]], 
+                                            levels = lv, 
+                                            labels = seq_along(lv))
               }
             }
             # concatenate new lines to the script

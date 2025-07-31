@@ -162,11 +162,11 @@ get_val_ <- function(lst, key, default = NA) {
 #'
 #' @param ...\cr
 #' Named arguments with respective list of definition details.
-#' @param from (named `list()`\cr
+#' @param from named `list`\cr
 #' Named list of definitions (alternative to named arguments).
 #'
 #' @return
-#' `list() of list()`
+#' `list` of `list`
 #'
 #' @keywords internal
 load_definition_list <- function(..., from = NULL) {
@@ -380,7 +380,7 @@ cpp_traces_to_coda <- function(trs) {
 #'
 #' @param types `character()`\cr
 #' Vector of characters.
-#' @param values `list()`\cr
+#' @param values `list`\cr
 #' List of values.
 #'
 #' @return `character()`\cr
@@ -430,7 +430,7 @@ default_types_ <- function(types, values) {
 #' @param lst `character()`\cr
 #' Vector of characters.
 #'
-#' @return `list()`\cr
+#' @return `list`\cr
 #' List with two elements: value and type.
 #'
 #' @keywords internal
@@ -466,17 +466,17 @@ type_join_ <- function(x) {
 }
 
 #' @title
-#' Format setup input
+#' Character Setup Input
 #' @description
 #' Format elements of a list to pass to import_setup Rcpp method.
 #'
-#' @param defs `list()`\cr
+#' @param defs `list`\cr
 #' List of setup command
 #'
 #' @return `character()`
 #'
 #' @keywords internal
-fmt_setup_input_ <- function(defs) {
+char_setup_input_ <- function(defs) {
   # change scientific notation locally
   withr::local_options(list(scipen = 500))
   # correct id trace vector
@@ -489,7 +489,7 @@ fmt_setup_input_ <- function(defs) {
 }
 
 #' @title
-#' Format data input
+#' Character Data Input
 #' @description
 #' Format elements of dataset (or datalist) to pass to import Rcpp method.
 #'
@@ -499,9 +499,43 @@ fmt_setup_input_ <- function(defs) {
 #' @return `character()`
 #'
 #' @keywords internal
-fmt_data_input_ <- function(df) {
+char_data_input_ <- function(df) {
   if (is.null(df)) return(NULL)
   else return(data.frame(lapply(df, as.character)))
+}
+
+#' @title
+#' Cpp Data Factorize
+#' @description
+#' Factorize dates and non numerical quanties from dataset to pass Cpp.
+#'
+#' @param df `data.frame`\cr
+#' Dataset.
+#'
+#' @return `list`
+#'
+#' @keywords internal
+cpp_data_factorize <- function(df) {
+  skip <- c("id", "house_id", "status")
+  cols <- colnames(df)
+  info <- list()
+  for (col in setdiff(cols, skip)) {
+    x <- df[[col]]
+    if (inherits(x, "Date")) {
+      info[[col]] <- list(class = "Date")
+      df[[col]] <- as.numeric(x)
+    } else if (is.character(x) || is.factor(x) || is.logical(x)) {
+      cls <- ifelse(is.character(x), "character",
+                    ifelse(is.logical(x), "logical", "factor"))
+      y <- factor(x, levels = unique(x), exclude = NULL)
+      info[[col]] <- list(class = cls,
+                          levels = levels(y))
+      df[[col]] <- as.integer(y)
+    }
+  }
+  return(list(data = char_data_input_(df),
+              info = info,
+              cols = cols))
 }
 
 #' @title
@@ -509,30 +543,36 @@ fmt_data_input_ <- function(df) {
 #' @description
 #' Restore factored quanties on dataset return from Cpp implementation.
 #'
-#' @param df `data.frame`\cr
-#' Dataset as output from rcpp model object.
-#' @param levels `list()`\cr
-#' Levels of the factors in the dataset.
+#' @param data `data.frame`\cr
+#' Data as output from rcpp model object.
+#' @param info `list` of `list\cr
+#' Infor about class and levels of dataset columns.
 #' @param headers `character()`\cr
 #' Headers of the columns.
 #'
 #' @return `data.frame`
 #'
 #' @keywords internal
-cpp_data_refactor = function(df, levels, headers) {
-  if (length(df) > 0) {
-    # re-factor
-    if (length(levels) > 0) {
-      for (col in names(levels)) df[[col]] <- factor(
-        df[[col]],
-        levels = seq_along(levels[[col]]),
-        labels = levels[[col]]
-      )
+cpp_data_refactor = function(data, info, headers) {
+  # re-factor
+  for (col in names(info)) {
+    cls <- info[[col]]$class
+    if (identical(cls, "Date")) {
+      data[[col]] <- as.Date(data[[col]])
+    } else {
+      lv <- info[[col]]$levels
+      data[[col]] <- factor(data[[col]],
+                            levels = seq_along(lv),
+                            labels = lv)
+      if (identical(cls, "character")) {
+        data[[col]] <- as.character(data[[col]])
+      } else if (identical(cls, "logical")) {
+        data[[col]] <- as.logical(data[[col]])
+      }
     }
-    # re-order data and eventually extra columns
-    df <- df[c(headers, setdiff(colnames(df), headers))]
   }
-  return(df)
+  # re-order data and append eventual extra columns
+  return(data[c(headers, setdiff(colnames(data), headers))])
 }
 
 ############################################################################
@@ -549,7 +589,7 @@ cpp_data_refactor = function(df, levels, headers) {
 #' @param s `character()`\cr
 #' Vector of characters.
 #'
-#' @return `list()`
+#' @return `list`
 #'
 #' @keywords internal
 count_unique_function_calls_ <- function(s) {
@@ -563,10 +603,10 @@ count_unique_function_calls_ <- function(s) {
 #' @description
 #' Extract equality augmented function declaration
 #'
-#' @param `character()`\cr
+#' @param s `character()`\cr
 #' Vector of characters.
 #'
-#' @return `list()`
+#' @return `list`
 #'
 #' @keywords internal
 extract_func_equality_ <- function(s) {
@@ -576,9 +616,7 @@ extract_func_equality_ <- function(s) {
     "Invalid number of arguments for equality.",
     "Expected 1 argument, found ", length(y), "."
   )
-  
   y <- type_split_(y[-1])
-
   return(list(
     func = "eq", key = "x",
     val = type_join_(y$val), at = type_join_(y$at)
@@ -590,14 +628,14 @@ extract_func_equality_ <- function(s) {
 #' @description
 #' Extract basic augmented function declaration
 #'
-#' @param `character(1)`\cr
+#' @param s `character(1)`\cr
 #' Vector of characters.
-#' @param `character(1)`\cr
+#' @param reg_expr `character(1)`\cr
 #' Regular expression to split the string.
-#' @param `character(1)`\cr
+#' @param func_name `character(1)`\cr
 #' Function name.
 #'
-#' @return `list()`
+#' @return `list`
 #'
 #' @keywords internal
 extract_func_arithmetic_ <- function(s, reg_expr, func_name) {
@@ -608,7 +646,6 @@ extract_func_arithmetic_ <- function(s, reg_expr, func_name) {
     "Expected 2 argument, found ", length(y), "."
   )
   y <- type_split_(y)
-
   return(list(
     func = func_name, key = type_join_(c("x", "y")),
     val = type_join_(y$val), at = type_join_(y$at)
@@ -626,7 +663,7 @@ extract_func_arithmetic_ <- function(s, reg_expr, func_name) {
 #' @param s `character(1)`\cr
 #' String representing a function call.
 #' @return
-#' `list()`
+#' `list`
 #'
 #' @keywords internal
 extract_func_call_ <- function(s) {
@@ -670,7 +707,7 @@ extract_func_call_ <- function(s) {
 #' @param `character()`\cr
 #' Vector of characters.
 #'
-#' @return `list()`cr
+#' @return `list`cr
 #' function name, key, variable and type
 #'
 #' @keywords internal

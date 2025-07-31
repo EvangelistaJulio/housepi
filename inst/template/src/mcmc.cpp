@@ -142,7 +142,7 @@ void MCMC::infer() { pImpl_->infer(); }
 #ifdef _HOUSEPI_RCPP
 Rcpp::DataFrame MCMC::dataset_for_simulation() const
 {
-    return pImpl_->dataset.rcpp_export(pImpl_->dataset.headers() - pImpl_->augm.list_full, false);
+    return pImpl_->dataset.rcpp_export(pImpl_->dataset.headers() - pImpl_->augm.list_export(), false);
 }
 Rcpp::List MCMC::simulate(size_t n_rep) { return pImpl_->simulate(n_rep); }
 Rcpp::List MCMC::evidence(const std::string &scheme, ulong n_rungs) { return pImpl_->evidence(scheme, n_rungs); }
@@ -154,6 +154,7 @@ Rcpp::List MCMC::evidence(const std::string &scheme, ulong n_rungs) { return pIm
 Rcpp::List MCMC::export_setup() const { return pImpl_->setup.rcpp_export(); }
 Rcpp::List MCMC::export_infec_profile() const { return pImpl_->infec_profile.rcpp_export(); }
 Rcpp::DataFrame MCMC::export_param() const { return pImpl_->param.rcpp_export(); }
+Rcpp::DataFrame MCMC::export_augmented_dataset() const { return pImpl_->augm.rcpp_export_dataset(); }
 Rcpp::DataFrame MCMC::export_dataset() const { return pImpl_->dataset.rcpp_export(pImpl_->dataset.headers(), true); }
 Rcpp::DataFrame MCMC::export_dataset_report() const { return pImpl_->dataset.rcpp_export_report(); }
 Rcpp::DataFrame MCMC::export_house_size_report() const { return pImpl_->dataset.rcpp_export_size_report(); }

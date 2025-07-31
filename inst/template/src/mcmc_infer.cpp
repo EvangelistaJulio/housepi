@@ -312,7 +312,7 @@ void MCMC::Impl::move_all_()
             if (tools::is_na(llo) || tools::is_na(lla))
                 oss << "\nHousehold \"" << house.house_id() << "\" : "
                     << "obs loglike = " << llo << ", "
-                    << "augm loglike = " << lla << std::endl;       
+                    << "augm loglike = " << lla << std::endl;
         }
         oss << "Checked loglikelihood = " << ll << std::endl;
 
@@ -644,13 +644,14 @@ Rcpp::DataFrame MCMC::Impl::simulate_repetition()
 {
     using namespace Rcpp;
 
-    size_t n_cols = dataset.n_individuals();
-    int_vec df_status = int_vec(n_cols);
+    const size_t n_cols = dataset.n_individuals();
     const str_vec augm_headers = augm.list_export();
+
+    int_vec df_status = int_vec(n_cols);
     std::vector<dbl_vec> df_augm(augm_headers.size(), dbl_vec(n_cols));
 
     size_t row = 0;
-    for (Household house : dataset)
+    for (Household house : dataset) // copies of households
         try
         {
             simulate_single_household_(house); // inplace simulation
@@ -690,7 +691,7 @@ Rcpp::List MCMC::Impl::simulate(size_t n_rep)
         std::vector<DataFrame> results(n_rep);
 
 #pragma omp parallel for
-        for (ushort rep = 0; rep < n_rep; ++rep)
+        for (size_t rep = 0; rep < n_rep; ++rep)
         {
             if (has_error.load(std::memory_order_relaxed))
                 continue;
@@ -710,7 +711,7 @@ Rcpp::List MCMC::Impl::simulate(size_t n_rep)
 
         // convert to Rcpp List
         List output(n_rep);
-        for (ushort rep = 0; rep < n_rep; ++rep)
+        for (size_t rep = 0; rep < n_rep; ++rep)
             output[rep] = std::move(results[rep]);
 
         // close progress bar

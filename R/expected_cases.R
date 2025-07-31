@@ -135,7 +135,7 @@ measure_cases_by_house_size <- function(dataset) {
 #' Apply function `func` to corresponding elements
 #' across a list of data.frame that share the same dimensions.
 #'
-#' @param frame_list `list()` | `data.frame`\cr
+#' @param frame_list `list` | `data.frame`\cr
 #' List of data frames, all having the same dimensions.
 #' @param func `closure()`\cr
 #' Function applied to corresponding elements across data frames in the list.
@@ -179,7 +179,7 @@ frame_apply <- function(frame_list, func) {
 #' @description
 #' Compute the mean across different dataframes.
 #'
-#' @param frame_list `list()` | `data.frame`\cr
+#' @param frame_list `list` | `data.frame`\cr
 #'
 #' @return `data.frame()`
 #'
@@ -201,7 +201,7 @@ frame_apply_mean <- function(frame_list) {
 #' @description
 #' Compute the credible interval across different dataframes.
 #'
-#' @param frame_list `list()` | `data.frame`\cr
+#' @param frame_list `list` | `data.frame`\cr
 #' List of data frames, all having the same dimensions.
 #' @param cri_level `numeric(1)`\cr
 #' List of data frames, all having the same dimensions.
@@ -268,14 +268,14 @@ HousepiPosteriorExpec <- R6::R6Class(
   ############################################################################
 
   active = list(
-    #' @field observed `list()`\cr
+    #' @field observed `list`\cr
     #' Observed values of the measure of the posterior sample.
     observed = function(value) {
       if (missing(value)) return(private$.observed)
       stop_h("'observed' is read only.")
     },
 
-    #' @field posterior `list()`\cr
+    #' @field posterior `list`\cr
     #' Expected values of the measure of the posterior sample.
     posterior = function(value) {
       if (missing(value)) return(private$.posterior)
@@ -295,7 +295,7 @@ HousepiPosteriorExpec <- R6::R6Class(
     #' @param model `HouseholdModel`\cr
     #' Object of class [HouseholdModel][housepi::HouseholdModel]
     #' with complete definitions and traces already stored.
-    #' @param FUN `closure()` | `list()` of `closure()`\cr
+    #' @param FUN `closure()` | `list` of `closure()`\cr
     #' Function(s) to extract the desired measure from a dataset.
     #' @param progress `logical(1)`\cr
     #' Progress of simulations. Default is inherited from the model.
@@ -499,7 +499,7 @@ ExpectedCasesBySize <- R6::R6Class(
     # @description
     # Return a list with all filtered case tables.
     #
-    # @return `list()`
+    # @return `list`
     .filtered_tables = function() {
       # load observed table
       obsdf <- private$.observed$cases_by_size
@@ -641,7 +641,7 @@ ExpectedCasesBySize <- R6::R6Class(
     #' if TRUE (default), probabilities are `P[X<=x]`, otherwise `P[X>x]`.
     #'
     #' @return
-    #' `list()`
+    #' `list`
     chisq_test = function(lower_tail = FALSE) {
       x <- private$.filtered_tables()
       res <- (x$observed - x$expected)^2 / x$expected

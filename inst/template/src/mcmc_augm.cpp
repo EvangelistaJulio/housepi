@@ -295,7 +295,8 @@ void MCMC::Impl::ImplAugmented::allocate_univocal_defs_(const dict_str_vec &chec
                 throw std::invalid_argument(
                     "Conflicting status-specific and general definitions for augmented \"" + a + "\".");
 
-            list_full.push_back(a);
+            if (!(list_full % a))
+                list_full.push_back(a);
         }
     }
 }

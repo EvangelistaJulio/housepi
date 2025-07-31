@@ -165,7 +165,7 @@ IndividualSampler <- R6::R6Class(
     #'
     #' @param ...
     #' Named features with respective list of definition details.
-    #' @param from `list() of list()`\cr
+    #' @param from `list` of `list`\cr
     #' List containing encoding dictionary definitions for each feature.
     initialize = function(..., from = NULL) {
       # assign encoding dictionary
@@ -337,7 +337,7 @@ HouseholdSampler <- R6::R6Class(
     #'
     #' @param ...
     #' Named features with respective list of definition details.
-    #' @param from `list() of list()`\cr
+    #' @param from `list` of `list`\cr
     #' List containing encoding dictionary definitions for each feature.
     #' @param ascending `logical(1)`\cr
     #' If `TRUE` hierarchy between feature numbers is ascending.

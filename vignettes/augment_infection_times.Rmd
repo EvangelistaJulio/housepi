@@ -189,12 +189,45 @@ estimates <- posterior::summarise_draws(traces)
 library(flextable)
 
 estimates |> 
-  summarise(parameter = variable,
-            inferred = sprintf("%0.4f [%0.4f, %0.4f]", mean, q5, q95)) |>
-  inner_join(simul_param_defs) |>
+  rename(parameter = variable) |> 
+  mutate(inferred = sprintf("%0.4f [%0.4f, %0.4f]", mean, q5, q95)) |>
+  select(parameter, inferred) |> 
+  inner_join(simul_param_defs, by = "parameter") |>
   flextable() |>
   separate_header() |>
   theme_vanilla() |>
   bold(j = ~ parameter, bold = TRUE) |>
   autofit()
 ```
+
+## Additional Utils 
+
+To have a visual of the distribution of the augmented incubation periods, we can extract augmented variables as for current internal state with the method `$export_augmented_dataset()`:
+
+```{r}
+# recall choice of the incubation period distribution 
+distr_name <- subset(hhmodel$augm_defs, name == "incub_period")$model
+
+# recall incubation period parameters
+args <- c(shape = subset(hhmodel$param_defs, name == "inc_shape")$value,
+          scale = subset(hhmodel$param_defs, name == "inc_scale")$value)
+
+model_incub <- data.frame(x = seq(0, 12, 0.1))
+# 'housepi' subroutine to test internally defined distribution
+model_incub$y = test_distribution(distr_name, model_incub$x, 
+                                  args = args, model = hhmodel)
+
+col_dict <- c(Model = "black", Augmented = "coral")
+# export dataset with augmented variables at last state 
+hhmodel$export_augmented_dataset() |> 
+  # filter for only infected members
+  filter(status > 0) |> 
+  # compare histogram with
+  ggplot() +
+  geom_histogram(aes(x = incub_period, y = after_stat(density), color = "Augmented"), 
+                 bins = 40, fill = col_dict["Augmented"]) +
+  geom_line(data = model_incub, aes(x = x, y = y, color = "Model"), linewidth = 1) +
+  scale_color_manual(values = col_dict) +
+  labs(x = "Incubation Period", y = "Frequency", colour = "")
+```
+

@@ -3,7 +3,7 @@ library(tidyverse)
 url <- "https://gitlab.pasteur.fr/mmmi-pasteur/hh_israel_sarscov2_delta2/-/raw/main/codes/db_filtered.txt"
 
 date_fmt <- function(x) {
-  as.numeric(as.Date(x, format = "%Y-%m-%d") - as.Date("2021-01-01"))
+  as.numeric(as.Date(x, format = "%Y-%m-%d", origin = "2021-01-01"))
 }
 
 #study_period <- 21

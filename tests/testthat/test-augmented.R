@@ -25,9 +25,10 @@ test_that("Augmented variable definition is correct", {
 
   # consequent required definitions
   private <- augm$.__enclos_env__$private
-  expect_equal(private$.find_def_required("P"), "expo_max")
-  expect_equal(private$.find_def_required("D"), "expo")
-  expect_equal(private$.find_def_required("A"), "expo_min")
+  expect_equal(names(private$.find_def_required("P")), "augmented")
+  expect_equal(unname(private$.find_def_required("P")), "expo_max")
+  expect_equal(unname(private$.find_def_required("D")), "expo")
+  expect_equal(unname(private$.find_def_required("A")), "expo_min")
 })
 
 test_that("Augmented function definition is correct", {
@@ -48,13 +49,25 @@ test_that("Augmented function definition is correct", {
   expect_warning(
     augm$add(name = "dummy", func = "log", func_args = c(x = "infec@A"))
   )
+})
 
+test_that("Augmented load enable special definitions", {
   # alternative function call definitions
+  augm <- housepi:::HousepiAugmented$new()
+  augm$add(name = "dummy", func = "log", func_args = c(x = "infec@A"))
+  
   tmp <- housepi:::HousepiAugmented$new()
   tmp$load_list(dummy = "log(infec@A)")
-  expect_true(all(tmp$defs == augm$defs, na.rm = TRUE))
-
-  tmp <- housepi:::HousepiAugmented$new()
-  tmp$add(name = "dummy", func = "log(infec@A)")
-  expect_true(all(tmp$defs == augm$defs, na.rm = TRUE))
+  expect_equal(tmp$defs, augm$defs)
+  
+  expect_warning(tmp$add(name = "dummy", func = "log(infec@A)"),
+                 regexp = "Overwriting existing")
+  expect_equal(tmp$defs, augm$defs)
+  
+  # multi-status definition
+  tmp$defs <- NULL
+  tmp$load_list(dummy = list(value = "log(infec@A)", status = c(1, 3)))
+  tmp$defs$status <- NULL
+  
+  expect_equal(tmp$defs[1, , drop = TRUE], tmp$defs[2, , drop = TRUE])
 })

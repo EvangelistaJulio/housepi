@@ -46,13 +46,13 @@ HousepiGenerator <- R6::R6Class(
     # Headers of the last datalist imported.
     .cols_datalist = NULL,
 
-    # @field .levels_dataset `list()`\cr
+    # @field .info_dataset `list`\cr
     # List of levels of the factors in the dataset.
-    .levels_dataset = NULL,
+    .info_dataset = NULL,
 
-    # @field .levels_datalist `list()`\cr
+    # @field .info_datalist `list`\cr
     # List of levels of the factors in the datalist.
-    .levels_datalist = NULL,
+    .info_datalist = NULL,
 
     # @field .cri_level `numeric(1)`\cr
     # Width of ther credible interval.
@@ -72,9 +72,10 @@ HousepiGenerator <- R6::R6Class(
           output <- NULL
         } else {
           output <- private$.new_rcpp_model()
-          output$import_setup(fmt_setup_input_(value$export_setup()))
-          output$import_dataset(fmt_data_input_(value$export_dataset()))
-          output$import_datalist(fmt_data_input_(value$export_datalist()))
+          # note: no factorization is needed here
+          output$import_setup(char_setup_input_(value$export_setup()))
+          output$import_dataset(char_data_input_(value$export_dataset()))
+          output$import_datalist(char_data_input_(value$export_datalist()))
           return(output)
         }
       }
@@ -429,7 +430,7 @@ HousepiGenerator <- R6::R6Class(
     # @param dataset_headers `character()`\cr
     # Vector with the dataset headers.
     .refactor_dataset = function(x) {
-      cpp_data_refactor(x, private$.levels_dataset, private$.cols_dataset)
+      cpp_data_refactor(x, private$.info_dataset, private$.cols_dataset)
     },
 
     # @description 
@@ -437,7 +438,7 @@ HousepiGenerator <- R6::R6Class(
     # @param dataset_headers `character()`\cr
     # Vector with the dataset headers.
     .refactor_datalist = function(x) {
-      cpp_data_refactor(x, private$.levels_datalist, private$.cols_datalist)
+      cpp_data_refactor(x, private$.info_datalist, private$.cols_datalist)
     }
   ),
 
@@ -472,7 +473,7 @@ HousepiGenerator <- R6::R6Class(
       stop_h("'path_to_dll' is read only.")
     },
 
-    #' @field setup `list()`\cr
+    #' @field setup `list`\cr
     #' Last setup used by the build process.
     setup = function(value) {
       if (missing(value)) return(private$.rcpp$export_setup())
@@ -604,13 +605,25 @@ HousepiGenerator <- R6::R6Class(
     },
 
     #' @description
+    #' Dataset with associated augmented variables at current state.
+    #' 
+    #' @return
+    #' `data.frame`
+    export_augmented_dataset = function() {
+      return(private$.refactor_dataset(
+        cbind(private$.rcpp$dataset_for_simulation(), 
+              private$.rcpp$export_augmented_dataset())
+      ))
+    },
+
+    #' @description
     #' A snapshot of all current internal state of a given household.
     #' 
     #' @param house_id `character(1)`\cr
     #' Id of the household to export.
     #' 
     #' @return
-    #' `list()`
+    #' `list`
     export_house_snapshot = function(house_id) {
       house_id <- as.character(house_id)
       output <- private$.rcpp$export_house_snapshot(house_id)
