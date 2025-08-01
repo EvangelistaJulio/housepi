@@ -10,10 +10,10 @@ Class to extract expecteted measures over simulations sampled from posterior.
 \section{Active bindings}{
 \if{html}{\out{<div class="r6-active-bindings">}}
 \describe{
-\item{\code{observed}}{\code{list()}\cr
+\item{\code{observed}}{\code{list}\cr
 Observed values of the measure of the posterior sample.}
 
-\item{\code{posterior}}{\code{list()}\cr
+\item{\code{posterior}}{\code{list}\cr
 Expected values of the measure of the posterior sample.}
 }
 \if{html}{\out{</div>}}
@@ -23,6 +23,7 @@ Expected values of the measure of the posterior sample.}
 \itemize{
 \item \href{#method-HousepiPosteriorExpec-new}{\code{HousepiPosteriorExpec$new()}}
 \item \href{#method-HousepiPosteriorExpec-print}{\code{HousepiPosteriorExpec$print()}}
+\item \href{#method-HousepiPosteriorExpec-clone}{\code{HousepiPosteriorExpec$clone()}}
 }
 }
 \if{html}{\out{<hr>}}
@@ -38,11 +39,11 @@ New instance of class
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{model}}{\code{HouseholdModel}\cr
-Object of class \link[=HouseholdModel]{HouseholdModel}
-with complete definitions and traces already stored.}
+\item{\code{model}}{\code{HousepiModel}\cr
+Object of class \link[=HousepiModel]{HousepiModel}
+with complete definitions and draws already stored.}
 
-\item{\code{FUN}}{\code{closure()} | \code{list()} of \code{closure()}\cr
+\item{\code{FUN}}{\code{closure} | \code{list} of \code{closure}\cr
 Function(s) to extract the desired measure from a dataset.}
 
 \item{\code{progress}}{\code{logical(1)}\cr
@@ -63,5 +64,22 @@ Override the default printing behavior.
 \if{html}{\out{<div class="r">}}\preformatted{HousepiPosteriorExpec$print()}\if{html}{\out{</div>}}
 }
 
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HousepiPosteriorExpec-clone"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiPosteriorExpec-clone}{}}}
+\subsection{Method \code{clone()}}{
+The objects of this class are cloneable with this method.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HousepiPosteriorExpec$clone(deep = FALSE)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{deep}}{Whether to make a deep clone.}
+}
+\if{html}{\out{</div>}}
+}
 }
 }

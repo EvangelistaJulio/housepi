@@ -21,9 +21,14 @@
 #' Help with parameter definitions of model Rcpp object.
 #'
 #' @keywords internal
+#' @noRd
 HousepiParameter <- R6::R6Class(
   classname = "HousepiParameter",
   cloneable = TRUE,
+
+  private = list(
+    deep_clone = function(name, value) helper_clone(value)
+  ),
 
   ############################################################################
   ################################## PUBLIC ##################################
@@ -203,7 +208,7 @@ HousepiParameter <- R6::R6Class(
                          from = NULL,
                          append = FALSE) {
       # remove previous definitions if not append
-      if (isFALSE(append)) self$defs <- NULL
+      if (isFALSE(append)) self$initialize()
 
       # load definition list
       definitions <- load_definition_list(..., from = from)

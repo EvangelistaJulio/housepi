@@ -38,11 +38,7 @@ namespace tools
         else if (txt == HSP_NA_STRING)
             return true;
         else
-            for (const std::string txtnan : {"<NA>", "NA", "NAN"})
-                if (stoupper(txt) == txtnan)
-                    return true;
-
-        return false;
+            return (str_vec({"<NA>", "NA", "NAN"}) % stoupper(txt));
     }
 
     /* Internal check for double representing NA. */
@@ -312,10 +308,8 @@ namespace tools
 
             return true;
         }
-        else
-        {
-            return false;
-        }
+        
+        return false;
     }
 
     //-----------------------------------------------------------------------------------------------//
@@ -717,7 +711,7 @@ namespace progress
     {
     private:
         const std::string symbol_ = u8"\u25A0"; // bar decorator
-        unsigned barwidth_ = 40;                // bar total size
+        unsigned barwidth_ = 35;                // bar total size
         bool verbose_ = true;                   // wheter to show bar
         bool is_bar_print_ = false;             // wheter bar is printing
 

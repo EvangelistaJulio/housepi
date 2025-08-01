@@ -82,7 +82,7 @@ public:
         const str_vec file_headers = {"sample_size", "seed", "n_chains",
                                       "n_steps", "n_adapt", "thin",
                                       "n_burnin", "rand_init", "n_threads",
-                                      "id_trace", "progress"};
+                                      "id_draws", "progress"};
 
         std::int32_t seed;            // random generator seed
         bool rand_init_params = true; // random initialization of parameters
@@ -97,7 +97,7 @@ public:
         ulong c_n_sweeps = 0;         // single chain n. of sweeps
         double inv_T = 1.;            // inverse temperature
         unsigned n_threads = 1;       // number of OMP threads
-        str_vec id_trace = {};        // augmented trace to save
+        str_vec id_draws = {};        // augmented trace to save
 
         // state variables for MCMC sampling
         ulong chain = 1; // current chain
@@ -192,7 +192,7 @@ public:
         const double *get_ptr(const par_key &p) const { return safe_at(dictionary_, p).get_ptr(); }
 
         // flag to check if there are parameters to sample
-        bool is_sample() const { return !list_sample.empty(); }
+        bool is_any_sample() const { return !list_sample.empty(); }
 
         //===== SETTER =====//
         void build(const dict_str_vec &input);
@@ -454,8 +454,8 @@ public:
                                       "rule", "scale", "scale_at",
                                       "from", "from_at"};
 
-        std::vector<augm_key> list_full = {};
         std::vector<augm_key> list_model = {};
+        std::vector<augm_key> list_const = {};
         std::vector<augm_key> list_sample = {};
         std::vector<augm_key> list_func = {};
         std::map<int, std::vector<augm_key>> status_map_model = {};
@@ -481,21 +481,21 @@ public:
         void update_traces(ulong smpl_count);
 
         //===== GETTER =====//
-        const std::vector<augm_key> list_export() const
-        {
-            return list_full - str_vec({HSP_PROFILE_INST, HSP_PROFILE_CUMUL});
-        }
+        const std::vector<augm_key> list_full() const { return list_sample + list_func + list_const; }
+        const std::vector<augm_key> list_drop() const;
+        const std::vector<augm_key> list_export() const { return list_full() - list_drop(); }
+        const std::vector<augm_key> list_draws() const { return list_sample + list_func - list_drop(); }
 
         /* Flag if there are ant augmented variable definitions. */
-        bool is_any() const { return !list_full.empty(); }
+        bool is_any() const { return !list_full().empty(); }
         /* Flag if there are non-constant augmented variable definitions. */
-        bool is_sample() const { return !list_sample.empty(); }
+        bool is_any_sample() const { return !list_sample.empty(); }
         /* Flag if there are augmented variable definitions with a model. */
-        bool is_model() const { return !list_model.empty(); }
-        /* Flag if augmented variable definition are generic or not (i. e. individual status specific). */
+        bool is_any_model() const { return !list_model.empty(); }
+        /* Flag if augmented variable definitions are generic. */
         bool is_generic() const { return status_map_infer.empty(); }
         /* Flag if augmented traces are stored. */
-        bool is_traces() const { return !smpl_individuals.empty(); }
+        bool is_any_draws() const { return !smpl_individuals.empty(); }
 
 #ifdef _HOUSEPI_RCPP
         void rcpp_import(SEXP input);
@@ -511,7 +511,7 @@ public:
 
         const dict_str_vec check_name_status_(const dict_str_vec &deftable);
         void allocate_univocal_defs_(const dict_str_vec &check);
-        void set_id_trace_(str_vec &id_trace);
+        void set_id_draws_(str_vec &id_draws);
 
         double type_to_double_(const Individual &member,
                                const std::string &tkn_val, const std::string &tkn_typ);

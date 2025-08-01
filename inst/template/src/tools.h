@@ -30,7 +30,7 @@
 #include <algorithm>
 
 /// DEVELOPER: flag used to develop Rcpp chunks
-#define _HOUSEPI_RCPP
+//#define _HOUSEPI_RCPP
 
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
@@ -61,16 +61,27 @@ const double HSP_NA_DOUBLE = std::numeric_limits<double>::quiet_NaN();
 
 // NA value for string
 const std::string HSP_NA_STRING = "<NA>";
+// prefic for hidden objects
+const std::string HSP_HIDE_PRFX = "..";
+
+// chain column name in draws
+const std::string HSP_CHAIN_COL = HSP_HIDE_PRFX + "chain" + HSP_HIDE_PRFX; 
 
 // group rates
-constexpr double REFERENCE_VALUE = 1.0;          // alias for reference value
-const std::string REFERENCE = "reference_";       // reference choice
-const std::string CONTACT_RATE = "contact";      // contact rate
-const std::string MISSING_RATE = "missing_rate_"; // missing rate
+// alias for reference value
+constexpr double REFERENCE_VALUE = 1.0;          
+// reference choice
+const std::string REFERENCE = HSP_HIDE_PRFX + "reference" + HSP_HIDE_PRFX;       
+// contact rate
+const std::string CONTACT_RATE = HSP_HIDE_PRFX + "contact" + HSP_HIDE_PRFX;      
+// missing rate
+const std::string MISSING_RATE = HSP_HIDE_PRFX + "missing_rate" + HSP_HIDE_PRFX; 
 
-// auxiliary infectivity profile
-const std::string HSP_PROFILE_INST = "profile_inst_";   // augmented instantaneous infectivity profile
-const std::string HSP_PROFILE_CUMUL = "profile_cumul_"; // augmented cumulative infectivity profile
+// infectivity profile
+// augmented instantaneous infectivity profile
+const std::string HSP_PROFILE_INST = HSP_HIDE_PRFX + "profile_inst" + HSP_HIDE_PRFX;   
+// augmented cumulative infectivity profile
+const std::string HSP_PROFILE_CUMUL = HSP_HIDE_PRFX + "profile_cumul" + HSP_HIDE_PRFX; 
 
 // constants
 constexpr unsigned DEFAULT_MAX_SIZE = 30;    // default size for lookup table

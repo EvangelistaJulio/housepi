@@ -13,14 +13,25 @@ editor_options:
     wrap: sentence
 ---
 
+```{r setup}
+#| include: false
+knitr::opts_chunk$set(echo = TRUE, comment = "#>", 
+                      fig.width = 6.5, fig.height = 5, fig.fullwidth=TRUE,
+                      fig.align = "center", out.height="auto")
+options(knitr.kable.NA = "")
+
+bayesplot::bayesplot_theme_set(ggplot2::theme_gray())
+bayesplot::color_scheme_set(scheme = "brightblue")
+
+library(housepi)
+set.seed(42)
+```
+
 We provide a simple model to generate synthetic household dataset. 
 Let's assume that each individual can be represented with a single variable $\theta$, encoding for the provided covariates.
 We declare the covariates of interests at instatiation of the `HouseholdSampler` model class.
 
 ```{r}
-library(housepi)
-set.seed(42)
-
 # define individual features from dataset covariates assumed not independent
 hhsampler <- HouseholdSampler$new(
   # categorical data: levels to be considered
@@ -91,7 +102,7 @@ where $p_1$ is the probability of finding a household with a single member in ou
 
 ```{r}
 # compute marginal distributions
-hhsampler$compute_marginals(survey)
+hhsampler$compute_marginals(housepi::survey)
 
 # sample 5 households
 hhsampler$sample(5)

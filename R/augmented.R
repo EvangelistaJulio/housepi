@@ -15,17 +15,18 @@
 #' Help with augmented variable definitions of model Rcpp object.
 #'
 #' @keywords internal
+#' @noRd
 HousepiAugmented <- R6::R6Class(
   classname = "HousepiAugmented",
   cloneable = TRUE,
 
   ############################################################################
-  ############################################################################
   ################################# PRIVATE ##################################
-  ############################################################################
   ############################################################################
 
   private = list(
+    deep_clone = function(name, value) helper_clone(value),
+
     # handle existing definition
     .handle_existing_definition = function(name, status) {
       # check for missing name
@@ -205,9 +206,7 @@ HousepiAugmented <- R6::R6Class(
   ),
 
   ############################################################################
-  ############################################################################
   ################################## ACTIVE ##################################
-  ############################################################################
   ############################################################################
 
   active = list(
@@ -234,9 +233,7 @@ HousepiAugmented <- R6::R6Class(
   ),
 
   ############################################################################
-  ############################################################################
   ################################## PUBLIC ##################################
-  ############################################################################
   ############################################################################
 
   public = list(
@@ -349,8 +346,6 @@ HousepiAugmented <- R6::R6Class(
     #' @param from `double(1)` | `character(1)`\cr
     #' Advanced options for non random walk moves.
     #' `FIXME: missing`
-    #'
-    #' @keywords internal
     add = function(name = NA,
                    status = NA,
                    const = NA,
@@ -432,7 +427,7 @@ HousepiAugmented <- R6::R6Class(
       definitions <- load_definition_list(..., from = from)
 
       # remove previos definitions if not append
-      if (isFALSE(append)) self$defs <- NULL
+      if (isFALSE(append)) self$initialize()
 
       for (i in seq_along(definitions)){
         this_def <- as.list(definitions[[i]])

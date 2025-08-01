@@ -12,3 +12,14 @@ Household Epidemiological Modeling and Inference Rcpp Toolkit
 Rcpp package for epidemiological modeling and inference
 of household survey datasets.
 }
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://mmmi-pasteur.gitlab.io/housepi}
+}
+
+}
+\author{
+\strong{Maintainer}: Francesco Camaglia \email{francesco.camaglia@pasteur.fr} (\href{https://orcid.org/0000-0003-4810-2631}{ORCID})
+
+}

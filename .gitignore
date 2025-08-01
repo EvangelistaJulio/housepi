@@ -58,6 +58,7 @@ Thumbs.db
 *RcppExports.cpp
 .Rproj.user
 /doc/
+/docs/
 /Meta/
 /vignettes/*.R
 /vignettes/*.html

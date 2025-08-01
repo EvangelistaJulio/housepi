@@ -31,6 +31,7 @@ If a maximum household size is set, larger sizes are not returned.}
 \item \href{#method-ExpectedCasesBySize-set_max_house_size}{\code{ExpectedCasesBySize$set_max_house_size()}}
 \item \href{#method-ExpectedCasesBySize-drop_max_house_size}{\code{ExpectedCasesBySize$drop_max_house_size()}}
 \item \href{#method-ExpectedCasesBySize-chisq_test}{\code{ExpectedCasesBySize$chisq_test()}}
+\item \href{#method-ExpectedCasesBySize-clone}{\code{ExpectedCasesBySize$clone()}}
 }
 }
 \if{html}{\out{<hr>}}
@@ -46,8 +47,8 @@ New instance of class
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{model}}{\code{HouseholdModel}\cr
-Object of class \link[=HouseholdModel]{HouseholdModel}
+\item{\code{model}}{\code{HousepiModel}\cr
+Object of class \link[=HousepiModel]{HousepiModel}
 containing all model definitions after having run \verb{$infer}.}
 
 \item{\code{progress}}{\code{logical(1)}\cr
@@ -112,7 +113,24 @@ if TRUE (default), probabilities are \code{P[X<=x]}, otherwise \code{P[X>x]}.}
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-\code{list()}
+\code{list}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-ExpectedCasesBySize-clone"></a>}}
+\if{latex}{\out{\hypertarget{method-ExpectedCasesBySize-clone}{}}}
+\subsection{Method \code{clone()}}{
+The objects of this class are cloneable with this method.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{ExpectedCasesBySize$clone(deep = FALSE)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{deep}}{Whether to make a deep clone.}
+}
+\if{html}{\out{</div>}}
 }
 }
 }

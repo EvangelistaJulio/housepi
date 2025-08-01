@@ -13,12 +13,18 @@ editor_options:
     wrap: sentence
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, comment = NA)
+```{r setup}
+#| include: false
+knitr::opts_chunk$set(echo = TRUE, comment = "#>", 
+                      fig.width = 6.5, fig.height = 5, fig.fullwidth=TRUE,
+                      fig.align = "center", out.height="auto")
 options(knitr.kable.NA = "")
 
 bayesplot::bayesplot_theme_set(ggplot2::theme_gray())
 bayesplot::color_scheme_set(scheme = "brightblue")
+
+library(housepi)
+set.seed(42)
 ```
 
 Certain models allow for the definition of custom group rates.
@@ -26,17 +32,12 @@ Such models allow for a number of group rates which can then be changed accordin
 We provide an example here with the heterogeneous version of the chain binomial model.
 
 ```{r}
-library(housepi)
-set.seed(42)
-
 # load heterogeneous version of chain binomial
-hhmodel <- HouseholdModel$new("chain-binomial-heterogeneous")
-
-# load parameter definitions  from template
-hhmodel$load_param_template()
+hhmodel <- new_housepi_model("chain-binomial-heterogeneous") |>
+  load_parameter_template() # use templated parameters
 
 # inspect parameter definitions
-hhmodel$param_defs
+hhmodel |> get_parameters()
 ```
 
 ## Format dataset features
@@ -45,31 +46,27 @@ Suppose our analysis wants to explore age and gender-based effects within a hous
 We start by creating categorical groupings to stratify individuals based on their age, sex, etc and then associate individual group rates.
 
 ```{r}
-# load the dataset from the housepi package
-dataset <- survey
-
-# create an age group binary variable child/adult
-dataset$agegroup <- ifelse(dataset$age <= 15, "child", "adult")
-
-# import dataset from active field
-hhmodel$dataset <- dataset
+# import survey with age as binary group child/adult
+hhmodel$dataset <- housepi::survey |>
+  dplyr::mutate(age = dplyr::if_else(age < 16, "child", "adult"))
 ```
 
-Current loaded model allows for a number of group rates, among which the individual `"susceptibility"` (use `$help()` method to learn more). We can define it with the method `$add_group_rate()`. 
+Current loaded model allows for a number of group rates, among which the individual `"susceptibility"` (use `help()` method to learn more). 
+We can define it with calling `add_group_rate()`. 
 By default, all group rates without a definition will be treated as associated to the reference (i. e. `1`). Definitions will add a new parameter for each group, except for the reference group.
 By the default, definition assumes the reference group to be the one with the largest number of counts.
 To manually provide a `reference`, the corresponding argument should be set equal to the corresponding group value.
 
 ```{r}
-# associate susceptibility group rate by column agegroup
-hhmodel$add_group_rate("susceptibility", by = "agegroup")
-
-# inspect group rate definitions
-# note: to show group rate definitions, import a dataset before
-hhmodel$group_rate_defs
+hhmodel |> 
+  # associate susceptibility group rate by column age
+  add_group_rate("susceptibility", by = "age") |>
+  # inspect group rate definitions
+  # note: to show group rate definitions, import a dataset before
+  get_group_rates()
 ```
 To return a group rate to its default, overwrite its definition with argument `by` set to `NA`. 
-To drop all previous definitions use the method `$drop_group_rate_defs()`.
+To drop all previous definitions, call `drop_group_rates()`.
 
 ## Dependencies between covariates
 
@@ -77,29 +74,25 @@ In the previous example we associated group rates to a single covariate in the d
 In this example we show how to provide more covariates and a custom reference:
 
 ```{r}
-hhmodel$drop_group_rate_defs()
-
-# independent group rates, adult female chosen as reference
-hhmodel$add_group_rate("susceptibility", by = c("sex", "agegroup"),
-                       reference = list(sex = "F", agegroup = "adult"))
-
-# show correspoding tables with independent associations
-hhmodel$group_rate_defs
+hhmodel |> 
+  # independent group rates, adult female chosen as reference
+  add_group_rate("susceptibility", c("sex", "age"),
+                 reference = c(sex = "F", age = "adult")) |>
+  # show correspoding tables with independent associations
+  get_group_rates()
 ```
 
 By the default, parameters associated to each grouping are assumed independent, i.e. the group rates is the product of the two parameters. 
-To 
-
-```{r}
-hhmodel$drop_group_rate_defs()
 
 # covariates are not assumed independent
-hhmodel$add_group_rate("susceptibility", by = c("sex", "agegroup"),
-                       reference = list(sex = "F", agegroup = "adult"),
-                       independent = FALSE)
-
 # show table with dependent associations
-hhmodel$group_rate_defs
+
+```{r}
+hhmodel |> 
+  add_group_rate("susceptibility", c("sex", "age"),
+                 reference = c(sex = "F", age = "adult"),
+                 independent = FALSE) |>
+  get_group_rates()
 ```
 
 ## Proceed with Analysis
@@ -108,23 +101,21 @@ All other commands stay the same.
 We show an example with the very first definition of this vignette, which is equivalent to the following:
 
 ```{r}
-hhmodel$drop_group_rate_defs()
-
-# compact definition from list
-hhmodel$load_group_rate_list(
-  infectivity = "agegroup", # implicit 'by' for single feature
-  susceptibility = list(by = c("agegroup", "sex"), independent = FALSE)
-)
-
-# inference with minimal setup
-hhmodel$infer(n_chains = 4, n_steps = 5000, thin = 8, n_adapt = 1000, 
-              n_burnin = 1000, progress = 20)
+hhmodel <- hhmodel |>
+  # load definition list
+  load_group_rate_list(
+    infectivity = "age",
+    susceptibility = list(by = c("age", "sex"), independent = FALSE)
+  ) |>
+  # inference with minimal setup
+  infer(n_chains = 4, n_steps = 5000, n_burnin = 1000,
+        thin = 8, n_adapt = 1000, progress = 20)
 ```
 
-```{r, fig.width=6.5, fig.height=6, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
-library(bayesplot)
-traces <- hhmodel$traces
-mcmc_trace(traces)
+```{r}
+hhmodel |> 
+  as_draws_df() |> 
+  bayesplot::mcmc_trace()
 ```
 
 The inference is performed with default assumptions for the prior, a log-normal prior (`meanlog = 0` and `sdlog = 3`) and log-normal proposer rule, as in [Cauchemez et al. (2009)](https://www.nejm.org/doi/full/10.1056/NEJMoa0905498). 
@@ -132,35 +123,37 @@ This can be customized at the moment of the definition of the group rate similar
 
 ```{r}
 # show parameter definitions used for the inference
-hhmodel$param_defs
+hhmodel |> get_parameters()
 ```
 
 Finally, we can visualize the differences (e. g. for susceptibility) with respect to the reference group:
 
-```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
-library(dplyr)
+```{r}
+#| warning: false
+#| message: false
 library(ggplot2)
 
-# extract estimates from traces
-estimates <- posterior::summarise_draws(traces)
-
-# select estimates associated to group rate
 rate_id <- "susceptibility"
-# default prefix
-prefix <- paste0(substr(rate_id, 1, 3), "_") 
-results <- estimates[startsWith(estimates$variable, prefix), ]
-# rename results variable
-results$variable <- gsub("_", " ", sub(paste0("^", prefix), "", results$variable))
+prefix <- "sus_"
 
-# extract reference value and create a label
-tmp <- hhmodel$group_rate_defs |> 
-  filter(param_name == "REFERENCE" & group_rate == rate_id) |> 
-  select(-param_name, -group_rate)
-ylabel <- sprintf("%s (relative to %s)", rate_id, 
+tmp <- hhmodel |> 
+  get_group_rates() |> 
+  # extract reference value and create a label
+  dplyr::filter(group_rate == rate_id, param_name == "..reference..") |> 
+  dplyr::select(-group_rate, -param_name, -n)
+ylabel <- sprintf("%s (Ref: %s)", rate_id, 
                   paste(paste(names(tmp), tmp, sep = " "), collapse = " "))
 
 # compare inferred susceptibility group rates
-ggplot(results, aes(x = variable, y = mean)) +
+hhmodel |>
+  as_draws_df() |>
+  posterior::summarise_draws() |>
+  dplyr::filter(stringr::str_starts(variable, prefix)) |>
+  dplyr::mutate(
+    variable = stringr::str_remove(variable, paste0("^", prefix)) |>
+      stringr::str_replace_all("_", " ")
+  ) |>
+  ggplot(aes(x = variable, y = mean)) +
   geom_hline(yintercept = 1, linetype = "dashed") +
   geom_point(color = "coral", size = 2) +
   geom_errorbar(aes(ymin = q5, ymax = q95), width = 0.2, color = "coral") +

@@ -10,6 +10,13 @@
 # utils.R
 #
 
+helper_clone <- function(x) {
+  if (is.data.frame(x)) x[TRUE, , drop = FALSE]
+  else if (is.list(x)) lapply(x, helper_clone)
+  else if (inherits(x, "R6")) x$clone(deep = TRUE)
+  else x
+}
+
 #' @title
 #' Housepi stop utility
 #' @description
@@ -18,12 +25,13 @@
 #' @param ...\cr
 #' Lists of messages printed in sequence on different lines.
 #'
-#' @keywords internal
+#' @noRd
 stop_h <- function(...) {
   base::stop(paste(unlist(list(...)), collapse = "\n"),
              call. = FALSE)
   invisible()
 }
+
 
 #' @title
 #' Housepi warning utility
@@ -33,18 +41,11 @@ stop_h <- function(...) {
 #' @param ...\cr
 #' Lists of messages printed in sequence on different lines.
 #'
-#' @keywords internal
+#' @noRd
 warning_h <- function(...) {
   base::warning(paste(unlist(list(...)), collapse = "\n"),
                 call. = FALSE)
   invisible()
-}
-
-internal_setup_error <- function() {
-  stop_h(
-    "Failed to setup necessary files.",
-    "Check your user permissions."
-  )
 }
 
 # check if suggested library is installed
@@ -116,6 +117,7 @@ character_to_phrase <- function(mylist) {
 #' String with helpful comments
 #'
 #' @keywords internal
+#' @noRd
 find_closest_match <- function(input, options, min_dist = 1) {
   output <- c()
 
@@ -138,14 +140,14 @@ find_closest_match <- function(input, options, min_dist = 1) {
   }
 }
 
-
 # wrapper to file.copy with overwrite option
 overwrite <- function(from, to, ...) {
   if (from != to) {
-    if (!file.copy(from, to, overwrite = TRUE, ...)) {
-      # user permission error (tipically)
-      internal_setup_error()
-    }
+    # user permission error (tipically)
+    if (!file.copy(from, to, overwrite = TRUE, ...)) stop_h(
+      "Failed to setup necessary files.",
+      "Check your user permissions."
+    )
   }
 }
 
@@ -169,6 +171,7 @@ get_val_ <- function(lst, key, default = NA) {
 #' `list` of `list`
 #'
 #' @keywords internal
+#' @noRd
 load_definition_list <- function(..., from = NULL) {
   definitions <- list(...)
 
@@ -183,8 +186,6 @@ load_definition_list <- function(..., from = NULL) {
   return(definitions)
 }
 
-############################################################################
-############################################################################
 ############################################################################
 ############################################################################
 ############################################################################
@@ -224,6 +225,7 @@ trunc_mtime <- function(path) {
 #' `bool`
 #'
 #' @keywords internal
+#' @noRd
 untracked_changes <- function(source_dir, dll) {
   last_mod <- trunc_mtime(source_files(source_dir))
 
@@ -283,15 +285,13 @@ get_rcpp_module <- function(module_name, model = NULL) {
 ############################################################################
 ############################################################################
 ############################################################################
-############################################################################
-############################################################################
 
 # split into a list of matrix
 split_traces_by_chain_ <- function(x) {
   if (length(x) == 0) stop_h("Traces are empty.")
   return(lapply(
-    split(seq_len(nrow(x)), x[, "chain_"]),
-    function(idx) x[idx, colnames(x) != "chain_", drop = FALSE]
+    split(seq_len(nrow(x)), x[, "..chain.."]),
+    function(idx) x[idx, colnames(x) != "..chain..", drop = FALSE]
   ))
 }
 
@@ -307,6 +307,7 @@ split_traces_by_chain_ <- function(x) {
 #' `posterior::draws`
 #'
 #' @keywords internal
+#' @noRd
 cpp_traces_to_posterior <- function(trs) {
   if (methods::is(trs, "draws")) {
     return(trs)
@@ -344,6 +345,7 @@ cpp_traces_to_posterior <- function(trs) {
 #' `coda::mcmc` | `coda::mcmc.list`
 #'
 #' @keywords internal
+#' @noRd
 cpp_traces_to_coda <- function(trs) {
   require_suggested_library("coda")
   if ((methods::is(trs, "mcmc") || methods::is(trs, "mcmc.list"))) {
@@ -369,8 +371,6 @@ cpp_traces_to_coda <- function(trs) {
 ############################################################################
 ############################################################################
 ############################################################################
-############################################################################
-############################################################################
 
 #' @title
 #' Default types
@@ -387,6 +387,7 @@ cpp_traces_to_coda <- function(trs) {
 #' Vector of characters.
 #'
 #' @keywords internal
+#' @noRd
 default_types_ <- function(types, values) {
   valid_types <- list("S" = "scalar",
                       "P" = "parameter",
@@ -434,6 +435,7 @@ default_types_ <- function(types, values) {
 #' List with two elements: value and type.
 #'
 #' @keywords internal
+#' @noRd
 type_split_ <- function(lst) {
   if (all(is.na(lst))) {
     return(list(val = NA, at = NA))
@@ -461,6 +463,7 @@ type_split_ <- function(lst) {
 #' String formatted as a list of quoted words.
 #'
 #' @keywords internal
+#' @noRd
 type_join_ <- function(x) {
   return(paste(x, collapse = "/"))
 }
@@ -476,14 +479,15 @@ type_join_ <- function(x) {
 #' @return `character()`
 #'
 #' @keywords internal
+#' @noRd
 char_setup_input_ <- function(defs) {
   # change scientific notation locally
   withr::local_options(list(scipen = 500))
   # correct id trace vector
-  if ("id_trace" %in% names(defs)) {
-    y <- unlist(defs$id_trace)
-    if (length(y) == 0) defs$id_trace <- NA
-    else defs$id_trace <- type_join_(unique(y))
+  if ("id_draws" %in% names(defs)) {
+    y <- unlist(defs$id_draws)
+    if (length(y) == 0) defs$id_draws <- NA
+    else defs$id_draws <- type_join_(unique(y))
   }
   return(data.frame(lapply(defs, as.character)))
 }
@@ -499,6 +503,7 @@ char_setup_input_ <- function(defs) {
 #' @return `character()`
 #'
 #' @keywords internal
+#' @noRd
 char_data_input_ <- function(df) {
   if (is.null(df)) return(NULL)
   else return(data.frame(lapply(df, as.character)))
@@ -515,6 +520,7 @@ char_data_input_ <- function(df) {
 #' @return `list`
 #'
 #' @keywords internal
+#' @noRd
 cpp_data_factorize <- function(df) {
   skip <- c("id", "house_id", "status")
   cols <- colnames(df)
@@ -553,6 +559,7 @@ cpp_data_factorize <- function(df) {
 #' @return `data.frame`
 #'
 #' @keywords internal
+#' @noRd
 cpp_data_refactor = function(data, info, headers) {
   # re-factor
   for (col in names(info)) {
@@ -578,8 +585,6 @@ cpp_data_refactor = function(data, info, headers) {
 ############################################################################
 ############################################################################
 ############################################################################
-############################################################################
-############################################################################
 
 #' @title
 #' Count unique function calls
@@ -592,6 +597,7 @@ cpp_data_refactor = function(data, info, headers) {
 #' @return `list`
 #'
 #' @keywords internal
+#' @noRd
 count_unique_function_calls_ <- function(s) {
   forbid <- c("-", "+", "=", "*", "/", "^")
   reg_expr <- paste0(c("[", forbid, "]"), collapse = "")
@@ -609,6 +615,7 @@ count_unique_function_calls_ <- function(s) {
 #' @return `list`
 #'
 #' @keywords internal
+#' @noRd
 extract_func_equality_ <- function(s) {
   # split according to the regular expression
   y <- strsplit(s, "=")[[1]]
@@ -638,6 +645,7 @@ extract_func_equality_ <- function(s) {
 #' @return `list`
 #'
 #' @keywords internal
+#' @noRd
 extract_func_arithmetic_ <- function(s, reg_expr, func_name) {
   # split according to the regular expression
   y <- strsplit(s, reg_expr)[[1]]
@@ -666,6 +674,7 @@ extract_func_arithmetic_ <- function(s, reg_expr, func_name) {
 #' `list`
 #'
 #' @keywords internal
+#' @noRd
 extract_func_call_ <- function(s) {
   options <- c("pow", "sqrt", "exp", "log", "sin", "cos", "tan")
 
@@ -711,6 +720,7 @@ extract_func_call_ <- function(s) {
 #' function name, key, variable and type
 #'
 #' @keywords internal
+#' @noRd
 extract_func_ <- function(s) {
   # remove spaces
   s <- gsub(" ", "", s)
@@ -736,8 +746,6 @@ extract_func_ <- function(s) {
 }
 
 
-############################################################################
-############################################################################
 ############################################################################
 ############################################################################
 ############################################################################

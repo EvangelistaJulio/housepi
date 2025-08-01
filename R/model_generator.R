@@ -21,6 +21,7 @@
 #' Help with generating Rcpp model object.
 #'
 #' @keywords internal
+#' @noRd
 HousepiGenerator <- R6::R6Class(
   classname = "HousepiGenerator",
   cloneable = TRUE,
@@ -65,6 +66,7 @@ HousepiGenerator <- R6::R6Class(
     # @description
     # When x$clone(deep=TRUE) is called, the deep_clone gets invoked once for
     # each field, with the name and value.
+    # UPDATE: when piping I am using this a lot, check safety
     deep_clone = function(name, value) {
       # make a new instance of rcpp model object
       if (name == ".rcpp") {
@@ -478,40 +480,6 @@ HousepiGenerator <- R6::R6Class(
     setup = function(value) {
       if (missing(value)) return(private$.rcpp$export_setup())
       stop_h("'setup' is read only.")
-    },
-
-    #' @field summary `data.frame`\cr
-    #' A summary of statuses in the dataset.
-    summary = function(value) {
-      if (missing(value)) return(private$.rcpp$export_dataset_report())
-      stop_h("'summary' is read only.")
-    },
-
-    #' @field summary_house_size `data.frame`\cr
-    #' A summary of house sizes in the dataset.
-    summary_house_size = function(value) {
-      if (missing(value)) return(private$.rcpp$export_house_size_report())
-      stop_h("'summary_house_size' is read only.")
-    },
-
-    #' @field traces `posterior::draws_df`\cr
-    #' Posterior traces of last inference.
-    traces = function(value) {
-      if (missing(value)) {
-        trs <- private$.rcpp$export_traces()
-        return(cpp_traces_to_posterior(trs))
-      }
-      stop_h("'traces' is read only.")
-    },
-
-    #' @field house_loglike_traces `posterior::draws_df`\cr
-    #' Traces of pointwise loglikelihood for all households.
-    house_loglike_traces = function(value) {
-      if (missing(value)) {
-        trs <- private$.rcpp$export_house_loglike_traces()
-        return(cpp_traces_to_posterior(trs))
-      }
-      stop_h("'house_loglike_traces' is read only.")
     }
   ),
 
@@ -622,8 +590,7 @@ HousepiGenerator <- R6::R6Class(
     #' @param house_id `character(1)`\cr
     #' Id of the household to export.
     #' 
-    #' @return
-    #' `list`
+    #' @return `list`
     export_house_snapshot = function(house_id) {
       house_id <- as.character(house_id)
       output <- private$.rcpp$export_house_snapshot(house_id)
@@ -639,6 +606,45 @@ HousepiGenerator <- R6::R6Class(
       output$infec_profile <- df
 
       return(output)
+    },
+
+    #' @description Summarise statuses in the dataset.
+    #' @return`data.frame`
+    summarise = function() {
+      private$.rcpp$export_dataset_report()
+    },
+
+    #' @description Summary house sizes in the dataset.
+    #' @return `data.frame`
+    summarise_house_size = function() {
+      private$.rcpp$export_house_size_report()
+    },
+
+    #' @description Posterior draws data.frame of last inference.
+    #' @return `posterior::draws_df`
+    as_draws_df = function() {
+      # UPDATE: temporary drooping loglikelihood draws
+      # UPDATE: while waiting for HousepiPosteriorDraws
+      cpp_traces_to_posterior(private$.rcpp$export_traces()) |>
+        dplyr::select(-loglikelihood)
+    },
+
+    #' @description Posterior draws matrix of last inference.
+    #' @return `posterior::draws_matrix`
+    as_draws_matrix = function() {
+      posterior::as_draws_matrix(self$as_draws_df())
+    },   
+
+    #' @description Posterior draws data.frame of household pointwise loglikelihood.
+    #' @return `posterior::draws_df`
+    as_house_loglike_draws_df = function() {
+      cpp_traces_to_posterior(private$.rcpp$export_house_loglike_traces())
+    },   
+
+    #' @description Posterior draws matrix of household pointwise loglikelihood.
+    #' @return `posterior::draws_matrix`
+    as_house_loglike_draws_matrix = function() {
+      posterior::as_draws_matrix(self$as_house_loglike_draws_df())
     }
   )
 )

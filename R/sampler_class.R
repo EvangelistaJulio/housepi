@@ -44,6 +44,7 @@ IndividualSampler <- R6::R6Class(
   ############################################################################
 
   private = list(
+    deep_clone = function(name, value) helper_clone(value),
     .enc_dict = list(),
     .feats_pdf = data.frame(),
     .expand_pdf = data.frame(),

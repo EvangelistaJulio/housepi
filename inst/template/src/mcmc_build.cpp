@@ -78,8 +78,8 @@ void MCMC::Impl::ImplSetup::build(const dict_str_str &deflist)
             rand_init_params = tools::stobool(deflist.at("rand_init"));
 
         // Individual ID for Augmented Trace
-        if (deflist.count("id_trace") && (!tools::is_na(deflist.at("id_trace"))))
-            id_trace = tools::parse_list_args(deflist.at("id_trace"));
+        if (deflist.count("id_draws") && (!tools::is_na(deflist.at("id_draws"))))
+            id_draws = tools::parse_list_args(deflist.at("id_draws"));
     }
 
     // reset internal states
@@ -225,13 +225,13 @@ void MCMC::Impl::init_monte_carlo_()
     assert_proper_dataset_();
 
     // check if there is actually something to sample
-    if (!(param.is_sample() || augm.is_sample()))
+    if (!(param.is_any_sample() || augm.is_any_sample()))
         throw std::length_error(
             "Nothing to sample. Check your parameter and augmented variable definitions.");
 
     // wheter augmented variable are generic or status specific
     if (augm.is_any())
-        if (augm.is_sample())
+        if (augm.is_any_sample())
         {
             if (augm.is_generic())
                 move_augm_indiv_ = &MCMC::Impl::do_move_augm_indiv_generic_;

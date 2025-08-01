@@ -128,7 +128,7 @@ void MCMC::Impl::ImplAugmented::init_attributes_(Individual &member,
         }
         else if (tools::stoupper(type) == TYPE_AUGM)
         {
-            if (list_full % value)
+            if (list_full() % value)
             {
                 if (a == value)
                     throw std::invalid_argument(
@@ -268,7 +268,6 @@ const dict_str_vec MCMC::Impl::ImplAugmented::check_name_status_(const dict_str_
 void MCMC::Impl::ImplAugmented::allocate_univocal_defs_(const dict_str_vec &check)
 {
     // drop previous definitions
-    list_full.clear();
     status_map_infer.clear();
     status_map_model.clear();
 
@@ -294,9 +293,6 @@ void MCMC::Impl::ImplAugmented::allocate_univocal_defs_(const dict_str_vec &chec
             else if (mylist.size() > 1)
                 throw std::invalid_argument(
                     "Conflicting status-specific and general definitions for augmented \"" + a + "\".");
-
-            if (!(list_full % a))
-                list_full.push_back(a);
         }
     }
 }
@@ -345,13 +341,21 @@ void MCMC::Impl::ImplAugmented::build()
                 if (!tools::is_na(deftable.at("const")[k]))
                     is_constant = tools::stobool(deftable.at("const")[k]);
 
-                // add to list of augmented functions
                 if (is_function)
-                    list_func.push_back(a);
-
-                // Augmented Variables to be Inferred
-                if (!is_constant && !is_function)
                 {
+                    // add to list of augmented functions
+                    if (!(list_func % a))
+                        list_func.push_back(a);
+                }
+                else if (is_constant)
+                {
+                    // add to list of augmented constants
+                    if (!(list_const % a))
+                        list_const.push_back(a);
+                }
+                else
+                {
+                    // augmented variables to be sampled
                     // check random initialization option
                     if (!tools::is_na(deftable.at("init_rand")[k]))
                         if (tools::stobool(deftable.at("init_rand")[k]))
@@ -406,7 +410,7 @@ void MCMC::Impl::ImplAugmented::build()
                     clear_all(member);
 
             // end assigment in the households
-            set_id_trace_(pImpl_.setup.id_trace);
+            set_id_draws_(pImpl_.setup.id_draws);
         }
     }
     catch (const std::exception &e)
@@ -421,22 +425,22 @@ void MCMC::Impl::ImplAugmented::build()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Search individual id for augmented traces follow-up. */
-void MCMC::Impl::ImplAugmented::set_id_trace_(str_vec &id_trace)
+void MCMC::Impl::ImplAugmented::set_id_draws_(str_vec &id_draws)
 {
     smpl_individuals.clear();
 
-    if (!id_trace.empty())
+    if (!id_draws.empty())
     {
-        if (is_sample())
+        if (is_any_sample())
         {
             smpl_individuals.clear();
-            smpl_individuals.reserve(id_trace.size());
+            smpl_individuals.reserve(id_draws.size());
 
             // check id across all individuals
             str_vec already_stored_id = {};
             for (const Household &house : pImpl_.dataset)
                 for (const Individual &member : house)
-                    if (id_trace % member.id())
+                    if (id_draws % member.id())
                     {
                         if (already_stored_id % member.id())
                             throw std::invalid_argument(
@@ -449,9 +453,9 @@ void MCMC::Impl::ImplAugmented::set_id_trace_(str_vec &id_trace)
                     }
 
             // check all user request are satisfied
-            tools::check_for_missing_entries(already_stored_id, id_trace, "trace id");
+            tools::check_for_missing_entries(already_stored_id, id_draws, "trace id");
 
-            if (is_traces())
+            if (is_any_draws())
             {
                 for (const Individual *member : smpl_individuals)
                     if (!member->is_infected_status())
@@ -461,15 +465,15 @@ void MCMC::Impl::ImplAugmented::set_id_trace_(str_vec &id_trace)
             else
             {
                 tools::warning(
-                    "Ignoring id trace for individual " + tools::str_list(id_trace));
-                id_trace.clear();
+                    "Ignoring id trace for individual " + tools::str_list(id_draws));
+                id_draws.clear();
             }
         }
         else
         {
             tools::warning(
                 "Ignoring id trace: no augmented variables to infer.");
-            id_trace.clear();
+            id_draws.clear();
         }
     }
 }
@@ -477,15 +481,15 @@ void MCMC::Impl::ImplAugmented::set_id_trace_(str_vec &id_trace)
 /* Initialize sample for individual augmented variable followup. */
 void MCMC::Impl::ImplAugmented::init_traces(ulong sample_size)
 {
-    if (is_traces())
+    if (is_any_draws())
     {
         smpl_values.clear();
         smpl_values.resize(smpl_individuals.size());
         for (size_t k = 0; k < smpl_individuals.size(); ++k)
         {
             smpl_values[k].clear();
-            smpl_values[k].reserve((list_sample + list_func).size());
-            for (const augm_key &a : list_sample + list_func)
+            smpl_values[k].reserve(list_draws().size());
+            for (const augm_key &a : list_draws())
             {
                 smpl_values[k][a].clear();
                 smpl_values[k][a].reserve(sample_size);
@@ -498,14 +502,24 @@ void MCMC::Impl::ImplAugmented::init_traces(ulong sample_size)
 /* Store sample for individual augmented variable followup */
 void MCMC::Impl::ImplAugmented::update_traces(ulong smpl_count)
 {
-    if (is_traces())
+    if (is_any_draws())
         for (size_t k = 0; k < smpl_individuals.size(); ++k)
         {
             auto &smpl_augm_value_k = smpl_values[k];
             const Individual *member_star = smpl_individuals[k];
-            for (const augm_key &a : list_sample + list_func)
+            for (const augm_key &a : list_draws())
                 smpl_augm_value_k[a][smpl_count] = member_star->augm(a);
         }
+}
+
+/* List of private augmented variables to be dropped. */
+const std::vector<augm_key> MCMC::Impl::ImplAugmented::list_drop() const
+{
+    std::vector<augm_key> drop_list = {};
+    for (const augm_key &a : list_full())
+        if (a.size() >= 2 && a.substr(0, 2) == HSP_HIDE_PRFX)
+            drop_list.push_back(a);
+    return drop_list;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -515,7 +529,7 @@ void MCMC::Impl::ImplAugmented::update_traces(ulong smpl_count)
 /* Clear all augmented definition of individual. */
 void MCMC::Impl::ImplAugmented::clear_all(Individual &member)
 {
-    for (const augm_key &a : list_full)
+    for (const augm_key &a : list_full())
         member.clear_augm(a);
 }
 
@@ -640,7 +654,7 @@ void MCMC::Impl::ImplAugmented::init()
 /* Move augmented variables from all households. */
 void MCMC::Impl::move_all_augm_()
 {
-    if (augm.is_sample())
+    if (augm.is_any_sample())
     {
         double delta_ll = 0.;
         std::atomic<bool> has_error(false);

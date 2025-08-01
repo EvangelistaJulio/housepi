@@ -9,6 +9,7 @@ source("R/expected_cases.R")
 source("R/model_generator.R")
 source("R/model_class.R")
 source("R/sampler_class.R")
+source("R/expose.R")
 
 ## CHECK:
 ##----------

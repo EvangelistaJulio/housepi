@@ -25,6 +25,7 @@ set_source_name_ <- function(x, name = NA) {
 #'
 #' @return `character(1)`
 #' @keywords internal
+#' @noRd
 template_models_dir <- function() {
   return(file.path(system.file(package = "housepi"), "models"))
 }
@@ -35,6 +36,7 @@ template_models_dir <- function() {
 #' Show list of all available template nmodel names.
 #'
 #' @keywords internal
+#' @noRd
 show_model_names <- function() {
   cli::cli_alert_info("Available template models:")
   ulid <- cli::cli_ul()
@@ -55,6 +57,7 @@ show_model_names <- function() {
 #' If `NA`, show template model description in RStudio Help window.
 #'
 #' @keywords internal
+#' @noRd
 copy_template_to_path <- function(name, path) {
   dir.create(path, recursive = TRUE, showWarnings = FALSE)
   if (dir.exists(path)) {
@@ -169,6 +172,7 @@ template_household_model <- function(name = NA, path = NA, replace = FALSE) {
 #' `logical(1)`
 #'
 #' @keywords internal
+#' @noRd
 template_assert_expression <- function(refer_file, expression) {
   # check if reference file exists
   if (file.exists(refer_file)) {
@@ -196,6 +200,7 @@ template_assert_expression <- function(refer_file, expression) {
 #' `character()`
 #'
 #' @keywords internal
+#' @noRd
 template_required_find <- function(refer_file, regular_expr) {
   required <- c()
 
@@ -235,6 +240,7 @@ template_required_find <- function(refer_file, regular_expr) {
 #' `character()`)
 #'
 #' @keywords internal
+#' @noRd
 template_missing_find <- function(required, defined) {
   if (length(required) == 0) return(NULL)
   else if (length(defined) == 0) return(sort(unlist(required)))
@@ -257,6 +263,7 @@ template_missing_find <- function(required, defined) {
 #' `character()`
 #'
 #' @keywords internal
+#' @noRd
 template_missing_stop <- function(required, defined, family) {
   miss <- template_missing_find(required, defined)
   len_miss <- length(miss)
@@ -295,6 +302,7 @@ template_missing_stop <- function(required, defined, family) {
 #' `character()`
 #'
 #' @keywords internal
+#' @noRd
 template_not_used_find <- function(required, defined) {
   if (length(required) == 0) return(sort(unlist(defined)))
   else if (length(defined) == 0) return(NULL)
@@ -317,13 +325,14 @@ template_not_used_find <- function(required, defined) {
 #' `character()`
 #'
 #' @keywords internal
+#' @noRd
 template_not_used_warn <- function(required, defined, family) {
   notused <- template_not_used_find(required, defined)
   
   len_not_used <- length(notused)
   if (len_not_used > 0) warning_h(
     sprintf("There %s %s unused %s definition%s: %s",
-            ifelse(len_not_used > 1, "are", "is"), len_not_used,
+            ifelse(len_not_used > 1, "are", "is"),
             len_not_used, family,
             ifelse(len_not_used > 1, "s", ""),
             character_to_string_list(notused)),
@@ -345,6 +354,7 @@ template_not_used_warn <- function(required, defined, family) {
 #' @return `data.frame`
 #'
 #' @keywords internal
+#' @noRd
 template_blank_dataset_ <- function() {
   data.frame(id = c("hh_01_1", "hh_01_2"), 
              house_id = "hh_01", 

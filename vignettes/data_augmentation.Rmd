@@ -13,18 +13,24 @@ editor_options:
     wrap: sentence
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, comment = NA)
+```{r setup}
+#| include: false
+knitr::opts_chunk$set(echo = TRUE, comment = "#>", 
+                      fig.width = 6.5, fig.height = 5, fig.fullwidth=TRUE,
+                      fig.align = "center", out.height="auto")
 options(knitr.kable.NA = "")
 
 bayesplot::bayesplot_theme_set(ggplot2::theme_gray())
 bayesplot::color_scheme_set(scheme = "brightblue")
+
+library(housepi)
+set.seed(42)
 ```
 
 This tutorial introduces to data augmentation with the package `housepi`.
 We explain the process of associating augmented variable to individuals to then proceed with standard model generation and inference.
 
-# Estimate Incubation Periods Distribution
+# Example: Estimate Incubation Periods Distribution 
 
 For simplicity, we start testing data augmentation on a dataset which is not a household survey.
 Instead we consider a simulated report documenting the days when a number of cases were exposed to infection and the days of symptom onset.
@@ -32,29 +38,19 @@ Instead we consider a simulated report documenting the days when a number of cas
 Assuming the incubation period to be described by a gamma distribution, we want to estimate the respective parameters augmenting the infection and onset times, modeled as uniformly distributed in the reported ranges.
 
 ```{r}
-library(housepi)
-set.seed(42)
-
 # use an example script for generate delays
 source("generate_delays.R")
 
 # generate delays according to a gamma distribution
-dataset <- generate_delays()
-# correct right censoring to allow for the event to occur during the whole day
-dataset$exposure_max <- dataset$exposure_max + 0.99
-dataset$onset_max <- dataset$onset_max + 0.99
-
+dataset <- generate_delays() |>
+  # correct right censoring to allow the event to occur during the whole day
+  # note: temporary before allowing for expaned arguments
+  dplyr::mutate(exposure_max = exposure_max + 0.99,
+                onset_max = onset_max + 0.99)
 head(dataset)
 ```
 
-We generate the model as showed in the [Walkthrough](walkthrough.html):
-
-```{r}
-# generate an instance of the household model class
-hhmodel <- HouseholdModel$new("augm-example")
-```
-
-## Build Augmented Variables
+# Build Augmented Variables
 
 Similarly to parameter, augmented variables require definitions for models and proposer rules needed for the Bayesian Monte Carlo.
 In many applications, augmented variable definitions can also depend on the dataset or on model parameters to be inferred.
@@ -65,110 +61,118 @@ g.
 More in general, definition arguments `value`, `args`, `min`, `max`, `scale` and `from` can be linked to external values in the following ways
 
 | Origin    | Link Examples       | Symbol |
-|-----------|---------------------|--------|
+|-----------|:-------------------:|:------:|
 | Augmented | "proba", "proba\@A" | A      |
 | Dataset   | "onset_max\@D"      | D      |
 | Parameter | "mean\@P"           | P      |
 | Scalar    | 14, "14", "14\@S"   | S      |
 
-The augmented variables are defined in the model with the methods `$add()` or `$load_augm_list()`.
-The first one is used to define a single augmented variable, while the second one allows to define multiple variables at once.
 The model has the only requirement to associate an augmented variable `"log_proba"` for each individual with positive status.
 This variable will be used to compute the log-probability of the incubation period distribution.
 We propose the incubation period to be distributed as a gamma distribution, with parameters `shape` and `scale` to be inferred.
 Then, we define the augmented variables `infec_time` and `onset_time` as uniformly distributed in the ranges of exposure and onset times, respectively.
 
 ```{r}
-# augmented variable definitions as function calls
-hhmodel$load_augm_list(
-  # declare 'incub_period' as the difference
-  # between augmented onset and infection times
-  incub_period = "onset_time - infec_time",
+# generate an instance of the household model class
+hhmodel <- new_housepi_model("augm-example") |>
 
-  # explicit declaration of incubation period distribution
-  proba = list(
-    func = "gamma_meanvar", # gamma distribution (by mean and variance)
-    func_args = c(
-      x = "incub_period",   # compute from individual augmented 'incub_period'
-      mean = "mean@P",      # use model parameter 'mean'
-      var = "var@P"         # and 'var'
+  # augmented variable definitions as function calls
+  load_augmented_list(
+    # declare 'incub_period' as the difference
+    # between augmented onset and infection times
+    incub_period = "onset_time - infec_time",
+
+    # explicit declaration of incubation period distribution
+    ..proba = list(
+      func = "gamma_meanvar", # gamma distribution (by mean and variance)
+      func_args = c(
+        x = "incub_period",   # compute from individual augmented 'incub_period'
+        mean = "mean@P",      # use model parameter 'mean'
+        var = "var@P"         # and 'var'
+      ),
+      max = 14                # truncation
     ),
-    max = 14                # truncation
-  ),
 
-  # declare the augmented variable 'log_proba'
-  log_proba = "log(proba)"
-)
+    # declare the augmented variable 'log_proba'
+    log_proba = "log(..proba)"
+  ) |>
 
-# define the gamma distribution parameter to be inferred
-hhmodel$load_param_list(
-  mean = list(prior = "unif", args = c(min = 0.1, max = 5), rule = "norm"),
-  var = list(prior = "unif", args = c(min = 0.1, max = 5), rule = "norm")
-)
+  # define the gamma distribution parameter to be inferred
+  load_parameter_list(
+    mean = list(prior = "unif", args = c(min = 0.1, max = 5), rule = "norm"),
+    var = list(prior = "unif", args = c(min = 0.1, max = 5), rule = "norm")
+  )
 
-# add 'infec_time' time definition
-hhmodel$add_augm(
-  name = "infec_time",
-  value = "exposure_min@D", # start from data value 'exposure_min'
-  # uniform model within the range [0, 'exposure_max']
-  model = "unif",
-  args = c(min = 0, max = "exposure_max@D"),
-  rule = "norm", # normal distribution for the mcmc proposer 
-  scale = 0.25   # with scale 0.25 (i. e. standard deviation)
-)
-
-# add 'onset_time' time definition
-hhmodel$add_augm(
-  name = "onset_time", value = "onset_max@D",
-  model = "unif", args = c(min = "onset_min@D", max = "onset_max@D"),
-  rule = "norm", scale = 0.25
-)
+hhmodel <- hhmodel |> 
+  # add 'infec_time' time definition
+  add_augmented(
+    name = "infec_time",
+    value = "exposure_min@D", # start from data value 'exposure_min'
+    # uniform model within the range [0, 'exposure_max']
+    model = "unif",
+    args = c(min = 0, max = "exposure_max@D"),
+    rule = "norm", # normal distribution for the mcmc proposer 
+    scale = 0.25   # with scale 0.25 (i. e. standard deviation)
+  ) |>
+  # add 'onset_time' time definition
+  add_augmented(
+    name = "onset_time", value = "onset_max@D",
+    model = "unif", args = c(min = "onset_min@D", max = "onset_max@D"),
+    rule = "norm", scale = 0.25
+  )
 ```
 
-### Extract Augmented Variable Traces
+## Extract Augmented Variable Draws
 
 We could run the inference and extract the results as usual.
 However, sometimes we might be interested in extracting also to check if augmented variables evolve as expected.
-We can do so by providing the `id` of individual augmented variables we want to store, in the setup arguments of `$infer()` method:
+We can do so by providing in the setup arguments of `infer()`, the `id` of individual whose augmented variables we want to store.
+Notice that we had to introduce an auxiliary augmented function `..proba`.
+The name starting with `..` is a convention for housepi to interpet such as private and don't store its draws.
 
 ```{r}
-# ask for the traces of augmented variables for individual with id 7
-hhmodel$infer(dataset = dataset, n_steps = 10000, n_burnin = 500, 
-              thin = 8, n_chains = 4, n_adapt = 3000, 
-              id_trace = 7, progress = FALSE) 
+#| warning: false
+hhmodel |>
+  add_dataset(dataset) |>
+  infer(n_steps = 10000, n_burnin = 500, 
+        thin = 8, n_chains = 4, n_adapt = 3000, 
+        # store augmented draws for individual "7"
+        id_draws = "7", 
+        progress = FALSE) |> 
+  as_draws_df() |> 
+  bayesplot::mcmc_trace()
 ```
 
-Note: The warning tells us that our dataset has no demographic structure: it will be interpreted as single individuals living in separate households.
-
-```{r, fig.width=6.5, fig.height=4, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
-library(bayesplot)
-mcmc_trace(hhmodel$traces)
-```
+Note that here the dataset has no demographic structure. 
+We are assuming all individuals livto live in distinct households.
 
 ## Other Proposer Rules for the Augmented Variables
 
-```{r, include=FALSE}
-color_scheme_set(scheme = "purple")
+```{r}
+#| include: false
+bayesplot::color_scheme_set(scheme = "orange")
 ```
 
 When it comes to data augmentation, we might need to explore different options for the Monte Carlo moves.
 In the following examples we show the differences between move choices that can be performed.
-As shown in the vignette [Bayesian MCMC options](bayesian_mcmc_options.html), we do the testing with the "blank" model.
+As shown in [Bayesian MCMC options](bayesian_mcmc_options.html), we do the testing with the "blank" model.
 We always recommend a visual assesment before choosing a new move.
 
-```{r, fig.width=6.5, fig.height=2, fig.fullwidth=TRUE, out.height="auto", fig.align="center"}
+```{r}
+#| fig.height: 2
+#| warning: false
 # with model (default draw rule)
-hhmodel <- HouseholdModel$new("blank")
-hhmodel$add_augm(name = "move_with_model", model = "norm")
-mcmc_trace(hhmodel$infer()$traces)
+new_housepi_model("blank") |>
+  add_augmented(name = "draw from model", model = "norm", args = c(mean = 14)) |>
+  infer() |> as_draws_df() |> bayesplot::mcmc_trace()
 
 # random walk starting from 0 (without model)
-hhmodel$drop_all()
-hhmodel$add_augm(name = "random_walk", value = 0, rule = "norm")
-mcmc_trace(hhmodel$infer()$traces)
+new_housepi_model("blank") |>
+  add_augmented(name = "random walk", value = 14, rule = "norm") |> 
+  infer() |> as_draws_df() |> bayesplot::mcmc_trace()
 
 # independent normal moves from value 87 (without model)
-hhmodel$drop_all()
-hhmodel$add_augm(name = "independent_moves", rule = "norm", from = 87)
-mcmc_trace(hhmodel$infer()$traces)
+new_housepi_model("blank") |>
+  add_augmented(name = "independent moves", rule = "norm", from = 14) |>
+  infer() |> as_draws_df() |> bayesplot::mcmc_trace()
 ```

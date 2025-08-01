@@ -64,7 +64,7 @@ void MCMC::Impl::recover_parameter_(const par_key &p, bool is_cache_depen)
     for (Household &house : dataset.restricted())
     {
         house.recover_buffer_values(is_cache_depen);
-        if (augm.is_sample())
+        if (augm.is_any_sample())
             for (Individual &member : house.infected())
                 member.recover_augm_model_loglike();
     }
@@ -183,7 +183,7 @@ void MCMC::Impl::update_posterior_sample_()
 /* Compute new loglikelihood, store old value in buffer. Same for households. */
 void MCMC::Impl::update_full_loglike_(bool cache_depen)
 {
-    const bool is_augm_ll = augm.is_model();
+    const bool is_augm_ll = augm.is_any_model();
     double new_ll = 0.0;
     std::atomic<bool> has_error(false);
 

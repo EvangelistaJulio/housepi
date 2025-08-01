@@ -20,6 +20,7 @@
 #' Headers of the dataset.
 #'
 #' @keywords internal
+#' @noRd
 assert_dataset_features <- function(features, dataset_headers) {
   # assert that features are present
   missing <- c()
@@ -50,6 +51,7 @@ assert_dataset_features <- function(features, dataset_headers) {
 #' data.frame with logic table
 #'
 #' @keywords internal
+#' @noRd
 group_rate_logic_table <- function(dataset, by) {
   # sort alphabetically the features
   features <- sort(as.character(by))
@@ -73,10 +75,10 @@ group_rate_logic_table <- function(dataset, by) {
   })
 
   # create the final truth table and reverse it
-  y <- rev(y[multifeat_count > 0, , drop = FALSE])
+  y <- y[multifeat_count > 0, , drop = FALSE]
 
   # add counts
-  y$counts <- multifeat_count[multifeat_count > 0]
+  y$n <- multifeat_count[multifeat_count > 0]
 
   return(y)
 }
@@ -98,16 +100,16 @@ group_rate_logic_table <- function(dataset, by) {
 #' input data.frame with logic table with parameter names.
 #'
 #' @keywords internal
+#' @noRd
 associate_param_names <- function(this_table,
                                   prefix = NA,
                                   reference = NULL) {
   # column names to consider
-  colmask <- setdiff(names(this_table),
-                     c("counts", "param_name"))
+  colmask <- setdiff(names(this_table), c("n", "param_name"))
 
   # extract reference index
   if (length(reference) == 0) {
-    idx_refer <- which.max(this_table$counts)
+    idx_refer <- which.max(this_table$n)
 
   } else {
     # find row
@@ -131,7 +133,7 @@ associate_param_names <- function(this_table,
       paste0(prefix, paste(paste(colmask, row, sep = "_"), collapse = "_"))
     }
   )
-  this_table$param_name[idx_refer] <- "reference_"
+  this_table$param_name[idx_refer] <- "..reference.."
 
   return(this_table)
 }
@@ -148,23 +150,23 @@ associate_param_names <- function(this_table,
 #' `data.frame`
 #'
 #' @keywords internal
+#' @noRd
 tidyup_group_rate_tables <- function(all_tables) {
   # tidy version of group rate tables
-  drop_counts <- function(x) x[, colnames(x) != "counts"]
   cbind_rate <- function(x, rate) cbind(group_rate = rate, x)
   df_list <- c()
   for (rate in names(all_tables)) {
     this_table <- all_tables[[rate]]
     if (length(this_table) == 0) {
-      df <- list(data.frame(group_rate = rate, param_name = "reference_"))
+      df <- list(data.frame(group_rate = rate, param_name = "..reference.."))
     } else {
-      df <- lapply(this_table, function(x) cbind_rate(drop_counts(x), rate))
+      df <- lapply(this_table, function(x) cbind_rate(x, rate))
     }
     df_list <- c(df_list, df)
   }
   
   # all unique column names reordered
-  all_cols <- unique(c("group_rate", "param_name",
+  all_cols <- unique(c("group_rate", "param_name", "n",
                        sort(unlist(lapply(df_list, names)))))
   
   # Add missing columns with NA
@@ -190,6 +192,7 @@ tidyup_group_rate_tables <- function(all_tables) {
 #' Help with group rate definitions of model Rcpp object.
 #'
 #' @keywords internal
+#' @noRd
 HousepiGroupRate <- R6::R6Class(
   classname = "HousepiGroupRate",
   cloneable = TRUE,
@@ -199,31 +202,33 @@ HousepiGroupRate <- R6::R6Class(
   ############################################################################
 
   private = list(
-    # @field param_defs `list`\cr
-    # List containing parameters definitions.
-    .param_defs = list()
-  ),
+    deep_clone = function(name, value) helper_clone(value),
 
+    # @field parameters `list`\cr
+    # List containing parameters definitions.
+    .parameters = list()
+  ),
+  
   ############################################################################
   ################################## ACTIVE ##################################
   ############################################################################
 
   active = list(
-    #' @field param_defs `list`\cr
+    #' @field parameters `list`\cr
     #' List containing parameter definitions associated to group rates.
-    param_defs = function(value) {
+    parameters = function(value) {
       if (missing(value)) {
-        new_defs <- list()
+        new_params <- list()
         for (rate_id in names(self$logic_tables)) {
           for (this_table in self$logic_tables[[rate_id]]) {
-            for (par_id in setdiff(this_table$param_name, c("reference_"))) {
-              new_defs[[par_id]] <- private$.param_defs[[rate_id]]
+            for (par_id in setdiff(this_table$param_name, c("..reference.."))) {
+              new_params[[par_id]] <- private$.parameters[[rate_id]]
             }
           }
         }
-        return(new_defs)
+        return(new_params)
       }
-      stop_h("'param_defs' is read only.")
+      stop_h("'parameters' is read only.")
     },
 
     #' @field param_required `character()`\cr
@@ -236,7 +241,7 @@ HousepiGroupRate <- R6::R6Class(
             required <- c(required, this_table$param_name)
           }
         }
-        output <- setdiff(unique(required), c("reference_"))
+        output <- setdiff(unique(required), c("..reference.."))
         return(set_source_name_(output, "group rate"))
       }
       stop_h("'param_required' is read only.")
@@ -267,7 +272,9 @@ HousepiGroupRate <- R6::R6Class(
     #' New instance of class
     #' [HousepiGroupRate][housepi::HousepiGroupRate].
     initialize = function() {
-      self$defs <- NULL
+      self$defs <- list()
+      self$logic_tables <- list()
+      .parameters = list()
       invisible(self)
     },
 
@@ -298,19 +305,19 @@ HousepiGroupRate <- R6::R6Class(
     #' @return
     #' `logical(1)`
     remove = function(rate_id, show_warnings = TRUE) {
-
       if (any(names(self$defs) == rate_id)) {
+        # check if old definition was just default
+        is_old_default <- all(is.na(self$defs[rate_id]$by))
+
         # drop previous definition
         self$defs[rate_id] <- NULL
-        private$.param_defs[rate_id] <- NULL
         self$logic_tables[rate_id] <- NULL
-        return(TRUE)
+        private$.parameters[rate_id] <- NULL
+        return(!is_old_default)
 
-      } else if (isTRUE(show_warnings)) {
-        warning_h(
-          sprintf("Attempt to remove unknown group_rate \"%s\".", this)
-        )
-      }
+      } else if (isTRUE(show_warnings)) warning_h(
+        sprintf("Attempt to remove unknown group_rate \"%s\".", this)
+      )
 
       return(FALSE)
     },
@@ -350,8 +357,7 @@ HousepiGroupRate <- R6::R6Class(
     #' Cauchemez, et al. (2009)
     #' Household Transmission of 2009 Pandemic Influenza A (H1N1) Virus in the United States.
     #' New England Journal of Medicine. 361: 2619–2627. doi:10.1056/NEJMoa0905498
-    add = function(name,
-                   by,
+    add = function(name, by,
                    prefix = NA,
                    reference = NULL,
                    independent = TRUE,
@@ -372,7 +378,7 @@ HousepiGroupRate <- R6::R6Class(
         sprintf("Overwriting existing \"%s\" definition.", name)
       )
 
-      forbidden <- c("counts", "param_name", "group_rate")
+      forbidden <- c("n", "param_name", "group_rate")
       if (!all(is.na(by))) {
         if (isFALSE(is.character(by))) stop_h(
           "Argument 'by' must be of type character."
@@ -391,7 +397,8 @@ HousepiGroupRate <- R6::R6Class(
         else if (length(setdiff(names(reference), by)) != 0) stop_h(
           "Unrecognized names in reference list."
         )
-        else reference <- setNames(as.list(reference), by)
+        reference <- as.list(reference)
+        reference <- setNames(reference, by)
       }
 
       # add new definition
@@ -401,7 +408,7 @@ HousepiGroupRate <- R6::R6Class(
       )
 
       # add parameter definitions
-      private$.param_defs[[name]] <- list(
+      private$.parameters[[name]] <- list(
         value = 1, prior = prior, args = args,
         min = min, max = max, rule = rule, scale = scale
       )
@@ -409,7 +416,7 @@ HousepiGroupRate <- R6::R6Class(
       # reorder
       y <- sort(names(self$defs))
       self$defs <- self$defs[y]
-      private$.param_defs <- private$.param_defs[y]
+      private$.parameters <- private$.parameters[y]
 
       invisible(self)
     },
@@ -425,13 +432,11 @@ HousepiGroupRate <- R6::R6Class(
     #' @param append `logical(1)`\cr
     #' If `TRUE` appends to current definitions.
     #' If `FALSE` drop all pre-existing definitions (default).
-    load_list = function(...,
-                         from = NULL,
-                         append = FALSE) {
+    load_list = function(..., from = NULL, append = FALSE) {
       definitions <- load_definition_list(..., from = from)
 
-      # remove previos definitions if not append
-      if (isFALSE(append)) self$defs <- NULL
+      # remove previous definitions if not append
+      if (isFALSE(append)) self$initialize()
 
       for (i in seq_along(definitions)){
         this_def <- as.list(definitions[[i]])
@@ -501,7 +506,7 @@ HousepiGroupRate <- R6::R6Class(
             }
             # concatenate new lines to the script
             # mask reference case
-            mask <- this_table$param_name == "reference_"
+            mask <- this_table$param_name == "..reference.."
           }
         }
 

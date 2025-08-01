@@ -98,7 +98,7 @@ Rcpp::List MCMC::Impl::ImplSetup::rcpp_export() const
                         _["rand_init"] = rand_init_params,
                         _["seed"] = seed,
                         _["n_threads"] = n_threads,
-                        _["id_trace"] = wrap(id_trace),
+                        _["id_draws"] = wrap(id_draws),
                         _["progress"] = progress);
 }
 
@@ -461,7 +461,7 @@ Rcpp::NumericMatrix MCMC::Impl::rcpp_export_traces() const
         }
 
         // multiple chains
-        headers += {"chain_"};
+        headers += {HSP_CHAIN_COL};
 
         //----- NumericMatrix with traces -----//
         NumericMatrix output(setup.n_chains * setup.c_sample_size,
@@ -519,7 +519,7 @@ Rcpp::NumericMatrix MCMC::Impl::ImplDataSet::rcpp_export_traces() const
         const ulong sample_size = pImpl_.setup.n_chains * pImpl_.setup.c_sample_size;
         NumericMatrix output(sample_size, n_houses() + 1);
         CharacterVector columns(n_houses() + 1);
-        columns[n_houses()] = "chain_";
+        columns[n_houses()] = HSP_CHAIN_COL;
 
         // retrieve restricted index by general index of multiplicity head class
         std::unordered_map<size_t, size_t> restr_idx_map = {};
@@ -931,12 +931,12 @@ void MCMC::Impl::ImplDataSet::show_summary() const
 void MCMC::Impl::ImplSetup::show() const
 {
 
-    std::string id_trace_txt = HSP_NA_STRING;
-    if (pImpl_.augm.is_traces())
+    std::string id_draws_txt = HSP_NA_STRING;
+    if (pImpl_.augm.is_any_draws())
     {
-        id_trace_txt = pImpl_.augm.smpl_individuals[0]->id();
+        id_draws_txt = pImpl_.augm.smpl_individuals[0]->id();
         for (ushort k = 1; k < pImpl_.augm.smpl_individuals.size(); ++k)
-            id_trace_txt += C_LIST_DELIM + pImpl_.augm.smpl_individuals[k]->id();
+            id_draws_txt += C_LIST_DELIM + pImpl_.augm.smpl_individuals[k]->id();
     }
 
     // common setup variables
@@ -951,7 +951,7 @@ void MCMC::Impl::ImplSetup::show() const
         << "\nthin" << C_DELIM << thin
         << "\nrand_init" << C_DELIM << tools::truth(rand_init_params)
         << "\nprogress" << C_DELIM << tools::truth(progress)
-        << "\nid_trace" << C_DELIM << id_trace_txt
+        << "\nid_draws" << C_DELIM << id_draws_txt
         << "\n";
     tools::print_stdout(oss.str());
 }
@@ -1069,11 +1069,11 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
                 else
                     for (size_t k = 0; k < augm.smpl_individuals.size(); ++k)
                         for (const augm_key &a : augm.list_export())
-                            inferstate_ofstream << augm.smpl_individuals[k]->id() + "__" + a;
+                            inferstate_ofstream << augm.smpl_individuals[k]->id() + "_" + a;
             }
 
             // header chain
-            inferstate_ofstream << C_DELIM << "chain_" << std::endl;
+            inferstate_ofstream << C_DELIM << HSP_CHAIN_COL << std::endl;
 
             //----- VALUES -----//
 

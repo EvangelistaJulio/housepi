@@ -22,7 +22,7 @@ generate_delays <- function(n = 223,
   value_duration_1 <- 1:4
   proba_duration_1 <- c(0.28, 0.34, 0.26, 0.12)
 
-  shape <- mean ^2 / var
+  shape <- mean^2 / var
   scale <- var / mean
   # incubation period
   delay_value <- function() return(rgamma(1, shape = shape, scale = scale))

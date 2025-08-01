@@ -1,0 +1,13 @@
+template:
+  bootstrap: 5  
+  light-switch: true  
+  theme: breeze-light
+  theme-dark: breeze-dark
+
+destination: docs
+
+url: https://mmmi-pasteur.gitlab.io/housepi
+
+home:
+  title: Household Epidemiological Modeling and Analysis
+  description: A library of models and tools for epidemiological modeling and analysis of household epidemiological data.

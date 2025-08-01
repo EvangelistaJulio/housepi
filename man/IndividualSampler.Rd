@@ -53,7 +53,7 @@ New instance of class
 \describe{
 \item{\code{...}}{Named features with respective list of definition details.}
 
-\item{\code{from}}{\verb{list() of list()}\cr
+\item{\code{from}}{\code{list} of \code{list}\cr
 List containing encoding dictionary definitions for each feature.}
 }
 \if{html}{\out{</div>}}

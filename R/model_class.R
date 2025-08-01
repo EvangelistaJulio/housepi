@@ -21,10 +21,10 @@
 #' @description
 #' Compile household model, manage your dataset and parameters from a single class.
 #'
-#' @export HouseholdModel
-#' @docType class
-HouseholdModel <- R6::R6Class(
-  classname = "HouseholdModel",
+#' @keywords internal
+#' @noRd
+HousepiModel <- R6::R6Class(
+  classname = "HousepiModel",
   inherit = HousepiGenerator,
   cloneable = TRUE,
   lock_class = TRUE,
@@ -34,6 +34,7 @@ HouseholdModel <- R6::R6Class(
   ############################################################################
 
   private = list(
+    deep_clone = function(name, value) helper_clone(value),
     .param = NULL,
     .augm = NULL,
     .group_rates = NULL,
@@ -43,7 +44,7 @@ HouseholdModel <- R6::R6Class(
     # Dataset headers required by implementation file and other definitions.
     #
     # @return `character()`
-    .get_all_dataset = function() {
+    .get_all_required_dataset = function() {
       required <- c()
       if (!private$.is_blank()) required <- private$.dataset_required()
       return(c(
@@ -61,7 +62,7 @@ HouseholdModel <- R6::R6Class(
       if (length(dataset_headers) == 0) stop_h(
         "Impossible to proceed. No database was provided."
       )
-      required <- private$.get_all_dataset()
+      required <- private$.get_all_required_dataset()
       template_missing_stop(required, dataset_headers, "dataset")
       invisible(self)
     },
@@ -71,7 +72,7 @@ HouseholdModel <- R6::R6Class(
     #
     # @return `character()`
     .get_all_param = function() {
-      if (private$.is_blank()) required <- self$param_defs$name
+      if (private$.is_blank()) required <- self$parameters$name
       else required <- private$.param$require(private$.reference())
       return(c(
         required, # by the model
@@ -128,68 +129,6 @@ HouseholdModel <- R6::R6Class(
     ############################################################################
 
     # @description
-    # Import a new dataset and drop previous.
-    #
-    # @param dataset `data.frame`\cr
-    # A data.frame containing the dataset with individual information by row.
-    .import_dataset = function(dataset = NULL) {
-      if (length(dataset) > 0) {
-        # check that dataset type is correct
-        if (!is.data.frame(dataset)) stop_h(
-          "Unsupported type for dataset.",
-          "Dataset should be a data.frame."
-        )
-
-        # assert dataset headers
-        private$.assert_dataset(colnames(dataset))
-        # convert factors
-        embed <- cpp_data_factorize(dataset)
-        # store levels
-        private$.info_dataset <- embed$info
-        # store column names
-        private$.cols_dataset <- embed$cols
-        # import data.frame in rcpp
-        private$.rcpp$import_dataset(embed$data)
-
-      } else {
-        # assert headers of last imported dataset
-        private$.assert_dataset(private$.cols_dataset)
-      }
-
-      # implement group rates and build
-      private$.build_group_rates()
-
-      invisible(self)
-    },
-
-    # @description
-    # Import a new datalist and drop previous.
-    #
-    # @param datalist `data.frame`\cr
-    # A data.frame containing the dataset with individual information by row.
-    .import_datalist = function(datalist = NULL) {
-      if (!is.data.frame(datalist)) stop_h(
-        "Unsupported type for datalist.",
-        "Datalist should be a data.frame."
-      )
-
-      # convert factors
-      embed <- cpp_data_factorize(datalist)
-      # store levels
-      private$.info_datalist <- embed$info
-      # store column names
-      private$.cols_datalist <- embed$cols
-      # import data.frame in rcpp
-      private$.rcpp$import_datalist(embed$data)
-    
-      invisible(self)
-    },
-
-    ############################################################################
-    ############################################################################
-    ############################################################################
-
-    # @description
     # Enable multiplicity engine.
     #
     # @param dataset `data.frame`\cr
@@ -214,7 +153,7 @@ HouseholdModel <- R6::R6Class(
 
         headers <- c(
           # dataset headers required by implementation
-          private$.get_all_dataset(),
+          private$.get_all_required_dataset(),
           # dataset headers required by group rates
           unlist(lapply(
             private$.group_rates$logic_tables,
@@ -222,7 +161,7 @@ HouseholdModel <- R6::R6Class(
           ))
         )
         # remove logic tables auxiliary column names
-        headers <- setdiff(unique(headers), c("counts", "param_name"))
+        headers <- setdiff(unique(headers), c("n", "param_name"))
 
         # list of splitted dataset by house_id
         split_data <- split(dataset[c("status", headers)], dataset$house_id)
@@ -284,12 +223,12 @@ HouseholdModel <- R6::R6Class(
         private$.group_rates$implement(dataset, private$.info_dataset)
 
         # append parameter definitions if missing
-        new_param_defs <- private$.group_rates$param_defs
+        new_parameters <- private$.group_rates$parameters
         # find missing parameter definitions
-        mask <- setdiff(names(new_param_defs), self$param_defs$name)
-        new_param_defs <- new_param_defs[mask]
-        if (length(new_param_defs) > 0) {
-          self$load_param_list(from = new_param_defs, append = TRUE)
+        mask <- setdiff(names(new_parameters), self$parameters$name)
+        new_parameters <- new_parameters[mask]
+        if (length(new_parameters) > 0) {
+          self$load_parameter_list(from = new_parameters, append = TRUE)
         }
       }
 
@@ -317,7 +256,7 @@ HouseholdModel <- R6::R6Class(
     # Number of threads for the parallelization of the loglikelihood.
     # @param rand_init `logical(1)`\cr
     # If `TRUE` the initial value of the parameters is drawn from prior.
-    # @param id_trace `character()`\cr
+    # @param id_draws `character()`\cr
     # Individual identifiers to show augmented traces. 
     # For standard usage this is 1.
     # @param seed `integer(1)`\cr
@@ -329,18 +268,18 @@ HouseholdModel <- R6::R6Class(
                            sample_size = NA, n_steps = 0,
                            n_burnin = 0, thin = 1, n_adapt = 0,
                            n_chains = 1, n_threads = 1,
-                           rand_init = TRUE, id_trace = NA,
+                           rand_init = TRUE, id_draws = NA,
                            seed = NA, progress = FALSE) {
       # build dataset
-      private$.import_dataset(dataset)
+      self$add_dataset(dataset)
 
       # individual id for blank model augmented traces
       # if no default columns, assume debugging mode
-      if (private$.is_blank() && all(is.na(id_trace))) {
+      if (private$.is_blank() && all(is.na(id_draws))) {
         # FIXME: not robust in case of dataset with only default columns
         if (length(setdiff(private$.cols_dataset,
                            c("house_id", "id", "status"))) == 0) {
-          id_trace <- template_blank_dataset_()$id[1]
+          id_draws <- template_blank_dataset_()$id[1]
         }
       }
 
@@ -350,17 +289,19 @@ HouseholdModel <- R6::R6Class(
         n_steps = n_steps, thin = thin,
         n_burnin = n_burnin, n_adapt = n_adapt, n_chains = n_chains,
         n_threads = n_threads, rand_init = rand_init,
-        id_trace = id_trace, 
+        id_draws = id_draws, 
         seed = private$.adjust_seed(seed), 
         progress = as.integer(progress)
       )))
 
       # assert parameter definitions before importing
       private$.assert_param()
-      private$.rcpp$import_param(self$param_defs)
+      private$.rcpp$import_param(self$parameters)
 
       # group rates (import depends on param)
-      defs <- self$group_rate_defs
+      private$.build_group_rates()
+      defs <- private$.group_rates$tidy_table
+      defs$n <- NULL
       info <- private$.info_dataset
       for (k in intersect(colnames(defs), names(info))) {
         defs[[k]] <- as.integer(factor(defs[[k]], levels = info[[k]]$levels))
@@ -377,7 +318,7 @@ HouseholdModel <- R6::R6Class(
       private$.rcpp$import_infec_profile(private$.infec_profile$defs)
 
       # build augmented variables
-      private$.rcpp$import_augm(self$augm_defs)
+      private$.rcpp$import_augm(self$augmented)
 
       invisible(self)
     },
@@ -395,7 +336,7 @@ HouseholdModel <- R6::R6Class(
                 file.path(outpath, "datalist.tmp"),
                 quote = FALSE, row.names = FALSE)
 
-      defs <- self$group_rate_defs
+      defs <- self$group_rates
       info <- private$.info_dataset
       for (k in intersect(colnames(defs), names(info))) {
         defs[[k]] <- as.integer(factor(defs[[k]], 
@@ -405,10 +346,10 @@ HouseholdModel <- R6::R6Class(
                 file.path(outpath, "group_rates.tmp"),
                 quote = FALSE, row.names = FALSE)
 
-      write.csv(self$augm_defs,
+      write.csv(self$augmented,
                 file.path(outpath, "augm.tmp"),
                 quote = FALSE, row.names = FALSE)
-      write.csv(self$param_defs,
+      write.csv(self$parameters,
                 file.path(outpath, "param.tmp"),
                 quote = FALSE, row.names = FALSE)
       write.table(t(as.data.frame(char_setup_input_(self$setup))),
@@ -435,7 +376,7 @@ HouseholdModel <- R6::R6Class(
         )
         return(private$.refactor_dataset(private$.rcpp$export_dataset()))
       }
-      else private$.import_dataset(value)
+      else self$add_dataset(value)
     },
 
     #' @field datalist `data.frame`\cr
@@ -447,21 +388,21 @@ HouseholdModel <- R6::R6Class(
         )
         return(private$.refactor_datalist(private$.rcpp$export_datalist()))
       }
-      else private$.import_datalist(value)
+      else self$add_datalist(value)
     },
 
-    #' @field param_defs `data.frame`\cr
+    #' @field parameters `data.frame`\cr
     #' Parameter formatted definitions.
-    param_defs = function(value) {
+    parameters = function(value) {
       if (missing(value)) return(private$.param$defs)
-      else self$load_param_list(from = value, append = FALSE)
+      else self$load_parameter_list(from = value, append = FALSE)
     },
 
-    #' @field augm_defs `data.frame`\cr
+    #' @field augmented `data.frame`\cr
     #' Augmented variable formatted definitions.
-    augm_defs = function(value) {
+    augmented = function(value) {
       if (missing(value)) return(private$.augm$defs)
-      else self$load_augm_list(from = value, append = FALSE)
+      else self$load_augmented_list(from = value, append = FALSE)
     },
 
     #' @field infec_profile_defs `list`\cr
@@ -475,9 +416,9 @@ HouseholdModel <- R6::R6Class(
       else do.call(self$add_infec_profile, value)
     },
 
-    #' @field group_rate_defs `list`\cr
+    #' @field group_rates `list`\cr
     #' List containing current group rate definitions.
-    group_rate_defs = function(value) {
+    group_rates = function(value) {
       if (missing(value)) {
         private$.build_group_rates()
         return(private$.group_rates$tidy_table)
@@ -491,28 +432,7 @@ HouseholdModel <- R6::R6Class(
   ############################################################################
 
   public = list(
-    #' @description
-    #' New instance of class
-    #' [HouseholdModel][housepi::HouseholdModel].
-    #'
-    #' @param choice `character(1)`\cr
-    #' Choose a model providing one between:
-    #' - template name;
-    #' - path/to/folder with implementation;
-    #' - path/to/folder with previously compiled model;
-    #' - "blank": template name for blank model (default).
-    #' @param as_template `logical(1)`\cr
-    #' If `TRUE` store the dynamic library as a local template.
-    #' IF `FALSE` recompile the model at every new session.
-    #' @param force `logical(1)`\cr
-    #' If `TRUE` compile even if a cached model already exists.
-    #' @param name `chracter(1)`\cr
-    #' Custom name of the model (default is inferred from `choice`).
-    #' @param cri_level `double(1)`\cr
-    #' Level for the credible interval.
-    #' Value between 0 and 1 (default is 0.95).
-    #' @param quiet `logical(1)`\cr
-    #' If `TRUE` hide `pkgbuild` compilation commands (default).
+    #' @inherit new_housepi_model
     initialize = function(choice = NA, as_template = FALSE, force = FALSE,
                           name = NA, cri_level = 0.95, quiet = TRUE) {
       # initialize internal fields
@@ -523,7 +443,7 @@ HouseholdModel <- R6::R6Class(
                        force = force, name = name, quiet = quiet)
 
       # import blank template dataset
-      if (private$.is_blank()) private$.import_dataset(template_blank_dataset_())
+      if (private$.is_blank()) self$add_dataset(template_blank_dataset_())
 
       # credible interval level
       self$cri_level <- cri_level
@@ -535,26 +455,23 @@ HouseholdModel <- R6::R6Class(
     ############################################################################
     ############################################################################
 
-    #' @description
-    #' Drop all current parameter definitions.
-    drop_param_defs = function() {
+    #' @inherit drop_parameters
+    drop_parameters = function() {
       private$.param <- HousepiParameter$new()
       invisible(self)
     },
 
-    #' @description
-    #' Drop all current augmented variable definitions.
-    drop_augm_defs = function() {
+    #' @inherit drop_augmented
+    drop_augmented = function() {
       private$.augm <- HousepiAugmented$new()
       invisible(self)
     },
 
-    #' @description
-    #' Drop all current augmented variable definitions.
-    drop_group_rate_defs = function() {
+    #' @inherit drop_group_rates
+    drop_group_rates = function() {
       # remove associated parameters
       if (!is.null(private$.group_rates)) {
-        for (p in names(private$.group_rates$param_defs)) {
+        for (p in names(private$.group_rates$parameters)) {
           private$.param$remove(p, show_warnings = FALSE)
         }
       }
@@ -562,12 +479,11 @@ HouseholdModel <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description
-    #' Drop all current definitions.
+    #' @inherit drop_all
     drop_all = function() {
-      self$drop_param_defs()
-      self$drop_augm_defs()
-      self$drop_group_rate_defs()
+      self$drop_parameters()
+      self$drop_augmented()
+      self$drop_group_rates()
       private$.infec_profile <- HousepiInfecProfile$new()
       invisible(self)
     },
@@ -576,35 +492,66 @@ HouseholdModel <- R6::R6Class(
     ############################################################################
     ############################################################################
 
-    #' @description
-    #' Add a new parameter definition.
-    #'
-    #' @param name `character(1)`\cr
-    #' Name of the parameter.
-    #' @param value `double(1)`\cr
-    #' Initial value of the parameter.
-    #' @param const `logical(1)`\cr
-    #' If `FALSE` the parameter is treated as a constant.
-    #' @param discr `logical(1)`\cr
-    #' If `TRUE` the parameter is discrete.
-    #' @param prior `character(1)`\cr
-    #' Name of the prior distribution.
-    #' @param args named `list`\cr
-    #' Arguments for the prior distribution.
-    #' @param rule `character(1)`\cr
-    #' Name of the inference proposal rule.
-    #' @param scale `double(1)`\cr
-    #' Scale parameter for the proposal rule.
-    #' Changed automatically during inference if `n_adpat`>0.
-    #' @param min `double(1)`\cr
-    #' Value of the minimum.
-    #' @param max `double(1)`\cr
-    #' Value of the maximum.
-    add_param = function(name = NA, value = NA,
-                         const = NA, discr = FALSE,
-                         prior = NA, args = list(),
-                         rule = NA, scale = NA,
-                         min = NA, max = NA) {
+    #' @inherit add_dataset
+    add_dataset = function(dataset) {
+      if (length(dataset) > 0) {
+        # check that dataset type is correct
+        if (!is.data.frame(dataset)) stop_h(
+          "Unsupported type for dataset.",
+          "Dataset should be a data.frame."
+        )
+
+        # assert dataset headers
+        private$.assert_dataset(colnames(dataset))
+        # convert factors
+        embed <- cpp_data_factorize(dataset)
+        # store levels
+        private$.info_dataset <- embed$info
+        # store column names
+        private$.cols_dataset <- embed$cols
+        # import data.frame in rcpp
+        private$.rcpp$import_dataset(embed$data)
+
+      } else {
+        # assert headers of last imported dataset
+        private$.assert_dataset(private$.cols_dataset)
+      }
+
+      # implement group rates and build
+      private$.build_group_rates()
+
+      invisible(self)
+    },
+
+    #' @inherit add_datalist
+    add_datalist = function(datalist) {
+      if (!is.data.frame(datalist)) stop_h(
+        "Unsupported type for datalist.",
+        "Datalist should be a data.frame."
+      )
+
+      # convert factors
+      embed <- cpp_data_factorize(datalist)
+      # store levels
+      private$.info_datalist <- embed$info
+      # store column names
+      private$.cols_datalist <- embed$cols
+      # import data.frame in rcpp
+      private$.rcpp$import_datalist(embed$data)
+    
+      invisible(self)
+    },
+
+    ############################################################################
+    ############################################################################
+    ############################################################################
+
+    #' @inherit add_parameter
+    add_parameter = function(name = NA, value = NA,
+                             const = NA, discr = FALSE,
+                             prior = NA, args = list(),
+                             rule = NA, scale = NA,
+                             min = NA, max = NA) {
       private$.param$add(name = name, value = value, const = const,
                          discr = discr, prior = prior, args = args,
                          rule = rule, scale = scale,
@@ -612,29 +559,14 @@ HouseholdModel <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description
-    #' Load parameter definitions either as direct arguments
-    #' or from predefined list.
-    #'
-    #' @param ...
-    #' Named arguments with respective list of definition details.
-    #' @param from named `list`\cr
-    #' Named list of parameter definitions.
-    #' @param append `logical(1)`\cr
-    #' If `TRUE` appends to current definitions.
-    #' If `FALSE` drop all pre-existing definitions (default).
-    load_param_list = function(..., from = NA, append = FALSE) {
+    #' @inherit load_parameter_list
+    load_parameter_list = function(..., from = NA, append = FALSE) {
       private$.param$load_list(..., from = from, append = append)
       invisible(self)
     },
 
-    #' @description
-    #' Load parameter definitions from model template.
-    #'
-    #' @param append `logical(1)`\cr
-    #' If `TRUE` append missing parameter definitions.
-    #' If `FALSE` drop all pre-existing definitions (default).
-    load_param_template = function(append = FALSE) {
+    #' @inherit load_parameter_template
+    load_parameter_template = function(append = FALSE) {
       if (private$.is_blank()) warning_h(
         "No template parameters available for blank model."
       )
@@ -651,57 +583,14 @@ HouseholdModel <- R6::R6Class(
     ############################################################################
     ############################################################################
 
-    #' @description
-    #' Add a new augmented variable definition.
-    #'
-    #' @param name `character(1)`\cr
-    #' Name of the augmented variable.
-    #' @param status `integer(1)`\cr
-    #' The associated status of the definition.
-    #' Default NA is for all infectious.
-    #' @param value `double(1)` | `character(1)`\cr
-    #' One between:
-    #' - Scalar value;
-    #' - Parameter name (optionally followed by `@P`);
-    #' - Data name (followed by `@D`).
-    #' @param init_rand `character(1)`\cr
-    #' If `TRUE` draw initial vale from model distribution.
-    #' @param const `logical(1)`\cr
-    #' If `FALSE` the augmented variable is treated as a constant.
-    #' @param discr `logical(1)`\cr
-    #' IF `TRUE` the augmenter variable is discrete.
-    #' @param func `character()`\cr
-    #' Name of the augmented function.
-    #' @param func_args named `list`\cr
-    #' Arguments of the augmented function.
-    #' @param model `character(1)`\cr
-    #' Name of the model distribution.
-    #' @param args named `list`\cr
-    #' Arguments for the model distribution.
-    #' @param min `double(1)` | `character(1)`\cr
-    #' Minimum value. One between:
-    #' - Scalar value;
-    #' - Parameter name (optionally followed by `@P`);
-    #' - Data name (followed by `@D`).
-    #' @param max `double(1)` | `character(1)`\cr
-    #' Maxmimum tvalue. One between:
-    #' - Scalar value;
-    #' - Parameter name (optionally followed by `@P`);
-    #' - Data name (followed by `@D`).
-    #' @param rule `character(1)`\cr
-    #' Name of the inference proposal rule.
-    #' @param scale `double(1)`\cr
-    #' Scale parameter for the proposal rule.
-    #' @param from `double(1)` | `character(1)`\cr
-    #' Advanced options for non random walk moves.
-    #' `FIXME: missing`
-    add_augm = function(name = NA, status = NA,
-                        const = NA, discr = FALSE,
-                        func = NA, func_args = NULL,
-                        value = NA, init_rand = FALSE,
-                        model = NA, args = list(),
-                        min = NA, max = NA,
-                        rule = NA, scale = NA, from = NA) {
+    #' @inherit add_augmented
+    add_augmented = function(name = NA, status = NA,
+                             const = NA, discr = FALSE,
+                             func = NA, func_args = NULL,
+                             value = NA, init_rand = FALSE,
+                             model = NA, args = list(),
+                             min = NA, max = NA,
+                             rule = NA, scale = NA, from = NA) {
       private$.augm$add(name = name, status = status,
                         const = const, discr = discr,
                         func = func, func_args = func_args,
@@ -712,29 +601,14 @@ HouseholdModel <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description
-    #' Load augmented variable definitions either as direct arguments
-    #' or from predefined list.
-    #'
-    #' @param ...
-    #' Named arguments with respective list of definition details.
-    #' @param from named `list`\cr
-    #' Named list of parameter definitions.
-    #' @param append `logical(1)`\cr
-    #' If `TRUE` appends to current definitions.
-    #' If `FALSE` drop all pre-existing definitions (default).
-    load_augm_list = function(..., from = NA, append = FALSE) {
+    #' @inherit load_augmented_list
+    load_augmented_list = function(..., from = NA, append = FALSE) {
       private$.augm$load_list(..., from = from, append = append)
       invisible(self)
     },
 
-    #' @description
-    #' Load augmented variables from template definitions.
-    #'
-    #' @param append
-    #' If `TRUE` append missing augmented variable definitions.
-    #' If `FALSE` drop all pre-existing definitions (default).
-    load_augm_template = function(append = FALSE) {
+    #' @inherit load_augmented_template
+    load_augmented_template = function(append = FALSE) {
       if (private$.is_blank()) warning_h(
         "No template augmented variables available for blank model."
       )
@@ -751,86 +625,29 @@ HouseholdModel <- R6::R6Class(
     ############################################################################
     ############################################################################
 
-    #' @description
-    #' Add definitions of a group rate by given dataset feature(s).
-    #' Reference value has unitary rate and can be specified
-    #' (default is most represented group).
-    #'
-    #' @param name `character(1)`\cr
-    #' Name of the group rate.
-    #' @param by `list`\cr
-    #' Feature(s) associated to group rate as dataset headers.
-    #' Corresponding dataset column have to be categorical.
-    #' @param prefix `character(1)`\cr
-    #' Prefix to parameter names associated to the group rate.
-    #' @param reference named `list`\cr
-    #' Choose reference group providing corresponding features.
-    #' Default is the group with the largest sample size.
-    #' @param independent `logical(1)`\cr
-    #' If `TRUE` then features are considered independently.
-    #' @param prior `character(1)`\cr
-    #' Name of the prior distribution.
-    #' Default associated parameter definitions
-    #' have prior "lnorm" and `args = list(meanlog = 0, sdlog = 3)`.
-    #' @param args named `list`\cr
-    #' Arguments for the prior distribution.
-    #' @param min `double(1)`\cr
-    #' Value of the minimum.
-    #' @param max `double(1)`\cr
-    #' Value of the maximum.
-    #' @param rule `character(1)`\cr
-    #' Name of the inference proposal rule.
-    #' @param scale `double(1)`\cr
-    #' Scale parameter for the proposal rule.
-    #' Changed automatically during inference if `n_adpat` > 0.
-    #'
-    #' @references
-    #' Cauchemez, et al. (2009)
-    #' Household Transmission of 2009 Pandemic Influenza A (H1N1) Virus in the United States.
-    #' New England Journal of Medicine. 361: 2619-2627. doi:10.1056/NEJMoa0905498
+    #' @inherit add_group_rate
     add_group_rate = function(name, by,
-                              prefix = NA, reference = NULL, independent = TRUE,
-                              prior = "lnorm",
-                              args = list(meanlog = 0, sdlog = 3),
+                              prefix = NA, 
+                              reference = NULL, independent = TRUE,
+                              prior = "lnorm", args = list(meanlog = 0, sdlog = 3),
                               min = NA, max = 10,
                               rule = "lnorm", scale = 1) {
       private$.group_rates$add(name = name, by = by, prefix = prefix,
-                              reference = reference, independent = independent,
-                              prior = prior, args = args,
-                              min = min, max = max,
-                              rule = rule, scale = scale)
+                               reference = reference, independent = independent,
+                               prior = prior, args = args,
+                               min = min, max = max,
+                               rule = rule, scale = scale)
       invisible(self)
     },
 
-    #' @description
-    #' Load group rate definitions either as direct arguments
-    #' or from predefined list.
-    #'
-    #' @param ...
-    #' Named arguments with respective list of definition details.
-    #' @param from named `list`\cr
-    #' Named list of parameter definitions.
-    #' @param append `logical(1)`\cr
-    #' If `TRUE` appends to current definitions.
-    #' If `FALSE` drop all pre-existing definitions (default).
+    #' @inherit load_group_rate_list
     load_group_rate_list = function(..., from = NA, append = FALSE) {
+      if (isFALSE(append)) self$drop_group_rates()
       private$.group_rates$load_list(..., from = from, append = append)
       invisible(self)
     },
 
-    #' @description
-    #' Add definition of infectivity profile.
-    #'
-    #' @param name `character(1)`\cr
-    #' Name of the infectivity profile.
-    #' @param discr `logical(1)`\cr
-    #' If `TRUE` the profile is discrete.
-    #' @param args named `list`\cr
-    #' Arguments (eventually with types) for the profile.
-    #' @param max `double(1)` | `character(1)`\cr
-    #' One between:
-    #' - Scalar value;
-    #' - Parameter name (optionally followed by `@P`).
+    #' @inherit add_infec_profile
     add_infec_profile = function(name, discr = FALSE,
                                  args = list(), max = NA) {
       private$.infec_profile$add(name = name, discr = discr,
@@ -842,53 +659,19 @@ HouseholdModel <- R6::R6Class(
     ############################################################################
     ############################################################################
 
-    #' @description
-    #' Run Bayesian Markov Chain Monte Carlo (MCMC) inference
-    #' and store internally the chain traces.
-    #'
-    #' @param dataset `data.frame` \cr
-    #' Input dataset for analysis.
-    #' @param sample_size `integer(1)` \cr
-    #' Number of samples to draw from the posterior distribution in each chain.
-    #' @param n_steps `integer(1)` \cr
-    #' Total number of MCMC steps to perform.
-    #' @param n_burnin `integer(1)` \cr
-    #' Number of initial steps to discard as burn-in period.
-    #' @param thin `integer(1)` \cr
-    #' Thinning interval: number of steps to skip between each saved sample.
-    #' @param n_adapt `integer(1)` \cr
-    #' Number of adaptation steps before starting the main sampling.
-    #' @param n_chains `integer(1)` \cr
-    #' Number of independent MCMC chains to run.
-    #' @param n_threads `integer(1)` \cr
-    #' Number of parallel threads to use for computations.
-    #' @param rand_init `logical(1)` \cr
-    #' Controls random initialization of parameters:
-    #' - If `TRUE` (default), initial values are ndomly drawn from the prior distribution;
-    #' - If `FALSE` initial value definitions are used.
-    #' @param id_trace `character(s)` \cr
-    #' Individual identifiers for augmented trace plots.
-    #' @param seed `integer(1)` \cr
-    #' Seed for the random number generator.
-    #' - If a specific integer is provided, sets the random number generator seed.
-    #' - If `NA` (default), uses the system clock to generate a seed.
-    #' @param progress `logical(1)` | `numeric(1)`\cr
-    #' Controls progress visualization:
-    #' - If `TRUE` (default), prints progress every second;
-    #' - If an integer `n`, prints progress every `n` seconds;
-    #' - If `FALSE` or `0`, suppresses progress display.
+    #' @inherit infer
     infer = function(dataset = NULL,
                      sample_size = NA, n_steps = 10000,
                      n_burnin = 0, thin = 1, n_adapt = 0,
                      n_chains = 1, n_threads = 1,
-                     rand_init = TRUE, id_trace = NA,
+                     rand_init = TRUE, id_draws = NA,
                      seed = NA, progress = TRUE) {
       # internal build function
       private$.build_full(dataset = dataset, sample_size = sample_size,
                           n_steps = n_steps, n_burnin = n_burnin, thin = thin,
                           n_adapt = n_adapt, n_chains = n_chains,
                           n_threads = n_threads, rand_init = rand_init,
-                          id_trace = id_trace, seed = seed, progress = progress)
+                          id_draws = id_draws, seed = seed, progress = progress)
       private$.multiplicity_engine(dataset = dataset)
 
       # infer method from cpp model object
@@ -896,23 +679,7 @@ HouseholdModel <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description
-    #' Run simulation and return data.frame with simulated dataset.
-    #'
-    #' @param dataset `data.frame` \cr
-    #' Input dataset for simulation.
-    #' @param seed `integer(1)` \cr
-    #' Seed for the random number generator.
-    #' - If a specific integer is provided, sets the random number generator seed.
-    #' - If `NA` (default), uses the system clock to generate a seed.
-    #' @param progress `logical(1)` | `numeric(1)`\cr
-    #' Controls progress visualization:
-    #' - If `TRUE` (default), prints progress every second;
-    #' - If an integer `n`, prints progress every `n` seconds;
-    #' - If `FALSE` or `0`, suppresses progress display.
-    #'
-    #' @return
-    #' `data.frame`
+    #' @inherit simulate
     simulate = function(dataset = NULL, seed = NA, progress = FALSE) {
       # internal build function
       private$.build_full(dataset = dataset, rand_init = FALSE,
@@ -932,7 +699,7 @@ HouseholdModel <- R6::R6Class(
     #' Extract the posterior expectation of a given measure.
     #' Perform simulations over posterior sample generated by `$infer`.
     #'
-    #' @param FUN `closure()` | `list` of `closure()`\cr
+    #' @param FUN `closure` | `list` of `closure`\cr
     #' Function(s) to extract the desired measure from a dataset.
     #' @param progress `logical(1)` | `numeric(1)`\cr
     #' Controls progress visualization. Default is inherited from the model.
@@ -965,18 +732,7 @@ HouseholdModel <- R6::R6Class(
       ExpectedCasesBySize$new(self, progress = progress)
     },
 
-    #' @description
-    #' Evaluate the loglikelihood for the given parameters.
-    #'
-    #' @param dataset `data.frame` \cr
-    #' Input dataset for simulation.
-    #' @param seed `integer(1)` \cr
-    #' Seed for the random number generator.
-    #' - If a specific integer is provided, sets the random number generator seed.
-    #' - If `NA` (default), uses the system clock to generate a seed.
-    #'
-    #' @return
-    #' `double(1)`
+    #' @inherit loglikelihood
     loglikelihood = function(dataset = NULL, seed = NA) {
       # internal build function
       private$.build_full(dataset = dataset, seed = seed, rand_init = FALSE)
@@ -984,49 +740,7 @@ HouseholdModel <- R6::R6Class(
       return(private$.rcpp$evaluate())
     },
 
-    #' @description
-    #' Estimate the model evidence (or marginal likelihood).
-    #' It uses the method of power posteriors with different available schemes.
-    #'
-    #' @param dataset `data.frame` \cr
-    #' Input dataset for simulation.
-    #' @param scheme `character(1)` \cr
-    #' Scheme used for evidence estimation.
-    #' - If "power-fractions" (default) uses inverse temperatures (r / n_rungs)^5.
-    #' - If "adaptive" uses adaptive thermodynamic ladder.
-    #' @param n_rungs `integer(1)` \cr
-    #' Number of rungs in the thermodynamic ladder.
-    #' @param sample_size `integer(1)` \cr
-    #' Number of samples to draw from the posterior distribution in each chain.
-    #' @param n_steps `integer(1)` \cr
-    #' Total number of MCMC steps to perform.
-    #' @param n_burnin `integer(1)` \cr
-    #' Number of initial steps to discard as burn-in period.
-    #' @param thin `integer(1)` \cr
-    #' Thinning interval: number of steps to skip between each saved sample.
-    #' @param n_adapt `integer(1)` \cr
-    #' Number of adaptation steps before starting the main sampling.
-    #' @param n_chains `integer(1)` \cr
-    #' Number of independent MCMC chains to run.
-    #' @param n_threads `integer(1)` \cr
-    #' Number of parallel threads to use for computations.
-    #' @param seed `integer(1)` \cr
-    #' Seed for the random number generator.
-    #' - If a specific integer is provided, sets the random number generator seed.
-    #' - If `NA` (default), uses the system clock to generate a seed.
-    #' @param progress `logical(1)` | `numeric(1)`\cr
-    #' Controls progress visualization:
-    #' - If `TRUE` (default), prints progress every second;
-    #' - If an integer `n`, prints progress every `n` seconds;
-    #' - If `FALSE` or `0`, suppresses progress display.
-    #'
-    #' @return
-    #' `double(1)`
-    #'
-    #' @references
-    #' Friel N, Hurn M, Wyse J.
-    #' Improving power posterior estimation of statistical evidence.
-    #' Stat Comput. 2014;24: 709-723. doi:10.1007/s11222-013-9397-1
+    #' @inherit evidence
     evidence = function(dataset = NULL,
                         scheme = "power-fractions", n_rungs = 40,
                         sample_size = NA, n_steps = 10000,

@@ -137,7 +137,7 @@ measure_cases_by_house_size <- function(dataset) {
 #'
 #' @param frame_list `list` | `data.frame`\cr
 #' List of data frames, all having the same dimensions.
-#' @param func `closure()`\cr
+#' @param func `closure`\cr
 #' Function applied to corresponding elements across data frames in the list.
 #'
 #' @return `data.frame()`\cr
@@ -145,6 +145,7 @@ measure_cases_by_house_size <- function(dataset) {
 #' Columns and rownames of the first data.frame in the list.
 #'
 #' @keywords internal
+#' @noRd
 frame_apply <- function(frame_list, func) {
   elem_n1 <- frame_list[[1]]
 
@@ -184,6 +185,7 @@ frame_apply <- function(frame_list, func) {
 #' @return `data.frame()`
 #'
 #' @keywords internal
+#' @noRd
 frame_apply_mean <- function(frame_list) {
   frame_apply(frame_list, function(x) {
     if (all(is.na(x))) return(NA)
@@ -211,6 +213,7 @@ frame_apply_mean <- function(frame_list) {
 #' @return `data.frame()`
 #'
 #' @keywords internal
+#' @noRd
 frame_apply_cri <- function(frame_list, cri_level = 0.95, upper = TRUE) {
   p <- 0.5 + ifelse(isTRUE(upper), 0.5, -0.5) * cri_level
   frame_apply(frame_list, function(x) {
@@ -238,13 +241,14 @@ frame_apply_cri <- function(frame_list, cri_level = 0.95, upper = TRUE) {
 #' @keywords internal
 HousepiPosteriorExpec <- R6::R6Class(
   classname = "HousepiPosteriorExpec",
-  cloneable = FALSE,
+  cloneable = TRUE,
 
   ############################################################################
   ################################## PRIVATE #################################
   ############################################################################
 
   private = list(
+    deep_clone = function(name, value) helper_clone(value),
     .posterior = NULL,
     .observed = NULL,
     .cri_level = 0.95,
@@ -292,10 +296,10 @@ HousepiPosteriorExpec <- R6::R6Class(
     #' New instance of class
     #' [HousepiPosteriorExpec][housepi::HousepiPosteriorExpec].
     #'
-    #' @param model `HouseholdModel`\cr
-    #' Object of class [HouseholdModel][housepi::HouseholdModel]
-    #' with complete definitions and traces already stored.
-    #' @param FUN `closure()` | `list` of `closure()`\cr
+    #' @param model `HousepiModel`\cr
+    #' Object of class [HousepiModel][housepi::HousepiModel]
+    #' with complete definitions and draws already stored.
+    #' @param FUN `closure` | `list` of `closure`\cr
     #' Function(s) to extract the desired measure from a dataset.
     #' @param progress `logical(1)`\cr
     #' Progress of simulations. Default is inherited from the model.
@@ -317,12 +321,12 @@ HousepiPosteriorExpec <- R6::R6Class(
       private$.observed <- apply_func(model$dataset)
 
       # deep clone model before proceeding
-      # FIXME/UPDATE/NOTE: deep clone is not cloning traces
+      # FIXME/UPDATE/NOTE: deep clone is not cloning draws
       hmc <- model$clone(deep = TRUE)
       # cleanup at end
       withr::defer(rm(hmc))
-      # extract traces without loglikelihood
-      traces <- as.data.frame(posterior::as_draws_matrix(model$traces))
+      # extract draws without loglikelihood
+      traces <- as.data.frame(as_draws_matrix(model))
       traces$loglikelihood <- NULL
 
       # credible interval from the model
@@ -343,7 +347,7 @@ HousepiPosteriorExpec <- R6::R6Class(
       )
 
       # extract constant parameters
-      aux <- hmc$param_defs
+      aux <- hmc$parameters
       tmp <- aux[aux$const, c("name", "value")]
       constants <- as.list(tmp$value)
       names(constants) <- as.list(tmp$name)
@@ -351,9 +355,9 @@ HousepiPosteriorExpec <- R6::R6Class(
       # define loop function working by row index
       loop_func <- function(r) {
         # associate parameters from posterior sample
-        new_param_defs <- c(as.list(traces[r, ]), constants)
-        hmc$drop_param_defs()
-        hmc$load_param_list(from = new_param_defs, append = FALSE)
+        new_parameters <- c(as.list(traces[r, ]), constants)
+        hmc$drop_parameters()
+        hmc$load_parameter_list(from = new_parameters, append = FALSE)
         # run simulation and extract cases by house size
         apply_func(hmc$simulate(seed = rng_seeds[r], progress = FALSE))
       }
@@ -382,7 +386,7 @@ HousepiPosteriorExpec <- R6::R6Class(
     #' Override the default printing behavior.
     print = function() {
       cli::cli_alert_info(
-        "Output of method `$expec_posterior_measure` of HouseholdModel."
+        "Output of method `$expec_posterior_measure` of HousepiModel."
       )
       invisible(self)
     }
@@ -406,6 +410,7 @@ HousepiPosteriorExpec <- R6::R6Class(
 #' @return `data.frame`\cr
 #'
 #' @keywords internal
+#' @noRd
 combine_obs_exp <- function(obsdf, expdf) {
   # 1. curate observed dataframe
   obsdf$distr <- "Observed"
@@ -458,13 +463,14 @@ naming_convention_ <- function(x, cri_level) {
 ExpectedCasesBySize <- R6::R6Class(
   classname = "ExpectedCasesBySize",
   inherit = HousepiPosteriorExpec,
-  cloneable = FALSE,
+  cloneable = TRUE,
 
   ############################################################################
   ################################## PRIVATE #################################
   ############################################################################
 
   private = list(
+    deep_clone = function(name, value) helper_clone(value),
     .max_house_size = NA,
     .counts = NULL,
 
@@ -590,8 +596,8 @@ ExpectedCasesBySize <- R6::R6Class(
     #' New instance of class
     #' [ExpectedCasesBySize][housepi::ExpectedCasesBySize].
     #'
-    #' @param model `HouseholdModel`\cr
-    #' Object of class [HouseholdModel][housepi::HouseholdModel]
+    #' @param model `HousepiModel`\cr
+    #' Object of class [HousepiModel][housepi::HousepiModel]
     #' containing all model definitions after having run `$infer`.
     #' @param progress `logical(1)`\cr
     #' Progress of simulations. Default is inherited from the model.
@@ -612,7 +618,7 @@ ExpectedCasesBySize <- R6::R6Class(
     #' Override the default printing behavior.
     print = function() {
       cli::cli_alert_info(
-        "Output of method `$expec_cases_by_house_size` of HouseholdModel."
+        "Output of method `$expec_cases_by_house_size` of HousepiModel."
       )
       invisible(self)
     },

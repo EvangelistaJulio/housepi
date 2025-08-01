@@ -22,6 +22,7 @@
 #' Auxiliary class to deal with infectivity profile.
 #'
 #' @keywords internal
+#' @noRd
 HousepiInfecProfile <- R6::R6Class(
   classname = "HousepiInfecProfile",
   cloneable = TRUE,
@@ -29,8 +30,10 @@ HousepiInfecProfile <- R6::R6Class(
   ############################################################################
   ################################## PRIVATE #################################
   ############################################################################
-
+  
   private = list(
+    deep_clone = function(name, value) helper_clone(value),
+
     # Definitions required by augmented variable definitions
     # according to the "at" key of the definition (A, D, P).
     .find_def_required = function(at) {
