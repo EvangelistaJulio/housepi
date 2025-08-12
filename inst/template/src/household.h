@@ -50,7 +50,7 @@ public:
 			   size_t hhindex,
 			   const std::string &id,
 			   int status,
-			   const data_key_map<double> &data);
+			   const u_dict<double> &data);
 	~Individual() = default;
 
 	bool operator==(const Individual &other) const { return this->index_ == other.index_; }
@@ -67,8 +67,8 @@ public:
 	bool is_infected_status() const { return status_ >= INFECTED_STATUS; }
 	bool is_healthy_status() const { return status_ == HEALTHY_STATUS; }
 	bool is_missing_status() const { return status_ <= MISSING_STATUS; }
-	double data(const data_key &d) const { return safe_at(data_map_, d); }
-	const dbl_vec &datalist(const data_key &d) const
+	double data(const std::string &d) const { return safe_at(data_map_, "dataset", d); }
+	const dbl_vec &datalist(const std::string &d) const
 	{
 		if (pdatalist_ == nullptr)
 			throw std::invalid_argument(
@@ -76,10 +76,10 @@ public:
 		else
 			return pdatalist_->at(d);
 	}
-	double group_rate(const rate_key &r) const { return safe_at(rate_map_, r).get(); }
-	double augm(const augm_key &a) const { return safe_at(augm_map_, a).get(); }
-	Variable &get_augm_variable(const augm_key &a) { return safe_at(augm_map_, a); }
-	const Variable &get_augm_variable(const augm_key &a) const { return safe_at(augm_map_, a); }
+	double group_rate(const std::string &r) const { return safe_at(rate_map_, "group rate", r).get(); }
+	double augm(const std::string &a) const { return safe_at(augm_map_, "augmented variable", a).get(); }
+	Variable &get_augm_variable(const std::string &a) { return safe_at(augm_map_, "augmented variable", a); }
+	const Variable &get_augm_variable(const std::string &a) const { return safe_at(augm_map_, "augmented variable", a); }
 
 	//==================//
 	//===== SETTER =====//
@@ -87,18 +87,19 @@ public:
 
 	void set_status(int s) { status_ = s; }
 
-	void set_augm_value(const augm_key &a, double x) { safe_at(augm_map_, a).set_value(x); }
-	void init_pointer_to_datalist(data_key_map<dbl_vec> *y) { pdatalist_ = y; }
-	void clear_augm(const augm_key &a) { augm_map_[a] = Variable(); }
-	void init_all_group_rates(const rate_key_mapvec<const double *> &ptrs);
-	void init_augm(const augm_key &a,
+	void set_augm_value(const std::string &a, double x) { safe_at(augm_map_, "augmented variable", a).set_value(x); }
+	void init_pointer_to_datalist(u_dict<dbl_vec> *y) { pdatalist_ = y; }
+	void clear_augm(const std::string &a) { augm_map_[a] = Variable(); }
+	void init_all_group_rates(const u_dict<std::vector<const double *>> &ptrs);
+	void init_augm(const std::string &a,
 				   const std::string &name,
 				   double value,
 				   bool is_discrete,
 				   bool is_constant,
 				   const std::string &func_name,
 				   const std::string &model_name);
-	void init_augm_model(const std::vector<augm_key> &augm_model_list);
+	void init_augm_model(const str_vec &augm_model_list);
+	void user_reset();
 
 	//=========================//
 	//===== LOGLIKELIHOOD =====//
@@ -135,12 +136,12 @@ private:
 	size_t hhindex_ = 0;			 // household relative index
 	int status_ = MISSING_STATUS;	 // status of the individual
 
-	// NOTE: I am forced to store numerical variables
-	data_key_map<double> data_map_ = {};	// dataset
-	augm_key_map<Variable> augm_map_ = {};	// augmented
-	rate_key_map<GroupRate> rate_map_ = {}; // group rates
+	// NOTE: allowd dataset variables are numerical only
+	u_dict<double> data_map_ = {};	  // dataset
+	u_dict<Variable> augm_map_ = {};  // augmented
+	u_dict<GroupRate> rate_map_ = {}; // group rates
 
-	data_key_map<dbl_vec> *pdatalist_ = nullptr; // datalist to be associated
+	u_dict<dbl_vec> *pdatalist_ = nullptr; // datalist to be associated
 
 	std::vector<std::function<double()>> augm_model_logpdfs_ = {};
 	double augm_loglike_ = 0; // current augmented model loglikelihood
@@ -266,7 +267,7 @@ public:
 	size_t n_healthy_status() const { return healthy_list_.size(); }
 	size_t n_missing_status() const { return missing_list_.size(); }
 
-	ulong multiplicity() const { return house_multiplicity_; }
+	unsigned long multiplicity() const { return house_multiplicity_; }
 	size_t multiplicity_class_index() const { return multiplicity_class_; }
 	bool is_multiplicity_head_class() const { return (index_ == multiplicity_class_); }
 
@@ -274,11 +275,11 @@ public:
 	//===== SETTER =====//
 	//==================//
 
-	void set_multiplicity(ulong m, size_t class_idx);
+	void set_multiplicity(unsigned long m, size_t class_idx);
 	void init_member(size_t index,
 					 const std::string &id,
 					 int status,
-					 const data_key_map<double> &data);
+					 const u_dict<double> &data);
 	bool change_status(Individual &member, int new_status);
 	bool change_status(size_t i, int new_status) { return change_status(members_.at(i), new_status); }
 	void init_contact_rates(size_t from, size_t to, const double *x);
@@ -292,24 +293,24 @@ public:
 	void buffer_all_cache();
 
 	//----- Cached integer vector -----//
-	void init_cache_integer_vector(const cache_key &e) { cache_int_vec_[e] = int_vec(size(), 0); }
-	int_vec &cache_integer_vector(const cache_key &e) { return cache_int_vec_.at(e); }
-	const int_vec &cache_integer_vector(const cache_key &e) const { return cache_int_vec_.at(e); }
+	void init_cache_integer_vector(const std::string &e) { cache_int_vec_[e] = int_vec(size(), 0); }
+	int_vec &cache_integer_vector(const std::string &e) { return safe_at(cache_int_vec_, "cached object", e); }
+	const int_vec &cache_integer_vector(const std::string &e) const { return safe_at(cache_int_vec_, "cached object", e); }
 
 	//----- Cached size_t vector -----//
-	void init_cache_size_t_vector(const cache_key &e) { cache_size_t_vec_[e] = std::vector<size_t>(size(), 0); }
-	std::vector<size_t> &cache_size_t_vector(const cache_key &e) { return cache_size_t_vec_.at(e); }
-	const std::vector<size_t> &cache_size_t_vector(const cache_key &e) const { return cache_size_t_vec_.at(e); }
+	void init_cache_size_t_vector(const std::string &e) { cache_size_t_vec_[e] = std::vector<size_t>(size(), 0); }
+	std::vector<size_t> &cache_size_t_vector(const std::string &e) { return safe_at(cache_size_t_vec_, "cached object", e); }
+	const std::vector<size_t> &cache_size_t_vector(const std::string &e) const { return safe_at(cache_size_t_vec_, "cached object", e); }
 
 	//----- Cached double vector -----//
-	void init_cache_double_vector(const cache_key &e) { cache_dbl_vec_[e] = dbl_vec(size(), 0.); }
-	dbl_vec &cache_double_vector(const cache_key &e) { return cache_dbl_vec_.at(e); }
-	const dbl_vec &cache_double_vector(const cache_key &e) const { return cache_dbl_vec_.at(e); }
+	void init_cache_double_vector(const std::string &e) { cache_dbl_vec_[e] = dbl_vec(size(), 0.); }
+	dbl_vec &cache_double_vector(const std::string &e) { return safe_at(cache_dbl_vec_, "cached object", e); }
+	const dbl_vec &cache_double_vector(const std::string &e) const { return safe_at(cache_dbl_vec_, "cached object", e); }
 
 	//----- Cached double matrix -----//
-	void init_cache_double_matrix(const cache_key &e) { cache_dbl_mtx_[e] = matrix<double>(size(), dbl_vec(size(), 0.)); }
-	matrix<double> &cache_double_matrix(const cache_key &e) { return cache_dbl_mtx_.at(e); }
-	const matrix<double> &cache_double_matrix(const cache_key &e) const { return cache_dbl_mtx_.at(e); }
+	void init_cache_double_matrix(const std::string &e) { cache_dbl_mtx_[e] = matrix<double>(size(), dbl_vec(size(), 0.)); }
+	matrix<double> &cache_double_matrix(const std::string &e) { return safe_at(cache_dbl_mtx_, "cached object", e); }
+	const matrix<double> &cache_double_matrix(const std::string &e) const { return safe_at(cache_dbl_mtx_, "cached object", e); }
 
 	//=========================//
 	//===== LOGLIKELIHOOD =====//
@@ -323,8 +324,8 @@ public:
 private:
 	std::string house_id_ = HSP_NA_STRING; // user house id
 	size_t index_ = -1;					   // housepi internal index
-	ushort house_size_ = 0;				   // n. of house members
-	ulong house_multiplicity_ = 1;		   // n. of equivalent houses
+	unsigned short house_size_ = 0;		   // n. of house members
+	unsigned long house_multiplicity_ = 1; // n. of equivalent houses
 	size_t multiplicity_class_ = -1;	   // index of multiplicity class
 
 	std::vector<Individual> members_ = {}; // members
@@ -347,16 +348,16 @@ private:
 	//===== EXTRA ATTRIBUTES =====//
 
 	//----- Extra Attributes -----//
-	cache_key_map<int_vec> cache_int_vec_ = {};
-	cache_key_map<std::vector<size_t>> cache_size_t_vec_ = {};
-	cache_key_map<dbl_vec> cache_dbl_vec_ = {};
-	cache_key_map<matrix<double>> cache_dbl_mtx_ = {};
+	u_dict<int_vec> cache_int_vec_ = {};
+	u_dict<std::vector<size_t>> cache_size_t_vec_ = {};
+	u_dict<dbl_vec> cache_dbl_vec_ = {};
+	u_dict<matrix<double>> cache_dbl_mtx_ = {};
 
 	//----- Buffer EXTRA Attributes -----//
-	cache_key_map<int_vec> buffer_cache_int_vec_ = {};
-	cache_key_map<std::vector<size_t>> buffer_cache_size_t_vec_ = {};
-	cache_key_map<dbl_vec> buffer_cache_dbl_vec_ = {};
-	cache_key_map<matrix<double>> buffer_cache_dbl_mtx_ = {};
+	u_dict<int_vec> buffer_cache_int_vec_ = {};
+	u_dict<std::vector<size_t>> buffer_cache_size_t_vec_ = {};
+	u_dict<dbl_vec> buffer_cache_dbl_vec_ = {};
+	u_dict<matrix<double>> buffer_cache_dbl_mtx_ = {};
 };
 
 #endif // HOUSEPI__HOUSEHOLD__H

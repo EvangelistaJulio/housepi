@@ -2,7 +2,7 @@
 % Please edit documentation in R/expected_cases.R
 \name{measure_cases_by_house_size}
 \alias{measure_cases_by_house_size}
-\title{Measure Household Cases by Size}
+\title{Measure household cases by size}
 \usage{
 measure_cases_by_house_size(dataset)
 }

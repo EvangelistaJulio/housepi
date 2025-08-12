@@ -29,12 +29,12 @@
 /* Set accept rates to zero. */
 void MCMC::Impl::init_move_counts_()
 {
-    for (const par_key &p : param.list_sample)
+    for (const std::string &p : param.list_sample)
         param.at(p).reset_accept_rate();
 }
 
 /* propose a valid move (retrun true), otherwise update refusal (return false) */
-bool MCMC::Impl::propose_valid_param_move_(const par_key &p)
+bool MCMC::Impl::propose_valid_param_move_(const std::string &p)
 {
     Variable &this_par = param.at(p);
 
@@ -42,7 +42,7 @@ bool MCMC::Impl::propose_valid_param_move_(const par_key &p)
     this_par.propose(setup.prng());
 
     // recover buffer if not valid move
-    if (!this_par.valid_move())
+    if (!this_par.is_valid_move())
     {
         this_par.recover_value();
         return false;
@@ -52,7 +52,7 @@ bool MCMC::Impl::propose_valid_param_move_(const par_key &p)
 }
 
 /* Restore the parameter value in the buffer. */
-void MCMC::Impl::recover_parameter_(const par_key &p, bool is_cache_depen)
+void MCMC::Impl::recover_parameter_(const std::string &p, bool is_cache_depen)
 {
     // recover buffer value of parameter
     param.at(p).recover_value();
@@ -73,7 +73,7 @@ void MCMC::Impl::recover_parameter_(const par_key &p, bool is_cache_depen)
 }
 
 /* Metropolis-Hastings to accept or not current parameter move. */
-bool MCMC::Impl::accept_valid_param_move_(const par_key &p)
+bool MCMC::Impl::accept_valid_param_move_(const std::string &p)
 {
     const double D_ll = full_loglike_ - full_buffer_;
     const double move_logratio = param.at(p).get_move_logratio();
@@ -81,15 +81,15 @@ bool MCMC::Impl::accept_valid_param_move_(const par_key &p)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////  MCMC::Impl : methods (diagnostics) ////////////////////////////////
+/////////////////////////////////  MCMC : Impl : posterior sample  ////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Initialize posterior sample of parameters. */
-void MCMC::Impl::ImplParameter::init_traces(ulong sample_size)
+void MCMC::Impl::Parameter::init_draws(unsigned long sample_size)
 {
     smpl_values.clear();
     smpl_values.reserve(list_sample.size());
-    for (const par_key &p : list_sample)
+    for (const std::string &p : list_sample)
     {
         smpl_values[p].clear();
         smpl_values[p].reserve(sample_size);
@@ -98,14 +98,26 @@ void MCMC::Impl::ImplParameter::init_traces(ulong sample_size)
 }
 
 /* Store current sample of parameters. */
-void MCMC::Impl::ImplParameter::update_traces(ulong smpl_count)
+void MCMC::Impl::Parameter::update_draws(unsigned long smpl_count)
 {
-    for (const par_key &p : list_sample)
+    for (const std::string &p : list_sample)
         smpl_values[p][smpl_count] = get(p);
 }
 
+/* Clear posterior sample of parameters. */
+void MCMC::Impl::Parameter::clear_draws()
+{
+    for (auto &pair : smpl_values)
+    {
+        pair.second.clear();
+        pair.second.shrink_to_fit();
+    }
+    smpl_values.clear();
+    smpl_values.rehash(0);
+}
+
 /* Initialize posterior sample of parameters. */
-void MCMC::Impl::ImplDataSet::init_traces(ulong sample_size)
+void MCMC::Impl::DataSet::init_draws(unsigned long sample_size)
 {
     // sample over households
     smpl_values_.clear();
@@ -119,7 +131,7 @@ void MCMC::Impl::ImplDataSet::init_traces(ulong sample_size)
 }
 
 /* Store current sample of loglikelihood for restricted households. */
-void MCMC::Impl::ImplDataSet::update_traces(ulong smpl_count)
+void MCMC::Impl::DataSet::update_draws(unsigned long smpl_count)
 {
     // store sample for restricted households
     for (size_t R = 0; R < restrict_indexes_.size(); ++R)
@@ -132,10 +144,22 @@ void MCMC::Impl::ImplDataSet::update_traces(ulong smpl_count)
     }
 }
 
-/* Init posterior sampling. UPDATE: */
-void MCMC::Impl::init_infer_diagnostics_()
+/* Clear posterior sample of dataset. */
+void MCMC::Impl::DataSet::clear_draws()
 {
-    ulong sample_size = setup.c_sample_size * setup.n_chains;
+    for (size_t R = 0; R < restrict_indexes_.size(); ++R)
+    {
+        smpl_values_[R].clear();
+        smpl_values_[R].shrink_to_fit();
+    }
+    smpl_values_.clear();
+    smpl_values_.shrink_to_fit();
+}
+
+/* Init posterior sampling. */
+void MCMC::Impl::init_posterior_sample_()
+{
+    unsigned long sample_size = setup.c_sample_size * setup.n_chains;
 
     // diagnostics over full loglikelihood
     smpl_count_ = 0;
@@ -147,9 +171,9 @@ void MCMC::Impl::init_infer_diagnostics_()
     // UPDATE: I might want to store also power posterior sample
     if (!setup.is_power_post())
     {
-        dataset.init_traces(sample_size);
-        param.init_traces(sample_size);
-        augm.init_traces(sample_size);
+        dataset.init_draws(sample_size);
+        param.init_draws(sample_size);
+        augm.init_draws(sample_size);
     }
 }
 
@@ -161,12 +185,24 @@ void MCMC::Impl::update_posterior_sample_()
 
     if (!setup.is_power_post())
     {
-        param.update_traces(smpl_count_);
-        dataset.update_traces(smpl_count_);
-        augm.update_traces(smpl_count_);
+        param.update_draws(smpl_count_);
+        dataset.update_draws(smpl_count_);
+        augm.update_draws(smpl_count_);
     }
 
     ++smpl_count_;
+}
+
+/* Clear posterior sampling. */
+void MCMC::Impl::clear_posterior_sample_()
+{
+    smpl_count_ = 0;
+    smpl_full_loglike_.clear();
+    smpl_full_loglike_.shrink_to_fit();
+
+    dataset.clear_draws();
+    param.clear_draws();
+    augm.clear_draws();
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -252,7 +288,7 @@ double MCMC::Impl::update_house_loglike_(Household &house, bool is_augm_ll, bool
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Attempt to move a single parameter for the given inverse temperature. */
-bool MCMC::Impl::move_single_parameter_(const par_key &p, bool cache_depen)
+bool MCMC::Impl::move_single_parameter_(const std::string &p, bool cache_depen)
 {
     // proceed only if the new value is consistent
     // otherwise automatically refuse move
@@ -284,45 +320,16 @@ void MCMC::Impl::move_all_()
     move_all_augm_();
 
     // move all simple model parameters
-    for (const par_key &p : param.list_sample_standard)
+    for (const std::string &p : param.list_sample_standard)
         move_single_parameter_(p, false);
 
     // move parameters with cache dependecies
-    for (const par_key &p : param.list_sample_cache)
+    for (const std::string &p : param.list_sample_cache)
         move_single_parameter_(p, true);
-
-    // FLAG
-    if (tools::is_na(full_loglike_))
-    {
-        std::ostringstream oss;
-        oss << setup.chain << "(" << smpl_count_ << ") : " << full_loglike_;
-        if (std::isnan(full_loglike_))
-            oss << " - Sample produced NaN values for the full loglikelihood.";
-        else
-            oss << " - R is over-interpreting NaN values!";
-        oss << std::endl;
-
-        double ll = 0;
-        for (Household &house : dataset)
-        {
-            double llo = house.get_obs_loglike(), lla = 0;
-            for (const Individual &member : house.infected())
-                lla += member.get_augm_model_loglike();
-            ll += llo + lla;
-            if (tools::is_na(llo) || tools::is_na(lla))
-                oss << "\nHousehold \"" << house.house_id() << "\" : "
-                    << "obs loglike = " << llo << ", "
-                    << "augm loglike = " << lla << std::endl;
-        }
-        oss << "Checked loglikelihood = " << ll << std::endl;
-
-        tools::error(oss.str());
-    }
-    // FLAG-END
 }
 
 /* Move all augmented variables and model parameters and adapt their rule arguments. */
-void MCMC::Impl::move_all_and_adapt_params_(ulong step)
+void MCMC::Impl::move_all_and_adapt_params_(unsigned long step)
 {
     // move augmented variables if
     move_all_augm_();
@@ -333,7 +340,7 @@ void MCMC::Impl::move_all_and_adapt_params_(ulong step)
     // UPDATE: loops can be improved with viewers
 
     // move all simple model parameters
-    for (const par_key &p : param.list_sample_standard)
+    for (const std::string &p : param.list_sample_standard)
     {
         Variable &this_param = param.at(p);
         this_param.update_accept_rate(move_single_parameter_(p, false));
@@ -341,7 +348,7 @@ void MCMC::Impl::move_all_and_adapt_params_(ulong step)
     }
 
     // move parameters with cache dependecies
-    for (const par_key &p : param.list_sample_cache)
+    for (const std::string &p : param.list_sample_cache)
     {
         Variable &this_param = param.at(p);
         this_param.update_accept_rate(move_single_parameter_(p, true));
@@ -368,33 +375,33 @@ void MCMC::Impl::run_monte_carlo_()
     //===== Initialization =====//
     //==========================//
 
-    ulong &chain = setup.chain; // current chain
-    init_infer_diagnostics_();  // initialize diagnostics
+    unsigned long &chain = setup.chain; // current chain
+    init_posterior_sample_();           // initialize diagnostics
 
     // run multiple MCMC chains&
     for (chain = 1; chain <= setup.n_chains; ++chain)
     {
         // update progressbar text
         setup.prog_set_text();      // update progress bar text
-        param.init();               // init parameter inference
-        augm.init();                // init augmented variables
+        param.init();               // initialize augmented variables
+        augm.init();                // initialize augmented variables
         update_full_loglike_(true); // init cache + full loglikelihood
         init_move_counts_();        // init move counts for adaptive
 
         // (Finite) Adaptative Iterations
-        for (ulong i = 0; i < setup.n_adapt; i += setup.thin, setup.prog_update())
-            for (ulong t = 1; t <= setup.thin; ++t)
+        for (unsigned long i = 0; i < setup.n_adapt; i += setup.thin, setup.prog_update())
+            for (unsigned long t = 1; t <= setup.thin; ++t)
                 move_all_and_adapt_params_(i + t);
 
         // Burn-in Iterations
-        for (ulong i = 0; i < setup.n_burnin; i += setup.thin, setup.prog_update())
-            for (ulong t = 1; t <= setup.thin; ++t)
+        for (unsigned long i = 0; i < setup.n_burnin; i += setup.thin, setup.prog_update())
+            for (unsigned long t = 1; t <= setup.thin; ++t)
                 move_all_();
 
         // Posterior sampling
-        for (ulong i = setup.n_burnin; i < setup.n_steps; i += setup.thin, setup.prog_update())
+        for (unsigned long i = setup.n_burnin; i < setup.n_steps; i += setup.thin, setup.prog_update())
         {
-            for (ulong t = 1; t <= setup.thin; ++t)
+            for (unsigned long t = 1; t <= setup.thin; ++t)
                 move_all_();
             update_posterior_sample_(); // store sample
         }
@@ -417,11 +424,11 @@ double MCMC::Impl::evaluate()
 {
     try
     {
-        assert_proper_dataset_();       // check if dataset is empty
         setup.n_chains = 0;             // use 0 chains as a state variable
-        setup.rand_init_params = false; // disable random initialization // UPDATE
+        assert_proper_dataset_();       // check if dataset is empty
+        setup.rand_init_params = false; // UPDATE: this should also be true..
         param.init();                   // check no undefined parameters
-        augm.init();                    // initialize augmented variables
+        augm.init();                    // check no undefined augmented variables
         init_model_for_inference_();    // initialize model for inference
         update_full_loglike_(true);     // initialize cache + full loglikelihood
 
@@ -469,7 +476,7 @@ void MCMC::Impl::infer()
     Improving power posterior estimation of statistical evidence.
     Stat Comput 24, 709–723 (2014).
 */
-const std::vector<dbl_vec> MCMC::Impl::power_posteriors_(const std::string &scheme, ulong n_rungs)
+std::vector<dbl_vec> MCMC::Impl::power_posteriors_(const std::string &scheme, unsigned long n_rungs)
 {
     try
     {
@@ -480,7 +487,7 @@ const std::vector<dbl_vec> MCMC::Impl::power_posteriors_(const std::string &sche
         const str_vec options = {"adaptive", "power-fractions"};
         if (!(options % scheme))
             throw std::invalid_argument("Unknown power posterior scheme \"" + scheme + "\"." +
-                                        tools::find_closest(scheme, options, 3));
+                                        tools::str::find_closest(scheme, options, 3));
 
         init_monte_carlo_(); // initialize mcmc sampling
 
@@ -489,7 +496,7 @@ const std::vector<dbl_vec> MCMC::Impl::power_posteriors_(const std::string &sche
             setup.n_rungs = n_rungs;
         else
             throw std::invalid_argument("N. of rungs must be greater than 1.");
-        ulong &rung = setup.rung; // current rung
+        unsigned long &rung = setup.rung; // current rung
 
         // declare current progress bar
         setup.prog_declare();
@@ -645,10 +652,9 @@ Rcpp::DataFrame MCMC::Impl::simulate_repetition()
     using namespace Rcpp;
 
     const size_t n_cols = dataset.n_individuals();
-    const str_vec augm_headers = augm.list_export();
 
     int_vec df_status = int_vec(n_cols);
-    std::vector<dbl_vec> df_augm(augm_headers.size(), dbl_vec(n_cols));
+    std::vector<dbl_vec> df_augm(augm.list_export.size(), dbl_vec(n_cols));
 
     size_t row = 0;
     for (Household house : dataset) // copies of households
@@ -658,8 +664,8 @@ Rcpp::DataFrame MCMC::Impl::simulate_repetition()
             for (const Individual &member : house)
             {
                 df_status[row] = member.status();
-                for (size_t i = 0; i < augm_headers.size(); ++i)
-                    df_augm[i][row] = member.augm(augm_headers[i]);
+                for (size_t i = 0; i < augm.list_export.size(); ++i)
+                    df_augm[i][row] = member.augm(augm.list_export[i]);
                 ++row;
             }
         }
@@ -670,8 +676,8 @@ Rcpp::DataFrame MCMC::Impl::simulate_repetition()
         }
 
     List output = List::create(_["status"] = wrap(std::move(df_status)));
-    for (size_t i = 0; i < augm_headers.size(); ++i)
-        output[augm_headers[i]] = wrap(std::move(df_augm[i]));
+    for (size_t i = 0; i < augm.list_export.size(); ++i)
+        output[augm.list_export[i]] = wrap(std::move(df_augm[i]));
     return DataFrame(output);
 }
 
@@ -727,7 +733,7 @@ Rcpp::List MCMC::Impl::simulate(size_t n_rep)
     return List::create();
 }
 
-Rcpp::List MCMC::Impl::evidence(const std::string &scheme, ulong n_rungs)
+Rcpp::List MCMC::Impl::evidence(const std::string &scheme, unsigned long n_rungs)
 {
     using namespace Rcpp;
 
@@ -739,7 +745,7 @@ Rcpp::List MCMC::Impl::evidence(const std::string &scheme, ulong n_rungs)
         const dbl_vec &avg_vec = pp[1];
         const dbl_vec &var_vec = pp[2];
 
-        for (ulong k = 0; k < n_rungs; ++k)
+        for (unsigned long k = 0; k < n_rungs; ++k)
         {
             double d_inv_tem = inv_tem[k + 1] - inv_tem[k];
             output += (avg_vec[k + 1] + avg_vec[k]) * d_inv_tem / 2.;
@@ -805,7 +811,7 @@ void MCMC::Impl::print_simulated_dataset(const std::string &pathtofile)
     Improving power posterior estimation of statistical evidence.
     Stat Comput 24, 709–723 (2014).
 */
-void MCMC::Impl::print_evidence(const std::string &scheme, ulong n_rungs)
+void MCMC::Impl::print_evidence(const std::string &scheme, unsigned long n_rungs)
 {
     try
     {
@@ -815,7 +821,7 @@ void MCMC::Impl::print_evidence(const std::string &scheme, ulong n_rungs)
         const dbl_vec &avg_vec = pp[1];
         const dbl_vec &var_vec = pp[2];
 
-        for (ulong k = 0; k < n_rungs; ++k)
+        for (unsigned long k = 0; k < n_rungs; ++k)
         {
             double d_inv_tem = inv_tem[k + 1] - inv_tem[k];
             output += (avg_vec[k + 1] + avg_vec[k]) * d_inv_tem / 2.;
@@ -823,7 +829,7 @@ void MCMC::Impl::print_evidence(const std::string &scheme, ulong n_rungs)
         }
 
         // print result to stdout
-        tools::print_stdout(std::to_string(output) + "\n");
+        std::cout << output << std::endl;
     }
     catch (const std::exception &e)
     {

@@ -14,8 +14,7 @@
 #include <stdexcept>
 #include <cmath>
 #include <algorithm>
-
-#include "tools.h"
+#include <string>
 
 #ifndef M_1_SQRT_2PI
 #define M_1_SQRT_2PI 0.398942280401432677939946059934 /* 1/sqrt(2pi) */
@@ -39,9 +38,6 @@ namespace numr
     constexpr double EPSILON = 1.e-12;
     constexpr double MIN_DBL = 1.e-30;
 
-    using ushort = unsigned short int;
-    using ulong = unsigned long int;
-
     //-----------------------------------------------------------------------------------------------//
     //-----------------------------------------------------------------------------------------------//
     //-----------------------------------------------------------------------------------------------//
@@ -54,22 +50,22 @@ namespace numr
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     /* Standard definition for the factorial. */
-    inline ulong factorial(ulong n)
+    inline unsigned long factorial(unsigned long n)
     {
-        ulong result = 1;
-        for (ulong i = 2; i <= n; ++i)
+        unsigned long result = 1;
+        for (unsigned long i = 2; i <= n; ++i)
             result *= i;
         return result;
     }
 
     /* Binomial coefficient of N elements in k positions */
-    inline ulong binom_coeff(ushort N, ushort k)
+    inline unsigned long binom_coeff(unsigned short N, unsigned short k)
     {
         if ((N > 0) && (k != N))
         {
-            ulong result = N;
-            ushort stop = (k > N - k) ? k : N - k; // use symmetry
-            for (ushort i = 1; i < stop; ++i)
+            unsigned long result = N;
+            unsigned short stop = (k > N - k) ? k : N - k; // use symmetry
+            for (unsigned short i = 1; i < stop; ++i)
                 result = (result * (N - i)) / (i + 1);
             return result;
         }
@@ -78,13 +74,13 @@ namespace numr
     }
 
     /* Logarithm of binomial coefficient. */
-    inline double log_binom_coeff(ushort N, ushort k)
+    inline double log_binom_coeff(unsigned short N, unsigned short k)
     {
         if ((N > 0) && (k != N))
         {
             double result = std::log(N);
-            ushort stop = (k > N - k) ? k : N - k; // use symmetry
-            for (ushort i = 1; i < stop; ++i)
+            unsigned short stop = (k > N - k) ? k : N - k; // use symmetry
+            for (unsigned short i = 1; i < stop; ++i)
                 result += std::log(N - i) - std::log(i + 1);
             return result;
         }
@@ -92,15 +88,15 @@ namespace numr
     }
 
     /* Log-ratio of binomial coefficients. */
-    inline double logratio_binom_coeff(ushort N, ushort kold, ushort knew)
+    inline double logratio_binom_coeff(unsigned short N, unsigned short ko, unsigned short kn)
     {
-        if ((N > 0) && (kold != knew))
+        if ((N > 0) && (ko != kn))
         {
             double result = 0.;
-            if (kold > knew)
-                std::swap(kold, knew);
+            if (ko > kn)
+                std::swap(ko, kn);
 
-            for (ushort i = kold + 1; i <= knew; ++i)
+            for (unsigned short i = ko + 1; i <= kn; ++i)
                 result += std::log(N - i + 1) - std::log(i);
             return result;
         }
@@ -283,8 +279,8 @@ namespace numr
     {
         inline double pdf(double x, double mean, double sd)
         {
-            const double ptm = (x - mean) / sd;
-            return M_1_SQRT_2PI * std::exp(-.5 * ptm * ptm) / sd;
+            const double z = (x - mean) / sd;
+            return M_1_SQRT_2PI * std::exp(-.5 * z * z) / sd;
         }
         inline double cdf(double x, double mean, double sd)
         {
@@ -292,12 +288,12 @@ namespace numr
         }
         inline double logpdf(double x, double mean, double sd)
         {
-            const double ptm = (x - mean) / sd;
-            return -.5 * ptm * ptm - M_LN_SQRT_2PI - std::log(sd);
+            const double z = (x - mean) / sd;
+            return -.5 * z * z - M_LN_SQRT_2PI - std::log(sd);
         }
-        inline double logratio(double xold, double xnew, double mean, double sd)
+        inline double logratio(double xo, double xn, double mean, double sd)
         {
-            return .5 * (xold * xold + (xnew - xold) * mean - xnew * xnew) / (sd * sd);
+            return (.5 * xo * xo + (xn - xo) * mean - .5 * xn * xn) / (sd * sd);
         }
     }
 
@@ -309,8 +305,8 @@ namespace numr
     {
         inline double pdf(double x, double meanlog, double sdlog)
         {
-            const double ptm = (std::log(x) - meanlog) / sdlog;
-            return std::exp(-.5 * ptm * ptm) * M_1_SQRT_2PI / (x * sdlog);
+            const double z = (std::log(x) - meanlog) / sdlog;
+            return std::exp(-.5 * z * z) * M_1_SQRT_2PI / (x * sdlog);
         }
         inline double cdf(double x, double meanlog, double sdlog)
         {
@@ -318,14 +314,14 @@ namespace numr
         }
         inline double logpdf(double x, double meanlog, double sdlog)
         {
-            const double ptm = (std::log(x) - meanlog) / sdlog;
-            return -.5 * ptm * ptm - std::log(x * sdlog) - M_LN_SQRT_2PI;
+            const double z = (std::log(x) - meanlog) / sdlog;
+            return -.5 * z * z - std::log(x * sdlog) - M_LN_SQRT_2PI;
         }
-        inline double logratio(double xold, double xnew, double meanlog, double sdlog)
+        inline double logratio(double xo, double xn, double meanlog, double sdlog)
         {
-            const double logxold = std::log(xold);
-            const double logxnew = std::log(xnew);
-            return .5 * ((logxold - meanlog) * logxold - (logxnew - meanlog) * logxnew) / (sdlog * sdlog) + logxold - logxnew;
+            const double lxo = std::log(xo);
+            const double lxn = std::log(xn);
+            return .5 * ((lxo - meanlog) * lxo - (lxn - meanlog) * lxn) / (sdlog * sdlog) + lxo - lxn;
         }
     }
 
@@ -347,9 +343,9 @@ namespace numr
         {
             return (shape1 - 1.) * std::log(x) + (shape2 - 1.) * std::log(1. - x) - lbeta(shape1, shape2);
         }
-        inline double logratio(double xold, double xnew, double shape1, double shape2)
+        inline double logratio(double xo, double xn, double shape1, double shape2)
         {
-            return (shape1 - 1.) * std::log(xnew / xold) + (shape2 - 1.) * std::log((1. - xnew) / (1. - xold));
+            return (shape1 - 1.) * std::log(xn / xo) + (shape2 - 1.) * std::log((1. - xn) / (1. - xo));
         }
     }
 
@@ -372,9 +368,9 @@ namespace numr
             const double t = x / scale;
             return shape * std::log(t) - std::log(x) - std::lgamma(shape) - t;
         }
-        inline double logratio(double xold, double xnew, double shape, double scale)
+        inline double logratio(double xo, double xn, double shape, double scale)
         {
-            return (shape - 1) * std::log(xnew / xold) + (xold - xnew) / scale;
+            return (shape - 1) * std::log(xn / xo) + (xo - xn) / scale;
         }
     }
 
@@ -398,9 +394,9 @@ namespace numr
             const double scale2 = scale * scale;
             return std::log(x / scale2) - .5 * x * x / scale2;
         }
-        inline double logratio(double xold, double xnew, double scale)
+        inline double logratio(double xo, double xn, double scale)
         {
-            return std::log(xnew / xold) + .5 * (xold * xold - xnew * xnew) / (scale * scale);
+            return std::log(xn / xo) + .5 * (xo * xo - xn * xn) / (scale * scale);
         }
     }
 
@@ -424,9 +420,9 @@ namespace numr
             const double z = x / scale;
             return std::log(shape / scale) + (shape - 1.) * std::log(z) - std::pow(z, shape);
         }
-        inline double logratio(double xold, double xnew, double shape, double scale)
+        inline double logratio(double xo, double xn, double shape, double scale)
         {
-            return (shape - 1.) * std::log(xnew / xold) + std::pow(xold / scale, shape) - std::pow(xnew / scale, shape);
+            return (shape - 1.) * std::log(xn / xo) + std::pow(xo / scale, shape) - std::pow(xn / scale, shape);
         }
     }
 
@@ -448,9 +444,9 @@ namespace numr
         {
             return std::log(rate) - rate * x;
         }
-        inline double logratio(double xold, double xnew, double rate)
+        inline double logratio(double xo, double xn, double rate)
         {
-            return rate * (xold - xnew);
+            return rate * (xo - xn);
         }
     }
 
@@ -472,9 +468,9 @@ namespace numr
         {
             return x * std::log(lambda) - lambda - std::lgamma(x + 1.);
         }
-        inline double logratio(double xold, double xnew, double lambda)
+        inline double logratio(double xo, double xn, double lambda)
         {
-            return (xnew - xold) * std::log(lambda) + std::lgamma(xold + 1.) - std::lgamma(xnew + 1.);
+            return (xn - xo) * std::log(lambda) + std::lgamma(xo + 1.) - std::lgamma(xn + 1.);
         }
     }
 
@@ -496,9 +492,9 @@ namespace numr
         {
             return log_binom_coeff(size, x) + x * std::log(prob) + (size - x) * std::log(1. - prob);
         }
-        inline double logratio(double xold, double xnew, double size, double prob)
+        inline double logratio(double xo, double xn, double size, double prob)
         {
-            return logratio_binom_coeff(size, xold, xnew) + (xnew - xold) * std::log(prob / (1. - prob));
+            return logratio_binom_coeff(size, xo, xn) + (xn - xo) * std::log(prob / (1. - prob));
         }
     }
 
@@ -520,13 +516,13 @@ namespace numr
         {
             return log_binom_coeff(x + size - 1, x) + x * std::log(1. - prob) + size * std::log(prob);
         }
-        inline double logratio(double xold, double xnew, double size, double prob)
+        inline double logratio(double xo, double xn, double size, double prob)
         {
             double output = 0.;
             // logratio of the binomial coefficients
             for (double i = 1.; i < size; ++i)
-                output += std::log((i + xnew) / (i + xold));
-            return output + (xnew - xold) * std::log(1. - prob);
+                output += std::log((i + xn) / (i + xo));
+            return output + (xn - xo) * std::log(1. - prob);
         }
     }
 
@@ -548,9 +544,9 @@ namespace numr
         {
             return std::log(proba) + x * std::log(1. - proba);
         }
-        inline double logratio(double xold, double xnew, double proba)
+        inline double logratio(double xo, double xn, double proba)
         {
-            return (xnew - xold) * std::log(1. - proba);
+            return (xn - xo) * std::log(1. - proba);
         }
     }
 } // NUMR NAMESPACE

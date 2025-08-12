@@ -25,7 +25,7 @@ generate_delays <- function(n = 223,
   shape <- mean^2 / var
   scale <- var / mean
   # incubation period
-  delay_value <- function() return(rgamma(1, shape = shape, scale = scale))
+  delay_value <- function() rgamma(1, shape = shape, scale = scale)
 
   simulate_delay_data <- function(x) {
     # exposure interval
@@ -50,12 +50,12 @@ generate_delays <- function(n = 223,
       }
     }
 
-    return(c(t1 = t1,
-             t2 = t2,
-             t1_min = t1_min,
-             t1_max = t1_max,
-             t2_min = t2_min,
-             t2_max = t2_max))
+    c(t1 = t1,
+      t2 = t2,
+      t1_min = t1_min,
+      t1_max = t1_max,
+      t2_min = t2_min,
+      t2_max = t2_max)
   }
 
   full_dataset <- as.data.frame(t(sapply(1:n, simulate_delay_data)))

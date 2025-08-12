@@ -15,13 +15,7 @@ editor_options:
 
 ```{r setup}
 #| include: false
-knitr::opts_chunk$set(echo = TRUE, comment = "#>", 
-                      fig.width = 6.5, fig.height = 5, fig.fullwidth=TRUE,
-                      fig.align = "center", out.height="auto")
-options(knitr.kable.NA = "")
-
-bayesplot::bayesplot_theme_set(ggplot2::theme_gray())
-bayesplot::color_scheme_set(scheme = "brightblue")
+source("theme.R")
 ```
 
 We introduce `housepi`, a package for the study of epidemiological datasets from household outbreaks.
@@ -80,7 +74,7 @@ Status $s_{i}$ should be an integer value satisfying the following convention:
 | `0`            | susceptible | seronegative |
 | `<0` or `NA`   | missing     | missing      |
 
-### Import a Dataset
+## Import a Dataset
 
 The most direct way to associate a dataset to a model is assigning it to the active method `$dataset`.
 The `housepi` package comes with a few synthetic datasets to be used for testing.
@@ -103,6 +97,7 @@ hhmodel |>
   flextable::bold(j = ~ type + comment, bold = TRUE) |>
   flextable::labelizor(labels = c(type = "", comment = "", pct = "[%]")) |>
   flextable::bg(bg = "white", part = "all") |>
+  flextable::fontsize(size = 12, part = "all") |>
   flextable::autofit()
 ```
 
@@ -117,7 +112,7 @@ Different approached are available to perform the same operation, we can define 
 
 ```{r}
 # alpha : community transmission rate
-hhmodel <- hhmodel |> 
+hhmodel <- hhmodel |>
   add_parameter(name = "alpha", # name matching the model source
                 prior = "unif", # uniform prior
                 rule = "lnorm") # mcmc proposer rule
@@ -132,18 +127,15 @@ For further information on the available options for the definition of the param
 
 To see how to associate group rates in heterogeneous models, see the vignette [Group Rates](group_rates.html).
 
-For models requiring augmented variables, the definition procedure is analogous.
-We broadly discuss data augmentation in [Data Augmentation](data_augmentation.html) and we present a case study in [Augment Infection Times](augment_infection_times.html).
-
 # Inference
 
 After having provided all necessary definitions, we can perform inference calling `infer()`.
-We can then extract the posterior calling `$as_draws_df`.
-This will return a [posterior](https://cran.r-project.org/web/packages/posterior/) `draw` object that can be used to compute estimates.
+This will return an object wrapping [posterior](https://cran.r-project.org/web/packages/posterior/) `draws` object that can be used to compute estimates.
+We can then extract the parameters draws by calling `get_param_draws_df`:
 
 ```{r}
 # run the Monte Carlo specifying setup options
-hhmodel <- hhmodel |>
+results <- hhmodel |>
   infer(n_steps = 20000,  # number of mcmc steps (per chain)
         n_burnin = 1000,  # steps to burn
         thin = 8,         # delay between sampling steps
@@ -152,10 +144,10 @@ hhmodel <- hhmodel |>
         n_threads = 1,    # number of threads
         progress = FALSE) # disable progress bar
 
-estimates <- hhmodel |> 
-  # export posterior draws using an R6 field
-  as_draws_df() |> 
-  posterior::summarise_draws() 
+estimates <- results |>
+  # export to psoterior draws_df
+  get_param_draws_df() |>
+  posterior::summarise_draws()
 estimates
 ```
 
@@ -166,8 +158,8 @@ For example, we can plot the draws with [bayesplot](https://cran.r-project.org/w
 
 ```{r}
 # visualize the traces of the first chain with 'bayesplot'
-hhmodel |> 
-  as_draws_df() |> 
+results |>
+  get_param_draws_df() |>
   bayesplot::mcmc_trace(facet_args = list(ncol = 1))
 ```
 
@@ -176,125 +168,162 @@ We can extract the sample of pointwise loglikelihood for each household and comp
 
 ```{r}
 # LOO-CV (leave-one-out cross-validation)
-hhmodel |> 
-  as_house_loglike_draws_matrix() |> 
+results |>
+  get_house_loglike_draws_df() |>
+  posterior::as_draws_matrix() |>
   loo::loo()
 ```
 
-# Simulation
+# Augment Infection Times
 
-In order to produce a simulation, our models require a pre-loaded dataset for the demographic structure of the households.
-We then provide parameter definitions, here we call `load_parameter_list`, particurly helpful for multiple parameter definitions.
-Finally, we call `simulate()` providing a household structure from the same dataset.
+For models requiring augmented variables, the definition procedure is analogous.
+In [Data Augmentation](data_augmentation.html) we broadly discuss data augmentation and the process of more complex augmented definitions.
+Here we present a case sttudy, using the template model "augm-infection-time" where surveys are conditioned on single introduction.
+We load the parameter definitions directly from the model template.
 
 ```{r}
-# generate a new model object to use for simulation
-simulated <- new_housepi_model("chain-binomial") |>
-  # define constant parameters from the inference estimates
-  # note: definition without a prior assumes parameters to be constant
-  load_parameter_list(
-    alpha = subset(estimates, variable == "alpha")$mean,
-    beta = subset(estimates, variable == "beta")$mean
+hhsimul <- new_housepi_model("augm-infection-time") |>
+  load_parameter_template()
+
+# inspect parameter definitions
+hhsimul |> 
+  get_parameters()
+```
+
+## Simulate an Outbreak
+
+We propose the following definitions for the augmented variables, 
+associated from a list by calling `$load_augmented_list`.
+
+```{r}
+hhsimul <- hhsimul |>
+  load_augmented_list(
+    # define 'infec_time' as the difference between onset and incubation
+    infec_time = "onset_time - incub_period",
+
+    # define an 'onset_time' for each individual
+    onset_time = list(
+      model = "lnorm",
+      args = c(meanlog = 4, sdlog = 0.5),
+      max = 365
+    ),
+
+    # define an 'incub_period' for each individual
+    incub_period = list(
+      model = "gamma",
+      # arguments of incubation period are linked to parameters
+      args = c(shape = "inc_shape@P",  scale = "inc_scale@P"),
+      max = 14
+    )
   ) |>
-  # build new model using the same demographic structure of dataset
-  add_dataset(housepi::survey) |>
-  # override status of the dataset according to simulation
+  # append parameters for incubation period
+  load_parameter_list(
+    inc_shape = 2, inc_scale = 1.1, 
+    append = TRUE
+  )
+```
+
+We then run a simulation with the method `simulate`, using the same community structure from the survey, but dropping cases.
+In this configuration, introductions are sampled randomly. 
+Simulation will associated augmented incubation periods and onset times in addition to status.
+
+```{r}
+hhsimul$dataset <- housepi::survey |> 
+  dplyr::mutate(status = NA)
+simulated <- hhsimul |> 
   simulate()
+head(simulated)
 ```
 
-## Expected Cases by Size 
-
-We can use the simulation process to challenge the validity of the inferred model on top of the original dataset.
-We do so by computing the expected numbers of cases per household size according to our posterior distribution (i. e. by producing simulations according to posterior values).
+We then propose a simple observation process, where we assume onsets after 6 PM (18/24) are reported to next day.
+Finally, we remove unobserved quantities:
 
 ```{r}
-# run simulations according to posterior traces to compute expectations
-expec <- hhmodel$expec_cases_by_house_size(progress = FALSE)
-```
-
-To show both observed and expected cases by size, we can extract the formatted cases table from our output object as follows:
-
-```{r}
-# from the rest of analysis consider sizes up to 5
-# to restore, call method $drop_max_house_size()
-expec$set_max_house_size(5)
-
-# return a data.frame with observed and expected cases
-cases_df <- expec$formatted_cases_table
-
-# format expected cases
-combined <- cases_df$mean
-mask_exp <- cases_df$mean$distr == "Expected"
-mask_cols <- setdiff(names(cases_df$mean), c("house_size", "distr"))
-
-# format mean with its lower and upper credibile interval bounds
-combined[mask_exp, mask_cols] <- mapply(
-  function(m, low, up) {
-    ifelse(is.na(m) | is.na(low) | is.na(up), NA,
-           sprintf("%.0f [%.0f, %.0f]", m, low, up))
-  },
-  cases_df$mean[mask_exp, mask_cols],
-  cases_df$q5[mask_exp, mask_cols],
-  cases_df$q95[mask_exp, mask_cols]
-)
-
-# avoid separate_header regular expression to split house_size
-names(combined)[names(combined) == "house_size"] <- "size"
-
-# generate cases by household size table
-combined |>
-  flextable::flextable() |>
-  flextable::separate_header() |>
-  flextable::theme_vanilla() |>
-  flextable::bold(j = ~ size, bold = TRUE) |>
-  flextable::merge_v(j = ~ size) |>
-  flextable::align(align = "center", , part = "all") |>
-  flextable::labelizor(labels = c(
-    size = "Size", 
-    distr = "Distribution", 
-    cases = "Number of cases"
+simulated <- simulated |>
+  dplyr::mutate(onset_date = dplyr::if_else(
+    status > 0, floor(onset_time) + ((onset_time %% 1) > 0.75), NA
   )) |>
-  flextable::bg(bg = "white", part = "all") |>
-  flextable::autofit()
+  dplyr::select(-incub_period, -onset_time, -infec_time)
+head(simulated)
 ```
 
-We can perform a Chi-Squared test on the shown distribution as follows:
+## Validate the Simulation
+
+We can check that inference returns the parameters used for the simulation.
 
 ```{r}
-# perform a Chi-Squared test
-expec$chisq_test()
+hhmodel <- hhsimul |>
+  # drop previous augmented definitions
+  drop_augmented() |>
+  # load definitions from list
+  load_augmented_list(
+    infec_time = "onset_time - incub_period",
+    onset_time = list(
+      rule = "norm", from = "onset_date@D", scale = 0.25
+    ),
+    incub_period = list(
+      model = "gamma",
+      args = c(shape = "inc_shape@P", scale = "inc_scale@P")
+    )
+  )
+
+results <- hhmodel |>
+  # perform the inference
+  infer(simulated, n_chains = 3, n_steps = 10000, n_adapt = 2000, 
+        n_burnin = 1000, thin = 10, progress = 20) |>
+  # extract sample to posterioir::draws_df
+  get_param_draws_df()
 ```
-
-The $p$-value tells us that there is no significant difference between the distribution, thus we can trust our inference process.
-
-## Secondary Attack rate
-
-We can have a quick look at secondary attack rates of observed vs expected cases using the fields `$sar`:
+We can visualize traces vs expected values as follows
 
 ```{r}
 #| message: false
-#| waring: false
+#| warning: false
 library(ggplot2)
 
-col_dict <- c(Expected = "coral", Observed = "black")
+# select parameters used for the simulation
+simul_parameters <- hhsimul$parameters |>
+  dplyr::filter(!const) |>
+  dplyr::select(name, value) |>
+  dplyr::rename(parameter = name, simulated = value)
 
-# extract values for secondary attack rate
-expec$sar |>
-  ggplot(aes(x = house_size)) +
-  # expected SAR
-  geom_point(aes(y = mean, color = "Expected")) +
-  geom_errorbar(
-    aes(y = mean, ymin = q5, ymax = q95, color = "Expected"), 
-    width = 0.2
-  ) +
-  # observed SAR
-  geom_point(aes(y = observed, color = "Observed")) +
-  # text with observed counts
-  geom_text(aes(x = house_size + 0.2, y = observed,
-                label = sprintf("[%s]", counts)),
-  color = col_dict["Observed"]) +
-  scale_color_manual(values = col_dict) +
-  labs(x = "Household Size",
-       y = "Secondary Attack Rate",
-       color = "")
+# use bayesplot to plot the posterior draws
+results  |>
+  bayesplot::mcmc_trace(facet_args = list(ncol = 1)) +
+  geom_hline(data = simul_parameters, aes(yintercept = simulated),
+             colour = "coral", linewidth = 1)
+```
+
+```{r}
+#| fig.width: 5
+#| fig.height: 2.5
+# compute Rhat values associate to inferred parameters
+var_names <- hhmodel |>
+  get_parameters() |>
+  dplyr::filter(!const) |>
+  dplyr::pull(name)
+rhat_values <- sapply(var_names, function(v) posterior::rhat(results[[v]]))
+
+# use bayesplot to showcase Rhat statistics
+bayesplot::mcmc_rhat(rhat_values) +
+  bayesplot::yaxis_text(hjust = 1)
+```
+
+Here we performed R-hat diagnostics computing the values of $\hat{R}$ with [posterior](https://cran.r-project.org/web/packages/posterior/).
+
+Finally we wrap all together to compare to parameters used for simulation.
+
+```{r}
+results |>
+  posterior::summarise_draws() |>
+  dplyr::reframe(parameter = variable,
+                 inferred = sprintf("%0.4f [%0.4f, %0.4f]", mean, q5, q95)) |>
+  dplyr::inner_join(simul_parameters, by = "parameter") |>
+  flextable::flextable() |>
+  flextable::separate_header() |>
+  flextable::theme_vanilla() |>
+  flextable::bold(j = ~ parameter, bold = TRUE) |>
+  flextable::bg(bg = "white", part = "all") |>
+  flextable::fontsize(size = 12, part = "all") |>
+  flextable::autofit()
 ```

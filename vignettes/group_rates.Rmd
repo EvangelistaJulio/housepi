@@ -15,14 +15,7 @@ editor_options:
 
 ```{r setup}
 #| include: false
-knitr::opts_chunk$set(echo = TRUE, comment = "#>", 
-                      fig.width = 6.5, fig.height = 5, fig.fullwidth=TRUE,
-                      fig.align = "center", out.height="auto")
-options(knitr.kable.NA = "")
-
-bayesplot::bayesplot_theme_set(ggplot2::theme_gray())
-bayesplot::color_scheme_set(scheme = "brightblue")
-
+source("theme.R")
 library(housepi)
 set.seed(42)
 ```
@@ -58,7 +51,7 @@ By the default, definition assumes the reference group to be the one with the la
 To manually provide a `reference`, the corresponding argument should be set equal to the corresponding group value.
 
 ```{r}
-hhmodel |> 
+hhmodel |>
   # associate susceptibility group rate by column age
   add_group_rate("susceptibility", by = "age") |>
   # inspect group rate definitions
@@ -74,7 +67,7 @@ In the previous example we associated group rates to a single covariate in the d
 In this example we show how to provide more covariates and a custom reference:
 
 ```{r}
-hhmodel |> 
+hhmodel |>
   # independent group rates, adult female chosen as reference
   add_group_rate("susceptibility", c("sex", "age"),
                  reference = c(sex = "F", age = "adult")) |>
@@ -88,7 +81,7 @@ By the default, parameters associated to each grouping are assumed independent, 
 # show table with dependent associations
 
 ```{r}
-hhmodel |> 
+hhmodel |>
   add_group_rate("susceptibility", c("sex", "age"),
                  reference = c(sex = "F", age = "adult"),
                  independent = FALSE) |>
@@ -102,19 +95,20 @@ We show an example with the very first definition of this vignette, which is equ
 
 ```{r}
 hhmodel <- hhmodel |>
-  # load definition list
+  # load group rates from definition list
   load_group_rate_list(
     infectivity = "age",
     susceptibility = list(by = c("age", "sex"), independent = FALSE)
-  ) |>
-  # inference with minimal setup
-  infer(n_chains = 4, n_steps = 5000, n_burnin = 1000,
-        thin = 8, n_adapt = 1000, progress = 20)
+  ) 
+
+results <- hhmodel |>
+  infer(n_chains = 4, n_steps = 6000, n_burnin = 2000,
+        thin = 5, n_adapt = 1000, progress = 20) |>
+  get_param_draws_df() 
 ```
 
 ```{r}
-hhmodel |> 
-  as_draws_df() |> 
+results |>
   bayesplot::mcmc_trace()
 ```
 
@@ -136,17 +130,16 @@ library(ggplot2)
 rate_id <- "susceptibility"
 prefix <- "sus_"
 
-tmp <- hhmodel |> 
-  get_group_rates() |> 
+tmp <- hhmodel |>
+  get_group_rates() |>
   # extract reference value and create a label
-  dplyr::filter(group_rate == rate_id, param_name == "..reference..") |> 
+  dplyr::filter(group_rate == rate_id, param_name == "..reference..") |>
   dplyr::select(-group_rate, -param_name, -n)
-ylabel <- sprintf("%s (Ref: %s)", rate_id, 
+ylabel <- sprintf("%s (Ref: %s)", rate_id,
                   paste(paste(names(tmp), tmp, sep = " "), collapse = " "))
 
 # compare inferred susceptibility group rates
-hhmodel |>
-  as_draws_df() |>
+results |>
   posterior::summarise_draws() |>
   dplyr::filter(stringr::str_starts(variable, prefix)) |>
   dplyr::mutate(
@@ -154,8 +147,8 @@ hhmodel |>
       stringr::str_replace_all("_", " ")
   ) |>
   ggplot(aes(x = variable, y = mean)) +
-  geom_hline(yintercept = 1, linetype = "dashed") +
-  geom_point(color = "coral", size = 2) +
+  geom_hline(yintercept = 1) +
+  geom_point(color = "coral", size = 3) +
   geom_errorbar(aes(ymin = q5, ymax = q95), width = 0.2, color = "coral") +
   labs(x = "", y = ylabel)
 ```

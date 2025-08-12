@@ -2,7 +2,7 @@
 % Please edit documentation in R/sampler_class.R
 \name{IndividualSampler}
 \alias{IndividualSampler}
-\title{Individual Sampler R6 Class}
+\title{Individual Sampler}
 \description{
 FIXME: missing.
 }

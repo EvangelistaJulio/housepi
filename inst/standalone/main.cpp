@@ -37,19 +37,19 @@
 /* Display a decorator for a section (if VERBOSE) */
 void print_decorator(const std::string &title, bool verbose = true, const std::string &txt = HSP_NA_STRING)
 {
-    const ulong decor_left = 3;   // left size of decorator
-    const ulong decor_width = 65; // total size of decorator
-    const char decor = '-';       // decorator for prints
+    const unsigned decor_left = 3;   // left size of decorator
+    const unsigned decor_width = 65; // total size of decorator
+    const char decor = '-';          // decorator for prints
 
     if (verbose)
     {
-        std::string sms = std::string(decor_left, decor);
-        sms += " " + title + " ";
-        sms += std::string(decor_width - title.length() - decor_left, decor) + "\n";
+        std::cout << std::string(decor_left, decor);
+        std::cout << " " << title << " ";
+        std::cout << std::string(decor_width - title.length() - decor_left, decor);
         if (!tools::is_na(txt))
-            sms += txt + "\n";
-
-        tools::print_stdout(sms);
+            std::cout << "\n"
+                      << txt;
+        std::cout << std::endl;
     }
 }
 
@@ -60,8 +60,8 @@ void print_decorator(const std::string &title, bool verbose = true, const std::s
 /* Main function for the standalone version of 'housepi'. */
 int main(int argc, char *argv[])
 {
-    using tools::stolower;
-    using tools::stoupper;
+    using tools::str::tolow;
+    using tools::str::toup;
 
     int carg_i = 1;   // command line iterator
     std::string carg; // command line argument
@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
     bool is_loglikelihood = false; // loglikelihood option
     bool is_infer = false;         // inference option
     bool is_simulate = false;      // simulation option
-    ulong num_rungs = 0;           // n. rungs power posteriors
+    unsigned long num_rungs = 0;   // n. rungs power posteriors
 
     // paths/to/files for import
     std::string augm_file = HSP_NA_STRING;
@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
         carg = std::string(argv[carg_i]); // update command line argument
 
         // Command line argument asking for help
-        if (stoupper(carg) == "-H" || stolower(carg) == "--help")
+        if (toup(carg) == "-H" || tolow(carg) == "--help")
         {
             // Show the manual using man and installed manpages
             // UPDATE : produce a manual
@@ -109,46 +109,46 @@ int main(int argc, char *argv[])
             tools::error(oss.str());
         }
 
-        else if (stolower(carg) == "--evidence")
-            num_rungs = tools::stoul(argv[++carg_i], "number of rungs");
+        else if (tolow(carg) == "--evidence")
+            num_rungs = tools::str::toul(argv[++carg_i], "number of rungs");
 
-        else if (stolower(carg) == "--loglikelihood")
+        else if (tolow(carg) == "--loglikelihood")
             is_loglikelihood = true;
 
-        else if (stolower(carg) == "--infer")
+        else if (tolow(carg) == "--infer")
             is_infer = true;
 
-        else if (stolower(carg) == "--simulate")
+        else if (tolow(carg) == "--simulate")
             is_simulate = true;
 
-        else if (stoupper(carg) == "-A" || stolower(carg) == "--augmented")
+        else if (toup(carg) == "-A" || tolow(carg) == "--augmented")
             augm_file = argv[++carg_i];
 
-        else if (stoupper(carg) == "-D" || stolower(carg) == "--dataset")
+        else if (toup(carg) == "-D" || tolow(carg) == "--dataset")
             dataset_file = argv[++carg_i];
 
-        else if (stoupper(carg) == "-L" || stolower(carg) == "--datalist")
+        else if (toup(carg) == "-L" || tolow(carg) == "--datalist")
             datalist_file = argv[++carg_i];
 
-        else if (stoupper(carg) == "-G" || stolower(carg) == "--group-rates")
+        else if (toup(carg) == "-G" || tolow(carg) == "--group-rates")
             group_rates_file = argv[++carg_i];
 
-        else if (stoupper(carg) == "-I" || stolower(carg) == "--infec-profile")
+        else if (toup(carg) == "-I" || tolow(carg) == "--infec-profile")
             infec_profile_file = argv[++carg_i];
 
-        else if (stoupper(carg) == "-M" || stolower(carg) == "--multiplicity")
+        else if (toup(carg) == "-M" || tolow(carg) == "--multiplicity")
             multiplicity_file = argv[++carg_i];
 
-        else if (stoupper(carg) == "-O" || stolower(carg) == "--output")
+        else if (toup(carg) == "-O" || tolow(carg) == "--output")
             output_file = argv[++carg_i];
 
-        else if (stoupper(carg) == "-P" || stolower(carg) == "--parameter")
+        else if (toup(carg) == "-P" || tolow(carg) == "--parameter")
             param_file = argv[++carg_i];
 
-        else if (stoupper(carg) == "-S" || stolower(carg) == "--setup")
+        else if (toup(carg) == "-S" || tolow(carg) == "--setup")
             setup_file = argv[++carg_i];
 
-        else if (stoupper(carg) == "-V" || stolower(carg) == "--verbose")
+        else if (toup(carg) == "-V" || tolow(carg) == "--verbose")
             verbose = true;
 
         else
@@ -222,7 +222,7 @@ int main(int argc, char *argv[])
     if (is_loglikelihood)
     { //===== Evaluate Loglikelihood =====//
         print_decorator("Loglikelihood", verbose);
-        tools::print_stdout(std::to_string(user_model->evaluate()) + "\n");
+        std::cout << user_model->evaluate() << std::endl;
     }
 
     else if (is_infer)

@@ -44,12 +44,12 @@ public:
     Proposer(std::shared_ptr<Distribution>,
              double rule_scale = HSP_NA_DOUBLE,
              double rule_start_value = HSP_NA_DOUBLE,
-             const std::vector<ushort> &args_to_adapt = {},
+             const std::vector<unsigned short> &args_to_adapt = {},
              bool is_discrete = false);
     Proposer(const std::string &distr_name,
              double rule_scale = HSP_NA_DOUBLE,
              double rule_start_value = HSP_NA_DOUBLE,
-             const std::vector<ushort> &args_to_adapt = {},
+             const std::vector<unsigned short> &args_to_adapt = {},
              bool is_discrete = false);
     virtual ~Proposer() {};
 
@@ -57,8 +57,8 @@ public:
     //===== GETTER =====//
     //==================//
 
-    const std::string name() const { return this->proposer_name_; }
-    double get_arg(ushort argID) const { return (pDistr_->arg)(argID); }
+    std::string name() const { return this->proposer_name_; }
+    double get_arg(unsigned short argID) const { return (pDistr_->arg)(argID); }
     double get_from_value() const { return from_value_; }
     double propose(rnd_gen &prng, double start) { return (this->*propose_)(prng, start); }
     double logratio(double xold, double xnew) const { return (this->*logratio_)(xold, xnew); }
@@ -93,9 +93,9 @@ public:
     //===== SHOW =====//
     //================//
 
-    const std::string str_arg_names() const { return pDistr_->str_arg_names(); }
-    const std::string str_arg_values() const { return pDistr_->str_arg_values(); }
-    const std::string str_scale() const;
+    std::string str_arg_names() const { return pDistr_->str_arg_names(); }
+    std::string str_arg_values() const { return pDistr_->str_arg_values(); }
+    std::string str_scale() const;
 
 protected:
     std::string proposer_name_ = HSP_NA_STRING;
@@ -105,11 +105,11 @@ protected:
     bool is_start_from_zero_ = false;   // wheter to move from given value
     double from_value_ = HSP_NA_DOUBLE; // given value where to start from
 
-    double accept_rate_ = 0.;    // acceptance rate
-    ulong n_proposed_moves_ = 0; // number of proposed moves
+    double accept_rate_ = 0.;            // acceptance rate
+    unsigned long n_proposed_moves_ = 0; // number of proposed moves
 
-    ushort n_args_to_adapt_ = 0;           // how many arguments to adapt
-    ushort *args_to_adapt_list_ = nullptr; // which arguments should be adapted
+    unsigned short n_args_to_adapt_ = 0;           // how many arguments to adapt
+    unsigned short *args_to_adapt_list_ = nullptr; // which arguments should be adapted
 
     //===== propose : functional methods =====//
     double (Proposer::*propose_)(rnd_gen &, double) = &Proposer::do_propose_undefined_;
@@ -117,7 +117,7 @@ protected:
         "Called method of an undefined proposer."); }
     double do_propose_sum_to_previous_(rnd_gen &prng, double start) { return start + rand(prng); }
     double do_propose_times_previous_(rnd_gen &prng, double start) { return start * rand(prng); }
-    double do_propose_draw_rand_(rnd_gen &prng, double) { return rand(prng); }
+    double do_propose_sample_rand_(rnd_gen &prng, double) { return rand(prng); }
 
     //===== logratio : functional methods =====//
     double (Proposer::*logratio_)(double, double) const = &Proposer::do_logratio_undefined_;
@@ -199,7 +199,7 @@ public:
     void init_func_attr(const std::string &a, bool is_arg, std::shared_ptr<Function> f) { pFunc_->init_attr(a, is_arg, f); }
 
     /* Initialize function reshaping. */
-    void init_func_reshaping() { pFunc_->init_reshaping(is_discrete_); }
+    void init_func_reshaping(); 
 
     //----- Pointer to distribution -----//
     void init_distr(const std::string &distr_name = HSP_NA_STRING);
@@ -223,7 +223,7 @@ public:
     //===============================//
 
     double get_move_logratio() const { return (this->*move_logratio_)(); }
-    bool valid_move() const { return (this->*valid_move_)(); }
+    bool is_valid_move() const { return (this->*is_valid_move_)(); }
 
     //----- distr_ptr : prior/model methods -----//
     void rand(rnd_gen &prng) { set_value(pDistr_->rand(prng)); }
@@ -245,24 +245,23 @@ public:
     //===== SHOW =====//
     //================//
 
-    const std::string name() const { return variable_name_; }
-    const std::string str() const { return tools::na_to_str(get()); }
+    std::string name() const { return variable_name_; }
 
-    const std::string distr_name() const { return pDistr_->name(); }
-    const std::string distr_str_arg_names() const { return pDistr_->str_arg_names(); }
-    const std::string distr_str_arg_values() const { return pDistr_->str_arg_values(); }
-    const std::string distr_str_summary() const { return pDistr_->str_summary(); }
+    std::string distr_name() const { return pDistr_->name(); }
+    std::string distr_str_arg_names() const { return pDistr_->str_arg_names(); }
+    std::string distr_str_arg_values() const { return pDistr_->str_arg_values(); }
+    std::string distr_str_summary() const { return pDistr_->str_summary(); }
 
-    const std::string str_min() const { return pDistr_->str_min(); }
-    const std::string str_max() const { return pDistr_->str_max(); }
+    std::string str_min() const { return pDistr_->str_min(); }
+    std::string str_max() const { return pDistr_->str_max(); }
 
-    const std::string func_name() const { return pFunc_->name(); }
-    const std::string func_str_summary() const { return pFunc_->str_summary(); }
+    std::string func_name() const { return pFunc_->name(); }
+    std::string func_str_summary() const { return pFunc_->str_summary(); }
 
-    const std::string prop_name() const { return pProp_->name(); }
-    const std::string prop_str_arg_names() const { return pProp_->str_arg_names(); }
-    const std::string prop_str_arg_values() const { return pProp_->str_arg_values(); }
-    const std::string prop_str_scale() const { return pProp_->str_scale(); }
+    std::string prop_name() const { return pProp_->name(); }
+    std::string prop_str_arg_names() const { return pProp_->str_arg_names(); }
+    std::string prop_str_arg_values() const { return pProp_->str_arg_values(); }
+    std::string prop_str_scale() const { return pProp_->str_scale(); }
 
 #ifdef _HOUSEPI_RCPP
     Rcpp::NumericVector rcpp_export_distr_args() const { return pDistr_->rcpp_export_args(); }
@@ -305,6 +304,10 @@ private:
     //===== SETTER =====//
     //==================//
 
+    void init_name_(const std::string &name) { variable_name_ = name;};
+    void init_default_(double value, bool is_discrete, bool is_constant);
+    void init_func_(const std::string &func_name);
+
     void (Variable::*set_)(double) = &Variable::do_set_default_;
     /* Store the buffer and change value. */
     void do_set_default_(double x)
@@ -321,20 +324,20 @@ private:
     //===============================//
 
     //----- Valid move : functional methods -----//
-    bool (Variable::*valid_move_)() const = &Variable::do_valid_move_default_;
-    bool do_valid_move_default_() const { return pDistr_->valid(value_); }
-    bool do_valid_move_draw_() const { return true; }
+    bool (Variable::*is_valid_move_)() const = &Variable::do_is_valid_move_default_;
+    bool do_is_valid_move_default_() const { return pDistr_->is_valid(value_); }
+    bool do_is_valid_move_sample_() const { return true; }
 
     //----- Move logratio : functional methods -----//
     double (Variable::*move_logratio_)() const = &Variable::do_move_logratio_default_;
     double do_move_logratio_default_() const { return distr_logratio() - propose_logratio(); }
-    double do_move_logratio_draw_() const { return 0.; }
+    double do_move_logratio_sample_() const { return 0.; }
 
     //----- Propose : functional methods -----//
     double (Variable::*propose_)(rnd_gen &) = &Variable::do_propose_error_;
     double do_propose_error_(rnd_gen &) { throw std::invalid_argument(
         "Called unknown proposer for variable \"" + name() + "\"."); }
-    double do_propose_draw_sample_(rnd_gen &prng) { return (pProp_->propose)(prng, 0); }
+    double do_propose_sample_(rnd_gen &prng) { return (pProp_->propose)(prng, 0); }
     double do_propose_from_previous_(rnd_gen &prng) { return (pProp_->propose)(prng, value_); }
     double do_propose_from_zero_(rnd_gen &prng) { return (pProp_->propose)(prng, pProp_->get_from_value()); }
 };

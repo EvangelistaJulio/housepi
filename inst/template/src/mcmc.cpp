@@ -33,26 +33,26 @@ MCMC::MCMC()
 MCMC::~MCMC() = default;
 
 //===== DATA =====//
-ulong MCMC::get_report_indiv(const std::string &s) const { return pImpl_->dataset.get_report_indiv(s); }
-ulong MCMC::get_report_house(const std::string &s) const { return pImpl_->dataset.get_report_house(s); }
-std::pair<ushort, ulong> MCMC::get_report_hh_size(const std::string &s) const { return pImpl_->dataset.get_report_hh_size(s); }
+unsigned long MCMC::get_report_indiv(const std::string &s) const { return pImpl_->dataset.get_report_indiv(s); }
+unsigned long MCMC::get_report_house(const std::string &s) const { return pImpl_->dataset.get_report_house(s); }
+std::pair<unsigned short, unsigned long> MCMC::get_report_hh_size(const std::string &s) const { return pImpl_->dataset.get_report_hh_size(s); }
 
 //===== RAND NUMBER GENERATOR =====//
 double MCMC::uniform() { return pImpl_->setup.unif(); }
 
 //===== PARAMETERS =====//
-double MCMC::param(const par_key &p) const { return pImpl_->param.get(p); }
-const double *MCMC::param_pointer(const par_key &p) const { return pImpl_->param.get_ptr(p); }
+double MCMC::param(const std::string &p) const { return pImpl_->param.get(p); }
+const double *MCMC::param_pointer(const std::string &p) const { return pImpl_->param.get_ptr(p); }
 
 //===== AUGMENTED VARIABLES =====//
 void MCMC::init_all_augm(Individual &member) { pImpl_->augm.init_all(member); }
 void MCMC::clear_all_augm(Individual &member) { pImpl_->augm.clear_all(member); }
 
 //===== CACHE ATTRIBUTES =====//
-void MCMC::cache_house_integer_vector(const cache_key &e) { pImpl_->dataset.init_cache_integer_vector(e); }
-void MCMC::cache_house_size_t_vector(const cache_key &e) { pImpl_->dataset.init_cache_size_t_vector(e); }
-void MCMC::cache_house_double_vector(const cache_key &e) { pImpl_->dataset.init_cache_double_vector(e); }
-void MCMC::cache_house_double_matrix(const cache_key &e) { pImpl_->dataset.init_cache_double_matrix(e); }
+void MCMC::cache_house_integer_vector(const std::string &e) { pImpl_->dataset.init_cache_integer_vector(e); }
+void MCMC::cache_house_size_t_vector(const std::string &e) { pImpl_->dataset.init_cache_size_t_vector(e); }
+void MCMC::cache_house_double_vector(const std::string &e) { pImpl_->dataset.init_cache_double_vector(e); }
+void MCMC::cache_house_double_matrix(const std::string &e) { pImpl_->dataset.init_cache_double_matrix(e); }
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -99,8 +99,8 @@ void MCMC::init_contact_rates_(Household &house)
 
                         if (_pair_contact_rate == MISSING_RATE)
                             throw std::invalid_argument(
-                                "Missing contact rate for individuals \"" + 
-                                member_k.id() + "\" and \"" + member_i.id() + 
+                                "Missing contact rate for individuals \"" +
+                                member_k.id() + "\" and \"" + member_i.id() +
                                 "\" (household \"" + house.house_id() + "\").");
 
                         else if (_pair_contact_rate != REFERENCE)
@@ -128,7 +128,7 @@ void MCMC::init_contact_rates_(Household &house)
 /////////////////////////////////////  MCMC : infectivity profile  //////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-void MCMC::init_infec_profile_template(dict_str_str x) { pImpl_->infec_profile.init_template(x); }
+void MCMC::init_infec_profile_template(dict_str x) { pImpl_->infec_profile.init_template(x); }
 double MCMC::infec_profile_inst(const Individual &i, double t) const { return pImpl_->infec_profile.inst(&i, t); }
 double MCMC::infec_profile_cumul(const Individual &i, double t) const { return pImpl_->infec_profile.cumul(&i, t); }
 
@@ -138,14 +138,15 @@ double MCMC::infec_profile_cumul(const Individual &i, double t) const { return p
 
 double MCMC::evaluate() { return pImpl_->evaluate(); }
 void MCMC::infer() { pImpl_->infer(); }
+void MCMC::clear_memory() {pImpl_->clear_memory(); }
 
 #ifdef _HOUSEPI_RCPP
 Rcpp::DataFrame MCMC::dataset_for_simulation() const
 {
-    return pImpl_->dataset.rcpp_export(pImpl_->dataset.headers() - pImpl_->augm.list_export(), false);
+    return pImpl_->dataset.rcpp_export(pImpl_->dataset.headers() - pImpl_->augm.list_export, false);
 }
 Rcpp::List MCMC::simulate(size_t n_rep) { return pImpl_->simulate(n_rep); }
-Rcpp::List MCMC::evidence(const std::string &scheme, ulong n_rungs) { return pImpl_->evidence(scheme, n_rungs); }
+Rcpp::List MCMC::evidence(const std::string &scheme, unsigned long n_rungs) { return pImpl_->evidence(scheme, n_rungs); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  MCMC : exports to Rcpp ////////////////////////////////////
@@ -158,9 +159,9 @@ Rcpp::DataFrame MCMC::export_augmented_dataset() const { return pImpl_->augm.rcp
 Rcpp::DataFrame MCMC::export_dataset() const { return pImpl_->dataset.rcpp_export(pImpl_->dataset.headers(), true); }
 Rcpp::DataFrame MCMC::export_dataset_report() const { return pImpl_->dataset.rcpp_export_report(); }
 Rcpp::DataFrame MCMC::export_house_size_report() const { return pImpl_->dataset.rcpp_export_size_report(); }
-Rcpp::NumericMatrix MCMC::export_house_loglike_traces() const { return pImpl_->dataset.rcpp_export_traces(); }
+Rcpp::NumericMatrix MCMC::export_house_loglike_draws() const { return pImpl_->dataset.rcpp_export_draws(); }
 Rcpp::DataFrame MCMC::export_datalist() const { return pImpl_->datalist.rcpp_export(); }
-Rcpp::NumericMatrix MCMC::export_traces() const { return pImpl_->rcpp_export_traces(); }
+Rcpp::NumericMatrix MCMC::export_draws() const { return pImpl_->rcpp_export_draws(); }
 Rcpp::List MCMC::export_house_snapshot(const std::string &house_id) const { return pImpl_->rcpp_export_house_snapshot(house_id); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -182,7 +183,7 @@ void MCMC::import_augm(SEXP input) { pImpl_->augm.rcpp_import(input); }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 void MCMC::print_simulated_dataset(const std::string &f) { pImpl_->print_simulated_dataset(f); }
-void MCMC::print_evidence(const std::string &scheme, ulong n_rungs) { pImpl_->print_evidence(scheme, n_rungs); }
+void MCMC::print_evidence(const std::string &scheme, unsigned long n_rungs) { pImpl_->print_evidence(scheme, n_rungs); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////  MCMC : read  //////////////////////////////////////////

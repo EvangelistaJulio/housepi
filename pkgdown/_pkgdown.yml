@@ -10,4 +10,83 @@ url: https://mmmi-pasteur.gitlab.io/housepi
 
 home:
   title: Household Epidemiological Modeling and Analysis
-  description: A library of models and tools for epidemiological modeling and analysis of household epidemiological data.
+  desc: >
+    A library of models and tools for epidemiological modeling and analysis of household epidemiological data.
+
+reference:
+- title: "Overview"
+  desc: >
+    Package overview
+  contents:
+    - housepi-package
+  
+- title: "General"
+  desc: >
+    General calls
+  contents:
+    - new_housepi_model
+    - template_household_model
+    - loglikelihood
+    - infer
+    - simulate
+
+- title: "Model definitions"
+  desc: >
+    Functions used to customize your model definitions.
+  contents:
+  - starts_with("add_")
+  - starts_with("drop_")
+  - starts_with("load_")
+  - starts_with("get_")
+
+- title: "Posterior expectations"
+  desc: >
+    Posterior expectations.
+  contents:
+  - starts_with("measure_")
+  - starts_with("expec_")
+
+- title: "Test internal functions"
+  desc: >
+    CallS to internal C++ functions for testing.
+  contents:
+  - starts_with("test_")
+
+- title: "Other Functions"
+  desc: "FIXME Temporary Placeholder"
+  contents:
+  - evidence  
+  - summarise
+  - HouseholdSampler
+  - starts_with("flu")
+  - sarscov2_2021_israel
+  - survey
+  - simulate.HousepiModel
+  - summarise.HousepiModel
+
+navbar:
+  structure:
+    left:
+      - intro
+      - reference
+      - articles
+      - hhmodels
+    right:
+      - search
+      - github
+      - lightswitch
+  components:    
+    intro:
+      text: "Get started"
+      href: articles/housepi.html
+    hhmodels:
+      text: "Templates"
+      menu:
+        - text: "Chain binomial"
+          href: reference/_template_chain-binomial.html
+        - text: "Heterogeneous chain binomial"
+          href: reference/_template_chain-binomial-heterogeneous.html
+        - text: "Augmented example"
+          href: reference/_template_augm-examples.html
+        - text: "Augmented infection times"
+          href: reference/_template_augm-infection-time.html

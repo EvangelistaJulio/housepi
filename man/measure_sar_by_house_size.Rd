@@ -17,3 +17,7 @@ Dataset containing individual 'status' and 'house_id'.}
 Function to retrieve secondary attack rates from data.frame
 with cases by household size.
 }
+\details{
+The secondary attack rate is computed for all household with size \eqn{n > 1} according to
+\deqn{\frac{\mathbb{E[n_{+}\vert{n}] - 1}{n - 1}}}{(E[n_pos|n] - 1) / (n - 1)}
+}

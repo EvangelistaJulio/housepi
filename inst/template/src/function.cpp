@@ -21,6 +21,21 @@
 //-----------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////  Attribute : getter //////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Wheter it's constant. */
+bool Attribute::is_constant() const
+{
+    if (is_scalar())
+        return true;
+    else if (is_pointer())
+        return false;
+    else
+        return pFunc_->is_constant();
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  Attribute : setter //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -100,8 +115,8 @@ Function::Function(const std::string &name,
     arguments_[n_args_].name(HSP_X_);
     arguments_[n_args_].set(HSP_NA_DOUBLE);
 
-    ushort c = 0;
-    for (ushort k = 0; k < arg_name.size(); ++k)
+    unsigned short c = 0;
+    for (unsigned short k = 0; k < arg_name.size(); ++k)
         if (arg_name[k] == HSP_X_)
             arguments_[n_args_].set(arg_value[k]);
         else
@@ -130,20 +145,42 @@ Function::Function(const std::string &name,
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assert argument exists at assignment. Returns it's index. */
-ushort Function::assert_arg(const std::string &arg_name) const
+unsigned short Function::assert_arg(const std::string &arg_name) const
 {
     if (arg_name == HSP_X_)
         return n_args_; // by convention, last argument is "x"
     else
-        for (ushort c = 0; c < n_args_; ++c)
+        for (unsigned short c = 0; c < n_args_; ++c)
             if (arguments_[c].name() == arg_name)
                 return c;
 
     str_vec options = {};
-    for (ushort c = 0; c < n_args_; ++c)
+    for (unsigned short c = 0; c < n_args_; ++c)
         options.push_back(arguments_[c].name());
     throw std::invalid_argument(
-        "Unknown argument \"" + arg_name + "\" for \"" + function_name_ + "\"." + tools::find_closest(arg_name, options));
+        "Unknown argument \"" + arg_name + "\" for \"" + function_name_ + "\"." + tools::str::find_closest(arg_name, options));
+}
+
+/* Wheter all arguments are actually constants.  */
+bool Function::is_constant() const
+{
+    // check arguments
+    for (ushort i = 0; i < n_args_; ++i)
+        if (!arguments_[i].is_constant())
+            return false;
+
+    // check X value
+    if (!arguments_[n_args_].is_constant())
+        return false;
+
+    // check range
+    if (!range_min_.is_constant())
+        return false;
+    if (!range_max_.is_constant())
+        return false;
+
+    // else is constant
+    return true;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -151,7 +188,7 @@ ushort Function::assert_arg(const std::string &arg_name) const
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Returns the case of the range of validity. */
-ushort Function::which_valid_case() const
+unsigned short Function::which_valid_case() const
 {
     // note: bounded if not pointing internally to NA
     bool is_lower_bound = !(range_min_.is_scalar() && tools::is_na(range_min_.get()));
@@ -183,68 +220,68 @@ void Function::init_functional_range(bool is_min_open, bool is_max_open)
     switch (which_valid_case())
     {
     case 0: //----- unbounded -----//
-        below_ = &Function::do_below_never_;
-        above_ = &Function::do_above_never_;
-        valid_ = &Function::do_valid_always_;
+        is_below_ = &Function::do_is_below_never_;
+        is_above_ = &Function::do_is_above_never_;
+        is_valid_ = &Function::do_is_valid_always_;
         break;
 
     case 1: //----- lower bound -----//
-        above_ = &Function::do_above_never_;
+        is_above_ = &Function::do_is_above_never_;
         if (is_min_open)
         {
-            below_ = &Function::do_below_open_min_;
-            valid_ = &Function::do_valid_open_min_;
+            is_below_ = &Function::do_is_below_open_min_;
+            is_valid_ = &Function::do_is_valid_open_min_;
         }
         else
         {
-            below_ = &Function::do_below_close_min_;
-            valid_ = &Function::do_valid_close_min_;
+            is_below_ = &Function::do_is_below_close_min_;
+            is_valid_ = &Function::do_is_valid_close_min_;
         }
         break;
 
     case 2: //----- upper bound -----//
-        below_ = &Function::do_below_never_;
+        is_below_ = &Function::do_is_below_never_;
         if (is_max_open)
         {
-            above_ = &Function::do_above_open_max_;
-            valid_ = &Function::do_valid_open_max_;
+            is_above_ = &Function::do_is_above_open_max_;
+            is_valid_ = &Function::do_is_valid_open_max_;
         }
         else
         {
-            above_ = &Function::do_above_close_max_;
-            valid_ = &Function::do_valid_close_max_;
+            is_above_ = &Function::do_is_above_close_max_;
+            is_valid_ = &Function::do_is_valid_close_max_;
         }
         break;
 
     case 3: //----- within an interval -----//
         if ((is_min_open) && (is_max_open))
         {
-            below_ = &Function::do_below_open_min_;
-            above_ = &Function::do_above_open_max_;
-            valid_ = &Function::do_valid_both_open_;
+            is_below_ = &Function::do_is_below_open_min_;
+            is_above_ = &Function::do_is_above_open_max_;
+            is_valid_ = &Function::do_is_valid_both_open_;
         }
         else if ((is_min_open) && (!is_max_open))
         {
-            below_ = &Function::do_below_open_min_;
-            above_ = &Function::do_above_close_max_;
-            valid_ = &Function::do_valid_open_min_close_max_;
+            is_below_ = &Function::do_is_below_open_min_;
+            is_above_ = &Function::do_is_above_close_max_;
+            is_valid_ = &Function::do_is_valid_open_min_close_max_;
         }
         else if ((!is_min_open) && (is_max_open))
         {
-            below_ = &Function::do_below_close_min_;
-            above_ = &Function::do_above_open_max_;
-            valid_ = &Function::do_valid_close_min_open_max_;
+            is_below_ = &Function::do_is_below_close_min_;
+            is_above_ = &Function::do_is_above_open_max_;
+            is_valid_ = &Function::do_is_valid_close_min_open_max_;
         }
         else
         {
-            below_ = &Function::do_below_close_min_;
-            above_ = &Function::do_above_close_max_;
-            valid_ = &Function::do_valid_both_close_;
+            is_below_ = &Function::do_is_below_close_min_;
+            is_above_ = &Function::do_is_above_close_max_;
+            is_valid_ = &Function::do_is_valid_both_close_;
         }
 
         // check for consistency
-        bool wrong_open = (valid_ != &Function::do_valid_both_close_) && (range_min_.get() >= range_max_.get());
-        bool wrong_close = (valid_ == &Function::do_valid_both_close_) && (range_min_.get() > range_max_.get());
+        bool wrong_open = (is_valid_ != &Function::do_is_valid_both_close_) && (range_min_.get() >= range_max_.get());
+        bool wrong_close = (is_valid_ == &Function::do_is_valid_both_close_) && (range_min_.get() > range_max_.get());
         if (wrong_open || wrong_close)
             throw std::invalid_argument(
                 "Inconsistent range " + str_range() + ".");
@@ -253,33 +290,33 @@ void Function::init_functional_range(bool is_min_open, bool is_max_open)
 }
 
 /* Return formatted range. */
-const std::string Function::str_range() const
+std::string Function::str_range() const
 {
-    if (valid_ == &Function::do_valid_always_)
+    if (is_valid_ == &Function::do_is_valid_always_)
         return "";
 
-    else if (valid_ == &Function::do_valid_open_min_)
+    else if (is_valid_ == &Function::do_is_valid_open_min_)
         return "(" + str_min() + ", Inf)";
 
-    else if (valid_ == &Function::do_valid_close_min_)
+    else if (is_valid_ == &Function::do_is_valid_close_min_)
         return "[" + str_min() + ", Inf)";
 
-    else if (valid_ == &Function::do_valid_open_max_)
+    else if (is_valid_ == &Function::do_is_valid_open_max_)
         return "(-Inf, " + str_max() + ")";
 
-    else if (valid_ == &Function::do_valid_close_max_)
+    else if (is_valid_ == &Function::do_is_valid_close_max_)
         return "(-Inf, " + str_max() + "]";
 
-    else if (valid_ == &Function::do_valid_both_open_)
+    else if (is_valid_ == &Function::do_is_valid_both_open_)
         return "(" + str_min() + ", " + str_max() + ")";
 
-    else if (valid_ == &Function::do_valid_open_min_close_max_)
+    else if (is_valid_ == &Function::do_is_valid_open_min_close_max_)
         return "(" + str_min() + ", " + str_max() + "]";
 
-    else if (valid_ == &Function::do_valid_close_min_open_max_)
+    else if (is_valid_ == &Function::do_is_valid_close_min_open_max_)
         return "[" + str_min() + ", " + str_max() + ")";
 
-    else // (valid_ == &Function::do_valid_both_close_)
+    else // (is_valid_ == &Function::do_is_valid_both_close_)
         return "[" + str_min() + ", " + str_max() + "]";
 }
 
@@ -433,12 +470,12 @@ void Function::init_range_function_(const std::string &range_name, const std::sh
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Return formatted argument names of the distribution. */
-const std::string Function::str_arg_names() const
+std::string Function::str_arg_names() const
 {
     if (n_args_ > 0)
     {
         std::string output = arguments_[0].name();
-        for (ushort c = 1; c < n_args_; ++c)
+        for (unsigned short c = 1; c < n_args_; ++c)
             output += C_LIST_DELIM + arguments_[c].name();
         return output;
     }
@@ -447,12 +484,12 @@ const std::string Function::str_arg_names() const
 }
 
 /* Return formatted argument names of the distribution. */
-const std::string Function::str_arg_values() const
+std::string Function::str_arg_values() const
 {
     if (n_args_ > 0)
     {
         std::string output = arguments_[0].str();
-        for (ushort c = 1; c < n_args_; ++c)
+        for (unsigned short c = 1; c < n_args_; ++c)
             output += C_LIST_DELIM + arguments_[c].str();
         return output;
     }
@@ -461,17 +498,17 @@ const std::string Function::str_arg_values() const
 }
 
 /* Return formatted function summary. */
-const std::string Function::str_summary() const
+std::string Function::str_summary() const
 {
     std::string output = function_name_;
     if (n_args_ > 0)
     {
         output += "(" + arguments_[0].name() + "=" + arguments_[0].str();
-        for (ushort c = 1; c < n_args_; ++c)
+        for (unsigned short c = 1; c < n_args_; ++c)
             output += ", " + arguments_[c].name() + "=" + arguments_[c].str();
         output += ")";
     }
-    if (valid_ != &Function::do_valid_always_)
+    if (is_valid_ != &Function::do_is_valid_always_)
         output += " : " + str_range();
 
     return output;
@@ -510,7 +547,7 @@ Rcpp::NumericVector Function::rcpp_export_range() const
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-const str_vec FunctionRegistry::get_options() const
+str_vec FunctionRegistry::get_options() const
 {
     str_vec keys;
     keys.reserve(_factory_map.size());
@@ -544,7 +581,7 @@ std::shared_ptr<Function> compose_func_registries(const std::string &opt, const 
                 options += r->get_options();
 
     throw std::invalid_argument(
-        "Unknown " + name + " \"" + opt + "\"." + tools::find_closest(opt, options));
+        "Unknown " + name + " \"" + opt + "\"." + tools::str::find_closest(opt, options));
 }
 
 //-----------------------------------------------------------------------------------------------//

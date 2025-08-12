@@ -264,110 +264,6 @@ template_dll_file <- function(path) {
   return(file.path(path, dll_file_ext(template_name(path))))
 }
 
-# Get template name from DLL file
-get_template_from_dll <- function(dll) {
-  if (is.null(dll) || is.na(dll) || !file.exists(dll)) return(NA)
-  else return(tools::file_path_sans_ext(basename(dll)))
-}
-
-# Get Rcpp module from DLL file
-get_rcpp_module <- function(module_name, model = NULL) {
-  dll <- ifelse(is.null(model), NA, model$path_to_dll)
-  if (is.na(dll)) {
-    housepi_dir <- file.path(system.file(package = "housepi"), "template")
-    dll <- file.path(housepi_dir, "src", dll_file_ext("housepienvironment"))
-  }
-  dyn.load(dll)
-  package <- get_template_from_dll(dll)
-  return(Rcpp::Module(module_name, PACKAGE = package))
-}
-
-############################################################################
-############################################################################
-############################################################################
-
-# split into a list of matrix
-split_traces_by_chain_ <- function(x) {
-  if (length(x) == 0) stop_h("Traces are empty.")
-  return(lapply(
-    split(seq_len(nrow(x)), x[, "..chain.."]),
-    function(idx) x[idx, colnames(x) != "..chain..", drop = FALSE]
-  ))
-}
-
-#' @title
-#' Convert `housepi` Rcpp traces to coda.
-#' @description
-#' Convert traces export from a Rcpp `housepi` model to coda.
-#'
-#' @param trs
-#' Traces as exported from Rcpp `housepi` model.
-#'
-#' @return
-#' `posterior::draws`
-#'
-#' @keywords internal
-#' @noRd
-cpp_traces_to_posterior <- function(trs) {
-  if (methods::is(trs, "draws")) {
-    return(trs)
-
-  } else if (is.matrix(trs) || (is.data.frame(trs))) {
-    list_trs <- split_traces_by_chain_(trs)
-
-    # create empty array
-    n_chain <- length(list_trs)
-    par_names <- colnames(list_trs[[1]])
-    n_iter <- nrow(list_trs[[1]])
-    iter_names <- rownames(list_trs[[1]])
-    array_trs <- array(NA_real_, dim = c(n_iter, n_chain, length(par_names)),
-                       dimnames = list(iter_names, seq_len(n_chain), par_names))
-    # associate traces from Cpp
-    for (i in seq_along(list_trs)) array_trs[, i, ] <- list_trs[[i]]
-    output <- posterior::as_draws_df(array_trs)
-    output$.iteration <- as.integer(rownames(trs))
-    return (output)
-
-  } else stop_h(
-    "Unrecognized type for 'housepi' Rcpp traces export."
-  )
-}
-
-#' @title
-#' Convert `housepi` Rcpp traces to coda.
-#' @description
-#' Convert traces export from a Rcpp `housepi` model to coda.
-#'
-#' @param trs
-#' Traces as exported from Rcpp `housepi` model.
-#'
-#' @return
-#' `coda::mcmc` | `coda::mcmc.list`
-#'
-#' @keywords internal
-#' @noRd
-cpp_traces_to_coda <- function(trs) {
-  require_suggested_library("coda")
-  if ((methods::is(trs, "mcmc") || methods::is(trs, "mcmc.list"))) {
-    return(trs)
-
-  } else if (is.matrix(trs) || (is.data.frame(trs))) {
-    list_trs <- split_traces_by_chain_(trs)
-    sweeps <- as.integer(rownames(list_trs[[1]]))
-    list_coda_mcmc <- lapply(list_trs, function(x) coda::mcmc(
-      data = x,
-      start = sweeps[1],
-      end = sweeps[length(sweeps)],
-      thin = sweeps[2] - sweeps[1]
-    ))
-    if (length(list_coda_mcmc) == 1) return(list_coda_mcmc[[1]])
-    return(coda::as.mcmc.list(list_coda_mcmc))
-
-  } else stop_h(
-    "Unrecognized type for 'housepi' Rcpp traces export."
-  )
-}
-
 ############################################################################
 ############################################################################
 ############################################################################
@@ -525,6 +421,13 @@ cpp_data_factorize <- function(df) {
   skip <- c("id", "house_id", "status")
   cols <- colnames(df)
   info <- list()
+  # extract all infectious status
+  status <- integer()
+  if ("status" %in% cols) {
+    status <- unique(df[["status"]])
+    status <- sort(status[!is.na(status) & status > 0])
+  }
+
   for (col in setdiff(cols, skip)) {
     x <- df[[col]]
     if (inherits(x, "Date")) {
@@ -541,7 +444,8 @@ cpp_data_factorize <- function(df) {
   }
   return(list(data = char_data_input_(df),
               info = info,
-              cols = cols))
+              cols = cols,
+              status = status))
 }
 
 #' @title
@@ -722,6 +626,7 @@ extract_func_call_ <- function(s) {
 #' @keywords internal
 #' @noRd
 extract_func_ <- function(s) {
+  # UPDATE: use rlang instead !!!
   # remove spaces
   s <- gsub(" ", "", s)
 
@@ -742,107 +647,15 @@ extract_func_ <- function(s) {
 
   else if (grepl("\\^", s)) return(extract_func_arithmetic_(s, "\\^", "pow"))
 
-  else return(list(func = NA, key = NA, val = NA, at = NA))
-}
+  else if (!is.na(s)) {
+    # if expression is exactly an augmented variable
+    # use the convention of equality
+    y <- type_split_(s)
+    if (length(y$val) == 1 && y$at == "A") { 
+      return(list(func = "eq", key = "x", val = y$val, at = "A"))
+    }
+  }
 
-
-############################################################################
-############################################################################
-############################################################################
-
-#' @title
-#' Test Housepi Function
-#' @description
-#' Call housepi registered function.
-#' This function internally calls a large C++ class, 
-#' thus it is not optimized for repeated  operations.
-#'
-#' @param name `character(1)`\cr
-#' Name of the function.
-#' @param x `numeric()`\cr
-#' Input vector.
-#' @param args `numeric()`\cr
-#' Additional arguments.
-#' @param min `double(1)`\cr
-#' Value of the minimum.
-#' @param max `double(1)`\cr
-#' Value of the maximum.
-#' @param model `HouseholdModel`\cr
-#' Custom household model to load from.
-#'
-#' @return
-#' `numeric()`
-#'
-#' @export
-test_function <- function(name, x, args = numeric(), 
-                          min = NA, max = NA, model = NULL) {
-  # note: for simple function no reshaping -> discr = FALSE
-  get_rcpp_module("housepi_function", model)$FunctionHousepi$new(
-    name, FALSE, unlist(args), c(min = min, max = max)
-  )$call(x)
-}
-
-#' @title
-#' Test Housepi Distribution
-#' @description
-#' Call housepi registered distribution.
-#' This function internally calls a large C++ class, 
-#' thus it is not optimized for repeated  operations.
-#'
-#' @param name `character(1)`\cr
-#' Name of the distribution.
-#' @param x `numeric()`\cr
-#' Input vector.
-#' @param discr `logical(1)`\cr
-#' If `TRUE` discretize the distribution.
-#' @param args `numeric()`\cr
-#' Additional arguments.
-#' @param min `double(1)`\cr
-#' Value of the minimum.
-#' @param max `double(1)`\cr
-#' Value of the maximum.
-#' @param model `HouseholdModel`\cr
-#' Custom household model to load from.
-#'
-#' @return
-#' `numeric()`
-#'
-#' @export
-test_distribution <- function(name, x, discr = FALSE, args = numeric(), 
-                              min = NA, max = NA, model = NULL) {    
-  get_rcpp_module("housepi_distribution", model)$DistributionHousepi$new(
-    name, discr, unlist(args), c(min = min, max = max)
-  )$call(x)
-}
-
-#' @title
-#' Test Housepi Infectivity Profile
-#' @description
-#' Call housepi registered infectivity profile.
-#' This function internally calls a large C++ class, 
-#' thus it is not optimized for repeated  operations.
-#'
-#' @param name `character(1)`\cr
-#' Name of the infectivity profile
-#' @param x `numeric()`\cr
-#' Input vector.
-#' @param discr `logical(1)`\cr
-#' If `TRUE` discretize the infectivity profile.
-#' @param args `numeric()`\cr
-#' Additional arguments.
-#' @param max `double(1)`\cr
-#' Value of the maximum.
-#' @param model `HouseholdModel`\cr
-#' Custom household model to load from.
-#'
-#' @return
-#' `numeric()`
-#'
-#' @export
-test_infec_profile <- function(name, x, discr = FALSE, args = numeric(), 
-                               max = NA, model = NULL) {          
-  # UPDATE: the minimum should be imposed from within         
-  get_rcpp_module("housepi_infec_profile", model)$InfecProfileHousepi$new(
-    name, discr, unlist(args), c(min = ifelse(discr, 1, 0), max = max)
-  )$call(unlist(x))
+  # else it's not a call
+  return(list(func = NA, key = NA, val = NA, at = NA))
 }

@@ -17,7 +17,7 @@
 ############################################################################
 
 #' @title
-#' Housepi Infectivity Profile R6 Class
+#' Housepi Infectivity Profile
 #' @description
 #' Auxiliary class to deal with infectivity profile.
 #'

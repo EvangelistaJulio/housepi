@@ -3,7 +3,7 @@
 \docType{class}
 \name{HouseholdSampler}
 \alias{HouseholdSampler}
-\title{Household Sampler R6 Class}
+\title{Household Sampler}
 \description{
 FIXME: missing.
 }

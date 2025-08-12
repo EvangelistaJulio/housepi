@@ -336,8 +336,7 @@ template_not_used_warn <- function(required, defined, family) {
             len_not_used, family,
             ifelse(len_not_used > 1, "s", ""),
             character_to_string_list(notused)),
-    find_closest_match(notused, required),
-    sprintf("Unused %ss should be removed.", family)
+    find_closest_match(notused, required)
   )
   invisible()
 }

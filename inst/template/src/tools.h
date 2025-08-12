@@ -19,18 +19,19 @@
 #include <sstream>
 #include <iostream>
 
+#include <cmath>
+#include <algorithm>
 #include <limits>
-#include <memory>
 #include <random>
 #include <string>
 #include <vector>
 #include <map>
 #include <unordered_map>
 #include <functional>
-#include <algorithm>
+#include <memory>
 
 /// DEVELOPER: flag used to develop Rcpp chunks
-//#define _HOUSEPI_RCPP
+// #define _HOUSEPI_RCPP
 
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
@@ -65,23 +66,23 @@ const std::string HSP_NA_STRING = "<NA>";
 const std::string HSP_HIDE_PRFX = "..";
 
 // chain column name in draws
-const std::string HSP_CHAIN_COL = HSP_HIDE_PRFX + "chain" + HSP_HIDE_PRFX; 
+const std::string HSP_CHAIN_COL = HSP_HIDE_PRFX + "chain" + HSP_HIDE_PRFX;
 
 // group rates
 // alias for reference value
-constexpr double REFERENCE_VALUE = 1.0;          
+constexpr double REFERENCE_VALUE = 1.0;
 // reference choice
-const std::string REFERENCE = HSP_HIDE_PRFX + "reference" + HSP_HIDE_PRFX;       
+const std::string REFERENCE = HSP_HIDE_PRFX + "reference" + HSP_HIDE_PRFX;
 // contact rate
-const std::string CONTACT_RATE = HSP_HIDE_PRFX + "contact" + HSP_HIDE_PRFX;      
+const std::string CONTACT_RATE = HSP_HIDE_PRFX + "contact" + HSP_HIDE_PRFX;
 // missing rate
-const std::string MISSING_RATE = HSP_HIDE_PRFX + "missing_rate" + HSP_HIDE_PRFX; 
+const std::string MISSING_RATE = HSP_HIDE_PRFX + "missing_rate" + HSP_HIDE_PRFX;
 
 // infectivity profile
 // augmented instantaneous infectivity profile
-const std::string HSP_PROFILE_INST = HSP_HIDE_PRFX + "profile_inst" + HSP_HIDE_PRFX;   
+const std::string HSP_PROFILE_INST = HSP_HIDE_PRFX + "profile_inst" + HSP_HIDE_PRFX;
 // augmented cumulative infectivity profile
-const std::string HSP_PROFILE_CUMUL = HSP_HIDE_PRFX + "profile_cumul" + HSP_HIDE_PRFX; 
+const std::string HSP_PROFILE_CUMUL = HSP_HIDE_PRFX + "profile_cumul" + HSP_HIDE_PRFX;
 
 // constants
 constexpr unsigned DEFAULT_MAX_SIZE = 30;    // default size for lookup table
@@ -114,39 +115,22 @@ using rnd_gen = std::mt19937;
 /////////////////////////////////////////  TYPEDEF  /////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-using ushort = unsigned short int;
-using ulong = unsigned long int;
-
 using int_vec = std::vector<int>;
 using dbl_vec = std::vector<double>;
 using str_vec = std::vector<std::string>;
-using dict_str_str = std::map<std::string, std::string>;
-using dict_str_vec = std::map<std::string, str_vec>;
-using dict_dbl_vec = std::map<std::string, dbl_vec>;
 
+// matrix
 template <typename T>
 using matrix = std::vector<std::vector<T>>;
 
-//----- Aliases for improved readibility -----//
-using par_key = std::string;
-using augm_key = std::string;
-using data_key = std::string;
-using rate_key = std::string;
-using cache_key = std::string;
+// ordered dictionaries
+using dict_str = std::map<std::string, std::string>;
+using dict_str_vec = std::map<std::string, str_vec>;
+using dict_dbl_vec = std::map<std::string, dbl_vec>;
 
+// unordered dictionaries
 template <typename T>
-using par_key_map = std::unordered_map<par_key, T>;
-template <typename T>
-using augm_key_map = std::unordered_map<augm_key, T>;
-template <typename T>
-using data_key_map = std::unordered_map<data_key, T>;
-template <typename T>
-using rate_key_map = std::unordered_map<rate_key, T>;
-template <typename T>
-using cache_key_map = std::unordered_map<cache_key, T>;
-
-template <typename T>
-using rate_key_mapvec = rate_key_map<std::vector<T>>;
+using u_dict = std::unordered_map<std::string, T>;
 
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -198,28 +182,35 @@ std::vector<T> operator-(std::vector<T> v, const std::vector<T> &w)
     return v;
 }
 
-/// @brief Safely access an element in a map by key.
+/// @brief Safely access an element in a u_dict by key.
 /// If the key does not exist, an exception is thrown.
-/// @tparam T 
+/// @tparam T
 /// @param m
-/// @param k 
-/// @return 
+/// @param k
+/// @return
 template <typename T>
-inline const T &safe_at(const std::unordered_map<std::string, T> &m, const std::string &k)
+inline T &safe_at(u_dict<T> &m, const char *what, const std::string &k)
 {
     auto it = m.find(k);
     if (it != m.end())
         return it->second;
-    throw std::out_of_range("Unknown key \"" + k + "\".");
+    throw std::out_of_range(std::string("Unknown ") + what + " \"" + k + "\".");
 }
-
 template <typename T>
-inline T& safe_at(std::unordered_map<std::string, T>& m, const std::string& k) {
+inline const T &safe_at(const u_dict<T> &m, const char *what, const std::string &k)
+{
     auto it = m.find(k);
     if (it != m.end())
         return it->second;
-    throw std::out_of_range("Unknown key \"" + k + "\".");
+    throw std::out_of_range(std::string("Unknown ") + what + " \"" + k + "\".");
 }
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  Basic Tools Functions  //////////////////////////////////////
@@ -227,71 +218,66 @@ inline T& safe_at(std::unordered_map<std::string, T>& m, const std::string& k) {
 
 namespace tools
 {
+    // print warnings to stderr
+    void warning(const std::string &txt);
+    // print error message to stderr
+    void error(const std::string &txt);
+
     // internal undefined string values
     bool is_na(const std::string &txt);
     // internal undefined double values
     bool is_na(double x);
 
-    // output formatter
-    const std::string percentage(double fraction, ushort precision = 1);
-    const std::string truth(bool condition);
-
-    // stodut print
-    void print_stdout(const std::string &txt);
-    void print_stderr(const std::string &txt);
-
-    // print warnings to stderr
-    void warning(const std::string &txt);
-
-    // print error message to stderr
-    void error(const std::string &txt);
-
-    // convert to upper\lower case
-    const std::string stolower(const std::string s);
-    const std::string stoupper(const std::string s);
-
-    // converter functions
-    bool stobool(const std::string &tkn);
-    int stoi(const std::string &input, const std::string &errtxt = "");
-    unsigned long stoul(const std::string &input, const std::string &errtxt = "");
-    std::int32_t stoi32(const std::string &input, const std::string &errtxt = "");
-    double stod(const std::string &input, const std::string &errtxt = "");
-
-    // formatter for the case NA
-    const std::string na_to_str(double x);
-
     // default prng seed for the setup
     std::int32_t default_setup_seed();
 
-    // format a list of string options
-    const std::string str_list(const str_vec &options,
-                               size_t max_print = 5);
-    // calculate Levenshtein distance
-    ushort levenshtein(const std::string &s1, const std::string &s2);
-    // find the closest match
-    const std::string find_closest(const std::string &input,
-                                   const str_vec &options,
-                                   ushort min_dist = 2);
+    // Welford online algorithm for mean and variance
+    std::pair<double, double> compute_stats(const dbl_vec &data);
+
+    namespace str
+    {
+        // convert to upper\lower case
+        std::string tolow(const std::string s);
+        std::string toup(const std::string s);
+
+        // make list composed of distinct entries
+        str_vec drop_duplicate(const str_vec &v);
+        // drop private strings from list
+        str_vec drop_private(str_vec v);
+
+        // double formatter for the case NA
+        std::string format(double x);
+        // boolean formatter
+        std::string format(bool condition);
+        // format a list of string options
+        std::string format(const str_vec &options,
+                           size_t max_print = 5);
+
+        // calculate Levenshtein distance
+        unsigned short levenshtein(const std::string &s1, const std::string &s2);
+        // find the closest match
+        std::string find_closest(const std::string &input,
+                                 const str_vec &options,
+                                 unsigned short min_dist = 2);
+
+        // converter functions
+        bool tobool(const std::string &tkn);
+        int toi(const std::string &input, const std::string &errtxt = "");
+        unsigned long toul(const std::string &input, const std::string &errtxt = "");
+        std::int32_t toi32(const std::string &input, const std::string &errtxt = "");
+        double tod(const std::string &input, const std::string &errtxt = "");
+    }
 
     // argument string parser
-    const str_vec parse_list_args(const std::string &tkn,
-                                  const char delim = C_LIST_DELIM);
+    str_vec parse_list_args(const std::string &tkn,
+                            const char delim = C_LIST_DELIM);
 
-    // read csv files
-    const dict_str_str read_csv_list(const std::string &pathtofile);
-    const dict_str_vec read_csv_table(const std::string &pathtofile);
-
-#ifdef _HOUSEPI_RCPP
-    Rcpp::String stoRString(const std::string &x);
-    const dict_str_str rlist_to_map(SEXP input);
-    const dict_str_vec rdataframe_to_map(SEXP input);
-#endif
-
-    const str_vec headers_from_deflist(const dict_str_str &deflist);
-    const str_vec headers_from_deftable(const dict_str_vec &deftable);
-
-    // Welford online algorithm for mean and variance
-    const std::pair<double, double> compute_stats(const dbl_vec &data);
+    // read csv list
+    str_vec headers_from_deflist(const dict_str &deflist);
+    dict_str read_csv_list(const std::string &pathtofile);
+    // read csv dataframe
+    str_vec headers_from_deftable(const dict_str_vec &deftable);
+    dict_str_vec read_csv_table(const std::string &pathtofile);
 
     // check for unused entries from a vector of options and throw exception
     void check_for_missing_entries(const str_vec &entries,
@@ -300,41 +286,12 @@ namespace tools
     void check_for_unused_entries(const str_vec &entries,
                                   const str_vec &options,
                                   const std::string &where = "column");
-}
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  Progress Bar Namespace  /////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Class for custom progress bar. */
-namespace progress
-{
-    class Bar
-    {
-    public:
-        //===== CONSTRUCTOR =====//
-        Bar();
-        ~Bar();
-
-        //===== SETTER =====//
-        void set_text(const std::string &text);
-        void set_thintime(ulong thintime);
-        void open(ulong total);
-        void update();
-        void crash() const;
-        void close();
-
-    private:
-        class Impl; // Pointer to Implementation
-        std::unique_ptr<Impl> pImpl_;
-    };
+#ifdef _HOUSEPI_RCPP
+    Rcpp::String stoRString(const std::string &x);
+    dict_str rlist_to_map(SEXP input);
+    dict_str_vec rdataframe_to_map(SEXP input);
+#endif
 }
 
 #endif // HOUSEPI__TOOLS__H

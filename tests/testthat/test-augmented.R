@@ -71,3 +71,41 @@ test_that("Augmented load enable special definitions", {
   
   expect_equal(tmp$defs[1, , drop = TRUE], tmp$defs[2, , drop = TRUE])
 })
+
+test_that("Status-specific definitions are safe", {
+  augm <- housepi:::HousepiAugmented$new()
+  
+  required <- c(model = "log_proba", 
+                augmented = c("..proba", "..layer"))
+  infectious_status_set <- c(4, 2, 3, 1)
+  
+  # first generation of definitions
+  err_msg <- as.character(expect_error(
+    augm$load_list(
+      ..proba = list(model = "norm", status = 1, min = 0,
+                     args = c(mean = "param@D")),
+      ..proba = list(expr = "..layer", status = 2),
+      ..layer = list(model = "lnorm", status = 2,
+                     args = c(meanlog = "param@D")),
+      #> NO ..proba provided for status 3 and 4
+      log_proba = "log(..proba)"
+    )$assert(required, infectious_status_set)
+  ))
+  expect_match(err_msg, "Missing definition")
+  expect_match(err_msg, "status 3, 4")
+  
+  # second generation of definitions
+  err_msg <- as.character(expect_error(
+    augm$load_list(
+      ..proba = list(model = "norm", status = 1, min = 0,
+                     args = c(mean = "param@D")),
+      ..proba = list(expr = "..layer", status = c(2, 3, 4)),
+      ..layer = list(model = "lnorm", status = c(2, 3),
+                     args = c(meanlog = "param@D")),
+      #> NO ..layer provided for status 3, 4
+      log_proba = "log(..proba)"
+    )$assert(required, infectious_status_set)
+  ))
+  expect_match(err_msg, "Missing definition")
+  expect_match(err_msg, "status 4")
+})

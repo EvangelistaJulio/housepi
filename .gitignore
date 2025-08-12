@@ -65,6 +65,7 @@ Thumbs.db
 /vignettes/*.timestamp
 
 !vignettes/generate_delays.R
+!vignettes/theme.R
 
 # housepi files #
 #################

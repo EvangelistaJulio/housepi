@@ -16,7 +16,7 @@
 ############################################################################
 ############################################################################
 
-#' @title Housepi Parameter R6 Class
+#' @title Housepi Parameter
 #' @description
 #' Help with parameter definitions of model Rcpp object.
 #'
@@ -169,7 +169,7 @@ HousepiParameter <- R6::R6Class(
         # mcmc proposer rule
         if (is.na(rule)) {
           # default proposer rule
-          rule <- "draw"
+          rule <- "sample"
           scale <- NA
         }
 

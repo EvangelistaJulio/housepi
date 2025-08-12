@@ -28,7 +28,7 @@
 Proposer::Proposer(std::shared_ptr<Distribution> distr,
                    double rule_scale,
                    double rule_start_value,
-                   const std::vector<ushort> &args_to_adapt,
+                   const std::vector<unsigned short> &args_to_adapt,
                    bool is_discrete)
     : pDistr_(distr)
 {
@@ -54,9 +54,9 @@ Proposer::Proposer(std::shared_ptr<Distribution> distr,
 
     // load which are the parameter to be adapted
     n_args_to_adapt_ = args_to_adapt.size();
-    args_to_adapt_list_ = new ushort[n_args_to_adapt_];
+    args_to_adapt_list_ = new unsigned short[n_args_to_adapt_];
 
-    for (ushort c = 0; c < n_args_to_adapt_; ++c)
+    for (unsigned short c = 0; c < n_args_to_adapt_; ++c)
         args_to_adapt_list_[c] = args_to_adapt[c];
 };
 
@@ -64,7 +64,7 @@ Proposer::Proposer(std::shared_ptr<Distribution> distr,
 Proposer::Proposer(const std::string &name,
                    double rule_scale,
                    double rule_start_value,
-                   const std::vector<ushort> &args_to_adapt,
+                   const std::vector<unsigned short> &args_to_adapt,
                    bool is_discrete)
     : Proposer(ContinuosDistrRegistry::inst().get_distr(name),
                rule_scale, rule_start_value, args_to_adapt, is_discrete) {}
@@ -78,9 +78,9 @@ void Proposer::adapt(double ratio)
 {
     double factor = 1. + (1. - ratio) * (get_accept_rate() - TARGET_ACCEPT_RATE);
     // loop over all arguments to adapt
-    for (ushort c = 0; c < n_args_to_adapt_; ++c)
+    for (unsigned short c = 0; c < n_args_to_adapt_; ++c)
     {
-        ushort arg_id = args_to_adapt_list_[c];
+        unsigned short arg_id = args_to_adapt_list_[c];
         (pDistr_->set_arg)(arg_id, factor * (pDistr_->arg)(arg_id));
     }
 }
@@ -89,7 +89,7 @@ void Proposer::adapt(double ratio)
 ////////////////////////////////////  Base Show - adaptation  /////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-const std::string Proposer::str_scale() const
+std::string Proposer::str_scale() const
 {
     if (n_args_to_adapt_ == 0)
         return HSP_NA_STRING;
@@ -105,24 +105,24 @@ const std::string Proposer::str_scale() const
 //-----------------------------------------------------------------------------------------------//
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  Draw_Proposer : class  ////////////////////////////////////
+///////////////////////////////////  Sample_Proposer : class  ///////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-class Draw_Proposer : public Proposer
+class Sample_Proposer : public Proposer
 {
 public:
     //===== CONSTRUCTOR =====//
-    Draw_Proposer(std::shared_ptr<Distribution> distr)
+    Sample_Proposer(std::shared_ptr<Distribution> distr)
     {
-        pDistr_ = distr;
-
-        proposer_name_ = "draw";
+        proposer_name_ = "sample";
         // proposer functional method
-        propose_ = &Draw_Proposer::do_propose_draw_rand_;
+        propose_ = &Sample_Proposer::do_propose_sample_rand_;
         // logratio functional method
-        logratio_ = &Draw_Proposer::do_logratio_pdf_;
+        logratio_ = &Sample_Proposer::do_logratio_pdf_;
+        // link to model distribution
+        pDistr_ = distr;
     }
-    ~Draw_Proposer() = default;
+    ~Sample_Proposer() = default;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -234,7 +234,7 @@ std::shared_ptr<Proposer> proposer_switch(const std::string &rule_name = HSP_NA_
                                           double rule_from = HSP_NA_DOUBLE,
                                           bool is_discrete = false)
 {
-    const str_vec options = {"draw", "unif", "norm", "lnorm"};
+    const str_vec options = {"sample", "unif", "norm", "lnorm"};
 
     if (tools::is_na(rule_name))
         return std::make_shared<Proposer>(std::make_shared<Distribution>());
@@ -250,7 +250,7 @@ std::shared_ptr<Proposer> proposer_switch(const std::string &rule_name = HSP_NA_
 
     else
         throw std::invalid_argument(
-            "Unknown proposer rule \"" + rule_name + "\"." + tools::find_closest(rule_name, options));
+            "Unknown proposer rule \"" + rule_name + "\"." + tools::str::find_closest(rule_name, options));
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -264,37 +264,60 @@ std::shared_ptr<Proposer> proposer_switch(const std::string &rule_name = HSP_NA_
 /////////////////////////////////////  Variable - Setter  /////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+void Variable::init_default_(double value, bool is_discrete, bool is_constant)
+{
+    return_value_ = &Variable::do_return_error_;
+    get_ = &Variable::do_get_default_;
+    get_ptr_ = &Variable::do_get_ptr_default_;
+    user_value_ = value;
+    value_ = user_value_;
+    pFunc_ = std::make_shared<Function>();
+    is_constant_ = is_constant;
+    is_discrete_ = is_discrete;
+}
+
+void Variable::init_func_(const std::string &func_name)
+{
+    return_value_ = &Variable::do_return_func_;
+    get_ = &Variable::do_get_func_return_;
+    get_ptr_ = &Variable::do_get_ptr_func_return_;
+    user_value_ = HSP_NA_DOUBLE;
+    value_ = HSP_NA_DOUBLE;
+    pFunc_ = compose_func_registries(
+        func_name, "function",
+        {&UserFuncRegistry::inst(),
+         &TranscendentalRegistry::inst(),
+         &ArithmeticRegistry::inst(),
+         &ContinuosDistrRegistry::inst(),
+         &DiscreteDistrRegistry::inst(),
+         &InfecProfileRegistry::inst()});
+    is_constant_ = false;
+    is_discrete_ = false;
+}
+
 /* Restore user defined variable initialization. */
 void Variable::init(const std::string &name, double value,
-                    bool is_discrete, bool is_constant, const std::string &func_name)
+                    bool is_discrete, bool is_constant, 
+                    const std::string &func_name)
 {
+    init_name_(name);
     if (tools::is_na(func_name))
-    {
-        return_value_ = &Variable::do_return_error_;
-        get_ = &Variable::do_get_default_;
-        get_ptr_ = &Variable::do_get_ptr_default_;
-
-        variable_name_ = name;
-        user_value_ = value;
-        value_ = user_value_;
-        is_discrete_ = is_discrete;
-        is_constant_ = is_constant;
-    }
+        init_default_(value, is_discrete, is_constant);
     else
-    {
-        return_value_ = &Variable::do_return_func_;
-        get_ = &Variable::do_get_func_return_;
-        get_ptr_ = &Variable::do_get_ptr_func_return_;
-        pFunc_ = compose_func_registries(
-            func_name, "function",
-            {&UserFuncRegistry::inst(),
-             &TranscendentalRegistry::inst(),
-             &ArithmeticRegistry::inst(),
-             &ContinuosDistrRegistry::inst(),
-             &DiscreteDistrRegistry::inst(),
-             &InfecProfileRegistry::inst()});
-        is_constant_ = false;
-    }
+        init_func_(func_name);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////  Variable - Setter (Distribution)  /////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+// Drop function if it's constant when reshaping
+void Variable::init_func_reshaping()
+{
+    if (pFunc_->is_constant())
+        init_default_(do_get_func_return_(), false, true);
+    else
+        pFunc_->init_reshaping(is_discrete_);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -310,6 +333,7 @@ void Variable::init_distr(const std::string &distr_name)
         {&ContinuosDistrRegistry::inst(),
          &DiscreteDistrRegistry::inst()});
 }
+
 /* Initialize distribution reshaping. */
 void Variable::init_distr_reshaping()
 {
@@ -342,24 +366,24 @@ void Variable::init_proposer(const std::string &rule_name,
         is_constant_ = false;
 
         // define proposer rule with functional programming
-        if (rule_name == "draw")
+        if (rule_name == "sample")
         {
-            //----- Draw proposer rule -----//
+            //----- Sample proposer rule -----//
             // assign the pointer to the proposer
-            pProp_ = std::make_shared<Draw_Proposer>(pDistr_);
+            pProp_ = std::make_shared<Sample_Proposer>(pDistr_);
 
             // sampler
-            propose_ = &Variable::do_propose_draw_sample_;
+            propose_ = &Variable::do_propose_sample_;
             // logratio
-            move_logratio_ = &Variable::do_move_logratio_draw_;
+            move_logratio_ = &Variable::do_move_logratio_sample_;
             // validation
-            valid_move_ = &Variable::do_valid_move_draw_;
+            is_valid_move_ = &Variable::do_is_valid_move_sample_;
         }
         else
         {
             //----- Other proposer rules -----//
             // value from which to start proposal
-            if ((!tools::is_na(rule_from)) && (!pDistr_->valid(rule_from)))
+            if ((!tools::is_na(rule_from)) && (!pDistr_->is_valid(rule_from)))
                 tools::warning(
                     "Proposer rule from value " + std::to_string(rule_from) + " out of range" + " {min:" + str_min() + ", max:" + str_max() + "}.");
 

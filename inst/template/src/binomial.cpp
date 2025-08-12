@@ -457,13 +457,11 @@ namespace bax
 }
 
 /*
-//
-// Debug mode, to check values of the likelihood and print formulation.
-//
-// g++ -Wall -Wextra -std=gnu++11 -g -O2 -o auxiliary_binomial.o auxiliary_binomial.cpp ./auxiliary_binomial.o 7
-//
-
-// Auxiliary function to perform debugs
+/// Debug mode, to check values of the likelihood and print formulation.
+///
+/// g++ -Wall -Wextra -std=gnu++11 -g -O2 -o auxiliary_binomial.o auxiliary_binomial.cpp ./auxiliary_binomial.o 7
+///
+/// Auxiliary function to perform debugs
 void auxiliary_chain_binomial_debugger(ushort max_num, ushort limit)
 {
 	using namespace bax;

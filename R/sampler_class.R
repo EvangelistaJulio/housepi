@@ -17,7 +17,7 @@
 ############################################################################
 
 #' @title
-#' Individual Sampler R6 Class
+#' Individual Sampler
 #' @description
 #' FIXME: missing.
 #'
@@ -295,7 +295,7 @@ IndividualSampler <- R6::R6Class(
 ############################################################################
 
 #' @title
-#' Household Sampler R6 Class
+#' Household Sampler
 #' @description
 #' FIXME: missing.
 #'

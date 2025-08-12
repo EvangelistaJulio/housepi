@@ -10,7 +10,33 @@
 # augmented.R
 #
 
-#' @title Housepi Augmented R6 Class
+extract_at_values <- function(defs, at) {
+  # tuples (value, type) amongst augmented definitions
+  at_tuples = list(c("farg_val", "farg_at"),
+                  c("value", "value_at"), c("arg_val", "arg_at"),
+                  c("min", "min_at"), c("max", "max_at"),
+                  c("scale", "scale_at"), c("from", "from_at"))
+
+  output <- c()
+  if (length(defs) > 0) {
+    for (tuple in at_tuples) {
+      xdef <- defs[tuple]
+      for (i in seq_len(dim(xdef)[[1]])) {
+        rw <- unlist(xdef[i, ])
+        if (!any(is.na(rw))) {
+          arg2par <- data.frame(
+            val = strsplit(rw[1], "/")[[1]],
+            at = strsplit(rw[2], "/")[[1]]
+          )
+          output <- c(output, arg2par[arg2par$at == at, "val"])
+        }
+      }
+    }
+  }
+  unique(output)
+}
+
+#' @title Housepi Augmented
 #' @description
 #' Help with augmented variable definitions of model Rcpp object.
 #'
@@ -49,8 +75,8 @@ HousepiAugmented <- R6::R6Class(
     },
 
     # parse augmented implicit function
-    .handle_augmented_implicit_func = function(opts, value) {
-      parsed <- extract_func_(value)
+    .handle_implicit_func = function(opts, expr) {
+      parsed <- extract_func_(expr)
       if (!is.na(parsed$func)) {
         if (is.na(opts$func)) {
           opts$func <- parsed$func
@@ -59,38 +85,16 @@ HousepiAugmented <- R6::R6Class(
           opts$farg_at  <- parsed$at
         } else {
           stop_h(
-            "Augmented function multiple definitions.",
-            "Use either 'value' or 'func' argument."
+            sprintf("Redundant function definitions for \"%s\".", opts$name),
+            "Use either 'expr' or 'func' argument."
           )
         }
       }
-      return(opts)
-    },
 
-    # parse augmented implicit function
-    .handle_augmented_explicit_func = function(opts, func_args) {
-      parsed <- extract_func_(opts$func)
-
-      if (is.null(func_args)) {
-        if (!is.na(parsed$func)) {
-          opts$func <- parsed$func
-          opts$farg_key <- parsed$key
-          opts$farg_val <- parsed$val
-          opts$farg_at  <- parsed$at
-        }
-
-      } else {
-        if (is.na(parsed$func)) {
-          if (is.na(opts$func)) stop_h("Augmented function not defined.")
-          else {
-            opts$farg_key <- type_join_(names(func_args))
-            opts$farg_val <- type_join_(type_split_(func_args)$val)
-            opts$farg_at  <- type_join_(type_split_(func_args)$at)
-          }
-        } else stop_h(
-          "Augmented function defined both implicitly and explicitly.",
-          "Use either implicit 'func' or 'func_args' argument."
-        )
+      if (!is.na(opts$func)) {
+        opts$init_rand <- opts$const <- opts$discr <- FALSE
+      } else if (is.na(opts$const)) {
+        opts$const <- is.na(opts$model) && is.na(opts$rule)
       }
 
       return(opts)
@@ -152,8 +156,8 @@ HousepiAugmented <- R6::R6Class(
       if (isFALSE(opts$const)) {
         if (is.na(opts$rule)) {
           if (is.na(opts$model)) opts$const <- TRUE
-          else opts$rule <- "draw"
-        } else if (opts$rule != "draw") {
+          else opts$rule <- "sample"
+        } else if (opts$rule != "sample") {
           if (!is.na(scale)) {
             opts$scale <- type_split_(scale)$val
             opts$scale_at <- type_split_(scale)$at
@@ -177,31 +181,59 @@ HousepiAugmented <- R6::R6Class(
     # Definitions required by augmented variable definitions
     # according to the "at" key of the definition (A, D, P).
     .find_def_required = function(at) {
+      required <- extract_at_values(self$defs, at)
+      # add source name
+      return(set_source_name_(required, "augmented"))
+    },
 
-      # tuples (value, type) amongst definitions
-      tuple_at_cols <- list(c("farg_val", "farg_at"),
-                            c("value", "value_at"), c("arg_val", "arg_at"),
-                            c("min", "min_at"), c("max", "max_at"),
-                            c("scale", "scale_at"), c("from", "from_at"))
+    # recursive explore of the dependencies tree to point out errors
+    .explore_dependencies = function(root_def, status_set) {
+      root_name <- unique(root_def$name) # name of the root definition
+      root_status <- root_def$status     # status of the root definition
+      is_generic <- is.na(root_status)   # wheter generic or status-specific
+      
+      if (any(is_generic) && length(root_status) > 1) {
+        # assert for unique definition
+        stop_h(
+          sprintf("Equivocal definitions for augmented \"%s\"", root_name),
+          ifelse(is.all(is_generic),
+                 "Impossible to provide multiple generic definitions.",
+                 "Impossible to provide both generic and status-specific definitions.")
+        )
 
-      required <- c()
-      if (length(self$defs) > 0) {
-        for (tuple in tuple_at_cols) {
-          xdef <- self$defs[tuple]
-          for (i in seq_len(dim(xdef)[[1]])) {
-            rw <- unlist(xdef[i, ])
-            if (!any(is.na(rw))) {
-              arg2par <- data.frame(
-                val = strsplit(rw[1], "/")[[1]],
-                at = strsplit(rw[2], "/")[[1]]
-              )
-              required <- c(required, arg2par[arg2par$at == at, "val"])
-            }
+      } else if (length(root_status) == 1) {
+        # check all depedendecies
+        for (r in extract_at_values(root_def, "A")){
+          branch_def <- subset(self$defs, name == r)
+          branch_status <- branch_def$status   # status of the branch definition
+
+          # check if at status specific tips
+          is_tip <- (length(branch_status) == 1) && 
+                    !identical(branch_status, root_status)
+
+          if (is_tip) stop_h(sprintf(
+            "Missing definition for augmented \"%s\"%s.",
+            r, ifelse(is_generic, "", sprintf(" status %s", root_status))
+          ))
+          else {
+            if (!is_generic) status_set <- root_status
+            private$.explore_dependencies(branch_def, status_set)
           }
         }
+        
+      } else {
+        # explore dependencies of status-specific, if present
+        miss_status <- setdiff(status_set, root_def$status)
+        if (length(miss_status) == 0) {
+          for (i in seq_len(dim(root_def)[1])) {
+            private$.explore_dependencies(root_def[i, ], status_set)
+          }
+        } else stop_h(
+          sprintf("Missing definition for augmented \"%s\"", root_name),
+          sprintf("Provide a definition for status %s.", 
+                  paste(miss_status, collapse = ", "))
+        )
       }
-      # remove duplicates and add source name
-      return(set_source_name_(unique(required), "augmented"))
     }
   ),
 
@@ -302,50 +334,7 @@ HousepiAugmented <- R6::R6Class(
       return(any(mask))
     },
 
-    #' @description
-    #' Add a new augmented variable definition.
-    #'
-    #' @param name `character(1)`\cr
-    #' Name of the augmented variable.
-    #' @param status `integer(1)`\cr
-    #' The associated status of the definition.
-    #' Default NA is for all infectious.
-    #' @param const `logical(1)`\cr
-    #' If `FALSE` the augmented variable is treated as a constant.
-    #' @param discr `logical(1)`\cr
-    #' IF `TRUE` the augmenter variable is discrete.
-    #' @param func `character()`\cr
-    #' Name of the augmented function.
-    #' @param func_args named `list`\cr
-    #' Arguments of the augmented function.
-    #' @param value `double(1)` | `character(1)`\cr
-    #' One between:
-    #' - Scalar value;
-    #' - Parameter name (followed by `@P`);
-    #' - Data name (followed by `@D`).
-    #' @param init_rand `character(1)`\cr
-    #' If `TRUE` draw initial vale from model distribution.
-    #' @param model `character(1)`\cr
-    #' Name of the model distribution.
-    #' @param args named `list`\cr
-    #' Arguments for the model distribution.
-    #' @param min `double(1)` | `character(1)`\cr
-    #' Minimum value. One between:
-    #' - Scalar value;
-    #' - Parameter name (followed by `@P`);
-    #' - Data name (followed by `@D`).
-    #' @param max `double(1)` | `character(1)`\cr
-    #' Maxmimum value. One between:
-    #' - Scalar value;
-    #' - Parameter name (followed by `@P`);
-    #' - Data name (followed by `@D`).
-    #' @param rule `character(1)`\cr
-    #' Name of the inference proposal rule.
-    #' @param scale `double(1)`\cr
-    #' Scale parameter for the proposal rule.
-    #' @param from `double(1)` | `character(1)`\cr
-    #' Advanced options for non random walk moves.
-    #' `FIXME: missing`
+    #' @inherit add_augmented
     add = function(name = NA,
                    status = NA,
                    const = NA,
@@ -360,7 +349,8 @@ HousepiAugmented <- R6::R6Class(
                    max = NA,
                    rule = NA,
                    scale = NA,
-                   from = NA) {
+                   from = NA,
+                   expr = NA) {
       # hande (name, status) and check for existing definitions
       private$.handle_existing_definition(name, status)
 
@@ -383,18 +373,20 @@ HousepiAugmented <- R6::R6Class(
         from = NA, from_at = NA
       )
 
-      if (is.na(opts$func)) {
-        opts <- private$.handle_augmented_implicit_func(opts, value)
-        if (!is.na(opts$func)) {
-          opts$init_rand <- opts$const <- opts$discr <- FALSE
-        } else if (is.na(opts$const)) {
-          opts$const <- is.na(opts$model) && is.na(opts$rule)
+      # agumented function 
+      if (!is.na(expr)) {
+        opts <- private$.handle_implicit_func(opts, expr)
+
+      } else if (!is.na(opts$func)){
+        if (!is.null(func_args)) {
+          opts$farg_key <- type_join_(names(func_args))
+          opts$farg_val <- type_join_(type_split_(func_args)$val)
+          opts$farg_at  <- type_join_(type_split_(func_args)$at)
         }
-      } else {
-        opts <- private$.handle_augmented_explicit_func(opts, func_args)
         opts$init_rand <- opts$const <- opts$discr <- FALSE
       }
 
+      # model arguments
       if (length(args) > 0) {
         opts <- private$.handle_model_arguments(opts, args)
       }
@@ -433,12 +425,11 @@ HousepiAugmented <- R6::R6Class(
         this_def <- as.list(definitions[[i]])
         def_name <- names(definitions[i])
         if (length(names(this_def)) == 0) {
-          if (length(this_def) == 1) names(this_def) <- "value"
+          if (length(this_def) == 1) names(this_def) <- "expr"
           else stop_h(
             sprintf("Wrong definition for augmented variable \"%s\".", 
                     def_name),
-            "Provide a definition list.",
-            "Alternative: if constant, provide a scalar or a typed value."
+            "Provide a scalar, an expression or a named list to pass to 'add_augmented'."
           )
         }
         # associate name
@@ -512,12 +503,25 @@ HousepiAugmented <- R6::R6Class(
     #'
     #' @param required `character()`\cr
     #' Vector containing required parameters.
-    assert = function(required) {
+    #' @param status_set `integer()`\cr
+    #' All statuses present in current dataset.
+    assert = function(required, status_set) {
+      status_set <- sort(status_set)
       defined <- self$defs[["name"]]
       # point out augmented variables that are not used
       template_not_used_warn(required, defined, "augmented variable")
+
       # stop if augmented variables are missing
       template_missing_stop(required, defined, "augmented variable")
+
+      # explore status-specific definitions tree of depedencies
+      if ("model" %in% names(required)) {
+        for (r in required[["model"]]) {
+          private$.explore_dependencies(subset(self$defs, name == r),
+                                        status_set)
+        }
+      }
+
       invisible(self)
     }
   )

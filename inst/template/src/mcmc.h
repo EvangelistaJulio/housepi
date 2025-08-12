@@ -53,16 +53,16 @@ public:
 	//===== DATA =====//
 	//================//
 
-	ulong get_report_indiv(const std::string &s) const;
-	ulong get_report_house(const std::string &s) const;
-	std::pair<ushort, ulong> get_report_hh_size(const std::string &s) const;
+	unsigned long get_report_indiv(const std::string &s) const;
+	unsigned long get_report_house(const std::string &s) const;
+	std::pair<unsigned short, unsigned long> get_report_hh_size(const std::string &s) const;
 
 	//----- Group & Contact Rates -----//
 	// UPDATE: also contact rates should just be imported
 	void build_all_rates();
 
 	/* Auxiliary wrapper to emplace_back */
-	void emplace_contact_rate(par_key p) { _pair_contact_rate = p; }
+	void emplace_contact_rate(std::string p) { _pair_contact_rate = p; }
 
 	/* Assign the contact patterns between a couple of individuals. */
 	virtual void init_household_contact_rates(Household &, const Individual &, const Individual &) {}
@@ -77,8 +77,8 @@ public:
 	//===== PARAMETERS =====//
 	//======================//
 
-	double param(const par_key &p) const;
-	const double *param_pointer(const par_key &p) const;
+	double param(const std::string &p) const;
+	const double *param_pointer(const std::string &p) const;
 
 	//===============================//
 	//===== AUGMENTED VARIABLES =====//
@@ -94,18 +94,27 @@ public:
 	/* Update cahced augmeted dependecies. */
 	virtual void update_cache_dependecies(Household &, Individual &) {}
 
-	void cache_house_integer_vector(const cache_key &e);
-	void cache_house_size_t_vector(const cache_key &e);
-	void cache_house_double_vector(const cache_key &e);
-	void cache_house_double_matrix(const cache_key &e);
+	void cache_house_integer_vector(const std::string &e);
+	void cache_house_size_t_vector(const std::string &e);
+	void cache_house_double_vector(const std::string &e);
+	void cache_house_double_matrix(const std::string &e);
 
 	//===============================//
 	//===== INFECTIVITY PROFILE =====//
 	//===============================//
 
-	void init_infec_profile_template(dict_str_str x);
+	void init_infec_profile_template(dict_str x);
 	double infec_profile_inst(const Individual &member, double t) const;
 	double infec_profile_cumul(const Individual &member, double t) const;
+
+	//=================//
+	//===== INFER =====//
+	//=================//
+
+	/* Inference specific initialization (e. g. cache variables, lookup tables, etc). */
+	virtual void init_model_for_inference() {}
+	void infer();
+	void clear_memory();
 
 	//====================================//
 	//===== EVALUATE (loglikelihood) =====//
@@ -115,14 +124,6 @@ public:
 	virtual double compute_household_obs_loglike(Household &) { throw std::runtime_error(
 		"Called virtual loglikelihood method of undefined model."); }
 	double evaluate();
-
-	//=================//
-	//===== INFER =====//
-	//=================//
-
-	/* Inference specific initialization (e. g. cache variables, lookup tables, etc). */
-	virtual void init_model_for_inference() {}
-	void infer();
 
 	//====================//
 	//===== SIMULATE =====//
@@ -139,7 +140,7 @@ public:
 	//----- C++ Print -----//
 	Rcpp::DataFrame dataset_for_simulation() const;
 	Rcpp::List simulate(size_t n_rep);
-	Rcpp::List evidence(const std::string &scheme, ulong n_rungs);
+	Rcpp::List evidence(const std::string &scheme, unsigned long n_rungs);
 
 	//========================//
 	//===== Rcpp IMPORTS =====//
@@ -166,14 +167,14 @@ public:
 	Rcpp::List export_infec_profile() const;
 	Rcpp::DataFrame export_param() const;
 	Rcpp::DataFrame export_augmented_dataset() const;
-	Rcpp::NumericMatrix export_traces() const;
-	Rcpp::NumericMatrix export_house_loglike_traces() const;
+	Rcpp::NumericMatrix export_draws() const;
+	Rcpp::NumericMatrix export_house_loglike_draws() const;
 	Rcpp::List export_house_snapshot(const std::string &house_id) const;
 #else
 	//----- C++ Print -----//
 	void print_infer_state(const std::string &output_filename = HSP_NA_STRING) const;
 	void print_simulated_dataset(const std::string &output_filename = HSP_NA_STRING);
-	void print_evidence(const std::string &scheme, ulong n_rungs);
+	void print_evidence(const std::string &scheme, unsigned long n_rungs);
 
 	//================//
 	//===== READ =====//
@@ -206,7 +207,7 @@ private:
 
 	//----- Contact Rateas -----//
 	// UPDATE: this should be dropped in favour of table definitions
-	par_key _pair_contact_rate = {};
+	std::string _pair_contact_rate = {};
 
 	void init_contact_rates_(Household &house);
 };

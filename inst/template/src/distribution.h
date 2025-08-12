@@ -66,10 +66,10 @@ public:
 	double rand(rnd_gen &prng);
 
 	/// Return value of probability density
-	double pdf(double x) const { return valid(x) ? (this->*pdf_)(x) : 0.; }
+	double pdf(double x) const { return is_valid(x) ? (this->*pdf_)(x) : 0.; }
 
 	/// Return value of cumulative distribution
-	double cdf(double x) const { return valid(x) ? (this->*cdf_)(x) : (above(x) ? (this->*cdf_)(get_max()) : 0.); }
+	double cdf(double x) const { return is_valid(x) ? (this->*cdf_)(x) : (is_above(x) ? (this->*cdf_)(get_max()) : 0.); }
 
 	// note: as a function, distribution is defined by its pdf or cdf
 	double return_value(double x) const override { return (this->*return_value_)(x); }
@@ -85,8 +85,8 @@ protected:
 	//==================//
 	//===== SETTER =====//
 	//==================//
-	void init_functional_discretization(ushort discr_type);
-	void init_functional_truncation(ushort discr_type);
+	void init_functional_discretization(unsigned short discr_type);
+	void init_functional_truncation(unsigned short discr_type);
 
 	bool init_range_min(double min_val, bool is_open_zero);
 	void init_reshaping_min_zero(bool discrete, bool is_open_zero);
@@ -256,7 +256,7 @@ public:
 	//==================//
 
 	/* Override get_options method of generic function with distribution. */
-	const str_vec get_options() const override final;
+	str_vec get_options() const override final;
 
 	/* Override get method of generic function with distribution. */
 	std::shared_ptr<Function> get(const std::string &opt) const override final;

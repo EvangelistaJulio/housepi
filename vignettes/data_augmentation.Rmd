@@ -15,27 +15,39 @@ editor_options:
 
 ```{r setup}
 #| include: false
-knitr::opts_chunk$set(echo = TRUE, comment = "#>", 
-                      fig.width = 6.5, fig.height = 5, fig.fullwidth=TRUE,
-                      fig.align = "center", out.height="auto")
-options(knitr.kable.NA = "")
-
-bayesplot::bayesplot_theme_set(ggplot2::theme_gray())
-bayesplot::color_scheme_set(scheme = "brightblue")
-
+source("theme.R")
 library(housepi)
 set.seed(42)
 ```
 
-This tutorial introduces to data augmentation with the package `housepi`.
-We explain the process of associating augmented variable to individuals to then proceed with standard model generation and inference.
+Let's briefly recall the concept of Bayesian data augmentation for the case of epidemiological outbreaks.
 
-# Example: Estimate Incubation Periods Distribution 
+Bayesian data augmentation is a computational strategy that expands the parameter space by introducing augmented variables to facilitate sampling from the posterior.
+
+Consider a single infectious individual $i$.
+Imagine that someone reported the exact time of symptom onset ${t}^{(\mathrm{ons})}_{i}$ .
+We can introduce latent infection times ${t}_{i}$, defined as the difference between the onset time and the augmented incubation period ${\tau}^{(\mathrm{inc})}_{i}$:
+
+$${t}_{i} = {t}^{(\mathrm{ons})}_{i} - {\tau}^{(\mathrm{inc})}_{i},$$
+
+where we the incubation period drawn from a model distribution.
+Say $y$ the observed data (onset and status), $z$ the augmented variables (infection time and incubation oeriod), and $\theta$ the parameters (for transmission and augmented variable models), the joint posterior reads
+
+$${P}({\theta}, {z}\vert{y}) \varpropto {P}({y}\vert{\theta},{z}) {P}({z}\vert{\theta}){P}({\theta}).$$
+
+This choice preserves the marginal posterior of interest.
+
+For the Monte Carlo Markov Chain Through iterative sampling from these conditional distributions—drawing Z(t+1) \~ p(Z\|Y,θ(t)) followed by θ(t+1) \~ p(θ\|Y,Z(t+1))— the method generates a Markov chain whose stationary distribution is the joint posterior p(θ,Z\|Y), and whose θ-marginal converges to the target posterior p(θ\|Y).
+
+We here explain how to associate individual augmented variables in `housepi` for minimal examples.
+
+# Example: Estimate Incubation Periods Distribution
 
 For simplicity, we start testing data augmentation on a dataset which is not a household survey.
 Instead we consider a simulated report documenting the days when a number of cases were exposed to infection and the days of symptom onset.
 
-Assuming the incubation period to be described by a gamma distribution, we want to estimate the respective parameters augmenting the infection and onset times, modeled as uniformly distributed in the reported ranges.
+Assuming the incubation period to be described by a gamma distribution, we want to estimate its parameters augmenting the infection and onset times.
+We model both augmented variables as uniformly distributed in the reported ranges.
 
 ```{r}
 # use an example script for generate delays
@@ -60,12 +72,12 @@ g.
 "onset_max\@D" will link to the value at individual data "onset_max".
 More in general, definition arguments `value`, `args`, `min`, `max`, `scale` and `from` can be linked to external values in the following ways
 
-| Origin    | Link Examples       | Symbol |
+| Origin    |    Link Examples    | Symbol |
 |-----------|:-------------------:|:------:|
-| Augmented | "proba", "proba\@A" | A      |
-| Dataset   | "onset_max\@D"      | D      |
-| Parameter | "mean\@P"           | P      |
-| Scalar    | 14, "14", "14\@S"   | S      |
+| Augmented | "proba", "proba\@A" |   A    |
+| Dataset   |   "onset_max\@D"    |   D    |
+| Parameter |      "mean\@P"      |   P    |
+| Scalar    |  14, "14", "14\@S"  |   S    |
 
 The model has the only requirement to associate an augmented variable `"log_proba"` for each individual with positive status.
 This variable will be used to compute the log-probability of the incubation period distribution.
@@ -103,7 +115,7 @@ hhmodel <- new_housepi_model("augm-example") |>
     var = list(prior = "unif", args = c(min = 0.1, max = 5), rule = "norm")
   )
 
-hhmodel <- hhmodel |> 
+hhmodel <- hhmodel |>
   # add 'infec_time' time definition
   add_augmented(
     name = "infec_time",
@@ -134,16 +146,16 @@ The name starting with `..` is a convention for housepi to interpet such as priv
 #| warning: false
 hhmodel |>
   add_dataset(dataset) |>
-  infer(n_steps = 10000, n_burnin = 500, 
-        thin = 8, n_chains = 4, n_adapt = 3000, 
+  infer(n_steps = 10000, n_burnin = 500,
+        thin = 8, n_chains = 4, n_adapt = 3000,
         # store augmented draws for individual "7"
         id_draws = "7", 
-        progress = FALSE) |> 
-  as_draws_df() |> 
-  bayesplot::mcmc_trace()
+        progress = FALSE) |>
+  get_param_draws_df() |>
+  bayesplot::mcmc_trace(facet_args = list(ncol = 2))
 ```
 
-Note that here the dataset has no demographic structure. 
+Note that here the dataset has no demographic structure.
 We are assuming all individuals livto live in distinct households.
 
 ## Other Proposer Rules for the Augmented Variables
@@ -161,18 +173,25 @@ We always recommend a visual assesment before choosing a new move.
 ```{r}
 #| fig.height: 2
 #| warning: false
-# with model (default draw rule)
+# with model (default sample)
 new_housepi_model("blank") |>
-  add_augmented(name = "draw from model", model = "norm", args = c(mean = 14)) |>
-  infer() |> as_draws_df() |> bayesplot::mcmc_trace()
+  add_augmented(name = "sample from model",
+                model = "norm", args = c(mean = 14)) |>
+  infer() |> 
+  get_augm_draws_df() |> 
+  bayesplot::mcmc_trace()
 
 # random walk starting from 0 (without model)
 new_housepi_model("blank") |>
-  add_augmented(name = "random walk", value = 14, rule = "norm") |> 
-  infer() |> as_draws_df() |> bayesplot::mcmc_trace()
+  add_augmented(name = "random walk", value = 14, rule = "norm") |>
+  infer() |> 
+  get_augm_draws_df() |> 
+  bayesplot::mcmc_trace()
 
 # independent normal moves from value 87 (without model)
 new_housepi_model("blank") |>
   add_augmented(name = "independent moves", rule = "norm", from = 14) |>
-  infer() |> as_draws_df() |> bayesplot::mcmc_trace()
+  infer() |> 
+  get_augm_draws_df() |> 
+  bayesplot::mcmc_trace()
 ```

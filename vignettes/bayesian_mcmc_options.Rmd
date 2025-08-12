@@ -15,14 +15,7 @@ editor_options:
 
 ```{r setup}
 #| include: false
-knitr::opts_chunk$set(echo = TRUE, comment = "#>", 
-                      fig.width = 6.5, fig.height = 5, fig.fullwidth=TRUE,
-                      fig.align = "center", out.height="auto")
-options(knitr.kable.NA = "")
-
-bayesplot::bayesplot_theme_set(ggplot2::theme_gray())
-bayesplot::color_scheme_set(scheme = "brightblue")
-
+source("theme.R")
 library(housepi)
 set.seed(42)
 ```
@@ -34,11 +27,11 @@ In this vignette we present all available options for the choice of the prior an
 To perform the sampling we consider the "blank" model, i. e. a data independent template model, with loglikelihood always equal to zero.
 Here's the full list of available continuos distributions present in `housepi`:
 ```{r}
-# reak distributions in housepi
-continuos_distri <- c("unif", "norm", "lnorm", "gamma", 
-                      "weibull", "rayleigh","beta", "exp")
+# real distributions in housepi
+continuos_distri <- c("unif", "norm", "lnorm", "gamma",
+                      "weibull", "rayleigh", "beta", "exp")
 
-# generate list with definitions 
+# generate list with definitions
 defs <- Map(list, prior = continuos_distri) |>
   setNames(continuos_distri)
 
@@ -46,8 +39,8 @@ defs <- Map(list, prior = continuos_distri) |>
 new_housepi_model("blank") |>
   load_parameter_list(from = defs) |>
   # perform the sampling with the inference command
-  infer() |> 
-  as_draws_df() |> 
+  infer() |>
+  get_param_draws_df() |>
   bayesplot::mcmc_dens()
 ```
 
@@ -58,16 +51,29 @@ Here we associated definitions of parameters to infer with default arguments and
 We then test various example MISSING
 
 ```{r}
+#| warning: false
+#| message: false
+library(ggplot2)
+
 new_housepi_model("blank") |>
   load_parameter_list(
     default = list(prior = "norm"),
     below = list(prior = "norm", min = -1),
     above = list(prior = "norm", max = 1),
     both = list(prior = "norm", min = -1, max = 1)
-  ) |> 
-  infer() |> 
-  as_draws_df() |> 
-  bayesplot::mcmc_dens()
+  ) |>
+  infer() |>
+  get_param_draws_df() |>
+  bayesplot::mcmc_dens() +
+  coord_cartesian(xlim = c(-3, 3), ylim = c(0, 0.6)) +
+  geom_vline(
+    data = data.frame(
+      Parameter = c("below", "above", "both", "both"),
+      xintercept = c(-1, 1, -1, 1)
+    ),
+    aes(xintercept = xintercept),
+    colour = "coral", linewidth = 1, linetype = 2
+  )
 ```
 
 # Discrete Priors
@@ -86,9 +92,9 @@ defs <- Map(list, prior = discrete_distri) |>
   setNames(discrete_distri)
 
 new_housepi_model("blank") |>
-  load_parameter_list(from = defs) |> 
+  load_parameter_list(from = defs) |>
   infer() |>
-  as_draws_df() |> 
+  get_param_draws_df() |>
   bayesplot::mcmc_hist(binwidth = 1)
 ```
 
@@ -103,8 +109,8 @@ defs <- Map(list, prior = reduc_distri, discr = TRUE) |>
 
 new_housepi_model("blank") |>
   load_parameter_list(from = defs) |>
-  infer() |> 
-  as_draws_df() |> 
+  infer() |>
+  get_param_draws_df() |>
   bayesplot::mcmc_hist(binwidth = 1)
 ```
 
@@ -117,25 +123,25 @@ bayesplot::color_scheme_set(scheme = "brightblue")
 
 ```{r}
 # available proposer rules in housepi
-proposer_rules <- c("draw", "unif", "norm", "lnorm")
-defs <- Map(list, prior = "norm", min = 0, 
+proposer_rules <- c("sample", "unif", "norm", "lnorm")
+defs <- Map(list, prior = "norm", min = 0,
             rule = proposer_rules, scale = 0.01) |>
   setNames(paste("rule", proposer_rules))
 
 new_housepi_model("blank") |>
   load_parameter_list(from = defs) |>
-  infer(n_steps = 100) |> 
-  as_draws_df() |> 
+  infer(n_steps = 100) |>
+  get_param_draws_df() |>
   bayesplot::mcmc_trace()
 ```
 Note that the proposer rule "lnorm" does not fit the case of negative values.
 
-### Role of Finite Adaptation
+## Role of Finite Adaptation
 
 ```{r}
 new_housepi_model("blank") |>
   load_parameter_list(from = defs) |>
-  infer(n_steps = 100, n_adapt = 1000) |> 
-  as_draws_df() |> 
+  infer(n_steps = 100, n_adapt = 1000) |>
+  get_param_draws_df() |>
   bayesplot::mcmc_trace()
 ```

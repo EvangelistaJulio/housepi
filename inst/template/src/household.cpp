@@ -32,7 +32,7 @@ Individual::Individual(size_t index,
 					   size_t hhindex,
 					   const std::string &id,
 					   int status,
-					   const data_key_map<double> &data)
+					   const u_dict<double> &data)
 {
 	index_ = index;
 	hhindex_ = hhindex;
@@ -69,42 +69,49 @@ double Individual::compute_and_set_augm_model_loglike()
 //////////////////////////////////////  Individual : setter  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Individual::init_all_group_rates(const rate_key_mapvec<const double *> &ptrs)
+void Individual::init_all_group_rates(const u_dict<std::vector<const double *>> &ptrs)
 {
 	for (const auto &pair : ptrs)
 	{
-		rate_key r = pair.first;
+		std::string r = pair.first;
 		std::vector<const double *> vec_par_ptr = pair.second;
 
 		if (vec_par_ptr.empty())
 			std::invalid_argument(
 				"Missing rate \"" + r + "\" for individual " + id_ + ".");
 		else
-			this->rate_map_[r] = GroupRate(r, vec_par_ptr);
+			rate_map_[r] = GroupRate(r, vec_par_ptr);
 	}
 }
 
 /* Assign definitions for the augmented variable model. */
-void Individual::init_augm(const augm_key &a, const std::string &name,
-							 double value, bool is_discrete, bool is_constant,
-							 const std::string &func_name,
-							 const std::string &model_name)
+void Individual::init_augm(const std::string &a, const std::string &name,
+						   double value, bool is_discrete, bool is_constant,
+						   const std::string &func_name,
+						   const std::string &model_name)
 {
-	Variable &this_augm = safe_at(augm_map_, a);
+	Variable &this_augm = safe_at(augm_map_, "augmented variable", a);
 	this_augm.init(name, value, is_discrete, is_constant, func_name);
 	this_augm.init_distr(model_name);
 }
 
 /* Associate functional methods for augmented model pdfs. */
-void Individual::init_augm_model(const std::vector<augm_key> &augm_model_list)
+void Individual::init_augm_model(const str_vec &augm_model_list)
 {
 	augm_model_logpdfs_.clear();
-	for (const augm_key &a : augm_model_list)
+	for (const std::string &a : augm_model_list)
 	{
-		const Variable &xaugm = safe_at(augm_map_, a);
+		const Variable &xaugm = safe_at(augm_map_, "augmented variable", a);
 		augm_model_logpdfs_.emplace_back([&xaugm]()
 										 { return xaugm.distr_logpdf(); });
 	}
+}
+
+/* Restore user values if applicable. */
+void Individual::user_reset()
+{
+	for (auto &pair : augm_map_)
+		pair.second.user_reset();
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -156,7 +163,7 @@ Household::Household(const std::string &house_id, size_t H)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign a multiplicity to the household. */
-void Household::set_multiplicity(ulong m, size_t class_idx)
+void Household::set_multiplicity(unsigned long m, size_t class_idx)
 {
 	house_multiplicity_ = m;
 	multiplicity_class_ = class_idx;
@@ -164,9 +171,9 @@ void Household::set_multiplicity(ulong m, size_t class_idx)
 
 /* Link an individual to the household. */
 void Household::init_member(size_t index,
-							  const std::string &id,
-							  int status,
-							  const data_key_map<double> &data)
+							const std::string &id,
+							int status,
+							const u_dict<double> &data)
 {
 	// emplace new individual
 	members_.emplace_back(index, house_size_, id, status, data);

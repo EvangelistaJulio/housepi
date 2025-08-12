@@ -187,7 +187,7 @@ tidyup_group_rate_tables <- function(all_tables) {
 ############################################################################
 
 #' @title
-#' Housepi Group Rate R6 Class
+#' Housepi Group Rate
 #' @description
 #' Help with group rate definitions of model Rcpp object.
 #'

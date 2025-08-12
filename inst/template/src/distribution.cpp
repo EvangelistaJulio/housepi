@@ -42,7 +42,7 @@ public:
     //===== SETTER =====//
     void init_reshaping(bool discrete) override final
     {
-        ushort discr_case = (discrete) ? D_DISCR_TYPE_CNTR : D_DISCR_TYPE_NONE;
+        unsigned short discr_case = (discrete) ? D_DISCR_TYPE_CNTR : D_DISCR_TYPE_NONE;
 
         init_functional_range(false, false);
         init_functional_discretization(discr_case);
@@ -84,7 +84,7 @@ public:
     {
         init_functional_range(false, false);
 
-        ushort discr_case = D_DISCR_TYPE_NONE;
+        unsigned short discr_case = D_DISCR_TYPE_NONE;
         if (discrete)
             switch (which_valid_case())
             {

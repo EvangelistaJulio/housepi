@@ -17,90 +17,9 @@
 
 #include "tools.h"
 
-// namespace for I/O custom functions
+// TOOLS NAMESPACE
 namespace tools
 {
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////////  Auxiliary Variables  ////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-
-    std::unordered_set<std::string> _issued_warnings_;
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////////  Auxiliary Functions  ////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-
-    /* Internal check for std::string representing NA. */
-    bool is_na(const std::string &txt)
-    {
-        if (txt.size() == 0)
-            return true;
-        else if (txt == HSP_NA_STRING)
-            return true;
-        else
-            return (str_vec({"<NA>", "NA", "NAN"}) % stoupper(txt));
-    }
-
-    /* Internal check for double representing NA. */
-    bool is_na(double x)
-    {
-#ifdef _HOUSEPI_RCPP
-        if (Rcpp::traits::is_na<REALSXP>(x))
-            return true;
-#else
-        if (std::isnan(x))
-            return true;
-#endif
-        return false;
-    }
-
-    /* A formatted std::string for percentage of num/denom */
-    const std::string percentage(double fraction, ushort precision)
-    {
-        std::ostringstream oss;
-        oss << std::fixed << std::setprecision(precision)
-            << (100. * fraction) << "%";
-        return oss.str();
-    }
-
-    /* A formatted std::string for TRUE/FALSE values. */
-    const std::string truth(bool condition)
-    {
-#ifdef _HOUSEPI_RCPP
-        return (condition ? "true" : "false");
-#else
-        return (condition ? "TRUE" : "FALSE");
-#endif
-    }
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////  RCPP Instructions  ///////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-
-    /* Function to change stdout in case of RCPP. */
-    void print_stdout(const std::string &txt)
-    {
-#ifdef _HOUSEPI_RCPP
-        Rcpp::Rcout << txt;
-        Rcpp::Rcout.flush();
-#else
-        std::cout << txt;
-        std::cout.flush();
-#endif
-    }
-
-    /* Internal helper function to change stderr in case of RCPP. */
-    void print_stderr(const std::string &txt)
-    {
-#ifdef _HOUSEPI_RCPP
-        Rcpp::Rcerr << txt;
-        Rcpp::Rcerr.flush();
-#else
-        std::cerr << txt;
-        std::cerr.flush();
-#endif
-    }
-
     //-----------------------------------------------------------------------------------------------//
     //-----------------------------------------------------------------------------------------------//
     //-----------------------------------------------------------------------------------------------//
@@ -118,6 +37,8 @@ namespace tools
     /////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////  Warning Functions  //////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    std::unordered_set<std::string> _issued_warnings_;
 
     /* Display a single-line warning message. */
     void warning(const std::string &txt)
@@ -143,7 +64,6 @@ namespace tools
     {
 #ifdef _HOUSEPI_RCPP
         throw Rcpp::exception(txt.c_str(), false);
-        // Rcpp::stop(txt);
 #else
         std::cerr << "Error: " + txt + "\nExit..."
                   << std::endl;
@@ -152,91 +72,32 @@ namespace tools
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////  String Converter Functions ///////////////////////////////////
+    //////////////////////////////////////  Auxiliary Functions  ////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /* Convert to lower case. */
-    const std::string stolower(const std::string s)
+    /* Internal check for std::string representing NA. */
+    bool is_na(const std::string &txt)
     {
-        std::string out = s;
-        std::transform(out.begin(), out.end(), out.begin(), ::tolower);
-        return out;
-    }
-
-    /* Convert to upper case. */
-    const std::string stoupper(const std::string s)
-    {
-        std::string out = s;
-        std::transform(out.begin(), out.end(), out.begin(), ::toupper);
-        return out;
-    }
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////  Converter Functions ///////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-
-    /* Template function to wrap conversion functions with try-catch */
-    template <typename Func, typename... Args>
-    auto _safe_converter(Func func, const std::string &input, const std::string &errtxt, Args &&...args) -> decltype(func(input, std::forward<Args>(args)...))
-    {
-        try
-        {
-            return func(input, std::forward<Args>(args)...);
-        }
-        catch (const std::invalid_argument &e)
-        {
-            std::string sms = (errtxt.empty()) ? "" : "Unable to import " + errtxt + ". ";
-            throw std::invalid_argument(sms + "Value \"" + input + "\" is not suitable to conversion.");
-        }
-    }
-
-    /* Converter to int using std::stoi with function pointer casting */
-    int stoi(const std::string &input, const std::string &errtxt)
-    {
-        return _safe_converter(static_cast<int (*)(const std::string &, std::size_t *, int)>(std::stoi), input, errtxt, nullptr, 10);
-    }
-
-    /* Converter to unsigned long using std::stoul with function pointer casting */
-    unsigned long stoul(const std::string &input, const std::string &errtxt)
-    {
-        return _safe_converter(static_cast<ulong (*)(const std::string &, std::size_t *, int)>(std::stoul), input, errtxt, nullptr, 10);
-    }
-
-    /* Converter to unsigned 32bit integer (for R compatibility). */
-    std::int32_t stoi32(const std::string &input, const std::string &errtxt)
-    {
-        return static_cast<std::int32_t>(stoul(input, errtxt));
-    }
-
-    /* Converter to double using std::stod with function pointer casting */
-    double stod(const std::string &input, const std::string &errtxt)
-    {
-        return _safe_converter(static_cast<double (*)(const std::string &, std::size_t *)>(std::stod), input, errtxt, nullptr);
-    }
-
-    /* Converter to string checking for NA values. */
-    const std::string na_to_str(double x)
-    {
-        return is_na(x) ? HSP_NA_STRING : std::to_string(x);
-    }
-
-    /* Convert std::string to boolean variable. */
-    bool stobool(const std::string &tkn)
-    {
-        if (stoupper(tkn) == "TRUE" || tkn == "1")
+        if (txt.size() == 0)
             return true;
-        else if (stoupper(tkn) == "FALSE" || tkn == "0")
-            return false;
-        throw std::invalid_argument(
-            "Unrecognized boolean value \"" + tkn + "\".");
+        else if (txt == HSP_NA_STRING)
+            return true;
+        else
+            return (str_vec({"<NA>", "NA", "NAN"}) % str::toup(txt));
     }
 
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
+    /* Internal check for double representing NA. */
+    bool is_na(double x)
+    {
+#ifdef _HOUSEPI_RCPP
+        if (Rcpp::traits::is_na<REALSXP>(x))
+            return true;
+#else
+        if (std::isnan(x))
+            return true;
+#endif
+        return false;
+    }
 
     /* Default seed for pseudo random number generator.  */
     std::int32_t default_setup_seed()
@@ -250,244 +111,12 @@ namespace tools
         return static_cast<std::int32_t>(mixed & 0x7FFFFFFF);
     }
 
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-
-    /* Clean std::string from forbidden characters and convert to UNDEFINED. */
-    const std::string strcleaner(std::string tkn)
-    {
-        // forbidden characters
-        for (char r : {'"', '\r', '\n'})
-            tkn.erase(remove(tkn.begin(), tkn.end(), r), tkn.end());
-
-        // check for undefined
-        if (is_na(tkn))
-            tkn = HSP_NA_STRING;
-
-        return tkn;
-    }
-
-    /* Read column headers and compare to required headers. */
-    str_vec read_column_headers(std::ifstream &input)
-    {
-        // clean headers
-        str_vec headers = {};
-
-        // read first line
-        std::string line, tkn;
-        getline(input, line);
-        std::istringstream iss(line);
-
-        // get headers from first line
-        while (getline(iss, tkn, C_DELIM))
-            headers.push_back(strcleaner(tkn));
-
-        return headers;
-    }
-
-    /* Load files from the row with headers */
-    bool read_row_by_headers(std::ifstream &input, const str_vec &headers, dict_str_str &this_row)
-    {
-        std::string line, tkn;
-
-        if (getline(input, line))
-        {
-            std::istringstream iss(line);
-            size_t n_cols = 0;
-
-            while (getline(iss, tkn, C_DELIM))
-                this_row.emplace(headers[n_cols++], strcleaner(tkn));
-
-            // last column is empty
-            for (size_t i = n_cols; i < headers.size(); i++)
-                this_row.emplace(headers[i], HSP_NA_STRING);
-
-            return true;
-        }
-        
-        return false;
-    }
-
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-
-    /* Parse the list from the std::string. */
-    const str_vec parse_list_args(const std::string &tkn, const char delim)
-    {
-        std::istringstream args_ss(tkn);
-        str_vec output = {};
-        std::string tmp;
-
-        // rea the entries of the dictionary
-        while (getline(args_ss, tmp, delim))
-            output.push_back(tmp);
-
-        return output;
-    }
-
-    /* Extract headers from deflist. */
-    const str_vec headers_from_deflist(const dict_str_str &deflist)
-    {
-        str_vec entries = {};
-        for (const auto &pair : deflist)
-            entries.push_back(pair.first);
-        return entries;
-    }
-
-    /* Read csv list store in pathtofile and store it parsed in csv_parsed_list. */
-    const dict_str_str read_csv_list(const std::string &pathtofile)
-    {
-        dict_str_str output = {};
-
-        if (!is_na(pathtofile))
-        {
-            std::ifstream input(pathtofile.c_str());
-
-            if (input.is_open())
-            {
-                // Create a std::stringstream of the current line
-                for (std::string line; getline(input, line);)
-                {
-                    std::string name, choice;
-                    std::istringstream iss(line);
-
-                    //===== NAME =====//
-                    if (!getline(iss, name, C_DELIM))
-                        throw std::runtime_error(
-                            "Unable to extract list name. Check file line \"" + line + "\".");
-
-                    //===== CHOICE =====//
-                    if (!getline(iss, choice))
-                        throw std::runtime_error(
-                            "Unable to extract list value. Check file line \"" + line + "\".");
-
-                    // add the new setup
-                    output.emplace(strcleaner(name), strcleaner(choice));
-                }
-            }
-            else
-                throw std::runtime_error(
-                    "Unable to open file \"" + pathtofile + "\".");
-        }
-
-        return output;
-    }
-
-    /* Extract headers from deftable. */
-    const str_vec headers_from_deftable(const dict_str_vec &deftable)
-    {
-        str_vec entries = {};
-        for (const auto &pair : deftable)
-            entries.push_back(pair.first);
-        return entries;
-    }
-
-    /* Read csv table in pathtofile and store it parsed in csv_parsed_table. */
-    const dict_str_vec read_csv_table(const std::string &pathtofile)
-    {
-        dict_str_vec output = {};
-
-        if (!is_na(pathtofile))
-        {
-            std::ifstream input(pathtofile.c_str());
-
-            if (input.is_open())
-            {
-                // read and check for valid headers
-                const str_vec headers = read_column_headers(input);
-
-                dict_str_str this_row = {};
-                while (read_row_by_headers(input, headers, this_row))
-                {
-                    for (const auto &x : this_row)
-                        output[x.first].push_back(x.second);
-                    this_row.clear();
-                }
-            }
-            else
-                throw std::runtime_error(
-                    "Unable to open file \"" + pathtofile + "\".");
-        }
-
-        return output;
-    }
-
-#ifdef _HOUSEPI_RCPP
-
-    /* Format C++ string into Rcpp string. */
-    Rcpp::String stoRString(const std::string &x)
-    {
-        if (tools::is_na(x))
-            return HSP_NA_STRING;
-        return Rcpp::String(x);
-    }
-
-    /* Convert R List into map<string, string>. */
-    const dict_str_str rlist_to_map(SEXP input)
-    {
-        using namespace Rcpp;
-        dict_str_str output = {};
-
-        if (!Rf_isNull(input))
-        {
-            List list(input);
-            CharacterVector rownames = list.names();
-
-            for (R_xlen_t i = 0; i < list.size(); ++i)
-            {
-                CharacterVector element = list[i];
-                std::string value = as<std::string>(wrap(element[0]));
-                output[as<std::string>(rownames[i])] = value;
-            }
-        }
-
-        return output;
-    }
-
-    /* Convert R dataframe into map<string, vector<string>>. */
-    const dict_str_vec rdataframe_to_map(SEXP input)
-    {
-        using namespace Rcpp;
-        dict_str_vec output = {};
-
-        if (!Rf_isNull(input))
-        {
-            Rcpp::DataFrame df(input);
-            CharacterVector colnames = df.names();
-
-            for (R_xlen_t i = 0; i < df.size(); ++i)
-            {
-                CharacterVector col_str = as<CharacterVector>(df[i]);
-                str_vec col_data(col_str.begin(), col_str.end());
-                output[as<std::string>(colnames[i])] = std::move(col_data);
-            }
-        }
-
-        return output;
-    }
-#endif
-
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-
     /* Welford online's algorithm for mean and variance.
         Ref :
         ----
         https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
     */
-    const std::pair<double, double> compute_stats(const dbl_vec &data)
+    std::pair<double, double> compute_stats(const dbl_vec &data)
     {
         size_t i = 0;
         size_t N = data.size();
@@ -514,94 +143,389 @@ namespace tools
     //-----------------------------------------------------------------------------------------------//
     //-----------------------------------------------------------------------------------------------//
 
-    // Function to calculate Levenshtein distance
-    /* Levenshtein distance calculated the dynamic programming approach.
-        Ref.
-        -----
-        https://github.com/guilhermeagostinelli/levenshtein/blob/master/levenshtein.cpp
-    */
-    ushort levenshtein(const std::string &seq_A, const std::string &seq_B)
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////  String Manipulation Functions  /////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    // TOOLS::STR NAMESPACE
+    namespace str
     {
-        ushort len_A = seq_A.size();
-        ushort len_B = seq_B.size();
-        // Verification matrix i.e. 2D array which will store the calculated distance
-        matrix<ushort> verif(len_A + 1, std::vector<ushort>(len_B + 1, 0));
-
-        // If one of the words has zero length, the distance is equal to the size of the other word.
-        if (len_A == 0)
-            return len_B;
-        if (len_B == 0)
-            return len_A;
-
-        // Sets the first row and the first column of the verification matrix
-        for (ushort a = 0; a <= len_A; ++a)
-            verif[a][0] = a;
-        for (ushort b = 0; b <= len_B; ++b)
-            verif[0][b] = b;
-
-        // Verification step / matrix filling.
-        for (ushort a = 1; a <= len_A; ++a)
-            for (ushort b = 1; b <= len_B; ++b)
-                if (seq_A[a - 1] == seq_B[b - 1])
-                    verif[a][b] = verif[a - 1][b - 1];
-                else
-                    verif[a][b] = std::min({verif[a - 1][b - 1], verif[a - 1][b], verif[a][b - 1]}) + 1;
-
-        // Last position of the matrix contains the distance
-        return verif[len_A][len_B];
-    }
-
-    /* Format a list of string options. */
-    const std::string str_list(const str_vec &options, size_t max_print)
-    {
-        if (options.empty())
-            return "";
-        else
+        /* Convert to lower case. */
+        std::string tolow(const std::string s)
         {
-            std::ostringstream oss;
-            max_print = std::min(options.size(), max_print);
-
-            oss << "\"" << options[0] << "\"";
-            for (size_t i = 1; i < max_print; ++i)
-                oss << ", \"" << options[i] << "\"";
-            if (options.size() > max_print)
-                oss << ", ..";
-            oss << ".";
-            return oss.str();
+            std::string out = s;
+            std::transform(out.begin(), out.end(), out.begin(), ::tolower);
+            return out;
         }
-    }
 
-    /* Function to find the closest match. */
-    const std::string find_closest(const std::string &input,
-                                   const str_vec &options,
-                                   ushort min_dist)
-    {
-        std::string closest = "";
-        ushort dist_closest = min_dist;
-
-        for (const std::string &x : options)
+        /* Convert to upper case. */
+        std::string toup(const std::string s)
         {
-            ushort distance = levenshtein(input, x);
-            if (distance <= dist_closest)
+            std::string out = s;
+            std::transform(out.begin(), out.end(), out.begin(), ::toupper);
+            return out;
+        }
+
+        /* make list composed of distinct entries */
+        str_vec drop_duplicate(const str_vec &vec)
+        {
+            std::vector<std::string> out;
+            out.reserve(vec.size());
+            for (const std::string &s : vec)
+                if (!(out % s))
+                    out.push_back(s);
+            return out;
+        }
+
+        /* Remove private entries from list. */
+        str_vec drop_private(str_vec vec)
+        {
+            auto new_end = std::remove_if(
+                vec.begin(), vec.end(),
+                [](const std::string &a)
+                { return a.size() >= HSP_HIDE_PRFX.size() &&
+                         a.compare(0, HSP_HIDE_PRFX.size(), HSP_HIDE_PRFX) == 0; });
+            vec.erase(new_end, vec.end());
+            return vec;
+        }
+        /* Converter to string checking for NA values. */
+        std::string format(double x)
+        {
+            return is_na(x) ? HSP_NA_STRING : std::to_string(x);
+        }
+
+        /* A formatted std::string for TRUE/FALSE values. */
+        std::string format(bool condition)
+        {
+#ifdef _HOUSEPI_RCPP
+            return (condition ? "true" : "false");
+#else
+            return (condition ? "TRUE" : "FALSE");
+#endif
+        }
+
+        /* Format a list of string options. */
+        std::string format(const str_vec &options, size_t max_print)
+        {
+            if (options.empty())
+                return "";
+            else
             {
-                dist_closest = distance;
-                closest = x;
+                std::ostringstream oss;
+                max_print = std::min(options.size(), max_print);
+
+                oss << "\"" << options[0] << "\"";
+                for (size_t i = 1; i < max_print; ++i)
+                    oss << ", \"" << options[i] << "\"";
+                if (options.size() > max_print)
+                    oss << ", ..";
+                oss << ".";
+                return oss.str();
             }
         }
 
-        // prepare a message
-        if (options.empty())
-            return "";
-        else if (dist_closest == 0)
-            return "";
-        else if (closest.empty())
-            if (options.size() == 1)
-                return " Available option is " + str_list(options);
+        // Function to calculate Levenshtein distance
+        /* Levenshtein distance calculated the dynamic programming approach.
+            Ref.
+            -----
+            https://github.com/guilhermeagostinelli/levenshtein/blob/master/levenshtein.cpp
+        */
+        unsigned short levenshtein(const std::string &seq_A, const std::string &seq_B)
+        {
+            unsigned short len_A = seq_A.size();
+            unsigned short len_B = seq_B.size();
+            // Verification matrix i.e. 2D array which will store the calculated distance
+            matrix<unsigned short> verif(len_A + 1, std::vector<unsigned short>(len_B + 1, 0));
+
+            // If one of the words has zero length, the distance is equal to the size of the other word.
+            if (len_A == 0)
+                return len_B;
+            if (len_B == 0)
+                return len_A;
+
+            // Sets the first row and the first column of the verification matrix
+            for (unsigned short a = 0; a <= len_A; ++a)
+                verif[a][0] = a;
+            for (unsigned short b = 0; b <= len_B; ++b)
+                verif[0][b] = b;
+
+            // Verification step / matrix filling.
+            for (unsigned short a = 1; a <= len_A; ++a)
+                for (unsigned short b = 1; b <= len_B; ++b)
+                    if (seq_A[a - 1] == seq_B[b - 1])
+                        verif[a][b] = verif[a - 1][b - 1];
+                    else
+                        verif[a][b] = std::min({verif[a - 1][b - 1], verif[a - 1][b], verif[a][b - 1]}) + 1;
+
+            // Last position of the matrix contains the distance
+            return verif[len_A][len_B];
+        }
+
+        /* Function to find the closest match. */
+        std::string find_closest(const std::string &input,
+                                 const str_vec &options,
+                                 unsigned short min_dist)
+        {
+            std::string closest = "";
+            unsigned short dist_closest = min_dist;
+
+            for (const std::string &x : options)
+            {
+                unsigned short distance = levenshtein(input, x);
+                if (distance <= dist_closest)
+                {
+                    dist_closest = distance;
+                    closest = x;
+                }
+            }
+
+            // prepare a message
+            if (options.empty())
+                return "";
+            else if (dist_closest == 0)
+                return "";
+            else if (closest.empty())
+                if (options.size() == 1)
+                    return "\nAvailable option is " + format(options);
+                else
+                    return "\nAvailable options are: " + format(options);
             else
-                return " Available options are: " + str_list(options);
-        else
-            return " Did you mean \"" + closest + "\"?";
+                return "\nDid you mean \"" + closest + "\"?";
+        }
+
+        /////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////  Converter Functions ///////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////////////
+
+        /// Convert std::string to boolean variable.
+        /// NA is assumed as FALSE.
+        bool tobool(const std::string &tkn)
+        {
+            if (is_na(tkn))
+                return false;
+            else if (toup(tkn) == "FALSE" || tkn == "0")
+                return false;
+            else if (toup(tkn) == "TRUE" || tkn == "1")
+                return true;
+            else
+                throw std::invalid_argument(
+                    "Unrecognized boolean value \"" + tkn + "\".");
+        }
+
+        /* Template function to wrap conversion functions with try-catch */
+        template <typename Func, typename... Args>
+        auto converter_(Func func, const std::string &input, const std::string &errtxt, Args &&...args) -> decltype(func(input, std::forward<Args>(args)...))
+        {
+            try
+            {
+                return func(input, std::forward<Args>(args)...);
+            }
+            catch (const std::invalid_argument &e)
+            {
+                std::string sms = (errtxt.empty()) ? "" : "Unable to import " + errtxt + ". ";
+                throw std::invalid_argument(sms + "Value \"" + input + "\" is not suitable to conversion.");
+            }
+        }
+
+        /* Converter to int using std::stoi with function pointer casting */
+        int toi(const std::string &input, const std::string &errtxt)
+        {
+            return converter_(static_cast<int (*)(const std::string &, std::size_t *, int)>(std::stoi), input, errtxt, nullptr, 10);
+        }
+
+        /* Converter to unsigned long using std::stoul with function pointer casting */
+        unsigned long toul(const std::string &input, const std::string &errtxt)
+        {
+            return converter_(static_cast<unsigned long (*)(const std::string &, std::size_t *, int)>(std::stoul), input, errtxt, nullptr, 10);
+        }
+
+        /* Converter to unsigned 32bit integer (for R compatibility). */
+        std::int32_t toi32(const std::string &input, const std::string &errtxt)
+        {
+            return static_cast<std::int32_t>(toul(input, errtxt));
+        }
+
+        /* Converter to double using std::stod with function pointer casting */
+        double tod(const std::string &input, const std::string &errtxt)
+        {
+            return converter_(static_cast<double (*)(const std::string &, std::size_t *)>(std::stod), input, errtxt, nullptr);
+        }
+    } // TOOLS::STR NAMESPACE
+
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+
+    /* Clean std::string from forbidden characters and convert to UNDEFINED. */
+    const std::string strcleaner_(std::string tkn)
+    {
+        // forbidden characters
+        for (char r : {'"', '\r', '\n'})
+            tkn.erase(remove(tkn.begin(), tkn.end(), r), tkn.end());
+        // check for undefined
+        if (is_na(tkn))
+            tkn = HSP_NA_STRING;
+        return tkn;
     }
+
+    /* Read column headers and compare to required headers. */
+    str_vec read_column_headers_(std::ifstream &input)
+    {
+        // clean headers
+        str_vec headers = {};
+
+        // read first line
+        std::string line, tkn;
+        getline(input, line);
+        std::istringstream iss(line);
+
+        // get headers from first line
+        while (getline(iss, tkn, C_DELIM))
+            headers.push_back(strcleaner_(tkn));
+
+        return headers;
+    }
+
+    /* Load files from the row with headers */
+    bool read_row_by_headers_(std::ifstream &input, const str_vec &headers, dict_str &this_row)
+    {
+        std::string line, tkn;
+
+        if (getline(input, line))
+        {
+            std::istringstream iss(line);
+            size_t n_cols = 0;
+
+            while (getline(iss, tkn, C_DELIM))
+                this_row.emplace(headers[n_cols++], strcleaner_(tkn));
+
+            // last column is empty
+            for (size_t i = n_cols; i < headers.size(); i++)
+                this_row.emplace(headers[i], HSP_NA_STRING);
+
+            return true;
+        }
+
+        return false;
+    }
+
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+
+    /* Parse the list from the std::string. */
+    str_vec parse_list_args(const std::string &tkn, const char delim)
+    {
+        std::istringstream args_ss(tkn);
+        str_vec output = {};
+        std::string tmp;
+
+        // rea the entries of the dictionary
+        while (getline(args_ss, tmp, delim))
+            output.push_back(tmp);
+
+        return output;
+    }
+
+    /* Extract headers from deflist. */
+    str_vec headers_from_deflist(const dict_str &deflist)
+    {
+        str_vec entries = {};
+        for (const auto &pair : deflist)
+            entries.push_back(pair.first);
+        return entries;
+    }
+
+    /* Read csv list store in pathtofile and store it parsed in csv_parsed_list. */
+    dict_str read_csv_list(const std::string &pathtofile)
+    {
+        dict_str output = {};
+
+        if (!is_na(pathtofile))
+        {
+            std::ifstream input(pathtofile.c_str());
+
+            if (input.is_open())
+            {
+                // Create a std::stringstream of the current line
+                for (std::string line; getline(input, line);)
+                {
+                    std::string name, choice;
+                    std::istringstream iss(line);
+
+                    //===== NAME =====//
+                    if (!getline(iss, name, C_DELIM))
+                        throw std::runtime_error(
+                            "Unable to extract list name. Check file line \"" + line + "\".");
+
+                    //===== CHOICE =====//
+                    if (!getline(iss, choice))
+                        throw std::runtime_error(
+                            "Unable to extract list value. Check file line \"" + line + "\".");
+
+                    // add the new setup
+                    output.emplace(strcleaner_(name), strcleaner_(choice));
+                }
+            }
+            else
+                throw std::runtime_error(
+                    "Unable to open file \"" + pathtofile + "\".");
+        }
+
+        return output;
+    }
+
+    /* Extract headers from deftable. */
+    str_vec headers_from_deftable(const dict_str_vec &deftable)
+    {
+        str_vec entries = {};
+        for (const auto &pair : deftable)
+            entries.push_back(pair.first);
+        return entries;
+    }
+
+    /* Read csv table in pathtofile and store it parsed in csv_parsed_table. */
+    dict_str_vec read_csv_table(const std::string &pathtofile)
+    {
+        dict_str_vec output = {};
+
+        if (!is_na(pathtofile))
+        {
+            std::ifstream input(pathtofile.c_str());
+
+            if (input.is_open())
+            {
+                // read and check for valid headers
+                const str_vec headers = read_column_headers_(input);
+
+                dict_str this_row = {};
+                while (read_row_by_headers_(input, headers, this_row))
+                {
+                    for (const auto &x : this_row)
+                        output[x.first].push_back(x.second);
+                    this_row.clear();
+                }
+            }
+            else
+                throw std::runtime_error(
+                    "Unable to open file \"" + pathtofile + "\".");
+        }
+
+        return output;
+    }
+
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
+    //-----------------------------------------------------------------------------------------------//
 
     /* Check for missing entries given a vector of options. */
     void check_for_missing_entries(const str_vec &entries,
@@ -622,10 +546,10 @@ namespace tools
             {
                 if (missing.size() == 1)
                     throw std::invalid_argument(
-                        "Missing " + where + " " + str_list(missing));
+                        "Missing " + where + " " + str::format(missing));
                 else
                     throw std::invalid_argument(
-                        "Missing " + where + "s: " + str_list(missing));
+                        "Missing " + where + "s: " + str::format(missing));
             }
         }
     }
@@ -643,261 +567,66 @@ namespace tools
 
         if (unused.size() == 1)
             throw std::invalid_argument(
-                "Unknown " + where + " " + str_list(unused) + find_closest(unused[0], options));
+                "Unknown " + where + " " + str::format(unused) +
+                str::find_closest(unused[0], options));
 
         else if (unused.size() > 1)
             throw std::invalid_argument(
-                "Unknown " + where + "s: " + str_list(unused) + find_closest(HSP_NA_STRING, options, 0));
+                "Unknown " + where + "s: " + str::format(unused) +
+                str::find_closest(HSP_NA_STRING, options, 0));
     }
 
+#ifdef _HOUSEPI_RCPP
+    /* Format C++ string into Rcpp string. */
+    Rcpp::String stoRString(const std::string &x)
+    {
+        if (tools::is_na(x))
+            return HSP_NA_STRING;
+        return Rcpp::String(x);
+    }
+
+    /* Convert R List into map<string, string>. */
+    dict_str rlist_to_map(SEXP input)
+    {
+        using namespace Rcpp;
+        dict_str output = {};
+
+        if (!Rf_isNull(input))
+        {
+            List list(input);
+            CharacterVector rownames = list.names();
+
+            for (R_xlen_t i = 0; i < list.size(); ++i)
+            {
+                CharacterVector element = list[i];
+                std::string value = as<std::string>(wrap(element[0]));
+                output[as<std::string>(rownames[i])] = value;
+            }
+        }
+
+        return output;
+    }
+
+    /* Convert R dataframe into map<string, vector<string>>. */
+    dict_str_vec rdataframe_to_map(SEXP input)
+    {
+        using namespace Rcpp;
+        dict_str_vec output = {};
+
+        if (!Rf_isNull(input))
+        {
+            Rcpp::DataFrame df(input);
+            CharacterVector colnames = df.names();
+
+            for (R_xlen_t i = 0; i < df.size(); ++i)
+            {
+                CharacterVector col_str = as<CharacterVector>(df[i]);
+                str_vec col_data(col_str.begin(), col_str.end());
+                output[as<std::string>(colnames[i])] = std::move(col_data);
+            }
+        }
+
+        return output;
+    }
+#endif
 } // TOOLS NAMESPACE
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-namespace progress
-{
-    using namespace std::chrono;
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////  Progress Bar Functions  ///////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-
-    /* Format elapsed time in seconds. */
-    const std::string fmt_time(std::chrono::seconds scs)
-    {
-        std::ostringstream oss;
-
-        auto dys = duration_cast<duration<int, std::ratio<86400>>>(scs);
-        scs -= duration_cast<seconds>(dys);
-
-        auto hrs = duration_cast<hours>(scs);
-        scs -= duration_cast<seconds>(hrs);
-
-        auto mns = duration_cast<minutes>(scs);
-        scs -= duration_cast<seconds>(mns);
-
-        // show large time scales only if relevant
-        if (dys.count() > 0)
-            oss << dys.count() << "d"
-                << std::setfill('0') << std::setw(2) << hrs.count() << "h";
-
-        else if (hrs.count() > 0)
-            oss << hrs.count() << "h"
-                << std::setfill('0') << std::setw(2) << mns.count() << "m";
-
-        else if (mns.count() > 0)
-            oss << mns.count() << "m"
-                << std::setfill('0') << std::setw(2) << scs.count() << "s";
-
-        else
-            oss << scs.count() << "s";
-
-        return oss.str();
-    }
-
-    /* Implementation class for progress bar.
-        Ref :
-        OTHMAN EL HAMMOUCHI, April 15, 2024
-        "Fancy thread safe progress bar in R for compiled code"
-        -----
-        https://othmanelhammouchi.com/posts/r-parallel-progress/
-    */
-    class Bar::Impl
-    {
-    private:
-        const std::string symbol_ = u8"\u25A0"; // bar decorator
-        unsigned barwidth_ = 35;                // bar total size
-        bool verbose_ = true;                   // wheter to show bar
-        bool is_bar_print_ = false;             // wheter bar is printing
-
-        ulong state_ = 0;       // current iteration
-        ulong total_ = 0;       // total number of iterations
-        std::string text_ = ""; // current text to show
-
-        steady_clock::time_point start_;
-        steady_clock::time_point lastprint_;
-        ulong thintime_ = 0;
-
-        void print_(const std::string &sms) const { tools::print_stdout(sms); }
-
-        /* Function to display the progress bar. */
-        void bar_(const std::string &sms) const { (this->*which_bar_)(sms); }
-
-        void (Impl::*which_bar_)(const std::string &) const = &Impl::do_bar_carriage_return_;
-        void do_bar_carriage_return_(const std::string &sms) const { print_("\r" + sms); }
-        void do_bar_new_line_(const std::string &sms) const { print_(sms + "\n"); }
-
-    public:
-        //=======================//
-        //===== CONSTRUCTOR =====//
-        //=======================//
-
-        Impl()
-        {
-#ifdef _HOUSEPI_RCPP
-            Rcpp::checkUserInterrupt();
-            // change barwidth according to console width
-            barwidth_ = Rcpp::as<unsigned>(Rcpp::Function("getOption")("width")) / 2;
-
-            // change if R interactive environment
-            bool is_interactive = Rcpp::as<bool>(Rcpp::Function("interactive")());
-            if (is_interactive)
-                which_bar_ = &Impl::do_bar_carriage_return_;
-            else
-                which_bar_ = &Impl::do_bar_new_line_;
-#endif
-        };
-        ~Impl() {};
-
-        //==================//
-        //===== SETTER =====//
-        //==================//
-
-        /* Set description text of progress bar. */
-        void set_text(const std::string &text) { text_ = text; }
-
-        /* Set description text of progress bar. */
-        void set_thintime(ulong thintime)
-        {
-            verbose_ = thintime > 0;
-            thintime_ = thintime - 1;
-        }
-
-        /* Start progressbar clock and display firs message. */
-        void open(ulong total)
-        {
-#ifdef _HOUSEPI_RCPP
-            Rcpp::checkUserInterrupt();
-#endif
-            if (total == 0)
-                throw std::invalid_argument(
-                    "Progressbar total should be greater than 0.");
-
-            // initialize internal fields
-            total_ = total;
-            start_ = steady_clock::now();
-            lastprint_ = start_;
-            state_ = 0;
-            is_bar_print_ = false;
-        }
-
-        /* Update progress bar given the progress state. */
-        void update()
-        {
-#ifdef _HOUSEPI_RCPP
-            Rcpp::checkUserInterrupt();
-#endif
-            // update internal state
-            ++state_;
-
-            if (verbose_)
-            {
-                const double progress = static_cast<double>(state_) / total_;
-                steady_clock::time_point now = steady_clock::now();
-                seconds elapsed = duration_cast<seconds>(now - start_);
-                seconds missing = duration_cast<seconds>(elapsed * (1. / progress - 1.));
-
-                // print update message
-                if (static_cast<ulong>(duration_cast<seconds>(now - lastprint_).count()) > thintime_)
-                {
-                    const unsigned where = progress * barwidth_;
-                    std::ostringstream oss;
-                    oss << text_ << " |";
-                    for (unsigned u = 0; u < where; ++u)
-                        oss << symbol_;
-                    oss << std::string(barwidth_ - where, ' ') << "| "
-                        << tools::percentage(progress, 0) << " "
-                        << fmt_time(elapsed) << "<" << fmt_time(missing)
-                        << std::string(10, ' ');
-                    bar_(oss.str());
-
-                    lastprint_ = steady_clock::now();
-                    is_bar_print_ = true;
-                }
-                else if (!is_bar_print_) // eventually print initial message
-                    if (static_cast<ulong>(missing.count()) > thintime_)
-                    {
-                        std::ostringstream oss;
-                        oss << text_ << " |"
-                            << std::string(barwidth_, ' ') << "| "
-                            << tools::percentage(0., 0);
-                        if (which_bar_ == &Impl::do_bar_new_line_)
-                            oss << "\n";
-                        print_(oss.str());
-
-                        is_bar_print_ = true;
-                    }
-            }
-        }
-
-        /* End the progress bar because of a crash. */
-        void crash() const
-        {
-#ifdef _HOUSEPI_RCPP
-            Rcpp::checkUserInterrupt();
-#endif
-            if (is_bar_print_)
-                print_("\n");
-        }
-
-        /*  Close the progress bar. */
-        void close()
-        {
-#ifdef _HOUSEPI_RCPP
-            Rcpp::checkUserInterrupt();
-#endif
-            if (verbose_)
-            {
-                seconds elapsed = duration_cast<seconds>(steady_clock::now() - start_);
-
-                if (static_cast<ulong>(elapsed.count()) > thintime_)
-                {
-                    std::ostringstream oss;
-                    oss << text_ << " |";
-                    for (unsigned u = 0; u < barwidth_; u++)
-                        oss << symbol_;
-                    oss << "| " << fmt_time(elapsed)
-                        << std::string(25, ' ');
-                    if (which_bar_ == &Impl::do_bar_carriage_return_)
-                        oss << "\n";
-                    bar_(oss.str());
-                }
-            }
-
-            is_bar_print_ = false;
-            state_ = total_;
-        }
-    };
-
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////  Bar : Constructor  ///////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-    Bar::Bar()
-        : pImpl_(std::make_unique<Impl>()) {}
-    Bar::~Bar() = default;
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////////////  Bar : Setter  /////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-    void Bar::set_text(const std::string &text) { pImpl_->set_text(text); }
-    void Bar::set_thintime(ulong thintime) { pImpl_->set_thintime(thintime); }
-    void Bar::open(ulong total) { pImpl_->open(total); }
-    void Bar::update() { pImpl_->update(); }
-    void Bar::crash() const { pImpl_->crash(); }
-    void Bar::close() { pImpl_->close(); }
-
-} // PROGRESS NAMESPACE

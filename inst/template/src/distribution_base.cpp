@@ -42,7 +42,7 @@ double Distribution::rejec_sample_(rnd_gen &prng, double (Distribution::*func)(r
     double xnew = (this->*func)(prng);
 
     unsigned n_attempts = 0;
-    while (!valid(xnew))
+    while (!is_valid(xnew))
     {
         if (n_attempts > MAX_NUM_ATTEMPTS)
             throw std::runtime_error(
@@ -66,7 +66,7 @@ double Distribution::rejec_sample_(rnd_gen &prng, double (Distribution::*func)(r
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Select functional method in case of discretization. */
-void Distribution::init_functional_discretization(ushort discr_type)
+void Distribution::init_functional_discretization(unsigned short discr_type)
 {
     //===== DISCRETIZATION =====//
     switch (discr_type)
@@ -105,7 +105,7 @@ void Distribution::init_functional_discretization(ushort discr_type)
 }
 
 /* Select functional method in case of truncation. */
-void Distribution::init_functional_truncation(ushort discr_type)
+void Distribution::init_functional_truncation(unsigned short discr_type)
 {
     //----- TRUNCATION -----//
     switch (which_valid_case())
@@ -211,7 +211,7 @@ void Distribution::init_functional_truncation(ushort discr_type)
  */
 void Distribution::init_reshaping(bool discrete)
 {
-    ushort discr_case = (discrete) ? D_DISCR_TYPE_DFND : D_DISCR_TYPE_NONE;
+    unsigned short discr_case = (discrete) ? D_DISCR_TYPE_DFND : D_DISCR_TYPE_NONE;
     init_functional_discretization(discr_case);
     init_functional_range(false, false);
     init_functional_truncation(discr_case);
@@ -234,7 +234,7 @@ bool Distribution::init_range_min(double min_val, bool is_open_zero)
 /* Frequent reshaping: domain has zero lower bound. */
 void Distribution::init_reshaping_min_zero(bool discrete, bool is_open_zero)
 {
-    ushort discr_case = (discrete) ? D_DISCR_TYPE_LEFT : D_DISCR_TYPE_NONE;
+    unsigned short discr_case = (discrete) ? D_DISCR_TYPE_LEFT : D_DISCR_TYPE_NONE;
     init_functional_discretization(discr_case);
     if (init_range_min(0., is_open_zero))
         init_functional_truncation(discr_case);
@@ -259,7 +259,7 @@ void Distribution::init_reshaping_min_zero_discr_defined()
 /////////////////////////////////  Distribution Registry : getter  //////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-const str_vec DistributionRegistry::get_options() const
+str_vec DistributionRegistry::get_options() const
 {
     str_vec keys;
     keys.reserve(_factory_map.size());
@@ -332,5 +332,5 @@ std::shared_ptr<Distribution> compose_distr_registries(const std::string &opt,
                 options += r->get_options();
 
     throw std::invalid_argument(
-        "Unknown " + name + " \"" + opt + "\"." + tools::find_closest(opt, options));
+        "Unknown " + name + " \"" + opt + "\"." + tools::str::find_closest(opt, options));
 }

@@ -75,8 +75,8 @@ NULL
 #' @field export_dataset\cr Return a DataFrame with current database.
 #' @field export_dataset_report\cr Return a DataFrame with a report of the current database.
 #' @field export_house_size_report\cr Return a DataFrame with a report of household sizes.
-#' @field export_traces\cr Return a NumericMatrix with MCMC traces.
-#' @field export_house_loglike_traces\cr Return a NumericMatrix with household loglikelihood traces.
+#' @field export_draws\cr Return a NumericMatrix with MCMC draws.
+#' @field export_house_loglike_draws\cr Return a NumericMatrix with household loglikelihood draws.
 #' @field export_house_snapshot\cr Return a List with a snapshot containing full household and model details.
 NULL
 

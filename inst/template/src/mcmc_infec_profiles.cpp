@@ -25,9 +25,9 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign arguments to infectivity profile. */
-void MCMC::Impl::ImplInfecProfile::init_arguments_(const str_vec &keys,
-												   const str_vec &vals,
-												   const str_vec &typs)
+void MCMC::Impl::InfecProfile::init_arguments_(const str_vec &keys,
+											   const str_vec &vals,
+											   const str_vec &typs)
 {
 	// check size validity of keys, values and type
 	if ((keys.size() != vals.size()) || (typs.size() != vals.size()))
@@ -44,10 +44,10 @@ void MCMC::Impl::ImplInfecProfile::init_arguments_(const str_vec &keys,
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign general attribute of infectivity profile. */
-void MCMC::Impl::ImplInfecProfile::init_single_attribute_(const std::string &key,
-														  const std::string &val,
-														  const std::string &at,
-														  bool is_arg)
+void MCMC::Impl::InfecProfile::init_single_attribute_(const std::string &key,
+													  const std::string &val,
+													  const std::string &at,
+													  bool is_arg)
 {
 	if (tools::is_na(val) && tools::is_na(at))
 		; // pass
@@ -61,7 +61,7 @@ void MCMC::Impl::ImplInfecProfile::init_single_attribute_(const std::string &key
 		throw std::invalid_argument(
 			"Found type without a paired value for \"" + profile_->name() + "\".");
 
-	else if (tools::stoupper(at) == TYPE_PARAM)
+	else if (tools::str::toup(at) == TYPE_PARAM)
 	{
 		if (pImpl_.param.at(val).is_constant())
 			profile_->init_attr(key, is_arg, pImpl_.param.get(val));
@@ -72,8 +72,8 @@ void MCMC::Impl::ImplInfecProfile::init_single_attribute_(const std::string &key
 		}
 	}
 
-	else if (tools::stoupper(at) == TYPE_SCALAR)
-		profile_->init_attr(key, is_arg, tools::stod(val, "argument with scalar type"));
+	else if (tools::str::toup(at) == TYPE_SCALAR)
+		profile_->init_attr(key, is_arg, tools::str::tod(val, "argument with scalar type"));
 
 	else
 		throw std::invalid_argument(
@@ -85,7 +85,7 @@ void MCMC::Impl::ImplInfecProfile::init_single_attribute_(const std::string &key
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Set model template while constructiing model. */
-void MCMC::Impl::ImplInfecProfile::init_template(dict_str_str deflist)
+void MCMC::Impl::InfecProfile::init_template(dict_str deflist)
 {
 	// if not previous build, proceed with template
 	// if no template, assume no need for an infectivity profile
@@ -119,7 +119,7 @@ void MCMC::Impl::ImplInfecProfile::init_template(dict_str_str deflist)
 /* Append infectivity profile to augmented variable definitions.
  * UPDATE: problematic in case of redefinitions of infectivity profile
  */
-void MCMC::Impl::ImplInfecProfile::append_augm_definition()
+void MCMC::Impl::InfecProfile::append_augm_definition()
 {
 	if (is_augmented())
 	{
@@ -141,12 +141,12 @@ void MCMC::Impl::ImplInfecProfile::append_augm_definition()
 }
 
 /* Store values of the infectivity profile. */
-void MCMC::Impl::ImplInfecProfile::init_lookup_()
+void MCMC::Impl::InfecProfile::init_lookup_()
 {
 	if (profile_->is_discrete())
 	{
-		inst_ = &ImplInfecProfile::do_inst_lookup_;
-		cumul_ = &ImplInfecProfile::do_cumul_lookup_;
+		inst_ = &InfecProfile::do_inst_lookup_;
+		cumul_ = &InfecProfile::do_cumul_lookup_;
 
 		if (tools::is_na(profile_->get_max()))
 			size_lut_ = DEFAULT_MAX_SIZE;
@@ -163,7 +163,7 @@ void MCMC::Impl::ImplInfecProfile::init_lookup_()
 }
 
 /* If infectivity profile is a lookup table, store its values. */
-void MCMC::Impl::ImplInfecProfile::update(bool is_cache_depen)
+void MCMC::Impl::InfecProfile::update(bool is_cache_depen)
 {
 	// UPDATE: this should not be updated if constant
 	if (is_cache_depen)
@@ -187,7 +187,7 @@ void MCMC::Impl::ImplInfecProfile::update(bool is_cache_depen)
 }
 
 /* If infectivity profile is a lookup table, recover its buffered values. */
-void MCMC::Impl::ImplInfecProfile::recover(bool is_cache_depen)
+void MCMC::Impl::InfecProfile::recover(bool is_cache_depen)
 {
 	// UPDATE: this should not be recoverd if constant
 	if (is_cache_depen)
@@ -199,7 +199,7 @@ void MCMC::Impl::ImplInfecProfile::recover(bool is_cache_depen)
 }
 
 /* Build infectivity profile distribution . */
-void MCMC::Impl::ImplInfecProfile::build(const dict_str_str &deflist)
+void MCMC::Impl::InfecProfile::build(const dict_str &deflist)
 {
 	if (!deflist.empty())
 	{
@@ -224,11 +224,11 @@ void MCMC::Impl::ImplInfecProfile::build(const dict_str_str &deflist)
 }
 
 /* Build for generic infectivity profile. */
-void MCMC::Impl::ImplInfecProfile::build_generic_profile_(const dict_str_str &deflist)
+void MCMC::Impl::InfecProfile::build_generic_profile_(const dict_str &deflist)
 {
 	augm_infec_profile_deflist_.clear();
-	inst_ = &ImplInfecProfile::do_inst_default_;
-	cumul_ = &ImplInfecProfile::do_cumul_default_;
+	inst_ = &InfecProfile::do_inst_default_;
+	cumul_ = &InfecProfile::do_cumul_default_;
 
 	//----- Name -----//
 	if ((deflist.count("name")) && (!tools::is_na(deflist.at("name"))))
@@ -246,7 +246,7 @@ void MCMC::Impl::ImplInfecProfile::build_generic_profile_(const dict_str_str &de
 	bool is_discrete = true;
 	if (!profile_->is_discrete()) // not defined discrete
 		if (deflist.count("discr"))
-			is_discrete = tools::stobool(deflist.at("discr"));
+			is_discrete = tools::str::tobool(deflist.at("discr"));
 
 	//----- Arguments -----//
 	if (deflist.count("arg_key") && deflist.count("arg_val") && deflist.count("arg_at"))
@@ -273,11 +273,11 @@ void MCMC::Impl::ImplInfecProfile::build_generic_profile_(const dict_str_str &de
 }
 
 /* Build for individual augmented function infectivity profile. */
-void MCMC::Impl::ImplInfecProfile::build_augmented_profile_(const dict_str_str &deflist)
+void MCMC::Impl::InfecProfile::build_augmented_profile_(const dict_str &deflist)
 {
 	profile_ = std::make_unique<Distribution>();
-	inst_ = &ImplInfecProfile::do_inst_augm_;
-	cumul_ = &ImplInfecProfile::do_cumul_augm_;
+	inst_ = &InfecProfile::do_inst_augm_;
+	cumul_ = &InfecProfile::do_cumul_augm_;
 
 	std::string func_name;
 	if ((deflist.count("name")) && (!tools::is_na(deflist.at("name"))))
@@ -302,14 +302,14 @@ void MCMC::Impl::ImplInfecProfile::build_augmented_profile_(const dict_str_str &
 		arg_at += C_LIST_DELIM;
 
 	// initialize for instantaneous and cumulative profiles
-	bool is_discrete = tools::stobool(deflist.at("discr"));
+	bool is_discrete = tools::str::tobool(deflist.at("discr"));
 
 	for (auto &entry : pImpl_.augm.file_headers)
 		augm_infec_profile_deflist_.emplace(entry, str_vec(2, HSP_NA_STRING));
 
-	augm_infec_profile_deflist_.at("const") = str_vec(2, tools::truth(false));
-	augm_infec_profile_deflist_.at("discr") = str_vec(2, tools::truth(is_discrete));
-	augm_infec_profile_deflist_.at("init_rand") = str_vec(2, tools::truth(false));
+	augm_infec_profile_deflist_.at("const") = str_vec(2, tools::str::format(false));
+	augm_infec_profile_deflist_.at("discr") = str_vec(2, tools::str::format(is_discrete));
+	augm_infec_profile_deflist_.at("init_rand") = str_vec(2, tools::str::format(false));
 
 	// match infectivity profile and augmented variable definition
 	const dict_str_vec matcher = {
@@ -332,19 +332,19 @@ void MCMC::Impl::ImplInfecProfile::build_augmented_profile_(const dict_str_str &
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Lookup method for discrete instantaneous infectivity profile.
-double MCMC::Impl::ImplInfecProfile::do_inst_lookup_(const Individual *, double t)
+double MCMC::Impl::InfecProfile::do_inst_lookup_(const Individual *, double t)
 {
-	if (profile_->valid(t) && (t < size_lut_))
+	if (profile_->is_valid(t) && (t < size_lut_))
 		return lookup_inst_.at(static_cast<size_t>(t));
 	else
 		return 0;
 }
 /// Lookup method for discrete cumulative infectivity profile.
-double MCMC::Impl::ImplInfecProfile::do_cumul_lookup_(const Individual *, double t)
+double MCMC::Impl::InfecProfile::do_cumul_lookup_(const Individual *, double t)
 {
-	if (profile_->below(t))
+	if (profile_->is_below(t))
 		return 0.;
-	else if ((t >= size_lut_) || (profile_->above(t)))
+	else if ((t >= size_lut_) || (profile_->is_above(t)))
 		return lookup_cumul_.at(size_lut_ - 1);
 	else
 		return lookup_cumul_.at(static_cast<size_t>(t));

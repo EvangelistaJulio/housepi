@@ -26,7 +26,7 @@
 /////////////////////////////////  MCMC::Impl : methods (setter)  /////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void MCMC::Impl::ImplSetup::build(const dict_str_str &deflist)
+void MCMC::Impl::Setup::build(const dict_str &deflist)
 {
     // default seed
     seed = tools::default_setup_seed();
@@ -39,43 +39,43 @@ void MCMC::Impl::ImplSetup::build(const dict_str_str &deflist)
 
         // Random Initialization of Parameters
         if (deflist.count("progress") && (!tools::is_na(deflist.at("progress"))))
-            progress = tools::stoul(deflist.at("progress"));
+            progress = tools::str::toul(deflist.at("progress"));
 
         // N. of Threads
         if (deflist.count("n_threads") && (!tools::is_na(deflist.at("n_threads"))))
-            n_threads = tools::stoi(deflist.at("n_threads"), "n. of threads");
+            n_threads = tools::str::toi(deflist.at("n_threads"), "n. of threads");
 
         // PRNG Seed
         if (deflist.count("seed") && (!tools::is_na(deflist.at("seed"))))
-            seed = tools::stoi32(deflist.at("seed"), "random seed");
+            seed = tools::str::toi32(deflist.at("seed"), "random seed");
 
         // N. of Chains
         if (deflist.count("n_chains") && (!tools::is_na(deflist.at("n_chains"))))
-            n_chains = tools::stoul(deflist.at("n_chains"), "n. of chains");
+            n_chains = tools::str::toul(deflist.at("n_chains"), "n. of chains");
 
         // Single Chain Sample Size
         if (deflist.count("sample_size") && (!tools::is_na(deflist.at("sample_size"))))
-            c_sample_size = tools::stoul(deflist.at("sample_size"), "sample size");
+            c_sample_size = tools::str::toul(deflist.at("sample_size"), "sample size");
 
         // N. of Steps
         if (deflist.count("n_steps") && (!tools::is_na(deflist.at("n_steps"))))
-            n_steps = tools::stoul(deflist.at("n_steps"), "n. of steps");
+            n_steps = tools::str::toul(deflist.at("n_steps"), "n. of steps");
 
         // N. of Adaptive Steps
         if (deflist.count("n_adapt") && (!tools::is_na(deflist.at("n_adapt"))))
-            n_adapt = tools::stoul(deflist.at("n_adapt"), "n. of adaptive steps");
+            n_adapt = tools::str::toul(deflist.at("n_adapt"), "n. of adaptive steps");
 
         // N. of Thinning Steps
         if (deflist.count("thin") && (!tools::is_na(deflist.at("thin"))))
-            thin = tools::stoul(deflist.at("thin"), "thin");
+            thin = tools::str::toul(deflist.at("thin"), "thin");
 
         // N. of Steps to "Burn-In"
         if (deflist.count("n_burnin") && (!tools::is_na(deflist.at("n_burnin"))))
-            n_burnin = tools::stoul(deflist.at("n_burnin"), "burn-in");
+            n_burnin = tools::str::toul(deflist.at("n_burnin"), "burn-in");
 
         // Random Initialization of Parameters
         if (deflist.count("rand_init") && (!tools::is_na(deflist.at("rand_init"))))
-            rand_init_params = tools::stobool(deflist.at("rand_init"));
+            rand_init_params = tools::str::tobool(deflist.at("rand_init"));
 
         // Individual ID for Augmented Trace
         if (deflist.count("id_draws") && (!tools::is_na(deflist.at("id_draws"))))
@@ -92,7 +92,7 @@ void MCMC::Impl::ImplSetup::build(const dict_str_str &deflist)
 }
 
 /* Set the number of threads for parrell computations (default is 1). */
-void MCMC::Impl::ImplSetup::set_n_threads()
+void MCMC::Impl::Setup::set_n_threads()
 {
     if (n_threads == 0)
         throw std::invalid_argument("N. of threads must be greater than 0.");
@@ -119,11 +119,11 @@ void MCMC::Impl::ImplSetup::set_n_threads()
 }
 
 /* Assign seed for random generators. */
-void MCMC::Impl::ImplSetup::set_prng_seed()
+void MCMC::Impl::Setup::set_prng_seed()
 {
     // seed for the unique thread rand num generator
     prng_.seed(seed);
-    get_prng_ = &Impl::ImplSetup::do_prng_unique_thread_;
+    get_prng_ = &Impl::Setup::do_prng_unique_thread_;
 
 #ifdef _OPENMP
     // seeds for the case of parallelization
@@ -131,7 +131,7 @@ void MCMC::Impl::ImplSetup::set_prng_seed()
     {
         // create different generators for different parallel threads
         // note: they are used only to parallelize data augmentantion
-        get_prng_ = &Impl::ImplSetup::do_prng_parallel_threads_;
+        get_prng_ = &Impl::Setup::do_prng_parallel_threads_;
 
         std::uniform_int_distribution<unsigned long> seed_generator(0, 0XFFFFFFFF);
 
@@ -142,7 +142,7 @@ void MCMC::Impl::ImplSetup::set_prng_seed()
 #endif
 }
 
-void MCMC::Impl::ImplSetup::assert_mcmc_setup()
+void MCMC::Impl::Setup::assert_mcmc_setup()
 {
     if ((inv_T < 0.) || (inv_T > 1.))
         throw std::range_error(
@@ -191,7 +191,7 @@ void MCMC::Impl::ImplSetup::assert_mcmc_setup()
 }
 
 /* The text to print in the Markov chian progress bar. */
-const std::string MCMC::Impl::ImplSetup::fmt_progtxt()
+std::string MCMC::Impl::Setup::fmt_progtxt()
 {
     if (is_power_post())
         return "power post " + std::to_string(rung) + "/" + std::to_string(n_rungs);
@@ -229,15 +229,17 @@ void MCMC::Impl::init_monte_carlo_()
         throw std::length_error(
             "Nothing to sample. Check your parameter and augmented variable definitions.");
 
-    // wheter augmented variable are generic or status specific
     if (augm.is_any())
+    {
         if (augm.is_any_sample())
         {
+            // wheter sample is generic or status specific
             if (augm.is_generic())
                 move_augm_indiv_ = &MCMC::Impl::do_move_augm_indiv_generic_;
             else
                 move_augm_indiv_ = &MCMC::Impl::do_move_augm_indiv_by_status_;
         }
+    }
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -252,7 +254,7 @@ void MCMC::Impl::init_monte_carlo_()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign data after pre-processing. */
-void MCMC::Impl::ImplDataSet::build(const dict_str_vec &input)
+void MCMC::Impl::DataSet::build(const dict_str_vec &input)
 {
     if (!input.empty())
     {
@@ -279,7 +281,7 @@ void MCMC::Impl::ImplDataSet::build(const dict_str_vec &input)
             std::string id = std::to_string(i + 1);                // default id
             std::string house_id = std::to_string(n_houses() + 1); // default house_id
             int status = MISSING_STATUS;
-            data_key_map<double> data = {};
+            u_dict<double> data = {};
 
             for (const std::string &key : headers_)
                 if (key == "id")
@@ -300,7 +302,7 @@ void MCMC::Impl::ImplDataSet::build(const dict_str_vec &input)
                 {
                     // note: NA status is a missing status
                     if (!tools::is_na(input.at("status")[i]))
-                        status = tools::stoi(input.at("status")[i], "individual status");
+                        status = tools::str::toi(input.at("status")[i], "individual status");
                 }
                 else if (tools::is_na(input.at(key)[i]))
                 {
@@ -308,7 +310,7 @@ void MCMC::Impl::ImplDataSet::build(const dict_str_vec &input)
                 }
                 else
                 {
-                    data.emplace(key, tools::stod(input.at(key)[i], "data \"" + key + "\""));
+                    data.emplace(key, tools::str::tod(input.at(key)[i], "data \"" + key + "\""));
                 }
 
             // if household index doesn't exist, add new household
@@ -336,7 +338,7 @@ void MCMC::Impl::ImplDataSet::build(const dict_str_vec &input)
 }
 
 /* Use the loaded data to fill-in the respective report. */
-void MCMC::Impl::ImplDataSet::fill_report_data()
+void MCMC::Impl::DataSet::fill_report_data()
 {
     report_indiv_ = {{"total", n_individuals_},
                      {"missing", 0},
@@ -356,10 +358,10 @@ void MCMC::Impl::ImplDataSet::fill_report_data()
     //===== Set Contact Rates and Perform Database Analysis =====//
     for (const Household &house : house_vector_)
     {
-        const ushort house_size = house.size();
-        const ushort n_infec = house.n_infec_status();
-        const ushort n_miss = house.n_missing_status();
-        const ushort n_heal = house.n_healthy_status();
+        const unsigned short house_size = house.size();
+        const unsigned short n_infec = house.n_infec_status();
+        const unsigned short n_miss = house.n_missing_status();
+        const unsigned short n_heal = house.n_healthy_status();
 
         report_indiv_["infected"] += n_infec;
         report_indiv_["missing"] += n_miss;
@@ -408,7 +410,7 @@ void MCMC::Impl::ImplDataSet::fill_report_data()
 }
 
 /* Return a value from individaul data report. */
-ulong MCMC::Impl::ImplDataSet::get_report_indiv(const std::string &key) const
+unsigned long MCMC::Impl::DataSet::get_report_indiv(const std::string &key) const
 {
     // UPDATE: this should be generalized to avoid double check with at
     if (report_indiv_.count(key))
@@ -420,7 +422,7 @@ ulong MCMC::Impl::ImplDataSet::get_report_indiv(const std::string &key) const
 }
 
 /* Return a value from household data report. */
-ulong MCMC::Impl::ImplDataSet::get_report_house(const std::string &key) const
+unsigned long MCMC::Impl::DataSet::get_report_house(const std::string &key) const
 {
     // UPDATE: this should be generalized to avoid double check with at
     if (report_house_.count(key))
@@ -432,36 +434,36 @@ ulong MCMC::Impl::ImplDataSet::get_report_house(const std::string &key) const
 }
 
 /* Return a value from household sizes report. */
-std::pair<ushort, ulong> MCMC::Impl::ImplDataSet::get_report_hh_size(const std::string &key) const
+std::pair<unsigned short, unsigned long> MCMC::Impl::DataSet::get_report_hh_size(const std::string &key) const
 {
     if (report_size_.count(key))
         return report_size_.at(key);
     else
         throw std::invalid_argument(
             "Unknown household sizes report entry \"" + key + "\".");
-    return std::pair<ushort, ulong>({0, 0});
+    return std::pair<unsigned short, unsigned long>({0, 0});
 }
 
 /* Extra integer vectors for all households. */
-void MCMC::Impl::ImplDataSet::init_cache_integer_vector(const cache_key &e)
+void MCMC::Impl::DataSet::init_cache_integer_vector(const std::string &e)
 {
     for (Household &house : restricted())
         house.init_cache_integer_vector(e);
 }
 /* Extra size_t vectors for all households. */
-void MCMC::Impl::ImplDataSet::init_cache_size_t_vector(const cache_key &e)
+void MCMC::Impl::DataSet::init_cache_size_t_vector(const std::string &e)
 {
     for (Household &house : restricted())
         house.init_cache_size_t_vector(e);
 }
 /* Extra double vectors for all households. */
-void MCMC::Impl::ImplDataSet::init_cache_double_vector(const cache_key &e)
+void MCMC::Impl::DataSet::init_cache_double_vector(const std::string &e)
 {
     for (Household &house : restricted())
         house.init_cache_double_vector(e);
 }
 /* Extra double square matrix for all households. */
-void MCMC::Impl::ImplDataSet::init_cache_double_matrix(const cache_key &e)
+void MCMC::Impl::DataSet::init_cache_double_matrix(const std::string &e)
 {
     for (Household &house : restricted())
         house.init_cache_double_matrix(e);
@@ -479,7 +481,7 @@ void MCMC::Impl::ImplDataSet::init_cache_double_matrix(const cache_key &e)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Build multiplicities. */
-void MCMC::Impl::ImplDataSet::build_multiplicity(const dict_str_vec &table)
+void MCMC::Impl::DataSet::build_multiplicity(const dict_str_vec &table)
 {
     if (pImpl_.augm.is_any() || (table.size() == 0))
     {
@@ -508,7 +510,7 @@ void MCMC::Impl::ImplDataSet::build_multiplicity(const dict_str_vec &table)
         {
             size_t H = hhid_to_index_.at(table.at("house_id")[r]);
             size_t H0 = hhid_to_index_.at(table.at("class_id")[r]);
-            ulong m = tools::stoul(table.at("multiplicity")[r]);
+            unsigned long m = tools::str::toul(table.at("multiplicity")[r]);
 
             house_vector_[H].set_multiplicity(m, H0);
 
@@ -530,7 +532,7 @@ void MCMC::Impl::ImplDataSet::build_multiplicity(const dict_str_vec &table)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign data after pre-processing. */
-void MCMC::Impl::ImplDataList::build(const dict_str_vec &input)
+void MCMC::Impl::DataList::build(const dict_str_vec &input)
 {
     if (!input.empty())
     {
@@ -562,7 +564,7 @@ void MCMC::Impl::ImplDataList::build(const dict_str_vec &input)
         if (indiv_datalist_.empty())
             indiv_datalist_.resize(pImpl_.dataset.n_individuals());
 
-        for (data_key_map<dbl_vec> &this_map : indiv_datalist_)
+        for (u_dict<dbl_vec> &this_map : indiv_datalist_)
             for (const std::string &key : headers_)
             {
                 if (this_map.count(key) > 0)
@@ -589,12 +591,12 @@ void MCMC::Impl::ImplDataList::build(const dict_str_vec &input)
                         "Id \"" + id + "\" from datalist has no match in loaded dataset.");
             }
 
-            data_key_map<dbl_vec> &this_dict = indiv_datalist_.at(id_to_index.at(id));
+            u_dict<dbl_vec> &this_dict = indiv_datalist_.at(id_to_index.at(id));
             for (const std::string &key : headers_)
             {
                 x = HSP_NA_DOUBLE;
                 if (!tools::is_na(input.at(key).at(r)))
-                    x = tools::stod(input.at(key).at(r), "datalist \"" + key + "\"");
+                    x = tools::str::tod(input.at(key).at(r), "datalist \"" + key + "\"");
 
                 // append (si   nce vector is initialized to empty)
                 this_dict.at(key).emplace_back(x);
@@ -621,14 +623,14 @@ void MCMC::Impl::ImplDataList::build(const dict_str_vec &input)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Convert to a dictionary of parameter pointers and pass the pointers to the individual */
-void MCMC::Impl::ImplGroupRates::init_rate_as_ptrs_(Individual &member,
-                                                    const rate_key_mapvec<par_key> &these_rates)
+void MCMC::Impl::GroupRates::init_rate_as_ptrs_(Individual &member,
+                                                const u_dict<str_vec> &these_rates)
 {
-    rate_key_mapvec<const double *> rate_ptrs = {};
+    u_dict<std::vector<const double *>> rate_ptrs = {};
 
     for (const auto &pair : these_rates)
     {
-        const rate_key &r = pair.first;
+        const std::string &r = pair.first;
 
         if (str_vec({CONTACT_RATE, MISSING_RATE}) % r)
             throw std::invalid_argument(
@@ -639,7 +641,7 @@ void MCMC::Impl::ImplGroupRates::init_rate_as_ptrs_(Individual &member,
             bool is_all_reference = true;                 // all reference state
             std::vector<const double *> vec_par_ptr = {}; // parameter pointers
 
-            for (const par_key &p : pair.second)
+            for (const std::string &p : pair.second)
             {
                 if ((tools::is_na(p)) || (p == MISSING_RATE))
                     std::invalid_argument(
@@ -667,7 +669,7 @@ void MCMC::Impl::ImplGroupRates::init_rate_as_ptrs_(Individual &member,
 }
 
 /* Update model report and set group rates associate to new individual. */
-void MCMC::Impl::ImplGroupRates::build(const dict_str_vec &deftable)
+void MCMC::Impl::GroupRates::build(const dict_str_vec &deftable)
 {
     if (!deftable.empty())
     {
@@ -684,7 +686,7 @@ void MCMC::Impl::ImplGroupRates::build(const dict_str_vec &deftable)
 
         // store the names of the used group rates
         headers_ = {};
-        for (const rate_key &g : deftable.at("group_rate"))
+        for (const std::string &g : deftable.at("group_rate"))
             if (!(headers_ % g))
                 headers_.push_back(g);
 
@@ -692,21 +694,21 @@ void MCMC::Impl::ImplGroupRates::build(const dict_str_vec &deftable)
         for (Household &house : pImpl_.dataset)
             for (Individual &member : house)
             {
-                rate_key_mapvec<par_key> these_rates = {};
+                u_dict<str_vec> these_rates = {};
 
                 // obtain group rates for given member
                 for (size_t r = 0; r < n_rows; ++r)
                 {
                     // check if all conditions are satisfied
                     bool tag = true;
-                    for (const data_key &d : data_headers)
+                    for (const std::string &d : data_headers)
                         if (!tools::is_na(deftable.at(d)[r]))
-                            tag &= (member.data(d) == tools::stod(deftable.at(d)[r]));
+                            tag &= (member.data(d) == tools::str::tod(deftable.at(d)[r]));
 
                     if (tag)
                     {
-                        const rate_key &g = deftable.at("group_rate")[r];
-                        const par_key &p = deftable.at("param_name")[r];
+                        const std::string &g = deftable.at("group_rate")[r];
+                        const std::string &p = deftable.at("param_name")[r];
                         if (these_rates.count(g) == 0)
                             these_rates.emplace(g, str_vec({p}));
                         else
@@ -728,7 +730,7 @@ void MCMC::Impl::ImplGroupRates::build(const dict_str_vec &deftable)
 //-----------------------------------------------------------------------------------------------//
 
 /* Assign parameter definitions to dictionary. */
-void MCMC::Impl::ImplParameter::build(const dict_str_vec &deftable)
+void MCMC::Impl::Parameter::build(const dict_str_vec &deftable)
 {
     if (!deftable.empty())
     {
@@ -749,7 +751,7 @@ void MCMC::Impl::ImplParameter::build(const dict_str_vec &deftable)
         {
             const std::string &name = deftable.at("name")[k]; // parameter name
             double value = HSP_NA_DOUBLE;                     // init value
-            par_key p = name;
+            const std::string p = name;
 
             // Add entry to shared parameter dictionary -----//
             if (dictionary_.count(p))
@@ -758,14 +760,14 @@ void MCMC::Impl::ImplParameter::build(const dict_str_vec &deftable)
                 throw std::invalid_argument(
                     "Parameter \"" + p + "\" has multiple definitions.");
             }
-            else if (tools::stobool(deftable.at("const")[k]))
+            else if (tools::str::tobool(deftable.at("const")[k]))
             {
                 // assign constant parameter to the set of variables
                 if (tools::is_na(deftable.at("value")[k]))
                     throw std::invalid_argument(
                         "Undefined value for constant parameter \"" + name + "\".");
                 else
-                    value = tools::stod(deftable.at("value")[k], "parameter");
+                    value = tools::str::tod(deftable.at("value")[k], "parameter");
 
                 // assign constant parameter to the set of variables
                 dictionary_.emplace(p, Variable(name, value));
@@ -776,12 +778,10 @@ void MCMC::Impl::ImplParameter::build(const dict_str_vec &deftable)
             {
                 // load value
                 if (!tools::is_na(deftable.at("value")[k]))
-                    value = tools::stod(deftable.at("value")[k], "parameter");
+                    value = tools::str::tod(deftable.at("value")[k], "parameter");
 
                 // load boolean flag for discrete variables
-                bool is_discrete = false;
-                if (!tools::is_na(deftable.at("discr")[k]))
-                    is_discrete = tools::stobool(deftable.at("discr")[k]);
+                bool is_discrete = tools::str::tobool(deftable.at("discr")[k]);
 
                 // load prior name
                 const std::string &prior_name = deftable.at("prior")[k];
@@ -794,7 +794,7 @@ void MCMC::Impl::ImplParameter::build(const dict_str_vec &deftable)
                 // load rule scale
                 double rule_scale = 1.;
                 if (!tools::is_na(deftable.at("scale")[k]))
-                    rule_scale = tools::stod(deftable.at("scale")[k]);
+                    rule_scale = tools::str::tod(deftable.at("scale")[k]);
 
                 //----- Create a new Parameter Variable -----//
                 dictionary_.emplace(p, Variable(name, value, is_discrete));
@@ -806,22 +806,22 @@ void MCMC::Impl::ImplParameter::build(const dict_str_vec &deftable)
                 // assign scalar arguments to prior distribution
                 str_vec arg_key = tools::parse_list_args(deftable.at("arg_key")[k]);
                 str_vec arg_val = tools::parse_list_args(deftable.at("arg_val")[k]);
-                for (ushort c = 0; c < arg_key.size(); ++c)
+                for (unsigned short c = 0; c < arg_key.size(); ++c)
                     // UPDATE: is this check really necessary?
                     if (!tools::is_na(arg_key[c]))
                     {
                         const std::string &x = arg_val[c];
                         new_param.init_distr_attr(
                             arg_key[c], HSP_ATTR_ARGUMENT,
-                            (tools::is_na(x) ? HSP_NA_DOUBLE : tools::stod(x)));
+                            (tools::is_na(x) ? HSP_NA_DOUBLE : tools::str::tod(x)));
                     }
 
                 // load parameter range
                 double lower = HSP_NA_DOUBLE, upper = HSP_NA_DOUBLE;
                 if (!tools::is_na(deftable.at("min")[k]))
-                    lower = tools::stod(deftable.at("min")[k], "parameter minimum");
+                    lower = tools::str::tod(deftable.at("min")[k], "parameter minimum");
                 if (!tools::is_na(deftable.at("max")[k]))
-                    upper = tools::stod(deftable.at("max")[k], "parameter maximum");
+                    upper = tools::str::tod(deftable.at("max")[k], "parameter maximum");
 
                 // set the range of values to the parameter
                 if (!tools::is_na(lower))
@@ -844,7 +844,7 @@ void MCMC::Impl::ImplParameter::build(const dict_str_vec &deftable)
 }
 
 /* Adjust lists of parameters to be inferred making parameter as dependent on cache. */
-void MCMC::Impl::ImplParameter::make_cache_dependent(const par_key &p)
+void MCMC::Impl::Parameter::make_cache_dependent(const std::string &p)
 {
     // remove a parameter from standard if it was defined as such
     if (list_sample_standard % p)
@@ -856,14 +856,12 @@ void MCMC::Impl::ImplParameter::make_cache_dependent(const par_key &p)
 }
 
 /* Randomly initialize values of the parameters to be inferred */
-void MCMC::Impl::ImplParameter::init()
+void MCMC::Impl::Parameter::init()
 {
-    for (const par_key &p : list_sample)
+    for (const std::string &p : list_sample)
     {
         Variable &this_par = this->at(p);
-        // user initialization (for multiple chains)
-        this_par.user_reset();
-
+        
         if (pImpl_.setup.rand_init_params)
         {
             if (tools::is_na(this_par.distr_name()))
@@ -875,5 +873,7 @@ void MCMC::Impl::ImplParameter::init()
         else if (tools::is_na(this_par.get()))
             throw std::invalid_argument(
                 "Value of parameter \"" + p + "\" is undefined with no random initialization.");
+        else
+            this_par.user_reset();
     }
 }

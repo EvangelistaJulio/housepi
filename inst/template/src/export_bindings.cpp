@@ -178,8 +178,8 @@ RCPP_MODULE(housepi_infec_profile)
 //' @field export_dataset\cr Return a DataFrame with current database.
 //' @field export_dataset_report\cr Return a DataFrame with a report of the current database.
 //' @field export_house_size_report\cr Return a DataFrame with a report of household sizes.
-//' @field export_traces\cr Return a NumericMatrix with MCMC traces.
-//' @field export_house_loglike_traces\cr Return a NumericMatrix with household loglikelihood traces.
+//' @field export_draws\cr Return a NumericMatrix with MCMC draws.
+//' @field export_house_loglike_draws\cr Return a NumericMatrix with household loglikelihood draws.
 //' @field export_house_snapshot\cr Return a List with a snapshot containing full household and model details.
 
 RCPP_MODULE(housepi_model_core)
@@ -187,6 +187,7 @@ RCPP_MODULE(housepi_model_core)
     Rcpp::class_<MCMC>("McmcHousepi")
         .constructor()
         .method("init_advanced_setup", &MCMC::init_advanced_setup)
+        .method("clear_memory", &MCMC::clear_memory)
         .method("infer", &MCMC::infer)
         .method("dataset_for_simulation", &MCMC::dataset_for_simulation)
         .method("simulate", &MCMC::simulate)
@@ -209,8 +210,8 @@ RCPP_MODULE(housepi_model_core)
         .method("export_param", &MCMC::export_param)
         .method("export_augmented_dataset", &MCMC::export_augmented_dataset)
         .method("export_infec_profile", &MCMC::export_infec_profile)
-        .method("export_traces", &MCMC::export_traces)
-        .method("export_house_loglike_traces", &MCMC::export_house_loglike_traces)
+        .method("export_draws", &MCMC::export_draws)
+        .method("export_house_loglike_draws", &MCMC::export_house_loglike_draws)
         .method("export_house_snapshot", &MCMC::export_house_snapshot);
 
     Rcpp::class_<Model>("ModelHousepi")

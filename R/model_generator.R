@@ -16,7 +16,7 @@
 ############################################################################
 ############################################################################
 
-#' @title Housepi Generator R6 Class
+#' @title Housepi Generator
 #' @description
 #' Help with generating Rcpp model object.
 #'
@@ -39,6 +39,10 @@ HousepiGenerator <- R6::R6Class(
     .need_compile = FALSE,
     .rcpp = NULL,
 
+    # @field .cols_dataset `integer()`\cr
+    # All positive status extracted from dataset.
+    .infec_status_set = integer(),
+
     # @field .cols_dataset `character()`\cr
     # Headers of the last dataset imported.
     .cols_dataset = NULL,
@@ -54,10 +58,6 @@ HousepiGenerator <- R6::R6Class(
     # @field .info_datalist `list`\cr
     # List of levels of the factors in the datalist.
     .info_datalist = NULL,
-
-    # @field .cri_level `numeric(1)`\cr
-    # Width of ther credible interval.
-    .cri_level = 0.95,
 
     ############################################################################
     ############################################################################
@@ -327,13 +327,11 @@ HousepiGenerator <- R6::R6Class(
     # @description
     # Initialize new instance of Rcpp Model.
     .new_rcpp_model = function() {
-      # load dynamic library
-      dyn.load(private$.dll)
       # expose internally the module
-      m <- Rcpp::Module(
-        "housepi_model_core",
-        PACKAGE = get_template_from_dll(private$.dll)
+      m <- get_rcpp_module_from_dll(
+        "housepi_model_core", private$.dll
       )$ModelHousepi$new()
+      # initialize user advanced setup
       m$init_advanced_setup()
       return(m)
     },
@@ -456,18 +454,6 @@ HousepiGenerator <- R6::R6Class(
       stop_h("'name' is read only.")
     },
 
-    #' @field cri_level `double(1)`\cr
-    #' Level for the credible interval.
-    #' Value between 0.5 and 1 (default is 0.95).
-    cri_level = function(value) {
-      if (missing(value)) return(private$.cri_level)
-      else if (is.na(value)) stop_h("Credible interval cannot be NA.")
-      else if ((value <= 0.5) || (value >= 1)) stop_h(
-        "Credible interval level must be a value between 0.5 and 1."
-      )
-      else private$.cri_level <- value
-    },
-
     #' @field path_to_dll `character(1)`\cr
     #' Path to dynamic library file of the model.
     path_to_dll = function(value) {
@@ -502,12 +488,10 @@ HousepiGenerator <- R6::R6Class(
     #' If `FALSE` recompile the model at every new session.
     #' @param force `logical(1)`\cr
     #' If `TRUE` compile even if a cached model already exists.
-    #' @param name `chracter(1)`\cr
-    #' Custom name of the model (default is inferred from `choice`).
     #' @param quiet `logical(1)`\cr
     #' If `TRUE` hide `pkgbuild` compilation commands.
-    initialize = function(choice, as_template = FALSE, force = FALSE,
-                          name = NA, quiet = TRUE) {
+    initialize = function(choice, as_template = FALSE, 
+                          force = FALSE, quiet = TRUE) {
       # check model choice
       if (is.na(choice)) {
         warning_h(
@@ -522,7 +506,7 @@ HousepiGenerator <- R6::R6Class(
       )
 
       # assign name to the model
-      private$.name <- ifelse(is.na(name), basename(choice), name)
+      private$.name <- basename(choice)
 
       # assign quiet field
       private$.quiet <- isTRUE(quiet)
@@ -556,95 +540,6 @@ HousepiGenerator <- R6::R6Class(
       if (is.null(private$.rcpp)) private$.rcpp <- private$.new_rcpp_model()
 
       invisible(self)
-    },
-
-    #' @description
-    #' Override the default printing behavior.
-    print = function() {
-      cli::cli_alert_info("Household model {.pkg {self$name}}.")
-      invisible(self)
-    },
-
-    #' @description
-    #' Show model description in RStudio Help window.
-    help = function() {
-      open_model_helper_(private$.path())
-      invisible(self)
-    },
-
-    #' @description
-    #' Dataset with associated augmented variables at current state.
-    #' 
-    #' @return
-    #' `data.frame`
-    export_augmented_dataset = function() {
-      return(private$.refactor_dataset(
-        cbind(private$.rcpp$dataset_for_simulation(), 
-              private$.rcpp$export_augmented_dataset())
-      ))
-    },
-
-    #' @description
-    #' A snapshot of all current internal state of a given household.
-    #' 
-    #' @param house_id `character(1)`\cr
-    #' Id of the household to export.
-    #' 
-    #' @return `list`
-    export_house_snapshot = function(house_id) {
-      house_id <- as.character(house_id)
-      output <- private$.rcpp$export_house_snapshot(house_id)
-      output$dataset <- private$.refactor_dataset(output$dataset)
-      output$datalist <- private$.refactor_datalist(output$datalist)
-
-      # first draft to reformat infectivity profile output
-      lst <- output$infec_profile
-      df <- data.frame(id = lst$id, discr = lst$discr, name = lst$name,
-                       stringsAsFactors = FALSE)
-      df$args <- lst$args
-      df$range <- lst$range
-      output$infec_profile <- df
-
-      return(output)
-    },
-
-    #' @description Summarise statuses in the dataset.
-    #' @return`data.frame`
-    summarise = function() {
-      private$.rcpp$export_dataset_report()
-    },
-
-    #' @description Summary house sizes in the dataset.
-    #' @return `data.frame`
-    summarise_house_size = function() {
-      private$.rcpp$export_house_size_report()
-    },
-
-    #' @description Posterior draws data.frame of last inference.
-    #' @return `posterior::draws_df`
-    as_draws_df = function() {
-      # UPDATE: temporary drooping loglikelihood draws
-      # UPDATE: while waiting for HousepiPosteriorDraws
-      cpp_traces_to_posterior(private$.rcpp$export_traces()) |>
-        dplyr::select(-loglikelihood)
-    },
-
-    #' @description Posterior draws matrix of last inference.
-    #' @return `posterior::draws_matrix`
-    as_draws_matrix = function() {
-      posterior::as_draws_matrix(self$as_draws_df())
-    },   
-
-    #' @description Posterior draws data.frame of household pointwise loglikelihood.
-    #' @return `posterior::draws_df`
-    as_house_loglike_draws_df = function() {
-      cpp_traces_to_posterior(private$.rcpp$export_house_loglike_traces())
-    },   
-
-    #' @description Posterior draws matrix of household pointwise loglikelihood.
-    #' @return `posterior::draws_matrix`
-    as_house_loglike_draws_matrix = function() {
-      posterior::as_draws_matrix(self$as_house_loglike_draws_df())
-    }
+    }    
   )
 )
