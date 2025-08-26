@@ -1,11 +1,11 @@
 ---
-title: "Data Augmentation"
+title: "Data augmentation"
 output: 
   rmarkdown::html_vignette:
     toc: true
     toc_depth: 3
 vignette: >
-  %\VignetteIndexEntry{Data Augmentation}
+  %\VignetteIndexEntry{Data augmentation}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 editor_options: 
@@ -86,7 +86,7 @@ Then, we define the augmented variables `infec_time` and `onset_time` as uniform
 
 ```{r}
 # generate an instance of the household model class
-hhmodel <- new_housepi_model("augm-example") |>
+hhmodel <- new_housepi_model("augm example") |>
 
   # augmented variable definitions as function calls
   load_augmented_list(
@@ -151,7 +151,7 @@ hhmodel |>
         # store augmented draws for individual "7"
         id_draws = "7", 
         progress = FALSE) |>
-  get_param_draws_df() |>
+  get_param_draws() |>
   bayesplot::mcmc_trace(facet_args = list(ncol = 2))
 ```
 
@@ -178,20 +178,20 @@ new_housepi_model("blank") |>
   add_augmented(name = "sample from model",
                 model = "norm", args = c(mean = 14)) |>
   infer() |> 
-  get_augm_draws_df() |> 
+  get_augm_draws() |> 
   bayesplot::mcmc_trace()
 
 # random walk starting from 0 (without model)
 new_housepi_model("blank") |>
   add_augmented(name = "random walk", value = 14, rule = "norm") |>
   infer() |> 
-  get_augm_draws_df() |> 
+  get_augm_draws() |> 
   bayesplot::mcmc_trace()
 
 # independent normal moves from value 87 (without model)
 new_housepi_model("blank") |>
   add_augmented(name = "independent moves", rule = "norm", from = 14) |>
   infer() |> 
-  get_augm_draws_df() |> 
+  get_augm_draws() |> 
   bayesplot::mcmc_trace()
 ```

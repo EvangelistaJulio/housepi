@@ -1,11 +1,11 @@
 ---
-title: "Sample Dataset"
+title: "Sample dataset"
 output: 
   rmarkdown::html_vignette:
     toc: true
     toc_depth: 3
 vignette: >
-  %\VignetteIndexEntry{Sample Dataset}
+  %\VignetteIndexEntry{Sample dataset}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 editor_options: 

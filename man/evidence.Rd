@@ -21,11 +21,10 @@ evidence(
 )
 }
 \arguments{
-\item{dataset}{\code{data.frame}\cr
-Input household dataset used for analysis. If \code{NULL}, uses the previously stored dataset.}
+\item{dataset}{\code{data.frame} with the household dataset used for analysis. If \code{NULL}, uses the previously stored dataset.}
 
-\item{scheme}{\code{character(1)} \cr
-Scheme used for evidence estimation. One between
+\item{scheme}{\code{character(1)} with the scheme used for evidence estimation.\cr
+One between\cr
 \itemize{
 \item "power-fractions": uses inverse temperatures \eqn{\frac{r^5}{{n_\mathrm{rungs}}^5}}{r^5 / n_rungs^5}  (default).
 \item "adaptive": uses adaptive thermodynamic ladder.
@@ -34,32 +33,25 @@ Scheme used for evidence estimation. One between
 \item{n_rungs}{\code{integer(1)} \cr
 Number of rungs in the thermodynamic ladder.}
 
-\item{sample_size}{\code{integer(1)} \cr
-Draws from the posterior distribution stored for each chain.}
+\item{sample_size}{\code{integer(1)} with the number of posterior draws stored for each chain.}
 
-\item{n_steps}{\code{integer(1)} \cr
-Total number of MCMC steps to perform for each chain.}
+\item{n_steps}{\code{integer(1)}  with the total number of MCMC steps for each chain.}
 
-\item{n_burnin}{\code{integer(1)} \cr
-Number of initial steps to discard as burn-in.}
+\item{n_burnin}{\code{integer(1)} with the number of initial steps to discard as burn-in.}
 
-\item{thin}{\code{integer(1)} \cr
-Thinning interval: number of steps to skip between each saved sample.}
+\item{thin}{\code{integer(1)} with the thinning interval, i. e. the number of steps to skip between each saved sample.}
 
-\item{n_adapt}{\code{integer(1)} \cr
-Number of adaptation steps before starting the main sampling.}
+\item{n_adapt}{\code{integer(1)} with the number of adaptation steps before starting the main sampling.}
 
-\item{n_chains}{\code{integer(1)} \cr
-Number of independent MCMC chains to run.}
+\item{n_chains}{\code{integer(1)} with the number of independent MCMC chains to run.}
 
-\item{n_threads}{\code{integer(1)} \cr
-Number of threads to run in parallel.}
+\item{n_threads}{\code{integer(1)} with the number of threads to run in parallel.}
 
-\item{seed}{\code{integer(1)}\cr
-Seed for the random number generator. If \code{NA} (default), uses current R seed.}
+\item{seed}{\code{integer(1)} with the seed for the random number generator.\cr
+If \code{NA} (default), uses current R seed.}
 
-\item{progress}{\code{integer(1)} | \code{logical(1)}\cr
-Controls progress visualization. One between:\cr
+\item{progress}{\code{integer(1)} or \code{logical(1)} to control progress visualization.\cr
+One between:\cr
 \itemize{
 \item If \code{integer}, prints progress every \code{progress} seconds;\cr
 \item If \code{TRUE} (default), prints progress every second;\cr

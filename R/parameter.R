@@ -40,7 +40,7 @@ HousepiParameter <- R6::R6Class(
     defs = NULL,
 
     #' @description
-    #' New instance of class
+    #' New object of class
     #' [HousepiParameter][housepi::HousepiParameter].
     initialize = function() {
       self$defs <- NULL

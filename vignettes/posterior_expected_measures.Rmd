@@ -1,11 +1,11 @@
 ---
-title: "Get started with housepi"
+title: "Posterior expected measures"
 output: 
   rmarkdown::html_vignette:
     toc: true
     toc_depth: 3
 vignette: >
-  %\VignetteIndexEntry{Get started with housepi}
+  %\VignetteIndexEntry{Posterior expected measures}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 editor_options: 
@@ -19,18 +19,16 @@ source("theme.R")
 library(housepi)
 ```
 
-We introduce `housepi`, a package for the study of epidemiological datasets from household outbreaks.
-In this vignette we'll walk through the process of loading a model, associating necessary definitions to perform inference and simulations.
+In this vignette we show how to compute standard and custom posterior measures.
 
 # The Housepi Model Class
 
-The central element of the package is the class `HousepiModel`, an [R6 class](https://r6.r-lib.org/articles/Introduction.html), used to wrap an Rcpp environment.
 We show how to generate a new instance of such a class with a template model, the chain binomial:
 
 ```{r}
 # repeat inference as in vignette 'Get Started'
 set.seed(42)
-hhmodel <- new_housepi_model("chain-binomial") |>
+hhmodel <- new_housepi_model("chain binomial") |>
   add_dataset(housepi::survey) |>
   load_parameter_list(alpha = list(prior = "unif",  rule = "lnorm"),
                       beta = list(prior = "unif", rule = "lnorm"))
@@ -40,30 +38,9 @@ results <- hhmodel |>
   infer(n_steps = 20000, n_burnin = 1000, thin = 8,
         n_adapt = 1000, n_chains = 4, n_threads = 1)
 estimates <- results |>
-  get_param_draws_df() |>
+  get_param_draws() |>
   posterior::summarise_draws()
 estimates
-```
-
-# Simulation
-
-In order to produce a simulation, our models require a pre-loaded dataset for the demographic structure of the households.
-We then provide parameter definitions, here we call `load_parameter_list`, particurly helpful for multiple parameter definitions.
-Finally, we call `simulate()` providing a household structure from the same dataset.
-
-```{r}
-# generate a new model object to use for simulation
-simulated <- new_housepi_model("chain-binomial") |>
-  # define constant parameters from the inference estimates
-  # note: definition without a prior assumes parameters to be constant
-  load_parameter_list(
-    alpha = subset(estimates, variable == "alpha")$mean,
-    beta = subset(estimates, variable == "beta")$mean
-  ) |>
-  # build new model using the same demographic structure of dataset
-  add_dataset(housepi::survey) |>
-  # override status of the dataset according to simulation
-  simulate()
 ```
 
 ## Expected Cases by Size 

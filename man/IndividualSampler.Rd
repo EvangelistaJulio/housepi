@@ -42,7 +42,7 @@ Features as hierchically reordered by the sampler.}
 \if{html}{\out{<a id="method-IndividualSampler-new"></a>}}
 \if{latex}{\out{\hypertarget{method-IndividualSampler-new}{}}}
 \subsection{Method \code{new()}}{
-New instance of class
+New object of class
 \link[=IndividualSampler]{IndividualSampler}.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{IndividualSampler$new(..., from = NULL)}\if{html}{\out{</div>}}

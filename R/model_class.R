@@ -392,7 +392,7 @@ HousepiModel <- R6::R6Class(
 
   public = list(
     #' @description
-    #' Create a new instance of class 'HousepiModel' 
+    #' Create a new object of class 'HousepiModel' 
     #' used to run inference and simulation routines.
     #' 
     #' @param choice `r rd_mdl_choice_`

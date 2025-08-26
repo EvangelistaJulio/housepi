@@ -269,7 +269,7 @@ HousepiGroupRate <- R6::R6Class(
     logic_tables = list(),
 
     #' @description
-    #' New instance of class
+    #' New object of class
     #' [HousepiGroupRate][housepi::HousepiGroupRate].
     initialize = function() {
       self$defs <- list()

@@ -7,8 +7,7 @@
 measure_sar_by_house_size(dataset)
 }
 \arguments{
-\item{dataset}{\code{data.frame}\cr
-Dataset containing individual 'status' and 'house_id'.}
+\item{dataset}{\code{data.frame} with the household dataset used for analysis.}
 }
 \value{
 \code{data.frame}

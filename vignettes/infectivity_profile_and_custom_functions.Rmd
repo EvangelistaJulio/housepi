@@ -1,11 +1,11 @@
 ---
-title: "Infectivity Profile and Custom Functions"
+title: "Infectivity profile and custom functions"
 output: 
   rmarkdown::html_vignette:
     toc: true
     toc_depth: 3
 vignette: >
-  %\VignetteIndexEntry{Infectivity Profile and Custom Functions}
+  %\VignetteIndexEntry{Infectivity profile and custom functions}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 editor_options: 
@@ -38,7 +38,7 @@ In this simple hypothesis all individuals will share the same profile which depe
 We can provide a custom infectivity profile calling `add_infec_profile()` as follows:
 
 ```{r}
-hhsimul <- new_housepi_model("augm-infection-time") |>
+hhsimul <- new_housepi_model("augm infection time") |>
   load_parameter_template() |>
   add_infec_profile(name = "gamma", args = c(shape = 2.2, scale = 1.3))
 ```

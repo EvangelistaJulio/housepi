@@ -2,21 +2,24 @@
 % Please edit documentation in R/expose_class.R
 \name{load_parameter_list}
 \alias{load_parameter_list}
-\title{Load list of parameter definitions}
+\alias{load_augmented_list}
+\alias{load_group_rate_list}
+\title{Load list of definitions}
 \usage{
 load_parameter_list(object, ..., from = NA, append = FALSE)
+
+load_augmented_list(object, ..., from = NA, append = FALSE)
+
+load_group_rate_list(object, ..., from = NA, append = FALSE)
 }
 \arguments{
-\item{object}{\code{HousepiModel}\cr
-A HousepiModel object.}
+\item{object}{\code{HousepiModel} object.}
 
 \item{...}{Named arguments with respective list of definition details.}
 
-\item{from}{named \code{list}\cr
-Named list of definitions.}
+\item{from}{named \code{list} of definitions.}
 
-\item{append}{\code{logical(1)}\cr
-If \code{TRUE} appends to current definitions.\cr
+\item{append}{\code{logical(1)} to append to current definitions.\cr
 If \code{FALSE} drop all pre-existing definitions (default).}
 }
 \value{
@@ -24,5 +27,5 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 A deep clone of the input object with updated definitions.
 }
 \description{
-Load parameter definitions either as arguments or from predefined list.
+Load definitions either as arguments or from predefined list.
 }

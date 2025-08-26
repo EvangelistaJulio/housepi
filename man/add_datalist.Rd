@@ -7,11 +7,9 @@
 add_datalist(object, datalist)
 }
 \arguments{
-\item{object}{\code{HousepiModel}\cr
-A HousepiModel object.}
+\item{object}{\code{HousepiModel} object.}
 
-\item{datalist}{\code{data.frame}\cr
-Input individual datalist used for analysis.}
+\item{datalist}{\code{data.frame} with the individual datalist used for analysis.}
 }
 \value{
 \code{HousepiModel}\cr

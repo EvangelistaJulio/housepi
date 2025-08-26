@@ -13,6 +13,7 @@ home:
   desc: >
     A library of models and tools for epidemiological modeling and analysis of household epidemiological data.
 
+# References
 reference:
 - title: "Overview"
   desc: >
@@ -22,23 +23,34 @@ reference:
   
 - title: "General"
   desc: >
-    General calls
+    General calls 
   contents:
     - new_housepi_model
     - template_household_model
     - loglikelihood
     - infer
     - simulate
+    - simulate.HousepiModel
+    - summarise
+    - summarise.HousepiModel
+  sidebar: true
 
 - title: "Model definitions"
   desc: >
     Functions used to customize your model definitions.
   contents:
   - starts_with("add_")
-  - starts_with("drop_")
   - starts_with("load_")
   - starts_with("get_")
+  - -ends_with("draws")
+  - starts_with("drop_")
 
+- title: "Inference results"
+  desc: >
+    Extract draws from inference results.
+  contents:
+  - ends_with("draws")
+  
 - title: "Posterior expectations"
   desc: >
     Posterior expectations.
@@ -48,22 +60,38 @@ reference:
 
 - title: "Test internal functions"
   desc: >
-    CallS to internal C++ functions for testing.
+    Calls to internal C++ functions for testing.
   contents:
   - starts_with("test_")
 
-- title: "Other Functions"
-  desc: "FIXME Temporary Placeholder"
+- title: "Datasets"
+  desc: >
+    Public available datasets used for model testing.
   contents:
-  - evidence  
-  - summarise
-  - HouseholdSampler
+  - survey
   - starts_with("flu")
   - sarscov2_2021_israel
-  - survey
-  - simulate.HousepiModel
-  - summarise.HousepiModel
 
+- title: "Functions under development"
+  desc: >
+    Functions in the making. Handle with care!
+  contents:
+  - evidence  
+  - HouseholdSampler
+  
+# Articles 
+articles:
+  - title: ""
+    navbar: ~
+    contents:
+      - bayesian_mcmc_options
+      - data_augmentation
+      - posterior_expected_measures
+      - group_rates
+      - infectivity_profile_and_custom_functions
+      - sample_dataset
+
+# Navigation Bar
 navbar:
   structure:
     left:
@@ -81,12 +109,13 @@ navbar:
       href: articles/housepi.html
     hhmodels:
       text: "Templates"
+      href: ~
       menu:
         - text: "Chain binomial"
-          href: reference/_template_chain-binomial.html
+          href: reference/_hhmodel_chain_binomial.html
         - text: "Heterogeneous chain binomial"
-          href: reference/_template_chain-binomial-heterogeneous.html
+          href: reference/_hhmodel_chain_binomial_heterogeneous.html
         - text: "Augmented example"
-          href: reference/_template_augm-examples.html
+          href: reference/_hhmodel_augm_examples.html
         - text: "Augmented infection times"
-          href: reference/_template_augm-infection-time.html
+          href: reference/_hhmodel_augm_infection_time.html

@@ -25,65 +25,56 @@ add_augmented(
 )
 }
 \arguments{
-\item{object}{\code{HousepiModel}\cr
-A HousepiModel object.}
+\item{object}{\code{HousepiModel} object.}
 
-\item{name}{\code{character(1)}\cr
-Literal name used for calls.}
+\item{name}{\code{character(1)} name used by interna; calls.}
 
-\item{status}{\code{integer(1)}\cr
-Specifict definitions for individuals of a given positive status.\cr
+\item{status}{\code{integer(1)} with positive status to specify individual definitions.\cr
 If NA (default), the generic defition is associated to all infectious individuals.}
 
-\item{const}{\code{logical(1)}\cr
-If \code{TRUE} it's treated as a constant and other definition details are ignored.\cr
+\item{const}{\code{logical(1)} to treat definition as constant (other details are ignored).\cr
 Default is \code{FALSE}.}
 
-\item{discr}{\code{logical(1)}\cr
-If \code{TRUE} it's treated as discrete and the model is discretized (if applicable).\cr
+\item{discr}{\code{logical(1)} to treat definition as discrete and the model is discretized (if applicable).\cr
 Default is \code{FALSE}.}
 
-\item{func}{\code{character()}\cr
-Name of the augmented function.}
+\item{func}{\code{character(1)} with the name of the augmented function.}
 
-\item{func_args}{named \code{list}\cr
-Arguments of the augmented function.}
+\item{func_args}{named \code{list} with the arguments of the augmented function.}
 
-\item{value}{\code{numeric(1)} | \code{character(1)}\cr
-Initial value. One between:\cr
+\item{value}{\code{numeric(1)} or \code{character(1)} with the initial value. \cr
+One between:\cr
 \itemize{
 \item Scalar value;\cr
 \item Parameter name (followed by \verb{@P});\cr
 \item Dataset name (followed by \verb{@D}).
 }}
 
-\item{init_rand}{\code{character(1)}\cr
-If \code{TRUE} draw initial vale from model distribution.}
+\item{init_rand}{\code{character(1)} to draw initial value from model distribution.\cr
+Default is \code{FALSE}.}
 
-\item{model}{\code{character(1)}\cr
-Choice for the model distribution.}
+\item{model}{\code{character(1)} wit the choice for the model distribution.}
 
-\item{args}{named \code{numeric()} | \code{list}\cr
-Custom arguments for the model distribution.}
+\item{args}{named \code{numeric()} or \code{list} with custom arguments for the model distribution.}
 
-\item{min}{\code{numeric(1)}\cr
-Truncate to a minimum value. One between:\cr
+\item{min}{\code{numeric(1)} to truncate to a minimum value. \cr
+One between:\cr
 \itemize{
 \item Scalar value;\cr
 \item Parameter name (followed by \verb{@P});\cr
 \item Dataset name (followed by \verb{@D}).
 }}
 
-\item{max}{\code{numeric(1)}\cr
-Truncate to a maximum value. One between:\cr
+\item{max}{\code{numeric(1)} to truncate to a maximum value. \cr
+One between:\cr
 \itemize{
 \item Scalar value;\cr
 \item Parameter name (followed by \verb{@P});\cr
 \item Dataset name (followed by \verb{@D}).
 }}
 
-\item{rule}{\code{character(1)}\cr
-Proposer rule used during inference. One between:\cr
+\item{rule}{\code{character(1)} with the proposer rule used during inference.\cr
+One between:\cr
 \itemize{
 \item \code{NA} (default): see "sample";\cr
 \item "sample": sampled from the \%s distribution;\cr
@@ -92,12 +83,11 @@ Proposer rule used during inference. One between:\cr
 \item "lnorm": increment id drawn from a lognormal distribution (for positive values only).
 }}
 
-\item{scale}{\code{numeric(1)}\cr Scale of the proposer rule (if applicable).\cr
+\item{scale}{\code{numeric(1)}with the scale of the proposer rule (if applicable).\cr
 Changed automatically during inference if \code{n_adpat}>0.\cr
 Default is \code{1}.}
 
-\item{from}{\code{numeric(1)} | \code{character(1)}\cr
-Advanced options for non random walk moves.}
+\item{from}{\code{numeric(1)} or \code{character(1)} with advanced options for non random walk moves.}
 
 \item{expr}{Provide an expression.}
 }

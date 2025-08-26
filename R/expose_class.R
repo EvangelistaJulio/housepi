@@ -12,7 +12,7 @@
 
 #' @title New housepi model
 #' @description
-#' Create a new instance of class 'HousepiModel' 
+#' Create a new object of class 'HousepiModel' 
 #' used to run inference and simulation routines.
 #'
 #' @param choice `r rd_mdl_choice_`
@@ -85,59 +85,37 @@ summarise.HousepiModel <- function(object, ...) {
 ############################################################################
 ############################################################################
 
-#' @title Drop parameters from housepi model
+#' @title Drop definitions
 #' @description
-#' Drop parameter definitions.
+#' Drop current formatted definitions.
 #' 
 #' @param object `r rd_model_in_`
 #' @param ... Ignored.
 #'
 #' @return `r rd_model_out_`
-#' 
+#'
+#' @rdname drop_definitions
 #' @export
 drop_parameters <-  function(object, ...) {
   stopifnot(inherits(object, "HousepiModel"))
   object$clone(deep = TRUE)$drop_parameters(...)
 }
 
-#' @title Drop augmented variables from housepi model
-#' @description
-#' Drop augmented variable definitions.
-#' 
-#' @param object `r rd_model_in_`
-#' @param ... Ignored.
-#'
-#' @return `r rd_model_out_`
-#' 
+#' @rdname drop_definitions
 #' @export
 drop_augmented <-  function(object, ...) {
   stopifnot(inherits(object, "HousepiModel"))
   object$clone(deep = TRUE)$drop_augmented(...)
 }
 
-#' @title Drop group rates from housepi model
-#' @description
-#' Drop group rates definitions.
-#' 
-#' @param object `r rd_model_in_`
-#' @param ... Ignored.
-#'
-#' @return `r rd_model_out_`
-#' 
+#' @rdname drop_definitions
 #' @export
 drop_group_rates <-  function(object, ...) {
   stopifnot(inherits(object, "HousepiModel"))
   object$clone(deep = TRUE)$drop_group_rates(...)
 }
 
-#' @title Drop all definitions from housepi model
-#' @description
-#' Drop all definitions.
-#' 
-#' @param object `r rd_model_in_`
-#'
-#' @return `r rd_model_out_`
-#' 
+#' @rdname drop_definitions
 #' @export
 drop_all <- function(object) {
   stopifnot(inherits(object, "HousepiModel"))
@@ -148,15 +126,16 @@ drop_all <- function(object) {
 ############################################################################
 ############################################################################
 
-#' @title Get parameter definitions
+#' @title Get definitions
 #' @description 
-#' Get parameter formatted definitions.
+#' Get current formatted definitions.
 #' 
 #' @param object `r rd_model_in_`
 #' @param ... Ignored.
 #' 
 #' @return `data.frame`
 #' 
+#' @rdname get_definitions
 #' @export
 get_parameters <- function(object, ...) {
   stopifnot(inherits(object, "HousepiModel"))
@@ -199,9 +178,9 @@ add_parameter <- function(object,
   )
 }
 
-#' @title Load list of parameter definitions
+#' @title Load list of definitions
 #' @description
-#' Load parameter definitions either as arguments or from predefined list.
+#' Load definitions either as arguments or from predefined list.
 #'
 #' @param object `r rd_model_in_`
 #' @param ... `r rd_list_args_`
@@ -210,6 +189,7 @@ add_parameter <- function(object,
 #' 
 #' @return `r rd_model_out_`
 #' 
+#' @rdname load_definitions_list
 #' @export
 load_parameter_list <- function(object, ..., from = NA, append = FALSE) {
   stopifnot(inherits(object, "HousepiModel"))
@@ -218,15 +198,16 @@ load_parameter_list <- function(object, ..., from = NA, append = FALSE) {
   )
 }
 
-#' @title Load parameter template definitions
+#' @title Load template definitions
 #' @description
-#' Load parameter definitions from model template.
+#' Load default definitions from model template.
 #' 
 #' @param object `r rd_model_in_`
 #' @param append `r rd_tmpl_append_`
 #' 
 #' @return `r rd_model_out_`
 #' 
+#' @rdname load_template_definitions
 #' @export
 load_parameter_template <- function(object, append = FALSE) {
   stopifnot(inherits(object, "HousepiModel"))
@@ -237,15 +218,7 @@ load_parameter_template <- function(object, append = FALSE) {
 ############################################################################
 ############################################################################
 
-#' @title Get augmented definitions
-#' @description 
-#' Get augmented variable/function formatted definitions.
-#' 
-#' @param object `r rd_model_in_`
-#' @param ... Ignored.
-#' 
-#' @return `data.frame`
-#' 
+#' @rdname get_definitions
 #' @export
 get_augmented <- function(object, ...) {
   stopifnot(inherits(object, "HousepiModel"))
@@ -300,18 +273,7 @@ add_augmented <- function(object,
   )
 }
 
-#' @title Load list of augmented definitions
-#' @description
-#' Load augmented variable/function definitions 
-#' either as arguments or from predefined list.
-#'
-#' @param object `r rd_model_in_`
-#' @param ... `r rd_list_args_` 
-#' @param from `r rd_list_from_`
-#' @param append `r rd_list_append_`
-#' 
-#' @return `r rd_model_out_` 
-#' 
+#' @rdname load_definitions_list
 #' @export
 load_augmented_list <- function(object, ..., from = NA, append = FALSE) {
   stopifnot(inherits(object, "HousepiModel"))
@@ -320,15 +282,7 @@ load_augmented_list <- function(object, ..., from = NA, append = FALSE) {
   )
 }
 
-#' @title Load augmented template definitions
-#' @description
-#' Load augmented variable/function definitions from template.
-#'
-#' @param object `r rd_model_in_`
-#' @param append `r rd_tmpl_append_`
-#' 
-#' @return `r rd_model_out_` 
-#' 
+#' @rdname load_template_definitions
 #' @export
 load_augmented_template <- function(object, append = FALSE) {
   stopifnot(inherits(object, "HousepiModel"))
@@ -339,15 +293,7 @@ load_augmented_template <- function(object, append = FALSE) {
 ############################################################################
 ############################################################################
 
-#' @title Get group rates definitions
-#' @description 
-#' Get group rates formatted definitions.
-#' 
-#' @param object `r rd_model_in_`
-#' @param ... Ignored.
-#' 
-#' @return `data.frame`
-#' 
+#' @rdname get_definitions
 #' @export
 get_group_rates <- function(object, ...) {
   stopifnot(inherits(object, "HousepiModel"))
@@ -402,18 +348,7 @@ add_group_rate <-  function(object,
   )
 }
 
-#' @title Load list of rroup rate definitions
-#' @description
-#' Load group rate definitions either as direct arguments
-#' or from predefined list.
-#' 
-#' @param object `r rd_model_in_`
-#' @param ... ` r rd_list_args_`
-#' @param from `r rd_list_from_`
-#' @param append `r rd_list_append_`
-#' 
-#' @return `r rd_model_out_` 
-#' 
+#' @rdname load_definitions_list
 #' @export
 load_group_rate_list <- function(object, ..., from = NA, append = FALSE) {
   stopifnot(inherits(object, "HousepiModel"))

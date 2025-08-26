@@ -2,16 +2,17 @@
 % Please edit documentation in R/expose_class.R
 \name{load_parameter_template}
 \alias{load_parameter_template}
-\title{Load parameter template definitions}
+\alias{load_augmented_template}
+\title{Load template definitions}
 \usage{
 load_parameter_template(object, append = FALSE)
+
+load_augmented_template(object, append = FALSE)
 }
 \arguments{
-\item{object}{\code{HousepiModel}\cr
-A HousepiModel object.}
+\item{object}{\code{HousepiModel} object.}
 
-\item{append}{\code{logical(1)}\cr
-If \code{TRUE} append only missing definitions.\cr
+\item{append}{\code{logical(1)} to append only missing definitions.\cr
 If \code{FALSE} drop all pre-existing definitions (default).}
 }
 \value{
@@ -19,5 +20,5 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 A deep clone of the input object with updated definitions.
 }
 \description{
-Load parameter definitions from model template.
+Load default definitions from model template.
 }

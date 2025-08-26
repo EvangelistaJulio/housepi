@@ -7,8 +7,7 @@
 \method{summarise}{HousepiModel}(object, ...)
 }
 \arguments{
-\item{object}{\code{HousepiModel}\cr
-A HousepiModel object.}
+\item{object}{\code{HousepiModel} object.}
 
 \item{...}{Ignored.}
 }

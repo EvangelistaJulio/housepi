@@ -7,17 +7,15 @@
 \method{simulate}{HousepiModel}(object, dataset = NULL, seed = NA, progress = FALSE, ...)
 }
 \arguments{
-\item{object}{\code{HousepiModel}\cr
-A HousepiModel object.}
+\item{object}{\code{HousepiModel} object.}
 
-\item{dataset}{\code{data.frame}\cr
-Input household dataset used for analysis. If \code{NULL}, uses the previously stored dataset.}
+\item{dataset}{\code{data.frame} with the household dataset used for analysis. If \code{NULL}, uses the previously stored dataset.}
 
-\item{seed}{\code{integer(1)}\cr
-Seed for the random number generator. If \code{NA} (default), uses current R seed.}
+\item{seed}{\code{integer(1)} with the seed for the random number generator.\cr
+If \code{NA} (default), uses current R seed.}
 
-\item{progress}{\code{integer(1)} | \code{logical(1)}\cr
-Controls progress visualization. One between:\cr
+\item{progress}{\code{integer(1)} or \code{logical(1)} to control progress visualization.\cr
+One between:\cr
 \itemize{
 \item If \code{integer}, prints progress every \code{progress} seconds;\cr
 \item If \code{TRUE} (default), prints progress every second;\cr

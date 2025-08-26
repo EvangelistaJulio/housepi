@@ -1,6 +1,6 @@
 \docType{class}
-\title{Example - Augmented Delays for Incubation Period Estimation}
-\name{housepi template : Augmented Delays for Incubation Period Estimation}
+\title{Augmented Example}
+\name{housepi template : Augmented Example}
 \description{
 MISSING DESCRIPTION
 \if{html}{\out{<hr>}}
@@ -13,8 +13,7 @@ MISSING DESCRIPTION
 }
 \section{Augmented Variables}{
 \itemize{
-\item \code{shape} : 
-\item \code{scale} :
+\item \code{log_proba} : 
 }
 \if{html}{\out{<hr>}}
 }

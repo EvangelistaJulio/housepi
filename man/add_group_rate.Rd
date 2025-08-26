@@ -20,46 +20,36 @@ add_group_rate(
 )
 }
 \arguments{
-\item{object}{\code{HousepiModel}\cr
-A HousepiModel object.}
+\item{object}{\code{HousepiModel} object.}
 
-\item{name}{\code{character(1)}\cr
-Literal name used for calls.}
+\item{name}{\code{character(1)} name used by interna; calls.}
 
-\item{by}{\code{list}\cr
-Feature(s) associated to group rate as dataset headers.\cr
+\item{by}{\code{list} with feature(s) associated to group rate as dataset headers.\cr
 Corresponding dataset columns have to be categorical.}
 
-\item{prefix}{\code{character(1)}\cr
-Prefix to parameter names associated to the group rate.\cr
+\item{prefix}{\code{character(1)} with prefix to parameter names associated to the group rate.\cr
 If \code{NA} (default), used the first 3 letters of rate name.}
 
-\item{reference}{named \code{list}\cr
-Choose reference group providing corresponding features.\cr
+\item{reference}{named \code{list} to choose reference group providing corresponding features.\cr
 Default is the group with the largest sample size.}
 
-\item{independent}{\code{logical(1)}\cr
-If \code{TRUE}, features are considered independently.\cr
+\item{independent}{\code{logical(1)} to consider features as independent.\cr
 If \code{FALSE}, features are combined (default).}
 
-\item{prior}{\code{character(1)}\cr
-Choice for the prior distribution.
+\item{prior}{\code{character(1)} wit the choice for the prior distribution.
 Default is "lnorm".}
 
-\item{args}{named \code{numeric()} | \code{list}\cr
-Custom arguments for the prior distribution.
+\item{args}{named \code{numeric()} or \code{list} with custom arguments for the prior distribution.
 Default is \code{list(meanlog = 0, sdlog = 3)}.}
 
-\item{min}{\code{numeric(1)}\cr
-Truncate to a minimum value.
+\item{min}{\code{numeric(1)} to truncate to a minimum value.
 Default is 0.}
 
-\item{max}{\code{numeric(1)}\cr
-Truncate to a maximum value.
+\item{max}{\code{numeric(1)} to truncate to a maximum value.
 Default is 10.}
 
-\item{rule}{\code{character(1)}\cr
-Proposer rule used during inference. One between:\cr
+\item{rule}{\code{character(1)} with the proposer rule used during inference.\cr
+One between:\cr
 \itemize{
 \item \code{NA} (default): see "sample";\cr
 \item "sample": sampled from the \%s distribution;\cr
@@ -68,7 +58,7 @@ Proposer rule used during inference. One between:\cr
 \item "lnorm": increment id drawn from a lognormal distribution (for positive values only).
 }}
 
-\item{scale}{\code{numeric(1)}\cr Scale of the proposer rule (if applicable).\cr
+\item{scale}{\code{numeric(1)}with the scale of the proposer rule (if applicable).\cr
 Changed automatically during inference if \code{n_adpat}>0.\cr
 Default is \code{1}.}
 }

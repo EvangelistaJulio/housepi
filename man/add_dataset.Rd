@@ -7,11 +7,9 @@
 add_dataset(object, dataset)
 }
 \arguments{
-\item{object}{\code{HousepiModel}\cr
-A HousepiModel object.}
+\item{object}{\code{HousepiModel} object.}
 
-\item{dataset}{\code{data.frame}\cr
-Input household dataset used for analysis.}
+\item{dataset}{\code{data.frame} with the household dataset used for analysis.}
 }
 \value{
 \code{HousepiModel}\cr

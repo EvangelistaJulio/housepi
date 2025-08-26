@@ -19,37 +19,29 @@ add_parameter(
 )
 }
 \arguments{
-\item{object}{\code{HousepiModel}\cr
-A HousepiModel object.}
+\item{object}{\code{HousepiModel} object.}
 
-\item{name}{\code{character(1)}\cr
-Literal name used for calls.}
+\item{name}{\code{character(1)} name used by interna; calls.}
 
-\item{value}{\code{numeric(1)}\cr
-Initial value required if constant or random initialization has been disabled.}
+\item{value}{\code{numeric(1)} with initial value.\cr
+Required only if constant or random initialization has been disabled.}
 
-\item{const}{\code{logical(1)}\cr
-If \code{TRUE} it's treated as a constant and other definition details are ignored.\cr
+\item{const}{\code{logical(1)} to treat definition as constant (other details are ignored).\cr
 Default is \code{FALSE}.}
 
-\item{discr}{\code{logical(1)}\cr
-If \code{TRUE} it's treated as discrete and the prior is discretized (if applicable).\cr
+\item{discr}{\code{logical(1)} to treat definition as discrete and the prior is discretized (if applicable).\cr
 Default is \code{FALSE}.}
 
-\item{prior}{\code{character(1)}\cr
-Choice for the prior distribution.}
+\item{prior}{\code{character(1)} wit the choice for the prior distribution.}
 
-\item{args}{named \code{numeric()} | \code{list}\cr
-Custom arguments for the prior distribution.}
+\item{args}{named \code{numeric()} or \code{list} with custom arguments for the prior distribution.}
 
-\item{min}{\code{numeric(1)}\cr
-Truncate to a minimum value.}
+\item{min}{\code{numeric(1)} to truncate to a minimum value.}
 
-\item{max}{\code{numeric(1)}\cr
-Truncate to a maximum value.}
+\item{max}{\code{numeric(1)} to truncate to a maximum value.}
 
-\item{rule}{\code{character(1)}\cr
-Proposer rule used during inference. One between:\cr
+\item{rule}{\code{character(1)} with the proposer rule used during inference.\cr
+One between:\cr
 \itemize{
 \item \code{NA} (default): see "sample";\cr
 \item "sample": sampled from the prior distribution;\cr
@@ -58,7 +50,7 @@ Proposer rule used during inference. One between:\cr
 \item "lnorm": increment id drawn from a lognormal distribution (for positive values only).
 }}
 
-\item{scale}{\code{numeric(1)}\cr Scale of the proposer rule (if applicable).\cr
+\item{scale}{\code{numeric(1)}with the scale of the proposer rule (if applicable).\cr
 Changed automatically during inference if \code{n_adpat}>0.\cr
 Default is \code{1}.}
 }

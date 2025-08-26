@@ -41,7 +41,7 @@ head(simulated)
 \if{html}{\out{<a id="method-HouseholdSampler-new"></a>}}
 \if{latex}{\out{\hypertarget{method-HouseholdSampler-new}{}}}
 \subsection{Method \code{new()}}{
-New instance of class
+New object of class
 \link[=HouseholdSampler]{HouseholdSampler}.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HouseholdSampler$new(..., from = NULL, ascending = FALSE)}\if{html}{\out{</div>}}

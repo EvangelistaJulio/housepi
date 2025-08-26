@@ -1,16 +1,7 @@
 #library(testthat)
 
 options(error = NULL)
-source("R/utils.R")
-source("R/template.R")
-source("R/augmented.R")
-source("R/parameter.R")
-source("R/infectivity.R")
-source("R/group_rate.R")
-source("R/expected_cases.R")
-source("R/model_generator.R")
-source("R/model_wrapper.R")
-source("R/model_class.R")
+source("inst/--developer/debug.R")
 
 # debug deep clone of housepi wrapper class
 hhwrap <- HousepiWrapper$new("chain-binomial")

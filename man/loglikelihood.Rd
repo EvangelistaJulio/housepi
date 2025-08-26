@@ -7,14 +7,12 @@
 loglikelihood(object, dataset = NULL, seed = NA)
 }
 \arguments{
-\item{object}{\code{HousepiModel}\cr
-A HousepiModel object.}
+\item{object}{\code{HousepiModel} object.}
 
-\item{dataset}{\code{data.frame}\cr
-Input household dataset used for analysis. If \code{NULL}, uses the previously stored dataset.}
+\item{dataset}{\code{data.frame} with the household dataset used for analysis. If \code{NULL}, uses the previously stored dataset.}
 
-\item{seed}{\code{integer(1)}\cr
-Seed for the random number generator. If \code{NA} (default), uses current R seed.}
+\item{seed}{\code{integer(1)} with the seed for the random number generator.\cr
+If \code{NA} (default), uses current R seed.}
 }
 \value{
 \code{numeric(1)}

@@ -7,21 +7,17 @@
 add_infec_profile(object, name, discr = FALSE, args = list(), max = NA)
 }
 \arguments{
-\item{object}{\code{HousepiModel}\cr
-A HousepiModel object.}
+\item{object}{\code{HousepiModel} object.}
 
-\item{name}{\code{character(1)}\cr
-Literal name used for calls.}
+\item{name}{\code{character(1)} name used by interna; calls.}
 
-\item{discr}{\code{logical(1)}\cr
-If \code{TRUE} it's treated as discrete and the profile is discretized (if applicable).\cr
+\item{discr}{\code{logical(1)} to treat definition as discrete and the profile is discretized (if applicable).\cr
 Default is \code{FALSE}.}
 
-\item{args}{named \code{numeric()} | \code{list}\cr
-Custom arguments for the profile distribution.}
+\item{args}{named \code{numeric()} or \code{list} with custom arguments for the profile distribution.}
 
-\item{max}{\code{numeric(1)}\cr
-Truncate to a maximum value. One between:\cr
+\item{max}{\code{numeric(1)} to truncate to a maximum value. \cr
+One between:\cr
 \itemize{
 \item Scalar value;\cr
 \item Parameter name (followed by \verb{@P});\cr

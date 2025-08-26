@@ -21,13 +21,35 @@ set_source_name_ <- function(x, name = NA) {
 #' @title
 #' Template models directory
 #' @description
-#' Returns the directory to housepi template models.
+#' Returns the directory to all housepi template models.
 #'
 #' @return `character(1)`
 #' @keywords internal
 #' @noRd
 template_models_dir <- function() {
   return(file.path(system.file(package = "housepi"), "models"))
+}
+
+#' @title
+#' Get template model directory
+#' @description
+#' Return the directory of chosen housepi template model.
+#' 
+#' @param x `character(1)`\cr
+#' Choice of 
+#'
+#' @return `character(1)`
+#' @keywords internal
+#' @noRd
+get_template_dir <- function(x) {
+  .flatten_string <- function(x) return(tolower(gsub("-|_| ", "", x)))
+  flat_choice <- .flatten_string(x)
+  path_to_options <- list.files(template_models_dir(), full.names = TRUE)
+  flat_options <- .flatten_string(basename(path_to_options))
+  # extract path if present (unique since folder name)
+  mask <- flat_options == flat_choice
+  if (any(mask)) return(path_to_options[mask])
+  return(NA)
 }
 
 #' @title
@@ -40,7 +62,9 @@ template_models_dir <- function() {
 show_model_names <- function() {
   cli::cli_alert_info("Available template models:")
   ulid <- cli::cli_ul()
-  for (name in list.files(template_models_dir())) cli::cli_li(name)
+  for (name in list.files(template_models_dir())) {
+    cli::cli_li(tolower(gsub("-|_", " ", name)))
+  }
   cli::cli_end(ulid)
   invisible()
 }

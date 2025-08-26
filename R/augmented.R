@@ -274,7 +274,7 @@ HousepiAugmented <- R6::R6Class(
     defs = NULL,
 
     #' @description
-    #' New instance of class
+    #' New object of class
     #' [HousepiAugmented][housepi::HousepiAugmented].
     initialize = function() {
       self$defs <- NULL

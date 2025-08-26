@@ -2,13 +2,21 @@
 % Please edit documentation in R/expose_class.R
 \name{drop_parameters}
 \alias{drop_parameters}
-\title{Drop parameters from housepi model}
+\alias{drop_augmented}
+\alias{drop_group_rates}
+\alias{drop_all}
+\title{Drop definitions}
 \usage{
 drop_parameters(object, ...)
+
+drop_augmented(object, ...)
+
+drop_group_rates(object, ...)
+
+drop_all(object)
 }
 \arguments{
-\item{object}{\code{HousepiModel}\cr
-A HousepiModel object.}
+\item{object}{\code{HousepiModel} object.}
 
 \item{...}{Ignored.}
 }
@@ -17,5 +25,5 @@ A HousepiModel object.}
 A deep clone of the input object with updated definitions.
 }
 \description{
-Drop parameter definitions.
+Drop current formatted definitions.
 }

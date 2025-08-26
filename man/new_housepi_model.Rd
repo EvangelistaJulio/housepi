@@ -12,8 +12,8 @@ new_housepi_model(
 )
 }
 \arguments{
-\item{choice}{\code{character(1)}\cr
-Choice for the model. One between:\cr
+\item{choice}{\code{character(1)} with the choice for the model.\cr
+One between:\cr
 \itemize{
 \item template name;\cr
 \item path/to/folder with implementation files "model.cpp" and "model.h";\cr
@@ -22,21 +22,19 @@ Choice for the model. One between:\cr
 \item \code{NA} (default): fall back to "blank".
 }}
 
-\item{as_template}{\code{logical(1)}\cr
-If \code{TRUE} store the dynamic library as a local template.\cr
+\item{as_template}{\code{logical(1)} to store the dynamic library as a local template.\cr
 IF \code{FALSE} (default) recompile the model at every new session.}
 
-\item{force}{\code{logical(1)}\cr
-If \code{TRUE} compile even if a cached model already exists.}
+\item{force}{\code{logical(1)} to compile even if a cached model already exists.\cr
+Default is \code{FALSE}.}
 
-\item{quiet}{\code{logical(1)}\cr
-If \code{FALSE} shows \code{pkgbuild} compilation commands and warnings. Default is \code{TRUE}.}
+\item{quiet}{\code{logical(1)} to hide compilation commands and warnings.\cr
+Default is \code{TRUE}.}
 }
 \value{
-\code{HousepiModel}\cr
-A HousepiModel object.
+\code{HousepiModel} object.
 }
 \description{
-Create a new instance of class 'HousepiModel'
+Create a new object of class 'HousepiModel'
 used to run inference and simulation routines.
 }

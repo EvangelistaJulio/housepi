@@ -33,7 +33,7 @@ library(housepi)
 set.seed(42)
 
 # generate an instance of the chain binomial model
-hhmodel <- new_housepi_model("chain-binomial")
+hhmodel <- new_housepi_model("chain binomial")
 ```
 
 At any moment we can retrieve the template model description by using the method `$help()`.
@@ -125,13 +125,13 @@ At any moment we can turn a parameter definition into a constant definition: it 
 
 For further information on the available options for the definition of the parameter priors and MCMC proposer rule, see the vignette [Bayesian MCMC options](bayesian_mcmc_options.html).
 
-To see how to associate group rates in heterogeneous models, see the vignette [Group Rates](group_rates.html).
+To see how to associate group rates in heterogeneous models, see the vignette [Group rates](group_rates.html).
 
 # Inference
 
 After having provided all necessary definitions, we can perform inference calling `infer()`.
 This will return an object wrapping [posterior](https://cran.r-project.org/web/packages/posterior/) `draws` object that can be used to compute estimates.
-We can then extract the parameters draws by calling `get_param_draws_df`:
+We can then extract the parameters draws by calling `get_param_draws`:
 
 ```{r}
 # run the Monte Carlo specifying setup options
@@ -146,7 +146,7 @@ results <- hhmodel |>
 
 estimates <- results |>
   # export to psoterior draws_df
-  get_param_draws_df() |>
+  get_param_draws() |>
   posterior::summarise_draws()
 estimates
 ```
@@ -159,7 +159,7 @@ For example, we can plot the draws with [bayesplot](https://cran.r-project.org/w
 ```{r}
 # visualize the traces of the first chain with 'bayesplot'
 results |>
-  get_param_draws_df() |>
+  get_param_draws() |>
   bayesplot::mcmc_trace(facet_args = list(ncol = 1))
 ```
 
@@ -169,7 +169,7 @@ We can extract the sample of pointwise loglikelihood for each household and comp
 ```{r}
 # LOO-CV (leave-one-out cross-validation)
 results |>
-  get_house_loglike_draws_df() |>
+  get_house_loglike_draws() |>
   posterior::as_draws_matrix() |>
   loo::loo()
 ```
@@ -177,12 +177,12 @@ results |>
 # Augment Infection Times
 
 For models requiring augmented variables, the definition procedure is analogous.
-In [Data Augmentation](data_augmentation.html) we broadly discuss data augmentation and the process of more complex augmented definitions.
+In [Data augmentation](data_augmentation.html) we broadly discuss data augmentation and the process of more complex augmented definitions.
 Here we present a case sttudy, using the template model "augm-infection-time" where surveys are conditioned on single introduction.
 We load the parameter definitions directly from the model template.
 
 ```{r}
-hhsimul <- new_housepi_model("augm-infection-time") |>
+hhsimul <- new_housepi_model("augm infection time") |>
   load_parameter_template()
 
 # inspect parameter definitions
@@ -272,7 +272,7 @@ results <- hhmodel |>
   infer(simulated, n_chains = 3, n_steps = 10000, n_adapt = 2000, 
         n_burnin = 1000, thin = 10, progress = 20) |>
   # extract sample to posterioir::draws_df
-  get_param_draws_df()
+  get_param_draws()
 ```
 We can visualize traces vs expected values as follows
 

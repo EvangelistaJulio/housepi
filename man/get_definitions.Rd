@@ -2,13 +2,18 @@
 % Please edit documentation in R/expose_class.R
 \name{get_parameters}
 \alias{get_parameters}
-\title{Get parameter definitions}
+\alias{get_augmented}
+\alias{get_group_rates}
+\title{Get definitions}
 \usage{
 get_parameters(object, ...)
+
+get_augmented(object, ...)
+
+get_group_rates(object, ...)
 }
 \arguments{
-\item{object}{\code{HousepiModel}\cr
-A HousepiModel object.}
+\item{object}{\code{HousepiModel} object.}
 
 \item{...}{Ignored.}
 }
@@ -16,5 +21,5 @@ A HousepiModel object.}
 \code{data.frame}
 }
 \description{
-Get parameter formatted definitions.
+Get current formatted definitions.
 }

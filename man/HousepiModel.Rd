@@ -69,7 +69,7 @@ List containing current group rate definitions.}
 \if{html}{\out{<a id="method-HousepiModel-new"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-new}{}}}
 \subsection{Method \code{new()}}{
-Create a new instance of class 'HousepiModel'
+Create a new object of class 'HousepiModel'
 used to run inference and simulation routines.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$new(choice = NA, as_template = FALSE, force = FALSE, quiet = TRUE)}\if{html}{\out{</div>}}
@@ -78,8 +78,8 @@ used to run inference and simulation routines.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{choice}}{\code{character(1)}\cr
-Choice for the model. One between:\cr
+\item{\code{choice}}{\code{character(1)} with the choice for the model.\cr
+One between:\cr
 \itemize{
 \item template name;\cr
 \item path/to/folder with implementation files "model.cpp" and "model.h";\cr
@@ -88,15 +88,14 @@ Choice for the model. One between:\cr
 \item \code{NA} (default): fall back to "blank".
 }}
 
-\item{\code{as_template}}{\code{logical(1)}\cr
-If \code{TRUE} store the dynamic library as a local template.\cr
+\item{\code{as_template}}{\code{logical(1)} to store the dynamic library as a local template.\cr
 IF \code{FALSE} (default) recompile the model at every new session.}
 
-\item{\code{force}}{\code{logical(1)}\cr
-If \code{TRUE} compile even if a cached model already exists.}
+\item{\code{force}}{\code{logical(1)} to compile even if a cached model already exists.\cr
+Default is \code{FALSE}.}
 
-\item{\code{quiet}}{\code{logical(1)}\cr
-If \code{FALSE} shows \code{pkgbuild} compilation commands and warnings. Default is \code{TRUE}.}
+\item{\code{quiet}}{\code{logical(1)} to hide compilation commands and warnings.\cr
+Default is \code{TRUE}.}
 }
 \if{html}{\out{</div>}}
 }
@@ -133,8 +132,7 @@ Make an internal copy of the provided household dataset.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{dataset}}{\code{data.frame}\cr
-Input household dataset used for analysis.}
+\item{\code{dataset}}{\code{data.frame} with the household dataset used for analysis.}
 }
 \if{html}{\out{</div>}}
 }
@@ -177,8 +175,7 @@ Maje an internal copy of the provided datalist.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{datalist}}{\code{data.frame}\cr
-Input individual datalist used for analysis.}
+\item{\code{datalist}}{\code{data.frame} with the individual datalist used for analysis.}
 }
 \if{html}{\out{</div>}}
 }
@@ -207,34 +204,27 @@ If the parameter already exists, it is updated.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{name}}{\code{character(1)}\cr
-Literal name used for calls.}
+\item{\code{name}}{\code{character(1)} name used by interna; calls.}
 
-\item{\code{value}}{\code{numeric(1)}\cr
-Initial value required if constant or random initialization has been disabled.}
+\item{\code{value}}{\code{numeric(1)} with initial value.\cr
+Required only if constant or random initialization has been disabled.}
 
-\item{\code{const}}{\code{logical(1)}\cr
-If \code{TRUE} it's treated as a constant and other definition details are ignored.\cr
+\item{\code{const}}{\code{logical(1)} to treat definition as constant (other details are ignored).\cr
 Default is \code{FALSE}.}
 
-\item{\code{discr}}{\code{logical(1)}\cr
-If \code{TRUE} it's treated as discrete and the prior is discretized (if applicable).\cr
+\item{\code{discr}}{\code{logical(1)} to treat definition as discrete and the prior is discretized (if applicable).\cr
 Default is \code{FALSE}.}
 
-\item{\code{prior}}{\code{character(1)}\cr
-Choice for the prior distribution.}
+\item{\code{prior}}{\code{character(1)} wit the choice for the prior distribution.}
 
-\item{\code{args}}{named \code{numeric()} | \code{list}\cr
-Custom arguments for the prior distribution.}
+\item{\code{args}}{named \code{numeric()} or \code{list} with custom arguments for the prior distribution.}
 
-\item{\code{min}}{\code{numeric(1)}\cr
-Truncate to a minimum value.}
+\item{\code{min}}{\code{numeric(1)} to truncate to a minimum value.}
 
-\item{\code{max}}{\code{numeric(1)}\cr
-Truncate to a maximum value.}
+\item{\code{max}}{\code{numeric(1)} to truncate to a maximum value.}
 
-\item{\code{rule}}{\code{character(1)}\cr
-Proposer rule used during inference. One between:\cr
+\item{\code{rule}}{\code{character(1)} with the proposer rule used during inference.\cr
+One between:\cr
 \itemize{
 \item \code{NA} (default): see "sample";\cr
 \item "sample": sampled from the prior distribution;\cr
@@ -243,12 +233,11 @@ Proposer rule used during inference. One between:\cr
 \item "lnorm": increment id drawn from a lognormal distribution (for positive values only).
 }}
 
-\item{\code{scale}}{\code{numeric(1)}\cr Scale of the proposer rule (if applicable).\cr
+\item{\code{scale}}{\code{numeric(1)}with the scale of the proposer rule (if applicable).\cr
 Changed automatically during inference if \code{n_adpat}>0.\cr
 Default is \code{1}.}
 
-\item{\code{object}}{\code{HousepiModel}\cr
-A HousepiModel object.}
+\item{\code{object}}{\code{HousepiModel} object.}
 }
 \if{html}{\out{</div>}}
 }
@@ -267,11 +256,9 @@ Load parameter definitions either as arguments or from predefined list.
 \describe{
 \item{\code{...}}{Named arguments with respective list of definition details.}
 
-\item{\code{from}}{named \code{list}\cr
-Named list of definitions.}
+\item{\code{from}}{named \code{list} of definitions.}
 
-\item{\code{append}}{\code{logical(1)}\cr
-If \code{TRUE} appends to current definitions.\cr
+\item{\code{append}}{\code{logical(1)} to append to current definitions.\cr
 If \code{FALSE} drop all pre-existing definitions (default).}
 }
 \if{html}{\out{</div>}}
@@ -289,8 +276,7 @@ Load parameter definitions from model template.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{append}}{\code{logical(1)}\cr
-If \code{TRUE} append only missing definitions.\cr
+\item{\code{append}}{\code{logical(1)} to append only missing definitions.\cr
 If \code{FALSE} drop all pre-existing definitions (default).}
 }
 \if{html}{\out{</div>}}
@@ -326,62 +312,54 @@ If the augmented variablw already exists, it is updated.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{name}}{\code{character(1)}\cr
-Literal name used for calls.}
+\item{\code{name}}{\code{character(1)} name used by interna; calls.}
 
-\item{\code{status}}{\code{integer(1)}\cr
-Specifict definitions for individuals of a given positive status.\cr
+\item{\code{status}}{\code{integer(1)} with positive status to specify individual definitions.\cr
 If NA (default), the generic defition is associated to all infectious individuals.}
 
-\item{\code{const}}{\code{logical(1)}\cr
-If \code{TRUE} it's treated as a constant and other definition details are ignored.\cr
+\item{\code{const}}{\code{logical(1)} to treat definition as constant (other details are ignored).\cr
 Default is \code{FALSE}.}
 
-\item{\code{discr}}{\code{logical(1)}\cr
-If \code{TRUE} it's treated as discrete and the model is discretized (if applicable).\cr
+\item{\code{discr}}{\code{logical(1)} to treat definition as discrete and the model is discretized (if applicable).\cr
 Default is \code{FALSE}.}
 
-\item{\code{func}}{\code{character()}\cr
-Name of the augmented function.}
+\item{\code{func}}{\code{character(1)} with the name of the augmented function.}
 
-\item{\code{func_args}}{named \code{list}\cr
-Arguments of the augmented function.}
+\item{\code{func_args}}{named \code{list} with the arguments of the augmented function.}
 
-\item{\code{value}}{\code{numeric(1)} | \code{character(1)}\cr
-Initial value. One between:\cr
+\item{\code{value}}{\code{numeric(1)} or \code{character(1)} with the initial value. \cr
+One between:\cr
 \itemize{
 \item Scalar value;\cr
 \item Parameter name (followed by \verb{@P});\cr
 \item Dataset name (followed by \verb{@D}).
 }}
 
-\item{\code{init_rand}}{\code{character(1)}\cr
-If \code{TRUE} draw initial vale from model distribution.}
+\item{\code{init_rand}}{\code{character(1)} to draw initial value from model distribution.\cr
+Default is \code{FALSE}.}
 
-\item{\code{model}}{\code{character(1)}\cr
-Choice for the model distribution.}
+\item{\code{model}}{\code{character(1)} wit the choice for the model distribution.}
 
-\item{\code{args}}{named \code{numeric()} | \code{list}\cr
-Custom arguments for the model distribution.}
+\item{\code{args}}{named \code{numeric()} or \code{list} with custom arguments for the model distribution.}
 
-\item{\code{min}}{\code{numeric(1)}\cr
-Truncate to a minimum value. One between:\cr
+\item{\code{min}}{\code{numeric(1)} to truncate to a minimum value. \cr
+One between:\cr
 \itemize{
 \item Scalar value;\cr
 \item Parameter name (followed by \verb{@P});\cr
 \item Dataset name (followed by \verb{@D}).
 }}
 
-\item{\code{max}}{\code{numeric(1)}\cr
-Truncate to a maximum value. One between:\cr
+\item{\code{max}}{\code{numeric(1)} to truncate to a maximum value. \cr
+One between:\cr
 \itemize{
 \item Scalar value;\cr
 \item Parameter name (followed by \verb{@P});\cr
 \item Dataset name (followed by \verb{@D}).
 }}
 
-\item{\code{rule}}{\code{character(1)}\cr
-Proposer rule used during inference. One between:\cr
+\item{\code{rule}}{\code{character(1)} with the proposer rule used during inference.\cr
+One between:\cr
 \itemize{
 \item \code{NA} (default): see "sample";\cr
 \item "sample": sampled from the \%s distribution;\cr
@@ -390,12 +368,11 @@ Proposer rule used during inference. One between:\cr
 \item "lnorm": increment id drawn from a lognormal distribution (for positive values only).
 }}
 
-\item{\code{scale}}{\code{numeric(1)}\cr Scale of the proposer rule (if applicable).\cr
+\item{\code{scale}}{\code{numeric(1)}with the scale of the proposer rule (if applicable).\cr
 Changed automatically during inference if \code{n_adpat}>0.\cr
 Default is \code{1}.}
 
-\item{\code{from}}{\code{numeric(1)} | \code{character(1)}\cr
-Advanced options for non random walk moves.}
+\item{\code{from}}{\code{numeric(1)} or \code{character(1)} with advanced options for non random walk moves.}
 
 \item{\code{expr}}{Provide an expression.}
 }
@@ -417,11 +394,9 @@ either as arguments or from predefined list.
 \describe{
 \item{\code{...}}{Named arguments with respective list of definition details.}
 
-\item{\code{from}}{named \code{list}\cr
-Named list of definitions.}
+\item{\code{from}}{named \code{list} of definitions.}
 
-\item{\code{append}}{\code{logical(1)}\cr
-If \code{TRUE} appends to current definitions.\cr
+\item{\code{append}}{\code{logical(1)} to append to current definitions.\cr
 If \code{FALSE} drop all pre-existing definitions (default).}
 }
 \if{html}{\out{</div>}}
@@ -439,8 +414,7 @@ Load augmented variable/function definitions from template.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{append}}{\code{logical(1)}\cr
-If \code{TRUE} append only missing definitions.\cr
+\item{\code{append}}{\code{logical(1)} to append only missing definitions.\cr
 If \code{FALSE} drop all pre-existing definitions (default).}
 }
 \if{html}{\out{</div>}}
@@ -472,43 +446,34 @@ Reference value has unitary rate and can be specified
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{name}}{\code{character(1)}\cr
-Literal name used for calls.}
+\item{\code{name}}{\code{character(1)} name used by interna; calls.}
 
-\item{\code{by}}{\code{list}\cr
-Feature(s) associated to group rate as dataset headers.\cr
+\item{\code{by}}{\code{list} with feature(s) associated to group rate as dataset headers.\cr
 Corresponding dataset columns have to be categorical.}
 
-\item{\code{prefix}}{\code{character(1)}\cr
-Prefix to parameter names associated to the group rate.\cr
+\item{\code{prefix}}{\code{character(1)} with prefix to parameter names associated to the group rate.\cr
 If \code{NA} (default), used the first 3 letters of rate name.}
 
-\item{\code{reference}}{named \code{list}\cr
-Choose reference group providing corresponding features.\cr
+\item{\code{reference}}{named \code{list} to choose reference group providing corresponding features.\cr
 Default is the group with the largest sample size.}
 
-\item{\code{independent}}{\code{logical(1)}\cr
-If \code{TRUE}, features are considered independently.\cr
+\item{\code{independent}}{\code{logical(1)} to consider features as independent.\cr
 If \code{FALSE}, features are combined (default).}
 
-\item{\code{prior}}{\code{character(1)}\cr
-Choice for the prior distribution.
+\item{\code{prior}}{\code{character(1)} wit the choice for the prior distribution.
 Default is "lnorm".}
 
-\item{\code{args}}{named \code{numeric()} | \code{list}\cr
-Custom arguments for the prior distribution.
+\item{\code{args}}{named \code{numeric()} or \code{list} with custom arguments for the prior distribution.
 Default is \code{list(meanlog = 0, sdlog = 3)}.}
 
-\item{\code{min}}{\code{numeric(1)}\cr
-Truncate to a minimum value.
+\item{\code{min}}{\code{numeric(1)} to truncate to a minimum value.
 Default is 0.}
 
-\item{\code{max}}{\code{numeric(1)}\cr
-Truncate to a maximum value.
+\item{\code{max}}{\code{numeric(1)} to truncate to a maximum value.
 Default is 10.}
 
-\item{\code{rule}}{\code{character(1)}\cr
-Proposer rule used during inference. One between:\cr
+\item{\code{rule}}{\code{character(1)} with the proposer rule used during inference.\cr
+One between:\cr
 \itemize{
 \item \code{NA} (default): see "sample";\cr
 \item "sample": sampled from the \%s distribution;\cr
@@ -517,7 +482,7 @@ Proposer rule used during inference. One between:\cr
 \item "lnorm": increment id drawn from a lognormal distribution (for positive values only).
 }}
 
-\item{\code{scale}}{\code{numeric(1)}\cr Scale of the proposer rule (if applicable).\cr
+\item{\code{scale}}{\code{numeric(1)}with the scale of the proposer rule (if applicable).\cr
 Changed automatically during inference if \code{n_adpat}>0.\cr
 Default is \code{1}.}
 }
@@ -539,11 +504,9 @@ or from predefined list.
 \describe{
 \item{\code{...}}{\verb{ r rd_list_args_}}
 
-\item{\code{from}}{named \code{list}\cr
-Named list of definitions.}
+\item{\code{from}}{named \code{list} of definitions.}
 
-\item{\code{append}}{\code{logical(1)}\cr
-If \code{TRUE} appends to current definitions.\cr
+\item{\code{append}}{\code{logical(1)} to append to current definitions.\cr
 If \code{FALSE} drop all pre-existing definitions (default).}
 }
 \if{html}{\out{</div>}}
@@ -561,26 +524,22 @@ Add definition of infectivity profile.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{name}}{\code{character(1)}\cr
-Literal name used for calls.}
+\item{\code{name}}{\code{character(1)} name used by interna; calls.}
 
-\item{\code{discr}}{\code{logical(1)}\cr
-If \code{TRUE} it's treated as discrete and the profile is discretized (if applicable).\cr
+\item{\code{discr}}{\code{logical(1)} to treat definition as discrete and the profile is discretized (if applicable).\cr
 Default is \code{FALSE}.}
 
-\item{\code{args}}{named \code{numeric()} | \code{list}\cr
-Custom arguments for the profile distribution.}
+\item{\code{args}}{named \code{numeric()} or \code{list} with custom arguments for the profile distribution.}
 
-\item{\code{max}}{\code{numeric(1)}\cr
-Truncate to a maximum value. One between:\cr
+\item{\code{max}}{\code{numeric(1)} to truncate to a maximum value. \cr
+One between:\cr
 \itemize{
 \item Scalar value;\cr
 \item Parameter name (followed by \verb{@P});\cr
 \item Dataset name (followed by \verb{@D}).
 }}
 
-\item{\code{object}}{\code{HousepiModel}\cr
-A HousepiModel object.}
+\item{\code{object}}{\code{HousepiModel} object.}
 }
 \if{html}{\out{</div>}}
 }
@@ -597,14 +556,12 @@ Compute the loglikelihood.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{dataset}}{\code{data.frame}\cr
-Input household dataset used for analysis. If \code{NULL}, uses the previously stored dataset.}
+\item{\code{dataset}}{\code{data.frame} with the household dataset used for analysis. If \code{NULL}, uses the previously stored dataset.}
 
-\item{\code{seed}}{\code{integer(1)}\cr
-Seed for the random number generator. If \code{NA} (default), uses current R seed.}
+\item{\code{seed}}{\code{integer(1)} with the seed for the random number generator.\cr
+If \code{NA} (default), uses current R seed.}
 
-\item{\code{object}}{\code{HousepiModel}\cr
-A HousepiModel object.}
+\item{\code{object}}{\code{HousepiModel} object.}
 }
 \if{html}{\out{</div>}}
 }
@@ -637,45 +594,36 @@ Run inference with Bayesian Markov Chain Monte Carlo.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{dataset}}{\code{data.frame}\cr
-Input household dataset used for analysis. If \code{NULL}, uses the previously stored dataset.}
+\item{\code{dataset}}{\code{data.frame} with the household dataset used for analysis. If \code{NULL}, uses the previously stored dataset.}
 
-\item{\code{sample_size}}{\code{integer(1)} \cr
-Draws from the posterior distribution stored for each chain.}
+\item{\code{sample_size}}{\code{integer(1)} with the number of posterior draws stored for each chain.}
 
-\item{\code{n_steps}}{\code{integer(1)} \cr
-Total number of MCMC steps to perform for each chain.}
+\item{\code{n_steps}}{\code{integer(1)}  with the total number of MCMC steps for each chain.}
 
-\item{\code{n_burnin}}{\code{integer(1)} \cr
-Number of initial steps to discard as burn-in.}
+\item{\code{n_burnin}}{\code{integer(1)} with the number of initial steps to discard as burn-in.}
 
-\item{\code{thin}}{\code{integer(1)} \cr
-Thinning interval: number of steps to skip between each saved sample.}
+\item{\code{thin}}{\code{integer(1)} with the thinning interval, i. e. the number of steps to skip between each saved sample.}
 
-\item{\code{n_adapt}}{\code{integer(1)} \cr
-Number of adaptation steps before starting the main sampling.}
+\item{\code{n_adapt}}{\code{integer(1)} with the number of adaptation steps before starting the main sampling.}
 
-\item{\code{n_chains}}{\code{integer(1)} \cr
-Number of independent MCMC chains to run.}
+\item{\code{n_chains}}{\code{integer(1)} with the number of independent MCMC chains to run.}
 
-\item{\code{n_threads}}{\code{integer(1)} \cr
-Number of threads to run in parallel.}
+\item{\code{n_threads}}{\code{integer(1)} with the number of threads to run in parallel.}
 
-\item{\code{rand_init}}{\code{logical(1)} \cr
-Controls random initialization of variables:\cr
+\item{\code{rand_init}}{\code{logical(1)} to control random initialization of variables:\cr
 \itemize{
 \item If \code{TRUE} (default), initial values are randomly drawn from respective distributions;\cr
 \item If \code{FALSE} uses initial value definitions.
 }}
 
-\item{\code{id_draws}}{\code{character()} \cr
-Store draws of public augmented variables for individuals with given identifiers.}
+\item{\code{id_draws}}{\code{character()} with individuals identifiers.\cr
+Store draws of public augmented variables for the chosen individuals.}
 
-\item{\code{seed}}{\code{integer(1)}\cr
-Seed for the random number generator. If \code{NA} (default), uses current R seed.}
+\item{\code{seed}}{\code{integer(1)} with the seed for the random number generator.\cr
+If \code{NA} (default), uses current R seed.}
 
-\item{\code{progress}}{\code{integer(1)} | \code{logical(1)}\cr
-Controls progress visualization. One between:\cr
+\item{\code{progress}}{\code{integer(1)} or \code{logical(1)} to control progress visualization.\cr
+One between:\cr
 \itemize{
 \item If \code{integer}, prints progress every \code{progress} seconds;\cr
 \item If \code{TRUE} (default), prints progress every second;\cr
@@ -711,11 +659,10 @@ It uses the method of power posteriors with different available schemes.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{dataset}}{\code{data.frame}\cr
-Input household dataset used for analysis. If \code{NULL}, uses the previously stored dataset.}
+\item{\code{dataset}}{\code{data.frame} with the household dataset used for analysis. If \code{NULL}, uses the previously stored dataset.}
 
-\item{\code{scheme}}{\code{character(1)} \cr
-Scheme used for evidence estimation. One between
+\item{\code{scheme}}{\code{character(1)} with the scheme used for evidence estimation.\cr
+One between\cr
 \itemize{
 \item "power-fractions": uses inverse temperatures \eqn{\frac{r^5}{{n_\mathrm{rungs}}^5}}{r^5 / n_rungs^5}  (default).
 \item "adaptive": uses adaptive thermodynamic ladder.
@@ -724,32 +671,25 @@ Scheme used for evidence estimation. One between
 \item{\code{n_rungs}}{\code{integer(1)} \cr
 Number of rungs in the thermodynamic ladder.}
 
-\item{\code{sample_size}}{\code{integer(1)} \cr
-Draws from the posterior distribution stored for each chain.}
+\item{\code{sample_size}}{\code{integer(1)} with the number of posterior draws stored for each chain.}
 
-\item{\code{n_steps}}{\code{integer(1)} \cr
-Total number of MCMC steps to perform for each chain.}
+\item{\code{n_steps}}{\code{integer(1)}  with the total number of MCMC steps for each chain.}
 
-\item{\code{n_burnin}}{\code{integer(1)} \cr
-Number of initial steps to discard as burn-in.}
+\item{\code{n_burnin}}{\code{integer(1)} with the number of initial steps to discard as burn-in.}
 
-\item{\code{thin}}{\code{integer(1)} \cr
-Thinning interval: number of steps to skip between each saved sample.}
+\item{\code{thin}}{\code{integer(1)} with the thinning interval, i. e. the number of steps to skip between each saved sample.}
 
-\item{\code{n_adapt}}{\code{integer(1)} \cr
-Number of adaptation steps before starting the main sampling.}
+\item{\code{n_adapt}}{\code{integer(1)} with the number of adaptation steps before starting the main sampling.}
 
-\item{\code{n_chains}}{\code{integer(1)} \cr
-Number of independent MCMC chains to run.}
+\item{\code{n_chains}}{\code{integer(1)} with the number of independent MCMC chains to run.}
 
-\item{\code{n_threads}}{\code{integer(1)} \cr
-Number of threads to run in parallel.}
+\item{\code{n_threads}}{\code{integer(1)} with the number of threads to run in parallel.}
 
-\item{\code{seed}}{\code{integer(1)}\cr
-Seed for the random number generator. If \code{NA} (default), uses current R seed.}
+\item{\code{seed}}{\code{integer(1)} with the seed for the random number generator.\cr
+If \code{NA} (default), uses current R seed.}
 
-\item{\code{progress}}{\code{integer(1)} | \code{logical(1)}\cr
-Controls progress visualization. One between:\cr
+\item{\code{progress}}{\code{integer(1)} or \code{logical(1)} to control progress visualization.\cr
+One between:\cr
 \itemize{
 \item If \code{integer}, prints progress every \code{progress} seconds;\cr
 \item If \code{TRUE} (default), prints progress every second;\cr
@@ -808,14 +748,13 @@ Generate a simulated dataset.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{dataset}}{\code{data.frame}\cr
-Input household dataset used for analysis. If \code{NULL}, uses the previously stored dataset.}
+\item{\code{dataset}}{\code{data.frame} with the household dataset used for analysis. If \code{NULL}, uses the previously stored dataset.}
 
-\item{\code{seed}}{\code{integer(1)}\cr
-Seed for the random number generator. If \code{NA} (default), uses current R seed.}
+\item{\code{seed}}{\code{integer(1)} with the seed for the random number generator.\cr
+If \code{NA} (default), uses current R seed.}
 
-\item{\code{progress}}{\code{integer(1)} | \code{logical(1)}\cr
-Controls progress visualization. One between:\cr
+\item{\code{progress}}{\code{integer(1)} or \code{logical(1)} to control progress visualization.\cr
+One between:\cr
 \itemize{
 \item If \code{integer}, prints progress every \code{progress} seconds;\cr
 \item If \code{TRUE} (default), prints progress every second;\cr

@@ -29,19 +29,6 @@ To install `housepi`, open Rstudio, download and unzip the source code from the 
 devtools::install()
 ```
 
-## Vignettes
-
-In order to build locally your vignettes you will need to install the following packages:
-
-``` r
-# packages required for building vignettes
-for (pkg in c("ggplot2", "flextable", "bayesplot", "dplyr", "loo")) {
-  if (!requireNamespace(pkg, quietly = TRUE)) {
-    install.packages(pkg)
-  }
-}
-```
-
 ## License
 GNU GENERAL PUBLIC LICENSE, Version 3.
 

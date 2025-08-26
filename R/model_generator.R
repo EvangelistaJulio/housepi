@@ -68,7 +68,7 @@ HousepiGenerator <- R6::R6Class(
     # each field, with the name and value.
     # UPDATE: when piping I am using this a lot, check safety
     deep_clone = function(name, value) {
-      # make a new instance of rcpp model object
+      # make a new object of rcpp model class
       if (name == ".rcpp") {
         if (is.null(value)) {
           output <- NULL
@@ -295,7 +295,7 @@ HousepiGenerator <- R6::R6Class(
     # Note: I am tricking pkgbuild::compile_dll and R CMD INSTALL.
     # To avoid recompiling immutable files I just touch them.
     .compile = function() {
-      # drop previous instance
+      # drop previous Rcpp model object
       private$.rcpp <- NULL
 
       # source folder within cache directory
@@ -325,7 +325,7 @@ HousepiGenerator <- R6::R6Class(
     },
 
     # @description
-    # Initialize new instance of Rcpp Model.
+    # Initialize new object of Rcpp Model.
     .new_rcpp_model = function() {
       # expose internally the module
       m <- get_rcpp_module_from_dll(
@@ -519,14 +519,14 @@ HousepiGenerator <- R6::R6Class(
         private$.source_dir <- dirname(private$.dll)
 
       } else if (dir.exists(choice)) {
-        # 2: Model Path Contains Source Code
+        # 2: model path contains source code
         private$.source_dir <- choice
         private$.dll <- template_dll_file(choice)
         private$.new_custom_model(choice, as_template, force)
 
-      } else if (choice %in% list.files(template_models_dir())) {
-        # 3: Plain Template Model Name
-        private$.source_dir <- file.path(template_models_dir(), choice)
+      } else if (!is.na(get_template_dir(choice))) {
+        # 3: template model choice
+        private$.source_dir <- get_template_dir(choice)
         private$.dll <- template_dll_file(private$.source_dir)
 
       } else stop_h(

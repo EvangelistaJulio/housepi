@@ -161,7 +161,7 @@ IndividualSampler <- R6::R6Class(
 
   public = list(
     #' @description
-    #' New instance of class
+    #' New object of class
     #' [IndividualSampler][housepi::IndividualSampler].
     #'
     #' @param ...
@@ -333,7 +333,7 @@ HouseholdSampler <- R6::R6Class(
 
   public = list(
     #' @description
-    #' New instance of class
+    #' New object of class
     #' [HouseholdSampler][housepi::HouseholdSampler].
     #'
     #' @param ...
