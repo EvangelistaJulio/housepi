@@ -33,7 +33,7 @@ hhmodel <- new_housepi_model("chain binomial heterogeneous") |>
 hhmodel |> get_parameters()
 ```
 
-## Format dataset features
+# Format dataset features
 
 Suppose our analysis wants to explore age and gender-based effects within a household survey dataset.
 We start by creating categorical groupings to stratify individuals based on their age, sex, etc and then associate individual group rates.
@@ -75,20 +75,20 @@ hhmodel |>
   get_group_rates()
 ```
 
-By the default, parameters associated to each grouping are assumed independent, i.e. the group rates is the product of the two parameters. 
-
-# covariates are not assumed independent
-# show table with dependent associations
+By the default, parameters associated to each grouping are assumed independent, 
+i.e. the group rates is the product of the two parameters. 
 
 ```{r}
 hhmodel |>
+  # here covariates are not assumed independent
   add_group_rate("susceptibility", c("sex", "age"),
                  reference = c(sex = "F", age = "adult"),
                  independent = FALSE) |>
+  # show table with dependent associations
   get_group_rates()
 ```
 
-## Proceed with Analysis
+# Analyse inference results with group rates
 
 All other commands stay the same.
 We show an example with the very first definition of this vignette, which is equivalent to the following:

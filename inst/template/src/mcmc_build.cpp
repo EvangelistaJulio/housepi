@@ -79,7 +79,7 @@ void MCMC::Impl::Setup::build(const dict_str &deflist)
 
         // Individual ID for Augmented Trace
         if (deflist.count("id_draws") && (!tools::is_na(deflist.at("id_draws"))))
-            id_draws = tools::parse_list_args(deflist.at("id_draws"));
+            id_draws = tools::parse_list_args(deflist.at("id_draws"), C_LIST_DELIM);
     }
 
     // reset internal states
@@ -804,8 +804,8 @@ void MCMC::Impl::Parameter::build(const dict_str_vec &deftable)
                 new_param.init_distr(prior_name);
 
                 // assign scalar arguments to prior distribution
-                str_vec arg_key = tools::parse_list_args(deftable.at("arg_key")[k]);
-                str_vec arg_val = tools::parse_list_args(deftable.at("arg_val")[k]);
+                str_vec arg_key = tools::parse_list_args(deftable.at("arg_key")[k], C_LIST_DELIM);
+                str_vec arg_val = tools::parse_list_args(deftable.at("arg_val")[k], C_LIST_DELIM);
                 for (unsigned short c = 0; c < arg_key.size(); ++c)
                     // UPDATE: is this check really necessary?
                     if (!tools::is_na(arg_key[c]))

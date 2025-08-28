@@ -332,5 +332,6 @@ std::shared_ptr<Distribution> compose_distr_registries(const std::string &opt,
                 options += r->get_options();
 
     throw std::invalid_argument(
-        "Unknown " + name + " \"" + opt + "\"." + tools::str::find_closest(opt, options));
+        "Unknown " + name + " \"" + opt + "\"." + 
+        tools::str::find_closest(opt, options, MIN_STR_DIST));
 }

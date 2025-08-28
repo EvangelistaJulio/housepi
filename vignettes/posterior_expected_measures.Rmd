@@ -20,10 +20,7 @@ library(housepi)
 ```
 
 In this vignette we show how to compute standard and custom posterior measures.
-
-# The Housepi Model Class
-
-We show how to generate a new instance of such a class with a template model, the chain binomial:
+We use the same chain binomial example presented in [Get started](housepi.html):
 
 ```{r}
 # repeat inference as in vignette 'Get Started'
@@ -43,7 +40,7 @@ estimates <- results |>
 estimates
 ```
 
-## Expected Cases by Size 
+## Expected cases by size 
 
 We can use the simulation process to challenge the validity of the inferred model on top of the original dataset.
 We do so by computing the expected numbers of cases per household size according to our posterior distribution (i. e. by producing simulations according to posterior values).
@@ -109,7 +106,7 @@ expec$chisq_test()
 
 The $p$-value tells us that there is no significant difference between the distribution, thus we can trust our inference process.
 
-## Secondary Attack rate
+## Secondary attack rate
 
 We can have a quick look at secondary attack rates of observed vs expected cases using the fields `$sar`:
 

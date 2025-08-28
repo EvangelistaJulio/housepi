@@ -105,7 +105,7 @@ Function::Function(const std::string &name,
         oss << "Inconsistent arguments for \"" << function_name_ << "\"."
             << " Found " << arg_name.size() << " default names but "
             << arg_value.size() << " values.";
-        throw std::length_error(oss.str());
+        tools::error(oss.str());
     }
     n_args_ = arg_name.size() - (is_x_default);
 
@@ -158,7 +158,8 @@ unsigned short Function::assert_arg(const std::string &arg_name) const
     for (unsigned short c = 0; c < n_args_; ++c)
         options.push_back(arguments_[c].name());
     throw std::invalid_argument(
-        "Unknown argument \"" + arg_name + "\" for \"" + function_name_ + "\"." + tools::str::find_closest(arg_name, options));
+        "Unknown argument \"" + arg_name + "\" for \"" + function_name_ + "\"." + 
+        tools::str::find_closest(arg_name, options, MIN_STR_DIST));
 }
 
 /* Wheter all arguments are actually constants.  */
@@ -581,7 +582,8 @@ std::shared_ptr<Function> compose_func_registries(const std::string &opt, const 
                 options += r->get_options();
 
     throw std::invalid_argument(
-        "Unknown " + name + " \"" + opt + "\"." + tools::str::find_closest(opt, options));
+        "Unknown " + name + " \"" + opt + "\"." +
+        tools::str::find_closest(opt, options, MIN_STR_DIST));
 }
 
 //-----------------------------------------------------------------------------------------------//

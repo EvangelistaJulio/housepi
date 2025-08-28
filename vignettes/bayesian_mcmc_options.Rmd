@@ -22,7 +22,7 @@ set.seed(42)
 
 In this vignette we present all available options for the choice of the prior and Monte Carlo rule in `housepi`. 
 
-# Continuous Priors
+# Continuous priors
 
 To perform the sampling we consider the "blank" model, i. e. a data independent template model, with loglikelihood always equal to zero.
 Here's the full list of available continuos distributions present in `housepi`:
@@ -46,7 +46,7 @@ new_housepi_model("blank") |>
 
 Here we associated definitions of parameters to infer with default arguments and default proposer rules (Gibbs sampling). 
 
-## Provide a Custom Range
+## Provide a custom range
 
 We then test various example MISSING
 
@@ -76,7 +76,7 @@ new_housepi_model("blank") |>
   )
 ```
 
-# Discrete Priors
+# Discrete priors
 
 ```{r}
 #| include: false
@@ -98,7 +98,7 @@ new_housepi_model("blank") |>
   bayesplot::mcmc_hist(binwidth = 1)
 ```
 
-## How to Discretize Continuos Priors
+## How to discretize continuos priors
 
 Previous continuous priors can be chosen to be discretized simply by adding the flag `discr = TRUE`.
 
@@ -114,7 +114,7 @@ new_housepi_model("blank") |>
   bayesplot::mcmc_hist(binwidth = 1)
 ```
 
-# MCMC Proposer Rules
+# MCMC proposer rules
 
 ```{r}
 #| include: false
@@ -136,7 +136,7 @@ new_housepi_model("blank") |>
 ```
 Note that the proposer rule "lnorm" does not fit the case of negative values.
 
-## Role of Finite Adaptation
+## Role of finite adaptation
 
 ```{r}
 new_housepi_model("blank") |>

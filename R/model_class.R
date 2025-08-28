@@ -235,7 +235,7 @@ HousepiModel <- R6::R6Class(
       # individual id for blank model augmented draws
       # if no default columns, assume debugging mode
       if (private$.is_blank() && all(is.na(id_draws))) {
-        # FIXME: not robust in case of dataset with only default columns
+        # UPDATE: not robust in case of dataset with only default columns
         if (length(setdiff(private$.cols_dataset,
                            c("house_id", "id", "status"))) == 0) {
           id_draws <- template_blank_dataset_()$id[1]
@@ -259,15 +259,10 @@ HousepiModel <- R6::R6Class(
 
       # group rates (import depends on param)
       private$.build_group_rates()
-      defs <- private$.group_rates$tidy_table
-      defs$n <- NULL
-      info <- private$.info_dataset
-      for (k in intersect(colnames(defs), names(info))) {
-        defs[[k]] <- as.integer(factor(defs[[k]], levels = info[[k]]$levels))
-      }
+      defs <- private$.group_rates$tidy_table_to_cpp
       private$.rcpp$import_group_rates(defs)
 
-      # build contact rates (FIXME: temporary)
+      # build contact rates (UPDATE: temporary)
       private$.rcpp$build_all_rates()
 
       # assert augmented variable definitions
@@ -285,8 +280,6 @@ HousepiModel <- R6::R6Class(
     # UPDATE:
     # this could be designed to be more helpful
     # e. g. create a standalone folder somewhere with correct links to headers
-    # FIXME:
-    # setup is broken, follow method in copy to fix it
     .export_to_cpp_standalone = function(outpath = "../housepi/inst/standalone/") {
       write.csv(private$.rcpp$export_dataset(),
                 file.path(outpath, "dataset.tmp"),
@@ -295,16 +288,9 @@ HousepiModel <- R6::R6Class(
                 file.path(outpath, "datalist.tmp"),
                 quote = FALSE, row.names = FALSE)
 
-      defs <- self$group_rates
-      info <- private$.info_dataset
-      for (k in intersect(colnames(defs), names(info))) {
-        defs[[k]] <- as.integer(factor(defs[[k]], 
-                                levels = info[[k]]$levels))
-      }
-      write.csv(defs,
+      write.csv(private$.group_rates$tidy_table_to_cpp,
                 file.path(outpath, "group_rates.tmp"),
                 quote = FALSE, row.names = FALSE)
-
       write.csv(self$augmented,
                 file.path(outpath, "augm.tmp"),
                 quote = FALSE, row.names = FALSE)
@@ -469,13 +455,13 @@ HousepiModel <- R6::R6Class(
 
     #' @description Summarise statuses in the dataset.
     #' @return`data.frame`
-    summarise = function() {
+    summarise_cases = function() {
       private$.rcpp$export_dataset_report()
     },
 
     #' @description Summary house sizes in the dataset.
     #' @return `data.frame`
-    summarise_house_size = function() {
+    summarise_house_sizes = function() {
       private$.rcpp$export_house_size_report()
     },
 

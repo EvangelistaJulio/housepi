@@ -359,8 +359,7 @@ template_not_used_warn <- function(required, defined, family) {
             ifelse(len_not_used > 1, "are", "is"),
             len_not_used, family,
             ifelse(len_not_used > 1, "s", ""),
-            character_to_string_list(notused)),
-    find_closest_match(notused, required)
+            character_to_string_list(notused))
   )
   invisible()
 }

@@ -264,7 +264,8 @@ namespace tools
         /* Function to find the closest match. */
         std::string find_closest(const std::string &input,
                                  const str_vec &options,
-                                 unsigned short min_dist)
+                                 unsigned short min_dist,
+                                 bool show_avail_options)
         {
             std::string closest = "";
             unsigned short dist_closest = min_dist;
@@ -285,10 +286,16 @@ namespace tools
             else if (dist_closest == 0)
                 return "";
             else if (closest.empty())
-                if (options.size() == 1)
-                    return "\nAvailable option is " + format(options);
-                else
-                    return "\nAvailable options are: " + format(options);
+            {
+                if (show_avail_options)
+                {
+                    if (options.size() == 1)
+                        return "\nAvailable option is " + format(options, 1);
+                    else
+                        return "\nAvailable options are: " + format(options, MAX_STR_PRINT);
+                }
+                return "";
+            }
             else
                 return "\nDid you mean \"" + closest + "\"?";
         }
@@ -546,10 +553,10 @@ namespace tools
             {
                 if (missing.size() == 1)
                     throw std::invalid_argument(
-                        "Missing " + where + " " + str::format(missing));
+                        "Missing " + where + " " + str::format(missing, 1));
                 else
                     throw std::invalid_argument(
-                        "Missing " + where + "s: " + str::format(missing));
+                        "Missing " + where + "s: " + str::format(missing, MAX_STR_PRINT));
             }
         }
     }
@@ -567,12 +574,12 @@ namespace tools
 
         if (unused.size() == 1)
             throw std::invalid_argument(
-                "Unknown " + where + " " + str::format(unused) +
-                str::find_closest(unused[0], options));
+                "Unknown " + where + " " + str::format(unused, 1) +
+                str::find_closest(unused[0], options, MIN_STR_DIST));
 
         else if (unused.size() > 1)
             throw std::invalid_argument(
-                "Unknown " + where + "s: " + str::format(unused) +
+                "Unknown " + where + "s: " + str::format(unused, MAX_STR_PRINT) +
                 str::find_closest(HSP_NA_STRING, options, 0));
     }
 

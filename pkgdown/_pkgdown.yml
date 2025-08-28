@@ -17,13 +17,13 @@ home:
 reference:
 - title: "Overview"
   desc: >
-    Package overview
+    Package overview.
   contents:
     - housepi-package
   
 - title: "General"
   desc: >
-    General calls 
+    General purpose calls to generate a housepi model object and perform analysis. 
   contents:
     - new_housepi_model
     - template_household_model
@@ -31,8 +31,8 @@ reference:
     - infer
     - simulate
     - simulate.HousepiModel
-    - summarise
-    - summarise.HousepiModel
+    - summarise_cases
+    - summarise_house_sizes
   sidebar: true
 
 - title: "Model definitions"

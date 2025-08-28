@@ -143,23 +143,35 @@ void MCMC::Impl::InfecProfile::append_augm_definition()
 /* Store values of the infectivity profile. */
 void MCMC::Impl::InfecProfile::init_lookup_()
 {
-	if (profile_->is_discrete())
-	{
-		inst_ = &InfecProfile::do_inst_lookup_;
-		cumul_ = &InfecProfile::do_cumul_lookup_;
+	inst_ = &InfecProfile::do_inst_lookup_;
+	cumul_ = &InfecProfile::do_cumul_lookup_;
 
-		if (tools::is_na(profile_->get_max()))
-			size_lut_ = DEFAULT_MAX_SIZE;
-		else
-			size_lut_ = profile_->get_max() + 1;
+	if (tools::is_na(profile_->get_max()))
+		size_lut_ = DEFAULT_MAX_SIZE;
+	else
+		size_lut_ = profile_->get_max() + 1;
 
-		lookup_inst_.resize(size_lut_);
-		lookup_cumul_.resize(size_lut_);
-		lookup_buffer_inst_.resize(size_lut_);
-		lookup_buffer_cumul_.resize(size_lut_);
+	lookup_inst_.resize(size_lut_);
+	lookup_cumul_.resize(size_lut_);
+	lookup_buffer_inst_.resize(size_lut_);
+	lookup_buffer_cumul_.resize(size_lut_);
 
-		update(true);
-	}
+	update(true);
+}
+
+/* Clear infectivity profile lookup table. */
+void MCMC::Impl::InfecProfile::clear_lookup_()
+{
+	size_lut_ = 0;
+
+	lookup_inst_.clear();
+	lookup_inst_.shrink_to_fit();
+	lookup_cumul_.clear();
+	lookup_cumul_.shrink_to_fit();
+	lookup_buffer_inst_.clear();
+	lookup_buffer_inst_.shrink_to_fit();
+	lookup_buffer_cumul_.clear();
+	lookup_buffer_cumul_.shrink_to_fit();
 }
 
 /* If infectivity profile is a lookup table, store its values. */
@@ -208,7 +220,7 @@ void MCMC::Impl::InfecProfile::build(const dict_str &deflist)
 			tools::headers_from_deflist(deflist), headers_);
 
 		// check if definition is generic or augmented
-		str_vec types = tools::parse_list_args(deflist.at("arg_at"));
+		str_vec types = tools::parse_list_args(deflist.at("arg_at"), C_LIST_DELIM);
 		types += {deflist.at("max_at")};
 
 		bool is_augm = false;
@@ -250,9 +262,9 @@ void MCMC::Impl::InfecProfile::build_generic_profile_(const dict_str &deflist)
 
 	//----- Arguments -----//
 	if (deflist.count("arg_key") && deflist.count("arg_val") && deflist.count("arg_at"))
-		init_arguments_(tools::parse_list_args(deflist.at("arg_key")),
-						tools::parse_list_args(deflist.at("arg_val")),
-						tools::parse_list_args(deflist.at("arg_at")));
+		init_arguments_(tools::parse_list_args(deflist.at("arg_key"), C_LIST_DELIM),
+						tools::parse_list_args(deflist.at("arg_val"), C_LIST_DELIM),
+						tools::parse_list_args(deflist.at("arg_at"), C_LIST_DELIM));
 
 	//----- Range minimum -----//
 	init_single_attribute_("min",
@@ -269,21 +281,30 @@ void MCMC::Impl::InfecProfile::build_generic_profile_(const dict_str &deflist)
 	profile_->init_reshaping(is_discrete);
 
 	// if discrete and generic, initializes lookup table
-	init_lookup_();
+	if (profile_->is_discrete())
+		init_lookup_();
+	else
+		clear_lookup_();
 }
 
 /* Build for individual augmented function infectivity profile. */
 void MCMC::Impl::InfecProfile::build_augmented_profile_(const dict_str &deflist)
 {
-	profile_ = std::make_unique<Distribution>();
-	inst_ = &InfecProfile::do_inst_augm_;
-	cumul_ = &InfecProfile::do_cumul_augm_;
-
+	// check definition list has a name
 	std::string func_name;
 	if ((deflist.count("name")) && (!tools::is_na(deflist.at("name"))))
 		func_name = deflist.at("name");
 	else
 		throw std::invalid_argument("Missing name.");
+
+	// use generic build to check profile name at this stage
+	build_generic_profile_({{"name", func_name}});
+
+	// drop generic definition
+	clear_lookup_();
+	profile_ = std::make_unique<Distribution>();
+	inst_ = &InfecProfile::do_inst_augm_;
+	cumul_ = &InfecProfile::do_cumul_augm_;
 
 	// auxiliary vector of string with single NA option for generation time
 	const str_vec aux_str({HSP_NA_STRING});

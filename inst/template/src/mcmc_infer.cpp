@@ -487,7 +487,7 @@ std::vector<dbl_vec> MCMC::Impl::power_posteriors_(const std::string &scheme, un
         const str_vec options = {"adaptive", "power-fractions"};
         if (!(options % scheme))
             throw std::invalid_argument("Unknown power posterior scheme \"" + scheme + "\"." +
-                                        tools::str::find_closest(scheme, options, 3));
+                                        tools::str::find_closest(scheme, options, MIN_STR_DIST));
 
         init_monte_carlo_(); // initialize mcmc sampling
 

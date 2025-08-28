@@ -250,7 +250,8 @@ std::shared_ptr<Proposer> proposer_switch(const std::string &rule_name = HSP_NA_
 
     else
         throw std::invalid_argument(
-            "Unknown proposer rule \"" + rule_name + "\"." + tools::str::find_closest(rule_name, options));
+            "Unknown proposer rule \"" + rule_name + "\"." +
+            tools::str::find_closest(rule_name, options, MIN_STR_DIST));
 }
 
 //-----------------------------------------------------------------------------------------------//
@@ -297,7 +298,7 @@ void Variable::init_func_(const std::string &func_name)
 
 /* Restore user defined variable initialization. */
 void Variable::init(const std::string &name, double value,
-                    bool is_discrete, bool is_constant, 
+                    bool is_discrete, bool is_constant,
                     const std::string &func_name)
 {
     init_name_(name);

@@ -40,8 +40,8 @@ List containing current group rate definitions.}
 \item \href{#method-HousepiModel-print}{\code{HousepiModel$print()}}
 \item \href{#method-HousepiModel-help}{\code{HousepiModel$help()}}
 \item \href{#method-HousepiModel-add_dataset}{\code{HousepiModel$add_dataset()}}
-\item \href{#method-HousepiModel-summarise}{\code{HousepiModel$summarise()}}
-\item \href{#method-HousepiModel-summarise_house_size}{\code{HousepiModel$summarise_house_size()}}
+\item \href{#method-HousepiModel-summarise_cases}{\code{HousepiModel$summarise_cases()}}
+\item \href{#method-HousepiModel-summarise_house_sizes}{\code{HousepiModel$summarise_house_sizes()}}
 \item \href{#method-HousepiModel-add_datalist}{\code{HousepiModel$add_datalist()}}
 \item \href{#method-HousepiModel-add_parameter}{\code{HousepiModel$add_parameter()}}
 \item \href{#method-HousepiModel-load_parameter_list}{\code{HousepiModel$load_parameter_list()}}
@@ -138,12 +138,12 @@ Make an internal copy of the provided household dataset.
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-summarise"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-summarise}{}}}
-\subsection{Method \code{summarise()}}{
+\if{html}{\out{<a id="method-HousepiModel-summarise_cases"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiModel-summarise_cases}{}}}
+\subsection{Method \code{summarise_cases()}}{
 Summarise statuses in the dataset.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$summarise()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$summarise_cases()}\if{html}{\out{</div>}}
 }
 
 \subsection{Returns}{
@@ -151,12 +151,12 @@ Summarise statuses in the dataset.
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-summarise_house_size"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-summarise_house_size}{}}}
-\subsection{Method \code{summarise_house_size()}}{
+\if{html}{\out{<a id="method-HousepiModel-summarise_house_sizes"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiModel-summarise_house_sizes}{}}}
+\subsection{Method \code{summarise_house_sizes()}}{
 Summary house sizes in the dataset.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$summarise_house_size()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$summarise_house_sizes()}\if{html}{\out{</div>}}
 }
 
 \subsection{Returns}{

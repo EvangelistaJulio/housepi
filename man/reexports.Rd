@@ -3,17 +3,14 @@
 \docType{import}
 \name{reexports}
 \alias{reexports}
-\alias{summarise}
 \alias{simulate}
-\title{Re-export dplyr::summarise}
+\title{Re-export stats::simulate}
 \keyword{internal}
 \description{
 These objects are imported from other packages. Follow the links
 below to see their documentation.
 
 \describe{
-  \item{dplyr}{\code{\link[dplyr]{summarise}}}
-
   \item{stats}{\code{\link[stats]{simulate}}}
 }}
 

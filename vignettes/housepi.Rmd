@@ -21,7 +21,7 @@ source("theme.R")
 We introduce `housepi`, a package for the study of epidemiological datasets from household outbreaks.
 In this vignette we'll walk through the process of loading a model, associating necessary definitions to perform inference and simulations.
 
-# The Housepi Model Class
+# The housepi model class
 
 The central element of the package is the class `HousepiModel`, an [R6 class](https://r6.r-lib.org/articles/Introduction.html), used to wrap an Rcpp environment.
 We show how to generate a new instance of such a class with a template model, the chain binomial:
@@ -38,7 +38,7 @@ hhmodel <- new_housepi_model("chain binomial")
 
 At any moment we can retrieve the template model description by using the method `$help()`.
 
-## An Expanding Library of Template Household Models
+## An collection of household models
 
 To see the complete list of available template models, from within Rstudio just run
 
@@ -54,12 +54,13 @@ g.
 ```{r}
 #| eval: false
 # show model description in RStudio help window
-template_household_model("chain-binomial")
+template_household_model("chain binomial")
 ```
 
 This command will open the relative documentation file in the Help window of your Rstudio session.
+Our project aims at expanding the present collection of templates, in order to foster off-the-shelf analysis.
 
-## Format of the Dataset
+## Format of the dataset
 
 Dataset can be provided as a numerical data.frame where individual information are organised by row.
 Individuals with tagged with the same `"house_id"` in the respective column are considered to belong to same household.
@@ -74,7 +75,7 @@ Status $s_{i}$ should be an integer value satisfying the following convention:
 | `0`            | susceptible | seronegative |
 | `<0` or `NA`   | missing     | missing      |
 
-## Import a Dataset
+## Import a dataset
 
 The most direct way to associate a dataset to a model is assigning it to the active method `$dataset`.
 The `housepi` package comes with a few synthetic datasets to be used for testing.
@@ -84,12 +85,12 @@ The `housepi` package comes with a few synthetic datasets to be used for testing
 hhmodel$dataset <- housepi::survey
 ```
 Alternatively, we can pipe such call by using wrapper `add_dataset()`. 
-We can extract summary information about the current dataset with `summarise()`:
+We can extract summary information about the current dataset with `summarise_cases()`:
 
 ```{r}
 # show a summary of the dataset as a `flextable`
 hhmodel |>
-  summarise() |>
+  summarise_cases() |>
   flextable::flextable() |>
   flextable::theme_vanilla() |>
   flextable::set_formatter(pct = function(x) round(x, 1)) |>
@@ -105,7 +106,7 @@ To learn more about `flextable` objects and how to export or format them, see [f
 
 At any moment we can export the dataset from our model calling `$dataset`.
 
-## Parameter Definitions
+## Associate parameter definitions
 
 Here we show how to provide a single parameter definition (prior and proposer rule needed for the Bayesian Monte Carlo).
 Different approached are available to perform the same operation, we can define the method `$add_parameter()` in place, or pipe with the homonyme function.
@@ -127,7 +128,7 @@ For further information on the available options for the definition of the param
 
 To see how to associate group rates in heterogeneous models, see the vignette [Group rates](group_rates.html).
 
-# Inference
+# Perform inference
 
 After having provided all necessary definitions, we can perform inference calling `infer()`.
 This will return an object wrapping [posterior](https://cran.r-project.org/web/packages/posterior/) `draws` object that can be used to compute estimates.
@@ -174,7 +175,7 @@ results |>
   loo::loo()
 ```
 
-# Augment Infection Times
+# Augment infection times
 
 For models requiring augmented variables, the definition procedure is analogous.
 In [Data augmentation](data_augmentation.html) we broadly discuss data augmentation and the process of more complex augmented definitions.
@@ -190,7 +191,7 @@ hhsimul |>
   get_parameters()
 ```
 
-## Simulate an Outbreak
+## Simulate an outbreak
 
 We propose the following definitions for the augmented variables, 
 associated from a list by calling `$load_augmented_list`.
@@ -247,7 +248,7 @@ simulated <- simulated |>
 head(simulated)
 ```
 
-## Validate the Simulation
+## Validate the approach with a simulation study
 
 We can check that inference returns the parameters used for the simulation.
 

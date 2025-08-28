@@ -139,7 +139,8 @@ void MCMC::Impl::Augmented::set_id_draws_(str_vec &id_draws)
             else
             {
                 tools::warning(
-                    "Ignoring id trace for individual " + tools::str::format(id_draws));
+                    "Ignoring id trace for individual(s) " + 
+                    tools::str::format(id_draws, MAX_STR_PRINT));
                 id_draws.clear();
             }
         }
@@ -601,9 +602,9 @@ void MCMC::Impl::Augmented::init_all(Individual &member)
 
             // assign arguments to model
             init_model_args_(member, a,
-                             tools::parse_list_args(deftab.at("arg_key")[k]),
-                             tools::parse_list_args(deftab.at("arg_val")[k]),
-                             tools::parse_list_args(deftab.at("arg_at")[k]));
+                             tools::parse_list_args(deftab.at("arg_key")[k], C_LIST_DELIM),
+                             tools::parse_list_args(deftab.at("arg_val")[k], C_LIST_DELIM),
+                             tools::parse_list_args(deftab.at("arg_at")[k], C_LIST_DELIM));
 
             // assign range to model
             init_model_range_(member, a,
@@ -615,9 +616,9 @@ void MCMC::Impl::Augmented::init_all(Individual &member)
             {
                 // assign arguments to function
                 init_func_args_(member, a,
-                                tools::parse_list_args(deftab.at("farg_key")[k]),
-                                tools::parse_list_args(deftab.at("farg_val")[k]),
-                                tools::parse_list_args(deftab.at("farg_at")[k]));
+                                tools::parse_list_args(deftab.at("farg_key")[k], C_LIST_DELIM),
+                                tools::parse_list_args(deftab.at("farg_val")[k], C_LIST_DELIM),
+                                tools::parse_list_args(deftab.at("farg_at")[k], C_LIST_DELIM));
                 // assign range to function
                 init_func_range_(member, a,
                                  {deftab.at("min")[k], deftab.at("max")[k]},

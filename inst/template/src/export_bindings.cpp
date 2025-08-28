@@ -28,17 +28,26 @@
             {                                                                                    \
                 _ptr = compose_func_registries(name, type_string, registry_list);                \
                                                                                                  \
-                if (args.size() > 0)                                                             \
+                const Rcpp::CharacterVector arg_names = args.names();                            \
+                for (R_xlen_t i = 0; i < args.size(); ++i)                                       \
                 {                                                                                \
-                    const Rcpp::CharacterVector arg_names = args.names();                        \
-                    for (R_xlen_t i = 0; i < arg_names.size(); ++i)                              \
-                        _ptr->init_attr(Rcpp::as<std::string>(arg_names[i]),                     \
-                                        HSP_ATTR_ARGUMENT,                                       \
-                                        Rcpp::as<double>(args[i]));                              \
+                    bool known_arg = true;                                                       \
+                    const std::string this_arg = Rcpp::as<std::string>(arg_names[i]);            \
+                    try                                                                          \
+                    {                                                                            \
+                        _ptr->assert_arg(this_arg);                                              \
+                    }                                                                            \
+                    catch (const std::exception &e)                                              \
+                    {                                                                            \
+                        tools::warning(e.what());                                                \
+                        known_arg = false;                                                       \
+                    }                                                                            \
+                    if (known_arg)                                                               \
+                        _ptr->init_attr(this_arg, HSP_ATTR_ARGUMENT, Rcpp::as<double>(args[i])); \
                 }                                                                                \
                                                                                                  \
                 const Rcpp::CharacterVector range_names = range.names();                         \
-                for (R_xlen_t i = 0; i < range_names.size(); ++i)                                \
+                for (R_xlen_t i = 0; i < range.size(); ++i)                                      \
                     if (!tools::is_na(Rcpp::as<double>(range[i])))                               \
                         _ptr->init_attr(Rcpp::as<std::string>(range_names[i]),                   \
                                         HSP_ATTR_RANGE,                                          \

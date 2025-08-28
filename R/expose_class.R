@@ -63,22 +63,32 @@ add_datalist <- function(object, datalist) {
   object$clone(deep = TRUE)$add_datalist(datalist)
 }
 
-#' Re-export dplyr::summarise
-#'
-#' @importFrom dplyr summarise
-#' @export
-dplyr::summarise
-#' @title Summarise loaded household dataset 
-#' @description Summarise statuses in the dataset.
+#' @title Summarise cases in household dataset 
+#' @description 
+#' Summarise cases as given from the statuses in the laoded household dataset.
 #' 
 #' @param object `r rd_model_in_`
 #' @param ... Ignored.
 #' 
 #' @return `data.frame`
 #' 
-#' @exportS3Method summarise HousepiModel
-summarise.HousepiModel <- function(object, ...) {
-  object$summarise()
+#' @export
+summarise_cases <- function(object, ...) {
+  object$summarise_cases()
+}
+
+#' @title Summarise house sizes in household dataset 
+#' @description 
+#' Summarise number of members (size) in the laoded household dataset.
+#' 
+#' @param object `r rd_model_in_`
+#' @param ... Ignored.
+#' 
+#' @return `data.frame`
+#' 
+#' @export
+summarise_house_sizes <- function(object, ...) {
+  object$summarise_house_sizes()
 }
 
 ############################################################################

@@ -84,7 +84,9 @@ const std::string HSP_PROFILE_INST = HSP_HIDE_PRFX + "profile_inst" + HSP_HIDE_P
 // augmented cumulative infectivity profile
 const std::string HSP_PROFILE_CUMUL = HSP_HIDE_PRFX + "profile_cumul" + HSP_HIDE_PRFX;
 
-// constants
+// advanced setup constants
+constexpr unsigned MAX_STR_PRINT = 5;        // maximum options to print
+constexpr unsigned MIN_STR_DIST = 3;         // minimum string distance for find closest
 constexpr unsigned DEFAULT_MAX_SIZE = 30;    // default size for lookup table
 constexpr unsigned MAX_NUM_ATTEMPTS = 100;   // max n. of attempts for initialization
 constexpr double TARGET_ACCEPT_RATE = 0.234; // target acceptation rate for MCMC
@@ -250,15 +252,16 @@ namespace tools
         // boolean formatter
         std::string format(bool condition);
         // format a list of string options
-        std::string format(const str_vec &options,
-                           size_t max_print = 5);
+        std::string format(const str_vec &options, size_t max_print);
 
         // calculate Levenshtein distance
         unsigned short levenshtein(const std::string &s1, const std::string &s2);
         // find the closest match
         std::string find_closest(const std::string &input,
                                  const str_vec &options,
-                                 unsigned short min_dist = 2);
+                                 unsigned short min_dist,
+                                 // UPDATE: I find this annoying at the moment...
+                                 bool show_avail_options = false);
 
         // converter functions
         bool tobool(const std::string &tkn);
@@ -269,8 +272,7 @@ namespace tools
     }
 
     // argument string parser
-    str_vec parse_list_args(const std::string &tkn,
-                            const char delim = C_LIST_DELIM);
+    str_vec parse_list_args(const std::string &tkn, const char delim);
 
     // read csv list
     str_vec headers_from_deflist(const dict_str &deflist);

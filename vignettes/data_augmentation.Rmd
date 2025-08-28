@@ -41,7 +41,7 @@ For the Monte Carlo Markov Chain Through iterative sampling from these condition
 
 We here explain how to associate individual augmented variables in `housepi` for minimal examples.
 
-# Example: Estimate Incubation Periods Distribution
+# Example: estimate incubation periods distribution
 
 For simplicity, we start testing data augmentation on a dataset which is not a household survey.
 Instead we consider a simulated report documenting the days when a number of cases were exposed to infection and the days of symptom onset.
@@ -62,7 +62,7 @@ dataset <- generate_delays() |>
 head(dataset)
 ```
 
-# Build Augmented Variables
+# Build augmented variables
 
 Similarly to parameter, augmented variables require definitions for models and proposer rules needed for the Bayesian Monte Carlo.
 In many applications, augmented variable definitions can also depend on the dataset or on model parameters to be inferred.
@@ -134,7 +134,7 @@ hhmodel <- hhmodel |>
   )
 ```
 
-## Extract Augmented Variable Draws
+# Extract augmented variable draws
 
 We could run the inference and extract the results as usual.
 However, sometimes we might be interested in extracting also to check if augmented variables evolve as expected.
@@ -158,7 +158,7 @@ hhmodel |>
 Note that here the dataset has no demographic structure.
 We are assuming all individuals livto live in distinct households.
 
-## Other Proposer Rules for the Augmented Variables
+# Other proposer rules for the augmented variables
 
 ```{r}
 #| include: false

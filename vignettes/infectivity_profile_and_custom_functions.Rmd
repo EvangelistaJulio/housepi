@@ -20,7 +20,7 @@ library(housepi)
 set.seed(42)
 ```
 
-# Infectivity Profiles
+# Infectivity profiles in housepi
 
 In `housepi` we follow the convention for infectivity profiles to be function of the generation time.
 Generation time is defined as the time from infection to transmission.
@@ -45,4 +45,4 @@ hhsimul <- new_housepi_model("augm infection time") |>
 
 Bear in mind that each model requiring an infectivity profile has a default profile.
 
-# Other Custom Functions (Advanced)
+# Other custom functions (advanced)

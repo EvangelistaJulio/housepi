@@ -590,6 +590,7 @@ public:
         dict_str_vec augm_infec_profile_deflist_ = {};
 
         void init_lookup_();
+        void clear_lookup_();
 
         void build_generic_profile_(const dict_str &deflist);
         void build_augmented_profile_(const dict_str &deflist);
