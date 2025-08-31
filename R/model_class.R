@@ -259,8 +259,9 @@ HousepiModel <- R6::R6Class(
 
       # group rates (import depends on param)
       private$.build_group_rates()
-      defs <- private$.group_rates$tidy_table_to_cpp
-      private$.rcpp$import_group_rates(defs)
+      private$.rcpp$import_group_rates(
+        private$.group_rates$expose_to_cpp(private$.info_dataset)
+      )
 
       # build contact rates (UPDATE: temporary)
       private$.rcpp$build_all_rates()
@@ -288,7 +289,7 @@ HousepiModel <- R6::R6Class(
                 file.path(outpath, "datalist.tmp"),
                 quote = FALSE, row.names = FALSE)
 
-      write.csv(private$.group_rates$tidy_table_to_cpp,
+      write.csv(private$.group_rates$expose_to_cpp(private$.info_dataset),
                 file.path(outpath, "group_rates.tmp"),
                 quote = FALSE, row.names = FALSE)
       write.csv(self$augmented,

@@ -252,21 +252,6 @@ HousepiGroupRate <- R6::R6Class(
     tidy_table = function(value) {
       if (missing(value)) return(tidyup_group_rate_tables(self$logic_tables))
       stop_h("'tidy_table' is read only.")
-    },
-
-    #' @field tidy_table_to_cpp `data.frame()`\cr
-    #' Tidy table of group rates definition to be passed to Cpp.
-    tidy_table_to_cpp = function(value) {
-      if (missing(value)) {
-        defs <- self$tidy_table
-        defs$n <- NULL
-        info <- private$.info_dataset
-        for (k in intersect(colnames(defs), names(info))) {
-          defs[[k]] <- as.integer(factor(defs[[k]], levels = info[[k]]$levels))
-        }
-        return(defs)
-      }
-      stop_h("'tidy_table_to_cpp' is read only.")
     }
   ),
 
@@ -561,6 +546,20 @@ HousepiGroupRate <- R6::R6Class(
       }
 
       invisible(self)
+    },
+
+    #' @description
+    #' Tidy table of group rates definition to be passed to Cpp.
+    #' 
+    #' @param info `list`\cr
+    #' 
+    expose_to_cpp = function(info) {
+      defs <- self$tidy_table
+      defs$n <- NULL
+      for (k in intersect(colnames(defs), names(info))) {
+        defs[[k]] <- as.integer(factor(defs[[k]], levels = info[[k]]$levels))
+      }
+      return(defs)
     }
   )
 )

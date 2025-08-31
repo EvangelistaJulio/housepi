@@ -27,7 +27,7 @@ get_rcpp_module_from_dll <- function(module_name, dll) {
 get_rcpp_module_from_model <- function(module_name, model = NULL) {
   dll <- ifelse(is.null(model), NA, model$path_to_dll)
   if (is.na(dll)) {
-    housepi_dir <- file.path(system.file(package = "housepi"), "template")
+    housepi_dir <- system.file("template", package = "housepi")
     dll <- file.path(housepi_dir, "src", dll_file_ext("housepienvironment"))
   }
   return(get_rcpp_module_from_dll(module_name, dll))
@@ -57,11 +57,11 @@ get_rcpp_module_from_model <- function(module_name, model = NULL) {
 #' `numeric()`
 #'
 #' @export
-test_function <- function(name, x, args = numeric(), 
+test_function <- function(name, x, args = NULL, 
                           min = NA, max = NA, model = NULL) {
   # note: for simple function no reshaping -> discr = FALSE
   get_rcpp_module_from_model("housepi_function", model)$FunctionHousepi$new(
-    name, FALSE, unlist(args), c(min = min, max = max)
+    name, FALSE, args, c(min = min, max = max)
   )$call(x)
 }
 
@@ -91,10 +91,10 @@ test_function <- function(name, x, args = numeric(),
 #' `numeric()`
 #'
 #' @export
-test_distribution <- function(name, x, discr = FALSE, args = numeric(), 
+test_distribution <- function(name, x, discr = FALSE, args = NULL, 
                               min = NA, max = NA, model = NULL) {    
   get_rcpp_module_from_model("housepi_distribution", model)$DistributionHousepi$new(
-    name, discr, unlist(args), c(min = min, max = max)
+    name, discr, args, c(min = min, max = max)
   )$call(x)
 }
 
@@ -122,10 +122,10 @@ test_distribution <- function(name, x, discr = FALSE, args = numeric(),
 #' `numeric()`
 #'
 #' @export
-test_infec_profile <- function(name, x, discr = FALSE, args = numeric(), 
+test_infec_profile <- function(name, x, discr = FALSE, args = NULL, 
                                max = NA, model = NULL) {          
   # UPDATE: the minimum should be imposed from within         
   get_rcpp_module_from_model("housepi_infec_profile", model)$InfecProfileHousepi$new(
-    name, discr, unlist(args), c(min = ifelse(discr, 1, 0), max = max)
-  )$call(unlist(x))
+    name, discr, args, c(min = ifelse(discr, 1, 0), max = max)
+  )$call(x)
 }

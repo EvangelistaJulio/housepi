@@ -5,6 +5,16 @@ test_that("Augmented definition error are recognized", {
   expect_error(augm$add(name = "infec", args = c(min = 0)))
 })
 
+test_that("Constant value definition are correct", {
+  augm <- housepi:::HousepiAugmented$new()$load_list(dummy = 3)
+  tmp <- housepi:::HousepiAugmented$new()$add(name = "dummy", value = 3)
+  expect_equal(augm$defs, tmp$defs)
+  
+  augm <- housepi:::HousepiAugmented$new()$load_list(dummy = "3@D")
+  tmp <- housepi:::HousepiAugmented$new()$add(name = "dummy", expr = "3@D")
+  testthat::expect_equal(augm$defs, tmp$defs)
+})
+
 test_that("Augmented variable definition is correct", {
   augm <- housepi:::HousepiAugmented$new()
 
@@ -35,12 +45,14 @@ test_that("Augmented function definition is correct", {
   augm <- housepi:::HousepiAugmented$new()
 
   # empty definition
-  expect_error(augm$add())
+  expect_error(augm$add(),
+               regexp = "Incomplete definition")
 
   # difference definition
-  augm$add(name = "dummy", value = " onset -   incub ")
+  augm$add(name = "dummy", expr = " onset - incub ")
+  
   expect_equal(augm$defs$func, "sub")
-  expect_equal(augm$defs$farg_key, "x/y")
+  expect_equal(augm$defs$farg_key, "x/x2")
   expect_equal(augm$defs$farg_val, "onset/incub")
   expect_equal(augm$defs$farg_at, "A/A")
   expect_equal(augm$defs$value, NA)
@@ -60,13 +72,13 @@ test_that("Augmented load enable special definitions", {
   tmp$load_list(dummy = "log(infec@A)")
   expect_equal(tmp$defs, augm$defs)
   
-  expect_warning(tmp$add(name = "dummy", func = "log(infec@A)"),
+  expect_warning(tmp$add(name = "dummy", expr = "log(infec@A)"),
                  regexp = "Overwriting existing")
   expect_equal(tmp$defs, augm$defs)
   
   # multi-status definition
   tmp$defs <- NULL
-  tmp$load_list(dummy = list(value = "log(infec@A)", status = c(1, 3)))
+  tmp$load_list(dummy = list(expr = "log(infec@A)", status = c(1, 3)))
   tmp$defs$status <- NULL
   
   expect_equal(tmp$defs[1, , drop = TRUE], tmp$defs[2, , drop = TRUE])
@@ -78,6 +90,18 @@ test_that("Status-specific definitions are safe", {
   required <- c(model = "log_proba", 
                 augmented = c("..proba", "..layer"))
   infectious_status_set <- c(4, 2, 3, 1)
+  
+  # no error
+  expect_no_error(
+    augm$load_list(
+      ..proba = list(model = "norm", status = 1, min = 0,
+                     args = c(mean = "param@D")),
+      ..proba = list(expr = "..layer", status = c(2, 3, 4)),
+      ..layer = list(model = "lnorm", 
+                     args = c(meanlog = "param@D")),
+      log_proba = "log(..proba)"
+    )$assert(required, infectious_status_set)
+  )
   
   # first generation of definitions
   err_msg <- as.character(expect_error(

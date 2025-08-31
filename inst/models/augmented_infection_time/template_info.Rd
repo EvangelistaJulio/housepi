@@ -1,5 +1,5 @@
 \docType{class}
-\title{Augmented Onsets with Single Introduction}
+\title{Augmented Infection Times}
 \name{housepi template : Augmented Onsets with Single Introduction}
 \description{
 MISSING DESCRIPTION.

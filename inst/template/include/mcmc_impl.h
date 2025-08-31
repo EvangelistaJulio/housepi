@@ -524,6 +524,12 @@ public:
                               const str_vec &keys, const str_vec &vals, const str_vec &typs,
                               const std::vector<bool> &is_arg, bool is_var_model);
 
+        void build_function_(size_t k);
+        void build_function_equality_(size_t k);
+        void build_var_to_sample_(size_t k);
+        void build_var_with_model_(size_t k);
+
+        void init_single_var_dependencies_(Individual &member, const std::string &a, size_t k);
         void init_func_args_(Individual &member, const std::string &a,
                              const str_vec &keys, const str_vec &vals, const str_vec &typs);
         void init_func_range_(Individual &member, const std::string &a,

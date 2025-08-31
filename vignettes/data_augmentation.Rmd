@@ -86,7 +86,7 @@ Then, we define the augmented variables `infec_time` and `onset_time` as uniform
 
 ```{r}
 # generate an instance of the household model class
-hhmodel <- new_housepi_model("augm example") |>
+hhmodel <- new_housepi_model("augmented_example") |>
 
   # augmented variable definitions as function calls
   load_augmented_list(
@@ -147,7 +147,7 @@ The name starting with `..` is a convention for housepi to interpet such as priv
 hhmodel |>
   add_dataset(dataset) |>
   infer(n_steps = 10000, n_burnin = 500,
-        thin = 8, n_chains = 4, n_adapt = 3000,
+        thin = 8, n_chains = 3, n_adapt = 3000,
         # store augmented draws for individual "7"
         id_draws = "7", 
         progress = FALSE) |>

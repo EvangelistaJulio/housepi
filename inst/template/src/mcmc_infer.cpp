@@ -713,7 +713,9 @@ Rcpp::List MCMC::Impl::simulate(size_t n_rep)
                         error_message = e.what();
                 }
             }
-        }
+        }       
+        if (!error_message.empty())
+            throw std::runtime_error(error_message);
 
         // convert to Rcpp List
         List output(n_rep);
@@ -798,7 +800,7 @@ void MCMC::Impl::print_simulated_dataset(const std::string &pathtofile)
         setup.prog_close();    // close progress bar
         dataset.print_close(); // finalize output
     }
-    catch (std::exception &e)
+    catch (const std::exception &e)
     {
         setup.prog_crash();
         tools::error(e.what());

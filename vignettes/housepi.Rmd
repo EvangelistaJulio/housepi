@@ -141,7 +141,7 @@ results <- hhmodel |>
         n_burnin = 1000,  # steps to burn
         thin = 8,         # delay between sampling steps
         n_adapt = 1000,   # finite adaptation steps before sampling
-        n_chains = 4,     # number of independent chains
+        n_chains = 3,     # number of independent chains
         n_threads = 1,    # number of threads
         progress = FALSE) # disable progress bar
 
@@ -183,7 +183,7 @@ Here we present a case sttudy, using the template model "augm-infection-time" wh
 We load the parameter definitions directly from the model template.
 
 ```{r}
-hhsimul <- new_housepi_model("augm infection time") |>
+hhsimul <- new_housepi_model("augmented_infection_time") |>
   load_parameter_template()
 
 # inspect parameter definitions

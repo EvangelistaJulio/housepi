@@ -241,6 +241,8 @@ namespace tools
         // convert to upper\lower case
         std::string tolow(const std::string s);
         std::string toup(const std::string s);
+        str_vec tolow(const str_vec &svec);
+        str_vec toup(const str_vec &svec);
 
         // make list composed of distinct entries
         str_vec drop_duplicate(const str_vec &v);

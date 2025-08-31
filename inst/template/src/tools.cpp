@@ -166,10 +166,30 @@ namespace tools
             return out;
         }
 
+        /* Convert vector of strings to lower case. */
+        str_vec tolow(const str_vec &svec)
+        {
+            str_vec out;
+            out.reserve(svec.size());
+            for (const auto &s : svec)
+                out.push_back(tolow(s));
+            return out;
+        }
+
+        /* Convert vector of strings to upper case. */
+        str_vec toup(const str_vec &svec)
+        {
+            str_vec out;
+            out.reserve(svec.size());
+            for (const auto &s : svec)
+                out.push_back(toup(s));
+            return out;
+        }
+
         /* make list composed of distinct entries */
         str_vec drop_duplicate(const str_vec &vec)
         {
-            std::vector<std::string> out;
+            str_vec out;
             out.reserve(vec.size());
             for (const std::string &s : vec)
                 if (!(out % s))

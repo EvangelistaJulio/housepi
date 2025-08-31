@@ -10,24 +10,14 @@
 # template.R
 #
 
-# Associate same name to all elements of a vector
-set_source_name_ <- function(x, name = NA) {
-  if (!is.na(name) && is.character(name) && nchar(name) > 0) {
-    if (!is.null(x)) x <- setNames(x, rep(name, length(x)))
-  }
-  return(x)
+#
+flatten_template_choice_ <- function(x) {
+  tolower(gsub("-|_| ", "", x))
 }
 
-#' @title
-#' Template models directory
-#' @description
-#' Returns the directory to all housepi template models.
-#'
-#' @return `character(1)`
-#' @keywords internal
-#' @noRd
+# Returns the directory to all housepi template models.
 template_models_dir <- function() {
-  return(file.path(system.file(package = "housepi"), "models"))
+  system.file("models", package = "housepi")
 }
 
 #' @title
@@ -42,14 +32,34 @@ template_models_dir <- function() {
 #' @keywords internal
 #' @noRd
 get_template_dir <- function(x) {
-  .flatten_string <- function(x) return(tolower(gsub("-|_| ", "", x)))
-  flat_choice <- .flatten_string(x)
+  flat_choice <- flatten_template_choice_(x)
   path_to_options <- list.files(template_models_dir(), full.names = TRUE)
-  flat_options <- .flatten_string(basename(path_to_options))
+  flat_options <- flatten_template_choice_(basename(path_to_options))
   # extract path if present (unique since folder name)
   mask <- flat_options == flat_choice
   if (any(mask)) return(path_to_options[mask])
   return(NA)
+}
+
+#' @title
+#' Check if a template with similar name exists
+#' @description
+#' Return the directory of chosen housepi template model.
+#' 
+#' @param x `character(1)`\cr
+#' Choice of 
+#'
+#' @return `character(1)`
+#' @keywords internal
+#' @noRd
+find_closest_template_name <- function(x) {
+  flat_choice <- flatten_template_choice_(x)
+  options <- list.files(template_models_dir(), full.names = FALSE)
+  options <- c(options, "blank")
+  flat_options <- flatten_template_choice_(options)
+  sms <- find_closest_match(flat_choice, flat_options, 4)
+  if (stringr::str_ends(sms, "\\?")) return(sms)
+  return("To show available templates, run 'template_household_model'.")
 }
 
 #' @title
@@ -100,12 +110,10 @@ copy_template_to_path <- function(name, path) {
       }
     }
 
-  } else {
-    stop_h(
-      sprintf("Failed to create directory \"%s\".", path),
-      "Check your user permissions."
-    )
-  }
+  } else stop_h(
+    sprintf("Failed to create directory \"%s\".", path),
+    "Check your user permissions."
+  )
 }
 
 #' @title
@@ -181,6 +189,14 @@ template_household_model <- function(name = NA, path = NA, replace = FALSE) {
 ############################################################################
 ############################################################################
 ############################################################################
+
+# Associate same name to all elements of a vector
+set_source_name_ <- function(x, name = NA) {
+  if (!is.na(name) && is.character(name) && nchar(name) > 0) {
+    if (!is.null(x)) x <- setNames(x, rep(name, length(x)))
+  }
+  return(x)
+}
 
 #' @title
 #' Template assert expression

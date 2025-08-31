@@ -620,7 +620,7 @@ public:
     class ClassName : public Function                                                  \
     {                                                                                  \
     public:                                                                            \
-        ClassName() : Function(FunctionName, {"y"}, {DefaultY}) {}                     \
+        ClassName() : Function(FunctionName, {"x2"}, {DefaultY}) {}                     \
         ~ClassName() = default;                                                        \
         double return_value(double x) const override final { return x Symbol arg(0); } \
     };
@@ -643,7 +643,7 @@ class Power_Function : public Function
 public:
     //===== CONSTRUCTOR =====//
     Power_Function()
-        : Function("pow", {"y"}, {1.}) {}
+        : Function("pow", {"x2"}, {1.}) {}
     ~Power_Function() = default;
 
     //===== GETTER =====//

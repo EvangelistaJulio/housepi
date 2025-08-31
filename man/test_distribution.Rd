@@ -8,7 +8,7 @@ test_distribution(
   name,
   x,
   discr = FALSE,
-  args = numeric(),
+  args = NULL,
   min = NA,
   max = NA,
   model = NULL

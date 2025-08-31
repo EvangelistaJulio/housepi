@@ -4,7 +4,7 @@
 \alias{test_function}
 \title{Test Housepi Function}
 \usage{
-test_function(name, x, args = numeric(), min = NA, max = NA, model = NULL)
+test_function(name, x, args = NULL, min = NA, max = NA, model = NULL)
 }
 \arguments{
 \item{name}{\code{character(1)}\cr

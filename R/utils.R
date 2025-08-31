@@ -10,13 +10,6 @@
 # utils.R
 #
 
-helper_clone <- function(x) {
-  if (is.data.frame(x)) x[TRUE, , drop = FALSE]
-  else if (is.list(x)) lapply(x, helper_clone)
-  else if (inherits(x, "R6")) x$clone(deep = TRUE)
-  else x
-}
-
 #' @title
 #' Housepi stop utility
 #' @description
@@ -31,7 +24,6 @@ stop_h <- function(...) {
              call. = FALSE)
   invisible()
 }
-
 
 #' @title
 #' Housepi warning utility
@@ -179,9 +171,9 @@ load_definition_list <- function(..., from = NULL) {
     if (length(from) == 0) stop_h("No definitions provided.")
     else if (is.list(from)) definitions <- from
     else stop_h("Argument 'from' should be a list.")
-  } else if (any(names(definitions) == "")) {
-    stop_h("Found definition without name.")
-  }
+  } else if (any(names(definitions) == "")) stop_h(
+    "Found definition without name."
+  )
 
   return(definitions)
 }
@@ -230,7 +222,7 @@ untracked_changes <- function(source_dir, dll) {
   last_mod <- trunc_mtime(source_files(source_dir))
 
   # last changed should be older than installation time
-  housepi_dir <- file.path(system.file(package = "housepi"), "template")
+  housepi_dir <- system.file("template", package = "housepi")
   check_src_files <- list.files(housepi_dir, full.names = TRUE)
   install_time <- trunc_mtime(check_src_files)
 
@@ -262,6 +254,32 @@ random_name <- function(path) {
 # DLL fyle with templated name convention
 template_dll_file <- function(path) {
   return(file.path(path, dll_file_ext(template_name(path))))
+}
+
+# flags used to set the compilation environment
+get_cpp_environment_flags <- function(paths = NULL, 
+                                      flags = NULL,
+                                      linkers = NULL) {
+  # path to headers
+  template_path <- system.file("template/include", package = "housepi")
+  include_paths <- paste0("-I", c(template_path, paths), collapse = " ")
+  include_flags <- paste0("-D", c("_HOUSEPI_RCPP", flags), collapse = " ")
+  include_linkers <- paste0(linkers, collapse = " ")
+
+  # C++ flags for housepi Rcpp and OpenMP
+  # + linker flags for OpenMP
+  c(PKG_CXXFLAGS = sprintf("$(SHLIB_OPENMP_CXXFLAGS) %s %s",
+                           include_flags, include_paths),
+    PKG_LIBS = sprintf("$(SHLIB_OPENMP_CXXFLAGS) %s",
+                       include_linkers))
+}
+
+# helper function to deep clone R6 objects
+helper_clone <- function(x) {
+  if (is.data.frame(x)) x[TRUE, , drop = FALSE]
+  else if (is.list(x)) lapply(x, helper_clone)
+  else if (inherits(x, "R6")) x$clone(deep = TRUE)
+  else x
 }
 
 ############################################################################
@@ -559,7 +577,7 @@ extract_func_arithmetic_ <- function(s, reg_expr, func_name) {
   )
   y <- type_split_(y)
   return(list(
-    func = func_name, key = type_join_(c("x", "y")),
+    func = func_name, key = type_join_(c("x", "x2")),
     val = type_join_(y$val), at = type_join_(y$at)
   ))
 }
@@ -580,7 +598,7 @@ extract_func_arithmetic_ <- function(s, reg_expr, func_name) {
 #' @keywords internal
 #' @noRd
 extract_func_call_ <- function(s) {
-  options <- c("pow", "sqrt", "exp", "log", "sin", "cos", "tan")
+  options <- c("sqrt", "exp", "log", "sin", "cos", "tan")
 
   if (count_unique_function_calls_(s) > 0) stop_h(
     sprintf("Multiple functions invoked in definition \"%s\"", s)
@@ -648,11 +666,10 @@ extract_func_ <- function(s) {
   else if (grepl("\\^", s)) return(extract_func_arithmetic_(s, "\\^", "pow"))
 
   else if (!is.na(s)) {
-    # if expression is exactly an augmented variable
     # use the convention of equality
     y <- type_split_(s)
-    if (length(y$val) == 1 && y$at == "A") { 
-      return(list(func = "eq", key = "x", val = y$val, at = "A"))
+    if (length(y$val) == 1) { 
+      return(list(func = "eq", key = "x", val = y$val, at = y$at))
     }
   }
 

@@ -4,14 +4,7 @@
 \alias{test_infec_profile}
 \title{Test Housepi Infectivity Profile}
 \usage{
-test_infec_profile(
-  name,
-  x,
-  discr = FALSE,
-  args = numeric(),
-  max = NA,
-  model = NULL
-)
+test_infec_profile(name, x, discr = FALSE, args = NULL, max = NA, model = NULL)
 }
 \arguments{
 \item{name}{\code{character(1)}\cr

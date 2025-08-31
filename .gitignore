@@ -8,6 +8,7 @@
 *.so
 *.tmp
 *.nfs*
+**/Makevars
 
 # Packages #
 ############
@@ -38,7 +39,7 @@
 ehthumbs.db
 Thumbs.db
 
-# otheres #
+# others #
 ###########
 *.vscode/
 

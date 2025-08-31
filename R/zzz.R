@@ -29,14 +29,17 @@
 # Name of the package.
 compile_template_library <- function(pkgname) {
   # compile the core
-  housepi_dir <- file.path(system.file(package = pkgname), "template")
-  pkgbuild::compile_dll(housepi_dir, debug = FALSE, quiet = FALSE)
+  withr::with_envvar(
+    get_cpp_environment_flags(),
+    pkgbuild::compile_dll(system.file("template", package = pkgname),
+                          quiet = FALSE, debug = FALSE)
+  )
 
   # compile each template model
   for (m in list.files(template_models_dir(), full.names = TRUE)) {
     dll <- template_dll_file(m)
     if (isFALSE(file.exists(dll)) || untracked_changes(m, dll)) {
-      cli::cli_alert_info("Compiling {.pkg {basename(m)}}")
+      cli::cli_h1("RCPP COMPILING TEMPLATE {.pkg {basename(m)}}")
       HousepiGenerator$new(m, as_template = TRUE, quiet = FALSE)
     }
   }

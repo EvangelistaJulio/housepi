@@ -260,7 +260,7 @@ HousepiGenerator <- R6::R6Class(
              recursive = TRUE)
 
       # 'housepi' template package directory
-      housepi_dir <- file.path(system.file(package = "housepi"), "template")
+      housepi_dir <- system.file("template", package = "housepi")
 
       # copy folders from template
       for (fldr in file.path(housepi_dir, c("src", "R"))) {
@@ -311,10 +311,16 @@ HousepiGenerator <- R6::R6Class(
       # touch as source model file was more recent
       Sys.setFileTime(file.path(cache_dir_src, "model.cpp"), touch_time + 1)
 
+      # UPDATE: predisposing for user flags
+      user_additional_paths <- c()
+
       # compile the dynamic library
-      pkgbuild::compile_dll(private$.cache_dir,
-                            quiet = private$.quiet,
-                            debug = FALSE)
+      withr::with_envvar(
+        get_cpp_environment_flags(user_additional_paths),
+        pkgbuild::compile_dll(private$.cache_dir,
+                              quiet = private$.quiet,
+                              debug = FALSE)
+      )
       private$.need_compile <- FALSE
 
       # copy DLL outside of the source directory
@@ -531,7 +537,7 @@ HousepiGenerator <- R6::R6Class(
 
       } else stop_h(
         sprintf("\"%s\" is not a folder nor a template name.", choice),
-        "To show available templates, run 'template_household_model'."
+        find_closest_template_name(choice)
       )
 
       # finally recompile only the model script, if necessary.
