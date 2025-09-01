@@ -80,7 +80,7 @@ group_rate_logic_table <- function(dataset, by) {
   # add counts
   y$n <- multifeat_count[multifeat_count > 0]
 
-  return(y)
+  y
 }
 
 #' @title
@@ -164,20 +164,20 @@ tidyup_group_rate_tables <- function(all_tables) {
     }
     df_list <- c(df_list, df)
   }
-  
+
   # all unique column names reordered
   all_cols <- unique(c("group_rate", "param_name", "n",
                        sort(unlist(lapply(df_list, names)))))
-  
+
   # Add missing columns with NA
   combined_df <- do.call(rbind, lapply(df_list, function(df) {
     missing_cols <- setdiff(all_cols, names(df))
     df[missing_cols] <- NA
-    return(df[all_cols])
+    df[all_cols]
   }))
   rownames(combined_df) <- NULL
-  
-  return(combined_df)
+
+  combined_df
 }
 
 ############################################################################
@@ -208,7 +208,7 @@ HousepiGroupRate <- R6::R6Class(
     # List containing parameters definitions.
     .parameters = list()
   ),
-  
+
   ############################################################################
   ################################## ACTIVE ##################################
   ############################################################################
@@ -248,7 +248,8 @@ HousepiGroupRate <- R6::R6Class(
     },
 
     #' @field tidy_table `data.frame()`\cr
-    #' Data.Frame containg the combined list with group rate and parameter definitions.
+    #' Data.Frame containg the combined list
+    #' with group rate and parameter definitions.
     tidy_table = function(value) {
       if (missing(value)) return(tidyup_group_rate_tables(self$logic_tables))
       stop_h("'tidy_table' is read only.")
@@ -274,7 +275,7 @@ HousepiGroupRate <- R6::R6Class(
     initialize = function() {
       self$defs <- list()
       self$logic_tables <- list()
-      .parameters = list()
+      .parameters <- list()
       invisible(self)
     },
 
@@ -285,13 +286,13 @@ HousepiGroupRate <- R6::R6Class(
     #' Path/to/.refer source file.
     require = function(refer_file) {
       # vector of regular expression to use for assertion
-      regular_expr <- c(
+      regexp <- c(
         # group rate from : .group_rate("string"
         '\\.group_rate\\s*\\(\\s*["\'](.*?)["\']'
       )
       # find required group rates from regular expressions
-      output <- template_required_find(refer_file, regular_expr)
-      return(set_source_name_(output, "model"))
+      output <- template_required_find(refer_file, regexp)
+      set_source_name_(output, "model")
     },
 
     #' @description
@@ -301,7 +302,7 @@ HousepiGroupRate <- R6::R6Class(
     #' The group rate definition to remove.
     #' @param show_warnings `logical(1)`\cr
     #' Wheter to show warnings.
-    #' 
+    #'
     #' @return
     #' `logical(1)`
     remove = function(rate_id, show_warnings = TRUE) {
@@ -315,9 +316,9 @@ HousepiGroupRate <- R6::R6Class(
         private$.parameters[rate_id] <- NULL
         return(!is_old_default)
 
-      } else if (isTRUE(show_warnings)) warning_h(
-        sprintf("Attempt to remove unknown group_rate \"%s\".", this)
-      )
+      } else if (isTRUE(show_warnings)) {
+        warning_h(sprintf("Attempt to remove unknown group_rate \"%s\".", this))
+      }
 
       return(FALSE)
     },
@@ -382,7 +383,7 @@ HousepiGroupRate <- R6::R6Class(
       if (!all(is.na(by))) {
         if (isFALSE(is.character(by))) stop_h(
           "Argument 'by' must be of type character."
-        ) 
+        )
         else if (any(by %in% forbidden)) stop_h(
           sprintf("Feature name \"%s\" is a reserved word.", by),
           "Please, rename feature and corresponding data column."
@@ -499,8 +500,8 @@ HousepiGroupRate <- R6::R6Class(
               )
 
               if (col %in% colnames(this_table)) {
-                this_table[[col]] <- factor(this_table[[col]], 
-                                            levels = lv, 
+                this_table[[col]] <- factor(this_table[[col]],
+                                            levels = lv,
                                             labels = seq_along(lv))
               }
             }
@@ -550,16 +551,16 @@ HousepiGroupRate <- R6::R6Class(
 
     #' @description
     #' Tidy table of group rates definition to be passed to Cpp.
-    #' 
+    #'
     #' @param info `list`\cr
-    #' 
+    #'
     expose_to_cpp = function(info) {
       defs <- self$tidy_table
       defs$n <- NULL
       for (k in intersect(colnames(defs), names(info))) {
         defs[[k]] <- as.integer(factor(defs[[k]], levels = info[[k]]$levels))
       }
-      return(defs)
+      defs
     }
   )
 )

@@ -1,9 +1,10 @@
-/*      __
- *     / /_  ____  __  __ ____ __  ____  __
- *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
- *   / / / / /_/ / /_/ (__  )  __/ /_/ / /
- *  /_/ /_/\____/\____/____/\___/ ____/_/
- *                             /_/
+/*
+ *        __
+ *       / /_  ____  __  __ ____ __  ____  __
+ *      / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
+ *     / / / / /_/ / /_/ (__  )  __/ /_/ / /
+ *    /_/ /_/\____/\____/____/\___/ ____/_/
+ *                               /_/
  *
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  *
@@ -21,29 +22,24 @@
 #include "tools.h"
 #include "variable.h"
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
 // status aliases
 #define INFECTED_STATUS 1 // infected status (>=)
 #define HEALTHY_STATUS 0  // healthy status (==)
 #define MISSING_STATUS -1 // missing status (<=)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  Individual : class  ////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////// *** Individual : class *** /////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Class for individual household study member. */
+/// Class for individual household study member.
 class Individual
 {
 public:
-	//=======================//
-	//===== CONSTRUCTOR =====//
-	//=======================//
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////  Individual : constructor  /////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	Individual() {}
 	Individual(size_t index,
@@ -56,9 +52,9 @@ public:
 	bool operator==(const Individual &other) const { return this->index_ == other.index_; }
 	bool operator!=(const Individual &other) const { return this->index_ != other.index_; }
 
-	//==================//
-	//===== GETTER =====//
-	//==================//
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////  Individual : getter  ////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	const std::string &id() const { return id_; }
 	operator size_t() const { return hhindex_; }
@@ -81,9 +77,9 @@ public:
 	Variable &get_augm_variable(const std::string &a) { return safe_at(augm_map_, "augmented variable", a); }
 	const Variable &get_augm_variable(const std::string &a) const { return safe_at(augm_map_, "augmented variable", a); }
 
-	//==================//
-	//===== SETTER =====//
-	//==================//
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////  Individual : setter  ////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	void set_status(int s) { status_ = s; }
 
@@ -101,16 +97,19 @@ public:
 	void init_augm_model(const str_vec &augm_model_list);
 	void user_reset();
 
-	//=========================//
-	//===== LOGLIKELIHOOD =====//
-	//=========================//
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	/////////////////////////////////  Individual : loglikelihood  ////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	double get_augm_model_loglike() const { return augm_loglike_; }
 	double compute_and_set_augm_model_loglike();
 	void recover_augm_model_loglike() { augm_loglike_ = augm_buffer_; };
 
 private:
-	// individual group rate nested class
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////  Individual : GroupRate : class  //////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////
+
 	struct GroupRate
 	{
 	public:
@@ -148,32 +147,27 @@ private:
 	double augm_buffer_ = 0;  // buffer augmented model loglikelihood
 };
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
+///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  Household : class  ////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Household class */
+/// Household class.
 class Household
 {
 public:
-	//=======================//
-	//===== CONSTRUCTOR =====//
-	//=======================//
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////  Household : constructor  //////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	Household(const std::string &house_id = HSP_NA_STRING,
 			  size_t index = SIZE_MAX);
 	~Household() = default;
 
-	//=====================//
-	//===== ITERATORS =====//
-	//=====================//
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////  Household : iterators  ///////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	auto begin() { return members_.begin(); }
 	auto end() { return members_.end(); }
@@ -246,9 +240,9 @@ public:
 	const std::vector<size_t> &healthy_hhindexes() const { return healthy_list_; }
 	const std::vector<size_t> &missing_hhindexes() const { return missing_list_; }
 
-	//==================//
-	//===== GETTER =====//
-	//==================//
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////  Household : getter  /////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	// Individual Getter
 	const std::string &id(size_t i) const { return members_.at(i).id(); }
@@ -271,54 +265,50 @@ public:
 	size_t multiplicity_class_index() const { return multiplicity_class_; }
 	bool is_multiplicity_head_class() const { return (index_ == multiplicity_class_); }
 
-	//==================//
-	//===== SETTER =====//
-	//==================//
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////  Household : setter  /////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	void set_multiplicity(unsigned long m, size_t class_idx);
-	void init_member(size_t index,
-					 const std::string &id,
-					 int status,
-					 const u_dict<double> &data);
+	void init_member(size_t index, const std::string &id, int status, const u_dict<double> &data);
 	bool change_status(Individual &member, int new_status);
 	bool change_status(size_t i, int new_status) { return change_status(members_.at(i), new_status); }
 	void init_contact_rates(size_t from, size_t to, const double *x);
 
-	//============================//
-	//===== CACHE ATTRIBUTES =====//
-	//============================//
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////  Household : cache attributes  ////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	/* Check if any cache quantity is associated to the household. */
+	/// Check if any cache quantity is associated to the household.
 	bool is_any_cache() { return !(cache_int_vec_.empty() && cache_dbl_vec_.empty() && cache_dbl_mtx_.empty()); }
 	void buffer_all_cache();
 
-	//----- Cached integer vector -----//
+	// Cache integer vector
 	void init_cache_integer_vector(const std::string &e) { cache_int_vec_[e] = int_vec(size(), 0); }
 	int_vec &cache_integer_vector(const std::string &e) { return safe_at(cache_int_vec_, "cached object", e); }
 	const int_vec &cache_integer_vector(const std::string &e) const { return safe_at(cache_int_vec_, "cached object", e); }
 
-	//----- Cached size_t vector -----//
+	// Cache size_t vector
 	void init_cache_size_t_vector(const std::string &e) { cache_size_t_vec_[e] = std::vector<size_t>(size(), 0); }
 	std::vector<size_t> &cache_size_t_vector(const std::string &e) { return safe_at(cache_size_t_vec_, "cached object", e); }
 	const std::vector<size_t> &cache_size_t_vector(const std::string &e) const { return safe_at(cache_size_t_vec_, "cached object", e); }
 
-	//----- Cached double vector -----//
+	// Cached double vector
 	void init_cache_double_vector(const std::string &e) { cache_dbl_vec_[e] = dbl_vec(size(), 0.); }
 	dbl_vec &cache_double_vector(const std::string &e) { return safe_at(cache_dbl_vec_, "cached object", e); }
 	const dbl_vec &cache_double_vector(const std::string &e) const { return safe_at(cache_dbl_vec_, "cached object", e); }
 
-	//----- Cached double matrix -----//
+	// Cache double matrix
 	void init_cache_double_matrix(const std::string &e) { cache_dbl_mtx_[e] = matrix<double>(size(), dbl_vec(size(), 0.)); }
 	matrix<double> &cache_double_matrix(const std::string &e) { return safe_at(cache_dbl_mtx_, "cached object", e); }
 	const matrix<double> &cache_double_matrix(const std::string &e) const { return safe_at(cache_dbl_mtx_, "cached object", e); }
 
-	//=========================//
-	//===== LOGLIKELIHOOD =====//
-	//=========================//
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	/////////////////////////////////  Household : loglikelihood  /////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	double get_obs_loglike() const { return obs_loglike_; }
 	void set_obs_loglike(double x);
-
 	void recover_buffer_values(bool is_cache_depen);
 
 private:
@@ -338,22 +328,24 @@ private:
 	// contact rate pointers
 	matrix<const double *> contact_rates_;
 
-	//===== LOGLIKELIHOOD =====//
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////  Household : loglikelihood [private]  ////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	double obs_loglike_ = 0; // current observation loglikelihood
 	double obs_buffer_ = 0;	 // buffer observation loglikelihood
 
 	dbl_vec smpl_loglike_ = {}; // diagnostics
 
-	//===== EXTRA ATTRIBUTES =====//
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////  Household : cache attributes [private]  //////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	//----- Extra Attributes -----//
 	u_dict<int_vec> cache_int_vec_ = {};
 	u_dict<std::vector<size_t>> cache_size_t_vec_ = {};
 	u_dict<dbl_vec> cache_dbl_vec_ = {};
 	u_dict<matrix<double>> cache_dbl_mtx_ = {};
 
-	//----- Buffer EXTRA Attributes -----//
 	u_dict<int_vec> buffer_cache_int_vec_ = {};
 	u_dict<std::vector<size_t>> buffer_cache_size_t_vec_ = {};
 	u_dict<dbl_vec> buffer_cache_dbl_vec_ = {};

@@ -1,9 +1,10 @@
-/*      __
- *     / /_  ____  __  __ ____ __  ____  __
- *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
- *   / / / / /_/ / /_/ (__  )  __/ /_/ / /
- *  /_/ /_/\____/\____/____/\___/ ____/_/
- *                             /_/
+/*
+ *        __
+ *       / /_  ____  __  __ ____ __  ____  __
+ *      / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
+ *     / / / / /_/ / /_/ (__  )  __/ /_/ / /
+ *    /_/ /_/\____/\____/____/\___/ ____/_/
+ *                               /_/
  *
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  *
@@ -22,27 +23,20 @@
 namespace bax
 {
 	/////////////////////////////////////////////////////////////////////////////////////////////////
-	//////////////////////////////////////  GLOBAL VARIABLES  ///////////////////////////////////////
+	////////////////////////////////////////  LookUp Tables  ////////////////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////////
 
-	//===== Transmission Generations : Lookup Tables =====//
-	// numbers of generations
-	std::vector<ulong> Num_Gener_LookupTable;
-	// n. of multiplicites per generation
-	matrix<ulong> Multipl_Gener_LookupTable;
-	// generation std::vectors
-	matrix<gentype> Generations_LookupTable;
+	// Transmission Generations
+	std::vector<ulong> Num_Gener_LookupTable; /// n. of generations
+	matrix<ulong> Multipl_Gener_LookupTable;  /// n. of multiplicites per generation
+	matrix<gentype> Generations_LookupTable;  /// generation std::vectors
 
-	//===== Combinations : Lookup Tables =====//
-	// lookup-table to store the number of combinations
-	matrix<ulong> Num_Combin_LookupTable;
-	// lookup-table to store combinations and complements
-	std::vector<std::vector<matrix<ushort>>> Combinations_LookupTable;
+	// Combinations
+	matrix<ulong> Num_Combin_LookupTable;			 /// LUT wiht n.e number of combinations
+	matrix<matrix<ushort>> Combinations_LookupTable; /// LUT wiht combinations and complements
 
-	//===== EscapePatterns : Lookup Tables =====//
-	// lookup-table to store the number of combinations
+	// EscapePatterns
 	std::vector<EscapePattern> ChainBinomial_LookupTable;
-	// lookup-table to store combinations and complements
 	matrix<EscapePattern> EscapePatterns_LookupTable;
 
 	/////////////////////////////////////////////////////////////////////////////////////////////////

@@ -18,10 +18,12 @@
 #' @param dataset `r rd_add_dataset_`
 #'
 #' @return `data.frame`
-#' 
-#' @details 
-#' The secondary attack rate is computed for all household with size \eqn{n > 1} according to
-#' \deqn{\frac{\mathbb{E[n_{+}\vert{n}] - 1}{n - 1}}}{(E[n_pos|n] - 1) / (n - 1)}
+#'
+#' @details
+#' The secondary attack rate is computed for all household
+#' with size \eqn{n > 1} according to
+#' \deqn{\frac{\mathbb{E[n_{+}\vert{n}] - 1}{n - 1}}}
+#' {(E[n_pos|n] - 1) / (n - 1)}
 #'
 #' @export
 measure_sar_by_house_size <- function(dataset) {
@@ -32,7 +34,7 @@ measure_sar_by_house_size <- function(dataset) {
   dataset |>
     # cast to 0\1 values
     dplyr::mutate(
-      status =  dplyr::if_else(is.na(status), 0, as.integer(status > 0))
+      status = dplyr::if_else(is.na(status), 0, as.integer(status > 0))
     ) |>
     # aggregate data by house_id
     dplyr::group_by(house_id) |>
@@ -41,7 +43,7 @@ measure_sar_by_house_size <- function(dataset) {
     dplyr::filter(cases > 0) |>
     dplyr::mutate(sar = (cases - 1) / (house_size - 1)) |>
     dplyr::group_by(house_size) |>
-    dplyr::summarise(sar = mean(sar)) |> 
+    dplyr::summarise(sar = mean(sar)) |>
     as.data.frame()
 }
 
@@ -58,10 +60,10 @@ measure_cases_by_house_size <- function(dataset) {
   # check that dataset is consistent
   if (length(dataset) == 0) stop_h("No valid dataset was provided.")
 
-  housepi::survey |>
+  dataset |>
     # cast to 0\1 values
     dplyr::mutate(
-      status =  dplyr::if_else(is.na(status), 0, as.integer(status > 0))
+      status = dplyr::if_else(is.na(status), 0, as.integer(status > 0))
     ) |>
     # aggregate data by house_id
     dplyr::group_by(house_id) |>
@@ -124,7 +126,7 @@ frame_apply <- function(frame_list, func) {
     if (is.data.frame(elem_n1)) output <- as.data.frame(output)
   }
 
-  return(output)
+  output
 }
 
 #' @title Frame apply mean
@@ -139,9 +141,9 @@ frame_apply <- function(frame_list, func) {
 #' @noRd
 frame_apply_mean <- function(frame_list) {
   frame_apply(frame_list, function(x) {
-    if (all(is.na(x))) return(NA)
-    else if (all(is.numeric(x))) return(mean(x, na.rm = TRUE))
-    else if (length(unique(x)) == 1) return(unique(x))
+    if (all(is.na(x))) NA
+    else if (all(is.numeric(x))) mean(x, na.rm = TRUE)
+    else if (length(unique(x)) == 1) unique(x)
     else stop_h(
       "Undefined mean for non numeric, non unique values.",
       "Check output of your posterioir measure function."
@@ -167,9 +169,9 @@ frame_apply_mean <- function(frame_list) {
 frame_apply_cri <- function(frame_list, cri_level = 0.95, upper = TRUE) {
   p <- 0.5 + ifelse(isTRUE(upper), 0.5, -0.5) * cri_level
   frame_apply(frame_list, function(x) {
-    if (all(is.na(x))) return(NA)
-    else if (all(is.numeric(x))) return(stats::quantile(x, probs = p, na.rm = TRUE))
-    else if (length(unique(x)) == 1) return(unique(x))
+    if (all(is.na(x))) NA
+    else if (all(is.numeric(x))) stats::quantile(x, probs = p, na.rm = TRUE)
+    else if (length(unique(x)) == 1) unique(x)
     else stop_h(
       "Undefined credible interval for non numeric, non unique values.",
       "Check output of your posterioir measure function."
@@ -206,14 +208,14 @@ HousepiExpectation <- R6::R6Class(
     # extract posterior quantities from cases-by-house-size table list
     .extract_posterior_results = function(x) {
       cri <- private$.cri_level
-      return(list(
+      list(
         # expected value
         expected = frame_apply_mean(x),
         # lower credible interval
         cri_lower = frame_apply_cri(x, cri, upper = FALSE),
         # upper credible interval
         cri_upper = frame_apply_cri(x, cri, upper = TRUE)
-      ))
+      )
     },
 
     # Set evel for the credible interval.
@@ -253,16 +255,16 @@ HousepiExpectation <- R6::R6Class(
   public = list(
     #' @noRd
     initialize = function(model, param_table, ...,
-                          FUN = NULL, progress = NA, 
+                          measure = NULL, progress = NA,
                           cri_level = 0.95) {
-      if (is.null(FUN)) FUN <- list(...)
-      if (is.null(FUN)) stop_h("No measure was provided.")
+      if (is.null(measure)) measure <- list(...)
+      if (is.null(measure)) stop_h("No measure was provided.")
 
       # function to be applied also in the case of multiple measures
       apply_func <- ifelse(
-        is.list(FUN),
-        function(x) lapply(FUN, function(f) f(x)),
-        FUN
+        is.list(measure),
+        function(x) lapply(measure, function(f) f(x)),
+        measure
       )
 
       private$.set_cri_level(cri_level)
@@ -277,10 +279,10 @@ HousepiExpectation <- R6::R6Class(
         param_table <- param_table |>
           posterior::as_draws_matrix() |>
           as.data.frame()
-          
-      } else if (!is.data.frame(param_table)) stop_h(
-        "Type of param_table not supported"
-      )
+
+      } else if (!is.data.frame(param_table)) {
+        stop_h("Type of param_table not supported")
+      }
 
       # initialize with results from observed dataset
       private$.observed <- apply_func(model$dataset)
@@ -290,7 +292,7 @@ HousepiExpectation <- R6::R6Class(
       hmc <- model$clone(deep = TRUE)
       # cleanup at end
       withr::defer(rm(hmc))
-      
+
       # if progress not provided, import from model
       progress <- ifelse(is.na(progress), hmc$setup$progress, progress)
       # UPDATE: can't manually set the frequency here
@@ -312,11 +314,11 @@ HousepiExpectation <- R6::R6Class(
       names(constants) <- as.list(tmp$name)
 
       # define loop function working by row index
-      # UPDATE: this should be improved with loops in C++ 
+      # UPDATE: this should be improved with loops in C++
       loop_func <- function(r) {
         # associate parameters from table, plus constants
         hmc$load_parameter_list(
-          from = c(as.list(param_table[r, ]), constants), 
+          from = c(as.list(param_table[r, ]), constants),
           append = FALSE
         )
         # run simulation and extract cases by house size
@@ -331,9 +333,9 @@ HousepiExpectation <- R6::R6Class(
       )
       else output <- lapply(seq_len(n_rep), loop_func)
 
-      if (is.list(FUN)) {
-        output <- lapply(names(FUN), function(x) lapply(output, `[[`, x))
-        names(output) <- names(FUN)
+      if (is.list(measure)) {
+        output <- lapply(names(measure), function(x) lapply(output, `[[`, x))
+        names(output) <- names(measure)
         private$.posterior <- lapply(output, private$.extract_posterior_results)
 
       } else {
@@ -391,10 +393,11 @@ combine_obs_exp <- function(obsdf, expdf) {
   # format columns to extract labels with labelizor
   colnames(combined)[3:ncol(combined)] <- sapply(
     colnames(combined)[3:ncol(combined)], function(x) {
-      return(paste("cases", x, sep = "_"))
+      paste("cases", x, sep = "_")
     }
   )
-  return(combined)
+
+  combined
 }
 
 ############################################################################
@@ -406,10 +409,10 @@ combine_obs_exp <- function(obsdf, expdf) {
 # output naming convention
 naming_convention_ <- function(x, cri_level) {
   qtag <- 100 * round(cri_level, 2)
-  x <- gsub("expected", "mean", x) 
+  x <- gsub("expected", "mean", x)
   x <- gsub("cri_lower", sprintf("q%.0f", 100 - qtag), x)
-  x <- gsub("cri_upper", sprintf("q%.0f", qtag), x) 
-  return(x)
+  x <- gsub("cri_upper", sprintf("q%.0f", qtag), x)
+  x
 }
 
 #' @title Expected Cases By Size
@@ -437,27 +440,17 @@ ExpectedCasesBySize <- R6::R6Class(
     #
     # @return `data.frame`
     .count_non_zero_cases = function(dataset) {
-      # UPDATE: in tidyverse it would be
-      # dataset |>
-      #   dplyr::group_by(house_id) |>
-      #   dplyr::summarise(house_size = dplyr::n(), cases = sum(status)) |>
-      #   dplyr::filter(cases > 0) |>
-      #   dplyr::group_by(house_size) |>
-      #   dplyr::summarise(count = dplyr::n())
-
-      dataset$status <- as.integer(dataset$status > 0)
-
-      agg1 <- stats::aggregate(
-        status ~ house_id, data = dataset,
-        FUN = function(x) c(house_size = length(x), cases = sum(x))
-      )
-      agg2 <- data.frame(
-        house_id = agg1$house_id,
-        house_size = agg1$status[, "house_size"],
-        cases = agg1$status[, "cases"]
-      )
-      agg2 <- agg2[agg2$cases > 0, ]
-      return(stats::aggregate(cases ~ house_size, data = agg2, FUN = length))
+      dataset |>
+        # cast to 0\1 values
+        dplyr::mutate(
+          status = dplyr::if_else(is.na(status), 0, as.integer(status > 0))
+        ) |>
+        dplyr::group_by(house_id) |>
+        dplyr::summarise(house_size = dplyr::n(), cases = sum(status)) |>
+        dplyr::filter(cases > 0) |>
+        dplyr::group_by(house_size) |>
+        dplyr::summarise(count = dplyr::n()) |>
+        as.data.frame()
     },
 
     # @description
@@ -485,12 +478,12 @@ ExpectedCasesBySize <- R6::R6Class(
       }
 
       expdf <- private$.posterior$cases_by_size
-      return(list(
+      list(
         observed = obsdf[mask_row, mask_col],
         expected = expdf$expected[mask_row, mask_col],
         cri_lower = expdf$cri_lower[mask_row, mask_col],
         cri_upper = expdf$cri_upper[mask_row, mask_col]
-      ))
+      )
     }
   ),
 
@@ -514,8 +507,9 @@ ExpectedCasesBySize <- R6::R6Class(
         )
 
         # associate counts
-        output$counts <- private$.counts$cases
-        colnames(output) <- naming_convention_(colnames(output), private$.cri_level)
+        output$counts <- private$.counts$count
+        colnames(output) <- naming_convention_(colnames(output),
+                                               private$.cri_level)
 
         return(output)
       }
@@ -534,10 +528,12 @@ ExpectedCasesBySize <- R6::R6Class(
         na_df <- cases$observed
         na_df[] <- lapply(na_df, function(col) if (is.numeric(col)) NA else col)
         na_df$house_size <- cases$observed$house_size
-
-        output <- list(expected = combine_obs_exp(cases$observed, cases$expected),
-                       cri_lower = combine_obs_exp(na_df, cases$cri_lower),
-                       cri_upper = combine_obs_exp(na_df, cases$cri_upper))
+        
+        output <- list(
+          expected = combine_obs_exp(cases$observed, cases$expected),
+          cri_lower = combine_obs_exp(na_df, cases$cri_lower),
+          cri_upper = combine_obs_exp(na_df, cases$cri_upper)
+        )
         names(output) <- naming_convention_(names(output), private$.cri_level)
         return(output)
       }
@@ -556,9 +552,9 @@ ExpectedCasesBySize <- R6::R6Class(
       # ininitialize parent class HousepiExpectation
       super$initialize(
         model = model,
-        param_table = param_table, 
-        FUN = c(cases_by_size = measure_cases_by_house_size,
-                sar = measure_sar_by_house_size),
+        param_table = param_table,
+        measure = c(cases_by_size = measure_cases_by_house_size,
+                    sar = measure_sar_by_house_size),
         progress = progress,
         cri_level = cri_level
       )
@@ -621,21 +617,21 @@ ExpectedCasesBySize <- R6::R6Class(
 #' @param param_table `r rd_param_table_`
 #' @param ...
 #' Named arguments with respective functions.
-#' If `FUN` is provided, arguments are ignored.
-#' @param FUN `closure` | `list` of `closure`\cr
+#' If `measure` is provided, arguments are ignored.
+#' @param measure `closure` | `list` of `closure`\cr
 #' Function(s) to extract the desired measure from a dataset.
 #' @param progress `r rd_progress_`
 #'
 #' @return
 #' An object of class
 #' [HousepiExpectation][housepi::HousepiExpectation].
-#' 
-#' @export 
+#'
+#' @export
 expec_posterior_measure <- function(object, param_table, ...,
-                                    FUN = NULL, progress = NA) {
+                                    measure = NULL, progress = NA) {
   stopifnot(inherits(object, "HousepiModel"))
   HousepiExpectation$new(object, param_table, ...,
-                         FUN = FUN, progress = progress)
+                         measure = measure, progress = progress)
 }
 
 #' @title Expected cases by household size
@@ -652,10 +648,10 @@ expec_posterior_measure <- function(object, param_table, ...,
 #' An object of class
 #' [ExpectedCasesBySize][housepi::ExpectedCasesBySize]
 #' containing method to compare observed and expected cases.
-#' 
+#'
 #' @export
 expec_cases_by_house_size <- function(object, param_table, progress = NA) {
   stopifnot(inherits(object, "HousepiModel"))
-  ExpectedCasesBySize$new(object, param_table, 
+  ExpectedCasesBySize$new(object, param_table,
                           progress = progress)
 }

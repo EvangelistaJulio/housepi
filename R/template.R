@@ -10,9 +10,8 @@
 # template.R
 #
 
-#
-flatten_template_choice_ <- function(x) {
-  tolower(gsub("-|_| ", "", x))
+spaced_template_choice <- function(x) {
+  tolower(gsub("\\s+", " ", gsub("-|_| ", " ", x)))
 }
 
 # Returns the directory to all housepi template models.
@@ -24,42 +23,41 @@ template_models_dir <- function() {
 #' Get template model directory
 #' @description
 #' Return the directory of chosen housepi template model.
-#' 
+#'
 #' @param x `character(1)`\cr
-#' Choice of 
+#' Choice of the template.
 #'
 #' @return `character(1)`
 #' @keywords internal
 #' @noRd
 get_template_dir <- function(x) {
-  flat_choice <- flatten_template_choice_(x)
+  flat_choice <- spaced_template_choice(x)
   path_to_options <- list.files(template_models_dir(), full.names = TRUE)
-  flat_options <- flatten_template_choice_(basename(path_to_options))
+  flat_options <- spaced_template_choice(basename(path_to_options))
   # extract path if present (unique since folder name)
   mask <- flat_options == flat_choice
   if (any(mask)) return(path_to_options[mask])
-  return(NA)
+  NA
 }
 
 #' @title
 #' Check if a template with similar name exists
 #' @description
 #' Return the directory of chosen housepi template model.
-#' 
+#'
 #' @param x `character(1)`\cr
-#' Choice of 
+#' Choice of the template.
 #'
 #' @return `character(1)`
 #' @keywords internal
 #' @noRd
 find_closest_template_name <- function(x) {
-  flat_choice <- flatten_template_choice_(x)
+  flat_choice <- spaced_template_choice(x)
   options <- list.files(template_models_dir(), full.names = FALSE)
-  options <- c(options, "blank")
-  flat_options <- flatten_template_choice_(options)
-  sms <- find_closest_match(flat_choice, flat_options, 4)
+  flat_options <- spaced_template_choice(options)
+  sms <- find_closest_match(flat_choice, flat_options, 5)
   if (stringr::str_ends(sms, "\\?")) return(sms)
-  return("To show available templates, run 'template_household_model'.")
+  c("Show available templates calling 'template_household_model'.")
 }
 
 #' @title
@@ -110,10 +108,12 @@ copy_template_to_path <- function(name, path) {
       }
     }
 
-  } else stop_h(
-    sprintf("Failed to create directory \"%s\".", path),
-    "Check your user permissions."
-  )
+  } else {
+    stop_h(
+      sprintf("Failed to create directory \"%s\".", path),
+      "Check your user permissions."
+    )
+  }
 }
 
 #' @title
@@ -139,9 +139,9 @@ open_model_helper_ <- function(path) {
   } else if (interactive()) {
     # print as plain text in the console
     cat(capture.output(tools::Rd2txt(info_file)), sep = "\n")
-  } else warning_h(
-    "Help method not supported in non-interactive mode."
-  )
+  } else {
+    warning_h("Help method not supported in non-interactive mode.")
+  }
   invisible()
 }
 
@@ -161,29 +161,39 @@ open_model_helper_ <- function(path) {
 #'
 #' @export
 template_household_model <- function(name = NA, path = NA, replace = FALSE) {
-  # Asking for model names
-  if (is.na(name)) show_model_names()
+  if (is.na(name)) {
+    # asking for model names
+    show_model_names()
 
-  # Asking for description or for copying template
-  else if (is.character(name)) {
-    # If name is a template...
+  } else if (is.character(name)) {
+    # asking for description or for copying template
+
+    # if name is a template...
     if (name %in% list.files(template_models_dir())) {
-      # ... ask for template model description
-      if (is.na(path)) open_model_helper_(file.path(template_models_dir(), name))
-      # ... ask for copying template to folder with model
-      else if (any(file.exists(source_files(path))) && isFALSE(replace)) warning_h(
-        "A model already exists in the specified folder.",
-        "Remove its content before creating a new model."
+      if (is.na(path)) {
+        # ... ask for template model description
+        open_model_helper_(file.path(template_models_dir(), name))
+      } else if (any(file.exists(source_files(path))) && isFALSE(replace)) {
+        # ... ask for copying template to folder with model
+        warning_h(
+          "A model already exists in the specified folder.",
+          "Remove its content before creating a new model."
+        )
+      } else {
+        # ... ask for copying template to empty folder
+        copy_template_to_path(name, path)
+      }
+
+    } else {
+      stop_h(
+        sprintf("Provided model template \"%s\" is unknown.", name),
+        "Show available templates calling 'template_household_model'."
       )
-      # ... ask for copying template to empty folder
-      else copy_template_to_path(name, path)
+    }
 
-    } else stop_h(
-      sprintf("Provided model template \"%s\" is unknown.", name),
-      "To see available template names, run `template_household_model` without arguments."
-    )
-
-  } else stop_h("Model name is not a character.")
+  } else {
+    stop_h("Model name is not a character.")
+  }
 }
 
 ############################################################################
@@ -223,7 +233,7 @@ template_assert_expression <- function(refer_file, expression) {
     matches <- stringr::str_match_all(script, expression)
     return(length(unlist(matches)) > 0)
   }
-  return(FALSE)
+  FALSE
 }
 
 #' @title
@@ -258,12 +268,14 @@ template_required_find <- function(refer_file, regular_expr) {
     # re-order alphabetically
     required <- sort(unique(required))
 
-  } else warning_h(
-    sprintf("Impossible to find reference file \"%s\".", refer_file),
-    "Try to generate a new model object."
-  )
+  } else {
+    warning_h(
+      sprintf("Impossible to find reference file \"%s\".", refer_file),
+      "Try to generate a new model object."
+    )
+  }
 
-  return(required)
+  required
 }
 
 #' @title
@@ -282,11 +294,11 @@ template_required_find <- function(refer_file, regular_expr) {
 #' @keywords internal
 #' @noRd
 template_missing_find <- function(required, defined) {
-  if (length(required) == 0) return(NULL)
-  else if (length(defined) == 0) return(sort(unlist(required)))
-  else return(sort(setdiff(unlist(required), unlist(defined))))
+  if (length(required) == 0) NULL
+  else if (length(defined) == 0) sort(unlist(required))
+  else sort(setdiff(unlist(required), unlist(defined)))
 }
-  
+
 #' @title
 #' Template Missing Stop
 #' @description
@@ -317,7 +329,7 @@ template_missing_stop <- function(required, defined, family) {
             ifelse(len_miss > 1, "s", ""),
             character_to_string_list(miss)),
     sprintf("The %s definition%s required by %s",
-            family, 
+            family,
             ifelse(len_miss > 1, "s are", " is"),
             character_to_phrase(sources))
   )
@@ -344,9 +356,9 @@ template_missing_stop <- function(required, defined, family) {
 #' @keywords internal
 #' @noRd
 template_not_used_find <- function(required, defined) {
-  if (length(required) == 0) return(sort(unlist(defined)))
-  else if (length(defined) == 0) return(NULL)
-  else return(sort(setdiff(unlist(defined), unlist(required))))
+  if (length(required) == 0) sort(unlist(defined))
+  else if (length(defined) == 0) NULL
+  else sort(setdiff(unlist(defined), unlist(required)))
 }
 
 #' @title
@@ -368,7 +380,7 @@ template_not_used_find <- function(required, defined) {
 #' @noRd
 template_not_used_warn <- function(required, defined, family) {
   notused <- template_not_used_find(required, defined)
-  
+
   len_not_used <- length(notused)
   if (len_not_used > 0) warning_h(
     sprintf("There %s %s unused %s definition%s: %s",
@@ -394,7 +406,7 @@ template_not_used_warn <- function(required, defined, family) {
 #' @keywords internal
 #' @noRd
 template_blank_dataset_ <- function() {
-  data.frame(id = c("hh_01_1", "hh_01_2"), 
-             house_id = "hh_01", 
+  data.frame(id = c("hh_01_1", "hh_01_2"),
+             house_id = "hh_01",
              status = c(1, 0))
 }

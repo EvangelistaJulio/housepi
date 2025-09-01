@@ -9,7 +9,7 @@
 #
 # expose_docs.R
 # --------------
-# Inline calls for shared Roxygen documentation 
+# Inline calls for shared Roxygen documentation
 # between R6 methods and wrappers
 
 rd_model_in_ <- "`HousepiModel` object."

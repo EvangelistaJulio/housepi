@@ -1,9 +1,10 @@
-/*      __
- *     / /_  ____  __  __ ____ __  ____  __
- *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
- *   / / / / /_/ / /_/ (__  )  __/ /_/ / /
- *  /_/ /_/\____/\____/____/\___/ ____/_/
- *                             /_/
+/*
+ *        __
+ *       / /_  ____  __  __ ____ __  ____  __
+ *      / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
+ *     / / / / /_/ / /_/ (__  )  __/ /_/ / /
+ *    /_/ /_/\____/\____/____/\___/ ____/_/
+ *                               /_/
  *
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  *
@@ -24,24 +25,19 @@
 
 #include "household.h"
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
+/////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////  MCMC : class  ////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Household models base class 'Monte Carlo Markov Chain'. */
 class MCMC
 {
 public:
-	//=======================//
-	//===== CONSTRUCTOR =====//
-	//=======================//
+	///////////////////////////
+	//////  constructor  //////
+	///////////////////////////
 
 	MCMC();
 	virtual ~MCMC();
@@ -49,15 +45,18 @@ public:
 	/* Virtual method for user initialization of advanced setup. */
 	virtual void init_advanced_setup() {}
 
-	//================//
-	//===== DATA =====//
-	//================//
+	//////////////////////////
+	/////////  data  /////////
+	//////////////////////////
 
 	unsigned long get_report_indiv(const std::string &s) const;
 	unsigned long get_report_house(const std::string &s) const;
 	std::pair<unsigned short, unsigned long> get_report_hh_size(const std::string &s) const;
 
-	//----- Group & Contact Rates -----//
+	///////////////////////////////////////////
+	/////////  group & contact rates  /////////
+	///////////////////////////////////////////
+
 	// UPDATE: also contact rates should just be imported
 	void build_all_rates();
 
@@ -67,29 +66,29 @@ public:
 	/* Assign the contact patterns between a couple of individuals. */
 	virtual void init_household_contact_rates(Household &, const Individual &, const Individual &) {}
 
-	//=================================//
-	//===== RAND NUMBER GENERATOR =====//
-	//=================================//
+	///////////////////////////////////////////
+	/////////  rand number generator  /////////
+	///////////////////////////////////////////
 
 	double uniform();
 
-	//======================//
-	//===== PARAMETERS =====//
-	//======================//
+	///////////////////////////
+	///////  parameters  //////
+	///////////////////////////
 
 	double param(const std::string &p) const;
 	const double *param_pointer(const std::string &p) const;
 
-	//===============================//
-	//===== AUGMENTED VARIABLES =====//
-	//===============================//
+	////////////////////////////////////
+	///////  augmented variables  //////
+	////////////////////////////////////
 
 	void init_all_augm(Individual &member);
 	void clear_all_augm(Individual &member);
 
-	//============================//
-	//===== CACHE ATTRIBUTES =====//
-	//============================//
+	/////////////////////////////////
+	///////  cache attributes  //////
+	/////////////////////////////////
 
 	/* Update cahced augmeted dependecies. */
 	virtual void update_cache_dependecies(Household &, Individual &) {}
@@ -99,35 +98,35 @@ public:
 	void cache_house_double_vector(const std::string &e);
 	void cache_house_double_matrix(const std::string &e);
 
-	//===============================//
-	//===== INFECTIVITY PROFILE =====//
-	//===============================//
+	////////////////////////////////////
+	///////  infectivity profile  //////
+	////////////////////////////////////
 
 	void init_infec_profile_template(dict_str x);
 	double infec_profile_inst(const Individual &member, double t) const;
 	double infec_profile_cumul(const Individual &member, double t) const;
 
-	//=================//
-	//===== INFER =====//
-	//=================//
+	//////////////////////////
+	///////  inference  //////
+	//////////////////////////
 
 	/* Inference specific initialization (e. g. cache variables, lookup tables, etc). */
 	virtual void init_model_for_inference() {}
 	void infer();
 	void clear_memory();
-
-	//====================================//
-	//===== EVALUATE (loglikelihood) =====//
-	//====================================//
+	
+	/////////////////////////////////////////
+	///////  evaluate (loglikelihood)  //////
+	/////////////////////////////////////////
 
 	/* Compute the loglikelihood for a single household. */
 	virtual double compute_household_obs_loglike(Household &) { throw std::runtime_error(
 		"Called virtual loglikelihood method of undefined model."); }
 	double evaluate();
 
-	//====================//
-	//===== SIMULATE =====//
-	//====================//
+	///////////////////////////
+	///////  simulation  //////
+	///////////////////////////
 
 	/* Simulation specific initialization (e. g. cache variables, lookup tables, etc). */
 	virtual void init_model_for_simulation() {}
@@ -176,9 +175,9 @@ public:
 	void print_simulated_dataset(const std::string &output_filename = HSP_NA_STRING);
 	void print_evidence(const std::string &scheme, unsigned long n_rungs);
 
-	//================//
-	//===== READ =====//
-	//================//
+	//////////////////////////
+	/////////  read  /////////
+	//////////////////////////
 
 	void read_setup(const std::string &pathtofile = HSP_NA_STRING);
 	void read_dataset(const std::string &pathtofile = HSP_NA_STRING);
@@ -189,9 +188,9 @@ public:
 	void read_infec_profile(const std::string &pathtofile = HSP_NA_STRING);
 	void read_augm(const std::string &pathtofile = HSP_NA_STRING);
 
-	//================//
-	//===== SHOW =====//
-	//================//
+	//////////////////////////
+	/////////  show  /////////
+	//////////////////////////
 
 	void show_setup() const;
 	void show_all_params() const;

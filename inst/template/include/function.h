@@ -1,9 +1,10 @@
-/*      __
- *     / /_  ____  __  __ ____ __  ____  __
- *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
- *   / / / / /_/ / /_/ (__  )  __/ /_/ / /
- *  /_/ /_/\____/\____/____/\___/ ____/_/
- *                             /_/
+/*
+ *        __
+ *       / /_  ____  __  __ ____ __  ____  __
+ *      / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
+ *     / / / / /_/ / /_/ (__  )  __/ /_/ / /
+ *    /_/ /_/\____/\____/____/\___/ ____/_/
+ *                               /_/
  *
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  *
@@ -19,40 +20,35 @@
 
 #include "tools.h"
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////// *** Attribute : class *** ///////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
 // forward declaration
 class Function;
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  Attribute : class ////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Attribute parent class. */
+/// Attribute parent class.
 class Attribute
 {
 public:
-    //=======================//
-    //===== CONSTRUCTOR =====//
-    //=======================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////  Attribute : constructor  ////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
     Attribute() {};
     virtual ~Attribute() = default;
 
-    //==================//
-    //===== GETTER =====//
-    //==================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////  Attribute : getter  //////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
-    /* Get attribute value */
+    /// Get attribute value
     double get() const { return (this->*get_)(); }
-    /* Get pointer to attribute value. */
+    /// Get pointer to attribute value.
     const double *get_ptr() const { return (this->*get_ptr_)(); }
-    /* Get pointer to attribute function. */
+    /// Get pointer to attribute function.
     const std::shared_ptr<Function> get_function() const { return pFunc_; }
 
     bool is_constant() const;
@@ -63,11 +59,11 @@ public:
     std::string str() const { return tools::str::format(get()); }
     std::string name() const { return _attribute_name; }
 
-    //==================//
-    //===== SETTER =====//
-    //==================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////  Attribute : setter  //////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
-    /* Set attribute value. */
+    /// Set attribute value.
     void set(double x) { (this->*_do_set)(x); }
     void name(const std::string &name) { _attribute_name = name; }
 
@@ -76,53 +72,54 @@ public:
     void init_function(const std::shared_ptr<Function> f);
 
 private:
-    std::string _attribute_name = HSP_NA_STRING; // name of argument
-    double value_ = HSP_NA_DOUBLE;               // internal value
-    const double *_ptr_to_value = nullptr;       // pointer to value
-    std::shared_ptr<Function> pFunc_ = nullptr;  // pointer to function
+    std::string _attribute_name = HSP_NA_STRING; /// name of argument
+    double value_ = HSP_NA_DOUBLE;               /// internal value
+    const double *_ptr_to_value = nullptr;       /// pointer to value
+    std::shared_ptr<Function> pFunc_ = nullptr;  /// pointer to function
 
-    // Functional getter //
+    // Functional getter
     double (Attribute::*get_)() const = &Attribute::do_get_default_;
-    /* Get attribute value from internal value. */
+    /// Get attribute value from internal value.
     double do_get_default_() const { return value_; }
-    /* Get attribute value from external value. */
+    /// Get attribute value from external value.
     double __get_from_pointer() const { return *(_ptr_to_value); }
-    /* Get attribute value from external function. */
+    /// Get attribute value from external function.
     double __get_from_function() const;
 
-    // Functional pointer getter //
+    // Functional pointer getter
     const double *(Attribute::*get_ptr_)() const = &Attribute::do_get_ptr_default_;
-    /* Get pointer to attribute value internal value. */
+    /// Get pointer to attribute value internal value.
     const double *do_get_ptr_default_() const { return &value_; }
-    /* Get pointer to attribute value from external value. */
+    /// Get pointer to attribute value from external value.
     const double *__get_pointer_from_pointer() const { return _ptr_to_value; }
-    /* Get pointer to attribute error. */
+    /// Get pointer to attribute error.
     const double *__get_pointer_error() const { throw std::runtime_error(
         "Cannot return a pointer to attribute \"" + _attribute_name + "\"."); }
 
-    // Functional setter //
+    // Functional setter
     void (Attribute::*_do_set)(double) = &Attribute::__set_default;
-    /* Set attribute internal value. */
+    /// Set attribute internal value.
     void __set_default(double x) { value_ = x; }
-    /* Set error.
-     * note: so far set_arg is only used for adaptation.
-     * Pointer and fucntion attributes can't be set, but just assigned.
-     */
+    /// Set error.
+    /// note: so far set_arg is only used for adaptation.
+    /// Pointer and fucntion attributes can't be set, but just assigned.
     void __set_error(double) { throw std::runtime_error(
         "Non scalar attribute \"" + _attribute_name + "\" cannot be changed."); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  Base Function : class //////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////// *** Function : class *** /////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Function parent class. Arguements stored in arrays. */
+/// Function parent class. Arguements stored in arrays.
 class Function
 {
 public:
-    //=======================//
-    //===== CONSTRUCTOR =====//
-    //=======================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////  Function : constructor  ///////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
     Function(const std::string &name = HSP_NA_STRING,
              const str_vec &arg_name = {},
@@ -133,15 +130,16 @@ public:
              bool is_max_open = true);
     virtual ~Function() = default;
 
+    /// Sugar operator to call return_value.
     double operator()(double x) const { return return_value(x); }
 
-    //==================//
-    //===== GETTER =====//
-    //==================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////  Function : getter  /////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
-    /* Virtual function to return a value */
+    /// Virtual function to return a value.
     virtual double return_value(double) const { return 0.; }
-    /* By convention, the argument 'x' is automatically the last one. */
+    /// By convention, the argument 'x' is automatically the last one.
     double return_value() const { return return_value(arg(n_args_)); }
 
     unsigned short assert_arg(const std::string &arg_name) const;
@@ -153,38 +151,38 @@ public:
     const double *get_ptr_to_min() const { return range_min_.get_ptr(); }
     const double *get_ptr_to_max() const { return range_max_.get_ptr(); }
 
-    /* Wheter all arguments are actually constants. */
+    /// Wheter all arguments are actually constants.
     bool is_constant() const;
-    /* Returns TRUE if value x is below range minimum. */
+    /// Returns TRUE if value x is below range minimum.
     bool is_below(double x) const { return (this->*is_below_)(x); }
-    /* Returns TRUE if value x is above range maximum. */
+    /// Returns TRUE if value x is above range maximum.
     bool is_above(double x) const { return (this->*is_above_)(x); }
-    /* Returns TRUE if value x is within range. */
+    /// Returns TRUE if value x is within range.
     bool is_valid(double x) const { return (this->*is_valid_)(x); }
 
-    /* Internal code to define the type of range. */
+    /// Internal code to define the type of range.
     unsigned short which_valid_case() const;
 
-    //=============================//
-    //===== ARGUMENTS & RANGE =====//
-    //=============================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////  Function : arguments & range  ////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
     void init_attr(const std::string &arg_name, bool is_arg, double value);
     void init_attr(const std::string &arg_name, bool is_arg, const double *ptr_to_value);
     void init_attr(const std::string &arg_name, bool is_arg, std::shared_ptr<Function> f);
 
-    /* Set argument value. */
+    /// Set argument value.
     void set_arg(unsigned short i, double x) { arguments_[i].set(x); }
 
     void init_uniform_range();
     void init_functional_range(bool is_min_open, bool is_max_open);
 
-    /* Virtual function to initialize reshaping in Distribution, etc. */
+    /// Virtual function to initialize reshaping in Distribution, etc.
     virtual void init_reshaping(bool) {}
 
-    //================//
-    //===== SHOW =====//
-    //================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////  Function : show  //////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
     std::string name() const { return function_name_; }
     std::string str_arg_names() const;
@@ -202,19 +200,18 @@ public:
 #endif
 
 private:
-    std::string function_name_ = HSP_NA_STRING;
+    std::string function_name_ = HSP_NA_STRING; /// function name
 
-    //===== Arguments =====//
-    Attribute *arguments_ = nullptr;
-    unsigned short n_args_ = 0;
+    Attribute *arguments_ = nullptr; /// array with arguments
+    unsigned short n_args_ = 0;      /// n. of arguments
 
-    //===== Domain =====//
-    Attribute range_min_ = Attribute();
-    Attribute range_max_ = Attribute();
+    Attribute range_min_ = Attribute(); /// lower bound
+    Attribute range_max_ = Attribute(); /// upper bound
 
-    //=============================//
-    //===== ARGUMENTS & RANGE =====//
-    //=============================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////  Function : arguments & range [private]  ///////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
+
     void init_arg_scalar_(const std::string &arg_name, double value);
     void init_arg_pointer_(const std::string &arg_name, const double *ptr_to_value);
     void init_arg_function_(const std::string &arg_name, const std::shared_ptr<Function> f);
@@ -224,7 +221,6 @@ private:
     void init_range_function_(const std::string &range_name, const std::shared_ptr<Function> f);
 
     //===== VALID =====//
-    // note: for the moment range extremes can't be one open and other close
 
     //---- alternative valid range methods -----//
     bool (Function::*is_below_)(double) const = &Function::do_is_below_never_;
@@ -256,7 +252,9 @@ private:
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////  Registry : class  /////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////// *** FunctionRegistry : class *** //////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 class FunctionRegistry
@@ -264,26 +262,26 @@ class FunctionRegistry
     using FactoryFunc = std::function<std::shared_ptr<Function>()>;
 
 public:
-    //=======================//
-    //===== CONSTRUCTOR =====//
-    //=======================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////  FunctionRegistry : constructor  ////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
     FunctionRegistry(const std::string &name)
         : _name(name) {}
     virtual ~FunctionRegistry() = default;
 
-    //==================//
-    //===== GETTER =====//
-    //==================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////  FunctionRegistry : getter  //////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
     const std::string &name() const { return _name; }
     virtual str_vec get_options() const;
     virtual bool is_valid_option(const std::string &opt) const { return get_options() % opt; }
     virtual std::shared_ptr<Function> get(const std::string &opt) const;
 
-    //==================//
-    //===== SETTER =====//
-    //==================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////  FunctionRegistry : setter  //////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
     template <typename T>
     void register_func()
@@ -299,7 +297,7 @@ private:
     std::unordered_map<std::string, FactoryFunc> _factory_map = {};
 };
 
-/* Separate functions registries. */
+/// Separate functions registries.
 #define DECLARE_HOUSEPI_FUNCTION_REGISTRY(ClassName, Description) \
     class ClassName : public FunctionRegistry                     \
     {                                                             \
@@ -313,7 +311,7 @@ DECLARE_HOUSEPI_FUNCTION_REGISTRY(ArithmeticRegistry, "arithmetic function")
 DECLARE_HOUSEPI_FUNCTION_REGISTRY(TranscendentalRegistry, "transcendental function")
 DECLARE_HOUSEPI_FUNCTION_REGISTRY(UserFuncRegistry, "user function")
 
-/* Register a Function derived class T to FungRegistry derived class R. */
+/// Register a Function derived class T to FungRegistry derived class R.
 template <typename R, typename T>
 struct StaticFunctionRegistatror
 {
@@ -333,7 +331,7 @@ struct StaticFunctionRegistatror
 
 #define REGISTER_USER_FUNCTION(T) REGISTER_HOUSEPI_FUNCTION(UserFuncRegistry, T)
 
-/* Compose registries to get a function from them. */
+/// Compose registries to get a function from them.
 std::shared_ptr<Function> compose_func_registries(const std::string &opt,
                                                   const std::string &name,
                                                   const std::vector<const FunctionRegistry *> &registries);

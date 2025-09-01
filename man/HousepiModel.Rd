@@ -4,7 +4,8 @@
 \alias{HousepiModel}
 \title{Housepi Model}
 \description{
-Compile household model, manage your dataset and variable defintions from a single class.
+Compile household model, manage your dataset
+and variable defintions from a single class.
 }
 \keyword{internal}
 \section{Super class}{

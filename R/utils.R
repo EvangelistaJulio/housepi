@@ -84,13 +84,15 @@ character_to_string_list <- function(mylist, max_print = 4) {
 #' @noRd
 character_to_phrase <- function(mylist) {
   len_list <- length(mylist)
-  if (len_list == 0) return(NULL)
-  else if (len_list == 1) sms <- mylist
-  else {
-    sms <- paste(mylist[1:(len_list-1)], collapse = ", ")
+  if (len_list == 0) {
+    return(NULL)
+  } else if (len_list == 1) {
+    sms <- mylist
+  } else {
+    sms <- paste(mylist[1:(len_list - 1)], collapse = ", ")
     sms <- paste(sms, "and", mylist[len_list])
   }
-  return(paste0(sms, "."))
+  paste0(sms, ".")
 }
 
 #' @title
@@ -171,9 +173,9 @@ load_definition_list <- function(..., from = NULL) {
     if (length(from) == 0) stop_h("No definitions provided.")
     else if (is.list(from)) definitions <- from
     else stop_h("Argument 'from' should be a list.")
-  } else if (any(names(definitions) == "")) stop_h(
-    "Found definition without name."
-  )
+  } else if (any(names(definitions) == "")) {
+    stop_h("Found definition without name.")
+  }
 
   return(definitions)
 }
@@ -184,23 +186,23 @@ load_definition_list <- function(..., from = NULL) {
 
 # remove punctuation from string
 format_string <- function(name) {
-  return(gsub("[[:punct:]]", "", name))
+  gsub("[[:punct:]]", "", name)
 }
 
 # Generate a random string
 rnd_string <- function(size = 8) {
-  return(paste0(sample(c(letters, LETTERS, 0:9), size, replace = TRUE),
-                collapse = ""))
+  paste0(sample(c(letters, LETTERS, 0:9), size, replace = TRUE),
+         collapse = "")
 }
 
 # Source code files
 source_files <- function(path) {
-  return(file.path(path, paste0("model.", c("cpp", "h"))))
+  file.path(path, paste0("model.", c("cpp", "h")))
 }
 
 # return time of modification truncated
 trunc_mtime <- function(path) {
-  return(max(trunc(file.info(path)$mtime)))
+  max(trunc(file.info(path)$mtime))
 }
 
 #' @title
@@ -226,14 +228,14 @@ untracked_changes <- function(source_dir, dll) {
   check_src_files <- list.files(housepi_dir, full.names = TRUE)
   install_time <- trunc_mtime(check_src_files)
 
-  return(any(trunc_mtime(dll) < c(last_mod, install_time)))
+  any(trunc_mtime(dll) < c(last_mod, install_time))
 }
 
 # Optional helper files
 helper_files <- function(path) {
   helper_names <- paste0("template_",
                          c("param.R", "info.Rd", "augm.R"))
-  return(file.path(path, helper_names))
+  file.path(path, helper_names)
 }
 
 # Associate dynamic library extension to name
@@ -243,21 +245,21 @@ dll_file_ext <- function(name = "") {
 
 # Templated name convention
 template_name <- function(path) {
-  return(paste0("housepi", format_string(basename(path))))
+  paste0("housepi", format_string(basename(path)))
 }
 
 # Add random string to templated name
 random_name <- function(path) {
-  return(paste0(template_name(path), rnd_string()))
+  paste0(template_name(path), rnd_string())
 }
 
 # DLL fyle with templated name convention
 template_dll_file <- function(path) {
-  return(file.path(path, dll_file_ext(template_name(path))))
+  file.path(path, dll_file_ext(template_name(path)))
 }
 
 # flags used to set the compilation environment
-get_cpp_environment_flags <- function(paths = NULL, 
+get_cpp_environment_flags <- function(paths = NULL,
                                       flags = NULL,
                                       linkers = NULL) {
   # path to headers
@@ -335,8 +337,9 @@ default_types_ <- function(types, values) {
     }
   }
 
-  return(types)
+  types
 }
+
 # @title
 #' Type split
 #' @description
@@ -352,16 +355,16 @@ default_types_ <- function(types, values) {
 #' @noRd
 type_split_ <- function(lst) {
   if (all(is.na(lst))) {
-    return(list(val = NA, at = NA))
+    list(val = NA, at = NA)
 
   } else {
     splitted_lst <- strsplit(as.character(lst), "\\@")
     values <- sapply(splitted_lst, function(x) x[1])
     types <- sapply(splitted_lst, function(x) x[2])
-    return(list(
+    list(
       val = values,
       at = default_types_(types, values)
-    ))
+    )
   }
 }
 
@@ -379,7 +382,7 @@ type_split_ <- function(lst) {
 #' @keywords internal
 #' @noRd
 type_join_ <- function(x) {
-  return(paste(x, collapse = "/"))
+  paste(x, collapse = "/")
 }
 
 #' @title
@@ -403,7 +406,7 @@ char_setup_input_ <- function(defs) {
     if (length(y) == 0) defs$id_draws <- NA
     else defs$id_draws <- type_join_(unique(y))
   }
-  return(data.frame(lapply(defs, as.character)))
+  data.frame(lapply(defs, as.character))
 }
 
 #' @title
@@ -419,8 +422,8 @@ char_setup_input_ <- function(defs) {
 #' @keywords internal
 #' @noRd
 char_data_input_ <- function(df) {
-  if (is.null(df)) return(NULL)
-  else return(data.frame(lapply(df, as.character)))
+  if (is.null(df)) NULL
+  else data.frame(lapply(df, as.character))
 }
 
 #' @title
@@ -460,10 +463,10 @@ cpp_data_factorize <- function(df) {
       df[[col]] <- as.integer(y)
     }
   }
-  return(list(data = char_data_input_(df),
-              info = info,
-              cols = cols,
-              status = status))
+  list(data = char_data_input_(df),
+       info = info,
+       cols = cols,
+       status = status)
 }
 
 #' @title
@@ -482,7 +485,7 @@ cpp_data_factorize <- function(df) {
 #'
 #' @keywords internal
 #' @noRd
-cpp_data_refactor = function(data, info, headers) {
+cpp_data_refactor <- function(data, info, headers) {
   # re-factor
   for (col in names(info)) {
     cls <- info[[col]]$class
@@ -501,7 +504,7 @@ cpp_data_refactor = function(data, info, headers) {
     }
   }
   # re-order data and append eventual extra columns
-  return(data[c(headers, setdiff(colnames(data), headers))])
+  data[c(headers, setdiff(colnames(data), headers))]
 }
 
 ############################################################################
@@ -546,10 +549,10 @@ extract_func_equality_ <- function(s) {
     "Expected 1 argument, found ", length(y), "."
   )
   y <- type_split_(y[-1])
-  return(list(
+  list(
     func = "eq", key = "x",
     val = type_join_(y$val), at = type_join_(y$at)
-  ))
+  )
 }
 
 #' @title
@@ -576,10 +579,10 @@ extract_func_arithmetic_ <- function(s, reg_expr, func_name) {
     "Expected 2 argument, found ", length(y), "."
   )
   y <- type_split_(y)
-  return(list(
+  list(
     func = func_name, key = type_join_(c("x", "x2")),
     val = type_join_(y$val), at = type_join_(y$at)
-  ))
+  )
 }
 
 #' @title
@@ -627,7 +630,7 @@ extract_func_call_ <- function(s) {
   if (length(y$val) != 1) stop_h(
     sprintf("Function '%s' expects exactly one argument.", func_name)
   )
-  return(list(func = func_name, key = "x", val = y$val, at = y$at))
+  list(func = func_name, key = "x", val = y$val, at = y$at)
 }
 
 #' @title
@@ -654,7 +657,7 @@ extract_func_ <- function(s) {
   else if (grepl("[()]", s)) return(extract_func_call_(s))
 
   else if (grepl("=", s)) return(extract_func_equality_(s))
-    
+
   else if (grepl("\\+", s)) return(extract_func_arithmetic_(s, "\\+", "add"))
 
   else if (grepl("\\*", s)) return(extract_func_arithmetic_(s, "\\*", "mult"))
@@ -674,5 +677,5 @@ extract_func_ <- function(s) {
   }
 
   # else it's not a call
-  return(list(func = NA, key = NA, val = NA, at = NA))
+  list(func = NA, key = NA, val = NA, at = NA)
 }

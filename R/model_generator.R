@@ -82,7 +82,7 @@ HousepiGenerator <- R6::R6Class(
         }
       }
       # for all other fields, just return the value
-      return(value)
+      value
     },
 
     ############################################################################
@@ -120,7 +120,7 @@ HousepiGenerator <- R6::R6Class(
         "cache_house_double_vector" = ".cache_double_vector",
         "cache_house_double_matrix" = ".cache_double_matrix"
       )
-    
+
       required <- c()
       defined <- c()
       for (i in seq_along(checks)) {
@@ -245,7 +245,7 @@ HousepiGenerator <- R6::R6Class(
       }
 
       # no dll cached or multiple dlls require recompilation
-      return(TRUE)
+      TRUE
     },
 
     # @description
@@ -334,12 +334,10 @@ HousepiGenerator <- R6::R6Class(
     # Initialize new object of Rcpp Model.
     .new_rcpp_model = function() {
       # expose internally the module
-      m <- get_rcpp_module_from_dll(
-        "housepi_model_core", private$.dll
-      )$ModelHousepi$new()
-      # initialize user advanced setup
+      m <- get_rcpp_module_from_dll("housepi_model_core", private$.dll)
+      m <- m$ModelHousepi$new()
       m$init_advanced_setup()
-      return(m)
+      m
     },
 
     ############################################################################
@@ -359,7 +357,7 @@ HousepiGenerator <- R6::R6Class(
     # @description Wheter model is blank.
     # @return `logical(1)`
     .is_blank = function() {
-      return(private$.name == "blank")
+      private$.name == "blank"
     },
 
     # @description Envirnoment path.
@@ -372,7 +370,7 @@ HousepiGenerator <- R6::R6Class(
         sprintf("Impossible to find environment path: \"%s\".", output),
         "Try to re-generate the model with 'force = TRUE'."
       )
-      return(output)
+      output
     },
 
     # @description Reference script.
@@ -389,7 +387,7 @@ HousepiGenerator <- R6::R6Class(
           "Try to re-generate the model with 'force = TRUE'."
         )
       }
-      return(output)
+      output
     },
 
     # @description Reference script.
@@ -405,33 +403,33 @@ HousepiGenerator <- R6::R6Class(
         "Supplied seed is not supported.",
         sprintf("Maximum value for an integer in R is %.0f.", max_r_int)
       )
-      return(seed)
+      seed
     },
 
     ############################################################################
     ############################################################################
     ############################################################################
 
-    # @description 
+    # @description
     # Dataset headers required by the model.
     # @return `character()`
     .dataset_required = function() {
       # vector of regular expression to use for assertion
-      regular_expr <- c(
+      regexp <- c(
         # from : .data("string")
         '.data\\s*\\(\\s*["\'](.*?)["\']'
       )
       # retrieve required dataset headers from regular expressions
       refer_file <- private$.reference()
-      output <- template_required_find(refer_file, regular_expr)
-      return(set_source_name_(output, "model"))
+      output <- template_required_find(refer_file, regexp)
+      set_source_name_(output, "model")
     },
 
     ############################################################################
     ############################################################################
     ############################################################################
 
-    # @description 
+    # @description
     # Assert if dataset headers match implementation file.
     # @param dataset_headers `character()`\cr
     # Vector with the dataset headers.
@@ -439,7 +437,7 @@ HousepiGenerator <- R6::R6Class(
       cpp_data_refactor(x, private$.info_dataset, private$.cols_dataset)
     },
 
-    # @description 
+    # @description
     # Assert if dataset headers match implementation file.
     # @param dataset_headers `character()`\cr
     # Vector with the dataset headers.
@@ -496,7 +494,8 @@ HousepiGenerator <- R6::R6Class(
     #' If `TRUE` compile even if a cached model already exists.
     #' @param quiet `logical(1)`\cr
     #' If `TRUE` hide `pkgbuild` compilation commands.
-    initialize = function(choice, as_template = FALSE, 
+    #'
+    initialize = function(choice, as_template = FALSE,
                           force = FALSE, quiet = TRUE) {
       # check model choice
       if (is.na(choice)) {
@@ -505,20 +504,20 @@ HousepiGenerator <- R6::R6Class(
           "To show available templates, run 'template_household_model'."
         )
         choice <- "blank"
+      } else if (choice %in% list(".")) {
+        stop_h(
+          sprintf("Invalid choice \"%s\" for housepi model.", choice),
+          "Move your implementation in a different folder."
+        )
       }
-      else if (choice %in% list(".")) stop_h(
-        sprintf("Invalid choice \"%s\" for housepi model.", choice),
-        "Move your implementation in a different folder."
-      )
 
       # assign name to the model
       private$.name <- basename(choice)
-
       # assign quiet field
       private$.quiet <- isTRUE(quiet)
 
       if (choice == "blank") {
-        # 1: Blank Model (Developer Mode)
+        # 1: blank model (developer mode)
         private$.dll <- file.path(system.file(package = "housepi"),
                                   "template", "src",
                                   dll_file_ext("housepienvironment"))
@@ -535,10 +534,12 @@ HousepiGenerator <- R6::R6Class(
         private$.source_dir <- get_template_dir(choice)
         private$.dll <- template_dll_file(private$.source_dir)
 
-      } else stop_h(
-        sprintf("\"%s\" is not a folder nor a template name.", choice),
-        find_closest_template_name(choice)
-      )
+      } else {
+        stop_h(
+          sprintf("\"%s\" is not a folder nor a template name.", choice),
+          find_closest_template_name(choice)
+        )
+      }
 
       # finally recompile only the model script, if necessary.
       if (private$.need_compile) private$.compile()
@@ -546,6 +547,6 @@ HousepiGenerator <- R6::R6Class(
       if (is.null(private$.rcpp)) private$.rcpp <- private$.new_rcpp_model()
 
       invisible(self)
-    }    
+    }
   )
 )

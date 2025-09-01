@@ -30,7 +30,7 @@ HousepiInfecProfile <- R6::R6Class(
   ############################################################################
   ################################## PRIVATE #################################
   ############################################################################
-  
+
   private = list(
     deep_clone = function(name, value) helper_clone(value),
 
@@ -56,7 +56,7 @@ HousepiInfecProfile <- R6::R6Class(
         }
       }
       # remove duplicates and add source name
-      return(set_source_name_(unique(required), "infectivity profile"))
+      set_source_name_(unique(required), "infectivity profile")
     }
   ),
 

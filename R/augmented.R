@@ -12,10 +12,10 @@
 
 extract_at_values <- function(defs, at) {
   # tuples (value, type) amongst augmented definitions
-  at_tuples = list(c("farg_val", "farg_at"),
-                  c("value", "value_at"), c("arg_val", "arg_at"),
-                  c("min", "min_at"), c("max", "max_at"),
-                  c("scale", "scale_at"), c("from", "from_at"))
+  at_tuples <- list(c("farg_val", "farg_at"),
+                    c("value", "value_at"), c("arg_val", "arg_at"),
+                    c("min", "min_at"), c("max", "max_at"),
+                    c("scale", "scale_at"), c("from", "from_at"))
 
   output <- c()
   if (length(defs) > 0) {
@@ -83,10 +83,12 @@ HousepiAugmented <- R6::R6Class(
           opts$farg_key <- parsed$key
           opts$farg_val <- parsed$val
           opts$farg_at  <- parsed$at
-        } else stop_h(
-          sprintf("Mutiple function definitions for \"%s\".", opts$name),
-          "Use either 'expr' or 'func' argument."
-        )
+        } else {
+          stop_h(
+            sprintf("Mutiple function definitions for \"%s\".", opts$name),
+            "Use either 'expr' or 'func' argument."
+          )
+        }
       }
 
       if (!is.na(opts$func)) {
@@ -95,7 +97,7 @@ HousepiAugmented <- R6::R6Class(
         opts$const <- is.na(opts$model) && is.na(opts$rule)
       }
 
-      return(opts)
+      opts
     },
 
     # process model arguments
@@ -115,7 +117,7 @@ HousepiAugmented <- R6::R6Class(
         opts$arg_at  <- type_join_(type_split_(args)$at)
       }
 
-      return(opts)
+      opts
     },
 
     # process constant or random
@@ -146,7 +148,8 @@ HousepiAugmented <- R6::R6Class(
           opts$value_at <- type_split_(value)$at
         }
       }
-      return(opts)
+
+      opts
     },
 
     # interpret user choice for proposer rule
@@ -164,7 +167,8 @@ HousepiAugmented <- R6::R6Class(
           opts$from_at <- type_split_(from)$at
         }
       }
-      return(opts)
+
+      opts
     },
 
     # interpret user choice for bounds
@@ -173,7 +177,8 @@ HousepiAugmented <- R6::R6Class(
       opts$min_at <- type_split_(min)$at
       opts$max <- type_split_(max)$val
       opts$max_at <- type_split_(max)$at
-      return(opts)
+
+      opts
     },
 
     # Definitions required by augmented variable definitions
@@ -181,7 +186,7 @@ HousepiAugmented <- R6::R6Class(
     .find_def_required = function(at) {
       required <- extract_at_values(self$defs, at)
       # add source name
-      return(set_source_name_(required, "augmented"))
+      set_source_name_(required, "augmented")
     },
 
     # recursive explore of the dependencies tree to point out errors
@@ -189,7 +194,7 @@ HousepiAugmented <- R6::R6Class(
       root_name <- unique(root_def$name) # name of the root definition
       root_status <- root_def$status     # status of the root definition
       is_generic <- is.na(root_status)   # wheter generic or status-specific
-      
+
       if (any(is_generic) && length(root_status) > 1) {
         # assert for unique definition
         stop_h(
@@ -209,19 +214,20 @@ HousepiAugmented <- R6::R6Class(
           is_dead_end <- FALSE
           if (length(branch_status) == 1) if (!is.na(branch_status)) {
             # if branch is generic, than it's not a dead end
-            is_dead_end <- !identical(branch_status, root_status)                      
+            is_dead_end <- !identical(branch_status, root_status)
           }
 
-          if (is_dead_end) stop_h(sprintf(
-            "Missing definition for augmented \"%s\"%s.",
-            r, ifelse(is_generic, "", sprintf(" status %s", root_status))
-          ))
-          else {
+          if (is_dead_end) {
+            stop_h(sprintf(
+              "Missing definition for augmented \"%s\"%s.",
+              r, ifelse(is_generic, "", sprintf(" status %s", root_status))
+            ))
+          } else {
             if (!is_generic) status_set <- root_status
             private$.explore_dependencies(branch_def, status_set)
           }
         }
-        
+
       } else {
         # explore dependencies of status-specific, if present
         miss_status <- setdiff(status_set, root_status)
@@ -229,11 +235,13 @@ HousepiAugmented <- R6::R6Class(
           for (i in seq_len(dim(root_def)[1])) {
             private$.explore_dependencies(root_def[i, ], status_set)
           }
-        } else stop_h(
-          sprintf("Missing definition for augmented \"%s\"", root_name),
-          sprintf("Provide a definition for status %s.", 
-                  paste(miss_status, collapse = ", "))
-        )
+        } else {
+          stop_h(
+            sprintf("Missing definition for augmented \"%s\"", root_name),
+            sprintf("Provide a definition for status %s.",
+                    paste(miss_status, collapse = ", "))
+          )
+        }
       }
     }
   ),
@@ -289,7 +297,7 @@ HousepiAugmented <- R6::R6Class(
     #' Path/to/.refer source file.
     require = function(refer_file) {
       # vector of regular expression to use for assertion
-      regular_expr <- c(
+      regexp <- c(
         # from : .augm("string"
         '.augm\\s*\\(\\s*["\'](.*?)["\']',
         # from : .get_augm_variable("string"
@@ -298,8 +306,9 @@ HousepiAugmented <- R6::R6Class(
         '.set_augm_value\\s*\\(\\s*["\'](.*?)["\']'
       )
       # find required augmented variables from regular expressions
-      output <- template_required_find(refer_file, regular_expr)
-      return(c(set_source_name_(output, "model"), self$augm_required))
+      output <- template_required_find(refer_file, regexp)
+
+      c(set_source_name_(output, "model"), self$augm_required)
     },
 
     #' @description
@@ -317,8 +326,9 @@ HousepiAugmented <- R6::R6Class(
     remove = function(x, status = NA, show_warnings = TRUE) {
       mask <- (self$defs[["name"]] == x)
       if (any(mask)) {
-        if (is.na(status)) self$defs <- self$defs[!mask, ]
-        else {
+        if (is.na(status)) {
+          self$defs <- self$defs[!mask, ]
+        } else {
           # check if same name and status
           mask <- mask & (self$defs[["status"]] == status)
           mask[is.na(mask)] <- FALSE
@@ -329,9 +339,9 @@ HousepiAugmented <- R6::R6Class(
             x, status
           ))
         }
-      } else if (isTRUE(show_warnings)) warning_h(
-        sprintf("Unknown augmented variable \"%s\" to remove.", x)
-      )
+      } else if (isTRUE(show_warnings)) {
+        warning_h(sprintf("Unknown augmented variable \"%s\" to remove.", x))
+      }
       return(any(mask))
     },
 
@@ -374,11 +384,11 @@ HousepiAugmented <- R6::R6Class(
         from = NA, from_at = NA
       )
 
-      # augmented function 
+      # augmented function
       if (!is.na(expr)) {
         opts <- private$.handle_implicit_func(opts, expr)
 
-      } else if (!is.na(opts$func)){
+      } else if (!is.na(opts$func)) {
         if (!is.null(func_args)) {
           opts$farg_key <- type_join_(names(func_args))
           opts$farg_val <- type_join_(type_split_(func_args)$val)
@@ -428,18 +438,19 @@ HousepiAugmented <- R6::R6Class(
         if (length(names(this_def)) == 0) {
           if (length(this_def) == 1) {
             # distinguish between constant value definition and expression
-            names(this_def) <- ifelse(is.numeric(definitions[[i]]), 
+            names(this_def) <- ifelse(is.numeric(definitions[[i]]),
                                       "value", "expr")
+          } else {
+            stop_h(
+              sprintf("Wrong definition for augmented variable \"%s\".", def_name),
+              "Provide a scalar, an expression or a named list (see 'add_augmented')."
+            )
           }
-          else stop_h(
-            sprintf("Wrong definition for augmented variable \"%s\".", def_name),
-            "Provide a scalar, an expression or a named list as in 'add_augmented'."
-          )
         }
 
         # associate name
         this_def$name <- def_name
-        
+
         # multi-status definitions
         if (is.null(this_def$status)) do.call(self$add, this_def)
         else for (s in this_def$status) {
@@ -489,10 +500,12 @@ HousepiAugmented <- R6::R6Class(
           self$load_list(from = templ_defs, append = FALSE)
         }
 
-      } else stop_h(
-        "Impossible to automatically initialize augmented variables.",
-        "A file with template definitions was not found."
-      )
+      } else {
+        stop_h(
+          "Impossible to automatically initialize augmented variables.",
+          "A file with template definitions was not found."
+        )
+      }
 
       invisible(self)
     },

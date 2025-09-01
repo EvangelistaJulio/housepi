@@ -56,7 +56,7 @@ IndividualSampler <- R6::R6Class(
       aux <- lapply(private$.enc_dict, function(v) v$x)
       output <- expand.grid(aux)
       colnames(output) <- names(private$.enc_dict)
-      return(output)
+      output
     },
 
     # @description
@@ -78,7 +78,7 @@ IndividualSampler <- R6::R6Class(
         ordering <- do.call(order, lapply(this_house[sort_by], function(x) -x))
       }
       # extract the features of the two 'principal' house members
-      return(this_house[ordering, ])
+      this_house[ordering, ]
     },
 
     # @description
@@ -86,7 +86,7 @@ IndividualSampler <- R6::R6Class(
     .check_internally = function() {
       input <- private$.get_distinct_features()
       output <- self$decode(self$encode(input))
-      return(all(output == input))
+      all(output == input)
     },
 
     # @description
@@ -134,7 +134,7 @@ IndividualSampler <- R6::R6Class(
         colnames(output) <- names(private$.enc_dict)
       }
 
-      return(output)
+      output
     }
   ),
 
@@ -251,7 +251,7 @@ IndividualSampler <- R6::R6Class(
         output <- output + feats * multiplier
       }
 
-      return(output)
+      output
     },
 
     #' @description
@@ -283,7 +283,7 @@ IndividualSampler <- R6::R6Class(
         feats <- floor(feats / private$.num_feats[[col]])
       }
 
-      return(output)
+      output
     }
   )
 )
@@ -521,10 +521,11 @@ HouseholdSampler <- R6::R6Class(
           princ_feats <- as.integer(private$.joint_pdf[idx[h], c(1, 2)])
 
           # sample house size
-          logic_A <- private$.joint_pdf$hhmemA == princ_feats[1]
-          logic_B <- private$.joint_pdf$hhmemB == princ_feats[2]
-          jmask <- which(logic_A & logic_B)
-          hhsize <- sample(sizelist, 1, prob = private$.hhsize_pdf[jmask, scols])
+          logic_a <- private$.joint_pdf$hhmemA == princ_feats[1]
+          logic_b <- private$.joint_pdf$hhmemB == princ_feats[2]
+          jmask <- which(logic_a & logic_b)
+          hhsize <- sample(sizelist, 1,
+                           prob = private$.hhsize_pdf[jmask, scols])
 
           # sample other members if any
           other_feats <- c()
@@ -557,7 +558,8 @@ HouseholdSampler <- R6::R6Class(
       output$house_id <- house_id_formatter(output$house_id, size)
       # associate individual index
       id_formatter <- function(x) {
-        sprintf(paste0("%s_%0", floor(log10(max(sizelist)) + 1), "d"), x, seq_along(x))
+        sprintf(paste0("%s_%0", floor(log10(max(sizelist)) + 1), "d"),
+                x, seq_along(x))
       }
       output$id <- ave(output$house_id, output$house_id, FUN = id_formatter)
       # re-order columns

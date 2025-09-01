@@ -1,15 +1,17 @@
-/*      __
- *     / /_  ____  __  __ ____ __  ____  __
- *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
- *   / / / / /_/ / /_/ (__  )  __/ /_/ / /
- *  /_/ /_/\____/\____/____/\___/ ____/_/
- *                             /_/
+/*
+ *        __
+ *       / /_  ____  __  __ ____ __  ____  __
+ *      / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
+ *     / / / / /_/ / /_/ (__  )  __/ /_/ / /
+ *    /_/ /_/\____/\____/____/\___/ ____/_/
+ *                               /_/
  *
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  *
  * mcmc_impl.h
  *
  */
+
 #ifndef HOUSEPI__MCMC__IMPL__H
 #define HOUSEPI__MCMC__IMPL__H
 
@@ -30,30 +32,25 @@
 #include "household.h"
 #include "mcmc.h"
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  GLOBAL VARIABLES  ///////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
 // declaration for typed file inputs
 const std::string TYPE_PARAM = "P";  // Parameter type declaration
 const std::string TYPE_DATA = "D";   // Data type declaration
 const std::string TYPE_SCALAR = "S"; // Scalar type declaration
 const std::string TYPE_AUGM = "A";   // Augmented type declaration
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////  MCMC : Impl : class  ////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Monte Carlo Markov Chain implementation class. */
+/// Monte Carlo Markov Chain implementation class.
 class MCMC::Impl
 {
 public:
-    //=======================//
-    //===== CONSTRUCTOR =====//
-    //=======================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////  MCMC : Impl : constructor  ///////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
     Impl(std::function<void()> func_init_inference,
          std::function<void()> func_init_simulation,
@@ -69,11 +66,11 @@ public:
           callback_update_cache_(std::move(func_update_cache)) {}
     ~Impl() = default;
 
-    //=================//
-    //===== SETUP =====//
-    //=================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////  MCMC : Impl : Setup : struct  /////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
-    /* Implementation of Setup. */
+    /// Implementation of Setup.
     struct Setup
     {
         Setup(MCMC::Impl &ptr)
@@ -85,24 +82,23 @@ public:
                                       "n_burnin", "rand_init", "n_threads",
                                       "id_draws", "progress"};
 
-        std::int32_t seed;               // random generator seed
-        bool rand_init_params = true;    // random initialization of parameters
-        unsigned long progress = 1;      // thinning seconds for progress bar
-        unsigned long n_chains = 1;      // n. chains
-        unsigned long n_steps = 1;       // n. iterations
-        unsigned long n_adapt = 0;       // n. (finite) adaptive steps
-        unsigned long thin = 1;          // n. thinning iterations
-        unsigned long n_burnin = 0;      // n. burnin iterations
-        unsigned long n_rungs = 0;       // n. of rungs
-        unsigned long c_sample_size = 0; // single chain sample size
-        unsigned long c_n_sweeps = 0;    // single chain n. of sweeps
-        double inv_T = 1.;               // inverse temperature
-        unsigned n_threads = 1;          // number of OMP threads
-        str_vec id_draws = {};           // augmented trace to save
+        std::int32_t seed;               /// random generator seed
+        bool rand_init_params = true;    /// random initialization of parameters
+        unsigned long progress = 1;      /// thinning seconds for progress bar
+        unsigned long n_chains = 1;      /// n. chains
+        unsigned long n_steps = 1;       /// n. iterations
+        unsigned long n_adapt = 0;       /// n. (finite) adaptive steps
+        unsigned long thin = 1;          /// n. thinning iterations
+        unsigned long n_burnin = 0;      /// n. burnin iterations
+        unsigned long n_rungs = 0;       /// n. of rungs
+        unsigned long c_sample_size = 0; /// single chain sample size
+        unsigned long c_n_sweeps = 0;    /// single chain n. of sweeps
+        double inv_T = 1.;               /// inverse temperature
+        unsigned n_threads = 1;          /// n. of OMP threads
+        str_vec id_draws = {};           /// augmented trace to save
 
-        // state variables for MCMC sampling
-        unsigned long chain = 1; // current chain
-        unsigned long rung = 0;  // current thermodynamic rung
+        unsigned long chain = 1; /// current MCMC chain
+        unsigned long rung = 0;  /// current MCMC thermodynamic rung
 
         bool is_power_post() const { return n_rungs > 0; }
         std::string fmt_progtxt();
@@ -111,7 +107,7 @@ public:
         void assert_mcmc_setup();
         void set_n_threads();
 
-        //----- Progress bar -----//
+        // progress bar
         void prog_set_text(const std::string &text = HSP_NA_STRING)
         {
             progressbar_.set_text((text == HSP_NA_STRING) ? fmt_progtxt() : text);
@@ -126,7 +122,7 @@ public:
         void prog_close() { progressbar_.close(); }
         void prog_crash() { progressbar_.crash(); }
 
-        //----- Pseudo Random Number Geenerator -----//
+        // Pseudo Random Number Geenerator
         void set_prng_seed();
         rnd_gen &prng() { return (this->*get_prng_)(); }
         double unif() { return unif_(prng()); }
@@ -161,11 +157,11 @@ public:
 
     std::string error_message = {}; // error message for the last exception
 
-    //=====================//
-    //===== PARAMETER =====//
-    //=====================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  MCMC : Impl : Parameter : struct  ///////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
-    /* Implementation of Parameters. */
+    /// Implementation of Parameters.
     struct Parameter
     {
         const str_vec file_headers = {"name", "value",
@@ -181,12 +177,18 @@ public:
         // values of the sample
         u_dict<dbl_vec> smpl_values = {};
 
-        //===== CONSTRUCTOR =====//
+        /////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////  MCMC : Impl : Parameter : constructor  ///////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////
+
         Parameter(MCMC::Impl &ptr)
             : pImpl_(ptr) {}
         ~Parameter() = default;
 
-        //===== GETTER =====//
+        /////////////////////////////////////////////////////////////////////////////////////////
+        ///////////////////////////  MCMC : Impl : Parameter : getter  //////////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////
+
         Variable &at(const std::string &p) { return safe_at(dictionary_, "parameter", p); }
         const Variable &at(const std::string &p) const { return safe_at(dictionary_, "parameter", p); }
         // get value of the parameter
@@ -197,7 +199,10 @@ public:
         // flag to check if there are parameters to sample
         bool is_any_sample() const { return !list_sample.empty(); }
 
-        //===== SETTER =====//
+        /////////////////////////////////////////////////////////////////////////////////////////
+        ///////////////////////////  MCMC : Impl : Parameter : setter  //////////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////
+
         void build(const dict_str_vec &input);
         void make_cache_dependent(const std::string &p);
         void init();
@@ -222,14 +227,17 @@ public:
         u_dict<Variable> dictionary_ = {}; // parameters dictionary
     } param;
 
-    //=====================//
-    //=====  DATASET  =====//
-    //=====================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////  MCMC : Impl : DataSet : struct  ////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
-    /* Implementation of Dataset. */
+    /// Implementation of Dataset.
     struct DataSet
     {
-        //===== CONSTRUCTOR =====//
+        /////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////  MCMC : Impl : DataSet : constructor  /////////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////
+
         DataSet(MCMC::Impl &ptr)
             : pImpl_(ptr) {}
         ~DataSet() = default;
@@ -243,7 +251,10 @@ public:
             return house_vector_.at(hhid_to_index_.at(house_id));
         }
 
-        //===== GETTER =====//
+        /////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////  MCMC : Impl : DataSet : getter  ///////////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////
+
         size_t n_houses() const { return house_vector_.size(); }
         size_t n_restricted_houses() const { return restrict_indexes_.size(); }
         size_t n_individuals() const { return n_individuals_; }
@@ -255,7 +266,10 @@ public:
         const str_vec &headers() const { return headers_; }
         Household copy(size_t H) const { return house_vector_[H]; }
 
-        //===== SETTER =====//
+        /////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////  MCMC : Impl : DataSet : setter  ///////////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////
+
         void build(const dict_str_vec &input);
         void build_multiplicity(const dict_str_vec &input);
         void init_cache_integer_vector(const std::string &e);
@@ -267,7 +281,10 @@ public:
         void update_draws(unsigned long smpl_count);
         void clear_draws();
 
-        //===== ITERATORS =====//
+        /////////////////////////////////////////////////////////////////////////////////////////
+        ///////////////////////////  MCMC : Impl : DataSet : iterators  /////////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////
+
         auto begin() { return house_vector_.begin(); }
         auto begin() const { return house_vector_.begin(); }
         auto end() { return house_vector_.end(); }
@@ -331,7 +348,10 @@ public:
         View<const Household> restricted() const { return View<const Household>(house_vector_, restrict_indexes_); }
         Household &restricted(size_t R) { return house_vector_[restrict_indexes_[R]]; }
 
-        //===== IMPORT/EXPORT =====//
+        /////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////  MCMC : Impl : DataSet : import/export  ///////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////
+
 #ifdef _HOUSEPI_RCPP
         void rcpp_import(SEXP input);
         void rcpp_import_multiplicity(SEXP input);
@@ -371,26 +391,38 @@ public:
         std::ofstream aux_dataset_ofstream_;
     } dataset;
 
-    //======================//
-    //=====  DATALIST  =====//
-    //======================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////  MCMC : Impl : DataList : struct  ///////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
-    /* Implementation of Individual Datalist. */
+    /// Implementation of Individual Datalist.
     struct DataList
     {
-        //===== CONSTRUCTOR =====//
+        /////////////////////////////////////////////////////////////////////////////////////////
+        //////////////////////////  MCMC : Impl : DataList : constructor  ///////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////
+
         DataList(MCMC::Impl &ptr)
             : pImpl_(ptr) {}
         ~DataList() = default;
 
-        //===== GETTER =====//
+        /////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////  MCMC : Impl : DataList : getter  //////////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////
+
         bool is_empty() const { return indiv_datalist_.empty(); }
         const str_vec &headers() const { return headers_; }
 
-        //===== SETTER =====//
+        /////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////  MCMC : Impl : DataList : setter  //////////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////
+
         void build(const dict_str_vec &input);
 
-        //===== IMPORT/EXPORT =====//
+        /////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////  MCMC : Impl : DataList : import/export  //////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////
+
 #ifdef _HOUSEPI_RCPP
         void rcpp_import(SEXP input);
 
@@ -406,25 +438,37 @@ public:
         std::vector<u_dict<dbl_vec>> indiv_datalist_ = {};
     } datalist;
 
-    //=======================//
-    //===== GROUP RATES =====//
-    //=======================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  MCMC : Impl : GroupRates : class  ///////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
-    /* Implementation of Group Rates. */
+    /// Implementation of Group Rates.
     struct GroupRates
     {
-        //===== CONSTRUCTOR =====//
+        /////////////////////////////////////////////////////////////////////////////////////////
+        //////////////////////////  MCMC : Impl : GroupRates : constructor  /////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////
+
         GroupRates(MCMC::Impl &ptr)
             : pImpl_(ptr) {}
         ~GroupRates() = default;
 
-        //===== GETTER =====//
+        /////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////  MCMC : Impl : GroupRates : getter  ////////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////
+
         bool is_empty() const { return headers_.empty(); }
 
-        //===== SETTER =====//
+        /////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////  MCMC : Impl : GroupRates : setter  ////////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////
+
         void build(const dict_str_vec &input);
 
-        //===== IMPORT/EXPORT =====//
+        /////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////  MCMC : Impl : GroupRates : import/export  /////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////
+
 #ifdef _HOUSEPI_RCPP
         void rcpp_import(SEXP input);
         Rcpp::DataFrame rcpp_snapshot(const std::string &house_id) const;
@@ -442,11 +486,11 @@ public:
                                 const u_dict<str_vec> &these_rates);
     } group_rates;
 
-    //=====================//
-    //===== AUGMENTED =====//
-    //=====================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////  MCMC : Impl : Augmented : class  ///////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
-    /* Implementation of Augmented Variables. */
+    /// Implementation of Augmented Variables.
     struct Augmented
     {
         dict_str_vec deftable = {};
@@ -474,12 +518,18 @@ public:
         std::vector<const Individual *> smpl_individuals = {};
         std::vector<u_dict<dbl_vec>> smpl_values = {};
 
-        //===== CONSTRUCTOR =====//
+        /////////////////////////////////////////////////////////////////////////////////////////
+        //////////////////////////  MCMC : Impl : Augmented : constructor  //////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////
+
         Augmented(MCMC::Impl &ptr)
             : pImpl_(ptr) {}
         ~Augmented() = default;
 
-        //===== SETTER =====//
+        /////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////  MCMC : Impl : Augmented : setter  /////////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////
+
         void build();
         void init();
 
@@ -490,16 +540,19 @@ public:
         void update_draws(unsigned long smpl_count);
         void clear_draws();
 
-        //===== GETTER =====//
-        /* Flag if there are ant augmented variable definitions. */
+        /////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////  MCMC : Impl : Augmented : getter  /////////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////
+
+        /// Flag if there are ant augmented variable definitions.
         bool is_any() const { return !(list_sample.empty() && list_func.empty() && list_const.empty()); }
-        /* Flag if there are non-constant augmented variable definitions. */
+        /// Flag if there are non-constant augmented variable definitions.
         bool is_any_sample() const { return !list_sample.empty(); }
-        /* Flag if there are augmented variable definitions with a model. */
+        /// Flag if there are augmented variable definitions with a model.
         bool is_any_model() const { return !list_model.empty(); }
-        /* Flag if augmented variable definitions are generic. */
+        /// Flag if augmented variable definitions are generic.
         bool is_generic() const { return status_map_infer.empty(); }
-        /* Flag if augmented draws are stored. */
+        /// Flag if augmented draws are stored.
         bool is_any_draw() const { return !smpl_individuals.empty(); }
 
 #ifdef _HOUSEPI_RCPP
@@ -541,28 +594,37 @@ public:
                                const str_vec &vals, const str_vec &typs);
     } augm;
 
-    //===============================//
-    //===== INFECTIVITY PROFILE =====//
-    //===============================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////  MCMC : Impl : InfecProfile : class  //////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
-    /* Implementation of Infectivity Profile. */
+    /// Implementation of Infectivity Profile.
     struct InfecProfile
     {
     public:
-        //===== CONSTRUCTOR =====//
+        /////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////  MCMC : Impl : InfecProfile : constructor  /////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////
+
         InfecProfile(MCMC::Impl &ptr)
             : pImpl_(ptr),
               profile_(std::make_unique<Distribution>()) {}
         ~InfecProfile() = default;
 
-        //===== SETTER =====//
+        /////////////////////////////////////////////////////////////////////////////////////////
+        ///////////////////////////  MCMC : Impl : InfecProfile : setter  ///////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////
+
         void build(const dict_str &deflist);
         void init_template(dict_str deflist);
         void append_augm_definition();
         void update(bool is_cache_depen);
         void recover(bool is_cache_depen);
 
-        //===== GETTER =====//
+        /////////////////////////////////////////////////////////////////////////////////////////
+        ///////////////////////////  MCMC : Impl : InfecProfile : getter  ///////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////
+
         bool is_lookup() const { return inst_ == &InfecProfile::do_inst_lookup_; }
         bool is_augmented() const { return inst_ == &InfecProfile::do_inst_augm_; }
 
@@ -617,17 +679,19 @@ public:
         double do_cumul_lookup_(const Individual *, double t);
     } infec_profile;
 
-    //=================================//
-    //=====  METROPOLIS-HASTINGS  =====//
-    //=================================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////  MCMC : Impl : Metropolis-Hastings  ///////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
     double evaluate();
     void infer();
 
+    /// Release memory.
+    void clear_memory() { clear_posterior_sample_(); }
+
 #ifdef _HOUSEPI_RCPP
     //----- C++ Print -----//
     Rcpp::List simulate(size_t n_rep);
-    Rcpp::DataFrame simulate_conserved_output();
     Rcpp::DataFrame simulate_repetition();
 
     Rcpp::List evidence(const std::string &scheme, unsigned long n_rungs);
@@ -641,9 +705,6 @@ public:
     void print_simulated_dataset(const std::string &output_filename = HSP_NA_STRING);
     void print_evidence(const std::string &scheme, unsigned long n_rungs);
 #endif
-
-    // release memory 
-    void clear_memory() { clear_posterior_sample_(); }
 
 private:
     //=======================================//
@@ -668,12 +729,12 @@ private:
         return output;
     }
 
-    //=================================//
-    //=====  METROPOLIS-HASTINGS  =====//
-    //=================================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////  MCMC : Impl : Metropolis-Hastings [private]  //////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
-    double full_loglike_ = 0.; // current full loglikelihood
-    double full_buffer_ = 0.;  // buffer loglikelihood
+    double full_loglike_ = 0.; /// current full loglikelihood
+    double full_buffer_ = 0.;  /// buffer loglikelihood
 
     unsigned long smpl_count_ = 0;
     dbl_vec smpl_full_loglike_ = {};
@@ -681,21 +742,21 @@ private:
     void assert_proper_dataset_();
     void init_monte_carlo_();
 
-    /* Set new full loglikelihood value and buffer old value. */
+    /// Set new full loglikelihood value and buffer old value.
     void set_full_loglike_(double new_ll)
     {
         full_buffer_ = full_loglike_;
         full_loglike_ = new_ll;
     }
 
-    /* Increment full loglikelohood by a delta, buffer old value. */
+    /// Increment full loglikelohood by a delta, buffer old value.
     void increment_full_loglike_(double delta) { set_full_loglike_(full_loglike_ + delta); }
 
     void init_move_counts_();
 
     void update_full_loglike_(bool cache_depen);
     double update_house_loglike_(Household &house, bool is_augm_ll, bool is_cache_depen);
-    
+
     void run_monte_carlo_();
     void move_all_();
     void move_all_and_adapt_params_(unsigned long step);
@@ -719,7 +780,7 @@ private:
     double do_move_augm_indiv_generic_(Household &house, Individual &member);
     double do_move_augm_indiv_by_status_(Household &house, Individual &member);
 
-    /* Compute statistics from sample of full loglikelihood. */
+    /// Compute statistics from sample of full loglikelihood.
     std::pair<double, double> smpl_full_loglike_stats_() const { return tools::compute_stats(smpl_full_loglike_); }
 
     //----- Metropolis : power posteriors -----//

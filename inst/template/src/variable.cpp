@@ -1,9 +1,10 @@
-/*      __
- *     / /_  ____  __  __ ____ __  ____  __
- *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
- *   / / / / /_/ / /_/ (__  )  __/ /_/ / /
- *  /_/ /_/\____/\____/____/\___/ ____/_/
- *                             /_/
+/*
+ *        __
+ *       / /_  ____  __  __ ____ __  ____  __
+ *      / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
+ *     / / / / /_/ / /_/ (__  )  __/ /_/ / /
+ *    /_/ /_/\____/\____/____/\___/ ____/_/
+ *                               /_/
  *
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  *
@@ -24,7 +25,7 @@
 ///////////////////////////////////  Proposer : constructor  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Proposer constructor from Distribution pointer. */
+/// Proposer constructor from Distribution pointer.
 Proposer::Proposer(std::shared_ptr<Distribution> distr,
                    double rule_scale,
                    double rule_start_value,
@@ -60,7 +61,7 @@ Proposer::Proposer(std::shared_ptr<Distribution> distr,
         args_to_adapt_list_[c] = args_to_adapt[c];
 };
 
-/* Proposer constructor from Distribution name. */
+/// Proposer constructor from Distribution name.
 Proposer::Proposer(const std::string &name,
                    double rule_scale,
                    double rule_start_value,
@@ -73,7 +74,7 @@ Proposer::Proposer(const std::string &name,
 //////////////////////////////////  Base Proposer - adaptation  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Increase spread if acceptation rate is high and viceversa */
+/// Increase spread if acceptation rate is high and viceversa
 void Proposer::adapt(double ratio)
 {
     double factor = 1. + (1. - ratio) * (get_accept_rate() - TARGET_ACCEPT_RATE);
@@ -132,7 +133,6 @@ public:
 class Uniform_Proposer : public Proposer
 {
 public:
-    //===== CONSTRUCTOR =====//
     Uniform_Proposer(double rule_scale = HSP_NA_DOUBLE,
                      double rule_from = HSP_NA_DOUBLE,
                      bool is_discrete = false)
@@ -147,7 +147,6 @@ public:
     }
     ~Uniform_Proposer() = default;
 
-    //===== SETTER =====//
     void user_reset() override final
     {
         pDistr_->init_attr("min", HSP_ATTR_ARGUMENT, -user_rule_scale_);
@@ -162,7 +161,6 @@ public:
 class Normal_Proposer : public Proposer
 {
 public:
-    //===== CONSTRUCTOR =====//
     Normal_Proposer(double rule_scale = HSP_NA_DOUBLE,
                     double rule_from = HSP_NA_DOUBLE,
                     bool is_discrete = false)
@@ -180,7 +178,6 @@ public:
     }
     ~Normal_Proposer() = default;
 
-    //===== SETTER =====//
     void user_reset() override final
     {
         pDistr_->init_attr("mean", HSP_ATTR_ARGUMENT, 0.);
@@ -195,7 +192,6 @@ public:
 class Lognorm_Proposer : public Proposer
 {
 public:
-    //===== CONSTRUCTOR =====//
     Lognorm_Proposer(double rule_scale = 1.,
                      double rule_from = HSP_NA_DOUBLE,
                      bool is_discrete = false)
@@ -213,7 +209,6 @@ public:
     }
     ~Lognorm_Proposer() = default;
 
-    //===== SETTER =====//
     void user_reset() override final
     {
         pDistr_->init_attr("meanlog", HSP_ATTR_ARGUMENT, 0.);
@@ -228,7 +223,7 @@ public:
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-/* Switchboard to select the custom metropolis proposer rule. */
+/// Switchboard to select the custom metropolis proposer rule.
 std::shared_ptr<Proposer> proposer_switch(const std::string &rule_name = HSP_NA_STRING,
                                           double rule_scale = HSP_NA_DOUBLE,
                                           double rule_from = HSP_NA_DOUBLE,
@@ -296,7 +291,7 @@ void Variable::init_func_(const std::string &func_name)
     is_discrete_ = false;
 }
 
-/* Restore user defined variable initialization. */
+/// Restore user defined variable initialization.
 void Variable::init(const std::string &name, double value,
                     bool is_discrete, bool is_constant,
                     const std::string &func_name)
@@ -325,7 +320,7 @@ void Variable::init_func_reshaping()
 //////////////////////////////  Variable - Setter (Distribution)  /////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Assign distribution with constant arguments. */
+/// Assign distribution with constant arguments.
 void Variable::init_distr(const std::string &distr_name)
 {
     pDistr_ = compose_distr_registries(
@@ -335,7 +330,7 @@ void Variable::init_distr(const std::string &distr_name)
          &DiscreteDistrRegistry::inst()});
 }
 
-/* Initialize distribution reshaping. */
+/// Initialize distribution reshaping.
 void Variable::init_distr_reshaping()
 {
     pDistr_->init_reshaping(is_discrete_);
@@ -349,7 +344,7 @@ void Variable::init_distr_reshaping()
 /////////////////////////////////  Variable - Setter (Proposer)  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Assign proposer. */
+/// Assign proposer.
 void Variable::init_proposer(const std::string &rule_name,
                              double rule_scale,
                              double rule_from)

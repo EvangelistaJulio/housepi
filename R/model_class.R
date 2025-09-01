@@ -19,7 +19,8 @@
 #' @title
 #' Housepi Model
 #' @description
-#' Compile household model, manage your dataset and variable defintions from a single class.
+#' Compile household model, manage your dataset
+#' and variable defintions from a single class.
 #'
 #' @keywords internal
 HousepiModel <- R6::R6Class(
@@ -44,11 +45,11 @@ HousepiModel <- R6::R6Class(
     .get_all_required_dataset = function() {
       required <- c()
       if (!private$.is_blank()) required <- private$.dataset_required()
-      return(c(
+      c(
         required, # by the model
         private$.augm$dataset_required, # by augmented variable
         private$.infec_profile$dataset_required # by infectivity profile
-      ))
+      )
     },
 
     # @description 
@@ -67,12 +68,12 @@ HousepiModel <- R6::R6Class(
     .get_all_param = function() {
       if (private$.is_blank()) required <- self$parameters$name
       else required <- private$.param$require(private$.reference())
-      return(c(
+      c(
         required, # by the model
         private$.group_rates$param_required, # by group rates
         private$.augm$param_required, # by augmented variable
         private$.infec_profile$param_required # by infectivity profile
-      ))
+      )
     },
 
     # @description
@@ -85,10 +86,10 @@ HousepiModel <- R6::R6Class(
     # @description
     # Augmented variables required by implementation file and other definitions.
     .get_all_augm = function() {
-      return(c(
+      c(
         private$.augm$require(private$.reference()), # by the model
         private$.infec_profile$augm_required # by infectivity profile
-      ))
+      )
     },
 
     # @description
@@ -104,7 +105,7 @@ HousepiModel <- R6::R6Class(
     # @description
     # Group rates required by implementation file and other definitions.
     .get_all_group_rate = function() {
-      return(private$.group_rates$require(private$.reference()))
+      private$.group_rates$require(private$.reference())
     },
 
     # @description
@@ -125,9 +126,9 @@ HousepiModel <- R6::R6Class(
     .multiplicity_engine = function(dataset = NULL) {
       # check if model allows for multiplicity
       refer_file <- private$.reference()
-      regular_expr <- ".multiplicity\\s*\\(\\s*\\)"
+      regexp <- ".multiplicity\\s*\\(\\s*\\)"
 
-      if (template_assert_expression(refer_file, regular_expr)) {
+      if (template_assert_expression(refer_file, regexp)) {
 
         # note: this might be a modeler error
         if (length(private$.get_all_augm()) > 0) warning_h(
@@ -156,7 +157,7 @@ HousepiModel <- R6::R6Class(
         split_data <- split(dataset[c("status", headers)], dataset$house_id)
         # sort individuals in each household by all columns
         sorted_data <- lapply(split_data, function(x) {
-            x[do.call(order, x), , drop = FALSE]
+          x[do.call(order, x), , drop = FALSE]
         })
         # create hash strings from sorted rows
         hashes <- sapply(sorted_data, function(x) {
@@ -248,8 +249,8 @@ HousepiModel <- R6::R6Class(
         n_steps = n_steps, thin = thin,
         n_burnin = n_burnin, n_adapt = n_adapt, n_chains = n_chains,
         n_threads = n_threads, rand_init = rand_init,
-        id_draws = id_draws, 
-        seed = private$.adjust_seed(seed), 
+        id_draws = id_draws,
+        seed = private$.adjust_seed(seed),
         progress = as.integer(progress)
       )))
 
@@ -321,8 +322,9 @@ HousepiModel <- R6::R6Class(
           "Impossible to export dataset before model build."
         )
         return(private$.refactor_dataset(private$.rcpp$export_dataset()))
+      } else {
+        self$add_dataset(value)
       }
-      else self$add_dataset(value)
     },
 
     #' @field datalist `data.frame`\cr
@@ -333,8 +335,9 @@ HousepiModel <- R6::R6Class(
           "Impossible to export datalist before model build."
         )
         return(private$.refactor_datalist(private$.rcpp$export_datalist()))
+      } else {
+        self$add_datalist(value)
       }
-      else self$add_datalist(value)
     },
 
     #' @field parameters `data.frame`\cr
@@ -368,8 +371,9 @@ HousepiModel <- R6::R6Class(
       if (missing(value)) {
         private$.build_group_rates()
         return(private$.group_rates$tidy_table)
+      } else {
+        self$load_group_rate_list(from = value, append = FALSE)
       }
-      else self$load_group_rate_list(from = value, append = FALSE)
     }
   ),
 
@@ -379,19 +383,19 @@ HousepiModel <- R6::R6Class(
 
   public = list(
     #' @description
-    #' Create a new object of class 'HousepiModel' 
+    #' Create a new object of class 'HousepiModel'
     #' used to run inference and simulation routines.
-    #' 
+    #'
     #' @param choice `r rd_mdl_choice_`
     #' @param as_template `r rd_mdl_astmpl_`
     #' @param force `r rd_mdl_force_`
     #' @param quiet `r rd_mdl_quiet_`
-    initialize = function(choice = NA, as_template = FALSE, 
+    initialize = function(choice = NA, as_template = FALSE,
                           force = FALSE, quiet = TRUE) {
       # initialize internal fields
       self$drop_all()
       # generate model wrapper
-      super$initialize(choice = choice, as_template = as_template, 
+      super$initialize(choice = choice, as_template = as_template,
                        force = force, quiet = quiet)
       # import blank template dataset
       if (private$.is_blank()) self$add_dataset(template_blank_dataset_())
@@ -419,7 +423,7 @@ HousepiModel <- R6::R6Class(
 
     #' @description
     #' Make an internal copy of the provided household dataset.
-    #' 
+    #'
     #' @param dataset `r rd_add_dataset_`
     add_dataset = function(dataset) {
       if (length(dataset) > 0) {
@@ -468,7 +472,7 @@ HousepiModel <- R6::R6Class(
 
     #' @description
     #' Maje an internal copy of the provided datalist.
-    #' 
+    #'
     #' @param datalist `r rd_add_datalist_`
     add_datalist = function(datalist) {
       if (!is.data.frame(datalist)) stop_h(
@@ -484,18 +488,18 @@ HousepiModel <- R6::R6Class(
       private$.cols_datalist <- embed$cols
       # import data.frame in rcpp
       private$.rcpp$import_datalist(embed$data)
-    
+
       invisible(self)
     },
 
     ############################################################################
     ############################################################################
     ############################################################################
-    
+
     #' @description
     #' Add a new parameter to houspepi model definitions.
     #' If the parameter already exists, it is updated.
-    #' 
+    #'
     #' @param object `r rd_model_in_`
     #' @param name `r rd_var_name_`
     #' @param value `r rd_var_value_`
@@ -554,7 +558,7 @@ HousepiModel <- R6::R6Class(
     #' @description
     #' Add a new augmented variable/function to houspepi model definitions.
     #' If the augmented variablw already exists, it is updated.
-    #' 
+    #'
     #' @param name `r rd_var_name_`
     #' @param status `r rd_aug_status_`
     #' @param value `r rd_aug_val_`
@@ -577,7 +581,7 @@ HousepiModel <- R6::R6Class(
                              value = NA, init_rand = FALSE,
                              model = NA, args = list(),
                              min = NA, max = NA,
-                             rule = NA, scale = NA, from = NA, 
+                             rule = NA, scale = NA, from = NA,
                              expr = NA) {
       private$.augm$add(name = name, status = status,
                         const = const, discr = discr,
@@ -591,10 +595,10 @@ HousepiModel <- R6::R6Class(
     },
 
     #' @description
-    #' Load augmented variable/function definitions 
+    #' Load augmented variable/function definitions
     #' either as arguments or from predefined list.
     #'
-    #' @param ... `r rd_list_args_` 
+    #' @param ... `r rd_list_args_`
     #' @param from `r rd_list_from_`
     #' @param append `r rd_list_append_`
     load_augmented_list = function(..., from = NA, append = FALSE) {
@@ -627,14 +631,14 @@ HousepiModel <- R6::R6Class(
     #' Add definitions of a group rate by given dataset feature(s).
     #' Reference value has unitary rate and can be specified
     #' (default is most represented group).
-    #' 
+    #'
     #' @param name `r rd_var_name_`
     #' @param by `r rd_grr_by_`
     #' @param prefix `r rd_grr_prefix_`
     #' @param reference `r rd_grr_refer_`
     #' @param independent `r rd_grr_indep_`
     #' @param prior `r rd_par_model_`
-    #' Default is "lnorm". 
+    #' Default is "lnorm".
     #' @param args `r rd_par_args_`
     #' Default is `list(meanlog = 0, sdlog = 3)`.
     #' @param min `r rd_var_min_`
@@ -644,9 +648,10 @@ HousepiModel <- R6::R6Class(
     #' @param rule `r rd_var_rule_`
     #' @param scale `r rd_var_scale_`
     add_group_rate = function(name, by,
-                              prefix = NA, 
+                              prefix = NA,
                               reference = NULL, independent = TRUE,
-                              prior = "lnorm", args = list(meanlog = 0, sdlog = 3),
+                              prior = "lnorm",
+                              args = list(meanlog = 0, sdlog = 3),
                               min = NA, max = 10,
                               rule = "lnorm", scale = 1) {
       private$.group_rates$add(name = name, by = by, prefix = prefix,
@@ -660,7 +665,7 @@ HousepiModel <- R6::R6Class(
     #' @description
     #' Load group rate definitions either as direct arguments
     #' or from predefined list.
-    #' 
+    #'
     #' @param ... ` r rd_list_args_`
     #' @param from `r rd_list_from_`
     #' @param append `r rd_list_append_`
@@ -676,7 +681,7 @@ HousepiModel <- R6::R6Class(
 
     #' @description
     #' Add definition of infectivity profile.
-    #' 
+    #'
     #' @param object `r rd_model_in_`
     #' @param name `r rd_var_name_`
     #' @param discr `r rd_inf_discr_`
@@ -710,13 +715,13 @@ HousepiModel <- R6::R6Class(
 
     #' @description
     #' Run inference with Bayesian Markov Chain Monte Carlo.
-    #' 
+    #'
     #' @param dataset `r rd_smpl_dataset_`
     #' @param sample_size `r rd_smpl_size_`
     #' @param n_steps `r rd_smpl_steps_`
     #' @param n_burnin `r rd_smpl_burn_`
     #' @param thin `r rd_smpl_thin_`
-    #' @param n_adapt `r rd_smpl_adapt_` 
+    #' @param n_adapt `r rd_smpl_adapt_`
     #' @param n_chains `r rd_smpl_chain_`
     #' @param n_threads `r rd_smpl_thread_`
     #' @param rand_init `r rd_smpl_rndin_`
@@ -742,11 +747,11 @@ HousepiModel <- R6::R6Class(
 
       return(HousepiPosteriorDraws$new(private$.rcpp))
     },
-    
+
     #' @description
     #' Estimate the model evidence (or marginal likelihood).
     #' It uses the method of power posteriors with different available schemes.
-    #' 
+    #'
     #' @param dataset `r rd_smpl_dataset_`
     #' @param scheme `r rd_evi_scheme_`
     #' @param n_rungs `r rd_evi_rungs_`
@@ -759,7 +764,7 @@ HousepiModel <- R6::R6Class(
     #' @param n_threads `r rd_smpl_thread_`
     #' @param seed `r rd_seed_`
     #' @param progress `r rd_progress_`
-    #' 
+    #'
     #' @return `numeric(1)`
     evidence = function(dataset = NULL,
                         scheme = "power-fractions", n_rungs = 40,
@@ -791,22 +796,22 @@ HousepiModel <- R6::R6Class(
 
     #' @description
     #' Dataset with associated augmented variables at current state.
-    #' 
+    #'
     #' @return
     #' `data.frame`
     export_augmented_dataset = function() {
-      return(private$.refactor_dataset(
-        cbind(private$.rcpp$dataset_for_simulation(), 
+      private$.refactor_dataset(
+        cbind(private$.rcpp$dataset_for_simulation(),
               private$.rcpp$export_augmented_dataset())
-      ))
+      )
     },
 
     #' @description
     #' A snapshot of all current internal state of a given household.
-    #' 
+    #'
     #' @param house_id `character(1)`\cr
     #' Id of the household to export.
-    #' 
+    #'
     #' @return `list`
     export_house_snapshot = function(house_id) {
       house_id <- as.character(house_id)
@@ -822,7 +827,7 @@ HousepiModel <- R6::R6Class(
       df$range <- lst$range
       output$infec_profile <- df
 
-      return(output)
+      output
     },
 
     #' @description
@@ -831,7 +836,7 @@ HousepiModel <- R6::R6Class(
     #' @param dataset `r rd_smpl_dataset_`
     #' @param seed `r rd_seed_`
     #' @param progress `r rd_progress_`
-    #' 
+    #'
     #' @return `data.frame`
     simulate = function(dataset = NULL, seed = NA, progress = FALSE) {
       # internal build function
@@ -843,15 +848,15 @@ HousepiModel <- R6::R6Class(
 
       # bind simulated entries with static part
       # UPDATE : n_rep = 1 for development
-      return(private$.refactor_dataset(
-        cbind(static_df, private$.rcpp$simulate(1)))
+      private$.refactor_dataset(
+        cbind(static_df, private$.rcpp$simulate(1))
       )
     },
 
     ############################################################################
     ############################################################################
     ############################################################################
-    
+
     #' @description
     #' Drop parameter definitions.
     drop_parameters = function() {

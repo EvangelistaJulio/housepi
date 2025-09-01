@@ -1,9 +1,10 @@
-/*      __
- *     / /_  ____  __  __ ____ __  ____  __
- *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
- *   / / / / /_/ / /_/ (__  )  __/ /_/ / /
- *  /_/ /_/\____/\____/____/\___/ ____/_/
- *                             /_/
+/*
+ *        __
+ *       / /_  ____  __  __ ____ __  ____  __
+ *      / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
+ *     / / / / /_/ / /_/ (__  )  __/ /_/ / /
+ *    /_/ /_/\____/\____/____/\___/ ____/_/
+ *                               /_/
  *
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  *
@@ -17,15 +18,15 @@
 #include <string>
 
 #ifndef M_1_SQRT_2PI
-#define M_1_SQRT_2PI 0.398942280401432677939946059934 /* 1/sqrt(2pi) */
+#define M_1_SQRT_2PI 0.398942280401432677939946059934 /// 1/sqrt(2pi)
 #endif
 
 #ifndef M_SQRT1_2
-#define M_SQRT1_2 0.707106781186547524400844362105 /* 1/sqrt(2) */
+#define M_SQRT1_2 0.707106781186547524400844362105 /// 1/sqrt(2)
 #endif
 
 #ifndef M_LN_SQRT_2PI
-#define M_LN_SQRT_2PI 0.918938533204672741780329736406 /* log(sqrt(2pi)) */
+#define M_LN_SQRT_2PI 0.918938533204672741780329736406 /// log(sqrt(2pi))
 #endif
 
 #ifndef HOUSEPI__NUMERICAL_RECIPES__H
@@ -38,19 +39,17 @@ namespace numr
     constexpr double EPSILON = 1.e-12;
     constexpr double MIN_DBL = 1.e-30;
 
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
+    using std::exp;
+    using std::lgamma;
+    using std::log;
+    using std::pow;
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////  COMBINATORICS FUNCTIONS  ////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /* Standard definition for the factorial. */
-    inline unsigned long factorial(unsigned long n)
+    /// Standard definition for the factorial.
+    unsigned long factorial(unsigned long n)
     {
         unsigned long result = 1;
         for (unsigned long i = 2; i <= n; ++i)
@@ -58,8 +57,8 @@ namespace numr
         return result;
     }
 
-    /* Binomial coefficient of N elements in k positions */
-    inline unsigned long binom_coeff(unsigned short N, unsigned short k)
+    /// Binomial coefficient of N elements in k positions
+    unsigned long binom_coeff(unsigned short N, unsigned short k)
     {
         if ((N > 0) && (k != N))
         {
@@ -73,22 +72,22 @@ namespace numr
         return 1;
     }
 
-    /* Logarithm of binomial coefficient. */
-    inline double log_binom_coeff(unsigned short N, unsigned short k)
+    /// Logarithm of binomial coefficient.
+    double log_binom_coeff(unsigned short N, unsigned short k)
     {
         if ((N > 0) && (k != N))
         {
-            double result = std::log(N);
+            double result = log(N);
             unsigned short stop = (k > N - k) ? k : N - k; // use symmetry
             for (unsigned short i = 1; i < stop; ++i)
-                result += std::log(N - i) - std::log(i + 1);
+                result += log(N - i) - log(i + 1);
             return result;
         }
         return 0.;
     }
 
-    /* Log-ratio of binomial coefficients. */
-    inline double logratio_binom_coeff(unsigned short N, unsigned short ko, unsigned short kn)
+    /// Log-ratio of binomial coefficients.
+    double logratio_binom_coeff(unsigned short N, unsigned short ko, unsigned short kn)
     {
         if ((N > 0) && (ko != kn))
         {
@@ -97,7 +96,7 @@ namespace numr
                 std::swap(ko, kn);
 
             for (unsigned short i = ko + 1; i <= kn; ++i)
-                result += std::log(N - i + 1) - std::log(i);
+                result += log(N - i + 1) - log(i);
             return result;
         }
         return 0.;
@@ -107,15 +106,13 @@ namespace numr
     ////////////////////////////  REGULARISED INCOMPLETE GAMMA FUNCTION  ////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /*
-     * UPDATE: To better reference this:
-     * Press, Teukolsky, Vetterling, and Flannery
-     * Numerical Recipes 3rd Edition: The Art of Scientific Computing
-     */
+    /// UPDATE: To better reference this:
+    /// Press, Teukolsky, Vetterling, and Flannery
+    /// Numerical Recipes 3rd Edition: The Art of Scientific Computing
     namespace gamma_p_impl
     {
-        /* Lower regulairzed incomplete gamma function using series expansion. */
-        inline double series(double shape, double z)
+        /// Lower regulairzed incomplete gamma function using series expansion.
+        double series(double shape, double z)
         {
             double sum = 1. / shape;
             double term = sum;
@@ -125,7 +122,7 @@ namespace numr
                 sum += term;
 
                 if (term < EPSILON * sum)
-                    return sum * std::exp(-z + shape * std::log(z) - std::lgamma(shape));
+                    return sum * exp(-z + shape * log(z) - lgamma(shape));
             }
 
             throw std::overflow_error(
@@ -133,8 +130,8 @@ namespace numr
                 ", shape=" + std::to_string(shape) + ".");
         }
 
-        /* Upper regularized incomplete gamma function using continued fraction. */
-        inline double continued_fraction(double shape, double z)
+        /// Upper regularized incomplete gamma function using continued fraction.
+        double continued_fraction(double shape, double z)
         {
             double b = z + 1. - shape;
             double c = 1. / MIN_DBL;
@@ -157,7 +154,7 @@ namespace numr
                 h *= delta;
 
                 if (std::fabs(delta - 1.) < EPSILON)
-                    return 1. - std::exp(-z + shape * std::log(z) - std::lgamma(shape)) * h;
+                    return 1. - exp(-z + shape * log(z) - lgamma(shape)) * h;
             }
 
             throw std::overflow_error(
@@ -166,7 +163,7 @@ namespace numr
         }
     }
 
-    /* Regularized incomplete gamma function. */
+    /// Regularized incomplete gamma function.
     inline double gamma_p(double shape, double z)
     {
         if (z < shape + 10.)
@@ -179,10 +176,11 @@ namespace numr
     /////////////////////////////  REGULARISED INCOMPLETE BETA FUNCTION  ////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /* (C) Copr. 1986-92 Numerical Recipes Software Vn2-5. */
+    /// UPDATE: to better reference this
+    /// (C) Copr. 1986-92 Numerical Recipes Software Vn2-5.
     namespace ibeta_impl
     {
-        inline double continued_fraction(double a, double b, double x)
+        double continued_fraction(double a, double b, double x)
         {
             const double qab = a + b,
                          qap = a + 1.,
@@ -235,13 +233,13 @@ namespace numr
         }
     }
 
-    /* Logarithm of the beta function. */
+    /// Logarithm of the beta function.
     inline double lbeta(double a, double b)
     {
-        return std::lgamma(a) + std::lgamma(b) - std::lgamma(a + b);
+        return lgamma(a) + lgamma(b) - lgamma(a + b);
     }
 
-    /* Regularized incomplete beta function. */
+    /// Regularized incomplete beta function.
     inline double ibeta(double a, double b, double x)
     {
         if (x == 0.)
@@ -250,26 +248,14 @@ namespace numr
             return 1.;
         else
         {
-            const double lbt = a * std::log(x) + b * std::log(1.0 - x) - lbeta(a, b);
+            const double lbt = a * log(x) + b * log(1.0 - x) - lbeta(a, b);
 
             if (x < (a + 1.) / (a + b + 2.))
-                return std::exp(lbt + std::log(ibeta_impl::continued_fraction(a, b, x) / a));
+                return exp(lbt + log(ibeta_impl::continued_fraction(a, b, x) / a));
             else
-                return 1. - std::exp(lbt + std::log(ibeta_impl::continued_fraction(b, a, 1. - x) / b));
+                return 1. - exp(lbt + log(ibeta_impl::continued_fraction(b, a, 1. - x) / b));
         }
     }
-
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-
-    /*
-     * Methods used for the definition of the derived distribution classes.
-     *
-     */
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////  Normal Distribution : methods  /////////////////////////////////
@@ -280,7 +266,7 @@ namespace numr
         inline double pdf(double x, double mean, double sd)
         {
             const double z = (x - mean) / sd;
-            return M_1_SQRT_2PI * std::exp(-.5 * z * z) / sd;
+            return M_1_SQRT_2PI * exp(-.5 * z * z) / sd;
         }
         inline double cdf(double x, double mean, double sd)
         {
@@ -289,7 +275,7 @@ namespace numr
         inline double logpdf(double x, double mean, double sd)
         {
             const double z = (x - mean) / sd;
-            return -.5 * z * z - M_LN_SQRT_2PI - std::log(sd);
+            return -.5 * z * z - M_LN_SQRT_2PI - log(sd);
         }
         inline double logratio(double xo, double xn, double mean, double sd)
         {
@@ -305,22 +291,22 @@ namespace numr
     {
         inline double pdf(double x, double meanlog, double sdlog)
         {
-            const double z = (std::log(x) - meanlog) / sdlog;
-            return std::exp(-.5 * z * z) * M_1_SQRT_2PI / (x * sdlog);
+            const double z = (log(x) - meanlog) / sdlog;
+            return exp(-.5 * z * z) * M_1_SQRT_2PI / (x * sdlog);
         }
         inline double cdf(double x, double meanlog, double sdlog)
         {
-            return .5 + .5 * std::erf(M_SQRT1_2 * (std::log(x) - meanlog) / sdlog);
+            return .5 + .5 * std::erf(M_SQRT1_2 * (log(x) - meanlog) / sdlog);
         }
         inline double logpdf(double x, double meanlog, double sdlog)
         {
-            const double z = (std::log(x) - meanlog) / sdlog;
-            return -.5 * z * z - std::log(x * sdlog) - M_LN_SQRT_2PI;
+            const double z = (log(x) - meanlog) / sdlog;
+            return -.5 * z * z - log(x * sdlog) - M_LN_SQRT_2PI;
         }
         inline double logratio(double xo, double xn, double meanlog, double sdlog)
         {
-            const double lxo = std::log(xo);
-            const double lxn = std::log(xn);
+            const double lxo = log(xo);
+            const double lxn = log(xn);
             return .5 * ((lxo - meanlog) * lxo - (lxn - meanlog) * lxn) / (sdlog * sdlog) + lxo - lxn;
         }
     }
@@ -333,7 +319,7 @@ namespace numr
     {
         inline double pdf(double x, double shape1, double shape2)
         {
-            return std::exp((shape1 - 1.) * std::log(x) + (shape2 - 1.) * std::log(1. - x) - lbeta(shape1, shape2));
+            return exp((shape1 - 1.) * log(x) + (shape2 - 1.) * log(1. - x) - lbeta(shape1, shape2));
         }
         inline double cdf(double x, double shape1, double shape2)
         {
@@ -341,11 +327,11 @@ namespace numr
         }
         inline double logpdf(double x, double shape1, double shape2)
         {
-            return (shape1 - 1.) * std::log(x) + (shape2 - 1.) * std::log(1. - x) - lbeta(shape1, shape2);
+            return (shape1 - 1.) * log(x) + (shape2 - 1.) * log(1. - x) - lbeta(shape1, shape2);
         }
         inline double logratio(double xo, double xn, double shape1, double shape2)
         {
-            return (shape1 - 1.) * std::log(xn / xo) + (shape2 - 1.) * std::log((1. - xn) / (1. - xo));
+            return (shape1 - 1.) * log(xn / xo) + (shape2 - 1.) * log((1. - xn) / (1. - xo));
         }
     }
 
@@ -357,7 +343,7 @@ namespace numr
     {
         inline double pdf(double x, double shape, double scale)
         {
-            return std::pow(x, shape - 1) * std::exp(-shape * std::log(scale) - std::lgamma(shape) - x / scale);
+            return pow(x, shape - 1) * exp(-shape * log(scale) - lgamma(shape) - x / scale);
         }
         inline double cdf(double x, double shape, double scale)
         {
@@ -366,11 +352,11 @@ namespace numr
         inline double logpdf(double x, double shape, double scale)
         {
             const double t = x / scale;
-            return shape * std::log(t) - std::log(x) - std::lgamma(shape) - t;
+            return shape * log(t) - log(x) - lgamma(shape) - t;
         }
         inline double logratio(double xo, double xn, double shape, double scale)
         {
-            return (shape - 1) * std::log(xn / xo) + (xo - xn) / scale;
+            return (shape - 1) * log(xn / xo) + (xo - xn) / scale;
         }
     }
 
@@ -383,20 +369,20 @@ namespace numr
         inline double pdf(double x, double scale)
         {
             const double scale2 = scale * scale;
-            return x * std::exp(-.5 * x * x / scale2) / scale2;
+            return x * exp(-.5 * x * x / scale2) / scale2;
         }
         inline double cdf(double x, double scale)
         {
-            return 1. - std::exp(-.5 * x * x / (scale * scale));
+            return 1. - exp(-.5 * x * x / (scale * scale));
         }
         inline double logpdf(double x, double scale)
         {
             const double scale2 = scale * scale;
-            return std::log(x / scale2) - .5 * x * x / scale2;
+            return log(x / scale2) - .5 * x * x / scale2;
         }
         inline double logratio(double xo, double xn, double scale)
         {
-            return std::log(xn / xo) + .5 * (xo * xo - xn * xn) / (scale * scale);
+            return log(xn / xo) + .5 * (xo * xo - xn * xn) / (scale * scale);
         }
     }
 
@@ -409,20 +395,20 @@ namespace numr
         inline double pdf(double x, double shape, double scale)
         {
             const double z = x / scale;
-            return (shape / scale) * std::pow(z, shape - 1.) * std::exp(-std::pow(z, shape));
+            return (shape / scale) * pow(z, shape - 1.) * exp(-pow(z, shape));
         }
         inline double cdf(double x, double shape, double scale)
         {
-            return 1. - std::exp(-std::pow(x / scale, shape));
+            return 1. - exp(-pow(x / scale, shape));
         }
         inline double logpdf(double x, double shape, double scale)
         {
             const double z = x / scale;
-            return std::log(shape / scale) + (shape - 1.) * std::log(z) - std::pow(z, shape);
+            return log(shape / scale) + (shape - 1.) * log(z) - pow(z, shape);
         }
         inline double logratio(double xo, double xn, double shape, double scale)
         {
-            return (shape - 1.) * std::log(xn / xo) + std::pow(xo / scale, shape) - std::pow(xn / scale, shape);
+            return (shape - 1.) * log(xn / xo) + pow(xo / scale, shape) - pow(xn / scale, shape);
         }
     }
 
@@ -432,22 +418,21 @@ namespace numr
 
     namespace exponential
     {
-        inline double pdf(double x, double rate)
+        /// @param x
+        /// @param r rate
+        inline double pdf(double x, double r)
         {
-            return rate * std::exp(-rate * x);
+            return r * exp(-r * x);
         }
-        inline double cdf(double x, double rate)
+        inline double cdf(double x, double r)
         {
-            return 1. - std::exp(-rate * x);
+            return 1. - exp(-r * x);
         }
-        inline double logpdf(double x, double rate)
+        inline double logpdf(double x, double r)
         {
-            return std::log(rate) - rate * x;
+            return log(r) - r * x;
         }
-        inline double logratio(double xo, double xn, double rate)
-        {
-            return rate * (xo - xn);
-        }
+        inline double logratio(double xo, double xn, double r) { return r * (xo - xn); }
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -456,21 +441,23 @@ namespace numr
 
     namespace poisson
     {
-        inline double pdf(double x, double lambda)
+        /// @param x
+        /// @param L lambda
+        inline double pdf(double x, double L)
         {
-            return std::exp(x * std::log(lambda) - lambda - std::lgamma(x + 1.));
+            return exp(x * log(L) - L - lgamma(x + 1.));
         }
-        inline double cdf(double x, double lambda)
+        inline double cdf(double x, double L)
         {
-            return 1. - gamma_p(x + 1., lambda);
+            return 1. - gamma_p(x + 1., L);
         }
-        inline double logpdf(double x, double lambda)
+        inline double logpdf(double x, double L)
         {
-            return x * std::log(lambda) - lambda - std::lgamma(x + 1.);
+            return x * log(L) - L - lgamma(x + 1.);
         }
-        inline double logratio(double xo, double xn, double lambda)
+        inline double logratio(double xo, double xn, double L)
         {
-            return (xn - xo) * std::log(lambda) + std::lgamma(xo + 1.) - std::lgamma(xn + 1.);
+            return (xn - xo) * log(L) + lgamma(xo + 1.) - lgamma(xn + 1.);
         }
     }
 
@@ -480,21 +467,24 @@ namespace numr
 
     namespace binomial
     {
-        inline double pdf(double x, double size, double prob)
+        /// @param x
+        /// @param s size
+        /// @param p probability
+        inline double pdf(double x, double s, double p)
         {
-            return std::exp(log_binom_coeff(size, x) + x * std::log(prob) + (size - x) * std::log(1. - prob));
+            return exp(log_binom_coeff(s, x) + x * log(p) + (s - x) * log(1. - p));
         }
-        inline double cdf(double x, double size, double prob)
+        inline double cdf(double x, double s, double p)
         {
-            return ibeta(size - x, x + 1, 1. - prob);
+            return ibeta(s - x, x + 1, 1. - p);
         }
-        inline double logpdf(double x, double size, double prob)
+        inline double logpdf(double x, double s, double p)
         {
-            return log_binom_coeff(size, x) + x * std::log(prob) + (size - x) * std::log(1. - prob);
+            return log_binom_coeff(s, x) + x * log(p) + (s - x) * log(1. - p);
         }
-        inline double logratio(double xo, double xn, double size, double prob)
+        inline double logratio(double xo, double xn, double s, double p)
         {
-            return logratio_binom_coeff(size, xo, xn) + (xn - xo) * std::log(prob / (1. - prob));
+            return logratio_binom_coeff(s, xo, xn) + (xn - xo) * log(p / (1. - p));
         }
     }
 
@@ -504,25 +494,28 @@ namespace numr
 
     namespace negbinomial
     {
-        inline double pdf(double x, double size, double prob)
+        /// @param x
+        /// @param s size
+        /// @param p probability
+        inline double pdf(double x, double s, double p)
         {
-            return std::exp(log_binom_coeff(x + size - 1, x) + x * std::log(1. - prob) + size * std::log(prob));
+            return exp(log_binom_coeff(x + s - 1., x) + x * log(1. - p) + s * log(p));
         }
-        inline double cdf(double x, double size, double prob)
+        inline double cdf(double x, double s, double p)
         {
-            return ibeta(size, x + 1, prob);
+            return ibeta(s, x + 1., p);
         }
-        inline double logpdf(double x, double size, double prob)
+        inline double logpdf(double x, double s, double p)
         {
-            return log_binom_coeff(x + size - 1, x) + x * std::log(1. - prob) + size * std::log(prob);
+            return log_binom_coeff(x + s - 1., x) + x * log(1. - p) + s * log(p);
         }
-        inline double logratio(double xo, double xn, double size, double prob)
+        inline double logratio(double xo, double xn, double s, double p)
         {
             double output = 0.;
             // logratio of the binomial coefficients
-            for (double i = 1.; i < size; ++i)
-                output += std::log((i + xn) / (i + xo));
-            return output + (xn - xo) * std::log(1. - prob);
+            for (double i = 1.; i < s; ++i)
+                output += log((i + xn) / (i + xo));
+            return output + (xn - xo) * log(1. - p);
         }
     }
 
@@ -532,21 +525,23 @@ namespace numr
 
     namespace geometric
     {
-        inline double pdf(double x, double proba)
+        /// @param x
+        /// @param p probability
+        inline double pdf(double x, double p)
         {
-            return proba * std::pow(1. - proba, x);
+            return p * pow(1. - p, x);
         }
-        inline double cdf(double x, double proba)
+        inline double cdf(double x, double p)
         {
-            return 1. - std::pow(1. - proba, x + 1);
+            return 1. - pow(1. - p, x + 1);
         }
-        inline double logpdf(double x, double proba)
+        inline double logpdf(double x, double p)
         {
-            return std::log(proba) + x * std::log(1. - proba);
+            return log(p) + x * log(1. - p);
         }
-        inline double logratio(double xo, double xn, double proba)
+        inline double logratio(double xo, double xn, double p)
         {
-            return (xn - xo) * std::log(1. - proba);
+            return (xn - xo) * log(1. - p);
         }
     }
 } // NUMR NAMESPACE

@@ -1,9 +1,10 @@
-/*      __
- *     / /_  ____  __  __ ____ __  ____  __
- *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
- *   / / / / /_/ / /_/ (__  )  __/ /_/ / /
- *  /_/ /_/\____/\____/____/\___/ ____/_/
- *                             /_/
+/*
+ *        __
+ *       / /_  ____  __  __ ____ __  ____  __
+ *      / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
+ *     / / / / /_/ / /_/ (__  )  __/ /_/ / /
+ *    /_/ /_/\____/\____/____/\___/ ____/_/
+ *                               /_/
  *
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  *
@@ -21,29 +22,24 @@
 #include "tools.h"
 #include "function.h"
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
 #define D_DISCR_TYPE_NONE 0 // none
 #define D_DISCR_TYPE_LEFT 1 // left
 #define D_DISCR_TYPE_CNTR 2 // center
 #define D_DISCR_TYPE_DFND 3 // defined
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  Base Distribution : class  ////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////// *** Distribution : class *** ///////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* A parent class to all distributions. */
+/// Parent class of all distributions.
 class Distribution : public Function
 {
 public:
-	//=======================//
-	//===== CONSTRUCTOR =====//
-	//=======================//
+	/////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////  Distribution : constructor  ////////////////////////////////
+	/////////////////////////////////////////////////////////////////////////////////////////////
 
 	Distribution(const std::string &name = HSP_NA_STRING,
 				 const str_vec &arg_name = {},
@@ -56,9 +52,9 @@ public:
 				   domain_min, domain_max, is_min_open, is_max_open) {}
 	virtual ~Distribution() = default;
 
-	//==================//
-	//===== GETTER =====//
-	//==================//
+	/////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////  Distribution : getter  //////////////////////////////////
+	/////////////////////////////////////////////////////////////////////////////////////////////
 
 	bool is_discrete() const { return pdf_ != &Distribution::do_default_pdf_; }
 	double logpdf(double x) const { return (this->*logpdf_)(x); }
@@ -74,17 +70,18 @@ public:
 	// note: as a function, distribution is defined by its pdf or cdf
 	double return_value(double x) const override { return (this->*return_value_)(x); }
 
-	//==================//
-	//===== SETTER =====//
-	//==================//
+	/////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////  Distribution : setter  //////////////////////////////////
+	/////////////////////////////////////////////////////////////////////////////////////////////
 
 	void set_return_cumul() { return_value_ = &Distribution::cdf; }
 	virtual void init_reshaping(bool discrete) override;
 
 protected:
-	//==================//
-	//===== SETTER =====//
-	//==================//
+	/////////////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////  Distribution : setter [protected] /////////////////////////////
+	/////////////////////////////////////////////////////////////////////////////////////////////
+
 	void init_functional_discretization(unsigned short discr_type);
 	void init_functional_truncation(unsigned short discr_type);
 
@@ -92,9 +89,9 @@ protected:
 	void init_reshaping_min_zero(bool discrete, bool is_open_zero);
 	void init_reshaping_min_zero_discr_defined();
 
-	//==================//
-	//===== GETTER =====//
-	//==================//
+	/////////////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////  Distribution : getter [protected] /////////////////////////////
+	/////////////////////////////////////////////////////////////////////////////////////////////
 
 	virtual void update_args() {};
 
@@ -237,38 +234,44 @@ private:
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  Distribution Registries  //////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////// *** Distribution Registry : class *** ////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Distributions Registry base class. */
+/// Distributions Registry base class.
 class DistributionRegistry : public FunctionRegistry
 {
 	using FactoryFunc = std::function<std::shared_ptr<Function>()>;
 	using FactoryDistr = std::function<std::shared_ptr<Distribution>()>;
 
 public:
+	/////////////////////////////////////////////////////////////////////////////////////////////
+	/////////////////////////////  Distribution Registry : constructor  /////////////////////////
+	/////////////////////////////////////////////////////////////////////////////////////////////
+
 	DistributionRegistry(const std::string &name)
 		: FunctionRegistry(name) {}
 	virtual ~DistributionRegistry() = default;
 
-	//==================//
-	//===== GETTER =====//
-	//==================//
+	/////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////  Distribution Registry : getter  ////////////////////////////
+	/////////////////////////////////////////////////////////////////////////////////////////////
 
-	/* Override get_options method of generic function with distribution. */
+	/// Override get_options method of generic function with distribution.
 	str_vec get_options() const override final;
 
-	/* Override get method of generic function with distribution. */
+	/// Override get method of generic function with distribution.
 	std::shared_ptr<Function> get(const std::string &opt) const override final;
 
-	/* Override valid options to allow for cumulative distribution call.*/
+	/// Override valid options to allow for cumulative distribution call.
 	bool is_valid_option(const std::string &opt) const override final;
 
 	virtual std::shared_ptr<Distribution> get_distr(const std::string &opt) const;
 
-	//==================//
-	//===== SETTER =====//
-	//==================//
+	/////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////  Distribution Registry : setter  ////////////////////////////
+	/////////////////////////////////////////////////////////////////////////////////////////////
 
 	template <typename T>
 	void register_distr()
@@ -283,7 +286,7 @@ private:
 	std::unordered_map<std::string, FactoryDistr> _factory_map = {};
 };
 
-/* Register a Distribution derived class T to DistributionRegistry derived class C. */
+/// Register a Distribution derived class T to DistributionRegistry derived class C.
 template <typename C, typename T>
 void register_distr()
 {
@@ -305,7 +308,7 @@ DECLARE_HOUSEPI_DISTRIBUTION_REGISTRY(ContinuosDistrRegistry, "continuos distrib
 DECLARE_HOUSEPI_DISTRIBUTION_REGISTRY(DiscreteDistrRegistry, "discrete distribution")
 DECLARE_HOUSEPI_DISTRIBUTION_REGISTRY(InfecProfileRegistry, "infectivity profile")
 
-/* Register a Distribution derived class T to DistributionRegistry derived class R. */
+/// Register a Distribution derived class T to DistributionRegistry derived class R.
 template <typename R, typename T>
 struct StaticDistributionRegistatror
 {
@@ -326,7 +329,7 @@ struct StaticDistributionRegistatror
 #define REGISTER_USER_DISCRETE_DISTRIBUTION(T) REGISTER_HOUSEPI_DISTRIBUTION(DiscreteDistrRegistry, T)
 #define REGISTER_USER_INFEC_PROFILE(T) REGISTER_HOUSEPI_DISTRIBUTION(InfecProfileRegistry, T)
 
-/* Compose registries to get a distribution from them. */
+/// Compose registries to get a distribution from them.
 std::shared_ptr<Distribution> compose_distr_registries(const std::string &opt,
 													   const std::string &name,
 													   const std::vector<const DistributionRegistry *> &registries);

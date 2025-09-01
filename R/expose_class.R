@@ -12,18 +12,18 @@
 
 #' @title New housepi model
 #' @description
-#' Create a new object of class 'HousepiModel' 
+#' Create a new object of class 'HousepiModel'
 #' used to run inference and simulation routines.
 #'
 #' @param choice `r rd_mdl_choice_`
 #' @param as_template `r rd_mdl_astmpl_`
 #' @param force `r rd_mdl_force_`
 #' @param quiet `r rd_mdl_quiet_`
-#' 
+#'
 #' @return `r rd_model_in_`
-#' 
+#'
 #' @export
-new_housepi_model <- function(choice = NA, as_template = FALSE, 
+new_housepi_model <- function(choice = NA, as_template = FALSE,
                               force = FALSE, quiet = TRUE) {
   HousepiModel$new(choice = choice, as_template = as_template,
                    force = force, quiet = quiet)
@@ -36,12 +36,12 @@ new_housepi_model <- function(choice = NA, as_template = FALSE,
 #' @title Add dataset
 #' @description
 #' Make an internal copy of the provided household dataset.
-#' 
+#'
 #' @param object `r rd_model_in_`
 #' @param dataset `r rd_add_dataset_`
-#' 
+#'
 #' @return `r rd_model_out_`
-#' 
+#'
 #' @export
 add_dataset  <- function(object, dataset) {
   stopifnot(inherits(object, "HousepiModel"))
@@ -51,41 +51,41 @@ add_dataset  <- function(object, dataset) {
 #' @title Add datalist
 #' @description
 #' Maje an internal copy of the provided datalist.
-#' 
+#'
 #' @param object `r rd_model_in_`
 #' @param datalist `r rd_add_datalist_`
-#' 
+#'
 #' @return `r rd_model_out_`
-#' 
+#'
 #' @export
 add_datalist <- function(object, datalist) {
   stopifnot(inherits(object, "HousepiModel"))
   object$clone(deep = TRUE)$add_datalist(datalist)
 }
 
-#' @title Summarise cases in household dataset 
-#' @description 
+#' @title Summarise cases in household dataset
+#' @description
 #' Summarise cases as given from the statuses in the laoded household dataset.
-#' 
+#'
 #' @param object `r rd_model_in_`
 #' @param ... Ignored.
-#' 
+#'
 #' @return `data.frame`
-#' 
+#'
 #' @export
 summarise_cases <- function(object, ...) {
   object$summarise_cases()
 }
 
-#' @title Summarise house sizes in household dataset 
-#' @description 
+#' @title Summarise house sizes in household dataset
+#' @description
 #' Summarise number of members (size) in the laoded household dataset.
-#' 
+#'
 #' @param object `r rd_model_in_`
 #' @param ... Ignored.
-#' 
+#'
 #' @return `data.frame`
-#' 
+#'
 #' @export
 summarise_house_sizes <- function(object, ...) {
   object$summarise_house_sizes()
@@ -98,7 +98,7 @@ summarise_house_sizes <- function(object, ...) {
 #' @title Drop definitions
 #' @description
 #' Drop current formatted definitions.
-#' 
+#'
 #' @param object `r rd_model_in_`
 #' @param ... Ignored.
 #'
@@ -137,14 +137,14 @@ drop_all <- function(object) {
 ############################################################################
 
 #' @title Get definitions
-#' @description 
+#' @description
 #' Get current formatted definitions.
-#' 
+#'
 #' @param object `r rd_model_in_`
 #' @param ... Ignored.
-#' 
+#'
 #' @return `data.frame`
-#' 
+#'
 #' @rdname get_definitions
 #' @export
 get_parameters <- function(object, ...) {
@@ -156,7 +156,7 @@ get_parameters <- function(object, ...) {
 #' @description
 #' Add a new parameter to houspepi model definitions.
 #' If the parameter already exists, it is overwritten.
-#' 
+#'
 #' @param object `r rd_model_in_`
 #' @param name `r rd_var_name_`
 #' @param value `r rd_var_value_`
@@ -168,9 +168,9 @@ get_parameters <- function(object, ...) {
 #' @param max `r rd_var_max_`
 #' @param rule `r rd_par_rule_`
 #' @param scale `r rd_var_scale_`
-#' 
+#'
 #' @return `r rd_model_out_`
-#' 
+#'
 #' @export
 add_parameter <- function(object,
                           name = NA, value = NA,
@@ -181,7 +181,7 @@ add_parameter <- function(object,
   stopifnot(inherits(object, "HousepiModel"))
   object$clone(deep = TRUE)$add_parameter(
     name = name, value = value,
-    const = const, discr = discr, 
+    const = const, discr = discr,
     prior = prior, args = args,
     min = min, max = max,
     rule = rule, scale = scale
@@ -196,9 +196,9 @@ add_parameter <- function(object,
 #' @param ... `r rd_list_args_`
 #' @param from `r rd_list_from_`
 #' @param append `r rd_list_append_`
-#' 
+#'
 #' @return `r rd_model_out_`
-#' 
+#'
 #' @rdname load_definitions_list
 #' @export
 load_parameter_list <- function(object, ..., from = NA, append = FALSE) {
@@ -211,12 +211,12 @@ load_parameter_list <- function(object, ..., from = NA, append = FALSE) {
 #' @title Load template definitions
 #' @description
 #' Load default definitions from model template.
-#' 
+#'
 #' @param object `r rd_model_in_`
 #' @param append `r rd_tmpl_append_`
-#' 
+#'
 #' @return `r rd_model_out_`
-#' 
+#'
 #' @rdname load_template_definitions
 #' @export
 load_parameter_template <- function(object, append = FALSE) {
@@ -239,7 +239,7 @@ get_augmented <- function(object, ...) {
 #' @description
 #' Add a new augmented variable/function to houspepi model definitions.
 #' If the augmented variablw already exists, it is updated.
-#' 
+#'
 #' @param object `r rd_model_in_`
 #' @param name `r rd_var_name_`
 #' @param status `r rd_aug_status_`
@@ -257,11 +257,11 @@ get_augmented <- function(object, ...) {
 #' @param scale `r rd_var_scale_`
 #' @param from `r rd_aug_from_`
 #' @param expr `r rd_aug_expr_`
-#' 
-#' @return `r rd_model_out_` 
-#' 
+#'
+#' @return `r rd_model_out_`
+#'
 #' @export
-add_augmented <- function(object, 
+add_augmented <- function(object,
                           name = NA, status = NA,
                           const = NA, discr = FALSE,
                           func = NA, func_args = NULL,
@@ -315,7 +315,7 @@ get_group_rates <- function(object, ...) {
 #' @description
 #' Add definitions of a group rate by given dataset feature(s).
 #' The reference value is equal to 1 and can be specified.
-#' 
+#'
 #' @param object `r rd_model_in_`
 #' @param name `r rd_var_name_`
 #' @param by `r rd_grr_by_`
@@ -323,7 +323,7 @@ get_group_rates <- function(object, ...) {
 #' @param reference `r rd_grr_refer_`
 #' @param independent `r rd_grr_indep_`
 #' @param prior `r rd_par_model_`
-#' Default is "lnorm". 
+#' Default is "lnorm".
 #' @param args `r rd_par_args_`
 #' Default is `list(meanlog = 0, sdlog = 3)`.
 #' @param min `r rd_var_min_`
@@ -337,14 +337,14 @@ get_group_rates <- function(object, ...) {
 #' Cauchemez, et al. (2009)
 #' Household Transmission of 2009 Pandemic Influenza A (H1N1) Virus in the United States.
 #' New England Journal of Medicine. 361: 2619-2627. doi:10.1056/NEJMoa0905498
-#' 
-#' @return `r rd_model_out_` 
-#' 
-#' @export 
+#'
+#' @return `r rd_model_out_`
+#'
+#' @export
 add_group_rate <-  function(object,
-                            name, by, prefix = NA, 
+                            name, by, prefix = NA,
                             reference = NULL, independent = TRUE,
-                            prior = "lnorm", 
+                            prior = "lnorm",
                             args = list(meanlog = 0, sdlog = 3),
                             min = 0, max = 10,
                             rule = "lnorm", scale = 1) {
@@ -380,15 +380,15 @@ load_group_rate_list <- function(object, ..., from = NA, append = FALSE) {
 #' @param discr `r rd_inf_discr_`
 #' @param args `r rd_inf_args_`
 #' @param max `r rd_aug_max_`
-#' 
-#' @return `r rd_model_out_` 
-#' 
+#'
+#' @return `r rd_model_out_`
+#'
 #' @export
-add_infec_profile <- function(object, 
+add_infec_profile <- function(object,
                               name, discr = FALSE,
                               args = list(), max = NA) {
   stopifnot(inherits(object, "HousepiModel"))
-  object$clone(deep=TRUE)$add_infec_profile(
+  object$clone(deep = TRUE)$add_infec_profile(
     name = name, discr = discr,
     args = args, max = max
   )
@@ -407,7 +407,7 @@ add_infec_profile <- function(object,
 #' @param seed `r rd_seed_`
 #'
 #' @return `numeric(1)`
-#' 
+#'
 #' @export
 loglikelihood <- function(object, dataset = NULL, seed = NA) {
   stopifnot(inherits(object, "HousepiModel"))
@@ -417,25 +417,25 @@ loglikelihood <- function(object, dataset = NULL, seed = NA) {
 #' @title Run inference on housepi model
 #' @description
 #' Run inference with Bayesian Markov Chain Monte Carlo.
-#' 
+#'
 #' @param object `r rd_model_in_`
 #' @param dataset `r rd_smpl_dataset_`
 #' @param sample_size `r rd_smpl_size_`
 #' @param n_steps `r rd_smpl_steps_`
 #' @param n_burnin `r rd_smpl_burn_`
 #' @param thin `r rd_smpl_thin_`
-#' @param n_adapt `r rd_smpl_adapt_` 
+#' @param n_adapt `r rd_smpl_adapt_`
 #' @param n_chains `r rd_smpl_chain_`
 #' @param n_threads `r rd_smpl_thread_`
 #' @param rand_init `r rd_smpl_rndin_`
 #' @param id_draws `r rd_smpl_iddrw_`
 #' @param seed `r rd_seed_`
 #' @param progress `r rd_progress_`
-#' 
+#'
 #' @return `HousepiPosteriorDraws`\cr
 #' Container with posterior draws.
-#' 
-#' @export 
+#'
+#' @export
 infer <- function(object, dataset = NULL,
                   sample_size = NA, n_steps = 5000,
                   n_burnin = 0, thin = 1, n_adapt = 0,
@@ -474,9 +474,9 @@ infer <- function(object, dataset = NULL,
 #' Friel N, Hurn M, Wyse J.
 #' Improving power posterior estimation of statistical evidence.
 #' Stat Comput. 2014;24: 709-723. doi:10.1007/s11222-013-9397-1
-#' 
+#'
 #' @return `numeric(1)`
-#' 
+#'
 #' @export
 evidence <- function(object, dataset = NULL,
                      scheme = "power-fractions", n_rungs = 40,
@@ -512,9 +512,9 @@ stats::simulate
 #' @param ... Ignored.
 #'
 #' @return `data.frame`
-#' 
+#'
 #' @exportS3Method simulate HousepiModel
-simulate.HousepiModel <- function(object, dataset = NULL, 
+simulate.HousepiModel <- function(object, dataset = NULL,
                                   seed = NA, progress = FALSE,
                                   ...) {
   stopifnot(inherits(object, "HousepiModel"))
@@ -522,4 +522,3 @@ simulate.HousepiModel <- function(object, dataset = NULL,
     dataset = dataset, seed = seed, progress = progress
   )
 }
-  

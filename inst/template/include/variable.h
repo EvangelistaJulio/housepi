@@ -1,9 +1,10 @@
-/*      __
- *     / /_  ____  __  __ ____ __  ____  __
- *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
- *   / / / / /_/ / /_/ (__  )  __/ /_/ / /
- *  /_/ /_/\____/\____/____/\___/ ____/_/
- *                             /_/
+/*
+ *        __
+ *       / /_  ____  __  __ ____ __  ____  __
+ *      / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
+ *     / / / / /_/ / /_/ (__  )  __/ /_/ / /
+ *    /_/ /_/\____/\____/____/\___/ ____/_/
+ *                               /_/
  *
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  *
@@ -21,24 +22,19 @@
 #include "tools.h"
 #include "distribution.h"
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
 /////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  Proposer : class  ///////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////// *** Proposer : class *** ////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Base class for Metropolis proposers. */
+/// Base class for Metropolis proposers.
 class Proposer
 {
 public:
-    //=======================//
-    //===== CONSTRUCTOR =====//
-    //=======================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////  Proposer : constructor  /////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
     Proposer() {};
     Proposer(std::shared_ptr<Distribution>,
@@ -53,9 +49,9 @@ public:
              bool is_discrete = false);
     virtual ~Proposer() {};
 
-    //==================//
-    //===== GETTER =====//
-    //==================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////  Proposer : getter  ///////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
     std::string name() const { return this->proposer_name_; }
     double get_arg(unsigned short argID) const { return (pDistr_->arg)(argID); }
@@ -65,16 +61,16 @@ public:
     double rand(rnd_gen &prng) { return (pDistr_->rand)(prng); }
     bool is_rule_start_from_zero() const { return is_start_from_zero_; }
 
-    //==================//
-    //===== SETTER =====//
-    //==================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////  Proposer : setter  ///////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
     virtual void user_reset() {}
     void set_rule_start_value(double x) { from_value_ = x; }
 
-    //======================//
-    //===== ADAPTATION =====//
-    //======================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////  Proposer : adaptation  /////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
     double get_accept_rate() const { return accept_rate_; }
     void update_accept_rate(bool is_accepted)
@@ -89,9 +85,9 @@ public:
     }
     void adapt(double ratio);
 
-    //================//
-    //===== SHOW =====//
-    //================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////  Proposer : show  ////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
     std::string str_arg_names() const { return pDistr_->str_arg_names(); }
     std::string str_arg_values() const { return pDistr_->str_arg_values(); }
@@ -130,15 +126,17 @@ protected:
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  Variable : class  ////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////// *** Variable : class *** ////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 class Variable
 {
 public:
-    //=======================//
-    //===== CONSTRUCTOR =====//
-    //=======================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////  Variable : constructor  /////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
     Variable(const std::string &name = HSP_NA_STRING,
              double value = HSP_NA_DOUBLE,
@@ -155,9 +153,9 @@ public:
 
     double operator()(double x) const { return (this->*return_value_)(x); }
 
-    //==================//
-    //===== GETTER =====//
-    //==================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////  Variable : getter  ///////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
     double get() const { return (this->*get_)(); }
     const double *get_ptr() const { return (this->*get_ptr_)(); }
@@ -170,45 +168,45 @@ public:
 
     double get_from_value() const { return (pProp_->get_from_value)(); }
 
-    //==================//
-    //===== SETTER =====//
-    //==================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////  Variable : setter  ///////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
     void init(const std::string &name, double value, bool is_discrete,
               bool is_constant = true,
               const std::string &func_name = HSP_NA_STRING);
 
-    /* Set value to variable. */
+    /// Set value to variable.
     void set_value(double x) { (this->*set_)(x); }
 
-    /* Recover buffered value. */
+    /// Recover buffered value.
     void recover_value() { value_ = buffer_value_; }
 
-    /* Restore user defined variable initialization. */
+    /// Restore user defined variable initialization.
     void user_reset()
     {
         value_ = user_value_;
         pProp_->user_reset();
     }
 
-    /* Assign a scalar argument to function. */
+    /// Assign a scalar argument to function.
     void init_func_attr(const std::string &a, bool is_arg, double x) { pFunc_->init_attr(a, is_arg, x); }
-    /* Assign a pointer argument to function. */
+    /// Assign a pointer argument to function.
     void init_func_attr(const std::string &a, bool is_arg, const double *y) { pFunc_->init_attr(a, is_arg, y); }
-    /* Assign a function attribute to function. */
+    /// Assign a function attribute to function.
     void init_func_attr(const std::string &a, bool is_arg, std::shared_ptr<Function> f) { pFunc_->init_attr(a, is_arg, f); }
 
-    /* Initialize function reshaping. */
-    void init_func_reshaping(); 
+    /// Initialize function reshaping.
+    void init_func_reshaping();
 
     //----- Pointer to distribution -----//
     void init_distr(const std::string &distr_name = HSP_NA_STRING);
 
-    /* Assign a scalar argument to distribution. */
+    /// Assign a scalar argument to distribution.
     void init_distr_attr(const std::string &a, bool is_arg, double x) { pDistr_->init_attr(a, is_arg, x); }
-    /* Assign a pointer argument to distribution. */
+    /// Assign a pointer argument to distribution.
     void init_distr_attr(const std::string &a, bool is_arg, const double *y) { pDistr_->init_attr(a, is_arg, y); }
-    /* Assign a pointer argument to distribution. */
+    /// Assign a pointer argument to distribution.
     void init_distr_attr(const std::string &a, bool is_arg, std::shared_ptr<Function> f) { pDistr_->init_attr(a, is_arg, f); }
 
     void init_distr_reshaping();
@@ -218,9 +216,9 @@ public:
                        double rule_scale = HSP_NA_DOUBLE,
                        double rule_from = HSP_NA_DOUBLE);
 
-    //===============================//
-    //===== METROPOLIS-HASTINGS =====//
-    //===============================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////  Variable : Metropolis-Hastings  ////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
     double get_move_logratio() const { return (this->*move_logratio_)(); }
     bool is_valid_move() const { return (this->*is_valid_move_)(); }
@@ -241,9 +239,9 @@ public:
     void reset_accept_rate() { pProp_->reset_accept_rate(); }
     void adapt_rule(double ratio) { (pProp_->adapt)(ratio); }
 
-    //================//
-    //===== SHOW =====//
-    //================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////  Variable : show  ////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
     std::string name() const { return variable_name_; }
 
@@ -282,9 +280,9 @@ private:
     bool is_discrete_ = false;          // wheter discrete or not
     bool is_constant_ = true;           // wheter constant or not
 
-    //==================//
-    //===== GETTER =====//
-    //==================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////  Variable : getter [private]  //////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
     double (Variable::*return_value_)(double) const = &Variable::do_return_error_;
     double do_return_error_(double) const { throw std::runtime_error(
@@ -300,28 +298,28 @@ private:
     const double *do_get_ptr_func_return_() const { throw std::runtime_error(
         "Called pointer to function \"" + name() + "\"."); }
 
-    //==================//
-    //===== SETTER =====//
-    //==================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////  Variable : setter [private]  //////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
-    void init_name_(const std::string &name) { variable_name_ = name;};
+    void init_name_(const std::string &name) { variable_name_ = name; };
     void init_default_(double value, bool is_discrete, bool is_constant);
     void init_func_(const std::string &func_name);
 
     void (Variable::*set_)(double) = &Variable::do_set_default_;
-    /* Store the buffer and change value. */
+    /// Store the buffer and change value.
     void do_set_default_(double x)
     {
         buffer_value_ = value_;
         value_ = x;
     }
-    /* Set value to function error. */
+    /// Set value to function error.
     void do_set_func_error_(double) { throw std::runtime_error(
         "Value of function  \"" + name() + "\" cannot be changed."); }
 
-    //===============================//
-    //===== METROPOLIS-HASTINGS =====//
-    //===============================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////  Variable : Metropolis-Hastings [private]  ///////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
     //----- Valid move : functional methods -----//
     bool (Variable::*is_valid_move_)() const = &Variable::do_is_valid_move_default_;

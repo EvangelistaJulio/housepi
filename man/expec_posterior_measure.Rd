@@ -4,7 +4,13 @@
 \alias{expec_posterior_measure}
 \title{Expected posterior measure}
 \usage{
-expec_posterior_measure(object, param_table, ..., FUN = NULL, progress = NA)
+expec_posterior_measure(
+  object,
+  param_table,
+  ...,
+  measure = NULL,
+  progress = NA
+)
 }
 \arguments{
 \item{object}{\code{HousepiModel} object.}
@@ -17,9 +23,9 @@ expec_posterior_measure(object, param_table, ..., FUN = NULL, progress = NA)
 }}
 
 \item{...}{Named arguments with respective functions.
-If \code{FUN} is provided, arguments are ignored.}
+If \code{measure} is provided, arguments are ignored.}
 
-\item{FUN}{\code{closure} | \code{list} of \code{closure}\cr
+\item{measure}{\code{closure} | \code{list} of \code{closure}\cr
 Function(s) to extract the desired measure from a dataset.}
 
 \item{progress}{\code{integer(1)} or \code{logical(1)} to control progress visualization.\cr

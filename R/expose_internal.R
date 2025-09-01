@@ -12,15 +12,14 @@
 
 # Get template name from DLL file
 get_template_from_dll <- function(dll) {
-  if (is.null(dll) || is.na(dll) || !file.exists(dll)) return(NA)
-  else return(tools::file_path_sans_ext(basename(dll)))
+  if (is.null(dll) || is.na(dll) || !file.exists(dll)) NA
+  else tools::file_path_sans_ext(basename(dll))
 }
 
 # Get Rcpp module from DLL file
 get_rcpp_module_from_dll <- function(module_name, dll) {
   dyn.load(dll)
-  package <- get_template_from_dll(dll)
-  return(Rcpp::Module(module_name, PACKAGE = package))
+  Rcpp::Module(module_name, PACKAGE = get_template_from_dll(dll))
 }
 
 # Get Rcpp module from model object
@@ -30,14 +29,14 @@ get_rcpp_module_from_model <- function(module_name, model = NULL) {
     housepi_dir <- system.file("template", package = "housepi")
     dll <- file.path(housepi_dir, "src", dll_file_ext("housepienvironment"))
   }
-  return(get_rcpp_module_from_dll(module_name, dll))
+  get_rcpp_module_from_dll(module_name, dll)
 }
 
 #' @title
 #' Test Housepi Function
 #' @description
 #' Call housepi registered function.
-#' This function internally calls a large C++ class, 
+#' This function internally calls a large C++ class,
 #' thus it is not optimized for repeated  operations.
 #'
 #' @param name `character(1)`\cr
@@ -57,10 +56,12 @@ get_rcpp_module_from_model <- function(module_name, model = NULL) {
 #' `numeric()`
 #'
 #' @export
-test_function <- function(name, x, args = NULL, 
+test_function <- function(name, x, args = NULL,
                           min = NA, max = NA, model = NULL) {
   # note: for simple function no reshaping -> discr = FALSE
-  get_rcpp_module_from_model("housepi_function", model)$FunctionHousepi$new(
+  get_rcpp_module_from_model(
+    "housepi_function", model
+  )$FunctionHousepi$new(
     name, FALSE, args, c(min = min, max = max)
   )$call(x)
 }
@@ -69,7 +70,7 @@ test_function <- function(name, x, args = NULL,
 #' Test Housepi Distribution
 #' @description
 #' Call housepi registered distribution.
-#' This function internally calls a large C++ class, 
+#' This function internally calls a large C++ class,
 #' thus it is not optimized for repeated  operations.
 #'
 #' @param name `character(1)`\cr
@@ -91,9 +92,11 @@ test_function <- function(name, x, args = NULL,
 #' `numeric()`
 #'
 #' @export
-test_distribution <- function(name, x, discr = FALSE, args = NULL, 
-                              min = NA, max = NA, model = NULL) {    
-  get_rcpp_module_from_model("housepi_distribution", model)$DistributionHousepi$new(
+test_distribution <- function(name, x, discr = FALSE, args = NULL,
+                              min = NA, max = NA, model = NULL) {
+  get_rcpp_module_from_model(
+    "housepi_distribution", model
+  )$DistributionHousepi$new(
     name, discr, args, c(min = min, max = max)
   )$call(x)
 }
@@ -102,7 +105,7 @@ test_distribution <- function(name, x, discr = FALSE, args = NULL,
 #' Test Housepi Infectivity Profile
 #' @description
 #' Call housepi registered infectivity profile.
-#' This function internally calls a large C++ class, 
+#' This function internally calls a large C++ class,
 #' thus it is not optimized for repeated  operations.
 #'
 #' @param name `character(1)`\cr
@@ -122,10 +125,12 @@ test_distribution <- function(name, x, discr = FALSE, args = NULL,
 #' `numeric()`
 #'
 #' @export
-test_infec_profile <- function(name, x, discr = FALSE, args = NULL, 
-                               max = NA, model = NULL) {          
-  # UPDATE: the minimum should be imposed from within         
-  get_rcpp_module_from_model("housepi_infec_profile", model)$InfecProfileHousepi$new(
+test_infec_profile <- function(name, x, discr = FALSE, args = NULL,
+                               max = NA, model = NULL) {
+  # UPDATE: the minimum should be imposed from within
+  get_rcpp_module_from_model(
+    "housepi_infec_profile", model
+  )$InfecProfileHousepi$new(
     name, discr, args, c(min = ifelse(discr, 1, 0), max = max)
   )$call(x)
 }

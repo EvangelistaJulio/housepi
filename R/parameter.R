@@ -54,7 +54,7 @@ HousepiParameter <- R6::R6Class(
     #' Path/to/.refer source file.
     require = function(refer_file) {
       # vector of regular expression to use for assertion
-      regular_expr <- c(
+      regexp <- c(
         # from : param("string" or get_param('string'
         'param\\s*\\(\\s*["\'](.*?)["\']',
         # from : param_pointer("string" or param_pointer('string'
@@ -65,8 +65,8 @@ HousepiParameter <- R6::R6Class(
         'emplace_group_rate\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
       )
       # retrieve required parameters from regular expressions
-      output <- template_required_find(refer_file, regular_expr)
-      return(set_source_name_(output, "model"))
+      template_required_find(refer_file, regexp) |>
+        set_source_name_("model")
     },
 
     #' @description
@@ -300,7 +300,7 @@ HousepiParameter <- R6::R6Class(
         output[[self$defs[r, ]$name]] <- this_par
       }
 
-      return(output)
+      output
     },
 
     #' @description
