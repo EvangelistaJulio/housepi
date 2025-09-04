@@ -1,7 +1,7 @@
 Package: housepi
 Type: Package
 Title: Household Epidemiological Modeling and Analysis
-Version: 0.8.03
+Version: 0.8.04
 Authors@R:
     person("Francesco", "Camaglia",
            email = "francesco.camaglia@pasteur.fr", 
@@ -36,7 +36,7 @@ Suggests:
     flextable,
     bayesplot,
     loo, 
-    cod
+    coda
 VignetteBuilder: knitr
 SystemRequirements: GNU make, C++14
 Depends: 

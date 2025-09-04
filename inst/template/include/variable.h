@@ -97,15 +97,15 @@ protected:
     std::string proposer_name_ = HSP_NA_STRING;
     std::shared_ptr<Distribution> pDistr_;
 
-    double user_rule_scale_ = 1.;       // scale of the Metropolis rule
-    bool is_start_from_zero_ = false;   // wheter to move from given value
-    double from_value_ = HSP_NA_DOUBLE; // given value where to start from
+    double user_rule_scale_ = 1.;       /// scale of the Metropolis rule
+    bool is_start_from_zero_ = false;   /// wheter to move from given value
+    double from_value_ = HSP_NA_DOUBLE; /// given value where to start from
 
-    double accept_rate_ = 0.;            // acceptance rate
-    unsigned long n_proposed_moves_ = 0; // number of proposed moves
+    double accept_rate_ = 0.;            /// acceptance rate
+    unsigned long n_proposed_moves_ = 0; /// n. of proposed moves
 
-    unsigned short n_args_to_adapt_ = 0;           // how many arguments to adapt
-    unsigned short *args_to_adapt_list_ = nullptr; // which arguments should be adapted
+    unsigned short n_args_to_adapt_ = 0;           /// how many arguments to adapt
+    unsigned short *args_to_adapt_list_ = nullptr; /// which arguments should be adapted
 
     //===== propose : functional methods =====//
     double (Proposer::*propose_)(rnd_gen &, double) = &Proposer::do_propose_undefined_;
@@ -199,19 +199,19 @@ public:
     /// Initialize function reshaping.
     void init_func_reshaping();
 
-    //----- Pointer to distribution -----//
+    /// Initialize pointer to distribution.
     void init_distr(const std::string &distr_name = HSP_NA_STRING);
 
     /// Assign a scalar argument to distribution.
     void init_distr_attr(const std::string &a, bool is_arg, double x) { pDistr_->init_attr(a, is_arg, x); }
     /// Assign a pointer argument to distribution.
     void init_distr_attr(const std::string &a, bool is_arg, const double *y) { pDistr_->init_attr(a, is_arg, y); }
-    /// Assign a pointer argument to distribution.
+    /// Assign a function argument to distribution.
     void init_distr_attr(const std::string &a, bool is_arg, std::shared_ptr<Function> f) { pDistr_->init_attr(a, is_arg, f); }
-
+    /// Finalize reshaping of distribution.
     void init_distr_reshaping();
 
-    //----- Pointer to proposer -----//
+    /// Initialize pointer to proposer.
     void init_proposer(const std::string &rule_name = HSP_NA_STRING,
                        double rule_scale = HSP_NA_DOUBLE,
                        double rule_from = HSP_NA_DOUBLE);
@@ -268,17 +268,17 @@ public:
 #endif
 
 private:
-    std::shared_ptr<Function> pFunc_;      // function
-    std::shared_ptr<Distribution> pDistr_; // prior\model distribution of the variable
-    std::shared_ptr<Proposer> pProp_;      // Monte Carlo proposer
+    std::shared_ptr<Function> pFunc_;      /// function
+    std::shared_ptr<Distribution> pDistr_; /// prior\model distribution of the variable
+    std::shared_ptr<Proposer> pProp_;      /// Monte Carlo proposer
 
-    std::string variable_name_ = HSP_NA_STRING; // name of variable
-    double value_ = HSP_NA_DOUBLE;              // value
-    double buffer_value_ = HSP_NA_DOUBLE;       // buffered value
+    std::string variable_name_ = HSP_NA_STRING; /// name of variable
+    double value_ = HSP_NA_DOUBLE;              /// value
+    double buffer_value_ = HSP_NA_DOUBLE;       /// buffered value
 
-    double user_value_ = HSP_NA_DOUBLE; // initial user defined value
-    bool is_discrete_ = false;          // wheter discrete or not
-    bool is_constant_ = true;           // wheter constant or not
+    double user_value_ = HSP_NA_DOUBLE; /// initial user defined value
+    bool is_discrete_ = false;          /// wheter discrete or not
+    bool is_constant_ = true;           /// wheter constant or not
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////  Variable : getter [private]  //////////////////////////////

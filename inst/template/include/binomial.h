@@ -57,22 +57,22 @@ namespace bax
         std::vector<ulong> _pattern_idxs = {};
     };
 
-	/////////////////////////////////////////////////////////////////////////////////////////////////
-	////////////////////////////////////////  LookUp Tables  ////////////////////////////////////////
-	/////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////  LookUp Tables  ////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
 
-	// Transmission Generations
-	std::vector<ulong> Num_Gener_LookupTable; /// n. of generations
-	matrix<ulong> Multipl_Gener_LookupTable;  /// n. of multiplicites per generation
-	matrix<gentype> Generations_LookupTable;  /// generation std::vectors
+    // Transmission Generations
+    extern std::vector<ulong> Num_Gener_LookupTable; /// n. of generations
+    extern matrix<ulong> Multipl_Gener_LookupTable;  /// n. of multiplicites per generation
+    extern matrix<gentype> Generations_LookupTable;  /// generation std::vectors
 
-	// Combinations
-	matrix<ulong> Num_Combin_LookupTable;			 /// LUT wiht n.e number of combinations
-	matrix<matrix<ushort>> Combinations_LookupTable; /// LUT wiht combinations and complements
+    // Combinations
+    extern matrix<ulong> Num_Combin_LookupTable;            /// LUT wiht n.e number of combinations
+    extern matrix<matrix<ushort>> Combinations_LookupTable; /// LUT wiht combinations and complements
 
-	// EscapePatterns
-	std::vector<EscapePattern> ChainBinomial_LookupTable;
-	matrix<EscapePattern> EscapePatterns_LookupTable;
+    // EscapePatterns
+    extern std::vector<EscapePattern> ChainBinomial_LookupTable;
+    extern matrix<EscapePattern> EscapePatterns_LookupTable;
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////  STANDARD FUNCTIONS   /////////////////////////////////////
