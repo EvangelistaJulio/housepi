@@ -14,87 +14,77 @@
 
 #include "function.h"
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
+/////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  Attribute : getter //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Wheter it's constant. */
+/// Get attribute value from external function.
+/// note: this can't be moved in the class because of forward declaration of Function
+double Attribute::do_get_from_function_() const { return pFunc_->return_value(); }
+
+/// Wheter it's constant.
 bool Attribute::is_constant() const
 {
     if (is_scalar())
         return true;
     else if (is_pointer())
-        return false;
+        return false; // FIXME: this is not necessarily true...
     else
         return pFunc_->is_constant();
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  Attribute : setter //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
+/// Initialize attribute as scalar.
 void Attribute::init_scalar(double x)
 {
     get_ = &Attribute::do_get_default_;
     get_ptr_ = &Attribute::do_get_ptr_default_;
-    _do_set = &Attribute::__set_default;
+    do_set_ = &Attribute::do_set_default_;
     value_ = x;
-    _ptr_to_value = nullptr;
+    ptr_to_value_ = nullptr;
     pFunc_ = nullptr;
 }
-void Attribute::init_pointer(const double *y)
+/// Initialize attribute as pointer.
+void Attribute::init_pointer(observer_dbl_ptr y)
 {
-    get_ = &Attribute::__get_from_pointer;
-    get_ptr_ = &Attribute::__get_pointer_from_pointer;
-    _do_set = &Attribute::__set_error;
+    get_ = &Attribute::do_get_from_pointer_;
+    get_ptr_ = &Attribute::do_get_pointer_from_pointer_;
+    do_set_ = &Attribute::do_set_error_;
     value_ = HSP_NA_DOUBLE;
-    _ptr_to_value = y;
+    ptr_to_value_ = y;
     pFunc_ = nullptr;
 }
+/// Initialize attribute as function.
 void Attribute::init_function(const std::shared_ptr<Function> f)
 {
-    get_ = &Attribute::__get_from_function;
-    get_ptr_ = &Attribute::__get_pointer_error;
-    _do_set = &Attribute::__set_error;
+    get_ = &Attribute::do_get_from_function_;
+    get_ptr_ = &Attribute::do_get_pointer_error_;
+    do_set_ = &Attribute::do_set_error_;
     value_ = HSP_NA_DOUBLE;
-    _ptr_to_value = nullptr;
+    ptr_to_value_ = nullptr;
     pFunc_ = f;
 }
 
-/// Get attribute value from external function.
-/// note: this can't be moved to header becuase of forward declaration of Function
-double Attribute::__get_from_function() const { return pFunc_->return_value(); }
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
+/////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  Function : constructor  /////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
-const std::string HSP_X_ = "x";
-
-/* Initial defaults for function. */
+/// Initial defaults for function. */
 Function::Function(const std::string &name,
-                   const str_vec &arg_name,
-                   const dbl_vec &arg_value,
-                   double domain_min,
-                   double domain_max,
-                   bool is_min_open,
-                   bool is_max_open)
+                   const str_vec &arg_name, const dbl_vec &arg_value,
+                   double domain_min, bool is_min_open,
+                   double domain_max, bool is_max_open)
 {
-    bool is_x_default = arg_name % HSP_X_;
+    bool is_x_default = arg_name % "x";
 
     // name of the function
     function_name_ = name;
@@ -112,13 +102,13 @@ Function::Function(const std::string &name,
 
     // assign default arguments
     arguments_ = new Attribute[n_args_ + 1];
-    // by convention, last argument is "x" and NA by default
-    arguments_[n_args_].name(HSP_X_);
+    // by convention, last argument is 'x' and NA by default
+    arguments_[n_args_].name("x");
     arguments_[n_args_].set(HSP_NA_DOUBLE);
 
     unsigned short c = 0;
     for (unsigned short k = 0; k < arg_name.size(); ++k)
-        if (arg_name[k] == HSP_X_)
+        if (arg_name[k] == "x")
             arguments_[n_args_].set(arg_value[k]);
         else
         {
@@ -131,25 +121,20 @@ Function::Function(const std::string &name,
     // NOTE: not sure if setting pointer to smtg exiting the domain I still have control
     init_range_scalar_("min", domain_min);
     init_range_scalar_("max", domain_max);
-    init_functional_range(is_min_open, is_max_open);
+    init_functional_range_(is_min_open, is_max_open);
 }
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
 /////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  Base Function : Getter  ///////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////  Function : Getter  /////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assert argument exists at assignment. Returns it's index. */
 unsigned short Function::assert_arg(const std::string &arg_name) const
 {
-    if (arg_name == HSP_X_)
-        return n_args_; // by convention, last argument is "x"
+    if (arg_name == "x")
+        return n_args_; // by convention, last argument is 'x'
     else
         for (unsigned short c = 0; c < n_args_; ++c)
             if (arguments_[c].name() == arg_name)
@@ -159,8 +144,8 @@ unsigned short Function::assert_arg(const std::string &arg_name) const
     for (unsigned short c = 0; c < n_args_; ++c)
         options.push_back(arguments_[c].name());
     throw std::invalid_argument(
-        "Unknown argument \"" + arg_name + "\" for \"" + function_name_ + "\"." + 
-        tools::str::find_closest(arg_name, options, MIN_STR_DIST));
+        "Unknown argument \"" + arg_name + "\" for \"" + function_name_ + "\"." +
+        tools::str::find_closest(arg_name, options, HSP_MIN_STR_DIST));
 }
 
 /* Wheter all arguments are actually constants.  */
@@ -186,11 +171,11 @@ bool Function::is_constant() const
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  Base Function : set range  ////////////////////////////////////
+///////////////////////////////////  Function : set range  //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Returns the case of the range of validity. */
-unsigned short Function::which_valid_case() const
+unsigned short Function::which_valid_case_() const
 {
     // note: bounded if not pointing internally to NA
     bool is_lower_bound = !(range_min_.is_scalar() && tools::is_na(range_min_.get()));
@@ -199,7 +184,7 @@ unsigned short Function::which_valid_case() const
 }
 
 /* Ensure uniform range (min, max) match argument (min, max). */
-void Function::init_uniform_range()
+void Function::init_uniform_range_()
 {
     // impose range minimum equal to argument minimum
     Attribute &min_arg = arguments_[this->assert_arg("min")];
@@ -217,9 +202,9 @@ void Function::init_uniform_range()
 }
 
 /* Set the range of validity of the value, and the corresponding validation function. */
-void Function::init_functional_range(bool is_min_open, bool is_max_open)
+void Function::init_functional_range_(bool is_min_open, bool is_max_open)
 {
-    switch (which_valid_case())
+    switch (which_valid_case_())
     {
     case 0: //----- unbounded -----//
         is_below_ = &Function::do_is_below_never_;
@@ -286,7 +271,7 @@ void Function::init_functional_range(bool is_min_open, bool is_max_open)
         bool wrong_close = (is_valid_ == &Function::do_is_valid_both_close_) && (range_min_.get() > range_max_.get());
         if (wrong_open || wrong_close)
             throw std::invalid_argument(
-                "Inconsistent range " + str_range() + ".");
+                "Inconsistent range " + str_range() + " for function \"" + name() + "\".");
         break;
     }
 }
@@ -322,18 +307,13 @@ std::string Function::str_range() const
         return "[" + str_min() + ", " + str_max() + "]";
 }
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
 /////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  Base Function : Arguments  /////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////  Function : Arguments  ///////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-//--- Assign scalar argument or range value. ---//
+/// Assign scalar argument or range value.
 void Function::init_attr(const std::string &arg_name, bool is_arg, double x)
 {
     if (is_arg == HSP_ATTR_ARGUMENT)
@@ -341,8 +321,8 @@ void Function::init_attr(const std::string &arg_name, bool is_arg, double x)
     else
         init_range_scalar_(arg_name, x);
 }
-//* Assign pointer argument or range value. *//
-void Function::init_attr(const std::string &arg_name, bool is_arg, const double *y)
+/// Assign pointer argument or range value.
+void Function::init_attr(const std::string &arg_name, bool is_arg, observer_dbl_ptr y)
 {
     // check the function is different from the current one
     if (y == nullptr)
@@ -354,7 +334,7 @@ void Function::init_attr(const std::string &arg_name, bool is_arg, const double 
     else
         init_range_pointer_(arg_name, y);
 }
-//* Assign fucntion argument or range value. *//
+/// Assign fucntion argument or range value.
 void Function::init_attr(const std::string &arg_name, bool is_arg, std::shared_ptr<Function> f)
 {
     // check the function is different from the current one
@@ -371,27 +351,27 @@ void Function::init_attr(const std::string &arg_name, bool is_arg, std::shared_p
         init_range_function_(arg_name, f);
 }
 
-/* Assignment scalar argument. */
+/// Assignment scalar argument.
 void Function::init_arg_scalar_(const std::string &arg_name, double x)
 {
     arguments_[assert_arg(arg_name)].init_scalar(x);
 }
-/* Assignment pointer argument. */
-void Function::init_arg_pointer_(const std::string &arg_name, const double *y)
+/// Assignment pointer argument.
+void Function::init_arg_pointer_(const std::string &arg_name, observer_dbl_ptr y)
 {
     arguments_[assert_arg(arg_name)].init_pointer(y);
 }
-/* Assignment function argument. */
+/// Assignment function argument.
 void Function::init_arg_function_(const std::string &arg_name, std::shared_ptr<Function> f)
 {
     arguments_[assert_arg(arg_name)].init_function(f);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  Base Function : Range  ///////////////////////////////////
+////////////////////////////////////////  Function : Range  /////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Assign scalar range. */
+/// Assign scalar range.
 void Function::init_range_scalar_(const std::string &range_name, double x)
 {
     if (function_name_ == "unif")
@@ -414,8 +394,8 @@ void Function::init_range_scalar_(const std::string &range_name, double x)
     }
 }
 
-/* Assign pointer range. */
-void Function::init_range_pointer_(const std::string &range_name, const double *y)
+/// Assign pointer range.
+void Function::init_range_pointer_(const std::string &range_name, observer_dbl_ptr y)
 {
     if (function_name_ == "unif")
     {
@@ -437,7 +417,7 @@ void Function::init_range_pointer_(const std::string &range_name, const double *
     }
 }
 
-/* Assign function range. */
+/// Assign function range.
 void Function::init_range_function_(const std::string &range_name, const std::shared_ptr<Function> f)
 {
     if (function_name_ == "unif")
@@ -460,46 +440,90 @@ void Function::init_range_function_(const std::string &range_name, const std::sh
     }
 }
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
 /////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  Base Function : Show  /////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  Function : discretization  //////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Return formatted argument names of the distribution. */
+/// Select functional method for discretization.
+void Function::init_functional_discretization_(unsigned short discr_type)
+{
+    switch (discr_type)
+    {
+    case HSP_DISCR_DEFINED: // discrete defined
+        call_ = &Function::do_call_discrete_;
+        log_call_ = &Function::do_log_call_discrete_;
+        primitive_ = &Function::do_primitive_discrete_;
+        log_ratio_ = &Function::do_log_ratio_discrete_;
+        break;
+
+    case HSP_DISCR_CENTER: // centered discretization
+        call_ = &Function::do_call_discr_center_;
+        log_call_ = &Function::do_log_call_discr_center_;
+        primitive_ = &Function::do_primitive_discr_center_;
+        log_ratio_ = &Function::do_log_ratio_discr_center_;
+        break;
+
+    case HSP_DISCR_LEFT: // left discretization
+        call_ = &Function::do_call_discr_left_;
+        log_call_ = &Function::do_log_call_discr_left_;
+        primitive_ = &Function::do_primitive_discr_left_;
+        log_ratio_ = &Function::do_log_ratio_discr_left_;
+        break;
+
+    default: // no discretization (default)
+        call_ = &Function::do_call_;
+        log_call_ = &Function::do_log_call_;
+        primitive_ = &Function::do_primitive_;
+        log_ratio_ = &Function::do_log_ratio_;
+    }
+}
+
+/// Returns the case of the discretization.
+unsigned short Function::which_discrete_case_() const
+{
+    if (call_ == &Function::do_call_discrete_)
+        return HSP_DISCR_DEFINED;
+    else if (call_ == &Function::do_call_discr_center_)
+        return HSP_DISCR_CENTER;
+    else if (call_ == &Function::do_call_discr_left_)
+        return HSP_DISCR_LEFT;
+    return HSP_DISCR_NONE;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////  Function : show  ///////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Return formatted argument names of the distribution.
 std::string Function::str_arg_names() const
 {
     if (n_args_ > 0)
     {
         std::string output = arguments_[0].name();
         for (unsigned short c = 1; c < n_args_; ++c)
-            output += C_LIST_DELIM + arguments_[c].name();
+            output += HSP_LIST_DELIM + arguments_[c].name();
         return output;
     }
-
     return HSP_NA_STRING;
 }
-
-/* Return formatted argument names of the distribution. */
+/// Return formatted argument names of the distribution.
 std::string Function::str_arg_values() const
 {
     if (n_args_ > 0)
     {
         std::string output = arguments_[0].str();
         for (unsigned short c = 1; c < n_args_; ++c)
-            output += C_LIST_DELIM + arguments_[c].str();
+            output += HSP_LIST_DELIM + arguments_[c].str();
         return output;
     }
-
     return HSP_NA_STRING;
 }
 
-/* Return formatted function summary. */
+/// Return formatted function summary.
 std::string Function::str_summary() const
 {
     std::string output = function_name_;
@@ -512,12 +536,11 @@ std::string Function::str_summary() const
     }
     if (is_valid_ != &Function::do_is_valid_always_)
         output += " : " + str_range();
-
     return output;
 }
 
 #ifdef _HOUSEPI_RCPP
-/* Export argument list to R.*/
+/// Export argument list to R.
 Rcpp::NumericVector Function::rcpp_export_args() const
 {
     using namespace Rcpp;
@@ -532,8 +555,7 @@ Rcpp::NumericVector Function::rcpp_export_args() const
     vals.names() = std::move(keys);
     return vals;
 }
-
-/* Export range list to R.*/
+/// Export range list to R.
 Rcpp::NumericVector Function::rcpp_export_range() const
 {
     using namespace Rcpp;
@@ -542,31 +564,34 @@ Rcpp::NumericVector Function::rcpp_export_range() const
 }
 #endif
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  FunctionRegistry : getter  //////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
 str_vec FunctionRegistry::get_options() const
 {
     str_vec keys;
-    keys.reserve(_factory_map.size());
-    for (const auto &pair : _factory_map)
+    keys.reserve(factory_map_.size());
+    for (const auto &pair : factory_map_)
         keys.push_back(pair.first);
     return keys;
 }
 
-std::shared_ptr<Function> FunctionRegistry::get(const std::string &opt) const
+std::shared_ptr<Function> FunctionRegistry::get(const std::string &opt, bool is_primitive) const
 {
-    auto it = _factory_map.find(opt);
-    if (it != _factory_map.end())
-        return it->second();
-    return nullptr;
+    auto output = factory_map_.find(opt)->second();
+    if (is_primitive)
+        output->set_return_primitive();
+    else
+        output->set_return_call();
+    return output;
 }
 
-std::shared_ptr<Function> compose_func_registries(const std::string &opt, const std::string &name,
+std::shared_ptr<Function> compose_func_registries(const std::string &opt,
+                                                  const std::string &name,
+                                                  bool is_primitive,
                                                   const std::vector<const FunctionRegistry *> &registries)
 {
     str_vec options = {};
@@ -578,21 +603,133 @@ std::shared_ptr<Function> compose_func_registries(const std::string &opt, const 
     else
         for (const auto &r : registries)
             if (r->is_valid_option(opt))
-                return r->get(opt);
+                return r->get(opt, is_primitive);
             else
                 options += r->get_options();
 
     throw std::invalid_argument(
         "Unknown " + name + " \"" + opt + "\"." +
-        tools::str::find_closest(opt, options, MIN_STR_DIST));
+        tools::str::find_closest(opt, options, HSP_MIN_STR_DIST));
 }
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////  FunctionRegistry : entries  //////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+#define DEFINE_ARITHMETIC_FUNCTION(ClassName, FunctionName, Symbol, DefaultY)      \
+    class ClassName : public Function                                              \
+    {                                                                              \
+    public:                                                                        \
+        ClassName() : Function(FunctionName, {"x2"}, {DefaultY}) {}                \
+                                                                                   \
+    protected:                                                                     \
+        double do_call_(double x) const override final { return x Symbol arg(0); } \
+    };
+DEFINE_ARITHMETIC_FUNCTION(Addition_Function, "add", +, 0.)
+DEFINE_ARITHMETIC_FUNCTION(Subtraction_Function, "sub", -, 0.)
+DEFINE_ARITHMETIC_FUNCTION(Multiplication_Function, "mult", *, 1.)
+DEFINE_ARITHMETIC_FUNCTION(Division_Function, "div", /, 1.)
+
+/// Power Function.
+class Power_Function : public Function
+{
+public:
+    Power_Function()
+        : Function("pow", {"x2"}, {1.}) {}
+
+protected:
+    double do_call_(double x) const override final { return std::pow(x, arg(0)); }
+    double do_log_call_(double x) const override final { return arg(0) * std::log(x); }
+    double do_primitive_(double x) const override final
+    {
+        if (std::abs(arg(0) + 1.) < 1.e-10)
+            return std::log(std::abs(x));
+        else
+            return std::pow(x, arg(0) + 1.) / (arg(0) + 1.);
+    }
+    double do_log_ratio_(double xo, double xn) const override final { return arg(0) * std::log(xn / xo); }
+};
+
+/// SquareRoot Function.
+class SquareRoot_Function : public Function
+{
+public:
+    SquareRoot_Function() : Function("sqrt", {}, {},
+                                     0., false, HSP_NA_DOUBLE, false) {}
+
+protected:
+    double do_call_(double x) const override final { return std::sqrt(x); }
+    double do_log_call_(double x) const override final { return 0.5 * std::log(x); }
+    double do_primitive_(double x) const override final { return std::pow(x, 1.5) / 1.5; }
+    double do_log_ratio_(double xo, double xn) const override final { return 0.5 * std::log(xn / xo); }
+};
+
+/// Exponential Function.
+class Exponential_Function : public Function
+{
+public:
+    Exponential_Function() : Function("exp") {}
+
+protected:
+    double do_call_(double x) const override final { return std::exp(x); }
+    double do_log_call_(double x) const override final { return x; }
+    double do_primitive_(double x) const override final { return std::exp(x); }
+    double do_log_ratio_(double xo, double xn) const override final { return xn - xo; }
+};
+
+/// Logarithm Function.
+class Logarithm_Function : public Function
+{
+public:
+    Logarithm_Function() : Function("log", {}, {},
+                                    0., true, HSP_NA_DOUBLE, false) {}
+
+protected:
+    double do_call_(double x) const override final { return std::log(x); }
+    double do_log_call_(double x) const override final { return std::log(std::log(x)); }
+    double do_primitive_(double x) const override final { return x * std::log(x) - x; }
+    double do_log_ratio_(double xo, double xn) const override final { return std::log(std::log(xn) / std::log(xo)); }
+};
+
+/// Sine Function.
+class Sine_Function : public Function
+{
+public:
+    Sine_Function() : Function("sin") {}
+
+protected:
+    double do_call_(double x) const override final { return std::sin(x); }
+    double do_log_call_(double x) const override final { return std::log(std::sin(x)); }
+    double do_primitive_(double x) const override final { return -std::cos(x); }
+    double do_log_ratio_(double xo, double xn) const override final { return std::log(std::sin(xn) / std::sin(xo)); }
+};
+
+/// Cosine Function.
+class Cosine_Function : public Function
+{
+public:
+    Cosine_Function() : Function("cos") {}
+
+protected:
+    double do_call_(double x) const override final { return std::cos(x); }
+    double do_log_call_(double x) const override final { return std::log(std::cos(x)); }
+    double do_primitive_(double x) const override final { return std::sin(x); }
+    double do_log_ratio_(double xo, double xn) const override final { return std::log(std::cos(xn) / std::cos(xo)); }
+};
+
+/// Tangent Function.
+class Tangent_Function : public Function
+{
+public:
+    Tangent_Function() : Function("tan") {}
+
+protected:
+    double do_call_(double x) const override final { return std::tan(x); }
+    double do_log_call_(double x) const override final { return std::log(std::tan(x)); }
+    double do_log_ratio_(double xo, double xn) const override final { return std::log(std::tan(xn) / std::tan(xo)); }
+};
 
 #define IMPLEMENT_HOUSEPI_FUNCTION_REGISTRY(ClassName) \
     ClassName &ClassName::inst()                       \
@@ -602,70 +739,12 @@ std::shared_ptr<Function> compose_func_registries(const std::string &opt, const 
     }
 
 IMPLEMENT_HOUSEPI_FUNCTION_REGISTRY(ArithmeticRegistry)
-
-/* Equality Function. */
-class Equality_Function : public Function
-{
-public:
-    //===== CONSTRUCTOR =====//
-    Equality_Function()
-        : Function("eq") {}
-    ~Equality_Function() = default;
-
-    //===== GETTER =====//
-    double return_value(double x) const override final { return x; }
-};
-
-// transcendental_functions.cpp
-#define DEFINE_ARITHMETIC_FUNCTION(ClassName, FunctionName, Symbol, DefaultY)          \
-    class ClassName : public Function                                                  \
-    {                                                                                  \
-    public:                                                                            \
-        ClassName() : Function(FunctionName, {"x2"}, {DefaultY}) {}                     \
-        ~ClassName() = default;                                                        \
-        double return_value(double x) const override final { return x Symbol arg(0); } \
-    };
-DEFINE_ARITHMETIC_FUNCTION(Addition_Function, "add", +, 0.0)
-DEFINE_ARITHMETIC_FUNCTION(Subtraction_Function, "sub", -, 0.0)
-DEFINE_ARITHMETIC_FUNCTION(Multiplication_Function, "mult", *, 1.0)
-DEFINE_ARITHMETIC_FUNCTION(Division_Function, "div", /, 1.0)
-
-REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Equality_Function)
 REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Addition_Function)
 REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Subtraction_Function)
 REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Multiplication_Function)
 REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Division_Function)
 
 IMPLEMENT_HOUSEPI_FUNCTION_REGISTRY(TranscendentalRegistry)
-
-//* Power Function. *//
-class Power_Function : public Function
-{
-public:
-    //===== CONSTRUCTOR =====//
-    Power_Function()
-        : Function("pow", {"x2"}, {1.}) {}
-    ~Power_Function() = default;
-
-    //===== GETTER =====//
-    double return_value(double x) const override final { return std::pow(x, arg(0)); }
-};
-
-#define DEFINE_TRANSCENDENTAL_FUNCTION(ClassName, FunctionName)                             \
-    class ClassName : public Function                                                       \
-    {                                                                                       \
-    public:                                                                                 \
-        ClassName() : Function(#FunctionName) {}                                            \
-        ~ClassName() = default;                                                             \
-        double return_value(double x) const override final { return std::FunctionName(x); } \
-    };
-DEFINE_TRANSCENDENTAL_FUNCTION(SquareRoot_Function, sqrt)
-DEFINE_TRANSCENDENTAL_FUNCTION(Exponential_Function, exp)
-DEFINE_TRANSCENDENTAL_FUNCTION(Logarithm_Function, log)
-DEFINE_TRANSCENDENTAL_FUNCTION(Sine_Function, sin)
-DEFINE_TRANSCENDENTAL_FUNCTION(Cosine_Function, cos)
-DEFINE_TRANSCENDENTAL_FUNCTION(Tangent_Function, tan)
-
 REGISTER_HOUSEPI_FUNCTION(TranscendentalRegistry, Power_Function)
 REGISTER_HOUSEPI_FUNCTION(TranscendentalRegistry, SquareRoot_Function)
 REGISTER_HOUSEPI_FUNCTION(TranscendentalRegistry, Exponential_Function)

@@ -46,12 +46,12 @@ DEFINE_RCPP_IMPORT_LIST_METHOD(InfecProfile)
 
 #define DEFINE_RCPP_IMPORT_TABLE_METHOD(ImplSection) DEFINE_RCPP_IMPORT_METHOD(ImplSection, rdataframe_to_map)
 DEFINE_RCPP_IMPORT_TABLE_METHOD(Parameter);
-DEFINE_RCPP_IMPORT_TABLE_METHOD(DataSet);
-DEFINE_RCPP_IMPORT_TABLE_METHOD(DataList);
+DEFINE_RCPP_IMPORT_TABLE_METHOD(DataWide);
+DEFINE_RCPP_IMPORT_TABLE_METHOD(DataLong);
 DEFINE_RCPP_IMPORT_TABLE_METHOD(GroupRates);
 
 /* Import multiplicity definitions from R DataFrame and run build. */
-void MCMC::Impl::DataSet::rcpp_import_multiplicity(SEXP input)
+void MCMC::Impl::DataWide::rcpp_import_multiplicity(SEXP input)
 {
     try
     {
@@ -181,7 +181,7 @@ Rcpp::List MCMC::Impl::InfecProfile::rcpp_export() const
 }
 
 /* Export to R all augmented variables at the current state. */
-Rcpp::DataFrame MCMC::Impl::Augmented::rcpp_export_dataset() const
+Rcpp::DataFrame MCMC::Impl::Augmented::rcpp_export_data_wide() const
 {
     using namespace Rcpp;
 
@@ -213,7 +213,7 @@ Rcpp::DataFrame MCMC::Impl::Augmented::rcpp_export_dataset() const
 //////////////////////////////////  MCMC : Impl : dataset exports  ////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Rcpp::DataFrame MCMC::Impl::DataSet::rcpp_export(const str_vec &columns, bool is_status) const
+Rcpp::DataFrame MCMC::Impl::DataWide::rcpp_export(const str_vec &columns, bool is_status) const
 {
     using namespace Rcpp;
 
@@ -257,18 +257,18 @@ Rcpp::DataFrame MCMC::Impl::DataSet::rcpp_export(const str_vec &columns, bool is
     }
     catch (const std::exception &e)
     {
-        tools::error("While exporting dataset:\n" +
+        tools::error("While exporting data (wide):\n" +
                      std::string(e.what()));
     }
     return DataFrame();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////  MCMC : Impl  : export datalist  //////////////////////////////
+//////////////////////////////  MCMC : Impl  : export datalong  //////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Export current data configurations to R DataFrame. */
-Rcpp::DataFrame MCMC::Impl::DataList::rcpp_export() const
+Rcpp::DataFrame MCMC::Impl::DataLong::rcpp_export() const
 {
     using namespace Rcpp;
 
@@ -284,7 +284,7 @@ Rcpp::DataFrame MCMC::Impl::DataList::rcpp_export() const
 
         CharacterVector datalist_index = CharacterVector(n_rows);
 
-        // other non standard datalist columns
+        // other non standard datalong columns
         std::vector<NumericVector> datalist_dbl = {};
         datalist_dbl.reserve(headers_.size());
         for (size_t c = 0; c < headers_.size(); ++c)
@@ -293,11 +293,11 @@ Rcpp::DataFrame MCMC::Impl::DataList::rcpp_export() const
         size_t r = 0;
         for (const Household &house : pImpl_.dataset)
             for (const Individual &member : house)
-                for (size_t k = 0; k < member.datalist(headers_[0]).size(); ++k, ++r)
+                for (size_t k = 0; k < member.datalong(headers_[0]).size(); ++k, ++r)
                 {
                     datalist_index[r] = member.id();
                     for (size_t c = 0; c < headers_.size(); ++c)
-                        datalist_dbl[c][r] = member.datalist(headers_[c])[k];
+                        datalist_dbl[c][r] = member.datalong(headers_[c])[k];
                 }
 
         // assign vectors to dataframe
@@ -309,7 +309,7 @@ Rcpp::DataFrame MCMC::Impl::DataList::rcpp_export() const
     }
     catch (const std::exception &e)
     {
-        tools::error("While exporting datalist:\n" +
+        tools::error("While exporting data (long):\n" +
                      std::string(e.what()));
     }
     return DataFrame();
@@ -320,7 +320,7 @@ Rcpp::DataFrame MCMC::Impl::DataList::rcpp_export() const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Export current data configurations to R DataFrame. */
-Rcpp::DataFrame MCMC::Impl::DataSet::rcpp_export_report() const
+Rcpp::DataFrame MCMC::Impl::DataWide::rcpp_export_report() const
 {
     using namespace Rcpp;
 
@@ -328,7 +328,7 @@ Rcpp::DataFrame MCMC::Impl::DataSet::rcpp_export_report() const
     {
         if (is_empty())
             throw std::length_error(
-                "No report available for empty dataset.");
+                "No report available for empty data.");
 
         size_t n_rows = report_indiv_.size() + report_house_.size();
         CharacterVector type(n_rows), comment(n_rows);
@@ -360,7 +360,7 @@ Rcpp::DataFrame MCMC::Impl::DataSet::rcpp_export_report() const
     }
     catch (const std::exception &e)
     {
-        tools::error("While exporting dataset report:\n" +
+        tools::error("While exporting data report:\n" +
                      std::string(e.what()));
     }
     return DataFrame();
@@ -371,7 +371,7 @@ Rcpp::DataFrame MCMC::Impl::DataSet::rcpp_export_report() const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Export current data configurations to R DataFrame. */
-Rcpp::DataFrame MCMC::Impl::DataSet::rcpp_export_size_report() const
+Rcpp::DataFrame MCMC::Impl::DataWide::rcpp_export_size_report() const
 {
     using namespace Rcpp;
 
@@ -501,7 +501,7 @@ Rcpp::NumericMatrix MCMC::Impl::rcpp_export_draws() const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Export all sampled values of the loglikelihood for all household. */
-Rcpp::NumericMatrix MCMC::Impl::DataSet::rcpp_export_draws() const
+Rcpp::NumericMatrix MCMC::Impl::DataWide::rcpp_export_draws() const
 {
     using namespace Rcpp;
 
@@ -576,7 +576,7 @@ Rcpp::NumericVector MCMC::Impl::Parameter::rcpp_snapshot() const
 }
 
 /* Export to R a snapshot of current state of house dataset. */
-Rcpp::DataFrame MCMC::Impl::DataSet::rcpp_snapshot(const std::string &house_id) const
+Rcpp::DataFrame MCMC::Impl::DataWide::rcpp_snapshot(const std::string &house_id) const
 {
     using namespace Rcpp;
 
@@ -612,8 +612,8 @@ Rcpp::DataFrame MCMC::Impl::DataSet::rcpp_snapshot(const std::string &house_id) 
     return output;
 }
 
-/* Export to R a snapshot of current state of house datalist. */
-Rcpp::DataFrame MCMC::Impl::DataList::rcpp_snapshot(const std::string &house_id) const
+/* Export to R a snapshot of current state of house datalong. */
+Rcpp::DataFrame MCMC::Impl::DataLong::rcpp_snapshot(const std::string &house_id) const
 {
     using namespace Rcpp;
 
@@ -623,7 +623,7 @@ Rcpp::DataFrame MCMC::Impl::DataList::rcpp_snapshot(const std::string &house_id)
         size_t n_rows = 0;
 
         for (const Individual &member : house)
-            n_rows += member.datalist(headers_[0]).size();
+            n_rows += member.datalong(headers_[0]).size();
 
         CharacterVector datalist_id = CharacterVector(n_rows);
 
@@ -634,11 +634,11 @@ Rcpp::DataFrame MCMC::Impl::DataList::rcpp_snapshot(const std::string &house_id)
 
         size_t r = 0;
         for (const Individual &member : house)
-            for (size_t i = 0; i < member.datalist(headers_[0]).size(); ++i)
+            for (size_t i = 0; i < member.datalong(headers_[0]).size(); ++i)
             {
                 datalist_id[r] = member.id();
                 for (size_t c = 0; c < headers_.size(); ++c)
-                    datalist_dbl[c][r] = member.datalist(headers_[c])[i];
+                    datalist_dbl[c][r] = member.datalong(headers_[c])[i];
                 ++r;
             }
 
@@ -786,8 +786,8 @@ Rcpp::List MCMC::Impl::rcpp_export_house_snapshot(const std::string &house_id) c
     {
         if (!dataset.is_empty())
             return List::create(_["param"] = param.rcpp_snapshot(),
-                                _["dataset"] = dataset.rcpp_snapshot(house_id),
-                                _["datalist"] = datalist.rcpp_snapshot(house_id),
+                                _["data_wide"] = dataset.rcpp_snapshot(house_id),
+                                _["data_long"] = datalong.rcpp_snapshot(house_id),
                                 _["group_rates"] = group_rates.rcpp_snapshot(house_id),
                                 _["infec_profile"] = infec_profile.rcpp_snapshot(house_id),
                                 _["augm"] = augm.rcpp_snapshot(house_id));
@@ -828,12 +828,12 @@ DEFINE_READ_LIST_METHOD(InfecProfile)
 
 #define DEFINE_READ_TABLE_METHOD(ImplSection) DEFINE_READ_METHOD(ImplSection, read_csv_table)
 DEFINE_READ_TABLE_METHOD(Parameter);
-DEFINE_READ_TABLE_METHOD(DataSet);
-DEFINE_READ_TABLE_METHOD(DataList);
+DEFINE_READ_TABLE_METHOD(DataWide);
+DEFINE_READ_TABLE_METHOD(DataLong);
 DEFINE_READ_TABLE_METHOD(GroupRates);
 
 /* Read multiplicity file and then run assignment. */
-void MCMC::Impl::DataSet::read_multiplicity(const std::string &f)
+void MCMC::Impl::DataWide::read_multiplicity(const std::string &f)
 {
     try
     {
@@ -881,7 +881,7 @@ const std::string _percent_(int n, int d) { return std::string(std::round(100. *
 const std::string _trail_percent_(int n, int d) { return std::to_string(n) + " (" + _percent_(n, d) + ")"; }
 
 /* Print the report of the database and of the model group rates. */
-void MCMC::Impl::DataSet::show_summary() const
+void MCMC::Impl::DataWide::show_summary() const
 {
     std::cout << "n. of individuals: " << n_individuals_
               << "\n    * n. of cases: "
@@ -927,21 +927,21 @@ void MCMC::Impl::Setup::show() const
     {
         id_draws_txt = pImpl_.augm.smpl_individuals[0]->id();
         for (size_t k = 1; k < pImpl_.augm.smpl_individuals.size(); ++k)
-            id_draws_txt += C_LIST_DELIM + pImpl_.augm.smpl_individuals[k]->id();
+            id_draws_txt += HSP_LIST_DELIM + pImpl_.augm.smpl_individuals[k]->id();
     }
 
     // common setup variables
-    std::cout << "seed" << C_DELIM << seed
-              << "\nn_threads" << C_DELIM << n_threads
-              << "\nn_chains" << C_DELIM << n_chains
-              << "\nsample_size" << C_DELIM << c_sample_size
-              << "\nn_steps" << C_DELIM << n_steps
-              << "\nn_adapt" << C_DELIM << n_adapt
-              << "\nn_burnin" << C_DELIM << n_burnin
-              << "\nthin" << C_DELIM << thin
-              << "\nrand_init" << C_DELIM << tools::str::format(rand_init_params)
-              << "\nprogress" << C_DELIM << progress
-              << "\nid_draws" << C_DELIM << id_draws_txt
+    std::cout << "seed" << HSP_DELIM << seed
+              << "\nn_threads" << HSP_DELIM << n_threads
+              << "\nn_chains" << HSP_DELIM << n_chains
+              << "\nsample_size" << HSP_DELIM << c_sample_size
+              << "\nn_steps" << HSP_DELIM << n_steps
+              << "\nn_adapt" << HSP_DELIM << n_adapt
+              << "\nn_burnin" << HSP_DELIM << n_burnin
+              << "\nthin" << HSP_DELIM << thin
+              << "\nrand_init" << HSP_DELIM << tools::str::format(rand_init_params)
+              << "\nprogress" << HSP_DELIM << progress
+              << "\nid_draws" << HSP_DELIM << id_draws_txt
               << "\n";
     std::cout << std::endl;
 }
@@ -956,7 +956,7 @@ void MCMC::Impl::Parameter::show() const
     // show the headers
     std::cout << file_headers[0];
     for (size_t k = 1; k < file_headers.size(); ++k)
-        std::cout << C_DELIM << file_headers[k];
+        std::cout << HSP_DELIM << file_headers[k];
     std::cout << "\n";
 
     // show parameter definitions
@@ -965,16 +965,16 @@ void MCMC::Impl::Parameter::show() const
     {
         const Variable &aux = dictionary_.find(p)->second;
         std::cout << aux.name()
-                  << C_DELIM << tools::str::format(aux.get())
-                  << C_DELIM << tools::str::format(aux.is_constant())
-                  << C_DELIM << tools::str::format(aux.is_discrete())
-                  << C_DELIM << aux.distr_name()
-                  << C_DELIM << aux.distr_str_arg_names()
-                  << C_DELIM << aux.distr_str_arg_values()
-                  << C_DELIM << aux.prop_name()
-                  << C_DELIM << aux.prop_str_scale()
-                  << C_DELIM << aux.str_min()
-                  << C_DELIM << aux.str_max()
+                  << HSP_DELIM << tools::str::format(aux.get())
+                  << HSP_DELIM << tools::str::format(aux.is_constant())
+                  << HSP_DELIM << tools::str::format(aux.is_discrete())
+                  << HSP_DELIM << aux.distr_name()
+                  << HSP_DELIM << aux.distr_str_arg_names()
+                  << HSP_DELIM << aux.distr_str_arg_values()
+                  << HSP_DELIM << aux.prop_name()
+                  << HSP_DELIM << aux.prop_str_scale()
+                  << HSP_DELIM << aux.str_min()
+                  << HSP_DELIM << aux.str_max()
                   << "\n";
     }
     std::cout << std::endl;
@@ -987,9 +987,9 @@ void MCMC::Impl::Parameter::show() const
 /* Show the results of the paramters. */
 void MCMC::Impl::Parameter::show_results() const
 {
-    std::cout << "name" << C_DELIM << "value" << C_DELIM << "value_sd";
+    std::cout << "name" << HSP_DELIM << "value" << HSP_DELIM << "value_sd";
     for (size_t k = 2; k < file_headers.size(); ++k)
-        std::cout << C_DELIM << file_headers[k];
+        std::cout << HSP_DELIM << file_headers[k];
     std::cout << "\n";
 
     for (const std::string &p : list_sample)
@@ -998,17 +998,17 @@ void MCMC::Impl::Parameter::show_results() const
         const std::pair<double, double> stats = tools::compute_stats(smpl_values.find(p)->second);
 
         std::cout << p
-                  << C_DELIM << stats.first
-                  << C_DELIM << std::sqrt(stats.second)
-                  << C_DELIM << tools::str::format(this_param.is_constant())
-                  << C_DELIM << tools::str::format(this_param.is_discrete())
-                  << C_DELIM << this_param.distr_name()
-                  << C_DELIM << this_param.distr_str_arg_names()
-                  << C_DELIM << this_param.distr_str_arg_values()
-                  << C_DELIM << this_param.str_min()
-                  << C_DELIM << this_param.str_max()
-                  << C_DELIM << this_param.prop_name()
-                  << C_DELIM << this_param.prop_str_scale()
+                  << HSP_DELIM << stats.first
+                  << HSP_DELIM << std::sqrt(stats.second)
+                  << HSP_DELIM << tools::str::format(this_param.is_constant())
+                  << HSP_DELIM << tools::str::format(this_param.is_discrete())
+                  << HSP_DELIM << this_param.distr_name()
+                  << HSP_DELIM << this_param.distr_str_arg_names()
+                  << HSP_DELIM << this_param.distr_str_arg_values()
+                  << HSP_DELIM << this_param.str_min()
+                  << HSP_DELIM << this_param.str_max()
+                  << HSP_DELIM << this_param.prop_name()
+                  << HSP_DELIM << this_param.prop_str_scale()
                   << "\n";
     }
     std::cout << std::endl;
@@ -1037,11 +1037,11 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
         {
             //----- HEADERS -----//
             // header loglikelihood
-            inferstate_ofstream << "iteration" << C_DELIM << "loglikelihood";
+            inferstate_ofstream << "iteration" << HSP_DELIM << "loglikelihood";
 
             // header parameters
             for (const std::string &p : param.list_sample)
-                inferstate_ofstream << C_DELIM << p;
+                inferstate_ofstream << HSP_DELIM << p;
 
             // augmented variable of id trace
             if (augm.is_any_draw())
@@ -1050,7 +1050,7 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
                         inferstate_ofstream << augm.smpl_individuals[k]->id() + "_" + a;
 
             // header chain
-            inferstate_ofstream << C_DELIM << HSP_CHAIN_COL << std::endl;
+            inferstate_ofstream << HSP_DELIM << HSP_CHAIN_COL << std::endl;
 
             //----- VALUES -----//
 
@@ -1064,23 +1064,23 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
                     inferstate_ofstream << sweep;
 
                     // print loglikelihood
-                    inferstate_ofstream << C_DELIM << std::setprecision(2)
+                    inferstate_ofstream << HSP_DELIM << std::setprecision(2)
                                         << std::fixed << smpl_full_loglike_[i];
 
                     // print parameter values
                     for (const std::string &p : param.list_sample)
-                        inferstate_ofstream << C_DELIM << std::setprecision(5)
+                        inferstate_ofstream << HSP_DELIM << std::setprecision(5)
                                             << std::fixed << param.smpl_values.find(p)->second[i];
 
                     // print augmented variable of id trace
                     if (!augm.smpl_values.empty())
                         for (size_t k = 0; k < augm.smpl_individuals.size(); ++k)
                             for (const std::string &a : augm.list_draws)
-                                inferstate_ofstream << C_DELIM << std::setprecision(5)
+                                inferstate_ofstream << HSP_DELIM << std::setprecision(5)
                                                     << std::fixed << augm.smpl_values[k].find(a)->second[i];
 
                     // print which chain
-                    inferstate_ofstream << C_DELIM << (c + 1) << std::endl;
+                    inferstate_ofstream << HSP_DELIM << (c + 1) << std::endl;
                 }
 
             inferstate_ofstream.close();
@@ -1096,48 +1096,48 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Print all augmented variables of each individual */
-void MCMC::Impl::DataSet::print_open(const std::string &f)
+void MCMC::Impl::DataWide::print_open(const std::string &f)
 {
-    aux_dataset_ofstream_.open(f.c_str());
+    aux_ofstream_.open(f.c_str());
 
-    if (aux_dataset_ofstream_.is_open())
+    if (aux_ofstream_.is_open())
     {
         // print default data headers
-        aux_dataset_ofstream_ << "id" << C_DELIM << "house_id" << C_DELIM << "status";
+        aux_ofstream_ << "id" << HSP_DELIM << "house_id" << HSP_DELIM << "status";
 
         // print other data headers
         for (const std::string &d : headers_)
-            aux_dataset_ofstream_ << C_DELIM << d;
+            aux_ofstream_ << HSP_DELIM << d;
 
         // print augmented variables headers
         for (const std::string &a : pImpl_.augm.list_export)
-            aux_dataset_ofstream_ << C_DELIM << a;
+            aux_ofstream_ << HSP_DELIM << a;
 
-        aux_dataset_ofstream_ << std::endl;
+        aux_ofstream_ << std::endl;
     }
     else
         throw std::runtime_error("Unable to open file: \"" + f + "\"");
 }
 
 /* Print all augmented variables of each individual */
-void MCMC::Impl::DataSet::print_update(Household &house)
+void MCMC::Impl::DataWide::print_update(Household &house)
 {
-    if (aux_dataset_ofstream_.is_open())
+    if (aux_ofstream_.is_open())
         for (const Individual &member : house)
         {
-            aux_dataset_ofstream_ << member.id()
-                                  << C_DELIM << house.house_id()
-                                  << C_DELIM << member.status();
+            aux_ofstream_ << member.id()
+                                  << HSP_DELIM << house.house_id()
+                                  << HSP_DELIM << member.status();
             for (const std::string &d : headers_)
-                aux_dataset_ofstream_ << C_DELIM << member.data(d);
+                aux_ofstream_ << HSP_DELIM << member.data(d);
 
             for (const std::string &a : pImpl_.augm.list_export)
                 if (member.is_infected_status())
-                    aux_dataset_ofstream_ << C_DELIM << tools::str::format(member.augm(a));
+                    aux_ofstream_ << HSP_DELIM << tools::str::format(member.augm(a));
                 else
-                    aux_dataset_ofstream_ << C_DELIM << HSP_NA_DOUBLE;
+                    aux_ofstream_ << HSP_DELIM << HSP_NA_DOUBLE;
 
-            aux_dataset_ofstream_ << std::endl;
+            aux_ofstream_ << std::endl;
         }
     else
         throw std::runtime_error(
@@ -1145,10 +1145,10 @@ void MCMC::Impl::DataSet::print_update(Household &house)
 }
 
 /* Print all augmented variables of each individual */
-void MCMC::Impl::DataSet::print_close()
+void MCMC::Impl::DataWide::print_close()
 {
-    if (aux_dataset_ofstream_.is_open())
-        aux_dataset_ofstream_.close();
+    if (aux_ofstream_.is_open())
+        aux_ofstream_.close();
     else
         throw std::runtime_error(
             "Output file closed unexpectedly.");

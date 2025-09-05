@@ -118,7 +118,7 @@ void MCMC::Impl::Parameter::clear_draws()
 }
 
 /* Initialize posterior sample of parameters. */
-void MCMC::Impl::DataSet::init_draws(unsigned long sample_size)
+void MCMC::Impl::DataWide::init_draws(unsigned long sample_size)
 {
     // sample over households
     smpl_values_.clear();
@@ -132,7 +132,7 @@ void MCMC::Impl::DataSet::init_draws(unsigned long sample_size)
 }
 
 /* Store current sample of loglikelihood for restricted households. */
-void MCMC::Impl::DataSet::update_draws(unsigned long smpl_count)
+void MCMC::Impl::DataWide::update_draws(unsigned long smpl_count)
 {
     // store sample for restricted households
     for (size_t R = 0; R < restrict_indexes_.size(); ++R)
@@ -146,7 +146,7 @@ void MCMC::Impl::DataSet::update_draws(unsigned long smpl_count)
 }
 
 /* Clear posterior sample of dataset. */
-void MCMC::Impl::DataSet::clear_draws()
+void MCMC::Impl::DataWide::clear_draws()
 {
     for (size_t R = 0; R < restrict_indexes_.size(); ++R)
     {
@@ -488,7 +488,7 @@ std::vector<dbl_vec> MCMC::Impl::power_posteriors_(const std::string &scheme, un
         const str_vec options = {"adaptive", "power-fractions"};
         if (!(options % scheme))
             throw std::invalid_argument("Unknown power posterior scheme \"" + scheme + "\"." +
-                                        tools::str::find_closest(scheme, options, MIN_STR_DIST));
+                                        tools::str::find_closest(scheme, options, HSP_MIN_STR_DIST));
 
         init_monte_carlo_(); // initialize mcmc sampling
 
@@ -772,7 +772,7 @@ Rcpp::List MCMC::Impl::evidence(const std::string &scheme, unsigned long n_rungs
 
 #else
 /* Print the simulated dataset to the provided file. */
-void MCMC::Impl::print_simulated_dataset(const std::string &pathtofile)
+void MCMC::Impl::print_simulated_data_wide(const std::string &pathtofile)
 {
     try
     {

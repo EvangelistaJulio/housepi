@@ -307,7 +307,7 @@ helper_clone <- function(x) {
 default_types_ <- function(types, values) {
   valid_types <- list("S" = "scalar",
                       "P" = "parameter",
-                      "D" = "dataset",
+                      "D" = "data",
                       "A" = "augmented")
 
   for (i in seq_along(types)) {
@@ -412,7 +412,7 @@ char_setup_input_ <- function(defs) {
 #' @title
 #' Character Data Input
 #' @description
-#' Format elements of dataset (or datalist) to pass to import Rcpp method.
+#' Format elements of data (wide or long) to pass to import Rcpp method.
 #'
 #' @param df `data.frame()`\cr
 #' Dataest or datalist.
@@ -429,7 +429,7 @@ char_data_input_ <- function(df) {
 #' @title
 #' Cpp Data Factorize
 #' @description
-#' Factorize dates and non numerical quanties from dataset to pass Cpp.
+#' Factorize dates and non numerical quanties from data to pass Cpp.
 #'
 #' @param df `data.frame`\cr
 #' Dataset.
@@ -472,12 +472,12 @@ cpp_data_factorize <- function(df) {
 #' @title
 #' Cpp Data Refactor
 #' @description
-#' Restore factored quanties on dataset return from Cpp implementation.
+#' Restore factored quanties on data return from Cpp implementation.
 #'
 #' @param data `data.frame`\cr
 #' Data as output from rcpp model object.
 #' @param info `list` of `list\cr
-#' Infor about class and levels of dataset columns.
+#' Infor about class and levels of data columns.
 #' @param headers `character()`\cr
 #' Headers of the columns.
 #'

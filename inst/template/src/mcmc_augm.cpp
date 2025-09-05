@@ -16,18 +16,13 @@
 
 #include "mcmc_impl.h"
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
+///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  MCMC : Impl : Augmented : build  ///////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Assign augmented variables to all individuals. */
+/// Assign augmented variables to all individuals.
 void MCMC::Impl::Augmented::build()
 {
     try
@@ -95,7 +90,7 @@ void MCMC::Impl::Augmented::build()
 ///////////////////////////////  MCMC : Impl : build check definitions  ///////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Produce auxiliary variable to load definitions : a -> status lists */
+/// Produce auxiliary variable to load definitions : a -> status lists.
 dict_str_vec MCMC::Impl::Augmented::check_name_status_(const dict_str_vec &deftable)
 {
     const size_t table_length = deftable.at("name").size();
@@ -131,7 +126,7 @@ dict_str_vec MCMC::Impl::Augmented::check_name_status_(const dict_str_vec &defta
     return output;
 }
 
-/* Check univocal definitions and allocate new lists. */
+/// Check univocal definitions and allocate new lists.
 void MCMC::Impl::Augmented::allocate_univocal_defs_(const dict_str_vec &check)
 {
     // drop previous definitions
@@ -148,7 +143,7 @@ void MCMC::Impl::Augmented::allocate_univocal_defs_(const dict_str_vec &check)
             if (!tools::is_na(status))
             {
                 int s = tools::str::toi(status, "augmented status");
-                if (s >= INFECTED_STATUS)
+                if (s >= HSP_INFECTED_STATUS)
                 {
                     status_map_infer.emplace(s, str_vec{});
                     status_map_model.emplace(s, str_vec{});
@@ -168,10 +163,9 @@ void MCMC::Impl::Augmented::allocate_univocal_defs_(const dict_str_vec &check)
 ///////////////////////////////////  MCMC : Impl : build variables  ///////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Deal with the definition of augmented function.
- * UPDATE: improve implementation of constant function definitions
- * NOTE: under development
- */
+/// Deal with the definition of augmented function.
+/// UPDATE: improve implementation of constant function definitions
+/// NOTE: under development
 void MCMC::Impl::Augmented::build_function_(size_t k)
 {
     const std::string &func = deftable.at("func")[k];
@@ -182,36 +176,46 @@ void MCMC::Impl::Augmented::build_function_(size_t k)
         list_func.push_back(deftable.at("name")[k]);
 }
 
-/* Build augmented equality function. */
+/// Build augmented equality function and change deftable.
 void MCMC::Impl::Augmented::build_function_equality_(size_t k)
 {
     const std::string &a = deftable.at("name")[k];
-    str_vec vals = tools::parse_list_args(deftable.at("farg_at")[k], C_LIST_DELIM);
-    str_vec types = tools::parse_list_args(deftable.at("farg_at")[k], C_LIST_DELIM);
+    str_vec vals = tools::parse_list_args(deftable.at("farg_at")[k], HSP_LIST_DELIM);
+    str_vec types = tools::parse_list_args(deftable.at("farg_at")[k], HSP_LIST_DELIM);
     // note: emptiness is checked elsewhere
 
-    if (types.size() != 1)
+    if (types.size() != 1 || vals.size() != 1)
         throw std::invalid_argument(
             "Augmented equality function \"" + a + "\" has incorrect arguments.");
     else
     {
-        types = tools::str::toup(types);
-        if ((types - str_vec({"S", "D"})).empty())
-            list_const.push_back(a);
-        else if (types % "P")
+        std::string eq_type = tools::str::toup(types)[0];
+        bool is_eq_const = true;
+
+        // check the type of requested equality
+        if (eq_type == HSP_TYPE_PARAM)
+            is_eq_const = pImpl_.param.at(vals[0]).is_constant();
+        else if (eq_type == HSP_TYPE_AUGM)
+            is_eq_const = false; // UPDATE: use an augmented dependecies tree to see if constant
+
+        if (is_eq_const)
         {
-            if (pImpl_.param.at(vals[0]).is_constant())
-                list_const.push_back(a);
-            else
-                list_func.push_back(a);
+            list_const.push_back(a);
+            // rewrite deftable 
+            deftable.at("func")[k] = HSP_NA_STRING;
+            deftable.at("farg_key")[k] = HSP_NA_STRING;
+            deftable.at("farg_val")[k] = HSP_NA_STRING;
+            deftable.at("farg_at")[k] = HSP_NA_STRING;
+            deftable.at("value")[k] = vals[0];
+            deftable.at("value_at")[k] = eq_type;
+            deftable.at("const")[k] = "true";
         }
         else
-            // UPDATE: down deep the augmented dependecies tree...
             list_func.push_back(a);
     }
 }
 
-/* Deal with the definition of augmented variable to be sampled. */
+/// Deal with the definition of augmented variable to be sampled.
 void MCMC::Impl::Augmented::build_var_to_sample_(size_t k)
 {
     const std::string &a = deftable.at("name")[k];
@@ -245,7 +249,7 @@ void MCMC::Impl::Augmented::build_var_to_sample_(size_t k)
     }
 }
 
-/* Deal with the definition of augmented variable with a model. */
+/// Deal with the definition of augmented variable with a model.
 void MCMC::Impl::Augmented::build_var_with_model_(size_t k)
 {
     if (!tools::is_na(deftable.at("model")[k]))
@@ -269,18 +273,13 @@ void MCMC::Impl::Augmented::build_var_with_model_(size_t k)
     }
 }
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
+///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////  MCMC : Impl : Augmented : sample draws  ////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Search individual id for augmented draws follow-up. */
+/// Search individual id for augmented draws follow-up.
 void MCMC::Impl::Augmented::set_id_draws_(str_vec &id_draws)
 {
     smpl_individuals.clear();
@@ -321,7 +320,7 @@ void MCMC::Impl::Augmented::set_id_draws_(str_vec &id_draws)
             {
                 tools::warning(
                     "Ignoring id trace for individual(s) " +
-                    tools::str::format(id_draws, MAX_STR_PRINT));
+                    tools::str::format(id_draws, HSP_MAX_STR_PRINT));
                 id_draws.clear();
             }
         }
@@ -334,7 +333,7 @@ void MCMC::Impl::Augmented::set_id_draws_(str_vec &id_draws)
     }
 }
 
-/* Initialize sample for individual augmented variable followup. */
+/// Initialize sample for individual augmented variable followup.
 void MCMC::Impl::Augmented::init_draws(unsigned long sample_size)
 {
     if (is_any_draw())
@@ -354,7 +353,7 @@ void MCMC::Impl::Augmented::init_draws(unsigned long sample_size)
     }
 }
 
-/* Store sample for individual augmented variable followup */
+/// Store sample for individual augmented variable followup.
 void MCMC::Impl::Augmented::update_draws(unsigned long smpl_count)
 {
     if (is_any_draw())
@@ -367,10 +366,8 @@ void MCMC::Impl::Augmented::update_draws(unsigned long smpl_count)
         }
 }
 
-/**
- * Clears all memory allocated by the Augmented structure.
- * Call this when the data is no longer needed to prevent memory leaks.
- */
+/// Clears all memory allocated by the Augmented structure.
+/// Call this when the data is no longer needed to prevent memory leaks.
 void MCMC::Impl::Augmented::clear_draws()
 {
     smpl_individuals.clear();
@@ -391,29 +388,20 @@ void MCMC::Impl::Augmented::clear_draws()
     smpl_values.shrink_to_fit();
 }
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////  MCMC::Impl : assign augmented variables  //////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////  MCMC::Impl : assign augmented variables  /////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Clear all augmented definition of individual. */
+/// Clear all augmented definition of individual.
 void MCMC::Impl::Augmented::clear_all(Individual &member)
 {
     for (const std::string &a : list_full)
         member.clear_augm(a);
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  MCMC : init augmented variables  ////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Initialize augmented dependecies for all households. */
+/// Initialize augmented dependecies for all households.
 void MCMC::Impl::Augmented::init()
 {
     if (is_any())
@@ -422,7 +410,7 @@ void MCMC::Impl::Augmented::init()
                 init_all(member);
 }
 
-/* Assign augmented variables to single individual. */
+/// Assign augmented variables to single individual.
 void MCMC::Impl::Augmented::init_all(Individual &member)
 {
     try
@@ -442,13 +430,12 @@ void MCMC::Impl::Augmented::init_all(Individual &member)
                 const std::string a = deftable.at("name")[k];
 
                 // assign augmented variable placeholder
-                // FIXME: what if constant = T, discrete = T and value != integer?
                 member.init_augm(a,
-                                 deftable.at("name")[k],
                                  type_to_double_(member, deftable.at("value")[k], deftable.at("value_at")[k]),
-                                 tools::str::tobool(deftable.at("discr")[k]),
                                  tools::str::tobool(deftable.at("const")[k]),
+                                 tools::str::tobool(deftable.at("discr")[k]),
                                  deftable.at("func")[k],
+                                 tools::str::tobool(deftable.at("fcumul")[k]),
                                  deftable.at("model")[k]);
 
                 // add entry to individual augmented variable list
@@ -481,15 +468,16 @@ void MCMC::Impl::Augmented::init_all(Individual &member)
     }
 }
 
+/// Assign model arguments and range. Same for function, otherwise assign proposer. 
 void MCMC::Impl::Augmented::init_single_var_dependencies_(Individual &member, const std::string &a, size_t k)
 {
     Variable &xaugm = member.get_augm_variable(a);
 
     // assign arguments to model
     init_model_args_(member, a,
-                     tools::parse_list_args(deftable.at("arg_key")[k], C_LIST_DELIM),
-                     tools::parse_list_args(deftable.at("arg_val")[k], C_LIST_DELIM),
-                     tools::parse_list_args(deftable.at("arg_at")[k], C_LIST_DELIM));
+                     tools::parse_list_args(deftable.at("arg_key")[k], HSP_LIST_DELIM),
+                     tools::parse_list_args(deftable.at("arg_val")[k], HSP_LIST_DELIM),
+                     tools::parse_list_args(deftable.at("arg_at")[k], HSP_LIST_DELIM));
 
     // assign range to model
     init_model_range_(member, a,
@@ -501,9 +489,9 @@ void MCMC::Impl::Augmented::init_single_var_dependencies_(Individual &member, co
     {
         // assign arguments to function
         init_func_args_(member, a,
-                        tools::parse_list_args(deftable.at("farg_key")[k], C_LIST_DELIM),
-                        tools::parse_list_args(deftable.at("farg_val")[k], C_LIST_DELIM),
-                        tools::parse_list_args(deftable.at("farg_at")[k], C_LIST_DELIM));
+                        tools::parse_list_args(deftable.at("farg_key")[k], HSP_LIST_DELIM),
+                        tools::parse_list_args(deftable.at("farg_val")[k], HSP_LIST_DELIM),
+                        tools::parse_list_args(deftable.at("farg_at")[k], HSP_LIST_DELIM));
         // assign range to function
         init_func_range_(member, a,
                          {deftable.at("min")[k], deftable.at("max")[k]},
@@ -543,20 +531,20 @@ double MCMC::Impl::Augmented::type_to_double_(const Individual &member,
             tools::warning(
                 "Ignoring value type without a paired value.");
 
-        else if (tools::str::toup(type) == TYPE_SCALAR)
+        else if (tools::str::toup(type) == HSP_TYPE_SCALAR)
             output = tools::str::tod(value, "argument with scalar type");
 
-        else if (tools::str::toup(type) == TYPE_DATA)
+        else if (tools::str::toup(type) == HSP_TYPE_DATA)
             output = member.data(value);
 
-        else if (tools::str::toup(type) == TYPE_PARAM)
+        else if (tools::str::toup(type) == HSP_TYPE_PARAM)
             if (pImpl_.param.at(value).is_constant())
                 output = pImpl_.param.get(value);
             else
                 throw std::invalid_argument(
                     "Parameter to be inferred \"" + value + "\" assigned as constant argument.");
 
-        else if (tools::str::toup(type) == TYPE_AUGM)
+        else if (tools::str::toup(type) == HSP_TYPE_AUGM)
             throw std::invalid_argument(
                 "Value initialization with other augmented variable is not supported.");
 
@@ -595,7 +583,7 @@ void MCMC::Impl::Augmented::init_attributes_(Individual &member,
 
         // outputs
         double x = HSP_NA_DOUBLE;
-        const double *y = nullptr;
+        observer_dbl_ptr y = nullptr;
         std::shared_ptr<Function> f = nullptr;
 
         if (tools::is_na(value) && tools::is_na(type))
@@ -609,13 +597,13 @@ void MCMC::Impl::Augmented::init_attributes_(Individual &member,
             tools::warning(
                 "Found a type without a paired value. Falling back to default.");
 
-        else if (tools::str::toup(type) == TYPE_SCALAR)
+        else if (tools::str::toup(type) == HSP_TYPE_SCALAR)
             x = tools::str::tod(value, "argument with scalar type");
 
-        else if (tools::str::toup(type) == TYPE_DATA)
+        else if (tools::str::toup(type) == HSP_TYPE_DATA)
             x = member.data(value);
 
-        else if (tools::str::toup(type) == TYPE_PARAM)
+        else if (tools::str::toup(type) == HSP_TYPE_PARAM)
         {
             if (pImpl_.param.at(value).is_constant())
                 x = pImpl_.param.get(value);
@@ -626,7 +614,7 @@ void MCMC::Impl::Augmented::init_attributes_(Individual &member,
                     pImpl_.param.make_cache_dependent(value);
             }
         }
-        else if (tools::str::toup(type) == TYPE_AUGM)
+        else if (tools::str::toup(type) == HSP_TYPE_AUGM)
         {
             if (!(list_full % value))
                 throw std::invalid_argument(
@@ -714,15 +702,10 @@ void MCMC::Impl::Augmented::init_model_range_(Individual &member,
                      std::vector<bool>(2, HSP_ATTR_RANGE), HSP_VAR_MODEL);
 }
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
+///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////  MCMC : move all augmented variables  /////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Move augmented variables from all households. */

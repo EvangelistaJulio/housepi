@@ -135,7 +135,7 @@ HousepiPosteriorDraws <- R6::R6Class(
     },
 
     #' @field loglike_draws `posterior::draws_df`
-    #' Posterior draws data.frame of dataset loglikelihood.
+    #' Posterior draws data.frame of full loglikelihood.
     loglike_draws = function(value) {
       if (missing(value)) private$.loglike_df
       else stop_h("'loglike_draws' is read only.")

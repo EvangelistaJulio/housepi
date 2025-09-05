@@ -39,25 +39,25 @@ HousepiGenerator <- R6::R6Class(
     .need_compile = FALSE,
     .rcpp = NULL,
 
-    # @field .cols_dataset `integer()`\cr
-    # All positive status extracted from dataset.
+    # @field .infec_status_set `integer()`\cr
+    # All positive status extracted from data.
     .infec_status_set = integer(),
 
-    # @field .cols_dataset `character()`\cr
-    # Headers of the last dataset imported.
-    .cols_dataset = NULL,
+    # @field .cols_data_wide `character()`\cr
+    # Headers of last imported data wide.
+    .cols_data_wide = NULL,
 
-    # @field .cols_datalist `character()`\cr
-    # Headers of the last datalist imported.
-    .cols_datalist = NULL,
+    # @field .info_data_wide `list`\cr
+    # List of levels of the factors in data wide.
+    .info_data_wide = NULL,
 
-    # @field .info_dataset `list`\cr
-    # List of levels of the factors in the dataset.
-    .info_dataset = NULL,
+    # @field .cols_data_long `character()`\cr
+    # Headers of the last data long imported.
+    .cols_data_long = NULL,
 
-    # @field .info_datalist `list`\cr
-    # List of levels of the factors in the datalist.
-    .info_datalist = NULL,
+    # @field .info_data_long `list`\cr
+    # List of levels of the factors in the data long.
+    .info_data_long = NULL,
 
     ############################################################################
     ############################################################################
@@ -76,8 +76,8 @@ HousepiGenerator <- R6::R6Class(
           output <- private$.new_rcpp_model()
           # note: no factorization is needed here
           output$import_setup(char_setup_input_(value$export_setup()))
-          output$import_dataset(char_data_input_(value$export_dataset()))
-          output$import_datalist(char_data_input_(value$export_datalist()))
+          output$import_data_wide(char_data_input_(value$export_data_wide()))
+          output$import_data_long(char_data_input_(value$export_data_long()))
           return(output)
         }
       }
@@ -413,13 +413,13 @@ HousepiGenerator <- R6::R6Class(
     # @description
     # Dataset headers required by the model.
     # @return `character()`
-    .dataset_required = function() {
+    .data_required = function() {
       # vector of regular expression to use for assertion
       regexp <- c(
         # from : .data("string")
         '.data\\s*\\(\\s*["\'](.*?)["\']'
       )
-      # retrieve required dataset headers from regular expressions
+      # retrieve required data headers from regular expressions
       refer_file <- private$.reference()
       output <- template_required_find(refer_file, regexp)
       set_source_name_(output, "model")
@@ -429,20 +429,12 @@ HousepiGenerator <- R6::R6Class(
     ############################################################################
     ############################################################################
 
-    # @description
-    # Assert if dataset headers match implementation file.
-    # @param dataset_headers `character()`\cr
-    # Vector with the dataset headers.
-    .refactor_dataset = function(x) {
-      cpp_data_refactor(x, private$.info_dataset, private$.cols_dataset)
+    .refactor_data_wide = function(x) {
+      cpp_data_refactor(x, private$.info_data_wide, private$.cols_data_wide)
     },
 
-    # @description
-    # Assert if dataset headers match implementation file.
-    # @param dataset_headers `character()`\cr
-    # Vector with the dataset headers.
-    .refactor_datalist = function(x) {
-      cpp_data_refactor(x, private$.info_datalist, private$.cols_datalist)
+    .refactor_data_long = function(x) {
+      cpp_data_refactor(x, private$.info_data_long, private$.cols_data_long)
     }
   ),
 

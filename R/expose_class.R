@@ -33,19 +33,19 @@ new_housepi_model <- function(choice = NA, as_template = FALSE,
 ############################################################################
 ############################################################################
 
-#' @title Add dataset
+#' @title Add data wide
 #' @description
-#' Make an internal copy of the provided household dataset.
+#' Make an internal copy of the provided household data.
 #'
 #' @param object `r rd_model_in_`
-#' @param dataset `r rd_add_dataset_`
+#' @param data_wide `r rd_add_data_wide_`
 #'
 #' @return `r rd_model_out_`
 #'
 #' @export
-add_dataset  <- function(object, dataset) {
+add_data_wide  <- function(object, data_wide) {
   stopifnot(inherits(object, "HousepiModel"))
-  object$clone(deep = TRUE)$add_dataset(dataset)
+  object$clone(deep = TRUE)$add_data_wide(data_wide)
 }
 
 #' @title Add datalist
@@ -63,9 +63,9 @@ add_datalist <- function(object, datalist) {
   object$clone(deep = TRUE)$add_datalist(datalist)
 }
 
-#' @title Summarise cases in household dataset
+#' @title Summarise cases in household data
 #' @description
-#' Summarise cases as given from the statuses in the laoded household dataset.
+#' Summarise cases as given from the statuses in the laoded household data.
 #'
 #' @param object `r rd_model_in_`
 #' @param ... Ignored.
@@ -77,9 +77,9 @@ summarise_cases <- function(object, ...) {
   object$summarise_cases()
 }
 
-#' @title Summarise house sizes in household dataset
+#' @title Summarise house sizes in household data
 #' @description
-#' Summarise number of members (size) in the laoded household dataset.
+#' Summarise number of members (size) in the laoded household data.
 #'
 #' @param object `r rd_model_in_`
 #' @param ... Ignored.
@@ -313,7 +313,7 @@ get_group_rates <- function(object, ...) {
 
 #' @title Add group rate definition
 #' @description
-#' Add definitions of a group rate by given dataset feature(s).
+#' Add definitions of a group rate by given data feature(s).
 #' The reference value is equal to 1 and can be specified.
 #'
 #' @param object `r rd_model_in_`
@@ -403,15 +403,15 @@ add_infec_profile <- function(object,
 #' Compute the log-likelihood of a `HousepiModel` object.
 #'
 #' @param object `r rd_model_in_`
-#' @param dataset `r rd_smpl_dataset_`
+#' @param data_wide `r rd_smpl_data_wide_`
 #' @param seed `r rd_seed_`
 #'
 #' @return `numeric(1)`
 #'
 #' @export
-loglikelihood <- function(object, dataset = NULL, seed = NA) {
+loglikelihood <- function(object, data_wide = NULL, seed = NA) {
   stopifnot(inherits(object, "HousepiModel"))
-  object$loglikelihood(dataset = dataset, seed = seed)
+  object$loglikelihood(data_wide = data_wide, seed = seed)
 }
 
 #' @title Run inference on housepi model
@@ -419,7 +419,7 @@ loglikelihood <- function(object, dataset = NULL, seed = NA) {
 #' Run inference with Bayesian Markov Chain Monte Carlo.
 #'
 #' @param object `r rd_model_in_`
-#' @param dataset `r rd_smpl_dataset_`
+#' @param data_wide `r rd_smpl_data_wide_`
 #' @param sample_size `r rd_smpl_size_`
 #' @param n_steps `r rd_smpl_steps_`
 #' @param n_burnin `r rd_smpl_burn_`
@@ -436,7 +436,7 @@ loglikelihood <- function(object, dataset = NULL, seed = NA) {
 #' Container with posterior draws.
 #'
 #' @export
-infer <- function(object, dataset = NULL,
+infer <- function(object, data_wide = NULL,
                   sample_size = NA, n_steps = 5000,
                   n_burnin = 0, thin = 1, n_adapt = 0,
                   n_chains = 1, n_threads = 1,
@@ -444,7 +444,7 @@ infer <- function(object, dataset = NULL,
                   seed = NA, progress = TRUE) {
   stopifnot(inherits(object, "HousepiModel"))
   object$infer(
-    dataset = dataset, sample_size = sample_size,
+    data_wide = data_wide, sample_size = sample_size,
     n_steps = n_steps, n_burnin = n_burnin, thin = thin,
     n_adapt = n_adapt, n_chains = n_chains,
     n_threads = n_threads, rand_init = rand_init,
@@ -457,7 +457,7 @@ infer <- function(object, dataset = NULL,
 #' Estimate the model evidence (or marginal likelihood).
 #' It uses the method of power posteriors with different available schemes.
 #'
-#' @param dataset `r rd_smpl_dataset_`
+#' @param data_wide `r rd_smpl_data_wide_`
 #' @param scheme `r rd_evi_scheme_`
 #' @param n_rungs `r rd_evi_rungs_`
 #' @param sample_size `r rd_smpl_size_`
@@ -478,14 +478,14 @@ infer <- function(object, dataset = NULL,
 #' @return `numeric(1)`
 #'
 #' @export
-evidence <- function(object, dataset = NULL,
+evidence <- function(object, data_wide = NULL,
                      scheme = "power-fractions", n_rungs = 40,
                      sample_size = NA, n_steps = 5000,
                      n_burnin = 0, thin = 1, n_adapt = 0,
                      n_chains = 1, n_threads = 1,
                      seed = NA, progress = TRUE) {
   stopifnot(inherits(object, "HousepiModel"))
-  object$evidence(dataset = dataset, scheme = scheme, n_rungs = n_rungs,
+  object$evidence(data_wide = data_wide, scheme = scheme, n_rungs = n_rungs,
                   sample_size = sample_size, n_steps = n_steps,
                   n_burnin = n_burnin, thin = thin, n_adapt = n_adapt,
                   n_chains = n_chains, n_threads = n_threads,
@@ -501,12 +501,12 @@ evidence <- function(object, dataset = NULL,
 #' @importFrom stats simulate
 #' @export
 stats::simulate
-#' @title Simulate household dataset
+#' @title Simulate household data
 #' @description
-#' Generate a simulated dataset.
+#' Generate a simulated outbreak with the same community structure of the loaded data.
 #'
 #' @param object `r rd_model_in_`
-#' @param dataset `r rd_smpl_dataset_`
+#' @param data_wide `r rd_smpl_data_wide_`
 #' @param seed `r rd_seed_`
 #' @param progress `r rd_progress_`
 #' @param ... Ignored.
@@ -514,11 +514,11 @@ stats::simulate
 #' @return `data.frame`
 #'
 #' @exportS3Method simulate HousepiModel
-simulate.HousepiModel <- function(object, dataset = NULL,
+simulate.HousepiModel <- function(object, data_wide = NULL,
                                   seed = NA, progress = FALSE,
                                   ...) {
   stopifnot(inherits(object, "HousepiModel"))
   object$simulate(
-    dataset = dataset, seed = seed, progress = progress
+    data_wide = data_wide, seed = seed, progress = progress
   )
 }

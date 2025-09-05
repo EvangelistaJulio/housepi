@@ -62,7 +62,7 @@ void MCMC::Impl::InfecProfile::init_single_attribute_(const std::string &key,
 		throw std::invalid_argument(
 			"Found type without a paired value for \"" + profile_->name() + "\".");
 
-	else if (tools::str::toup(at) == TYPE_PARAM)
+	else if (tools::str::toup(at) == HSP_TYPE_PARAM)
 	{
 		if (pImpl_.param.at(val).is_constant())
 			profile_->init_attr(key, is_arg, pImpl_.param.get(val));
@@ -73,7 +73,7 @@ void MCMC::Impl::InfecProfile::init_single_attribute_(const std::string &key,
 		}
 	}
 
-	else if (tools::str::toup(at) == TYPE_SCALAR)
+	else if (tools::str::toup(at) == HSP_TYPE_SCALAR)
 		profile_->init_attr(key, is_arg, tools::str::tod(val, "argument with scalar type"));
 
 	else
@@ -148,7 +148,7 @@ void MCMC::Impl::InfecProfile::init_lookup_()
 	cumul_ = &InfecProfile::do_cumul_lookup_;
 
 	if (tools::is_na(profile_->get_max()))
-		size_lut_ = DEFAULT_MAX_SIZE;
+		size_lut_ = HSP_DEFAULT_MAX_SIZE;
 	else
 		size_lut_ = profile_->get_max() + 1;
 
@@ -221,12 +221,12 @@ void MCMC::Impl::InfecProfile::build(const dict_str &deflist)
 			tools::headers_from_deflist(deflist), headers_);
 
 		// check if definition is generic or augmented
-		str_vec types = tools::parse_list_args(deflist.at("arg_at"), C_LIST_DELIM);
+		str_vec types = tools::parse_list_args(deflist.at("arg_at"), HSP_LIST_DELIM);
 		types += {deflist.at("max_at")};
 
 		bool is_augm = false;
 		for (const std::string &at : types)
-			if (at == TYPE_AUGM)
+			if (at == HSP_TYPE_AUGM)
 				is_augm = true;
 
 		if (is_augm)
@@ -263,13 +263,13 @@ void MCMC::Impl::InfecProfile::build_generic_profile_(const dict_str &deflist)
 
 	//----- Arguments -----//
 	if (deflist.count("arg_key") && deflist.count("arg_val") && deflist.count("arg_at"))
-		init_arguments_(tools::parse_list_args(deflist.at("arg_key"), C_LIST_DELIM),
-						tools::parse_list_args(deflist.at("arg_val"), C_LIST_DELIM),
-						tools::parse_list_args(deflist.at("arg_at"), C_LIST_DELIM));
+		init_arguments_(tools::parse_list_args(deflist.at("arg_key"), HSP_LIST_DELIM),
+						tools::parse_list_args(deflist.at("arg_val"), HSP_LIST_DELIM),
+						tools::parse_list_args(deflist.at("arg_at"), HSP_LIST_DELIM));
 
 	//----- Range minimum -----//
 	init_single_attribute_("min",
-						   (is_discrete) ? "1" : "0", TYPE_SCALAR,
+						   (is_discrete) ? "1" : "0", HSP_TYPE_SCALAR,
 						   HSP_ATTR_RANGE);
 
 	//----- Range maximum -----//
@@ -313,15 +313,15 @@ void MCMC::Impl::InfecProfile::build_augmented_profile_(const dict_str &deflist)
 	// adjust arguments to connect to generation time
 	std::string arg_key = deflist.at("arg_key");
 	if (!tools::is_na(arg_key))
-		arg_key += C_LIST_DELIM;
+		arg_key += HSP_LIST_DELIM;
 
 	std::string arg_val = deflist.at("arg_val");
 	if (!tools::is_na(arg_val))
-		arg_val += C_LIST_DELIM;
+		arg_val += HSP_LIST_DELIM;
 
 	std::string arg_at = deflist.at("arg_at");
 	if (!tools::is_na(arg_at))
-		arg_at += C_LIST_DELIM;
+		arg_at += HSP_LIST_DELIM;
 
 	// initialize for instantaneous and cumulative profiles
 	bool is_discrete = tools::str::tobool(deflist.at("discr"));
@@ -334,16 +334,15 @@ void MCMC::Impl::InfecProfile::build_augmented_profile_(const dict_str &deflist)
 	augm_infec_profile_deflist_.at("init_rand") = str_vec(2, tools::str::format(false));
 
 	// match infectivity profile and augmented variable definition
-	const dict_str_vec matcher = {
-		{"name", str_vec({HSP_PROFILE_INST, HSP_PROFILE_CUMUL})},
-		{"func", str_vec({"d" + func_name, "p" + func_name})},
-		{"farg_key", str_vec(2, arg_key)},
-		{"farg_val", str_vec(2, arg_val)},
-		{"farg_at", str_vec(2, arg_at)},
-		{"min", str_vec(2, (is_discrete) ? "1" : "0")},
-		{"min_at", str_vec(2, TYPE_SCALAR)},
-		{"max", str_vec(2, deflist.at("max"))},
-		{"max_at", str_vec(2, deflist.at("max_at"))}};
+	const dict_str_vec matcher = {{"name", str_vec({HSP_PROFILE_INST, HSP_PROFILE_CUMUL})},
+								  {"func", str_vec(2, func_name)},
+								  {"farg_key", str_vec(2, arg_key)},
+								  {"farg_val", str_vec(2, arg_val)},
+								  {"farg_at", str_vec(2, arg_at)},
+								  {"min", str_vec(2, (is_discrete) ? "1" : "0")},
+								  {"min_at", str_vec(2, HSP_TYPE_SCALAR)},
+								  {"max", str_vec(2, deflist.at("max"))},
+								  {"max_at", str_vec(2, deflist.at("max_at"))}};
 
 	for (auto &pair : matcher)
 		augm_infec_profile_deflist_.at(pair.first) = pair.second;

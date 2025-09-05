@@ -265,11 +265,11 @@ HousepiAugmented <- R6::R6Class(
       stop_h("'augm_required' is read only.")
     },
 
-    #' @field dataset_required `character()`\cr
+    #' @field data_required `character()`\cr
     #' Find data required by augmented variable definitions.
-    dataset_required = function(value) {
+    data_required = function(value) {
       if (missing(value)) return(private$.find_def_required("D"))
-      stop_h("'dataset_required' is read only.")
+      stop_h("'data_required' is read only.")
     }
   ),
 
@@ -516,7 +516,7 @@ HousepiAugmented <- R6::R6Class(
     #' @param required `character()`\cr
     #' Vector containing required parameters.
     #' @param status_set `integer()`\cr
-    #' All statuses present in current dataset.
+    #' All statuses present in current data.
     assert = function(required, status_set) {
       status_set <- sort(status_set)
       defined <- self$defs[["name"]]

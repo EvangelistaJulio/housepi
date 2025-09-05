@@ -65,11 +65,11 @@ HousepiInfecProfile <- R6::R6Class(
   ############################################################################
 
   active = list(
-    #' @field dataset_required `character()`\cr
+    #' @field data_required `character()`\cr
     #' Dataset entries required by infectivity profile definition.
-    dataset_required = function(value) {
+    data_required = function(value) {
       if (missing(value)) return(private$.find_def_required("D"))
-      stop_h("'dataset_required' is read only.")
+      stop_h("'data_required' is read only.")
     },
 
     #' @field param_required `character()`\cr

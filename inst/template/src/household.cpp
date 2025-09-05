@@ -23,7 +23,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Individual constructor. */
+/// Individual constructor.
 Individual::Individual(size_t index,
 					   size_t hhindex,
 					   const std::string &id,
@@ -33,7 +33,7 @@ Individual::Individual(size_t index,
 	index_ = index;
 	hhindex_ = hhindex;
 	id_ = id;
-	status_ = (status < MISSING_STATUS) ? MISSING_STATUS : status;
+	status_ = status;
 	data_map_ = data;
 }
 
@@ -41,9 +41,8 @@ Individual::Individual(size_t index,
 //////////////////////////////////////  Individual : getter  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Value of loglikelihood associated to augmented variable models within individual.
- * Store the loglikelihood of individual augmented variables.
- */
+/// Value of loglikelihood associated to augmented variable models within individual.
+/// Store the loglikelihood of individual augmented variables.
 double Individual::compute_and_set_augm_model_loglike()
 {
 	double x = 0.0;
@@ -65,12 +64,13 @@ double Individual::compute_and_set_augm_model_loglike()
 //////////////////////////////////////  Individual : setter  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Individual::init_all_group_rates(const u_dict<std::vector<const double *>> &ptrs)
+/// Initialize all group rates for the individual.
+void Individual::init_all_group_rates(const u_dict<std::vector<observer_dbl_ptr>> &ptrs)
 {
 	for (const auto &pair : ptrs)
 	{
 		std::string r = pair.first;
-		std::vector<const double *> vec_par_ptr = pair.second;
+		std::vector<observer_dbl_ptr> vec_par_ptr = pair.second;
 
 		if (vec_par_ptr.empty())
 			std::invalid_argument(
@@ -80,18 +80,21 @@ void Individual::init_all_group_rates(const u_dict<std::vector<const double *>> 
 	}
 }
 
-/* Assign definitions for the augmented variable model. */
-void Individual::init_augm(const std::string &a, const std::string &name,
-						   double value, bool is_discrete, bool is_constant,
+/// Assign definitions for the augmented variable model.
+void Individual::init_augm(const std::string &a,
+						   double value,
+						   bool is_const,
+						   bool is_discr,
 						   const std::string &func_name,
+						   bool is_prim,
 						   const std::string &model_name)
 {
 	Variable &this_augm = safe_at(augm_map_, "augmented variable", a);
-	this_augm.init(name, value, is_discrete, is_constant, func_name);
+	this_augm.init(a, value, is_const, is_discr, func_name, is_prim);
 	this_augm.init_distr(model_name);
 }
 
-/* Associate functional methods for augmented model pdfs. */
+/// Associate functional methods for augmented model pdfs.
 void Individual::init_augm_model(const str_vec &augm_model_list)
 {
 	augm_model_logpdfs_.clear();
@@ -103,7 +106,7 @@ void Individual::init_augm_model(const str_vec &augm_model_list)
 	}
 }
 
-/* Restore user values if applicable. */
+/// Restore user values if applicable.
 void Individual::user_reset()
 {
 	for (auto &pair : augm_map_)
@@ -115,7 +118,7 @@ void Individual::user_reset()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Individual::GroupRate::GroupRate(const std::string &name,
-								 const std::vector<const double *> &ptrs)
+								 const std::vector<observer_dbl_ptr> &ptrs)
 {
 	if (!tools::is_na(name))
 	{
@@ -206,11 +209,11 @@ bool Household::change_status(Individual &member, int new_status)
 
 /* Associate a pointer to parameter value for the contact from->to.
 Allocate memory if it  */
-void Household::init_contact_rates(size_t from, size_t to, const double *x)
+void Household::init_contact_rates(size_t from, size_t to, observer_dbl_ptr x)
 {
 	// initialize contact rate matrix if necessary
 	if (contact_rates_.empty())
-		contact_rates_.resize(size(), std::vector<const double *>(size(), &REFERENCE_VALUE));
+		contact_rates_.resize(size(), std::vector<observer_dbl_ptr>(size(), &HSP_REFER_VALUE));
 
 	contact_rates_[from][to] = x;
 }

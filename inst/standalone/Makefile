@@ -17,7 +17,7 @@ OBJECTS := $(SOURCES:.cpp=.o)
 EXECUTABLE := $(MODEL)/model.exe
 
 # Compilation flags
-CXXFLAGS := -Wall -Wextra -std=gnu++14 -I/../include/
+CXXFLAGS := -Wall -Wextra -std=gnu++14 -I../template/include/
 ifdef FAST
 CXXFLAGS += -Ofast
 else
@@ -55,11 +55,11 @@ $(EXECUTABLE): $(OBJECTS)
 	
 # For the model object
 $(MODEL)/model.o: $(MODEL)/model.cpp
-	$(CXX) $(CXXFLAGS) -I${SRC} -c $< -o $@
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # For the main object
 main.o: main.cpp
-	$(CXX) $(CXXFLAGS) -I${SRC} -I$(MODEL) -c $< -o $@
+	$(CXX) $(CXXFLAGS) -I$(MODEL) -c $< -o $@
 
 # For all other objects
 %.o: %.cpp

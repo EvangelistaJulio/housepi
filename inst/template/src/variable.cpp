@@ -14,15 +14,10 @@
 
 #include "variable.h"
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
+///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////  Proposer : constructor  //////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Proposer constructor from Distribution pointer.
@@ -71,13 +66,13 @@ Proposer::Proposer(const std::string &name,
                rule_scale, rule_start_value, args_to_adapt, is_discrete) {}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  Base Proposer - adaptation  ///////////////////////////////////
+/////////////////////////////////////  Proposer - adaptation  /////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Increase spread if acceptation rate is high and viceversa
 void Proposer::adapt(double ratio)
 {
-    double factor = 1. + (1. - ratio) * (get_accept_rate() - TARGET_ACCEPT_RATE);
+    const double factor = 1. + (1. - ratio) * (get_accept_rate() - HSP_TARGET_ACCEPT_RATE);
     // loop over all arguments to adapt
     for (unsigned short c = 0; c < n_args_to_adapt_; ++c)
     {
@@ -86,10 +81,7 @@ void Proposer::adapt(double ratio)
     }
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  Base Show - adaptation  /////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
+/// Format proposer scale as a string.
 std::string Proposer::str_scale() const
 {
     if (n_args_to_adapt_ == 0)
@@ -98,37 +90,29 @@ std::string Proposer::str_scale() const
         return std::to_string(std::fabs((pDistr_->arg)(args_to_adapt_list_[0])));
 }
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  Sample_Proposer : class  ///////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////// *** Sample_Proposer : class *** /////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 class Sample_Proposer : public Proposer
 {
 public:
-    //===== CONSTRUCTOR =====//
     Sample_Proposer(std::shared_ptr<Distribution> distr)
     {
         proposer_name_ = "sample";
-        // proposer functional method
-        propose_ = &Sample_Proposer::do_propose_sample_rand_;
-        // logratio functional method
-        logratio_ = &Sample_Proposer::do_logratio_pdf_;
-        // link to model distribution
-        pDistr_ = distr;
+        propose_ = &Sample_Proposer::do_propose_sample_rand_; // proposer functional method
+        logratio_ = &Sample_Proposer::do_logratio_pdf_;       // logratio functional method
+        pDistr_ = distr;                                      // link to model distribution
     }
-    ~Sample_Proposer() = default;
 };
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  Uniform_Proposer : class  ///////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////// *** Uniform_Proposer : class *** /////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 class Uniform_Proposer : public Proposer
 {
@@ -138,14 +122,10 @@ public:
                      bool is_discrete = false)
         : Proposer("unif", rule_scale, rule_from, {0, 1}, is_discrete)
     {
-        // initialize
-        user_reset();
-        // proposer functional method
-        propose_ = &Uniform_Proposer::do_propose_sum_to_previous_;
-        // logratio functional method
-        logratio_ = &Uniform_Proposer::do_logratio_symm_;
+        user_reset();                                              // initialize
+        propose_ = &Uniform_Proposer::do_propose_sum_to_previous_; // proposer functional method
+        logratio_ = &Uniform_Proposer::do_logratio_symm_;          // logratio functional method
     }
-    ~Uniform_Proposer() = default;
 
     void user_reset() override final
     {
@@ -154,9 +134,11 @@ public:
     }
 };
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  Normal_Proposer : class  ////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////// *** Normal_Proposer : class *** //////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 class Normal_Proposer : public Proposer
 {
@@ -166,17 +148,13 @@ public:
                     bool is_discrete = false)
         : Proposer("norm", rule_scale, rule_from, {1}, is_discrete)
     {
-        // initialize
-        user_reset();
-        // proposer functional method
-        propose_ = &Normal_Proposer::do_propose_sum_to_previous_;
-        // logratio functional method
-        if (is_rule_start_from_zero())
+        user_reset();                                             // initialize
+        propose_ = &Normal_Proposer::do_propose_sum_to_previous_; // proposer functional metho
+        if (is_rule_start_from_zero())                            // logratio functional method
             logratio_ = &Normal_Proposer::do_logratio_sum_to_zero_;
         else
             logratio_ = &Normal_Proposer::do_logratio_symm_;
     }
-    ~Normal_Proposer() = default;
 
     void user_reset() override final
     {
@@ -185,9 +163,11 @@ public:
     }
 };
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  Lognorm_Proposer : class  ///////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////// *** Lognorm_Proposer : class *** /////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 class Lognorm_Proposer : public Proposer
 {
@@ -197,17 +177,13 @@ public:
                      bool is_discrete = false)
         : Proposer("lnorm", rule_scale, rule_from, {1}, is_discrete)
     {
-        // initialize
-        user_reset();
-        // proposer functional method
-        propose_ = &Lognorm_Proposer::do_propose_times_previous_;
-        // logratio functional method
-        if (is_rule_start_from_zero())
+        user_reset();                                             // initialize
+        propose_ = &Lognorm_Proposer::do_propose_times_previous_; // proposer functional method
+        if (is_rule_start_from_zero())                            // logratio functional method
             logratio_ = &Lognorm_Proposer::do_logratio_times_zero_;
         else
             logratio_ = &Lognorm_Proposer::do_logratio_lognorm_symm_;
     }
-    ~Lognorm_Proposer() = default;
 
     void user_reset() override final
     {
@@ -216,12 +192,11 @@ public:
     }
 };
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////  proposer switch  //////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Switchboard to select the custom metropolis proposer rule.
 std::shared_ptr<Proposer> proposer_switch(const std::string &rule_name = HSP_NA_STRING,
@@ -246,21 +221,33 @@ std::shared_ptr<Proposer> proposer_switch(const std::string &rule_name = HSP_NA_
     else
         throw std::invalid_argument(
             "Unknown proposer rule \"" + rule_name + "\"." +
-            tools::str::find_closest(rule_name, options, MIN_STR_DIST));
+            tools::str::find_closest(rule_name, options, HSP_MIN_STR_DIST));
 }
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  Variable - Setter  /////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  Variable : setter  /////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Variable::init_default_(double value, bool is_discrete, bool is_constant)
+/// Initialize variable.
+void Variable::init(const std::string &name, double value,
+                    bool is_const, bool is_discr,
+                    const std::string &func_name, bool is_primitive)
+{
+    init_name_(name);
+    if (tools::is_na(func_name))
+        init_default_(value);
+    else
+        init_func_(func_name, is_primitive);
+    is_constant_ = is_const;
+    is_discrete_ = is_discr;
+
+    // UPDATE: what if constant = T, discrete = T and value != integer?
+}
+
+/// Default initialization as a numeric variable.
+void Variable::init_default_(double value)
 {
     return_value_ = &Variable::do_return_error_;
     get_ = &Variable::do_get_default_;
@@ -268,11 +255,10 @@ void Variable::init_default_(double value, bool is_discrete, bool is_constant)
     user_value_ = value;
     value_ = user_value_;
     pFunc_ = std::make_shared<Function>();
-    is_constant_ = is_constant;
-    is_discrete_ = is_discrete;
 }
 
-void Variable::init_func_(const std::string &func_name)
+/// Initialization as a function.
+void Variable::init_func_(const std::string &func_name, bool is_primitive)
 {
     return_value_ = &Variable::do_return_func_;
     get_ = &Variable::do_get_func_return_;
@@ -280,45 +266,27 @@ void Variable::init_func_(const std::string &func_name)
     user_value_ = HSP_NA_DOUBLE;
     value_ = HSP_NA_DOUBLE;
     pFunc_ = compose_func_registries(
-        func_name, "function",
+        func_name, "function", is_primitive,
         {&UserFuncRegistry::inst(),
          &TranscendentalRegistry::inst(),
          &ArithmeticRegistry::inst(),
          &ContinuosDistrRegistry::inst(),
          &DiscreteDistrRegistry::inst(),
          &InfecProfileRegistry::inst()});
-    is_constant_ = false;
-    is_discrete_ = false;
 }
 
-/// Restore user defined variable initialization.
-void Variable::init(const std::string &name, double value,
-                    bool is_discrete, bool is_constant,
-                    const std::string &func_name)
-{
-    init_name_(name);
-    if (tools::is_na(func_name))
-        init_default_(value, is_discrete, is_constant);
-    else
-        init_func_(func_name);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////  Variable - Setter (Distribution)  /////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-// Drop function if it's constant when reshaping
+/// Initialize function reshaping.
+/// Drop function if it's constant when reshaping.
 void Variable::init_func_reshaping()
 {
     if (pFunc_->is_constant())
-        init_default_(do_get_func_return_(), false, true);
+    {
+        init_default_(do_get_func_return_());
+        is_constant_ = true;
+    }
     else
         pFunc_->init_reshaping(is_discrete_);
 }
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////  Variable - Setter (Distribution)  /////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Assign distribution with constant arguments.
 void Variable::init_distr(const std::string &distr_name)
@@ -341,7 +309,7 @@ void Variable::init_distr_reshaping()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  Variable - Setter (Proposer)  //////////////////////////////////
+/////////////////////////////////  Variable : Setter (Proposer)  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Assign proposer.

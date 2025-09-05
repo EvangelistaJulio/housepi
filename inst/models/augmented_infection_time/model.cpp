@@ -255,7 +255,7 @@ void Model::simulate_single_household(Household &house)
 	// assign augmented variables to all
 	for (Individual &member : house)
 	{
-		house.change_status(member, (member == member_0) ? INFECTED_STATUS : HEALTHY_STATUS);
+		house.change_status(member, (member == member_0) ? HSP_INFECTED_STATUS : HSP_HEALTHY_STATUS);
 		init_all_augm(member);
 	}
 
@@ -277,14 +277,14 @@ void Model::simulate_single_household(Household &house)
 			if (uniform() >= exp(-roi_inst_simulation(infected_hhindexes, house, member_i, t) * Dt))
 			{
 				member_i.set_augm_value("onset_time", t + member_i.augm("incub_period"));
-				house.change_status(member_i, INFECTED_STATUS);
+				house.change_status(member_i, HSP_INFECTED_STATUS);
 			}
 	}
 
 	// format infected with unseen onset as healthy
 	for (Individual &member : house.infected())
 		if (member.augm("onset_time") >= tf)
-			house.change_status(member, HEALTHY_STATUS);
+			house.change_status(member, HSP_HEALTHY_STATUS);
 
 	// format all augmented variables of susceptibles
 	for (Individual &member : house.healthy())

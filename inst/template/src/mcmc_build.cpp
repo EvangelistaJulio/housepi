@@ -80,7 +80,7 @@ void MCMC::Impl::Setup::build(const dict_str &deflist)
 
         // Individual ID for Augmented Trace
         if (deflist.count("id_draws") && (!tools::is_na(deflist.at("id_draws"))))
-            id_draws = tools::parse_list_args(deflist.at("id_draws"), C_LIST_DELIM);
+            id_draws = tools::parse_list_args(deflist.at("id_draws"), HSP_LIST_DELIM);
     }
 
     // reset internal states
@@ -255,7 +255,7 @@ void MCMC::Impl::init_monte_carlo_()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign data after pre-processing. */
-void MCMC::Impl::DataSet::build(const dict_str_vec &input)
+void MCMC::Impl::DataWide::build(const dict_str_vec &input)
 {
     if (!input.empty())
     {
@@ -281,7 +281,7 @@ void MCMC::Impl::DataSet::build(const dict_str_vec &input)
             // read individual data
             std::string id = std::to_string(i + 1);                // default id
             std::string house_id = std::to_string(n_houses() + 1); // default house_id
-            int status = MISSING_STATUS;
+            int status = HSP_MISSING_STATUS;
             u_dict<double> data = {};
 
             for (const std::string &key : headers_)
@@ -339,7 +339,7 @@ void MCMC::Impl::DataSet::build(const dict_str_vec &input)
 }
 
 /* Use the loaded data to fill-in the respective report. */
-void MCMC::Impl::DataSet::fill_report_data()
+void MCMC::Impl::DataWide::fill_report_data()
 {
     report_indiv_ = {{"total", n_individuals_},
                      {"missing", 0},
@@ -411,7 +411,7 @@ void MCMC::Impl::DataSet::fill_report_data()
 }
 
 /* Return a value from individaul data report. */
-unsigned long MCMC::Impl::DataSet::get_report_indiv(const std::string &key) const
+unsigned long MCMC::Impl::DataWide::get_report_indiv(const std::string &key) const
 {
     // UPDATE: this should be generalized to avoid double check with at
     if (report_indiv_.count(key))
@@ -423,7 +423,7 @@ unsigned long MCMC::Impl::DataSet::get_report_indiv(const std::string &key) cons
 }
 
 /* Return a value from household data report. */
-unsigned long MCMC::Impl::DataSet::get_report_house(const std::string &key) const
+unsigned long MCMC::Impl::DataWide::get_report_house(const std::string &key) const
 {
     // UPDATE: this should be generalized to avoid double check with at
     if (report_house_.count(key))
@@ -435,7 +435,7 @@ unsigned long MCMC::Impl::DataSet::get_report_house(const std::string &key) cons
 }
 
 /* Return a value from household sizes report. */
-std::pair<unsigned short, unsigned long> MCMC::Impl::DataSet::get_report_hh_size(const std::string &key) const
+std::pair<unsigned short, unsigned long> MCMC::Impl::DataWide::get_report_hh_size(const std::string &key) const
 {
     if (report_size_.count(key))
         return report_size_.at(key);
@@ -446,25 +446,25 @@ std::pair<unsigned short, unsigned long> MCMC::Impl::DataSet::get_report_hh_size
 }
 
 /* Extra integer vectors for all households. */
-void MCMC::Impl::DataSet::init_cache_integer_vector(const std::string &e)
+void MCMC::Impl::DataWide::init_cache_integer_vector(const std::string &e)
 {
     for (Household &house : restricted())
         house.init_cache_integer_vector(e);
 }
 /* Extra size_t vectors for all households. */
-void MCMC::Impl::DataSet::init_cache_size_t_vector(const std::string &e)
+void MCMC::Impl::DataWide::init_cache_size_t_vector(const std::string &e)
 {
     for (Household &house : restricted())
         house.init_cache_size_t_vector(e);
 }
 /* Extra double vectors for all households. */
-void MCMC::Impl::DataSet::init_cache_double_vector(const std::string &e)
+void MCMC::Impl::DataWide::init_cache_double_vector(const std::string &e)
 {
     for (Household &house : restricted())
         house.init_cache_double_vector(e);
 }
 /* Extra double square matrix for all households. */
-void MCMC::Impl::DataSet::init_cache_double_matrix(const std::string &e)
+void MCMC::Impl::DataWide::init_cache_double_matrix(const std::string &e)
 {
     for (Household &house : restricted())
         house.init_cache_double_matrix(e);
@@ -482,7 +482,7 @@ void MCMC::Impl::DataSet::init_cache_double_matrix(const std::string &e)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Build multiplicities. */
-void MCMC::Impl::DataSet::build_multiplicity(const dict_str_vec &table)
+void MCMC::Impl::DataWide::build_multiplicity(const dict_str_vec &table)
 {
     if (pImpl_.augm.is_any() || (table.size() == 0))
     {
@@ -533,7 +533,7 @@ void MCMC::Impl::DataSet::build_multiplicity(const dict_str_vec &table)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Assign data after pre-processing. */
-void MCMC::Impl::DataList::build(const dict_str_vec &input)
+void MCMC::Impl::DataLong::build(const dict_str_vec &input)
 {
     if (!input.empty())
     {
@@ -545,7 +545,7 @@ void MCMC::Impl::DataList::build(const dict_str_vec &input)
         // check for individual IDs
         if (!(headers_ % "id"))
             throw std::invalid_argument(
-                "Missing individual identifier column \"id\" in datalist.");
+                "Missing individual identifier column \"id\" in datalong.");
         // remove "id"
         headers_ = headers_ - str_vec({"id"});
 
@@ -561,7 +561,7 @@ void MCMC::Impl::DataList::build(const dict_str_vec &input)
                 else
                     id_to_index.emplace(member.id(), c++);
 
-        // datalist allocation
+        // datalong allocation
         if (indiv_datalist_.empty())
             indiv_datalist_.resize(pImpl_.dataset.n_individuals());
 
@@ -581,15 +581,15 @@ void MCMC::Impl::DataList::build(const dict_str_vec &input)
             std::string id = input.at("id")[r];
             if (tools::is_na(id))
                 throw std::invalid_argument(
-                    "Invalid id for datalist in row n." + std::to_string(r + 2) + ".");
+                    "Invalid id for datalong in row n." + std::to_string(r + 2) + ".");
             else if (id_to_index.find(id) == id_to_index.end())
             {
                 if (pImpl_.dataset.is_empty())
                     throw std::invalid_argument(
-                        "Unable to define datalist before dataset.");
+                        "Unable to define datalong before dataset.");
                 else
                     throw std::invalid_argument(
-                        "Id \"" + id + "\" from datalist has no match in loaded dataset.");
+                        "Id \"" + id + "\" from datalong has no match in loaded dataset.");
             }
 
             u_dict<dbl_vec> &this_dict = indiv_datalist_.at(id_to_index.at(id));
@@ -597,14 +597,14 @@ void MCMC::Impl::DataList::build(const dict_str_vec &input)
             {
                 x = HSP_NA_DOUBLE;
                 if (!tools::is_na(input.at(key).at(r)))
-                    x = tools::str::tod(input.at(key).at(r), "datalist \"" + key + "\"");
+                    x = tools::str::tod(input.at(key).at(r), "datalong \"" + key + "\"");
 
                 // append (si   nce vector is initialized to empty)
                 this_dict.at(key).emplace_back(x);
             }
         }
 
-        // assign pointers to relative datalist to all individuals
+        // assign pointers to relative datalong to all individuals
         c = 0;
         for (Household &house : pImpl_.dataset)
             for (Individual &member : house)
@@ -627,29 +627,29 @@ void MCMC::Impl::DataList::build(const dict_str_vec &input)
 void MCMC::Impl::GroupRates::init_rate_as_ptrs_(Individual &member,
                                                 const u_dict<str_vec> &these_rates)
 {
-    u_dict<std::vector<const double *>> rate_ptrs = {};
+    u_dict<std::vector<observer_dbl_ptr>> rate_ptrs = {};
 
     for (const auto &pair : these_rates)
     {
         const std::string &r = pair.first;
 
-        if (str_vec({CONTACT_RATE, MISSING_RATE}) % r)
+        if (str_vec({HSP_CONTACT_RATE, HSP_MISSING_RATE}) % r)
             throw std::invalid_argument(
                 "The group rate name \"" + r + "\" is reserved. Choose a different one.");
 
         else if (!tools::is_na(r))
         {
-            bool is_all_reference = true;                 // all reference state
-            std::vector<const double *> vec_par_ptr = {}; // parameter pointers
+            bool is_all_reference = true;                   // all reference state
+            std::vector<observer_dbl_ptr> vec_par_ptr = {}; // parameter pointers
 
             for (const std::string &p : pair.second)
             {
-                if ((tools::is_na(p)) || (p == MISSING_RATE))
+                if ((tools::is_na(p)) || (p == HSP_MISSING_RATE))
                     std::invalid_argument(
                         "Missing rate \"" + r + "\" for individual \"" + member.id() + "\".");
 
-                else if (p == REFERENCE)
-                    vec_par_ptr.emplace_back(&REFERENCE_VALUE);
+                else if (p == HSP_REFERENCE)
+                    vec_par_ptr.emplace_back(&HSP_REFER_VALUE);
 
                 else
                 {
@@ -660,7 +660,7 @@ void MCMC::Impl::GroupRates::init_rate_as_ptrs_(Individual &member,
 
             // simplify for the combined reference values
             if (is_all_reference)
-                rate_ptrs[r] = {&REFERENCE_VALUE};
+                rate_ptrs[r] = {&HSP_REFER_VALUE};
             else
                 rate_ptrs[r] = vec_par_ptr;
         }
@@ -805,8 +805,8 @@ void MCMC::Impl::Parameter::build(const dict_str_vec &deftable)
                 new_param.init_distr(prior_name);
 
                 // assign scalar arguments to prior distribution
-                str_vec arg_key = tools::parse_list_args(deftable.at("arg_key")[k], C_LIST_DELIM);
-                str_vec arg_val = tools::parse_list_args(deftable.at("arg_val")[k], C_LIST_DELIM);
+                str_vec arg_key = tools::parse_list_args(deftable.at("arg_key")[k], HSP_LIST_DELIM);
+                str_vec arg_val = tools::parse_list_args(deftable.at("arg_val")[k], HSP_LIST_DELIM);
                 for (unsigned short c = 0; c < arg_key.size(); ++c)
                     // UPDATE: is this check really necessary?
                     if (!tools::is_na(arg_key[c]))
@@ -862,7 +862,7 @@ void MCMC::Impl::Parameter::init()
     for (const std::string &p : list_sample)
     {
         Variable &this_par = this->at(p);
-        
+
         if (pImpl_.setup.rand_init_params)
         {
             if (tools::is_na(this_par.distr_name()))

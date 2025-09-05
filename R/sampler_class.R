@@ -22,14 +22,14 @@
 #' FIXME: missing.
 #'
 #' @examples
-#' dataset <- housepi::survey
-#' dataset$sex <- ifelse(dataset$sex == 1, "M", "F")
+#' data_wide <- housepi::survey
+#' data_wide$sex <- ifelse(data_wide$sex == 1, "M", "F")
 #'
 #' bic <- IndividualSampler$new(
 #'   sex = list(levels = c("M", "F")),
 #'   age = list(breaks = c(0, 10, 20, 40, 60))
 #' )
-#' test <- dataset[1:5, ]
+#' test <- data_wide[1:5, ]
 #' test
 #' bic$encode(test)
 #' bic$decode(bic$encode(test))
@@ -92,10 +92,10 @@ IndividualSampler <- R6::R6Class(
     # @description
     # Associate a marginal probability to each individual feature.
     #
-    # @param dataset `data.frame()`\cr
-    # A data.frame containing the dataset with individual information by row.
-    .compute_individual_marginals = function(dataset) {
-      df <- dataset
+    # @param data_wide `data.frame()`\cr
+    # A data.frame containing the data_wide with individual information by row.
+    .compute_individual_marginals = function(data_wide) {
+      df <- data_wide
       df$feature <- self$encode(df)
 
       # update feature pdf
@@ -219,13 +219,13 @@ IndividualSampler <- R6::R6Class(
     },
 
     #' @description
-    #' Encode individuals from dataset according to encoding dictionary.
+    #' Encode individuals from data_wide according to encoding dictionary.
     #'
-    #' @param dataset `data.frame()`\cr
-    #' A data.frame containing the dataset with individual information by row.
-    encode = function(dataset) {
+    #' @param data_wide `data.frame()`\cr
+    #' A data.frame containing the data_wide with individual information by row.
+    encode = function(data_wide) {
       # initialize output
-      output <- rep(0, nrow(dataset))
+      output <- rep(0, nrow(data_wide))
 
       # encode features for each provided column
       multiplier <- 1
@@ -234,7 +234,7 @@ IndividualSampler <- R6::R6Class(
         # load locally the encode dictionary
         enc <- private$.enc_dict[[i]]
         # load locally the features to be encoded
-        df <- dataset[[names(private$.enc_dict)[i]]]
+        df <- data_wide[[names(private$.enc_dict)[i]]]
 
         if (enc$type == "breaks") {
           feats <- findInterval(df, c(-Inf, enc$x, Inf)) - 1
@@ -301,7 +301,7 @@ IndividualSampler <- R6::R6Class(
 #'
 #' @examples
 #' bhhc <- HouseholdSampler$new(enc_dict)
-#' bhhc$compute_marginals(dataset)
+#' bhhc$compute_marginals(data_wide)
 #'
 #' # sample 5 household from model
 #' set.seed(291)
@@ -361,21 +361,21 @@ HouseholdSampler <- R6::R6Class(
     #' @description
     #' Compute household marginal distributions according to hierarchical model.
     #'
-    #' @param dataset `data.frame()`\cr
-    #' A data.frame containing the dataset with individual information by row.
+    #' @param data_wide `data.frame()`\cr
+    #' A data.frame containing the data_wide with individual information by row.
     #' @param ascending `logical(1)`\cr
     #' If `TRUE` hierarchy between feature numbers is ascending.
     #' If `FALSE` (default) is descending.
-    compute_marginals = function(dataset, ascending = NA) {
+    compute_marginals = function(data_wide, ascending = NA) {
       if (!is.na(ascending)) private$.ascending <- ascending
 
       # extract household size
-      if (!("house_id" %in% colnames(dataset))) stop_h(
-        "No household structure provided in dataset.",
+      if (!("house_id" %in% colnames(data_wide))) stop_h(
+        "No household structure provided in data_wide.",
         "Missing column 'house_id'."
       )
 
-      df <- dataset
+      df <- data_wide
       hhsize <- table(df$house_id)
       df$hhsize <- hhsize[as.character(df$house_id)]
 
@@ -544,7 +544,7 @@ HouseholdSampler <- R6::R6Class(
           )
         }
 
-        # create dataset of sizes > 1 by decoding generated features
+        # create data_wide of sizes > 1 by decoding generated features
         hh_greater <- self$decode(df$.features)
         hh_greater$house_id <- df$house_id + num_single
       }

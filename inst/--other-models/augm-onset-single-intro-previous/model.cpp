@@ -21,11 +21,11 @@ void Model::assign_group_rate_to_individual(Household &house, indiv i)
 
 	//----- infectivity -----//
 	r = "infectivity";
-	emplace_group_rate(r, REFERENCE);
+	emplace_group_rate(r, HSP_REFERENCE);
 
 	//----- susceptibility -----//
 	r = "susceptibility";
-	emplace_group_rate(r, REFERENCE);
+	emplace_group_rate(r, HSP_REFERENCE);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -276,7 +276,7 @@ void Model::simulate_single_household(Household &house)
 	// assign augmented variables to all
 	for (indiv i = 0; i < house.size(); ++i)
 	{
-		house.change_status(i, (i == i0) ? INFECTED_STATUS : HEALTHY_STATUS);
+		house.change_status(i, (i == i0) ? HSP_INFECTED_STATUS : HSP_HEALTHY_STATUS);
 		init_all_augm(house, i);
 	}
 
@@ -298,14 +298,14 @@ void Model::simulate_single_household(Household &house)
 			if (uniform() >= exp(-roi_inst_simulation(infectors, house, i, t) * Dt))
 			{
 				house.set_augm_value(i, "onset_date", t + house.augm(i, "incub_period"));
-				house.change_status(i, INFECTED_STATUS);
+				house.change_status(i, HSP_INFECTED_STATUS);
 			}
 	}
 
 	// format infected with unseen onset as healthy
 	for (indiv i : house.get_infected_status_hhindexes())
 		if (house.augm(i, "onset_date") >= tf)
-			house.change_status(i, HEALTHY_STATUS);
+			house.change_status(i, HSP_HEALTHY_STATUS);
 
 	// format all augmented variables of susceptibles
 	for (indiv i : house.get_healthy_status_hhindexes())

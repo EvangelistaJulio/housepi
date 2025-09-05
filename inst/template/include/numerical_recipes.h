@@ -49,7 +49,7 @@ namespace numr
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Standard definition for the factorial.
-    unsigned long factorial(unsigned long n)
+    inline unsigned long factorial(unsigned long n)
     {
         unsigned long result = 1;
         for (unsigned long i = 2; i <= n; ++i)
@@ -58,49 +58,13 @@ namespace numr
     }
 
     /// Binomial coefficient of N elements in k positions
-    unsigned long binom_coeff(unsigned short N, unsigned short k)
-    {
-        if ((N > 0) && (k != N))
-        {
-            unsigned long result = N;
-            unsigned short stop = (k > N - k) ? k : N - k; // use symmetry
-            for (unsigned short i = 1; i < stop; ++i)
-                result = (result * (N - i)) / (i + 1);
-            return result;
-        }
-
-        return 1;
-    }
+    unsigned long binom_coeff(unsigned short N, unsigned short k);
 
     /// Logarithm of binomial coefficient.
-    double log_binom_coeff(unsigned short N, unsigned short k)
-    {
-        if ((N > 0) && (k != N))
-        {
-            double result = log(N);
-            unsigned short stop = (k > N - k) ? k : N - k; // use symmetry
-            for (unsigned short i = 1; i < stop; ++i)
-                result += log(N - i) - log(i + 1);
-            return result;
-        }
-        return 0.;
-    }
+    double log_binom_coeff(unsigned short N, unsigned short k);
 
     /// Log-ratio of binomial coefficients.
-    double logratio_binom_coeff(unsigned short N, unsigned short ko, unsigned short kn)
-    {
-        if ((N > 0) && (ko != kn))
-        {
-            double result = 0.;
-            if (ko > kn)
-                std::swap(ko, kn);
-
-            for (unsigned short i = ko + 1; i <= kn; ++i)
-                result += log(N - i + 1) - log(i);
-            return result;
-        }
-        return 0.;
-    }
+    double logratio_binom_coeff(unsigned short N, unsigned short ko, unsigned short kn);
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////  REGULARISED INCOMPLETE GAMMA FUNCTION  ////////////////////////////
@@ -112,126 +76,18 @@ namespace numr
     namespace gamma_p_impl
     {
         /// Lower regulairzed incomplete gamma function using series expansion.
-        double series(double shape, double z)
-        {
-            double sum = 1. / shape;
-            double term = sum;
-            for (unsigned m = 1; m <= MAX_ITER; ++m)
-            {
-                term *= z / (shape + m);
-                sum += term;
-
-                if (term < EPSILON * sum)
-                    return sum * exp(-z + shape * log(z) - lgamma(shape));
-            }
-
-            throw std::overflow_error(
-                "Overflow in gamma_p function for x/scale=" + std::to_string(z) +
-                ", shape=" + std::to_string(shape) + ".");
-        }
+        double series(double shape, double z);
 
         /// Upper regularized incomplete gamma function using continued fraction.
-        double continued_fraction(double shape, double z)
-        {
-            double b = z + 1. - shape;
-            double c = 1. / MIN_DBL;
-            double d = 1. / b;
-            double h = d;
-            double delta = 0.;
-
-            for (unsigned m = 1; m <= MAX_ITER; ++m)
-            {
-                double an = (shape - m) * m;
-                b += 2.;
-                d = an * d + b;
-                if (std::fabs(d) < MIN_DBL)
-                    d = MIN_DBL;
-                c = b + an / c;
-                if (std::fabs(c) < MIN_DBL)
-                    c = MIN_DBL;
-                d = 1. / d;
-                delta = c * d;
-                h *= delta;
-
-                if (std::fabs(delta - 1.) < EPSILON)
-                    return 1. - exp(-z + shape * log(z) - lgamma(shape)) * h;
-            }
-
-            throw std::overflow_error(
-                "Overflow in gamma_p function for x/scale=" + std::to_string(z) +
-                ", shape=" + std::to_string(shape) + ".");
-        }
+        double continued_fraction(double shape, double z);
     }
 
     /// Regularized incomplete gamma function.
-    inline double gamma_p(double shape, double z)
-    {
-        if (z < shape + 10.)
-            return gamma_p_impl::series(shape, z);
-        else
-            return gamma_p_impl::continued_fraction(shape, z);
-    }
+    double gamma_p(double shape, double z);
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////  REGULARISED INCOMPLETE BETA FUNCTION  ////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
-
-    /// UPDATE: to better reference this
-    /// (C) Copr. 1986-92 Numerical Recipes Software Vn2-5.
-    namespace ibeta_impl
-    {
-        double continued_fraction(double a, double b, double x)
-        {
-            const double qab = a + b,
-                         qap = a + 1.,
-                         qam = a - 1.;
-            double c = 1.,
-                   d = 1. - qab * x / qap;
-
-            if (std::fabs(d) < MIN_DBL)
-                d = MIN_DBL;
-            d = 1. / d;
-
-            double h = d;
-            for (unsigned m = 1; m <= MAX_ITER; ++m)
-            {
-                unsigned m2 = 2 * m;
-                double aa = (b - m) * m * x / ((qam + m2) * (a + m2));
-
-                d = 1. + aa * d;
-                if (std::fabs(d) < MIN_DBL)
-                    d = MIN_DBL;
-
-                c = 1. + aa / c;
-                if (std::fabs(c) < MIN_DBL)
-                    c = MIN_DBL;
-
-                d = 1. / d;
-                h *= d * c;
-                aa = -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2));
-
-                d = 1. + aa * d;
-                if (std::fabs(d) < MIN_DBL)
-                    d = MIN_DBL;
-
-                c = 1. + aa / c;
-                if (std::fabs(c) < MIN_DBL)
-                    c = MIN_DBL;
-
-                d = 1. / d;
-
-                double del = d * c;
-                h *= del;
-
-                if (std::fabs(del - 1.) < EPSILON)
-                    return h;
-            }
-
-            throw std::overflow_error(
-                "Overflow in ibeta function for x=" + std::to_string(x) +
-                ", a=" + std::to_string(a) + ", b=" + std::to_string(b) + ".");
-        }
-    }
 
     /// Logarithm of the beta function.
     inline double lbeta(double a, double b)
@@ -239,23 +95,15 @@ namespace numr
         return lgamma(a) + lgamma(b) - lgamma(a + b);
     }
 
-    /// Regularized incomplete beta function.
-    inline double ibeta(double a, double b, double x)
+    /// UPDATE: to better reference this
+    /// (C) Copr. 1986-92 Numerical Recipes Software Vn2-5.
+    namespace ibeta_impl
     {
-        if (x == 0.)
-            return 0.;
-        else if (x == 1.)
-            return 1.;
-        else
-        {
-            const double lbt = a * log(x) + b * log(1.0 - x) - lbeta(a, b);
-
-            if (x < (a + 1.) / (a + b + 2.))
-                return exp(lbt + log(ibeta_impl::continued_fraction(a, b, x) / a));
-            else
-                return 1. - exp(lbt + log(ibeta_impl::continued_fraction(b, a, 1. - x) / b));
-        }
+        double continued_fraction(double a, double b, double x);
     }
+
+    /// Regularized incomplete beta function.
+    double ibeta(double a, double b, double x);
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////  Normal Distribution : methods  /////////////////////////////////

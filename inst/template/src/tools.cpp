@@ -291,7 +291,7 @@ namespace tools
                     if (options.size() == 1)
                         return "\nAvailable option is " + format(options, 1);
                     else
-                        return "\nAvailable options are: " + format(options, MAX_STR_PRINT);
+                        return "\nAvailable options are: " + format(options, HSP_MAX_STR_PRINT);
                 }
                 return "";
             }
@@ -389,7 +389,7 @@ namespace tools
         std::istringstream iss(line);
 
         // get headers from first line
-        while (getline(iss, tkn, C_DELIM))
+        while (getline(iss, tkn, HSP_DELIM))
             headers.push_back(strcleaner_(tkn));
 
         return headers;
@@ -405,7 +405,7 @@ namespace tools
             std::istringstream iss(line);
             size_t n_cols = 0;
 
-            while (getline(iss, tkn, C_DELIM))
+            while (getline(iss, tkn, HSP_DELIM))
                 this_row.emplace(headers[n_cols++], strcleaner_(tkn));
 
             // last column is empty
@@ -466,7 +466,7 @@ namespace tools
                     std::istringstream iss(line);
 
                     //===== NAME =====//
-                    if (!getline(iss, name, C_DELIM))
+                    if (!getline(iss, name, HSP_DELIM))
                         throw std::runtime_error(
                             "Unable to extract list name. Check file line \"" + line + "\".");
 
@@ -555,7 +555,7 @@ namespace tools
                         "Missing " + where + " " + str::format(missing, 1));
                 else
                     throw std::invalid_argument(
-                        "Missing " + where + "s: " + str::format(missing, MAX_STR_PRINT));
+                        "Missing " + where + "s: " + str::format(missing, HSP_MAX_STR_PRINT));
             }
         }
     }
@@ -574,11 +574,11 @@ namespace tools
         if (unused.size() == 1)
             throw std::invalid_argument(
                 "Unknown " + where + " " + str::format(unused, 1) +
-                str::find_closest(unused[0], options, MIN_STR_DIST));
+                str::find_closest(unused[0], options, HSP_MIN_STR_DIST));
 
         else if (unused.size() > 1)
             throw std::invalid_argument(
-                "Unknown " + where + "s: " + str::format(unused, MAX_STR_PRINT) +
+                "Unknown " + where + "s: " + str::format(unused, HSP_MAX_STR_PRINT) +
                 str::find_closest(HSP_NA_STRING, options, 0));
     }
 

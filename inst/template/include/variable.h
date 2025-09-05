@@ -140,14 +140,15 @@ public:
 
     Variable(const std::string &name = HSP_NA_STRING,
              double value = HSP_NA_DOUBLE,
-             bool is_discrete = false,
-             bool is_constant = true,
-             const std::string &func_name = HSP_NA_STRING)
+             bool is_const = true,
+             bool is_discr = false,
+             const std::string &func_name = HSP_NA_STRING,
+             bool is_prim = false)
         : pFunc_(std::make_shared<Function>()),
           pDistr_(std::make_shared<Distribution>()),
           pProp_(std::make_shared<Proposer>())
     {
-        init(name, value, is_discrete, is_constant, func_name);
+        init(name, value, is_const, is_discr, func_name, is_prim);
     }
     ~Variable() = default;
 
@@ -158,11 +159,11 @@ public:
     /////////////////////////////////////////////////////////////////////////////////////////////
 
     double get() const { return (this->*get_)(); }
-    const double *get_ptr() const { return (this->*get_ptr_)(); }
+    observer_dbl_ptr get_ptr() const { return (this->*get_ptr_)(); }
     std::shared_ptr<Function> get_function() const { return pFunc_; }
 
-    bool is_function() const { return get_ != &Variable::do_get_default_; }
-    bool is_constant() const { return is_constant_; }
+    bool is_function() const { return get_ == &Variable::do_get_func_return_; }
+    bool is_constant() const { return is_function() ? pFunc_->is_constant() : is_constant_; }
     bool is_discrete() const { return pDistr_->is_discrete(); }
     bool is_from_zero() const { return (pProp_->is_rule_start_from_zero)(); }
 
@@ -172,9 +173,10 @@ public:
     /////////////////////////////////////  Variable : setter  ///////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    void init(const std::string &name, double value, bool is_discrete,
-              bool is_constant = true,
-              const std::string &func_name = HSP_NA_STRING);
+    void init(const std::string &name, double value,
+              bool is_const = true, bool is_discr = false,
+              const std::string &func_name = HSP_NA_STRING,
+              bool is_prim = false);
 
     /// Set value to variable.
     void set_value(double x) { (this->*set_)(x); }
@@ -192,7 +194,7 @@ public:
     /// Assign a scalar argument to function.
     void init_func_attr(const std::string &a, bool is_arg, double x) { pFunc_->init_attr(a, is_arg, x); }
     /// Assign a pointer argument to function.
-    void init_func_attr(const std::string &a, bool is_arg, const double *y) { pFunc_->init_attr(a, is_arg, y); }
+    void init_func_attr(const std::string &a, bool is_arg, observer_dbl_ptr y) { pFunc_->init_attr(a, is_arg, y); }
     /// Assign a function attribute to function.
     void init_func_attr(const std::string &a, bool is_arg, std::shared_ptr<Function> f) { pFunc_->init_attr(a, is_arg, f); }
 
@@ -205,7 +207,7 @@ public:
     /// Assign a scalar argument to distribution.
     void init_distr_attr(const std::string &a, bool is_arg, double x) { pDistr_->init_attr(a, is_arg, x); }
     /// Assign a pointer argument to distribution.
-    void init_distr_attr(const std::string &a, bool is_arg, const double *y) { pDistr_->init_attr(a, is_arg, y); }
+    void init_distr_attr(const std::string &a, bool is_arg, observer_dbl_ptr y) { pDistr_->init_attr(a, is_arg, y); }
     /// Assign a function argument to distribution.
     void init_distr_attr(const std::string &a, bool is_arg, std::shared_ptr<Function> f) { pDistr_->init_attr(a, is_arg, f); }
     /// Finalize reshaping of distribution.
@@ -293,9 +295,9 @@ private:
     double do_get_default_() const { return value_; }
     double do_get_func_return_() const { return pFunc_->return_value(); }
 
-    const double *(Variable::*get_ptr_)() const = &Variable::do_get_ptr_default_;
-    const double *do_get_ptr_default_() const { return &value_; }
-    const double *do_get_ptr_func_return_() const { throw std::runtime_error(
+    observer_dbl_ptr (Variable::*get_ptr_)() const = &Variable::do_get_ptr_default_;
+    observer_dbl_ptr do_get_ptr_default_() const { return &value_; }
+    observer_dbl_ptr do_get_ptr_func_return_() const { throw std::runtime_error(
         "Called pointer to function \"" + name() + "\"."); }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -303,8 +305,8 @@ private:
     /////////////////////////////////////////////////////////////////////////////////////////////
 
     void init_name_(const std::string &name) { variable_name_ = name; };
-    void init_default_(double value, bool is_discrete, bool is_constant);
-    void init_func_(const std::string &func_name);
+    void init_default_(double value);
+    void init_func_(const std::string &func_name, bool is_primitive);
 
     void (Variable::*set_)(double) = &Variable::do_set_default_;
     /// Store the buffer and change value.

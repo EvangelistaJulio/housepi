@@ -49,12 +49,12 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 // attribute aliases
-#define HSP_ATTR_ARGUMENT true // default argument
-#define HSP_ATTR_RANGE false   // range argument
+#define HSP_ATTR_ARGUMENT true /// default argument
+#define HSP_ATTR_RANGE false   /// range argument
 
 // variable parts aliases
-#define HSP_VAR_FUNCTION false // pass to Variable function
-#define HSP_VAR_MODEL true     //  pass to Variable model
+#define HSP_VAR_FUNCTION false /// pass to Variable function
+#define HSP_VAR_MODEL true     ///  pass to Variable model
 
 // NA value for double
 #ifdef _HOUSEPI_RCPP
@@ -63,41 +63,48 @@ const double HSP_NA_DOUBLE = NA_REAL;
 const double HSP_NA_DOUBLE = std::numeric_limits<double>::quiet_NaN();
 #endif
 
-// NA value for string
-const std::string HSP_NA_STRING = "<NA>";
-// prefic for hidden objects
-const std::string HSP_HIDE_PRFX = "..";
+const std::string HSP_NA_STRING = "<NA>"; /// NA value for string
 
-// chain column name in draws
-const std::string HSP_CHAIN_COL = HSP_HIDE_PRFX + "chain" + HSP_HIDE_PRFX;
+const std::string HSP_HIDE_PRFX = "..";                                    /// prefic for hidden objects
+const std::string HSP_CHAIN_COL = HSP_HIDE_PRFX + "chain" + HSP_HIDE_PRFX; /// chain column name in draws
 
 // group rates
-// alias for reference value
-constexpr double REFERENCE_VALUE = 1.0;
-// reference choice
-const std::string REFERENCE = HSP_HIDE_PRFX + "reference" + HSP_HIDE_PRFX;
-// contact rate
-const std::string CONTACT_RATE = HSP_HIDE_PRFX + "contact" + HSP_HIDE_PRFX;
-// missing rate
-const std::string MISSING_RATE = HSP_HIDE_PRFX + "missing_rate" + HSP_HIDE_PRFX;
+constexpr double HSP_REFER_VALUE = 1.0;                                              /// alias for reference value
+const std::string HSP_REFERENCE = HSP_HIDE_PRFX + "reference" + HSP_HIDE_PRFX;       /// reference choice
+const std::string HSP_CONTACT_RATE = HSP_HIDE_PRFX + "contact" + HSP_HIDE_PRFX;      /// contact rate
+const std::string HSP_MISSING_RATE = HSP_HIDE_PRFX + "missing_rate" + HSP_HIDE_PRFX; /// missing rate
 
 // infectivity profile
-// augmented instantaneous infectivity profile
-const std::string HSP_PROFILE_INST = HSP_HIDE_PRFX + "profile_inst" + HSP_HIDE_PRFX;
-// augmented cumulative infectivity profile
-const std::string HSP_PROFILE_CUMUL = HSP_HIDE_PRFX + "profile_cumul" + HSP_HIDE_PRFX;
+const std::string HSP_PROFILE_INST = HSP_HIDE_PRFX + "profile_inst" + HSP_HIDE_PRFX;   /// augmented instantaneous infectivity profile
+const std::string HSP_PROFILE_CUMUL = HSP_HIDE_PRFX + "profile_cumul" + HSP_HIDE_PRFX; /// augmented cumulative infectivity profile
 
 // advanced setup constants
-constexpr unsigned MAX_STR_PRINT = 5;        // maximum options to print
-constexpr unsigned MIN_STR_DIST = 3;         // minimum string distance for find closest
-constexpr unsigned DEFAULT_MAX_SIZE = 30;    // default size for lookup table
-constexpr unsigned MAX_NUM_ATTEMPTS = 100;   // max n. of attempts for initialization
-constexpr double TARGET_ACCEPT_RATE = 0.234; // target acceptation rate for MCMC
+constexpr unsigned HSP_MAX_STR_PRINT = 5;        /// maximum options to print
+constexpr unsigned HSP_MIN_STR_DIST = 3;         /// minimum string distance for find closest
+constexpr unsigned HSP_DEFAULT_MAX_SIZE = 30;    /// default size for lookup table
+constexpr unsigned HSP_MAX_NUM_ATTEMPTS = 100;   /// max n. of attempts for initialization
+constexpr double HSP_TARGET_ACCEPT_RATE = 0.234; /// target acceptation rate for MCMC
 
 // file formatters
-constexpr char C_DELIM = ',';      // file delimiter
-constexpr char C_LIST_DELIM = '/'; // dictionary delimiter
+constexpr char HSP_DELIM = ',';      /// file delimiter
+constexpr char HSP_LIST_DELIM = '/'; /// dictionary delimiter
 
+// declaration for typed file inputs
+const std::string HSP_TYPE_PARAM = "P";  /// Parameter type declaration
+const std::string HSP_TYPE_DATA = "D";   /// Data type declaration
+const std::string HSP_TYPE_SCALAR = "S"; /// Scalar type declaration
+const std::string HSP_TYPE_AUGM = "A";   /// Augmented type declaration
+
+// discretization types
+#define HSP_DISCR_NONE 0    /// none
+#define HSP_DISCR_LEFT 1    /// left
+#define HSP_DISCR_CENTER 2  /// center
+#define HSP_DISCR_DEFINED 3 /// defined
+
+// status aliases
+#define HSP_INFECTED_STATUS 1 // infected status (>=)
+#define HSP_HEALTHY_STATUS 0  // healthy status (==)
+#define HSP_MISSING_STATUS -1 // missing status (<=)
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -117,6 +124,8 @@ using rnd_gen = std::mt19937;
 /////////////////////////////////////////  TYPEDEF  /////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
+
+using observer_dbl_ptr = const double *;
 
 using int_vec = std::vector<int>;
 using dbl_vec = std::vector<double>;

@@ -32,37 +32,41 @@ get_rcpp_module_from_model <- function(module_name, model = NULL) {
   get_rcpp_module_from_dll(module_name, dll)
 }
 
+rd_test_disclaimer_ <- "This function is meant for testing only and not for repeated operations."
+rd_test_name_ <- "`character(1)` with the name of the %s."
+rd_test_x_ <- "`numeric()` with values."
+rd_test_prim_ <- "`logical(1)` to consider %s instead.\\cr
+Default is `FALSE`."
+rd_test_args_ <- "named `numeric()` or `list` with custom arguments."
+rd_test_discr_ <- "`logical(1)` to treat definition as discrete."
+rd_test_model_ <- "`HousepiModel` object eventually containing the custom registred %s.\cr
+If `NULL` (default) the built-in registry is used."
+
 #' @title
 #' Test Housepi Function
 #' @description
 #' Call housepi registered function.
-#' This function internally calls a large C++ class,
-#' thus it is not optimized for repeated  operations.
+#' `r rd_test_disclaimer_`
 #'
-#' @param name `character(1)`\cr
-#' Name of the function.
-#' @param x `numeric()`\cr
-#' Input vector.
-#' @param args `numeric()`\cr
-#' Additional arguments.
-#' @param min `double(1)`\cr
-#' Value of the minimum.
-#' @param max `double(1)`\cr
-#' Value of the maximum.
-#' @param model `HouseholdModel`\cr
-#' Custom household model to load from.
+#' @param name `r sprintf(rd_test_name_, "function")`
+#' @param x `r rd_test_x_`
+#' @param prim `r sprintf(rd_test_prim_, "primitive")`
+#' @param args `r rd_test_args_`
+#' @param min `r rd_var_min_`
+#' @param max `r rd_var_max_`
+#' @param model `r rd_test_model_`\cr
 #'
 #' @return
 #' `numeric()`
 #'
 #' @export
-test_function <- function(name, x, args = NULL,
-                          min = NA, max = NA, model = NULL) {
+test_function <- function(name, x, prim = FALSE, args = NULL,
+                          min = NA, max = NA, discr = FALSE, model = NULL) {
   # note: for simple function no reshaping -> discr = FALSE
   get_rcpp_module_from_model(
     "housepi_function", model
   )$FunctionHousepi$new(
-    name, FALSE, args, c(min = min, max = max)
+    name, prim, args, c(min = min, max = max), discr
   )$call(x)
 }
 
@@ -70,34 +74,27 @@ test_function <- function(name, x, args = NULL,
 #' Test Housepi Distribution
 #' @description
 #' Call housepi registered distribution.
-#' This function internally calls a large C++ class,
-#' thus it is not optimized for repeated  operations.
+#' `r rd_test_disclaimer_`
 #'
-#' @param name `character(1)`\cr
-#' Name of the distribution.
-#' @param x `numeric()`\cr
-#' Input vector.
-#' @param discr `logical(1)`\cr
-#' If `TRUE` discretize the distribution.
-#' @param args `numeric()`\cr
-#' Additional arguments.
-#' @param min `double(1)`\cr
-#' Value of the minimum.
-#' @param max `double(1)`\cr
-#' Value of the maximum.
-#' @param model `HouseholdModel`\cr
-#' Custom household model to load from.
+#' @param name `r sprintf(rd_test_name_, "distribution")`
+#' @param x `r rd_test_x_`
+#' @param cumul `r sprintf(rd_test_prim_, "cumulative")`
+#' @param args `r rd_test_args_`
+#' @param min `r rd_var_min_`
+#' @param max `r rd_var_max_`
+#' @param discr `r rd_test_discr_`
+#' @param model `r rd_test_model_`\cr
 #'
 #' @return
 #' `numeric()`
 #'
 #' @export
-test_distribution <- function(name, x, discr = FALSE, args = NULL,
-                              min = NA, max = NA, model = NULL) {
+test_distribution <- function(name, x, cumul = FALSE, args = NULL,
+                              min = NA, max = NA, discr = FALSE, model = NULL) {
   get_rcpp_module_from_model(
     "housepi_distribution", model
   )$DistributionHousepi$new(
-    name, discr, args, c(min = min, max = max)
+    name, cumul, args, c(min = min, max = max), discr
   )$call(x)
 }
 
@@ -105,32 +102,26 @@ test_distribution <- function(name, x, discr = FALSE, args = NULL,
 #' Test Housepi Infectivity Profile
 #' @description
 #' Call housepi registered infectivity profile.
-#' This function internally calls a large C++ class,
-#' thus it is not optimized for repeated  operations.
+#' `r rd_test_disclaimer_`
 #'
-#' @param name `character(1)`\cr
-#' Name of the infectivity profile
-#' @param x `numeric()`\cr
-#' Input vector.
-#' @param discr `logical(1)`\cr
-#' If `TRUE` discretize the infectivity profile.
-#' @param args `numeric()`\cr
-#' Additional arguments.
-#' @param max `double(1)`\cr
-#' Value of the maximum.
-#' @param model `HouseholdModel`\cr
-#' Custom household model to load from.
+#' @param name `r sprintf(rd_test_name_, "infectivity profile")`
+#' @param x `r rd_test_x_`
+#' @param cumul `r sprintf(rd_test_prim_, "cumulative")`
+#' @param args `r rd_test_args_`
+#' @param max `r rd_var_max_`
+#' @param discr `r rd_test_discr_`
+#' @param model `r rd_test_model_`\cr
 #'
 #' @return
 #' `numeric()`
 #'
 #' @export
-test_infec_profile <- function(name, x, discr = FALSE, args = NULL,
-                               max = NA, model = NULL) {
+test_infec_profile <- function(name, x, cumul = FALSE, args = NULL,
+                               max = NA, discr = FALSE, model = NULL) {
   # UPDATE: the minimum should be imposed from within
   get_rcpp_module_from_model(
     "housepi_infec_profile", model
   )$InfecProfileHousepi$new(
-    name, discr, args, c(min = ifelse(discr, 1, 0), max = max)
+    name, cumul, args, c(min = ifelse(discr, 1, 0), max = max), discr
   )$call(x)
 }

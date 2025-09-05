@@ -108,8 +108,8 @@ rd_aug_expr_ <- "Provide an expression."
 ############################################################################
 ############################################################################
 
-rd_grr_by_ <- "`list` with feature(s) associated to group rate as dataset headers.\\cr
-Corresponding dataset columns have to be categorical."
+rd_grr_by_ <- "`list` with feature(s) associated to group rate as data headers.\\cr
+Corresponding data columns have to be categorical."
 rd_grr_prefix_ <- "`character(1)` with prefix to parameter names associated to the group rate.\\cr
 If `NA` (default), used the first 3 letters of rate name."
 rd_grr_refer_ <- "named `list` to choose reference group providing corresponding features.\\cr
@@ -129,11 +129,11 @@ One between:\\cr
 - If `TRUE` (default), prints progress every second;\\cr
 - If `FALSE` or `0`, suppresses progress display."
 
-rd_add_dataset_ <- "`data.frame` with the household dataset used for analysis."
-rd_smpl_dataset_ <- paste(rd_add_dataset_,
-                          "If `NULL`, uses the previously stored dataset.")
+rd_add_data_wide_ <- "`data.frame` with the household data used for analysis in wide format."
+rd_smpl_data_wide_ <- paste(rd_add_data_wide_,
+                          "If `NULL`, uses the previously stored data.")
 
-rd_add_datalist_ <- "`data.frame` with the individual datalist used for analysis."
+rd_add_data_long_ <- "`data.frame` with the individual data (long format) used for analysis."
 
 rd_smpl_size_ <- "`integer(1)` with the number of posterior draws stored for each chain."
 rd_smpl_steps_ <- "`integer(1)`  with the total number of MCMC steps for each chain."

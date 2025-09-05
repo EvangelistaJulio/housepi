@@ -77,7 +77,7 @@ public:
 	///////////////////////////
 
 	double param(const std::string &p) const;
-	const double *param_pointer(const std::string &p) const;
+	observer_dbl_ptr param_pointer(const std::string &p) const;
 
 	////////////////////////////////////
 	///////  augmented variables  //////
@@ -137,7 +137,7 @@ public:
 
 #ifdef _HOUSEPI_RCPP
 	//----- C++ Print -----//
-	Rcpp::DataFrame dataset_for_simulation() const;
+	Rcpp::DataFrame data_wide_for_simulation() const;
 	Rcpp::List simulate(size_t n_rep);
 	Rcpp::List evidence(const std::string &scheme, unsigned long n_rungs);
 
@@ -146,8 +146,8 @@ public:
 	//========================//
 
 	void import_setup(SEXP input);
-	void import_dataset(SEXP input);
-	void import_datalist(SEXP input);
+	void import_data_wide(SEXP input);
+	void import_data_long(SEXP input);
 	void import_multiplicity(SEXP input);
 	void import_group_rates(SEXP input);
 	void import_param(SEXP input);
@@ -158,21 +158,21 @@ public:
 	//===== Rcpp EXPORTS =====//
 	//========================//
 
-	Rcpp::DataFrame export_dataset() const;
-	Rcpp::DataFrame export_datalist() const;
-	Rcpp::DataFrame export_dataset_report() const;
+	Rcpp::DataFrame export_data_wide() const;
+	Rcpp::DataFrame export_data_long() const;
+	Rcpp::DataFrame export_data_report() const;
 	Rcpp::DataFrame export_house_size_report() const;
 	Rcpp::List export_setup() const;
 	Rcpp::List export_infec_profile() const;
 	Rcpp::DataFrame export_param() const;
-	Rcpp::DataFrame export_augmented_dataset() const;
+	Rcpp::DataFrame export_augmented_data_wide() const;
 	Rcpp::NumericMatrix export_draws() const;
 	Rcpp::NumericMatrix export_house_loglike_draws() const;
 	Rcpp::List export_house_snapshot(const std::string &house_id) const;
 #else
 	//----- C++ Print -----//
 	void print_infer_state(const std::string &output_filename = HSP_NA_STRING) const;
-	void print_simulated_dataset(const std::string &output_filename = HSP_NA_STRING);
+	void print_simulated_data_wide(const std::string &output_filename = HSP_NA_STRING);
 	void print_evidence(const std::string &scheme, unsigned long n_rungs);
 
 	//////////////////////////
@@ -180,8 +180,8 @@ public:
 	//////////////////////////
 
 	void read_setup(const std::string &pathtofile = HSP_NA_STRING);
-	void read_dataset(const std::string &pathtofile = HSP_NA_STRING);
-	void read_datalist(const std::string &pathtofile = HSP_NA_STRING);
+	void read_data_wide(const std::string &pathtofile = HSP_NA_STRING);
+	void read_data_long(const std::string &pathtofile = HSP_NA_STRING);
 	void read_multiplicity(const std::string &pathtofile = HSP_NA_STRING);
 	void read_group_rates(const std::string &pathtofile = HSP_NA_STRING);
 	void read_param(const std::string &pathtofile = HSP_NA_STRING);

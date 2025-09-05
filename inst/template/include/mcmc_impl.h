@@ -32,12 +32,6 @@
 #include "household.h"
 #include "mcmc.h"
 
-// declaration for typed file inputs
-const std::string TYPE_PARAM = "P";  // Parameter type declaration
-const std::string TYPE_DATA = "D";   // Data type declaration
-const std::string TYPE_SCALAR = "S"; // Scalar type declaration
-const std::string TYPE_AUGM = "A";   // Augmented type declaration
-
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  MCMC : Impl : class  ////////////////////////////////////
@@ -57,7 +51,7 @@ public:
          std::function<double(Household &)> func_household_loglike,
          std::function<void(Household &)> func_simulate_house,
          std::function<void(Household &, Individual &)> func_update_cache)
-        : setup(*this), param(*this), dataset(*this), datalist(*this),
+        : setup(*this), param(*this), dataset(*this), datalong(*this),
           group_rates(*this), augm(*this), infec_profile(*this),
           callback_init_inference_(std::move(func_init_inference)),
           callback_init_simulation_(std::move(func_init_simulation)),
@@ -194,7 +188,7 @@ public:
         // get value of the parameter
         double get(const std::string &p) const { return this->at(p).get(); }
         // get pointer to the parameter
-        const double *get_ptr(const std::string &p) const { return this->at(p).get_ptr(); }
+        observer_dbl_ptr get_ptr(const std::string &p) const { return this->at(p).get_ptr(); }
 
         // flag to check if there are parameters to sample
         bool is_any_sample() const { return !list_sample.empty(); }
@@ -228,19 +222,19 @@ public:
     } param;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////  MCMC : Impl : DataSet : struct  ////////////////////////////
+    ///////////////////////////////  MCMC : Impl : DataWide : struct  ////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Implementation of Dataset.
-    struct DataSet
+    struct DataWide
     {
         /////////////////////////////////////////////////////////////////////////////////////////
         /////////////////////////  MCMC : Impl : DataSet : constructor  /////////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////
 
-        DataSet(MCMC::Impl &ptr)
+        DataWide(MCMC::Impl &ptr)
             : pImpl_(ptr) {}
-        ~DataSet() = default;
+        ~DataWide() = default;
 
         Household &operator()(size_t H) { return house_vector_[H]; }
         const Household &operator()(const std::string &house_id) const
@@ -252,7 +246,7 @@ public:
         }
 
         /////////////////////////////////////////////////////////////////////////////////////////
-        ////////////////////////////  MCMC : Impl : DataSet : getter  ///////////////////////////
+        ////////////////////////////  MCMC : Impl : DataWide : getter  ///////////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////
 
         size_t n_houses() const { return house_vector_.size(); }
@@ -267,7 +261,7 @@ public:
         Household copy(size_t H) const { return house_vector_[H]; }
 
         /////////////////////////////////////////////////////////////////////////////////////////
-        ////////////////////////////  MCMC : Impl : DataSet : setter  ///////////////////////////
+        ////////////////////////////  MCMC : Impl : DataWide : setter  ///////////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////
 
         void build(const dict_str_vec &input);
@@ -282,7 +276,7 @@ public:
         void clear_draws();
 
         /////////////////////////////////////////////////////////////////////////////////////////
-        ///////////////////////////  MCMC : Impl : DataSet : iterators  /////////////////////////
+        ///////////////////////////  MCMC : Impl : DataWide : iterators  /////////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////
 
         auto begin() { return house_vector_.begin(); }
@@ -349,7 +343,7 @@ public:
         Household &restricted(size_t R) { return house_vector_[restrict_indexes_[R]]; }
 
         /////////////////////////////////////////////////////////////////////////////////////////
-        /////////////////////////  MCMC : Impl : DataSet : import/export  ///////////////////////
+        /////////////////////////  MCMC : Impl : DataWide : import/export  ///////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////
 
 #ifdef _HOUSEPI_RCPP
@@ -388,39 +382,39 @@ public:
         std::map<std::string, unsigned long> report_house_ = {};
         std::map<std::string, std::pair<unsigned short, unsigned long>> report_size_ = {};
 
-        std::ofstream aux_dataset_ofstream_;
+        std::ofstream aux_ofstream_;
     } dataset;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////  MCMC : Impl : DataList : struct  ///////////////////////////
+    ///////////////////////////////  MCMC : Impl : DataLong : struct  ///////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Implementation of Individual Datalist.
-    struct DataList
+    struct DataLong
     {
         /////////////////////////////////////////////////////////////////////////////////////////
-        //////////////////////////  MCMC : Impl : DataList : constructor  ///////////////////////
+        //////////////////////////  MCMC : Impl : DataLong : constructor  ///////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////
 
-        DataList(MCMC::Impl &ptr)
+        DataLong(MCMC::Impl &ptr)
             : pImpl_(ptr) {}
-        ~DataList() = default;
+        ~DataLong() = default;
 
         /////////////////////////////////////////////////////////////////////////////////////////
-        ////////////////////////////  MCMC : Impl : DataList : getter  //////////////////////////
+        ////////////////////////////  MCMC : Impl : DataLong : getter  //////////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////
 
         bool is_empty() const { return indiv_datalist_.empty(); }
         const str_vec &headers() const { return headers_; }
 
         /////////////////////////////////////////////////////////////////////////////////////////
-        ////////////////////////////  MCMC : Impl : DataList : setter  //////////////////////////
+        ////////////////////////////  MCMC : Impl : DataLong : setter  //////////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////
 
         void build(const dict_str_vec &input);
 
         /////////////////////////////////////////////////////////////////////////////////////////
-        /////////////////////////  MCMC : Impl : DataList : import/export  //////////////////////
+        /////////////////////////  MCMC : Impl : DataLong : import/export  //////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////
 
 #ifdef _HOUSEPI_RCPP
@@ -432,11 +426,11 @@ public:
         void read(const std::string &pathtofile);
 #endif
     private:
-        const std::string section_name_ = "datalist";
+        const std::string section_name_ = "datalong";
         MCMC::Impl &pImpl_; // pointer to external class
         str_vec headers_ = {};
         std::vector<u_dict<dbl_vec>> indiv_datalist_ = {};
-    } datalist;
+    } datalong;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////  MCMC : Impl : GroupRates : class  ///////////////////////////
@@ -495,7 +489,8 @@ public:
     {
         dict_str_vec deftable = {};
         const str_vec file_headers = {"name", "status",
-                                      "func", "farg_key", "farg_val", "farg_at",
+                                      "func", "fcumul",
+                                      "farg_key", "farg_val", "farg_at",
                                       "value", "value_at", "init_rand",
                                       "const", "discr",
                                       "model", "arg_key", "arg_val", "arg_at",
@@ -557,7 +552,7 @@ public:
 
 #ifdef _HOUSEPI_RCPP
         void rcpp_import(SEXP input);
-        Rcpp::DataFrame rcpp_export_dataset() const;
+        Rcpp::DataFrame rcpp_export_data_wide() const;
         Rcpp::DataFrame rcpp_snapshot(const std::string &house_id) const;
 #else
         void read(const std::string &pathtofile);
@@ -702,7 +697,7 @@ public:
 #else
     //----- C++ Print -----//
     void print_infer_state(const std::string &output_filename = HSP_NA_STRING) const;
-    void print_simulated_dataset(const std::string &output_filename = HSP_NA_STRING);
+    void print_simulated_data_wide(const std::string &output_filename = HSP_NA_STRING);
     void print_evidence(const std::string &scheme, unsigned long n_rungs);
 #endif
 

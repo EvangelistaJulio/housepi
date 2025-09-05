@@ -22,11 +22,6 @@
 #include "tools.h"
 #include "function.h"
 
-#define D_DISCR_TYPE_NONE 0 // none
-#define D_DISCR_TYPE_LEFT 1 // left
-#define D_DISCR_TYPE_CNTR 2 // center
-#define D_DISCR_TYPE_DFND 3 // defined
-
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////// *** Distribution : class *** ///////////////////////////////////
@@ -42,195 +37,188 @@ public:
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
 	Distribution(const std::string &name = HSP_NA_STRING,
-				 const str_vec &arg_name = {},
-				 const dbl_vec &arg_value = {},
-				 double domain_min = HSP_NA_DOUBLE,
-				 double domain_max = HSP_NA_DOUBLE,
-				 bool is_min_open = true,
-				 bool is_max_open = true)
-		: Function(name, arg_name, arg_value,
-				   domain_min, domain_max, is_min_open, is_max_open) {}
+				 const str_vec &arg_name = {}, const dbl_vec &arg_value = {},
+				 double domain_min = HSP_NA_DOUBLE, bool is_min_open = true,
+				 double domain_max = HSP_NA_DOUBLE, bool is_max_open = true)
+		: Function(name,
+				   arg_name, arg_value,
+				   domain_min, is_min_open,
+				   domain_max, is_max_open) { set_return_as_distr_call(); }
 	virtual ~Distribution() = default;
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////  Distribution : getter  //////////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
-	bool is_discrete() const { return pdf_ != &Distribution::do_default_pdf_; }
-	double logpdf(double x) const { return (this->*logpdf_)(x); }
-	double logratio(double xo, double xn) const { return (xo != xn) ? (this->*logratio_)(xo, xn) : 0.; }
 	double rand(rnd_gen &prng);
-
-	/// Return value of probability density
-	double pdf(double x) const { return is_valid(x) ? (this->*pdf_)(x) : 0.; }
-
-	/// Return value of cumulative distribution
-	double cdf(double x) const { return is_valid(x) ? (this->*cdf_)(x) : (is_above(x) ? (this->*cdf_)(get_max()) : 0.); }
-
-	// note: as a function, distribution is defined by its pdf or cdf
-	double return_value(double x) const override { return (this->*return_value_)(x); }
+	/// Return value of probability density/mass function.
+	double pdf(double x) const { return do_as_distr_call_(x); }
+	/// Return value of log-probability density/mass function.
+	double logpdf(double x) const { return (this->*log_call_)(x); }
+	/// Return value of cumulative distribution.
+	double cdf(double x) const { return do_as_distr_primitive_(x); }
+	/// Return value of log-ratio of probability density/mass functions.
+	double logratio(double xo, double xn) const { return (xo != xn) ? (this->*log_ratio_)(xo, xn) : 0.; }
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////  Distribution : setter  //////////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
-	void set_return_cumul() { return_value_ = &Distribution::cdf; }
 	virtual void init_reshaping(bool discrete) override;
 
 protected:
 	/////////////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////  Distribution : virtual [protected] ////////////////////////////
+	/////////////////////////////////////////////////////////////////////////////////////////////
+
+	virtual void update_args_() {}; // UPDATE
+
+	/// Raw random sampling method of the distribution.
+	/// @param prng : pseudo-random number generator.
+	virtual double raw_rand_(rnd_gen &) { throw std::invalid_argument(
+		"Called undefined method \"rand\" of distribution \"" + name() + "\"."); }
+
+	/// Raw probability density/mass function of the distribution.
+	virtual double raw_pdf_(double) const { throw std::invalid_argument(
+		"Called undefined method \"pdf\" of distribution \"" + name() + "\"."); }
+
+	/// Raw log-probability density/mass function of the distribution.
+	virtual double raw_logpdf_(double) const { throw std::invalid_argument(
+		"Called undefined method \"logpdf\" of distribution \"" + name() + "\"."); }
+
+	/// Raw cumulative distribution function.
+	virtual double raw_cdf_(double) const { throw std::invalid_argument(
+		"Called undefined method \"cdf\" of distribution \"" + name() + "\"."); }
+
+	/// Raw log-ratio of probability density/mass functions.
+	virtual double raw_logratio_(double, double) const { return 0.; }
+
+	/////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////  Distribution : setter [protected] /////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
-	void init_functional_discretization(unsigned short discr_type);
-	void init_functional_truncation(unsigned short discr_type);
-
-	bool init_range_min(double min_val, bool is_open_zero);
-	void init_reshaping_min_zero(bool discrete, bool is_open_zero);
-	void init_reshaping_min_zero_discr_defined();
+	void init_sampling_discretization_(); // UPDATE
+	void init_functional_truncation_();
+	bool init_range_min_(double min_val, bool is_open_zero);
+	void init_reshaping_min_zero_(bool discrete, bool is_open_zero);
+	void init_reshaping_min_zero_discr_defined_();
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////  Distribution : getter [protected] /////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
-	virtual void update_args() {};
-
-	virtual double raw_rand(rnd_gen &) { throw std::invalid_argument(
-		"Called undefined method \"rand\" of distribution \"" + name() + "\"."); }
-
-	virtual double raw_pdf(double) const { throw std::invalid_argument(
-		"Called undefined method \"pdf\" of distribution \"" + name() + "\"."); }
-
-	virtual double raw_cdf(double) const { throw std::invalid_argument(
-		"Called undefined method \"cdf\" of distribution \"" + name() + "\"."); }
-
-	virtual double raw_logpdf(double) const { throw std::invalid_argument(
-		"Called undefined method \"logpdf\" of distribution \"" + name() + "\"."); }
-
-	virtual double raw_logratio(double, double) const { return 0.; }
-
-private:
+	/// Rejection sampling.
+	/// @param prng : pseudo-random number generator.
+	/// @param func : pointer to the raw random sampling method of the distribution.
 	double rejec_sample_(rnd_gen &prng, double (Distribution::*func)(rnd_gen &));
 
-	//===== Functional methods for return_value =====//
-	double (Distribution::*return_value_)(double) const = &Distribution::pdf;
+	double (Distribution::*rand_)(rnd_gen &) = &Distribution::do_rand_;
+	double do_rand_(rnd_gen &prng) { return raw_rand_(prng); }
+	double do_discr_center_rand_(rnd_gen &prng) { return static_cast<double>(std::lround(do_rand_(prng))); }
+	double do_discr_left_rand_(rnd_gen &prng) { return std::floor(do_rand_(prng)); }
 
-	//===== Functional methods for public getter methods =====//
-	double (Distribution::*pdf_)(double) const = &Distribution::do_default_pdf_;
-	double (Distribution::*cdf_)(double) const = &Distribution::do_default_cdf_;
-	double (Distribution::*logpdf_)(double) const = &Distribution::do_default_logpdf_;
-	double (Distribution::*logratio_)(double, double) const = &Distribution::do_default_logratio_;
-	double (Distribution::*rand_)(rnd_gen &) = &Distribution::do_default_rand_;
-
-	//===== Default functional methods =====//
-	double do_default_pdf_(double x) const { return (this->*trunc_)(raw_pdf(x)); }
-	double do_default_cdf_(double x) const { return (this->*trunc_)((this->*shift_)(raw_cdf(x))); }
-	double do_default_logpdf_(double x) const { return (this->*logtrunc_)(raw_logpdf(x)); }
-	double do_default_logratio_(double xo, double xn) const { return raw_logratio(xo, xn); }
-	double do_default_rand_(rnd_gen &prng) { return raw_rand(prng); }
-
-	//===== Functional methods for the discrete defined distributions =====//
-	double do_discr_defined_pdf_(double x) const { return do_default_pdf_(std::floor(x)); }
-	double do_discr_defined_cdf_(double x) const { return do_default_cdf_(std::floor(x)); }
-	double do_discr_defined_logpdf_(double x) const { return do_default_logpdf_(std::floor(x)); }
-	double do_discr_defined_logratio_(double xo, double xn) const { return do_default_logratio_(std::floor(xo), std::floor(xn)); }
-	// note : do_discr_defined_rand == do_default_rand_
-
-	//===== Functional methods for the center adjusted discretization =====//
-	double do_discr_center_pdf_(double x) const
+	double do_call_(double x) const override final { return (this->*trunc_)(raw_pdf_(x)); }
+	double do_call_discr_center_(double x) const override final
 	{
 		const double i = std::round(x);
-		return (this->*trunc_)(raw_cdf(i + .5) - raw_cdf(i - .5));
+		return (this->*trunc_)(raw_cdf_(i + .5) - raw_cdf_(i - .5));
 	}
-	double do_discr_center_cdf_(double x) const { return (this->*trunc_)((this->*shift_)(raw_cdf(std::round(x) + .5))); }
-	double do_discr_center_logpdf_(double x) const { return std::log(do_discr_center_pdf_(x)); }
-	double do_discr_center_logratio_(double xo, double xn) const
+	double do_call_discr_left_(double x) const override final
+	{
+		const double i = std::round(x);
+		return (this->*trunc_)(raw_cdf_(i + 1.) - raw_cdf_(i));
+	}
+
+	double do_log_call_(double x) const override final { return (this->*logtrunc_)(raw_logpdf_(x)); }
+
+	double do_primitive_(double x) const override final { return (this->*trunc_)((this->*shift_)(raw_cdf_(x))); }
+	double do_primitive_discr_center_(double x) const override final { return (this->*trunc_)((this->*shift_)(raw_cdf_(std::round(x) + .5))); }
+	double do_primitive_discr_left_(double x) const override final { return (this->*trunc_)((this->*shift_)(raw_cdf_(std::floor(x) + 1.))); }
+
+	double do_log_ratio_discr_center_(double xo, double xn) const override final
 	{
 		const double io = std::round(xo), in = std::round(xn);
-		return std::log((raw_cdf(in + .5) - raw_cdf(in - .5)) / (raw_cdf(io + .5) - raw_cdf(io - .5)));
+		return std::log((raw_cdf_(in + .5) - raw_cdf_(in - .5)) / (raw_cdf_(io + .5) - raw_cdf_(io - .5)));
 	}
-	double do_discr_center_rand_(rnd_gen &prng) { return static_cast<double>(std::lround(do_default_rand_(prng))); }
-
-	//===== Functional methods for the left adjusted discretization =====//
-	double do_discr_left_pdf_(double x) const
-	{
-		const double i = std::floor(x);
-		return (this->*trunc_)(raw_cdf(i + 1.) - raw_cdf(i));
-	}
-	double do_discr_left_cdf_(double x) const { return (this->*trunc_)((this->*shift_)(raw_cdf(std::floor(x) + 1.))); }
-	double do_discr_left_logpdf_(double x) const { return std::log(do_discr_left_pdf_(x)); }
-	double do_discr_left_logratio_(double xo, double xn) const
+	double do_log_ratio_discr_left_(double xo, double xn) const override final
 	{
 		const double io = std::floor(xo), in = std::floor(xn);
-		return std::log((raw_cdf(in + 1.) - raw_cdf(in)) / (raw_cdf(io + 1.) - raw_cdf(io)));
+		return std::log((raw_cdf_(in + 1.) - raw_cdf_(in)) / (raw_cdf_(io + 1.) - raw_cdf_(io)));
 	}
-	double do_discr_left_rand_(rnd_gen &prng) { return std::floor(do_default_rand_(prng)); }
 
-	//===== Functional methods for truncation =====//
+	/////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////  Distribution : functional truncation [private] //////////////////////
+	/////////////////////////////////////////////////////////////////////////////////////////////
+
 	double (Distribution::*trunc_)(double) const = &Distribution::do_trunc_dummy_;
-	double (Distribution::*logtrunc_)(double) const = &Distribution::do_logtrunc_dummy_;
-	double (Distribution::*shift_)(double) const = &Distribution::do_shift_dummy_;
-
-	//----- Functional methods for the truncation and/or discretization -----//
 
 	// default case
 	double do_trunc_dummy_(double x) const { return x; }
 
 	// continuos case
-	double do_trunc_min_(double x) const { return x / (1. - raw_cdf(get_min())); }
-	double do_trunc_max_(double x) const { return x / (raw_cdf(get_max())); }
-	double do_trunc_both_sides_(double x) const { return x / (raw_cdf(get_max()) - raw_cdf(get_min())); }
-	double do_trunc_rand_(rnd_gen &prng) { return rejec_sample_(prng, &Distribution::do_default_rand_); }
+	double do_trunc_min_(double x) const { return x / (1. - raw_cdf_(get_min())); }
+	double do_trunc_max_(double x) const { return x / (raw_cdf_(get_max())); }
+	double do_trunc_both_sides_(double x) const { return x / (raw_cdf_(get_max()) - raw_cdf_(get_min())); }
+	double do_trunc_rand_(rnd_gen &prng) { return rejec_sample_(prng, &Distribution::do_rand_); }
 
 	// case of discrete defined
-	double do__trunc_min_discr_defined_(double x) const { return x / (1. - raw_cdf(get_min() - 1)); }
-	double do_trunc_max_discr_defined_(double x) const { return x / (raw_cdf(get_max() + 1)); }
-	double do_trunc_both_sides_discr_defined_(double x) const { return x / (raw_cdf(get_max() + 1) - raw_cdf(get_min() - 1)); }
+	double do_trunc_min_discr_defined_(double x) const { return x / (1. - raw_cdf_(get_min() - 1)); }
+	double do_trunc_max_discr_defined_(double x) const { return x / (raw_cdf_(get_max() + 1)); }
+	double do_trunc_both_sides_discr_defined_(double x) const { return x / (raw_cdf_(get_max() + 1) - raw_cdf_(get_min() - 1)); }
 	// note : do_trunx_rand_discr_defined == do_trunc_rand_
 
 	// case of center discretization
-	double do_trunc_min_discr_center_(double x) const { return x / (1. - raw_cdf(std::ceil(get_min()) - .5)); }
-	double do_trunc_max_discr_center_(double x) const { return x / (raw_cdf(std::floor(get_max()) + .5)); }
-	double do_trunc_both_sides_discr_center_(double x) const { return x / (raw_cdf(std::floor(get_max()) + .5) - raw_cdf(std::ceil(get_min()) - .5)); }
+	double do_trunc_min_discr_center_(double x) const { return x / (1. - raw_cdf_(std::ceil(get_min()) - .5)); }
+	double do_trunc_max_discr_center_(double x) const { return x / (raw_cdf_(std::floor(get_max()) + .5)); }
+	double do_trunc_both_sides_discr_center_(double x) const { return x / (raw_cdf_(std::floor(get_max()) + .5) - raw_cdf_(std::ceil(get_min()) - .5)); }
 	double do_trunc_rand_discr_center_(rnd_gen &prng) { return rejec_sample_(prng, &Distribution::do_discr_center_rand_); }
 
 	// case of left discretization
-	double do_trunc_min_discr_left_(double x) const { return x / (1. - raw_cdf(std::floor(get_min()))); }
-	double do_trunc_max_discr_left_(double x) const { return x / (raw_cdf(std::ceil(get_max() + 1))); }
-	double do_trunc_both_sides_discr_left_(double x) const { return x / (raw_cdf(std::ceil(get_max() + 1)) - raw_cdf(std::floor(get_min()))); }
+	double do_trunc_min_discr_left_(double x) const { return x / (1. - raw_cdf_(std::floor(get_min()))); }
+	double do_trunc_max_discr_left_(double x) const { return x / (raw_cdf_(std::ceil(get_max() + 1))); }
+	double do_trunc_both_sides_discr_left_(double x) const { return x / (raw_cdf_(std::ceil(get_max() + 1)) - raw_cdf_(std::floor(get_min()))); }
 	double do_trunc_rand_discr_left_(rnd_gen &prng) { return rejec_sample_(prng, &Distribution::do_discr_left_rand_); }
 
-	//----- Functional methods for the log-truncation -----//
+	/////////////////////////////////////////////////////////////////////////////////////////////
+	////////////////////  Distribution : functional log-truncation [private] ////////////////////
+	/////////////////////////////////////////////////////////////////////////////////////////////
+
+	/// note : this is not improving the case of discretization with repspect to simply log of pdf
+	double (Distribution::*logtrunc_)(double) const = &Distribution::do_logtrunc_dummy_;
 
 	// default case
 	double do_logtrunc_dummy_(double x) const { return x; }
 
 	// continuos case
-	double do_logtrunc_min_(double x) const { return x - std::log(1. - raw_cdf(get_min())); }
-	double do_logtrunc_max_(double x) const { return x - std::log(raw_cdf(get_max())); }
-	double do_logtrunc_both_sides_(double x) const { return x - std::log(raw_cdf(get_max()) - raw_cdf(get_min())); }
+	double do_logtrunc_min_(double x) const { return x - std::log(1. - raw_cdf_(get_min())); }
+	double do_logtrunc_max_(double x) const { return x - std::log(raw_cdf_(get_max())); }
+	double do_logtrunc_both_sides_(double x) const { return x - std::log(raw_cdf_(get_max()) - raw_cdf_(get_min())); }
 
 	// case of discrete defined
-	double do_logtrunc_min_discr_defined_(double x) const { return x - std::log(1. - raw_cdf(get_min() - 1)); }
-	double do_logtrunc_max_discr_defined_(double x) const { return x - std::log(raw_cdf(get_max() + 1)); }
-	double do_logtrunc_both_sides_discr_defined_(double x) const { return x - std::log(raw_cdf(get_max() + 1) - raw_cdf(get_min() - 1)); }
+	double do_logtrunc_min_discr_defined_(double x) const { return x - std::log(1. - raw_cdf_(get_min() - 1)); }
+	double do_logtrunc_max_discr_defined_(double x) const { return x - std::log(raw_cdf_(get_max() + 1)); }
+	double do_logtrunc_both_sides_discr_defined_(double x) const { return x - std::log(raw_cdf_(get_max() + 1) - raw_cdf_(get_min() - 1)); }
 
 	// case of center discretization
-	double do_logtrunc_min_discr_center_(double x) const { return x - std::log(1. - raw_cdf(std::ceil(get_min()) - .5)); }
-	double do_logtrunc_max_discr_center_(double x) const { return x - std::log(raw_cdf(std::floor(get_max()) + .5)); }
-	double do_logtrunc_both_sides_discr_center_(double x) const { return x - std::log(raw_cdf(std::floor(get_max()) + .5) - raw_cdf(std::ceil(get_min()) - .5)); }
+	double do_logtrunc_min_discr_center_(double x) const { return x - std::log(1. - raw_cdf_(std::ceil(get_min()) - .5)); }
+	double do_logtrunc_max_discr_center_(double x) const { return x - std::log(raw_cdf_(std::floor(get_max()) + .5)); }
+	double do_logtrunc_both_sides_discr_center_(double x) const { return x - std::log(raw_cdf_(std::floor(get_max()) + .5) - raw_cdf_(std::ceil(get_min()) - .5)); }
 
 	// case of left discretization
-	double do_logtrunc_min_discr_left_(double x) const { return x - std::log(1. - raw_cdf(std::floor(get_min()))); }
-	double do_logtrunc_max_discr_left_(double x) const { return x - std::log(raw_cdf(std::ceil(get_max()))); }
-	double do_logtrunc_both_sides_discr_left_(double x) const { return x - std::log(raw_cdf(std::ceil(get_max())) - raw_cdf(std::floor(get_min()))); }
+	double do_logtrunc_min_discr_left_(double x) const { return x - std::log(1. - raw_cdf_(std::floor(get_min()))); }
+	double do_logtrunc_max_discr_left_(double x) const { return x - std::log(raw_cdf_(std::ceil(get_max()))); }
+	double do_logtrunc_both_sides_discr_left_(double x) const { return x - std::log(raw_cdf_(std::ceil(get_max())) - raw_cdf_(std::floor(get_min()))); }
 
-	//----- Functional methods to shift cumulative -----//
+	/////////////////////////////////////////////////////////////////////////////////////////////
+	/////////////////////////  Distribution : functional shift [private] ////////////////////////
+	/////////////////////////////////////////////////////////////////////////////////////////////
+
+	double (Distribution::*shift_)(double) const = &Distribution::do_shift_dummy_;
 	double do_shift_dummy_(double x) const { return x; }
-	double do_shift_min_(double x) const { return x - raw_cdf(get_min()); }
-	double do_shift_min_discr_defined_(double x) const { return x - raw_cdf(get_min() - 1); }
-	double do_shift_min_discr_center_(double x) const { return x - raw_cdf(std::floor(get_min()) - .5); }
-	double do_shift_min_discr_left_(double x) const { return x - raw_cdf(std::floor(get_min())); }
+	double do_shift_min_(double x) const { return x - raw_cdf_(get_min()); }
+	double do_shift_min_discr_defined_(double x) const { return x - raw_cdf_(get_min() - 1); }
+	double do_shift_min_discr_center_(double x) const { return x - raw_cdf_(std::floor(get_min()) - .5); }
+	double do_shift_min_discr_left_(double x) const { return x - raw_cdf_(std::floor(get_min())); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -260,14 +248,10 @@ public:
 
 	/// Override get_options method of generic function with distribution.
 	str_vec get_options() const override final;
-
-	/// Override get method of generic function with distribution.
-	std::shared_ptr<Function> get(const std::string &opt) const override final;
-
-	/// Override valid options to allow for cumulative distribution call.
-	bool is_valid_option(const std::string &opt) const override final;
-
+	/// Method to get a distribution.
 	virtual std::shared_ptr<Distribution> get_distr(const std::string &opt) const;
+	/// Override get method of generic function with distribution.
+	std::shared_ptr<Function> get(const std::string &opt, bool is_primitive) const override final;
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////  Distribution Registry : setter  ////////////////////////////
@@ -278,12 +262,12 @@ public:
 	{
 		static_assert(std::is_base_of<Distribution, T>::value,
 					  "T must be derived from Distribution");
-		_factory_map[T().name()] = []()
+		factory_map_[T().name()] = []()
 		{ return std::make_shared<T>(); };
 	}
 
 private:
-	std::unordered_map<std::string, FactoryDistr> _factory_map = {};
+	std::unordered_map<std::string, FactoryDistr> factory_map_ = {};
 };
 
 /// Register a Distribution derived class T to DistributionRegistry derived class C.

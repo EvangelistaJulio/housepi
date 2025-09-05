@@ -9,23 +9,24 @@
 #
 # group_rates.R
 #
+
 #' @title
-#' Assert dataset features
+#' Assert data features
 #' @description
-#' Assert that features are present in dataset,
+#' Assert that features are present in data.
 #'
 #' @param features
-#' Features as list of dataset column names
-#' @param dataset_headers
-#' Headers of the dataset.
+#' Features as list of data column names.
+#' @param headers
+#' All column names of the data.
 #'
 #' @keywords internal
 #' @noRd
-assert_dataset_features <- function(features, dataset_headers) {
+assert_data_features <- function(features, headers) {
   # assert that features are present
   missing <- c()
   for (this in features) {
-    if (!(this %in% dataset_headers)) missing <- c(missing, this)
+    if (!(this %in% headers)) missing <- c(missing, this)
   }
   if (length(missing) > 0) stop_h(
     sprintf(
@@ -33,7 +34,7 @@ assert_dataset_features <- function(features, dataset_headers) {
       ifelse(length(missing) > 1, "s:", ""),
       character_to_string_list(missing)
     ),
-    "Check your features and dataset headers."
+    "Check your features and data headers."
   )
 }
 
@@ -42,25 +43,25 @@ assert_dataset_features <- function(features, dataset_headers) {
 #' @description
 #' Return logic table of group rates
 #'
-#' @param dataset
-#' the dataset from which the etract group rates
+#' @param data_wide
+#' Data from which to extract group rates
 #' @param by
-#' Features as list of dataset column names
+#' Features as list of data column names.
 #'
 #' @return
 #' data.frame with logic table
 #'
 #' @keywords internal
 #' @noRd
-group_rate_logic_table <- function(dataset, by) {
+group_rate_logic_table <- function(data_wide, by) {
   # sort alphabetically the features
   features <- sort(as.character(by))
 
   # convert features
-  assert_dataset_features(features, colnames(dataset))
+  assert_data_features(features, colnames(data_wide))
 
   # extract unique features and sort by list length
-  uni_features <- lapply(features, function(f) sort(unique(dataset[[f]])))
+  uni_features <- lapply(features, function(f) sort(unique(data_wide[[f]])))
   sorted_indices <- order(sapply(uni_features, length), decreasing = TRUE)
   features <- features[sorted_indices]
   uni_features <- uni_features[sorted_indices]
@@ -71,7 +72,7 @@ group_rate_logic_table <- function(dataset, by) {
 
   # check that the multi-feature exists
   multifeat_count <- apply(y, 1, function(row) {
-    sum(apply(dataset[features], 1, function(d_row) all(d_row == row)))
+    sum(apply(data_wide[features], 1, function(d_row) all(d_row == row)))
   })
 
   # create the final truth table and reverse it
@@ -329,8 +330,8 @@ HousepiGroupRate <- R6::R6Class(
     #' @param name `character(1)`\cr
     #' Name of the group rate.
     #' @param by `list`\cr
-    #' Feature(s) associated to group rate as dataset headers.
-    #' Corresponding dataset column have to be categorical.
+    #' Feature(s) associated to group rate as datasedatat headers.
+    #' Corresponding data column have to be categorical.
     #' @param prefix `character(1)`\cr
     #' Prefix to parameter names associated to the group rate.
     #' @param reference named `list`\cr
@@ -457,13 +458,13 @@ HousepiGroupRate <- R6::R6Class(
     },
 
     #' @description
-    #' Implement group rate definition according to the dataset.
+    #' Implement group rate definition according to data.
     #'
-    #' @param dataset `data.frame`\cr
+    #' @param data_wide `data.frame`\cr
     #' Dataset to be considered.
     #' @param factor_info `list`\cr
     #' Levels for each factorized feature.
-    implement = function(dataset, factor_info) {
+    implement = function(data_wide, factor_info) {
       self$logic_tables <- list()
 
       for (rate_id in names(self$defs)) {
@@ -484,7 +485,7 @@ HousepiGroupRate <- R6::R6Class(
 
           for (this_feat in features) {
             # 1. create logic table with group rates
-            this_table <- group_rate_logic_table(dataset, this_feat)
+            this_table <- group_rate_logic_table(data_wide, this_feat)
             # associate names for parameters
             this_table <- associate_param_names(
               this_table, prefix, this_def$reference

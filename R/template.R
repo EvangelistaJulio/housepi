@@ -399,13 +399,13 @@ template_not_used_warn <- function(required, defined, family) {
 #' @title
 #' Template Blank Dataset
 #' @description
-#' Template dataset associated to 'blank' model.
+#' Template data_wide associated to 'blank' model.
 #'
 #' @return `data.frame`
 #'
 #' @keywords internal
 #' @noRd
-template_blank_dataset_ <- function() {
+template_blank_data_wide_ <- function() {
   data.frame(id = c("hh_01_1", "hh_01_2"),
              house_id = "hh_01",
              status = c(1, 0))

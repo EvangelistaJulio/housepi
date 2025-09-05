@@ -22,11 +22,6 @@
 #include "tools.h"
 #include "variable.h"
 
-// status aliases
-#define INFECTED_STATUS 1 // infected status (>=)
-#define HEALTHY_STATUS 0  // healthy status (==)
-#define MISSING_STATUS -1 // missing status (<=)
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////// *** Individual : class *** /////////////////////////////////////
@@ -60,15 +55,15 @@ public:
 	operator size_t() const { return hhindex_; }
 
 	int status() const { return status_; }
-	bool is_infected_status() const { return status_ >= INFECTED_STATUS; }
-	bool is_healthy_status() const { return status_ == HEALTHY_STATUS; }
-	bool is_missing_status() const { return status_ <= MISSING_STATUS; }
+	bool is_infected_status() const { return status_ >= HSP_INFECTED_STATUS; }
+	bool is_healthy_status() const { return status_ == HSP_HEALTHY_STATUS; }
+	bool is_missing_status() const { return status_ <= HSP_MISSING_STATUS; }
 	double data(const std::string &d) const { return safe_at(data_map_, "dataset", d); }
-	const dbl_vec &datalist(const std::string &d) const
+	const dbl_vec &datalong(const std::string &d) const
 	{
 		if (pdatalist_ == nullptr)
 			throw std::invalid_argument(
-				"Individual \"" + id_ + "\" has no datalist entries.");
+				"Individual \"" + id_ + "\" has no datalong entries.");
 		else
 			return pdatalist_->at(d);
 	}
@@ -86,13 +81,13 @@ public:
 	void set_augm_value(const std::string &a, double x) { safe_at(augm_map_, "augmented variable", a).set_value(x); }
 	void init_pointer_to_datalist(u_dict<dbl_vec> *y) { pdatalist_ = y; }
 	void clear_augm(const std::string &a) { augm_map_[a] = Variable(); }
-	void init_all_group_rates(const u_dict<std::vector<const double *>> &ptrs);
+	void init_all_group_rates(const u_dict<std::vector<observer_dbl_ptr>> &ptrs);
 	void init_augm(const std::string &a,
-				   const std::string &name,
 				   double value,
-				   bool is_discrete,
-				   bool is_constant,
+				   bool is_const,
+				   bool is_discr,
 				   const std::string &func_name,
+				   bool is_prim,
 				   const std::string &model_name);
 	void init_augm_model(const str_vec &augm_model_list);
 	void user_reset();
@@ -114,33 +109,33 @@ private:
 	{
 	public:
 		GroupRate(const std::string &name = HSP_NA_STRING,
-				  const std::vector<const double *> &ptrs = {});
+				  const std::vector<observer_dbl_ptr> &ptrs = {});
 		~GroupRate() = default;
 
 		double get() const
 		{
 			double output = 1.0;
-			for (const double *ptr : pointers_)
+			for (observer_dbl_ptr ptr : pointers_)
 				output *= *ptr;
 			return output;
 		}
 
 	private:
 		std::string name_ = "";
-		std::vector<const double *> pointers_ = {};
+		std::vector<observer_dbl_ptr> pointers_ = {};
 	};
 
 	std::string id_ = HSP_NA_STRING; // user id
 	size_t index_ = 0;				 // housepi internal index
 	size_t hhindex_ = 0;			 // household relative index
-	int status_ = MISSING_STATUS;	 // status of the individual
+	int status_ = HSP_MISSING_STATUS;	 // status of the individual
 
 	// NOTE: allowd dataset variables are numerical only
 	u_dict<double> data_map_ = {};	  // dataset
 	u_dict<Variable> augm_map_ = {};  // augmented
 	u_dict<GroupRate> rate_map_ = {}; // group rates
 
-	u_dict<dbl_vec> *pdatalist_ = nullptr; // datalist to be associated
+	u_dict<dbl_vec> *pdatalist_ = nullptr; // datalong to be associated
 
 	std::vector<std::function<double()>> augm_model_logpdfs_ = {};
 	double augm_loglike_ = 0; // current augmented model loglikelihood
@@ -273,7 +268,7 @@ public:
 	void init_member(size_t index, const std::string &id, int status, const u_dict<double> &data);
 	bool change_status(Individual &member, int new_status);
 	bool change_status(size_t i, int new_status) { return change_status(members_.at(i), new_status); }
-	void init_contact_rates(size_t from, size_t to, const double *x);
+	void init_contact_rates(size_t from, size_t to, observer_dbl_ptr x);
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////  Household : cache attributes  ////////////////////////////////
@@ -326,7 +321,7 @@ private:
 	std::vector<size_t> missing_list_ = {};
 
 	// contact rate pointers
-	matrix<const double *> contact_rates_;
+	matrix<observer_dbl_ptr> contact_rates_;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////  Household : loglikelihood [private]  ////////////////////////////

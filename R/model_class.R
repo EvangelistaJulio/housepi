@@ -19,7 +19,7 @@
 #' @title
 #' Housepi Model
 #' @description
-#' Compile household model, manage your dataset
+#' Compile household model, manage your data
 #' and variable defintions from a single class.
 #'
 #' @keywords internal
@@ -42,24 +42,24 @@ HousepiModel <- R6::R6Class(
 
     # @description
     # Dataset headers required by implementation file and other definitions.
-    .get_all_required_dataset = function() {
+    .get_all_required_data = function() {
       required <- c()
-      if (!private$.is_blank()) required <- private$.dataset_required()
+      if (!private$.is_blank()) required <- private$.data_required()
       c(
         required, # by the model
-        private$.augm$dataset_required, # by augmented variable
-        private$.infec_profile$dataset_required # by infectivity profile
+        private$.augm$data_required, # by augmented variable
+        private$.infec_profile$data_required # by infectivity profile
       )
     },
 
     # @description 
-    # Assert if dataset headers match implementation file.
-    .assert_dataset = function(dataset_headers) {
-      if (length(dataset_headers) == 0) stop_h(
-        "Impossible to proceed. No database was provided."
+    # Assert if data_wide headers match implementation file.
+    .assert_data_wide = function(headers) {
+      if (length(headers) == 0) stop_h(
+        "Impossible to proceed. No data was provided."
       )
-      required <- private$.get_all_required_dataset()
-      template_missing_stop(required, dataset_headers, "dataset")
+      required <- private$.get_all_required_data()
+      template_missing_stop(required, headers, "data_wide")
       invisible(self)
     },
 
@@ -123,7 +123,7 @@ HousepiModel <- R6::R6Class(
 
     # @description
     # Enable multiplicity engine.
-    .multiplicity_engine = function(dataset = NULL) {
+    .multiplicity_engine = function(data_wide = NULL) {
       # check if model allows for multiplicity
       refer_file <- private$.reference()
       regexp <- ".multiplicity\\s*\\(\\s*\\)"
@@ -135,16 +135,16 @@ HousepiModel <- R6::R6Class(
           "Model with augmentated variable called multiplicity engine."
         )
 
-        # if dataset not provided, load previous
-        # UPDATE: this "back & forth" of dataset is not optimal!
-        if ((length(dataset) == 0) && (length(private$.cols_dataset) > 0)) {
-          dataset <- self$dataset
+        # if data_wide not provided, load previous
+        # UPDATE: this "back & forth" of data_wide is not optimal!
+        if ((length(data_wide) == 0) && (length(private$.cols_data_wide) > 0)) {
+          data_wide <- self$data_wide
         }
 
         headers <- c(
-          # dataset headers required by implementation
-          private$.get_all_required_dataset(),
-          # dataset headers required by group rates
+          # data_wide headers required by implementation
+          private$.get_all_required_data(),
+          # data_wide headers required by group rates
           unlist(lapply(
             private$.group_rates$logic_tables,
             function(x) unlist(lapply(x, names))
@@ -153,8 +153,8 @@ HousepiModel <- R6::R6Class(
         # remove logic tables auxiliary column names
         headers <- setdiff(unique(headers), c("n", "param_name"))
 
-        # list of splitted dataset by house_id
-        split_data <- split(dataset[c("status", headers)], dataset$house_id)
+        # list of splitted data_wide by house_id
+        split_data <- split(data_wide[c("status", headers)], data_wide$house_id)
         # sort individuals in each household by all columns
         sorted_data <- lapply(split_data, function(x) {
           x[do.call(order, x), , drop = FALSE]
@@ -172,7 +172,7 @@ HousepiModel <- R6::R6Class(
                                      stringsAsFactors = FALSE)
 
         # use hashes to produce multiplicity table
-        defs <- data.frame(house_id = unique(dataset$house_id),
+        defs <- data.frame(house_id = unique(data_wide$house_id),
                            multiplicity = 0,
                            class_id = NA,
                            stringsAsFactors = FALSE)
@@ -201,13 +201,13 @@ HousepiModel <- R6::R6Class(
 
       # proceed only if definitions exist
       if (length(private$.group_rates$defs) > 0) {
-        # if dataset not provided, load previous
-        # UPDATE: count in the wrapper while storing dataset_levels
-        if (length(private$.cols_dataset) == 0) dataset <- NULL
-        else dataset <- self$dataset
+        # if data_wide not provided, load previous
+        # UPDATE: count in the wrapper while storing data_wide_levels
+        if (length(private$.cols_data_wide) == 0) data_wide <- NULL
+        else data_wide <- self$data_wide
 
         # implement group rates
-        private$.group_rates$implement(dataset, private$.info_dataset)
+        private$.group_rates$implement(data_wide, private$.info_data_wide)
 
         # append parameter definitions if missing
         new_parameters <- private$.group_rates$parameters
@@ -224,22 +224,22 @@ HousepiModel <- R6::R6Class(
 
     # @description
     # Full model build with complete list of definitions.
-    .build_full = function(dataset = NULL,
+    .build_full = function(data_wide = NULL,
                            sample_size = NA, n_steps = 0,
                            n_burnin = 0, thin = 1, n_adapt = 0,
                            n_chains = 1, n_threads = 1,
                            rand_init = TRUE, id_draws = NA,
                            seed = NA, progress = FALSE) {
-      # build dataset
-      self$add_dataset(dataset)
+      # build data_wide
+      self$add_data_wide(data_wide)
 
       # individual id for blank model augmented draws
       # if no default columns, assume debugging mode
       if (private$.is_blank() && all(is.na(id_draws))) {
-        # UPDATE: not robust in case of dataset with only default columns
-        if (length(setdiff(private$.cols_dataset,
+        # UPDATE: not robust in case of data_wide with only default columns
+        if (length(setdiff(private$.cols_data_wide,
                            c("house_id", "id", "status"))) == 0) {
-          id_draws <- template_blank_dataset_()$id[1]
+          id_draws <- template_blank_data_wide_()$id[1]
         }
       }
 
@@ -261,7 +261,7 @@ HousepiModel <- R6::R6Class(
       # group rates (import depends on param)
       private$.build_group_rates()
       private$.rcpp$import_group_rates(
-        private$.group_rates$expose_to_cpp(private$.info_dataset)
+        private$.group_rates$expose_to_cpp(private$.info_data_wide)
       )
 
       # build contact rates (UPDATE: temporary)
@@ -283,14 +283,14 @@ HousepiModel <- R6::R6Class(
     # this could be designed to be more helpful
     # e. g. create a standalone folder somewhere with correct links to headers
     .export_to_cpp_standalone = function(outpath = "../housepi/inst/standalone/") {
-      write.csv(private$.rcpp$export_dataset(),
-                file.path(outpath, "dataset.tmp"),
+      write.csv(private$.rcpp$export_data_wide(),
+                file.path(outpath, "data_wide.tmp"),
                 quote = FALSE, row.names = FALSE)
-      write.csv(private$.rcpp$export_datalist(),
-                file.path(outpath, "datalist.tmp"),
+      write.csv(private$.rcpp$export_data_long(),
+                file.path(outpath, "data_long.tmp"),
                 quote = FALSE, row.names = FALSE)
 
-      write.csv(private$.group_rates$expose_to_cpp(private$.info_dataset),
+      write.csv(private$.group_rates$expose_to_cpp(private$.info_data_wide),
                 file.path(outpath, "group_rates.tmp"),
                 quote = FALSE, row.names = FALSE)
       write.csv(self$augmented,
@@ -314,29 +314,29 @@ HousepiModel <- R6::R6Class(
   ############################################################################
 
   active = list(
-    #' @field dataset `data.frame`\cr
-    #' Dataset with individual level information of current dataset.
-    dataset = function(value) {
+    #' @field data_wide `data.frame`\cr
+    #' Dataset with individual level information of current data_wide.
+    data_wide = function(value) {
       if (missing(value)) {
         if (is.null(private$.rcpp)) stop_h(
-          "Impossible to export dataset before model build."
+          "Impossible to export data_wide before model build."
         )
-        return(private$.refactor_dataset(private$.rcpp$export_dataset()))
+        return(private$.refactor_data_wide(private$.rcpp$export_data_wide()))
       } else {
-        self$add_dataset(value)
+        self$add_data_wide(value)
       }
     },
 
-    #' @field datalist `data.frame`\cr
+    #' @field data_long `data.frame`\cr
     #' Datalist with multiple rows indexed by individual.
-    datalist = function(value) {
+    data_long = function(value) {
       if (missing(value)) {
         if (is.null(private$.rcpp)) stop_h(
-          "Impossible to export datalist before model build."
+          "Impossible to export data_long before model build."
         )
-        return(private$.refactor_datalist(private$.rcpp$export_datalist()))
+        return(private$.refactor_data_long(private$.rcpp$export_data_long()))
       } else {
-        self$add_datalist(value)
+        self$add_data_long(value)
       }
     },
 
@@ -397,8 +397,8 @@ HousepiModel <- R6::R6Class(
       # generate model wrapper
       super$initialize(choice = choice, as_template = as_template,
                        force = force, quiet = quiet)
-      # import blank template dataset
-      if (private$.is_blank()) self$add_dataset(template_blank_dataset_())
+      # import blank template data_wide
+      if (private$.is_blank()) self$add_data_wide(template_blank_data_wide_())
 
       invisible(self)
     },
@@ -422,34 +422,34 @@ HousepiModel <- R6::R6Class(
     ############################################################################
 
     #' @description
-    #' Make an internal copy of the provided household dataset.
+    #' Make an internal copy of the provided household data_wide.
     #'
-    #' @param dataset `r rd_add_dataset_`
-    add_dataset = function(dataset) {
-      if (length(dataset) > 0) {
-        # check that dataset type is correct
-        if (!is.data.frame(dataset)) stop_h(
-          "Unsupported type for dataset.",
+    #' @param data_wide `r rd_add_data_wide_`
+    add_data_wide = function(data_wide) {
+      if (length(data_wide) > 0) {
+        # check that data_wide type is correct
+        if (!is.data.frame(data_wide)) stop_h(
+          "Unsupported type for data_wide.",
           "Dataset should be a data.frame."
         )
 
-        # assert dataset headers
-        private$.assert_dataset(colnames(dataset))
+        # assert data_wide headers
+        private$.assert_data_wide(colnames(data_wide))
         # convert factors
-        embed <- cpp_data_factorize(dataset)
+        embed <- cpp_data_factorize(data_wide)
         # store levels
-        private$.info_dataset <- embed$info
+        private$.info_data_wide <- embed$info
         # store column names
-        private$.cols_dataset <- embed$cols
+        private$.cols_data_wide <- embed$cols
         # store all postive status
         private$.infec_status_set <- embed$status
 
         # import data.frame in rcpp
-        private$.rcpp$import_dataset(embed$data)
+        private$.rcpp$import_data_wide(embed$data)
 
       } else {
-        # assert headers of last imported dataset
-        private$.assert_dataset(private$.cols_dataset)
+        # assert headers of last imported data_wide
+        private$.assert_data_wide(private$.cols_data_wide)
       }
 
       # implement group rates and build
@@ -458,36 +458,36 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description Summarise statuses in the dataset.
+    #' @description Summarise statuses in the data_wide.
     #' @return`data.frame`
     summarise_cases = function() {
-      private$.rcpp$export_dataset_report()
+      private$.rcpp$export_data_wide_report()
     },
 
-    #' @description Summary house sizes in the dataset.
+    #' @description Summary house sizes in the data_wide.
     #' @return `data.frame`
     summarise_house_sizes = function() {
       private$.rcpp$export_house_size_report()
     },
 
     #' @description
-    #' Maje an internal copy of the provided datalist.
+    #' Maje an internal copy of the provided data_long.
     #'
-    #' @param datalist `r rd_add_datalist_`
-    add_datalist = function(datalist) {
-      if (!is.data.frame(datalist)) stop_h(
-        "Unsupported type for datalist.",
+    #' @param data_long `r rd_add_data_long_`
+    add_data_long = function(data_long) {
+      if (!is.data.frame(data_long)) stop_h(
+        "Unsupported type for data_long.",
         "Datalist should be a data.frame."
       )
 
       # convert factors
-      embed <- cpp_data_factorize(datalist)
+      embed <- cpp_data_factorize(data_long)
       # store levels
-      private$.info_datalist <- embed$info
+      private$.info_data_long <- embed$info
       # store column names
-      private$.cols_datalist <- embed$cols
+      private$.cols_data_long <- embed$cols
       # import data.frame in rcpp
-      private$.rcpp$import_datalist(embed$data)
+      private$.rcpp$import_data_long(embed$data)
 
       invisible(self)
     },
@@ -628,7 +628,7 @@ HousepiModel <- R6::R6Class(
     ############################################################################
 
     #' @description
-    #' Add definitions of a group rate by given dataset feature(s).
+    #' Add definitions of a group rate by given data_wide feature(s).
     #' Reference value has unitary rate and can be specified
     #' (default is most represented group).
     #'
@@ -702,21 +702,21 @@ HousepiModel <- R6::R6Class(
     #' Compute the loglikelihood.
     #'
     #' @param object `r rd_model_in_`
-    #' @param dataset `r rd_smpl_dataset_`
+    #' @param data_wide `r rd_smpl_data_wide_`
     #' @param seed `r rd_seed_`
     #'
     #' @return `numeric(1)`
-    loglikelihood = function(dataset = NULL, seed = NA) {
+    loglikelihood = function(data_wide = NULL, seed = NA) {
       # internal build function
-      private$.build_full(dataset = dataset, seed = seed, rand_init = FALSE)
-      private$.multiplicity_engine(dataset = dataset)
+      private$.build_full(data_wide = data_wide, seed = seed, rand_init = FALSE)
+      private$.multiplicity_engine(data_wide = data_wide)
       return(private$.rcpp$evaluate())
     },
 
     #' @description
     #' Run inference with Bayesian Markov Chain Monte Carlo.
     #'
-    #' @param dataset `r rd_smpl_dataset_`
+    #' @param data_wide `r rd_smpl_data_wide_`
     #' @param sample_size `r rd_smpl_size_`
     #' @param n_steps `r rd_smpl_steps_`
     #' @param n_burnin `r rd_smpl_burn_`
@@ -728,19 +728,19 @@ HousepiModel <- R6::R6Class(
     #' @param id_draws `r rd_smpl_iddrw_`
     #' @param seed `r rd_seed_`
     #' @param progress `r rd_progress_`
-    infer = function(dataset = NULL,
+    infer = function(data_wide = NULL,
                      sample_size = NA, n_steps = 10000,
                      n_burnin = 0, thin = 1, n_adapt = 0,
                      n_chains = 1, n_threads = 1,
                      rand_init = TRUE, id_draws = NA,
                      seed = NA, progress = TRUE) {
       # internal build function
-      private$.build_full(dataset = dataset, sample_size = sample_size,
+      private$.build_full(data_wide = data_wide, sample_size = sample_size,
                           n_steps = n_steps, n_burnin = n_burnin, thin = thin,
                           n_adapt = n_adapt, n_chains = n_chains,
                           n_threads = n_threads, rand_init = rand_init,
                           id_draws = id_draws, seed = seed, progress = progress)
-      private$.multiplicity_engine(dataset = dataset)
+      private$.multiplicity_engine(data_wide = data_wide)
 
       # infer method from cpp model object
       private$.rcpp$infer()
@@ -752,7 +752,7 @@ HousepiModel <- R6::R6Class(
     #' Estimate the model evidence (or marginal likelihood).
     #' It uses the method of power posteriors with different available schemes.
     #'
-    #' @param dataset `r rd_smpl_dataset_`
+    #' @param data_wide `r rd_smpl_data_wide_`
     #' @param scheme `r rd_evi_scheme_`
     #' @param n_rungs `r rd_evi_rungs_`
     #' @param sample_size `r rd_smpl_size_`
@@ -766,18 +766,18 @@ HousepiModel <- R6::R6Class(
     #' @param progress `r rd_progress_`
     #'
     #' @return `numeric(1)`
-    evidence = function(dataset = NULL,
+    evidence = function(data_wide = NULL,
                         scheme = "power-fractions", n_rungs = 40,
                         sample_size = NA, n_steps = 10000,
                         n_burnin = 0, thin = 1, n_adapt = 0,
                         n_chains = 1, n_threads = 1,
                         seed = NA, progress = TRUE) {
       # internal build function
-      private$.build_full(dataset, sample_size = sample_size, n_steps = n_steps,
+      private$.build_full(data_wide, sample_size = sample_size, n_steps = n_steps,
                           n_burnin = n_burnin, thin = thin, n_adapt = n_adapt,
                           n_chains = n_chains, n_threads = n_threads,
                           rand_init = TRUE, seed = seed, progress = progress)
-      private$.multiplicity_engine(dataset = dataset)
+      private$.multiplicity_engine(data_wide = data_wide)
 
       # load options
       scheme <- as.character(scheme)
@@ -799,10 +799,10 @@ HousepiModel <- R6::R6Class(
     #'
     #' @return
     #' `data.frame`
-    export_augmented_dataset = function() {
-      private$.refactor_dataset(
-        cbind(private$.rcpp$dataset_for_simulation(),
-              private$.rcpp$export_augmented_dataset())
+    export_augmented_data_wide = function() {
+      private$.refactor_data_wide(
+        cbind(private$.rcpp$data_wide_for_simulation(),
+              private$.rcpp$export_augmented_data_wide())
       )
     },
 
@@ -816,8 +816,8 @@ HousepiModel <- R6::R6Class(
     export_house_snapshot = function(house_id) {
       house_id <- as.character(house_id)
       output <- private$.rcpp$export_house_snapshot(house_id)
-      output$dataset <- private$.refactor_dataset(output$dataset)
-      output$datalist <- private$.refactor_datalist(output$datalist)
+      output$data_wide <- private$.refactor_data_wide(output$data_wide)
+      output$data_long <- private$.refactor_data_long(output$data_long)
 
       # first draft to reformat infectivity profile output
       lst <- output$infec_profile
@@ -831,24 +831,24 @@ HousepiModel <- R6::R6Class(
     },
 
     #' @description
-    #' Generate a simulated dataset.
+    #' Generate a simulated outbreak with the same community structure of the loaded data.
     #'
-    #' @param dataset `r rd_smpl_dataset_`
+    #' @param data_wide `r rd_smpl_data_wide_`
     #' @param seed `r rd_seed_`
     #' @param progress `r rd_progress_`
     #'
     #' @return `data.frame`
-    simulate = function(dataset = NULL, seed = NA, progress = FALSE) {
+    simulate = function(data_wide = NULL, seed = NA, progress = FALSE) {
       # internal build function
-      private$.build_full(dataset = dataset, rand_init = FALSE,
+      private$.build_full(data_wide = data_wide, rand_init = FALSE,
                           seed = seed, progress = progress)
 
-      # refactor static dataset of simulation
-      static_df <- private$.rcpp$dataset_for_simulation()
+      # refactor static data_wide of simulation
+      static_df <- private$.rcpp$data_wide_for_simulation()
 
       # bind simulated entries with static part
       # UPDATE : n_rep = 1 for development
-      private$.refactor_dataset(
+      private$.refactor_data_wide(
         cbind(static_df, private$.rcpp$simulate(1))
       )
     },

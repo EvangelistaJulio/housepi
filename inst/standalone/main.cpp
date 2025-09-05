@@ -127,7 +127,7 @@ int main(int argc, char *argv[])
         else if (toup(carg) == "-D" || tolow(carg) == "--dataset")
             dataset_file = argv[++carg_i];
 
-        else if (toup(carg) == "-L" || tolow(carg) == "--datalist")
+        else if (toup(carg) == "-L" || tolow(carg) == "--datalong")
             datalist_file = argv[++carg_i];
 
         else if (toup(carg) == "-G" || tolow(carg) == "--group-rates")
@@ -176,8 +176,8 @@ int main(int argc, char *argv[])
     user_model->init_advanced_setup();
 
     // 1) Load Data
-    user_model->read_dataset(dataset_file);
-    user_model->read_datalist(datalist_file);
+    user_model->read_data_wide(dataset_file);
+    user_model->read_data_long(datalist_file);
 
     // 2) Load Setup
     user_model->read_setup(setup_file);
@@ -191,7 +191,7 @@ int main(int argc, char *argv[])
     // 5) Load Group & Contact Rates
     user_model->read_group_rates(group_rates_file);
     user_model->build_all_rates(); // temporary for contact rates
-
+    
     // 6) Load Augmented Variables
     user_model->read_augm(augm_file);
 
@@ -252,7 +252,7 @@ int main(int argc, char *argv[])
         {
             print_decorator("Simulation", verbose,
                             "# save: " + output_file);
-            user_model->print_simulated_dataset(output_file);
+            user_model->print_simulated_data_wide(output_file);
         }
         else
             tools::error("Missing output file for simulation.");

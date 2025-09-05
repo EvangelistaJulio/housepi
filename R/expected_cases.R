@@ -15,7 +15,7 @@
 #' Function to retrieve secondary attack rates from data.frame
 #' with cases by household size.
 #'
-#' @param dataset `r rd_add_dataset_`
+#' @param data_wide `r rd_add_data_wide_`
 #'
 #' @return `data.frame`
 #'
@@ -26,12 +26,12 @@
 #' {(E[n_pos|n] - 1) / (n - 1)}
 #'
 #' @export
-measure_sar_by_house_size <- function(dataset) {
-  # check that dataset is consistent
-  if (length(dataset) == 0) stop_h("No valid dataset was provided.")
-  else dataset <- as.data.frame(dataset)
+measure_sar_by_house_size <- function(data_wide) {
+  # check that data_wide is consistent
+  if (length(data_wide) == 0) stop_h("No valid data_wide was provided.")
+  else data_wide <- as.data.frame(data_wide)
 
-  dataset |>
+  data_wide |>
     # cast to 0\1 values
     dplyr::mutate(
       status = dplyr::if_else(is.na(status), 0, as.integer(status > 0))
@@ -51,16 +51,16 @@ measure_sar_by_house_size <- function(dataset) {
 #' @description
 #' Function to retrieve cases by household size from a given data.frame.
 #'
-#' @param dataset `r rd_add_dataset_`
+#' @param data_wide `r rd_add_data_wide_`
 #'
 #' @return `data.frame`
 #'
 #' @export
-measure_cases_by_house_size <- function(dataset) {
-  # check that dataset is consistent
-  if (length(dataset) == 0) stop_h("No valid dataset was provided.")
+measure_cases_by_house_size <- function(data_wide) {
+  # check that data_wide is consistent
+  if (length(data_wide) == 0) stop_h("No valid data_wide was provided.")
 
-  dataset |>
+  data_wide |>
     # cast to 0\1 values
     dplyr::mutate(
       status = dplyr::if_else(is.na(status), 0, as.integer(status > 0))
@@ -284,8 +284,8 @@ HousepiExpectation <- R6::R6Class(
         stop_h("Type of param_table not supported")
       }
 
-      # initialize with results from observed dataset
-      private$.observed <- apply_func(model$dataset)
+      # initialize with results from observed data_wide
+      private$.observed <- apply_func(model$data_wide)
 
       # deep clone model before proceeding
       # FIXME/ UPDATE: I might just need to restore...
@@ -439,8 +439,8 @@ ExpectedCasesBySize <- R6::R6Class(
     # Number of household with non-zero cases per household size.
     #
     # @return `data.frame`
-    .count_non_zero_cases = function(dataset) {
-      dataset |>
+    .count_non_zero_cases = function(data_wide) {
+      data_wide |>
         # cast to 0\1 values
         dplyr::mutate(
           status = dplyr::if_else(is.na(status), 0, as.integer(status > 0))
@@ -558,7 +558,7 @@ ExpectedCasesBySize <- R6::R6Class(
         progress = progress,
         cri_level = cri_level
       )
-      private$.counts <- private$.count_non_zero_cases(model$dataset)
+      private$.counts <- private$.count_non_zero_cases(model$data_wide)
 
       invisible(self)
     },
@@ -619,7 +619,7 @@ ExpectedCasesBySize <- R6::R6Class(
 #' Named arguments with respective functions.
 #' If `measure` is provided, arguments are ignored.
 #' @param measure `closure` | `list` of `closure`\cr
-#' Function(s) to extract the desired measure from a dataset.
+#' Function(s) to extract the desired measure from a data.
 #' @param progress `r rd_progress_`
 #'
 #' @return
