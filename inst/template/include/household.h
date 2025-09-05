@@ -78,7 +78,7 @@ public:
 
 	void set_status(int s) { status_ = s; }
 
-	void set_augm_value(const std::string &a, double x) { safe_at(augm_map_, "augmented variable", a).set_value(x); }
+	void set_augm_value(const std::string &a, double x) { safe_at(augm_map_, "augmented variable", a).set(x); }
 	void init_pointer_to_datalist(u_dict<dbl_vec> *y) { pdatalist_ = y; }
 	void clear_augm(const std::string &a) { augm_map_[a] = Variable(); }
 	void init_all_group_rates(const u_dict<std::vector<observer_dbl_ptr>> &ptrs);

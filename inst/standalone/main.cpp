@@ -63,6 +63,9 @@ int main(int argc, char *argv[])
     using tools::str::tolow;
     using tools::str::toup;
 
+    // FLAG
+    std::cerr << "before even main!" << std::endl;
+
     int carg_i = 1;   // command line iterator
     std::string carg; // command line argument
 
@@ -73,8 +76,8 @@ int main(int argc, char *argv[])
 
     // paths/to/files for import
     std::string augm_file = HSP_NA_STRING;
-    std::string dataset_file = HSP_NA_STRING;
-    std::string datalist_file = HSP_NA_STRING;
+    std::string data_wide_file = HSP_NA_STRING;
+    std::string data_long_file = HSP_NA_STRING;
     std::string group_rates_file = HSP_NA_STRING;
     std::string infec_profile_file = HSP_NA_STRING;
     std::string multiplicity_file = HSP_NA_STRING;
@@ -125,10 +128,10 @@ int main(int argc, char *argv[])
             augm_file = argv[++carg_i];
 
         else if (toup(carg) == "-D" || tolow(carg) == "--dataset")
-            dataset_file = argv[++carg_i];
+            data_wide_file = argv[++carg_i];
 
         else if (toup(carg) == "-L" || tolow(carg) == "--datalong")
-            datalist_file = argv[++carg_i];
+            data_long_file = argv[++carg_i];
 
         else if (toup(carg) == "-G" || tolow(carg) == "--group-rates")
             group_rates_file = argv[++carg_i];
@@ -175,15 +178,27 @@ int main(int argc, char *argv[])
     std::unique_ptr<Model> user_model = std::make_unique<Model>();
     user_model->init_advanced_setup();
 
+    // FLAG
+    std::cerr << "before read data" << std::endl;
+
     // 1) Load Data
-    user_model->read_data_wide(dataset_file);
-    user_model->read_data_long(datalist_file);
+    user_model->read_data_wide(data_wide_file);
+    user_model->read_data_long(data_long_file);
+
+    // FLAG
+    std::cerr << "before read setup" << std::endl;
 
     // 2) Load Setup
     user_model->read_setup(setup_file);
 
+    // FLAG
+    std::cerr << "before read param" << std::endl;
+
     // 3) Load Parameters
     user_model->read_param(param_file);
+
+    // FLAG
+    std::cerr << "before read infec_profile" << std::endl;
 
     // 4) Load Setup
     user_model->read_infec_profile(infec_profile_file);
@@ -191,7 +206,10 @@ int main(int argc, char *argv[])
     // 5) Load Group & Contact Rates
     user_model->read_group_rates(group_rates_file);
     user_model->build_all_rates(); // temporary for contact rates
-    
+
+    // FLAG
+    std::cerr << "before read augm" << std::endl;
+
     // 6) Load Augmented Variables
     user_model->read_augm(augm_file);
 

@@ -65,15 +65,15 @@ const double HSP_NA_DOUBLE = std::numeric_limits<double>::quiet_NaN();
 
 const std::string HSP_NA_STRING = "<NA>"; /// NA value for string
 
-const std::string HSP_HIDE_PRFX = "..";                                    /// prefic for hidden objects
-const std::string HSP_CHAIN_COL = HSP_HIDE_PRFX + "chain" + HSP_HIDE_PRFX; /// chain column name in draws
-
+// private object names
+const std::string HSP_HIDE_PRFX = "..";                                           /// prefic for hidden objects
+const std::string HSP_CHAIN_COL = HSP_HIDE_PRFX + "chain" + HSP_HIDE_PRFX;        /// chain column name in draws
+const std::string HSP_IDENTITY_FUNC = HSP_HIDE_PRFX + "identity" + HSP_HIDE_PRFX; /// identity function name
 // group rates
 constexpr double HSP_REFER_VALUE = 1.0;                                              /// alias for reference value
 const std::string HSP_REFERENCE = HSP_HIDE_PRFX + "reference" + HSP_HIDE_PRFX;       /// reference choice
 const std::string HSP_CONTACT_RATE = HSP_HIDE_PRFX + "contact" + HSP_HIDE_PRFX;      /// contact rate
 const std::string HSP_MISSING_RATE = HSP_HIDE_PRFX + "missing_rate" + HSP_HIDE_PRFX; /// missing rate
-
 // infectivity profile
 const std::string HSP_PROFILE_INST = HSP_HIDE_PRFX + "profile_inst" + HSP_HIDE_PRFX;   /// augmented instantaneous infectivity profile
 const std::string HSP_PROFILE_CUMUL = HSP_HIDE_PRFX + "profile_cumul" + HSP_HIDE_PRFX; /// augmented cumulative infectivity profile

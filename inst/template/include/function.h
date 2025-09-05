@@ -34,6 +34,14 @@ class Attribute
 {
 public:
     /////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////  Attribute : constructor  ///////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
+
+    // FLAG
+    //Attribute() {};
+    //virtual ~Attribute() = default;
+
+    /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////  Attribute : getter  //////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -49,7 +57,7 @@ public:
     std::string str() const { return tools::str::format(get()); }
 
     /// Wheter it's constant.
-    bool is_constant() const;
+    virtual bool is_constant() const;
     /// Wheter it's a scalar.
     bool is_scalar() const { return (!is_pointer()) && (!is_function()); }
     /// Wheter it's a pointer.
@@ -73,7 +81,7 @@ public:
     /// Initialize attribute as function.
     void init_function(const std::shared_ptr<Function> f);
 
-private:
+protected:
     std::string attribute_name_ = HSP_NA_STRING; /// name of argument
     double value_ = HSP_NA_DOUBLE;               /// internal value
     observer_dbl_ptr ptr_to_value_ = nullptr;    /// pointer to value
@@ -101,12 +109,12 @@ private:
     // Functional setter
     void (Attribute::*do_set_)(double) = &Attribute::do_set_default_;
     /// Set attribute internal value.
-    void do_set_default_(double x) { value_ = x; }
+    virtual void do_set_default_(double x) { value_ = x; }
     /// Set error.
     /// note: so far set_arg is only used for adaptation.
-    /// Pointer and fucntion attributes can't be set, but just assigned.
-    void do_set_error_(double) { throw std::runtime_error(
-        "Non scalar attribute \"" + attribute_name_ + "\" cannot be changed."); }
+    /// Pointer and function attributes can't be set, but just assigned.
+    virtual void do_set_error_(double) { throw std::runtime_error(
+        "Non scalar attribute \"" + name() + "\" cannot be changed."); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////

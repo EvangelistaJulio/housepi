@@ -170,7 +170,7 @@ void MCMC::Impl::Augmented::build_function_(size_t k)
 {
     const std::string &func = deftable.at("func")[k];
 
-    if (func == "eq") // optimize 'equal' function
+    if (func == HSP_IDENTITY_FUNC) // optimize 'identity' function
         build_function_equality_(k);
     else
         list_func.push_back(deftable.at("name")[k]);
@@ -199,17 +199,7 @@ void MCMC::Impl::Augmented::build_function_equality_(size_t k)
             is_eq_const = false; // UPDATE: use an augmented dependecies tree to see if constant
 
         if (is_eq_const)
-        {
             list_const.push_back(a);
-            // rewrite deftable 
-            deftable.at("func")[k] = HSP_NA_STRING;
-            deftable.at("farg_key")[k] = HSP_NA_STRING;
-            deftable.at("farg_val")[k] = HSP_NA_STRING;
-            deftable.at("farg_at")[k] = HSP_NA_STRING;
-            deftable.at("value")[k] = vals[0];
-            deftable.at("value_at")[k] = eq_type;
-            deftable.at("const")[k] = "true";
-        }
         else
             list_func.push_back(a);
     }
@@ -468,7 +458,7 @@ void MCMC::Impl::Augmented::init_all(Individual &member)
     }
 }
 
-/// Assign model arguments and range. Same for function, otherwise assign proposer. 
+/// Assign model arguments and range. Same for function, otherwise assign proposer.
 void MCMC::Impl::Augmented::init_single_var_dependencies_(Individual &member, const std::string &a, size_t k)
 {
     Variable &xaugm = member.get_augm_variable(a);
@@ -496,6 +486,13 @@ void MCMC::Impl::Augmented::init_single_var_dependencies_(Individual &member, co
         init_func_range_(member, a,
                          {deftable.at("min")[k], deftable.at("max")[k]},
                          {deftable.at("min_at")[k], deftable.at("max_at")[k]});
+    }
+    else if (xaugm.is_pointer())
+    {
+        Attribute aux_attr = init_attributes_aux_(member, a,
+                                                  tools::parse_list_args(deftable.at("farg_val")[k], HSP_LIST_DELIM)[0],
+                                                  tools::parse_list_args(deftable.at("farg_at")[k], HSP_LIST_DELIM)[0]);
+        xaugm.init_pointer(aux_attr.get_ptr());
     }
     else if (!xaugm.is_constant())
     {
@@ -575,91 +572,100 @@ void MCMC::Impl::Augmented::init_attributes_(Individual &member,
     // loop over all attributes
     for (size_t k = 0; k < keys.size(); ++k)
     {
-        // inputs
         std::string key = keys[k];
         std::string value = vals[k];
         std::string type = typs[k];
         bool flag = is_arg[k];
 
-        // outputs
-        double x = HSP_NA_DOUBLE;
-        observer_dbl_ptr y = nullptr;
-        std::shared_ptr<Function> f = nullptr;
+        // get auxiliary attribute
+        const Attribute &aux_attr = init_attributes_aux_(member, a, value, type);
 
-        if (tools::is_na(value) && tools::is_na(type))
-            ; // pass
-
-        else if (!tools::is_na(value) && tools::is_na(type))
-            throw std::invalid_argument(
-                "Unable to interpret default value of  \"" + value + "\". Please provide a type.");
-
-        else if (tools::is_na(value) && !tools::is_na(type))
-            tools::warning(
-                "Found a type without a paired value. Falling back to default.");
-
-        else if (tools::str::toup(type) == HSP_TYPE_SCALAR)
-            x = tools::str::tod(value, "argument with scalar type");
-
-        else if (tools::str::toup(type) == HSP_TYPE_DATA)
-            x = member.data(value);
-
-        else if (tools::str::toup(type) == HSP_TYPE_PARAM)
-        {
-            if (pImpl_.param.at(value).is_constant())
-                x = pImpl_.param.get(value);
-            else
-            {
-                y = pImpl_.param.get_ptr(value);
+        // cache dependecy if an augmented variable depends on a parameter to be inferred
+        if (tools::str::toup(type) == HSP_TYPE_PARAM)
+            if (aux_attr.is_pointer())
                 if (is_var_model == HSP_VAR_FUNCTION)
                     pImpl_.param.make_cache_dependent(value);
-            }
-        }
-        else if (tools::str::toup(type) == HSP_TYPE_AUGM)
-        {
-            if (!(list_full % value))
-                throw std::invalid_argument(
-                    "Undeclared augmented variable \"" + value + "\".");
-
-            if (a == value)
-                throw std::invalid_argument(
-                    "Unable to set argument equal to its value for \"" + a + "\".");
-            else
-            {
-                Variable &other_augm = member.get_augm_variable(value);
-
-                if (other_augm.is_function())
-                    f = other_augm.get_function();
-                else
-                    y = other_augm.get_ptr();
-            }
-        }
-        else
-            throw std::invalid_argument(
-                "Unsopported type \"" + type + "\" found while loading \"" + value + "\" for pointer value.");
 
         // final assignment
-        if (!tools::is_na(x)) // scalar attribute
+        if (aux_attr.is_scalar())
         {
             if (is_var_model == HSP_VAR_MODEL)
-                xaugm.init_distr_attr(key, flag, x);
+                xaugm.init_distr_attr(key, flag, aux_attr.get());
             else
-                xaugm.init_func_attr(key, flag, x);
+                xaugm.init_func_attr(key, flag, aux_attr.get());
         }
-        else if (y != nullptr) // pointer attribute
+        else if (aux_attr.is_pointer())
         {
             if (is_var_model == HSP_VAR_MODEL)
-                xaugm.init_distr_attr(key, flag, y);
+                xaugm.init_distr_attr(key, flag, aux_attr.get_ptr());
             else
-                xaugm.init_func_attr(key, flag, y);
+                xaugm.init_func_attr(key, flag, aux_attr.get_ptr());
         }
-        else if (f != nullptr) // function attribute
+        else if (aux_attr.is_function())
         {
             if (is_var_model == HSP_VAR_MODEL)
-                xaugm.init_distr_attr(key, flag, f);
+                xaugm.init_distr_attr(key, flag, aux_attr.get_function());
             else
-                xaugm.init_func_attr(key, flag, f);
+                xaugm.init_func_attr(key, flag, aux_attr.get_function());
         }
     }
+}
+
+/// Auxiliary method to interpret typed values as an attribute.
+Attribute MCMC::Impl::Augmented::init_attributes_aux_(Individual &member,
+                                                      const std::string &a,
+                                                      const std::string &val,
+                                                      const std::string &type)
+{
+    Attribute output;
+
+    if (tools::is_na(val) && tools::is_na(type))
+        ; // pass
+
+    else if (!tools::is_na(val) && tools::is_na(type))
+        throw std::invalid_argument(
+            "Unable to interpret default value of  \"" + val + "\". Please provide a type.");
+
+    else if (tools::is_na(val) && !tools::is_na(type))
+        throw std::invalid_argument(
+            "Found a type without a paired value. Please correct.");
+
+    else if (tools::str::toup(type) == HSP_TYPE_SCALAR)
+        output.init_scalar(tools::str::tod(val, "argument with scalar type"));
+
+    else if (tools::str::toup(type) == HSP_TYPE_DATA)
+        output.init_scalar(member.data(val));
+
+    else if (tools::str::toup(type) == HSP_TYPE_PARAM)
+    {
+        if (pImpl_.param.at(val).is_constant())
+            output.init_scalar(pImpl_.param.get(val));
+        else
+            output.init_pointer(pImpl_.param.get_ptr(val));
+    }
+    else if (tools::str::toup(type) == HSP_TYPE_AUGM)
+    {
+        if (!(list_full % val))
+            throw std::invalid_argument(
+                "Undeclared augmented variable \"" + val + "\".");
+
+        if (a == val)
+            throw std::invalid_argument(
+                "Unable to set argument equal to its value for \"" + a + "\".");
+        else
+        {
+            Variable &other_augm = member.get_augm_variable(val);
+            if (other_augm.is_function())
+                output.init_function(other_augm.get_function());
+            else
+                output.init_pointer(other_augm.get_ptr());
+        }
+    }
+    else
+        throw std::invalid_argument(
+            "Unsopported type \"" + type + "\" found while loading \"" + val + "\" for pointer value.");
+
+    return output;
 }
 
 /* Assign augmented function arguments. */

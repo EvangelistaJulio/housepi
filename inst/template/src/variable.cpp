@@ -235,44 +235,35 @@ void Variable::init(const std::string &name, double value,
                     bool is_const, bool is_discr,
                     const std::string &func_name, bool is_primitive)
 {
-    init_name_(name);
-    if (tools::is_na(func_name))
-        init_default_(value);
-    else
-        init_func_(func_name, is_primitive);
+    this->name(name);
+    user_value_ = HSP_NA_DOUBLE;
+    return_value_ = &Variable::do_return_error_;
+
+    if (tools::is_na(func_name)) // initialization as a numeric variable
+    {
+        init_scalar(value);
+        user_value_ = value;
+    }
+    else if (func_name == HSP_IDENTITY_FUNC) // initialization as a pointer
+    {
+        init_pointer(&user_value_); // note: placeholder
+    }
+    else // initialization as a function
+    {
+        return_value_ = &Variable::do_return_func_;
+        init_function(compose_func_registries(
+            func_name, "function", is_primitive,
+            {&UserFuncRegistry::inst(),
+             &TranscendentalRegistry::inst(),
+             &ArithmeticRegistry::inst(),
+             &ContinuosDistrRegistry::inst(),
+             &DiscreteDistrRegistry::inst(),
+             &InfecProfileRegistry::inst()}));
+    }
     is_constant_ = is_const;
     is_discrete_ = is_discr;
 
     // UPDATE: what if constant = T, discrete = T and value != integer?
-}
-
-/// Default initialization as a numeric variable.
-void Variable::init_default_(double value)
-{
-    return_value_ = &Variable::do_return_error_;
-    get_ = &Variable::do_get_default_;
-    get_ptr_ = &Variable::do_get_ptr_default_;
-    user_value_ = value;
-    value_ = user_value_;
-    pFunc_ = std::make_shared<Function>();
-}
-
-/// Initialization as a function.
-void Variable::init_func_(const std::string &func_name, bool is_primitive)
-{
-    return_value_ = &Variable::do_return_func_;
-    get_ = &Variable::do_get_func_return_;
-    get_ptr_ = &Variable::do_get_ptr_func_return_;
-    user_value_ = HSP_NA_DOUBLE;
-    value_ = HSP_NA_DOUBLE;
-    pFunc_ = compose_func_registries(
-        func_name, "function", is_primitive,
-        {&UserFuncRegistry::inst(),
-         &TranscendentalRegistry::inst(),
-         &ArithmeticRegistry::inst(),
-         &ContinuosDistrRegistry::inst(),
-         &DiscreteDistrRegistry::inst(),
-         &InfecProfileRegistry::inst()});
 }
 
 /// Initialize function reshaping.
@@ -281,7 +272,10 @@ void Variable::init_func_reshaping()
 {
     if (pFunc_->is_constant())
     {
-        init_default_(do_get_func_return_());
+        double x = pFunc_->return_value();
+        return_value_ = &Variable::do_return_error_;
+        init_scalar(x);
+        user_value_ = x;
         is_constant_ = true;
     }
     else
@@ -357,7 +351,7 @@ void Variable::init_proposer(const std::string &rule_name,
             // raise a warning if "lnorm" rule when varaible can be negative
             if ((pDistr_->get_min() < 0) && (rule_name == "lnorm"))
                 tools::warning(
-                    "Lognormal proposer rule for non-positive variable \"" + variable_name_ + "\" .");
+                    "Lognormal proposer rule for non-positive variable \"" + name() + "\" .");
 
             // sampler
             if (is_from_zero())

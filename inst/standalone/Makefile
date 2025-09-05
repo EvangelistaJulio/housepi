@@ -16,12 +16,12 @@ OBJECTS := $(SOURCES:.cpp=.o)
 # Executable name
 EXECUTABLE := $(MODEL)/model.exe
 
-# Compilation flags
+# compilation flags
 CXXFLAGS := -Wall -Wextra -std=gnu++14 -I../template/include/
-ifdef FAST
-CXXFLAGS += -Ofast
-else
+# standard Rcpp compilation flags
 CXXFLAGS += -g -O2 -Wno-unknown-pragmas
+ifdef DEBUG
+CXXFLAGS += -Werror -Wuninitialized
 
 # Change openMP flags according to OS
 ifeq ($(shell uname -s),Linux)
@@ -70,7 +70,7 @@ main.o: main.cpp
 clean:
 	$(RM) $(EXECUTABLE) main.o ${SRC}/*.{o,so,exe} ${TMPL}/*/*.{o,so,exe} ${TMPL}/*/.refer 
 
-# To run make in a debug mode
-.PHONY: fast
-fast:
-	$(MAKE) FAST=1
+# To run make in a overly caregul debugging mode
+.PHONY: debug
+debug:
+	$(MAKE) DEBUG=1

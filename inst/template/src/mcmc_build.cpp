@@ -798,7 +798,7 @@ void MCMC::Impl::Parameter::build(const dict_str_vec &deftable)
                     rule_scale = tools::str::tod(deftable.at("scale")[k]);
 
                 //----- Create a new Parameter Variable -----//
-                dictionary_.emplace(p, Variable(name, value, is_discrete));
+                dictionary_.emplace(p, Variable(name, value, false, is_discrete));
                 Variable &new_param = this->at(p);
 
                 // assign a prior distribution to the parameter

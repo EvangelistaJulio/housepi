@@ -571,6 +571,8 @@ public:
         void init_attributes_(Individual &member, const std::string &a,
                               const str_vec &keys, const str_vec &vals, const str_vec &typs,
                               const std::vector<bool> &is_arg, bool is_var_model);
+        Attribute init_attributes_aux_(Individual &member, const std::string &a,
+                                       const std::string &val, const std::string &type);
 
         void build_function_(size_t k);
         void build_function_equality_(size_t k);

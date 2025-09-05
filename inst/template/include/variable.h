@@ -131,7 +131,7 @@ protected:
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-class Variable
+class Variable : public Attribute
 {
 public:
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -144,8 +144,7 @@ public:
              bool is_discr = false,
              const std::string &func_name = HSP_NA_STRING,
              bool is_prim = false)
-        : pFunc_(std::make_shared<Function>()),
-          pDistr_(std::make_shared<Distribution>()),
+        : pDistr_(std::make_shared<Distribution>()),
           pProp_(std::make_shared<Proposer>())
     {
         init(name, value, is_const, is_discr, func_name, is_prim);
@@ -158,15 +157,9 @@ public:
     /////////////////////////////////////  Variable : getter  ///////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    double get() const { return (this->*get_)(); }
-    observer_dbl_ptr get_ptr() const { return (this->*get_ptr_)(); }
-    std::shared_ptr<Function> get_function() const { return pFunc_; }
-
-    bool is_function() const { return get_ == &Variable::do_get_func_return_; }
-    bool is_constant() const { return is_function() ? pFunc_->is_constant() : is_constant_; }
+    bool is_constant() const override final { return Attribute::is_constant() && is_constant_; }
     bool is_discrete() const { return pDistr_->is_discrete(); }
     bool is_from_zero() const { return (pProp_->is_rule_start_from_zero)(); }
-
     double get_from_value() const { return (pProp_->get_from_value)(); }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -177,9 +170,6 @@ public:
               bool is_const = true, bool is_discr = false,
               const std::string &func_name = HSP_NA_STRING,
               bool is_prim = false);
-
-    /// Set value to variable.
-    void set_value(double x) { (this->*set_)(x); }
 
     /// Recover buffered value.
     void recover_value() { value_ = buffer_value_; }
@@ -197,13 +187,11 @@ public:
     void init_func_attr(const std::string &a, bool is_arg, observer_dbl_ptr y) { pFunc_->init_attr(a, is_arg, y); }
     /// Assign a function attribute to function.
     void init_func_attr(const std::string &a, bool is_arg, std::shared_ptr<Function> f) { pFunc_->init_attr(a, is_arg, f); }
-
     /// Initialize function reshaping.
     void init_func_reshaping();
 
     /// Initialize pointer to distribution.
     void init_distr(const std::string &distr_name = HSP_NA_STRING);
-
     /// Assign a scalar argument to distribution.
     void init_distr_attr(const std::string &a, bool is_arg, double x) { pDistr_->init_attr(a, is_arg, x); }
     /// Assign a pointer argument to distribution.
@@ -226,13 +214,13 @@ public:
     bool is_valid_move() const { return (this->*is_valid_move_)(); }
 
     //----- distr_ptr : prior/model methods -----//
-    void rand(rnd_gen &prng) { set_value(pDistr_->rand(prng)); }
+    void rand(rnd_gen &prng) { set(pDistr_->rand(prng)); }
 
     double distr_logpdf() const { return pDistr_->logpdf(value_); }
     double distr_logratio() const { return pDistr_->logratio(buffer_value_, value_); }
 
     //----- prop_ptr : propose methods -----//
-    void propose(rnd_gen &prng) { set_value((this->*propose_)(prng)); }
+    void propose(rnd_gen &prng) { set((this->*propose_)(prng)); }
     double propose_logratio() const { return (pProp_->logratio)(buffer_value_, value_); }
 
     //----- prop_ptr : adaptive methods -----//
@@ -244,8 +232,6 @@ public:
     /////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////  Variable : show  ////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
-
-    std::string name() const { return variable_name_; }
 
     std::string distr_name() const { return pDistr_->name(); }
     std::string distr_str_arg_names() const { return pDistr_->str_arg_names(); }
@@ -269,18 +255,14 @@ public:
     Rcpp::NumericVector rcpp_export_range() const { return pDistr_->rcpp_export_range(); }
 #endif
 
-private:
-    std::shared_ptr<Function> pFunc_;      /// function
+protected:
+    double buffer_value_ = HSP_NA_DOUBLE; /// buffered value
+    double user_value_ = HSP_NA_DOUBLE;   /// initial user defined value
+    bool is_discrete_ = false;            /// user flag for wheter discrete or not
+    bool is_constant_ = false;            /// user flag for wheter constant or not
+
     std::shared_ptr<Distribution> pDistr_; /// prior\model distribution of the variable
     std::shared_ptr<Proposer> pProp_;      /// Monte Carlo proposer
-
-    std::string variable_name_ = HSP_NA_STRING; /// name of variable
-    double value_ = HSP_NA_DOUBLE;              /// value
-    double buffer_value_ = HSP_NA_DOUBLE;       /// buffered value
-
-    double user_value_ = HSP_NA_DOUBLE; /// initial user defined value
-    bool is_discrete_ = false;          /// wheter discrete or not
-    bool is_constant_ = true;           /// wheter constant or not
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////  Variable : getter [private]  //////////////////////////////
@@ -288,14 +270,12 @@ private:
 
     double (Variable::*return_value_)(double) const = &Variable::do_return_error_;
     double do_return_error_(double) const { throw std::runtime_error(
-        "Variable \"" + name() + "\" is not a function."); }
+        "Wrong use of function call operator: variable \"" + name() + "\" is not a function."); }
     double do_return_func_(double x) const { return pFunc_->return_value(x); }
 
-    double (Variable::*get_)() const = &Variable::do_get_default_;
     double do_get_default_() const { return value_; }
     double do_get_func_return_() const { return pFunc_->return_value(); }
 
-    observer_dbl_ptr (Variable::*get_ptr_)() const = &Variable::do_get_ptr_default_;
     observer_dbl_ptr do_get_ptr_default_() const { return &value_; }
     observer_dbl_ptr do_get_ptr_func_return_() const { throw std::runtime_error(
         "Called pointer to function \"" + name() + "\"."); }
@@ -304,20 +284,15 @@ private:
     ////////////////////////////////  Variable : setter [private]  //////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    void init_name_(const std::string &name) { variable_name_ = name; };
-    void init_default_(double value);
-    void init_func_(const std::string &func_name, bool is_primitive);
-
-    void (Variable::*set_)(double) = &Variable::do_set_default_;
     /// Store the buffer and change value.
-    void do_set_default_(double x)
+    void do_set_default_(double x) override final
     {
         buffer_value_ = value_;
         value_ = x;
     }
-    /// Set value to function error.
-    void do_set_func_error_(double) { throw std::runtime_error(
-        "Value of function  \"" + name() + "\" cannot be changed."); }
+    /// Set error.
+    void do_set_error_(double) override final { throw std::runtime_error(
+        "Non scalar variable \"" + name() + "\" cannot be changed."); }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////  Variable : Metropolis-Hastings [private]  ///////////////////////
