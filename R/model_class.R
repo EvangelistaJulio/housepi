@@ -461,13 +461,13 @@ HousepiModel <- R6::R6Class(
     #' @description Summarise statuses in the data_wide.
     #' @return`data.frame`
     summarise_cases = function() {
-      private$.rcpp$export_data_wide_report()
+      private$.rcpp$summarise_cases()
     },
 
     #' @description Summary house sizes in the data_wide.
     #' @return `data.frame`
     summarise_house_sizes = function() {
-      private$.rcpp$export_house_size_report()
+      private$.rcpp$summarise_house_sizes()
     },
 
     #' @description

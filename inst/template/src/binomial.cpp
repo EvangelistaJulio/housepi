@@ -43,22 +43,22 @@ namespace bax
 	///////////////////////////////////  Escape Pattern : Class   ///////////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////////
 
-	/* Add a new entry for the escape matrix. */
+	/// Add a new entry for the escape matrix.
 	void EscapePattern::add_entry(ushort new_entry)
 	{
 		_entries.push_back(new_entry);
 		++_n_entries;
 	}
 
-	/* Add a new pattern index. */
+	/// Add a new pattern index.
 	void EscapePattern::add_pattern(ulong new_pattern_idx)
 	{
 		_pattern_idxs.push_back(new_pattern_idx);
 		++_n_patterns;
 	}
 
-	/* Compute the loglikelihood starting from the current escape pattern.
-		Important : it requires initialization of the lookup table. */
+	/// Compute the loglikelihood starting from the current escape pattern.
+	///	NOTE: it requires initialization of the lookup table.
 	double EscapePattern::likelihood(const dbl_vec &esc_mtx)
 	{
 		double output = 1.;
@@ -72,7 +72,7 @@ namespace bax
 		return output;
 	}
 
-	/* String with the formula of the loglikelihood. */
+	/// String with the formula of the loglikelihood.
 	const std::string EscapePattern::str()
 	{
 		std::ostringstream oss;
@@ -107,13 +107,10 @@ namespace bax
 	//////////////////////////////////  TRANSMISSION GENERATIONS  ///////////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////////
 
-	/* All possible ranked offspring generations for a given number of infected individuals n > 0.
-
-		e.g.
-		----
-		n_infec = 3
-		return [[0, 0, 0], [0, 0, 1], [0, 1, 1], [0, 1, 2]]
-	*/
+	/// All possible ranked offspring generations for a given number of infected individuals n > 0.
+	/// @example
+	///	n_infec = 3
+	///	return [[0, 0, 0], [0, 0, 1], [0, 1, 1], [0, 1, 2]]
 	std::vector<gentype> recursive_span_generation(ushort n)
 	{
 		std::vector<gentype> output(1, gentype(n, 0));
@@ -131,7 +128,7 @@ namespace bax
 		return output;
 	}
 
-	/* Initialize the Look Up Table of count-compressed generations */
+	/// Initialize the Look Up Table of count-compressed generations.
 	void init_generations_lookuptable(ushort max_N)
 	{
 		// Assure that LUT are empty before initializing
@@ -208,16 +205,14 @@ namespace bax
 	// -----------------------------------------------------------------------------------------------------------//
 	// -----------------------------------------------------------------------------------------------------------//
 
-	/*
-	Algorithm to generate all possible combinations of N elements in k positions, plus the N - k complements.
-	The elements are indexed from 1 to N.
-
-	----
-	Ref: (modified from)
-	----
-	Daniel Angel Jimenez
-	https://www.cs.utexas.edu/users/djimenez/utsa/cs3343/lecture25.html
-	*/
+	/// Algorithm to generate all possible combinations of N elements in k positions, plus the N - k complements.
+	/// The elements are indexed from 1 to N.
+    ///
+	/// ----
+	/// Ref: (modified from)
+	/// ----
+	/// Daniel Angel Jimenez
+	/// https://www.cs.utexas.edu/users/djimenez/utsa/cs3343/lecture25.html
 	void recursive_span_combinations(ushort N, ushort k, ushort_vec &current, std::vector<ushort_vec> &results, ushort start, ushort loop)
 	{
 		if (loop > k - 1)
@@ -244,7 +239,7 @@ namespace bax
 			}
 	}
 
-	/* Store all combinations + complement of N elements in k positions. */
+	/// Store all combinations + complement of N elements in k positions.
 	void store_combinations(ushort N, ushort k)
 	{
 		// Generate combinations with the recurisve algorithm
@@ -265,7 +260,7 @@ namespace bax
 		}
 	}
 
-	/* Initialize the Look Up Table of combinations and their counts */
+	/// Initialize the Look Up Table of combinations and their counts.
 	void init_combinations_lookuptable(ushort max_N)
 	{
 		ulong num_combin;
@@ -292,7 +287,7 @@ namespace bax
 		}
 	}
 
-	/* Clear the Look Up Table of combinations and their counts */
+	/// Clear the Look Up Table of combinations and their counts
 	void clear_combinations_lookuptable()
 	{
 		Num_Combin_LookupTable.clear();
@@ -308,7 +303,7 @@ namespace bax
 	// -----------------------------------------------------------------------------------------------------------//
 	// -----------------------------------------------------------------------------------------------------------//
 
-	/*  */
+	/// Recursive function to generate all possible escape patterns for a given number of seropositives N_star.
 	void recursive_escape_patterns_function(ushort N_star, ushort N, ushort_vec access_matrix, EscapePattern &father, std::vector<EscapePattern> &results)
 	{
 		for (ushort k = 0; k < N; ++k)
@@ -353,17 +348,17 @@ namespace bax
 			}
 	}
 
-	/* Initialize the Look Up Table of escape patterns and the access object. */
+	/// Initialize the Look Up Table of escape patterns and the access object.
 	void init_escape_patterns_lookuptable(ushort max_N, bool clean_combinations)
 	{
-		//----- lookuptable with all combinations + complements -----//
+		// lookuptable with all combinations + complements
 		init_combinations_lookuptable(max_N);
 
-		//----- Assure that LUT are empty before initializing -----//
+		// assure that LUT are empty before initializing
 		ChainBinomial_LookupTable.clear();
 		EscapePatterns_LookupTable.clear();
 
-		//----- lookuptable with escape patterns linked to chain-binomial -----//
+		// lookuptable with escape patterns linked to chain-binomial
 		// case N_star == 0, for consistency
 		ChainBinomial_LookupTable.emplace_back(0);
 		EscapePatterns_LookupTable.push_back(std::vector<EscapePattern>());
@@ -396,14 +391,10 @@ namespace bax
 	// -----------------------------------------------------------------------------------------------------------//
 	// -----------------------------------------------------------------------------------------------------------//
 
-	/* Heterogeneous chain binomial loglikelihood for ordered probabilities (seropositives, seronegatives).
-
-		Arguments
-		---
-		N_star = n. of seropositves
-		commu_esc_proba = ordered community escape probabilities
-		p2p_esc_proba = ordered person-to-person escape probabilities
-	*/
+	/// Heterogeneous chain binomial loglikelihood for ordered probabilities (seropositives, seronegatives).
+	/// @param N_star n. of seropositves
+	/// @param commu_esc_proba ordered community escape probabilities
+	/// @param p2p_esc_proba ordered person-to-person escape probabilities
 	double chain_binomial_heter_loglikelihood(ushort N_star,
 											  const dbl_vec &commu_esc_proba,
 											  const matrix<double> &p2p_esc_proba)

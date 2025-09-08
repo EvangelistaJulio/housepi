@@ -117,7 +117,7 @@ RCPP_MODULE(housepi_function)
     DEFINE_HOUSEPI_RCPP_WRAPPER_CLASS(Function, "function", FUNCTION_REGISTRIES);
 
     Rcpp::class_<FunctionHousepi>("FunctionHousepi")
-        .constructor<std::string, bool, SEXP, SEXP>()
+        .constructor<std::string, bool, SEXP, SEXP, bool>()
         .method("call", &FunctionHousepi::call);
 }
 
@@ -140,7 +140,7 @@ RCPP_MODULE(housepi_distribution)
     DEFINE_HOUSEPI_RCPP_WRAPPER_CLASS(Distribution, "distribution", DISTRIBUTION_REGISTRIES);
 
     Rcpp::class_<DistributionHousepi>("DistributionHousepi")
-        .constructor<std::string, bool, SEXP, SEXP>()
+        .constructor<std::string, bool, SEXP, SEXP, bool>()
         .method("call", &DistributionHousepi::call);
 }
 
@@ -163,7 +163,7 @@ RCPP_MODULE(housepi_infec_profile)
     DEFINE_HOUSEPI_RCPP_WRAPPER_CLASS(InfecProfile, "infectivity profile", INFEC_PROFILE_REGISTRIES);
 
     Rcpp::class_<InfecProfileHousepi>("InfecProfileHousepi")
-        .constructor<std::string, bool, SEXP, SEXP>()
+        .constructor<std::string, bool, SEXP, SEXP, bool>()
         .method("call", &InfecProfileHousepi::call);
 }
 
@@ -194,8 +194,8 @@ RCPP_MODULE(housepi_infec_profile)
 //' @field export_param\cr Return a DataFrame with current parameters.
 //' @field export_infec_profile\cr Return a List with infectivity profile.
 //' @field export_data_wide\cr Return a DataFrame with current database.
-//' @field export_data_report\cr Return a DataFrame with a report of the current database.
-//' @field export_house_size_report\cr Return a DataFrame with a report of household sizes.
+//' @field summarise_cases\cr Return a DataFrame with a report of the current database.
+//' @field summarise_house_sizes\cr Return a DataFrame with a report of household sizes.
 //' @field export_draws\cr Return a NumericMatrix with MCMC draws.
 //' @field export_house_loglike_draws\cr Return a NumericMatrix with household loglikelihood draws.
 //' @field export_house_snapshot\cr Return a List with a snapshot containing full household and model details.
@@ -222,8 +222,8 @@ RCPP_MODULE(housepi_model_core)
         .method("build_all_rates", &MCMC::build_all_rates)
         .method("export_data_wide", &MCMC::export_data_wide)
         .method("export_data_long", &MCMC::export_data_long)
-        .method("export_data_report", &MCMC::export_data_report)
-        .method("export_house_size_report", &MCMC::export_house_size_report)
+        .method("summarise_cases", &MCMC::summarise_cases)
+        .method("summarise_house_sizes", &MCMC::summarise_house_sizes)
         .method("export_setup", &MCMC::export_setup)
         .method("export_param", &MCMC::export_param)
         .method("export_augmented_data_wide", &MCMC::export_augmented_data_wide)

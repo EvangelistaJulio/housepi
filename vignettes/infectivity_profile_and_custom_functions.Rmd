@@ -46,3 +46,4 @@ hhsimul <- new_housepi_model("augmented_infection_time") |>
 Bear in mind that each model requiring an infectivity profile has a default profile.
 
 # Other custom functions (advanced)
+

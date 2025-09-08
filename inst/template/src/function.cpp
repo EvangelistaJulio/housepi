@@ -31,8 +31,10 @@ bool Attribute::is_constant() const
         return true;
     else if (is_pointer())
         return false; // FIXME: this is not necessarily true...
-    else
+    else if (is_function())
         return pFunc_->is_constant();
+    else // is_empty()
+        return true; // in case it's empty, treat as constant
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -78,7 +80,7 @@ void Attribute::init_function(const std::shared_ptr<Function> f)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Initial defaults for function. */
+/// Initial defaults for function.
 Function::Function(const std::string &name,
                    const str_vec &arg_name, const dbl_vec &arg_value,
                    double domain_min, bool is_min_open,
@@ -130,7 +132,7 @@ Function::Function(const std::string &name,
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Assert argument exists at assignment. Returns it's index. */
+/// Assert argument exists at assignment. Returns it's index.
 unsigned short Function::assert_arg(const std::string &arg_name) const
 {
     if (arg_name == "x")
@@ -148,7 +150,7 @@ unsigned short Function::assert_arg(const std::string &arg_name) const
         tools::str::find_closest(arg_name, options, HSP_MIN_STR_DIST));
 }
 
-/* Wheter all arguments are actually constants.  */
+/// Wheter all arguments are actually constants.
 bool Function::is_constant() const
 {
     // check arguments
@@ -174,16 +176,16 @@ bool Function::is_constant() const
 ///////////////////////////////////  Function : set range  //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Returns the case of the range of validity. */
+/// Returns the case of the range of validity.
 unsigned short Function::which_valid_case_() const
 {
     // note: bounded if not pointing internally to NA
-    bool is_lower_bound = !(range_min_.is_scalar() && tools::is_na(range_min_.get()));
-    bool is_upper_bound = !(range_max_.is_scalar() && tools::is_na(range_max_.get()));
+    bool is_lower_bound = !range_min_.is_empty();
+    bool is_upper_bound = !range_max_.is_empty();
     return is_lower_bound + 2 * is_upper_bound;
 }
 
-/* Ensure uniform range (min, max) match argument (min, max). */
+/// Ensure uniform range (min, max) match argument (min, max).
 void Function::init_uniform_range_()
 {
     // impose range minimum equal to argument minimum
@@ -201,7 +203,7 @@ void Function::init_uniform_range_()
         range_max_.init_pointer(max_arg.get_ptr());
 }
 
-/* Set the range of validity of the value, and the corresponding validation function. */
+/// Set the range of validity of the value, and the corresponding validation function.
 void Function::init_functional_range_(bool is_min_open, bool is_max_open)
 {
     switch (which_valid_case_())
@@ -276,7 +278,7 @@ void Function::init_functional_range_(bool is_min_open, bool is_max_open)
     }
 }
 
-/* Return formatted range. */
+/// Return formatted range.
 std::string Function::str_range() const
 {
     if (is_valid_ == &Function::do_is_valid_always_)

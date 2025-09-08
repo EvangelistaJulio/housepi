@@ -329,13 +329,14 @@ void MCMC::Impl::InfecProfile::build_augmented_profile_(const dict_str &deflist)
 	for (auto &entry : pImpl_.augm.file_headers)
 		augm_infec_profile_deflist_.emplace(entry, str_vec(2, HSP_NA_STRING));
 
-	augm_infec_profile_deflist_.at("const") = str_vec(2, tools::str::format(false));
+	augm_infec_profile_deflist_.at("const") = str_vec(2, "false");
 	augm_infec_profile_deflist_.at("discr") = str_vec(2, tools::str::format(is_discrete));
-	augm_infec_profile_deflist_.at("init_rand") = str_vec(2, tools::str::format(false));
+	augm_infec_profile_deflist_.at("init_rand") = str_vec(2, "false");
 
 	// match infectivity profile and augmented variable definition
 	const dict_str_vec matcher = {{"name", str_vec({HSP_PROFILE_INST, HSP_PROFILE_CUMUL})},
 								  {"func", str_vec(2, func_name)},
+								  {"fcumul", {"false", "true"}},
 								  {"farg_key", str_vec(2, arg_key)},
 								  {"farg_val", str_vec(2, arg_val)},
 								  {"farg_at", str_vec(2, arg_at)},

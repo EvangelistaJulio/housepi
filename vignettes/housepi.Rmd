@@ -18,7 +18,7 @@ editor_options:
 source("theme.R")
 ```
 
-We introduce `housepi`, a package for the study of epidemiological datasets from household outbreaks.
+We introduce `housepi`, a package for the study of epidemiological data from household outbreaks.
 In this vignette we'll walk through the process of loading a model, associating necessary definitions to perform inference and simulations.
 
 # The housepi model class
@@ -60,9 +60,9 @@ template_household_model("chain binomial")
 This command will open the relative documentation file in the Help window of your Rstudio session.
 Our project aims at expanding the present collection of templates, in order to foster off-the-shelf analysis.
 
-## Format of the dataset
+## Format of the data
 
-Dataset can be provided as a numerical data.frame where individual information are organised by row.
+Data can be provided as a numerical data.frame in wide format, where individual information are organised by row.
 Individuals with tagged with the same `"house_id"` in the respective column are considered to belong to same household.
 Additionally, an individual identifier `"id"` can be provided within the respective column.
 
@@ -75,20 +75,20 @@ Status $s_{i}$ should be an integer value satisfying the following convention:
 | `0`            | susceptible | seronegative |
 | `<0` or `NA`   | missing     | missing      |
 
-## Import a dataset
+## Data importation
 
-The most direct way to associate a dataset to a model is assigning it to the active method `$dataset`.
-The `housepi` package comes with a few synthetic datasets to be used for testing.
+The most direct way to associate a data to a model is assigning it to the active method `$data_wide`.
+The `housepi` package comes with a few public datasets to be used for testing.
 
 ```{r}
-# import dataset from R6 active field
-hhmodel$dataset <- housepi::survey
+# import data in wide from R6 active field
+hhmodel$data_wide <- housepi::survey
 ```
-Alternatively, we can pipe such call by using wrapper `add_dataset()`. 
-We can extract summary information about the current dataset with `summarise_cases()`:
+Alternatively, we can pipe such call by using wrapper `add_data_wide()`. 
+We can extract summary information about current loaded data with `summarise_cases()`:
 
 ```{r}
-# show a summary of the dataset as a `flextable`
+# show a summary of cases as a `flextable`
 hhmodel |>
   summarise_cases() |>
   flextable::flextable() |>
@@ -104,7 +104,7 @@ hhmodel |>
 
 To learn more about `flextable` objects and how to export or format them, see [flextable](https://cloud.r-project.org/web/packages/flextable/).
 
-At any moment we can export the dataset from our model calling `$dataset`.
+At any moment we can export the data from our model calling `$data_wide`.
 
 ## Associate parameter definitions
 
@@ -229,9 +229,8 @@ In this configuration, introductions are sampled randomly.
 Simulation will associated augmented incubation periods and onset times in addition to status.
 
 ```{r}
-hhsimul$dataset <- housepi::survey |> 
-  dplyr::mutate(status = NA)
 simulated <- hhsimul |> 
+  add_data_wide(dplyr::mutate(housepi::survey, status = NA)) |>
   simulate()
 head(simulated)
 ```

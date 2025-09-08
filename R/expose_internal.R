@@ -39,7 +39,7 @@ rd_test_prim_ <- "`logical(1)` to consider %s instead.\\cr
 Default is `FALSE`."
 rd_test_args_ <- "named `numeric()` or `list` with custom arguments."
 rd_test_discr_ <- "`logical(1)` to treat definition as discrete."
-rd_test_model_ <- "`HousepiModel` object eventually containing the custom registred %s.\cr
+rd_test_model_ <- "`HousepiModel` object eventually containing the custom registred %s.\\cr
 If `NULL` (default) the built-in registry is used."
 
 #' @title

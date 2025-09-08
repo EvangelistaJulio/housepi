@@ -171,13 +171,13 @@ void MCMC::Impl::Augmented::build_function_(size_t k)
     const std::string &func = deftable.at("func")[k];
 
     if (func == HSP_IDENTITY_FUNC) // optimize 'identity' function
-        build_function_equality_(k);
+        build_function_identity_(k);
     else
         list_func.push_back(deftable.at("name")[k]);
 }
 
 /// Build augmented equality function and change deftable.
-void MCMC::Impl::Augmented::build_function_equality_(size_t k)
+void MCMC::Impl::Augmented::build_function_identity_(size_t k)
 {
     const std::string &a = deftable.at("name")[k];
     str_vec vals = tools::parse_list_args(deftable.at("farg_at")[k], HSP_LIST_DELIM);
@@ -468,7 +468,6 @@ void MCMC::Impl::Augmented::init_single_var_dependencies_(Individual &member, co
                      tools::parse_list_args(deftable.at("arg_key")[k], HSP_LIST_DELIM),
                      tools::parse_list_args(deftable.at("arg_val")[k], HSP_LIST_DELIM),
                      tools::parse_list_args(deftable.at("arg_at")[k], HSP_LIST_DELIM));
-
     // assign range to model
     init_model_range_(member, a,
                       {deftable.at("min")[k], deftable.at("max")[k]},
@@ -489,10 +488,13 @@ void MCMC::Impl::Augmented::init_single_var_dependencies_(Individual &member, co
     }
     else if (xaugm.is_pointer())
     {
-        Attribute aux_attr = init_attributes_aux_(member, a,
-                                                  tools::parse_list_args(deftable.at("farg_val")[k], HSP_LIST_DELIM)[0],
-                                                  tools::parse_list_args(deftable.at("farg_at")[k], HSP_LIST_DELIM)[0]);
-        xaugm.init_pointer(aux_attr.get_ptr());
+        const Attribute &aux_attr = init_attributes_aux_(member, a,
+                                                         tools::parse_list_args(deftable.at("farg_val")[k], HSP_LIST_DELIM)[0],
+                                                         tools::parse_list_args(deftable.at("farg_at")[k], HSP_LIST_DELIM)[0]);
+        if (aux_attr.is_scalar())
+            xaugm.init_scalar(aux_attr.get());
+        else
+            xaugm.init_pointer(aux_attr.get_ptr());
     }
     else if (!xaugm.is_constant())
     {
@@ -512,7 +514,7 @@ void MCMC::Impl::Augmented::init_single_var_dependencies_(Individual &member, co
 ///////////////////////  MCMC::Impl : methods (type-defined variables)  /////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Convert a typed std::string to a double */
+/// Convert a typed std::string to a double
 double MCMC::Impl::Augmented::type_to_double_(const Individual &member,
                                               const std::string &value,
                                               const std::string &type)
@@ -553,7 +555,7 @@ double MCMC::Impl::Augmented::type_to_double_(const Individual &member,
     return output;
 }
 
-/* Auxiliary method to assign attributes to augmented function or model. */
+/// Auxiliary method to assign attributes to augmented function or model.
 void MCMC::Impl::Augmented::init_attributes_(Individual &member,
                                              const std::string &a,
                                              const str_vec &keys,
@@ -668,7 +670,7 @@ Attribute MCMC::Impl::Augmented::init_attributes_aux_(Individual &member,
     return output;
 }
 
-/* Assign augmented function arguments. */
+/// Assign augmented function arguments.
 void MCMC::Impl::Augmented::init_func_args_(Individual &member,
                                             const std::string &a,
                                             const str_vec &keys,
@@ -678,7 +680,7 @@ void MCMC::Impl::Augmented::init_func_args_(Individual &member,
     init_attributes_(member, a, keys, vals, typs,
                      std::vector<bool>(keys.size(), HSP_ATTR_ARGUMENT), HSP_VAR_FUNCTION);
 }
-/* Assign augmented function range. */
+/// Assign augmented function range.
 void MCMC::Impl::Augmented::init_func_range_(Individual &member,
                                              const std::string &a,
                                              const str_vec &vals,
@@ -688,7 +690,7 @@ void MCMC::Impl::Augmented::init_func_range_(Individual &member,
                      std::vector<bool>(2, HSP_ATTR_RANGE), HSP_VAR_FUNCTION);
 }
 
-/* Assign augmented model arguments. */
+/// Assign augmented model arguments.
 void MCMC::Impl::Augmented::init_model_args_(Individual &member,
                                              const std::string &a,
                                              const str_vec &keys,
@@ -698,7 +700,7 @@ void MCMC::Impl::Augmented::init_model_args_(Individual &member,
     init_attributes_(member, a, keys, vals, typs,
                      std::vector<bool>(keys.size(), HSP_ATTR_ARGUMENT), HSP_VAR_MODEL);
 }
-/* Assign augmented model range. */
+/// Assign augmented model range.
 void MCMC::Impl::Augmented::init_model_range_(Individual &member,
                                               const std::string &a,
                                               const str_vec &vals,
@@ -714,7 +716,7 @@ void MCMC::Impl::Augmented::init_model_range_(Individual &member,
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Move augmented variables from all households. */
+/// Move augmented variables from all households.
 void MCMC::Impl::move_all_augm_()
 {
     if (augm.is_any_sample())
@@ -757,10 +759,9 @@ void MCMC::Impl::move_all_augm_()
 ////////////////////////////////////  MCMC : augmented move  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Move augmented variables of infectious members inside household.
-The move is performed one member at a time, one augmented variable at a time.
-*/
-// UPDATE: smooth the incrementation by reference by just adding...
+/// Move augmented variables of infectious members inside household.
+/// The move is performed one member at a time, one augmented variable at a time.
+/// UPDATE: smooth the incrementation by reference by just adding...
 double MCMC::Impl::move_augm_single_house_(Household &house)
 {
     double delta_ll = 0.;
@@ -770,7 +771,7 @@ double MCMC::Impl::move_augm_single_house_(Household &house)
     return delta_ll;
 }
 
-/* Generic move augmented variables one by one. */
+/// Generic move augmented variables one by one.
 double MCMC::Impl::do_move_augm_indiv_generic_(Household &house, Individual &member_i)
 {
     double delta_ll = 0.;
@@ -780,7 +781,7 @@ double MCMC::Impl::do_move_augm_indiv_generic_(Household &house, Individual &mem
     return delta_ll;
 }
 
-/* Move augmented variables by status one variable at a time. */
+/// Move augmented variables by status one variable at a time.
 double MCMC::Impl::do_move_augm_indiv_by_status_(Household &house, Individual &member_i)
 {
     double delta_ll = 0.;
@@ -790,7 +791,7 @@ double MCMC::Impl::do_move_augm_indiv_by_status_(Household &house, Individual &m
     return delta_ll;
 }
 
-/* Take care of a a single augmented Metropolis move. */
+/// Take care of a a single augmented Metropolis move.
 double MCMC::Impl::metropolis_augm_single_move_(Household &house, Individual &member, const std::string &a)
 {
     Variable &xaugm = member.get_augm_variable(a);

@@ -15,7 +15,7 @@ expr_to_row <- function(expr) {
   # accept either a formula (~ x - y) or a naked call (x - y)
   if (inherits(expr, "formula")) call <- rlang::f_rhs(expr)
   else if (rlang::is_call(expr)) call <- expr
-  else return(c(func = "eq", x = expr))
+  else return(c(func = "..identity..", x = expr))
   
   # flatten nested operations of the same type
   flatten_same_op_ <- function(call, target_op) {
@@ -43,7 +43,7 @@ expr_to_row <- function(expr) {
   # map to function label
   fn_label <- switch(fn,
                      `-` = if (n_arg == 1) "minus" else "sub",
-                     `+` = if (n_arg == 1) "eq" else "add",
+                     `+` = if (n_arg == 1) "..identity.." else "add",
                      `*` = "mult",
                      `/` = "div",
                      `^` = "pow",

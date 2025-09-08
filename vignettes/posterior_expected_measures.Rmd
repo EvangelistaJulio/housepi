@@ -26,7 +26,7 @@ We use the same chain binomial example presented in [Get started](housepi.html):
 # repeat inference as in vignette 'Get Started'
 set.seed(42)
 hhmodel <- new_housepi_model("chain_binomial") |>
-  add_dataset(housepi::survey) |>
+  add_data_wide(housepi::survey) |>
   load_parameter_list(alpha = list(prior = "unif",  rule = "lnorm"),
                       beta = list(prior = "unif", rule = "lnorm"))
 

@@ -62,7 +62,7 @@ void MCMC::cache_house_double_matrix(const std::string &e) { pImpl_->dataset.ini
 //-----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------//
 
-/* Build all group rates and contact rates and set rate per group */
+/// Build all group rates and contact rates and set rate per group.
 void MCMC::build_all_rates()
 {
     try
@@ -81,7 +81,7 @@ void MCMC::build_all_rates()
 /////////////////////////////////  MCMC : set rate per contact  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Set contact rate according to user assignement. */
+/// Set contact rate according to user assignement.
 void MCMC::init_contact_rates_(Household &house)
 {
     try
@@ -159,8 +159,8 @@ Rcpp::List MCMC::export_infec_profile() const { return pImpl_->infec_profile.rcp
 Rcpp::DataFrame MCMC::export_param() const { return pImpl_->param.rcpp_export(); }
 Rcpp::DataFrame MCMC::export_augmented_data_wide() const { return pImpl_->augm.rcpp_export_data_wide(); }
 Rcpp::DataFrame MCMC::export_data_wide() const { return pImpl_->dataset.rcpp_export(pImpl_->dataset.headers(), true); }
-Rcpp::DataFrame MCMC::export_data_report() const { return pImpl_->dataset.rcpp_export_report(); }
-Rcpp::DataFrame MCMC::export_house_size_report() const { return pImpl_->dataset.rcpp_export_size_report(); }
+Rcpp::DataFrame MCMC::summarise_cases() const { return pImpl_->dataset.rcpp_summarise_cases(); }
+Rcpp::DataFrame MCMC::summarise_house_sizes() const { return pImpl_->dataset.rcpp_summarise_house_sizes(); }
 Rcpp::NumericMatrix MCMC::export_house_loglike_draws() const { return pImpl_->dataset.rcpp_export_draws(); }
 Rcpp::DataFrame MCMC::export_data_long() const { return pImpl_->datalong.rcpp_export(); }
 Rcpp::NumericMatrix MCMC::export_draws() const { return pImpl_->rcpp_export_draws(); }

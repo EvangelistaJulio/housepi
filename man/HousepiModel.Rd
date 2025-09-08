@@ -4,7 +4,7 @@
 \alias{HousepiModel}
 \title{Housepi Model}
 \description{
-Compile household model, manage your dataset
+Compile household model, manage your data
 and variable defintions from a single class.
 }
 \keyword{internal}
@@ -14,10 +14,10 @@ and variable defintions from a single class.
 \section{Active bindings}{
 \if{html}{\out{<div class="r6-active-bindings">}}
 \describe{
-\item{\code{dataset}}{\code{data.frame}\cr
-Dataset with individual level information of current dataset.}
+\item{\code{data_wide}}{\code{data.frame}\cr
+Dataset with individual level information of current data_wide.}
 
-\item{\code{datalist}}{\code{data.frame}\cr
+\item{\code{data_long}}{\code{data.frame}\cr
 Datalist with multiple rows indexed by individual.}
 
 \item{\code{parameters}}{\code{data.frame}\cr
@@ -40,10 +40,10 @@ List containing current group rate definitions.}
 \item \href{#method-HousepiModel-new}{\code{HousepiModel$new()}}
 \item \href{#method-HousepiModel-print}{\code{HousepiModel$print()}}
 \item \href{#method-HousepiModel-help}{\code{HousepiModel$help()}}
-\item \href{#method-HousepiModel-add_dataset}{\code{HousepiModel$add_dataset()}}
+\item \href{#method-HousepiModel-add_data_wide}{\code{HousepiModel$add_data_wide()}}
 \item \href{#method-HousepiModel-summarise_cases}{\code{HousepiModel$summarise_cases()}}
 \item \href{#method-HousepiModel-summarise_house_sizes}{\code{HousepiModel$summarise_house_sizes()}}
-\item \href{#method-HousepiModel-add_datalist}{\code{HousepiModel$add_datalist()}}
+\item \href{#method-HousepiModel-add_data_long}{\code{HousepiModel$add_data_long()}}
 \item \href{#method-HousepiModel-add_parameter}{\code{HousepiModel$add_parameter()}}
 \item \href{#method-HousepiModel-load_parameter_list}{\code{HousepiModel$load_parameter_list()}}
 \item \href{#method-HousepiModel-load_parameter_template}{\code{HousepiModel$load_parameter_template()}}
@@ -56,7 +56,7 @@ List containing current group rate definitions.}
 \item \href{#method-HousepiModel-loglikelihood}{\code{HousepiModel$loglikelihood()}}
 \item \href{#method-HousepiModel-infer}{\code{HousepiModel$infer()}}
 \item \href{#method-HousepiModel-evidence}{\code{HousepiModel$evidence()}}
-\item \href{#method-HousepiModel-export_augmented_dataset}{\code{HousepiModel$export_augmented_dataset()}}
+\item \href{#method-HousepiModel-export_augmented_data_wide}{\code{HousepiModel$export_augmented_data_wide()}}
 \item \href{#method-HousepiModel-export_house_snapshot}{\code{HousepiModel$export_house_snapshot()}}
 \item \href{#method-HousepiModel-simulate}{\code{HousepiModel$simulate()}}
 \item \href{#method-HousepiModel-drop_parameters}{\code{HousepiModel$drop_parameters()}}
@@ -122,18 +122,18 @@ Show model description in RStudio Help window.
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-add_dataset"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-add_dataset}{}}}
-\subsection{Method \code{add_dataset()}}{
-Make an internal copy of the provided household dataset.
+\if{html}{\out{<a id="method-HousepiModel-add_data_wide"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiModel-add_data_wide}{}}}
+\subsection{Method \code{add_data_wide()}}{
+Make an internal copy of the provided household data_wide.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_dataset(dataset)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_data_wide(data_wide)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{dataset}}{\code{data.frame} with the household dataset used for analysis.}
+\item{\code{data_wide}}{\code{data.frame} with the household data used for analysis in wide format.}
 }
 \if{html}{\out{</div>}}
 }
@@ -142,7 +142,7 @@ Make an internal copy of the provided household dataset.
 \if{html}{\out{<a id="method-HousepiModel-summarise_cases"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-summarise_cases}{}}}
 \subsection{Method \code{summarise_cases()}}{
-Summarise statuses in the dataset.
+Summarise statuses in the data_wide.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$summarise_cases()}\if{html}{\out{</div>}}
 }
@@ -155,7 +155,7 @@ Summarise statuses in the dataset.
 \if{html}{\out{<a id="method-HousepiModel-summarise_house_sizes"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-summarise_house_sizes}{}}}
 \subsection{Method \code{summarise_house_sizes()}}{
-Summary house sizes in the dataset.
+Summary house sizes in the data_wide.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$summarise_house_sizes()}\if{html}{\out{</div>}}
 }
@@ -165,18 +165,18 @@ Summary house sizes in the dataset.
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-add_datalist"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-add_datalist}{}}}
-\subsection{Method \code{add_datalist()}}{
-Maje an internal copy of the provided datalist.
+\if{html}{\out{<a id="method-HousepiModel-add_data_long"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiModel-add_data_long}{}}}
+\subsection{Method \code{add_data_long()}}{
+Maje an internal copy of the provided data_long.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_datalist(datalist)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_data_long(data_long)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{datalist}}{\code{data.frame} with the individual datalist used for analysis.}
+\item{\code{data_long}}{\code{data.frame} with the individual data (long format) used for analysis.}
 }
 \if{html}{\out{</div>}}
 }
@@ -425,7 +425,7 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 \if{html}{\out{<a id="method-HousepiModel-add_group_rate"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-add_group_rate}{}}}
 \subsection{Method \code{add_group_rate()}}{
-Add definitions of a group rate by given dataset feature(s).
+Add definitions of a group rate by given data_wide feature(s).
 Reference value has unitary rate and can be specified
 (default is most represented group).
 \subsection{Usage}{
@@ -449,8 +449,8 @@ Reference value has unitary rate and can be specified
 \describe{
 \item{\code{name}}{\code{character(1)} name used by interna; calls.}
 
-\item{\code{by}}{\code{list} with feature(s) associated to group rate as dataset headers.\cr
-Corresponding dataset columns have to be categorical.}
+\item{\code{by}}{\code{list} with feature(s) associated to group rate as data headers.\cr
+Corresponding data columns have to be categorical.}
 
 \item{\code{prefix}}{\code{character(1)} with prefix to parameter names associated to the group rate.\cr
 If \code{NA} (default), used the first 3 letters of rate name.}
@@ -551,13 +551,13 @@ One between:\cr
 \subsection{Method \code{loglikelihood()}}{
 Compute the loglikelihood.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$loglikelihood(dataset = NULL, seed = NA)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$loglikelihood(data_wide = NULL, seed = NA)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{dataset}}{\code{data.frame} with the household dataset used for analysis. If \code{NULL}, uses the previously stored dataset.}
+\item{\code{data_wide}}{\code{data.frame} with the household data used for analysis in wide format. If \code{NULL}, uses the previously stored data.}
 
 \item{\code{seed}}{\code{integer(1)} with the seed for the random number generator.\cr
 If \code{NA} (default), uses current R seed.}
@@ -577,7 +577,7 @@ If \code{NA} (default), uses current R seed.}
 Run inference with Bayesian Markov Chain Monte Carlo.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$infer(
-  dataset = NULL,
+  data_wide = NULL,
   sample_size = NA,
   n_steps = 10000,
   n_burnin = 0,
@@ -595,7 +595,7 @@ Run inference with Bayesian Markov Chain Monte Carlo.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{dataset}}{\code{data.frame} with the household dataset used for analysis. If \code{NULL}, uses the previously stored dataset.}
+\item{\code{data_wide}}{\code{data.frame} with the household data used for analysis in wide format. If \code{NULL}, uses the previously stored data.}
 
 \item{\code{sample_size}}{\code{integer(1)} with the number of posterior draws stored for each chain.}
 
@@ -642,7 +642,7 @@ Estimate the model evidence (or marginal likelihood).
 It uses the method of power posteriors with different available schemes.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$evidence(
-  dataset = NULL,
+  data_wide = NULL,
   scheme = "power-fractions",
   n_rungs = 40,
   sample_size = NA,
@@ -660,7 +660,7 @@ It uses the method of power posteriors with different available schemes.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{dataset}}{\code{data.frame} with the household dataset used for analysis. If \code{NULL}, uses the previously stored dataset.}
+\item{\code{data_wide}}{\code{data.frame} with the household data used for analysis in wide format. If \code{NULL}, uses the previously stored data.}
 
 \item{\code{scheme}}{\code{character(1)} with the scheme used for evidence estimation.\cr
 One between\cr
@@ -704,12 +704,12 @@ One between:\cr
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-export_augmented_dataset"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-export_augmented_dataset}{}}}
-\subsection{Method \code{export_augmented_dataset()}}{
+\if{html}{\out{<a id="method-HousepiModel-export_augmented_data_wide"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiModel-export_augmented_data_wide}{}}}
+\subsection{Method \code{export_augmented_data_wide()}}{
 Dataset with associated augmented variables at current state.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$export_augmented_dataset()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$export_augmented_data_wide()}\if{html}{\out{</div>}}
 }
 
 \subsection{Returns}{
@@ -741,15 +741,15 @@ Id of the household to export.}
 \if{html}{\out{<a id="method-HousepiModel-simulate"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-simulate}{}}}
 \subsection{Method \code{simulate()}}{
-Generate a simulated dataset.
+Generate a simulated outbreak with the same community structure of the loaded data.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$simulate(dataset = NULL, seed = NA, progress = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$simulate(data_wide = NULL, seed = NA, progress = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{dataset}}{\code{data.frame} with the household dataset used for analysis. If \code{NULL}, uses the previously stored dataset.}
+\item{\code{data_wide}}{\code{data.frame} with the household data used for analysis in wide format. If \code{NULL}, uses the previously stored data.}
 
 \item{\code{seed}}{\code{integer(1)} with the seed for the random number generator.\cr
 If \code{NA} (default), uses current R seed.}

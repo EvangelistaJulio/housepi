@@ -54,7 +54,7 @@ namespace tools
     //////////////////////////////////////  Auxiliary Functions  ////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /* Internal check for std::string representing NA. */
+    /// Internal check for std::string representing NA.
     bool is_na(const std::string &txt)
     {
         if (txt.size() == 0)
@@ -65,7 +65,7 @@ namespace tools
             return (str_vec({"<NA>", "NA", "NAN"}) % str::toup(txt));
     }
 
-    /* Internal check for double representing NA. */
+    /// Internal check for double representing NA.
     bool is_na(double x)
     {
 #ifdef _HOUSEPI_RCPP
@@ -78,7 +78,7 @@ namespace tools
         return false;
     }
 
-    /* Default seed for pseudo random number generator.  */
+    /// Default seed for pseudo random number generator.
     std::int32_t default_setup_seed()
     {
         auto time_raw = std::chrono::steady_clock::now().time_since_epoch().count();
@@ -90,11 +90,10 @@ namespace tools
         return static_cast<std::int32_t>(mixed & 0x7FFFFFFF);
     }
 
-    /* Welford online's algorithm for mean and variance.
-        Ref :
-        ----
-        https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
-    */
+    /// Welford online's algorithm for mean and variance.
+    /// Ref :
+    /// ----
+    /// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
     std::pair<double, double> compute_stats(const dbl_vec &data)
     {
         size_t i = 0;
@@ -129,7 +128,7 @@ namespace tools
     // TOOLS::STR NAMESPACE
     namespace str
     {
-        /* Convert to lower case. */
+        /// Convert to lower case.
         std::string tolow(const std::string s)
         {
             std::string out = s;
@@ -137,7 +136,7 @@ namespace tools
             return out;
         }
 
-        /* Convert to upper case. */
+        /// Convert to upper case.
         std::string toup(const std::string s)
         {
             std::string out = s;
@@ -145,7 +144,7 @@ namespace tools
             return out;
         }
 
-        /* Convert vector of strings to lower case. */
+        /// Convert vector of strings to lower case.
         str_vec tolow(const str_vec &svec)
         {
             str_vec out;
@@ -155,7 +154,7 @@ namespace tools
             return out;
         }
 
-        /* Convert vector of strings to upper case. */
+        /// Convert vector of strings to upper case.
         str_vec toup(const str_vec &svec)
         {
             str_vec out;
@@ -165,7 +164,7 @@ namespace tools
             return out;
         }
 
-        /* make list composed of distinct entries */
+        /// make list composed of distinct entries
         str_vec drop_duplicate(const str_vec &vec)
         {
             str_vec out;
@@ -176,7 +175,7 @@ namespace tools
             return out;
         }
 
-        /* Remove private entries from list. */
+        /// Remove private entries from list.
         str_vec drop_private(str_vec vec)
         {
             auto new_end = std::remove_if(
@@ -187,13 +186,13 @@ namespace tools
             vec.erase(new_end, vec.end());
             return vec;
         }
-        /* Converter to string checking for NA values. */
+
+        /// Format a dobule value (it deals with NA).
         std::string format(double x)
         {
             return is_na(x) ? HSP_NA_STRING : std::to_string(x);
         }
-
-        /* A formatted std::string for TRUE/FALSE values. */
+        /// Format a boolean value.
         std::string format(bool condition)
         {
 #ifdef _HOUSEPI_RCPP
@@ -202,8 +201,7 @@ namespace tools
             return (condition ? "TRUE" : "FALSE");
 #endif
         }
-
-        /* Format a list of string options. */
+        /// Format a list of string options.
         std::string format(const str_vec &options, size_t max_print)
         {
             if (options.empty())
@@ -223,12 +221,38 @@ namespace tools
             }
         }
 
+        /// Format a 2D matrix.
+        std::string format(const matrix<double> &vec)
+        {
+            if (vec.empty())
+                return "";
+            else
+            {
+                std::ostringstream oss;
+                oss << "[";
+                for (size_t i = 0; i < vec.size(); ++i)
+                {
+                    oss << "[";
+                    for (size_t j = 0; j < vec[i].size(); ++j)
+                    {
+                        oss << std::fixed << std::setprecision(4) << vec[i][j];
+                        if (j < vec[i].size() - 1)
+                            oss << ", ";
+                    }
+                    oss << "]";
+                    if (i < vec.size() - 1)
+                        oss << ",\n";
+                }
+                oss << "]\n";
+                return oss.str();
+            }
+        }
+
         // Function to calculate Levenshtein distance
-        /* Levenshtein distance calculated the dynamic programming approach.
-            Ref.
-            -----
-            https://github.com/guilhermeagostinelli/levenshtein/blob/master/levenshtein.cpp
-        */
+        /// Levenshtein distance calculated the dynamic programming approach.
+        /// Ref.
+        /// -----
+        /// https://github.com/guilhermeagostinelli/levenshtein/blob/master/levenshtein.cpp
         unsigned short levenshtein(const std::string &seq_A, const std::string &seq_B)
         {
             unsigned short len_A = seq_A.size();
@@ -260,7 +284,7 @@ namespace tools
             return verif[len_A][len_B];
         }
 
-        /* Function to find the closest match. */
+        /// Function to find the closest match.
         std::string find_closest(const std::string &input,
                                  const str_vec &options,
                                  unsigned short min_dist,
@@ -303,8 +327,7 @@ namespace tools
         ////////////////////////////////////  Converter Functions ///////////////////////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////////////
 
-        /// Convert std::string to boolean variable.
-        /// NA is assumed as FALSE.
+        /// Convert std::string to boolean variable. NA is assumed as FALSE.
         bool tobool(const std::string &tkn)
         {
             if (is_na(tkn))
@@ -318,7 +341,7 @@ namespace tools
                     "Unrecognized boolean value \"" + tkn + "\".");
         }
 
-        /* Template function to wrap conversion functions with try-catch */
+        /// Template function to wrap conversion functions with try-catch.
         template <typename Func, typename... Args>
         auto converter_(Func func, const std::string &input, const std::string &errtxt, Args &&...args) -> decltype(func(input, std::forward<Args>(args)...))
         {
@@ -333,25 +356,25 @@ namespace tools
             }
         }
 
-        /* Converter to int using std::stoi with function pointer casting */
+        /// Converter to int using std::stoi with function pointer casting.
         int toi(const std::string &input, const std::string &errtxt)
         {
             return converter_(static_cast<int (*)(const std::string &, std::size_t *, int)>(std::stoi), input, errtxt, nullptr, 10);
         }
 
-        /* Converter to unsigned long using std::stoul with function pointer casting */
+        /// Converter to unsigned long using std::stoul with function pointer casting.
         unsigned long toul(const std::string &input, const std::string &errtxt)
         {
             return converter_(static_cast<unsigned long (*)(const std::string &, std::size_t *, int)>(std::stoul), input, errtxt, nullptr, 10);
         }
 
-        /* Converter to unsigned 32bit integer (for R compatibility). */
+        /// Converter to unsigned 32bit integer (for R compatibility).
         std::int32_t toi32(const std::string &input, const std::string &errtxt)
         {
             return static_cast<std::int32_t>(toul(input, errtxt));
         }
 
-        /* Converter to double using std::stod with function pointer casting */
+        /// Converter to double using std::stod with function pointer casting.
         double tod(const std::string &input, const std::string &errtxt)
         {
             return converter_(static_cast<double (*)(const std::string &, std::size_t *)>(std::stod), input, errtxt, nullptr);
@@ -365,7 +388,7 @@ namespace tools
     //-----------------------------------------------------------------------------------------------//
     //-----------------------------------------------------------------------------------------------//
 
-    /* Clean std::string from forbidden characters and convert to UNDEFINED. */
+    /// Clean std::string from forbidden characters and convert to UNDEFINED.
     const std::string strcleaner_(std::string tkn)
     {
         // forbidden characters
@@ -377,7 +400,7 @@ namespace tools
         return tkn;
     }
 
-    /* Read column headers and compare to required headers. */
+    /// Read column headers and compare to required headers.
     str_vec read_column_headers_(std::ifstream &input)
     {
         // clean headers
@@ -395,7 +418,7 @@ namespace tools
         return headers;
     }
 
-    /* Load files from the row with headers */
+    /// Load files from the row with headers.
     bool read_row_by_headers_(std::ifstream &input, const str_vec &headers, dict_str &this_row)
     {
         std::string line, tkn;
@@ -425,7 +448,7 @@ namespace tools
     //-----------------------------------------------------------------------------------------------//
     //-----------------------------------------------------------------------------------------------//
 
-    /* Parse the list from the std::string. */
+    /// Parse the list from the std::string.
     str_vec parse_list_args(const std::string &tkn, const char delim)
     {
         std::istringstream args_ss(tkn);
@@ -439,7 +462,7 @@ namespace tools
         return output;
     }
 
-    /* Extract headers from deflist. */
+    /// Extract headers from deflist.
     str_vec headers_from_deflist(const dict_str &deflist)
     {
         str_vec entries = {};
@@ -448,7 +471,7 @@ namespace tools
         return entries;
     }
 
-    /* Read csv list store in pathtofile and store it parsed in csv_parsed_list. */
+    /// Read csv list store in pathtofile and store it parsed in csv_parsed_list.
     dict_str read_csv_list(const std::string &pathtofile)
     {
         dict_str output = {};
@@ -487,7 +510,7 @@ namespace tools
         return output;
     }
 
-    /* Extract headers from deftable. */
+    /// Extract headers from deftable.
     str_vec headers_from_deftable(const dict_str_vec &deftable)
     {
         str_vec entries = {};
@@ -496,7 +519,7 @@ namespace tools
         return entries;
     }
 
-    /* Read csv table in pathtofile and store it parsed in csv_parsed_table. */
+    /// Read csv table in pathtofile and store it parsed in csv_parsed_table.
     dict_str_vec read_csv_table(const std::string &pathtofile)
     {
         dict_str_vec output = {};
@@ -533,7 +556,7 @@ namespace tools
     //-----------------------------------------------------------------------------------------------//
     //-----------------------------------------------------------------------------------------------//
 
-    /* Check for missing entries given a vector of options. */
+    /// Check for missing entries given a vector of options.
     void check_for_missing_entries(const str_vec &entries,
                                    const str_vec &options,
                                    const std::string &where)
@@ -560,12 +583,11 @@ namespace tools
         }
     }
 
-    /* Check for unused entries given a vector of options. */
+    /// Check for unused entries given a vector of options.
     void check_for_unused_entries(const str_vec &entries,
                                   const str_vec &options,
                                   const std::string &where)
     {
-        //----- check for unused entries -----//
         str_vec unused = {};
         for (const std::string &x : entries)
             if (!(options % x))
@@ -583,7 +605,7 @@ namespace tools
     }
 
 #ifdef _HOUSEPI_RCPP
-    /* Format C++ string into Rcpp string. */
+    /// Format C++ string into Rcpp string.
     Rcpp::String stoRString(const std::string &x)
     {
         if (tools::is_na(x))
@@ -591,7 +613,7 @@ namespace tools
         return Rcpp::String(x);
     }
 
-    /* Convert R List into map<string, string>. */
+    /// Convert R List into map<string, string>.
     dict_str rlist_to_map(SEXP input)
     {
         using namespace Rcpp;
@@ -613,7 +635,7 @@ namespace tools
         return output;
     }
 
-    /* Convert R dataframe into map<string, vector<string>>. */
+    /// Convert R dataframe into map<string, vector<string>>.
     dict_str_vec rdataframe_to_map(SEXP input)
     {
         using namespace Rcpp;

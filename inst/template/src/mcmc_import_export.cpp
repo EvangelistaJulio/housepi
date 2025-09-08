@@ -320,7 +320,7 @@ Rcpp::DataFrame MCMC::Impl::DataLong::rcpp_export() const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Export current data configurations to R DataFrame. */
-Rcpp::DataFrame MCMC::Impl::DataWide::rcpp_export_report() const
+Rcpp::DataFrame MCMC::Impl::DataWide::rcpp_summarise_cases() const
 {
     using namespace Rcpp;
 
@@ -371,7 +371,7 @@ Rcpp::DataFrame MCMC::Impl::DataWide::rcpp_export_report() const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Export current data configurations to R DataFrame. */
-Rcpp::DataFrame MCMC::Impl::DataWide::rcpp_export_size_report() const
+Rcpp::DataFrame MCMC::Impl::DataWide::rcpp_summarise_house_sizes() const
 {
     using namespace Rcpp;
 

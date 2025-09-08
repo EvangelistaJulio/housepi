@@ -4,10 +4,10 @@
 \alias{measure_cases_by_house_size}
 \title{Measure household cases by size}
 \usage{
-measure_cases_by_house_size(dataset)
+measure_cases_by_house_size(data_wide)
 }
 \arguments{
-\item{dataset}{\code{data.frame} with the household dataset used for analysis.}
+\item{data_wide}{\code{data.frame} with the household data used for analysis in wide format.}
 }
 \value{
 \code{data.frame}

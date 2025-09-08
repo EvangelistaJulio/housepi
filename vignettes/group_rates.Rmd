@@ -33,14 +33,14 @@ hhmodel <- new_housepi_model("chain_binomial_heterogeneous") |>
 hhmodel |> get_parameters()
 ```
 
-# Format dataset features
+# Format data features
 
-Suppose our analysis wants to explore age and gender-based effects within a household survey dataset.
+Suppose our analysis wants to explore age and/or gender-based effects within a household survey.
 We start by creating categorical groupings to stratify individuals based on their age, sex, etc and then associate individual group rates.
 
 ```{r}
 # import survey with age as binary group child/adult
-hhmodel$dataset <- housepi::survey |>
+hhmodel$data_wide <- housepi::survey |>
   dplyr::mutate(age = dplyr::if_else(age < 16, "child", "adult"))
 ```
 
@@ -55,7 +55,7 @@ hhmodel |>
   # associate susceptibility group rate by column age
   add_group_rate("susceptibility", by = "age") |>
   # inspect group rate definitions
-  # note: to show group rate definitions, import a dataset before
+  # note: to show group rate definitions, add data before
   get_group_rates()
 ```
 To return a group rate to its default, overwrite its definition with argument `by` set to `NA`. 
@@ -63,7 +63,7 @@ To drop all previous definitions, call `drop_group_rates()`.
 
 ## Dependencies between covariates
 
-In the previous example we associated group rates to a single covariate in the dataset.
+In the previous example we associated group rates to a single covariate in the data.
 In this example we show how to provide more covariates and a custom reference:
 
 ```{r}

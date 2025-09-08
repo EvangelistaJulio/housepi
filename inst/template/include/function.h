@@ -37,9 +37,8 @@ public:
     ///////////////////////////////////  Attribute : constructor  ///////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    // FLAG
-    //Attribute() {};
-    //virtual ~Attribute() = default;
+    Attribute() {};
+    virtual ~Attribute() = default;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////  Attribute : getter  //////////////////////////////////
@@ -58,19 +57,22 @@ public:
 
     /// Wheter it's constant.
     virtual bool is_constant() const;
+
     /// Wheter it's a scalar.
-    bool is_scalar() const { return (!is_pointer()) && (!is_function()); }
+    bool is_scalar() const { return !tools::is_na(value_); }
     /// Wheter it's a pointer.
     bool is_pointer() const { return ptr_to_value_ != nullptr; }
     /// Wheter it's a function.
     bool is_function() const { return pFunc_ != nullptr; }
+    /// Wheter it has no definitions.
+    bool is_empty() const { return !is_scalar() && !is_pointer() && !is_function(); }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////  Attribute : setter  //////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Set attribute name.
-    void name(const std::string &name) { attribute_name_ = name; }
+    void name(const std::string &s) { attribute_name_ = s; }
     /// Set attribute value.
     void set(double x) { (this->*do_set_)(x); }
 

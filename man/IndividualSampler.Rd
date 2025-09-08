@@ -7,14 +7,14 @@
 FIXME: missing.
 }
 \examples{
-dataset <- housepi::survey
-dataset$sex <- ifelse(dataset$sex == 1, "M", "F")
+data_wide <- housepi::survey
+data_wide$sex <- ifelse(data_wide$sex == 1, "M", "F")
 
 bic <- IndividualSampler$new(
   sex = list(levels = c("M", "F")),
   age = list(breaks = c(0, 10, 20, 40, 60))
 )
-test <- dataset[1:5, ]
+test <- data_wide[1:5, ]
 test
 bic$encode(test)
 bic$decode(bic$encode(test))
@@ -63,16 +63,16 @@ List containing encoding dictionary definitions for each feature.}
 \if{html}{\out{<a id="method-IndividualSampler-encode"></a>}}
 \if{latex}{\out{\hypertarget{method-IndividualSampler-encode}{}}}
 \subsection{Method \code{encode()}}{
-Encode individuals from dataset according to encoding dictionary.
+Encode individuals from data_wide according to encoding dictionary.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{IndividualSampler$encode(dataset)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{IndividualSampler$encode(data_wide)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{dataset}}{\code{data.frame()}\cr
-A data.frame containing the dataset with individual information by row.}
+\item{\code{data_wide}}{\code{data.frame()}\cr
+A data.frame containing the data_wide with individual information by row.}
 }
 \if{html}{\out{</div>}}
 }

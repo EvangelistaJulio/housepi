@@ -48,19 +48,19 @@ add_data_wide  <- function(object, data_wide) {
   object$clone(deep = TRUE)$add_data_wide(data_wide)
 }
 
-#' @title Add datalist
+#' @title Add data long
 #' @description
-#' Maje an internal copy of the provided datalist.
+#' Male an internal copy of the provided data in long format.
 #'
 #' @param object `r rd_model_in_`
-#' @param datalist `r rd_add_datalist_`
+#' @param data_long `r rd_add_data_long_`
 #'
 #' @return `r rd_model_out_`
 #'
 #' @export
-add_datalist <- function(object, datalist) {
+add_data_long <- function(object, data_long) {
   stopifnot(inherits(object, "HousepiModel"))
-  object$clone(deep = TRUE)$add_datalist(datalist)
+  object$clone(deep = TRUE)$add_data_long(data_long)
 }
 
 #' @title Summarise cases in household data

@@ -24,7 +24,7 @@ test_that("Distributions exported from housepi are correct", {
   expect_equal(y, dnorm(xR))
 
   # test R-like prefix
-  expect_equal(test_distribution("dnorm", xR), y)
+  expect_equal(test_distribution("norm", xR), y)
   
   # Test uniform distribution
   y <- test_distribution("unif", x, args = c(min = 0, max = 1))
@@ -76,7 +76,7 @@ test_that("Ferretti infectivity profile is correctly normalized", {
     heights <- 0.5 * (y[-length(x)] + y[-1])
     return(sum(diff(x) * heights))
   }
-  z <- test_infec_profile("pferretti20", x)
+  z <- test_infec_profile("ferretti20", x, cumul = TRUE)
   expect_equal(trapezoid(x, y), z[length(x)])
 })
 
@@ -84,7 +84,7 @@ test_that("Numerical recipes and distributions are correct", {
   x <- seq(1, 10, 1)
   args <- list(size = 12, prob = 0.2)
   prof_inst <- test_distribution("binom", x, args = args, min = 1)
-  prof_cumul <- test_distribution("pbinom", x, args = args, min = 1)
+  prof_cumul <- test_distribution("binom", x, args = args, cumul = TRUE, min = 1)
 
   # truncation
   shift <- stats::pbinom(0, size = args$size, prob = args$prob)

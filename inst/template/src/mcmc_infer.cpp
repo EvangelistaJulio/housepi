@@ -16,25 +16,20 @@
 
 #include "mcmc_impl.h"
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
+///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////  MCMC::Impl : methods (parameter moves)  /////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Set accept rates to zero. */
+/// Set accept rates to zero.
 void MCMC::Impl::init_move_counts_()
 {
     for (const std::string &p : param.list_sample)
         param.at(p).reset_accept_rate();
 }
 
-/* propose a valid move (retrun true), otherwise update refusal (return false) */
+/// propose a valid move (retrun true), otherwise update refusal (return false) */
 bool MCMC::Impl::propose_valid_param_move_(const std::string &p)
 {
     Variable &this_par = param.at(p);
@@ -52,7 +47,7 @@ bool MCMC::Impl::propose_valid_param_move_(const std::string &p)
     return true;
 }
 
-/* Restore the parameter value in the buffer. */
+/// Restore the parameter value in the buffer.
 void MCMC::Impl::recover_parameter_(const std::string &p, bool is_cache_depen)
 {
     // recover buffer value of parameter
@@ -73,7 +68,7 @@ void MCMC::Impl::recover_parameter_(const std::string &p, bool is_cache_depen)
     infec_profile.recover(is_cache_depen);
 }
 
-/* Metropolis-Hastings to accept or not current parameter move. */
+/// Metropolis-Hastings to accept or not current parameter move.
 bool MCMC::Impl::accept_valid_param_move_(const std::string &p)
 {
     const double D_ll = full_loglike_ - full_buffer_;
@@ -85,7 +80,7 @@ bool MCMC::Impl::accept_valid_param_move_(const std::string &p)
 /////////////////////////////////  MCMC : Impl : posterior sample  ////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Initialize posterior sample of parameters. */
+/// Initialize posterior sample of parameters.
 void MCMC::Impl::Parameter::init_draws(unsigned long sample_size)
 {
     smpl_values.clear();
@@ -98,14 +93,14 @@ void MCMC::Impl::Parameter::init_draws(unsigned long sample_size)
     }
 }
 
-/* Store current sample of parameters. */
+/// Store current sample of parameters.
 void MCMC::Impl::Parameter::update_draws(unsigned long smpl_count)
 {
     for (const std::string &p : list_sample)
         smpl_values[p][smpl_count] = get(p);
 }
 
-/* Clear posterior sample of parameters. */
+/// Clear posterior sample of parameters.
 void MCMC::Impl::Parameter::clear_draws()
 {
     for (auto &pair : smpl_values)
@@ -117,7 +112,7 @@ void MCMC::Impl::Parameter::clear_draws()
     smpl_values.rehash(0);
 }
 
-/* Initialize posterior sample of parameters. */
+/// Initialize posterior sample of parameters.
 void MCMC::Impl::DataWide::init_draws(unsigned long sample_size)
 {
     // sample over households
@@ -131,7 +126,7 @@ void MCMC::Impl::DataWide::init_draws(unsigned long sample_size)
     }
 }
 
-/* Store current sample of loglikelihood for restricted households. */
+/// Store current sample of loglikelihood for restricted households.
 void MCMC::Impl::DataWide::update_draws(unsigned long smpl_count)
 {
     // store sample for restricted households
@@ -145,7 +140,7 @@ void MCMC::Impl::DataWide::update_draws(unsigned long smpl_count)
     }
 }
 
-/* Clear posterior sample of dataset. */
+/// Clear posterior sample of dataset.
 void MCMC::Impl::DataWide::clear_draws()
 {
     for (size_t R = 0; R < restrict_indexes_.size(); ++R)
@@ -157,7 +152,7 @@ void MCMC::Impl::DataWide::clear_draws()
     smpl_values_.shrink_to_fit();
 }
 
-/* Init posterior sampling. */
+/// Init posterior sampling.
 void MCMC::Impl::init_posterior_sample_()
 {
     unsigned long sample_size = setup.c_sample_size * setup.n_chains;
@@ -178,7 +173,7 @@ void MCMC::Impl::init_posterior_sample_()
     }
 }
 
-/* Update Bayesian posterior sample. */
+/// Update Bayesian posterior sample.
 void MCMC::Impl::update_posterior_sample_()
 {
     // store sample of the full loglikelihood
@@ -194,7 +189,7 @@ void MCMC::Impl::update_posterior_sample_()
     ++smpl_count_;
 }
 
-/* Clear posterior sampling. */
+/// Clear posterior sampling.
 void MCMC::Impl::clear_posterior_sample_()
 {
     smpl_count_ = 0;
@@ -206,18 +201,13 @@ void MCMC::Impl::clear_posterior_sample_()
     augm.clear_draws();
 }
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
+///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////  MCMC : update house loglikelihood  ///////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Compute new loglikelihood, store old value in buffer. Same for households. */
+/// Compute new loglikelihood, store old value in buffer. Same for households.
 void MCMC::Impl::update_full_loglike_(bool cache_depen)
 {
     const bool is_augm_ll = augm.is_any_model();
@@ -256,13 +246,8 @@ void MCMC::Impl::update_full_loglike_(bool cache_depen)
     set_full_loglike_(new_ll);
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////  MCMC : update house loglikelihood  ///////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/* Update and return contribution of given household to full logliklehood.
- * NOTE: house multiplicity doesn't work with data augmentation
- */
+/// Update and return contribution of given household to full logliklehood.
+/// NOTE: house multiplicity doesn't work with data augmentation
 double MCMC::Impl::update_house_loglike_(Household &house, bool is_augm_ll, bool is_cache_depen)
 {
     // buffer all household cache dependencies
@@ -285,10 +270,27 @@ double MCMC::Impl::update_house_loglike_(Household &house, bool is_augm_ll, bool
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  MCMC : parameter move  ////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  MCMC : monte carlo moves ///////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Attempt to move a single parameter for the given inverse temperature. */
+/// Move all model parameters.
+void MCMC::Impl::move_all_()
+{
+    // move augmented variables if any
+    move_all_augm_();
+
+    // move all simple model parameters
+    for (const std::string &p : param.list_sample_standard)
+        move_single_parameter_(p, false);
+
+    // move parameters with cache dependecies
+    for (const std::string &p : param.list_sample_cache)
+        move_single_parameter_(p, true);
+}
+
+/// Attempt to move a single parameter for the given inverse temperature.
 bool MCMC::Impl::move_single_parameter_(const std::string &p, bool cache_depen)
 {
     // proceed only if the new value is consistent
@@ -307,29 +309,7 @@ bool MCMC::Impl::move_single_parameter_(const std::string &p, bool cache_depen)
     return false; // refused move
 }
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/* Move all model parameters. */
-void MCMC::Impl::move_all_()
-{
-    // move augmented variables if any
-    move_all_augm_();
-
-    // move all simple model parameters
-    for (const std::string &p : param.list_sample_standard)
-        move_single_parameter_(p, false);
-
-    // move parameters with cache dependecies
-    for (const std::string &p : param.list_sample_cache)
-        move_single_parameter_(p, true);
-}
-
-/* Move all augmented variables and model parameters and adapt their rule arguments. */
+/// Move all augmented variables and model parameters and adapt their rule arguments.
 void MCMC::Impl::move_all_and_adapt_params_(unsigned long step)
 {
     // move augmented variables if
@@ -357,32 +337,22 @@ void MCMC::Impl::move_all_and_adapt_params_(unsigned long step)
     }
 }
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  MCMC : run markov chain  ////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////  MCMC : run monte carlo  /////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Markov chain core, used for inference and power posteriors.
-    note: sweep is the number of previously completed thin sweeps. */
+/// Markov chain core, used for inference and power posteriors.
+/// NOTE: sweep is the number of previously completed thin sweeps.
 void MCMC::Impl::run_monte_carlo_()
 {
-    //==========================//
-    //===== Initialization =====//
-    //==========================//
-
     unsigned long &chain = setup.chain; // current chain
     init_posterior_sample_();           // initialize diagnostics
 
     // run multiple MCMC chains&
     for (chain = 1; chain <= setup.n_chains; ++chain)
     {
-        // update progressbar text
         setup.prog_set_text();      // update progress bar text
         param.init();               // initialize augmented variables
         augm.init();                // initialize augmented variables
@@ -409,18 +379,13 @@ void MCMC::Impl::run_monte_carlo_()
     }
 }
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
+///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////  MCMC::Impl : evaluate loglikelihood  /////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Initialize model and compute the loglikelihood. */
+/// Initialize model and compute the loglikelihood.
 double MCMC::Impl::evaluate()
 {
     try
@@ -444,10 +409,12 @@ double MCMC::Impl::evaluate()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////  MCMC::Impl : inference  ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Performs the inference using Metropolis-Hastings. */
+/// Performs the inference using Metropolis-Hastings.
 void MCMC::Impl::infer()
 {
     try
@@ -468,23 +435,21 @@ void MCMC::Impl::infer()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  MCMC::Impl : power posteriors  /////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Trapezoidal rule to estimate logarithm of marginal likelihood (evidence) with power posteriors.
-    -----
-    Ref: Friel, N., Hurn, M. & Wyse, J.
-    Improving power posterior estimation of statistical evidence.
-    Stat Comput 24, 709–723 (2014).
-*/
+/// Trapezoidal rule to estimate logarithm of marginal likelihood (evidence) with power posteriors.
+/// Ref
+/// -----
+/// Friel, N., Hurn, M. & Wyse, J.
+/// Improving power posterior estimation of statistical evidence.
+/// Stat Comput 24, 709–723 (2014).
 std::vector<dbl_vec> MCMC::Impl::power_posteriors_(const std::string &scheme, unsigned long n_rungs)
 {
     try
     {
-        //==========================//
-        //===== INITIALIZATION =====//
-        //==========================//
-
         const str_vec options = {"adaptive", "power-fractions"};
         if (!(options % scheme))
             throw std::invalid_argument("Unknown power posterior scheme \"" + scheme + "\"." +
@@ -492,25 +457,18 @@ std::vector<dbl_vec> MCMC::Impl::power_posteriors_(const std::string &scheme, un
 
         init_monte_carlo_(); // initialize mcmc sampling
 
-        // fix internal number of rungs (for progress bar)
-        if (n_rungs >= 2)
-            setup.n_rungs = n_rungs;
-        else
+        double &t = setup.inv_T;                               // current inverse temperature
+        double buffer_inv_T = t;                               // buffer user inverse temperature
+        bool buffer_rand_init_params = setup.rand_init_params; // buffer user init parameters
+        unsigned long &rung = setup.rung;                      // current rung
+
+        // set number of rungs for the thermodynamic ladder before progress bar
+        setup.n_rungs = n_rungs;
+        if (n_rungs < 2)
             throw std::invalid_argument("N. of rungs must be greater than 1.");
-        unsigned long &rung = setup.rung; // current rung
 
-        // declare current progress bar
-        setup.prog_declare();
-
-        // initialize model for inference
-        init_model_for_inference_();
-
-        // implementation setup aliases
-        double &t = setup.inv_T; // current inverse temperature
-
-        //----- Buffer user setup -----//
-        double buffer_inv_T = t;
-        bool buffer_rand_init_params = setup.rand_init_params;
+        setup.prog_declare();        // declare current progress bar
+        init_model_for_inference_(); // initialize model for inference
 
         // thermodynamic ladder estimates
         std::pair<double, double> stats = {}; // results of stats computation
@@ -623,18 +581,13 @@ std::vector<dbl_vec> MCMC::Impl::power_posteriors_(const std::string &scheme, un
     }
 }
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  MCMC : impl : simulation  /////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  MCMC : Impl : simulation  /////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Auxiliary method to initialize simulations. */
+/// Auxiliary method to initialize simulations.
 void MCMC::Impl::aux_init_simulate_()
 {
     assert_proper_dataset_();       // check if dataset is empty
@@ -714,7 +667,7 @@ Rcpp::List MCMC::Impl::simulate(size_t n_rep)
                         error_message = e.what();
                 }
             }
-        }       
+        }
         if (!error_message.empty())
             throw std::runtime_error(error_message);
 
@@ -771,7 +724,7 @@ Rcpp::List MCMC::Impl::evidence(const std::string &scheme, unsigned long n_rungs
 }
 
 #else
-/* Print the simulated dataset to the provided file. */
+/// Print the simulated dataset to the provided file.
 void MCMC::Impl::print_simulated_data_wide(const std::string &pathtofile)
 {
     try
@@ -808,12 +761,12 @@ void MCMC::Impl::print_simulated_data_wide(const std::string &pathtofile)
     }
 }
 
-/* Trapezoidal rule to estimate logarithm of marginal likelihood (evidence) with power posteriors.
-    -----
-    Ref: Friel, N., Hurn, M. & Wyse, J.
-    Improving power posterior estimation of statistical evidence.
-    Stat Comput 24, 709–723 (2014).
-*/
+/// Trapezoidal rule to estimate logarithm of marginal likelihood (evidence) with power posteriors.
+/// Ref.
+/// -----
+/// Ref: Friel, N., Hurn, M. & Wyse, J.
+/// Improving power posterior estimation of statistical evidence.
+/// Stat Comput 24, 709–723 (2014).
 void MCMC::Impl::print_evidence(const std::string &scheme, unsigned long n_rungs)
 {
     try

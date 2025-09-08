@@ -24,8 +24,8 @@ add_group_rate(
 
 \item{name}{\code{character(1)} name used by interna; calls.}
 
-\item{by}{\code{list} with feature(s) associated to group rate as dataset headers.\cr
-Corresponding dataset columns have to be categorical.}
+\item{by}{\code{list} with feature(s) associated to group rate as data headers.\cr
+Corresponding data columns have to be categorical.}
 
 \item{prefix}{\code{character(1)} with prefix to parameter names associated to the group rate.\cr
 If \code{NA} (default), used the first 3 letters of rate name.}
@@ -67,7 +67,7 @@ Default is \code{1}.}
 A deep clone of the input object with updated definitions.
 }
 \description{
-Add definitions of a group rate by given dataset feature(s).
+Add definitions of a group rate by given data feature(s).
 The reference value is equal to 1 and can be specified.
 }
 \references{

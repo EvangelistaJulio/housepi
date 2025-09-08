@@ -53,7 +53,7 @@ NULL
 #'   \item Parameter: output_file - The file path where the output will be saved
 #'   \item Parameter: progbar - Display the progress bar
 #' }
-#' @field dataset_for_simulation\cr Dataset without status and augmented entries.
+#' @field data_wide_for_simulation\cr Dataset without status and augmented entries.
 #' @field simulate\cr Simulated status and augmented variables.
 #' @field evaluate\cr Evaluate the loglikelihood according to the current state.
 #' @field evidence\cr Evaluate the logarithm of the marginal likelihood with the method of power posteriors. \itemize{
@@ -61,8 +61,8 @@ NULL
 #'   \item Parameter: n_rungs
 #' }
 #' @field import_setup\cr Import setup from R List.
-#' @field import_dataset\cr Import house indexed dataset from R Data.Frame.
-#' @field import_datalist\cr Import individual indexed datalist from R Data.Frame.
+#' @field import_data_wide\cr Import house indexed data in wide format from R Data.Frame.
+#' @field import_data_long\cr Import individual indexed in long format from R Data.Frame.
 #' @field import_multiplicity\cr Imoprt multiplicity definitions from R Data.Frame.
 #' @field import_group_rates\cr Imoprt group rates definitions from R Data.Frame.
 #' @field import_param\cr Import parameter definitions from R Data.Frame.
@@ -72,9 +72,9 @@ NULL
 #' @field export_setup\cr Return a List with current setup.
 #' @field export_param\cr Return a DataFrame with current parameters.
 #' @field export_infec_profile\cr Return a List with infectivity profile.
-#' @field export_dataset\cr Return a DataFrame with current database.
-#' @field export_dataset_report\cr Return a DataFrame with a report of the current database.
-#' @field export_house_size_report\cr Return a DataFrame with a report of household sizes.
+#' @field export_data_wide\cr Return a DataFrame with current database.
+#' @field summarise_cases\cr Return a DataFrame with a report of the current database.
+#' @field summarise_house_sizes\cr Return a DataFrame with a report of household sizes.
 #' @field export_draws\cr Return a NumericMatrix with MCMC draws.
 #' @field export_house_loglike_draws\cr Return a NumericMatrix with household loglikelihood draws.
 #' @field export_house_snapshot\cr Return a List with a snapshot containing full household and model details.

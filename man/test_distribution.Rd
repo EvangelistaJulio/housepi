@@ -7,40 +7,37 @@
 test_distribution(
   name,
   x,
-  discr = FALSE,
+  cumul = FALSE,
   args = NULL,
   min = NA,
   max = NA,
+  discr = FALSE,
   model = NULL
 )
 }
 \arguments{
-\item{name}{\code{character(1)}\cr
-Name of the distribution.}
+\item{name}{\code{character(1)} with the name of the distribution.}
 
-\item{x}{\code{numeric()}\cr
-Input vector.}
+\item{x}{\code{numeric()} with values.}
 
-\item{discr}{\code{logical(1)}\cr
-If \code{TRUE} discretize the distribution.}
+\item{cumul}{\code{logical(1)} to consider cumulative instead.\cr
+Default is \code{FALSE}.}
 
-\item{args}{\code{numeric()}\cr
-Additional arguments.}
+\item{args}{named \code{numeric()} or \code{list} with custom arguments.}
 
-\item{min}{\code{double(1)}\cr
-Value of the minimum.}
+\item{min}{\code{numeric(1)} to truncate to a minimum value.}
 
-\item{max}{\code{double(1)}\cr
-Value of the maximum.}
+\item{max}{\code{numeric(1)} to truncate to a maximum value.}
 
-\item{model}{\code{HouseholdModel}\cr
-Custom household model to load from.}
+\item{discr}{\code{logical(1)} to treat definition as discrete.}
+
+\item{model}{\code{HousepiModel} object eventually containing the custom registred \%s.\cr
+If \code{NULL} (default) the built-in registry is used.\cr}
 }
 \value{
 \code{numeric()}
 }
 \description{
 Call housepi registered distribution.
-This function internally calls a large C++ class,
-thus it is not optimized for repeated  operations.
+This function is meant for testing only and not for repeated operations.
 }

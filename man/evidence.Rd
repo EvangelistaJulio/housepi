@@ -6,7 +6,7 @@
 \usage{
 evidence(
   object,
-  dataset = NULL,
+  data_wide = NULL,
   scheme = "power-fractions",
   n_rungs = 40,
   sample_size = NA,
@@ -21,7 +21,7 @@ evidence(
 )
 }
 \arguments{
-\item{dataset}{\code{data.frame} with the household dataset used for analysis. If \code{NULL}, uses the previously stored dataset.}
+\item{data_wide}{\code{data.frame} with the household data used for analysis in wide format. If \code{NULL}, uses the previously stored data.}
 
 \item{scheme}{\code{character(1)} with the scheme used for evidence estimation.\cr
 One between\cr

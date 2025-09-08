@@ -550,7 +550,7 @@ extract_func_equality_ <- function(s) {
   )
   y <- type_split_(y[-1])
   list(
-    func = "eq", key = "x",
+    func = "..identity..", key = "x",
     val = type_join_(y$val), at = type_join_(y$at)
   )
 }
@@ -672,7 +672,7 @@ extract_func_ <- function(s) {
     # use the convention of equality
     y <- type_split_(s)
     if (length(y$val) == 1) { 
-      return(list(func = "eq", key = "x", val = y$val, at = y$at))
+      return(list(func = "..identity..", key = "x", val = y$val, at = y$at))
     }
   }
 

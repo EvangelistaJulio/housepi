@@ -18,10 +18,12 @@ EXECUTABLE := $(MODEL)/model.exe
 
 # compilation flags
 CXXFLAGS := -Wall -Wextra -std=gnu++14 -I../template/include/
+
+ifdef DEBUG
+CXXFLAGS += -g -O1 -Wno-unknown-pragmas -Werror -Wuninitialized
+else
 # standard Rcpp compilation flags
 CXXFLAGS += -g -O2 -Wno-unknown-pragmas
-ifdef DEBUG
-CXXFLAGS += -Werror -Wuninitialized
 
 # Change openMP flags according to OS
 ifeq ($(shell uname -s),Linux)

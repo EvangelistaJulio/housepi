@@ -26,7 +26,7 @@ expec_posterior_measure(
 If \code{measure} is provided, arguments are ignored.}
 
 \item{measure}{\code{closure} | \code{list} of \code{closure}\cr
-Function(s) to extract the desired measure from a dataset.}
+Function(s) to extract the desired measure from a data.}
 
 \item{progress}{\code{integer(1)} or \code{logical(1)} to control progress visualization.\cr
 One between:\cr

@@ -25,7 +25,7 @@
 ///////////////////////  Model : compute single house log-likelihood  /////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Compute the log-likelihood within household. */
+/// Compute the log-likelihood within household.
 double Model::compute_household_obs_loglike(Household &house)
 {
 	double output = 0.0;

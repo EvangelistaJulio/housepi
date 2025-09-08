@@ -136,7 +136,7 @@ Individual::GroupRate::GroupRate(const std::string &name,
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Household constructor. */
+/// Household constructor.
 Household::Household(const std::string &house_id, size_t H)
 {
 	house_id_ = house_id;
@@ -150,14 +150,14 @@ Household::Household(const std::string &house_id, size_t H)
 //////////////////////////////////////  Household : setter  ///////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Assign a multiplicity to the household. */
+/// Assign a multiplicity to the household. 
 void Household::set_multiplicity(unsigned long m, size_t class_idx)
 {
 	house_multiplicity_ = m;
 	multiplicity_class_ = class_idx;
 }
 
-/* Link an individual to the household. */
+/// Link an individual to the household. 
 void Household::init_member(size_t index,
 							const std::string &id,
 							int status,
@@ -177,8 +177,8 @@ void Household::init_member(size_t index,
 	++house_size_;
 }
 
-/* Change_status of individual i to new status (without controls).
-	NOTE : this introduces augmented variables -> it requires RJMCMC in case of inference. */
+/// Change_status of individual i to new status (without controls).
+///	NOTE : this introduces augmented variables -> it requires RJMCMC in case of inference. 
 bool Household::change_status(Individual &member, int new_status)
 {
 	if (new_status != member.status())
@@ -207,8 +207,7 @@ bool Household::change_status(Individual &member, int new_status)
 	return false;
 }
 
-/* Associate a pointer to parameter value for the contact from->to.
-Allocate memory if it  */
+/// Associate a pointer to parameter value for the contact from->to.
 void Household::init_contact_rates(size_t from, size_t to, observer_dbl_ptr x)
 {
 	// initialize contact rate matrix if necessary
@@ -218,7 +217,7 @@ void Household::init_contact_rates(size_t from, size_t to, observer_dbl_ptr x)
 	contact_rates_[from][to] = x;
 }
 
-/* Store the loglikelihood of household observation. */
+/// Store the loglikelihood of household observation. 
 void Household::set_obs_loglike(double x)
 {
 	if (tools::is_na(x))
@@ -233,7 +232,7 @@ void Household::set_obs_loglike(double x)
 /////////////////////////////////  Household : cache attributes  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Recover previous values of the loglikelihood and cached depedencies. */
+/// Recover previous values of the loglikelihood and cached depedencies. 
 void Household::recover_buffer_values(bool is_cache_depen)
 {
 	obs_loglike_ = obs_buffer_;
@@ -247,7 +246,7 @@ void Household::recover_buffer_values(bool is_cache_depen)
 	}
 }
 
-/* Deep copies of cache attributes in the buffer */
+/// Deep copies of cache attributes in the buffer 
 void Household::buffer_all_cache()
 {
 	buffer_cache_int_vec_ = cache_int_vec_;

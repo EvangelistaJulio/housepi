@@ -352,8 +352,8 @@ public:
 
         Rcpp::DataFrame rcpp_snapshot(const std::string &house_id) const;
         Rcpp::DataFrame rcpp_export(const str_vec &columns, bool is_status) const;
-        Rcpp::DataFrame rcpp_export_report() const;
-        Rcpp::DataFrame rcpp_export_size_report() const;
+        Rcpp::DataFrame rcpp_summarise_cases() const;
+        Rcpp::DataFrame rcpp_summarise_house_sizes() const;
         Rcpp::NumericMatrix rcpp_export_draws() const;
 
 #else
@@ -575,7 +575,7 @@ public:
                                        const std::string &val, const std::string &type);
 
         void build_function_(size_t k);
-        void build_function_equality_(size_t k);
+        void build_function_identity_(size_t k);
         void build_var_to_sample_(size_t k);
         void build_var_with_model_(size_t k);
 

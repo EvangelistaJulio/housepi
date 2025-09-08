@@ -16,15 +16,8 @@
 
 #include "mcmc_impl.h"
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  MCMC::Impl : methods (setter)  /////////////////////////////////
+//////////////////////////////////  MCMC : Impl : Setup : build  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 void MCMC::Impl::Setup::build(const dict_str &deflist)
@@ -92,7 +85,7 @@ void MCMC::Impl::Setup::build(const dict_str &deflist)
     set_prng_seed(); // pseudo-random number generator seeding
 }
 
-/* Set the number of threads for parrell computations (default is 1). */
+/// Set the number of threads for parrell computations (default is 1).
 void MCMC::Impl::Setup::set_n_threads()
 {
     if (n_threads == 0)
@@ -119,7 +112,7 @@ void MCMC::Impl::Setup::set_n_threads()
 #endif
 }
 
-/* Assign seed for random generators. */
+/// Assign seed for random generators.
 void MCMC::Impl::Setup::set_prng_seed()
 {
     // seed for the unique thread rand num generator
@@ -191,7 +184,7 @@ void MCMC::Impl::Setup::assert_mcmc_setup()
     c_n_sweeps += c_sample_size;
 }
 
-/* The text to print in the Markov chian progress bar. */
+/// The text to print in the Markov chian progress bar.
 std::string MCMC::Impl::Setup::fmt_progtxt()
 {
     if (is_power_post())
@@ -202,59 +195,13 @@ std::string MCMC::Impl::Setup::fmt_progtxt()
         return "sample";
 }
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/// Assert dataset is not empty.
-void MCMC::Impl::assert_proper_dataset_()
-{
-    if (dataset.n_houses() == 0)
-        throw std::length_error(
-            "Unable to proceed. No database was found.");
-}
-
-/* Assert setup definitions are ok to proceed with mcmc sampling. */
-void MCMC::Impl::init_monte_carlo_()
-{
-    setup.assert_mcmc_setup();
-
-    // check if there is a dataset
-    assert_proper_dataset_();
-
-    // check if there is actually something to sample
-    if (!(param.is_any_sample() || augm.is_any_sample()))
-        throw std::length_error(
-            "Nothing to sample. Check your parameter and augmented variable definitions.");
-
-    if (augm.is_any())
-    {
-        if (augm.is_any_sample())
-        {
-            // wheter sample is generic or status specific
-            if (augm.is_generic())
-                move_augm_indiv_ = &MCMC::Impl::do_move_augm_indiv_generic_;
-            else
-                move_augm_indiv_ = &MCMC::Impl::do_move_augm_indiv_by_status_;
-        }
-    }
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
+///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////  MCMC::Impl : build data  ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Assign data after pre-processing. */
+/// Assign data after pre-processing.
 void MCMC::Impl::DataWide::build(const dict_str_vec &input)
 {
     if (!input.empty())
@@ -338,7 +285,7 @@ void MCMC::Impl::DataWide::build(const dict_str_vec &input)
     }
 }
 
-/* Use the loaded data to fill-in the respective report. */
+/// Use the loaded data to fill-in the respective report.
 void MCMC::Impl::DataWide::fill_report_data()
 {
     report_indiv_ = {{"total", n_individuals_},
@@ -410,7 +357,7 @@ void MCMC::Impl::DataWide::fill_report_data()
     }
 }
 
-/* Return a value from individaul data report. */
+/// Return a value from individaul data report.
 unsigned long MCMC::Impl::DataWide::get_report_indiv(const std::string &key) const
 {
     // UPDATE: this should be generalized to avoid double check with at
@@ -422,7 +369,7 @@ unsigned long MCMC::Impl::DataWide::get_report_indiv(const std::string &key) con
     return 0.;
 }
 
-/* Return a value from household data report. */
+/// Return a value from household data report.
 unsigned long MCMC::Impl::DataWide::get_report_house(const std::string &key) const
 {
     // UPDATE: this should be generalized to avoid double check with at
@@ -434,7 +381,7 @@ unsigned long MCMC::Impl::DataWide::get_report_house(const std::string &key) con
     return 0;
 }
 
-/* Return a value from household sizes report. */
+/// Return a value from household sizes report.
 std::pair<unsigned short, unsigned long> MCMC::Impl::DataWide::get_report_hh_size(const std::string &key) const
 {
     if (report_size_.count(key))
@@ -445,43 +392,38 @@ std::pair<unsigned short, unsigned long> MCMC::Impl::DataWide::get_report_hh_siz
     return std::pair<unsigned short, unsigned long>({0, 0});
 }
 
-/* Extra integer vectors for all households. */
+/// Extra integer vectors for all households.
 void MCMC::Impl::DataWide::init_cache_integer_vector(const std::string &e)
 {
     for (Household &house : restricted())
         house.init_cache_integer_vector(e);
 }
-/* Extra size_t vectors for all households. */
+/// Extra size_t vectors for all households.
 void MCMC::Impl::DataWide::init_cache_size_t_vector(const std::string &e)
 {
     for (Household &house : restricted())
         house.init_cache_size_t_vector(e);
 }
-/* Extra double vectors for all households. */
+/// Extra double vectors for all households.
 void MCMC::Impl::DataWide::init_cache_double_vector(const std::string &e)
 {
     for (Household &house : restricted())
         house.init_cache_double_vector(e);
 }
-/* Extra double square matrix for all households. */
+/// Extra double square matrix for all households.
 void MCMC::Impl::DataWide::init_cache_double_matrix(const std::string &e)
 {
     for (Household &house : restricted())
         house.init_cache_double_matrix(e);
 }
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
+///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  MCMC : build multiplicities  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Build multiplicities. */
+/// Build multiplicities.
 void MCMC::Impl::DataWide::build_multiplicity(const dict_str_vec &table)
 {
     if (pImpl_.augm.is_any() || (table.size() == 0))
@@ -521,18 +463,13 @@ void MCMC::Impl::DataWide::build_multiplicity(const dict_str_vec &table)
     }
 }
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  MCMC::Impl : build data list  /////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////  MCMC : Impl : DataLong : build  ////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Assign data after pre-processing. */
+/// Assign data after pre-processing.
 void MCMC::Impl::DataLong::build(const dict_str_vec &input)
 {
     if (!input.empty())
@@ -612,64 +549,13 @@ void MCMC::Impl::DataLong::build(const dict_str_vec &input)
     }
 }
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  MCMC : build group rates  ///////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////  MCMC : Impl : GroupRates : build  ///////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Convert to a dictionary of parameter pointers and pass the pointers to the individual */
-void MCMC::Impl::GroupRates::init_rate_as_ptrs_(Individual &member,
-                                                const u_dict<str_vec> &these_rates)
-{
-    u_dict<std::vector<observer_dbl_ptr>> rate_ptrs = {};
-
-    for (const auto &pair : these_rates)
-    {
-        const std::string &r = pair.first;
-
-        if (str_vec({HSP_CONTACT_RATE, HSP_MISSING_RATE}) % r)
-            throw std::invalid_argument(
-                "The group rate name \"" + r + "\" is reserved. Choose a different one.");
-
-        else if (!tools::is_na(r))
-        {
-            bool is_all_reference = true;                   // all reference state
-            std::vector<observer_dbl_ptr> vec_par_ptr = {}; // parameter pointers
-
-            for (const std::string &p : pair.second)
-            {
-                if ((tools::is_na(p)) || (p == HSP_MISSING_RATE))
-                    std::invalid_argument(
-                        "Missing rate \"" + r + "\" for individual \"" + member.id() + "\".");
-
-                else if (p == HSP_REFERENCE)
-                    vec_par_ptr.emplace_back(&HSP_REFER_VALUE);
-
-                else
-                {
-                    is_all_reference = false;
-                    vec_par_ptr.emplace_back(pImpl_.param.get_ptr(p));
-                }
-            }
-
-            // simplify for the combined reference values
-            if (is_all_reference)
-                rate_ptrs[r] = {&HSP_REFER_VALUE};
-            else
-                rate_ptrs[r] = vec_par_ptr;
-        }
-    }
-
-    member.init_all_group_rates(rate_ptrs);
-}
-
-/* Update model report and set group rates associate to new individual. */
+/// Update model report and set group rates associate to new individual.
 void MCMC::Impl::GroupRates::build(const dict_str_vec &deftable)
 {
     if (!deftable.empty())
@@ -723,14 +609,60 @@ void MCMC::Impl::GroupRates::build(const dict_str_vec &deftable)
     }
 }
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
+/// Convert to a dictionary of parameter pointers and pass the pointers to the individual */
+void MCMC::Impl::GroupRates::init_rate_as_ptrs_(Individual &member,
+                                                const u_dict<str_vec> &these_rates)
+{
+    u_dict<std::vector<observer_dbl_ptr>> rate_ptrs = {};
 
-/* Assign parameter definitions to dictionary. */
+    for (const auto &pair : these_rates)
+    {
+        const std::string &r = pair.first;
+
+        if (str_vec({HSP_CONTACT_RATE, HSP_MISSING_RATE}) % r)
+            throw std::invalid_argument(
+                "The group rate name \"" + r + "\" is reserved. Choose a different one.");
+
+        else if (!tools::is_na(r))
+        {
+            bool is_all_reference = true;                   // all reference state
+            std::vector<observer_dbl_ptr> vec_par_ptr = {}; // parameter pointers
+
+            for (const std::string &p : pair.second)
+            {
+                if ((tools::is_na(p)) || (p == HSP_MISSING_RATE))
+                    std::invalid_argument(
+                        "Missing rate \"" + r + "\" for individual \"" + member.id() + "\".");
+
+                else if (p == HSP_REFERENCE)
+                    vec_par_ptr.emplace_back(&HSP_REFER_VALUE);
+
+                else
+                {
+                    is_all_reference = false;
+                    vec_par_ptr.emplace_back(pImpl_.param.get_ptr(p));
+                }
+            }
+
+            // simplify for the combined reference values
+            if (is_all_reference)
+                rate_ptrs[r] = {&HSP_REFER_VALUE};
+            else
+                rate_ptrs[r] = vec_par_ptr;
+        }
+    }
+
+    member.init_all_group_rates(rate_ptrs);
+}
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////  MCMC : Impl : Parameter : build  ////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Assign parameter definitions to dictionary.
 void MCMC::Impl::Parameter::build(const dict_str_vec &deftable)
 {
     if (!deftable.empty())
@@ -844,7 +776,7 @@ void MCMC::Impl::Parameter::build(const dict_str_vec &deftable)
     }
 }
 
-/* Adjust lists of parameters to be inferred making parameter as dependent on cache. */
+/// Adjust lists of parameters to be inferred making parameter as dependent on cache.
 void MCMC::Impl::Parameter::make_cache_dependent(const std::string &p)
 {
     // remove a parameter from standard if it was defined as such
@@ -856,7 +788,7 @@ void MCMC::Impl::Parameter::make_cache_dependent(const std::string &p)
         list_sample_cache.push_back(p);
 }
 
-/* Randomly initialize values of the parameters to be inferred */
+/// Randomly initialize values of the parameters to be inferred */
 void MCMC::Impl::Parameter::init()
 {
     for (const std::string &p : list_sample)
@@ -876,5 +808,46 @@ void MCMC::Impl::Parameter::init()
                 "Value of parameter \"" + p + "\" is undefined with no random initialization.");
         else
             this_par.user_reset();
+    }
+}
+
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
+
+/// Assert dataset is not empty.
+void MCMC::Impl::assert_proper_dataset_()
+{
+    if (dataset.n_houses() == 0)
+        throw std::length_error(
+            "Unable to proceed. No database was found.");
+}
+
+/// Assert setup definitions are ok to proceed with mcmc sampling.
+void MCMC::Impl::init_monte_carlo_()
+{
+    setup.assert_mcmc_setup();
+
+    // check if there is a dataset
+    assert_proper_dataset_();
+
+    // check if there is actually something to sample
+    if (!(param.is_any_sample() || augm.is_any_sample()))
+        throw std::length_error(
+            "Nothing to sample. Check your parameter and augmented variable definitions.");
+
+    if (augm.is_any())
+    {
+        if (augm.is_any_sample())
+        {
+            // wheter sample is generic or status specific
+            if (augm.is_generic())
+                move_augm_indiv_ = &MCMC::Impl::do_move_augm_indiv_generic_;
+            else
+                move_augm_indiv_ = &MCMC::Impl::do_move_augm_indiv_by_status_;
+        }
     }
 }

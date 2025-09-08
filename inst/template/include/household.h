@@ -44,21 +44,23 @@ public:
 			   const u_dict<double> &data);
 	~Individual() = default;
 
+	/// Sugar to tell if the corresponding members are the same.
 	bool operator==(const Individual &other) const { return this->index_ == other.index_; }
+	/// Sugar to tell if the corresponding members are different
 	bool operator!=(const Individual &other) const { return this->index_ != other.index_; }
+	/// Sugar to call an Individual object as house index.
+	operator size_t() const { return hhindex_; }
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////  Individual : getter  ////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	const std::string &id() const { return id_; }
-	operator size_t() const { return hhindex_; }
-
 	int status() const { return status_; }
 	bool is_infected_status() const { return status_ >= HSP_INFECTED_STATUS; }
 	bool is_healthy_status() const { return status_ == HSP_HEALTHY_STATUS; }
 	bool is_missing_status() const { return status_ <= HSP_MISSING_STATUS; }
-	double data(const std::string &d) const { return safe_at(data_map_, "dataset", d); }
+	double data(const std::string &d) const { return safe_at(data_map_, "data", d); }
 	const dbl_vec &datalong(const std::string &d) const
 	{
 		if (pdatalist_ == nullptr)
@@ -125,13 +127,13 @@ private:
 		std::vector<observer_dbl_ptr> pointers_ = {};
 	};
 
-	std::string id_ = HSP_NA_STRING; // user id
-	size_t index_ = 0;				 // housepi internal index
-	size_t hhindex_ = 0;			 // household relative index
-	int status_ = HSP_MISSING_STATUS;	 // status of the individual
+	std::string id_ = HSP_NA_STRING;  // user id
+	size_t index_ = 0;				  // housepi internal index
+	size_t hhindex_ = 0;			  // household relative index
+	int status_ = HSP_MISSING_STATUS; // status of the individual
 
-	// NOTE: allowd dataset variables are numerical only
-	u_dict<double> data_map_ = {};	  // dataset
+	// NOTE: allowd data variables are numerical only
+	u_dict<double> data_map_ = {};	  // data
 	u_dict<Variable> augm_map_ = {};  // augmented
 	u_dict<GroupRate> rate_map_ = {}; // group rates
 

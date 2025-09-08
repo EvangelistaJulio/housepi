@@ -28,7 +28,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Initialize the Lookup Table. */
+/// Initialize the Lookup Table.
 void Model::init_model_for_inference()
 {
 	//==== Unknown status are not modeled =====//
@@ -52,7 +52,7 @@ void Model::init_model_for_inference()
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Compute the log-likelihood for a single household. */
+/// Compute the log-likelihood for a single household.
 double Model::compute_household_obs_loglike(Household &house)
 {
 	//===== Fill Escape Probabilities =====//
@@ -70,8 +70,8 @@ double Model::compute_household_obs_loglike(Household &house)
 /////////////////////////////////  Model : fill house escape matrix  //////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* The person-to-person escape probabilities stored inside a matrix.
-	Important: it must be re-ordered to have seropositives first. */
+/// The person-to-person escape probabilities stored inside a matrix.
+/// Important: it must be re-ordered to have seropositives first.
 void Model::fill_house_escape_matrix(Household &house) const
 {
 	const double commu_rate = community_risk();
@@ -115,13 +115,13 @@ void Model::fill_house_escape_matrix(Household &house) const
 //////////////////////////////////// Model : transmission rate  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* [CHANGE-ME] Risk of infection from the community. */
+/// [CHANGE-ME] Risk of infection from the community.
 double Model::community_risk() const
 {
 	return param("alpha");
 }
 
-/* [CHANGE-ME] Risk of infection from another household member. */
+/// [CHANGE-ME] Risk of infection from another household member.
 double Model::person_to_person_risk() const
 {
 	return param("beta");
@@ -133,7 +133,7 @@ double Model::person_to_person_risk() const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Simulate the infection within a household. */
+/// Simulate the infection within a household.
 void Model::simulate_single_household(Household &house)
 {
 	const double commu_rate = community_risk();

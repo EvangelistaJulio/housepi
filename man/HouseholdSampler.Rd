@@ -9,7 +9,7 @@ FIXME: missing.
 }
 \examples{
 bhhc <- HouseholdSampler$new(enc_dict)
-bhhc$compute_marginals(dataset)
+bhhc$compute_marginals(data_wide)
 
 # sample 5 household from model
 set.seed(291)
@@ -68,14 +68,14 @@ If \code{FALSE} (default) is descending.}
 \subsection{Method \code{compute_marginals()}}{
 Compute household marginal distributions according to hierarchical model.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HouseholdSampler$compute_marginals(dataset, ascending = NA)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HouseholdSampler$compute_marginals(data_wide, ascending = NA)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{dataset}}{\code{data.frame()}\cr
-A data.frame containing the dataset with individual information by row.}
+\item{\code{data_wide}}{\code{data.frame()}\cr
+A data.frame containing the data_wide with individual information by row.}
 
 \item{\code{ascending}}{\code{logical(1)}\cr
 If \code{TRUE} hierarchy between feature numbers is ascending.

@@ -260,12 +260,14 @@ namespace tools
         // drop private strings from list
         str_vec drop_private(str_vec v);
 
-        // double formatter for the case NA
+        /// Format a dobule value (it deals with NA).
         std::string format(double x);
-        // boolean formatter
+        /// Format a boolean value.
         std::string format(bool condition);
-        // format a list of string options
+        /// Format a list of string options. 
         std::string format(const str_vec &options, size_t max_print);
+        /// Format a 2D matrix. 
+        std::string format(const matrix<double>& vec);
 
         // calculate Levenshtein distance
         unsigned short levenshtein(const std::string &s1, const std::string &s2);

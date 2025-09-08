@@ -68,12 +68,12 @@ find_closest_template_name <- function(x) {
 #' @keywords internal
 #' @noRd
 show_model_names <- function() {
-  cli::cli_alert_info("Available template models:")
-  ulid <- cli::cli_ul()
-  for (name in list.files(template_models_dir())) {
-    cli::cli_li(tolower(gsub("-|_", " ", name)))
-  }
-  cli::cli_end(ulid)
+  model_names <- list.files(template_models_dir())
+  formatted_names <- tolower(gsub("-|_", " ", model_names))
+  message(sprintf(
+    "Available template models:\n%s\n", 
+    paste(paste0("* ", formatted_names), collapse = "\n")
+  ))
   invisible()
 }
 

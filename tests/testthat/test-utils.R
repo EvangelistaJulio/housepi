@@ -2,7 +2,7 @@ library(testthat)
 
 test_that("String function extraction returns expected results", {
   x <- housepi:::extract_func_("=alpha@P")
-  expect_equal(x$func, "eq")
+  expect_equal(x$func, "..identity..")
   expect_equal(x$key, "x")
   expect_equal(x$val, "alpha")
   expect_equal(x$at, "P")

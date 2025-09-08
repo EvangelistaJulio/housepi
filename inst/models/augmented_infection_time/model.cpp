@@ -27,7 +27,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Initialize infectivity profile. */
+/// Initialize infectivity profile.
 void Model::init_advanced_setup()
 {
 	// template infectivity profile (otherwise user defined)
@@ -37,18 +37,18 @@ void Model::init_advanced_setup()
 								 {"arg_at", "S/S"}});
 }
 
-/* Initialize parameters and augmented variables. */
+/// Initialize parameters and augmented variables.
 void Model::init_model_for_inference()
 {
 	// integer for index of introduction case
 	cache_house_integer_vector("intro_case");
-
-	// matrices for the instantaneous and cumulative infectivity profiles
+	// matrices for instantaneous infectivity profiles
 	cache_house_double_matrix("inst");
+	// matrices for cumulative infectivity profiles
 	cache_house_double_matrix("cumul");
 }
 
-/* Initialize parameters and augmented variables. */
+/// Initialize parameters and augmented variables.
 void Model::init_model_for_simulation()
 {
 	init_model_for_inference();
@@ -60,13 +60,13 @@ void Model::init_model_for_simulation()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Compute the log-likelihood within household. */
+/// Compute the log-likelihood within household.
 double Model::compute_household_obs_loglike(Household &house)
 {
 	return loglike_healthy(house) + loglike_infectious(house);
 }
 
-/* Cumulative Risk of Infection for susceptible individual i. */
+/// Cumulative Risk of Infection for susceptible individual i.
 double Model::loglike_healthy(const Household &house) const
 {
 	const Individual &member_0 = house.get_member(house.cache_integer_vector("intro_case")[0]);
@@ -88,7 +88,7 @@ double Model::loglike_healthy(const Household &house) const
 	return output;
 }
 
-/* Cumulative Risk of Infection for infectious individual i. */
+/// Cumulative Risk of Infection for infectious individual i.
 double Model::loglike_infectious(const Household &house) const
 {
 	double output = 0.;
@@ -109,14 +109,12 @@ double Model::loglike_infectious(const Household &house) const
 			double roi_inst_i = 0.;
 			double roi_cumul_i = 0.;
 			for (const Individual &member_k : house.infected())
-			{
 				if (cumul_mtx[member_k][member_i] != 0)
 				{
 					double mu_k = member_k.group_rate("infectivity");
 					roi_inst_i += inst_mtx[member_k][member_i] * mu_k;
 					roi_cumul_i += cumul_mtx[member_k][member_i] * mu_k;
 				}
-			}
 
 			roi_inst_i *= b_i;
 			roi_cumul_i *= b_i;
@@ -140,7 +138,7 @@ double Model::loglike_infectious(const Household &house) const
 //////////////////////////////////// Model : transmission rate  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* [CHANGE-ME] Transmission rate. */
+/// [CHANGE-ME] Transmission rate.
 double Model::transmission_rate(const Household &house) const
 {
 	return param("beta") * std::pow(param("size_ref") / house.size(), param("gamma"));
@@ -150,9 +148,9 @@ double Model::transmission_rate(const Household &house) const
 //////////////////////// Model : store dependencies of augmented variables  ///////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Store cumulative and instantaneous infectivity profiles according to an infector.
-   WARNING: unpredictable behavior if i is not an infector.
-   WARNING: this function should not call any mutable parameter. */
+/// Store cumulative and instantaneous infectivity profiles according to an infector.
+/// WARNING: unpredictable behavior if i is not an infector.
+/// WARNING: this function should not call any mutable parameter.
 void Model::update_cache_dependecies(Household &house, Individual &member_i)
 {
 	const double t_infec_i = member_i.augm("infec_time");
@@ -228,7 +226,7 @@ void Model::update_cache_dependecies(Household &house, Individual &member_i)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Poisson point process to simulate outbreak in a single household. */
+/// Poisson point process to simulate outbreak in a single household.
 void Model::simulate_single_household(Household &house)
 {
 #ifdef _HSP_DISCRETE_TIME
@@ -295,7 +293,7 @@ void Model::simulate_single_household(Household &house)
 //////////////////////////// Model : risk of infection for simulation  ////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Instantaneous Risk of Infection for individual i (for simulation). */
+/// Instantaneous Risk of Infection for individual i (for simulation).
 double Model::roi_inst_simulation(const std::vector<size_t> &infected_hhindexes,
 								  Household &house,
 								  Individual &member_i,

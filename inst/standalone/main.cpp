@@ -63,9 +63,6 @@ int main(int argc, char *argv[])
     using tools::str::tolow;
     using tools::str::toup;
 
-    // FLAG
-    std::cerr << "before even main!" << std::endl;
-
     int carg_i = 1;   // command line iterator
     std::string carg; // command line argument
 
@@ -178,27 +175,15 @@ int main(int argc, char *argv[])
     std::unique_ptr<Model> user_model = std::make_unique<Model>();
     user_model->init_advanced_setup();
 
-    // FLAG
-    std::cerr << "before read data" << std::endl;
-
     // 1) Load Data
     user_model->read_data_wide(data_wide_file);
     user_model->read_data_long(data_long_file);
 
-    // FLAG
-    std::cerr << "before read setup" << std::endl;
-
     // 2) Load Setup
     user_model->read_setup(setup_file);
 
-    // FLAG
-    std::cerr << "before read param" << std::endl;
-
     // 3) Load Parameters
     user_model->read_param(param_file);
-
-    // FLAG
-    std::cerr << "before read infec_profile" << std::endl;
 
     // 4) Load Setup
     user_model->read_infec_profile(infec_profile_file);
@@ -206,9 +191,6 @@ int main(int argc, char *argv[])
     // 5) Load Group & Contact Rates
     user_model->read_group_rates(group_rates_file);
     user_model->build_all_rates(); // temporary for contact rates
-
-    // FLAG
-    std::cerr << "before read augm" << std::endl;
 
     // 6) Load Augmented Variables
     user_model->read_augm(augm_file);

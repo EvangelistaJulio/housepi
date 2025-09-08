@@ -16,22 +16,22 @@ test_that("Model class blank calls", {
   # blank household model object
   hhmodel <- new_housepi_model("blank")
 
-  # blank default dataset
-  dataset <- housepi:::template_blank_dataset_()
-  expect_equal(hhmodel$dataset, dataset)
+  # blank default data wide format
+  data_wide <- housepi:::template_blank_data_wide_()
+  expect_equal(hhmodel$data_wide, data_wide)
 
-  # correct datalist call
-  datalist <- data.frame(id = dataset$id[1],
+  # correct data long format
+  data_long <- data.frame(id = data_wide$id[1],
                          time = seq(3),
                          measure = seq(3)**3)
-  hhmodel$datalist <- datalist
-  expect_equal(hhmodel$datalist, datalist)
+  hhmodel$data_long <- data_long
+  expect_equal(hhmodel$data_long, data_long)
   
   # factorization 
-  complex_dataset <- housepi::survey
-  complex_dataset$dates <- as.Date(runif(dim(complex_dataset)[1], max = 100))
-  hhmodel$dataset <- complex_dataset
-  expect_equal(hhmodel$dataset, complex_dataset)
+  complex_data <- housepi::survey
+  complex_data$dates <- as.Date(runif(dim(complex_data)[1], max = 100))
+  hhmodel$data_wide <- complex_data
+  expect_equal(hhmodel$data_wide, complex_data)
 
   # templates
   expect_warning(hhmodel$load_parameter_template(), regexp = "blank")
@@ -61,9 +61,9 @@ test_that("Deep clone works as expected", {
   # deep clone
   hhclone <- hhmodel$clone(deep = TRUE)
   
-  # dataset
-  expect_equal(hhmodel$dataset, hhclone$dataset)
-  expect_equal(hhmodel$datalist, hhclone$datalist)
+  # data
+  expect_equal(hhmodel$data_wide, hhclone$data_wide)
+  expect_equal(hhmodel$data_long, hhclone$data_long)
   
   # definitions
   expect_equal(hhmodel$setup, hhclone$setup)
@@ -113,9 +113,9 @@ test_that("Augmentation example on incubation from delays is coherent", {
   # loglikelihood from simulated delays
   shape <- 2.0
   scale <- 1.1
-  dataset <- data.frame(status = 1,
-                        ip = rgamma(223, shape = shape, scale = scale))
-  exact <- sum(log(stats::dgamma(dataset$ip, shape = shape, scale = scale)))
+  df <- data.frame(status = 1,
+                   ip = rgamma(223, shape = shape, scale = scale))
+  exact <- sum(log(stats::dgamma(df$ip, shape = shape, scale = scale)))
 
   # generate an instance of the household model class
   hhmodel <- new_housepi_model("augmented_example")
@@ -126,7 +126,7 @@ test_that("Augmentation example on incubation from delays is coherent", {
     )
 
   # warning for no structure
-  expect_warning(x <- hhmodel$loglikelihood(dataset))
+  expect_warning(x <- hhmodel$loglikelihood(df))
   expect_equal(x, exact)
 })
 
@@ -134,18 +134,30 @@ test_that("Arithmetic function with undefined x return NaN", {
   hhmodel <- new_housepi_model("augmented_example")
 
   # NA values
-  hhmodel$dataset <- data.frame(house_id = seq(3), id = seq(3),
-                                status = 1, test = c(5.5, NA, -1.5))
+  hhmodel$data_wide <- data.frame(house_id = seq(3), id = seq(3),
+                                  status = 1, test = c(5.5, NA, -1.5))
   # NaN + something = NaN
   hhmodel$load_augmented_list(noise = list(model = "norm"),
                               log_proba = "test@D + noise")
   # NA loglikelihood
-  expect_error(hhmodel$infer())
+  expect_error(hhmodel$infer(), regexp = "returned NaN")
 
   # log(NaN) = NaN
   hhmodel$load_augmented_list(log_proba = "log(test@D)")
-  expect_error(hhmodel$infer())
+  expect_error(hhmodel$infer(), regexp = "Nothing to sample")
+  expect_error(hhmodel$loglikelihood(), regexp = "returned NaN")
 })
+
+# FIXME
+results <- new_housepi_model("augmented_example") |> 
+  add_data_wide(data.frame(house_id = seq(3), 
+                           id = seq(3),
+                           status = 1, 
+                           test = c(5.5, 3, -1.5))) |> 
+  load_augmented_list(noise = "log_proba",
+                      log_proba = "noise") |> 
+  loglikelihood()
+
 
 test_that("Augmented function example returns expected distribution", {
   hhmodel <- new_housepi_model("blank")
@@ -174,20 +186,20 @@ test_that("Augmented function example returns expected distribution", {
 })
 
 test_that("Augmented infection times model has correct loglikelihood", {
-  
+  # instantaneous infectivity profile
   infec_profile_inst <- function(x, param) {
     dgamma(x, shape = param$shape, scale = param$scale)
   }
-  
+  # cumulative infectivity profile
   infec_profile_cumul <- function(x, param) {
     pgamma(x, shape = param$shape, scale = param$scale)
   }
-  
+  # transmission rate
   transmission_rate <- function(house, param) {
     param$beta * (param$size_ref / dim(house)[1]) ^ param$gamma
   }
-  
-  loglike_healthy <- function(house, param) {
+  # loglikelihood contribution of susceptible members
+  loglike_susceptible <- function(house, param) {
     i0 <- which(house$infec_time == min(house$infec_time, na.rm = TRUE))
     member_0 <- house[i0, ]
     
@@ -207,7 +219,7 @@ test_that("Augmented infection times model has correct loglikelihood", {
     
     return(output)
   }
-  
+  # loglikelihood contribution of infectious members
   loglike_infectious <- function(house, param) {
     output <- 0.
     i0 <- which(house$infec_time == min(house$infec_time, na.rm = TRUE))
@@ -239,26 +251,26 @@ test_that("Augmented infection times model has correct loglikelihood", {
     
     return(output)
   }
-  
+  # dummy dataset
   house <- data.frame(id = sprintf("hh_01_%s", seq(1, 7)),
                       house_id = "hh_01",
                       status = c(1, 1, 1, 0, 0, 0, 0),
                       infec_time = c(0.0, 2.7, 3.6, NA, NA, NA, NA),
                       incub_period = c(2.5, 3.1, 2.0, NA, NA, NA, NA))
   house$onset_time <- house$infec_time + house$incub_period
-  
+  # chioce for the parameters
   param <- list(alpha = 1e-04, beta = 0.07, gamma = 0.9,
                 size_ref = 4, study_period = 45, shape = 2, scale = 1.1)
   
   hhmodel <- new_housepi_model("augmented_infection_time")
-  hhmodel$dataset <- house
+  hhmodel$data_wide <- house
   hhmodel$parameters <- param
   hhmodel$augmented <- list(infec_time = "infec_time@D",
                             incub_period = "incub_period@D",
                             onset_time = "onset_time@D")
-  hhmodel$add_infec_profile(name = "dgamma", 
+  hhmodel$add_infec_profile(name = "gamma", 
                             args = c(shape = "shape@P", scale = "scale@P"))
   
   expect_equal(hhmodel$loglikelihood(), 
-               loglike_healthy(house, param) + loglike_infectious(house, param))
+               loglike_susceptible(house, param) + loglike_infectious(house, param))
 })

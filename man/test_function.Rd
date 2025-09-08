@@ -4,32 +4,38 @@
 \alias{test_function}
 \title{Test Housepi Function}
 \usage{
-test_function(name, x, args = NULL, min = NA, max = NA, model = NULL)
+test_function(
+  name,
+  x,
+  prim = FALSE,
+  args = NULL,
+  min = NA,
+  max = NA,
+  discr = FALSE,
+  model = NULL
+)
 }
 \arguments{
-\item{name}{\code{character(1)}\cr
-Name of the function.}
+\item{name}{\code{character(1)} with the name of the function.}
 
-\item{x}{\code{numeric()}\cr
-Input vector.}
+\item{x}{\code{numeric()} with values.}
 
-\item{args}{\code{numeric()}\cr
-Additional arguments.}
+\item{prim}{\code{logical(1)} to consider primitive instead.\cr
+Default is \code{FALSE}.}
 
-\item{min}{\code{double(1)}\cr
-Value of the minimum.}
+\item{args}{named \code{numeric()} or \code{list} with custom arguments.}
 
-\item{max}{\code{double(1)}\cr
-Value of the maximum.}
+\item{min}{\code{numeric(1)} to truncate to a minimum value.}
 
-\item{model}{\code{HouseholdModel}\cr
-Custom household model to load from.}
+\item{max}{\code{numeric(1)} to truncate to a maximum value.}
+
+\item{model}{\code{HousepiModel} object eventually containing the custom registred \%s.\cr
+If \code{NULL} (default) the built-in registry is used.\cr}
 }
 \value{
 \code{numeric()}
 }
 \description{
 Call housepi registered function.
-This function internally calls a large C++ class,
-thus it is not optimized for repeated  operations.
+This function is meant for testing only and not for repeated operations.
 }

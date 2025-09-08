@@ -6,7 +6,7 @@
 \usage{
 infer(
   object,
-  dataset = NULL,
+  data_wide = NULL,
   sample_size = NA,
   n_steps = 5000,
   n_burnin = 0,
@@ -23,7 +23,7 @@ infer(
 \arguments{
 \item{object}{\code{HousepiModel} object.}
 
-\item{dataset}{\code{data.frame} with the household dataset used for analysis. If \code{NULL}, uses the previously stored dataset.}
+\item{data_wide}{\code{data.frame} with the household data used for analysis in wide format. If \code{NULL}, uses the previously stored data.}
 
 \item{sample_size}{\code{integer(1)} with the number of posterior draws stored for each chain.}
 

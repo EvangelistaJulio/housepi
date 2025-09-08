@@ -2,7 +2,7 @@
 % Please edit documentation in R/expose_class.R
 \name{summarise_cases}
 \alias{summarise_cases}
-\title{Summarise cases in household dataset}
+\title{Summarise cases in household data}
 \usage{
 summarise_cases(object, ...)
 }
@@ -15,5 +15,5 @@ summarise_cases(object, ...)
 \code{data.frame}
 }
 \description{
-Summarise cases as given from the statuses in the laoded household dataset.
+Summarise cases as given from the statuses in the laoded household data.
 }

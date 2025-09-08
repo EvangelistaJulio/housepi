@@ -372,6 +372,7 @@ HousepiAugmented <- R6::R6Class(
         const = isTRUE(const),
         discr = isTRUE(discr),
         func = as.character(func),
+        fcumul = FALSE, # UPDATE: to be implemented
         farg_key = NA, farg_val = NA, farg_at = NA,
         value = NA, value_at = NA,
         init_rand = isTRUE(init_rand),

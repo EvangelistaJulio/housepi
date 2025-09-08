@@ -135,6 +135,7 @@ protected:
 	double do_primitive_discr_center_(double x) const override final { return (this->*trunc_)((this->*shift_)(raw_cdf_(std::round(x) + .5))); }
 	double do_primitive_discr_left_(double x) const override final { return (this->*trunc_)((this->*shift_)(raw_cdf_(std::floor(x) + 1.))); }
 
+	double do_log_ratio_(double xo, double xn) const override final { return raw_logratio_(xo, xn); }
 	double do_log_ratio_discr_center_(double xo, double xn) const override final
 	{
 		const double io = std::round(xo), in = std::round(xn);

@@ -145,7 +145,7 @@ The name starting with `..` is a convention for housepi to interpet such as priv
 ```{r}
 #| warning: false
 hhmodel |>
-  add_dataset(dataset) |>
+  add_data_wide(dataset) |>
   infer(n_steps = 10000, n_burnin = 500,
         thin = 8, n_chains = 3, n_adapt = 3000,
         # store augmented draws for individual "7"

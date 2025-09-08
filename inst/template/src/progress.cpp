@@ -101,7 +101,7 @@ namespace progress
 #endif
         }
 
-        /* Function to display the progress bar. */
+        /// Function to display the progress bar.
         void bar_(const std::string &sms) const { (this->*which_bar_)(sms); }
 
         void (Impl::*which_bar_)(const std::string &) const = &Impl::do_bar_carriage_return_;
@@ -134,17 +134,17 @@ namespace progress
         ////////////////////////////////////  Bar : Impl : setter ///////////////////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////////
 
-        /* Set description text of progress bar. */
+        /// Set description text of progress bar.
         void set_text(const std::string &text) { text_ = text; }
 
-        /* Set description text of progress bar. */
+        /// Set description text of progress bar.
         void set_thintime(unsigned long thintime)
         {
             verbose_ = thintime > 0;
             thintime_ = thintime - 1;
         }
 
-        /* Start progressbar clock and display firs message. */
+        /// Start progressbar clock and display firs message.
         void open(unsigned long total)
         {
 #ifdef _HOUSEPI_RCPP
@@ -162,7 +162,7 @@ namespace progress
             is_bar_print_ = false;
         }
 
-        /* Update progress bar given the progress state. */
+        /// Update progress bar given the progress state.
         void update()
         {
 #ifdef _HOUSEPI_RCPP
@@ -210,7 +210,7 @@ namespace progress
             }
         }
 
-        /* End the progress bar because of a crash. */
+        /// End the progress bar because of a crash.
         void crash() const
         {
 #ifdef _HOUSEPI_RCPP
@@ -220,7 +220,7 @@ namespace progress
                 print_("\n");
         }
 
-        /*  Close the progress bar. */
+        /// Close the progress bar.
         void close()
         {
 #ifdef _HOUSEPI_RCPP

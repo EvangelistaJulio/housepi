@@ -2,7 +2,7 @@
 % Please edit documentation in R/expose_class.R
 \name{summarise_house_sizes}
 \alias{summarise_house_sizes}
-\title{Summarise house sizes in household dataset}
+\title{Summarise house sizes in household data}
 \usage{
 summarise_house_sizes(object, ...)
 }
@@ -15,5 +15,5 @@ summarise_house_sizes(object, ...)
 \code{data.frame}
 }
 \description{
-Summarise number of members (size) in the laoded household dataset.
+Summarise number of members (size) in the laoded household data.
 }

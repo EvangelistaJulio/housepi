@@ -27,14 +27,7 @@ double Distribution::rand(rnd_gen &prng)
     return (this->*rand_)(prng);
 }
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/* Rejection sampling. */
+/// Rejection sampling.
 double Distribution::rejec_sample_(rnd_gen &prng, double (Distribution::*func)(rnd_gen &))
 {
     double xnew = (this->*func)(prng);
@@ -83,7 +76,7 @@ void Distribution::init_sampling_discretization_()
     }
 }
 
-/* Select functional method in case of truncation. */
+/// Select functional method in case of truncation.
 void Distribution::init_functional_truncation_()
 {
     unsigned short discr_type = which_discrete_case_();

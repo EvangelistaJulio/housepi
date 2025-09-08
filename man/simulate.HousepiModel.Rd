@@ -2,14 +2,14 @@
 % Please edit documentation in R/expose_class.R
 \name{simulate.HousepiModel}
 \alias{simulate.HousepiModel}
-\title{Simulate household dataset}
+\title{Simulate household data}
 \usage{
-\method{simulate}{HousepiModel}(object, dataset = NULL, seed = NA, progress = FALSE, ...)
+\method{simulate}{HousepiModel}(object, data_wide = NULL, seed = NA, progress = FALSE, ...)
 }
 \arguments{
 \item{object}{\code{HousepiModel} object.}
 
-\item{dataset}{\code{data.frame} with the household dataset used for analysis. If \code{NULL}, uses the previously stored dataset.}
+\item{data_wide}{\code{data.frame} with the household data used for analysis in wide format. If \code{NULL}, uses the previously stored data.}
 
 \item{seed}{\code{integer(1)} with the seed for the random number generator.\cr
 If \code{NA} (default), uses current R seed.}
@@ -28,5 +28,5 @@ One between:\cr
 \code{data.frame}
 }
 \description{
-Generate a simulated dataset.
+Generate a simulated outbreak with the same community structure of the loaded data.
 }
