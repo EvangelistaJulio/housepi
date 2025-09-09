@@ -188,7 +188,7 @@ public:
         // get value of the parameter
         double get(const std::string &p) const { return this->at(p).get(); }
         // get pointer to the parameter
-        observer_dbl_ptr get_ptr(const std::string &p) const { return this->at(p).get_ptr(); }
+        observ_dbl_ptr get_ptr(const std::string &p) const { return this->at(p).get_ptr(); }
 
         // flag to check if there are parameters to sample
         bool is_any_sample() const { return !list_sample.empty(); }
@@ -567,12 +567,19 @@ public:
         void set_id_draws_(str_vec &id_draws);
 
         double type_to_double_(const Individual &member,
-                               const std::string &tkn_val, const std::string &tkn_typ);
-        void init_attributes_(Individual &member, const std::string &a,
-                              const str_vec &keys, const str_vec &vals, const str_vec &typs,
-                              const std::vector<bool> &is_arg, bool is_var_model);
-        Attribute init_attributes_aux_(Individual &member, const std::string &a,
-                                       const std::string &val, const std::string &type);
+                               const std::string &tkn_val,
+                               const std::string &tkn_typ);
+        void init_attribute_list_(Individual &member,
+                                  const std::string &a,
+                                  const str_vec &keys,
+                                  const str_vec &vals,
+                                  const str_vec &typs,
+                                  const std::vector<bool> &is_arg,
+                                  bool is_var_model);
+        Attribute read_single_attribute_(Individual &member,
+                                         const std::string &a,
+                                         const std::string &val,
+                                         const std::string &type);
 
         void build_function_(size_t k);
         void build_function_identity_(size_t k);

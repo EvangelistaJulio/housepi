@@ -53,7 +53,7 @@ public:
     /////////////////////////////////////  Proposer : getter  ///////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    std::string name() const { return this->proposer_name_; }
+    std::string name() const { return this->name_; }
     double get_arg(unsigned short argID) const { return (pDistr_->arg)(argID); }
     double get_from_value() const { return from_value_; }
     double propose(rnd_gen &prng, double start) { return (this->*propose_)(prng, start); }
@@ -94,7 +94,7 @@ public:
     std::string str_scale() const;
 
 protected:
-    std::string proposer_name_ = HSP_NA_STRING;
+    std::string name_ = HSP_NA_STRING;
     std::shared_ptr<Distribution> pDistr_;
 
     double user_rule_scale_ = 1.;       /// scale of the Metropolis rule
@@ -147,29 +147,23 @@ public:
         : pDistr_(std::make_shared<Distribution>()),
           pProp_(std::make_shared<Proposer>())
     {
+		err_type_ = "variable";
         init(name, value, is_const, is_discr, func_name, is_prim);
     }
     ~Variable() = default;
 
-    double operator()(double x) const { return (this->*return_value_)(x); }
+    /// Sugar to call variable as a function if applicable, otherwise raise error.
+    double operator()(double x) const { return (this->*evaluate_)(x); }
 
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////  Variable : getter  ///////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
-
-    bool is_constant() const override final { return Attribute::is_constant() && is_constant_; }
-    bool is_discrete() const { return pDistr_->is_discrete(); }
-    bool is_from_zero() const { return (pProp_->is_rule_start_from_zero)(); }
-    double get_from_value() const { return (pProp_->get_from_value)(); }
-
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////  Variable : setter  ///////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
-
+    /// Helper to initialize variable.
     void init(const std::string &name, double value,
               bool is_const = true, bool is_discr = false,
               const std::string &func_name = HSP_NA_STRING,
               bool is_prim = false);
+
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////  Variable : setter  ///////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Recover buffered value.
     void recover_value() { value_ = buffer_value_; }
@@ -184,7 +178,7 @@ public:
     /// Assign a scalar argument to function.
     void init_func_attr(const std::string &a, bool is_arg, double x) { pFunc_->init_attr(a, is_arg, x); }
     /// Assign a pointer argument to function.
-    void init_func_attr(const std::string &a, bool is_arg, observer_dbl_ptr y) { pFunc_->init_attr(a, is_arg, y); }
+    void init_func_attr(const std::string &a, bool is_arg, observ_dbl_ptr y) { pFunc_->init_attr(a, is_arg, y); }
     /// Assign a function attribute to function.
     void init_func_attr(const std::string &a, bool is_arg, std::shared_ptr<Function> f) { pFunc_->init_attr(a, is_arg, f); }
     /// Initialize function reshaping.
@@ -195,7 +189,7 @@ public:
     /// Assign a scalar argument to distribution.
     void init_distr_attr(const std::string &a, bool is_arg, double x) { pDistr_->init_attr(a, is_arg, x); }
     /// Assign a pointer argument to distribution.
-    void init_distr_attr(const std::string &a, bool is_arg, observer_dbl_ptr y) { pDistr_->init_attr(a, is_arg, y); }
+    void init_distr_attr(const std::string &a, bool is_arg, observ_dbl_ptr y) { pDistr_->init_attr(a, is_arg, y); }
     /// Assign a function argument to distribution.
     void init_distr_attr(const std::string &a, bool is_arg, std::shared_ptr<Function> f) { pDistr_->init_attr(a, is_arg, f); }
     /// Finalize reshaping of distribution.
@@ -205,6 +199,16 @@ public:
     void init_proposer(const std::string &rule_name = HSP_NA_STRING,
                        double rule_scale = HSP_NA_DOUBLE,
                        double rule_from = HSP_NA_DOUBLE);
+
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////  Variable : getter  ///////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
+
+    bool is_constant() const override final { return Attribute::is_constant() && is_constant_; }
+    bool is_discrete() const { return pDistr_->is_discrete(); }
+    bool is_from_zero() const { return (pProp_->is_rule_start_from_zero)(); }
+    double get_from_value() const { return (pProp_->get_from_value)(); }
+    bool is_chain_dependency(const Variable &other) const;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////  Variable : Metropolis-Hastings  ////////////////////////////
@@ -268,17 +272,17 @@ protected:
     ////////////////////////////////  Variable : getter [private]  //////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    double (Variable::*return_value_)(double) const = &Variable::do_return_error_;
-    double do_return_error_(double) const { throw std::runtime_error(
-        "Wrong use of function call operator: variable \"" + name() + "\" is not a function."); }
-    double do_return_func_(double x) const { return pFunc_->return_value(x); }
+    double (Variable::*evaluate_)(double) const = &Variable::do_eval_error_;
+    double do_eval_error_(double) const { throw std::runtime_error(
+        "Wrong use of function call operator: " + err_name() + " is not a function."); }
+    double do_eval_func_(double x) const { return pFunc_->evaluate(x); }
 
     double do_get_default_() const { return value_; }
-    double do_get_func_return_() const { return pFunc_->return_value(); }
+    double do_get_func_eval_() const { return pFunc_->evaluate(); }
 
-    observer_dbl_ptr do_get_ptr_default_() const { return &value_; }
-    observer_dbl_ptr do_get_ptr_func_return_() const { throw std::runtime_error(
-        "Called pointer to function \"" + name() + "\"."); }
+    observ_dbl_ptr do_get_ptr_default_() const { return &value_; }
+    observ_dbl_ptr do_get_ptr_func_eval_() const { throw std::runtime_error(
+        "Attempt to call pointer to function \"" + name() + "\"."); }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////  Variable : setter [private]  //////////////////////////////
@@ -292,7 +296,7 @@ protected:
     }
     /// Set error.
     void do_set_error_(double) override final { throw std::runtime_error(
-        "Non scalar variable \"" + name() + "\" cannot be changed."); }
+        "Non scalar " + err_name() + " cannot be changed."); }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////  Variable : Metropolis-Hastings [private]  ///////////////////////
@@ -311,7 +315,7 @@ protected:
     //----- Propose : functional methods -----//
     double (Variable::*propose_)(rnd_gen &) = &Variable::do_propose_error_;
     double do_propose_error_(rnd_gen &) { throw std::invalid_argument(
-        "Called unknown proposer for variable \"" + name() + "\"."); }
+        "Called unknown proposer for " + err_name() + "."); }
     double do_propose_sample_(rnd_gen &prng) { return (pProp_->propose)(prng, 0); }
     double do_propose_from_previous_(rnd_gen &prng) { return (pProp_->propose)(prng, value_); }
     double do_propose_from_zero_(rnd_gen &prng) { return (pProp_->propose)(prng, pProp_->get_from_value()); }

@@ -40,10 +40,13 @@ public:
 				 const str_vec &arg_name = {}, const dbl_vec &arg_value = {},
 				 double domain_min = HSP_NA_DOUBLE, bool is_min_open = true,
 				 double domain_max = HSP_NA_DOUBLE, bool is_max_open = true)
-		: Function(name,
-				   arg_name, arg_value,
+		: Function(name, arg_name, arg_value,
 				   domain_min, is_min_open,
-				   domain_max, is_max_open) { set_return_as_distr_call(); }
+				   domain_max, is_max_open)
+	{
+		err_type_ = "distribution";
+		set_eval_as_distr_call();
+	}
 	virtual ~Distribution() = default;
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
@@ -52,21 +55,23 @@ public:
 
 	double rand(rnd_gen &prng);
 	/// Return value of probability density/mass function.
-	double pdf(double x) const { return do_as_distr_call_(x); }
+	double pdf(double x) const { return eval_as_distr_call_(x); }
 	/// Return value of log-probability density/mass function.
-	double logpdf(double x) const { return (this->*log_call_)(x); }
+	double logpdf(double x) const { return (this->*log_func_)(x); }
 	/// Return value of cumulative distribution.
-	double cdf(double x) const { return do_as_distr_primitive_(x); }
+	double cdf(double x) const { return eval_as_distr_primitive_(x); }
 	/// Return value of log-ratio of probability density/mass functions.
 	double logratio(double xo, double xn) const { return (xo != xn) ? (this->*log_ratio_)(xo, xn) : 0.; }
 
-	/////////////////////////////////////////////////////////////////////////////////////////////
-	//////////////////////////////////  Distribution : setter  //////////////////////////////////
-	/////////////////////////////////////////////////////////////////////////////////////////////
-
-	virtual void init_reshaping(bool discrete) override;
-
 protected:
+	/////////////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////  Distribution : setter [protected] /////////////////////////////
+	/////////////////////////////////////////////////////////////////////////////////////////////
+
+	/// Initialize functional discretization.
+	void init_discr_helper_(unsigned short discr_type) override final;
+	void init_trunc_helper_();
+
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////  Distribution : virtual [protected] ////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
@@ -76,32 +81,19 @@ protected:
 	/// Raw random sampling method of the distribution.
 	/// @param prng : pseudo-random number generator.
 	virtual double raw_rand_(rnd_gen &) { throw std::invalid_argument(
-		"Called undefined method \"rand\" of distribution \"" + name() + "\"."); }
+		"Called undefined method \"rand\" of " + err_name() + "."); }
 
 	/// Raw probability density/mass function of the distribution.
 	virtual double raw_pdf_(double) const { throw std::invalid_argument(
-		"Called undefined method \"pdf\" of distribution \"" + name() + "\"."); }
+		"Called undefined method \"pdf\" of " + err_name() + "."); }
 
 	/// Raw log-probability density/mass function of the distribution.
 	virtual double raw_logpdf_(double) const { throw std::invalid_argument(
-		"Called undefined method \"logpdf\" of distribution \"" + name() + "\"."); }
+		"Called undefined method \"logpdf\" of " + err_name() + "."); }
 
 	/// Raw cumulative distribution function.
 	virtual double raw_cdf_(double) const { throw std::invalid_argument(
-		"Called undefined method \"cdf\" of distribution \"" + name() + "\"."); }
-
-	/// Raw log-ratio of probability density/mass functions.
-	virtual double raw_logratio_(double, double) const { return 0.; }
-
-	/////////////////////////////////////////////////////////////////////////////////////////////
-	////////////////////////////  Distribution : setter [protected] /////////////////////////////
-	/////////////////////////////////////////////////////////////////////////////////////////////
-
-	void init_sampling_discretization_(); // UPDATE
-	void init_functional_truncation_();
-	bool init_range_min_(double min_val, bool is_open_zero);
-	void init_reshaping_min_zero_(bool discrete, bool is_open_zero);
-	void init_reshaping_min_zero_discr_defined_();
+		"Called undefined method \"cdf\" of " + err_name() + "."); }
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////  Distribution : getter [protected] /////////////////////////////
@@ -112,36 +104,34 @@ protected:
 	/// @param func : pointer to the raw random sampling method of the distribution.
 	double rejec_sample_(rnd_gen &prng, double (Distribution::*func)(rnd_gen &));
 
-	double (Distribution::*rand_)(rnd_gen &) = &Distribution::do_rand_;
-	double do_rand_(rnd_gen &prng) { return raw_rand_(prng); }
-	double do_discr_center_rand_(rnd_gen &prng) { return static_cast<double>(std::lround(do_rand_(prng))); }
-	double do_discr_left_rand_(rnd_gen &prng) { return std::floor(do_rand_(prng)); }
+	double (Distribution::*rand_)(rnd_gen &) = &Distribution::raw_rand_;
+	double do_discr_center_rand_(rnd_gen &prng) { return static_cast<double>(std::lround(raw_rand_(prng))); }
+	double do_discr_left_rand_(rnd_gen &prng) { return std::floor(raw_rand_(prng)); }
 
-	double do_call_(double x) const override final { return (this->*trunc_)(raw_pdf_(x)); }
-	double do_call_discr_center_(double x) const override final
+	double raw_function_(double x) const override final { return (this->*trunc_)(raw_pdf_(x)); }
+	double do_function_discr_center_(double x) const override final
 	{
 		const double i = std::round(x);
 		return (this->*trunc_)(raw_cdf_(i + .5) - raw_cdf_(i - .5));
 	}
-	double do_call_discr_left_(double x) const override final
+	double do_function_discr_left_(double x) const override final
 	{
 		const double i = std::round(x);
 		return (this->*trunc_)(raw_cdf_(i + 1.) - raw_cdf_(i));
 	}
 
-	double do_log_call_(double x) const override final { return (this->*logtrunc_)(raw_logpdf_(x)); }
+	double raw_logfunc_(double x) const override final { return (this->*logtrunc_)(raw_logpdf_(x)); }
 
-	double do_primitive_(double x) const override final { return (this->*trunc_)((this->*shift_)(raw_cdf_(x))); }
+	double raw_primitive_(double x) const override final { return (this->*trunc_)((this->*shift_)(raw_cdf_(x))); }
 	double do_primitive_discr_center_(double x) const override final { return (this->*trunc_)((this->*shift_)(raw_cdf_(std::round(x) + .5))); }
 	double do_primitive_discr_left_(double x) const override final { return (this->*trunc_)((this->*shift_)(raw_cdf_(std::floor(x) + 1.))); }
 
-	double do_log_ratio_(double xo, double xn) const override final { return raw_logratio_(xo, xn); }
-	double do_log_ratio_discr_center_(double xo, double xn) const override final
+	double do_logratio_discr_center_(double xo, double xn) const override final
 	{
 		const double io = std::round(xo), in = std::round(xn);
 		return std::log((raw_cdf_(in + .5) - raw_cdf_(in - .5)) / (raw_cdf_(io + .5) - raw_cdf_(io - .5)));
 	}
-	double do_log_ratio_discr_left_(double xo, double xn) const override final
+	double do_logratio_discr_left_(double xo, double xn) const override final
 	{
 		const double io = std::floor(xo), in = std::floor(xn);
 		return std::log((raw_cdf_(in + 1.) - raw_cdf_(in)) / (raw_cdf_(io + 1.) - raw_cdf_(io)));
@@ -160,7 +150,7 @@ protected:
 	double do_trunc_min_(double x) const { return x / (1. - raw_cdf_(get_min())); }
 	double do_trunc_max_(double x) const { return x / (raw_cdf_(get_max())); }
 	double do_trunc_both_sides_(double x) const { return x / (raw_cdf_(get_max()) - raw_cdf_(get_min())); }
-	double do_trunc_rand_(rnd_gen &prng) { return rejec_sample_(prng, &Distribution::do_rand_); }
+	double do_trunc_rand_(rnd_gen &prng) { return rejec_sample_(prng, &Distribution::raw_rand_); }
 
 	// case of discrete defined
 	double do_trunc_min_discr_defined_(double x) const { return x / (1. - raw_cdf_(get_min() - 1)); }

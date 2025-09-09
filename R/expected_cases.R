@@ -652,6 +652,5 @@ expec_posterior_measure <- function(object, param_table, ...,
 #' @export
 expec_cases_by_house_size <- function(object, param_table, progress = NA) {
   stopifnot(inherits(object, "HousepiModel"))
-  ExpectedCasesBySize$new(object, param_table,
-                          progress = progress)
+  ExpectedCasesBySize$new(object, param_table, progress = progress)
 }

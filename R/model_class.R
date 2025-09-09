@@ -21,7 +21,8 @@
 #' @description
 #' Compile household model, manage your data
 #' and variable defintions from a single class.
-#'
+#' 
+#' @docType class
 #' @keywords internal
 HousepiModel <- R6::R6Class(
   classname = "HousepiModel",
@@ -59,7 +60,7 @@ HousepiModel <- R6::R6Class(
         "Impossible to proceed. No data was provided."
       )
       required <- private$.get_all_required_data()
-      template_missing_stop(required, headers, "data_wide")
+      template_missing_stop(required, headers, "data")
       invisible(self)
     },
 
@@ -799,7 +800,7 @@ HousepiModel <- R6::R6Class(
     #'
     #' @return
     #' `data.frame`
-    export_augmented_data_wide = function() {
+    export_augmented_data = function() {
       private$.refactor_data_wide(
         cbind(private$.rcpp$data_wide_for_simulation(),
               private$.rcpp$export_augmented_data_wide())

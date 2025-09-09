@@ -24,12 +24,57 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////// *** AugmentedMap : class *** ////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Class to deal with multiple augmented defintions.
+/// UPDATE: to be extended to Household.
+class AugmentedMap
+{
+public:
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	/////////////////////////////////  AugmentedMap : constructor  ////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////
+
+	AugmentedMap() {}
+	virtual ~AugmentedMap() = default;
+
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////  AugmentedMap : setter  ///////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////
+
+	void init_augm(const std::string &a,
+				   double value,
+				   bool is_const,
+				   bool is_discr,
+				   const std::string &func_name,
+				   bool is_prim,
+				   const std::string &model_name);
+
+	void set_augm_value(const std::string &a, double x) { safe_at(augm_map_, "augmented", a).set(x); }
+	void clear_augm(const std::string &a) { augm_map_[a] = Variable(); }
+
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////  AugmentedMap : getter  ///////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////
+
+	double augm(const std::string &a) const { return safe_at(augm_map_, "augmented", a).get(); }
+	Variable &get_augm_variable(const std::string &a) { return safe_at(augm_map_, "augmented", a); }
+	const Variable &get_augm_variable(const std::string &a) const { return safe_at(augm_map_, "augmented", a); }
+
+protected:
+	u_dict<Variable> augm_map_ = {}; /// dictionary of augmented definitions
+};
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////// *** Individual : class *** /////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Class for individual household study member.
-class Individual
+class Individual : public AugmentedMap
 {
 public:
 	///////////////////////////////////////////////////////////////////////////////////////////////
@@ -42,7 +87,6 @@ public:
 			   const std::string &id,
 			   int status,
 			   const u_dict<double> &data);
-	~Individual() = default;
 
 	/// Sugar to tell if the corresponding members are the same.
 	bool operator==(const Individual &other) const { return this->index_ == other.index_; }
@@ -63,41 +107,27 @@ public:
 	double data(const std::string &d) const { return safe_at(data_map_, "data", d); }
 	const dbl_vec &datalong(const std::string &d) const
 	{
-		if (pdatalist_ == nullptr)
+		if (pdatalong_ == nullptr)
 			throw std::invalid_argument(
 				"Individual \"" + id_ + "\" has no datalong entries.");
-		else
-			return pdatalist_->at(d);
+		return pdatalong_->at(d);
 	}
 	double group_rate(const std::string &r) const { return safe_at(rate_map_, "group rate", r).get(); }
-	double augm(const std::string &a) const { return safe_at(augm_map_, "augmented variable", a).get(); }
-	Variable &get_augm_variable(const std::string &a) { return safe_at(augm_map_, "augmented variable", a); }
-	const Variable &get_augm_variable(const std::string &a) const { return safe_at(augm_map_, "augmented variable", a); }
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////  Individual : setter  ////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	void set_status(int s) { status_ = s; }
-
-	void set_augm_value(const std::string &a, double x) { safe_at(augm_map_, "augmented variable", a).set(x); }
-	void init_pointer_to_datalist(u_dict<dbl_vec> *y) { pdatalist_ = y; }
-	void clear_augm(const std::string &a) { augm_map_[a] = Variable(); }
-	void init_all_group_rates(const u_dict<std::vector<observer_dbl_ptr>> &ptrs);
-	void init_augm(const std::string &a,
-				   double value,
-				   bool is_const,
-				   bool is_discr,
-				   const std::string &func_name,
-				   bool is_prim,
-				   const std::string &model_name);
-	void init_augm_model(const str_vec &augm_model_list);
+	void init_pointer_to_datalong(u_dict<dbl_vec> *y) { pdatalong_ = y; }
+	void init_all_group_rates(const u_dict<std::vector<observ_dbl_ptr>> &ptrs);
 	void user_reset();
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	/////////////////////////////////  Individual : loglikelihood  ////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
+	void init_augm_model(const str_vec &augm_model_list);
 	double get_augm_model_loglike() const { return augm_loglike_; }
 	double compute_and_set_augm_model_loglike();
 	void recover_augm_model_loglike() { augm_loglike_ = augm_buffer_; };
@@ -111,20 +141,19 @@ private:
 	{
 	public:
 		GroupRate(const std::string &name = HSP_NA_STRING,
-				  const std::vector<observer_dbl_ptr> &ptrs = {});
-		~GroupRate() = default;
+				  const std::vector<observ_dbl_ptr> &ptrs = {});
 
 		double get() const
 		{
 			double output = 1.0;
-			for (observer_dbl_ptr ptr : pointers_)
+			for (observ_dbl_ptr ptr : pointers_)
 				output *= *ptr;
 			return output;
 		}
 
 	private:
 		std::string name_ = "";
-		std::vector<observer_dbl_ptr> pointers_ = {};
+		std::vector<observ_dbl_ptr> pointers_ = {};
 	};
 
 	std::string id_ = HSP_NA_STRING;  // user id
@@ -134,10 +163,9 @@ private:
 
 	// NOTE: allowd data variables are numerical only
 	u_dict<double> data_map_ = {};	  // data
-	u_dict<Variable> augm_map_ = {};  // augmented
 	u_dict<GroupRate> rate_map_ = {}; // group rates
 
-	u_dict<dbl_vec> *pdatalist_ = nullptr; // datalong to be associated
+	u_dict<dbl_vec> *pdatalong_ = nullptr; // datalong to be associated
 
 	std::vector<std::function<double()>> augm_model_logpdfs_ = {};
 	double augm_loglike_ = 0; // current augmented model loglikelihood
@@ -270,7 +298,7 @@ public:
 	void init_member(size_t index, const std::string &id, int status, const u_dict<double> &data);
 	bool change_status(Individual &member, int new_status);
 	bool change_status(size_t i, int new_status) { return change_status(members_.at(i), new_status); }
-	void init_contact_rates(size_t from, size_t to, observer_dbl_ptr x);
+	void init_contact_rates(size_t from, size_t to, observ_dbl_ptr x);
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////  Household : cache attributes  ////////////////////////////////
@@ -323,7 +351,7 @@ private:
 	std::vector<size_t> missing_list_ = {};
 
 	// contact rate pointers
-	matrix<observer_dbl_ptr> contact_rates_;
+	matrix<observ_dbl_ptr> contact_rates_;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////  Household : loglikelihood [private]  ////////////////////////////

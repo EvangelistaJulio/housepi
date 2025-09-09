@@ -62,7 +62,9 @@
                                             Rcpp::as<double>(range[i]));                               \
                 }                                                                                      \
                                                                                                        \
-                ptr_->init_reshaping(is_discr);                                                        \
+                if (is_discr)                                                                          \
+                    ptr_->init_discretization();                                                        \
+                ptr_->init_truncation();                                                            \
             }                                                                                          \
             catch (const std::exception &e)                                                            \
             {                                                                                          \
@@ -79,7 +81,7 @@
                 const R_xlen_t n = x.size();                                                           \
                 Rcpp::NumericVector y(n);                                                              \
                 for (R_xlen_t i = 0; i < n; ++i)                                                       \
-                    y[i] = ptr_->return_value(x[i]);                                                   \
+                    y[i] = ptr_->evaluate(x[i]);                                                   \
                 return y;                                                                              \
             }                                                                                          \
             catch (const std::exception &e)                                                            \

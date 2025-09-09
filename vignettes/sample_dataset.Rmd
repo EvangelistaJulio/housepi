@@ -26,7 +26,7 @@ We declare the covariates of interests at instatiation of the `HouseholdSampler`
 
 ```{r}
 # define individual features from dataset covariates assumed not independent
-hhsampler <- HouseholdSampler$new(
+hhsampler <- new_household_sampler(
   # categorical data: levels to be considered
   sex = list(levels = c("M", "F")),
   # numerical data to be factorized: breaks for binning
@@ -94,9 +94,9 @@ where $p_1$ is the probability of finding a household with a single member in ou
 ## Compute Marginals and Generate Datasets
 
 ```{r}
-# compute marginal distributions
-hhsampler$compute_marginals(housepi::survey)
-
-# sample 5 households
-hhsampler$sample(5)
+hhsampler |>
+  # compute marginal distributions
+  compute_household_marginals(housepi::survey) |>
+  # sample 5 households
+  sample_households(5)
 ```

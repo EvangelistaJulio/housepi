@@ -14,18 +14,13 @@
 
 #include "mcmc_impl.h"
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
+/////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////  MCMC : Impl : assign infectivity profile arguments  ////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Assign arguments to infectivity profile. */
+/// Assign arguments to infectivity profile.
 void MCMC::Impl::InfecProfile::init_arguments_(const str_vec &keys,
 											   const str_vec &vals,
 											   const str_vec &typs)
@@ -44,7 +39,7 @@ void MCMC::Impl::InfecProfile::init_arguments_(const str_vec &keys,
 ////////////////////////////  MCMC : Impl : InfecProfile : assign range  ////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Assign general attribute of infectivity profile. */
+/// Assign general attribute of infectivity profile.
 void MCMC::Impl::InfecProfile::init_single_attribute_(const std::string &key,
 													  const std::string &val,
 													  const std::string &at,
@@ -85,7 +80,7 @@ void MCMC::Impl::InfecProfile::init_single_attribute_(const std::string &key,
 //////////////////////////  MCMC : Impl : InfecProfile : assign template  ///////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Set model template while constructiing model. */
+/// Set model template while constructiing model.
 void MCMC::Impl::InfecProfile::init_template(dict_str deflist)
 {
 	// if not previous build, proceed with template
@@ -117,9 +112,8 @@ void MCMC::Impl::InfecProfile::init_template(dict_str deflist)
 		}
 }
 
-/* Append infectivity profile to augmented variable definitions.
- * UPDATE: problematic in case of redefinitions of infectivity profile
- */
+/// Append infectivity profile to augmented variable definitions.
+/// UPDATE: problematic in case of redefinitions of infectivity profile
 void MCMC::Impl::InfecProfile::append_augm_definition()
 {
 	if (is_augmented())
@@ -141,7 +135,7 @@ void MCMC::Impl::InfecProfile::append_augm_definition()
 	}
 }
 
-/* Store values of the infectivity profile. */
+/// Store values of the infectivity profile.
 void MCMC::Impl::InfecProfile::init_lookup_()
 {
 	inst_ = &InfecProfile::do_inst_lookup_;
@@ -160,7 +154,7 @@ void MCMC::Impl::InfecProfile::init_lookup_()
 	update(true);
 }
 
-/* Clear infectivity profile lookup table. */
+/// Clear infectivity profile lookup table.
 void MCMC::Impl::InfecProfile::clear_lookup_()
 {
 	size_lut_ = 0;
@@ -175,7 +169,7 @@ void MCMC::Impl::InfecProfile::clear_lookup_()
 	lookup_buffer_cumul_.shrink_to_fit();
 }
 
-/* If infectivity profile is a lookup table, store its values. */
+/// If infectivity profile is a lookup table, store its values.
 void MCMC::Impl::InfecProfile::update(bool is_cache_depen)
 {
 	// UPDATE: this should not be updated if constant
@@ -199,7 +193,7 @@ void MCMC::Impl::InfecProfile::update(bool is_cache_depen)
 		}
 }
 
-/* If infectivity profile is a lookup table, recover its buffered values. */
+/// If infectivity profile is a lookup table, recover its buffered values.
 void MCMC::Impl::InfecProfile::recover(bool is_cache_depen)
 {
 	// UPDATE: this should not be recoverd if constant
@@ -211,7 +205,7 @@ void MCMC::Impl::InfecProfile::recover(bool is_cache_depen)
 		}
 }
 
-/* Build infectivity profile distribution . */
+/// Build infectivity profile distribution .
 void MCMC::Impl::InfecProfile::build(const dict_str &deflist)
 {
 	if (!deflist.empty())
@@ -221,7 +215,7 @@ void MCMC::Impl::InfecProfile::build(const dict_str &deflist)
 			tools::headers_from_deflist(deflist), headers_);
 
 		// check if definition is generic or augmented
-		str_vec types = tools::parse_list_args(deflist.at("arg_at"), HSP_LIST_DELIM);
+		str_vec types = tools::parse_arg_list(deflist.at("arg_at"), HSP_LIST_DELIM);
 		types += {deflist.at("max_at")};
 
 		bool is_augm = false;
@@ -236,7 +230,7 @@ void MCMC::Impl::InfecProfile::build(const dict_str &deflist)
 	}
 }
 
-/* Build for generic infectivity profile. */
+/// Build for generic infectivity profile.
 void MCMC::Impl::InfecProfile::build_generic_profile_(const dict_str &deflist)
 {
 	augm_infec_profile_deflist_.clear();
@@ -255,31 +249,30 @@ void MCMC::Impl::InfecProfile::build_generic_profile_(const dict_str &deflist)
 	else
 		throw std::invalid_argument("Missing name.");
 
-	//----- Discrete -----//
-	bool is_discrete = true;
-	if (!profile_->is_discrete()) // not defined discrete
-		if (deflist.count("discr"))
-			is_discrete = tools::str::tobool(deflist.at("discr"));
+	// discretization
+	if (deflist.count("discr"))
+		if (tools::str::tobool(deflist.at("discr")))
+			profile_->init_discretization();
 
-	//----- Arguments -----//
+	// arguments
 	if (deflist.count("arg_key") && deflist.count("arg_val") && deflist.count("arg_at"))
-		init_arguments_(tools::parse_list_args(deflist.at("arg_key"), HSP_LIST_DELIM),
-						tools::parse_list_args(deflist.at("arg_val"), HSP_LIST_DELIM),
-						tools::parse_list_args(deflist.at("arg_at"), HSP_LIST_DELIM));
+		init_arguments_(tools::parse_arg_list(deflist.at("arg_key"), HSP_LIST_DELIM),
+						tools::parse_arg_list(deflist.at("arg_val"), HSP_LIST_DELIM),
+						tools::parse_arg_list(deflist.at("arg_at"), HSP_LIST_DELIM));
 
-	//----- Range minimum -----//
+	// range minimum
 	init_single_attribute_("min",
-						   (is_discrete) ? "1" : "0", HSP_TYPE_SCALAR,
+						   (profile_->is_discrete()) ? "1" : "0", HSP_TYPE_SCALAR,
 						   HSP_ATTR_RANGE);
 
-	//----- Range maximum -----//
+	// range maximum
 	if (deflist.count("max") && deflist.count("max_at"))
 		init_single_attribute_("max",
 							   deflist.at("max"), deflist.at("max_at"),
 							   HSP_ATTR_RANGE);
 
-	//----- Reshaping -----//
-	profile_->init_reshaping(is_discrete);
+	// range truncation
+	profile_->init_truncation();
 
 	// if discrete and generic, initializes lookup table
 	if (profile_->is_discrete())
@@ -288,7 +281,7 @@ void MCMC::Impl::InfecProfile::build_generic_profile_(const dict_str &deflist)
 		clear_lookup_();
 }
 
-/* Build for individual augmented function infectivity profile. */
+/// Build for individual augmented function infectivity profile.
 void MCMC::Impl::InfecProfile::build_augmented_profile_(const dict_str &deflist)
 {
 	// check definition list has a name

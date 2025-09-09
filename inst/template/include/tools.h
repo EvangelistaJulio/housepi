@@ -125,7 +125,7 @@ using rnd_gen = std::mt19937;
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-using observer_dbl_ptr = const double *;
+using observ_dbl_ptr = const double *;
 
 using int_vec = std::vector<int>;
 using dbl_vec = std::vector<double>;
@@ -287,7 +287,7 @@ namespace tools
     }
 
     // argument string parser
-    str_vec parse_list_args(const std::string &tkn, const char delim);
+    str_vec parse_arg_list(const std::string &tkn, const char delim);
 
     // read csv list
     str_vec headers_from_deflist(const dict_str &deflist);

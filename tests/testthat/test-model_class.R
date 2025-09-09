@@ -49,7 +49,7 @@ test_that("Deep clone works as expected", {
   # UPDATE: change to a model with data augmentation
   hhmodel <- new_housepi_model("chain_binomial_heterogeneous")
   hhmodel$load_parameter_template()
-  out <- hhmodel$infer(housepi::survey)
+  out <- hhmodel$infer(housepi::survey, progress = FALSE)
   
   # shallow clone
   hhclone <- hhmodel$clone(deep = FALSE)
@@ -76,6 +76,17 @@ test_that("Deep clone works as expected", {
   expect_failure(expect_equal(hhmodel$group_rates, hhclone$group_rates))
 })
 
+test_that("Loglikelihood traces and pointwise traces are coherent", {
+  results <- new_housepi_model("chain_binomial") |> 
+    load_parameter_template() |> 
+    infer(housepi::survey, sample_size = 10, thin = 5,
+          n_adapt = 50, n_burnin = 50)
+
+  pointwise <- results$house_draws |>
+    posterior::as_draws_matrix() |> rowSums() |> unname()
+  expect_equal(results$loglike_draws$loglikelihood, pointwise)
+})
+
 test_that("Chain binomial models are coherent", {
   # loglikelihood from chain binomial model
   hhmodel1 <- new_housepi_model("chain_binomial")
@@ -93,21 +104,26 @@ test_that("Chain binomial models are coherent", {
   expect_equal(ll1, ll2)
 })
 
-# FIXME: housepi::survey does not have onset_day
-# test_that("Loglikelihood traces and pointwise traces are coherent", {
-#   hhmodel <- new_housepi_model("augmented_infection_time")
-#   hhmodel$load_param_template()
-#   hhmodel$load_augm_template()
-#   
-#   hhmodel$load_group_rate_list(infectivity = "sex", 
-#                                susceptibility = "sex")
-#   hhmodel$infer(housepi::survey, sample_size = 10, thin = 5,
-#                 n_adapt = 50, n_burnin = 50)
-#   total <- hhmodel$traces$loglikelihood
-#   poitwise <- hhmodel$house_loglike_traces |> 
-#     posterior::as_draws_matrix() |> rowSums() |> unname()
-#   expect_equal(total, poitwise)
-# })
+test_that("Nested definitions are raise errors", {
+  hhmodel <- new_housepi_model("augmented_example")
+  hhmodel$data_wide <- data.frame(house_id = 1, id = seq(3), status = 1)
+
+  # simple nest
+  expect_error(
+    hhmodel |>
+      load_augmented_list(a = "log_proba", log_proba = "a") |>
+      loglikelihood(),
+    regexp = "nested definitions"
+  )
+
+  # triangular nest
+  expect_error(
+    hhmodel |>
+      load_augmented_list(a = "log_proba", b = "a", log_proba = "b") |>
+      loglikelihood(),
+    regexp = "nested definitions"
+  )
+})
 
 test_that("Augmentation example on incubation from delays is coherent", {
   # loglikelihood from simulated delays
@@ -147,17 +163,6 @@ test_that("Arithmetic function with undefined x return NaN", {
   expect_error(hhmodel$infer(), regexp = "Nothing to sample")
   expect_error(hhmodel$loglikelihood(), regexp = "returned NaN")
 })
-
-# FIXME
-results <- new_housepi_model("augmented_example") |> 
-  add_data_wide(data.frame(house_id = seq(3), 
-                           id = seq(3),
-                           status = 1, 
-                           test = c(5.5, 3, -1.5))) |> 
-  load_augmented_list(noise = "log_proba",
-                      log_proba = "noise") |> 
-  loglikelihood()
-
 
 test_that("Augmented function example returns expected distribution", {
   hhmodel <- new_housepi_model("blank")

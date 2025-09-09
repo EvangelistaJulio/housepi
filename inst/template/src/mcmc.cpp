@@ -43,7 +43,7 @@ double MCMC::uniform() { return pImpl_->setup.unif(); }
 
 //===== PARAMETERS =====//
 double MCMC::param(const std::string &p) const { return pImpl_->param.get(p); }
-observer_dbl_ptr MCMC::param_pointer(const std::string &p) const { return pImpl_->param.get_ptr(p); }
+observ_dbl_ptr MCMC::param_pointer(const std::string &p) const { return pImpl_->param.get_ptr(p); }
 
 //===== AUGMENTED VARIABLES =====//
 void MCMC::init_all_augm(Individual &member) { pImpl_->augm.init_all(member); }
@@ -96,7 +96,7 @@ void MCMC::init_contact_rates_(Household &house)
 
                     if (!tools::is_na(_pair_contact_rate))
                     {
-                        observer_dbl_ptr y = &HSP_REFER_VALUE; // default reference rate
+                        observ_dbl_ptr y = &HSP_REFER_VALUE; // default reference rate
 
                         if (_pair_contact_rate == HSP_MISSING_RATE)
                             throw std::invalid_argument(

@@ -73,7 +73,7 @@ void MCMC::Impl::Setup::build(const dict_str &deflist)
 
         // Individual ID for Augmented Trace
         if (deflist.count("id_draws") && (!tools::is_na(deflist.at("id_draws"))))
-            id_draws = tools::parse_list_args(deflist.at("id_draws"), HSP_LIST_DELIM);
+            id_draws = tools::parse_arg_list(deflist.at("id_draws"), HSP_LIST_DELIM);
     }
 
     // reset internal states
@@ -545,7 +545,7 @@ void MCMC::Impl::DataLong::build(const dict_str_vec &input)
         c = 0;
         for (Household &house : pImpl_.dataset)
             for (Individual &member : house)
-                member.init_pointer_to_datalist(&indiv_datalist_.at(c++));
+                member.init_pointer_to_datalong(&indiv_datalist_.at(c++));
     }
 }
 
@@ -613,7 +613,7 @@ void MCMC::Impl::GroupRates::build(const dict_str_vec &deftable)
 void MCMC::Impl::GroupRates::init_rate_as_ptrs_(Individual &member,
                                                 const u_dict<str_vec> &these_rates)
 {
-    u_dict<std::vector<observer_dbl_ptr>> rate_ptrs = {};
+    u_dict<std::vector<observ_dbl_ptr>> rate_ptrs = {};
 
     for (const auto &pair : these_rates)
     {
@@ -626,7 +626,7 @@ void MCMC::Impl::GroupRates::init_rate_as_ptrs_(Individual &member,
         else if (!tools::is_na(r))
         {
             bool is_all_reference = true;                   // all reference state
-            std::vector<observer_dbl_ptr> vec_par_ptr = {}; // parameter pointers
+            std::vector<observ_dbl_ptr> vec_par_ptr = {}; // parameter pointers
 
             for (const std::string &p : pair.second)
             {
@@ -737,8 +737,8 @@ void MCMC::Impl::Parameter::build(const dict_str_vec &deftable)
                 new_param.init_distr(prior_name);
 
                 // assign scalar arguments to prior distribution
-                str_vec arg_key = tools::parse_list_args(deftable.at("arg_key")[k], HSP_LIST_DELIM);
-                str_vec arg_val = tools::parse_list_args(deftable.at("arg_val")[k], HSP_LIST_DELIM);
+                str_vec arg_key = tools::parse_arg_list(deftable.at("arg_key")[k], HSP_LIST_DELIM);
+                str_vec arg_val = tools::parse_arg_list(deftable.at("arg_val")[k], HSP_LIST_DELIM);
                 for (unsigned short c = 0; c < arg_key.size(); ++c)
                     // UPDATE: is this check really necessary?
                     if (!tools::is_na(arg_key[c]))

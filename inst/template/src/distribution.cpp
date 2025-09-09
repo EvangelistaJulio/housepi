@@ -17,6 +17,253 @@
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  Distribution - rand  /////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+// UPDATE: random generator classes should be redesigned to deal with this
+double Distribution::rand(rnd_gen &prng)
+{
+    update_args_();
+    return (this->*rand_)(prng);
+}
+
+/// Rejection sampling.
+double Distribution::rejec_sample_(rnd_gen &prng, double (Distribution::*func)(rnd_gen &))
+{
+    double xnew = (this->*func)(prng);
+    for (unsigned n = 0; !is_valid(xnew) && (n < HSP_MAX_NUM_ATTEMPTS); ++n)
+        xnew = (this->*func)(prng);
+    if (!is_valid(xnew))
+        throw std::runtime_error(
+            "Exceeded attempts (N > " + std::to_string(HSP_MAX_NUM_ATTEMPTS) +
+            ") in random draw of " + str_summary() + ".");
+    return xnew;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  Distribution - reshaping  ///////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Select functional for discretization of random sampling.
+void Distribution::init_discr_helper_(unsigned short discr_type)
+{
+    Function::init_discr_helper_(discr_type);
+
+    switch (discr_type)
+    {
+    case HSP_DISCR_CENTER: // centered discretization
+        rand_ = &Distribution::do_discr_center_rand_;
+        break;
+    case HSP_DISCR_LEFT: // left discretization
+        rand_ = &Distribution::do_discr_left_rand_;
+        break;
+    default: // discrete defined or no discretization
+        rand_ = &Distribution::raw_rand_;
+    }
+}
+
+/// Select functional method in case of truncation.
+void Distribution::init_trunc_helper_()
+{
+    unsigned short discr_type = which_discrete_case_();
+
+    switch (which_valid_case_())
+    {
+    case 1: //----- lower range truncation -----//
+        switch (discr_type)
+        {
+        case HSP_DISCR_DEFINED: // discrete defined
+            trunc_ = &Distribution::do_trunc_min_discr_defined_;
+            logtrunc_ = &Distribution::do_logtrunc_min_discr_defined_;
+            shift_ = &Distribution::do_shift_min_discr_defined_;
+            rand_ = &Distribution::do_trunc_rand_;
+            break;
+        case HSP_DISCR_CENTER: // centered discretization
+            trunc_ = &Distribution::do_trunc_min_discr_center_;
+            logtrunc_ = &Distribution::do_logtrunc_min_discr_center_;
+            shift_ = &Distribution::do_shift_min_discr_center_;
+            rand_ = &Distribution::do_trunc_rand_discr_center_;
+            break;
+        case HSP_DISCR_LEFT: // left discretization
+            trunc_ = &Distribution::do_trunc_min_discr_left_;
+            logtrunc_ = &Distribution::do_logtrunc_min_discr_left_;
+            shift_ = &Distribution::do_shift_min_discr_left_;
+            rand_ = &Distribution::do_trunc_rand_discr_left_;
+            break;
+        default: // no discretization
+            trunc_ = &Distribution::do_trunc_min_;
+            logtrunc_ = &Distribution::do_logtrunc_min_;
+            shift_ = &Distribution::do_shift_min_;
+            rand_ = &Distribution::do_trunc_rand_;
+        }
+        break;
+
+    case 2: //----- upper range truncation -----//
+        shift_ = &Distribution::do_shift_dummy_;
+        switch (discr_type)
+        {
+        case HSP_DISCR_DEFINED: // discrete defined
+            trunc_ = &Distribution::do_trunc_max_discr_defined_;
+            logtrunc_ = &Distribution::do_logtrunc_max_discr_defined_;
+            rand_ = &Distribution::do_trunc_rand_;
+            break;
+        case HSP_DISCR_CENTER: // centered discretization
+            trunc_ = &Distribution::do_trunc_max_discr_center_;
+            logtrunc_ = &Distribution::do_logtrunc_max_discr_center_;
+            rand_ = &Distribution::do_trunc_rand_discr_center_;
+            break;
+        case HSP_DISCR_LEFT: // left discretization
+            trunc_ = &Distribution::do_trunc_max_discr_left_;
+            logtrunc_ = &Distribution::do_logtrunc_max_discr_left_;
+            rand_ = &Distribution::do_trunc_rand_discr_left_;
+            break;
+        default: // no discretization
+            trunc_ = &Distribution::do_trunc_max_;
+            logtrunc_ = &Distribution::do_logtrunc_max_;
+            rand_ = &Distribution::do_trunc_rand_;
+        }
+        break;
+
+    case 3: //----- both sides truncation -----//
+        switch (discr_type)
+        {
+        case HSP_DISCR_DEFINED: // discrete defined
+            trunc_ = &Distribution::do_trunc_both_sides_discr_defined_;
+            logtrunc_ = &Distribution::do_logtrunc_both_sides_discr_defined_;
+            shift_ = &Distribution::do_shift_min_discr_defined_;
+            rand_ = &Distribution::do_trunc_rand_;
+            break;
+        case HSP_DISCR_CENTER: // centered discretization
+            trunc_ = &Distribution::do_trunc_both_sides_discr_center_;
+            logtrunc_ = &Distribution::do_logtrunc_both_sides_discr_center_;
+            shift_ = &Distribution::do_shift_min_discr_center_;
+            rand_ = &Distribution::do_trunc_rand_discr_center_;
+            break;
+        case HSP_DISCR_LEFT: // left discretization
+            trunc_ = &Distribution::do_trunc_both_sides_discr_left_;
+            logtrunc_ = &Distribution::do_logtrunc_both_sides_discr_left_;
+            shift_ = &Distribution::do_shift_min_discr_left_;
+            rand_ = &Distribution::do_trunc_rand_discr_left_;
+            break;
+        default: // no discretization
+            trunc_ = &Distribution::do_trunc_both_sides_;
+            logtrunc_ = &Distribution::do_logtrunc_both_sides_;
+            shift_ = &Distribution::do_shift_min_;
+            rand_ = &Distribution::do_trunc_rand_;
+        }
+        break;
+
+    default: //----- no truncation (case 0) -----//
+        trunc_ = &Distribution::do_trunc_dummy_;
+        logtrunc_ = &Distribution::do_logtrunc_dummy_;
+        shift_ = &Distribution::do_shift_dummy_;
+        break;
+    }
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////  Distribution Registry : getter  //////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Override get_options method of generic function with distribution.
+/// note: this differ in the choice of factory_map_ member.
+str_vec DistributionRegistry::get_options() const
+{
+    str_vec keys(factory_map_.size());
+    for (const auto &pair : factory_map_)
+        keys.push_back(pair.first);
+    return keys;
+}
+
+std::shared_ptr<Distribution> DistributionRegistry::get_distr(const std::string &opt) const
+{
+    if (factory_map_.find(opt) != factory_map_.end())
+        return factory_map_.find(opt)->second();
+    return nullptr;
+}
+
+std::shared_ptr<Function> DistributionRegistry::get(const std::string &opt, bool is_primitive) const
+{
+    auto output = get_distr(opt);
+    if (is_primitive)
+        output->set_eval_as_distr_primitive();
+    else
+        output->set_eval_as_distr_call();
+    return output;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////  Distribution Registry : setter  //////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+std::shared_ptr<Distribution> compose_distr_registries(const std::string &opt,
+                                                       const std::string &name,
+                                                       const std::vector<const DistributionRegistry *> &registries)
+{
+    str_vec options = {};
+
+    if (registries.empty())
+        throw std::invalid_argument("No registries provided for \"" + name + "\".");
+    else if (tools::is_na(opt))
+        return std::make_shared<Distribution>();
+    else
+        for (auto &r : registries)
+            if (r->is_valid_option(opt))
+                return r->get_distr(opt);
+            else
+                options += r->get_options();
+
+    throw std::invalid_argument(
+        "Unknown " + name + " \"" + opt + "\"." +
+        tools::str::find_closest(opt, options, HSP_MIN_STR_DIST));
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////  MACROS  ///////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+// Macro for left discretization when min = 0 (close).
+#define INIT_DISCR_LEFT_MIN_ZERO_CLOSE()      \
+    void init_discretization() override final \
+    {                                         \
+        init_discr_helper_(HSP_DISCR_LEFT);   \
+    }                                         \
+    void init_truncation() override final     \
+    {                                         \
+        if (init_range_min_(0., false))       \
+            init_trunc_helper_();             \
+    }
+
+#define GET_ARGS_1 arg(0)
+#define GET_ARGS_2 arg(0), arg(1)
+
+#define DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(distr_, n_args)            \
+    double raw_pdf_(double x) const override final                  \
+    {                                                               \
+        return numr::distr_::pdf(x, GET_ARGS_##n_args);             \
+    }                                                               \
+    double raw_cdf_(double x) const override final                  \
+    {                                                               \
+        return numr::distr_::cdf(x, GET_ARGS_##n_args);             \
+    }                                                               \
+    double raw_logpdf_(double x) const override final               \
+    {                                                               \
+        return numr::distr_::logpdf(x, GET_ARGS_##n_args);          \
+    }                                                               \
+    double raw_logratio_(double xo, double xn) const override final \
+    {                                                               \
+        return numr::distr_::logratio(xo, xn, GET_ARGS_##n_args);   \
+    }
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////  Uniform Distribution : class  //////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -30,11 +277,14 @@ public:
                        HSP_NA_DOUBLE, false, HSP_NA_DOUBLE, false),
           distr_gen(arg(0), arg(1)) { init_uniform_range_(); }
 
-    void init_reshaping(bool discrete) override final
+    void init_discretization() override final
     {
-        init_functional_range_(false, false);
-        init_functional_discretization_((discrete) ? HSP_DISCR_CENTER : HSP_DISCR_NONE);
-        init_functional_truncation_();
+        init_discr_helper_(HSP_DISCR_CENTER);
+    }
+    void init_truncation() override final
+    {
+        init_range_helper_(false, false);
+        init_trunc_helper_();
     }
 
 protected:
@@ -66,35 +316,30 @@ public:
                        HSP_NA_DOUBLE, false, HSP_NA_DOUBLE, false),
           distr_gen(arg(0), arg(1)) {}
 
-    void init_reshaping(bool discrete) override final
+    void init_discretization() override final
     {
-        init_functional_range_(false, false);
-
-        if (discrete)
-            switch (which_valid_case_())
-            {
-            case 1: // lower range truncation
-                init_functional_discretization_(HSP_DISCR_LEFT);
-                break;
-            case 3: // both sides truncation
-                init_functional_discretization_(HSP_DISCR_LEFT);
-                break;
-            default:
-                init_functional_discretization_(HSP_DISCR_CENTER);
-            }
-        else
-            init_functional_discretization_(HSP_DISCR_NONE);
-
-        init_functional_truncation_();
+        switch (which_valid_case_())
+        {
+        case 1: // lower range truncation
+            init_discr_helper_(HSP_DISCR_LEFT);
+            break;
+        case 3: // both sides truncation
+            init_discr_helper_(HSP_DISCR_LEFT);
+            break;
+        default:
+            init_discr_helper_(HSP_DISCR_CENTER);
+        }
+    }
+    void init_truncation() override final
+    {
+        init_range_helper_(false, false);
+        init_trunc_helper_();
     }
 
 protected:
     std::normal_distribution<double> distr_gen;
 
-    double raw_pdf_(double x) const override final { return numr::normal::pdf(x, arg(0), arg(1)); }
-    double raw_cdf_(double x) const override final { return numr::normal::cdf(x, arg(0), arg(1)); }
-    double raw_logpdf_(double x) const override final { return numr::normal::logpdf(x, arg(0), arg(1)); }
-    double raw_logratio_(double xo, double xn) const override final { return numr::normal::logratio(xo, xn, arg(0), arg(1)); }
+    DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(normal, 2)
     double raw_rand_(rnd_gen &prng) override final { return arg(0) + arg(1) * distr_gen(prng); }
 };
 
@@ -113,17 +358,14 @@ public:
                        0., true, HSP_NA_DOUBLE, false),
           distr_gen(arg(0), arg(1)) {}
 
-    void init_reshaping(bool discrete) override final { init_reshaping_min_zero_(discrete, false); }
+    INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
 protected:
     std::lognormal_distribution<double> distr_gen;
 
     void update_args_() override final { distr_gen.param(std::lognormal_distribution<double>::param_type(arg(0), arg(1))); } // UPDATE
 
-    double raw_pdf_(double x) const override final { return numr::lognormal::pdf(x, arg(0), arg(1)); }
-    double raw_cdf_(double x) const override final { return numr::lognormal::cdf(x, arg(0), arg(1)); }
-    double raw_logpdf_(double x) const override final { return numr::lognormal::logpdf(x, arg(0), arg(1)); }
-    double raw_logratio_(double xold, double xnew) const override final { return numr::lognormal::logratio(xold, xnew, arg(0), arg(1)); }
+    DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(lognormal, 2)
     double raw_rand_(rnd_gen &prng) override final { return distr_gen(prng); }
 };
 
@@ -142,23 +384,23 @@ public:
                        0., true, 1., true),
           gamma_1(arg(0), 1.), gamma_2(arg(1), 1.) {}
 
-    void init_reshaping(bool discrete) override final
+    void init_discretization() override final
     {
-        if (discrete)
-            throw std::invalid_argument(
-                "Invalid option discrete for distribution \"" + name() + "\".");
-        init_functional_discretization_(HSP_DISCR_NONE);
-
+        throw std::invalid_argument(
+            "Invalid option discrete for " + err_name() + ".");
+    }
+    void init_truncation() override final
+    {
         if (get_min() < 0)
             throw std::invalid_argument(
-                "Invalid min value " + str_min() + " for distribution \"" + name() + "\".");
+                "Invalid min value " + str_min() + " for " + err_name() + ".");
         else if (get_max() > 1)
             throw std::invalid_argument(
-                "Invalid max value " + str_max() + " for distribution \"" + name() + "\".");
+                "Invalid max value " + str_max() + " for " + err_name() + ".");
         else if ((get_min() > 0) || (get_max() < 1))
         {
-            init_functional_range_((get_min() == 0), (get_max() == 1));
-            init_functional_truncation_();
+            init_range_helper_((get_min() == 0), (get_max() == 1));
+            init_trunc_helper_();
         }
     }
 
@@ -173,13 +415,7 @@ protected:
         gamma_2.param(std::gamma_distribution<double>::param_type(arg(1), 1.));
     }
 
-    double raw_pdf_(double x) const override final { return numr::beta::pdf(x, arg(0), arg(1)); }
-    double raw_cdf_(double x) const override final { return numr::beta::cdf(x, arg(0), arg(1)); }
-    double raw_logpdf_(double x) const override final
-    {
-        return numr::beta::logpdf(x, arg(0), arg(1));
-    }
-    double raw_logratio_(double xold, double xnew) const override final { return numr::beta::logratio(xold, xnew, arg(0), arg(1)); }
+    DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(beta, 2)
     double raw_rand_(rnd_gen &prng) override final
     {
         double x1 = gamma_1(prng);
@@ -203,17 +439,14 @@ public:
                        0., false, HSP_NA_DOUBLE, false),
           distr_gen(arg(0), arg(1)) {}
 
-    void init_reshaping(bool discrete) override final { init_reshaping_min_zero_(discrete, false); }
+    INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
 protected:
     std::gamma_distribution<double> distr_gen;
 
     void update_args_() override final { distr_gen.param(std::gamma_distribution<double>::param_type(arg(0), arg(1))); } // UPDATE
 
-    double raw_pdf_(double x) const override final { return numr::gamma::pdf(x, arg(0), arg(1)); }
-    double raw_cdf_(double x) const override final { return numr::gamma::cdf(x, arg(0), arg(1)); }
-    double raw_logpdf_(double x) const override final { return numr::gamma::logpdf(x, arg(0), arg(1)); }
-    double raw_logratio_(double xold, double xnew) const override final { return numr::gamma::logratio(xold, xnew, arg(0), arg(1)); }
+    DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(gamma, 2)
     double raw_rand_(rnd_gen &prng) override final { return distr_gen(prng); }
 };
 
@@ -222,6 +455,12 @@ protected:
 ///////////////////////////  Gamma (Mean-Varance) Distribution : class  /////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
+
+#define GAMMA_MEANVAR_CONVERTER()     \
+    const double m = arg(0);          \
+    const double v = arg(1);          \
+    const double shape = (m * m) / v; \
+    const double scale = v / m;
 
 /// Gamma (Mean-Varance) Distribution derived class.
 class GammaMeanVar_Distribution : public Distribution
@@ -232,44 +471,36 @@ public:
                        0., false, HSP_NA_DOUBLE, false),
           distr_gen(arg(0), arg(1)) {}
 
-    void init_reshaping(bool discrete) override final
-    {
-        init_reshaping_min_zero_(discrete, false);
-    }
+    INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
 protected:
     std::gamma_distribution<double> distr_gen;
 
     void update_args_() override final
     {
-        const double m = arg(0);
-        const double v = arg(1);
-        distr_gen.param(std::gamma_distribution<double>::param_type((m * m) / v, v / m));
+        GAMMA_MEANVAR_CONVERTER()
+        distr_gen.param(std::gamma_distribution<double>::param_type(shape, scale));
     }
 
     double raw_pdf_(double x) const override final
     {
-        const double m = arg(0);
-        const double v = arg(1);
-        return numr::gamma::pdf(x, (m * m) / v, v / m);
+        GAMMA_MEANVAR_CONVERTER()
+        return numr::gamma::pdf(x, shape, scale);
     }
     double raw_cdf_(double x) const override final
     {
-        const double m = arg(0);
-        const double v = arg(1);
-        return numr::gamma::cdf(x, (m * m) / v, v / m);
+        GAMMA_MEANVAR_CONVERTER()
+        return numr::gamma::cdf(x, shape, scale);
     }
     double raw_logpdf_(double x) const override final
     {
-        const double m = arg(0);
-        const double v = arg(1);
-        return numr::gamma::logpdf(x, (m * m) / v, v / m);
+        GAMMA_MEANVAR_CONVERTER()
+        return numr::gamma::logpdf(x, shape, scale);
     }
-    double raw_logratio_(double xold, double xnew) const override final
+    double raw_logratio_(double xo, double xn) const override final
     {
-        const double m = arg(0);
-        const double v = arg(1);
-        return numr::gamma::logratio(xold, xnew, (m * m) / v, v / m);
+        GAMMA_MEANVAR_CONVERTER()
+        return numr::gamma::logratio(xo, xn, shape, scale);
     }
     double raw_rand_(rnd_gen &prng) override final
     {
@@ -292,15 +523,12 @@ public:
                        0., false, HSP_NA_DOUBLE, false),
           unif_gen(0., 1.) {}
 
-    void init_reshaping(bool discrete) override final { init_reshaping_min_zero_(discrete, false); }
+    INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
 protected:
     std::uniform_real_distribution<double> unif_gen;
 
-    double raw_pdf_(double x) const override final { return numr::rayleigh::pdf(x, arg(0)); }
-    double raw_cdf_(double x) const override final { return numr::rayleigh::cdf(x, arg(0)); }
-    double raw_logpdf_(double x) const override final { return numr::rayleigh::logpdf(x, arg(0)); }
-    double raw_logratio_(double xold, double xnew) const override final { return numr::rayleigh::logratio(xold, xnew, arg(0)); }
+    DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(rayleigh, 1)
     double raw_rand_(rnd_gen &prng) override final { return arg(0) * sqrt(-2 * std::log(unif_gen(prng))); }
 };
 
@@ -319,17 +547,14 @@ public:
                        0., false, HSP_NA_DOUBLE, false),
           distr_gen(arg(0), arg(1)) {}
 
-    void init_reshaping(bool discrete) override final { init_reshaping_min_zero_(discrete, false); }
+    INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
 protected:
     std::weibull_distribution<double> distr_gen;
 
     void update_args_() override final { distr_gen.param(std::weibull_distribution<double>::param_type(arg(0), arg(1))); } // UPDATE
 
-    double raw_pdf_(double x) const override final { return numr::weibull::pdf(x, arg(0), arg(1)); }
-    double raw_cdf_(double x) const override final { return numr::weibull::cdf(x, arg(0), arg(1)); }
-    double raw_logpdf_(double x) const override final { return numr::weibull::logpdf(x, arg(0), arg(1)); }
-    double raw_logratio_(double xold, double xnew) const override final { return numr::weibull::logratio(xold, xnew, arg(0), arg(1)); }
+    DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(weibull, 2)
     double raw_rand_(rnd_gen &prng) override final { return distr_gen(prng); }
 };
 
@@ -348,17 +573,14 @@ public:
                        0., false, HSP_NA_DOUBLE, false),
           distr_gen(arg(0)) {}
 
-    void init_reshaping(bool discrete) override final { init_reshaping_min_zero_(discrete, false); }
+    INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
 protected:
     std::exponential_distribution<double> distr_gen;
 
     void update_args_() override final { distr_gen.param(std::exponential_distribution<double>::param_type(arg(0))); } // UPDATE
 
-    double raw_pdf_(double x) const override final { return numr::exponential::pdf(x, arg(0)); }
-    double raw_cdf_(double x) const override final { return numr::exponential::cdf(x, arg(0)); }
-    double raw_logpdf_(double x) const override final { return numr::exponential::logpdf(x, arg(0)); }
-    double raw_logratio_(double xold, double xnew) const override final { return numr::exponential::logratio(xold, xnew, arg(0)); }
+    DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(exponential, 1)
     double raw_rand_(rnd_gen &prng) override final { return distr_gen(prng); }
 };
 
@@ -368,6 +590,14 @@ protected:
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+#define INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()      \
+    void init_discretization() override final {} \
+    void init_truncation() override final        \
+    {                                            \
+        if (init_range_min_(0., false))          \
+            init_trunc_helper_();                \
+    }
+
 /// Poisson Distribution derived class.
 class Poisson_Distribution : public Distribution
 {
@@ -375,19 +605,16 @@ public:
     Poisson_Distribution()
         : Distribution("pois", {"lambda"}, {1.},
                        0., false, HSP_NA_DOUBLE, false),
-          distr_gen(1.) { init_functional_discretization_(HSP_DISCR_DEFINED); }
+          distr_gen(1.) { init_discr_helper_(HSP_DISCR_DEFINED); }
 
-    void init_reshaping(bool) override final { init_reshaping_min_zero_discr_defined_(); }
+    INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
 
 protected:
     std::poisson_distribution<unsigned> distr_gen;
 
     void update_args_() override final { distr_gen.param(std::poisson_distribution<unsigned>::param_type(arg(0))); } // UPDATE
 
-    double raw_pdf_(double x) const override final { return numr::poisson::pdf(x, arg(0)); }
-    double raw_cdf_(double x) const override final { return numr::poisson::cdf(x, arg(0)); }
-    double raw_logpdf_(double x) const override final { return numr::poisson::logpdf(x, arg(0)); }
-    double raw_logratio_(double xold, double xnew) const override final { return numr::poisson::logratio(xold, xnew, arg(0)); }
+    DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(poisson, 1)
     double raw_rand_(rnd_gen &prng) override final { return distr_gen(prng); }
 };
 
@@ -406,23 +633,24 @@ public:
                        0., false, HSP_NA_DOUBLE, false),
           distr_gen(arg(0), arg(1))
     {
-        init_functional_discretization_(HSP_DISCR_DEFINED);
+        init_discr_helper_(HSP_DISCR_DEFINED);
         init_attr("max", HSP_ATTR_RANGE, get_ptr_to_arg(0));
-        init_functional_range_(false, false);
+        init_range_helper_(false, false);
     }
 
-    void init_reshaping(bool) override final
+    void init_discretization() override final {}
+    void init_truncation() override final
     {
         if (get_min() < 0.)
             throw std::invalid_argument(
-                "Invalid min value " + str_min() + " for distribution \"" + name() + "\".");
+                "Invalid min value " + str_min() + " for " + err_name() + ".");
         else if ((get_min() > 0.) || (get_ptr_to_arg(0) != get_ptr_to_max()))
         {
             if (get_max() > arg(0))
                 throw std::invalid_argument(
-                    "Invalid max value " + str_max() + " for distribution \"" + name() + "\" with size " + std::to_string(arg(0)) + ".");
-            init_functional_range_(false, false);
-            init_functional_truncation_();
+                    "Invalid max value " + str_max() + " for " + err_name() + " with size " + std::to_string(arg(0)) + ".");
+            init_range_helper_(false, false);
+            init_trunc_helper_();
         }
     }
 
@@ -431,10 +659,7 @@ protected:
 
     void update_args_() override final { distr_gen.param(std::binomial_distribution<unsigned>::param_type(arg(0), arg(1))); } // UPDATE
 
-    double raw_pdf_(double x) const override final { return numr::binomial::pdf(x, arg(0), arg(1)); }
-    double raw_cdf_(double x) const override final { return numr::binomial::cdf(x, arg(0), arg(1)); }
-    double raw_logpdf_(double x) const override final { return numr::binomial::logpdf(x, arg(0), arg(1)); }
-    double raw_logratio_(double xold, double xnew) const override final { return numr::binomial::logratio(xold, xnew, arg(0), arg(1)); }
+    DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(binomial, 2)
     double raw_rand_(rnd_gen &prng) override final { return distr_gen(prng); }
 };
 
@@ -451,19 +676,16 @@ public:
     NegativeBinomial_Distribution()
         : Distribution("nbinom", {"size", "prob"}, {4, .5},
                        0., false, HSP_NA_DOUBLE, false),
-          distr_gen(arg(0), arg(1)) { init_functional_discretization_(HSP_DISCR_DEFINED); }
+          distr_gen(arg(0), arg(1)) { init_discr_helper_(HSP_DISCR_DEFINED); }
 
-    void init_reshaping(bool) override final { init_reshaping_min_zero_discr_defined_(); }
+    INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
 
 protected:
     std::negative_binomial_distribution<unsigned> distr_gen;
 
     void update_args_() override final { distr_gen.param(std::negative_binomial_distribution<unsigned>::param_type(arg(0), arg(1))); } // UPDATE
 
-    double raw_pdf_(double x) const override final { return numr::negbinomial::pdf(x, arg(0), arg(1)); }
-    double raw_cdf_(double x) const override final { return numr::negbinomial::cdf(x, arg(0), arg(1)); }
-    double raw_logpdf_(double x) const override final { return numr::negbinomial::logpdf(x, arg(0), arg(1)); }
-    double raw_logratio_(double xold, double xnew) const override final { return numr::negbinomial::logratio(xold, xnew, arg(0), arg(1)); }
+    DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(negbinomial, 2)
     double raw_rand_(rnd_gen &prng) override final { return distr_gen(prng); }
 };
 
@@ -480,19 +702,16 @@ public:
     Geometric_Distribution()
         : Distribution("geom", {"proba"}, {0.5},
                        0., false, HSP_NA_DOUBLE, false),
-          distr_gen(arg(0)) { init_functional_discretization_(HSP_DISCR_DEFINED); }
+          distr_gen(arg(0)) { init_discr_helper_(HSP_DISCR_DEFINED); }
 
-    void init_reshaping(bool) override final { init_reshaping_min_zero_discr_defined_(); }
+    INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
 
 protected:
     std::geometric_distribution<unsigned> distr_gen;
 
     void update_args_() override final { distr_gen.param(std::geometric_distribution<unsigned>::param_type(arg(0))); } // UPDATE
 
-    double raw_pdf_(double x) const override final { return numr::geometric::pdf(x, arg(0)); }
-    double raw_cdf_(double x) const override final { return numr::geometric::cdf(x, arg(0)); }
-    double raw_logpdf_(double x) const override final { return numr::geometric::logpdf(x, arg(0)); }
-    double raw_logratio_(double xold, double xnew) const override final { return numr::geometric::logratio(xold, xnew, arg(0)); }
+    DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(geometric, 1)
     double raw_rand_(rnd_gen &prng) override final { return distr_gen(prng); }
 };
 
@@ -562,7 +781,7 @@ public:
                        {5.85, -4.0, 1.85, 5.8, 5.8},
                        0., false, HSP_NA_DOUBLE, false) {}
 
-    void init_reshaping(bool discrete) override final { init_reshaping_min_zero_(discrete, false); }
+    INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
 protected:
     double raw_pdf_(double x) const override final

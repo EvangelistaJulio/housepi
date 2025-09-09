@@ -39,7 +39,7 @@ compile_template_library <- function(pkgname) {
   for (m in list.files(template_models_dir(), full.names = TRUE)) {
     dll <- template_dll_file(m)
     if (isFALSE(file.exists(dll)) || untracked_changes(m, dll)) {
-      cli::cli_h1("COMPILING TEMPLATE {.pkg {basename(m)}}")
+      cli::cat_rule("COMPILING TEMPLATE {.pkg {basename(m)}}", col = "cyan")
       HousepiGenerator$new(m, as_template = TRUE, quiet = FALSE)
     }
   }

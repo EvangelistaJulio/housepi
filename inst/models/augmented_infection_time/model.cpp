@@ -155,8 +155,8 @@ void Model::update_cache_dependecies(Household &house, Individual &member_i)
 {
 	const double t_infec_i = member_i.augm("infec_time");
 
-	auto &inst_mtx = house.cache_double_matrix("inst");
-	auto &cumul_mtx = house.cache_double_matrix("cumul");
+	matrix<double> &inst_mtx = house.cache_double_matrix("inst");
+	matrix<double> &cumul_mtx = house.cache_double_matrix("cumul");
 
 	double new_t0 = t_infec_i; // init time introduction to current case
 	size_t i0 = member_i;	   // set index to current member
@@ -174,8 +174,8 @@ void Model::update_cache_dependecies(Household &house, Individual &member_i)
 			inst_mtx[member_k][member_i] = 0.0;
 			cumul_mtx[member_k][member_i] = 0.0;
 
-			double t_infec_k = member_k.augm("infec_time");
-			double gentime = t_infec_k - t_infec_i;
+			const double t_infec_k = member_k.augm("infec_time");
+			const double gentime = t_infec_k - t_infec_i;
 
 			if (gentime > 0)
 			{ // `i` : infector, `k` : infectee
@@ -242,15 +242,14 @@ void Model::simulate_single_household(Household &house)
 	// pick single introduction
 	size_t i0;
 	if (house.n_infec_status() > 0)
-		// amongst pre-existing infected in data
+		// amongst pre-existing infectious as in data
 		i0 = house.infected_hhindexes().at(uniform() * house.n_infec_status());
 	else
 		// amongst all members
 		i0 = uniform() * house.size();
 	const Individual &member_0 = house.get_member(i0);
 
-	// set all to healthy except from introduction
-	// assign augmented variables to all
+	// set all susceptible except from introduction, then assign augmented variables
 	for (Individual &member : house)
 	{
 		house.change_status(member, (member == member_0) ? HSP_INFECTED_STATUS : HSP_HEALTHY_STATUS);
@@ -261,7 +260,6 @@ void Model::simulate_single_household(Household &house)
 	//////  Generation >=1 : infection by previous generation  //////
 	/////////////////////////////////////////////////////////////////
 
-	// first infection occuring at time t = 0
 	const double t0 = member_0.augm("infec_time");
 	const double tf = member_0.augm("onset_time") + param("study_period");
 

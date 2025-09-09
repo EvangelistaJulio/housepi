@@ -449,7 +449,7 @@ namespace tools
     //-----------------------------------------------------------------------------------------------//
 
     /// Parse the list from the std::string.
-    str_vec parse_list_args(const std::string &tkn, const char delim)
+    str_vec parse_arg_list(const std::string &tkn, const char delim)
     {
         std::istringstream args_ss(tkn);
         str_vec output = {};

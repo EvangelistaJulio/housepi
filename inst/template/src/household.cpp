@@ -19,6 +19,26 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////  AugmentedMap : setter  ////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Assign definitions for the augmented variable model.
+void AugmentedMap::init_augm(const std::string &a,
+							 double value,
+							 bool is_const,
+							 bool is_discr,
+							 const std::string &func_name,
+							 bool is_prim,
+							 const std::string &model_name)
+{
+	Variable &this_augm = safe_at(augm_map_, "augmented variable", a);
+	this_augm.init(a, value, is_const, is_discr, func_name, is_prim);
+	this_augm.init_distr(model_name);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////  Individual : constructor  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -65,12 +85,12 @@ double Individual::compute_and_set_augm_model_loglike()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Initialize all group rates for the individual.
-void Individual::init_all_group_rates(const u_dict<std::vector<observer_dbl_ptr>> &ptrs)
+void Individual::init_all_group_rates(const u_dict<std::vector<observ_dbl_ptr>> &ptrs)
 {
 	for (const auto &pair : ptrs)
 	{
 		std::string r = pair.first;
-		std::vector<observer_dbl_ptr> vec_par_ptr = pair.second;
+		std::vector<observ_dbl_ptr> vec_par_ptr = pair.second;
 
 		if (vec_par_ptr.empty())
 			std::invalid_argument(
@@ -78,20 +98,6 @@ void Individual::init_all_group_rates(const u_dict<std::vector<observer_dbl_ptr>
 		else
 			rate_map_[r] = GroupRate(r, vec_par_ptr);
 	}
-}
-
-/// Assign definitions for the augmented variable model.
-void Individual::init_augm(const std::string &a,
-						   double value,
-						   bool is_const,
-						   bool is_discr,
-						   const std::string &func_name,
-						   bool is_prim,
-						   const std::string &model_name)
-{
-	Variable &this_augm = safe_at(augm_map_, "augmented variable", a);
-	this_augm.init(a, value, is_const, is_discr, func_name, is_prim);
-	this_augm.init_distr(model_name);
 }
 
 /// Associate functional methods for augmented model pdfs.
@@ -118,7 +124,7 @@ void Individual::user_reset()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Individual::GroupRate::GroupRate(const std::string &name,
-								 const std::vector<observer_dbl_ptr> &ptrs)
+								 const std::vector<observ_dbl_ptr> &ptrs)
 {
 	if (!tools::is_na(name))
 	{
@@ -150,14 +156,14 @@ Household::Household(const std::string &house_id, size_t H)
 //////////////////////////////////////  Household : setter  ///////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Assign a multiplicity to the household. 
+/// Assign a multiplicity to the household.
 void Household::set_multiplicity(unsigned long m, size_t class_idx)
 {
 	house_multiplicity_ = m;
 	multiplicity_class_ = class_idx;
 }
 
-/// Link an individual to the household. 
+/// Link an individual to the household.
 void Household::init_member(size_t index,
 							const std::string &id,
 							int status,
@@ -178,7 +184,7 @@ void Household::init_member(size_t index,
 }
 
 /// Change_status of individual i to new status (without controls).
-///	NOTE : this introduces augmented variables -> it requires RJMCMC in case of inference. 
+///	NOTE : this introduces augmented variables -> it requires RJMCMC in case of inference.
 bool Household::change_status(Individual &member, int new_status)
 {
 	if (new_status != member.status())
@@ -208,16 +214,16 @@ bool Household::change_status(Individual &member, int new_status)
 }
 
 /// Associate a pointer to parameter value for the contact from->to.
-void Household::init_contact_rates(size_t from, size_t to, observer_dbl_ptr x)
+void Household::init_contact_rates(size_t from, size_t to, observ_dbl_ptr x)
 {
 	// initialize contact rate matrix if necessary
 	if (contact_rates_.empty())
-		contact_rates_.resize(size(), std::vector<observer_dbl_ptr>(size(), &HSP_REFER_VALUE));
+		contact_rates_.resize(size(), std::vector<observ_dbl_ptr>(size(), &HSP_REFER_VALUE));
 
 	contact_rates_[from][to] = x;
 }
 
-/// Store the loglikelihood of household observation. 
+/// Store the loglikelihood of household observation.
 void Household::set_obs_loglike(double x)
 {
 	if (tools::is_na(x))
@@ -232,7 +238,7 @@ void Household::set_obs_loglike(double x)
 /////////////////////////////////  Household : cache attributes  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Recover previous values of the loglikelihood and cached depedencies. 
+/// Recover previous values of the loglikelihood and cached depedencies.
 void Household::recover_buffer_values(bool is_cache_depen)
 {
 	obs_loglike_ = obs_buffer_;
@@ -246,7 +252,7 @@ void Household::recover_buffer_values(bool is_cache_depen)
 	}
 }
 
-/// Deep copies of cache attributes in the buffer 
+/// Deep copies of cache attributes in the buffer
 void Household::buffer_all_cache()
 {
 	buffer_cache_int_vec_ = cache_int_vec_;

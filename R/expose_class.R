@@ -496,11 +496,6 @@ evidence <- function(object, data_wide = NULL,
 ############################################################################
 ############################################################################
 
-#' Re-export stats::simulate
-#'
-#' @importFrom stats simulate
-#' @export
-stats::simulate
 #' @title Simulate household data
 #' @description
 #' Generate a simulated outbreak with the same community structure of the loaded data.

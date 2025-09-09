@@ -29,10 +29,13 @@ Proposer::Proposer(std::shared_ptr<Distribution> distr,
     : pDistr_(distr)
 {
     // default proposer name derives from distribution
-    proposer_name_ = pDistr_->name();
+    name_ = pDistr_->name();
 
     // set to discrete
-    pDistr_->init_reshaping(is_discrete);
+    if (is_discrete)
+        pDistr_->init_discretization();
+    // set range and truncation
+    pDistr_->init_truncation();
 
     // assign user rule scale
     if (!tools::is_na(rule_scale))
@@ -101,7 +104,7 @@ class Sample_Proposer : public Proposer
 public:
     Sample_Proposer(std::shared_ptr<Distribution> distr)
     {
-        proposer_name_ = "sample";
+        name_ = "sample";
         propose_ = &Sample_Proposer::do_propose_sample_rand_; // proposer functional method
         logratio_ = &Sample_Proposer::do_logratio_pdf_;       // logratio functional method
         pDistr_ = distr;                                      // link to model distribution
@@ -237,7 +240,7 @@ void Variable::init(const std::string &name, double value,
 {
     this->name(name);
     user_value_ = HSP_NA_DOUBLE;
-    return_value_ = &Variable::do_return_error_;
+    evaluate_ = &Variable::do_eval_error_;
 
     if (tools::is_na(func_name)) // initialization as a numeric variable
     {
@@ -246,11 +249,11 @@ void Variable::init(const std::string &name, double value,
     }
     else if (func_name == HSP_IDENTITY_FUNC) // initialization as a pointer
     {
-        init_pointer(&user_value_); // note: placeholder
+        init_pointer(&user_value_); // NOTE: this is just a placeholder
     }
     else // initialization as a function
     {
-        return_value_ = &Variable::do_return_func_;
+        evaluate_ = &Variable::do_eval_func_;
         init_function(compose_func_registries(
             func_name, "function", is_primitive,
             {&UserFuncRegistry::inst(),
@@ -270,16 +273,23 @@ void Variable::init(const std::string &name, double value,
 /// Drop function if it's constant when reshaping.
 void Variable::init_func_reshaping()
 {
-    if (pFunc_->is_constant())
+    if (is_function())
     {
-        double x = pFunc_->return_value();
-        return_value_ = &Variable::do_return_error_;
-        init_scalar(x);
-        user_value_ = x;
-        is_constant_ = true;
+        if (pFunc_->is_constant())
+        {
+            double x = pFunc_->evaluate();
+            evaluate_ = &Variable::do_eval_error_;
+            init_scalar(x);
+            user_value_ = x;
+            is_constant_ = true;
+        }
+        else
+        {
+            if (is_discrete_)
+                pFunc_->init_discretization();
+            pFunc_->init_truncation();
+        }
     }
-    else
-        pFunc_->init_reshaping(is_discrete_);
 }
 
 /// Assign distribution with constant arguments.
@@ -295,11 +305,16 @@ void Variable::init_distr(const std::string &distr_name)
 /// Initialize distribution reshaping.
 void Variable::init_distr_reshaping()
 {
-    pDistr_->init_reshaping(is_discrete_);
-    // check that non-constant variable has non-zero dimensional range
-    if ((!is_constant_) && (pDistr_->get_min() == pDistr_->get_max()))
-        throw std::invalid_argument(
-            "Degenerate range " + pDistr_->str_range() + " defined for non constant variable \"" + name() + "\".");
+    if (!pDistr_->is_empty())
+    {
+        if (is_discrete_)
+            pDistr_->init_discretization();
+        pDistr_->init_truncation();
+        // check that non-constant variable has non-zero dimensional range
+        if ((!is_constant_) && (pDistr_->get_min() == pDistr_->get_max()))
+            throw std::invalid_argument(
+                "Degenerate range " + pDistr_->str_range() + " defined for non constant " + err_name() + ".");
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -311,35 +326,25 @@ void Variable::init_proposer(const std::string &rule_name,
                              double rule_scale,
                              double rule_from)
 {
-    if (tools::is_na(rule_name))
+    if (tools::is_na(rule_name)) // if no rule is defined -> constant
     {
-        // if no rule is defined constant variable
         is_constant_ = true;
         propose_ = &Variable::do_propose_error_;
         pProp_ = proposer_switch();
     }
-    else
+    else // variable to be sampled
     {
-        // variable to sample
         is_constant_ = false;
 
-        // define proposer rule with functional programming
-        if (rule_name == "sample")
+        if (rule_name == "sample") // sample from model/prior
         {
-            //----- Sample proposer rule -----//
-            // assign the pointer to the proposer
             pProp_ = std::make_shared<Sample_Proposer>(pDistr_);
-
-            // sampler
             propose_ = &Variable::do_propose_sample_;
-            // logratio
             move_logratio_ = &Variable::do_move_logratio_sample_;
-            // validation
             is_valid_move_ = &Variable::do_is_valid_move_sample_;
         }
-        else
+        else // other proposer rules
         {
-            //----- Other proposer rules -----//
             // value from which to start proposal
             if ((!tools::is_na(rule_from)) && (!pDistr_->is_valid(rule_from)))
                 tools::warning(
@@ -349,9 +354,10 @@ void Variable::init_proposer(const std::string &rule_name,
             pProp_ = proposer_switch(rule_name, rule_scale, rule_from, is_discrete());
 
             // raise a warning if "lnorm" rule when varaible can be negative
+            // UPDATE: generalize in case of new positive-defined proposer rules
             if ((pDistr_->get_min() < 0) && (rule_name == "lnorm"))
                 tools::warning(
-                    "Lognormal proposer rule for non-positive variable \"" + name() + "\" .");
+                    "Lognormal proposer rule for non-positive " + err_name() + ".");
 
             // sampler
             if (is_from_zero())
@@ -360,4 +366,24 @@ void Variable::init_proposer(const std::string &rule_name,
                 propose_ = &Variable::do_propose_from_previous_;
         }
     }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  Variable : getter  /////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Explore the chain of dependencies to check if variable depends already on other one.
+/// UPDATE: should also explore the case of functions.
+bool Variable::is_chain_dependency(const Variable &other) const
+{
+    if (name() == other.name())
+        return true;
+    else if (!is_function())
+    {
+        if (!other.is_function())
+            return get_ptr() == other.get_ptr();
+    }
+    return false;
 }

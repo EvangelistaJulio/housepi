@@ -33,7 +33,7 @@ library(housepi)
 set.seed(42)
 
 # generate an instance of the chain binomial model
-hhmodel <- new_housepi_model("chain binomial")
+hhmodel <- new_housepi_model("chain_binomial")
 ```
 
 At any moment we can retrieve the template model description by using the method `$help()`.
@@ -54,7 +54,7 @@ g.
 ```{r}
 #| eval: false
 # show model description in RStudio help window
-template_household_model("chain binomial")
+template_household_model("chain_binomial")
 ```
 
 This command will open the relative documentation file in the Help window of your Rstudio session.

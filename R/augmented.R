@@ -190,9 +190,9 @@ HousepiAugmented <- R6::R6Class(
     },
 
     # recursive explore of the dependencies tree to point out errors
-    .explore_dependencies = function(root_def, status_set) {
-      root_name <- unique(root_def$name) # name of the root definition
-      root_status <- root_def$status     # status of the root definition
+    .explore_dependencies = function(origin, root_def, status_set) {
+      root_name <- unique(root_def$name) # name of the closest root definition
+      root_status <- root_def$status     # status of the closest root definition
       is_generic <- is.na(root_status)   # wheter generic or status-specific
 
       if (any(is_generic) && length(root_status) > 1) {
@@ -206,7 +206,15 @@ HousepiAugmented <- R6::R6Class(
 
       } else if (length(root_status) == 1) {
         # check all depedendecies
-        for (r in extract_at_values(root_def, "A")){
+        for (r in extract_at_values(root_def, "A")) {
+          # check for nested definitions
+          if (r == origin) {
+            stop_h(sprintf(
+              "Found nested definitions for \"%s\" and \"%s\". Please correct.",
+              origin, r
+            ))
+          }
+
           branch_def <- subset(self$defs, name == r)
           branch_status <- branch_def$status   # status of the branch definition
 
@@ -224,7 +232,7 @@ HousepiAugmented <- R6::R6Class(
             ))
           } else {
             if (!is_generic) status_set <- root_status
-            private$.explore_dependencies(branch_def, status_set)
+            private$.explore_dependencies(origin, branch_def, status_set)
           }
         }
 
@@ -233,7 +241,7 @@ HousepiAugmented <- R6::R6Class(
         miss_status <- setdiff(status_set, root_status)
         if (length(miss_status) == 0) {
           for (i in seq_len(dim(root_def)[1])) {
-            private$.explore_dependencies(root_def[i, ], status_set)
+            private$.explore_dependencies(origin, root_def[i, ], status_set)
           }
         } else {
           stop_h(
@@ -300,7 +308,7 @@ HousepiAugmented <- R6::R6Class(
       regexp <- c(
         # from : .augm("string"
         '.augm\\s*\\(\\s*["\'](.*?)["\']',
-        # from : .get_augm_variable("string"
+        # from : get_augmented("string"
         '.get_augm_variable\\s*\\(\\s*["\'](.*?)["\']',
         # from : .set_augm_value("string"
         '.set_augm_value\\s*\\(\\s*["\'](.*?)["\']'
@@ -522,15 +530,15 @@ HousepiAugmented <- R6::R6Class(
       status_set <- sort(status_set)
       defined <- self$defs[["name"]]
       # point out augmented variables that are not used
-      template_not_used_warn(required, defined, "augmented variable")
+      template_not_used_warn(required, defined, "augmented")
 
       # stop if augmented variables are missing
-      template_missing_stop(required, defined, "augmented variable")
+      template_missing_stop(required, defined, "augmented")
 
       # explore status-specific definitions tree of depedencies
       if ("model" %in% names(required)) {
         for (r in required[["model"]]) private$.explore_dependencies(
-          subset(self$defs, name == r), status_set
+          r, subset(self$defs, name == r), status_set
         )
       }
 

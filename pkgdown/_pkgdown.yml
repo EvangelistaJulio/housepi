@@ -29,11 +29,10 @@ reference:
     - template_household_model
     - loglikelihood
     - infer
-    - simulate
     - simulate.HousepiModel
     - summarise_cases
     - summarise_house_sizes
-  sidebar: true
+    - evidence  
 
 - title: "Model definitions"
   desc: >
@@ -72,12 +71,13 @@ reference:
   - starts_with("flu")
   - sarscov2_2021_israel
 
-- title: "Functions under development"
+- title: "Sample household structure"
   desc: >
-    Functions in the making. Handle with care!
+    Calls to generate a household data following a given demography.
   contents:
-  - evidence  
-  - HouseholdSampler
+  - new_household_sampler
+  - compute_household_marginals
+  - sample.HousepiSampler
   
 # Articles 
 articles:
