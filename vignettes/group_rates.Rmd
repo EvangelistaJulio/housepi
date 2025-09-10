@@ -152,3 +152,6 @@ results |>
   geom_errorbar(aes(ymin = q5, ymax = q95), width = 0.2, color = "coral") +
   labs(x = "", y = ylabel)
 ```
+
+---
+`r show_session_info()`

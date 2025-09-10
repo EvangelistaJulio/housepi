@@ -137,3 +137,6 @@ expec$sar |>
        y = "Secondary Attack Rate",
        color = "")
 ```
+
+---
+`r show_session_info()`

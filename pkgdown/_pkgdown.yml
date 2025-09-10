@@ -77,7 +77,7 @@ reference:
   contents:
   - new_household_sampler
   - compute_household_marginals
-  - sample.HousepiSampler
+  - sample_households
   
 # Articles 
 articles:

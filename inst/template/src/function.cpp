@@ -618,15 +618,15 @@ std::shared_ptr<Function> compose_func_registries(const std::string &opt,
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define DEFINE_ARITHMETIC_FUNCTION(ClassName, FunctionName, Symbol, DefaultY)       \
-    class ClassName : public Function                                               \
-    {                                                                               \
-    public:                                                                         \
-        ClassName() : Function(FunctionName, {"x2"}, {DefaultY}) {}                 \
-                                                                                    \
-        void init_truncation() override final {}                                    \
-                                                                                    \
-    protected:                                                                      \
+#define DEFINE_ARITHMETIC_FUNCTION(ClassName, FunctionName, Symbol, DefaultY)           \
+    class ClassName : public Function                                                   \
+    {                                                                                   \
+    public:                                                                             \
+        ClassName() : Function(FunctionName, {"x2"}, {DefaultY}) {}                     \
+                                                                                        \
+        void init_truncation() override final {}                                        \
+                                                                                        \
+    protected:                                                                          \
         double raw_function_(double x) const override final { return x Symbol arg(0); } \
     };
 DEFINE_ARITHMETIC_FUNCTION(Addition_Function, "add", +, 0.)
@@ -663,6 +663,8 @@ public:
     SquareRoot_Function() : Function("sqrt", {}, {},
                                      0., false, HSP_NA_DOUBLE, false) {}
 
+    void init_truncation() override final { init_range_min_(); }
+
 protected:
     double raw_function_(double x) const override final { return std::sqrt(x); }
     double raw_logfunc_(double x) const override final { return 0.5 * std::log(x); }
@@ -692,7 +694,7 @@ public:
     Logarithm_Function() : Function("log", {}, {},
                                     0., true, HSP_NA_DOUBLE, false) {}
 
-    void init_truncation() override final { init_range_min_(); }
+    void init_truncation() override final { init_range_min_(0., true); }
 
 protected:
     double raw_function_(double x) const override final { return std::log(x); }

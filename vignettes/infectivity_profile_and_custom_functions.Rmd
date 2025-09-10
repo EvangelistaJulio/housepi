@@ -141,3 +141,6 @@ protected:
     }
 };
 ```
+
+---
+`r show_session_info()`

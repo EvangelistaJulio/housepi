@@ -327,3 +327,6 @@ results |>
   flextable::fontsize(size = 12, part = "all") |>
   flextable::autofit()
 ```
+
+---
+`r show_session_info()`

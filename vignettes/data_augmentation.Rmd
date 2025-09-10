@@ -195,3 +195,6 @@ new_housepi_model("blank") |>
   get_augm_draws() |> 
   bayesplot::mcmc_trace()
 ```
+
+---
+`r show_session_info()`

@@ -67,17 +67,19 @@ test_that("Distributions exported from housepi are correct", {
   expect_equal(y, dweibull(x, shape = 2, scale = 1))
 })
 
-test_that("Ferretti infectivity profile is correctly normalized", {
+test_that("Infectivity profile behave has expected", {
   x <- seq(0, 15, 0.001)
   y <- test_infec_profile("ferretti20", x)
   
-  trapezoid <- function(x, y) {
-    if (length(x) < 2) stop("Need at least 2 points")
-    heights <- 0.5 * (y[-length(x)] + y[-1])
-    return(sum(diff(x) * heights))
-  }
+  trapezoid <- function(x, y) { 0.5 * sum(diff(x) * (y[-length(x)] + y[-1])) }
   z <- test_infec_profile("ferretti20", x, cumul = TRUE)
   expect_equal(trapezoid(x, y), z[length(x)])
+  
+  # left discretization works as expected
+  x <- seq(1.0, 1.9, 0.1)
+  y <- test_infec_profile("ferretti20", x, discr = TRUE)
+  z <- test_infec_profile("ferretti20", 1, cumul = TRUE, discr = TRUE)
+  expect_true(all(z == z))
 })
 
 test_that("Numerical recipes and distributions are correct", {

@@ -100,3 +100,6 @@ hhsampler |>
   # sample 5 households
   sample_households(5)
 ```
+
+---
+`r show_session_info()`

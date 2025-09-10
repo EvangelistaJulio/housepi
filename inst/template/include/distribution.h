@@ -116,7 +116,7 @@ protected:
 	}
 	double do_function_discr_left_(double x) const override final
 	{
-		const double i = std::round(x);
+		const double i = std::floor(x);
 		return (this->*trunc_)(raw_cdf_(i + 1.) - raw_cdf_(i));
 	}
 

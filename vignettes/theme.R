@@ -1,7 +1,7 @@
 ## General Plot Theme for 'housepi'
 ##
 
-# viggnettes theme
+# vignettes theme
 knitr::opts_chunk$set(echo = TRUE, comment = "#>",
                       fig.width = 7, fig.height = 5, fig.fullwidth = TRUE,
                       fig.align = "center", out.height = "auto")
@@ -23,3 +23,11 @@ ggplot2::theme_set(
 # bayesplot theme
 bayesplot::bayesplot_theme_set(ggplot2::theme_get())
 bayesplot::color_scheme_set(scheme = "brightblue")
+
+# session info
+show_session_info <- function() {
+  knitr::asis_output(paste0(
+    paste0(cli::symbol$info, " Session info: "), 
+    paste0( capture.output(sessionInfo())[1:3], collapse = ". ")
+  ))
+}
