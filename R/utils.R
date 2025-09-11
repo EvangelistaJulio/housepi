@@ -340,7 +340,7 @@ default_types_ <- function(types, values) {
   types
 }
 
-# @title
+#' @title
 #' Type split
 #' @description
 #' Split a typed string or character vector
@@ -354,17 +354,15 @@ default_types_ <- function(types, values) {
 #' @keywords internal
 #' @noRd
 type_split_ <- function(lst) {
-  if (all(is.na(lst))) {
+  if (is.null(lst)) {
     list(val = NA, at = NA)
-
+  } else if (all(is.na(lst))) {
+    list(val = NA, at = NA)
   } else {
     splitted_lst <- strsplit(as.character(lst), "\\@")
     values <- sapply(splitted_lst, function(x) x[1])
     types <- sapply(splitted_lst, function(x) x[2])
-    list(
-      val = values,
-      at = default_types_(types, values)
-    )
+    list(val = values, at = default_types_(types, values))
   }
 }
 
@@ -382,7 +380,8 @@ type_split_ <- function(lst) {
 #' @keywords internal
 #' @noRd
 type_join_ <- function(x) {
-  paste(x, collapse = "/")
+  if (all(is.na(x))) NA
+  else paste(x, collapse = "/")
 }
 
 #' @title
@@ -463,10 +462,8 @@ cpp_data_factorize <- function(df) {
       df[[col]] <- as.integer(y)
     }
   }
-  list(data = char_data_input_(df),
-       info = info,
-       cols = cols,
-       status = status)
+
+  list(data = char_data_input_(df), info = info, cols = cols, status = status)
 }
 
 #' @title
@@ -511,126 +508,63 @@ cpp_data_refactor <- function(data, info, headers) {
 ############################################################################
 ############################################################################
 
-#' @title
-#' Count unique function calls
-#' @description
-#' Count how many base functions are invoked to avoid double calls
-#'
-#' @param s `character()`\cr
-#' Vector of characters.
-#'
-#' @return `list`
-#'
-#' @keywords internal
-#' @noRd
-count_unique_function_calls_ <- function(s) {
-  forbid <- c("-", "+", "=", "*", "/", "^")
-  reg_expr <- paste0(c("[", forbid, "]"), collapse = "")
-  sum(forbid %in% unlist(regmatches(s, gregexpr(reg_expr, s))))
+# tell if call is actually reserved type operator `@`
+.is_at <- function(x) {
+  rlang::call_name(x) == "@"
 }
 
-#' @title
-#' Extract augmented function equality
-#' @description
-#' Extract equality augmented function declaration
-#'
-#' @param s `character()`\cr
-#' Vector of characters.
-#'
-#' @return `list`
-#'
-#' @keywords internal
-#' @noRd
-extract_func_equality_ <- function(s) {
-  # split according to the regular expression
-  y <- strsplit(s, "=")[[1]]
-  if (length(y) != 2) stop_h(
-    "Invalid number of arguments for equality.",
-    "Expected 1 argument, found ", length(y), "."
-  )
-  y <- type_split_(y[-1])
-  list(
-    func = "..identity..", key = "x",
-    val = type_join_(y$val), at = type_join_(y$at)
-  )
+# Flag to tell if 'x' is an actual function.
+.is_func <- function(x) {
+  output <- !is.na(x)
+  output[output] <- x[output] != "..identity.."
+  output
 }
 
-#' @title
-#' Extract augmented function basic
-#' @description
-#' Extract basic augmented function declaration
-#'
-#' @param s `character(1)`\cr
-#' Vector of characters.
-#' @param reg_expr `character(1)`\cr
-#' Regular expression to split the string.
-#' @param func_name `character(1)`\cr
-#' Function name.
-#'
-#' @return `list`
-#'
-#' @keywords internal
-#' @noRd
-extract_func_arithmetic_ <- function(s, reg_expr, func_name) {
-  # split according to the regular expression
-  y <- strsplit(s, reg_expr)[[1]]
-  if (length(y) != 2) stop_h(
-    "Invalid number of arguments for ", func_name, ".",
-    "Expected 2 argument, found ", length(y), "."
-  )
-  y <- type_split_(y)
-  list(
-    func = func_name, key = type_join_(c("x", "x2")),
-    val = type_join_(y$val), at = type_join_(y$at)
-  )
+# if it's a call to "(" with a single argument that's a symbol, unwrap it
+strip_meaningless_parens_ <- function(x) {
+  while (rlang::is_call(x) && rlang::call_name(x) == "(" &&
+           length(rlang::call_args(x)) == 1) {
+    inner_arg <- rlang::call_args(x)[[1]]
+    if (rlang::is_symbol(inner_arg) || .is_at(inner_arg)) x <- inner_arg
+    else break
+  }
+  x
 }
 
-#' @title
-#' Extract function name and argument from a function call string
-#'
-#' @description
-#' Parses a string and returns a list with the function name and argument.
-#' Handles common mathematical functions and strips whitespace.
-#' Raises an error if parentheses are unmatched.
-#'
-#' @param s `character(1)`\cr
-#' String representing a function call.
-#' @return
-#' `list`
-#'
-#' @keywords internal
-#' @noRd
-extract_func_call_ <- function(s) {
-  options <- c("sqrt", "exp", "log", "sin", "cos", "tan")
+# format to match housepi standard typed definitions
+format_call_ <- function(func_name, func_args) {
+  list(func = func_name, key = type_join_(names(func_args))) |>
+    modifyList(lapply(type_split_(func_args), type_join_))
+}
 
-  if (count_unique_function_calls_(s) > 0) stop_h(
-    sprintf("Multiple functions invoked in definition \"%s\"", s)
+# helper to extract functin from call
+helper_func_from_call_ <- function(call) {
+  # strip meaningless parentheses from arguments
+  args <- lapply(rlang::call_args(call), strip_meaningless_parens_)
+  # verify operands are not nested calls
+  # UPDATE: this will require major developments
+  is_nested <- sapply(args, function(x) rlang::is_call(x) && !.is_at(x))
+  if (any(is_nested)) stop_h(
+    sprintf("Nested operations like \"%s\" are not supported.",
+            rlang::as_label(call))
   )
+  # list operands as literals
+  func_args <- character()
+  for (i in seq_along(args)) {
+    if (i == 1) func_args["x"] <- rlang::as_label(args[[i]])
+    else func_args[paste0("x", i)] <- rlang::as_label(args[[i]])
+  }
 
-  # check parentheses are matched
-  if (nchar(gsub("[^\\(]", "", s)) != nchar(gsub("[^\\)]", "", s))) stop(
-    "Unmatched parentheses in input string"
-  )
+  # map to function name
+  func_name <- switch(rlang::call_name(call),
+                      `+` = if (length(args) == 1) "..identity.." else "add",
+                      `-` = if (length(args) == 1) "minus" else "sub",
+                      `*` = "mult",
+                      `/` = "div",
+                      `^` = "pow",
+                      rlang::call_name(call)) # default
 
-  # extract function name and argument using regex
-  m <- regexec("^([a-zA-Z_][a-zA-Z0-9_]*)\\((.*)\\)$", s)
-  parts <- regmatches(s, m)[[1]]
-
-  if (length(parts) != 3) stop_h(
-    "Input string must be a function call like func(x)"
-  )
-
-  func_name <- parts[2]
-  if (!(func_name %in% options)) stop_h(
-    sprintf("Function '%s' is not supported.", func_name),
-    find_closest_match(func_name, options, 1)
-  )
-
-  y <- type_split_(parts[3])
-  if (length(y$val) != 1) stop_h(
-    sprintf("Function '%s' expects exactly one argument.", func_name)
-  )
-  list(func = func_name, key = "x", val = y$val, at = y$at)
+  format_call_(func_name, func_args)
 }
 
 #' @title
@@ -638,44 +572,25 @@ extract_func_call_ <- function(s) {
 #' @description
 #' Extract augmented function declaration.
 #'
-#' @param `character()`\cr
-#' Vector of characters.
+#' @param expr `character()`\cr
+#' Either a formula (e. g. ~ x - y) or a naked call (e. g. x - y).
 #'
 #' @return `list`cr
-#' function name, key, variable and type
+#' function name, key, variable and type.
 #'
 #' @keywords internal
 #' @noRd
-extract_func_ <- function(s) {
-  # UPDATE: use rlang instead !!!
-  # remove spaces
-  s <- gsub(" ", "", s)
+extract_func_ <- function(expr) {
+  # read input expression
+  if (is.null(expr)) return(format_call_(NA, NULL))
+  else if (inherits(expr, "formula")) call <- rlang::f_rhs(expr)
+  else if (rlang::is_call(expr)) call <- expr
+  else return(format_call_("..identity..", c(x = expr)))
 
-  if (count_unique_function_calls_(s) > 1) stop_h(
-    sprintf("Multiple functions invoked in definition \"%s\"", s)
-  )
-  else if (grepl("[()]", s)) return(extract_func_call_(s))
-
-  else if (grepl("=", s)) return(extract_func_equality_(s))
-
-  else if (grepl("\\+", s)) return(extract_func_arithmetic_(s, "\\+", "add"))
-
-  else if (grepl("\\*", s)) return(extract_func_arithmetic_(s, "\\*", "mult"))
-
-  else if (grepl("-", s)) return(extract_func_arithmetic_(s, "-", "sub"))
-
-  else if (grepl("/", s)) return(extract_func_arithmetic_(s, "/", "div"))
-
-  else if (grepl("\\^", s)) return(extract_func_arithmetic_(s, "\\^", "pow"))
-
-  else if (!is.na(s)) {
-    # use the convention of equality
-    y <- type_split_(s)
-    if (length(y$val) == 1) { 
-      return(list(func = "..identity..", key = "x", val = y$val, at = y$at))
-    }
-  }
-
-  # else it's not a call
-  list(func = NA, key = NA, val = NA, at = NA)
+  # case of a symbol actually looking as a call
+  if (rlang::is_symbol(call)) format_call_("..identity..", c(x = call))
+  # case of a raw typed identity
+  else if (.is_at(call)) format_call_("..identity..", c(x = call))
+  # standard call
+  else return(helper_func_from_call_(call))
 }

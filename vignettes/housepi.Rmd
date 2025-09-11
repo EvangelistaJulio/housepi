@@ -187,7 +187,7 @@ hhsimul <- new_housepi_model("augmented_infection_time") |>
   load_parameter_template()
 
 # inspect parameter definitions
-hhsimul |> 
+hhsimul |>
   get_parameters()
 ```
 
@@ -200,7 +200,7 @@ associated from a list by calling `$load_augmented_list`.
 hhsimul <- hhsimul |>
   load_augmented_list(
     # define 'infec_time' as the difference between onset and incubation
-    infec_time = "onset_time - incub_period",
+    infec_time = ~onset_time - incub_period,
 
     # define an 'onset_time' for each individual
     onset_time = list(
@@ -213,13 +213,13 @@ hhsimul <- hhsimul |>
     incub_period = list(
       model = "gamma",
       # arguments of incubation period are linked to parameters
-      args = c(shape = "inc_shape@P",  scale = "inc_scale@P"),
+      args = c(shape = ~inc_shape@P,  scale = ~inc_scale@P),
       max = 14
     )
   ) |>
   # append parameters for incubation period
   load_parameter_list(
-    inc_shape = 2, inc_scale = 1.1, 
+    inc_shape = 2, inc_scale = 1.1,
     append = TRUE
   )
 ```
@@ -229,7 +229,7 @@ In this configuration, introductions are sampled randomly.
 Simulation will associated augmented incubation periods and onset times in addition to status.
 
 ```{r}
-simulated <- hhsimul |> 
+simulated <- hhsimul |>
   add_data_wide(dplyr::mutate(housepi::survey, status = NA)) |>
   simulate()
 head(simulated)
@@ -257,19 +257,19 @@ hhmodel <- hhsimul |>
   drop_augmented() |>
   # load definitions from list
   load_augmented_list(
-    infec_time = "onset_time - incub_period",
+    infec_time = ~onset_time - incub_period,
     onset_time = list(
-      rule = "norm", from = "onset_date@D", scale = 0.25
+      rule = "norm", from = ~onset_date@D, scale = 0.25
     ),
     incub_period = list(
       model = "gamma",
-      args = c(shape = "inc_shape@P", scale = "inc_scale@P")
+      args = c(shape = ~inc_shape@P, scale = ~inc_scale@P)
     )
   )
 
 results <- hhmodel |>
   # perform the inference
-  infer(simulated, n_chains = 3, n_steps = 10000, n_adapt = 2000, 
+  infer(simulated, n_chains = 3, n_steps = 10000, n_adapt = 2000,
         n_burnin = 1000, thin = 10, progress = 20) |>
   # extract sample to posterioir::draws_df
   get_param_draws()

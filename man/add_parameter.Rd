@@ -11,9 +11,9 @@ add_parameter(
   const = NA,
   discr = FALSE,
   prior = NA,
-  args = list(),
-  min = NA,
-  max = NA,
+  args = NULL,
+  min = NULL,
+  max = NULL,
   rule = NA,
   scale = 1
 )

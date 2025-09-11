@@ -41,6 +41,26 @@ For the Monte Carlo Markov Chain Through iterative sampling from these condition
 
 We here explain how to associate individual augmented variables in `housepi` for minimal examples.
 
+# Build augmented variables
+
+Similarly to parameter, augmented variables require definitions for models and proposer rules needed for the Bayesian Monte Carlo.
+In many applications, augmented variable definitions can also depend on the dataset or on model parameters to be inferred.
+
+## Link arguments to their source
+
+We can declare the source of argument value with the convention `<argument> \@ <source_symbol>`.
+E. g. "onset_max\@D" will source the value at individual data "onset_max".
+
+| Source    | Symbol | Examples         |
+|-----------|:------:|:----------------:|
+| Augmented | A      | proba, proba\@A  |
+| Dataset   | D      | onset_max\@D     |
+| Parameter | P      | mean\@P          |
+| Scalar    | S      | 14, 14\@S        |
+
+More in general, definition arguments `value`, `args`, `min`, `max` and `from` can be linked to external values in the following ways
+
+
 # Example: estimate incubation periods distribution
 
 For simplicity, we start testing data augmentation on a dataset which is not a household survey.
@@ -62,22 +82,6 @@ dataset <- generate_delays() |>
 head(dataset)
 ```
 
-# Build augmented variables
-
-Similarly to parameter, augmented variables require definitions for models and proposer rules needed for the Bayesian Monte Carlo.
-In many applications, augmented variable definitions can also depend on the dataset or on model parameters to be inferred.
-
-We can link an argument value to its source with the character "\@", e.
-g.
-"onset_max\@D" will link to the value at individual data "onset_max".
-More in general, definition arguments `value`, `args`, `min`, `max`, `scale` and `from` can be linked to external values in the following ways
-
-| Origin    |    Link Examples    | Symbol |
-|-----------|:-------------------:|:------:|
-| Augmented | "proba", "proba\@A" |   A    |
-| Dataset   |   "onset_max\@D"    |   D    |
-| Parameter |      "mean\@P"      |   P    |
-| Scalar    |  14, "14", "14\@S"  |   S    |
 
 The model has the only requirement to associate an augmented variable `"log_proba"` for each individual with positive status.
 This variable will be used to compute the log-probability of the incubation period distribution.
@@ -92,21 +96,21 @@ hhmodel <- new_housepi_model("augmented_example") |>
   load_augmented_list(
     # declare 'incub_period' as the difference
     # between augmented onset and infection times
-    incub_period = "onset_time - infec_time",
+    incub_period = ~onset_time - infec_time,
 
     # explicit declaration of incubation period distribution
     ..proba = list(
-      func = "gamma_meanvar", # gamma distribution (by mean and variance)
+      func = ~gamma_meanvar, # gamma distribution (by mean and variance)
       func_args = c(
-        x = "incub_period",   # compute from individual augmented 'incub_period'
-        mean = "mean@P",      # use model parameter 'mean'
-        var = "var@P"         # and 'var'
+        x = ~incub_period,   # compute from individual augmented 'incub_period'
+        mean = ~mean@P,      # use model parameter 'mean'
+        var = ~var@P         # and 'var'
       ),
-      max = 14                # truncation
+      max = 14               # truncation
     ),
 
     # declare the augmented variable 'log_proba'
-    log_proba = "log(..proba)"
+    log_proba = ~log(..proba)
   ) |>
 
   # define the gamma distribution parameter to be inferred
@@ -123,13 +127,13 @@ hhmodel <- hhmodel |>
     # uniform model within the range [0, 'exposure_max']
     model = "unif",
     args = c(min = 0, max = "exposure_max@D"),
-    rule = "norm", # normal distribution for the mcmc proposer 
+    rule = "norm", # normal distribution for the mcmc proposer
     scale = 0.25   # with scale 0.25 (i. e. standard deviation)
   ) |>
   # add 'onset_time' time definition
   add_augmented(
-    name = "onset_time", value = "onset_max@D",
-    model = "unif", args = c(min = "onset_min@D", max = "onset_max@D"),
+    name = "onset_time", value = ~onset_max@D,
+    model = "unif", args = c(min = ~onset_min@D, max = onset_max@D),
     rule = "norm", scale = 0.25
   )
 ```
@@ -149,7 +153,7 @@ hhmodel |>
   infer(n_steps = 10000, n_burnin = 500,
         thin = 8, n_chains = 3, n_adapt = 3000,
         # store augmented draws for individual "7"
-        id_draws = "7", 
+        id_draws = "7",
         progress = FALSE) |>
   get_param_draws() |>
   bayesplot::mcmc_trace(facet_args = list(ncol = 2))
@@ -177,22 +181,22 @@ We always recommend a visual assesment before choosing a new move.
 new_housepi_model("blank") |>
   add_augmented(name = "sample from model",
                 model = "norm", args = c(mean = 14)) |>
-  infer() |> 
-  get_augm_draws() |> 
+  infer() |>
+  get_augm_draws() |>
   bayesplot::mcmc_trace()
 
 # random walk starting from 0 (without model)
 new_housepi_model("blank") |>
   add_augmented(name = "random walk", value = 14, rule = "norm") |>
-  infer() |> 
-  get_augm_draws() |> 
+  infer() |>
+  get_augm_draws() |>
   bayesplot::mcmc_trace()
 
 # independent normal moves from value 87 (without model)
 new_housepi_model("blank") |>
   add_augmented(name = "independent moves", rule = "norm", from = 14) |>
-  infer() |> 
-  get_augm_draws() |> 
+  infer() |>
+  get_augm_draws() |>
   bayesplot::mcmc_trace()
 ```
 

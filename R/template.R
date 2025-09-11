@@ -71,7 +71,7 @@ show_model_names <- function() {
   model_names <- list.files(template_models_dir())
   formatted_names <- tolower(gsub("-|_", " ", model_names))
   message(sprintf(
-    "Available template models:\n%s\n", 
+    "Available template models:\n%s\n",
     paste(paste0("* ", formatted_names), collapse = "\n")
   ))
   invisible()

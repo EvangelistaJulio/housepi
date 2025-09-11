@@ -210,18 +210,29 @@ void MCMC::Impl::Augmented::build_var_to_sample_(size_t k)
 {
     const std::string &a = deftable.at("name")[k];
     const std::string &status = deftable.at("status")[k];
+    const std::string &value = deftable.at("value")[k];
+    const std::string &rule = deftable.at("rule")[k];
+    const bool init_rand = tools::str::tobool(deftable.at("init_rand")[k]);
 
     // augmented variables to be sampled
     // check random initialization option
-    if (tools::str::tobool(deftable.at("init_rand")[k]))
+    if (init_rand)
+    {
         if (tools::is_na(deftable.at("model")[k]))
             throw std::invalid_argument(
-                "Unable to initialize \"" + a + "\" without a model.");
+                "Unable to randomly initialize augmented\"" +
+                a + "\" without a model.");
+    }
+    else if (tools::is_na(value) && !tools::is_na(rule))
+        throw std::invalid_argument(
+            "No initial value provided for augmented \"" + a + "\" " +
+            "to be sampled.\nIn alternative, enable random initialization.");
+
     // FIXME: check pImpl_.setup.rand_init_params
     // FIXME: check value
 
     // read option for monte carlo proposer
-    if (!tools::is_na(deftable.at("rule")[k]))
+    if (!tools::is_na(rule))
     {
         list_sample.push_back(a);
 
@@ -497,7 +508,7 @@ void MCMC::Impl::Augmented::init_single_var_dependencies_(Individual &member, co
     {
         // assign proposer rule
         xaugm.init_proposer(deftable.at("rule")[k],
-                            type_to_double_(member, deftable.at("scale")[k], deftable.at("scale_at")[k]),
+                            tools::str::tod(deftable.at("scale")[k]),
                             type_to_double_(member, deftable.at("from")[k], deftable.at("from_at")[k]));
 
         // random initialization

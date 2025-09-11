@@ -119,38 +119,36 @@ HousepiInfecProfile <- R6::R6Class(
     #' - Parameter name (followed by `@P`).
     add = function(name,
                    discr = FALSE,
-                   args = list(),
+                   args = NULL,
                    max = NA) {
-      #----- name -----#
+      # check infectivity profile name
       if (is.na(name)) stop_h(
         "Incomplete definition: missing name."
       )
+      self$defs <- list(name = name, discr = isTRUE(discr))
 
-      #----- arguments -----#
-      arg_key_ <- NA
-      arg_val_ <- NA
-      arg_at_ <- NA
-      # assign method only if arguments are provided
-      if (length(args) > 0) {
-        arg_key_ <- type_join_(names(args))
-        tmp <- type_split_(args)
-        arg_val_ <- type_join_(tmp$val)
-        arg_at_ <- type_join_(tmp$at)
-      }
+      # load arguments
+      parse_args <- data.frame(t(sapply(args, extract_func_)))
+      if (any(.is_func(parse_args$func))) stop_h(
+        "Calls in the argument definitions of infectivity profiles
+        are not supported."
+      )
+      self$defs <- modifyList(
+        self$defs,
+        list(arg_key = type_join_(row.names(parse_args)),
+             arg_val = type_join_(parse_args$val),
+             arg_at = type_join_(parse_args$at))
+      )
 
-      #----- maximum value -----#
-      max_ <- NA
-      max_at_ <- NA
-      if (!is.na(max)) {
-        max_ <- type_split_(max)$val
-        max_at_ <- type_split_(max)$at
-      }
-
-      # finally store definition
-      self$defs <- list(
-        name = name, discr = isTRUE(discr),
-        arg_key = arg_key_, arg_val = arg_val_, arg_at = arg_at_,
-        max = max_, max_at = max_at_
+      # load maximum value
+      parse_max <- data.frame(t(sapply(args, extract_func_)))
+      if (.is_func(parse_max$func)) stop_h(
+        "Calls in the maximum definition of infectivity profiles
+        are not supported."
+      )
+      self$defs <- modifyList(
+        self$defs,
+        list(max = parse_max$val, max_at = parse_max$at)
       )
 
       invisible(self)

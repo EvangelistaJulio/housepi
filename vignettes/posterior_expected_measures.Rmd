@@ -31,7 +31,7 @@ hhmodel <- new_housepi_model("chain_binomial") |>
                       beta = list(prior = "unif", rule = "lnorm"))
 
 # estimate parameters
-results <- hhmodel |> 
+results <- hhmodel |>
   infer(n_steps = 20000, n_burnin = 1000, thin = 8,
         n_adapt = 1000, n_chains = 3, n_threads = 1)
 estimates <- results |>

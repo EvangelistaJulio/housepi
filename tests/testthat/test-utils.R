@@ -1,25 +1,58 @@
 library(testthat)
 
-test_that("String function extraction returns expected results", {
-  x <- housepi:::extract_func_("=alpha@P")
-  expect_equal(x$func, "..identity..")
-  expect_equal(x$key, "x")
-  expect_equal(x$val, "alpha")
-  expect_equal(x$at, "P")
+test_that("Rlang standard functions work as expected", {
+  expect_error(housepi::extract_func_(~log ( alpha @ B )),
+               regexp = "Invalid type \"B\"")
+  expect_equal(housepi::extract_func_(~log(alpha)),
+               list(func = "log", key = "x", val = "alpha", at = "A"))
+  expect_equal(housepi::extract_func_(~log(alpha @ P)),
+               list(func = "log", key = "x", val = "alpha", at = "P"))
+})
 
-  expect_equal(housepi:::extract_func_("alpha@P+beta@P")$val,
-               housepi:::type_join_(c("alpha", "beta")))
+test_that("Rlang basic identity assignments work as expected", {
+  expect_equal(housepi::extract_func_(+3),
+               list(func = "..identity..", key = "x", val = "3", at = "S"))
+  expect_equal(housepi::extract_func_(-1),
+               list(func = "..identity..", key = "x", val = "-1", at = "S"))
+  expect_equal(housepi::extract_func_(~ alpha),
+               list(func = "..identity..", key = "x", val = "alpha", at = "A"))
+  expect_equal(housepi::extract_func_(~ alpha @ P),
+               list(func = "..identity..", key = "x", val = "alpha", at = "P"))
+  expect_equal(housepi::extract_func_(~ +alpha),
+               list(func = "..identity..", key = "x", val = "alpha", at = "A"))
+  expect_equal(housepi::extract_func_(~ +alpha@P),
+               list(func = "..identity..", key = "x", val = "alpha", at = "P"))
+  expect_equal(housepi::extract_func_(~ -alpha),
+               list(func = "minus", key = "x", val = "alpha", at = "A"))
+  expect_equal(housepi::extract_func_(~ -alpha@D),
+               list(func = "minus", key = "x", val = "alpha", at = "D"))
+})
 
-  x <- housepi:::extract_func_("log ( alpha @ A ) ")
-  expect_equal(x$func, "log")
-  expect_equal(x$key, "x")
-  expect_equal(x$val, "alpha")
-  expect_equal(x$at, "A")
+test_that("Rlang arithmetic operations work as expected", {
+  expect_equal(housepi::extract_func_(~ alpha + beta),
+               list(func = "add", key = "x/x2", val = "alpha/beta", at = "A/A"))
+  expect_equal(housepi::extract_func_(~ alpha @ P+ beta),
+               list(func = "add", key = "x/x2", val = "alpha/beta", at = "P/A"))
+  expect_equal(housepi::extract_func_(~ alpha + beta @ P),
+               list(func = "add", key = "x/x2", val = "alpha/beta", at = "A/P"))
+  expect_equal(housepi::extract_func_(~ alpha @ P + beta @ P),
+               list(func = "add", key = "x/x2", val = "alpha/beta", at = "P/P"))
+  expect_equal(housepi::extract_func_(~ (alpha) -(beta)),
+               list(func = "sub", key = "x/x2", val = "alpha/beta", at = "A/A"))
+  expect_equal(housepi::extract_func_(~ alpha * (beta)),
+               list(func = "mult", key = "x/x2", val = "alpha/beta", at = "A/A"))
+  expect_equal(housepi::extract_func_(~ alpha * (beta @ P)),
+               list(func = "mult", key = "x/x2", val = "alpha/beta", at = "A/P"))
+  expect_equal(extract_func_(~ alpha @P * beta @ P),
+               list(func = "mult", key = "x/x2", val = "alpha/beta", at = "P/P"))
+})
 
-  expect_error(housepi:::extract_augm_func_("=alpha@P+"))
-  expect_error(housepi:::extract_func_("log ( + alpha@P  )"))
-  expect_error(housepi:::extract_func_("arc ( alpha@P  )"))
-  expect_error(housepi:::extract_func_("log ( alpha@P  "))
-  expect_error(housepi:::extract_func_("log alpha@P )"))
-  expect_error(housepi:::extract_func_("log ( alpha @ B )  "))
+test_that("Rlang nested expression raise errors", {
+  # UPDATE: nested expression to be developed!
+  expect_error(housepi::extract_func_(~a + 3 * b),
+               regexp = "not supported")
+  expect_error(housepi::extract_func_(~a + b - c),
+               regexp = "not supported")
+  expect_error(housepi::extract_func_(~log ( + alpha@P  )),
+               regexp = "not supported")
 })

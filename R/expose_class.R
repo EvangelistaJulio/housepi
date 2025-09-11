@@ -175,8 +175,8 @@ get_parameters <- function(object, ...) {
 add_parameter <- function(object,
                           name = NA, value = NA,
                           const = NA, discr = FALSE,
-                          prior = NA, args = list(),
-                          min = NA, max = NA,
+                          prior = NA, args = NULL,
+                          min = NULL, max = NULL,
                           rule = NA, scale = 1) {
   stopifnot(inherits(object, "HousepiModel"))
   object$clone(deep = TRUE)$add_parameter(
@@ -265,11 +265,11 @@ add_augmented <- function(object,
                           name = NA, status = NA,
                           const = NA, discr = FALSE,
                           func = NA, func_args = NULL,
-                          value = NA, init_rand = FALSE,
-                          model = NA, args = list(),
-                          min = NA, max = NA,
-                          rule = NA, scale = 1, from = NA,
-                          expr = NA) {
+                          value = NULL, init_rand = FALSE,
+                          model = NA, args = NULL,
+                          min = NULL, max = NULL,
+                          rule = NA, scale = 1, from = NULL,
+                          expr = NULL) {
   stopifnot(inherits(object, "HousepiModel"))
   object$clone(deep = TRUE)$add_augmented(
     name = name, status = status,

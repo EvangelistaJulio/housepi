@@ -496,7 +496,7 @@ public:
                                       "model", "arg_key", "arg_val", "arg_at",
                                       "min", "min_at",
                                       "max", "max_at",
-                                      "rule", "scale", "scale_at",
+                                      "rule", "scale", 
                                       "from", "from_at"};
 
         str_vec list_model = {};

@@ -363,7 +363,9 @@ HousepiModel <- R6::R6Class(
         if (!is.null(defs)) return(defs)
         else return(private$.rcpp$export_infec_profile())
       }
-      else do.call(self$add_infec_profile, value)
+      else {
+        do.call(self$add_infec_profile, value)
+      }
     },
 
     #' @field group_rates `list`\cr
@@ -579,11 +581,11 @@ HousepiModel <- R6::R6Class(
     add_augmented = function(name = NA, status = NA,
                              const = NA, discr = FALSE,
                              func = NA, func_args = NULL,
-                             value = NA, init_rand = FALSE,
+                             value = NULL, init_rand = FALSE,
                              model = NA, args = list(),
-                             min = NA, max = NA,
-                             rule = NA, scale = NA, from = NA,
-                             expr = NA) {
+                             min = NULL, max = NULL,
+                             rule = NA, scale = NA, from = NULL,
+                             expr = NULL) {
       private$.augm$add(name = name, status = status,
                         const = const, discr = discr,
                         func = func, func_args = func_args,
@@ -774,8 +776,9 @@ HousepiModel <- R6::R6Class(
                         n_chains = 1, n_threads = 1,
                         seed = NA, progress = TRUE) {
       # internal build function
-      private$.build_full(data_wide, sample_size = sample_size, n_steps = n_steps,
-                          n_burnin = n_burnin, thin = thin, n_adapt = n_adapt,
+      private$.build_full(data_wide, sample_size = sample_size,
+                          n_steps = n_steps, thin = thin,
+                          n_burnin = n_burnin, n_adapt = n_adapt,
                           n_chains = n_chains, n_threads = n_threads,
                           rand_init = TRUE, seed = seed, progress = progress)
       private$.multiplicity_engine(data_wide = data_wide)

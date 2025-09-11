@@ -22,7 +22,7 @@ sampled_households <- new_household_sampler(
   sex = list(levels = c("M", "F")),
   age = list(breaks = c(0, 15, 25, 50))
   ) |>
-  compute_household_marginals(housepi::survey) |> 
+  compute_household_marginals(housepi::survey) |>
   sample_households(5)
 head(sampled_households)
 

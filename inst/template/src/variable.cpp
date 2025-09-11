@@ -322,9 +322,7 @@ void Variable::init_distr_reshaping()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Assign proposer.
-void Variable::init_proposer(const std::string &rule_name,
-                             double rule_scale,
-                             double rule_from)
+void Variable::init_proposer(const std::string &rule_name, double rule_scale, double rule_from)
 {
     if (tools::is_na(rule_name)) // if no rule is defined -> constant
     {

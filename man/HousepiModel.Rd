@@ -298,16 +298,16 @@ If the augmented variablw already exists, it is updated.
   discr = FALSE,
   func = NA,
   func_args = NULL,
-  value = NA,
+  value = NULL,
   init_rand = FALSE,
   model = NA,
   args = list(),
-  min = NA,
-  max = NA,
+  min = NULL,
+  max = NULL,
   rule = NA,
   scale = NA,
-  from = NA,
-  expr = NA
+  from = NULL,
+  expr = NULL
 )}\if{html}{\out{</div>}}
 }
 

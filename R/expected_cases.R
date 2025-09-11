@@ -528,7 +528,7 @@ ExpectedCasesBySize <- R6::R6Class(
         na_df <- cases$observed
         na_df[] <- lapply(na_df, function(col) if (is.numeric(col)) NA else col)
         na_df$house_size <- cases$observed$house_size
-        
+
         output <- list(
           expected = combine_obs_exp(cases$observed, cases$expected),
           cri_lower = combine_obs_exp(na_df, cases$cri_lower),
