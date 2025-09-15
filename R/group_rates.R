@@ -400,7 +400,7 @@ HousepiGroupRate <- R6::R6Class(
           "Unrecognized names in reference list."
         )
         reference <- as.list(reference)
-        reference <- setNames(reference, by)
+        reference <- stats::setNames(reference, by)
       }
 
       # add new definition

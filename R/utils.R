@@ -533,8 +533,10 @@ strip_meaningless_parens_ <- function(x) {
 
 # format to match housepi standard typed definitions
 format_call_ <- function(func_name, func_args) {
-  list(func = func_name, key = type_join_(names(func_args))) |>
-    modifyList(lapply(type_split_(func_args), type_join_))
+  utils::modifyList(
+    list(func = func_name, key = type_join_(names(func_args))),
+    lapply(type_split_(func_args), type_join_)
+  )
 }
 
 # helper to extract functin from call

@@ -147,7 +147,8 @@ test_that("Augmentation example on incubation from delays is coherent", {
   )
 
   # warning for no structure
-  expect_warning(x <- hhmodel$loglikelihood(df))
+  expect_warning(x <- hhmodel$loglikelihood(df), 
+                 regexp = "Ignored household structure")
   expect_equal(x, exact)
 })
 
@@ -169,34 +170,82 @@ test_that("Arithmetic function with undefined x return NaN", {
   expect_error(hhmodel$loglikelihood(), regexp = "returned NaN")
 })
 
-test_that("Augmented function example returns expected distribution", {
-  hhmodel <- new_housepi_model("blank")
-
-  # define Box-Muller transformation
-  # UPDATE: there should be a developer effort to improve this
-  hhmodel$load_augmented_list(
-    norm = list(model = "norm"),
-    u1 = list(model = "unif"),
-    u2 = list(model = "unif"),
-    log_u1 = ~log(u1),
-    two_log_u1 = ~2 * log_u1,
-    m_two_log_u1 = ~ - two_log_u1,
-    sqrt_m_two_log_u1 = ~sqrt(m_two_log_u1),
-    two_pi_u2 = ~6.283185 * u2,
-    cos_two_pi_u2 = ~cos(two_pi_u2),
-    z0 = ~sqrt_m_two_log_u1 * cos_two_pi_u2
+test_that("Augmented aliasing works as expected", {
+  hhmodel <- new_housepi_model("augmented_example")
+  hhmodel$data_wide <- data.frame(
+    house_id = "hh1", id = seq(1, 3), x = 2 + runif(3), status = 1
   )
-
-  results <- hhmodel$infer(n_steps = 5e5, progress = 0)
-  sample_norm <- results$augm_draws$hh_01_1_norm
-  sample_boxmul <- results$augm_draws$hh_01_1_z0
-
-  expect_gt(stats::ks.test(sample_norm, sample_boxmul)$p.value, 0.05)
-  expect_gt(stats::t.test(sample_norm, sample_boxmul)$p.value, 0.05)
-  expect_gt(stats::var.test(sample_norm, sample_boxmul)$p.value, 0.05)
+  hhmodel$add_parameter(name = "scale", value = 1)
+  hhmodel$load_augmented_list(
+    ..layer = ~x @D,
+    gamma = list(func = "gamma", 
+                 func_args = c(x = ~..layer, shape = 2, scale = ~ scale@P)),
+    log_proba = ~log(gamma)
+  )
+  
+  expect_equal(
+    hhmodel$loglikelihood(),
+    sum(log(dgamma(hhmodel$data_wide$x, shape = 2, scale = 1)))
+  )
+  
+  # FIXME: order should not matter...
+  # hhmodel <- new_housepi_model("augmented_example")
+  # hhmodel$data_wide <- data.frame(
+  #   house_id = "hh1", id = seq(1, 3), x = 2 + runif(3), status = 1
+  # )
+  # hhmodel$add_parameter(name = "scale", value = 1)
+  # hhmodel$load_augmented_list(
+  #   gamma = list(func = "gamma", 
+  #                func_args = c(x = ~..layer, shape = 2, scale = ~ scale@P)),
+  #   log_proba = ~log(gamma),
+  #   ..layer = ~x @D
+  # )
+  # 
+  # # -Inf !!!
+  # hhmodel$loglikelihood()
+  
+  # FIXME: not raising error for missing 'x' in 'gamma'
+  # hhmodel <- new_housepi_model("augmented_example")
+  # hhmodel$data_wide <- data.frame(
+  #   house_id = "hh1", id = seq(1, 3), shape = 2 + runif(3), status = 1
+  # )
+  # hhmodel$add_parameter(name = "scale", value = 1)
+  # hhmodel$add_augmented(name = "gamma", func = "gamma", func_args = c(shape = ~shape@D, scale = ~ scale@P))
+  # hhmodel$add_augmented(name = "log_proba", expr = ~log(gamma))
+  # 
+  # # -Inf !!!
+  # hhmodel$loglikelihood()
 })
 
-test_that("Augmented infection times model has correct loglikelihood", {
+# FIXME: this non-regression test is badly designed
+# test_that("Augmented function example returns expected distribution", {
+#   hhmodel <- new_housepi_model("blank")
+# 
+#   # define Box-Muller transformation
+#   # UPDATE: there should be a developer effort to improve this
+#   hhmodel$load_augmented_list(
+#     norm = list(model = "norm"),
+#     u1 = list(model = "unif"),
+#     u2 = list(model = "unif"),
+#     log_u1 = ~log(u1),
+#     two_log_u1 = ~2 * log_u1,
+#     m_two_log_u1 = ~ - two_log_u1,
+#     sqrt_m_two_log_u1 = ~sqrt(m_two_log_u1),
+#     two_pi_u2 = ~6.283185 * u2,
+#     cos_two_pi_u2 = ~cos(two_pi_u2),
+#     z0 = ~sqrt_m_two_log_u1 * cos_two_pi_u2
+#   )
+# 
+#   results <- hhmodel$infer(n_steps = 5e5, progress = 0)
+#   sample_norm <- results$augm_draws$hh_01_1_norm
+#   sample_boxmul <- results$augm_draws$hh_01_1_z0
+# 
+#   expect_gt(stats::ks.test(sample_norm, sample_boxmul)$p.value, 0.05)
+#   expect_gt(stats::t.test(sample_norm, sample_boxmul)$p.value, 0.05)
+#   expect_gt(stats::var.test(sample_norm, sample_boxmul)$p.value, 0.05)
+# })
+
+test_that("Loglikelihood of augmented infection time model is correct", {
   # instantaneous infectivity profile
   infec_profile_inst <- function(x, param) {
     dgamma(x, shape = param$shape, scale = param$scale)

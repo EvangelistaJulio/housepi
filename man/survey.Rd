@@ -14,7 +14,7 @@ data(survey)
 Household data with a simulated outbreak to be used for housepi vignettes.
 }
 \details{
-\itemize{
+\describe{
 \item{id}{Individual identifier}
 \item{house_id}{Household identifier}
 \item{status}{Serological test result}

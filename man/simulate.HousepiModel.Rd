@@ -4,15 +4,17 @@
 \alias{simulate.HousepiModel}
 \title{Simulate household data}
 \usage{
-\method{simulate}{HousepiModel}(object, data_wide = NULL, seed = NA, progress = FALSE, ...)
+\method{simulate}{HousepiModel}(object, nsim = 1, seed = NA, data_wide = NULL, progress = FALSE, ...)
 }
 \arguments{
 \item{object}{\code{HousepiModel} object.}
 
-\item{data_wide}{\code{data.frame} with the household data used for analysis in wide format. If \code{NULL}, uses the previously stored data.}
+\item{nsim}{\code{integer(1)} with the number of simulated outbreaks.}
 
 \item{seed}{\code{integer(1)} with the seed for the random number generator.\cr
 If \code{NA} (default), uses current R seed.}
+
+\item{data_wide}{\code{data.frame} with the household data used for analysis in wide format. If \code{NULL}, uses the previously stored data.}
 
 \item{progress}{\code{integer(1)} or \code{logical(1)} to control progress visualization.\cr
 One between:\cr

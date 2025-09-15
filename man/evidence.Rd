@@ -21,6 +21,8 @@ evidence(
 )
 }
 \arguments{
+\item{object}{\code{HousepiModel} object.}
+
 \item{data_wide}{\code{data.frame} with the household data used for analysis in wide format. If \code{NULL}, uses the previously stored data.}
 
 \item{scheme}{\code{character(1)} with the scheme used for evidence estimation.\cr

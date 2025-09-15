@@ -626,7 +626,8 @@ Rcpp::DataFrame MCMC::Impl::simulate_repetition()
         catch (const std::exception &e)
         {
             throw std::runtime_error(
-                "While simulating house \"" + house.house_id() + "\":\n" + std::string(e.what()));
+                "While simulating house \"" + house.house_id() + "\":\n" + 
+                std::string(e.what()));
         }
 
     List output = List::create(_["status"] = wrap(std::move(df_status)));
@@ -748,7 +749,8 @@ void MCMC::Impl::print_simulated_data_wide(const std::string &pathtofile)
             catch (const std::exception &e)
             {
                 throw std::runtime_error(
-                    "While simulating house \"" + house.house_id() + "\":\n" + e.what());
+                    "While simulating house \"" + house.house_id() + "\":\n" +
+                    e.what());
             }
 
         setup.prog_close();    // close progress bar

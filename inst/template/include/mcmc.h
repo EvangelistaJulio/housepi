@@ -117,7 +117,7 @@ public:
 
 	/// Compute the loglikelihood for a single household.
 	virtual double compute_household_obs_loglike(Household &) { throw std::runtime_error(
-		"Called virtual loglikelihood method of undefined model."); }
+		"Wrong call to virtual loglikelihood method of undefined model."); }
 	double evaluate();
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
@@ -129,7 +129,7 @@ public:
 
 	/// Simulation for a single household.
 	virtual void simulate_single_household(Household &) { throw std::runtime_error(
-		"Called virtual simulation method of undefined model."); }
+		"Wrong call to virtual simulation method of undefined model."); }
 
 #ifdef _HOUSEPI_RCPP
 	//----- C++ Print -----//

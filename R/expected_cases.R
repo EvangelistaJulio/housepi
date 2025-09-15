@@ -23,7 +23,6 @@
 #' The secondary attack rate is computed for all household
 #' with size \eqn{n > 1} according to
 #' \deqn{\frac{\mathbb{E[n_{+}\vert{n}] - 1}{n - 1}}}
-#' {(E[n_pos|n] - 1) / (n - 1)}
 #'
 #' @export
 measure_sar_by_house_size <- function(data_wide) {
@@ -31,20 +30,20 @@ measure_sar_by_house_size <- function(data_wide) {
   if (length(data_wide) == 0) stop_h("No valid data_wide was provided.")
   else data_wide <- as.data.frame(data_wide)
 
-  data_wide |>
-    # cast to 0\1 values
-    dplyr::mutate(
-      status = dplyr::if_else(is.na(status), 0, as.integer(status > 0))
-    ) |>
-    # aggregate data by house_id
-    dplyr::group_by(house_id) |>
-    dplyr::summarise(house_size =  dplyr::n(), cases = sum(status)) |>
-    # compute sar according to definition
-    dplyr::filter(cases > 0) |>
-    dplyr::mutate(sar = (cases - 1) / (house_size - 1)) |>
-    dplyr::group_by(house_size) |>
-    dplyr::summarise(sar = mean(sar)) |>
-    as.data.frame()
+  # cast to 0\1 values
+  y <- dplyr::mutate(
+    data_wide,
+    status = dplyr::if_else(is.na(status), 0, as.integer(status > 0))
+  )
+  # aggregate data by house_id
+  y <- dplyr::group_by(y, house_id)
+  y <- dplyr::summarise(y, house_size =  dplyr::n(), cases = sum(status))
+  # compute sar according to definition
+  y <- dplyr::filter(y, cases > 0)
+  y <- dplyr::mutate(y, sar = (cases - 1) / (house_size - 1))
+  y <- dplyr::group_by(y, house_size)
+  y <- dplyr::summarise(y, sar = mean(sar))
+  as.data.frame(y)
 }
 
 #' @title Measure household cases by size
@@ -60,24 +59,24 @@ measure_cases_by_house_size <- function(data_wide) {
   # check that data_wide is consistent
   if (length(data_wide) == 0) stop_h("No valid data_wide was provided.")
 
-  data_wide |>
-    # cast to 0\1 values
-    dplyr::mutate(
-      status = dplyr::if_else(is.na(status), 0, as.integer(status > 0))
-    ) |>
+  # cast to 0\1 values
+  y <- dplyr::mutate(
+    data_wide,
+    status = dplyr::if_else(is.na(status), 0, as.integer(status > 0))
+  )
     # aggregate data by house_id
-    dplyr::group_by(house_id) |>
-    dplyr::summarise(house_size = dplyr::n(), cases = sum(status)) |>
-    dplyr::count(house_size, cases) |>
-    # create a complete grid of size and cases
-    tidyr::complete(
-      house_size = min(house_size):max(house_size), cases = 0:max(house_size)
-    ) |>
-    # merge NAs with 0
-    dplyr::mutate(n = dplyr::if_else(is.na(n) & cases <= house_size, 0L, n)) |>
+  y <- dplyr::group_by(y, house_id)
+  y <- dplyr::summarise(y, house_size = dplyr::n(), cases = sum(status))
+  y <- dplyr::count(y, house_size, cases)
+  # create a complete grid of size and cases
+  y <- tidyr::complete(
+    y, house_size = min(house_size):max(house_size), cases = 0:max(house_size)
+  )
+  # merge NAs with 0
+  y <- dplyr::mutate(y, n = dplyr::if_else(is.na(n) & cases <= house_size, 0L, n))
     # reshape to wide format
-    tidyr::pivot_wider(names_from = cases, values_from = n) |>
-    as.data.frame()
+  y <- tidyr::pivot_wider(y, names_from = cases, values_from = n)
+  as.data.frame(y)
 }
 
 ############################################################################
@@ -157,10 +156,10 @@ frame_apply_mean <- function(frame_list) {
 #'
 #' @param frame_list `list` | `data.frame`\cr
 #' List of data frames, all having the same dimensions.
-#' @param cri_level `numeric(1)`\cr
-#' List of data frames, all having the same dimensions.
-#' @param upper `logical(1)`\cr
-#' If `TRUE`, computes the upper credible interval. Else the lower.
+#' @param cri_level `r rd_smpl_cri_level_`
+#' @param upper \cr
+#' A `logical(1)` to compute the upper credible interval.
+#' If `FALSE`, compute the lower interval.
 #'
 #' @return `data.frame()`
 #'
@@ -218,7 +217,7 @@ HousepiExpectation <- R6::R6Class(
       )
     },
 
-    # Set evel for the credible interval.
+    # Set level for the credible interval.
     .set_cri_level = function(value) {
       if (is.na(value)) stop_h("Credible interval cannot be NA.")
       else if ((value <= 0.5) || (value >= 1)) stop_h(
@@ -253,7 +252,19 @@ HousepiExpectation <- R6::R6Class(
   ############################################################################
 
   public = list(
-    #' @noRd
+    #' @description
+    #' Given a model and a posterior sample of parameters,
+    #' performs simulation and compute expected values of a set of measures.
+    #'
+    #' @param model `r rd_model_in_`
+    #' @param param_table `r rd_param_table_`
+    #' @param ...
+    #' Named arguments with respective functions.
+    #' If `measure` is provided, arguments are ignored.
+    #' @param measure `closure` | `list` of `closure`\cr
+    #' Function(s) to extract the desired measure from a data.
+    #' @param progress `r rd_progress_`
+    #' @param cri_level `r rd_smpl_cri_level_`
     initialize = function(model, param_table, ...,
                           measure = NULL, progress = NA,
                           cri_level = 0.95) {
@@ -271,15 +282,13 @@ HousepiExpectation <- R6::R6Class(
 
       # extract draws without loglikelihood
       if (inherits(param_table, "HousepiPosteriorDraws")) {
-        param_table <- param_table$param_draws |>
-          posterior::as_draws_matrix() |>
-          as.data.frame()
-
+        param_table <- as.data.frame(
+          posterior::as_draws_matrix(param_table$param_draws)
+        )
       } else if (posterior::is_draws(param_table)) {
-        param_table <- param_table |>
-          posterior::as_draws_matrix() |>
-          as.data.frame()
-
+        param_table <- as.data.frame(
+          posterior::as_draws_matrix(param_table)
+        )
       } else if (!is.data.frame(param_table)) {
         stop_h("Type of param_table not supported")
       }
@@ -440,17 +449,17 @@ ExpectedCasesBySize <- R6::R6Class(
     #
     # @return `data.frame`
     .count_non_zero_cases = function(data_wide) {
-      data_wide |>
-        # cast to 0\1 values
-        dplyr::mutate(
-          status = dplyr::if_else(is.na(status), 0, as.integer(status > 0))
-        ) |>
-        dplyr::group_by(house_id) |>
-        dplyr::summarise(house_size = dplyr::n(), cases = sum(status)) |>
-        dplyr::filter(cases > 0) |>
-        dplyr::group_by(house_size) |>
-        dplyr::summarise(count = dplyr::n()) |>
-        as.data.frame()
+      # cast to 0\1 values
+      y <- dplyr::mutate(
+        data_wide,
+        status = dplyr::if_else(is.na(status), 0, as.integer(status > 0))
+      )
+      y <- dplyr::group_by(y, house_id)
+      y <- dplyr::summarise(y, house_size = dplyr::n(), cases = sum(status))
+      y <- dplyr::filter(y, cases > 0)
+      y <- dplyr::group_by(y, house_size)
+      y <- dplyr::summarise(y, count = dplyr::n())
+      as.data.frame(y)
     },
 
     # @description
@@ -492,8 +501,7 @@ ExpectedCasesBySize <- R6::R6Class(
   ############################################################################
 
   active = list(
-    #' @field sar `data.frame`\cr
-    #' Observed and expected secondary attack rates by household size.
+    #' @field sar A `data.frame` with observed and expected secondary attack rates by household size.
     #' If a maximum house size is set, larger sizes are not returned.
     sar = function(value) {
       if (missing(value)) {
@@ -546,7 +554,10 @@ ExpectedCasesBySize <- R6::R6Class(
   ############################################################################
 
   public = list(
-    #' @noRd
+    #' @param model `r rd_model_in_`
+    #' @param param_table `r rd_param_table_`
+    #' @param progress `r rd_progress_`
+    #' @param cri_level `r rd_smpl_cri_level_`
     initialize = function(model, param_table,
                           progress = NA, cri_level = 0.95) {
       # ininitialize parent class HousepiExpectation
@@ -647,7 +658,7 @@ expec_posterior_measure <- function(object, param_table, ...,
 #' @return
 #' An object of class
 #' [ExpectedCasesBySize][housepi::ExpectedCasesBySize]
-#' containing method to compare observed and expected cases.
+#' containing methods to compare observed and expected cases.
 #'
 #' @export
 expec_cases_by_house_size <- function(object, param_table, progress = NA) {

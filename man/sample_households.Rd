@@ -4,7 +4,7 @@
 \alias{sample_households}
 \title{Sample Households}
 \usage{
-sample_households(object, size, ...)
+sample_households(object, size)
 }
 \arguments{
 \item{object}{An instance of the \code{HousepiSampler} class.}
@@ -16,14 +16,4 @@ A \code{data.frame} containing the sampled households.
 }
 \description{
 Samples synthetic households based on the marginal distributions computed by the \code{HousepiSampler}.
-}
-\examples{
-sampled_households <- new_household_sampler(
-  sex = list(levels = c("M", "F")),
-  age = list(breaks = c(0, 15, 25, 50))
-  ) |>
-  compute_household_marginals(housepi::survey) |>
-  sample_households(5)
-head(sampled_households)
-
 }

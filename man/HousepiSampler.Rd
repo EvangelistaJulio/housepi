@@ -7,16 +7,6 @@
 \description{
 FIXME: missing.
 }
-\examples{
-bhhc <- HousepiSampler$new(enc_dict)
-bhhc$compute_marginals(data_wide)
-
-# sample 5 household from model
-set.seed(291)
-simulated <- bhhc$sample(200)
-head(simulated)
-
-}
 \keyword{internal}
 \section{Super class}{
 \code{\link[housepi:IndividualSampler]{housepi::IndividualSampler}} -> \code{HousepiSampler}

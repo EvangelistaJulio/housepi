@@ -14,11 +14,3 @@ compute_household_marginals(object, data_wide)
 \description{
 Computes marginal distributions for household features based on a survey dataset.
 }
-\examples{
-hhsampler <- new_household_sampler(
-  sex = list(levels = c("M", "F")),
-  age = list(breaks = c(0, 15, 25, 50))
-  ) |>
-  compute_household_marginals(housepi::survey)
-
-}

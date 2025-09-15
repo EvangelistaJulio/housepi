@@ -27,7 +27,7 @@ One between:\cr
 \value{
 An object of class
 \link[=ExpectedCasesBySize]{ExpectedCasesBySize}
-containing method to compare observed and expected cases.
+containing methods to compare observed and expected cases.
 }
 \description{
 Extract the expected number of household cases per size.

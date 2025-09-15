@@ -120,7 +120,7 @@ HousepiInfecProfile <- R6::R6Class(
     add = function(name,
                    discr = FALSE,
                    args = NULL,
-                   max = NA) {
+                   max = NULL) {
       # check infectivity profile name
       if (is.na(name)) stop_h(
         "Incomplete definition: missing name."
@@ -130,10 +130,9 @@ HousepiInfecProfile <- R6::R6Class(
       # load arguments
       parse_args <- data.frame(t(sapply(args, extract_func_)))
       if (any(.is_func(parse_args$func))) stop_h(
-        "Calls in the argument definitions of infectivity profiles
-        are not supported."
+        "Calls in the argument definitions of infectivity profiles are not supported."
       )
-      self$defs <- modifyList(
+      self$defs <- utils::modifyList(
         self$defs,
         list(arg_key = type_join_(row.names(parse_args)),
              arg_val = type_join_(parse_args$val),
@@ -141,12 +140,12 @@ HousepiInfecProfile <- R6::R6Class(
       )
 
       # load maximum value
-      parse_max <- data.frame(t(sapply(args, extract_func_)))
+      parse_max <- extract_func_(max)
       if (.is_func(parse_max$func)) stop_h(
         "Calls in the maximum definition of infectivity profiles
         are not supported."
       )
-      self$defs <- modifyList(
+      self$defs <- utils::modifyList(
         self$defs,
         list(max = parse_max$val, max_at = parse_max$at)
       )

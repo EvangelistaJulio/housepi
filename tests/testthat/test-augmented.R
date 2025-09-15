@@ -5,24 +5,24 @@ test_that("Augmented definition error are recognized", {
   expect_error(augm$add(name = "infec", args = c(min = 0)))
 })
 
-test_that("Constant value definition are correct", {
+test_that("Constant value definition are coherent", {
   augm <- housepi:::HousepiAugmented$new()$load_list(dummy = 3)
   tmp <- housepi:::HousepiAugmented$new()$add(name = "dummy", value = 3)
   expect_equal(augm$defs, tmp$defs)
 
   augm <- housepi:::HousepiAugmented$new()$load_list(dummy = ~3@D)
   tmp <- housepi:::HousepiAugmented$new()$add(name = "dummy", expr = ~3@D)
-  testthat::expect_equal(augm$defs, tmp$defs)
+  expect_equal(augm$defs, tmp$defs)
 })
 
 test_that("Augmented variable definition is correct", {
   augm <- housepi:::HousepiAugmented$new()
 
-  augm$add(name = "infec", value = ~expo@D, model = "unif",
+  augm$add(name = "dummy", value = ~expo@D, model = "unif",
            args = c(min = ~expo_min@A, max = ~expo_max@P),
            max = 3)
 
-  expect_equal(augm$defs$name, "infec")
+  expect_equal(augm$defs$name, "dummy")
   expect_equal(augm$defs$status, as.integer(NA))
   expect_equal(augm$defs$value, "expo")
   expect_equal(augm$defs$value_at, "D")
@@ -42,7 +42,7 @@ test_that("Augmented variable definition is correct", {
 })
 
 
-test_that("Augmented sampling default stays coherent", {
+test_that("Augmented sampling default is correct", {
   augm <- housepi:::HousepiAugmented$new()
   augm$add(name = "dummy", model = "norm")
 

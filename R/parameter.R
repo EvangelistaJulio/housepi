@@ -27,7 +27,82 @@ HousepiParameter <- R6::R6Class(
   cloneable = TRUE,
 
   private = list(
-    deep_clone = function(name, value) helper_clone(value)
+    deep_clone = function(name, value) {
+      helper_clone(value)
+    },
+
+    # helper for value definition
+    .helper_value = function(opts, value) {
+      parsed <- extract_func_(value)
+      if (.is_func(parsed$func)) stop_h(
+        "Calls in the parameter definitions are not supported."
+      )
+      else if (isTRUE(parsed$at != "S")) stop_h(sprintf(
+        "Value of parameter must be a scalar."
+      ))
+      # note: parameter's innitial values must be numeric
+      utils::modifyList(opts, list(value = as.numeric(parsed$val)))
+    },
+
+    # helper for constant definition
+    .helper_constant = function(opts) {
+      # check that a value is provided
+      if (is.na(opts$value)) stop_h(
+        sprintf("Missing value for constant parameter \"%s\".", opts$name)
+      )
+      is_discr <- opts$value == as.integer(opts$value)
+      utils::modifyList(opts, list(discr = is_discr))
+    },
+
+    # helper to associate prior definition
+    .helper_prior = function(opts, prior, args) {
+      # prior to tell if constant
+      if (is.na(prior)) stop_h(
+        sprintf("No prior provided for parameter \"%s\".", opts$name)
+      )
+      opts <- utils::modifyList(opts, list(const = FALSE, prior = prior))
+
+      if (!is.null(args)) {
+        # prior arguments
+        parsed <- data.frame(t(sapply(args, extract_func_)))
+        if (any(.is_func(parsed$func))) stop_h(
+          "Calls in the prior definition of parameters are not supported."
+        )
+        opts <- utils::modifyList(
+          opts, list(arg_key = type_join_(row.names(parsed)),
+                     arg_val = type_join_(parsed$val))
+        )
+      }
+      opts
+    },
+
+    # helper to associate lower and upper bounds
+    .helper_bounds = function(opts, min, max) {
+      # check minimum and maximum
+      parse_min <- extract_func_(min)
+      parse_max <- extract_func_(max)
+      if (.is_func(parse_min$func)) stop_h(
+        "Calls in the minimum definition parameters are not supported.",
+      )
+      if (.is_func(parse_max$func)) stop_h(
+        "Calls in the maximum definition of parameters are not supported.",
+      )
+      utils::modifyList(opts, list(min = parse_min$val, max = parse_max$val))
+    },
+
+    # hlper with mcmc proposer rule
+    .helper_proposer = function(opts, discr, rule, scale) {
+      opts$discr <- isTRUE(discr)
+
+      if (is.na(rule)) {
+        # default proposer rule
+        opts$rule <- "sample"
+      } else {
+        opts$rule <- rule
+        opts$scale <- ifelse(is.na(scale), 1, scale)
+      }
+      opts
+    }
   ),
 
   ############################################################################
@@ -65,8 +140,10 @@ HousepiParameter <- R6::R6Class(
         'emplace_group_rate\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
       )
       # retrieve required parameters from regular expressions
-      template_required_find(refer_file, regexp) |>
-        set_source_name_("model")
+      set_source_name_(
+        template_required_find(refer_file, regexp),
+        "model"
+      )
     },
 
     #' @description
@@ -114,81 +191,43 @@ HousepiParameter <- R6::R6Class(
     add = function(name,
                    const = NA,
                    discr = FALSE,
-                   value = NA,
+                   value = NULL,
                    prior = NA,
-                   args = list(),
+                   args = NULL,
+                   min = NULL,
+                   max = NULL,
                    rule = NA,
-                   scale = NA,
-                   min = NA,
-                   max = NA) {
-      if (is.na(name)) stop_h("Incomplete definition: missing name.")
-
+                   scale = NA) {
+      if (is.na(name)) stop_h(
+        "Incomplete parameter definition: missing name."
+      )
       # remove previous definition if it exists
       if (self$remove(name, FALSE)) warning_h(
-        sprintf("Overwriting \"%s\" definition.", name)
+        sprintf("Overwriting definition of parameter \"%s\".", name)
       )
+
+      opts <- list(name = name,
+                   const = TRUE, discr = FALSE,
+                   value = NA, prior = NA,
+                   arg_key = NA, arg_val = NA,
+                   min = NA, max = NA,
+                   rule = NA, scale = NA)
 
       # assume it's a constant if a prior is not provided
       if (is.na(const)) const <- is.na(prior)
+      # parse initial value
+      opts <- private$.helper_value(opts, value)
 
       if (isTRUE(const)) {
-        # check that value is provided
-        if (is.na(value)) stop_h(
-          sprintf("Missing value for constant parameter \"%s\".", name)
-        )
-        # append constant parameter
-        self$defs <- rbind(
-          self$defs,
-          data.frame(
-            name = name,
-            const = TRUE,
-            discr = is.integer(value),
-            value = value,
-            prior = NA,
-            arg_key = NA, arg_val = NA,
-            min = NA, max = NA,
-            rule = NA, scale = NA,
-            stringsAsFactors = FALSE
-          )
-        )
-
+        opts <- private$.helper_constant(opts)
       } else {
-        # prior to tell if constant
-        if (is.na(prior)) stop_h(
-          sprintf("No prior provided for parameter \"%s\".", name)
-        )
-
-        # prior arguments
-        arg_key_ <- NA
-        arg_val_ <- NA
-        if (length(args) > 0) {
-          arg_key_ <- type_join_(names(args))
-          arg_val_ <- type_join_(unname(unlist(args)))
-        }
-
-        # mcmc proposer rule
-        if (is.na(rule)) {
-          # default proposer rule
-          rule <- "sample"
-          scale <- NA
-        }
-
-        # append parameter to be inferred
-        self$defs <- rbind(
-          self$defs,
-          data.frame(
-            name = name,
-            const = FALSE,
-            discr = isTRUE(discr),
-            value = value,
-            prior = prior,
-            arg_key = arg_key_, arg_val = arg_val_,
-            min = min, max = max,
-            rule = rule, scale = scale,
-            stringsAsFactors = FALSE
-          )
-        )
+        opts <- private$.helper_prior(opts, prior, args)
+        opts <- private$.helper_bounds(opts, min, max)
+        opts <- private$.helper_proposer(opts, discr, rule, scale)
       }
+
+      # append as a row
+      self$defs <- rbind(self$defs, data.frame(opts))
 
       invisible(self)
     },

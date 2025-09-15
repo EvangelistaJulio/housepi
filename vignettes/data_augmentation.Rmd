@@ -100,7 +100,7 @@ hhmodel <- new_housepi_model("augmented_example") |>
 
     # explicit declaration of incubation period distribution
     ..proba = list(
-      func = ~gamma_meanvar, # gamma distribution (by mean and variance)
+      func = "gamma_meanvar", # gamma distribution (by mean and variance)
       func_args = c(
         x = ~incub_period,   # compute from individual augmented 'incub_period'
         mean = ~mean@P,      # use model parameter 'mean'
@@ -123,17 +123,17 @@ hhmodel <- hhmodel |>
   # add 'infec_time' time definition
   add_augmented(
     name = "infec_time",
-    value = "exposure_min@D", # start from data value 'exposure_min'
+    value = ~exposure_min@D, # start from data value 'exposure_min'
     # uniform model within the range [0, 'exposure_max']
     model = "unif",
-    args = c(min = 0, max = "exposure_max@D"),
+    args = c(min = 0, max = ~exposure_max@D),
     rule = "norm", # normal distribution for the mcmc proposer
     scale = 0.25   # with scale 0.25 (i. e. standard deviation)
   ) |>
   # add 'onset_time' time definition
   add_augmented(
     name = "onset_time", value = ~onset_max@D,
-    model = "unif", args = c(min = ~onset_min@D, max = onset_max@D),
+    model = "unif", args = c(min = ~onset_min@D, max = ~onset_max@D),
     rule = "norm", scale = 0.25
   )
 ```

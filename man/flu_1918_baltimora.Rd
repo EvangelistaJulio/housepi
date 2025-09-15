@@ -17,7 +17,7 @@ data(flu_1918_baltimora)
 Reported cases of "Spanish" flu in Baltimora (USA), in 1918.
 }
 \details{
-\itemize{
+\describe{
 \item{house_id}{Household identifier}
 \item{status}{Reported case}
 }

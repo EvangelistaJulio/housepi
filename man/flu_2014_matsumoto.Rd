@@ -19,7 +19,7 @@ Report on influenza episodes of family members during the season 2014-15.
 Original oservational study from Uchida, et al. (2017).
 }
 \details{
-\itemize{
+\describe{
 \item{house_id}{Household identifier}
 \item{member}{Family member}
 \item{status}{Symptoms reported}

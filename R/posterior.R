@@ -158,8 +158,7 @@ HousepiPosteriorDraws <- R6::R6Class(
     #' @param rcpp_object `Rcpp_ModelHousepi`
     #' @noRd
     initialize = function(rcpp_object) {
-      all_traces <- rcpp_object$export_draws() |>
-        private$.cpp_draws_to_posterior()
+      all_traces <- private$.cpp_draws_to_posterior(rcpp_object$export_draws())
       vars <- posterior::variables(all_traces)
 
       # augmented draws
@@ -170,23 +169,23 @@ HousepiPosteriorDraws <- R6::R6Class(
           sapply(id_draws, function(x) stringr::str_detect(vars, x)),
           1, any
         )]
-        private$.augm_df <- all_traces |>
-          posterior::subset_draws(variable = augm_vars)
+        private$.augm_df <- posterior::subset_draws(all_traces, 
+                                                    variable = augm_vars)
         vars <- setdiff(vars, augm_vars)
       }
 
       # loglikelihood draws
-      private$.loglike_df <- all_traces |>
-        posterior::subset_draws(variable = c("loglikelihood"))
+      private$.loglike_df <- posterior::subset_draws(all_traces, 
+                                                     variable = c("loglikelihood"))
       vars <- setdiff(vars, c("loglikelihood"))
 
       # parameters draws
-      private$.param_df <- all_traces |>
-        posterior::subset_draws(variable = vars)
+      private$.param_df <- posterior::subset_draws(all_traces, variable = vars)
 
       # household pointwise loglikelihood
-      private$.house_df <- rcpp_object$export_house_loglike_draws() |>
-        private$.cpp_draws_to_posterior()
+      private$.house_df <- private$.cpp_draws_to_posterior(
+        rcpp_object$export_house_loglike_draws()
+      )
 
       # release memory in original object
       rcpp_object$clear_memory()

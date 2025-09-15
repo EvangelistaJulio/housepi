@@ -17,7 +17,7 @@ data(flu_1918_frederick)
 Reported cases of "Spanish" flu in Frederick (USA), in 1918.
 }
 \details{
-\itemize{
+\describe{
 \item{house_id}{Household identifier}
 \item{status}{Reported case}
 }

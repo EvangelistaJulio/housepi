@@ -157,17 +157,14 @@ bool Function::is_constant() const
     for (ushort i = 0; i < n_args_; ++i)
         if (!args_[i].is_constant())
             return false;
-
     // check X value
     if (!args_[n_args_].is_constant())
         return false;
-
     // check range
     if (!range_min_.is_constant())
         return false;
     if (!range_max_.is_constant())
         return false;
-
     // else is constant
     return true;
 }
@@ -527,13 +524,10 @@ std::string Function::str_arg_values() const
 std::string Function::str_summary() const
 {
     std::string output = name_;
-    if (n_args_ > 0)
-    {
-        output += "(" + args_[0].name() + "=" + args_[0].str();
-        for (unsigned short c = 1; c < n_args_; ++c)
-            output += ", " + args_[c].name() + "=" + args_[c].str();
-        output += ")";
-    }
+    output += "(" + args_[n_args_].name() + "=" + args_[n_args_].str();
+    for (unsigned short c = 0; c < n_args_; ++c)
+        output += ", " + args_[c].name() + "=" + args_[c].str();
+    output += ")";
     if (is_valid_ != &Function::do_is_valid_always_)
         output += " : " + str_range();
     return output;
@@ -617,6 +611,17 @@ std::shared_ptr<Function> compose_func_registries(const std::string &opt,
 /////////////////////////////////  FunctionRegistry : entries  //////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
+
+class Minus_Function : public Function
+{
+public:
+    Minus_Function() : Function("minus", {}, {}) {}
+
+    void init_truncation() override final {}
+
+protected:
+    double raw_function_(double x) const override final { return -x; }
+};
 
 #define DEFINE_ARITHMETIC_FUNCTION(ClassName, FunctionName, Symbol, DefaultY)           \
     class ClassName : public Function                                                   \
@@ -755,6 +760,7 @@ protected:
     }
 
 IMPLEMENT_HOUSEPI_FUNCTION_REGISTRY(ArithmeticRegistry)
+REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Minus_Function)
 REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Addition_Function)
 REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Subtraction_Function)
 REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Multiplication_Function)

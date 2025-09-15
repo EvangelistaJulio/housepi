@@ -7,7 +7,7 @@
 add_parameter(
   object,
   name = NA,
-  value = NA,
+  value = NULL,
   const = NA,
   discr = FALSE,
   prior = NA,
@@ -15,7 +15,7 @@ add_parameter(
   min = NULL,
   max = NULL,
   rule = NA,
-  scale = 1
+  scale = NA
 )
 }
 \arguments{

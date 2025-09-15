@@ -29,6 +29,8 @@ Default is \code{FALSE}.}
 
 \item{max}{\code{numeric(1)} to truncate to a maximum value.}
 
+\item{discr}{\code{logical(1)} to treat definition as discrete.}
+
 \item{model}{\code{HousepiModel} object eventually containing the custom registred \%s.\cr
 If \code{NULL} (default) the built-in registry is used.\cr}
 }

@@ -1140,8 +1140,7 @@ void MCMC::Impl::DataWide::print_update(Household &house)
             aux_ofstream_ << std::endl;
         }
     else
-        throw std::runtime_error(
-            "Output file closed unexpectedly.");
+        throw std::runtime_error("Output file closed unexpectedly.");
 }
 
 /* Print all augmented variables of each individual */
@@ -1150,7 +1149,6 @@ void MCMC::Impl::DataWide::print_close()
     if (aux_ofstream_.is_open())
         aux_ofstream_.close();
     else
-        throw std::runtime_error(
-            "Output file closed unexpectedly.");
+        throw std::runtime_error("Output file closed unexpectedly.");
 }
 #endif

@@ -191,15 +191,15 @@ If the parameter already exists, it is updated.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_parameter(
   name = NA,
-  value = NA,
+  value = NULL,
   const = NA,
   discr = FALSE,
   prior = NA,
-  args = list(),
-  min = NA,
-  max = NA,
+  args = NULL,
+  min = NULL,
+  max = NULL,
   rule = NA,
-  scale = 1
+  scale = NA
 )}\if{html}{\out{</div>}}
 }
 
@@ -520,7 +520,7 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 \subsection{Method \code{add_infec_profile()}}{
 Add definition of infectivity profile.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_infec_profile(name, discr = FALSE, args = list(), max = NA)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_infec_profile(name, discr = FALSE, args = NULL, max = NULL)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -744,16 +744,18 @@ Id of the household to export.}
 \subsection{Method \code{simulate()}}{
 Generate a simulated outbreak with the same community structure of the loaded data.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$simulate(data_wide = NULL, seed = NA, progress = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$simulate(nsim = 1, seed = NA, data_wide = NULL, progress = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{data_wide}}{\code{data.frame} with the household data used for analysis in wide format. If \code{NULL}, uses the previously stored data.}
+\item{\code{nsim}}{\code{integer(1)} with the number of simulated outbreaks.}
 
 \item{\code{seed}}{\code{integer(1)} with the seed for the random number generator.\cr
 If \code{NA} (default), uses current R seed.}
+
+\item{\code{data_wide}}{\code{data.frame} with the household data used for analysis in wide format. If \code{NULL}, uses the previously stored data.}
 
 \item{\code{progress}}{\code{integer(1)} or \code{logical(1)} to control progress visualization.\cr
 One between:\cr

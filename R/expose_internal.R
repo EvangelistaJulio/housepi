@@ -54,6 +54,7 @@ If `NULL` (default) the built-in registry is used."
 #' @param args `r rd_test_args_`
 #' @param min `r rd_var_min_`
 #' @param max `r rd_var_max_`
+#' @param discr `r rd_test_discr_`
 #' @param model `r rd_test_model_`\cr
 #'
 #' @return

@@ -173,11 +173,11 @@ get_parameters <- function(object, ...) {
 #'
 #' @export
 add_parameter <- function(object,
-                          name = NA, value = NA,
+                          name = NA, value = NULL,
                           const = NA, discr = FALSE,
                           prior = NA, args = NULL,
                           min = NULL, max = NULL,
-                          rule = NA, scale = 1) {
+                          rule = NA, scale = NA) {
   stopifnot(inherits(object, "HousepiModel"))
   object$clone(deep = TRUE)$add_parameter(
     name = name, value = value,
@@ -268,7 +268,7 @@ add_augmented <- function(object,
                           value = NULL, init_rand = FALSE,
                           model = NA, args = NULL,
                           min = NULL, max = NULL,
-                          rule = NA, scale = 1, from = NULL,
+                          rule = NA, scale = NA, from = NULL,
                           expr = NULL) {
   stopifnot(inherits(object, "HousepiModel"))
   object$clone(deep = TRUE)$add_augmented(
@@ -386,7 +386,7 @@ load_group_rate_list <- function(object, ..., from = NA, append = FALSE) {
 #' @export
 add_infec_profile <- function(object,
                               name, discr = FALSE,
-                              args = list(), max = NA) {
+                              args = NULL, max = NULL) {
   stopifnot(inherits(object, "HousepiModel"))
   object$clone(deep = TRUE)$add_infec_profile(
     name = name, discr = discr,
@@ -457,6 +457,7 @@ infer <- function(object, data_wide = NULL,
 #' Estimate the model evidence (or marginal likelihood).
 #' It uses the method of power posteriors with different available schemes.
 #'
+#' @param object `r rd_model_in_`
 #' @param data_wide `r rd_smpl_data_wide_`
 #' @param scheme `r rd_evi_scheme_`
 #' @param n_rungs `r rd_evi_rungs_`
@@ -501,19 +502,23 @@ evidence <- function(object, data_wide = NULL,
 #' Generate a simulated outbreak with the same community structure of the loaded data.
 #'
 #' @param object `r rd_model_in_`
-#' @param data_wide `r rd_smpl_data_wide_`
+#' @param nsim `r rd_smpl_nsim_`
 #' @param seed `r rd_seed_`
+#' @param data_wide `r rd_smpl_data_wide_`
 #' @param progress `r rd_progress_`
 #' @param ... Ignored.
 #'
 #' @return `data.frame`
 #'
-#' @exportS3Method simulate HousepiModel
-simulate.HousepiModel <- function(object, data_wide = NULL,
-                                  seed = NA, progress = FALSE,
+#' @importFrom stats simulate
+#' @export
+simulate.HousepiModel <- function(object,
+                                  nsim = 1, seed = NA,
+                                  data_wide = NULL, progress = FALSE,
                                   ...) {
   stopifnot(inherits(object, "HousepiModel"))
   object$simulate(
-    data_wide = data_wide, seed = seed, progress = progress
+    nsim = nsim, seed = seed, 
+    data_wide = data_wide, progress = progress
   )
 }

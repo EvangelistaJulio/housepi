@@ -4,7 +4,7 @@
 \alias{add_infec_profile}
 \title{Add infectivity profile definition}
 \usage{
-add_infec_profile(object, name, discr = FALSE, args = list(), max = NA)
+add_infec_profile(object, name, discr = FALSE, args = NULL, max = NULL)
 }
 \arguments{
 \item{object}{\code{HousepiModel} object.}

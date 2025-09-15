@@ -74,7 +74,7 @@ HousepiAugmented <- R6::R6Class(
     .helper_implicit_func = function(opts, expr) {
       parsed <- extract_func_(expr)
       if (!is.na(parsed$func)) {
-        if (is.na(opts$func)) opts <- modifyList(
+        if (is.na(opts$func)) opts <- utils::modifyList(
           opts,
           list(func = parsed$func, farg_key = parsed$key,
                farg_val = parsed$val, farg_at  = parsed$at)
@@ -104,9 +104,11 @@ HousepiAugmented <- R6::R6Class(
           are not supported.", opts$name
         ))
 
-        opts <- modifyList(opts, list(farg_key = type_join_(row.names(parsed)),
-                                      farg_val = type_join_(parsed$val),
-                                      farg_at = type_join_(parsed$at)))
+        opts <- utils::modifyList(
+          opts, list(farg_key = type_join_(row.names(parsed)),
+                     farg_val = type_join_(parsed$val),
+                     farg_at = type_join_(parsed$at))
+        )
       }
       opts
     },
@@ -120,15 +122,17 @@ HousepiAugmented <- R6::R6Class(
         }
         stop_h(msg)
 
-      } else {
+      } else if (!is.null(args)) {
         parsed <- data.frame(t(sapply(args, extract_func_)))
         if (any(.is_func(parsed$func))) stop_h(sprintf(
           "Calls in the model arguments definition of augmented \"%s\" 
           are not supported.", opts$name
         ))
-        opts <- modifyList(opts, list(arg_key = type_join_(row.names(parsed)),
-                                      arg_val = type_join_(parsed$val),
-                                      arg_at = type_join_(parsed$at)))
+        opts <- utils::modifyList(
+          opts, list(arg_key = type_join_(row.names(parsed)),
+                     arg_val = type_join_(parsed$val),
+                     arg_at = type_join_(parsed$at))
+        )
       }
 
       opts
@@ -147,7 +151,9 @@ HousepiAugmented <- R6::R6Class(
         if (is.na(parsed$val)) stop_h(sprintf(
           "Missing initial value for constant augmented \"%s\".", opts$name
         ))
-        opts <- modifyList(opts, list(value = parsed$val, value_at = parsed$at))
+        opts <- utils::modifyList(
+          opts, list(value = parsed$val, value_at = parsed$at)
+        )
 
       } else if (isTRUE(opts$init_rand)) {
         if (is.na(opts$model)) stop_h(sprintf(
@@ -163,7 +169,7 @@ HousepiAugmented <- R6::R6Class(
               "Calls in the from value definition of augmented \"%s\" 
               are not supported.", opts$name
             ))
-            else if (!is.na(parse_from$val)) opts <- modifyList(
+            else if (!is.na(parse_from$val)) opts <- utils::modifyList(
               opts, list(value = parse_from$val, value_at = parse_from$at)
             )
             # else: constant NA augmented variable
@@ -171,8 +177,8 @@ HousepiAugmented <- R6::R6Class(
             opts$init_rand <- TRUE
           }
         } else {
-          opts <- modifyList(opts,
-                             list(value = parsed$val, value_at = parsed$at))
+          opts <- utils::modifyList(opts, list(value = parsed$val,
+                                               value_at = parsed$at))
         }
       }
 
@@ -186,10 +192,9 @@ HousepiAugmented <- R6::R6Class(
           if (is.na(opts$model)) opts$const <- TRUE
           else opts$rule <- "sample"
         } else if (opts$rule != "sample") {
-          if (!is.na(scale)) {
-            if (is.numeric(scale)) opts$scale <- scale
-            else stop_h("Rule scale should be NA or a numeric value.")
-          }
+          if (is.na(scale)) opts$scale <- 1
+          else if (is.numeric(scale) && (scale > 0)) opts$scale <- scale
+          else stop_h("Rule scale should be a numeric value greater than 0.")
 
           # extract proposer rule 'from' value
           parsed <- extract_func_(from)
@@ -197,7 +202,9 @@ HousepiAugmented <- R6::R6Class(
             "Calls in the from value definition of augmented \"%s\" 
               are not supported.", opts$name
           ))
-          opts <- modifyList(opts, list(from = parsed$val, from_at = parsed$at))
+          opts <- utils::modifyList(
+            opts, list(from = parsed$val, from_at = parsed$at)
+          )
         }
       }
 
@@ -218,8 +225,8 @@ HousepiAugmented <- R6::R6Class(
         opts$name
       ))
 
-      modifyList(opts, list(min = parse_min$val, min_at = parse_min$at,
-                            max = parse_max$val, max_at = parse_max$at))
+      utils::modifyList(opts, list(min = parse_min$val, min_at = parse_min$at,
+                                   max = parse_max$val, max_at = parse_max$at))
     },
 
     # Definitions required by augmented variable definitions
@@ -430,7 +437,7 @@ HousepiAugmented <- R6::R6Class(
         min = NA, min_at = NA,
         max = NA, max_at = NA,
         rule = as.character(rule),
-        scale = 1,
+        scale = NA,
         from = NA, from_at = NA
       )
 
@@ -485,9 +492,11 @@ HousepiAugmented <- R6::R6Class(
 
         # raw definition
         if (length(names(this_def)) == 0) {
+          # distinguish between constant value definition and expression
           if (length(this_def) == 1) {
-            # distinguish between constant value definition and expression
-            names(this_def) <- ifelse(is.numeric(expr, "value", "expr"))
+            if (is.na(expr)) names(this_def) <- "value"
+            else if (is.numeric(expr)) names(this_def) <- "value"
+            else names(this_def) <- "expr"
           } else {
             stop_h(
               sprintf("Wrong definition for augmented \"%s\".", def_name),
@@ -502,7 +511,7 @@ HousepiAugmented <- R6::R6Class(
         # multi-status definitions
         if (is.null(this_def$status)) do.call(self$add, this_def)
         else for (s in this_def$status) {
-          do.call(self$add, modifyList(this_def, list(status = s)))
+          do.call(self$add, utils::modifyList(this_def, list(status = s)))
         }
       }
 

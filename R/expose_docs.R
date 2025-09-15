@@ -130,8 +130,10 @@ One between:\\cr
 - If `FALSE` or `0`, suppresses progress display."
 
 rd_add_data_wide_ <- "`data.frame` with the household data used for analysis in wide format."
+
+rd_smpl_nsim_ <-  "`integer(1)` with the number of simulated outbreaks."
 rd_smpl_data_wide_ <- paste(rd_add_data_wide_,
-                          "If `NULL`, uses the previously stored data.")
+                            "If `NULL`, uses the previously stored data.")
 
 rd_add_data_long_ <- "`data.frame` with the individual data (long format) used for analysis."
 
@@ -148,7 +150,8 @@ rd_smpl_rndin_ <- "`logical(1)` to control random initialization of variables:\\
 - If `FALSE` uses initial value definitions."
 rd_smpl_iddrw_ <- "`character()` with individuals identifiers.\\cr
 Store draws of public augmented variables for the chosen individuals."
-
+rd_smpl_cri_level_ <- "`numeric(1)` with the level for the credible interval in (0.5, 1.0).\\cr
+Default is 0.95."
 
 ############################################################################
 ############################################################################

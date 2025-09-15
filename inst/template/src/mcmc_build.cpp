@@ -106,7 +106,7 @@ void MCMC::Impl::Setup::set_n_threads()
 
 #else
     if (n_threads != 1)
-        tools::warning("Parallelization with OpenMP not supported.");
+        tools::warning("Parallelization with OpenMP is not supported.");
 
     n_threads = 1;
 #endif
@@ -149,11 +149,11 @@ void MCMC::Impl::Setup::assert_mcmc_setup()
         rand_init_params = true;
     }
     else if (n_chains < 1)
-        throw std::out_of_range("N. of chains must be greater than 0.");
+        throw std::out_of_range("Number of chains must be greater than 0.");
 
     if (thin == 0)
     {
-        tools::warning("Thinning equal to 0 interpreted as 1.");
+        tools::warning("Thinning equal to 0 has been interpreted as 1.");
         thin = 1;
     }
 
@@ -220,7 +220,7 @@ void MCMC::Impl::DataWide::build(const dict_str_vec &input)
         // assess the presence of house IDs
         if (!(headers_ % "house_id"))
             tools::warning(
-                "Unknown household structure: missing data column \"house_id\".");
+                "Ignored household structure. Missing data column \"house_id\".");
 
         // safe load of households
         for (size_t i = 0; i < n_individuals_; ++i)

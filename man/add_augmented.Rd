@@ -19,7 +19,7 @@ add_augmented(
   min = NULL,
   max = NULL,
   rule = NA,
-  scale = 1,
+  scale = NA,
   from = NULL,
   expr = NULL
 )

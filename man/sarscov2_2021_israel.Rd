@@ -19,7 +19,7 @@ Follow-up started with first PCR positive test, symptoms onset were reported.
 Contacts averaged 3 tests during follow-up.
 }
 \details{
-\itemize{
+\describe{
 \item{id}{Individual identifier}
 \item{house_id}{Household identifier}
 \item{status}{PCR test result}

@@ -21,19 +21,6 @@
 #' @description
 #' FIXME: missing.
 #'
-#' @examples
-#' data_wide <- housepi::survey
-#' data_wide$sex <- ifelse(data_wide$sex == 1, "M", "F")
-#'
-#' bic <- IndividualSampler$new(
-#'   sex = list(levels = c("M", "F")),
-#'   age = list(breaks = c(0, 10, 20, 40, 60))
-#' )
-#' test <- data_wide[1:5, ]
-#' test
-#' bic$encode(test)
-#' bic$decode(bic$encode(test))
-#'
 #' @keywords internal
 IndividualSampler <- R6::R6Class(
   classname = "IndividualSampler",
@@ -298,15 +285,6 @@ IndividualSampler <- R6::R6Class(
 #' Household Sampler
 #' @description
 #' FIXME: missing.
-#'
-#' @examples
-#' bhhc <- HousepiSampler$new(enc_dict)
-#' bhhc$compute_marginals(data_wide)
-#'
-#' # sample 5 household from model
-#' set.seed(291)
-#' simulated <- bhhc$sample(200)
-#' head(simulated)
 #'
 #' @docType class
 #' @keywords internal
@@ -576,30 +554,8 @@ HousepiSampler <- R6::R6Class(
 #' based on hierarchical models of covariates. It supports encoding and decoding of features,
 #' computation of marginal distributions, and sampling of households.
 #'
-#' @examples
-#' # Define a sampler with covariates
-#' hhsampler <- new_household_sampler(
-#'   sex = list(levels = c("M", "F")),
-#'   age = list(breaks = c(0, 15, 25, 50))
-#' )
-#'
-#' # Example household dataset
-#' eg_house <- data.frame(
-#'   house_id = "HH_1",
-#'   age = c(43, 39, 12, 7),
-#'   sex = c("M", "F", "F", "M")
-#' )
-#'
-#' # Encode and decode the dataset
-#' encoded <- hhsampler$encode(eg_house)
-#' decoded <- hhsampler$decode(encoded)
-#'
-#' # Compute marginals from a survey dataset
-#' hhsampler$compute_marginals(housepi::survey)
-#'
-#' # Sample 5 households
-#' sampled_households <- hhsampler$sample(5)
-#' head(sampled_households)
+#' @param ...
+#' Named features with respective list of definition details.
 #'
 #' @export
 new_household_sampler <- function(...) {
@@ -612,13 +568,6 @@ new_household_sampler <- function(...) {
 #'
 #' @param object An instance of the `HousepiSampler` class.
 #' @param data_wide A `data.frame` containing individual-level data with household IDs.
-#'
-#' @examples
-#' hhsampler <- new_household_sampler(
-#'   sex = list(levels = c("M", "F")),
-#'   age = list(breaks = c(0, 15, 25, 50))
-#'   ) |>
-#'   compute_household_marginals(housepi::survey)
 #' 
 #' @export
 compute_household_marginals <- function(object, data_wide) {
@@ -634,17 +583,9 @@ compute_household_marginals <- function(object, data_wide) {
 #' @param size An integer specifying the number of households to sample.
 #'
 #' @return A `data.frame` containing the sampled households.
-#' @examples
-#' sampled_households <- new_household_sampler(
-#'   sex = list(levels = c("M", "F")),
-#'   age = list(breaks = c(0, 15, 25, 50))
-#'   ) |>
-#'   compute_household_marginals(housepi::survey) |>
-#'   sample_households(5)
-#' head(sampled_households)
 #'
 #' @export
-sample_households <- function(object, size, ...) {
+sample_households <- function(object, size) {
   stopifnot(inherits(object, "HousepiSampler"))
   object$sample(size)
 }

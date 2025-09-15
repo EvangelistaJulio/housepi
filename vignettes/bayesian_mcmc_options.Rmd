@@ -33,7 +33,7 @@ continuos_distri <- c("unif", "norm", "lnorm", "gamma",
 
 # generate list with definitions
 defs <- Map(list, prior = continuos_distri) |>
-  setNames(continuos_distri)
+  stats::setNames(continuos_distri)
 
 # create an instance of the blank model
 new_housepi_model("blank") |>
@@ -89,7 +89,7 @@ Here's the full list of available discrete distributions present in `housepi`:
 # discrete distributions in housepi
 discrete_distri <- c("pois", "binom", "nbinom", "geom")
 defs <- Map(list, prior = discrete_distri) |>
-  setNames(discrete_distri)
+  stats::setNames(discrete_distri)
 
 new_housepi_model("blank") |>
   load_parameter_list(from = defs) |>
@@ -105,7 +105,7 @@ Previous continuous priors can be chosen to be discretized simply by adding the 
 ```{r}
 reduc_distri <- continuos_distri[continuos_distri != "beta"]
 defs <- Map(list, prior = reduc_distri, discr = TRUE) |>
-  setNames(reduc_distri)
+  stats::setNames(reduc_distri)
 
 new_housepi_model("blank") |>
   load_parameter_list(from = defs) |>
@@ -126,7 +126,7 @@ bayesplot::color_scheme_set(scheme = "brightblue")
 proposer_rules <- c("sample", "unif", "norm", "lnorm")
 defs <- Map(list, prior = "norm", min = 0,
             rule = proposer_rules, scale = 0.01) |>
-  setNames(paste("rule", proposer_rules))
+  stats::setNames(paste("rule", proposer_rules))
 
 new_housepi_model("blank") |>
   load_parameter_list(from = defs) |>

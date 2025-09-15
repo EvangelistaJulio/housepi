@@ -6,20 +6,6 @@
 \description{
 FIXME: missing.
 }
-\examples{
-data_wide <- housepi::survey
-data_wide$sex <- ifelse(data_wide$sex == 1, "M", "F")
-
-bic <- IndividualSampler$new(
-  sex = list(levels = c("M", "F")),
-  age = list(breaks = c(0, 10, 20, 40, 60))
-)
-test <- data_wide[1:5, ]
-test
-bic$encode(test)
-bic$decode(bic$encode(test))
-
-}
 \keyword{internal}
 \section{Active bindings}{
 \if{html}{\out{<div class="r6-active-bindings">}}

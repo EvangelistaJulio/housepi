@@ -138,7 +138,7 @@ open_model_helper_ <- function(path) {
     rstudioapi::previewRd(info_file)
   } else if (interactive()) {
     # print as plain text in the console
-    cat(capture.output(tools::Rd2txt(info_file)), sep = "\n")
+    cat(utils::capture.output(tools::Rd2txt(info_file)), sep = "\n")
   } else {
     warning_h("Help method not supported in non-interactive mode.")
   }
@@ -203,7 +203,7 @@ template_household_model <- function(name = NA, path = NA, replace = FALSE) {
 # Associate same name to all elements of a vector
 set_source_name_ <- function(x, name = NA) {
   if (!is.na(name) && is.character(name) && nchar(name) > 0) {
-    if (!is.null(x)) x <- setNames(x, rep(name, length(x)))
+    if (!is.null(x)) x <- stats::setNames(x, rep(name, length(x)))
   }
   return(x)
 }

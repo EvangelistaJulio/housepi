@@ -119,7 +119,7 @@ protected:
     /// note: so far set_arg is only used for adaptation.
     /// Pointer and function attributes can't be set, but just assigned.
     virtual void do_set_error_(double) { throw std::runtime_error(
-        "Non scalar " + err_name() + " is ummatable and cannot be changed."); }
+        "Non scalar " + err_name() + " cannot be changed."); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -182,6 +182,7 @@ public:
     bool is_discrete() const { return function_ != &Function::raw_function_; }
     /// Wheter all arguments are actually constants.
     bool is_constant() const;
+
     /// Returns TRUE if value x is below range minimum.
     bool is_below(double x) const { return (this->*is_below_)(x); }
     /// Returns TRUE if value x is above range maximum.
@@ -202,12 +203,12 @@ public:
 
     /// Virtual function to initialize discretization.
     virtual void init_discretization() { throw std::invalid_argument(
-        "Called undefined method \"init_discretization\" of " + err_name() + "."); }
+        "Wrong call to undefined method discretization of " + err_name() + "."); }
 
     /// Virtual function to initialize truncation.
     /// NOTE: always to be call after init_discretization.
     virtual void init_truncation() { throw std::invalid_argument(
-        "Called undefined method \"init_truncation\" of " + err_name() + "."); }
+        "Wrong call to undefined method truncation of " + err_name() + "."); }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////  Function : show  //////////////////////////////////////
@@ -254,16 +255,16 @@ protected:
 
     /// Raw call method.
     virtual double raw_function_(double) const { throw std::invalid_argument(
-        "Called undefined method \"call\" of " + err_name() + "."); }
+        "Wrong call to undefined method \"function\" of " + err_name() + "."); }
     /// Raw log-call method.
     virtual double raw_logfunc_(double) const { throw std::invalid_argument(
-        "Called undefined method \"logcall\" of " + err_name() + "."); }
+        "Wrong call to undefined method \"logfunc\" of " + err_name() + "."); }
     /// Raw primitive method.
     virtual double raw_primitive_(double) const { throw std::invalid_argument(
-        "Called undefined method \"primitive\" of " + err_name() + "."); }
+        "Wrong call to undefined method \"primitive\" of " + err_name() + "."); }
     /// Raw log-ratio method.
     virtual double raw_logratio_(double, double) const { throw std::invalid_argument(
-        "Called undefined method \"logratio\" of " + err_name() + "."); }
+        "Wrong call to undefined method \"logratio\" of " + err_name() + "."); }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////  Function : discretization [protected]  ///////////////////////////

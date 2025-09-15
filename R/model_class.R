@@ -21,7 +21,7 @@
 #' @description
 #' Compile household model, manage your data
 #' and variable defintions from a single class.
-#' 
+#'
 #' @docType class
 #' @keywords internal
 HousepiModel <- R6::R6Class(
@@ -514,11 +514,11 @@ HousepiModel <- R6::R6Class(
     #' @param max `r rd_var_max_`
     #' @param rule `r rd_par_rule_`
     #' @param scale `r rd_var_scale_`
-    add_parameter = function(name = NA, value = NA,
+    add_parameter = function(name = NA, value = NULL,
                              const = NA, discr = FALSE,
-                             prior = NA, args = list(),
-                             min = NA, max = NA,
-                             rule = NA, scale = 1) {
+                             prior = NA, args = NULL,
+                             min = NULL, max = NULL,
+                             rule = NA, scale = NA) {
       private$.param$add(name = name, value = value, const = const,
                          discr = discr, prior = prior, args = args,
                          min = min, max = max,
@@ -691,7 +691,7 @@ HousepiModel <- R6::R6Class(
     #' @param args `r rd_inf_args_`
     #' @param max `r rd_aug_max_`
     add_infec_profile = function(name, discr = FALSE,
-                                 args = list(), max = NA) {
+                                 args = NULL, max = NULL) {
       private$.infec_profile$add(name = name, discr = discr,
                                  args = args, max = max)
       invisible(self)
@@ -837,12 +837,16 @@ HousepiModel <- R6::R6Class(
     #' @description
     #' Generate a simulated outbreak with the same community structure of the loaded data.
     #'
-    #' @param data_wide `r rd_smpl_data_wide_`
+    #' @param nsim `r rd_smpl_nsim_`
     #' @param seed `r rd_seed_`
+    #' @param data_wide `r rd_smpl_data_wide_`
     #' @param progress `r rd_progress_`
     #'
     #' @return `data.frame`
-    simulate = function(data_wide = NULL, seed = NA, progress = FALSE) {
+    simulate = function(nsim = 1,
+                        seed = NA,
+                        data_wide = NULL,
+                        progress = FALSE) {
       # internal build function
       private$.build_full(data_wide = data_wide, rand_init = FALSE,
                           seed = seed, progress = progress)
@@ -853,7 +857,7 @@ HousepiModel <- R6::R6Class(
       # bind simulated entries with static part
       # UPDATE : n_rep = 1 for development
       private$.refactor_data_wide(
-        cbind(static_df, private$.rcpp$simulate(1))
+        cbind(static_df, private$.rcpp$simulate(nsim))
       )
     },
 

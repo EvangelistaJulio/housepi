@@ -12,32 +12,32 @@ URL: https://mmmi-pasteur.gitlab.io/housepi
 License: GPL-3 + file LICENSE
 Encoding: UTF-8
 Imports:
-    utils,
-    stats,
-    methods, 
-    Rcpp (>= 1.0.0),
-    devtools,
-    pkgbuild, 
-    R6,
-    rlang,
-    dplyr,
-    tidyr,
-    stringr, 
-    withr,
     cli,
-    posterior
+    dplyr,
+    methods,
+    pkgbuild,
+    posterior,
+    R6,
+    Rcpp (>= 1.0.0),
+    rlang,
+    stats,
+    stringr,
+    tidyr,
+    utils,
+    withr
 RcppModules: user_model_module
 Roxygen: list(markdown = TRUE, r6 = TRUE)
-RoxygenNote: 7.3.2
+RoxygenNote: 7.3.3
 Suggests: 
-    knitr,
-    rmarkdown,
-    testthat (>= 3.0.0),
-    ggplot2,
-    flextable,
     bayesplot,
+    coda,
+    flextable,
+    ggplot2,
+    knitr,
     loo, 
-    coda
+    rmarkdown,
+    rstudioapi,
+    testthat (>= 3.0.0)
 VignetteBuilder: knitr
 SystemRequirements: GNU make, C++14
 Depends: 

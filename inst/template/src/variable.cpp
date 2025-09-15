@@ -288,6 +288,9 @@ void Variable::init_func_reshaping()
             if (is_discrete_)
                 pFunc_->init_discretization();
             pFunc_->init_truncation();
+
+            // FIXME: check that all function arguments have not missing dependencies
+            // NOTE: if attributes are NA it could still be fair use as a callable
         }
     }
 }

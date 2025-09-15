@@ -274,7 +274,7 @@ protected:
 
     double (Variable::*evaluate_)(double) const = &Variable::do_eval_error_;
     double do_eval_error_(double) const { throw std::runtime_error(
-        "Wrong use of function call operator: " + err_name() + " is not a function."); }
+        "Wrong call to evaluate operator for non-function " + err_name() + "."); }
     double do_eval_func_(double x) const { return pFunc_->evaluate(x); }
 
     double do_get_default_() const { return value_; }
@@ -315,7 +315,7 @@ protected:
     //----- Propose : functional methods -----//
     double (Variable::*propose_)(rnd_gen &) = &Variable::do_propose_error_;
     double do_propose_error_(rnd_gen &) { throw std::invalid_argument(
-        "Called unknown proposer for " + err_name() + "."); }
+        "Called to unknown proposer for " + err_name() + "."); }
     double do_propose_sample_(rnd_gen &prng) { return (pProp_->propose)(prng, 0); }
     double do_propose_from_previous_(rnd_gen &prng) { return (pProp_->propose)(prng, value_); }
     double do_propose_from_zero_(rnd_gen &prng) { return (pProp_->propose)(prng, pProp_->get_from_value()); }

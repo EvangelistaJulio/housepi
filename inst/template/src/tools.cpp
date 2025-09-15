@@ -377,6 +377,8 @@ namespace tools
         /// Converter to double using std::stod with function pointer casting.
         double tod(const std::string &input, const std::string &errtxt)
         {
+            if (tools::is_na(input))
+                return HSP_NA_DOUBLE;
             return converter_(static_cast<double (*)(const std::string &, std::size_t *)>(std::stod), input, errtxt, nullptr);
         }
     } // TOOLS::STR NAMESPACE

@@ -567,26 +567,19 @@ public:
         void set_id_draws_(str_vec &id_draws);
 
         double type_to_double_(const Individual &member,
-                               const std::string &tkn_val,
-                               const std::string &tkn_typ);
-        void init_attribute_list_(Individual &member,
-                                  const std::string &a,
-                                  const str_vec &keys,
-                                  const str_vec &vals,
-                                  const str_vec &typs,
-                                  const std::vector<bool> &is_arg,
-                                  bool is_var_model);
-        Attribute read_single_attribute_(Individual &member,
-                                         const std::string &a,
-                                         const std::string &val,
-                                         const std::string &type);
+                               const std::string &tkn_val, const std::string &tkn_typ);
+        void init_attribute_list_(Individual &member, const std::string &a,
+                                  const str_vec &keys, const str_vec &vals, const str_vec &typs,
+                                  const std::vector<bool> &is_arg, bool is_var_model);
+        Attribute read_single_attribute_(Individual &member, const std::string &a,
+                                         const std::string &val, const std::string &type);
 
         void build_function_(size_t k);
-        void build_function_identity_(size_t k);
+        void build_function_identity_helper_(size_t k);
         void build_var_to_sample_(size_t k);
         void build_var_with_model_(size_t k);
 
-        void init_single_var_dependencies_(Individual &member, const std::string &a, size_t k);
+        void init_single_var_dependencies_(Individual &member, size_t k);
         void init_func_args_(Individual &member, const std::string &a,
                              const str_vec &keys, const str_vec &vals, const str_vec &typs);
         void init_func_range_(Individual &member, const std::string &a,

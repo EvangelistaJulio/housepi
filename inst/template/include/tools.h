@@ -66,17 +66,17 @@ const double HSP_NA_DOUBLE = std::numeric_limits<double>::quiet_NaN();
 const std::string HSP_NA_STRING = "<NA>"; /// NA value for string
 
 // private object names
-const std::string HSP_HIDE_PRFX = "..";                                           /// prefic for hidden objects
-const std::string HSP_CHAIN_COL = HSP_HIDE_PRFX + "chain" + HSP_HIDE_PRFX;        /// chain column name in draws
-const std::string HSP_IDENTITY_FUNC = HSP_HIDE_PRFX + "identity" + HSP_HIDE_PRFX; /// identity function name
+const std::string HSP_HIDE_PRFX = "..";               /// prefic for hidden objects
+const std::string HSP_CHAIN_COL = "..chain..";        /// chain column name in draws
+const std::string HSP_IDENTITY_FUNC = "..identity.."; /// identity function name
 // group rates
-constexpr double HSP_REFER_VALUE = 1.0;                                              /// alias for reference value
-const std::string HSP_REFERENCE = HSP_HIDE_PRFX + "reference" + HSP_HIDE_PRFX;       /// reference choice
-const std::string HSP_CONTACT_RATE = HSP_HIDE_PRFX + "contact" + HSP_HIDE_PRFX;      /// contact rate
-const std::string HSP_MISSING_RATE = HSP_HIDE_PRFX + "missing_rate" + HSP_HIDE_PRFX; /// missing rate
+constexpr double HSP_REFER_VALUE = 1.0;                  /// alias for reference value
+const std::string HSP_REFERENCE = "..reference..";       /// reference choice
+const std::string HSP_CONTACT_RATE = "..contact..";      /// contact rate
+const std::string HSP_MISSING_RATE = "..missing_rate.."; /// missing rate
 // infectivity profile
-const std::string HSP_PROFILE_INST = HSP_HIDE_PRFX + "profile_inst" + HSP_HIDE_PRFX;   /// augmented instantaneous infectivity profile
-const std::string HSP_PROFILE_CUMUL = HSP_HIDE_PRFX + "profile_cumul" + HSP_HIDE_PRFX; /// augmented cumulative infectivity profile
+const std::string HSP_PROFILE_INST = "..profile_inst..";   /// augmented instantaneous infectivity profile
+const std::string HSP_PROFILE_CUMUL = "..profile_cumul.."; /// augmented cumulative infectivity profile
 
 // advanced setup constants
 constexpr unsigned HSP_MAX_STR_PRINT = 5;        /// maximum options to print
@@ -264,10 +264,10 @@ namespace tools
         std::string format(double x);
         /// Format a boolean value.
         std::string format(bool condition);
-        /// Format a list of string options. 
-        std::string format(const str_vec &options, size_t max_print);
-        /// Format a 2D matrix. 
-        std::string format(const matrix<double>& vec);
+        /// Format a list of string options.
+        std::string format(const str_vec &options, size_t max_print = HSP_MAX_STR_PRINT);
+        /// Format a 2D matrix.
+        std::string format(const matrix<double> &vec);
 
         // calculate Levenshtein distance
         unsigned short levenshtein(const std::string &s1, const std::string &s2);

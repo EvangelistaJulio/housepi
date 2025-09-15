@@ -14,7 +14,7 @@
 #'
 #' Household data with a simulated outbreak to be used for housepi vignettes.
 #'
-#' \itemize{
+#' \describe{
 #'   \item{id}{Individual identifier}
 #'   \item{house_id}{Household identifier}
 #'   \item{status}{Serological test result}
@@ -33,7 +33,7 @@ NULL
 #'
 #' Reported cases of "Spanish" flu in Frederick (USA), in 1918.
 #'
-#' \itemize{
+#' \describe{
 #'   \item{house_id}{Household identifier}
 #'   \item{status}{Reported case}
 #' }
@@ -54,7 +54,7 @@ NULL
 #'
 #' Reported cases of "Spanish" flu in Baltimora (USA), in 1918.
 #'
-#' \itemize{
+#' \describe{
 #'   \item{house_id}{Household identifier}
 #'   \item{status}{Reported case}
 #' }
@@ -77,7 +77,7 @@ NULL
 #' Follow-up started with first PCR positive test, symptoms onset were reported.
 #' Contacts averaged 3 tests during follow-up.
 #'
-#' \itemize{
+#' \describe{
 #'   \item{id}{Individual identifier}
 #'   \item{house_id}{Household identifier}
 #'   \item{status}{PCR test result}
@@ -108,7 +108,7 @@ NULL
 #' Report on influenza episodes of family members during the season 2014-15.
 #' Original oservational study from Uchida, et al. (2017).
 #'
-#' \itemize{
+#' \describe{
 #'   \item{house_id}{Household identifier}
 #'   \item{member}{Family member}
 #'   \item{status}{Symptoms reported}
