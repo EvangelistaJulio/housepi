@@ -103,23 +103,22 @@ protected:
 
     // Functional pointer getter
     observ_dbl_ptr (Attribute::*get_ptr_)() const = &Attribute::do_get_ptr_default_;
+    /// Get pointer to attribute error.
+    observ_dbl_ptr do_get_pointer_error_() const { throw std::runtime_error(
+        "Cannot return a pointer to " + err_name() + "."); }
     /// Get pointer to attribute value internal value.
     observ_dbl_ptr do_get_ptr_default_() const { return &value_; }
     /// Get pointer to attribute value from external value.
     observ_dbl_ptr do_get_pointer_from_pointer_() const { return ptr_to_value_; }
-    /// Get pointer to attribute error.
-    observ_dbl_ptr do_get_pointer_error_() const { throw std::runtime_error(
-        "Cannot return a pointer to " + err_name() + "."); }
 
     // Functional setter
     void (Attribute::*do_set_)(double) = &Attribute::do_set_default_;
-    /// Set attribute internal value.
-    virtual void do_set_default_(double x) { value_ = x; }
-    /// Set error.
-    /// note: so far set_arg is only used for adaptation.
-    /// Pointer and function attributes can't be set, but just assigned.
+    /// Set error. Non scalar attributes can't be set, but just assigned.
+    /// NOTE: so far set_arg is only used for adaptation.
     virtual void do_set_error_(double) { throw std::runtime_error(
         "Non scalar " + err_name() + " cannot be changed."); }
+    /// Set attribute internal value.
+    virtual void do_set_default_(double x) { value_ = x; }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -159,9 +158,9 @@ public:
     /// Select primitive method for return value.
     void set_eval_primitive() { evaluate_ = &Function::eval_primitive_; }
     /// Select call as a distributin method for return value.
-    void set_eval_as_distr_call() { evaluate_ = &Function::eval_as_distr_call_; }
+    void set_eval_as_distr_call() { evaluate_ = &Function::eval_function_as_distr_; }
     /// Select primitive as a distributin method for return value.
-    void set_eval_as_distr_primitive() { evaluate_ = &Function::eval_as_distr_primitive_; }
+    void set_eval_as_distr_primitive() { evaluate_ = &Function::eval_primitive_as_distr_; }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////  Function : getter  /////////////////////////////////////
@@ -194,9 +193,9 @@ public:
     ///////////////////////////////////  Function : setter  /////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    void init_attr(const std::string &arg_name, bool is_arg, double value);
-    void init_attr(const std::string &arg_name, bool is_arg, observ_dbl_ptr ptr_to_value);
-    void init_attr(const std::string &arg_name, bool is_arg, std::shared_ptr<Function> f);
+    void init_attr(const std::string &what, double value);
+    void init_attr(const std::string &what, observ_dbl_ptr ptr_to_value);
+    void init_attr(const std::string &what, std::shared_ptr<Function> f);
 
     /// Set argument value.
     void set_arg(unsigned short i, double x) { args_[i].set(x); }
@@ -243,11 +242,11 @@ protected:
     /// Return value of call.
     double eval_function_(double x) const { return (this->*function_)(x); }
     /// Return value as for a probability density/mass function.
-    double eval_as_distr_call_(double x) const { return is_valid(x) ? eval_function_(x) : 0.; }
+    double eval_function_as_distr_(double x) const { return is_valid(x) ? eval_function_(x) : 0.; }
     /// Return value of primitive.
     double eval_primitive_(double x) const { return (this->*primitive_)(x); }
     /// Return value as for a cumulative distribution function.
-    double eval_as_distr_primitive_(double x) const { return is_valid(x) ? eval_primitive_(x) : (is_above(x) ? eval_primitive_(get_max()) : 0.); }
+    double eval_primitive_as_distr_(double x) const { return is_valid(x) ? eval_primitive_(x) : (is_above(x) ? eval_primitive_(get_max()) : 0.); }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////  Function : virtual methods [protected]  ///////////////////////////
@@ -262,9 +261,8 @@ protected:
     /// Raw primitive method.
     virtual double raw_primitive_(double) const { throw std::invalid_argument(
         "Wrong call to undefined method \"primitive\" of " + err_name() + "."); }
-    /// Raw log-ratio method.
-    virtual double raw_logratio_(double, double) const { throw std::invalid_argument(
-        "Wrong call to undefined method \"logratio\" of " + err_name() + "."); }
+    /// Raw log-ratio method. NOTE: empty function return 0 by convention.
+    virtual double raw_logratio_(double, double) const { return 0.; }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////  Function : discretization [protected]  ///////////////////////////
@@ -308,11 +306,15 @@ protected:
     virtual double do_logratio_discr_center_(double xo, double xn) const
     {
         const double io = std::round(xo), in = std::round(xn);
+        if (io == in)
+            return 0.;
         return std::log((raw_primitive_(in + .5) - raw_primitive_(in - .5)) / (raw_primitive_(io + .5) - raw_primitive_(io - .5)));
     }
     virtual double do_logratio_discr_left_(double xo, double xn) const
     {
         const double io = std::floor(xo), in = std::floor(xn);
+        if (io == in)
+            return 0.;
         return std::log((raw_primitive_(in + 1.) - raw_primitive_(in)) / (raw_primitive_(io + 1.) - raw_primitive_(io)));
     }
 
@@ -332,6 +334,8 @@ protected:
     void init_range_scalar_(const std::string &range_name, double lower);
     void init_range_pointer_(const std::string &range_name, observ_dbl_ptr ptr_to_lower);
     void init_range_function_(const std::string &range_name, const std::shared_ptr<Function> f);
+
+    void helper_init_range_assert_(const std::string &range_name) const;
 
     /// Internal code to define the type of range.
     unsigned short which_valid_case_() const;

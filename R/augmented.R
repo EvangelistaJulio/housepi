@@ -14,8 +14,7 @@ extract_at_values <- function(defs, at) {
   # tuples (value, type) amongst augmented definitions
   at_tuples <- list(c("farg_val", "farg_at"),
                     c("value", "value_at"), c("arg_val", "arg_at"),
-                    c("min", "min_at"), c("max", "max_at"),
-                    c("from", "from_at"))
+                    c("min", "min_at"), c("max", "max_at"))
 
   output <- c()
   if (length(defs) > 0) {
@@ -114,7 +113,7 @@ HousepiAugmented <- R6::R6Class(
     },
 
     # process model arguments
-    .helper_model_arguments = function(opts, args) {
+    .helper_model_args = function(opts, args) {
       if (is.na(opts$model))  {
         msg <- sprintf("Spare arguments for augmented \"%s\".", opts$name)
         if ((!is.na(opts$func)) && is.na(opts$farg_key)) {
@@ -139,7 +138,7 @@ HousepiAugmented <- R6::R6Class(
     },
 
     # process constant or random
-    .helper_constant_or_random = function(opts, value, from) {
+    .helper_const_vs_rand = function(opts, value) {
       parsed <- extract_func_(value)
 
       if (.is_func(parsed$func)) stop_h(sprintf(
@@ -163,19 +162,8 @@ HousepiAugmented <- R6::R6Class(
 
       } else {
         if (is.na(parsed$val)) {
-          if (is.na(opts$model)) {
-            parse_from <- extract_func_(from)
-            if (.is_func(parse_from$func)) stop_h(sprintf(
-              "Calls in the from value definition of augmented \"%s\" 
-              are not supported.", opts$name
-            ))
-            else if (!is.na(parse_from$val)) opts <- utils::modifyList(
-              opts, list(value = parse_from$val, value_at = parse_from$at)
-            )
-            # else: constant NA augmented variable
-          } else {
-            opts$init_rand <- TRUE
-          }
+          if (!is.na(opts$model)) opts$init_rand <- TRUE
+          # else: constant NA augmented variable
         } else {
           opts <- utils::modifyList(opts, list(value = parsed$val,
                                                value_at = parsed$at))
@@ -186,7 +174,7 @@ HousepiAugmented <- R6::R6Class(
     },
 
     # interpret user choice for proposer rule
-    .helper_proposer_rule = function(opts, scale, from) {
+    .helper_proposer_rule = function(opts, scale) {
       if (isFALSE(opts$const)) {
         if (is.na(opts$rule)) {
           if (is.na(opts$model)) opts$const <- TRUE
@@ -195,16 +183,6 @@ HousepiAugmented <- R6::R6Class(
           if (is.na(scale)) opts$scale <- 1
           else if (is.numeric(scale) && (scale > 0)) opts$scale <- scale
           else stop_h("Rule scale should be a numeric value greater than 0.")
-
-          # extract proposer rule 'from' value
-          parsed <- extract_func_(from)
-          if (.is_func(parsed$func)) stop_h(sprintf(
-            "Calls in the from value definition of augmented \"%s\" 
-              are not supported.", opts$name
-          ))
-          opts <- utils::modifyList(
-            opts, list(from = parsed$val, from_at = parsed$at)
-          )
         }
       }
 
@@ -416,7 +394,6 @@ HousepiAugmented <- R6::R6Class(
                    max = NULL,
                    rule = NA,
                    scale = NA,
-                   from = NULL,
                    expr = NULL) {
       # handle (name, status) and check for existing definitions
       private$.helper_existing_definition(name, status)
@@ -437,8 +414,7 @@ HousepiAugmented <- R6::R6Class(
         min = NA, min_at = NA,
         max = NA, max_at = NA,
         rule = as.character(rule),
-        scale = NA,
-        from = NA, from_at = NA
+        scale = NA
       )
 
       # augmented function
@@ -450,13 +426,11 @@ HousepiAugmented <- R6::R6Class(
       }
 
       # model arguments
-      if (length(args) > 0) {
-        opts <- private$.helper_model_arguments(opts, args)
-      }
+      if (length(args) > 0) opts <- private$.helper_model_args(opts, args)
 
       if (is.na(opts$func)) {
-        opts <- private$.helper_constant_or_random(opts, value, from)
-        opts <- private$.helper_proposer_rule(opts, scale, from)
+        opts <- private$.helper_const_vs_rand(opts, value)
+        opts <- private$.helper_proposer_rule(opts, scale)
       }
 
       opts <- private$.helper_bounds(opts, min, max)

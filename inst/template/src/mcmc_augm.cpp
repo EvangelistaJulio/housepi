@@ -62,12 +62,12 @@ void MCMC::Impl::Augmented::build()
             }
 
             // drop duplicates
-            list_sample = tools::str::drop_duplicate(list_sample);
-            list_func = tools::str::drop_duplicate(list_func);
-            list_const = tools::str::drop_duplicate(list_const);
-            list_model = tools::str::drop_duplicate(list_model);
+            list_sample = tools::str::unique(list_sample);
+            list_func = tools::str::unique(list_func);
+            list_const = tools::str::unique(list_const);
+            list_model = tools::str::unique(list_model);
             // initialize complete lists
-            list_full = tools::str::drop_duplicate(list_sample + list_func + list_const);
+            list_full = tools::str::unique(list_sample + list_func + list_const);
             list_export = tools::str::drop_private(list_full);
 
             // allocate memory for augmented variables to each individual.
@@ -180,7 +180,7 @@ void MCMC::Impl::Augmented::build_function_(size_t k)
 void MCMC::Impl::Augmented::build_function_identity_helper_(size_t k)
 {
     const std::string &a = deftable.at("name")[k];
-    str_vec vals = tools::parse_arg_list(deftable.at("farg_at")[k], HSP_LIST_DELIM);
+    str_vec vals = tools::parse_arg_list(deftable.at("farg_val")[k], HSP_LIST_DELIM);
     str_vec types = tools::parse_arg_list(deftable.at("farg_at")[k], HSP_LIST_DELIM);
     // note: emptiness is checked elsewhere
 
@@ -341,7 +341,7 @@ void MCMC::Impl::Augmented::init_draws(unsigned long sample_size)
     if (is_any_draw())
     {
         // initialize list with augmented headers for draws
-        list_draws = tools::str::drop_duplicate(tools::str::drop_private(list_sample + list_func));
+        list_draws = tools::str::unique(tools::str::drop_private(list_sample + list_func));
 
         smpl_values.clear();
         smpl_values.resize(smpl_individuals.size());
@@ -419,7 +419,7 @@ void MCMC::Impl::Augmented::init_all(Individual &member)
     {
         int status = member.status();
         // FIXME: need to be reordered according to dependency tree
-        std::vector<size_t> indiv_augm_entries; 
+        std::vector<size_t> indiv_augm_entries;
 
         // loop over augmented variable definitions to assign placheholders
         for (size_t k = 0; k < deftable.at("name").size(); ++k)
@@ -478,31 +478,33 @@ void MCMC::Impl::Augmented::init_single_var_dependencies_(Individual &member, si
 
     // assign arguments to model
     if (!tools::is_na(deftable.at("arg_key")[k]))
-        init_model_args_(member, a,
-                         tools::parse_arg_list(deftable.at("arg_key")[k], HSP_LIST_DELIM),
-                         tools::parse_arg_list(deftable.at("arg_val")[k], HSP_LIST_DELIM),
-                         tools::parse_arg_list(deftable.at("arg_at")[k], HSP_LIST_DELIM));
+        init_attribute_list_(HSP_VAR_MODEL, member, a,
+                             tools::parse_keys(deftable.at("arg_key")[k], HSP_LIST_DELIM),
+                             tools::parse_arg_list(deftable.at("arg_val")[k], HSP_LIST_DELIM),
+                             tools::parse_arg_list(deftable.at("arg_at")[k], HSP_LIST_DELIM));
 
     // assign range to model
     if (!(tools::is_na(deftable.at("min")[k]) && tools::is_na(deftable.at("max")[k])))
-        init_model_range_(member, a,
-                          {deftable.at("min")[k], deftable.at("max")[k]},
-                          {deftable.at("min_at")[k], deftable.at("max_at")[k]});
+        init_attribute_list_(HSP_VAR_MODEL, member, a,
+                             HSP_RANGE_KEYS,
+                             {deftable.at("min")[k], deftable.at("max")[k]},
+                             {deftable.at("min_at")[k], deftable.at("max_at")[k]});
     xaugm.init_distr_reshaping();
 
     if (xaugm.is_function()) // function
     {
         // assign arguments to function
         if (!tools::is_na(deftable.at("farg_key")[k]))
-            init_func_args_(member, a,
-                            tools::parse_arg_list(deftable.at("farg_key")[k], HSP_LIST_DELIM),
-                            tools::parse_arg_list(deftable.at("farg_val")[k], HSP_LIST_DELIM),
-                            tools::parse_arg_list(deftable.at("farg_at")[k], HSP_LIST_DELIM));
+            init_attribute_list_(HSP_VAR_FUNCTION, member, a,
+                                 tools::parse_keys(deftable.at("farg_key")[k], HSP_LIST_DELIM),
+                                 tools::parse_arg_list(deftable.at("farg_val")[k], HSP_LIST_DELIM),
+                                 tools::parse_arg_list(deftable.at("farg_at")[k], HSP_LIST_DELIM));
         // assign range to function
         if (!(tools::is_na(deftable.at("min")[k]) && tools::is_na(deftable.at("max")[k])))
-            init_func_range_(member, a,
-                             {deftable.at("min")[k], deftable.at("max")[k]},
-                             {deftable.at("min_at")[k], deftable.at("max_at")[k]});
+            init_attribute_list_(HSP_VAR_FUNCTION, member, a,
+                                 HSP_RANGE_KEYS,
+                                 {deftable.at("min")[k], deftable.at("max")[k]},
+                                 {deftable.at("min_at")[k], deftable.at("max_at")[k]});
     }
     else if (xaugm.is_pointer()) // pointer (case of identity function)
     {
@@ -519,14 +521,12 @@ void MCMC::Impl::Augmented::init_single_var_dependencies_(Individual &member, si
     else if (!xaugm.is_constant()) // variable to be sampled
     {
         // assign proposer rule
-        xaugm.init_proposer(deftable.at("rule")[k],
-                            tools::str::tod(deftable.at("scale")[k]),
-                            type_to_double_(member, deftable.at("from")[k], deftable.at("from_at")[k]));
+        xaugm.init_proposer(deftable.at("rule")[k], tools::str::tod(deftable.at("scale")[k]));
 
         // random initialization
         // UPDATE: need a more general switch connected to pImpl_.setup.rand_init_params)
         if (tools::str::tobool(deftable.at("init_rand")[k]))
-            xaugm.rand(pImpl_.setup.prng());
+            xaugm.init_rand(pImpl_.setup.prng());
     }
 }
 
@@ -575,57 +575,40 @@ double MCMC::Impl::Augmented::type_to_double_(const Individual &member,
 }
 
 /// Auxiliary method to assign attributes to augmented function or model.
-void MCMC::Impl::Augmented::init_attribute_list_(Individual &member, const std::string &a,
-                                                 const str_vec &keys,
-                                                 const str_vec &vals, const str_vec &typs,
-                                                 const std::vector<bool> &is_arg, bool is_var_model)
+void MCMC::Impl::Augmented::init_attribute_list_(bool is_var_model,
+                                                 Individual &member,
+                                                 const std::string &a,
+                                                 const str_vec &all_keys,
+                                                 const str_vec &all_values,
+                                                 const str_vec &all_types)
 {
-    // check size validity of keys, values and type
-    if ((keys.size() != vals.size()) || (typs.size() != vals.size()))
-        throw std::invalid_argument(
-            "Mismatching attributes in definition of augmented variable \"" + a + "\".");
-
     Variable &xaugm = member.get_augm_variable(a);
 
+    // check size validity of keys, values and type
+    const size_t n_keys = all_keys.size();
+    if (n_keys > 0)
+        if (all_values.size() != n_keys || all_types.size() != n_keys)
+            throw std::invalid_argument(
+                "Mismatching attributes in definition of " + xaugm.err_name() + ".");
+
     // loop over all attributes
-    for (size_t i = 0; i < keys.size(); ++i)
+    for (size_t i = 0; i < all_keys.size(); ++i)
     {
-        std::string key = keys[i];
-        std::string value = vals[i];
-        std::string type = typs[i];
-        bool flag = is_arg[i];
+        const std::string key = all_keys[i], value = all_values[i], type = all_types[i];
 
         // get auxiliary attribute
         const Attribute &aux_attr = read_single_attribute_(member, a, value, type);
 
         // cache dependecy if an augmented variable depends on a parameter to be inferred
-        if (tools::str::toup(type) == HSP_TYPE_PARAM)
-            if (aux_attr.is_pointer())
-                if (is_var_model == HSP_VAR_FUNCTION)
-                    pImpl_.param.make_cache_dependent(value);
+        if (is_var_model == HSP_VAR_FUNCTION)
+        {
+            if (tools::str::toup(type) == HSP_TYPE_PARAM && aux_attr.is_pointer())
+                pImpl_.param.make_cache_dependent(value);
 
-        // final assignment
-        if (aux_attr.is_scalar())
-        {
-            if (is_var_model == HSP_VAR_MODEL)
-                xaugm.init_distr_attr(key, flag, aux_attr.get());
-            else
-                xaugm.init_func_attr(key, flag, aux_attr.get());
+            xaugm.init_func_attr(key, aux_attr);
         }
-        else if (aux_attr.is_pointer())
-        {
-            if (is_var_model == HSP_VAR_MODEL)
-                xaugm.init_distr_attr(key, flag, aux_attr.get_ptr());
-            else
-                xaugm.init_func_attr(key, flag, aux_attr.get_ptr());
-        }
-        else if (aux_attr.is_function())
-        {
-            if (is_var_model == HSP_VAR_MODEL)
-                xaugm.init_distr_attr(key, flag, aux_attr.get_function());
-            else
-                xaugm.init_func_attr(key, flag, aux_attr.get_function());
-        }
+        else // is_var_model == HSP_VAR_MODEL
+            xaugm.init_distr_attr(key, aux_attr);
     }
 }
 
@@ -686,46 +669,6 @@ Attribute MCMC::Impl::Augmented::read_single_attribute_(Individual &member,
     return output;
 }
 
-/// Assign augmented function arguments.
-void MCMC::Impl::Augmented::init_func_args_(Individual &member,
-                                            const std::string &a,
-                                            const str_vec &keys,
-                                            const str_vec &vals,
-                                            const str_vec &typs)
-{
-    init_attribute_list_(member, a, keys, vals, typs,
-                         std::vector<bool>(keys.size(), HSP_ATTR_ARGUMENT), HSP_VAR_FUNCTION);
-}
-/// Assign augmented function range.
-void MCMC::Impl::Augmented::init_func_range_(Individual &member,
-                                             const std::string &a,
-                                             const str_vec &vals,
-                                             const str_vec &typs)
-{
-    init_attribute_list_(member, a, {"min", "max"}, vals, typs,
-                         std::vector<bool>(2, HSP_ATTR_RANGE), HSP_VAR_FUNCTION);
-}
-
-/// Assign augmented model arguments.
-void MCMC::Impl::Augmented::init_model_args_(Individual &member,
-                                             const std::string &a,
-                                             const str_vec &keys,
-                                             const str_vec &vals,
-                                             const str_vec &typs)
-{
-    init_attribute_list_(member, a, keys, vals, typs,
-                         std::vector<bool>(keys.size(), HSP_ATTR_ARGUMENT), HSP_VAR_MODEL);
-}
-/// Assign augmented model range.
-void MCMC::Impl::Augmented::init_model_range_(Individual &member,
-                                              const std::string &a,
-                                              const str_vec &vals,
-                                              const str_vec &typs)
-{
-    init_attribute_list_(member, a, {"min", "max"}, vals, typs,
-                         std::vector<bool>(2, HSP_ATTR_RANGE), HSP_VAR_MODEL);
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////  MCMC : move all augmented variables  /////////////////////////////
@@ -783,27 +726,9 @@ double MCMC::Impl::move_augm_single_house_(Household &house)
     double delta_ll = 0.;
     // Loop over infectious residents of the househould
     for (Individual &member_i : house.infected())
-        delta_ll += (this->*move_augm_indiv_)(house, member_i);
-    return delta_ll;
-}
-
-/// Generic move augmented variables one by one.
-double MCMC::Impl::do_move_augm_indiv_generic_(Household &house, Individual &member_i)
-{
-    double delta_ll = 0.;
-    // Loop over augmented variables of infectious
-    for (const std::string &a : augm.list_sample)
-        delta_ll += metropolis_augm_single_move_(house, member_i, a);
-    return delta_ll;
-}
-
-/// Move augmented variables by status one variable at a time.
-double MCMC::Impl::do_move_augm_indiv_by_status_(Household &house, Individual &member_i)
-{
-    double delta_ll = 0.;
-    // Loop over augmented variables of infectious
-    for (const std::string &a : augm.status_map_infer[member_i.status()])
-        delta_ll += metropolis_augm_single_move_(house, member_i, a);
+        // Loop over augmented variables of infectious
+        for (const std::string &a : augm.status_map_infer[member_i.status()])
+            delta_ll += metropolis_augm_single_move_(house, member_i, a);
     return delta_ll;
 }
 
@@ -822,10 +747,12 @@ double MCMC::Impl::metropolis_augm_single_move_(Household &house, Individual &me
 
         // Metropolis-Hastings algorithm
         double D_ll = -(house.get_obs_loglike() + member.get_augm_model_loglike());
+        // NOTE: because of dependency between augmented variables
+        // I am recomputing everything // UPDATE: to be optimized
         D_ll += member.compute_and_set_augm_model_loglike();
         D_ll += compute_and_set_household_obs_loglike_(house);
 
-        if (setup.unif() < std::exp(setup.inv_T * D_ll - xaugm.propose_logratio()))
+        if (setup.unif() < std::exp(setup.inv_T * D_ll - xaugm.get_propose_logratio()))
             return D_ll;
         else
         {

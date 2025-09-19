@@ -496,8 +496,7 @@ public:
                                       "model", "arg_key", "arg_val", "arg_at",
                                       "min", "min_at",
                                       "max", "max_at",
-                                      "rule", "scale", 
-                                      "from", "from_at"};
+                                      "rule", "scale"};
 
         str_vec list_model = {};
         str_vec list_const = {};
@@ -567,12 +566,18 @@ public:
         void set_id_draws_(str_vec &id_draws);
 
         double type_to_double_(const Individual &member,
-                               const std::string &tkn_val, const std::string &tkn_typ);
-        void init_attribute_list_(Individual &member, const std::string &a,
-                                  const str_vec &keys, const str_vec &vals, const str_vec &typs,
-                                  const std::vector<bool> &is_arg, bool is_var_model);
-        Attribute read_single_attribute_(Individual &member, const std::string &a,
-                                         const std::string &val, const std::string &type);
+                               const std::string &tkn_value,
+                               const std::string &tkn_type);
+        void init_attribute_list_(bool is_var_model,
+                                  Individual &member,
+                                  const std::string &a,
+                                  const str_vec &all_keys,
+                                  const str_vec &all_values,
+                                  const str_vec &all_types);
+        Attribute read_single_attribute_(Individual &member,
+                                         const std::string &a,
+                                         const std::string &value,
+                                         const std::string &type);
 
         void build_function_(size_t k);
         void build_function_identity_helper_(size_t k);
@@ -580,15 +585,6 @@ public:
         void build_var_with_model_(size_t k);
 
         void init_single_var_dependencies_(Individual &member, size_t k);
-        void init_func_args_(Individual &member, const std::string &a,
-                             const str_vec &keys, const str_vec &vals, const str_vec &typs);
-        void init_func_range_(Individual &member, const std::string &a,
-                              const str_vec &vals, const str_vec &typs);
-
-        void init_model_args_(Individual &member, const std::string &a,
-                              const str_vec &keys, const str_vec &vals, const str_vec &typs);
-        void init_model_range_(Individual &member, const std::string &a,
-                               const str_vec &vals, const str_vec &typs);
     } augm;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -660,8 +656,7 @@ public:
         void build_generic_profile_(const dict_str &deflist);
         void build_augmented_profile_(const dict_str &deflist);
 
-        void init_single_attribute_(const std::string &key, const std::string &val, const std::string &at,
-                                    bool is_arg);
+        void init_single_attribute_(const std::string &key, const std::string &val, const std::string &at);
         void init_arguments_(const str_vec &keys, const str_vec &vals, const str_vec &typs);
 
         //===== Functional methods for getter methods =====//
@@ -772,10 +767,6 @@ private:
     void move_all_augm_();
     double move_augm_single_house_(Household &house);
     double metropolis_augm_single_move_(Household &house, Individual &member, const std::string &a);
-
-    double (MCMC::Impl::*move_augm_indiv_)(Household &, Individual &) = &MCMC::Impl::do_move_augm_indiv_generic_;
-    double do_move_augm_indiv_generic_(Household &house, Individual &member);
-    double do_move_augm_indiv_by_status_(Household &house, Individual &member);
 
     /// Compute statistics from sample of full loglikelihood.
     std::pair<double, double> smpl_full_loglike_stats_() const { return tools::compute_stats(smpl_full_loglike_); }

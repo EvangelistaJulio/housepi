@@ -56,6 +56,8 @@ reference:
   contents:
   - starts_with("measure_")
   - starts_with("expec_")
+  - HousepiExpectation
+  - ExpectedCasesBySize
 
 - title: "Test internal functions"
   desc: >

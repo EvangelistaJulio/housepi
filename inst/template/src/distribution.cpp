@@ -273,7 +273,7 @@ class Uniform_Distribution : public Distribution
 {
 public:
     Uniform_Distribution()
-        : Distribution("unif", {"min", "max"}, {0., 1.},
+        : Distribution("unif", HSP_RANGE_KEYS, {0., 1.},
                        HSP_NA_DOUBLE, false, HSP_NA_DOUBLE, false),
           distr_gen(arg(0), arg(1)) { init_uniform_range_(); }
 
@@ -634,7 +634,7 @@ public:
           distr_gen(arg(0), arg(1))
     {
         init_discr_helper_(HSP_DISCR_DEFINED);
-        init_attr("max", HSP_ATTR_RANGE, get_ptr_to_arg(0));
+        init_attr(HSP_PARAM_MAX, get_ptr_to_arg(0));
         init_range_helper_(false, false);
     }
 

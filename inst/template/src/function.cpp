@@ -56,22 +56,32 @@ void Attribute::init_scalar(double x)
 /// Initialize attribute as pointer.
 void Attribute::init_pointer(observ_dbl_ptr y)
 {
-    get_ = &Attribute::do_get_from_pointer_;
-    get_ptr_ = &Attribute::do_get_pointer_from_pointer_;
-    do_set_ = &Attribute::do_set_error_;
-    value_ = HSP_NA_DOUBLE;
-    ptr_to_value_ = y;
-    pFunc_ = nullptr;
+    if (y == nullptr)
+        init_scalar(HSP_NA_DOUBLE);
+    else
+    {
+        get_ = &Attribute::do_get_from_pointer_;
+        get_ptr_ = &Attribute::do_get_pointer_from_pointer_;
+        do_set_ = &Attribute::do_set_error_;
+        value_ = HSP_NA_DOUBLE;
+        ptr_to_value_ = y;
+        pFunc_ = nullptr;
+    }
 }
 /// Initialize attribute as function.
 void Attribute::init_function(const std::shared_ptr<Function> f)
 {
-    get_ = &Attribute::do_get_from_function_;
-    get_ptr_ = &Attribute::do_get_pointer_error_;
-    do_set_ = &Attribute::do_set_error_;
-    value_ = HSP_NA_DOUBLE;
-    ptr_to_value_ = nullptr;
-    pFunc_ = f;
+    if (f == nullptr)
+        init_scalar(HSP_NA_DOUBLE);
+    else
+    {
+        get_ = &Attribute::do_get_from_function_;
+        get_ptr_ = &Attribute::do_get_pointer_error_;
+        do_set_ = &Attribute::do_set_error_;
+        value_ = HSP_NA_DOUBLE;
+        ptr_to_value_ = nullptr;
+        pFunc_ = f;
+    }
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -89,7 +99,7 @@ Function::Function(const std::string &name,
     bool is_x_default = arg_name % "x";
 
     // name of the function
-    name_ = name;
+    this->name_ = name;
 
     // number of arguments
     if (arg_name.size() != arg_value.size())
@@ -121,8 +131,8 @@ Function::Function(const std::string &name,
     //----- assign domain -----//
     // NOTE: at the moment only place where to set open ranges
     // NOTE: not sure if setting pointer to smtg exiting the domain I still have control
-    init_range_scalar_("min", domain_min);
-    init_range_scalar_("max", domain_max);
+    init_range_scalar_(HSP_PARAM_MIN, domain_min);
+    init_range_scalar_(HSP_PARAM_MAX, domain_max);
     init_range_helper_(is_min_open, is_max_open);
 }
 
@@ -154,7 +164,7 @@ unsigned short Function::assert_arg(const std::string &arg_name) const
 bool Function::is_constant() const
 {
     // check arguments
-    for (ushort i = 0; i < n_args_; ++i)
+    for (unsigned short i = 0; i < n_args_; ++i)
         if (!args_[i].is_constant())
             return false;
     // check X value
@@ -177,8 +187,8 @@ bool Function::is_constant() const
 unsigned short Function::which_valid_case_() const
 {
     // note: bounded if not pointing internally to NA
-    bool is_lower_bound = !range_min_.is_empty();
-    bool is_upper_bound = !range_max_.is_empty();
+    const bool is_lower_bound = !range_min_.is_empty();
+    const bool is_upper_bound = !range_max_.is_empty();
     return is_lower_bound + 2 * is_upper_bound;
 }
 
@@ -186,14 +196,14 @@ unsigned short Function::which_valid_case_() const
 void Function::init_uniform_range_()
 {
     // impose range minimum equal to argument minimum
-    Attribute &min_arg = args_[this->assert_arg("min")];
+    const Attribute &min_arg = args_[this->assert_arg(HSP_PARAM_MIN)];
     if (min_arg.is_function())
         range_min_.init_function(min_arg.get_function());
     else
         range_min_.init_pointer(min_arg.get_ptr());
 
     // impose range maximum equal to argument maximum
-    Attribute &max_arg = args_[this->assert_arg("max")];
+    const Attribute &max_arg = args_[this->assert_arg(HSP_PARAM_MAX)];
     if (max_arg.is_function())
         range_max_.init_function(max_arg.get_function());
     else
@@ -327,41 +337,41 @@ std::string Function::str_range() const
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Assign scalar argument or range value.
-void Function::init_attr(const std::string &arg_name, bool is_arg, double x)
+void Function::init_attr(const std::string &what, double x)
 {
-    if (is_arg == HSP_ATTR_ARGUMENT)
-        init_arg_scalar_(arg_name, x);
+    if (HSP_RANGE_KEYS % what)
+        init_range_scalar_(what, x);
     else
-        init_range_scalar_(arg_name, x);
+        init_arg_scalar_(what, x);
 }
 /// Assign pointer argument or range value.
-void Function::init_attr(const std::string &arg_name, bool is_arg, observ_dbl_ptr y)
+void Function::init_attr(const std::string &what, observ_dbl_ptr y)
 {
     // check the function is different from the current one
     if (y == nullptr)
         throw std::invalid_argument(
-            "Invalid pointer argument \"" + arg_name + "\" for " + err_name() + ".");
+            "Invalid pointer argument \"" + what + "\" for " + err_name() + ".");
 
-    if (is_arg == HSP_ATTR_ARGUMENT)
-        init_arg_pointer_(arg_name, y);
+    if (HSP_RANGE_KEYS % what)
+        init_range_pointer_(what, y);
     else
-        init_range_pointer_(arg_name, y);
+        init_arg_pointer_(what, y);
 }
 /// Assign fucntion argument or range value.
-void Function::init_attr(const std::string &arg_name, bool is_arg, std::shared_ptr<Function> f)
+void Function::init_attr(const std::string &what, std::shared_ptr<Function> f)
 {
     // check the function is different from the current one
     if (f == nullptr)
         throw std::invalid_argument(
-            "Invalid " + err_type_ + " argument \"" + arg_name + "\" for " + err_name() + ".");
+            "Invalid " + err_type_ + " argument \"" + what + "\" for " + err_name() + ".");
     else if (f.get() == this)
         throw std::invalid_argument(
-            "Cannot assign " + err_type_ + " " + err_name() + "\" to its own argument \"" + arg_name + "\".");
+            "Cannot assign " + err_type_ + " " + err_name() + " to its own argument \"" + what + "\".");
 
-    if (is_arg == HSP_ATTR_ARGUMENT)
-        init_arg_function_(arg_name, f);
+    if (HSP_RANGE_KEYS % what)
+        init_range_function_(what, f);
     else
-        init_range_function_(arg_name, f);
+        init_arg_function_(what, f);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -371,70 +381,52 @@ void Function::init_attr(const std::string &arg_name, bool is_arg, std::shared_p
 /// Assign scalar range.
 void Function::init_range_scalar_(const std::string &range_name, double x)
 {
-    if (name_ == "unif")
+    helper_init_range_assert_(range_name);
+
+    // NOTE: init_scalar(NA) is admitted, but not for range values
+    if (!tools::is_na(x))
     {
-        if ((range_name != "min") && (range_name != "max"))
-            throw std::invalid_argument(
-                "Unknown range name \"" + range_name + "\" for " + err_name() + ".");
-        else if (!tools::is_na(x))
-            init_arg_scalar_(range_name, x);
-    }
-    else
-    {
-        if (range_name == "min")
+        if (name_ == "unif")
+            args_[assert_arg(range_name)].init_scalar(x);
+        else if (range_name == HSP_PARAM_MIN)
             range_min_.init_scalar(x);
-        else if (range_name == "max")
+        else // range_name == HSP_PARAM_MAX
             range_max_.init_scalar(x);
-        else
-            throw std::invalid_argument(
-                "Unknown range name \"" + range_name + "\" for " + err_name() + ".");
     }
 }
 
 /// Assign pointer range.
 void Function::init_range_pointer_(const std::string &range_name, observ_dbl_ptr y)
 {
+    helper_init_range_assert_(range_name);
+
     if (name_ == "unif")
-    {
-        if ((range_name != "min") && (range_name != "max"))
-            throw std::invalid_argument(
-                "Unknown range name \"" + range_name + "\" for " + err_name() + ".");
-        else if (y != nullptr)
-            init_arg_pointer_(range_name, y);
-    }
-    else
-    {
-        if (range_name == "min")
-            range_min_.init_pointer(y);
-        else if (range_name == "max")
-            range_max_.init_pointer(y);
-        else
-            throw std::invalid_argument(
-                "Unknown range name \"" + range_name + "\" for " + err_name() + ".");
-    }
+        args_[assert_arg(range_name)].init_pointer(y);
+    else if (range_name == HSP_PARAM_MIN)
+        range_min_.init_pointer(y);
+    else // range_name == HSP_PARAM_MAX
+        range_max_.init_pointer(y);
 }
 
 /// Assign function range.
 void Function::init_range_function_(const std::string &range_name, const std::shared_ptr<Function> f)
 {
+    helper_init_range_assert_(range_name);
+
     if (name_ == "unif")
-    {
-        if ((range_name != "min") && (range_name != "max"))
-            throw std::invalid_argument(
-                "Unknown range name \"" + range_name + "\" for " + err_name() + ".");
-        else if (f != nullptr)
-            init_arg_function_(range_name, f);
-    }
-    else
-    {
-        if (range_name == "min")
-            range_min_.init_function(f);
-        else if (range_name == "max")
-            range_max_.init_function(f);
-        else
-            throw std::invalid_argument(
-                "Unknown range name \"" + range_name + "\" for " + err_name() + ".");
-    }
+        args_[assert_arg(range_name)].init_function(f);
+    else if (range_name == HSP_PARAM_MIN)
+        range_min_.init_function(f);
+    else // range_name == HSP_PARAM_MAX
+        range_max_.init_function(f);
+}
+
+/// Assert that range name is valid.
+void Function::helper_init_range_assert_(const std::string &range_name) const
+{
+    if (!(HSP_RANGE_KEYS % range_name))
+        throw std::invalid_argument(
+            "Unknown range name \"" + range_name + "\" for " + err_name() + ".");
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -553,8 +545,8 @@ Rcpp::NumericVector Function::rcpp_export_args() const
 Rcpp::NumericVector Function::rcpp_export_range() const
 {
     using namespace Rcpp;
-    return NumericVector::create(_["min"] = range_min_.get(),
-                                 _["max"] = range_max_.get());
+    return NumericVector::create(_[HSP_PARAM_MIN] = range_min_.get(),
+                                 _[HSP_PARAM_MAX] = range_max_.get());
 }
 #endif
 

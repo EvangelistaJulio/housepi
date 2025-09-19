@@ -64,7 +64,7 @@ measure_cases_by_house_size <- function(data_wide) {
     data_wide,
     status = dplyr::if_else(is.na(status), 0, as.integer(status > 0))
   )
-    # aggregate data by house_id
+  # aggregate data by house_id
   y <- dplyr::group_by(y, house_id)
   y <- dplyr::summarise(y, house_size = dplyr::n(), cases = sum(status))
   y <- dplyr::count(y, house_size, cases)
@@ -74,7 +74,7 @@ measure_cases_by_house_size <- function(data_wide) {
   )
   # merge NAs with 0
   y <- dplyr::mutate(y, n = dplyr::if_else(is.na(n) & cases <= house_size, 0L, n))
-    # reshape to wide format
+  # reshape to wide format
   y <- tidyr::pivot_wider(y, names_from = cases, values_from = n)
   as.data.frame(y)
 }
@@ -157,8 +157,7 @@ frame_apply_mean <- function(frame_list) {
 #' @param frame_list `list` | `data.frame`\cr
 #' List of data frames, all having the same dimensions.
 #' @param cri_level `r rd_smpl_cri_level_`
-#' @param upper \cr
-#' A `logical(1)` to compute the upper credible interval.
+#' @param upper A `logical(1)` to compute the upper credible interval.
 #' If `FALSE`, compute the lower interval.
 #'
 #' @return `data.frame()`
@@ -371,12 +370,10 @@ HousepiExpectation <- R6::R6Class(
 #' @description
 #' Function to combine cases table.
 #'
-#' @param obsdf `data.frame`\cr
-#' Observed cases table.
-#' @param expdf `data.frame`\cr
-#' Expected cases table.
+#' @param obsdf A `data.frame` with observed cases.
+#' @param expdf A `data.frame` with expected cases.
 #'
-#' @return `data.frame`\cr
+#' @return `data.frame`
 #'
 #' @keywords internal
 #' @noRd

@@ -625,7 +625,7 @@ void MCMC::Impl::GroupRates::init_rate_as_ptrs_(Individual &member,
 
         else if (!tools::is_na(r))
         {
-            bool is_all_reference = true;                   // all reference state
+            bool is_all_reference = true;                 // all reference state
             std::vector<observ_dbl_ptr> vec_par_ptr = {}; // parameter pointers
 
             for (const std::string &p : pair.second)
@@ -654,7 +654,6 @@ void MCMC::Impl::GroupRates::init_rate_as_ptrs_(Individual &member,
 
     member.init_all_group_rates(rate_ptrs);
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -737,30 +736,22 @@ void MCMC::Impl::Parameter::build(const dict_str_vec &deftable)
                 new_param.init_distr(prior_name);
 
                 // assign scalar arguments to prior distribution
-                str_vec arg_key = tools::parse_arg_list(deftable.at("arg_key")[k], HSP_LIST_DELIM);
-                str_vec arg_val = tools::parse_arg_list(deftable.at("arg_val")[k], HSP_LIST_DELIM);
+                const str_vec arg_key = tools::parse_keys(deftable.at("arg_key")[k], HSP_LIST_DELIM);
+                const str_vec arg_val = tools::parse_arg_list(deftable.at("arg_val")[k], HSP_LIST_DELIM);
+
                 for (unsigned short c = 0; c < arg_key.size(); ++c)
-                    // UPDATE: is this check really necessary?
-                    if (!tools::is_na(arg_key[c]))
-                    {
-                        const std::string &x = arg_val[c];
-                        new_param.init_distr_attr(
-                            arg_key[c], HSP_ATTR_ARGUMENT,
-                            (tools::is_na(x) ? HSP_NA_DOUBLE : tools::str::tod(x)));
-                    }
+                {
+                    Attribute aux_attr;
+                    aux_attr.init_scalar(tools::str::tod(arg_val[c], "parameter " + arg_key[c]));
+                    new_param.init_distr_attr(arg_key[c], aux_attr);
+                }
 
                 // load parameter range
-                double lower = HSP_NA_DOUBLE, upper = HSP_NA_DOUBLE;
-                if (!tools::is_na(deftable.at("min")[k]))
-                    lower = tools::str::tod(deftable.at("min")[k], "parameter minimum");
-                if (!tools::is_na(deftable.at("max")[k]))
-                    upper = tools::str::tod(deftable.at("max")[k], "parameter maximum");
-
-                // set the range of values to the parameter
-                if (!tools::is_na(lower))
-                    new_param.init_distr_attr("min", HSP_ATTR_RANGE, lower);
-                if (!tools::is_na(upper))
-                    new_param.init_distr_attr("max", HSP_ATTR_RANGE, upper);
+                Attribute aux_attr;
+                aux_attr.init_scalar(tools::str::tod(deftable.at("min")[k], "parameter minimum"));
+                new_param.init_distr_attr(HSP_PARAM_MIN, aux_attr);
+                aux_attr.init_scalar(tools::str::tod(deftable.at("max")[k], "parameter maximum"));
+                new_param.init_distr_attr(HSP_PARAM_MAX, aux_attr);
                 new_param.init_distr_reshaping();
 
                 // assign the rule for the proposer to the parameter
@@ -801,7 +792,7 @@ void MCMC::Impl::Parameter::init()
                 throw std::invalid_argument(
                     "Parameters with undefined values are not allowed.");
             else
-                this_par.rand(pImpl_.setup.prng());
+                this_par.init_rand(pImpl_.setup.prng());
         }
         else if (tools::is_na(this_par.get()))
             throw std::invalid_argument(
@@ -811,20 +802,11 @@ void MCMC::Impl::Parameter::init()
     }
 }
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/// Assert dataset is not empty.
-void MCMC::Impl::assert_proper_dataset_()
-{
-    if (dataset.n_houses() == 0)
-        throw std::length_error(
-            "Unable to proceed. No database was found.");
-}
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////  MCMC : Impl : init Monte Carlo  /////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Assert setup definitions are ok to proceed with mcmc sampling.
 void MCMC::Impl::init_monte_carlo_()
@@ -838,16 +820,11 @@ void MCMC::Impl::init_monte_carlo_()
     if (!(param.is_any_sample() || augm.is_any_sample()))
         throw std::length_error(
             "Nothing to sample. Check your parameter and augmented variable definitions.");
+}
 
-    if (augm.is_any())
-    {
-        if (augm.is_any_sample())
-        {
-            // wheter sample is generic or status specific
-            if (augm.is_generic())
-                move_augm_indiv_ = &MCMC::Impl::do_move_augm_indiv_generic_;
-            else
-                move_augm_indiv_ = &MCMC::Impl::do_move_augm_indiv_by_status_;
-        }
-    }
+/// Assert dataset is not empty.
+void MCMC::Impl::assert_proper_dataset_()
+{
+    if (dataset.n_houses() == 0)
+        throw std::length_error("Unable to proceed. No database was found.");
 }

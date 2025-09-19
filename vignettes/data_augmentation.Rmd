@@ -147,6 +147,7 @@ Notice that we had to introduce an auxiliary augmented function `..proba`.
 The name starting with `..` is a convention for housepi to interpet such as private and don't store its draws.
 
 ```{r}
+#| fig.height: 3
 #| warning: false
 hhmodel |>
   add_data_wide(dataset) |>
@@ -182,22 +183,21 @@ new_housepi_model("blank") |>
   add_augmented(name = "sample from model",
                 model = "norm", args = c(mean = 14)) |>
   infer() |>
-  get_augm_draws() |>
-  bayesplot::mcmc_trace()
+  (\(x)
+    list(
+      augmented =  bayesplot::mcmc_trace(get_augm_draws(x)),
+      loglikelihood =  bayesplot::mcmc_trace(get_loglike_draws(x))
+    ))()
 
-# random walk starting from 0 (without model)
+# random walk (without model)
 new_housepi_model("blank") |>
   add_augmented(name = "random walk", value = 14, rule = "norm") |>
   infer() |>
-  get_augm_draws() |>
-  bayesplot::mcmc_trace()
-
-# independent normal moves from value 87 (without model)
-new_housepi_model("blank") |>
-  add_augmented(name = "independent moves", rule = "norm", from = 14) |>
-  infer() |>
-  get_augm_draws() |>
-  bayesplot::mcmc_trace()
+  (\(x)
+    list(
+      augmented =  bayesplot::mcmc_trace(get_augm_draws(x)),
+      loglikelihood =  bayesplot::mcmc_trace(get_loglike_draws(x))
+    ))()
 ```
 
 ---

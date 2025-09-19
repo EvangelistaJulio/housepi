@@ -576,7 +576,6 @@ HousepiModel <- R6::R6Class(
     #' @param max `r rd_aug_max_`
     #' @param rule `r rd_var_rule_`
     #' @param scale `r rd_var_scale_`
-    #' @param from `r rd_aug_from_`
     #' @param expr `r rd_aug_expr_`
     add_augmented = function(name = NA, status = NA,
                              const = NA, discr = FALSE,
@@ -584,7 +583,7 @@ HousepiModel <- R6::R6Class(
                              value = NULL, init_rand = FALSE,
                              model = NA, args = list(),
                              min = NULL, max = NULL,
-                             rule = NA, scale = NA, from = NULL,
+                             rule = NA, scale = NA,
                              expr = NULL) {
       private$.augm$add(name = name, status = status,
                         const = const, discr = discr,
@@ -592,7 +591,7 @@ HousepiModel <- R6::R6Class(
                         value = value, init_rand = init_rand,
                         model = model, args = args,
                         min = min, max = max,
-                        rule = rule, scale = scale, from = from,
+                        rule = rule, scale = scale,
                         expr = expr)
       invisible(self)
     },

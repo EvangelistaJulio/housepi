@@ -165,22 +165,25 @@ HousepiPosteriorDraws <- R6::R6Class(
       id_draws <- rcpp_object$export_setup()$id_draws
 
       if (length(id_draws) > 0) {
-        augm_vars <- vars[apply(
-          sapply(id_draws, function(x) stringr::str_detect(vars, x)),
-          1, any
-        )]
-        private$.augm_df <- posterior::subset_draws(all_traces, 
+        mask <- apply(sapply(id_draws,
+                             function(x) stringr::str_detect(vars, x)),
+                      1, base::any)
+        augm_vars <- vars[mask]
+        private$.augm_df <- posterior::subset_draws(all_traces,
                                                     variable = augm_vars)
+        private$.augm_df$.iteration <- all_traces$.iteration
         vars <- setdiff(vars, augm_vars)
       }
 
       # loglikelihood draws
-      private$.loglike_df <- posterior::subset_draws(all_traces, 
+      private$.loglike_df <- posterior::subset_draws(all_traces,
                                                      variable = c("loglikelihood"))
+      private$.loglike_df$.iteration <- all_traces$.iteration
       vars <- setdiff(vars, c("loglikelihood"))
 
       # parameters draws
       private$.param_df <- posterior::subset_draws(all_traces, variable = vars)
+      private$.param_df$.iteration <- all_traces$.iteration
 
       # household pointwise loglikelihood
       private$.house_df <- private$.cpp_draws_to_posterior(

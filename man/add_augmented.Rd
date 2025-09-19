@@ -20,7 +20,6 @@ add_augmented(
   max = NULL,
   rule = NA,
   scale = NA,
-  from = NULL,
   expr = NULL
 )
 }
@@ -86,8 +85,6 @@ One between:\cr
 \item{scale}{\code{numeric(1)}with the scale of the proposer rule (if applicable).\cr
 Changed automatically during inference if \code{n_adpat}>0.\cr
 Default is \code{1}.}
-
-\item{from}{\code{numeric(1)} or \code{character(1)} with advanced options for non random walk moves.}
 
 \item{expr}{Provide an expression.}
 }

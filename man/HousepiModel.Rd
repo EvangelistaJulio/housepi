@@ -306,7 +306,6 @@ If the augmented variablw already exists, it is updated.
   max = NULL,
   rule = NA,
   scale = NA,
-  from = NULL,
   expr = NULL
 )}\if{html}{\out{</div>}}
 }
@@ -373,8 +372,6 @@ One between:\cr
 \item{\code{scale}}{\code{numeric(1)}with the scale of the proposer rule (if applicable).\cr
 Changed automatically during inference if \code{n_adpat}>0.\cr
 Default is \code{1}.}
-
-\item{\code{from}}{\code{numeric(1)} or \code{character(1)} with advanced options for non random walk moves.}
 
 \item{\code{expr}}{Provide an expression.}
 }

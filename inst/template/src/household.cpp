@@ -63,6 +63,7 @@ Individual::Individual(size_t index,
 
 /// Value of loglikelihood associated to augmented variable models within individual.
 /// Store the loglikelihood of individual augmented variables.
+/// UPDATE: without dependency tracking, this is used also for single variable move.
 double Individual::compute_and_set_augm_model_loglike()
 {
 	double x = 0.0;
@@ -108,7 +109,7 @@ void Individual::init_augm_model(const str_vec &augm_model_list)
 	{
 		const Variable &xaugm = safe_at(augm_map_, "augmented variable", a);
 		augm_model_logpdfs_.emplace_back([&xaugm]()
-										 { return xaugm.distr_logpdf(); });
+										 { return xaugm.get_distr_logpdf(); });
 	}
 }
 

@@ -100,8 +100,6 @@ rd_aug_func_ <- "`character(1)` with the name of the augmented function."
 rd_aug_funargs_ <- "named `list` with the arguments of the augmented function."
 rd_aug_min_ <- paste(rd_var_min_, rd_types_)
 rd_aug_max_ <- paste(rd_var_max_, rd_types_)
-# UPDATE:
-rd_aug_from_ <- "`numeric(1)` or `character(1)` with advanced options for non random walk moves." 
 rd_aug_expr_ <- "Provide an expression."
 
 ############################################################################

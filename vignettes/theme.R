@@ -28,6 +28,7 @@ bayesplot::color_scheme_set(scheme = "brightblue")
 show_session_info <- function() {
   knitr::asis_output(paste0(
     paste0(cli::symbol$info, " Session info: "),
-    paste0(utils::capture.output(sessionInfo())[1:3], collapse = ". ")
+    paste0(utils::capture.output(sessionInfo())[1:3], collapse = ". "),
+    "."
   ))
 }

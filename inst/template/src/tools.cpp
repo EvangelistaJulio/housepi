@@ -68,13 +68,8 @@ namespace tools
     /// Internal check for double representing NA.
     bool is_na(double x)
     {
-#ifdef _HOUSEPI_RCPP
-        if (Rcpp::traits::is_na<REALSXP>(x))
-            return true;
-#else
         if (std::isnan(x))
             return true;
-#endif
         return false;
     }
 
@@ -165,7 +160,7 @@ namespace tools
         }
 
         /// make list composed of distinct entries
-        str_vec drop_duplicate(const str_vec &vec)
+        str_vec unique(const str_vec &vec)
         {
             str_vec out;
             out.reserve(vec.size());
@@ -181,8 +176,8 @@ namespace tools
             auto new_end = std::remove_if(
                 vec.begin(), vec.end(),
                 [](const std::string &a)
-                { return a.size() >= HSP_HIDE_PRFX.size() &&
-                         a.compare(0, HSP_HIDE_PRFX.size(), HSP_HIDE_PRFX) == 0; });
+                { return a.size() >= std::string(HSP_HIDE_PRFX).size() &&
+                         a.compare(0, std::string(HSP_HIDE_PRFX).size(), HSP_HIDE_PRFX) == 0; });
             vec.erase(new_end, vec.end());
             return vec;
         }
@@ -450,7 +445,7 @@ namespace tools
     //-----------------------------------------------------------------------------------------------//
     //-----------------------------------------------------------------------------------------------//
 
-    /// Parse the list from the std::string.
+    /// Parse the list from a given token according to delimiter.
     str_vec parse_arg_list(const std::string &tkn, const char delim)
     {
         std::istringstream args_ss(tkn);
@@ -462,6 +457,22 @@ namespace tools
             output.push_back(tmp);
 
         return output;
+    }
+
+    /// Assert the parsed list can be used a list of keys.
+    str_vec parse_keys(const std::string &tkn, const char delim)
+    {
+        str_vec output = parse_arg_list(tkn, delim);
+        if (output.empty())
+            return {};
+        if (output.size() == 1 && tools::is_na(output[0]))
+            return {};
+        else if (is_any_na(output))
+            throw std::invalid_argument("Argument keys cannot be NA.");
+        else if (tools::str::unique(output).size() != output.size())
+            throw std::invalid_argument("Argument keys must be unique.");
+        else
+            return output;
     }
 
     /// Extract headers from deflist.
@@ -490,12 +501,11 @@ namespace tools
                     std::string name, choice;
                     std::istringstream iss(line);
 
-                    //===== NAME =====//
+                    // name
                     if (!getline(iss, name, HSP_DELIM))
                         throw std::runtime_error(
                             "Unable to extract list name. Check file line \"" + line + "\".");
-
-                    //===== CHOICE =====//
+                    // choice
                     if (!getline(iss, choice))
                         throw std::runtime_error(
                             "Unable to extract list value. Check file line \"" + line + "\".");

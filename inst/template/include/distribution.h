@@ -55,13 +55,13 @@ public:
 
 	double rand(rnd_gen &prng);
 	/// Return value of probability density/mass function.
-	double pdf(double x) const { return eval_as_distr_call_(x); }
+	double pdf(double x) const { return eval_function_as_distr_(x); }
 	/// Return value of log-probability density/mass function.
 	double logpdf(double x) const { return (this->*log_func_)(x); }
 	/// Return value of cumulative distribution.
-	double cdf(double x) const { return eval_as_distr_primitive_(x); }
+	double cdf(double x) const { return eval_primitive_as_distr_(x); }
 	/// Return value of log-ratio of probability density/mass functions.
-	double logratio(double xo, double xn) const { return (xo != xn) ? (this->*log_ratio_)(xo, xn) : 0.; }
+	double logratio(double xo, double xn) const { return (this->*log_ratio_)(xo, xn); }
 
 protected:
 	/////////////////////////////////////////////////////////////////////////////////////////////

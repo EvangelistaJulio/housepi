@@ -89,7 +89,7 @@ Here's the full list of available discrete distributions present in `housepi`:
 # discrete distributions in housepi
 discrete_distri <- c("pois", "binom", "nbinom", "geom")
 defs <- Map(list, prior = discrete_distri) |>
-  stats::setNames(discrete_distri)
+  setNames(discrete_distri)
 
 new_housepi_model("blank") |>
   load_parameter_list(from = defs) |>
@@ -105,7 +105,7 @@ Previous continuous priors can be chosen to be discretized simply by adding the 
 ```{r}
 reduc_distri <- continuos_distri[continuos_distri != "beta"]
 defs <- Map(list, prior = reduc_distri, discr = TRUE) |>
-  stats::setNames(reduc_distri)
+  setNames(reduc_distri)
 
 new_housepi_model("blank") |>
   load_parameter_list(from = defs) |>
@@ -123,10 +123,9 @@ bayesplot::color_scheme_set(scheme = "brightblue")
 
 ```{r}
 # available proposer rules in housepi
-proposer_rules <- c("sample", "unif", "norm", "lnorm")
-defs <- Map(list, prior = "norm", min = 0,
-            rule = proposer_rules, scale = 0.01) |>
-  stats::setNames(paste("rule", proposer_rules))
+prop_rules <- c("sample", "unif", "norm", "lnorm")
+defs <- Map(list, prior = "norm", min = 0, rule = prop_rules, scale = 0.01) |>
+  setNames(paste("rule", prop_rules))
 
 new_housepi_model("blank") |>
   load_parameter_list(from = defs) |>

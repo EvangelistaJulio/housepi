@@ -44,70 +44,6 @@
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  GLOBAL VARIABLES  ///////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-// attribute aliases
-#define HSP_ATTR_ARGUMENT true /// default argument
-#define HSP_ATTR_RANGE false   /// range argument
-
-// variable parts aliases
-#define HSP_VAR_FUNCTION false /// pass to Variable function
-#define HSP_VAR_MODEL true     ///  pass to Variable model
-
-// NA value for double
-#ifdef _HOUSEPI_RCPP
-const double HSP_NA_DOUBLE = NA_REAL;
-#else
-const double HSP_NA_DOUBLE = std::numeric_limits<double>::quiet_NaN();
-#endif
-
-const std::string HSP_NA_STRING = "<NA>"; /// NA value for string
-
-// private object names
-const std::string HSP_HIDE_PRFX = "..";               /// prefic for hidden objects
-const std::string HSP_CHAIN_COL = "..chain..";        /// chain column name in draws
-const std::string HSP_IDENTITY_FUNC = "..identity.."; /// identity function name
-// group rates
-constexpr double HSP_REFER_VALUE = 1.0;                  /// alias for reference value
-const std::string HSP_REFERENCE = "..reference..";       /// reference choice
-const std::string HSP_CONTACT_RATE = "..contact..";      /// contact rate
-const std::string HSP_MISSING_RATE = "..missing_rate.."; /// missing rate
-// infectivity profile
-const std::string HSP_PROFILE_INST = "..profile_inst..";   /// augmented instantaneous infectivity profile
-const std::string HSP_PROFILE_CUMUL = "..profile_cumul.."; /// augmented cumulative infectivity profile
-
-// advanced setup constants
-constexpr unsigned HSP_MAX_STR_PRINT = 5;        /// maximum options to print
-constexpr unsigned HSP_MIN_STR_DIST = 3;         /// minimum string distance for find closest
-constexpr unsigned HSP_DEFAULT_MAX_SIZE = 30;    /// default size for lookup table
-constexpr unsigned HSP_MAX_NUM_ATTEMPTS = 100;   /// max n. of attempts for initialization
-constexpr double HSP_TARGET_ACCEPT_RATE = 0.234; /// target acceptation rate for MCMC
-
-// file formatters
-constexpr char HSP_DELIM = ',';      /// file delimiter
-constexpr char HSP_LIST_DELIM = '/'; /// dictionary delimiter
-
-// declaration for typed file inputs
-const std::string HSP_TYPE_PARAM = "P";  /// Parameter type declaration
-const std::string HSP_TYPE_DATA = "D";   /// Data type declaration
-const std::string HSP_TYPE_SCALAR = "S"; /// Scalar type declaration
-const std::string HSP_TYPE_AUGM = "A";   /// Augmented type declaration
-
-// discretization types
-#define HSP_DISCR_NONE 0    /// none
-#define HSP_DISCR_LEFT 1    /// left
-#define HSP_DISCR_CENTER 2  /// center
-#define HSP_DISCR_DEFINED 3 /// defined
-
-// status aliases
-#define HSP_INFECTED_STATUS 1 // infected status (>=)
-#define HSP_HEALTHY_STATUS 0  // healthy status (==)
-#define HSP_MISSING_STATUS -1 // missing status (<=)
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////  32bit/64bit  ///////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -146,15 +82,75 @@ using u_dict = std::unordered_map<std::string, T>;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////  GLOBAL VARIABLES  ///////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+// variable parts aliases
+#define HSP_VAR_FUNCTION false /// pass to Variable function
+#define HSP_VAR_MODEL true     ///  pass to Variable model
+
+const double HSP_NA_DOUBLE = std::numeric_limits<double>::quiet_NaN(); /// NA value for double.
+#define HSP_NA_STRING "<NA>"                                           /// NA value for string.
+
+// private object names
+#define HSP_HIDE_PRFX ".."               /// prefic for hidden objects
+#define HSP_CHAIN_COL "..chain.."        /// chain column name in draws
+#define HSP_IDENTITY_FUNC "..identity.." /// identity function name
+// group rates
+constexpr double HSP_REFER_VALUE = 1.0;     /// alias for reference value
+#define HSP_REFERENCE "..reference.."       /// reference choice
+#define HSP_CONTACT_RATE "..contact.."      /// contact rate
+#define HSP_MISSING_RATE "..missing_rate.." /// missing rate
+// infectivity profile
+#define HSP_PROFILE_INST "..profile_inst.."   /// augmented instantaneous infectivity profile
+#define HSP_PROFILE_CUMUL "..profile_cumul.." /// augmented cumulative infectivity profile
+
+// advanced setup constants
+constexpr unsigned HSP_MAX_STR_PRINT = 5;       /// maximum options to print
+constexpr unsigned HSP_MIN_STR_DIST = 3;        /// minimum string distance for find closest
+constexpr unsigned HSP_DEFAULT_MAX_SIZE = 30;   /// default size for lookup table
+constexpr unsigned HSP_MAX_NUM_ATTEMPTS = 100;  /// max n. of attempts for initialization
+constexpr double HSP_TARGET_ACCEPT_RATE = 0.25; /// target acceptation rate for MCMC
+
+// file formatters
+#define HSP_DELIM ','      /// file delimiter
+#define HSP_LIST_DELIM '/' /// dictionary delimiter
+
+// special parameter names
+#define HSP_PARAM_LOC "loc" /// location parameter
+#define HSP_PARAM_MIN "min" /// minimum value
+#define HSP_PARAM_MAX "max" /// maximum value
+#define HSP_RANGE_KEYS str_vec({HSP_PARAM_MIN, HSP_PARAM_MAX})
+
+// declaration for typed file inputs
+#define HSP_TYPE_PARAM "P"  /// Parameter type declaration
+#define HSP_TYPE_DATA "D"   /// Data type declaration
+#define HSP_TYPE_SCALAR "S" /// Scalar type declaration
+#define HSP_TYPE_AUGM "A"   /// Augmented type declaration
+
+// discretization types
+#define HSP_DISCR_NONE 0    /// none
+#define HSP_DISCR_LEFT 1    /// left
+#define HSP_DISCR_CENTER 2  /// center
+#define HSP_DISCR_DEFINED 3 /// defined
+
+// status aliases
+#define HSP_INFECTED_STATUS 1 // infected status (>=)
+#define HSP_HEALTHY_STATUS 0  // healthy status (==)
+#define HSP_MISSING_STATUS -1 // missing status (<=)
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////  OPERATOR OVERLOADS  ///////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Check if container containes given value (% overload)
 template <typename Container, typename T>
-bool operator%(const Container &c, const T &value)
+bool operator%(const Container &c, const T &x)
 {
-    return std::find(c.begin(), c.end(), value) != c.end();
+    return std::find(c.begin(), c.end(), x) != c.end();
 }
 
 /// Concatenate containers (+ overload)
@@ -236,10 +232,19 @@ namespace tools
     /// https://gallery.rcpp.org/articles/quiet-stop-and-warning/
     void error(const std::string &txt);
 
-    // internal undefined string values
-    bool is_na(const std::string &txt);
     // internal undefined double values
     bool is_na(double x);
+    // internal undefined string values
+    bool is_na(const std::string &txt);
+    // vector of undefined values of type t
+    template <typename T>
+    bool is_any_na(const std::vector<T> &vec)
+    {
+        for (const T &x : vec)
+            if (is_na(x))
+                return true;
+        return false;
+    }
 
     // default prng seed for the setup
     std::int32_t default_setup_seed();
@@ -256,7 +261,7 @@ namespace tools
         str_vec toup(const str_vec &svec);
 
         // make list composed of distinct entries
-        str_vec drop_duplicate(const str_vec &v);
+        str_vec unique(const str_vec &v);
         // drop private strings from list
         str_vec drop_private(str_vec v);
 
@@ -286,8 +291,10 @@ namespace tools
         double tod(const std::string &input, const std::string &errtxt = "");
     }
 
-    // argument string parser
+    /// Parse the list from a given token according to delimiter.
     str_vec parse_arg_list(const std::string &tkn, const char delim);
+    /// Assert the parsed list can be used a list of keys.
+    str_vec parse_keys(const std::string &tkn, const char delim);
 
     // read csv list
     str_vec headers_from_deflist(const dict_str &deflist);

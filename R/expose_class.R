@@ -255,7 +255,6 @@ get_augmented <- function(object, ...) {
 #' @param max `r rd_aug_max_`
 #' @param rule `r rd_var_rule_`
 #' @param scale `r rd_var_scale_`
-#' @param from `r rd_aug_from_`
 #' @param expr `r rd_aug_expr_`
 #'
 #' @return `r rd_model_out_`
@@ -268,7 +267,7 @@ add_augmented <- function(object,
                           value = NULL, init_rand = FALSE,
                           model = NA, args = NULL,
                           min = NULL, max = NULL,
-                          rule = NA, scale = NA, from = NULL,
+                          rule = NA, scale = NA,
                           expr = NULL) {
   stopifnot(inherits(object, "HousepiModel"))
   object$clone(deep = TRUE)$add_augmented(
@@ -278,7 +277,7 @@ add_augmented <- function(object,
     value = value, init_rand = init_rand,
     model = model, args = args,
     min = min, max = max,
-    rule = rule, scale = scale, from = from,
+    rule = rule, scale = scale,
     expr = expr
   )
 }

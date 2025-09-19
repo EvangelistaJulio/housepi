@@ -32,7 +32,7 @@ void MCMC::Impl::InfecProfile::init_arguments_(const str_vec &keys,
 
 	// loop over all arguments
 	for (size_t k = 0; k < keys.size(); ++k)
-		init_single_attribute_(keys[k], vals[k], typs[k], HSP_ATTR_ARGUMENT);
+		init_single_attribute_(keys[k], vals[k], typs[k]);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -42,8 +42,7 @@ void MCMC::Impl::InfecProfile::init_arguments_(const str_vec &keys,
 /// Assign general attribute of infectivity profile.
 void MCMC::Impl::InfecProfile::init_single_attribute_(const std::string &key,
 													  const std::string &val,
-													  const std::string &at,
-													  bool is_arg)
+													  const std::string &at)
 {
 	if (tools::is_na(val) && tools::is_na(at))
 		; // pass
@@ -51,7 +50,8 @@ void MCMC::Impl::InfecProfile::init_single_attribute_(const std::string &key,
 	else if (!tools::is_na(val) && tools::is_na(at))
 		// UPDATE: this error is not user friendly sinne API is supposed to associated type
 		throw std::invalid_argument(
-			"Unable to interpret value of \"" + val + "\" for \"" + profile_->name() + "\". Try to provide a type.");
+			"Unable to interpret value of \"" + val +
+			"\" for \"" + profile_->name() + "\". Try to provide a type.");
 
 	else if (tools::is_na(val) && !tools::is_na(at))
 		throw std::invalid_argument(
@@ -60,20 +60,21 @@ void MCMC::Impl::InfecProfile::init_single_attribute_(const std::string &key,
 	else if (tools::str::toup(at) == HSP_TYPE_PARAM)
 	{
 		if (pImpl_.param.at(val).is_constant())
-			profile_->init_attr(key, is_arg, pImpl_.param.get(val));
+			profile_->init_attr(key, pImpl_.param.get(val));
 		else
 		{
-			profile_->init_attr(key, is_arg, pImpl_.param.get_ptr(val));
+			profile_->init_attr(key, pImpl_.param.get_ptr(val));
 			pImpl_.param.make_cache_dependent(val);
 		}
 	}
 
 	else if (tools::str::toup(at) == HSP_TYPE_SCALAR)
-		profile_->init_attr(key, is_arg, tools::str::tod(val, "argument with scalar type"));
+		profile_->init_attr(key, tools::str::tod(val, "argument with scalar type"));
 
 	else
 		throw std::invalid_argument(
-			"Unsopported type \"" + at + "\" found while loading \"" + val + "\" for \"" + profile_->name() + "\".");
+			"Unsopported type \"" + at + "\" found while loading \"" + val +
+			"\" for \"" + profile_->name() + "\".");
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -120,8 +121,7 @@ void MCMC::Impl::InfecProfile::append_augm_definition()
 	{
 		// check for reserved augmented names
 		for (const std::string &a : pImpl_.augm.deftable.at("name"))
-			for (const std::string &forbid : {HSP_PROFILE_INST,
-											  HSP_PROFILE_CUMUL})
+			for (const std::string &forbid : {HSP_PROFILE_INST, HSP_PROFILE_CUMUL})
 				if (a == forbid)
 					throw std::invalid_argument(
 						"Augmented variable \"" + forbid + "\" is reserved. Please, pick another name.");
@@ -261,15 +261,13 @@ void MCMC::Impl::InfecProfile::build_generic_profile_(const dict_str &deflist)
 						tools::parse_arg_list(deflist.at("arg_at"), HSP_LIST_DELIM));
 
 	// range minimum
-	init_single_attribute_("min",
-						   (profile_->is_discrete()) ? "1" : "0", HSP_TYPE_SCALAR,
-						   HSP_ATTR_RANGE);
+	init_single_attribute_(HSP_PARAM_MIN,
+						   (profile_->is_discrete()) ? "1" : "0", HSP_TYPE_SCALAR);
 
 	// range maximum
 	if (deflist.count("max") && deflist.count("max_at"))
-		init_single_attribute_("max",
-							   deflist.at("max"), deflist.at("max_at"),
-							   HSP_ATTR_RANGE);
+		init_single_attribute_(HSP_PARAM_MAX,
+							   deflist.at("max"), deflist.at("max_at"));
 
 	// range truncation
 	profile_->init_truncation();

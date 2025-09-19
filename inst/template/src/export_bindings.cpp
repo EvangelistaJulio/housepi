@@ -47,7 +47,7 @@
                             known_arg = false;                                                         \
                         }                                                                              \
                         if (known_arg)                                                                 \
-                            ptr_->init_attr(this_arg, HSP_ATTR_ARGUMENT, Rcpp::as<double>(args[i]));   \
+                            ptr_->init_attr(this_arg, Rcpp::as<double>(args[i]));                      \
                     }                                                                                  \
                 }                                                                                      \
                                                                                                        \
@@ -58,13 +58,12 @@
                     for (R_xlen_t i = 0; i < range.size(); ++i)                                        \
                         if (!tools::is_na(Rcpp::as<double>(range[i])))                                 \
                             ptr_->init_attr(Rcpp::as<std::string>(range_names[i]),                     \
-                                            HSP_ATTR_RANGE,                                            \
                                             Rcpp::as<double>(range[i]));                               \
                 }                                                                                      \
                                                                                                        \
                 if (is_discr)                                                                          \
-                    ptr_->init_discretization();                                                        \
-                ptr_->init_truncation();                                                            \
+                    ptr_->init_discretization();                                                       \
+                ptr_->init_truncation();                                                               \
             }                                                                                          \
             catch (const std::exception &e)                                                            \
             {                                                                                          \
@@ -81,7 +80,7 @@
                 const R_xlen_t n = x.size();                                                           \
                 Rcpp::NumericVector y(n);                                                              \
                 for (R_xlen_t i = 0; i < n; ++i)                                                       \
-                    y[i] = ptr_->evaluate(x[i]);                                                   \
+                    y[i] = ptr_->evaluate(x[i]);                                                       \
                 return y;                                                                              \
             }                                                                                          \
             catch (const std::exception &e)                                                            \
