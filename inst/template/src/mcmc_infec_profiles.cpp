@@ -220,7 +220,7 @@ void MCMC::Impl::InfecProfile::build(const dict_str &deflist)
 
 		bool is_augm = false;
 		for (const std::string &at : types)
-			if (at == HSP_TYPE_AUGM)
+			if (tools::str::toup(at) == HSP_TYPE_AUGM)
 				is_augm = true;
 
 		if (is_augm)

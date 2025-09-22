@@ -102,15 +102,18 @@ void Individual::init_all_group_rates(const u_dict<std::vector<observ_dbl_ptr>> 
 }
 
 /// Associate functional methods for augmented model pdfs.
-void Individual::init_augm_model(const str_vec &augm_model_list)
+void Individual::init_augm_model_logpdf(const std::unordered_map<int, str_vec> &status_map_model)
 {
 	augm_model_logpdfs_.clear();
-	for (const std::string &a : augm_model_list)
-	{
-		const Variable &xaugm = safe_at(augm_map_, "augmented variable", a);
-		augm_model_logpdfs_.emplace_back([&xaugm]()
-										 { return xaugm.get_distr_logpdf(); });
-	}
+	
+	// associate models if applicable
+	if (status_map_model.count(status_))
+		for (const std::string &a : status_map_model.at(status_))
+		{
+			const Variable &xaugm = safe_at(augm_map_, "augmented variable", a);
+			augm_model_logpdfs_.emplace_back([&xaugm]()
+											{ return xaugm.get_distr_logpdf(); });
+		}
 }
 
 /// Restore user values if applicable.

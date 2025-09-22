@@ -228,6 +228,8 @@ public:
     /// Implementation of Dataset.
     struct DataWide
     {
+        int_vec all_infected_status_list = {}; // list of all infected statuses in the dataset
+
         /////////////////////////////////////////////////////////////////////////////////////////
         /////////////////////////  MCMC : Impl : DataSet : constructor  /////////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////
@@ -252,7 +254,6 @@ public:
         size_t n_houses() const { return house_vector_.size(); }
         size_t n_restricted_houses() const { return restrict_indexes_.size(); }
         size_t n_individuals() const { return n_individuals_; }
-        void fill_report_data();
         unsigned long get_report_indiv(const std::string &key) const;
         unsigned long get_report_house(const std::string &key) const;
         std::pair<unsigned short, unsigned long> get_report_hh_size(const std::string &key) const;
@@ -378,11 +379,14 @@ public:
 
         std::vector<dbl_vec> smpl_values_ = {};
 
-        std::map<std::string, unsigned long> report_indiv_ = {};
-        std::map<std::string, unsigned long> report_house_ = {};
-        std::map<std::string, std::pair<unsigned short, unsigned long>> report_size_ = {};
+        u_dict<unsigned long> report_indiv_ = {};
+        u_dict<unsigned long> report_house_ = {};
+        u_dict<std::pair<unsigned short, unsigned long>> report_size_ = {};
 
         std::ofstream aux_ofstream_;
+
+        /// Use the loaded data to fill-in the respective report.
+        void build_helper_fill_report_data_();
     } dataset;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -505,8 +509,8 @@ public:
         str_vec list_draws = {};
         str_vec list_full = {};
         str_vec list_export = {};
-        std::map<int, str_vec> status_map_model = {};
-        std::map<int, str_vec> status_map_infer = {};
+        std::unordered_map<int, str_vec> status_map_model = {};
+        std::unordered_map<int, str_vec> status_map_sample = {};
 
         // optional augmented posterior sample
         std::vector<const Individual *> smpl_individuals = {};
@@ -544,8 +548,6 @@ public:
         bool is_any_sample() const { return !list_sample.empty(); }
         /// Flag if there are augmented variable definitions with a model.
         bool is_any_model() const { return !list_model.empty(); }
-        /// Flag if augmented variable definitions are generic.
-        bool is_generic() const { return status_map_infer.empty(); }
         /// Flag if augmented draws are stored.
         bool is_any_draw() const { return !smpl_individuals.empty(); }
 
@@ -561,9 +563,9 @@ public:
         const std::string section_name_ = "augmented variables";
         MCMC::Impl &pImpl_; // pointer to external class
 
-        dict_str_vec check_name_status_(const dict_str_vec &deftable);
-        void allocate_univocal_defs_(const dict_str_vec &check);
-        void set_id_draws_(str_vec &id_draws);
+        void build_helper_assert_univocal_defs_();
+        void build_helper_status_specific_maps_();
+        void build_helper_set_id_draws_(str_vec &id_draws);
 
         double type_to_double_(const Individual &member,
                                const std::string &tkn_value,
@@ -581,8 +583,8 @@ public:
 
         void build_function_(size_t k);
         void build_function_identity_helper_(size_t k);
-        void build_var_to_sample_(size_t k);
-        void build_var_with_model_(size_t k);
+        void build_helper_variable_with_model_(size_t k);
+        void build_helper_variable_to_sample_(size_t k);
 
         void init_single_var_dependencies_(Individual &member, size_t k);
     } augm;

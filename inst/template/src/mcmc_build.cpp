@@ -281,13 +281,15 @@ void MCMC::Impl::DataWide::build(const dict_str_vec &input)
         headers_ = headers_ - str_vec({"id", "house_id", "status"});
 
         // update report for data
-        fill_report_data();
+        build_helper_fill_report_data_();
     }
 }
 
 /// Use the loaded data to fill-in the respective report.
-void MCMC::Impl::DataWide::fill_report_data()
+void MCMC::Impl::DataWide::build_helper_fill_report_data_()
 {
+    all_infected_status_list.clear();
+
     report_indiv_ = {{"total", n_individuals_},
                      {"missing", 0},
                      {"healthy", 0},
@@ -306,6 +308,10 @@ void MCMC::Impl::DataWide::fill_report_data()
     //===== Set Contact Rates and Perform Database Analysis =====//
     for (const Household &house : house_vector_)
     {
+        for (const Individual &member : house)
+            if (!(all_infected_status_list % member.status()))
+                all_infected_status_list.push_back(member.status());
+
         const unsigned short house_size = house.size();
         const unsigned short n_infec = house.n_infec_status();
         const unsigned short n_miss = house.n_missing_status();

@@ -173,7 +173,7 @@ bayesplot::color_scheme_set(scheme = "orange")
 When it comes to data augmentation, we might need to explore different options for the Monte Carlo moves.
 In the following examples we show the differences between move choices that can be performed.
 As shown in [Bayesian MCMC options](bayesian_mcmc_options.html), we do the testing with the "blank" model.
-We always recommend a visual assesment before choosing a new move.
+We always recommend a visual assessment before choosing a new move.
 
 ```{r}
 #| fig.height: 2

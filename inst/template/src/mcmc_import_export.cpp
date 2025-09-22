@@ -14,16 +14,11 @@
 
 #include "mcmc_impl.h"
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
 #ifdef _HOUSEPI_RCPP
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////  MCMC : Impl : imports from Rcpp /////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #define DEFINE_RCPP_IMPORT_METHOD(ImplSection, r_to_map)                 \
@@ -50,7 +45,7 @@ DEFINE_RCPP_IMPORT_TABLE_METHOD(DataWide);
 DEFINE_RCPP_IMPORT_TABLE_METHOD(DataLong);
 DEFINE_RCPP_IMPORT_TABLE_METHOD(GroupRates);
 
-/* Import multiplicity definitions from R DataFrame and run build. */
+/// Import multiplicity definitions from R DataFrame and run build.
 void MCMC::Impl::DataWide::rcpp_import_multiplicity(SEXP input)
 {
     try
@@ -65,7 +60,7 @@ void MCMC::Impl::DataWide::rcpp_import_multiplicity(SEXP input)
     }
 }
 
-/* Import data from R DataFrame then run build. */
+/// Import data from R DataFrame then run build.
 void MCMC::Impl::Augmented::rcpp_import(SEXP input)
 {
     try
@@ -85,7 +80,7 @@ void MCMC::Impl::Augmented::rcpp_import(SEXP input)
 ////////////////////////////////////  MCMC : exports to Rcpp //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Export current setup configurations to R List. */
+/// Export current setup configurations to R List.
 Rcpp::List MCMC::Impl::Setup::rcpp_export() const
 {
     using namespace Rcpp;
@@ -103,7 +98,7 @@ Rcpp::List MCMC::Impl::Setup::rcpp_export() const
                         _["progress"] = progress);
 }
 
-/* Export current parameter configurations to R DataFrame. */
+/// Export current parameter configurations to R DataFrame.
 Rcpp::DataFrame MCMC::Impl::Parameter::rcpp_export() const
 {
     using namespace Rcpp;
@@ -167,7 +162,7 @@ Rcpp::DataFrame MCMC::Impl::Parameter::rcpp_export() const
     return DataFrame();
 }
 
-/* Export to R definitions of infectivity profile. */
+/// Export to R definitions of infectivity profile.
 Rcpp::List MCMC::Impl::InfecProfile::rcpp_export() const
 {
     using namespace Rcpp;
@@ -180,7 +175,7 @@ Rcpp::List MCMC::Impl::InfecProfile::rcpp_export() const
     return List::create();
 }
 
-/* Export to R all augmented variables at the current state. */
+/// Export to R all augmented variables at the current state.
 Rcpp::DataFrame MCMC::Impl::Augmented::rcpp_export_data_wide() const
 {
     using namespace Rcpp;
@@ -264,10 +259,10 @@ Rcpp::DataFrame MCMC::Impl::DataWide::rcpp_export(const str_vec &columns, bool i
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////  MCMC : Impl  : export datalong  //////////////////////////////
+/////////////////////////////  MCMC : Impl : DataLong : export datalong  //////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Export current data configurations to R DataFrame. */
+/// Export current data configurations to R DataFrame.
 Rcpp::DataFrame MCMC::Impl::DataLong::rcpp_export() const
 {
     using namespace Rcpp;
@@ -319,7 +314,7 @@ Rcpp::DataFrame MCMC::Impl::DataLong::rcpp_export() const
 /////////////////////////////////  MCMC : Impl : report exports  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Export current data configurations to R DataFrame. */
+/// Export current data configurations to R DataFrame.
 Rcpp::DataFrame MCMC::Impl::DataWide::rcpp_summarise_cases() const
 {
     using namespace Rcpp;
@@ -370,7 +365,7 @@ Rcpp::DataFrame MCMC::Impl::DataWide::rcpp_summarise_cases() const
 ////////////////////////////  MCMC : Impl : export house size report  /////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Export current data configurations to R DataFrame. */
+/// Export current data configurations to R DataFrame. 
 Rcpp::DataFrame MCMC::Impl::DataWide::rcpp_summarise_house_sizes() const
 {
     using namespace Rcpp;
@@ -433,7 +428,7 @@ Rcpp::CharacterVector MCMC::Impl::Setup::draws_iter_names() const
     return CharacterVector(wrap(std::move(iteration)));
 }
 
-/* Export MCMC draws of parameter posterior samples. */
+/// Export MCMC draws of parameter posterior samples.
 Rcpp::NumericMatrix MCMC::Impl::rcpp_export_draws() const
 {
     using namespace Rcpp;
@@ -500,7 +495,7 @@ Rcpp::NumericMatrix MCMC::Impl::rcpp_export_draws() const
 //////////////////////  MCMC : Impl : export household loglikelihood matrix  //////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Export all sampled values of the loglikelihood for all household. */
+/// Export all sampled values of the loglikelihood for all household.
 Rcpp::NumericMatrix MCMC::Impl::DataWide::rcpp_export_draws() const
 {
     using namespace Rcpp;
@@ -551,7 +546,7 @@ Rcpp::NumericMatrix MCMC::Impl::DataWide::rcpp_export_draws() const
 ////////////////////////////////  MCMC : Impl : house state snapshot //////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Export to R a snapshot of current state of house dataset. */
+/// Export to R a snapshot of current state of house dataset.
 Rcpp::NumericVector MCMC::Impl::Parameter::rcpp_snapshot() const
 {
     using namespace Rcpp;
@@ -575,7 +570,7 @@ Rcpp::NumericVector MCMC::Impl::Parameter::rcpp_snapshot() const
     return NumericVector::create();
 }
 
-/* Export to R a snapshot of current state of house dataset. */
+/// Export to R a snapshot of current state of house dataset.
 Rcpp::DataFrame MCMC::Impl::DataWide::rcpp_snapshot(const std::string &house_id) const
 {
     using namespace Rcpp;
@@ -612,7 +607,7 @@ Rcpp::DataFrame MCMC::Impl::DataWide::rcpp_snapshot(const std::string &house_id)
     return output;
 }
 
-/* Export to R a snapshot of current state of house datalong. */
+/// Export to R a snapshot of current state of house datalong.
 Rcpp::DataFrame MCMC::Impl::DataLong::rcpp_snapshot(const std::string &house_id) const
 {
     using namespace Rcpp;
@@ -652,7 +647,7 @@ Rcpp::DataFrame MCMC::Impl::DataLong::rcpp_snapshot(const std::string &house_id)
     return DataFrame::create();
 }
 
-/* Export to R a snapshot of current state of house augmented variables. */
+/// Export to R a snapshot of current state of house augmented variables.
 Rcpp::DataFrame MCMC::Impl::GroupRates::rcpp_snapshot(const std::string &house_id) const
 {
     using namespace Rcpp;
@@ -687,7 +682,7 @@ Rcpp::DataFrame MCMC::Impl::GroupRates::rcpp_snapshot(const std::string &house_i
     return DataFrame::create();
 }
 
-/* Export to R a snapshot of current state of house augmented variables. */
+/// Export to R a snapshot of current state of house augmented variables.
 Rcpp::DataFrame MCMC::Impl::Augmented::rcpp_snapshot(const std::string &house_id) const
 {
     using namespace Rcpp;
@@ -721,7 +716,7 @@ Rcpp::DataFrame MCMC::Impl::Augmented::rcpp_snapshot(const std::string &house_id
     return DataFrame::create();
 }
 
-/* Export to R a snapshot of current state of house infectivity profile. */
+/// Export to R a snapshot of current state of house infectivity profile.
 Rcpp::List MCMC::Impl::InfecProfile::rcpp_snapshot(const std::string &house_id) const
 {
     using namespace Rcpp;
@@ -777,7 +772,7 @@ Rcpp::List MCMC::Impl::InfecProfile::rcpp_snapshot(const std::string &house_id) 
     return List::create();
 }
 
-/* Export a list containing all relevant information for a debug. */
+/// Export a list containing all relevant information for a debug.
 Rcpp::List MCMC::Impl::rcpp_export_house_snapshot(const std::string &house_id) const
 {
     using namespace Rcpp;
@@ -800,12 +795,11 @@ Rcpp::List MCMC::Impl::rcpp_export_house_snapshot(const std::string &house_id) c
     return List::create();
 }
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  MCMC : Impl : read  ////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #else
 #define DEFINE_READ_METHOD(ImplSection, read_csv)                        \
@@ -832,7 +826,7 @@ DEFINE_READ_TABLE_METHOD(DataWide);
 DEFINE_READ_TABLE_METHOD(DataLong);
 DEFINE_READ_TABLE_METHOD(GroupRates);
 
-/* Read multiplicity file and then run assignment. */
+/// Read multiplicity file and then run assignment.
 void MCMC::Impl::DataWide::read_multiplicity(const std::string &f)
 {
     try
@@ -847,7 +841,7 @@ void MCMC::Impl::DataWide::read_multiplicity(const std::string &f)
     }
 }
 
-/* Read Model Augmented Variable file. */
+/// Read Model Augmented Variable file.
 void MCMC::Impl::Augmented::read(const std::string &f)
 {
     try
@@ -863,24 +857,19 @@ void MCMC::Impl::Augmented::read(const std::string &f)
     }
 }
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
+///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////  MCMC : show summary  ///////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Auxiliary function to call percentuage. */
+/// Auxiliary function to call percentuage.
 const std::string _percent_(int n, int d) { return std::string(std::round(100. * n / d), 1); }
 
-/* Auxiliary function to call percentuage. */
+/// Auxiliary function to call percentuage.
 const std::string _trail_percent_(int n, int d) { return std::to_string(n) + " (" + _percent_(n, d) + ")"; }
 
-/* Print the report of the database and of the model group rates. */
+/// Print the report of the database and of the model group rates.
 void MCMC::Impl::DataWide::show_summary() const
 {
     std::cout << "n. of individuals: " << n_individuals_
@@ -907,18 +896,13 @@ void MCMC::Impl::DataWide::show_summary() const
     std::cout << std::endl;
 }
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
+///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  MCMC : show setup  ////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Show the complete choices for the setup. */
+/// Show the complete choices for the setup.
 void MCMC::Impl::Setup::show() const
 {
 
@@ -947,10 +931,12 @@ void MCMC::Impl::Setup::show() const
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////  MCMC : show parameters  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Show the user model parameters */
+/// Show the user model parameters
 void MCMC::Impl::Parameter::show() const
 {
     // show the headers
@@ -981,10 +967,12 @@ void MCMC::Impl::Parameter::show() const
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////  MCMC : show parameter results  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Show the results of the paramters. */
+/// Show the results of the paramters.
 void MCMC::Impl::Parameter::show_results() const
 {
     std::cout << "name" << HSP_DELIM << "value" << HSP_DELIM << "value_sd";
@@ -1014,18 +1002,13 @@ void MCMC::Impl::Parameter::show_results() const
     std::cout << std::endl;
 }
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
+///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  MCMC : print infer state  /////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Initialize the output file with inferred parameters with column names and initial values */
+/// Initialize the output file with inferred parameters with column names and initial values.
 void MCMC::Impl::print_infer_state(const std::string &output_filename) const
 {
     if (!tools::is_na(output_filename))
@@ -1047,7 +1030,7 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
             if (augm.is_any_draw())
                 for (size_t k = 0; k < augm.smpl_individuals.size(); ++k)
                     for (const std::string &a : augm.list_draws)
-                        inferstate_ofstream << augm.smpl_individuals[k]->id() + "_" + a;
+                        inferstate_ofstream << HSP_DELIM << augm.smpl_individuals[k]->id() + "_" + a;
 
             // header chain
             inferstate_ofstream << HSP_DELIM << HSP_CHAIN_COL << std::endl;
@@ -1092,10 +1075,12 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////  MCMC::Impl : print augm variables  ///////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Print all augmented variables of each individual */
+/// Print all augmented variables of each individual.
 void MCMC::Impl::DataWide::print_open(const std::string &f)
 {
     aux_ofstream_.open(f.c_str());
@@ -1119,7 +1104,7 @@ void MCMC::Impl::DataWide::print_open(const std::string &f)
         throw std::runtime_error("Unable to open file: \"" + f + "\"");
 }
 
-/* Print all augmented variables of each individual */
+/// Print all augmented variables of each individual.
 void MCMC::Impl::DataWide::print_update(Household &house)
 {
     if (aux_ofstream_.is_open())
@@ -1143,7 +1128,7 @@ void MCMC::Impl::DataWide::print_update(Household &house)
         throw std::runtime_error("Output file closed unexpectedly.");
 }
 
-/* Print all augmented variables of each individual */
+/// Print all augmented variables of each individual.
 void MCMC::Impl::DataWide::print_close()
 {
     if (aux_ofstream_.is_open())

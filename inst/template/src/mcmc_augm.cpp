@@ -37,46 +37,17 @@ void MCMC::Impl::Augmented::build()
             tools::check_for_missing_entries(headers, file_headers);
             tools::check_for_unused_entries(headers, file_headers);
 
-            // auxiliary variable to load definitions : a -> status lists
-            const dict_str_vec name_status_check = check_name_status_(deftable);
-            allocate_univocal_defs_(name_status_check);
+            // assert that augmented definitions are univocal
+            build_helper_assert_univocal_defs_();
+            // build status-specific maps of augmented variables
+            build_helper_status_specific_maps_();
+            // set individual id for augmented draws follow-up
+            build_helper_set_id_draws_(pImpl_.setup.id_draws);
 
-            // drop previous definitions
-            list_sample.clear();
-            list_const.clear();
-            list_func.clear();
-            list_model.clear();
-            list_draws.clear();
-
-            // note : I didn't manage to collapse this with the previous because of generic status
-            for (size_t k = 0; k < deftable.at("name").size(); ++k)
-            {
-                if (!tools::is_na(deftable.at("func")[k]))
-                    build_function_(k);
-                else if (tools::str::tobool(deftable.at("const")[k]))
-                    list_const.push_back(deftable.at("name")[k]);
-                else
-                    build_var_to_sample_(k);
-
-                build_var_with_model_(k);
-            }
-
-            // drop duplicates
-            list_sample = tools::str::unique(list_sample);
-            list_func = tools::str::unique(list_func);
-            list_const = tools::str::unique(list_const);
-            list_model = tools::str::unique(list_model);
-            // initialize complete lists
-            list_full = tools::str::unique(list_sample + list_func + list_const);
-            list_export = tools::str::drop_private(list_full);
-
-            // allocate memory for augmented variables to each individual.
+            // allocate memory for augmented variables to each individual
             for (Household &house : pImpl_.dataset)
                 for (Individual &member : house)
                     clear_all(member);
-
-            // end assigment in the households
-            set_id_draws_(pImpl_.setup.id_draws);
         }
     }
     catch (const std::exception &e)
@@ -87,80 +58,81 @@ void MCMC::Impl::Augmented::build()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////  MCMC : Impl : build check definitions  ///////////////////////////
+///////////////////////  MCMC : Impl : Augmented : assert univocal definitions  ///////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Produce auxiliary variable to load definitions : a -> status lists.
-dict_str_vec MCMC::Impl::Augmented::check_name_status_(const dict_str_vec &deftable)
+/// Assert that augmented definitions are univocal.
+void MCMC::Impl::Augmented::build_helper_assert_univocal_defs_()
 {
-    const size_t table_length = deftable.at("name").size();
-
-    dict_str_vec output = {};
-
-    // checka augmented variables lists of usage
-    for (size_t k = 0; k < table_length; ++k)
+    // check augmented variables lists of usage
+    dict_str_vec name_status_check = {};
+    for (size_t k = 0; k < deftable.at("name").size(); ++k)
     {
         const std::string &a = deftable.at("name")[k];
-        const std::string &status = deftable.at("status")[k];
+        const std::string &s = deftable.at("status")[k]; // NOTE: can be NA, i. e. generic
 
-        // check that name and status are correct
+        // check augmented name
         if (tools::is_na(a))
             throw std::invalid_argument(
-                "Augmented variable name can not be undefined.");
-
-        else if (output.count(a))
-        {
-            // check no same name and status
-            const str_vec &mylist = output.at(a);
-            if (mylist % status)
+                "Augmented variable name cannot be undefined.");
+        // check that status-specific definition is for infected status
+        if (!tools::is_na(s))
+            if (!HSP_IS_INFECTED(tools::str::toi(s, "augmented status")))
                 throw std::invalid_argument(
-                    "Incompatible definitions for augmented variable \"" + a + "\".");
-            else
-                output.at(a).push_back(status);
-        }
+                    "Unable to associate augmented \"" + a + "\" for non infectious status " + s + ".");
 
-        else // new augmented variable status
-            output.emplace(a, str_vec{status});
+        // load names and statuses
+        name_status_check[a].push_back(s);
     }
 
-    return output;
-}
-
-/// Check univocal definitions and allocate new lists.
-void MCMC::Impl::Augmented::allocate_univocal_defs_(const dict_str_vec &check)
-{
-    // drop previous definitions
-    status_map_infer.clear();
-    status_map_model.clear();
-
-    for (const auto &pair : check)
-    {
-        const std::string &a = pair.first;
-        const str_vec &mylist = pair.second;
-
-        for (const std::string &status : mylist)
-        {
-            if (!tools::is_na(status))
-            {
-                int s = tools::str::toi(status, "augmented status");
-                if (s >= HSP_INFECTED_STATUS)
-                {
-                    status_map_infer.emplace(s, str_vec{});
-                    status_map_model.emplace(s, str_vec{});
-                }
-                else
-                    throw std::invalid_argument(
-                        "Unable to associate augmented \"" + a + "\" for non infectious status.");
-            }
-            else if (mylist.size() > 1)
-                throw std::invalid_argument(
-                    "Conflicting generic and status-specific definitions for augmented \"" + a + "\".");
-        }
-    }
+    // check that name and status are univocal
+    for (const auto &pair : name_status_check)
+        if (pair.second.size() != tools::str::unique(pair.second).size())
+            throw std::invalid_argument(
+                "Incompatible definitions for augmented \"" + pair.first + "\".");
+        else if (pair.second.size() > 1 && tools::is_any_na(pair.second))
+            throw std::invalid_argument(
+                "Conflicting generic and status-specific definitions for augmented \"" + pair.first + "\".");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  MCMC : Impl : build variables  ///////////////////////////////
+/////////////////////////////  MCMC : Impl : Augmented : build function  //////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void MCMC::Impl::Augmented::build_helper_status_specific_maps_()
+{
+    // drop previous definitions
+    list_sample.clear();
+    list_const.clear();
+    list_func.clear();
+    list_model.clear();
+    list_draws.clear();
+    status_map_sample.clear();
+    status_map_model.clear();
+
+    for (size_t k = 0; k < deftable.at("name").size(); ++k)
+    {
+        build_helper_variable_with_model_(k);
+
+        if (!tools::is_na(deftable.at("func")[k]))
+            build_function_(k);
+        else if (tools::str::tobool(deftable.at("const")[k]))
+            list_const.push_back(deftable.at("name")[k]);
+        else
+            build_helper_variable_to_sample_(k);
+    }
+
+    // finalize augmented lists
+    list_sample = tools::str::unique(list_sample);
+    list_const = tools::str::unique(list_const);
+    list_func = tools::str::unique(list_func);
+    list_model = tools::str::unique(list_model);
+    list_full = tools::str::unique(list_sample + list_func + list_const);
+    list_export = tools::str::drop_private(list_full);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////  MCMC : Impl : Augmented : build functions  /////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Deal with the definition of augmented function.
@@ -189,33 +161,57 @@ void MCMC::Impl::Augmented::build_function_identity_helper_(size_t k)
             "Augmented equality function \"" + a + "\" has incorrect arguments.");
     else
     {
-        std::string eq_type = tools::str::toup(types)[0];
-        bool is_eq_const = true;
+        std::string identity_type = tools::str::toup(types)[0];
+        bool is_identity_const = true;
 
         // check the type of requested equality
-        if (eq_type == HSP_TYPE_PARAM)
-            is_eq_const = pImpl_.param.at(vals[0]).is_constant();
-        else if (eq_type == HSP_TYPE_AUGM)
-            is_eq_const = false; // UPDATE: use an augmented dependecies tree to see if constant
+        if (tools::str::toup(identity_type) == HSP_TYPE_PARAM)
+            is_identity_const = pImpl_.param.at(vals[0]).is_constant();
+        else if (tools::str::toup(identity_type) == HSP_TYPE_AUGM)
+            is_identity_const = false; // UPDATE: use an augmented dependecies tree to see if constant
 
-        if (is_eq_const)
+        if (is_identity_const)
             list_const.push_back(a);
         else
             list_func.push_back(a);
     }
 }
 
-/// Deal with the definition of augmented variable to be sampled.
-void MCMC::Impl::Augmented::build_var_to_sample_(size_t k)
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////  MCMC : Impl : Augmented : build variables  /////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Deal with the definition of augmented variable with a model.
+void MCMC::Impl::Augmented::build_helper_variable_with_model_(size_t k)
+{
+    if (!tools::is_na(deftable.at("model")[k]))
+    {
+        const std::string &a = deftable.at("name")[k];
+        const std::string &s = deftable.at("status")[k];
+
+        list_model.push_back(a); // NOTE: make unique elsewhere
+
+        if (tools::is_na(s)) // generic definition
+            for (int status : pImpl_.dataset.all_infected_status_list)
+                status_map_model[status].push_back(a);
+        else // status-specific definition
+            status_map_model[tools::str::toi(s)].push_back(a);
+    }
+}
+
+/// Deal with the definition 'k' of augmented to be sampled.
+/// NOTE: this assume definitions are univocal and status correct.
+void MCMC::Impl::Augmented::build_helper_variable_to_sample_(size_t k)
 {
     const std::string &a = deftable.at("name")[k];
-    const std::string &status = deftable.at("status")[k];
+    const std::string &s = deftable.at("status")[k];
     const std::string &value = deftable.at("value")[k];
     const std::string &rule = deftable.at("rule")[k];
     const bool init_rand = tools::str::tobool(deftable.at("init_rand")[k]);
 
-    // augmented variables to be sampled
     // check random initialization option
+    // UPDATE: check pImpl_.setup.rand_init_params
+    // UPDATE: check value
     if (init_rand)
     {
         if (tools::is_na(deftable.at("model")[k]))
@@ -223,54 +219,21 @@ void MCMC::Impl::Augmented::build_var_to_sample_(size_t k)
                 "Unable to randomly initialize augmented\"" +
                 a + "\" without a model.");
     }
-    else if (tools::is_na(value) && !tools::is_na(rule))
+    else if (tools::is_na(value))
         throw std::invalid_argument(
             "No initial value provided for augmented \"" + a + "\" " +
             "to be sampled.\nIn alternative, enable random initialization.");
 
-    // FIXME: check pImpl_.setup.rand_init_params
-    // FIXME: check value
-
     // read option for monte carlo proposer
     if (!tools::is_na(rule))
     {
-        list_sample.push_back(a);
+        list_sample.push_back(a); // NOTE: make unique elsewhere
 
-        // note: impossible to associate rule to missing status
-        if (!tools::is_na(status)) // status-specific definition
-        {
-            int s = tools::str::toi(status, "augmented status");
-            if (!(status_map_infer.at(s) % a))
-                status_map_infer.at(s).push_back(a);
-        }
-        else if (!is_generic()) // generic definition
-            for (const auto &pair : status_map_infer)
-                if (!(status_map_infer.at(pair.first) % a))
-                    status_map_infer.at(pair.first).push_back(a);
-    }
-}
-
-/// Deal with the definition of augmented variable with a model.
-void MCMC::Impl::Augmented::build_var_with_model_(size_t k)
-{
-    if (!tools::is_na(deftable.at("model")[k]))
-    {
-        const std::string &a = deftable.at("name")[k];
-        const std::string &status = deftable.at("status")[k];
-
-        list_model.push_back(a);
-
-        if (!tools::is_na(status)) // status-specific definition
-        {
-            int s = tools::str::toi(status, "augmented status");
-            if (!(status_map_model.at(s) % a))
-                status_map_model.at(s).push_back(a);
-        }
-
-        else if (!is_generic()) // generic definition
-            for (const auto &pair : status_map_model)
-                if (!(status_map_model.at(pair.first) % a))
-                    status_map_model.at(pair.first).push_back(a);
+        if (tools::is_na(s)) // generic definition
+            for (int status : pImpl_.dataset.all_infected_status_list)
+                status_map_sample[status].push_back(a);
+        else // status-specific definition
+            status_map_sample[tools::str::toi(s)].push_back(a);
     }
 }
 
@@ -280,8 +243,8 @@ void MCMC::Impl::Augmented::build_var_with_model_(size_t k)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Search individual id for augmented draws follow-up.
-void MCMC::Impl::Augmented::set_id_draws_(str_vec &id_draws)
+/// Set individual id for augmented draws follow-up.
+void MCMC::Impl::Augmented::build_helper_set_id_draws_(str_vec &id_draws)
 {
     smpl_individuals.clear();
 
@@ -312,6 +275,9 @@ void MCMC::Impl::Augmented::set_id_draws_(str_vec &id_draws)
 
             if (is_any_draw())
             {
+                // initialize list with augmented headers for draws
+                list_draws = tools::str::unique(tools::str::drop_private(list_sample + list_func));
+
                 for (const auto member : smpl_individuals)
                     if (!member->is_infected_status())
                         tools::warning(
@@ -340,9 +306,6 @@ void MCMC::Impl::Augmented::init_draws(unsigned long sample_size)
 {
     if (is_any_draw())
     {
-        // initialize list with augmented headers for draws
-        list_draws = tools::str::unique(tools::str::drop_private(list_sample + list_func));
-
         smpl_values.clear();
         smpl_values.resize(smpl_individuals.size());
         for (size_t k = 0; k < smpl_individuals.size(); ++k)
@@ -406,60 +369,17 @@ void MCMC::Impl::Augmented::clear_all(Individual &member)
 /// Initialize augmented dependecies for all households.
 void MCMC::Impl::Augmented::init()
 {
-    if (is_any())
-        for (Household &house : pImpl_.dataset)
-            for (Individual &member : house.infected())
-                init_all(member);
-}
-
-/// Assign augmented variables to single individual.
-void MCMC::Impl::Augmented::init_all(Individual &member)
-{
     try
     {
-        int status = member.status();
-        // FIXME: need to be reordered according to dependency tree
-        std::vector<size_t> indiv_augm_entries;
-
-        // loop over augmented variable definitions to assign placheholders
-        for (size_t k = 0; k < deftable.at("name").size(); ++k)
-        {
-            // assign augmented variable of the corresponding status
-            const std::string &augm_status = deftable.at("status")[k];
-
-            // assign augmented variable if undefined status | corresponding status
-            if (tools::is_na(augm_status) || (status == tools::str::toi(augm_status, "augmented status")))
-            {
-                const std::string a = deftable.at("name")[k];
-
-                // assign augmented variable placeholder
-                member.init_augm(a,
-                                 type_to_double_(member, deftable.at("value")[k], deftable.at("value_at")[k]),
-                                 tools::str::tobool(deftable.at("const")[k]),
-                                 tools::str::tobool(deftable.at("discr")[k]),
-                                 deftable.at("func")[k],
-                                 tools::str::tobool(deftable.at("fcumul")[k]),
-                                 deftable.at("model")[k]);
-
-                // add entry to individual augmented variable list
-                indiv_augm_entries.push_back(k);
-            }
-        }
-
-        // assign dependencies to each augmented variable
-        // FIXME: this should be ordered according to dependency tree
-        for (size_t k : indiv_augm_entries)
-            init_single_var_dependencies_(member, k);
-        // assign function reshaping and check if inherently constants
-        // UPDATE: no need for a second loop if previous follows dependency order
-        for (size_t k : indiv_augm_entries)
-            member.get_augm_variable(deftable.at("name")[k]).init_func_reshaping();
-
-        // initialize functional augmented model for individuals
-        if (is_generic())
-            member.init_augm_model(list_model);
-        else
-            member.init_augm_model(status_map_model[status]);
+        if (is_any())
+            for (Household &house : pImpl_.dataset)
+                for (Individual &member : house.infected())
+                {
+                    // intialize all augmented definitions
+                    init_all(member);
+                    // initialize augmented model
+                    member.init_augm_model_logpdf(status_map_model);
+                }
     }
     catch (const std::exception &e)
     {
@@ -467,6 +387,45 @@ void MCMC::Impl::Augmented::init_all(Individual &member)
             "While initializing augmented variables:\n" +
             std::string(e.what()));
     }
+}
+
+/// Assign augmented variables to single individual.
+void MCMC::Impl::Augmented::init_all(Individual &member)
+{
+    // store the entries of deftable that are relevant for the individual
+    // FIXME: need to be reordered according to dependency tree
+    std::vector<size_t> indiv_augm_entries;
+
+    // loop over augmented variable definitions to assign placheholders
+    for (size_t k = 0; k < deftable.at("name").size(); ++k)
+    {
+        const std::string &s = deftable.at("status")[k];
+
+        // assign augmented variable if undefined status or corresponding status
+        if (tools::is_na(s) || (member.status() == tools::str::toi(s)))
+        {
+            // assign augmented variable placeholder
+            member.init_augm(deftable.at("name")[k],
+                             type_to_double_(member, deftable.at("value")[k], deftable.at("value_at")[k]),
+                             tools::str::tobool(deftable.at("const")[k]),
+                             tools::str::tobool(deftable.at("discr")[k]),
+                             deftable.at("func")[k],
+                             tools::str::tobool(deftable.at("fcumul")[k]),
+                             deftable.at("model")[k]);
+
+            // add entry to individual augmented variable list
+            indiv_augm_entries.push_back(k);
+        }
+    }
+
+    // assign dependencies to each augmented variable
+    // FIXME: this should be ordered according to dependency tree
+    for (size_t k : indiv_augm_entries)
+        init_single_var_dependencies_(member, k);
+    // assign function reshaping and check if inherently constants
+    // UPDATE: no need for a second loop if previous follows dependency order
+    for (size_t k : indiv_augm_entries)
+        member.get_augm_variable(deftable.at("name")[k]).init_func_reshaping();
 }
 
 /// Assign model arguments and range. Same for function, otherwise assign proposer.
@@ -536,7 +495,8 @@ void MCMC::Impl::Augmented::init_single_var_dependencies_(Individual &member, si
 
 /// Convert a typed string into a double.
 double MCMC::Impl::Augmented::type_to_double_(const Individual &member,
-                                              const std::string &value, const std::string &type)
+                                              const std::string &value,
+                                              const std::string &type)
 {
     double output = HSP_NA_DOUBLE;
 
@@ -727,7 +687,7 @@ double MCMC::Impl::move_augm_single_house_(Household &house)
     // Loop over infectious residents of the househould
     for (Individual &member_i : house.infected())
         // Loop over augmented variables of infectious
-        for (const std::string &a : augm.status_map_infer[member_i.status()])
+        for (const std::string &a : augm.status_map_sample[member_i.status()])
             delta_ll += metropolis_augm_single_move_(house, member_i, a);
     return delta_ll;
 }

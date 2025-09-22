@@ -232,7 +232,7 @@ void Model::simulate_single_household(Household &house)
 #ifdef _HSP_DISCRETE_TIME
 	const double Dt = 1;
 #else
-	const double Dt = 0.05;
+	const double Dt = HSP_TIME_STEP;
 #endif
 
 	/////////////////////////////////////////////////////////////////
@@ -252,7 +252,10 @@ void Model::simulate_single_household(Household &house)
 	// set all susceptible except from introduction, then assign augmented variables
 	for (Individual &member : house)
 	{
-		house.change_status(member, (member == member_0) ? HSP_INFECTED_STATUS : HSP_HEALTHY_STATUS);
+		if (member == member_0)
+			house.change_status(member, HSP_INFECTED_STATUS);
+		else
+			house.change_status(member, HSP_HEALTHY_STATUS);
 		init_all_augm(member);
 	}
 

@@ -112,6 +112,7 @@ constexpr unsigned HSP_MIN_STR_DIST = 3;        /// minimum string distance for 
 constexpr unsigned HSP_DEFAULT_MAX_SIZE = 30;   /// default size for lookup table
 constexpr unsigned HSP_MAX_NUM_ATTEMPTS = 100;  /// max n. of attempts for initialization
 constexpr double HSP_TARGET_ACCEPT_RATE = 0.25; /// target acceptation rate for MCMC
+constexpr double HSP_TIME_STEP = 0.05;          /// time step for real time simulations
 
 // file formatters
 #define HSP_DELIM ','      /// file delimiter
@@ -139,6 +140,10 @@ constexpr double HSP_TARGET_ACCEPT_RATE = 0.25; /// target acceptation rate for 
 #define HSP_INFECTED_STATUS 1 // infected status (>=)
 #define HSP_HEALTHY_STATUS 0  // healthy status (==)
 #define HSP_MISSING_STATUS -1 // missing status (<=)
+
+#define HSP_IS_INFECTED(s) ((s) >= HSP_INFECTED_STATUS)
+#define HSP_IS_HEALTHY(s) ((s) == HSP_HEALTHY_STATUS)
+#define HSP_IS_MISSING(s) ((s) <= HSP_MISSING_STATUS)
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////

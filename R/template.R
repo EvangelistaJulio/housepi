@@ -72,7 +72,7 @@ show_model_names <- function() {
   formatted_names <- tolower(gsub("-|_", " ", model_names))
   message(sprintf(
     "Available template models:\n%s\n",
-    paste(paste0("* ", formatted_names), collapse = "\n")
+    paste(paste0(cli::symbol$bullet, " ", formatted_names), collapse = "\n")
   ))
   invisible()
 }

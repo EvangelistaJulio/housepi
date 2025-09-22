@@ -285,26 +285,26 @@ HousepiModel <- R6::R6Class(
     # e. g. create a standalone folder somewhere with correct links to headers
     .export_to_cpp_standalone = function(outpath = "inst/standalone/") {
       write.csv(private$.rcpp$export_data_wide(),
-                file.path(outpath, "data_wide.tmp"),
+                file.path(outpath, "data_wide.csv"),
                 quote = FALSE, row.names = FALSE)
       write.csv(private$.rcpp$export_data_long(),
-                file.path(outpath, "data_long.tmp"),
+                file.path(outpath, "data_long.csv"),
                 quote = FALSE, row.names = FALSE)
 
       write.csv(private$.group_rates$expose_to_cpp(private$.info_data_wide),
-                file.path(outpath, "group_rates.tmp"),
+                file.path(outpath, "group_rates.csv"),
                 quote = FALSE, row.names = FALSE)
       write.csv(self$augmented,
-                file.path(outpath, "augm.tmp"),
+                file.path(outpath, "augm.csv"),
                 quote = FALSE, row.names = FALSE)
       write.csv(self$parameters,
-                file.path(outpath, "param.tmp"),
+                file.path(outpath, "param.csv"),
                 quote = FALSE, row.names = FALSE)
       write.table(t(as.data.frame(char_setup_input_(self$setup))),
-                  file.path(outpath, "setup.tmp"),
+                  file.path(outpath, "setup.csv"),
                   row.names = TRUE, col.names = FALSE, sep = ",", quote = FALSE)
       write.table(t(as.data.frame(private$.infec_profile$defs)),
-                  file.path(outpath, "infec.tmp"),
+                  file.path(outpath, "infec.csv"),
                   row.names = TRUE, col.names = FALSE, sep = ",", quote = FALSE)
       invisible(self)
     }

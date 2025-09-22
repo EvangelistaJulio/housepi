@@ -48,7 +48,6 @@ endif
 endif
 
 # Make rules
-.PHONY: all
 all: $(EXECUTABLE)
 
 # For the executable
@@ -68,11 +67,15 @@ main.o: main.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # To clean objects
-.PHONY: clean
 clean:
 	$(RM) $(EXECUTABLE) main.o ${SRC}/*.{o,so,exe} ${TMPL}/*/*.{o,so,exe} ${TMPL}/*/.refer 
 
-# To run make in a overly caregul debugging mode
-.PHONY: debug
+# Run make in debugging mode using standard housepi files
 debug:
 	$(MAKE) DEBUG=1
+
+# Test inference using fiels exported by .__enclos_env__$private$.export_to_cpp_standalone
+test-infer:
+	$(EXECUTABLE) -A augm.csv -D data_wide.csv -L data_long.csv -G group_rates.csv -I infec.csv -P param.csv -S setup.csv --infer -O out.csv
+
+.PHONY: all clean debug

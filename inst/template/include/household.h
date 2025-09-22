@@ -101,9 +101,9 @@ public:
 
 	const std::string &id() const { return id_; }
 	int status() const { return status_; }
-	bool is_infected_status() const { return status_ >= HSP_INFECTED_STATUS; }
-	bool is_healthy_status() const { return status_ == HSP_HEALTHY_STATUS; }
-	bool is_missing_status() const { return status_ <= HSP_MISSING_STATUS; }
+	bool is_infected_status() const { return HSP_IS_INFECTED(status_); }
+	bool is_healthy_status() const { return HSP_IS_HEALTHY(status_); }
+	bool is_missing_status() const { return HSP_IS_MISSING(status_); }
 	double data(const std::string &d) const { return safe_at(data_map_, "data", d); }
 	const dbl_vec &datalong(const std::string &d) const
 	{
@@ -127,7 +127,7 @@ public:
 	/////////////////////////////////  Individual : loglikelihood  ////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	void init_augm_model(const str_vec &augm_model_list);
+	void init_augm_model_logpdf(const std::unordered_map<int, str_vec> &status_map_model);
 	double get_augm_model_loglike() const { return augm_loglike_; }
 	double compute_and_set_augm_model_loglike();
 	void recover_augm_model_loglike() { augm_loglike_ = augm_buffer_; };
@@ -270,8 +270,6 @@ public:
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	// Individual Getter
-	const std::string &id(size_t i) const { return members_.at(i).id(); }
-	int status(size_t i) const { return members_.at(i).status(); }
 	Individual &get_member(size_t i) { return members_.at(i); }
 	const Individual &get_member(size_t i) const { return members_.at(i); }
 
