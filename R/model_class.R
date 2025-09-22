@@ -53,7 +53,7 @@ HousepiModel <- R6::R6Class(
       )
     },
 
-    # @description 
+    # @description
     # Assert if data_wide headers match implementation file.
     .assert_data_wide = function(headers) {
       if (length(headers) == 0) stop_h(
@@ -283,7 +283,7 @@ HousepiModel <- R6::R6Class(
     # UPDATE:
     # this could be designed to be more helpful
     # e. g. create a standalone folder somewhere with correct links to headers
-    .export_to_cpp_standalone = function(outpath = "../housepi/inst/standalone/") {
+    .export_to_cpp_standalone = function(outpath = "inst/standalone/") {
       write.csv(private$.rcpp$export_data_wide(),
                 file.path(outpath, "data_wide.tmp"),
                 quote = FALSE, row.names = FALSE)
@@ -362,8 +362,7 @@ HousepiModel <- R6::R6Class(
         defs <- private$.infec_profile$defs
         if (!is.null(defs)) return(defs)
         else return(private$.rcpp$export_infec_profile())
-      }
-      else {
+      } else {
         do.call(self$add_infec_profile, value)
       }
     },

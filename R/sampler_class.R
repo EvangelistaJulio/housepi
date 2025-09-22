@@ -568,7 +568,7 @@ new_household_sampler <- function(...) {
 #'
 #' @param object An instance of the `HousepiSampler` class.
 #' @param data_wide A `data.frame` containing individual-level data with household IDs.
-#' 
+#'
 #' @export
 compute_household_marginals <- function(object, data_wide) {
   stopifnot(inherits(object, "HousepiSampler"))

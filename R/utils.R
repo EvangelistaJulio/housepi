@@ -22,7 +22,6 @@
 stop_h <- function(...) {
   base::stop(paste(unlist(list(...)), collapse = "\n"),
              call. = FALSE)
-  invisible()
 }
 
 #' @title
@@ -37,7 +36,6 @@ stop_h <- function(...) {
 warning_h <- function(...) {
   base::warning(paste(unlist(list(...)), collapse = "\n"),
                 call. = FALSE)
-  invisible()
 }
 
 # check if suggested library is installed
@@ -594,5 +592,5 @@ extract_func_ <- function(expr) {
   # case of a raw typed identity
   else if (.is_at(call)) format_call_("..identity..", c(x = call))
   # standard call
-  else return(helper_func_from_call_(call))
+  else helper_func_from_call_(call)
 }

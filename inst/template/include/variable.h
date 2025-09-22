@@ -314,7 +314,7 @@ protected:
         return pProp_->logratio(buffer_ - loc_val, value_ - loc_val);
     }
     double do_get_propose_logratio_sample_() const { return do_distr_logratio_default_(); }
-    double do_get_propose_logratio_sample_with_loc_() const { do_distr_logratio_with_loc_(); }
+    double do_get_propose_logratio_sample_with_loc_() const { return do_distr_logratio_with_loc_(); }
 
     //----- Move logratio : functional methods -----//
     double (Variable::*get_move_logratio_)() const = &Variable::do_get_move_logratio_default_;
