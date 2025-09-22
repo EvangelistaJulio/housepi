@@ -29,6 +29,7 @@ rd_mdl_force_ <- "`logical(1)` to compile even if a cached model already exists.
 Default is `FALSE`."
 rd_mdl_quiet_ <- "`logical(1)` to hide compilation commands and warnings.\\cr
 Default is `TRUE`."
+rd_mdl_flags_ <- "Named arguments with additional compilation options."
 
 ############################################################################
 ############################################################################

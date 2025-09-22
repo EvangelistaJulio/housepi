@@ -291,10 +291,39 @@ HousepiGenerator <- R6::R6Class(
     },
 
     # @description
+    # Process user options for compilation.
+    .process_user_options = function(...) {
+      my_func <- function(...) {
+        user_paths <- character()
+        user_flags <- character()
+        user_linkers <- character()
+        user_options <- list(...)
+
+        # process time discrete option
+        if ("discr" %in% names(user_options)) {
+          if (isTRUE(user_options$discr)) {
+            user_flags <- c(user_flags, "_HSP_DISCRETE_TIME")
+          }
+        }
+
+        list(
+          "user_paths" = user_paths,
+          "user_flags" = user_flags,
+          "user_linkers" = user_linkers
+        )
+      }
+    },
+
+    # @description
     # Compile and load the source files inside cached directory.
     # Note: I am tricking pkgbuild::compile_dll and R CMD INSTALL.
     # To avoid recompiling immutable files I just touch them.
-    .compile = function() {
+    # @param user_paths A `character()` vector of additional include paths.
+    # @param user_flags A `character()` vector of additional compiler flags.
+    # @param user_linkers A `character()` vector of additional linker flags.
+    .compile = function(user_paths = character(),
+                        user_flags = character(),
+                        user_linkers = character()) {
       # drop previous Rcpp model object
       private$.rcpp <- NULL
 
@@ -311,12 +340,11 @@ HousepiGenerator <- R6::R6Class(
       # touch as source model file was more recent
       Sys.setFileTime(file.path(cache_dir_src, "model.cpp"), touch_time + 1)
 
-      # UPDATE: predisposing for user flags
-      user_additional_paths <- c()
-
       # compile the dynamic library
       withr::with_envvar(
-        get_cpp_environment_flags(user_additional_paths),
+        get_cpp_environment_flags(paths = user_paths,
+                                  flags = user_flags,
+                                  linkers = user_linkers),
         pkgbuild::compile_dll(private$.cache_dir,
                               quiet = private$.quiet,
                               debug = FALSE)
@@ -473,22 +501,13 @@ HousepiGenerator <- R6::R6Class(
     #' @description
     #' Initialize model generator defining name of dynamic library.
     #'
-    #' @param choice `character(1)`\cr
-    #' Choose a model providing one between:
-    #' - "blank" template name;
-    #' - template name;
-    #' - path/to/folder with implementation;
-    #' - path/to/folder with previously compiled model.
-    #' @param as_template `logical(1)`\cr
-    #' If `TRUE` store the dynamic library as a local template.
-    #' If `FALSE` recompile the model at every new session.
-    #' @param force `logical(1)`\cr
-    #' If `TRUE` compile even if a cached model already exists.
-    #' @param quiet `logical(1)`\cr
-    #' If `TRUE` hide `pkgbuild` compilation commands.
-    #'
+    #' @param choice `r rd_mdl_choice_`
+    #' @param as_template `r rd_mdl_astmpl_`
+    #' @param force `r rd_mdl_force_`
+    #' @param quiet `r rd_mdl_quiet_`
+    #' @param ... `r rd_mdl_flags_`
     initialize = function(choice, as_template = FALSE,
-                          force = FALSE, quiet = TRUE) {
+                          force = FALSE, quiet = TRUE, ...) {
       # check model choice
       if (is.na(choice)) {
         warning_h(
@@ -507,6 +526,8 @@ HousepiGenerator <- R6::R6Class(
       private$.name <- basename(choice)
       # assign quiet field
       private$.quiet <- isTRUE(quiet)
+      # load user options # FIXME they can change if need recompile
+      user_options <- private$.process_user_options(...)
 
       if (choice == "blank") {
         # 1: blank model (developer mode)
@@ -534,9 +555,13 @@ HousepiGenerator <- R6::R6Class(
       }
 
       # finally recompile only the model script, if necessary.
-      if (private$.need_compile) private$.compile()
+      if (private$.need_compile) {
+        do.call(private$.compile, user_options)
+      }
       # generate the Rcpp model object.
-      if (is.null(private$.rcpp)) private$.rcpp <- private$.new_rcpp_model()
+      if (is.null(private$.rcpp)) {
+        private$.rcpp <- private$.new_rcpp_model()
+      }
 
       invisible(self)
     }
