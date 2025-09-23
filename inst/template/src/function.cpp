@@ -128,7 +128,7 @@ Function::Function(const std::string &name,
             args_[c++].set(arg_value[k]);
         }
 
-    //----- assign domain -----//
+    // Assign Domain
     // NOTE: at the moment only place where to set open ranges
     // NOTE: not sure if setting pointer to smtg exiting the domain I still have control
     init_range_scalar_(HSP_PARAM_MIN, domain_min);
@@ -229,13 +229,13 @@ void Function::init_range_helper_(bool is_min_open, bool is_max_open)
 {
     switch (which_valid_case_())
     {
-    case 0: //----- unbounded -----//
+    case 0: // Unbounded
         is_below_ = &Function::do_is_below_never_;
         is_above_ = &Function::do_is_above_never_;
         is_valid_ = &Function::do_is_valid_always_;
         break;
 
-    case 1: //----- lower bound -----//
+    case 1: // Lower Bound
         is_above_ = &Function::do_is_above_never_;
         if (is_min_open)
         {
@@ -249,7 +249,7 @@ void Function::init_range_helper_(bool is_min_open, bool is_max_open)
         }
         break;
 
-    case 2: //----- upper bound -----//
+    case 2: // Upper Bound
         is_below_ = &Function::do_is_below_never_;
         if (is_max_open)
         {
@@ -263,7 +263,7 @@ void Function::init_range_helper_(bool is_min_open, bool is_max_open)
         }
         break;
 
-    case 3: //----- within an interval -----//
+    case 3: // Within an Interval
         if ((is_min_open) && (is_max_open))
         {
             is_below_ = &Function::do_is_below_open_min_;

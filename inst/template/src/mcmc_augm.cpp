@@ -42,7 +42,7 @@ void MCMC::Impl::Augmented::build()
             // build status-specific maps of augmented variables
             build_helper_status_specific_maps_();
             // set individual id for augmented draws follow-up
-            build_helper_set_id_draws_(pImpl_.setup.id_draws);
+            build_helper_set_id_draws_();
 
             // allocate memory for augmented variables to each individual
             for (Household &house : pImpl_.dataset)
@@ -244,8 +244,9 @@ void MCMC::Impl::Augmented::build_helper_variable_to_sample_(size_t k)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Set individual id for augmented draws follow-up.
-void MCMC::Impl::Augmented::build_helper_set_id_draws_(str_vec &id_draws)
+void MCMC::Impl::Augmented::build_helper_set_id_draws_()
 {
+    str_vec &id_draws = pImpl_.setup.id_draws;
     smpl_individuals.clear();
 
     if (!id_draws.empty())
@@ -281,7 +282,7 @@ void MCMC::Impl::Augmented::build_helper_set_id_draws_(str_vec &id_draws)
                 for (const auto member : smpl_individuals)
                     if (!member->is_infected_status())
                         tools::warning(
-                            "Ignornig trace of non infected individual id \"" + member->id() + "\".");
+                            "Ignornig trace of non infected " + member->err_name() + ".");
             }
             else
             {
@@ -646,11 +647,10 @@ void MCMC::Impl::move_all_augm_()
 #pragma omp parallel for reduction(+ : delta_ll)
         for (size_t H = 0; H < dataset.n_houses(); ++H)
         {
-            Household &this_house = dataset(H);
-
             if (has_error.load(std::memory_order_relaxed))
                 continue;
 
+            Household &this_house = dataset(H);
             try
             {
                 delta_ll += move_augm_single_house_(this_house);
@@ -660,8 +660,8 @@ void MCMC::Impl::move_all_augm_()
 #pragma omp critical
                 {
                     if (!has_error.exchange(true))
-                        error_message = "While sampling augmented variables for household \"" +
-                                        this_house.house_id() + "\":\n" +
+                        error_message = "While sampling augmented variables for " +
+                                        this_house.err_name() + ":\n" +
                                         std::string(e.what());
                 }
             }

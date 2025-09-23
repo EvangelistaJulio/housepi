@@ -786,7 +786,7 @@ HousepiModel <- R6::R6Class(
       n_rungs <- as.integer(n_rungs)
 
       # evaluate marginal from the internal Rcpp object
-      output <- private$.rcpp$estimate_evidence(scheme, n_rungs)
+      output <- private$.rcpp$evidence(scheme, n_rungs)
 
       # reformat dataframe
       mask <- c("inv_temper", "mean_loglike", "var_loglike")

@@ -565,7 +565,7 @@ public:
 
         void build_helper_assert_univocal_defs_();
         void build_helper_status_specific_maps_();
-        void build_helper_set_id_draws_(str_vec &id_draws);
+        void build_helper_set_id_draws_();
 
         double type_to_double_(const Individual &member,
                                const std::string &tkn_value,
@@ -775,6 +775,9 @@ private:
 
     //----- Metropolis : power posteriors -----//
     std::vector<dbl_vec> power_posteriors_(const std::string &scheme, unsigned long N);
+    void power_post_zero_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var);
+    void power_post_fractions_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var);
+    void power_post_adaptive_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var);
 
     //====================//
     //===== SIMULATE =====//

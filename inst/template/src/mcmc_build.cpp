@@ -305,9 +305,10 @@ void MCMC::Impl::DataWide::build_helper_fill_report_data_()
                     {"min size", {1000, 0}},
                     {"max size", {0, 0}}};
 
-    //===== Set Contact Rates and Perform Database Analysis =====//
+    // set report counts
     for (const Household &house : house_vector_)
     {
+        // list of unique infected statuses
         for (const Individual &member : house)
             if (!(all_infected_status_list % member.status()))
                 all_infected_status_list.push_back(member.status());
@@ -638,7 +639,7 @@ void MCMC::Impl::GroupRates::init_rate_as_ptrs_(Individual &member,
             {
                 if ((tools::is_na(p)) || (p == HSP_MISSING_RATE))
                     std::invalid_argument(
-                        "Missing rate \"" + r + "\" for individual \"" + member.id() + "\".");
+                        "Missing rate \"" + r + "\" for " + member.err_name() + ".");
 
                 else if (p == HSP_REFERENCE)
                     vec_par_ptr.emplace_back(&HSP_REFER_VALUE);
@@ -684,14 +685,14 @@ void MCMC::Impl::Parameter::build(const dict_str_vec &deftable)
         list_sample_standard.clear();
         list_sample_cache.clear();
 
-        //===== Load parameters from the row with options =====//
+        // load parameters from the row with options
         for (size_t k = 0; k < deftable.at("name").size(); ++k)
         {
             const std::string &name = deftable.at("name")[k]; // parameter name
             double value = HSP_NA_DOUBLE;                     // init value
             const std::string p = name;
 
-            // Add entry to shared parameter dictionary -----//
+            // Add entry to shared parameter dictionary
             if (dictionary_.count(p))
             {
                 // parameter is already defined
@@ -734,7 +735,7 @@ void MCMC::Impl::Parameter::build(const dict_str_vec &deftable)
                 if (!tools::is_na(deftable.at("scale")[k]))
                     rule_scale = tools::str::tod(deftable.at("scale")[k]);
 
-                //----- Create a new Parameter Variable -----//
+                // create a new Parameter Variable
                 dictionary_.emplace(p, Variable(name, value, false, is_discrete));
                 Variable &new_param = this->at(p);
 

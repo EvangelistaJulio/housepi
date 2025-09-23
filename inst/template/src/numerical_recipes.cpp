@@ -18,6 +18,7 @@
 namespace numr
 {
     using std::exp;
+    using std::fabs;
     using std::lgamma;
     using std::log;
     using std::pow;
@@ -25,7 +26,7 @@ namespace numr
     /////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////  COMBINATORICS FUNCTIONS  ////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
-    
+
     /// Binomial coefficient of N elements in k positions
     unsigned long binom_coeff(unsigned short N, unsigned short k)
     {
@@ -109,16 +110,16 @@ namespace numr
                 double an = (shape - m) * m;
                 b += 2.;
                 d = an * d + b;
-                if (std::fabs(d) < MIN_DBL)
+                if (fabs(d) < MIN_DBL)
                     d = MIN_DBL;
                 c = b + an / c;
-                if (std::fabs(c) < MIN_DBL)
+                if (fabs(c) < MIN_DBL)
                     c = MIN_DBL;
                 d = 1. / d;
                 delta = c * d;
                 h *= delta;
 
-                if (std::fabs(delta - 1.) < EPSILON)
+                if (fabs(delta - 1.) < EPSILON)
                     return 1. - exp(-z + shape * log(z) - lgamma(shape)) * h;
             }
 
@@ -153,7 +154,7 @@ namespace numr
             double c = 1.,
                    d = 1. - qab * x / qap;
 
-            if (std::fabs(d) < MIN_DBL)
+            if (fabs(d) < MIN_DBL)
                 d = MIN_DBL;
             d = 1. / d;
 
@@ -164,11 +165,11 @@ namespace numr
                 double aa = (b - m) * m * x / ((qam + m2) * (a + m2));
 
                 d = 1. + aa * d;
-                if (std::fabs(d) < MIN_DBL)
+                if (fabs(d) < MIN_DBL)
                     d = MIN_DBL;
 
                 c = 1. + aa / c;
-                if (std::fabs(c) < MIN_DBL)
+                if (fabs(c) < MIN_DBL)
                     c = MIN_DBL;
 
                 d = 1. / d;
@@ -176,11 +177,11 @@ namespace numr
                 aa = -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2));
 
                 d = 1. + aa * d;
-                if (std::fabs(d) < MIN_DBL)
+                if (fabs(d) < MIN_DBL)
                     d = MIN_DBL;
 
                 c = 1. + aa / c;
-                if (std::fabs(c) < MIN_DBL)
+                if (fabs(c) < MIN_DBL)
                     c = MIN_DBL;
 
                 d = 1. / d;
@@ -188,7 +189,7 @@ namespace numr
                 double del = d * c;
                 h *= del;
 
-                if (std::fabs(del - 1.) < EPSILON)
+                if (fabs(del - 1.) < EPSILON)
                     return h;
             }
 

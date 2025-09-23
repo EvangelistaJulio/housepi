@@ -439,7 +439,7 @@ Rcpp::NumericMatrix MCMC::Impl::rcpp_export_draws() const
         if (smpl_full_loglike_.empty())
             throw std::length_error("No draws to export were found.");
 
-        //----- Collect the column names -----//
+        // cllect the column names 
         str_vec headers = {"loglikelihood"};
 
         headers += param.list_sample;
@@ -453,7 +453,7 @@ Rcpp::NumericMatrix MCMC::Impl::rcpp_export_draws() const
         // multiple chains
         headers.push_back(HSP_CHAIN_COL);
 
-        //----- NumericMatrix with draws -----//
+        // matrix with draws 
         NumericMatrix output(setup.n_chains * setup.c_sample_size,
                              headers.size());
         size_t col = 0;
@@ -1018,7 +1018,7 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
 
         if (inferstate_ofstream.is_open())
         {
-            //----- HEADERS -----//
+            // Headers
             // header loglikelihood
             inferstate_ofstream << "iteration" << HSP_DELIM << "loglikelihood";
 
@@ -1026,7 +1026,7 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
             for (const std::string &p : param.list_sample)
                 inferstate_ofstream << HSP_DELIM << p;
 
-            // augmented variable of id trace
+            // header augmented variable of id trace
             if (augm.is_any_draw())
                 for (size_t k = 0; k < augm.smpl_individuals.size(); ++k)
                     for (const std::string &a : augm.list_draws)
@@ -1035,8 +1035,7 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
             // header chain
             inferstate_ofstream << HSP_DELIM << HSP_CHAIN_COL << std::endl;
 
-            //----- VALUES -----//
-
+            // Values
             for (size_t c = 0; c < setup.n_chains; ++c)
                 for (size_t k = 0; k < setup.c_sample_size; k++)
                 {

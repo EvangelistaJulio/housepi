@@ -100,6 +100,7 @@ public:
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	const std::string &id() const { return id_; }
+	std::string err_name() const { return "individual \"" +  id_ + "\""; }
 	int status() const { return status_; }
 	bool is_infected_status() const { return HSP_IS_INFECTED(status_); }
 	bool is_healthy_status() const { return HSP_IS_HEALTHY(status_); }
@@ -109,7 +110,7 @@ public:
 	{
 		if (pdatalong_ == nullptr)
 			throw std::invalid_argument(
-				"Individual \"" + id_ + "\" has no datalong entries.");
+				"No datalong entries for " + err_name() + ".");
 		return pdatalong_->at(d);
 	}
 	double group_rate(const std::string &r) const { return safe_at(rate_map_, "group rate", r).get(); }
@@ -277,6 +278,7 @@ public:
 
 	// Household Getter
 	const std::string &house_id() const { return house_id_; }
+	std::string err_name() const { return "household \"" + house_id_ + "\""; }
 	size_t house_index() const { return index_; }
 	size_t size() const { return house_size_; }
 

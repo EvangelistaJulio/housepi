@@ -178,16 +178,16 @@ test_that("Augmented aliasing works as expected", {
   hhmodel$add_parameter(name = "scale", value = 1)
   hhmodel$load_augmented_list(
     ..layer = ~x @D,
-    gamma = list(func = "gamma", 
+    gamma = list(func = "gamma",
                  func_args = c(x = ~..layer, shape = 2, scale = ~ scale@P)),
     log_proba = ~log(gamma)
   )
-  
+
   expect_equal(
     hhmodel$loglikelihood(),
     sum(log(dgamma(hhmodel$data_wide$x, shape = 2, scale = 1)))
   )
-  
+
   # FIXME: order should not matter...
   # hhmodel <- new_housepi_model("augmented_example")
   # hhmodel$data_wide <- data.frame(
@@ -277,7 +277,7 @@ test_that("Loglikelihood of augmented infection time model is correct", {
       output <- output - alpha_cumul - beta * roi_cumul
     }
 
-    return(output)
+    output
   }
   # loglikelihood contribution of infectious members
   loglike_infectious <- function(house, param) {
@@ -309,7 +309,7 @@ test_that("Loglikelihood of augmented infection time model is correct", {
       }
     }
 
-    return(output)
+    output
   }
   # dummy dataset
   house <- data.frame(id = sprintf("hh_01_%s", seq(1, 7)),

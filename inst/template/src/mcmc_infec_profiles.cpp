@@ -237,7 +237,7 @@ void MCMC::Impl::InfecProfile::build_generic_profile_(const dict_str &deflist)
 	inst_ = &InfecProfile::do_inst_default_;
 	cumul_ = &InfecProfile::do_cumul_default_;
 
-	//----- Name -----//
+	// name
 	if ((deflist.count("name")) && (!tools::is_na(deflist.at("name"))))
 	{
 		profile_ = compose_distr_registries(

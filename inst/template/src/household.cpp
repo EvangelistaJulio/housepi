@@ -72,7 +72,7 @@ double Individual::compute_and_set_augm_model_loglike()
 
 	if (tools::is_na(x))
 		throw std::runtime_error(
-			"Individual \"" + id_ + "\" augmented loglikelihood returned NaN.");
+			"Augmented loglikelihood returned NaN for " + err_name() + ".");
 
 	// set computed value and store old in buffer
 	augm_buffer_ = augm_loglike_;
@@ -95,7 +95,7 @@ void Individual::init_all_group_rates(const u_dict<std::vector<observ_dbl_ptr>> 
 
 		if (vec_par_ptr.empty())
 			std::invalid_argument(
-				"Missing rate \"" + r + "\" for individual " + id_ + ".");
+				"Missing rate \"" + r + "\" for " + err_name() + ".");
 		else
 			rate_map_[r] = GroupRate(r, vec_par_ptr);
 	}
@@ -232,7 +232,7 @@ void Household::set_obs_loglike(double x)
 {
 	if (tools::is_na(x))
 		throw std::runtime_error(
-			"Household \"" + house_id_ + "\" observation loglikelihood returned NaN.");
+			"Observation loglikelihood returned NaN " + err_name() + ".");
 
 	obs_buffer_ = obs_loglike_;
 	obs_loglike_ = x;
