@@ -73,7 +73,7 @@ void MCMC::Impl::Setup::build(const dict_str &deflist)
 
         // Individual ID for Augmented Trace
         if (deflist.count("id_draws") && (!tools::is_na(deflist.at("id_draws"))))
-            id_draws = tools::parse_arg_list(deflist.at("id_draws"), HSP_LIST_DELIM);
+            parse_id_draws_list_(deflist.at("id_draws"), HSP_LIST_DELIM);
     }
 
     // reset internal states
@@ -142,20 +142,12 @@ void MCMC::Impl::Setup::assert_mcmc_setup()
         throw std::range_error(
             "Inverse temperature " + std::to_string(inv_T) + " out of range [0, 1].");
 
-    if ((n_chains > 1) && (rand_init_params == false))
-    {
-        tools::warning(
-            "Unable to fix initial parameters when running multiple chains.");
-        rand_init_params = true;
-    }
-    else if (n_chains < 1)
+    if (n_chains < 1)
         throw std::out_of_range("Number of chains must be greater than 0.");
 
+    // Interpret thinning equal to 0 has been interpreted as 1.
     if (thin == 0)
-    {
-        tools::warning("Thinning equal to 0 has been interpreted as 1.");
         thin = 1;
-    }
 
     if (c_sample_size == 0)
     {
@@ -251,10 +243,6 @@ void MCMC::Impl::DataWide::build(const dict_str_vec &input)
                     // note: NA status is a missing status
                     if (!tools::is_na(input.at("status")[i]))
                         status = tools::str::toi(input.at("status")[i], "individual status");
-                }
-                else if (tools::is_na(input.at(key)[i]))
-                {
-                    data.emplace(key, HSP_NA_DOUBLE);
                 }
                 else
                 {
@@ -509,19 +497,18 @@ void MCMC::Impl::DataLong::build(const dict_str_vec &input)
         if (indiv_datalist_.empty())
             indiv_datalist_.resize(pImpl_.dataset.n_individuals());
 
-        for (u_dict<dbl_vec> &this_map : indiv_datalist_)
+        for (u_dict<dbl_vec> &xmap : indiv_datalist_)
             for (const std::string &key : headers_)
             {
-                if (this_map.count(key) > 0)
-                    this_map[key].clear();
-                this_map.emplace(key, dbl_vec({}));
+                if (xmap.count(key) > 0)
+                    xmap[key].clear();
+                xmap.emplace(key, dbl_vec({}));
             }
 
         // load individual data list
         const size_t n_rows = input.at(headers_[0]).size();
         for (size_t r = 0; r < n_rows; ++r)
         {
-            double x;
             std::string id = input.at("id")[r];
             if (tools::is_na(id))
                 throw std::invalid_argument(
@@ -536,16 +523,11 @@ void MCMC::Impl::DataLong::build(const dict_str_vec &input)
                         "Id \"" + id + "\" from datalong has no match in loaded dataset.");
             }
 
-            u_dict<dbl_vec> &this_dict = indiv_datalist_.at(id_to_index.at(id));
+            // append (since vector is initialized to empty)
+            u_dict<dbl_vec> &xdict = indiv_datalist_.at(id_to_index.at(id));
             for (const std::string &key : headers_)
-            {
-                x = HSP_NA_DOUBLE;
-                if (!tools::is_na(input.at(key).at(r)))
-                    x = tools::str::tod(input.at(key).at(r), "datalong \"" + key + "\"");
-
-                // append (si   nce vector is initialized to empty)
-                this_dict.at(key).emplace_back(x);
-            }
+                xdict.at(key).emplace_back(
+                    tools::str::tod(input.at(key).at(r), "datalong \"" + key + "\""));
         }
 
         // assign pointers to relative datalong to all individuals
@@ -706,7 +688,7 @@ void MCMC::Impl::Parameter::build(const dict_str_vec &deftable)
                     throw std::invalid_argument(
                         "Undefined value for constant parameter \"" + name + "\".");
                 else
-                    value = tools::str::tod(deftable.at("value")[k], "parameter");
+                    value = pImpl_.read_scalar_(deftable.at("value")[k]);
 
                 // assign constant parameter to the set of variables
                 dictionary_.emplace(p, Variable(name, value));
@@ -716,14 +698,10 @@ void MCMC::Impl::Parameter::build(const dict_str_vec &deftable)
             else
             {
                 // load value
-                if (!tools::is_na(deftable.at("value")[k]))
-                    value = tools::str::tod(deftable.at("value")[k], "parameter");
+                value = pImpl_.read_scalar_(deftable.at("value")[k]);
 
                 // load boolean flag for discrete variables
                 bool is_discrete = tools::str::tobool(deftable.at("discr")[k]);
-
-                // load prior name
-                const std::string &prior_name = deftable.at("prior")[k];
 
                 // load rule name
                 std::string rule_name = "draw";
@@ -740,25 +718,15 @@ void MCMC::Impl::Parameter::build(const dict_str_vec &deftable)
                 Variable &new_param = this->at(p);
 
                 // assign a prior distribution to the parameter
-                new_param.init_distr(prior_name);
+                DefinitionParser parser(deftable.at("prior")[k]);
+                new_param.init_distr(parser.root.func);
 
-                // assign scalar arguments to prior distribution
-                const str_vec arg_key = tools::parse_keys(deftable.at("arg_key")[k], HSP_LIST_DELIM);
-                const str_vec arg_val = tools::parse_arg_list(deftable.at("arg_val")[k], HSP_LIST_DELIM);
-
-                for (unsigned short c = 0; c < arg_key.size(); ++c)
-                {
-                    Attribute aux_attr;
-                    aux_attr.init_scalar(tools::str::tod(arg_val[c], "parameter " + arg_key[c]));
-                    new_param.init_distr_attr(arg_key[c], aux_attr);
-                }
+                for (const auto &child : parser.root.children)
+                    new_param.init_distr_attr(child.key, pImpl_.read_scalar_(child));
 
                 // load parameter range
-                Attribute aux_attr;
-                aux_attr.init_scalar(tools::str::tod(deftable.at("min")[k], "parameter minimum"));
-                new_param.init_distr_attr(HSP_PARAM_MIN, aux_attr);
-                aux_attr.init_scalar(tools::str::tod(deftable.at("max")[k], "parameter maximum"));
-                new_param.init_distr_attr(HSP_PARAM_MAX, aux_attr);
+                new_param.init_distr_attr(HSP_PARAM_MIN, pImpl_.read_scalar_(deftable.at(HSP_PARAM_MIN)[k]));
+                new_param.init_distr_attr(HSP_PARAM_MAX, pImpl_.read_scalar_(deftable.at(HSP_PARAM_MAX)[k]));
                 new_param.init_distr_reshaping();
 
                 // assign the rule for the proposer to the parameter
@@ -791,21 +759,21 @@ void MCMC::Impl::Parameter::init()
 {
     for (const std::string &p : list_sample)
     {
-        Variable &this_par = this->at(p);
+        Variable &xparam = this->at(p);
 
         if (pImpl_.setup.rand_init_params)
         {
-            if (tools::is_na(this_par.distr_name()))
+            if (tools::is_na(xparam.distr_name()))
                 throw std::invalid_argument(
                     "Parameters with undefined values are not allowed.");
             else
-                this_par.init_rand(pImpl_.setup.prng());
+                xparam.init_rand(pImpl_.setup.prng());
         }
-        else if (tools::is_na(this_par.get()))
+        else if (tools::is_na(xparam.get()))
             throw std::invalid_argument(
                 "Value of parameter \"" + p + "\" is undefined with no random initialization.");
         else
-            this_par.user_reset();
+            xparam.user_reset();
     }
 }
 

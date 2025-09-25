@@ -100,7 +100,7 @@ public:
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	const std::string &id() const { return id_; }
-	std::string err_name() const { return "individual \"" +  id_ + "\""; }
+	std::string err_name() const { return "individual \"" + id_ + "\""; }
 	int status() const { return status_; }
 	bool is_infected_status() const { return HSP_IS_INFECTED(status_); }
 	bool is_healthy_status() const { return HSP_IS_HEALTHY(status_); }
@@ -135,14 +135,14 @@ public:
 
 private:
 	///////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////  Individual : GroupRate : class  //////////////////////////////
+	//////////////////////////////  Individual : GroupRate_ : struct  /////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	struct GroupRate
+	struct GroupRate_
 	{
 	public:
-		GroupRate(const std::string &name = HSP_NA_STRING,
-				  const std::vector<observ_dbl_ptr> &ptrs = {});
+		GroupRate_(const std::string &name = HSP_NA_STRING,
+				   const std::vector<observ_dbl_ptr> &ptrs = {});
 
 		double get() const
 		{
@@ -163,8 +163,8 @@ private:
 	int status_ = HSP_MISSING_STATUS; // status of the individual
 
 	// NOTE: allowd data variables are numerical only
-	u_dict<double> data_map_ = {};	  // data
-	u_dict<GroupRate> rate_map_ = {}; // group rates
+	u_dict<double> data_map_ = {};	   // data
+	u_dict<GroupRate_> rate_map_ = {}; // group rates
 
 	u_dict<dbl_vec> *pdatalong_ = nullptr; // datalong to be associated
 
@@ -297,7 +297,6 @@ public:
 	void set_multiplicity(unsigned long m, size_t class_idx);
 	void init_member(size_t index, const std::string &id, int status, const u_dict<double> &data);
 	bool change_status(Individual &member, int new_status);
-	bool change_status(size_t i, int new_status) { return change_status(members_.at(i), new_status); }
 	void init_contact_rates(size_t from, size_t to, observ_dbl_ptr x);
 
 	///////////////////////////////////////////////////////////////////////////////////////////////

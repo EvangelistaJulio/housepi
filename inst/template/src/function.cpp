@@ -33,8 +33,8 @@ bool Attribute::is_constant() const
         return false; // FIXME: this is not necessarily true...
     else if (is_function())
         return pFunc_->is_constant();
-    else             // is_empty()
-        return true; // in case it's empty, treat as constant
+    else // is_empty(), constant by convention
+        return true;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -57,31 +57,44 @@ void Attribute::init_scalar(double x)
 void Attribute::init_pointer(observ_dbl_ptr y)
 {
     if (y == nullptr)
-        init_scalar(HSP_NA_DOUBLE);
-    else
-    {
-        get_ = &Attribute::do_get_from_pointer_;
-        get_ptr_ = &Attribute::do_get_pointer_from_pointer_;
-        do_set_ = &Attribute::do_set_error_;
-        value_ = HSP_NA_DOUBLE;
-        ptr_to_value_ = y;
-        pFunc_ = nullptr;
-    }
+        throw std::invalid_argument(
+            "Attempt to assign empty pointer to " + err_name() + ".");
+
+    get_ = &Attribute::do_get_from_pointer_;
+    get_ptr_ = &Attribute::do_get_pointer_from_pointer_;
+    do_set_ = &Attribute::do_set_error_;
+    value_ = HSP_NA_DOUBLE;
+    ptr_to_value_ = y;
+    pFunc_ = nullptr;
 }
 /// Initialize attribute as function.
 void Attribute::init_function(const std::shared_ptr<Function> f)
 {
+    // check the function is different from the current one
     if (f == nullptr)
-        init_scalar(HSP_NA_DOUBLE);
-    else
-    {
-        get_ = &Attribute::do_get_from_function_;
-        get_ptr_ = &Attribute::do_get_pointer_error_;
-        do_set_ = &Attribute::do_set_error_;
-        value_ = HSP_NA_DOUBLE;
-        ptr_to_value_ = nullptr;
-        pFunc_ = f;
-    }
+        throw std::invalid_argument(
+            "Attempt to assign empty function to " + err_name() + ".");
+    else if (f == pFunc_)
+        throw std::invalid_argument(
+            "Cannot assign " + err_name() + " as its own argument.");
+
+    get_ = &Attribute::do_get_from_function_;
+    get_ptr_ = &Attribute::do_get_pointer_error_;
+    do_set_ = &Attribute::do_set_error_;
+    value_ = HSP_NA_DOUBLE;
+    ptr_to_value_ = nullptr;
+    pFunc_ = f;
+}
+
+/// Transfer from other Attribute.
+void Attribute::transfer(const Attribute &other)
+{
+    if (other.is_constant())
+        init_scalar(other.get());
+    else if (other.is_pointer())
+        init_pointer(other.get_ptr());
+    else if (other.is_function())
+        init_function(other.get_function());
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -131,8 +144,8 @@ Function::Function(const std::string &name,
     // Assign Domain
     // NOTE: at the moment only place where to set open ranges
     // NOTE: not sure if setting pointer to smtg exiting the domain I still have control
-    init_range_scalar_(HSP_PARAM_MIN, domain_min);
-    init_range_scalar_(HSP_PARAM_MAX, domain_max);
+    init_attr(HSP_PARAM_MIN, domain_min);
+    init_attr(HSP_PARAM_MAX, domain_max);
     init_range_helper_(is_min_open, is_max_open);
 }
 
@@ -186,10 +199,7 @@ bool Function::is_constant() const
 /// Returns the case of the range of validity.
 unsigned short Function::which_valid_case_() const
 {
-    // note: bounded if not pointing internally to NA
-    const bool is_lower_bound = !range_min_.is_empty();
-    const bool is_upper_bound = !range_max_.is_empty();
-    return is_lower_bound + 2 * is_upper_bound;
+    return (!range_min_.is_empty()) + 2 * (!range_max_.is_empty());
 }
 
 /// Ensure uniform range (min, max) match argument (min, max).
@@ -336,97 +346,22 @@ std::string Function::str_range() const
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Assign scalar argument or range value.
-void Function::init_attr(const std::string &what, double x)
+/// Assign attribute to function.
+void Function::init_attr(const std::string &what, const Attribute &attr)
 {
     if (HSP_RANGE_KEYS % what)
-        init_range_scalar_(what, x);
-    else
-        init_arg_scalar_(what, x);
-}
-/// Assign pointer argument or range value.
-void Function::init_attr(const std::string &what, observ_dbl_ptr y)
-{
-    // check the function is different from the current one
-    if (y == nullptr)
-        throw std::invalid_argument(
-            "Invalid pointer argument \"" + what + "\" for " + err_name() + ".");
-
-    if (HSP_RANGE_KEYS % what)
-        init_range_pointer_(what, y);
-    else
-        init_arg_pointer_(what, y);
-}
-/// Assign fucntion argument or range value.
-void Function::init_attr(const std::string &what, std::shared_ptr<Function> f)
-{
-    // check the function is different from the current one
-    if (f == nullptr)
-        throw std::invalid_argument(
-            "Invalid " + err_type_ + " argument \"" + what + "\" for " + err_name() + ".");
-    else if (f.get() == this)
-        throw std::invalid_argument(
-            "Cannot assign " + err_type_ + " " + err_name() + " to its own argument \"" + what + "\".");
-
-    if (HSP_RANGE_KEYS % what)
-        init_range_function_(what, f);
-    else
-        init_arg_function_(what, f);
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////  Function : Range  /////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Assign scalar range.
-void Function::init_range_scalar_(const std::string &range_name, double x)
-{
-    helper_init_range_assert_(range_name);
-
-    // NOTE: init_scalar(NA) is admitted, but not for range values
-    if (!tools::is_na(x))
     {
-        if (name_ == "unif")
-            args_[assert_arg(range_name)].init_scalar(x);
-        else if (range_name == HSP_PARAM_MIN)
-            range_min_.init_scalar(x);
-        else // range_name == HSP_PARAM_MAX
-            range_max_.init_scalar(x);
+        if (attr.is_empty())
+            ; // skip NA for range 
+        else if (name_ == "unif")
+            args_[assert_arg(what)].transfer(attr);
+        else if (what == HSP_PARAM_MIN)
+            range_min_.transfer(attr);
+        else // what == HSP_PARAM_MAX
+            range_max_.transfer(attr);
     }
-}
-
-/// Assign pointer range.
-void Function::init_range_pointer_(const std::string &range_name, observ_dbl_ptr y)
-{
-    helper_init_range_assert_(range_name);
-
-    if (name_ == "unif")
-        args_[assert_arg(range_name)].init_pointer(y);
-    else if (range_name == HSP_PARAM_MIN)
-        range_min_.init_pointer(y);
-    else // range_name == HSP_PARAM_MAX
-        range_max_.init_pointer(y);
-}
-
-/// Assign function range.
-void Function::init_range_function_(const std::string &range_name, const std::shared_ptr<Function> f)
-{
-    helper_init_range_assert_(range_name);
-
-    if (name_ == "unif")
-        args_[assert_arg(range_name)].init_function(f);
-    else if (range_name == HSP_PARAM_MIN)
-        range_min_.init_function(f);
-    else // range_name == HSP_PARAM_MAX
-        range_max_.init_function(f);
-}
-
-/// Assert that range name is valid.
-void Function::helper_init_range_assert_(const std::string &range_name) const
-{
-    if (!(HSP_RANGE_KEYS % range_name))
-        throw std::invalid_argument(
-            "Unknown range name \"" + range_name + "\" for " + err_name() + ".");
+    else
+        args_[assert_arg(what)].transfer(attr);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////

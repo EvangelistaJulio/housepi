@@ -831,3 +831,22 @@ protected:
 
 IMPLEMENT_HOUSEPI_DISTRIBUTION_REGISTRY(InfecProfileRegistry)
 REGISTER_HOUSEPI_DISTRIBUTION(InfecProfileRegistry, InfecProfile_Ferretti20)
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////  Attribute : init function from name  /////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Initialize attribute as function given the function name.
+void Attribute::init_function(const std::string &s, bool is_primitive)
+{
+    init_function(compose_func_registries(
+        s, "function", is_primitive,
+        {&UserFuncRegistry::inst(),
+         &TranscendentalRegistry::inst(),
+         &ArithmeticRegistry::inst(),
+         &ContinuosDistrRegistry::inst(),
+         &DiscreteDistrRegistry::inst(),
+         &InfecProfileRegistry::inst()}));
+}

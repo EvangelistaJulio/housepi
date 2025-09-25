@@ -147,6 +147,18 @@ public:
         std::vector<rnd_gen> prng_parallel_ = {}; // parallel generators (for multi-threading)
         rnd_gen &do_prng_parallel_threads_() { return prng_parallel_[omp_get_thread_num()]; }
 #endif
+
+        /// Parse the list from the std::string.
+        void parse_id_draws_list_(const std::string &tkn, const char delim)
+        {
+            id_draws.clear();
+            std::istringstream args_ss(tkn);
+            std::string tmp;
+
+            // rea the entries of the dictionary
+            while (getline(args_ss, tmp, delim))
+                id_draws.push_back(tmp);
+        }
     } setup;
 
     std::string error_message = {}; // error message for the last exception
@@ -160,8 +172,7 @@ public:
     {
         const str_vec file_headers = {"name", "value",
                                       "const", "discr",
-                                      "prior", "arg_key", "arg_val",
-                                      "min", "max",
+                                      "prior", "min", "max",
                                       "rule", "scale"};
         str_vec list_const = {};
         str_vec list_sample_standard = {};
@@ -494,12 +505,10 @@ public:
         dict_str_vec deftable = {};
         const str_vec file_headers = {"name", "status",
                                       "func", "fcumul",
-                                      "farg_key", "farg_val", "farg_at",
-                                      "value", "value_at", "init_rand",
+                                      "value", "init_rand",
                                       "const", "discr",
-                                      "model", "arg_key", "arg_val", "arg_at",
-                                      "min", "min_at",
-                                      "max", "max_at",
+                                      "model",
+                                      "min", "max",
                                       "rule", "scale"};
 
         str_vec list_model = {};
@@ -567,19 +576,8 @@ public:
         void build_helper_status_specific_maps_();
         void build_helper_set_id_draws_();
 
-        double type_to_double_(const Individual &member,
-                               const std::string &tkn_value,
-                               const std::string &tkn_type);
-        void init_attribute_list_(bool is_var_model,
-                                  Individual &member,
-                                  const std::string &a,
-                                  const str_vec &all_keys,
-                                  const str_vec &all_values,
-                                  const str_vec &all_types);
-        Attribute read_single_attribute_(Individual &member,
-                                         const std::string &a,
-                                         const std::string &value,
-                                         const std::string &type);
+        void init_model_attributes_(Individual &member, size_t k);
+        void init_func_attributes_(Individual &member, size_t k);
 
         void build_function_(size_t k);
         void build_function_identity_helper_(size_t k);
@@ -639,9 +637,7 @@ public:
         MCMC::Impl &pImpl_; // pointer to external class
         std::shared_ptr<Distribution> profile_;
 
-        const str_vec headers_ = {"name", "discr",
-                                  "arg_key", "arg_val", "arg_at",
-                                  "max", "max_at"};
+        const str_vec headers_ = {"func", "discr", "max"};
 
         // lookup table
         size_t size_lut_ = 0;
@@ -657,9 +653,6 @@ public:
 
         void build_generic_profile_(const dict_str &deflist);
         void build_augmented_profile_(const dict_str &deflist);
-
-        void init_single_attribute_(const std::string &key, const std::string &val, const std::string &at);
-        void init_arguments_(const str_vec &keys, const str_vec &vals, const str_vec &typs);
 
         //===== Functional methods for getter methods =====//
         double (InfecProfile::*inst_)(const Individual *, double) = &InfecProfile::do_inst_default_;
@@ -701,9 +694,19 @@ public:
 #endif
 
 private:
-    //=======================================//
-    //===== CALLBACKS (VIRTUAL METHODS) =====//
-    //=======================================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////  MCMC : Impl : definition helpers [private]  //////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
+
+    double read_scalar_(const DefinitionParser::ASTNode &node, const Individual &member = Individual());
+    double read_scalar_(const std::string &expr, const Individual &member = Individual());
+    Attribute read_attribute_(const DefinitionParser::ASTNode &node, const Individual &member = Individual());
+    Attribute read_attribute_(const std::string &expr, const Individual &member = Individual());
+    void make_param_cache_depen_(const DefinitionParser::ASTNode &node);
+
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////  MCMC : Impl : Callbacks Virtual Methods  ////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
     std::function<void()> callback_init_inference_;
     std::function<void()> callback_init_simulation_;

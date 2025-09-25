@@ -259,7 +259,7 @@ hhmodel <- hhsimul |>
   load_augmented_list(
     infec_time = ~onset_time - incub_period,
     onset_time = list(
-      model = "norm", 
+      model = "norm",
       args = c(mean = ~onset_date@D, sd = 1)
     ),
     incub_period = list(

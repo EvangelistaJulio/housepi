@@ -97,7 +97,7 @@ void Individual::init_all_group_rates(const u_dict<std::vector<observ_dbl_ptr>> 
 			std::invalid_argument(
 				"Missing rate \"" + r + "\" for " + err_name() + ".");
 		else
-			rate_map_[r] = GroupRate(r, vec_par_ptr);
+			rate_map_[r] = GroupRate_(r, vec_par_ptr);
 	}
 }
 
@@ -105,14 +105,14 @@ void Individual::init_all_group_rates(const u_dict<std::vector<observ_dbl_ptr>> 
 void Individual::init_augm_model_logpdf(const std::unordered_map<int, str_vec> &status_map_model)
 {
 	augm_model_logpdfs_.clear();
-	
+
 	// associate models if applicable
 	if (status_map_model.count(status_))
 		for (const std::string &a : status_map_model.at(status_))
 		{
 			const Variable &xaugm = safe_at(augm_map_, "augmented variable", a);
 			augm_model_logpdfs_.emplace_back([&xaugm]()
-											{ return xaugm.get_distr_logpdf(); });
+											 { return xaugm.get_distr_logpdf(); });
 		}
 }
 
@@ -127,8 +127,8 @@ void Individual::user_reset()
 /////////////////////////////  Individual::Group Rate : constructor  //////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Individual::GroupRate::GroupRate(const std::string &name,
-								 const std::vector<observ_dbl_ptr> &ptrs)
+Individual::GroupRate_::GroupRate_(const std::string &name,
+								   const std::vector<observ_dbl_ptr> &ptrs)
 {
 	if (!tools::is_na(name))
 	{

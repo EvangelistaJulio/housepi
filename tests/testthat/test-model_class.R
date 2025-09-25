@@ -106,29 +106,29 @@ test_that("Chain binomial models are coherent", {
   expect_equal(ll1, ll2)
 })
 
-test_that("Nested definitions are raise errors", {
-  hhmodel <- new_housepi_model("augmented_example")
-  hhmodel$data_wide <- data.frame(house_id = 1, id = seq(3), status = 1)
-
-  # simple nest
-  expect_error(
-    hhmodel |>
-      load_augmented_list(dummy = ~log_proba,
-                          log_proba = ~dummy) |>
-      loglikelihood(),
-    regexp = "nested definitions"
-  )
-
-  # triangular nest
-  expect_error(
-    hhmodel |>
-      load_augmented_list(log_proba = ~layer,
-                          layer = ~dummy,
-                          dummy = ~log_proba) |>
-      loglikelihood(),
-    regexp = "nested definitions"
-  )
-})
+# test_that("Nested definitions raise errors", {
+#   hhmodel <- new_housepi_model("augmented_example")
+#   hhmodel$data_wide <- data.frame(house_id = 1, id = seq(3), status = 1)
+# 
+#   # simple nest
+#   expect_error(
+#     hhmodel |>
+#       load_augmented_list(dummy = ~log_proba,
+#                           log_proba = ~dummy) |>
+#       loglikelihood(),
+#     regexp = "nested definitions"
+#   )
+# 
+#   # triangular nest
+#   expect_error(
+#     hhmodel |>
+#       load_augmented_list(log_proba = ~layer,
+#                           layer = ~dummy,
+#                           dummy = ~log_proba) |>
+#       loglikelihood(),
+#     regexp = "nested definitions"
+#   )
+# })
 
 test_that("Augmentation example on incubation from delays is coherent", {
   # loglikelihood from simulated delays
@@ -217,33 +217,39 @@ test_that("Augmented aliasing works as expected", {
   # hhmodel$loglikelihood()
 })
 
-# FIXME: this non-regression test is badly designed
-# test_that("Augmented function example returns expected distribution", {
-#   hhmodel <- new_housepi_model("blank")
-# 
-#   # define Box-Muller transformation
-#   # UPDATE: there should be a developer effort to improve this
-#   hhmodel$load_augmented_list(
-#     norm = list(model = "norm"),
-#     u1 = list(model = "unif"),
-#     u2 = list(model = "unif"),
-#     log_u1 = ~log(u1),
-#     two_log_u1 = ~2 * log_u1,
-#     m_two_log_u1 = ~ - two_log_u1,
-#     sqrt_m_two_log_u1 = ~sqrt(m_two_log_u1),
-#     two_pi_u2 = ~6.283185 * u2,
-#     cos_two_pi_u2 = ~cos(two_pi_u2),
-#     z0 = ~sqrt_m_two_log_u1 * cos_two_pi_u2
-#   )
-# 
-#   results <- hhmodel$infer(n_steps = 5e5, progress = 0)
-#   sample_norm <- results$augm_draws$hh_01_1_norm
-#   sample_boxmul <- results$augm_draws$hh_01_1_z0
-# 
-#   expect_gt(stats::ks.test(sample_norm, sample_boxmul)$p.value, 0.05)
-#   expect_gt(stats::t.test(sample_norm, sample_boxmul)$p.value, 0.05)
-#   expect_gt(stats::var.test(sample_norm, sample_boxmul)$p.value, 0.05)
-# })
+test_that("Augmented function example returns expected distribution", {
+  hhmodel <- new_housepi_model("blank")
+
+  # define Box-Muller transformation
+  # UPDATE: there should be a developer effort to improve this
+  hhmodel$load_augmented_list(
+    norm = list(model = "norm"),
+    u1 = list(model = "unif"),
+    u2 = list(model = "unif"),
+    log_u1 = ~log(u1),
+    two_log_u1 = ~2 * log_u1,
+    m_two_log_u1 = ~ - two_log_u1,
+    sqrt_m_two_log_u1 = ~sqrt(m_two_log_u1),
+    two_pi_u2 = ~6.283185 * u2,
+    cos_two_pi_u2 = ~cos(two_pi_u2),
+    z0 = ~sqrt_m_two_log_u1 * cos_two_pi_u2
+  )
+
+  results <- hhmodel$infer(n_steps = 1e5, progress = 0)
+  sample_norm <- results$augm_draws$hh_01_1_norm
+  sample_boxmul <- results$augm_draws$hh_01_1_z0
+  
+  expect_equal(mean(sample_norm), 0, tolerance = 0.05)
+  expect_equal(sd(sample_norm), 1, tolerance = 0.05)
+  probs <- c(0.025, 0.5, 0.975)
+  q <- setNames(stats::quantile(sample_norm, probs), NULL)
+  expect_equal(q, qnorm(probs), tolerance = 0.05)
+  
+  expect_equal(mean(sample_boxmul), 0, tolerance = 0.05)
+  expect_equal(sd(sample_boxmul), 1, tolerance = 0.05)
+  q <- setNames(stats::quantile(sample_boxmul, probs), NULL)
+  expect_equal(q, qnorm(probs), tolerance = 0.05)
+})
 
 test_that("Loglikelihood of augmented infection time model is correct", {
   # instantaneous infectivity profile

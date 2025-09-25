@@ -57,7 +57,7 @@ namespace tools
     /// Internal check for std::string representing NA.
     bool is_na(const std::string &txt)
     {
-        if (txt.size() == 0)
+        if (txt.empty())
             return true;
         else if (txt == HSP_NA_STRING)
             return true;
@@ -444,36 +444,6 @@ namespace tools
     //-----------------------------------------------------------------------------------------------//
     //-----------------------------------------------------------------------------------------------//
     //-----------------------------------------------------------------------------------------------//
-
-    /// Parse the list from a given token according to delimiter.
-    str_vec parse_arg_list(const std::string &tkn, const char delim)
-    {
-        std::istringstream args_ss(tkn);
-        str_vec output = {};
-        std::string tmp;
-
-        // rea the entries of the dictionary
-        while (getline(args_ss, tmp, delim))
-            output.push_back(tmp);
-
-        return output;
-    }
-
-    /// Assert the parsed list can be used a list of keys.
-    str_vec parse_keys(const std::string &tkn, const char delim)
-    {
-        str_vec output = parse_arg_list(tkn, delim);
-        if (output.empty())
-            return {};
-        if (output.size() == 1 && tools::is_na(output[0]))
-            return {};
-        else if (is_any_na(output))
-            throw std::invalid_argument("Argument keys cannot be NA.");
-        else if (tools::str::unique(output).size() != output.size())
-            throw std::invalid_argument("Argument keys must be unique.");
-        else
-            return output;
-    }
 
     /// Extract headers from deflist.
     str_vec headers_from_deflist(const dict_str &deflist)

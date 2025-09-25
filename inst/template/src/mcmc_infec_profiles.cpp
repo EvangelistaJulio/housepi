@@ -16,69 +16,8 @@
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////  MCMC : Impl : assign infectivity profile arguments  ////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Assign arguments to infectivity profile.
-void MCMC::Impl::InfecProfile::init_arguments_(const str_vec &keys,
-											   const str_vec &vals,
-											   const str_vec &typs)
-{
-	// check size validity of keys, values and type
-	if ((keys.size() != vals.size()) || (typs.size() != vals.size()))
-		throw std::invalid_argument(
-			"Mismatching definitions in arguments.");
-
-	// loop over all arguments
-	for (size_t k = 0; k < keys.size(); ++k)
-		init_single_attribute_(keys[k], vals[k], typs[k]);
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////  MCMC : Impl : InfecProfile : assign range  ////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Assign general attribute of infectivity profile.
-void MCMC::Impl::InfecProfile::init_single_attribute_(const std::string &key,
-													  const std::string &val,
-													  const std::string &at)
-{
-	if (tools::is_na(val) && tools::is_na(at))
-		; // pass
-
-	else if (!tools::is_na(val) && tools::is_na(at))
-		// UPDATE: this error is not user friendly sinne API is supposed to associated type
-		throw std::invalid_argument(
-			"Unable to interpret value of \"" + val +
-			"\" for \"" + profile_->name() + "\". Try to provide a type.");
-
-	else if (tools::is_na(val) && !tools::is_na(at))
-		throw std::invalid_argument(
-			"Found type without a paired value for \"" + profile_->name() + "\".");
-
-	else if (tools::str::toup(at) == HSP_TYPE_PARAM)
-	{
-		if (pImpl_.param.at(val).is_constant())
-			profile_->init_attr(key, pImpl_.param.get(val));
-		else
-		{
-			profile_->init_attr(key, pImpl_.param.get_ptr(val));
-			pImpl_.param.make_cache_dependent(val);
-		}
-	}
-
-	else if (tools::str::toup(at) == HSP_TYPE_SCALAR)
-		profile_->init_attr(key, tools::str::tod(val, "argument with scalar type"));
-
-	else
-		throw std::invalid_argument(
-			"Unsopported type \"" + at + "\" found while loading \"" + val +
-			"\" for \"" + profile_->name() + "\".");
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////  MCMC : Impl : InfecProfile : assign template  ///////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Set model template while constructiing model.
@@ -89,7 +28,7 @@ void MCMC::Impl::InfecProfile::init_template(dict_str deflist)
 	if (tools::is_na(profile_->name()) && augm_infec_profile_deflist_.empty())
 		if (!deflist.empty())
 		{
-			if (!deflist.count("name"))
+			if (!deflist.count("func"))
 				throw std::invalid_argument(
 					"Missing name for infectivity profile template.");
 
@@ -120,7 +59,7 @@ void MCMC::Impl::InfecProfile::append_augm_definition()
 	if (is_augmented())
 	{
 		// check for reserved augmented names
-		for (const std::string &a : pImpl_.augm.deftable.at("name"))
+		for (const std::string &a : pImpl_.augm.deftable.at("func"))
 			for (const std::string &forbid : {HSP_PROFILE_INST, HSP_PROFILE_CUMUL})
 				if (a == forbid)
 					throw std::invalid_argument(
@@ -215,13 +154,8 @@ void MCMC::Impl::InfecProfile::build(const dict_str &deflist)
 			tools::headers_from_deflist(deflist), headers_);
 
 		// check if definition is generic or augmented
-		str_vec types = tools::parse_arg_list(deflist.at("arg_at"), HSP_LIST_DELIM);
-		types += {deflist.at("max_at")};
-
-		bool is_augm = false;
-		for (const std::string &at : types)
-			if (tools::str::toup(at) == HSP_TYPE_AUGM)
-				is_augm = true;
+		bool is_augm = DefinitionParser(deflist.at("func")).is_augm_depen() ||
+					   DefinitionParser(deflist.at("max")).is_augm_depen();
 
 		if (is_augm)
 			build_augmented_profile_(deflist);
@@ -238,13 +172,21 @@ void MCMC::Impl::InfecProfile::build_generic_profile_(const dict_str &deflist)
 	cumul_ = &InfecProfile::do_cumul_default_;
 
 	// name
-	if ((deflist.count("name")) && (!tools::is_na(deflist.at("name"))))
+	if ((deflist.count("func")) && (!tools::is_na(deflist.at("func"))))
 	{
 		profile_ = compose_distr_registries(
-			deflist.at("name"), "infectivity profile",
+			DefinitionParser(deflist.at("func")).root.func,
+			"infectivity profile",
 			{&InfecProfileRegistry::inst(),
 			 &ContinuosDistrRegistry::inst(),
 			 &DiscreteDistrRegistry::inst()});
+
+		for (const auto &node : DefinitionParser(deflist.at("func")))
+			if (node.is_terminal())
+			{
+				profile_->init_attr(node.key, pImpl_.read_attribute_(node));
+				pImpl_.make_param_cache_depen_(node);
+			}
 	}
 	else
 		throw std::invalid_argument("Missing name.");
@@ -254,20 +196,14 @@ void MCMC::Impl::InfecProfile::build_generic_profile_(const dict_str &deflist)
 		if (tools::str::tobool(deflist.at("discr")))
 			profile_->init_discretization();
 
-	// arguments
-	if (deflist.count("arg_key") && deflist.count("arg_val") && deflist.count("arg_at"))
-		init_arguments_(tools::parse_arg_list(deflist.at("arg_key"), HSP_LIST_DELIM),
-						tools::parse_arg_list(deflist.at("arg_val"), HSP_LIST_DELIM),
-						tools::parse_arg_list(deflist.at("arg_at"), HSP_LIST_DELIM));
-
 	// range minimum
-	init_single_attribute_(HSP_PARAM_MIN,
-						   (profile_->is_discrete()) ? "1" : "0", HSP_TYPE_SCALAR);
+	if (profile_->is_discrete())
+		profile_->init_attr(HSP_PARAM_MIN, pImpl_.read_attribute_("1|S"));
+	else
+		profile_->init_attr(HSP_PARAM_MIN, pImpl_.read_attribute_("0|S"));
 
 	// range maximum
-	if (deflist.count("max") && deflist.count("max_at"))
-		init_single_attribute_(HSP_PARAM_MAX,
-							   deflist.at("max"), deflist.at("max_at"));
+	profile_->init_attr(HSP_PARAM_MAX, pImpl_.read_attribute_(deflist.at("max")));
 
 	// range truncation
 	profile_->init_truncation();
@@ -284,13 +220,13 @@ void MCMC::Impl::InfecProfile::build_augmented_profile_(const dict_str &deflist)
 {
 	// check definition list has a name
 	std::string func_name;
-	if ((deflist.count("name")) && (!tools::is_na(deflist.at("name"))))
-		func_name = deflist.at("name");
+	if ((deflist.count("func")) && (!tools::is_na(deflist.at("func"))))
+		func_name = deflist.at("func");
 	else
 		throw std::invalid_argument("Missing name.");
 
 	// use generic build to check profile name at this stage
-	build_generic_profile_({{"name", func_name}});
+	build_generic_profile_({{"func", func_name}});
 
 	// drop generic definition
 	clear_lookup_();
@@ -328,13 +264,8 @@ void MCMC::Impl::InfecProfile::build_augmented_profile_(const dict_str &deflist)
 	const dict_str_vec matcher = {{"name", str_vec({HSP_PROFILE_INST, HSP_PROFILE_CUMUL})},
 								  {"func", str_vec(2, func_name)},
 								  {"fcumul", {"false", "true"}},
-								  {"farg_key", str_vec(2, arg_key)},
-								  {"farg_val", str_vec(2, arg_val)},
-								  {"farg_at", str_vec(2, arg_at)},
-								  {"min", str_vec(2, (is_discrete) ? "1" : "0")},
-								  {"min_at", str_vec(2, HSP_TYPE_SCALAR)},
-								  {"max", str_vec(2, deflist.at("max"))},
-								  {"max_at", str_vec(2, deflist.at("max_at"))}};
+								  {"min", str_vec(2, (is_discrete) ? "1|S" : "0|S")},
+								  {"max", str_vec(2, deflist.at("max"))}};
 
 	for (auto &pair : matcher)
 		augm_infec_profile_deflist_.at(pair.first) = pair.second;

@@ -86,10 +86,6 @@ using u_dict = std::unordered_map<std::string, T>;
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-// variable parts aliases
-#define HSP_VAR_FUNCTION false /// pass to Variable function
-#define HSP_VAR_MODEL true     ///  pass to Variable model
-
 const double HSP_NA_DOUBLE = std::numeric_limits<double>::quiet_NaN(); /// NA value for double.
 #define HSP_NA_STRING "<NA>"                                           /// NA value for string.
 
@@ -116,7 +112,7 @@ constexpr double HSP_TIME_STEP = 0.05;          /// time step for real time simu
 
 // file formatters
 #define HSP_DELIM ','      /// file delimiter
-#define HSP_LIST_DELIM '/' /// dictionary delimiter
+#define HSP_LIST_DELIM ':' /// dictionary delimiter
 
 // special parameter names
 #define HSP_PARAM_LOC "loc" /// location parameter
@@ -125,10 +121,10 @@ constexpr double HSP_TIME_STEP = 0.05;          /// time step for real time simu
 #define HSP_RANGE_KEYS str_vec({HSP_PARAM_MIN, HSP_PARAM_MAX})
 
 // declaration for typed file inputs
-#define HSP_TYPE_PARAM "P"  /// Parameter type declaration
-#define HSP_TYPE_DATA "D"   /// Data type declaration
-#define HSP_TYPE_SCALAR "S" /// Scalar type declaration
-#define HSP_TYPE_AUGM "A"   /// Augmented type declaration
+#define HSP_IS_TYPE_PARAM(s) ((s) == "P")  /// == Parameter type
+#define HSP_IS_TYPE_DATA(s) ((s) == "D")   /// == Data type
+#define HSP_IS_TYPE_SCALAR(s) ((s) == "S") /// == Scalar type
+#define HSP_IS_TYPE_AUGM(s) ((s) == "A")   /// == Augmented type
 
 // discretization types
 #define HSP_DISCR_NONE 0    /// none
@@ -295,11 +291,6 @@ namespace tools
         std::int32_t toi32(const std::string &input, const std::string &errtxt = "");
         double tod(const std::string &input, const std::string &errtxt = "");
     }
-
-    /// Parse the list from a given token according to delimiter.
-    str_vec parse_arg_list(const std::string &tkn, const char delim);
-    /// Assert the parsed list can be used a list of keys.
-    str_vec parse_keys(const std::string &tkn, const char delim);
 
     // read csv list
     str_vec headers_from_deflist(const dict_str &deflist);

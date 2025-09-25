@@ -38,6 +38,11 @@ public:
     /////////////////////////////////////////////////////////////////////////////////////////////
 
     Attribute() {};
+    /// Auxiliary constructors allowing for implicit definition.
+    Attribute(double x) { init_scalar(x); }
+    Attribute(observ_dbl_ptr y) { init_pointer(y); }
+    Attribute(const std::shared_ptr<Function> f) { init_function(f); }
+    Attribute(const std::string &s, bool is_primitive = false) { init_function(s, is_primitive); }
     virtual ~Attribute() = default;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -55,6 +60,10 @@ public:
     void init_pointer(observ_dbl_ptr y);
     /// Initialize attribute as function.
     void init_function(const std::shared_ptr<Function> f);
+    /// Initialize attribute as function given the function name.
+    void init_function(const std::string &s, bool is_primitive = false);
+    /// Transfer from other Attribute.
+    void transfer(const Attribute &other);
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////  Attribute : getter  //////////////////////////////////
@@ -193,9 +202,7 @@ public:
     ///////////////////////////////////  Function : setter  /////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    void init_attr(const std::string &what, double value);
-    void init_attr(const std::string &what, observ_dbl_ptr ptr_to_value);
-    void init_attr(const std::string &what, std::shared_ptr<Function> f);
+    void init_attr(const std::string &what, const Attribute &attr);
 
     /// Set argument value.
     void set_arg(unsigned short i, double x) { args_[i].set(x); }
@@ -319,23 +326,8 @@ protected:
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////  Function : arguments [protected]  //////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
-
-    /// Initialize argument as a scalar.
-    void init_arg_scalar_(const std::string &a, double x) { args_[assert_arg(a)].init_scalar(x); }
-    void init_arg_pointer_(const std::string &a, observ_dbl_ptr y) { args_[assert_arg(a)].init_pointer(y); }
-    void init_arg_function_(const std::string &a, const std::shared_ptr<Function> f) { args_[assert_arg(a)].init_function(f); }
-
-    /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////  Function : range [protected]  ////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
-
-    void init_range_scalar_(const std::string &range_name, double lower);
-    void init_range_pointer_(const std::string &range_name, observ_dbl_ptr ptr_to_lower);
-    void init_range_function_(const std::string &range_name, const std::shared_ptr<Function> f);
-
-    void helper_init_range_assert_(const std::string &range_name) const;
 
     /// Internal code to define the type of range.
     unsigned short which_valid_case_() const;

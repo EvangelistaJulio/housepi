@@ -67,7 +67,7 @@ HousepiModel <- R6::R6Class(
     # @description
     # Parameters required by implementation file and other definitions.
     .get_all_param = function() {
-      if (private$.is_blank()) required <- self$parameters$name
+      if (private$.is_blank()) required <- private$.param$defs$name
       else required <- private$.param$require(private$.reference())
       c(
         required, # by the model
@@ -213,10 +213,10 @@ HousepiModel <- R6::R6Class(
         # append parameter definitions if missing
         new_parameters <- private$.group_rates$parameters
         # find missing parameter definitions
-        mask <- setdiff(names(new_parameters), self$parameters$name)
+        mask <- setdiff(names(new_parameters), private$.param$defs$name)
         new_parameters <- new_parameters[mask]
         if (length(new_parameters) > 0) {
-          self$load_parameter_list(from = new_parameters, append = TRUE)
+          private$.param$load_list(from = new_parameters, append = TRUE)
         }
       }
 
@@ -257,7 +257,7 @@ HousepiModel <- R6::R6Class(
 
       # assert parameter definitions before importing
       private$.assert_param()
-      private$.rcpp$import_param(self$parameters)
+      private$.rcpp$import_param(private$.param$defs)
 
       # group rates (import depends on param)
       private$.build_group_rates()
@@ -275,7 +275,7 @@ HousepiModel <- R6::R6Class(
       private$.rcpp$import_infec_profile(private$.infec_profile$defs)
 
       # build augmented variables
-      private$.rcpp$import_augm(self$augmented)
+      private$.rcpp$import_augm(private$.augm$defs)
 
       invisible(self)
     },
@@ -294,10 +294,10 @@ HousepiModel <- R6::R6Class(
       write.csv(private$.group_rates$expose_to_cpp(private$.info_data_wide),
                 file.path(outpath, "group_rates.csv"),
                 quote = FALSE, row.names = FALSE)
-      write.csv(self$augmented,
+      write.csv(private$.augm$defs,
                 file.path(outpath, "augm.csv"),
                 quote = FALSE, row.names = FALSE)
-      write.csv(self$parameters,
+      write.csv(private$.param$defs,
                 file.path(outpath, "param.csv"),
                 quote = FALSE, row.names = FALSE)
       write.table(t(as.data.frame(char_setup_input_(self$setup))),
@@ -344,15 +344,15 @@ HousepiModel <- R6::R6Class(
     #' @field parameters `data.frame`\cr
     #' Parameter formatted definitions.
     parameters = function(value) {
-      if (missing(value)) return(private$.param$defs)
-      else self$load_parameter_list(from = value, append = FALSE)
+      if (missing(value)) return(make_def_readable(private$.param$defs))
+      else private$.param$load_list(from = value, append = FALSE)
     },
 
     #' @field augmented `data.frame`\cr
     #' Augmented variable formatted definitions.
     augmented = function(value) {
-      if (missing(value)) return(private$.augm$defs)
-      else self$load_augmented_list(from = value, append = FALSE)
+      if (missing(value)) return(make_def_readable(private$.augm$defs))
+      else private$.augm$load_list(from = value, append = FALSE)
     },
 
     #' @field infec_profile_defs `list`\cr
@@ -360,8 +360,8 @@ HousepiModel <- R6::R6Class(
     infec_profile_defs = function(value) {
       if (missing(value)) {
         defs <- private$.infec_profile$defs
-        if (!is.null(defs)) return(defs)
-        else return(private$.rcpp$export_infec_profile())
+        if (!is.null(defs)) return(make_def_readable(defs))
+        else return(make_def_readable(private$.rcpp$export_infec_profile()))
       } else {
         do.call(self$add_infec_profile, value)
       }

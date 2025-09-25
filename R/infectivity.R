@@ -35,28 +35,19 @@ HousepiInfecProfile <- R6::R6Class(
     deep_clone = function(name, value) helper_clone(value),
 
     # Definitions required by augmented variable definitions
-    # according to the "at" key of the definition (A, D, P).
-    .find_def_required = function(at) {
-      # tuples (value, type) amongst definitions
-      tuple_at_cols <- list(c("arg_val", "arg_at"),
-                            c("max", "max_at"))
-
-      required <- c()
+    # according to the "type" of the definition (A, D, P).
+    .find_def_required = function(type) {
+      output <- c()
       if (length(self$defs) > 0) {
-        for (tuple in tuple_at_cols) {
-          xdef <- self$defs[tuple]
-          rw <- unlist(xdef)
-          if (!any(is.na(rw))) {
-            arg2par <- data.frame(
-              val = strsplit(rw[1], "/")[[1]],
-              at = strsplit(rw[2], "/")[[1]]
-            )
-            required <- c(required, arg2par[arg2par$at == at, "val"])
+        for (typed_col in c("func", "max")) {
+          for (x in self$defs[[typed_col]]) {
+            output <- c(output, walk_encoded_func(x, type))
           }
         }
       }
+
       # remove duplicates and add source name
-      set_source_name_(unique(required), "infectivity profile")
+      set_source_name_(unique(output), "infectivity profile")
     }
   ),
 
@@ -122,33 +113,16 @@ HousepiInfecProfile <- R6::R6Class(
                    args = NULL,
                    max = NULL) {
       # check infectivity profile name
-      if (is.na(name)) stop_h(
-        "Incomplete definition: missing name."
-      )
-      self$defs <- list(name = name, discr = isTRUE(discr))
+      if (is.na(name)) stop_h("Incomplete definition: missing name.")
+      self$defs <- list(func = name, discr = isTRUE(discr))
 
       # load arguments
-      parse_args <- data.frame(t(sapply(args, extract_func_)))
-      if (any(.is_func(parse_args$func))) stop_h(
-        "Calls in the argument definitions of infectivity profiles are not supported."
-      )
-      self$defs <- utils::modifyList(
-        self$defs,
-        list(arg_key = type_join_(row.names(parse_args)),
-             arg_val = type_join_(parse_args$val),
-             arg_at = type_join_(parse_args$at))
-      )
+      if (!is.null(args)) {
+        self$defs$func <- DefEncoder$new(as.list(args))$combine_to_call(name)
+      }
 
       # load maximum value
-      parse_max <- extract_func_(max)
-      if (.is_func(parse_max$func)) stop_h(
-        "Calls in the maximum definition of infectivity profiles
-        are not supported."
-      )
-      self$defs <- utils::modifyList(
-        self$defs,
-        list(max = parse_max$val, max_at = parse_max$at)
-      )
+      self$defs$max <- DefEncoder$new(max)$x
 
       invisible(self)
     }

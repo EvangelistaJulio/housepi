@@ -287,102 +287,6 @@ helper_clone <- function(x) {
 ############################################################################
 
 #' @title
-#' Default types
-#' @description
-#' Check that types are set correctly.
-#' Format NA types with defaults according to values.
-#'
-#' @param types `character()`\cr
-#' Vector of characters.
-#' @param values `list`\cr
-#' List of values.
-#'
-#' @return `character()`\cr
-#' Vector of characters.
-#'
-#' @keywords internal
-#' @noRd
-default_types_ <- function(types, values) {
-  valid_types <- list("S" = "scalar",
-                      "P" = "parameter",
-                      "D" = "data",
-                      "A" = "augmented")
-
-  for (i in seq_along(types)) {
-    k <- types[i]
-    y <- values[[i]]
-
-    if (is.na(k)) {
-      # no explicit type provided, then format for default types
-      if (is.na(y)) types[i] <- NA
-      else if (is.numeric(y)) types[i] <- "S"
-      else if (is.character(y)) types[i] <- ifelse(
-        is.na(suppressWarnings(as.numeric(y))), "A", "S"
-      )
-      else types[i] <- "A"
-
-    } else {
-      # explicit type checking
-      k <- toupper(k)
-      if (!(k %in% names(valid_types))) stop_h(
-        paste0("Invalid type \"", k, "\" for value \"", y, "\"."),
-        paste(
-          sprintf("\"%s\"", names(valid_types)),
-          sprintf("(%s)", unlist(valid_types)),
-          collapse = ", "
-        )
-      )
-    }
-  }
-
-  types
-}
-
-#' @title
-#' Type split
-#' @description
-#' Split a typed string or character vector
-#'
-#' @param lst `character()`\cr
-#' Vector of characters.
-#'
-#' @return `list`\cr
-#' List with two elements: value and type.
-#'
-#' @keywords internal
-#' @noRd
-type_split_ <- function(lst) {
-  if (is.null(lst)) {
-    list(val = NA, at = NA)
-  } else if (all(is.na(lst))) {
-    list(val = NA, at = NA)
-  } else {
-    splitted_lst <- strsplit(as.character(lst), "\\@")
-    values <- sapply(splitted_lst, function(x) x[1])
-    types <- sapply(splitted_lst, function(x) x[2])
-    list(val = values, at = default_types_(types, values))
-  }
-}
-
-#' @title
-#' Type join
-#' @description
-#' Join elements of a dictionary to pass to csv
-#'
-#' @param x `character()`\cr
-#' Vector of characters.
-#'
-#' @return `character(1)`\cr
-#' String formatted as a list of quoted words.
-#'
-#' @keywords internal
-#' @noRd
-type_join_ <- function(x) {
-  if (all(is.na(x))) NA
-  else paste(x, collapse = "/")
-}
-
-#' @title
 #' Character Setup Input
 #' @description
 #' Format elements of a list to pass to import_setup Rcpp method.
@@ -401,7 +305,7 @@ char_setup_input_ <- function(defs) {
   if ("id_draws" %in% names(defs)) {
     y <- unlist(defs$id_draws)
     if (length(y) == 0) defs$id_draws <- NA
-    else defs$id_draws <- type_join_(unique(y))
+    else defs$id_draws <- paste0(unique(y), collapse = ":")
   }
   data.frame(lapply(defs, as.character))
 }
@@ -504,93 +408,338 @@ cpp_data_refactor <- function(data, info, headers) {
 
 ############################################################################
 ############################################################################
+############################# Definition Encoder ###########################
+############################################################################
 ############################################################################
 
-# tell if call is actually reserved type operator `@`
-.is_at <- function(x) {
-  rlang::call_name(x) == "@"
-}
-
-# Flag to tell if 'x' is an actual function.
-.is_func <- function(x) {
-  output <- !is.na(x)
-  output[output] <- x[output] != "..identity.."
-  output
-}
-
-# if it's a call to "(" with a single argument that's a symbol, unwrap it
-strip_meaningless_parens_ <- function(x) {
-  while (rlang::is_call(x) && rlang::call_name(x) == "(" &&
-           length(rlang::call_args(x)) == 1) {
-    inner_arg <- rlang::call_args(x)[[1]]
-    if (rlang::is_symbol(inner_arg) || .is_at(inner_arg)) x <- inner_arg
-    else break
-  }
-  x
-}
-
-# format to match housepi standard typed definitions
-format_call_ <- function(func_name, func_args) {
-  utils::modifyList(
-    list(func = func_name, key = type_join_(names(func_args))),
-    lapply(type_split_(func_args), type_join_)
-  )
-}
-
-# helper to extract functin from call
-helper_func_from_call_ <- function(call) {
-  # strip meaningless parentheses from arguments
-  args <- lapply(rlang::call_args(call), strip_meaningless_parens_)
-  # verify operands are not nested calls
-  # UPDATE: this will require major developments
-  is_nested <- sapply(args, function(x) rlang::is_call(x) && !.is_at(x))
-  if (any(is_nested)) stop_h(
-    sprintf("Nested operations like \"%s\" are not supported.",
-            rlang::as_label(call))
-  )
-  # list operands as literals
-  func_args <- character()
-  for (i in seq_along(args)) {
-    if (i == 1) func_args["x"] <- rlang::as_label(args[[i]])
-    else func_args[paste0("x", i)] <- rlang::as_label(args[[i]])
-  }
-
-  # map to function name
-  func_name <- switch(rlang::call_name(call),
-                      `+` = if (length(args) == 1) "..identity.." else "add",
-                      `-` = if (length(args) == 1) "minus" else "sub",
-                      `*` = "mult",
-                      `/` = "div",
-                      `^` = "pow",
-                      rlang::call_name(call)) # default
-
-  format_call_(func_name, func_args)
-}
-
-#' @title
-#' Extract augmented function
+#' @title Definition Encoder
 #' @description
-#' Extract augmented function declaration.
-#'
-#' @param expr `character()`\cr
-#' Either a formula (e. g. ~ x - y) or a naked call (e. g. x - y).
-#'
-#' @return `list`cr
-#' function name, key, variable and type.
+#' Helper with definitions.
 #'
 #' @keywords internal
 #' @noRd
-extract_func_ <- function(expr) {
-  # read input expression
-  if (is.null(expr)) return(format_call_(NA, NULL))
-  else if (inherits(expr, "formula")) call <- rlang::f_rhs(expr)
-  else if (rlang::is_call(expr)) call <- expr
-  else return(format_call_("..identity..", c(x = expr)))
+DefEncoder <- R6::R6Class(
+  classname = "DefEncoder",
 
-  # case of a symbol actually looking as a call
-  if (rlang::is_symbol(call)) format_call_("..identity..", c(x = call))
-  # case of a raw typed identity
-  else if (.is_at(call)) format_call_("..identity..", c(x = call))
-  # standard call
-  else helper_func_from_call_(call)
+  private = list(
+    # If it's a call to "(" with a single argument that's a symbol, unwrap it.
+    .strip_useless_parens = function(x) {
+      while (rlang::is_call(x) && rlang::call_name(x) == "(" &&
+               length(rlang::call_args(x)) == 1) {
+        inner_arg <- rlang::call_args(x)[[1]]
+        if (rlang::is_symbol(inner_arg)) x <- inner_arg
+        else if (rlang::call_name(inner_arg) == "@") x <- inner_arg
+        else break
+      }
+      x
+    },
+
+    # Check type definitions and set defaults.
+    .default_types = function(types, values) {
+      valid_types <- list("S" = "scalar",
+                          "P" = "parameter",
+                          "D" = "data",
+                          "A" = "augmented")
+
+      for (i in seq_along(types)) {
+        k <- types[i]
+        y <- values[[i]]
+
+        if (is.na(k)) {
+          # no explicit type provided, then format for default types
+          if (is.na(y)) types[i] <- NA
+          else if (is.numeric(y)) types[i] <- "S"
+          else if (is.character(y)) types[i] <- ifelse(
+            is.na(suppressWarnings(as.numeric(y))), "A", "S"
+          )
+          else types[i] <- "A"
+
+        } else {
+          # explicit type checking
+          k <- toupper(k)
+          if (!(k %in% names(valid_types))) stop_h(
+            paste0("Invalid type \"", k, "\" for value \"", y, "\"."),
+            paste(
+              sprintf("\"%s\"", names(valid_types)),
+              sprintf("(%s)", unlist(valid_types)),
+              collapse = ", "
+            )
+          )
+        }
+      }
+
+      types
+    },
+
+    # Add default types if not a call.
+    .format_types = function(func_args) {
+      output <- NA
+      if (!(is.null(func_args) || all(is.na(func_args)))) {
+        splitted <- strsplit(as.character(func_args), "\\@")
+        output <- sapply(splitted, function(x) {
+          ifelse(
+            stringr::str_count(x[1], "\\|"), x[1],
+            sprintf("%s|%s", x[1], private$.default_types(x[2], x[1]))
+          )
+        }, USE.NAMES = FALSE)
+      }
+      output
+    },
+
+    # Format a call to match housepi standard typed definitions
+    .format_identity = function(func_args) {
+      if (is.null(func_args)) NA
+      else private$.format_types(func_args)
+    },
+
+    # Format a call to match housepi standard typed definitions
+    .format_call = function(func_name, func_args) {
+      paste0(c(
+        func_name,
+        paste0(names(func_args), collapse = ":"),
+        paste0(
+          sprintf("{%s}", private$.format_types(func_args)),
+          collapse = ":"
+        )
+      ), collapse = "|")
+    },
+
+    # Helper to extract functin from call.
+    .helper_func_from_call = function(call) {
+      # strip meaningless parentheses from arguments
+      args <- lapply(rlang::call_args(call), private$.strip_useless_parens)
+
+      # list operands as literals
+      func_args <- character()
+      if (length(args) > 0) {
+        for (i in seq_along(args)) {
+          y <- args[[i]]
+          func_args[[paste0("x", i)]] <- ifelse(
+            rlang::is_call(y) && rlang::call_name(y) != "@",
+            private$.helper_func_from_call(y),
+            rlang::as_label(y)
+          )
+        }
+        names(func_args)[1] <- "x"
+      }
+
+      # map to function name
+      func_name <- switch(
+        rlang::call_name(call),
+        `+` = if (length(args) == 1) NA else "add",
+        `-` = if (length(args) == 1) "minus" else "sub",
+        `*` = "mult",
+        `/` = "div",
+        `^` = "pow",
+        rlang::call_name(call) # default
+      )
+
+      if (is.na(func_name)) private$.format_identity(func_args)
+      else private$.format_call(func_name, func_args)
+    },
+
+    # Extract function or identiyt call from rlang expression.
+    .extract = function(expr) {
+      # read input expression
+      if (is.null(expr)) {
+        return(private$.format_identity(NULL))
+      } else if (inherits(expr, "formula")) {
+        call <- rlang::f_rhs(expr)
+      } else if (rlang::is_call(expr)) {
+        call <- expr
+      } else {
+        return(private$.format_identity(c(x = expr)))
+      }
+
+      if (rlang::is_symbol(call)) {
+        # case of a symbol actually looking as a call
+        return(private$.format_identity(c(x = call)))
+      } else if (rlang::call_name(call) == "@") {
+        # case of a raw typed identity
+        return(private$.format_identity(c(x = call)))
+      } else {
+        # standard call
+        return(private$.helper_func_from_call(call))
+      }
+      invisible()
+    }
+  ),
+
+  ############################################################################
+  ################################## PUBLIC ##################################
+  ############################################################################
+
+  public = list(
+    #' @field x `character(1)`\cr
+    #' Encoding after initialization.
+    x = NA,
+
+    #' @description Flag to tell if object is a call or a value.
+    is_call = function() {
+      # FIXME: default function are are 0 '|'
+      isTRUE(stringr::str_count(self$x, "\\|") > 1)
+    },
+
+    #' @description Return the value, if applicable.
+    #' @param func_name `character(1)`
+    #' @return `character(1)` or `NA`
+    combine_to_call = function(func_name) {
+      if (self$is_call()) stop_h("Already a call, impossible to combine.")
+      sprintf("%s|%s|%s", func_name,
+              paste(names(self$x), collapse = ":"),
+              paste(sprintf("{%s}", self$x), collapse = ":"))
+    },
+
+    #' @description
+    #' New object of class
+    #' [HousepiAugmented][housepi::HousepiAugmented].
+    initialize = function(expr) {
+      if (is.list(expr)) self$x <- sapply(expr, private$.extract)
+      else self$x <- private$.extract(expr)
+      invisible()
+    }
+  )
+)
+
+############################################################################
+############################################################################
+############################################################################
+
+#' @title
+#' Walk Encoded Function
+#' @description
+#' Recursively walk an encoded function to extract all values of a given type.
+#'
+#' @param input A `character(1)` with encoded function string.
+#' @param type A `character(1)` with the type to extract.
+#'
+#' @return `character()`
+#' @keywords internal
+walk_encoded_func <- function(input, type) {
+  if (is.na(input) || is.null(input) || input == "") return(NULL)
+  blocks <- extract_blocks(input)
+  if (length(blocks) > 0) {
+    output <- c()
+    for (block in blocks) output <- c(output, evaluate_block(block, type))
+    if (length(output) == 0) NULL
+    else unique(output)
+  } else {
+    # terminal node
+    parts <- unlist(strsplit(input, "\\|"))
+    if (length(parts) == 2 && parts[2] == type) parts[1]
+    else NULL
+  }
+}
+
+# Helper to extract balanced {...} blocks at the top level.
+extract_blocks <- function(s) {
+  blocks <- list()
+  depth <- 0
+  start <- NULL
+  for (i in seq_along(strsplit(s, "")[[1]])) {
+    ch <- substr(s, i, i)
+    if (ch == "{") {
+      if (depth == 0) start <- i
+      depth <- depth + 1
+    } else if (ch == "}") {
+      depth <- depth - 1
+      if (depth == 0 && !is.null(start)) {
+        blocks <- c(blocks, substr(s, start, i))
+        start <- NULL
+      }
+    }
+  }
+  blocks
+}
+
+# Recursive helper function to evaluate blocks.
+evaluate_block <- function(block, type) {
+  # Remove curly braces
+  block <- sub("^\\{", "", block)
+  block <- sub("\\}$", "", block)
+
+  # split the block into individual conditions
+  conditions <- unlist(strsplit(block, ":"))
+  output <- c()
+
+  # Evaluate each condition
+  for (cond in conditions) {
+    if (grepl("\\{", cond)) {
+      # recurse on nested blocks
+      output <- c(output, walk_encoded_func(cond, type))
+    } else {
+      parts <- unlist(strsplit(cond, "\\|"))
+      if (length(parts) == 2 && parts[2] == type) output <- c(output, parts[1])
+    }
+  }
+  output
+}
+
+#' @title
+#' Make Definition Readable
+#' @description
+#' Convert encoded definition strings into a more human-readable format.
+#'
+#' @param defs A `data.frame()` with encoded definition strings.
+#'
+#' @return `data.frame()`
+#' @keywords internal
+make_def_readable <- function(defs) {
+  .extract_scalar <- function(x) {
+    sapply(x, function(element) {
+      if (is.na(element)) {
+        NA
+      } else if (is.character(element)) {
+        z <- strsplit(element, "\\|")[[1]]
+        if (length(z) == 2 && z[2] == "S") as.numeric(z[1])
+        else element
+      } else {
+        element
+      }
+    }, USE.NAMES = FALSE)
+  }
+
+  .extract_args <- function(x) {
+    sapply(x, function(element) {
+      if (is.na(element)) {
+        NA
+      } else if (is.character(element)) {
+        z <- strsplit(element, "\\|")[[1]]
+        if (length(z) > 2) paste(z[2:length(z)], collapse = "|")
+        else element
+      } else {
+        element
+      }
+    }, USE.NAMES = FALSE)
+  }
+
+  .extract_func <- function(x) {
+    sapply(x, function(element) {
+      if (is.na(element)) {
+        NA
+      } else if (is.character(element)) {
+        z <- strsplit(element, "\\|")[[1]]
+        if (length(z) > 2) z[1]
+        else element
+      } else {
+        element
+      }
+    }, USE.NAMES = FALSE)
+  }
+
+  output <- as.data.frame(lapply(defs, .extract_scalar))
+  for (col in colnames(defs)) {
+    if (isTRUE(any(stringr::str_count(output[[col]], "\\|") > 1))) {
+      pos <- match(col, names(output))
+
+      output <- cbind(
+        output[1:(pos - 1)],
+        setNames(list(.extract_func(output[[col]])), col),
+        setNames(list(.extract_args(output[[col]])), paste0(col, "_args")),
+        output[(pos + 1):ncol(output)]
+      )
+    }
+  }
+
+  output
 }

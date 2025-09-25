@@ -72,13 +72,9 @@ We model both augmented variables as uniformly distributed in the reported range
 ```{r}
 # use an example script for generate delays
 source("generate_delays.R")
-
 # generate delays according to a gamma distribution
-dataset <- generate_delays() |>
-  # correct right censoring to allow the event to occur during the whole day
-  # note: temporary before allowing for expaned arguments
-  dplyr::mutate(exposure_max = exposure_max + 0.99,
-                onset_max = onset_max + 0.99)
+dataset <- generate_delays()
+
 head(dataset)
 ```
 
@@ -119,6 +115,8 @@ hhmodel <- new_housepi_model("augmented_example") |>
     var = list(prior = "unif", args = c(min = 0.1, max = 5), rule = "norm")
   )
 
+# here we correct right censoring of maximum values
+# to allow for the event to occur during the whole day
 hhmodel <- hhmodel |>
   # add 'infec_time' time definition
   add_augmented(
@@ -126,14 +124,14 @@ hhmodel <- hhmodel |>
     value = ~exposure_min@D, # start from data value 'exposure_min'
     # uniform model within the range [0, 'exposure_max']
     model = "unif",
-    args = c(min = 0, max = ~exposure_max@D),
+    args = c(min = 0, max = ~exposure_max@D + 0.99),
     rule = "norm", # normal distribution for the mcmc proposer
     scale = 0.25   # with scale 0.25 (i. e. standard deviation)
   ) |>
   # add 'onset_time' time definition
   add_augmented(
-    name = "onset_time", value = ~onset_max@D,
-    model = "unif", args = c(min = ~onset_min@D, max = ~onset_max@D),
+    name = "onset_time", value = ~onset_max@D + 0.99,
+    model = "unif", args = c(min = ~onset_min@D, max = ~onset_max@D + 0.99),
     rule = "norm", scale = 0.25
   )
 ```

@@ -18,6 +18,87 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////  MCMC : Impl : definition helpers  //////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Auxiliary method to read typed member values as a single attribute.
+Attribute MCMC::Impl::read_attribute_(const DefinitionParser::ASTNode &node,
+                                      const Individual &member)
+{
+    if (node.is_empty())
+        return Attribute();
+
+    else if (!node.is_terminal())
+    {
+        Attribute attr(node.func);
+        for (const auto &child : node.children)
+            attr.get_function()->init_attr(child.key, read_attribute_(child, member));
+        return attr;
+    }
+
+    else if (HSP_IS_TYPE_SCALAR(node.type))
+        return Attribute(tools::str::tod(node.value, "argument with scalar type"));
+
+    else if (HSP_IS_TYPE_DATA(node.type))
+        return Attribute(member.data(node.value));
+
+    else if (HSP_IS_TYPE_PARAM(node.type))
+    {
+        if (param.at(node.value).is_constant())
+            return Attribute(param.get(node.value));
+        else
+            return Attribute(param.get_ptr(node.value));
+    }
+    else if (HSP_IS_TYPE_AUGM(node.type))
+    {
+        if (!(augm.list_full % node.value))
+            throw std::invalid_argument(
+                "Undeclared augmented variable \"" + node.value + "\".");
+
+        const Variable &other_augm = member.get_augm_variable(node.value);
+        if (other_augm.is_function())
+            return Attribute(other_augm.get_function());
+        else
+            return Attribute(other_augm.get_ptr());
+    }
+    else
+        throw std::invalid_argument(
+            "Unknown error found while loading \"" + node.str() + "\".");
+}
+Attribute MCMC::Impl::read_attribute_(const std::string &expr, const Individual &member)
+{
+    return read_attribute_(DefinitionParser(expr).root, member);
+}
+
+/// Convert a typed string into a double.
+double MCMC::Impl::read_scalar_(const DefinitionParser::ASTNode &node, const Individual &member)
+{
+    const Attribute aux_attr_ = read_attribute_(node, member);
+
+    if (aux_attr_.is_empty())
+        return HSP_NA_DOUBLE;
+
+    else if (aux_attr_.is_constant())
+        return aux_attr_.get();
+
+    else
+        throw std::invalid_argument(
+            "Unable to interpret definition \"" + node.str() + "\" as a double.");
+}
+double MCMC::Impl::read_scalar_(const std::string &expr, const Individual &member)
+{
+    return read_scalar_(DefinitionParser(expr).root, member);
+}
+void MCMC::Impl::make_param_cache_depen_(const DefinitionParser::ASTNode &node)
+{
+    // cache dependecy if an augmented function depends on a parameter to be inferred
+    if (HSP_IS_TYPE_PARAM(node.type) && !param.at(node.value).is_constant())
+        param.make_cache_dependent(node.value);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  MCMC : Impl : Augmented : build  ///////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -66,10 +147,10 @@ void MCMC::Impl::Augmented::build_helper_assert_univocal_defs_()
 {
     // check augmented variables lists of usage
     dict_str_vec name_status_check = {};
-    for (size_t k = 0; k < deftable.at("name").size(); ++k)
+    for (size_t k = 0; k < deftable["name"].size(); ++k)
     {
-        const std::string &a = deftable.at("name")[k];
-        const std::string &s = deftable.at("status")[k]; // NOTE: can be NA, i. e. generic
+        const std::string &a = deftable["name"][k];
+        const std::string &s = deftable["status"][k]; // NOTE: can be NA, i. e. generic
 
         // check augmented name
         if (tools::is_na(a))
@@ -110,14 +191,17 @@ void MCMC::Impl::Augmented::build_helper_status_specific_maps_()
     status_map_sample.clear();
     status_map_model.clear();
 
-    for (size_t k = 0; k < deftable.at("name").size(); ++k)
+    // UPDATE
+    // Inspect dependency tree, assert correctness and provide ordering
+
+    for (size_t k = 0; k < deftable["name"].size(); ++k)
     {
         build_helper_variable_with_model_(k);
 
-        if (!tools::is_na(deftable.at("func")[k]))
+        if (!tools::is_na(deftable["func"][k]))
             build_function_(k);
-        else if (tools::str::tobool(deftable.at("const")[k]))
-            list_const.push_back(deftable.at("name")[k]);
+        else if (tools::str::tobool(deftable["const"][k]))
+            list_const.push_back(deftable["name"][k]);
         else
             build_helper_variable_to_sample_(k);
     }
@@ -140,41 +224,30 @@ void MCMC::Impl::Augmented::build_helper_status_specific_maps_()
 /// NOTE: under development
 void MCMC::Impl::Augmented::build_function_(size_t k)
 {
-    const std::string &func = deftable.at("func")[k];
-
-    if (func == HSP_IDENTITY_FUNC) // optimize 'identity' function
+    if (DefinitionParser(deftable["func"][k]).is_terminal())
         build_function_identity_helper_(k);
     else
-        list_func.push_back(deftable.at("name")[k]);
+        list_func.push_back(deftable["name"][k]);
 }
 
 /// Build augmented equality function and change deftable.
 void MCMC::Impl::Augmented::build_function_identity_helper_(size_t k)
 {
-    const std::string &a = deftable.at("name")[k];
-    str_vec vals = tools::parse_arg_list(deftable.at("farg_val")[k], HSP_LIST_DELIM);
-    str_vec types = tools::parse_arg_list(deftable.at("farg_at")[k], HSP_LIST_DELIM);
-    // note: emptiness is checked elsewhere
+    const std::string &a = deftable["name"][k];
+    const auto parser = DefinitionParser(deftable["func"][k]);
 
-    if (types.size() != 1 || vals.size() != 1)
-        throw std::invalid_argument(
-            "Augmented equality function \"" + a + "\" has incorrect arguments.");
+    bool is_identity_const = true;
+
+    // check the type of requested equality
+    if (HSP_IS_TYPE_PARAM(parser.root.type))
+        is_identity_const = pImpl_.param.at(parser.root.value).is_constant();
+    else if (HSP_IS_TYPE_AUGM(parser.root.type))
+        is_identity_const = false; // FIXME: use an augmented dependecies tree to see if constant
+
+    if (is_identity_const)
+        list_const.push_back(a);
     else
-    {
-        std::string identity_type = tools::str::toup(types)[0];
-        bool is_identity_const = true;
-
-        // check the type of requested equality
-        if (tools::str::toup(identity_type) == HSP_TYPE_PARAM)
-            is_identity_const = pImpl_.param.at(vals[0]).is_constant();
-        else if (tools::str::toup(identity_type) == HSP_TYPE_AUGM)
-            is_identity_const = false; // UPDATE: use an augmented dependecies tree to see if constant
-
-        if (is_identity_const)
-            list_const.push_back(a);
-        else
-            list_func.push_back(a);
-    }
+        list_func.push_back(a);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -184,10 +257,10 @@ void MCMC::Impl::Augmented::build_function_identity_helper_(size_t k)
 /// Deal with the definition of augmented variable with a model.
 void MCMC::Impl::Augmented::build_helper_variable_with_model_(size_t k)
 {
-    if (!tools::is_na(deftable.at("model")[k]))
+    if (!tools::is_na(deftable["model"][k]))
     {
-        const std::string &a = deftable.at("name")[k];
-        const std::string &s = deftable.at("status")[k];
+        const std::string &a = deftable["name"][k];
+        const std::string &s = deftable["status"][k];
 
         list_model.push_back(a); // NOTE: make unique elsewhere
 
@@ -203,18 +276,18 @@ void MCMC::Impl::Augmented::build_helper_variable_with_model_(size_t k)
 /// NOTE: this assume definitions are univocal and status correct.
 void MCMC::Impl::Augmented::build_helper_variable_to_sample_(size_t k)
 {
-    const std::string &a = deftable.at("name")[k];
-    const std::string &s = deftable.at("status")[k];
-    const std::string &value = deftable.at("value")[k];
-    const std::string &rule = deftable.at("rule")[k];
-    const bool init_rand = tools::str::tobool(deftable.at("init_rand")[k]);
+    const std::string &a = deftable["name"][k];
+    const std::string &s = deftable["status"][k];
+    const std::string &value = deftable["value"][k];
+    const std::string &rule = deftable["rule"][k];
+    const bool init_rand = tools::str::tobool(deftable["init_rand"][k]);
 
     // check random initialization option
     // UPDATE: check pImpl_.setup.rand_init_params
     // UPDATE: check value
     if (init_rand)
     {
-        if (tools::is_na(deftable.at("model")[k]))
+        if (tools::is_na(deftable["model"][k]))
             throw std::invalid_argument(
                 "Unable to randomly initialize augmented\"" +
                 a + "\" without a model.");
@@ -398,21 +471,21 @@ void MCMC::Impl::Augmented::init_all(Individual &member)
     std::vector<size_t> indiv_augm_entries;
 
     // loop over augmented variable definitions to assign placheholders
-    for (size_t k = 0; k < deftable.at("name").size(); ++k)
+    for (size_t k = 0; k < deftable["name"].size(); ++k)
     {
-        const std::string &s = deftable.at("status")[k];
+        const std::string &s = deftable["status"][k];
 
         // assign augmented variable if undefined status or corresponding status
         if (tools::is_na(s) || (member.status() == tools::str::toi(s)))
         {
             // assign augmented variable placeholder
-            member.init_augm(deftable.at("name")[k],
-                             type_to_double_(member, deftable.at("value")[k], deftable.at("value_at")[k]),
-                             tools::str::tobool(deftable.at("const")[k]),
-                             tools::str::tobool(deftable.at("discr")[k]),
-                             deftable.at("func")[k],
-                             tools::str::tobool(deftable.at("fcumul")[k]),
-                             deftable.at("model")[k]);
+            member.init_augm(deftable["name"][k],
+                             pImpl_.read_scalar_(deftable["value"][k], member),
+                             tools::str::tobool(deftable["const"][k]),
+                             tools::str::tobool(deftable["discr"][k]),
+                             deftable["func"][k],
+                             tools::str::tobool(deftable["fcumul"][k]),
+                             deftable["model"][k]);
 
             // add entry to individual augmented variable list
             indiv_augm_entries.push_back(k);
@@ -426,52 +499,33 @@ void MCMC::Impl::Augmented::init_all(Individual &member)
     // assign function reshaping and check if inherently constants
     // UPDATE: no need for a second loop if previous follows dependency order
     for (size_t k : indiv_augm_entries)
-        member.get_augm_variable(deftable.at("name")[k]).init_func_reshaping();
+        member.get_augm_variable(deftable["name"][k]).init_func_reshaping();
 }
 
 /// Assign model arguments and range. Same for function, otherwise assign proposer.
 /// FIXME: if attribute is augmented to be initialized after, it might cause pointer errors.
 void MCMC::Impl::Augmented::init_single_var_dependencies_(Individual &member, size_t k)
 {
-    const std::string a = deftable.at("name")[k];
-    Variable &xaugm = member.get_augm_variable(a);
+    Variable &xaugm = member.get_augm_variable(deftable["name"][k]);
 
     // assign arguments to model
-    if (!tools::is_na(deftable.at("arg_key")[k]))
-        init_attribute_list_(HSP_VAR_MODEL, member, a,
-                             tools::parse_keys(deftable.at("arg_key")[k], HSP_LIST_DELIM),
-                             tools::parse_arg_list(deftable.at("arg_val")[k], HSP_LIST_DELIM),
-                             tools::parse_arg_list(deftable.at("arg_at")[k], HSP_LIST_DELIM));
-
-    // assign range to model
-    if (!(tools::is_na(deftable.at("min")[k]) && tools::is_na(deftable.at("max")[k])))
-        init_attribute_list_(HSP_VAR_MODEL, member, a,
-                             HSP_RANGE_KEYS,
-                             {deftable.at("min")[k], deftable.at("max")[k]},
-                             {deftable.at("min_at")[k], deftable.at("max_at")[k]});
+    init_model_attributes_(member, k);
+    xaugm.init_distr_attr(HSP_PARAM_MIN, pImpl_.read_attribute_(deftable[HSP_PARAM_MIN][k], member));
+    xaugm.init_distr_attr(HSP_PARAM_MAX, pImpl_.read_attribute_(deftable[HSP_PARAM_MAX][k], member));
     xaugm.init_distr_reshaping();
 
     if (xaugm.is_function()) // function
     {
         // assign arguments to function
-        if (!tools::is_na(deftable.at("farg_key")[k]))
-            init_attribute_list_(HSP_VAR_FUNCTION, member, a,
-                                 tools::parse_keys(deftable.at("farg_key")[k], HSP_LIST_DELIM),
-                                 tools::parse_arg_list(deftable.at("farg_val")[k], HSP_LIST_DELIM),
-                                 tools::parse_arg_list(deftable.at("farg_at")[k], HSP_LIST_DELIM));
-        // assign range to function
-        if (!(tools::is_na(deftable.at("min")[k]) && tools::is_na(deftable.at("max")[k])))
-            init_attribute_list_(HSP_VAR_FUNCTION, member, a,
-                                 HSP_RANGE_KEYS,
-                                 {deftable.at("min")[k], deftable.at("max")[k]},
-                                 {deftable.at("min_at")[k], deftable.at("max_at")[k]});
+        init_func_attributes_(member, k);
+        xaugm.init_func_attr(HSP_PARAM_MIN, pImpl_.read_attribute_(deftable[HSP_PARAM_MIN][k], member));
+        xaugm.init_func_attr(HSP_PARAM_MAX, pImpl_.read_attribute_(deftable[HSP_PARAM_MAX][k], member));
+        xaugm.init_func_reshaping();
     }
     else if (xaugm.is_pointer()) // pointer (case of identity function)
     {
-        const Attribute &aux_attr = read_single_attribute_(
-            member, a,
-            tools::parse_arg_list(deftable.at("farg_val")[k], HSP_LIST_DELIM)[0],
-            tools::parse_arg_list(deftable.at("farg_at")[k], HSP_LIST_DELIM)[0]);
+        // UPDATE: I think this can be collapsed with above at a given point
+        const Attribute &aux_attr = pImpl_.read_attribute_(deftable["func"][k], member);
 
         if (aux_attr.is_scalar())
             xaugm.init_scalar(aux_attr.get());
@@ -481,11 +535,11 @@ void MCMC::Impl::Augmented::init_single_var_dependencies_(Individual &member, si
     else if (!xaugm.is_constant()) // variable to be sampled
     {
         // assign proposer rule
-        xaugm.init_proposer(deftable.at("rule")[k], tools::str::tod(deftable.at("scale")[k]));
+        xaugm.init_proposer(deftable["rule"][k], tools::str::tod(deftable["scale"][k]));
 
         // random initialization
         // UPDATE: need a more general switch connected to pImpl_.setup.rand_init_params)
-        if (tools::str::tobool(deftable.at("init_rand")[k]))
+        if (tools::str::tobool(deftable["init_rand"][k]))
             xaugm.init_rand(pImpl_.setup.prng());
     }
 }
@@ -494,140 +548,26 @@ void MCMC::Impl::Augmented::init_single_var_dependencies_(Individual &member, si
 ///////////////////////  MCMC::Impl : methods (type-defined variables)  /////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Convert a typed string into a double.
-double MCMC::Impl::Augmented::type_to_double_(const Individual &member,
-                                              const std::string &value,
-                                              const std::string &type)
+/// Auxiliary method to assign attributes to augmented model.
+void MCMC::Impl::Augmented::init_model_attributes_(Individual &member, size_t k)
 {
-    double output = HSP_NA_DOUBLE;
+    Variable &xaugm = member.get_augm_variable(deftable["name"][k]);
 
-    if (!(tools::is_na(value) && tools::is_na(type)))
-    {
-        if (!tools::is_na(value) && tools::is_na(type))
-            output = tools::str::tod(value, "argument without type");
-
-        else if (tools::is_na(value) && !tools::is_na(type))
-            tools::warning(
-                "Ignoring value type without a paired value.");
-
-        else if (tools::str::toup(type) == HSP_TYPE_SCALAR)
-            output = tools::str::tod(value, "argument with scalar type");
-
-        else if (tools::str::toup(type) == HSP_TYPE_DATA)
-            output = member.data(value);
-
-        else if (tools::str::toup(type) == HSP_TYPE_PARAM)
-            if (pImpl_.param.at(value).is_constant())
-                output = pImpl_.param.get(value);
-            else
-                throw std::invalid_argument(
-                    "Parameter to be inferred \"" + value + "\" assigned as constant argument.");
-
-        else if (tools::str::toup(type) == HSP_TYPE_AUGM)
-            throw std::invalid_argument(
-                "Value initialization with other augmented variable is not supported.");
-
-        else
-            throw std::invalid_argument(
-                "Unknown variable type specifier \"" + type + "\".");
-    }
-
-    return output;
+    for (const auto &child : DefinitionParser(deftable["model"][k]).root.children)
+        xaugm.init_distr_attr(child.key, pImpl_.read_attribute_(child, member));
 }
 
-/// Auxiliary method to assign attributes to augmented function or model.
-void MCMC::Impl::Augmented::init_attribute_list_(bool is_var_model,
-                                                 Individual &member,
-                                                 const std::string &a,
-                                                 const str_vec &all_keys,
-                                                 const str_vec &all_values,
-                                                 const str_vec &all_types)
+/// Auxiliary method to assign attributes to augmented function.
+void MCMC::Impl::Augmented::init_func_attributes_(Individual &member, size_t k)
 {
-    Variable &xaugm = member.get_augm_variable(a);
+    Variable &xaugm = member.get_augm_variable(deftable["name"][k]);
 
-    // check size validity of keys, values and type
-    const size_t n_keys = all_keys.size();
-    if (n_keys > 0)
-        if (all_values.size() != n_keys || all_types.size() != n_keys)
-            throw std::invalid_argument(
-                "Mismatching attributes in definition of " + xaugm.err_name() + ".");
-
-    // loop over all attributes
-    for (size_t i = 0; i < all_keys.size(); ++i)
+    for (const auto &child : DefinitionParser(deftable["func"][k]).root.children)
     {
-        const std::string key = all_keys[i], value = all_values[i], type = all_types[i];
-
         // get auxiliary attribute
-        const Attribute &aux_attr = read_single_attribute_(member, a, value, type);
-
-        // cache dependecy if an augmented variable depends on a parameter to be inferred
-        if (is_var_model == HSP_VAR_FUNCTION)
-        {
-            if (tools::str::toup(type) == HSP_TYPE_PARAM && aux_attr.is_pointer())
-                pImpl_.param.make_cache_dependent(value);
-
-            xaugm.init_func_attr(key, aux_attr);
-        }
-        else // is_var_model == HSP_VAR_MODEL
-            xaugm.init_distr_attr(key, aux_attr);
+        xaugm.init_func_attr(child.key, pImpl_.read_attribute_(child, member));
+        pImpl_.make_param_cache_depen_(child);
     }
-}
-
-/// Auxiliary method to read typed member values as a single attribute.
-Attribute MCMC::Impl::Augmented::read_single_attribute_(Individual &member,
-                                                        const std::string &a,
-                                                        const std::string &val,
-                                                        const std::string &type)
-{
-    Attribute output;
-
-    if (tools::is_na(val) && tools::is_na(type))
-        ; // pass
-
-    else if (!tools::is_na(val) && tools::is_na(type))
-        throw std::invalid_argument(
-            "Unable to interpret default value of  \"" + val + "\". Please provide a type.");
-
-    else if (tools::is_na(val) && !tools::is_na(type))
-        throw std::invalid_argument(
-            "Found a type without a paired value. Please correct.");
-
-    else if (tools::str::toup(type) == HSP_TYPE_SCALAR)
-        output.init_scalar(tools::str::tod(val, "argument with scalar type"));
-
-    else if (tools::str::toup(type) == HSP_TYPE_DATA)
-        output.init_scalar(member.data(val));
-
-    else if (tools::str::toup(type) == HSP_TYPE_PARAM)
-    {
-        if (pImpl_.param.at(val).is_constant())
-            output.init_scalar(pImpl_.param.get(val));
-        else
-            output.init_pointer(pImpl_.param.get_ptr(val));
-    }
-    else if (tools::str::toup(type) == HSP_TYPE_AUGM)
-    {
-        if (!(list_full % val))
-            throw std::invalid_argument(
-                "Undeclared augmented variable \"" + val + "\".");
-
-        Variable &other_augm = member.get_augm_variable(val);
-
-        // assert_arg no nested definitions
-        if (other_augm.is_chain_dependency(member.get_augm_variable(a)))
-            throw std::invalid_argument(
-                "Found nested definitions for \"" + a + "\" and \"" + val + "\". Please correct.");
-
-        if (other_augm.is_function())
-            output.init_function(other_augm.get_function());
-        else
-            output.init_pointer(other_augm.get_ptr());
-    }
-    else
-        throw std::invalid_argument(
-            "Unsopported type \"" + type + "\" found while loading \"" + val + "\" for pointer value.");
-
-    return output;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

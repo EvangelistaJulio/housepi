@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "tools.h"
+#include "parser.h"
 #include "distribution.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -128,13 +129,13 @@ public:
              double value = HSP_NA_DOUBLE,
              bool is_const = true,
              bool is_discr = false,
-             const std::string &func_name = HSP_NA_STRING,
+             const std::string &expr = HSP_NA_STRING,
              bool is_prim = false)
         : pDistr_(std::make_shared<Distribution>()),
           pProp_(std::make_shared<Proposer>())
     {
         err_type_ = "variable";
-        init(name, value, is_const, is_discr, func_name, is_prim);
+        init(name, value, is_const, is_discr, expr, is_prim);
     }
     ~Variable() = default;
 
@@ -144,7 +145,7 @@ public:
     /// Helper to initialize variable.
     void init(const std::string &name, double value,
               bool is_const = true, bool is_discr = false,
-              const std::string &func_name = HSP_NA_STRING,
+              const std::string &expr = HSP_NA_STRING,
               bool is_prim = false);
 
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -162,14 +163,14 @@ public:
     }
 
     /// Assign an attribute to function.
-    void init_func_attr(const std::string &key, const Attribute &x);
+    void init_func_attr(const std::string &key, const Attribute &attr) { pFunc_->init_attr(key, attr); }
     /// Initialize function reshaping. NOTE: to be called necessarily.
     void init_func_reshaping();
 
     /// Initialize pointer to distribution.
     void init_distr(const std::string &distr_name = HSP_NA_STRING);
     /// Assign an attribute to distribution.
-    void init_distr_attr(const std::string &key, const Attribute &x);
+    void init_distr_attr(const std::string &key, const Attribute &attr);
     /// Finalize reshaping of distribution. NOTE: to be called necessarily.
     void init_distr_reshaping();
 
@@ -240,8 +241,8 @@ protected:
     double buffer_ = HSP_NA_DOUBLE;     /// buffered value
     double user_value_ = HSP_NA_DOUBLE; /// initial user defined value
     Attribute loc_;                     /// location parameter
+    bool is_constant_ = true;           /// user flag for wheter constant or not
     bool is_discrete_ = false;          /// user flag for wheter discrete or not
-    bool is_constant_ = false;          /// user flag for wheter constant or not
 
     std::shared_ptr<Distribution> pDistr_; /// prior\model distribution of the variable
     std::shared_ptr<Proposer> pProp_;      /// Monte Carlo proposer

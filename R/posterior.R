@@ -176,8 +176,9 @@ HousepiPosteriorDraws <- R6::R6Class(
       }
 
       # loglikelihood draws
-      private$.loglike_df <- posterior::subset_draws(all_traces,
-                                                     variable = c("loglikelihood"))
+      private$.loglike_df <- posterior::subset_draws(
+        all_traces, variable = c("loglikelihood")
+      )
       private$.loglike_df$.iteration <- all_traces$.iteration
       vars <- setdiff(vars, c("loglikelihood"))
 
