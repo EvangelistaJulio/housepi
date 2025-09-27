@@ -82,6 +82,10 @@ debug:
 test-infer:
 	$(EXECUTABLE) $(STD_IN) --infer -O out.csv
 
+# Test loglikelihood evaluation 
+test-loglike:
+	$(EXECUTABLE) $(STD_IN) --loglikelihood -O out.csv
+
 # Test simulation 
 test-simulate:
 	$(EXECUTABLE) $(STD_IN) --simulate -O out.csv

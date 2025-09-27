@@ -43,7 +43,7 @@ void MCMC::Impl::InfecProfile::init_template(dict_str deflist)
 			deflist["discr"] = str_is_discr;
 
 			build(deflist);
-
+			
 			// forbid augmented infectivity profile for template
 			if (is_augmented())
 				throw std::invalid_argument(
@@ -155,7 +155,7 @@ void MCMC::Impl::InfecProfile::build(const dict_str &deflist)
 
 		// check if definition is generic or augmented
 		bool is_augm = DefinitionParser(deflist.at("func")).is_augm_depen() ||
-					   DefinitionParser(deflist.at("max")).is_augm_depen();
+					   DefinitionParser(deflist.at(HSP_PARAM_MAX)).is_augm_depen();
 
 		if (is_augm)
 			build_augmented_profile_(deflist);
@@ -174,19 +174,20 @@ void MCMC::Impl::InfecProfile::build_generic_profile_(const dict_str &deflist)
 	// name
 	if ((deflist.count("func")) && (!tools::is_na(deflist.at("func"))))
 	{
+		DefinitionParser parser(DefinitionParser(deflist.at("func")));
+
 		profile_ = compose_distr_registries(
-			DefinitionParser(deflist.at("func")).root.func,
+			parser.root.func,
 			"infectivity profile",
 			{&InfecProfileRegistry::inst(),
 			 &ContinuosDistrRegistry::inst(),
 			 &DiscreteDistrRegistry::inst()});
 
-		for (const auto &node : DefinitionParser(deflist.at("func")))
-			if (node.is_terminal())
-			{
-				profile_->init_attr(node.key, pImpl_.read_attribute_(node));
-				pImpl_.make_param_cache_depen_(node);
-			}
+		for (const auto &node : parser.root.children)
+		{
+			profile_->init_attr(node.key, pImpl_.read_attribute_(node));
+			pImpl_.make_param_cache_depen_(node);
+		}
 	}
 	else
 		throw std::invalid_argument("Missing name.");
@@ -203,7 +204,7 @@ void MCMC::Impl::InfecProfile::build_generic_profile_(const dict_str &deflist)
 		profile_->init_attr(HSP_PARAM_MIN, pImpl_.read_attribute_("0|S"));
 
 	// range maximum
-	profile_->init_attr(HSP_PARAM_MAX, pImpl_.read_attribute_(deflist.at("max")));
+	profile_->init_attr(HSP_PARAM_MAX, pImpl_.read_attribute_(deflist.at(HSP_PARAM_MAX)));
 
 	// range truncation
 	profile_->init_truncation();

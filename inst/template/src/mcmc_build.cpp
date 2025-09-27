@@ -585,10 +585,10 @@ void MCMC::Impl::GroupRates::build(const dict_str_vec &deftable)
                     {
                         const std::string &g = deftable.at("group_rate")[r];
                         const std::string &p = deftable.at("param_name")[r];
-                        if (these_rates.count(g) == 0)
-                            these_rates.emplace(g, str_vec({p}));
-                        else
+                        if (these_rates.count(g))
                             these_rates[g].push_back(p);
+                        else
+                            these_rates.emplace(g, str_vec({p}));
                     }
                 }
 
@@ -719,7 +719,7 @@ void MCMC::Impl::Parameter::build(const dict_str_vec &deftable)
 
                 // assign a prior distribution to the parameter
                 DefinitionParser parser(deftable.at("prior")[k]);
-                new_param.init_distr(parser.root.func);
+                new_param.init_distr(parser);
 
                 for (const auto &child : parser.root.children)
                     new_param.init_distr_attr(child.key, pImpl_.read_scalar_(child));

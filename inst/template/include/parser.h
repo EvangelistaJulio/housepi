@@ -49,8 +49,17 @@ public:
         bool is_empty() const { return is_terminal() && tools::is_na(value); }
     } root; // parsed AST root
 
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  DefinitionParser : constructor  /////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
+
     /// Construct and parse expression into AST (and flattens it).
-    explicit DefinitionParser(const std::string &expr) { root = parse_expression_(expr); }
+    DefinitionParser(const std::string &expr);
+    DefinitionParser(const char *expr) : DefinitionParser(std::string(expr)) {}    
+
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////  DefinitionParser : getter  ////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Reconstruct original string.
     std::string str() const { return root.str(); }
@@ -60,14 +69,15 @@ public:
     /// Wheter terminal value is NA.
     bool is_na() const { return is_terminal() && tools::is_na(root.value); }
 
-    /// Wheter there is any dependency on augmented, data, or parameters.
-    bool is_augm_depen() const;
-    bool is_data_depen() const;
-    bool is_param_depen() const;
     /// List of dependencies per type contained in currenet definition.
     str_vec list_augm_depen() const;
     str_vec list_data_depen() const; 
     str_vec list_param_depen() const; 
+
+    /// Wheter there is any dependency on augmented, data, or parameters.
+    bool is_augm_depen() const { return !list_augm_depen().empty(); }
+    bool is_data_depen() const { return !list_data_depen().empty(); }
+    bool is_param_depen() const { return !list_param_depen().empty(); }
 
     /// Flat iterator interface to access all nodes in the tree.
     /// NOTE: just used to explore dependecies...
@@ -130,12 +140,6 @@ public:
 
     ViewIterator begin() const { return ViewIterator(&root); }
     ViewIterator end() const { return ViewIterator(); }
-
-private:
-    /// Parse a single expression into an AST node.
-    static ASTNode parse_expression_(const std::string &expr);
-    /// Split on sep at top level.
-    static str_vec split_top_(const std::string &s);
 };
 
 #endif // HOUSEPI__PARSER__H

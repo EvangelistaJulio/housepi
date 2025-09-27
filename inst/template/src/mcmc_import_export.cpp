@@ -21,18 +21,18 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define DEFINE_RCPP_IMPORT_METHOD(ImplSection, r_to_map)                 \
-    void MCMC::Impl::ImplSection::rcpp_import(SEXP input)                \
-    {                                                                    \
-        try                                                              \
-        {                                                                \
-            build(tools::r_to_map(input));                               \
-        }                                                                \
-        catch (const std::exception &e)                                  \
-        {                                                                \
-            tools::error("While initializing " + section_name_ + ":\n" + \
-                         std::string(e.what()));                         \
-        }                                                                \
+#define DEFINE_RCPP_IMPORT_METHOD(ImplSection, r_to_map)            \
+    void MCMC::Impl::ImplSection::rcpp_import(SEXP input)           \
+    {                                                               \
+        try                                                         \
+        {                                                           \
+            build(tools::r_to_map(input));                          \
+        }                                                           \
+        catch (const std::exception &e)                             \
+        {                                                           \
+            tools::error("While reading " + section_name_ + ":\n" + \
+                         std::string(e.what()));                    \
+        }                                                           \
     }
 
 #define DEFINE_RCPP_IMPORT_LIST_METHOD(ImplSection) DEFINE_RCPP_IMPORT_METHOD(ImplSection, rlist_to_map)
@@ -55,7 +55,7 @@ void MCMC::Impl::DataWide::rcpp_import_multiplicity(SEXP input)
     }
     catch (const std::exception &e)
     {
-        tools::error("While initializing multiplicity:\n" +
+        tools::error("While reading multiplicity:\n" +
                      std::string(e.what()));
     }
 }
@@ -71,7 +71,7 @@ void MCMC::Impl::Augmented::rcpp_import(SEXP input)
     }
     catch (const std::exception &e)
     {
-        tools::error("While initializing " + section_name_ + ":\n" +
+        tools::error("While reading " + section_name_ + ":\n" +
                      std::string(e.what()));
     }
 }
@@ -365,7 +365,7 @@ Rcpp::DataFrame MCMC::Impl::DataWide::rcpp_summarise_cases() const
 ////////////////////////////  MCMC : Impl : export house size report  /////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Export current data configurations to R DataFrame. 
+/// Export current data configurations to R DataFrame.
 Rcpp::DataFrame MCMC::Impl::DataWide::rcpp_summarise_house_sizes() const
 {
     using namespace Rcpp;
@@ -439,7 +439,7 @@ Rcpp::NumericMatrix MCMC::Impl::rcpp_export_draws() const
         if (smpl_full_loglike_.empty())
             throw std::length_error("No draws to export were found.");
 
-        // cllect the column names 
+        // cllect the column names
         str_vec headers = {"loglikelihood"};
 
         headers += param.list_sample;
@@ -453,7 +453,7 @@ Rcpp::NumericMatrix MCMC::Impl::rcpp_export_draws() const
         // multiple chains
         headers.push_back(HSP_CHAIN_COL);
 
-        // matrix with draws 
+        // matrix with draws
         NumericMatrix output(setup.n_chains * setup.c_sample_size,
                              headers.size());
         size_t col = 0;
@@ -802,18 +802,18 @@ Rcpp::List MCMC::Impl::rcpp_export_house_snapshot(const std::string &house_id) c
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #else
-#define DEFINE_READ_METHOD(ImplSection, read_csv)                        \
-    void MCMC::Impl::ImplSection::read(const std::string &f)             \
-    {                                                                    \
-        try                                                              \
-        {                                                                \
-            build(tools::read_csv(f));                                   \
-        }                                                                \
-        catch (const std::exception &e)                                  \
-        {                                                                \
-            tools::error("While initializing " + section_name_ + ":\n" + \
-                         std::string(e.what()));                         \
-        }                                                                \
+#define DEFINE_READ_METHOD(ImplSection, read_csv)                   \
+    void MCMC::Impl::ImplSection::read(const std::string &f)        \
+    {                                                               \
+        try                                                         \
+        {                                                           \
+            build(tools::read_csv(f));                              \
+        }                                                           \
+        catch (const std::exception &e)                             \
+        {                                                           \
+            tools::error("While reading " + section_name_ + ":\n" + \
+                         std::string(e.what()));                    \
+        }                                                           \
     }
 
 #define DEFINE_READ_LIST_METHOD(ImplSection) DEFINE_READ_METHOD(ImplSection, read_csv_list)
@@ -836,7 +836,7 @@ void MCMC::Impl::DataWide::read_multiplicity(const std::string &f)
     }
     catch (const std::exception &e)
     {
-        tools::error("While initializing multiplicity:\n" +
+        tools::error("While reading multiplicity:\n" +
                      std::string(e.what()));
     }
 }
@@ -852,7 +852,7 @@ void MCMC::Impl::Augmented::read(const std::string &f)
     }
     catch (const std::exception &e)
     {
-        tools::error("While initializing " + section_name_ + ":\n" +
+        tools::error("While reading " + section_name_ + ":\n" +
                      std::string(e.what()));
     }
 }
@@ -1110,8 +1110,8 @@ void MCMC::Impl::DataWide::print_update(Household &house)
         for (const Individual &member : house)
         {
             aux_ofstream_ << member.id()
-                                  << HSP_DELIM << house.house_id()
-                                  << HSP_DELIM << member.status();
+                          << HSP_DELIM << house.house_id()
+                          << HSP_DELIM << member.status();
             for (const std::string &d : headers_)
                 aux_ofstream_ << HSP_DELIM << member.data(d);
 

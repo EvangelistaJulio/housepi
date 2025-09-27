@@ -200,10 +200,8 @@ std::shared_ptr<Proposer> proposer_switch(const std::string &rule_name = HSP_NA_
 /// Initialize variable.
 void Variable::init(const std::string &name, double value,
                     bool is_const, bool is_discr,
-                    const std::string &expr, bool is_primitive)
+                    const DefinitionParser &parser, bool is_primitive)
 {
-    const DefinitionParser parser(expr);
-
     this->name_ = name;
     this->is_constant_ = is_const;
     this->is_discrete_ = is_discr;
@@ -255,10 +253,10 @@ void Variable::init_func_reshaping()
 }
 
 /// Assign distribution with constant arguments.
-void Variable::init_distr(const std::string &distr_name)
+void Variable::init_distr(const DefinitionParser &expr)
 {
     pDistr_ = compose_distr_registries(
-        DefinitionParser(distr_name).root.func, 
+        expr.root.func, 
         "distribution",
         {&ContinuosDistrRegistry::inst(),
          &DiscreteDistrRegistry::inst()});

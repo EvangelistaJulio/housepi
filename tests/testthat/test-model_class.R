@@ -8,8 +8,7 @@ test_that("Model class inconsistent calls", {
   hhmodel <- new_housepi_model("blank")
 
   # inference without definitions
-  expect_error(hhmodel$infer(),
-               regexp = "Nothing to sample")
+  expect_error(hhmodel$infer(), regexp = "Nothing to sample")
 })
 
 test_that("Model class blank calls", {
@@ -21,9 +20,8 @@ test_that("Model class blank calls", {
   expect_equal(hhmodel$data_wide, data_wide)
 
   # correct data long format
-  data_long <- data.frame(id = data_wide$id[1],
-                          time = seq(3),
-                          measure = seq(3)**3)
+  data_long <- data.frame(id = data_wide$id[1], 
+                          time = seq(3), measure = seq(3)**3)
   hhmodel$data_long <- data_long
   expect_equal(hhmodel$data_long, data_long)
 
@@ -49,7 +47,7 @@ test_that("Deep clone works as expected", {
   # UPDATE: change to a model with data augmentation
   hhmodel <- new_housepi_model("chain_binomial_heterogeneous")
   hhmodel$load_parameter_template()
-  out <- hhmodel$infer(housepi::survey, progress = FALSE)
+  out <- hhmodel$infer(housepi::survey, n_steps = 2, progress = FALSE)
 
   # shallow clone
   hhclone <- hhmodel$clone(deep = FALSE)
@@ -79,8 +77,7 @@ test_that("Deep clone works as expected", {
 test_that("Loglikelihood traces and pointwise traces are coherent", {
   results <- new_housepi_model("chain_binomial") |>
     load_parameter_template() |>
-    infer(housepi::survey, sample_size = 10, thin = 5,
-          n_adapt = 50, n_burnin = 50)
+    infer(housepi::survey, sample_size = 10, thin = 4, n_adapt = 0, n_burnin = 0)
 
   pointwise <- results$house_draws |>
     posterior::as_draws_matrix() |>
@@ -106,29 +103,116 @@ test_that("Chain binomial models are coherent", {
   expect_equal(ll1, ll2)
 })
 
-# test_that("Nested definitions raise errors", {
-#   hhmodel <- new_housepi_model("augmented_example")
-#   hhmodel$data_wide <- data.frame(house_id = 1, id = seq(3), status = 1)
-# 
-#   # simple nest
-#   expect_error(
-#     hhmodel |>
-#       load_augmented_list(dummy = ~log_proba,
-#                           log_proba = ~dummy) |>
-#       loglikelihood(),
-#     regexp = "nested definitions"
-#   )
-# 
-#   # triangular nest
-#   expect_error(
-#     hhmodel |>
-#       load_augmented_list(log_proba = ~layer,
-#                           layer = ~dummy,
-#                           dummy = ~log_proba) |>
-#       loglikelihood(),
-#     regexp = "nested definitions"
-#   )
-# })
+test_that("Nested definitions raise errors", {
+  hhmodel <- new_housepi_model("augmented_example")
+  hhmodel$data_wide <- data.frame(house_id = 1, id = seq(4), status = seq(4))
+  
+  expect_no_error(
+    hhmodel$load_augmented_list(
+      ..proba = list(model = "unif", status = 1),
+      ..proba = list(expr = ~..layer, status = c(2, 3, 4)),
+      ..layer = list(model = "unif"),
+      log_proba = ~log(..proba)
+    )$loglikelihood()
+  )
+
+  # simple nest
+  expect_error(
+    hhmodel$load_augmented_list(dummy = ~log_proba,
+                                log_proba = ~dummy)$loglikelihood(),
+    regexp = "nested definitions"
+  )
+
+  # triangular nest
+  expect_error(
+    hhmodel$load_augmented_list(log_proba = ~layer,
+                                layer = ~dummy,
+                                dummy = ~log_proba)$loglikelihood(),
+    regexp = "nested definitions"
+  )
+    
+  # first generation of definitions
+  err_msg <- as.character(expect_error(
+    hhmodel$load_augmented_list(
+      ..proba = list(model = "norm", status = 1),
+      ..proba = list(expr = ~..layer, status = 2),
+      #> NO ..proba provided for status 3 and 4
+      ..layer = list(model = "lnorm", status = 2),
+      log_proba = ~log(..proba)
+    )$loglikelihood()
+  ))
+  expect_match(err_msg, "Missing definition")
+  expect_match(err_msg, "status 3")
+  
+  # second generation of definitions
+  err_msg <- as.character(expect_error(
+    hhmodel$load_augmented_list(
+      ..proba = list(model = "norm", status = 1),
+      ..proba = list(expr = ~..layer, status = c(2, 3, 4)),
+      #> NO ..layer provided for status 3, 4
+      ..layer = list(model = "lnorm", status = c(2, 3)),
+      log_proba = ~log(..proba)
+    )$loglikelihood()
+  ))
+  expect_match(err_msg, "Missing definition")
+  expect_match(err_msg, "status 4")
+  
+  
+  # error for missing 'x' in nested function 'gamma'
+  hhmodel <- new_housepi_model("augmented_example")
+  hhmodel$data_wide <- data.frame(
+    house_id = "hh1", id = seq(1, 3), shape = 2 + runif(3), status = 1
+  )
+  hhmodel$add_parameter(name = "scale", value = 1)
+  hhmodel$add_augmented(name = "gamma", func = "gamma", 
+                        func_args = c(shape = ~shape@D, scale = ~ scale@P))
+  hhmodel$add_augmented(name = "log_proba", expr = ~log(gamma))
+  expect_error(hhmodel$loglikelihood())
+})
+
+test_that("Augmented aliasing works as expected", {
+  hhmodel <- new_housepi_model("augmented_example")
+  hhmodel$data_wide <- data.frame(
+    house_id = "hh1", id = seq(1, 3), x = 2 + runif(3), status = 1
+  )
+  hhmodel$add_parameter(name = "scale", value = 1)
+  hhmodel$load_augmented_list(
+    ..layer = ~x @D,
+    ..gamma = list(func = "gamma",
+                   func_args = c(x = ~..layer, shape = 2, scale = ~ scale@P)),
+    log_proba = ~log(..gamma)
+  )
+  
+  ll <- sum(log(dgamma(hhmodel$data_wide$x, shape = 2, scale = 1)))
+  expect_equal(hhmodel$loglikelihood(), ll)
+  
+  # check that order does not matter
+  hhmodel$load_augmented_list(
+    ..gamma = list(func = "gamma",
+                   func_args = c(x = ~..layer, shape = 2, scale = ~ scale@P)),
+    log_proba = ~log(..gamma),
+    ..layer = ~x @D
+  )
+  expect_equal(hhmodel$loglikelihood(), ll)
+})
+
+test_that("Loglikelihood equal to NaN is well handled", {
+  hhmodel <- new_housepi_model("augmented_example")
+  
+  # NA values
+  hhmodel$data_wide <- data.frame(house_id = seq(3), id = seq(3),
+                                  status = 1, test = c(5.5, NA, -1.5))
+  # check that NaN + something = NaN
+  hhmodel$load_augmented_list(noise = list(model = "norm"),
+                              log_proba = ~test@D + noise)
+  # check that NA loglikelihood
+  expect_error(hhmodel$infer(), regexp = "returned NaN")
+  
+  # check that log(NaN) = NaN
+  hhmodel$load_augmented_list(log_proba = ~log(test@D))
+  expect_error(hhmodel$infer(), regexp = "Nothing to sample")
+  expect_error(hhmodel$loglikelihood(), regexp = "returned NaN")
+})
 
 test_that("Augmentation example on incubation from delays is coherent", {
   # loglikelihood from simulated delays
@@ -152,87 +236,15 @@ test_that("Augmentation example on incubation from delays is coherent", {
   expect_equal(x, exact)
 })
 
-test_that("Arithmetic function with undefined x return NaN", {
-  hhmodel <- new_housepi_model("augmented_example")
-
-  # NA values
-  hhmodel$data_wide <- data.frame(house_id = seq(3), id = seq(3),
-                                  status = 1, test = c(5.5, NA, -1.5))
-  # check that NaN + something = NaN
-  hhmodel$load_augmented_list(noise = list(model = "norm"),
-                              log_proba = ~test@D + noise)
-  # check that NA loglikelihood
-  expect_error(hhmodel$infer(), regexp = "returned NaN")
-
-  # check that log(NaN) = NaN
-  hhmodel$load_augmented_list(log_proba = ~log(test@D))
-  expect_error(hhmodel$infer(), regexp = "Nothing to sample")
-  expect_error(hhmodel$loglikelihood(), regexp = "returned NaN")
-})
-
-test_that("Augmented aliasing works as expected", {
-  hhmodel <- new_housepi_model("augmented_example")
-  hhmodel$data_wide <- data.frame(
-    house_id = "hh1", id = seq(1, 3), x = 2 + runif(3), status = 1
-  )
-  hhmodel$add_parameter(name = "scale", value = 1)
-  hhmodel$load_augmented_list(
-    ..layer = ~x @D,
-    gamma = list(func = "gamma",
-                 func_args = c(x = ~..layer, shape = 2, scale = ~ scale@P)),
-    log_proba = ~log(gamma)
-  )
-
-  expect_equal(
-    hhmodel$loglikelihood(),
-    sum(log(dgamma(hhmodel$data_wide$x, shape = 2, scale = 1)))
-  )
-
-  # FIXME: order should not matter...
-  # hhmodel <- new_housepi_model("augmented_example")
-  # hhmodel$data_wide <- data.frame(
-  #   house_id = "hh1", id = seq(1, 3), x = 2 + runif(3), status = 1
-  # )
-  # hhmodel$add_parameter(name = "scale", value = 1)
-  # hhmodel$load_augmented_list(
-  #   gamma = list(func = "gamma", 
-  #                func_args = c(x = ~..layer, shape = 2, scale = ~ scale@P)),
-  #   log_proba = ~log(gamma),
-  #   ..layer = ~x @D
-  # )
-  # 
-  # # -Inf !!!
-  # hhmodel$loglikelihood()
-  
-  # FIXME: not raising error for missing 'x' in 'gamma'
-  # hhmodel <- new_housepi_model("augmented_example")
-  # hhmodel$data_wide <- data.frame(
-  #   house_id = "hh1", id = seq(1, 3), shape = 2 + runif(3), status = 1
-  # )
-  # hhmodel$add_parameter(name = "scale", value = 1)
-  # hhmodel$add_augmented(name = "gamma", func = "gamma", func_args = c(shape = ~shape@D, scale = ~ scale@P))
-  # hhmodel$add_augmented(name = "log_proba", expr = ~log(gamma))
-  # 
-  # # -Inf !!!
-  # hhmodel$loglikelihood()
-})
-
-test_that("Augmented function example returns expected distribution", {
+test_that("NNested definittions works as expected", {
   hhmodel <- new_housepi_model("blank")
 
   # define Box-Muller transformation
-  # UPDATE: there should be a developer effort to improve this
   hhmodel$load_augmented_list(
     norm = list(model = "norm"),
     u1 = list(model = "unif"),
     u2 = list(model = "unif"),
-    log_u1 = ~log(u1),
-    two_log_u1 = ~2 * log_u1,
-    m_two_log_u1 = ~ - two_log_u1,
-    sqrt_m_two_log_u1 = ~sqrt(m_two_log_u1),
-    two_pi_u2 = ~6.283185 * u2,
-    cos_two_pi_u2 = ~cos(two_pi_u2),
-    z0 = ~sqrt_m_two_log_u1 * cos_two_pi_u2
+    z0 = ~sqrt(- 2 * log(u1)) * cos(6.283185 * u2)
   )
 
   results <- hhmodel$infer(n_steps = 1e5, progress = 0)

@@ -518,6 +518,7 @@ public:
         str_vec list_draws = {};
         str_vec list_full = {};
         str_vec list_export = {};
+        u_dict<std::vector<size_t>> status_to_def_row = {}; // definition rows by status
         std::unordered_map<int, str_vec> status_map_model = {};
         std::unordered_map<int, str_vec> status_map_sample = {};
 
@@ -551,11 +552,11 @@ public:
         ////////////////////////////  MCMC : Impl : Augmented : getter  /////////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////
 
-        /// Flag if there are ant augmented variable definitions.
+        /// Flag if there are any augmented definitions.
         bool is_any() const { return !(list_sample.empty() && list_func.empty() && list_const.empty()); }
-        /// Flag if there are non-constant augmented variable definitions.
+        /// Flag if there are non-constant augmented definitions.
         bool is_any_sample() const { return !list_sample.empty(); }
-        /// Flag if there are augmented variable definitions with a model.
+        /// Flag if there are augmented definitions with a model.
         bool is_any_model() const { return !list_model.empty(); }
         /// Flag if augmented draws are stored.
         bool is_any_draw() const { return !smpl_individuals.empty(); }
@@ -569,22 +570,21 @@ public:
 #endif
 
     private:
-        const std::string section_name_ = "augmented variables";
+        const std::string section_name_ = "augmented";
         MCMC::Impl &pImpl_; // pointer to external class
 
-        void build_helper_assert_univocal_defs_();
+        void build_helper_assert_correct_definitions_();
+        void build_definition_order_(const std::string &s);
         void build_helper_status_specific_maps_();
-        void build_helper_set_id_draws_();
-
-        void init_model_attributes_(Individual &member, size_t k);
-        void init_func_attributes_(Individual &member, size_t k);
-
         void build_function_(size_t k);
         void build_function_identity_helper_(size_t k);
-        void build_helper_variable_with_model_(size_t k);
-        void build_helper_variable_to_sample_(size_t k);
+        void build_variable_with_model_(size_t k);
+        void build_variable_to_sample_(size_t k);
+        void build_helper_set_id_draws_();
 
-        void init_single_var_dependencies_(Individual &member, size_t k);
+        void init_helper_variable_dependencies_(Individual &member, size_t k);
+        void init_model_attributes_(Individual &member, size_t k);
+        void init_func_attributes_(Individual &member, size_t k);
     } augm;
 
     /////////////////////////////////////////////////////////////////////////////////////////////

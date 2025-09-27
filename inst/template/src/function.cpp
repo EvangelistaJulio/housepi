@@ -30,10 +30,10 @@ bool Attribute::is_constant() const
     if (is_scalar())
         return true;
     else if (is_pointer())
-        return false; // FIXME: this is not necessarily true...
+        return false; // NOTE: this has to be respected true by further construction
     else if (is_function())
         return pFunc_->is_constant();
-    else // is_empty(), constant by convention
+    else // NOTE: is_empty(), constant by convention
         return true;
 }
 
@@ -180,8 +180,9 @@ bool Function::is_constant() const
     for (unsigned short i = 0; i < n_args_; ++i)
         if (!args_[i].is_constant())
             return false;
-    // check X value
-    if (!args_[n_args_].is_constant())
+    // check X value 
+    // NOTE: a function with undefined 'x' is not constant
+    if (args_[n_args_].is_empty() || !args_[n_args_].is_constant())
         return false;
     // check range
     if (!range_min_.is_constant())
@@ -349,10 +350,17 @@ std::string Function::str_range() const
 /// Assign attribute to function.
 void Function::init_attr(const std::string &what, const Attribute &attr)
 {
+    // assert that function attribute are implicitely callable
+    if (attr.is_function())
+        if (!attr.get_function()->is_implicit_callable())
+            throw std::invalid_argument(
+                "Undefined attribute \"" + what + "\" for " + err_name() + ".");
+
+    // distinguish between range keys and standard keys
     if (HSP_RANGE_KEYS % what)
     {
         if (attr.is_empty())
-            ; // skip NA for range 
+            ; // skip NA for range
         else if (name_ == "unif")
             args_[assert_arg(what)].transfer(attr);
         else if (what == HSP_PARAM_MIN)

@@ -190,6 +190,8 @@ public:
     bool is_discrete() const { return function_ != &Function::raw_function_; }
     /// Wheter all arguments are actually constants.
     bool is_constant() const;
+    /// Wheter it can be called implicitely, i. e. if a 'x' has been linked.
+    bool is_implicit_callable() const { return !args_[n_args_].is_empty(); }
 
     /// Returns TRUE if value x is below range minimum.
     bool is_below(double x) const { return (this->*is_below_)(x); }

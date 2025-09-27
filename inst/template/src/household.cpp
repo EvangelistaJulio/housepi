@@ -28,9 +28,9 @@ void AugmentedMap::init_augm(const std::string &a,
 							 double value,
 							 bool is_const,
 							 bool is_discr,
-							 const std::string &func_name,
+							 const DefinitionParser &func_name,
 							 bool is_prim,
-							 const std::string &model_name)
+							 const DefinitionParser &model_name)
 {
 	Variable &this_augm = safe_at(augm_map_, "augmented variable", a);
 	this_augm.init(a, value, is_const, is_discr, func_name, is_prim);

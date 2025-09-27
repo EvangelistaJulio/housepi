@@ -48,9 +48,9 @@ public:
 				   double value,
 				   bool is_const,
 				   bool is_discr,
-				   const std::string &func_name,
+				   const DefinitionParser &func_name,
 				   bool is_prim,
-				   const std::string &model_name);
+				   const DefinitionParser &model_name);
 
 	void set_augm_value(const std::string &a, double x) { safe_at(augm_map_, "augmented", a).set(x); }
 	void clear_augm(const std::string &a) { augm_map_[a] = Variable(); }
