@@ -69,11 +69,11 @@ Additionally, an individual identifier `"id"` can be provided within the respect
 To perform model inference, a `"status"` must be provided for each individual $i$.
 Status $s_{i}$ should be an integer value satisfying the following convention:
 
-| Status $s_{i}$ | Compartment | Serology     |
-|:--------------:|-------------|--------------|
-| `>0`           | infectious  | seropositive |
-| `0`            | susceptible | seronegative |
-| `<0` or `NA`   | missing     | missing      |
+| Status $s_{i}$      | Compartment | Serology     |
+|:-------------------:|-------------|--------------|
+| $\geq$ `1`          | infectious  | seropositive |
+| `0`                 | susceptible | seronegative |
+| $\leq$ `-1` or `NA` | missing     | missing      |
 
 ## Data importation
 
@@ -259,7 +259,7 @@ hhmodel <- hhsimul |>
   load_augmented_list(
     infec_time = ~onset_time - incub_period,
     onset_time = list(
-      model = "norm", 
+      model = "norm",
       args = c(mean = ~onset_date@D, sd = 1)
     ),
     incub_period = list(

@@ -147,6 +147,18 @@ public:
         std::vector<rnd_gen> prng_parallel_ = {}; // parallel generators (for multi-threading)
         rnd_gen &do_prng_parallel_threads_() { return prng_parallel_[omp_get_thread_num()]; }
 #endif
+
+        /// Parse the list from the std::string.
+        void parse_id_draws_list_(const std::string &tkn, const char delim)
+        {
+            id_draws.clear();
+            std::istringstream args_ss(tkn);
+            std::string tmp;
+
+            // rea the entries of the dictionary
+            while (getline(args_ss, tmp, delim))
+                id_draws.push_back(tmp);
+        }
     } setup;
 
     std::string error_message = {}; // error message for the last exception
@@ -160,8 +172,8 @@ public:
     {
         const str_vec file_headers = {"name", "value",
                                       "const", "discr",
-                                      "prior", "arg_key", "arg_val",
-                                      "min", "max",
+                                      "prior",
+                                      HSP_PARAM_MIN, HSP_PARAM_MAX,
                                       "rule", "scale"};
         str_vec list_const = {};
         str_vec list_sample_standard = {};
@@ -183,8 +195,8 @@ public:
         ///////////////////////////  MCMC : Impl : Parameter : getter  //////////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////
 
-        Variable &at(const std::string &p) { return safe_at(dictionary_, "parameter", p); }
-        const Variable &at(const std::string &p) const { return safe_at(dictionary_, "parameter", p); }
+        Variable &at(const std::string &p) { return safe_at(dictionary_, p, "parameter"); }
+        const Variable &at(const std::string &p) const { return safe_at(dictionary_, p, "parameter"); }
         // get value of the parameter
         double get(const std::string &p) const { return this->at(p).get(); }
         // get pointer to the parameter
@@ -212,7 +224,6 @@ public:
 #else
         void read(const std::string &pathtofile);
         void show() const;
-        void show_results() const;
 #endif
     private:
         const std::string section_name_ = "parameter";
@@ -494,12 +505,10 @@ public:
         dict_str_vec deftable = {};
         const str_vec file_headers = {"name", "status",
                                       "func", "fcumul",
-                                      "farg_key", "farg_val", "farg_at",
-                                      "value", "value_at", "init_rand",
+                                      "value", "init_rand",
                                       "const", "discr",
-                                      "model", "arg_key", "arg_val", "arg_at",
-                                      "min", "min_at",
-                                      "max", "max_at",
+                                      "model",
+                                      HSP_PARAM_MIN, HSP_PARAM_MAX,
                                       "rule", "scale"};
 
         str_vec list_model = {};
@@ -509,7 +518,9 @@ public:
         str_vec list_draws = {};
         str_vec list_full = {};
         str_vec list_export = {};
-        std::unordered_map<int, str_vec> status_map_model = {};
+
+        u_dict<std::vector<size_t>> status_to_def_row = {}; // definition rows by status
+        std::unordered_map<int, u_dict<str_vec>> status_map_model = {};
         std::unordered_map<int, str_vec> status_map_sample = {};
 
         // optional augmented posterior sample
@@ -542,11 +553,11 @@ public:
         ////////////////////////////  MCMC : Impl : Augmented : getter  /////////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////
 
-        /// Flag if there are ant augmented variable definitions.
-        bool is_any() const { return !(list_sample.empty() && list_func.empty() && list_const.empty()); }
-        /// Flag if there are non-constant augmented variable definitions.
+        /// Flag if there are any augmented definitions.
+        bool is_any() const { return !list_full.empty(); }
+        /// Flag if there are non-constant augmented definitions.
         bool is_any_sample() const { return !list_sample.empty(); }
-        /// Flag if there are augmented variable definitions with a model.
+        /// Flag if there are augmented definitions with a model.
         bool is_any_model() const { return !list_model.empty(); }
         /// Flag if augmented draws are stored.
         bool is_any_draw() const { return !smpl_individuals.empty(); }
@@ -560,33 +571,21 @@ public:
 #endif
 
     private:
-        const std::string section_name_ = "augmented variables";
+        const std::string section_name_ = "augmented";
         MCMC::Impl &pImpl_; // pointer to external class
 
-        void build_helper_assert_univocal_defs_();
-        void build_helper_status_specific_maps_();
-        void build_helper_set_id_draws_(str_vec &id_draws);
-
-        double type_to_double_(const Individual &member,
-                               const std::string &tkn_value,
-                               const std::string &tkn_type);
-        void init_attribute_list_(bool is_var_model,
-                                  Individual &member,
-                                  const std::string &a,
-                                  const str_vec &all_keys,
-                                  const str_vec &all_values,
-                                  const str_vec &all_types);
-        Attribute read_single_attribute_(Individual &member,
-                                         const std::string &a,
-                                         const std::string &value,
-                                         const std::string &type);
-
+        void build_helper_assert_correct_definitions_();
+        void build_definition_order_(const std::string &s);
+        void build_helper_usage_lists_();
+        void build_variable_models_();
         void build_function_(size_t k);
         void build_function_identity_helper_(size_t k);
-        void build_helper_variable_with_model_(size_t k);
-        void build_helper_variable_to_sample_(size_t k);
+        void build_variable_to_sample_(size_t k);
+        void build_helper_set_id_draws_();
 
-        void init_single_var_dependencies_(Individual &member, size_t k);
+        void init_helper_variable_dependencies_(Individual &member, size_t k);
+        void init_model_attributes_(Individual &member, size_t k);
+        void init_func_attributes_(Individual &member, size_t k);
     } augm;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -639,9 +638,7 @@ public:
         MCMC::Impl &pImpl_; // pointer to external class
         std::shared_ptr<Distribution> profile_;
 
-        const str_vec headers_ = {"name", "discr",
-                                  "arg_key", "arg_val", "arg_at",
-                                  "max", "max_at"};
+        const str_vec headers_ = {"func", "discr", HSP_PARAM_MAX};
 
         // lookup table
         size_t size_lut_ = 0;
@@ -657,9 +654,6 @@ public:
 
         void build_generic_profile_(const dict_str &deflist);
         void build_augmented_profile_(const dict_str &deflist);
-
-        void init_single_attribute_(const std::string &key, const std::string &val, const std::string &at);
-        void init_arguments_(const str_vec &keys, const str_vec &vals, const str_vec &typs);
 
         //===== Functional methods for getter methods =====//
         double (InfecProfile::*inst_)(const Individual *, double) = &InfecProfile::do_inst_default_;
@@ -701,9 +695,19 @@ public:
 #endif
 
 private:
-    //=======================================//
-    //===== CALLBACKS (VIRTUAL METHODS) =====//
-    //=======================================//
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////  MCMC : Impl : definition helpers [private]  //////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
+
+    double read_scalar_(const DefinitionParser::ASTNode &node, const Individual &member = Individual());
+    double read_scalar_(const std::string &expr, const Individual &member = Individual());
+    Attribute read_attribute_(const DefinitionParser::ASTNode &node, const Individual &member = Individual());
+    Attribute read_attribute_(const std::string &expr, const Individual &member = Individual());
+    void make_param_cache_depen_(const DefinitionParser::ASTNode &node);
+
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////  MCMC : Impl : Callbacks Virtual Methods  ////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
     std::function<void()> callback_init_inference_;
     std::function<void()> callback_init_simulation_;
@@ -730,8 +734,8 @@ private:
     double full_loglike_ = 0.; /// current full loglikelihood
     double full_buffer_ = 0.;  /// buffer loglikelihood
 
-    unsigned long smpl_count_ = 0;
-    dbl_vec smpl_full_loglike_ = {};
+    unsigned long smpl_count_ = 0; /// count of store samples
+    dbl_vec smpl_full_loglike_ = {}; /// vector of full loglikelihood samples
 
     void assert_proper_dataset_();
     void init_monte_carlo_();
@@ -770,11 +774,11 @@ private:
     double move_augm_single_house_(Household &house);
     double metropolis_augm_single_move_(Household &house, Individual &member, const std::string &a);
 
-    /// Compute statistics from sample of full loglikelihood.
-    std::pair<double, double> smpl_full_loglike_stats_() const { return tools::compute_stats(smpl_full_loglike_); }
-
     //----- Metropolis : power posteriors -----//
     std::vector<dbl_vec> power_posteriors_(const std::string &scheme, unsigned long N);
+    void power_post_zero_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var);
+    void power_post_fractions_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var);
+    void power_post_adaptive_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var);
 
     //====================//
     //===== SIMULATE =====//

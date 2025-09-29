@@ -28,13 +28,84 @@ void AugmentedMap::init_augm(const std::string &a,
 							 double value,
 							 bool is_const,
 							 bool is_discr,
-							 const std::string &func_name,
+							 const DefinitionParser &func_name,
 							 bool is_prim,
-							 const std::string &model_name)
+							 const DefinitionParser &model_name)
 {
-	Variable &this_augm = safe_at(augm_map_, "augmented variable", a);
+	Variable &this_augm = safe_at(augm_map_, a, "augmented variable");
 	this_augm.init(a, value, is_const, is_discr, func_name, is_prim);
 	this_augm.init_distr(model_name);
+}
+
+/// Associate functional methods for augmented model pdfs.
+void AugmentedMap::init_augm_model_logratios(const u_dict<str_vec> &models_ordered)
+{
+	// >> clean pre-existing
+	for (auto &pair : model_logratios_)
+	{
+		pair.second.clear();
+		pair.second.shrink_to_fit();
+	}
+	model_logratios_.clear();
+	model_logratios_.rehash(0);
+	// <<
+
+	// associate models if applicable
+	for (const auto &pair : models_ordered)
+	{
+		const std::string &a = pair.first;
+		model_logratios_[a] = {};
+
+		// repeat for all dependent models
+		for (const std::string &b : pair.second)
+		{
+			const Variable &xaugm = augm_map_[b];
+			model_logratios_[a].emplace_back([&xaugm]()
+											 { return xaugm.get_distr_logratio(); });
+		}
+	}
+}
+
+/// Value of loglikelihood associated to augmented variable models.
+/// Store the loglikelihood of individual augmented variables.
+double AugmentedMap::compute_and_set_augm_model_loglike()
+{
+	buffer_ = loglike_; // store old value in buffer
+	loglike_ = 0.0;
+
+	for (const auto &pair : model_logratios_)
+		loglike_ += augm_map_[pair.first].get_distr_logpdf();
+
+	if (tools::is_na(loglike_))
+		throw std::runtime_error(
+			"Augmented loglikelihood returned NaN for " + err_name() + ".");
+
+	return loglike_;
+}
+
+/// Change in loglikelihood associated to given augmented.
+double AugmentedMap::compute_and_set_augm_model_logratio(const std::string &a)
+{
+	buffer_ = loglike_; // store old value in buffer
+
+	double delta_ll = 0.;
+	for (const std::function<double()> &f : model_logratios_[a])
+		delta_ll += f();
+	loglike_ += delta_ll;
+
+	if (tools::is_na(loglike_))
+		throw std::runtime_error(
+			"Augmented loglikelihood returned NaN for " + err_name() +
+			" after changing " + augm_map_[a].err_name() + ".");
+
+	return delta_ll;
+}
+
+/// Restore user values if applicable.
+void AugmentedMap::user_reset()
+{
+	for (auto &pair : augm_map_)
+		pair.second.user_reset();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -58,30 +129,6 @@ Individual::Individual(size_t index,
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  Individual : getter  //////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Value of loglikelihood associated to augmented variable models within individual.
-/// Store the loglikelihood of individual augmented variables.
-/// UPDATE: without dependency tracking, this is used also for single variable move.
-double Individual::compute_and_set_augm_model_loglike()
-{
-	double x = 0.0;
-	for (const std::function<double()> &f : augm_model_logpdfs_)
-		x += f();
-
-	if (tools::is_na(x))
-		throw std::runtime_error(
-			"Individual \"" + id_ + "\" augmented loglikelihood returned NaN.");
-
-	// set computed value and store old in buffer
-	augm_buffer_ = augm_loglike_;
-	augm_loglike_ = x;
-
-	return x;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  Individual : setter  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -95,40 +142,18 @@ void Individual::init_all_group_rates(const u_dict<std::vector<observ_dbl_ptr>> 
 
 		if (vec_par_ptr.empty())
 			std::invalid_argument(
-				"Missing rate \"" + r + "\" for individual " + id_ + ".");
+				"Missing rate \"" + r + "\" for " + err_name() + ".");
 		else
-			rate_map_[r] = GroupRate(r, vec_par_ptr);
+			rate_map_[r] = GroupRate_(r, vec_par_ptr);
 	}
-}
-
-/// Associate functional methods for augmented model pdfs.
-void Individual::init_augm_model_logpdf(const std::unordered_map<int, str_vec> &status_map_model)
-{
-	augm_model_logpdfs_.clear();
-	
-	// associate models if applicable
-	if (status_map_model.count(status_))
-		for (const std::string &a : status_map_model.at(status_))
-		{
-			const Variable &xaugm = safe_at(augm_map_, "augmented variable", a);
-			augm_model_logpdfs_.emplace_back([&xaugm]()
-											{ return xaugm.get_distr_logpdf(); });
-		}
-}
-
-/// Restore user values if applicable.
-void Individual::user_reset()
-{
-	for (auto &pair : augm_map_)
-		pair.second.user_reset();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////  Individual::Group Rate : constructor  //////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Individual::GroupRate::GroupRate(const std::string &name,
-								 const std::vector<observ_dbl_ptr> &ptrs)
+Individual::GroupRate_::GroupRate_(const std::string &name,
+								   const std::vector<observ_dbl_ptr> &ptrs)
 {
 	if (!tools::is_na(name))
 	{
@@ -232,7 +257,7 @@ void Household::set_obs_loglike(double x)
 {
 	if (tools::is_na(x))
 		throw std::runtime_error(
-			"Household \"" + house_id_ + "\" observation loglikelihood returned NaN.");
+			"Observation loglikelihood returned NaN " + err_name() + ".");
 
 	obs_buffer_ = obs_loglike_;
 	obs_loglike_ = x;

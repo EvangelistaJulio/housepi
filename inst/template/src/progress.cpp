@@ -69,10 +69,11 @@ namespace progress
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Implementation class for progress bar.
+    ///
+    /// -----
     /// Ref :
     /// OTHMAN EL HAMMOUCHI, April 15, 2024
     /// "Fancy thread safe progress bar in R for compiled code"
-    /// -----
     /// https://othmanelhammouchi.com/posts/r-parallel-progress/
     class Bar::Impl
     {

@@ -21,18 +21,18 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define DEFINE_RCPP_IMPORT_METHOD(ImplSection, r_to_map)                 \
-    void MCMC::Impl::ImplSection::rcpp_import(SEXP input)                \
-    {                                                                    \
-        try                                                              \
-        {                                                                \
-            build(tools::r_to_map(input));                               \
-        }                                                                \
-        catch (const std::exception &e)                                  \
-        {                                                                \
-            tools::error("While initializing " + section_name_ + ":\n" + \
-                         std::string(e.what()));                         \
-        }                                                                \
+#define DEFINE_RCPP_IMPORT_METHOD(ImplSection, r_to_map)            \
+    void MCMC::Impl::ImplSection::rcpp_import(SEXP input)           \
+    {                                                               \
+        try                                                         \
+        {                                                           \
+            build(tools::r_to_map(input));                          \
+        }                                                           \
+        catch (const std::exception &e)                             \
+        {                                                           \
+            tools::error("While reading " + section_name_ + ":\n" + \
+                         std::string(e.what()));                    \
+        }                                                           \
     }
 
 #define DEFINE_RCPP_IMPORT_LIST_METHOD(ImplSection) DEFINE_RCPP_IMPORT_METHOD(ImplSection, rlist_to_map)
@@ -55,7 +55,7 @@ void MCMC::Impl::DataWide::rcpp_import_multiplicity(SEXP input)
     }
     catch (const std::exception &e)
     {
-        tools::error("While initializing multiplicity:\n" +
+        tools::error("While reading multiplicity:\n" +
                      std::string(e.what()));
     }
 }
@@ -71,7 +71,7 @@ void MCMC::Impl::Augmented::rcpp_import(SEXP input)
     }
     catch (const std::exception &e)
     {
-        tools::error("While initializing " + section_name_ + ":\n" +
+        tools::error("While reading " + section_name_ + ":\n" +
                      std::string(e.what()));
     }
 }
@@ -149,8 +149,8 @@ Rcpp::DataFrame MCMC::Impl::Parameter::rcpp_export() const
                                  _["prior"] = std::move(V_prior),
                                  _["arg_key"] = std::move(V_arg_name),
                                  _["arg_val"] = std::move(V_arg_value),
-                                 _["min"] = std::move(V_min),
-                                 _["max"] = std::move(V_max),
+                                 _[HSP_PARAM_MIN] = std::move(V_min),
+                                 _[HSP_PARAM_MAX] = std::move(V_max),
                                  _["rule"] = std::move(V_rule),
                                  _["scale"] = std::move(V_rule_scale));
     }
@@ -365,7 +365,7 @@ Rcpp::DataFrame MCMC::Impl::DataWide::rcpp_summarise_cases() const
 ////////////////////////////  MCMC : Impl : export house size report  /////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Export current data configurations to R DataFrame. 
+/// Export current data configurations to R DataFrame.
 Rcpp::DataFrame MCMC::Impl::DataWide::rcpp_summarise_house_sizes() const
 {
     using namespace Rcpp;
@@ -439,7 +439,7 @@ Rcpp::NumericMatrix MCMC::Impl::rcpp_export_draws() const
         if (smpl_full_loglike_.empty())
             throw std::length_error("No draws to export were found.");
 
-        //----- Collect the column names -----//
+        // cllect the column names
         str_vec headers = {"loglikelihood"};
 
         headers += param.list_sample;
@@ -453,7 +453,7 @@ Rcpp::NumericMatrix MCMC::Impl::rcpp_export_draws() const
         // multiple chains
         headers.push_back(HSP_CHAIN_COL);
 
-        //----- NumericMatrix with draws -----//
+        // matrix with draws
         NumericMatrix output(setup.n_chains * setup.c_sample_size,
                              headers.size());
         size_t col = 0;
@@ -802,25 +802,25 @@ Rcpp::List MCMC::Impl::rcpp_export_house_snapshot(const std::string &house_id) c
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #else
-#define DEFINE_READ_METHOD(ImplSection, read_csv)                        \
-    void MCMC::Impl::ImplSection::read(const std::string &f)             \
-    {                                                                    \
-        try                                                              \
-        {                                                                \
-            build(tools::read_csv(f));                                   \
-        }                                                                \
-        catch (const std::exception &e)                                  \
-        {                                                                \
-            tools::error("While initializing " + section_name_ + ":\n" + \
-                         std::string(e.what()));                         \
-        }                                                                \
+#define DEFINE_READ_METHOD(ImplSection, csv_object)                 \
+    void MCMC::Impl::ImplSection::read(const std::string &f)        \
+    {                                                               \
+        try                                                         \
+        {                                                           \
+            build(tools::read::csv_object(f));                      \
+        }                                                           \
+        catch (const std::exception &e)                             \
+        {                                                           \
+            tools::error("While reading " + section_name_ + ":\n" + \
+                         std::string(e.what()));                    \
+        }                                                           \
     }
 
-#define DEFINE_READ_LIST_METHOD(ImplSection) DEFINE_READ_METHOD(ImplSection, read_csv_list)
+#define DEFINE_READ_LIST_METHOD(ImplSection) DEFINE_READ_METHOD(ImplSection, csv_list)
 DEFINE_READ_LIST_METHOD(Setup)
 DEFINE_READ_LIST_METHOD(InfecProfile)
 
-#define DEFINE_READ_TABLE_METHOD(ImplSection) DEFINE_READ_METHOD(ImplSection, read_csv_table)
+#define DEFINE_READ_TABLE_METHOD(ImplSection) DEFINE_READ_METHOD(ImplSection, csv_table)
 DEFINE_READ_TABLE_METHOD(Parameter);
 DEFINE_READ_TABLE_METHOD(DataWide);
 DEFINE_READ_TABLE_METHOD(DataLong);
@@ -831,12 +831,12 @@ void MCMC::Impl::DataWide::read_multiplicity(const std::string &f)
 {
     try
     {
-        const dict_str_vec deftable = tools::read_csv_table(f);
+        const dict_str_vec deftable = tools::read::csv_table(f);
         build_multiplicity(deftable);
     }
     catch (const std::exception &e)
     {
-        tools::error("While initializing multiplicity:\n" +
+        tools::error("While reading multiplicity:\n" +
                      std::string(e.what()));
     }
 }
@@ -847,12 +847,12 @@ void MCMC::Impl::Augmented::read(const std::string &f)
     try
     {
         // UPDATE: deftable should not be stored internally in this format
-        deftable = tools::read_csv_table(f);
+        deftable = tools::read::csv_table(f);
         build();
     }
     catch (const std::exception &e)
     {
-        tools::error("While initializing " + section_name_ + ":\n" +
+        tools::error("While reading " + section_name_ + ":\n" +
                      std::string(e.what()));
     }
 }
@@ -968,42 +968,6 @@ void MCMC::Impl::Parameter::show() const
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  MCMC : show parameter results  //////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Show the results of the paramters.
-void MCMC::Impl::Parameter::show_results() const
-{
-    std::cout << "name" << HSP_DELIM << "value" << HSP_DELIM << "value_sd";
-    for (size_t k = 2; k < file_headers.size(); ++k)
-        std::cout << HSP_DELIM << file_headers[k];
-    std::cout << "\n";
-
-    for (const std::string &p : list_sample)
-    {
-        const Variable &this_param = dictionary_.find(p)->second;
-        const std::pair<double, double> stats = tools::compute_stats(smpl_values.find(p)->second);
-
-        std::cout << p
-                  << HSP_DELIM << stats.first
-                  << HSP_DELIM << std::sqrt(stats.second)
-                  << HSP_DELIM << tools::str::format(this_param.is_constant())
-                  << HSP_DELIM << tools::str::format(this_param.is_discrete())
-                  << HSP_DELIM << this_param.distr_name()
-                  << HSP_DELIM << this_param.distr_str_arg_names()
-                  << HSP_DELIM << this_param.distr_str_arg_values()
-                  << HSP_DELIM << this_param.str_min()
-                  << HSP_DELIM << this_param.str_max()
-                  << HSP_DELIM << this_param.prop_name()
-                  << HSP_DELIM << this_param.prop_str_scale()
-                  << "\n";
-    }
-    std::cout << std::endl;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  MCMC : print infer state  /////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1018,7 +982,7 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
 
         if (inferstate_ofstream.is_open())
         {
-            //----- HEADERS -----//
+            // Headers
             // header loglikelihood
             inferstate_ofstream << "iteration" << HSP_DELIM << "loglikelihood";
 
@@ -1026,7 +990,7 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
             for (const std::string &p : param.list_sample)
                 inferstate_ofstream << HSP_DELIM << p;
 
-            // augmented variable of id trace
+            // header augmented variable of id trace
             if (augm.is_any_draw())
                 for (size_t k = 0; k < augm.smpl_individuals.size(); ++k)
                     for (const std::string &a : augm.list_draws)
@@ -1035,8 +999,7 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
             // header chain
             inferstate_ofstream << HSP_DELIM << HSP_CHAIN_COL << std::endl;
 
-            //----- VALUES -----//
-
+            // Values
             for (size_t c = 0; c < setup.n_chains; ++c)
                 for (size_t k = 0; k < setup.c_sample_size; k++)
                 {
@@ -1111,8 +1074,8 @@ void MCMC::Impl::DataWide::print_update(Household &house)
         for (const Individual &member : house)
         {
             aux_ofstream_ << member.id()
-                                  << HSP_DELIM << house.house_id()
-                                  << HSP_DELIM << member.status();
+                          << HSP_DELIM << house.house_id()
+                          << HSP_DELIM << member.status();
             for (const std::string &d : headers_)
                 aux_ofstream_ << HSP_DELIM << member.data(d);
 

@@ -72,7 +72,7 @@ void Distribution::init_trunc_helper_()
 
     switch (which_valid_case_())
     {
-    case 1: //----- lower range truncation -----//
+    case 1: // Lower Range Truncation
         switch (discr_type)
         {
         case HSP_DISCR_DEFINED: // discrete defined
@@ -101,7 +101,7 @@ void Distribution::init_trunc_helper_()
         }
         break;
 
-    case 2: //----- upper range truncation -----//
+    case 2: // Upper Range Truncation
         shift_ = &Distribution::do_shift_dummy_;
         switch (discr_type)
         {
@@ -127,7 +127,7 @@ void Distribution::init_trunc_helper_()
         }
         break;
 
-    case 3: //----- both sides truncation -----//
+    case 3: // Both Sides Truncation
         switch (discr_type)
         {
         case HSP_DISCR_DEFINED: // discrete defined
@@ -156,7 +156,7 @@ void Distribution::init_trunc_helper_()
         }
         break;
 
-    default: //----- no truncation (case 0) -----//
+    default: // No Truncation (case 0) 
         trunc_ = &Distribution::do_trunc_dummy_;
         logtrunc_ = &Distribution::do_logtrunc_dummy_;
         shift_ = &Distribution::do_shift_dummy_;
@@ -751,27 +751,25 @@ REGISTER_HOUSEPI_DISTRIBUTION(DiscreteDistrRegistry, Geometric_Distribution)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/*
-The infectivity profile is considered equal to the distribution
-of the Time from Onset of Symptoms to Transmission 't_ost':
->	t_ost = <time infection infectee> - <time onset infector>
-Its distribution is modeled as a skew-logistic distribution (generalized logistic type I),
-where the pre-symptomatic values are rescaled as a function of the incubation time 'incub'.
-The arguments to provide are :
-  0) "shape";
-  1) "loc";
-  2) "scale";
-  3) "mean_incub" (mean incubation period);
-  4) "incub_period" (individual incubation period);
-Note: symtoms can occur after infection (pre-symptomatic transmission),
-i. e. 't_ost' can be negative.
-----
-Ref:
-----
-Ferretti L, Ledda A, Wymant C, Zhao L, Ledda V, Abeler-Dorner L, et al.
-The timing of COVID-19 transmission.
-medRxiv; 2020. p. 2020.09.04.20188516. doi:10.1101/2020.09.04.20188516
- */
+/// The infectivity profile is considered equal to the distribution
+/// of the Time from Onset of Symptoms to Transmission 't_ost':
+/// >	t_ost = <time infection infectee> - <time onset infector>
+/// Its distribution is modeled as a skew-logistic distribution (generalized logistic type I),
+/// where the pre-symptomatic values are rescaled as a function of the incubation time 'incub'.
+/// The arguments to provide are :
+///   0) "shape";
+///   1) "loc";
+///   2) "scale";
+///   3) "mean_incub" (mean incubation period);
+///   4) "incub_period" (individual incubation period);
+/// Note: symtoms can occur after infection (pre-symptomatic transmission),
+/// i. e. 't_ost' can be negative.
+/// 
+/// Ref:
+/// ----
+/// Ferretti L, Ledda A, Wymant C, Zhao L, Ledda V, Abeler-Dorner L, et al.
+/// The timing of COVID-19 transmission.
+/// medRxiv; 2020. p. 2020.09.04.20188516. doi:10.1101/2020.09.04.20188516
 class InfecProfile_Ferretti20 : public Distribution
 {
 public:
@@ -833,3 +831,22 @@ protected:
 
 IMPLEMENT_HOUSEPI_DISTRIBUTION_REGISTRY(InfecProfileRegistry)
 REGISTER_HOUSEPI_DISTRIBUTION(InfecProfileRegistry, InfecProfile_Ferretti20)
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////  Attribute : init function from name  /////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Initialize attribute as function given the function name.
+void Attribute::init_function(const std::string &s, bool is_primitive)
+{
+    init_function(compose_func_registries(
+        s, "function", is_primitive,
+        {&UserFuncRegistry::inst(),
+         &TranscendentalRegistry::inst(),
+         &ArithmeticRegistry::inst(),
+         &ContinuosDistrRegistry::inst(),
+         &DiscreteDistrRegistry::inst(),
+         &InfecProfileRegistry::inst()}));
+}

@@ -25,16 +25,32 @@
 double Attribute::do_get_from_function_() const { return pFunc_->evaluate(); }
 
 /// Wheter it's constant.
+/// NOTE: by construction convention, a pointer to constant must initialize to scalar instead.
+/// NOTE: if empty, then it's constant by convention.
 bool Attribute::is_constant() const
 {
     if (is_scalar())
         return true;
     else if (is_pointer())
-        return false; // FIXME: this is not necessarily true...
+        return false;
     else if (is_function())
         return pFunc_->is_constant();
-    else             // is_empty()
-        return true; // in case it's empty, treat as constant
+    else // NOTE: is_empty(), constant by convention
+        return true;
+}
+
+/// Wheter it's discrete.
+/// NOTE: if empty, then it's discrete by convention.
+bool Attribute::is_discrete() const
+{
+    if (is_scalar())
+        return value_ == std::floor(value_);
+    else if (is_pointer())
+        return false; // FIXME: here it becomes problematic..
+    else if (is_function())
+        return pFunc_->is_discrete();
+    else
+        return true;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -57,31 +73,44 @@ void Attribute::init_scalar(double x)
 void Attribute::init_pointer(observ_dbl_ptr y)
 {
     if (y == nullptr)
-        init_scalar(HSP_NA_DOUBLE);
-    else
-    {
-        get_ = &Attribute::do_get_from_pointer_;
-        get_ptr_ = &Attribute::do_get_pointer_from_pointer_;
-        do_set_ = &Attribute::do_set_error_;
-        value_ = HSP_NA_DOUBLE;
-        ptr_to_value_ = y;
-        pFunc_ = nullptr;
-    }
+        throw std::invalid_argument(
+            "Attempt to assign empty pointer to " + err_name() + ".");
+
+    get_ = &Attribute::do_get_from_pointer_;
+    get_ptr_ = &Attribute::do_get_pointer_from_pointer_;
+    do_set_ = &Attribute::do_set_error_;
+    value_ = HSP_NA_DOUBLE;
+    ptr_to_value_ = y;
+    pFunc_ = nullptr;
 }
 /// Initialize attribute as function.
 void Attribute::init_function(const std::shared_ptr<Function> f)
 {
+    // check the function is different from the current one
     if (f == nullptr)
-        init_scalar(HSP_NA_DOUBLE);
-    else
-    {
-        get_ = &Attribute::do_get_from_function_;
-        get_ptr_ = &Attribute::do_get_pointer_error_;
-        do_set_ = &Attribute::do_set_error_;
-        value_ = HSP_NA_DOUBLE;
-        ptr_to_value_ = nullptr;
-        pFunc_ = f;
-    }
+        throw std::invalid_argument(
+            "Attempt to assign empty function to " + err_name() + ".");
+    else if (f == pFunc_)
+        throw std::invalid_argument(
+            "Cannot assign " + err_name() + " as its own argument.");
+
+    get_ = &Attribute::do_get_from_function_;
+    get_ptr_ = &Attribute::do_get_pointer_error_;
+    do_set_ = &Attribute::do_set_error_;
+    value_ = HSP_NA_DOUBLE;
+    ptr_to_value_ = nullptr;
+    pFunc_ = f;
+}
+
+/// Transfer from other Attribute.
+void Attribute::transfer(const Attribute &other)
+{
+    if (other.is_constant())
+        init_scalar(other.get());
+    else if (other.is_pointer())
+        init_pointer(other.get_ptr());
+    else if (other.is_function())
+        init_function(other.get_function());
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -128,11 +157,11 @@ Function::Function(const std::string &name,
             args_[c++].set(arg_value[k]);
         }
 
-    //----- assign domain -----//
+    // Assign Domain
     // NOTE: at the moment only place where to set open ranges
     // NOTE: not sure if setting pointer to smtg exiting the domain I still have control
-    init_range_scalar_(HSP_PARAM_MIN, domain_min);
-    init_range_scalar_(HSP_PARAM_MAX, domain_max);
+    init_attr(HSP_PARAM_MIN, domain_min);
+    init_attr(HSP_PARAM_MAX, domain_max);
     init_range_helper_(is_min_open, is_max_open);
 }
 
@@ -160,7 +189,7 @@ unsigned short Function::assert_arg(const std::string &arg_name) const
         tools::str::find_closest(arg_name, options, HSP_MIN_STR_DIST));
 }
 
-/// Wheter all arguments are actually constants.
+/// Wheter return value is always constant.
 bool Function::is_constant() const
 {
     // check arguments
@@ -168,7 +197,8 @@ bool Function::is_constant() const
         if (!args_[i].is_constant())
             return false;
     // check X value
-    if (!args_[n_args_].is_constant())
+    // NOTE: a function with undefined 'x' is not constant
+    if (args_[n_args_].is_empty() || !args_[n_args_].is_constant())
         return false;
     // check range
     if (!range_min_.is_constant())
@@ -186,10 +216,7 @@ bool Function::is_constant() const
 /// Returns the case of the range of validity.
 unsigned short Function::which_valid_case_() const
 {
-    // note: bounded if not pointing internally to NA
-    const bool is_lower_bound = !range_min_.is_empty();
-    const bool is_upper_bound = !range_max_.is_empty();
-    return is_lower_bound + 2 * is_upper_bound;
+    return (!range_min_.is_empty()) + 2 * (!range_max_.is_empty());
 }
 
 /// Ensure uniform range (min, max) match argument (min, max).
@@ -229,13 +256,13 @@ void Function::init_range_helper_(bool is_min_open, bool is_max_open)
 {
     switch (which_valid_case_())
     {
-    case 0: //----- unbounded -----//
+    case 0: // Unbounded
         is_below_ = &Function::do_is_below_never_;
         is_above_ = &Function::do_is_above_never_;
         is_valid_ = &Function::do_is_valid_always_;
         break;
 
-    case 1: //----- lower bound -----//
+    case 1: // Lower Bound
         is_above_ = &Function::do_is_above_never_;
         if (is_min_open)
         {
@@ -249,7 +276,7 @@ void Function::init_range_helper_(bool is_min_open, bool is_max_open)
         }
         break;
 
-    case 2: //----- upper bound -----//
+    case 2: // Upper Bound
         is_below_ = &Function::do_is_below_never_;
         if (is_max_open)
         {
@@ -263,7 +290,7 @@ void Function::init_range_helper_(bool is_min_open, bool is_max_open)
         }
         break;
 
-    case 3: //----- within an interval -----//
+    case 3: // Within an Interval
         if ((is_min_open) && (is_max_open))
         {
             is_below_ = &Function::do_is_below_open_min_;
@@ -336,97 +363,29 @@ std::string Function::str_range() const
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Assign scalar argument or range value.
-void Function::init_attr(const std::string &what, double x)
+/// Assign attribute to function.
+void Function::init_attr(const std::string &what, const Attribute &attr)
 {
+    // assert that function attribute are implicitely callable
+    if (attr.is_function())
+        if (!attr.get_function()->is_implicit_callable())
+            throw std::invalid_argument(
+                "Undefined attribute \"" + what + "\" for " + err_name() + "    .");
+
+    // distinguish between range keys and standard keys
     if (HSP_RANGE_KEYS % what)
-        init_range_scalar_(what, x);
-    else
-        init_arg_scalar_(what, x);
-}
-/// Assign pointer argument or range value.
-void Function::init_attr(const std::string &what, observ_dbl_ptr y)
-{
-    // check the function is different from the current one
-    if (y == nullptr)
-        throw std::invalid_argument(
-            "Invalid pointer argument \"" + what + "\" for " + err_name() + ".");
-
-    if (HSP_RANGE_KEYS % what)
-        init_range_pointer_(what, y);
-    else
-        init_arg_pointer_(what, y);
-}
-/// Assign fucntion argument or range value.
-void Function::init_attr(const std::string &what, std::shared_ptr<Function> f)
-{
-    // check the function is different from the current one
-    if (f == nullptr)
-        throw std::invalid_argument(
-            "Invalid " + err_type_ + " argument \"" + what + "\" for " + err_name() + ".");
-    else if (f.get() == this)
-        throw std::invalid_argument(
-            "Cannot assign " + err_type_ + " " + err_name() + " to its own argument \"" + what + "\".");
-
-    if (HSP_RANGE_KEYS % what)
-        init_range_function_(what, f);
-    else
-        init_arg_function_(what, f);
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////  Function : Range  /////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Assign scalar range.
-void Function::init_range_scalar_(const std::string &range_name, double x)
-{
-    helper_init_range_assert_(range_name);
-
-    // NOTE: init_scalar(NA) is admitted, but not for range values
-    if (!tools::is_na(x))
     {
-        if (name_ == "unif")
-            args_[assert_arg(range_name)].init_scalar(x);
-        else if (range_name == HSP_PARAM_MIN)
-            range_min_.init_scalar(x);
-        else // range_name == HSP_PARAM_MAX
-            range_max_.init_scalar(x);
+        if (attr.is_empty())
+            ; // skip NA for range
+        else if (name_ == "unif")
+            args_[assert_arg(what)].transfer(attr);
+        else if (what == HSP_PARAM_MIN)
+            range_min_.transfer(attr);
+        else // what == HSP_PARAM_MAX
+            range_max_.transfer(attr);
     }
-}
-
-/// Assign pointer range.
-void Function::init_range_pointer_(const std::string &range_name, observ_dbl_ptr y)
-{
-    helper_init_range_assert_(range_name);
-
-    if (name_ == "unif")
-        args_[assert_arg(range_name)].init_pointer(y);
-    else if (range_name == HSP_PARAM_MIN)
-        range_min_.init_pointer(y);
-    else // range_name == HSP_PARAM_MAX
-        range_max_.init_pointer(y);
-}
-
-/// Assign function range.
-void Function::init_range_function_(const std::string &range_name, const std::shared_ptr<Function> f)
-{
-    helper_init_range_assert_(range_name);
-
-    if (name_ == "unif")
-        args_[assert_arg(range_name)].init_function(f);
-    else if (range_name == HSP_PARAM_MIN)
-        range_min_.init_function(f);
-    else // range_name == HSP_PARAM_MAX
-        range_max_.init_function(f);
-}
-
-/// Assert that range name is valid.
-void Function::helper_init_range_assert_(const std::string &range_name) const
-{
-    if (!(HSP_RANGE_KEYS % range_name))
-        throw std::invalid_argument(
-            "Unknown range name \"" + range_name + "\" for " + err_name() + ".");
+    else
+        args_[assert_arg(what)].transfer(attr);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -610,6 +569,7 @@ public:
     Minus_Function() : Function("minus", {}, {}) {}
 
     void init_truncation() override final {}
+    bool is_discrete() const override final { args_[n_args_].is_discrete(); }
 
 protected:
     double raw_function_(double x) const override final { return -x; }
@@ -623,13 +583,28 @@ protected:
                                                                                         \
         void init_truncation() override final {}                                        \
                                                                                         \
+        bool is_discrete() const override final                                         \
+        {                                                                               \
+            args_[0].is_discrete() && args_[n_args_].is_discrete();                     \
+        }                                                                               \
+                                                                                        \
     protected:                                                                          \
         double raw_function_(double x) const override final { return x Symbol arg(0); } \
     };
 DEFINE_ARITHMETIC_FUNCTION(Addition_Function, "add", +, 0.)
 DEFINE_ARITHMETIC_FUNCTION(Subtraction_Function, "sub", -, 0.)
 DEFINE_ARITHMETIC_FUNCTION(Multiplication_Function, "mult", *, 1.)
-DEFINE_ARITHMETIC_FUNCTION(Division_Function, "div", /, 1.)
+
+class Division_Function : public Function
+{
+public:
+    Division_Function() : Function("div", {"x2"}, {1}) {}
+
+    void init_truncation() override final {}
+
+protected:
+    double raw_function_(double x) const override final { return x / arg(0); }
+};
 
 /// Power Function.
 class Power_Function : public Function
@@ -639,6 +614,11 @@ public:
         : Function("pow", {"x2"}, {1.}) {}
 
     void init_truncation() override final { init_range_helper_(); }
+
+    bool is_discrete() const override final
+    {
+        Function::is_discrete() || (args_[0].is_discrete() && args_[n_args_].is_discrete());
+    }
 
 protected:
     double raw_function_(double x) const override final { return std::pow(x, arg(0)); }

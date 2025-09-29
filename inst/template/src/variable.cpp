@@ -200,7 +200,7 @@ std::shared_ptr<Proposer> proposer_switch(const std::string &rule_name = HSP_NA_
 /// Initialize variable.
 void Variable::init(const std::string &name, double value,
                     bool is_const, bool is_discr,
-                    const std::string &func_name, bool is_primitive)
+                    const DefinitionParser &parser, bool is_primitive)
 {
     this->name_ = name;
     this->is_constant_ = is_const;
@@ -210,39 +210,22 @@ void Variable::init(const std::string &name, double value,
     user_value_ = HSP_NA_DOUBLE;
     evaluate_ = &Variable::do_eval_error_;
 
-    if (tools::is_na(func_name)) // initialization as a numeric variable
+    if (parser.is_na()) // initialization as a numeric variable
     {
         init_scalar(value);
         user_value_ = value;
     }
-    else if (func_name == HSP_IDENTITY_FUNC) // initialization as a pointer
+    else if (parser.is_terminal()) // initialization as a pointer
     {
         init_pointer(&user_value_); // NOTE: this is just a placeholder
     }
     else // initialization as a function
     {
+        init_function(parser.root.func, is_primitive);
         evaluate_ = &Variable::do_eval_func_;
-        init_function(compose_func_registries(
-            func_name, "function", is_primitive,
-            {&UserFuncRegistry::inst(),
-             &TranscendentalRegistry::inst(),
-             &ArithmeticRegistry::inst(),
-             &ContinuosDistrRegistry::inst(),
-             &DiscreteDistrRegistry::inst(),
-             &InfecProfileRegistry::inst()}));
     }
 }
 
-/// Assign an attribute to function.
-void Variable::init_func_attr(const std::string &key, const Attribute &x)
-{
-    if (x.is_scalar())
-        pFunc_->init_attr(key, x.get());
-    else if (x.is_pointer())
-        pFunc_->init_attr(key, x.get_ptr());
-    else if (x.is_function())
-        pFunc_->init_attr(key, x.get_function());
-}
 /// Initialize function reshaping.
 /// Drop function if it's constant when reshaping.
 void Variable::init_func_reshaping()
@@ -270,24 +253,21 @@ void Variable::init_func_reshaping()
 }
 
 /// Assign distribution with constant arguments.
-void Variable::init_distr(const std::string &distr_name)
+void Variable::init_distr(const DefinitionParser &expr)
 {
     pDistr_ = compose_distr_registries(
-        distr_name, "distribution",
+        expr.root.func, 
+        "distribution",
         {&ContinuosDistrRegistry::inst(),
          &DiscreteDistrRegistry::inst()});
 }
 /// Assign an attribute to distribution.
-void Variable::init_distr_attr(const std::string &key, const Attribute &x)
+void Variable::init_distr_attr(const std::string &key, const Attribute &attr)
 {
     if (key == HSP_PARAM_LOC)
-        init_location_arg(x);
-    else if (x.is_scalar())
-        pDistr_->init_attr(key, x.get());
-    else if (x.is_pointer())
-        pDistr_->init_attr(key, x.get_ptr());
-    else if (x.is_function())
-        pDistr_->init_attr(key, x.get_function());
+        init_location_arg(attr);
+    else
+        pDistr_->init_attr(key, attr);
 }
 /// Initialize distribution reshaping.
 void Variable::init_distr_reshaping()
@@ -401,22 +381,4 @@ void Variable::helper_init_sample_proposer_()
 
     is_valid_move_ = &Variable::do_is_valid_move_sample_;
     get_move_logratio_ = &Variable::do_move_logratio_sample_;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  Variable : getter  /////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Explore the chain of dependencies to check if variable depends already on other one.
-/// UPDATE: should also explore the case of functions.
-bool Variable::is_chain_dependency(const Variable &other) const
-{
-    if (name() == other.name())
-        return true;
-    else if (!(is_function() || other.is_function()))
-        return get_ptr() == other.get_ptr();
-    else
-        return false;
 }

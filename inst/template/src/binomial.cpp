@@ -198,17 +198,15 @@ namespace bax
 		}
 	}
 
-	// -----------------------------------------------------------------------------------------------------------//
-	// -----------------------------------------------------------------------------------------------------------//
-	// -----------------------------------------------------------------------------------------------------------//
-	// -----------------------------------------------------------------------------------------------------------//
-	// -----------------------------------------------------------------------------------------------------------//
-	// -----------------------------------------------------------------------------------------------------------//
+	///////////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////  Recursive Span Combinations  /////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////////
 
 	/// Algorithm to generate all possible combinations of N elements in k positions, plus the N - k complements.
 	/// The elements are indexed from 1 to N.
-    ///
-	/// ----
+	///
 	/// Ref: (modified from)
 	/// ----
 	/// Daniel Angel Jimenez
@@ -217,8 +215,8 @@ namespace bax
 	{
 		if (loop > k - 1)
 		{
-			//----- complement of the combination -----//
-			// Mark elements present in the list
+			// complement of the combination
+			// mark elements present in the list
 			std::vector<bool> missing(N, true);
 			for (ushort i = 0; i < k; ++i)
 				missing[current[i]] = false;
@@ -228,7 +226,7 @@ namespace bax
 				if (missing[i])
 					current[loop++] = i;
 
-			//----- append current combination & complement to results -----//
+			// append current combination & complement to results
 			results.push_back(current);
 		}
 		else
@@ -296,12 +294,11 @@ namespace bax
 		Combinations_LookupTable.shrink_to_fit();
 	}
 
-	// -----------------------------------------------------------------------------------------------------------//
-	// -----------------------------------------------------------------------------------------------------------//
-	// -----------------------------------------------------------------------------------------------------------//
-	// -----------------------------------------------------------------------------------------------------------//
-	// -----------------------------------------------------------------------------------------------------------//
-	// -----------------------------------------------------------------------------------------------------------//
+	///////////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////  Recursive Escape Patterns Functions  /////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////////
 
 	/// Recursive function to generate all possible escape patterns for a given number of seropositives N_star.
 	void recursive_escape_patterns_function(ushort N_star, ushort N, ushort_vec access_matrix, EscapePattern &father, std::vector<EscapePattern> &results)
@@ -329,22 +326,17 @@ namespace bax
 					// note: always at least 1 infector (community)
 					ushort_vec sub_access_matrix((k + 1) * k);
 
-					ushort inf = 0; // community (inf=0) always at row=0
-					for (ushort row = 0; row <= k; ++row)
-					{
+					// community (inf=0) always at row=0
+					for (ushort row = 0, inf = 0; row <= k; inf = 1 + indidx[row++])
 						for (ushort col = 0; col < k; ++col)
 							sub_access_matrix[col + k * row] = access_matrix[indidx[col] + N * inf];
-						inf = indidx[row] + 1; // next infector
-					}
 
 					recursive_escape_patterns_function(N_star, k, sub_access_matrix, new_child, results);
 					sub_access_matrix.clear();
 				}
 
-				// attach pattern index
-				father.add_pattern(results.size());
-				// store pattern
-				results.push_back(new_child);
+				father.add_pattern(results.size()); // attach pattern index
+				results.push_back(new_child);		// store pattern
 			}
 	}
 
@@ -379,17 +371,16 @@ namespace bax
 											   EscapePatterns_LookupTable[N_star]);
 		}
 
-		//----- deallocate memory of combinations lookup table -----//
+		// deallocate memory of combinations lookup table
 		if (clean_combinations)
 			clear_combinations_lookuptable();
 	}
 
-	// -----------------------------------------------------------------------------------------------------------//
-	// -----------------------------------------------------------------------------------------------------------//
-	// -----------------------------------------------------------------------------------------------------------//
-	// -----------------------------------------------------------------------------------------------------------//
-	// -----------------------------------------------------------------------------------------------------------//
-	// -----------------------------------------------------------------------------------------------------------//
+	///////////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////  Heterogeneous Chain-Binomisl LogLikelihood  /////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////////
 
 	/// Heterogeneous chain binomial loglikelihood for ordered probabilities (seropositives, seronegatives).
 	/// @param N_star n. of seropositves
@@ -401,26 +392,25 @@ namespace bax
 
 	{
 		ushort hh_size = commu_esc_proba.size();
-		double loglikelihood = 0.;
+		double ll = 0.;
 
-		//----- seronegatives contribution -----//
+		// (-) seronegatives contribution
 		for (ushort i = N_star; i < hh_size; ++i)
 		{
 			// community : i escaped from community
-			loglikelihood += std::log(commu_esc_proba[i]);
+			ll += std::log(commu_esc_proba[i]);
 
 			// person-to-person : i escaped from k
 			for (ushort k = 0; k < N_star; ++k)
-				loglikelihood += std::log(p2p_esc_proba[k][i]);
+				ll += std::log(p2p_esc_proba[k][i]);
 		}
 
-		if (N_star == 1)
-		{ //----- single seropositive contribution -----//
-			loglikelihood += std::log(1. - commu_esc_proba[0]);
-		}
-		else if (N_star > 1)
-		{ //----- seropositives contribution -----//
+		// (+) seropositives contribution
+		if (N_star == 1) // single case
+			ll += std::log(1. - commu_esc_proba[0]);
 
+		else if (N_star > 1) // multiple cases
+		{
 			// flatten sub-matrix with only seropositives
 			dbl_vec escape_matrix((N_star + 1) * N_star, 1.);
 
@@ -434,10 +424,10 @@ namespace bax
 					escape_matrix[N_star * (k + 1) + i] = p2p_esc_proba[k][i];
 			}
 
-			loglikelihood += std::log(ChainBinomial_LookupTable[N_star].likelihood(escape_matrix));
+			ll += std::log(ChainBinomial_LookupTable[N_star].likelihood(escape_matrix));
 		}
 
-		return loglikelihood;
+		return ll;
 	}
 }
 
@@ -456,7 +446,7 @@ void auxiliary_chain_binomial_debugger(ushort max_num, ushort limit)
 		std::cerr << "\n<<" << N_star << ">>"
 					<< " n.terms = " << ((n_patterns == 0) ? 0 : 1 + (n_patterns - 1) / 2) << std::endl;
 
-		//----- elements for the escape matrix -----//
+		// elements for the escape matrix //
 		dbl_vec commu_esc_proba(N_star);
 		for (ushort i = 0; i < N_star; ++i)
 		{

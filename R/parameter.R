@@ -31,66 +31,23 @@ HousepiParameter <- R6::R6Class(
       helper_clone(value)
     },
 
-    # helper for value definition
-    .helper_value = function(opts, value) {
-      parsed <- extract_func_(value)
-      if (.is_func(parsed$func)) stop_h(
-        "Calls in the parameter definitions are not supported."
-      )
-      else if (isTRUE(parsed$at != "S")) stop_h(sprintf(
-        "Value of parameter must be a scalar."
-      ))
-      # note: parameter's innitial values must be numeric
-      utils::modifyList(opts, list(value = as.numeric(parsed$val)))
-    },
-
-    # helper for constant definition
-    .helper_constant = function(opts) {
-      # check that a value is provided
-      if (is.na(opts$value)) stop_h(
-        sprintf("Missing value for constant parameter \"%s\".", opts$name)
-      )
-      is_discr <- opts$value == as.integer(opts$value)
-      utils::modifyList(opts, list(discr = is_discr))
-    },
-
-    # helper to associate prior definition
+    # Helper to associate prior definition.
     .helper_prior = function(opts, prior, args) {
       # prior to tell if constant
       if (is.na(prior)) stop_h(
         sprintf("No prior provided for parameter \"%s\".", opts$name)
       )
-      opts <- utils::modifyList(opts, list(const = FALSE, prior = prior))
 
       if (!is.null(args)) {
         # prior arguments
-        parsed <- data.frame(t(sapply(args, extract_func_)))
-        if (any(.is_func(parsed$func))) stop_h(
-          "Calls in the prior definition of parameters are not supported."
-        )
-        opts <- utils::modifyList(
-          opts, list(arg_key = type_join_(row.names(parsed)),
-                     arg_val = type_join_(parsed$val))
-        )
+        parsed <- DefEncoder$new(as.list(args))
+        prior <- parsed$combine_to_call(prior)
       }
-      opts
+
+      utils::modifyList(opts, list(const = FALSE, prior = prior))
     },
 
-    # helper to associate lower and upper bounds
-    .helper_bounds = function(opts, min, max) {
-      # check minimum and maximum
-      parse_min <- extract_func_(min)
-      parse_max <- extract_func_(max)
-      if (.is_func(parse_min$func)) stop_h(
-        "Calls in the minimum definition parameters are not supported.",
-      )
-      if (.is_func(parse_max$func)) stop_h(
-        "Calls in the maximum definition of parameters are not supported.",
-      )
-      utils::modifyList(opts, list(min = parse_min$val, max = parse_max$val))
-    },
-
-    # hlper with mcmc proposer rule
+    # Helper with mcmc proposer rule.
     .helper_proposer = function(opts, discr, rule, scale) {
       opts$discr <- isTRUE(discr)
 
@@ -209,20 +166,23 @@ HousepiParameter <- R6::R6Class(
       opts <- list(name = name,
                    const = TRUE, discr = FALSE,
                    value = NA, prior = NA,
-                   arg_key = NA, arg_val = NA,
                    min = NA, max = NA,
                    rule = NA, scale = NA)
 
       # assume it's a constant if a prior is not provided
       if (is.na(const)) const <- is.na(prior)
       # parse initial value
-      opts <- private$.helper_value(opts, value)
+      opts$value <- DefEncoder$new(value)$x
 
       if (isTRUE(const)) {
-        opts <- private$.helper_constant(opts)
+        # check that a value is provided
+        if (is.na(opts$value)) stop_h(
+          sprintf("Missing value for constant parameter \"%s\".", opts$name)
+        )
       } else {
         opts <- private$.helper_prior(opts, prior, args)
-        opts <- private$.helper_bounds(opts, min, max)
+        opts$min <- DefEncoder$new(min)$x
+        opts$max <- DefEncoder$new(max)$x
         opts <- private$.helper_proposer(opts, discr, rule, scale)
       }
 
@@ -255,6 +215,7 @@ HousepiParameter <- R6::R6Class(
       for (i in seq_along(definitions)){
         this_def <- as.list(definitions[[i]])
         def_name <- names(definitions[i])
+
         if (length(names(this_def)) == 0) {
           if (length(this_def) == 1) names(this_def) <- "value"
           else stop_h(
@@ -314,32 +275,6 @@ HousepiParameter <- R6::R6Class(
       }
 
       invisible(self)
-    },
-
-    #' @description
-    #' List containing current parameter definitions.
-    #'
-    #' @return `list`
-    as_list = function() {
-      output <- list()
-      for (r in seq_len(dim(self$defs)[1])) {
-        this_par <- as.list(self$defs[r, ])
-        this_par$name <- NULL
-
-        if (!is.na(this_par$arg_val)) {
-          args <- stringr::str_split(this_par$arg_val, "/")[[1]]
-          names(args) <- stringr::str_split(this_par$arg_key, "/")[[1]]
-          this_par$args <- args
-        }
-        this_par$arg_key <- NULL
-        this_par$arg_val <- NULL
-
-        this_par[is.na(this_par)] <- NULL
-
-        output[[self$defs[r, ]$name]] <- this_par
-      }
-
-      output
     },
 
     #' @description

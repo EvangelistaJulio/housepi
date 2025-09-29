@@ -4,11 +4,15 @@ SRC := ../template/src
 TMPL := ../models
 
 # If MODEL is not provided, set blank as default
-MODEL ?= ${SRC}
+MODEL ?= $(SRC)
+
+# Standard fields used for debugging
+# exported by .__enclos_env__$private$.export_to_cpp_standalone
+STD_IN := -A augm.csv -D data_wide.csv -L data_long.csv -G group_rates.csv -I infec.csv -P param.csv -S setup.csv
 
 # Lost of source files with exclusions
-EXCL_FILES := ${SRC}/export_bindings.cpp ${SRC}/RcppExports.cpp ${SRC}/model.cpp
-SOURCES := main.cpp $(MODEL)/model.cpp $(filter-out $(EXCL_FILES), $(wildcard ${SRC}/*.cpp))
+EXCL_FILES := $(SRC)/export_bindings.cpp $(SRC)/RcppExports.cpp $(SRC)/model.cpp
+SOURCES := main.cpp $(MODEL)/model.cpp $(filter-out $(EXCL_FILES), $(wildcard $(SRC)/*.cpp))
 
 # Object files to build (automatic)
 OBJECTS := $(SOURCES:.cpp=.o)
@@ -68,14 +72,22 @@ main.o: main.cpp
 
 # To clean objects
 clean:
-	$(RM) $(EXECUTABLE) main.o ${SRC}/*.{o,so,exe} ${TMPL}/*/*.{o,so,exe} ${TMPL}/*/.refer 
+	$(RM) $(EXECUTABLE) main.o $(SRC)/*.{o,so,exe} $(TMPL)/*/*.{o,so,exe} $(TMPL)/*/.refer 
 
 # Run make in debugging mode using standard housepi files
 debug:
 	$(MAKE) DEBUG=1
 
-# Test inference using fiels exported by .__enclos_env__$private$.export_to_cpp_standalone
+# Test inference 
 test-infer:
-	$(EXECUTABLE) -A augm.csv -D data_wide.csv -L data_long.csv -G group_rates.csv -I infec.csv -P param.csv -S setup.csv --infer -O out.csv
+	$(EXECUTABLE) $(STD_IN) --infer -O out.csv
+
+# Test loglikelihood evaluation 
+test-loglike:
+	$(EXECUTABLE) $(STD_IN) --loglikelihood -O out.csv
+
+# Test simulation 
+test-simulate:
+	$(EXECUTABLE) $(STD_IN) --simulate -O out.csv
 
 .PHONY: all clean debug

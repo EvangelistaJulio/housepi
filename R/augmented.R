@@ -10,29 +10,6 @@
 # augmented.R
 #
 
-extract_at_values <- function(defs, at) {
-  # tuples (value, type) amongst augmented definitions
-  at_tuples <- list(c("farg_val", "farg_at"),
-                    c("value", "value_at"), c("arg_val", "arg_at"),
-                    c("min", "min_at"), c("max", "max_at"))
-
-  output <- c()
-  if (length(defs) > 0) {
-    for (tuple in at_tuples) {
-      xdef <- defs[tuple]
-      for (i in seq_len(dim(xdef)[[1]])) {
-        rw <- unlist(xdef[i, ])
-        if (!any(is.na(rw))) {
-          arg2par <- data.frame(val = strsplit(rw[1], "/")[[1]],
-                                at = strsplit(rw[2], "/")[[1]])
-          output <- c(output, arg2par[arg2par$at == at, "val"])
-        }
-      }
-    }
-  }
-  unique(output)
-}
-
 #' @title Housepi Augmented
 #' @description
 #' Help with augmented variable definitions of model Rcpp object.
@@ -71,13 +48,9 @@ HousepiAugmented <- R6::R6Class(
 
     # parse augmented implicit function
     .helper_implicit_func = function(opts, expr) {
-      parsed <- extract_func_(expr)
-      if (!is.na(parsed$func)) {
-        if (is.na(opts$func)) opts <- utils::modifyList(
-          opts,
-          list(func = parsed$func, farg_key = parsed$key,
-               farg_val = parsed$val, farg_at  = parsed$at)
-        )
+      parsed <- DefEncoder$new(expr)
+      if (!is.na(parsed$x)) {
+        if (is.na(opts$func)) opts$func <- parsed$x
         else stop_h(
           sprintf("Mutiple function definitions for \"%s\".", opts$name),
           "Use either 'expr' or 'func' argument."
@@ -97,17 +70,8 @@ HousepiAugmented <- R6::R6Class(
     .helper_function_arguments = function(opts, func_args) {
 
       if (!is.null(func_args)) {
-        parsed <- data.frame(t(sapply(func_args, extract_func_)))
-        if (any(.is_func(parsed$func))) stop_h(sprintf(
-          "Calls in the function arguments definition of augmented \"%s\" 
-          are not supported.", opts$name
-        ))
-
-        opts <- utils::modifyList(
-          opts, list(farg_key = type_join_(row.names(parsed)),
-                     farg_val = type_join_(parsed$val),
-                     farg_at = type_join_(parsed$at))
-        )
+        parsed <- DefEncoder$new(as.list(func_args))
+        opts$func <- parsed$combine_to_call(opts$func)
       }
       opts
     },
@@ -116,22 +80,12 @@ HousepiAugmented <- R6::R6Class(
     .helper_model_args = function(opts, args) {
       if (is.na(opts$model))  {
         msg <- sprintf("Spare arguments for augmented \"%s\".", opts$name)
-        if ((!is.na(opts$func)) && is.na(opts$farg_key)) {
-          msg <- c(msg, "Did you mean 'func_args'?")
-        }
+        if (!is.na(opts$func)) msg <- c(msg, "Did you mean 'func_args'?")
         stop_h(msg)
 
       } else if (!is.null(args)) {
-        parsed <- data.frame(t(sapply(args, extract_func_)))
-        if (any(.is_func(parsed$func))) stop_h(sprintf(
-          "Calls in the model arguments definition of augmented \"%s\" 
-          are not supported.", opts$name
-        ))
-        opts <- utils::modifyList(
-          opts, list(arg_key = type_join_(row.names(parsed)),
-                     arg_val = type_join_(parsed$val),
-                     arg_at = type_join_(parsed$at))
-        )
+        parsed <- DefEncoder$new(as.list(args))
+        opts$model <- parsed$combine_to_call(opts$model)
       }
 
       opts
@@ -139,20 +93,13 @@ HousepiAugmented <- R6::R6Class(
 
     # process constant or random
     .helper_const_vs_rand = function(opts, value) {
-      parsed <- extract_func_(value)
-
-      if (.is_func(parsed$func)) stop_h(sprintf(
-        "Calls in the initial value definition of augmented \"%s\" 
-        are not supported.", opts$name
-      ))
+      parsed <- DefEncoder$new(value)
 
       if (isTRUE(opts$const)) {
-        if (is.na(parsed$val)) stop_h(sprintf(
+        if (is.na(parsed$x)) stop_h(sprintf(
           "Missing initial value for constant augmented \"%s\".", opts$name
         ))
-        opts <- utils::modifyList(
-          opts, list(value = parsed$val, value_at = parsed$at)
-        )
+        opts$value <- parsed$x
 
       } else if (isTRUE(opts$init_rand)) {
         if (is.na(opts$model)) stop_h(sprintf(
@@ -160,14 +107,11 @@ HousepiAugmented <- R6::R6Class(
           opts$name
         ))
 
+      } else if (is.na(parsed$x)) {
+        if (!is.na(opts$model)) opts$init_rand <- TRUE
+        # else: constant NA augmented variable
       } else {
-        if (is.na(parsed$val)) {
-          if (!is.na(opts$model)) opts$init_rand <- TRUE
-          # else: constant NA augmented variable
-        } else {
-          opts <- utils::modifyList(opts, list(value = parsed$val,
-                                               value_at = parsed$at))
-        }
+        opts$value <- parsed$x
       }
 
       opts
@@ -189,94 +133,26 @@ HousepiAugmented <- R6::R6Class(
       opts
     },
 
-    # interpret user choice for bounds
-    .helper_bounds = function(opts, min, max) {
-      parse_min <- extract_func_(min)
-      parse_max <- extract_func_(max)
-      # UPDATE: develop smarter bounds
-      if (.is_func(parse_min$func)) stop_h(sprintf(
-        "Call in the minimum definition of augmented \"%s\" is not supported.",
-        opts$name
-      ))
-      if (.is_func(parse_max$func)) stop_h(sprintf(
-        "Call in the maximum definition of augmented \"%s\" is not supported.",
-        opts$name
-      ))
-
-      utils::modifyList(opts, list(min = parse_min$val, min_at = parse_min$at,
-                                   max = parse_max$val, max_at = parse_max$at))
+    # Extract value of given type from augmented definitions.
+    .extract_types = function(type) {
+      # columns with types amongst augmented definitions
+      output <- c()
+      if (length(self$defs) > 0) {
+        for (typed_col in c("value", "func", "model", "min", "max")) {
+          for (x in self$defs[[typed_col]]) {
+            output <- c(output, walk_encoded_func(x, type))
+          }
+        }
+      }
+      unique(output)
     },
 
     # Definitions required by augmented variable definitions
     # according to the "at" key of the definition (A, D, P).
-    .find_def_required = function(at) {
-      required <- extract_at_values(self$defs, at)
+    .find_def_required = function(type) {
+      required <- private$.extract_types(type)
       # add source name
       set_source_name_(required, "augmented")
-    },
-
-    # recursive explore of the dependencies tree to point out errors
-    .explore_dependencies = function(origin, root_def, status_set) {
-      root_name <- unique(root_def$name) # name of the closest root definition
-      root_status <- root_def$status     # status of the closest root definition
-      is_generic <- is.na(root_status)   # whether generic or status-specific
-
-      if (any(is_generic) && length(root_status) > 1) {
-        # assert for unique definition
-        stop_h(
-          sprintf("Equivocal definitions for augmented \"%s\"", root_name),
-          ifelse(is.all(is_generic),
-                 "Provide a single generic definitions.",
-                 "Provide a generic or a status-specific definition.")
-        )
-
-      } else if (length(root_status) == 1) {
-        # check all depedendecies
-        for (r in extract_at_values(root_def, "A")) {
-          # check for nested definitions
-          if (r == origin) {
-            stop_h(sprintf(
-              "Found nested definitions for \"%s\" and \"%s\". Please correct.",
-              origin, r
-            ))
-          }
-
-          branch_def <- subset(self$defs, name == r)
-          branch_status <- branch_def$status   # status of the branch definition
-
-          # check if at a status-specific dead end
-          is_dead_end <- FALSE
-          if (length(branch_status) == 1) if (!is.na(branch_status)) {
-            # if branch is generic, than it's not a dead end
-            is_dead_end <- !identical(branch_status, root_status)
-          }
-
-          if (is_dead_end) {
-            stop_h(sprintf(
-              "Missing definition for augmented \"%s\"%s.",
-              r, ifelse(is_generic, "", sprintf(" status %s", root_status))
-            ))
-          } else {
-            if (!is_generic) status_set <- root_status
-            private$.explore_dependencies(origin, branch_def, status_set)
-          }
-        }
-
-      } else {
-        # explore dependencies of status-specific, if present
-        miss_status <- setdiff(status_set, root_status)
-        if (length(miss_status) == 0) {
-          for (i in seq_len(dim(root_def)[1])) {
-            private$.explore_dependencies(origin, root_def[i, ], status_set)
-          }
-        } else {
-          stop_h(
-            sprintf("Missing definition for augmented \"%s\"", root_name),
-            sprintf("Provide a definition for status %s.",
-                    paste(miss_status, collapse = ", "))
-          )
-        }
-      }
     }
   ),
 
@@ -405,14 +281,11 @@ HousepiAugmented <- R6::R6Class(
         const = isTRUE(const),
         discr = isTRUE(discr),
         func = as.character(func),
-        fcumul = FALSE, # UPDATE: to be implemented
-        farg_key = NA, farg_val = NA, farg_at = NA,
-        value = NA, value_at = NA,
+        fcumul = FALSE,
+        value = NA,
         init_rand = isTRUE(init_rand),
         model = as.character(model),
-        arg_key = NA, arg_val = NA, arg_at = NA,
-        min = NA, min_at = NA,
-        max = NA, max_at = NA,
+        min = NA,
         rule = as.character(rule),
         scale = NA
       )
@@ -433,7 +306,8 @@ HousepiAugmented <- R6::R6Class(
         opts <- private$.helper_proposer_rule(opts, scale)
       }
 
-      opts <- private$.helper_bounds(opts, min, max)
+      opts$min <- DefEncoder$new(min)$x
+      opts$max <- DefEncoder$new(max)$x
       self$defs <- rbind(self$defs, data.frame(opts))
 
       invisible(self)
@@ -556,13 +430,6 @@ HousepiAugmented <- R6::R6Class(
 
       # stop if augmented variables are missing
       template_missing_stop(required, defined, "augmented")
-
-      # explore status-specific definitions tree of dependencies
-      if ("model" %in% names(required)) {
-        for (r in required[["model"]]) private$.explore_dependencies(
-          r, subset(self$defs, name == r), status_set
-        )
-      }
 
       invisible(self)
     }

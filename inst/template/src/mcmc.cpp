@@ -15,10 +15,9 @@
 #include "mcmc_impl.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  MCMC : implementations  ///////////////////////////////////////
+////////////////////////////////////  MCMC : constructor  /////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-//===== CONSTRUCTOR =====//
 MCMC::MCMC()
     : pImpl_(std::make_unique<Impl>(
           [this]()
@@ -33,102 +32,40 @@ MCMC::MCMC()
           { this->update_cache_dependecies(h, i); })) {}
 MCMC::~MCMC() = default;
 
-//===== DATA =====//
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////  MCMC : data  /////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
 unsigned long MCMC::get_report_indiv(const std::string &s) const { return pImpl_->dataset.get_report_indiv(s); }
 unsigned long MCMC::get_report_house(const std::string &s) const { return pImpl_->dataset.get_report_house(s); }
 std::pair<unsigned short, unsigned long> MCMC::get_report_hh_size(const std::string &s) const { return pImpl_->dataset.get_report_hh_size(s); }
 
-//===== RAND NUMBER GENERATOR =====//
-double MCMC::uniform() { return pImpl_->setup.unif(); }
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////  MCMC : parameters  //////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
-//===== PARAMETERS =====//
 double MCMC::param(const std::string &p) const { return pImpl_->param.get(p); }
 observ_dbl_ptr MCMC::param_pointer(const std::string &p) const { return pImpl_->param.get_ptr(p); }
 
-//===== AUGMENTED VARIABLES =====//
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////  MCMC : augmented variables  /////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
 void MCMC::init_all_augm(Individual &member) { pImpl_->augm.init_all(member); }
 void MCMC::clear_all_augm(Individual &member) { pImpl_->augm.clear_all(member); }
 
-//===== CACHE ATTRIBUTES =====//
+/////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////  MCMC : cache attributes  ///////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
 void MCMC::cache_house_integer_vector(const std::string &e) { pImpl_->dataset.init_cache_integer_vector(e); }
 void MCMC::cache_house_size_t_vector(const std::string &e) { pImpl_->dataset.init_cache_size_t_vector(e); }
 void MCMC::cache_house_double_vector(const std::string &e) { pImpl_->dataset.init_cache_double_vector(e); }
 void MCMC::cache_house_double_matrix(const std::string &e) { pImpl_->dataset.init_cache_double_matrix(e); }
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
-/// Build all group rates and contact rates and set rate per group.
-void MCMC::build_all_rates()
-{
-    try
-    {
-        for (Household &house : pImpl_->dataset)
-            init_contact_rates_(house);
-    }
-    catch (const std::exception &e)
-    {
-        tools::error("While initializing contact rates:\n" +
-                     std::string(e.what()));
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  MCMC : set rate per contact  ///////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Set contact rate according to user assignement.
-void MCMC::init_contact_rates_(Household &house)
-{
-    try
-    {
-        // loop over all couples
-        for (const Individual &member_k : house)     // from : member_k
-            for (const Individual &member_i : house) // -> to : member_i
-                if (member_k != member_i)
-                {
-                    _pair_contact_rate = HSP_NA_STRING;
-                    init_household_contact_rates(house, member_k, member_i);
-
-                    if (!tools::is_na(_pair_contact_rate))
-                    {
-                        observ_dbl_ptr y = &HSP_REFER_VALUE; // default reference rate
-
-                        if (_pair_contact_rate == HSP_MISSING_RATE)
-                            throw std::invalid_argument(
-                                "Missing contact rate for individuals \"" +
-                                member_k.id() + "\" and \"" + member_i.id() +
-                                "\" (household \"" + house.house_id() + "\").");
-
-                        else if (_pair_contact_rate != HSP_REFERENCE)
-                            // parameter rate
-                            y = pImpl_->param.get_ptr(_pair_contact_rate);
-
-                        house.init_contact_rates(static_cast<size_t>(member_k), static_cast<size_t>(member_i), y);
-                    }
-                }
-    }
-    catch (const std::exception &e)
-    {
-        tools::error(e.what());
-    }
-}
-
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////  MCMC : infectivity profile  //////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
-
 
 void MCMC::init_infec_profile_template(dict_str x) { pImpl_->infec_profile.init_template(x); }
 double MCMC::infec_profile_inst(const Individual &i, double t) const { return pImpl_->infec_profile.inst(&i, t); }
@@ -138,6 +75,7 @@ double MCMC::infec_profile_cumul(const Individual &i, double t) const { return p
 ////////////////////////////////////  MCMC : general methods  /////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+double MCMC::uniform() { return pImpl_->setup.unif(); }
 double MCMC::evaluate() { return pImpl_->evaluate(); }
 void MCMC::infer() { pImpl_->infer(); }
 void MCMC::clear_memory() { pImpl_->clear_memory(); }
@@ -206,7 +144,54 @@ void MCMC::read_infec_profile(const std::string &f) { pImpl_->infec_profile.read
 
 void MCMC::show_setup() const { pImpl_->setup.show(); }
 void MCMC::show_all_params() const { pImpl_->param.show(); }
-void MCMC::show_results() const { pImpl_->param.show_results(); }
 void MCMC::show_summary() const { pImpl_->dataset.show_summary(); }
 void MCMC::print_infer_state(const std::string &f) const { pImpl_->print_infer_state(f); }
 #endif
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  MCMC : contact rates ///////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Build all group rates and contact rates and set rate per group. // UPDATE
+void MCMC::build_all_rates()
+{
+    try
+    {
+        for (Household &house : pImpl_->dataset)
+            init_contact_rates_(house);
+    }
+    catch (const std::exception &e)
+    {
+        tools::error("While initializing contact rates:\n" +
+                     std::string(e.what()));
+    }
+}
+
+/// Set contact rate according to user assignement. // UPDATE
+void MCMC::init_contact_rates_(Household &house)
+{
+    // loop over all couples
+    for (const Individual &member_k : house)     // from : member_k
+        for (const Individual &member_i : house) // -> to : member_i
+            if (member_k != member_i)
+            {
+                _pair_contact_rate = HSP_NA_STRING;
+                init_household_contact_rates(house, member_k, member_i);
+
+                if (!tools::is_na(_pair_contact_rate))
+                {
+                    observ_dbl_ptr y = &HSP_REFER_VALUE; // default reference rate
+
+                    if (_pair_contact_rate == HSP_MISSING_RATE)
+                        throw std::invalid_argument(
+                            "Missing contact rate for individuals \"" +
+                            member_k.id() + "\" and \"" + member_i.id() +
+                            "\" (" + house.err_name() + ").");
+
+                    else if (_pair_contact_rate != HSP_REFERENCE)
+                        y = pImpl_->param.get_ptr(_pair_contact_rate); // parameter rate
+
+                    house.init_contact_rates(static_cast<size_t>(member_k), static_cast<size_t>(member_i), y);
+                }
+            }
+}

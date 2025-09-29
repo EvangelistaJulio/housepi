@@ -27,14 +27,11 @@
 // Header to the user defined model provided by the Make command
 #include "model.h"
 
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------------------------------------//
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////  standalone print decorator  //////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Display a decorator for a section (if VERBOSE) */
+/// Display a decorator for a section (if VERBOSE).
 void print_decorator(const std::string &title, bool verbose = true, const std::string &txt = HSP_NA_STRING)
 {
     const unsigned decor_left = 3;   // left size of decorator
@@ -54,10 +51,12 @@ void print_decorator(const std::string &title, bool verbose = true, const std::s
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  * *** * MAIN FUNCTION * *** *  /////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Main function for the standalone version of 'housepi'. */
+/// Main function for the standalone version of 'housepi'.
 int main(int argc, char *argv[])
 {
     using tools::str::tolow;
@@ -84,7 +83,7 @@ int main(int argc, char *argv[])
 
     bool verbose = false; // verbose option
 
-    //=====Test if some commands were supplied=====//
+    // check any command was supplied
     if (argc < 2)
     {
         std::ostringstream oss;
@@ -93,7 +92,7 @@ int main(int argc, char *argv[])
         tools::error(oss.str());
     }
 
-    //=====Parse commands and options=====//
+    // parse commands and options
     while (carg_i < argc)
     {
         carg = std::string(argv[carg_i]); // update command line argument
@@ -101,8 +100,7 @@ int main(int argc, char *argv[])
         // Command line argument asking for help
         if (toup(carg) == "-H" || tolow(carg) == "--help")
         {
-            // Show the manual using man and installed manpages
-            // UPDATE : produce a manual
+            // Show the manual using man and installed manpages // UPDATE : produce a manual
             std::ostringstream oss;
             oss << "No Software Manual is available, refer to the Rcpp tutorials.\n"
                 << "Apologies for the inconvenience.";
@@ -154,15 +152,10 @@ int main(int argc, char *argv[])
         else
             tools::error("Unrecognized option `" + carg + "`.");
 
-        // Move to the next command line argument
-        carg_i++;
+        carg_i++; // move to the next command line argument
     }
 
-    //==========================//
-    //===== INITIALIZATION =====//
-    //==========================//
-
-    //----- Check for command -----//
+    // check for command
     bool is_evidence = (num_rungs > 0); // power posterior option
     int aux = is_loglikelihood + is_infer + is_simulate + is_evidence;
     if (aux == 0)
@@ -171,95 +164,68 @@ int main(int argc, char *argv[])
         tools::error(
             "Incompatible commands: choose one between --loglikelihood, --infer, --simulate or --evidence.");
 
-    //----- Initialize the custom Model object -----//
+    //////////////////////////////
+    //////  INITIALIZATION  //////
+    //////////////////////////////
+
+    // initialize the user model object
     std::unique_ptr<Model> user_model = std::make_unique<Model>();
     user_model->init_advanced_setup();
 
-    // 1) Load Data
-    user_model->read_data_wide(data_wide_file);
-    user_model->read_data_long(data_long_file);
-
-    // 2) Load Setup
-    user_model->read_setup(setup_file);
-
-    // 3) Load Parameters
-    user_model->read_param(param_file);
-
-    // 4) Load Setup
-    user_model->read_infec_profile(infec_profile_file);
-
-    // 5) Load Group & Contact Rates
-    user_model->read_group_rates(group_rates_file);
-    user_model->build_all_rates(); // temporary for contact rates
-
-    // 6) Load Augmented Variables
-    user_model->read_augm(augm_file);
-
-    // 7) Load Multiplicities
-    user_model->read_multiplicity(multiplicity_file);
+    user_model->read_data_wide(data_wide_file);         // 1) Load Data Wide
+    user_model->read_data_long(data_long_file);         // ... and Data Long
+    user_model->read_setup(setup_file);                 // 2) Load Setup
+    user_model->read_param(param_file);                 // 3) Load Parameters
+    user_model->read_infec_profile(infec_profile_file); // 4) Load Infectivity Profile
+    user_model->read_group_rates(group_rates_file);     // 5) Load Group Rates
+    user_model->build_all_rates();                      // ... and Contact Rates (temporary)
+    user_model->read_augm(augm_file);                   // 6) Load Augmented Variables
+    user_model->read_multiplicity(multiplicity_file);   // 7) Load Multiplicities
 
     if (verbose)
     {
-        //----- SETUP -----//
         print_decorator("Setup");
         user_model->show_setup();
-
-        //----- PARAMETERS -----//
         print_decorator("Parameters");
         user_model->show_all_params();
-
-        //----- DATABASE -----//
         print_decorator("Dataset");
         user_model->show_summary();
-
         // UPDATE: missing show_augm
     }
 
-    //=====================//
-    //===== EXECUTION =====//
-    //=====================//
+    //////////////////////////////
+    ////////  EXECUTION  /////////
+    //////////////////////////////
 
-    if (is_loglikelihood)
-    { //===== Evaluate Loglikelihood =====//
+    if (is_loglikelihood) // evaluate loglikelihood
+    {
         print_decorator("Loglikelihood", verbose);
         std::cout << user_model->evaluate() << std::endl;
     }
-
-    else if (is_infer)
-    { //===== Inference =====//
+    else if (is_infer) // perform inference
+    {
         if (!tools::is_na(output_file))
         {
             print_decorator("Inference", verbose);
             user_model->infer();
-
-            print_decorator("Inference::infer state", verbose,
-                            "# save: " + output_file);
+            print_decorator("Inference::infer state", verbose, "# save: " + output_file);
             user_model->print_infer_state(output_file);
-
-            if (verbose)
-            {
-                print_decorator("Inference::results");
-                user_model->show_results();
-            }
         }
         else
             tools::error("Missing output file for inference.");
     }
-
-    else if (is_simulate)
-    { //===== Simulation Study =====//
+    else if (is_simulate) // simulation an outbreak
+    {
         if (!tools::is_na(output_file))
         {
-            print_decorator("Simulation", verbose,
-                            "# save: " + output_file);
+            print_decorator("Simulation", verbose, "# save: " + output_file);
             user_model->print_simulated_data_wide(output_file);
         }
         else
             tools::error("Missing output file for simulation.");
     }
-
-    else if (is_evidence)
-    { //===== Evidence =====//
+    else if (is_evidence) // estimate evidence
+    {
         print_decorator("Evidence", verbose);
         user_model->print_evidence("adaptive", num_rungs);
     }
