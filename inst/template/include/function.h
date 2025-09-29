@@ -84,6 +84,8 @@ public:
 
     /// Wheter it's constant.
     virtual bool is_constant() const;
+    /// Wheter it's discrete.
+    virtual bool is_discrete() const;
 
     /// Wheter it's a scalar.
     bool is_scalar() const { return !tools::is_na(value_); }
@@ -186,10 +188,10 @@ public:
 
     /// Wheter it is empty.
     bool is_empty() const { return tools::is_na(name()); }
-    /// Wheter it is discretized.
-    bool is_discrete() const { return function_ != &Function::raw_function_; }
-    /// Wheter all arguments are actually constants.
+    /// Wheter return value is always constant.
     bool is_constant() const;
+    /// Wheter return value is always discrete.
+    virtual bool is_discrete() const { return function_ != &Function::raw_function_; }
     /// Wheter it can be called implicitely, i. e. if a 'x' has been linked.
     bool is_implicit_callable() const { return !args_[n_args_].is_empty(); }
 

@@ -149,8 +149,8 @@ Rcpp::DataFrame MCMC::Impl::Parameter::rcpp_export() const
                                  _["prior"] = std::move(V_prior),
                                  _["arg_key"] = std::move(V_arg_name),
                                  _["arg_val"] = std::move(V_arg_value),
-                                 _["min"] = std::move(V_min),
-                                 _["max"] = std::move(V_max),
+                                 _[HSP_PARAM_MIN] = std::move(V_min),
+                                 _[HSP_PARAM_MAX] = std::move(V_max),
                                  _["rule"] = std::move(V_rule),
                                  _["scale"] = std::move(V_rule_scale));
     }
@@ -802,12 +802,12 @@ Rcpp::List MCMC::Impl::rcpp_export_house_snapshot(const std::string &house_id) c
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #else
-#define DEFINE_READ_METHOD(ImplSection, read_csv)                   \
+#define DEFINE_READ_METHOD(ImplSection, csv_object)                 \
     void MCMC::Impl::ImplSection::read(const std::string &f)        \
     {                                                               \
         try                                                         \
         {                                                           \
-            build(tools::read_csv(f));                              \
+            build(tools::read::csv_object(f));                      \
         }                                                           \
         catch (const std::exception &e)                             \
         {                                                           \
@@ -816,11 +816,11 @@ Rcpp::List MCMC::Impl::rcpp_export_house_snapshot(const std::string &house_id) c
         }                                                           \
     }
 
-#define DEFINE_READ_LIST_METHOD(ImplSection) DEFINE_READ_METHOD(ImplSection, read_csv_list)
+#define DEFINE_READ_LIST_METHOD(ImplSection) DEFINE_READ_METHOD(ImplSection, csv_list)
 DEFINE_READ_LIST_METHOD(Setup)
 DEFINE_READ_LIST_METHOD(InfecProfile)
 
-#define DEFINE_READ_TABLE_METHOD(ImplSection) DEFINE_READ_METHOD(ImplSection, read_csv_table)
+#define DEFINE_READ_TABLE_METHOD(ImplSection) DEFINE_READ_METHOD(ImplSection, csv_table)
 DEFINE_READ_TABLE_METHOD(Parameter);
 DEFINE_READ_TABLE_METHOD(DataWide);
 DEFINE_READ_TABLE_METHOD(DataLong);
@@ -831,7 +831,7 @@ void MCMC::Impl::DataWide::read_multiplicity(const std::string &f)
 {
     try
     {
-        const dict_str_vec deftable = tools::read_csv_table(f);
+        const dict_str_vec deftable = tools::read::csv_table(f);
         build_multiplicity(deftable);
     }
     catch (const std::exception &e)
@@ -847,7 +847,7 @@ void MCMC::Impl::Augmented::read(const std::string &f)
     try
     {
         // UPDATE: deftable should not be stored internally in this format
-        deftable = tools::read_csv_table(f);
+        deftable = tools::read::csv_table(f);
         build();
     }
     catch (const std::exception &e)
@@ -961,42 +961,6 @@ void MCMC::Impl::Parameter::show() const
                   << HSP_DELIM << aux.prop_str_scale()
                   << HSP_DELIM << aux.str_min()
                   << HSP_DELIM << aux.str_max()
-                  << "\n";
-    }
-    std::cout << std::endl;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  MCMC : show parameter results  //////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Show the results of the paramters.
-void MCMC::Impl::Parameter::show_results() const
-{
-    std::cout << "name" << HSP_DELIM << "value" << HSP_DELIM << "value_sd";
-    for (size_t k = 2; k < file_headers.size(); ++k)
-        std::cout << HSP_DELIM << file_headers[k];
-    std::cout << "\n";
-
-    for (const std::string &p : list_sample)
-    {
-        const Variable &this_param = dictionary_.find(p)->second;
-        const std::pair<double, double> stats = tools::compute_stats(smpl_values.find(p)->second);
-
-        std::cout << p
-                  << HSP_DELIM << stats.first
-                  << HSP_DELIM << std::sqrt(stats.second)
-                  << HSP_DELIM << tools::str::format(this_param.is_constant())
-                  << HSP_DELIM << tools::str::format(this_param.is_discrete())
-                  << HSP_DELIM << this_param.distr_name()
-                  << HSP_DELIM << this_param.distr_str_arg_names()
-                  << HSP_DELIM << this_param.distr_str_arg_values()
-                  << HSP_DELIM << this_param.str_min()
-                  << HSP_DELIM << this_param.str_max()
-                  << HSP_DELIM << this_param.prop_name()
-                  << HSP_DELIM << this_param.prop_str_scale()
                   << "\n";
     }
     std::cout << std::endl;

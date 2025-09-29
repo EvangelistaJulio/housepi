@@ -150,8 +150,8 @@ void MCMC::Impl::InfecProfile::build(const dict_str &deflist)
 	if (!deflist.empty())
 	{
 		// check entries
-		tools::check_for_unused_entries(
-			tools::headers_from_deflist(deflist), headers_);
+		tools::str::assert_unused_entries(
+			tools::read::list_headers(deflist), headers_);
 
 		// check if definition is generic or augmented
 		bool is_augm = DefinitionParser(deflist.at("func")).is_augm_depen() ||
@@ -265,8 +265,8 @@ void MCMC::Impl::InfecProfile::build_augmented_profile_(const dict_str &deflist)
 	const dict_str_vec matcher = {{"name", str_vec({HSP_PROFILE_INST, HSP_PROFILE_CUMUL})},
 								  {"func", str_vec(2, func_name)},
 								  {"fcumul", {"false", "true"}},
-								  {"min", str_vec(2, (is_discrete) ? "1|S" : "0|S")},
-								  {"max", str_vec(2, deflist.at("max"))}};
+								  {HSP_PARAM_MIN, str_vec(2, (is_discrete) ? "1|S" : "0|S")},
+								  {HSP_PARAM_MAX, str_vec(2, deflist.at(HSP_PARAM_MAX))}};
 
 	for (auto &pair : matcher)
 		augm_infec_profile_deflist_.at(pair.first) = pair.second;

@@ -52,19 +52,37 @@ public:
 				   bool is_prim,
 				   const DefinitionParser &model_name);
 
-	void set_augm_value(const std::string &a, double x) { safe_at(augm_map_, "augmented", a).set(x); }
+	void set_augm_value(const std::string &a, double x) { safe_at(augm_map_, a, "augmented").set(x); }
 	void clear_augm(const std::string &a) { augm_map_[a] = Variable(); }
+	void user_reset();
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////  AugmentedMap : getter  ///////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	double augm(const std::string &a) const { return safe_at(augm_map_, "augmented", a).get(); }
-	Variable &get_augm_variable(const std::string &a) { return safe_at(augm_map_, "augmented", a); }
-	const Variable &get_augm_variable(const std::string &a) const { return safe_at(augm_map_, "augmented", a); }
+	virtual std::string err_name() const { return ""; }
+	double augm(const std::string &a) const { return safe_at(augm_map_, a, "augmented").get(); }
+	Variable &get_augm_variable(const std::string &a) { return safe_at(augm_map_, a, "augmented"); }
+	const Variable &get_augm_variable(const std::string &a) const { return safe_at(augm_map_, a, "augmented"); }
 
-protected:
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	/////////////////////////////////  Individual : loglikelihood  ////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////
+
+	void init_augm_model_logratios(const u_dict<str_vec> &models_ordered);
+	double get_augm_model_loglike() const { return loglike_; }
+	double compute_and_set_augm_model_loglike();
+	double compute_and_set_augm_model_logratio(const std::string &a);
+	void recover_augm_model_loglike() { loglike_ = buffer_; };
+
+private:
 	u_dict<Variable> augm_map_ = {}; /// dictionary of augmented definitions
+	
+	double loglike_ = 0; // current augmented model loglikelihood
+	double buffer_ = 0;  // buffer augmented model loglikelihood
+	
+	// container for the logratio lists according to dependencies 
+	u_dict<std::vector<std::function<double()>>> model_logratios_ = {};
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -100,12 +118,12 @@ public:
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	const std::string &id() const { return id_; }
-	std::string err_name() const { return "individual \"" + id_ + "\""; }
+	std::string err_name() const override final { return "individual \"" + id_ + "\""; }
 	int status() const { return status_; }
 	bool is_infected_status() const { return HSP_IS_INFECTED(status_); }
 	bool is_healthy_status() const { return HSP_IS_HEALTHY(status_); }
 	bool is_missing_status() const { return HSP_IS_MISSING(status_); }
-	double data(const std::string &d) const { return safe_at(data_map_, "data", d); }
+	double data(const std::string &d) const { return safe_at(data_map_, d, "data"); }
 	const dbl_vec &datalong(const std::string &d) const
 	{
 		if (pdatalong_ == nullptr)
@@ -113,7 +131,7 @@ public:
 				"No datalong entries for " + err_name() + ".");
 		return pdatalong_->at(d);
 	}
-	double group_rate(const std::string &r) const { return safe_at(rate_map_, "group rate", r).get(); }
+	double group_rate(const std::string &r) const { return safe_at(rate_map_, r, "group rate").get(); }
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////  Individual : setter  ////////////////////////////////////
@@ -122,16 +140,6 @@ public:
 	void set_status(int s) { status_ = s; }
 	void init_pointer_to_datalong(u_dict<dbl_vec> *y) { pdatalong_ = y; }
 	void init_all_group_rates(const u_dict<std::vector<observ_dbl_ptr>> &ptrs);
-	void user_reset();
-
-	///////////////////////////////////////////////////////////////////////////////////////////////
-	/////////////////////////////////  Individual : loglikelihood  ////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////
-
-	void init_augm_model_logpdf(const std::unordered_map<int, str_vec> &status_map_model);
-	double get_augm_model_loglike() const { return augm_loglike_; }
-	double compute_and_set_augm_model_loglike();
-	void recover_augm_model_loglike() { augm_loglike_ = augm_buffer_; };
 
 private:
 	///////////////////////////////////////////////////////////////////////////////////////////////
@@ -167,10 +175,6 @@ private:
 	u_dict<GroupRate_> rate_map_ = {}; // group rates
 
 	u_dict<dbl_vec> *pdatalong_ = nullptr; // datalong to be associated
-
-	std::vector<std::function<double()>> augm_model_logpdfs_ = {};
-	double augm_loglike_ = 0; // current augmented model loglikelihood
-	double augm_buffer_ = 0;  // buffer augmented model loglikelihood
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -309,23 +313,23 @@ public:
 
 	// Cache integer vector
 	void init_cache_integer_vector(const std::string &e) { cache_int_vec_[e] = int_vec(size(), 0); }
-	int_vec &cache_integer_vector(const std::string &e) { return safe_at(cache_int_vec_, "cached object", e); }
-	const int_vec &cache_integer_vector(const std::string &e) const { return safe_at(cache_int_vec_, "cached object", e); }
+	int_vec &cache_integer_vector(const std::string &e) { return safe_at(cache_int_vec_, e, "cached object"); }
+	const int_vec &cache_integer_vector(const std::string &e) const { return safe_at(cache_int_vec_, e, "cached object"); }
 
 	// Cache size_t vector
 	void init_cache_size_t_vector(const std::string &e) { cache_size_t_vec_[e] = std::vector<size_t>(size(), 0); }
-	std::vector<size_t> &cache_size_t_vector(const std::string &e) { return safe_at(cache_size_t_vec_, "cached object", e); }
-	const std::vector<size_t> &cache_size_t_vector(const std::string &e) const { return safe_at(cache_size_t_vec_, "cached object", e); }
+	std::vector<size_t> &cache_size_t_vector(const std::string &e) { return safe_at(cache_size_t_vec_, e, "cached object"); }
+	const std::vector<size_t> &cache_size_t_vector(const std::string &e) const { return safe_at(cache_size_t_vec_, e, "cached object"); }
 
 	// Cached double vector
 	void init_cache_double_vector(const std::string &e) { cache_dbl_vec_[e] = dbl_vec(size(), 0.); }
-	dbl_vec &cache_double_vector(const std::string &e) { return safe_at(cache_dbl_vec_, "cached object", e); }
-	const dbl_vec &cache_double_vector(const std::string &e) const { return safe_at(cache_dbl_vec_, "cached object", e); }
+	dbl_vec &cache_double_vector(const std::string &e) { return safe_at(cache_dbl_vec_, e, "cached object"); }
+	const dbl_vec &cache_double_vector(const std::string &e) const { return safe_at(cache_dbl_vec_, e, "cached object"); }
 
 	// Cache double matrix
 	void init_cache_double_matrix(const std::string &e) { cache_dbl_mtx_[e] = matrix<double>(size(), dbl_vec(size(), 0.)); }
-	matrix<double> &cache_double_matrix(const std::string &e) { return safe_at(cache_dbl_mtx_, "cached object", e); }
-	const matrix<double> &cache_double_matrix(const std::string &e) const { return safe_at(cache_dbl_mtx_, "cached object", e); }
+	matrix<double> &cache_double_matrix(const std::string &e) { return safe_at(cache_dbl_mtx_, e, "cached object"); }
+	const matrix<double> &cache_double_matrix(const std::string &e) const { return safe_at(cache_dbl_mtx_, e, "cached object"); }
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	/////////////////////////////////  Household : loglikelihood  /////////////////////////////////

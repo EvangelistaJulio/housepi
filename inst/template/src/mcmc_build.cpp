@@ -20,16 +20,28 @@
 //////////////////////////////////  MCMC : Impl : Setup : build  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+/// Default seed for pseudo random number generator.
+std::int32_t default_setup_seed()
+{
+    const auto time_raw = std::chrono::steady_clock::now().time_since_epoch().count();
+    // ensure time_now is 64bit
+    const std::uint64_t time_now = static_cast<std::uint64_t>(time_raw);
+    // xor between upper and lower part of time stamp
+    const std::uint64_t mixed = time_now ^ (time_now >> 32);
+    // note: constrain to 32bit for compatibility with R (mask sign bit)
+    return static_cast<std::int32_t>(mixed & 0x7FFFFFFF);
+}
+
 void MCMC::Impl::Setup::build(const dict_str &deflist)
 {
     // default seed
-    seed = tools::default_setup_seed();
+    seed = default_setup_seed();
 
     if (!deflist.empty())
     {
         // check entries
-        str_vec headers = tools::headers_from_deflist(deflist);
-        tools::check_for_unused_entries(headers, file_headers);
+        const str_vec &headers = tools::read::list_headers(deflist);
+        tools::str::assert_unused_entries(headers, file_headers);
 
         // Random Initialization of Parameters
         if (deflist.count("progress") && (!tools::is_na(deflist.at("progress"))))
@@ -550,13 +562,13 @@ void MCMC::Impl::GroupRates::build(const dict_str_vec &deftable)
     if (!deftable.empty())
     {
         // check that tempalte headers are present
-        str_vec data_headers = tools::headers_from_deftable(deftable);
-        tools::check_for_missing_entries(data_headers, file_headers_);
+        str_vec data_headers = tools::read::table_headers(deftable);
+        tools::str::assert_missing_entries(data_headers, file_headers_);
 
         // remove template headers to keep only dataset
         data_headers = data_headers - file_headers_;
         // check that required dataset columns are present
-        tools::check_for_unused_entries(data_headers, pImpl_.dataset.headers());
+        tools::str::assert_unused_entries(data_headers, pImpl_.dataset.headers());
 
         const size_t n_rows = deftable.at("group_rate").size();
 
@@ -656,9 +668,9 @@ void MCMC::Impl::Parameter::build(const dict_str_vec &deftable)
     if (!deftable.empty())
     {
         // check entries
-        str_vec headers = tools::headers_from_deftable(deftable);
-        tools::check_for_missing_entries(headers, file_headers);
-        tools::check_for_unused_entries(headers, file_headers);
+        str_vec headers = tools::read::table_headers(deftable);
+        tools::str::assert_missing_entries(headers, file_headers);
+        tools::str::assert_unused_entries(headers, file_headers);
 
         // drop current list of parameters
         dictionary_.clear();

@@ -172,7 +172,8 @@ public:
     {
         const str_vec file_headers = {"name", "value",
                                       "const", "discr",
-                                      "prior", "min", "max",
+                                      "prior",
+                                      HSP_PARAM_MIN, HSP_PARAM_MAX,
                                       "rule", "scale"};
         str_vec list_const = {};
         str_vec list_sample_standard = {};
@@ -194,8 +195,8 @@ public:
         ///////////////////////////  MCMC : Impl : Parameter : getter  //////////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////
 
-        Variable &at(const std::string &p) { return safe_at(dictionary_, "parameter", p); }
-        const Variable &at(const std::string &p) const { return safe_at(dictionary_, "parameter", p); }
+        Variable &at(const std::string &p) { return safe_at(dictionary_, p, "parameter"); }
+        const Variable &at(const std::string &p) const { return safe_at(dictionary_, p, "parameter"); }
         // get value of the parameter
         double get(const std::string &p) const { return this->at(p).get(); }
         // get pointer to the parameter
@@ -223,7 +224,6 @@ public:
 #else
         void read(const std::string &pathtofile);
         void show() const;
-        void show_results() const;
 #endif
     private:
         const std::string section_name_ = "parameter";
@@ -508,7 +508,7 @@ public:
                                       "value", "init_rand",
                                       "const", "discr",
                                       "model",
-                                      "min", "max",
+                                      HSP_PARAM_MIN, HSP_PARAM_MAX,
                                       "rule", "scale"};
 
         str_vec list_model = {};
@@ -518,8 +518,9 @@ public:
         str_vec list_draws = {};
         str_vec list_full = {};
         str_vec list_export = {};
+
         u_dict<std::vector<size_t>> status_to_def_row = {}; // definition rows by status
-        std::unordered_map<int, str_vec> status_map_model = {};
+        std::unordered_map<int, u_dict<str_vec>> status_map_model = {};
         std::unordered_map<int, str_vec> status_map_sample = {};
 
         // optional augmented posterior sample
@@ -553,7 +554,7 @@ public:
         /////////////////////////////////////////////////////////////////////////////////////////
 
         /// Flag if there are any augmented definitions.
-        bool is_any() const { return !(list_sample.empty() && list_func.empty() && list_const.empty()); }
+        bool is_any() const { return !list_full.empty(); }
         /// Flag if there are non-constant augmented definitions.
         bool is_any_sample() const { return !list_sample.empty(); }
         /// Flag if there are augmented definitions with a model.
@@ -575,10 +576,10 @@ public:
 
         void build_helper_assert_correct_definitions_();
         void build_definition_order_(const std::string &s);
-        void build_helper_status_specific_maps_();
+        void build_helper_usage_lists_();
+        void build_variable_models_();
         void build_function_(size_t k);
         void build_function_identity_helper_(size_t k);
-        void build_variable_with_model_(size_t k);
         void build_variable_to_sample_(size_t k);
         void build_helper_set_id_draws_();
 
@@ -637,7 +638,7 @@ public:
         MCMC::Impl &pImpl_; // pointer to external class
         std::shared_ptr<Distribution> profile_;
 
-        const str_vec headers_ = {"func", "discr", "max"};
+        const str_vec headers_ = {"func", "discr", HSP_PARAM_MAX};
 
         // lookup table
         size_t size_lut_ = 0;
@@ -733,8 +734,8 @@ private:
     double full_loglike_ = 0.; /// current full loglikelihood
     double full_buffer_ = 0.;  /// buffer loglikelihood
 
-    unsigned long smpl_count_ = 0;
-    dbl_vec smpl_full_loglike_ = {};
+    unsigned long smpl_count_ = 0; /// count of store samples
+    dbl_vec smpl_full_loglike_ = {}; /// vector of full loglikelihood samples
 
     void assert_proper_dataset_();
     void init_monte_carlo_();
@@ -772,9 +773,6 @@ private:
     void move_all_augm_();
     double move_augm_single_house_(Household &house);
     double metropolis_augm_single_move_(Household &house, Individual &member, const std::string &a);
-
-    /// Compute statistics from sample of full loglikelihood.
-    std::pair<double, double> smpl_full_loglike_stats_() const { return tools::compute_stats(smpl_full_loglike_); }
 
     //----- Metropolis : power posteriors -----//
     std::vector<dbl_vec> power_posteriors_(const std::string &scheme, unsigned long N);

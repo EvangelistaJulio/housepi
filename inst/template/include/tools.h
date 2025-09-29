@@ -193,7 +193,7 @@ std::vector<T> operator-(std::vector<T> v, const std::vector<T> &w)
 /// @param k
 /// @return
 template <typename T>
-inline T &safe_at(u_dict<T> &m, const char *what, const std::string &k)
+inline T &safe_at(u_dict<T> &m, const std::string &k, const char *what = "key")
 {
     auto it = m.find(k);
     if (it != m.end())
@@ -201,7 +201,7 @@ inline T &safe_at(u_dict<T> &m, const char *what, const std::string &k)
     throw std::out_of_range(std::string("Unknown ") + what + " \"" + k + "\".");
 }
 template <typename T>
-inline const T &safe_at(const u_dict<T> &m, const char *what, const std::string &k)
+inline const T &safe_at(const u_dict<T> &m, const std::string &k, const char *what = "key")
 {
     auto it = m.find(k);
     if (it != m.end())
@@ -218,19 +218,8 @@ inline const T &safe_at(const u_dict<T> &m, const char *what, const std::string 
 namespace tools
 {
     /// Display a single-line warning message.
-    /// Reference:
-    /// ---------
-    /// Suppressing Call Stack Info in Rcpp-Generated Errors and Warnings
-    /// Michael Weylandt — written Mar 27, 2018
-    /// https://gallery.rcpp.org/articles/quiet-stop-and-warning/
     void warning(const std::string &txt);
-
     /// Display a single-line error message.
-    /// Reference:
-    /// ---------
-    /// Suppressing Call Stack Info in Rcpp-Generated Errors and Warnings
-    /// Michael Weylandt — written Mar 27, 2018
-    /// https://gallery.rcpp.org/articles/quiet-stop-and-warning/
     void error(const std::string &txt);
 
     // internal undefined double values
@@ -247,12 +236,6 @@ namespace tools
         return false;
     }
 
-    // default prng seed for the setup
-    std::int32_t default_setup_seed();
-
-    // Welford online algorithm for mean and variance
-    std::pair<double, double> compute_stats(const dbl_vec &data);
-
     namespace str
     {
         // convert to upper\lower case
@@ -261,10 +244,12 @@ namespace tools
         str_vec tolow(const str_vec &svec);
         str_vec toup(const str_vec &svec);
 
-        // make list composed of distinct entries
-        str_vec unique(const str_vec &v);
-        // drop private strings from list
-        str_vec drop_private(str_vec v);
+        // converter functions
+        bool tobool(const std::string &tkn);
+        int toi(const std::string &input, const std::string &errtxt = "");
+        unsigned long toul(const std::string &input, const std::string &errtxt = "");
+        std::int32_t toi32(const std::string &input, const std::string &errtxt = "");
+        double tod(const std::string &input, const std::string &errtxt = "");
 
         /// Format a dobule value (it deals with NA).
         std::string format(double x);
@@ -275,8 +260,11 @@ namespace tools
         /// Format a 2D matrix.
         std::string format(const matrix<double> &vec);
 
-        // calculate Levenshtein distance
-        unsigned short levenshtein(const std::string &s1, const std::string &s2);
+        // make list composed of distinct entries
+        str_vec unique(const str_vec &v);
+        // drop private strings from list
+        str_vec drop_private(str_vec v);
+
         // find the closest match
         std::string find_closest(const std::string &input,
                                  const str_vec &options,
@@ -284,34 +272,30 @@ namespace tools
                                  // UPDATE: I find this annoying at the moment...
                                  bool show_avail_options = false);
 
-        // converter functions
-        bool tobool(const std::string &tkn);
-        int toi(const std::string &input, const std::string &errtxt = "");
-        unsigned long toul(const std::string &input, const std::string &errtxt = "");
-        std::int32_t toi32(const std::string &input, const std::string &errtxt = "");
-        double tod(const std::string &input, const std::string &errtxt = "");
+        // check for unused entries from a vector of options and throw exception
+        void assert_missing_entries(const str_vec &entries,
+                             const str_vec &options,
+                             const std::string &where = "column");
+        void assert_unused_entries(const str_vec &entries,
+                            const str_vec &options,
+                            const std::string &where = "column");
     }
 
-    // read csv list
-    str_vec headers_from_deflist(const dict_str &deflist);
-    dict_str read_csv_list(const std::string &pathtofile);
-    // read csv dataframe
-    str_vec headers_from_deftable(const dict_str_vec &deftable);
-    dict_str_vec read_csv_table(const std::string &pathtofile);
-
-    // check for unused entries from a vector of options and throw exception
-    void check_for_missing_entries(const str_vec &entries,
-                                   const str_vec &options,
-                                   const std::string &where = "column");
-    void check_for_unused_entries(const str_vec &entries,
-                                  const str_vec &options,
-                                  const std::string &where = "column");
-
-#ifdef _HOUSEPI_RCPP
-    Rcpp::String stoRString(const std::string &x);
-    dict_str rlist_to_map(SEXP input);
-    dict_str_vec rdataframe_to_map(SEXP input);
-#endif
+    namespace read
+    {
+        // read csv list
+        str_vec list_headers(const dict_str &deflist);
+        dict_str csv_list(const std::string &pathtofile);
+        // read csv dataframe
+        str_vec table_headers(const dict_str_vec &deftable);
+        dict_str_vec csv_table(const std::string &pathtofile);
+    }
+    
+    #ifdef _HOUSEPI_RCPP
+            Rcpp::String stoRString(const std::string &x);
+            dict_str rlist_to_map(SEXP input);
+            dict_str_vec rdataframe_to_map(SEXP input);
+    #endif
 }
 
 #endif // HOUSEPI__TOOLS__H

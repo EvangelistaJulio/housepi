@@ -210,12 +210,6 @@ int main(int argc, char *argv[])
             user_model->infer();
             print_decorator("Inference::infer state", verbose, "# save: " + output_file);
             user_model->print_infer_state(output_file);
-
-            if (verbose)
-            {
-                print_decorator("Inference::results");
-                user_model->show_results();
-            }
         }
         else
             tools::error("Missing output file for inference.");

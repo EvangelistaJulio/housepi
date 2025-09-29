@@ -16,6 +16,30 @@
 
 #include "mcmc_impl.h"
 
+/// Welford online's algorithm for mean and variance.
+/// Ref :
+/// ----
+/// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+std::pair<double, double> compute_stats(const dbl_vec &data)
+{
+    size_t i = 0;
+    size_t N = data.size();
+    double x, delta, delta2;
+    double sqr_diff = 0.;
+
+    double avg = 0.;
+    while (i < N)
+    {
+        x = data[i++];
+        delta = x - avg;
+        avg += delta / i;
+        delta2 = x - avg;
+        sqr_diff += delta * delta2;
+    }
+
+    return {avg, sqr_diff / (N - 1.)};
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  MCMC : Impl : estimate evidence  ///////////////////////////////
@@ -86,7 +110,7 @@ void MCMC::Impl::power_post_zero_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
     setup.rung = 0;
     setup.inv_T = 0.0;
     run_monte_carlo_();
-    std::pair<double, double> stats = smpl_full_loglike_stats_();
+    std::pair<double, double> stats = compute_stats(smpl_full_loglike_);
 
     itm.push_back(setup.inv_T);
     avg.push_back(stats.first);
@@ -102,7 +126,7 @@ void MCMC::Impl::power_post_adaptive_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
     setup.rung = 1;
     setup.inv_T = 1.0;
     run_monte_carlo_();
-    std::pair<double, double> stats = smpl_full_loglike_stats_();
+    std::pair<double, double> stats = compute_stats(smpl_full_loglike_);
 
     itm.push_back(setup.inv_T);
     avg.push_back(stats.first);
@@ -125,7 +149,7 @@ void MCMC::Impl::power_post_adaptive_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
         // power posterior sampling
         setup.inv_T = new_t;
         run_monte_carlo_();
-        stats = smpl_full_loglike_stats_();
+        stats = compute_stats(smpl_full_loglike_);
 
         // find larger rectangular discretization error
         is_right = (itm[k + 1] - setup.inv_T) * (avg[k + 1] - stats.first) > (new_t - itm[k]) * (stats.first - avg[k]);
@@ -149,7 +173,7 @@ void MCMC::Impl::power_post_fractions_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
         setup.inv_T = std::pow(static_cast<double>(setup.rung) / setup.n_rungs, 5);
         run_monte_carlo_();
 
-        std::pair<double, double> stats = smpl_full_loglike_stats_();
+        std::pair<double, double> stats = compute_stats(smpl_full_loglike_);
         itm.push_back(setup.inv_T);
         avg.push_back(stats.first);
         var.push_back(stats.second);

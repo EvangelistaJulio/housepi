@@ -25,15 +25,31 @@
 double Attribute::do_get_from_function_() const { return pFunc_->evaluate(); }
 
 /// Wheter it's constant.
+/// NOTE: by construction convention, a pointer to constant must initialize to scalar instead.
+/// NOTE: if empty, then it's constant by convention.
 bool Attribute::is_constant() const
 {
     if (is_scalar())
         return true;
     else if (is_pointer())
-        return false; // NOTE: this has to be respected true by further construction
+        return false;
     else if (is_function())
         return pFunc_->is_constant();
     else // NOTE: is_empty(), constant by convention
+        return true;
+}
+
+/// Wheter it's discrete.
+/// NOTE: if empty, then it's discrete by convention.
+bool Attribute::is_discrete() const
+{
+    if (is_scalar())
+        return value_ == std::floor(value_);
+    else if (is_pointer())
+        return false; // FIXME: here it becomes problematic..
+    else if (is_function())
+        return pFunc_->is_discrete();
+    else
         return true;
 }
 
@@ -173,14 +189,14 @@ unsigned short Function::assert_arg(const std::string &arg_name) const
         tools::str::find_closest(arg_name, options, HSP_MIN_STR_DIST));
 }
 
-/// Wheter all arguments are actually constants.
+/// Wheter return value is always constant.
 bool Function::is_constant() const
 {
     // check arguments
     for (unsigned short i = 0; i < n_args_; ++i)
         if (!args_[i].is_constant())
             return false;
-    // check X value 
+    // check X value
     // NOTE: a function with undefined 'x' is not constant
     if (args_[n_args_].is_empty() || !args_[n_args_].is_constant())
         return false;
@@ -354,7 +370,7 @@ void Function::init_attr(const std::string &what, const Attribute &attr)
     if (attr.is_function())
         if (!attr.get_function()->is_implicit_callable())
             throw std::invalid_argument(
-                "Undefined attribute \"" + what + "\" for " + err_name() + ".");
+                "Undefined attribute \"" + what + "\" for " + err_name() + "    .");
 
     // distinguish between range keys and standard keys
     if (HSP_RANGE_KEYS % what)
@@ -553,6 +569,7 @@ public:
     Minus_Function() : Function("minus", {}, {}) {}
 
     void init_truncation() override final {}
+    bool is_discrete() const override final { args_[n_args_].is_discrete(); }
 
 protected:
     double raw_function_(double x) const override final { return -x; }
@@ -566,13 +583,28 @@ protected:
                                                                                         \
         void init_truncation() override final {}                                        \
                                                                                         \
+        bool is_discrete() const override final                                         \
+        {                                                                               \
+            args_[0].is_discrete() && args_[n_args_].is_discrete();                     \
+        }                                                                               \
+                                                                                        \
     protected:                                                                          \
         double raw_function_(double x) const override final { return x Symbol arg(0); } \
     };
 DEFINE_ARITHMETIC_FUNCTION(Addition_Function, "add", +, 0.)
 DEFINE_ARITHMETIC_FUNCTION(Subtraction_Function, "sub", -, 0.)
 DEFINE_ARITHMETIC_FUNCTION(Multiplication_Function, "mult", *, 1.)
-DEFINE_ARITHMETIC_FUNCTION(Division_Function, "div", /, 1.)
+
+class Division_Function : public Function
+{
+public:
+    Division_Function() : Function("div", {"x2"}, {1}) {}
+
+    void init_truncation() override final {}
+
+protected:
+    double raw_function_(double x) const override final { return x / arg(0); }
+};
 
 /// Power Function.
 class Power_Function : public Function
@@ -582,6 +614,11 @@ public:
         : Function("pow", {"x2"}, {1.}) {}
 
     void init_truncation() override final { init_range_helper_(); }
+
+    bool is_discrete() const override final
+    {
+        Function::is_discrete() || (args_[0].is_discrete() && args_[n_args_].is_discrete());
+    }
 
 protected:
     double raw_function_(double x) const override final { return std::pow(x, arg(0)); }

@@ -14,7 +14,6 @@
 
 #include <algorithm>
 #include <unordered_set>
-#include <chrono>
 
 #include "tools.h"
 
@@ -24,6 +23,11 @@ namespace tools
     std::unordered_set<std::string> _issued_warnings_;
 
     /// Display a single-line warning message.
+    /// Ref:
+    /// -----
+    /// Suppressing Call Stack Info in Rcpp-Generated Errors and Warnings
+    /// Michael Weylandt — written Mar 27, 2018
+    /// https://gallery.rcpp.org/articles/quiet-stop-and-warning/
     void warning(const std::string &txt)
     {
         if (_issued_warnings_.find(txt) == _issued_warnings_.end())
@@ -39,6 +43,11 @@ namespace tools
     }
 
     /// Display a single-line error message.
+    /// Ref:
+    /// -----
+    /// Suppressing Call Stack Info in Rcpp-Generated Errors and Warnings
+    /// Michael Weylandt — written Mar 27, 2018
+    /// https://gallery.rcpp.org/articles/quiet-stop-and-warning/
     void error(const std::string &txt)
     {
 #ifdef _HOUSEPI_RCPP
@@ -73,51 +82,10 @@ namespace tools
         return false;
     }
 
-    /// Default seed for pseudo random number generator.
-    std::int32_t default_setup_seed()
-    {
-        auto time_raw = std::chrono::steady_clock::now().time_since_epoch().count();
-        // ensure time_now is 64bit
-        std::uint64_t time_now = static_cast<std::uint64_t>(time_raw);
-        // xor between upper and lower part of time stamp
-        std::uint64_t mixed = time_now ^ (time_now >> 32);
-        // note: constrain to 32bit for compatibility with R (mask sign bit)
-        return static_cast<std::int32_t>(mixed & 0x7FFFFFFF);
-    }
-
-    /// Welford online's algorithm for mean and variance.
-    /// Ref :
-    /// ----
-    /// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
-    std::pair<double, double> compute_stats(const dbl_vec &data)
-    {
-        size_t i = 0;
-        size_t N = data.size();
-        double x, delta, delta2;
-        double sqr_diff = 0.;
-
-        double avg = 0.;
-        while (i < N)
-        {
-            x = data[i++];
-            delta = x - avg;
-            avg += delta / i;
-            delta2 = x - avg;
-            sqr_diff += delta * delta2;
-        }
-
-        return {avg, sqr_diff / (N - 1.)};
-    }
-
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-
+    /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////  String Manipulation Functions  /////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     // TOOLS::STR NAMESPACE
@@ -159,28 +127,68 @@ namespace tools
             return out;
         }
 
-        /// make list composed of distinct entries
-        str_vec unique(const str_vec &vec)
+        /////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////  Converter Functions  //////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////////////
+
+        /// Convert std::string to boolean variable. NA is assumed as FALSE.
+        bool tobool(const std::string &tkn)
         {
-            str_vec out;
-            out.reserve(vec.size());
-            for (const std::string &s : vec)
-                if (!(out % s))
-                    out.push_back(s);
-            return out;
+            if (is_na(tkn))
+                return false;
+            else if (toup(tkn) == "FALSE" || tkn == "0")
+                return false;
+            else if (toup(tkn) == "TRUE" || tkn == "1")
+                return true;
+            else
+                throw std::invalid_argument(
+                    "Unrecognized boolean value \"" + tkn + "\".");
         }
 
-        /// Remove private entries from list.
-        str_vec drop_private(str_vec vec)
+        /// Template function to wrap conversion functions with try-catch.
+        template <typename Func, typename... Args>
+        auto converter_(Func func, const std::string &input, const std::string &errtxt, Args &&...args) -> decltype(func(input, std::forward<Args>(args)...))
         {
-            auto new_end = std::remove_if(
-                vec.begin(), vec.end(),
-                [](const std::string &a)
-                { return a.size() >= std::string(HSP_HIDE_PRFX).size() &&
-                         a.compare(0, std::string(HSP_HIDE_PRFX).size(), HSP_HIDE_PRFX) == 0; });
-            vec.erase(new_end, vec.end());
-            return vec;
+            try
+            {
+                return func(input, std::forward<Args>(args)...);
+            }
+            catch (const std::invalid_argument &e)
+            {
+                std::string sms = (errtxt.empty()) ? "" : "Unable to import " + errtxt + ". ";
+                throw std::invalid_argument(sms + "Value \"" + input + "\" is not suitable to conversion.");
+            }
         }
+
+        /// Converter to int using std::stoi with function pointer casting.
+        int toi(const std::string &input, const std::string &errtxt)
+        {
+            return converter_(static_cast<int (*)(const std::string &, std::size_t *, int)>(std::stoi), input, errtxt, nullptr, 10);
+        }
+
+        /// Converter to unsigned long using std::stoul with function pointer casting.
+        unsigned long toul(const std::string &input, const std::string &errtxt)
+        {
+            return converter_(static_cast<unsigned long (*)(const std::string &, std::size_t *, int)>(std::stoul), input, errtxt, nullptr, 10);
+        }
+
+        /// Converter to unsigned 32bit integer (for R compatibility).
+        std::int32_t toi32(const std::string &input, const std::string &errtxt)
+        {
+            return static_cast<std::int32_t>(toul(input, errtxt));
+        }
+
+        /// Converter to double using std::stod with function pointer casting.
+        double tod(const std::string &input, const std::string &errtxt)
+        {
+            if (tools::is_na(input))
+                return HSP_NA_DOUBLE;
+            return converter_(static_cast<double (*)(const std::string &, std::size_t *)>(std::stod), input, errtxt, nullptr);
+        }
+
+        /////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////  Formatter Functions  //////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////////////
 
         /// Format a dobule value (it deals with NA).
         std::string format(double x)
@@ -241,6 +249,33 @@ namespace tools
                 oss << "]\n";
                 return oss.str();
             }
+        }
+
+        /////////////////////////////////////////////////////////////////////////////////////////////////
+        //////////////////////////////////  String Vector Functions  ////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////////////
+
+        /// make list composed of distinct entries
+        str_vec unique(const str_vec &vec)
+        {
+            str_vec out;
+            out.reserve(vec.size());
+            for (const std::string &s : vec)
+                if (!(out % s))
+                    out.push_back(s);
+            return out;
+        }
+
+        /// Remove private entries from list.
+        str_vec drop_private(str_vec vec)
+        {
+            auto new_end = std::remove_if(
+                vec.begin(), vec.end(),
+                [](const std::string &a)
+                { return a.size() >= std::string(HSP_HIDE_PRFX).size() &&
+                         a.compare(0, std::string(HSP_HIDE_PRFX).size(), HSP_HIDE_PRFX) == 0; });
+            vec.erase(new_end, vec.end());
+            return vec;
         }
 
         // Function to calculate Levenshtein distance
@@ -318,273 +353,209 @@ namespace tools
                 return "\nDid you mean \"" + closest + "\"?";
         }
 
-        /////////////////////////////////////////////////////////////////////////////////////////////////
-        ////////////////////////////////////  Converter Functions ///////////////////////////////////////
-        /////////////////////////////////////////////////////////////////////////////////////////////////
-
-        /// Convert std::string to boolean variable. NA is assumed as FALSE.
-        bool tobool(const std::string &tkn)
+        /// Check for missing entries given a vector of options.
+        void assert_missing_entries(const str_vec &entries,
+                             const str_vec &options,
+                             const std::string &where)
         {
-            if (is_na(tkn))
-                return false;
-            else if (toup(tkn) == "FALSE" || tkn == "0")
-                return false;
-            else if (toup(tkn) == "TRUE" || tkn == "1")
-                return true;
-            else
+            // proceed only if there's a given vector of options
+            if (!options.empty())
+            {
+                //----- check for missing entries -----//
+                str_vec missing = {};
+
+                for (const std::string &x : options)
+                    if (!(entries % x))
+                        missing.push_back(x);
+
+                if (!missing.empty())
+                {
+                    if (missing.size() == 1)
+                        throw std::invalid_argument(
+                            "Missing " + where + " " + str::format(missing, 1));
+                    else
+                        throw std::invalid_argument(
+                            "Missing " + where + "s: " + str::format(missing, HSP_MAX_STR_PRINT));
+                }
+            }
+        }
+
+        /// Check for unused entries given a vector of options.
+        void assert_unused_entries(const str_vec &entries,
+                            const str_vec &options,
+                            const std::string &where)
+        {
+            str_vec unused = {};
+            for (const std::string &x : entries)
+                if (!(options % x))
+                    unused.push_back(x);
+
+            if (unused.size() == 1)
                 throw std::invalid_argument(
-                    "Unrecognized boolean value \"" + tkn + "\".");
-        }
+                    "Unknown " + where + " " + str::format(unused, 1) +
+                    str::find_closest(unused[0], options, HSP_MIN_STR_DIST));
 
-        /// Template function to wrap conversion functions with try-catch.
-        template <typename Func, typename... Args>
-        auto converter_(Func func, const std::string &input, const std::string &errtxt, Args &&...args) -> decltype(func(input, std::forward<Args>(args)...))
-        {
-            try
-            {
-                return func(input, std::forward<Args>(args)...);
-            }
-            catch (const std::invalid_argument &e)
-            {
-                std::string sms = (errtxt.empty()) ? "" : "Unable to import " + errtxt + ". ";
-                throw std::invalid_argument(sms + "Value \"" + input + "\" is not suitable to conversion.");
-            }
-        }
-
-        /// Converter to int using std::stoi with function pointer casting.
-        int toi(const std::string &input, const std::string &errtxt)
-        {
-            return converter_(static_cast<int (*)(const std::string &, std::size_t *, int)>(std::stoi), input, errtxt, nullptr, 10);
-        }
-
-        /// Converter to unsigned long using std::stoul with function pointer casting.
-        unsigned long toul(const std::string &input, const std::string &errtxt)
-        {
-            return converter_(static_cast<unsigned long (*)(const std::string &, std::size_t *, int)>(std::stoul), input, errtxt, nullptr, 10);
-        }
-
-        /// Converter to unsigned 32bit integer (for R compatibility).
-        std::int32_t toi32(const std::string &input, const std::string &errtxt)
-        {
-            return static_cast<std::int32_t>(toul(input, errtxt));
-        }
-
-        /// Converter to double using std::stod with function pointer casting.
-        double tod(const std::string &input, const std::string &errtxt)
-        {
-            if (tools::is_na(input))
-                return HSP_NA_DOUBLE;
-            return converter_(static_cast<double (*)(const std::string &, std::size_t *)>(std::stod), input, errtxt, nullptr);
+            else if (unused.size() > 1)
+                throw std::invalid_argument(
+                    "Unknown " + where + "s: " + str::format(unused, HSP_MAX_STR_PRINT) +
+                    str::find_closest(HSP_NA_STRING, options, 0));
         }
     } // TOOLS::STR NAMESPACE
 
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////  CSV Reader Functions  /////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /// Clean std::string from forbidden characters and convert to UNDEFINED.
-    const std::string strcleaner_(std::string tkn)
+    // TOOLS::READ NAMESPACE
+    namespace read
     {
-        // forbidden characters
-        for (char r : {'"', '\r', '\n'})
-            tkn.erase(remove(tkn.begin(), tkn.end(), r), tkn.end());
-        // check for undefined
-        if (is_na(tkn))
-            tkn = HSP_NA_STRING;
-        return tkn;
-    }
-
-    /// Read column headers and compare to required headers.
-    str_vec read_column_headers_(std::ifstream &input)
-    {
-        // clean headers
-        str_vec headers = {};
-
-        // read first line
-        std::string line, tkn;
-        getline(input, line);
-        std::istringstream iss(line);
-
-        // get headers from first line
-        while (getline(iss, tkn, HSP_DELIM))
-            headers.push_back(strcleaner_(tkn));
-
-        return headers;
-    }
-
-    /// Load files from the row with headers.
-    bool read_row_by_headers_(std::ifstream &input, const str_vec &headers, dict_str &this_row)
-    {
-        std::string line, tkn;
-
-        if (getline(input, line))
+        /// Clean std::string from forbidden characters and convert to UNDEFINED.
+        const std::string strcleaner_(std::string tkn)
         {
+            // forbidden characters
+            for (char r : {'"', '\r', '\n'})
+                tkn.erase(remove(tkn.begin(), tkn.end(), r), tkn.end());
+            // check for undefined
+            if (is_na(tkn))
+                tkn = HSP_NA_STRING;
+            return tkn;
+        }
+
+        /// Read column headers and compare to required headers.
+        str_vec read_column_headers_(std::ifstream &input)
+        {
+            // clean headers
+            str_vec headers = {};
+
+            // read first line
+            std::string line, tkn;
+            getline(input, line);
             std::istringstream iss(line);
-            size_t n_cols = 0;
 
+            // get headers from first line
             while (getline(iss, tkn, HSP_DELIM))
-                this_row.emplace(headers[n_cols++], strcleaner_(tkn));
+                headers.push_back(strcleaner_(tkn));
 
-            // last column is empty
-            for (size_t i = n_cols; i < headers.size(); i++)
-                this_row.emplace(headers[i], HSP_NA_STRING);
-
-            return true;
+            return headers;
         }
 
-        return false;
-    }
-
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-
-    /// Extract headers from deflist.
-    str_vec headers_from_deflist(const dict_str &deflist)
-    {
-        str_vec entries = {};
-        for (const auto &pair : deflist)
-            entries.push_back(pair.first);
-        return entries;
-    }
-
-    /// Read csv list store in pathtofile and store it parsed in csv_parsed_list.
-    dict_str read_csv_list(const std::string &pathtofile)
-    {
-        dict_str output = {};
-
-        if (!is_na(pathtofile))
+        /// Load files from the row with headers.
+        bool read_row_by_headers_(std::ifstream &input, const str_vec &headers, dict_str &this_row)
         {
-            std::ifstream input(pathtofile.c_str());
+            std::string line, tkn;
 
-            if (input.is_open())
+            if (getline(input, line))
             {
-                // Create a std::stringstream of the current line
-                for (std::string line; getline(input, line);)
-                {
-                    std::string name, choice;
-                    std::istringstream iss(line);
+                std::istringstream iss(line);
+                size_t n_cols = 0;
 
-                    // name
-                    if (!getline(iss, name, HSP_DELIM))
-                        throw std::runtime_error(
-                            "Unable to extract list name. Check file line \"" + line + "\".");
-                    // choice
-                    if (!getline(iss, choice))
-                        throw std::runtime_error(
-                            "Unable to extract list value. Check file line \"" + line + "\".");
+                while (getline(iss, tkn, HSP_DELIM))
+                    this_row.emplace(headers[n_cols++], strcleaner_(tkn));
 
-                    // add the new setup
-                    output.emplace(strcleaner_(name), strcleaner_(choice));
-                }
+                // last column is empty
+                for (size_t i = n_cols; i < headers.size(); i++)
+                    this_row.emplace(headers[i], HSP_NA_STRING);
+
+                return true;
             }
-            else
-                throw std::runtime_error(
-                    "Unable to open file \"" + pathtofile + "\".");
+
+            return false;
         }
 
-        return output;
-    }
-
-    /// Extract headers from deftable.
-    str_vec headers_from_deftable(const dict_str_vec &deftable)
-    {
-        str_vec entries = {};
-        for (const auto &pair : deftable)
-            entries.push_back(pair.first);
-        return entries;
-    }
-
-    /// Read csv table in pathtofile and store it parsed in csv_parsed_table.
-    dict_str_vec read_csv_table(const std::string &pathtofile)
-    {
-        dict_str_vec output = {};
-
-        if (!is_na(pathtofile))
+        /// Extract headers from deflist.
+        str_vec list_headers(const dict_str &deflist)
         {
-            std::ifstream input(pathtofile.c_str());
+            str_vec entries = {};
+            for (const auto &pair : deflist)
+                entries.push_back(pair.first);
+            return entries;
+        }
 
-            if (input.is_open())
+        /// Read csv list store in pathtofile and store it parsed in csv_parsed_list.
+        dict_str csv_list(const std::string &pathtofile)
+        {
+            dict_str output = {};
+
+            if (!is_na(pathtofile))
             {
-                // read and check for valid headers
-                const str_vec headers = read_column_headers_(input);
+                std::ifstream input(pathtofile.c_str());
 
-                dict_str this_row = {};
-                while (read_row_by_headers_(input, headers, this_row))
+                if (input.is_open())
                 {
-                    for (const auto &x : this_row)
-                        output[x.first].push_back(x.second);
-                    this_row.clear();
+                    // Create a std::stringstream of the current line
+                    for (std::string line; getline(input, line);)
+                    {
+                        std::string name, choice;
+                        std::istringstream iss(line);
+
+                        // name
+                        if (!getline(iss, name, HSP_DELIM))
+                            throw std::runtime_error(
+                                "Unable to extract list name. Check file line \"" + line + "\".");
+                        // choice
+                        if (!getline(iss, choice))
+                            throw std::runtime_error(
+                                "Unable to extract list value. Check file line \"" + line + "\".");
+
+                        // add the new setup
+                        output.emplace(strcleaner_(name), strcleaner_(choice));
+                    }
                 }
-            }
-            else
-                throw std::runtime_error(
-                    "Unable to open file \"" + pathtofile + "\".");
-        }
-
-        return output;
-    }
-
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-    //-----------------------------------------------------------------------------------------------//
-
-    /// Check for missing entries given a vector of options.
-    void check_for_missing_entries(const str_vec &entries,
-                                   const str_vec &options,
-                                   const std::string &where)
-    {
-        // proceed only if there's a given vector of options
-        if (!options.empty())
-        {
-            //----- check for missing entries -----//
-            str_vec missing = {};
-
-            for (const std::string &x : options)
-                if (!(entries % x))
-                    missing.push_back(x);
-
-            if (!missing.empty())
-            {
-                if (missing.size() == 1)
-                    throw std::invalid_argument(
-                        "Missing " + where + " " + str::format(missing, 1));
                 else
-                    throw std::invalid_argument(
-                        "Missing " + where + "s: " + str::format(missing, HSP_MAX_STR_PRINT));
+                    throw std::runtime_error(
+                        "Unable to open file \"" + pathtofile + "\".");
             }
+
+            return output;
         }
-    }
 
-    /// Check for unused entries given a vector of options.
-    void check_for_unused_entries(const str_vec &entries,
-                                  const str_vec &options,
-                                  const std::string &where)
-    {
-        str_vec unused = {};
-        for (const std::string &x : entries)
-            if (!(options % x))
-                unused.push_back(x);
+        /// Extract headers from deftable.
+        str_vec table_headers(const dict_str_vec &deftable)
+        {
+            str_vec entries = {};
+            for (const auto &pair : deftable)
+                entries.push_back(pair.first);
+            return entries;
+        }
 
-        if (unused.size() == 1)
-            throw std::invalid_argument(
-                "Unknown " + where + " " + str::format(unused, 1) +
-                str::find_closest(unused[0], options, HSP_MIN_STR_DIST));
+        /// Read csv table in pathtofile and store it parsed in csv_parsed_table.
+        dict_str_vec csv_table(const std::string &pathtofile)
+        {
+            dict_str_vec output = {};
 
-        else if (unused.size() > 1)
-            throw std::invalid_argument(
-                "Unknown " + where + "s: " + str::format(unused, HSP_MAX_STR_PRINT) +
-                str::find_closest(HSP_NA_STRING, options, 0));
-    }
+            if (!is_na(pathtofile))
+            {
+                std::ifstream input(pathtofile.c_str());
+
+                if (input.is_open())
+                {
+                    // read and check for valid headers
+                    const str_vec headers = read_column_headers_(input);
+
+                    dict_str this_row = {};
+                    while (read_row_by_headers_(input, headers, this_row))
+                    {
+                        for (const auto &x : this_row)
+                            output[x.first].push_back(x.second);
+                        this_row.clear();
+                    }
+                }
+                else
+                    throw std::runtime_error(
+                        "Unable to open file \"" + pathtofile + "\".");
+            }
+
+            return output;
+        }
+    } // TOOLS::READ NAMESPACE
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////  R I/O Auxiliary Functions  //////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
 
 #ifdef _HOUSEPI_RCPP
     /// Format C++ string into Rcpp string.

@@ -191,7 +191,6 @@ public:
 	void show_setup() const;
 	void show_all_params() const;
 	void show_summary() const;
-	void show_results() const;
 
 #endif
 

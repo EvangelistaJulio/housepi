@@ -14,38 +14,6 @@
 
 #include "parser.h"
 
-/// Rebuild string from node using recursion.
-std::string DefinitionParser::ASTNode::str() const
-{
-    if (is_empty())
-        return "";
-    else if (is_func_default())
-        return func;
-    else if (is_terminal())
-        return value + "|" + type;
-
-    std::ostringstream ss_args;
-    std::ostringstream ss_children;
-    for (size_t i = 0; i < children.size(); ++i)
-    {
-        const ASTNode &child = children[i];
-        if (i > 0)
-        {
-            ss_args << HSP_LIST_DELIM;
-            ss_children << HSP_LIST_DELIM;
-        }
-        ss_args << child.key;
-
-        const std::string cs = child.str();
-        if (child.is_braced)
-            ss_children << "{" << cs << "}";
-        else
-            ss_children << cs;
-    }
-
-    return func + "|" + ss_args.str() + "|" + ss_children.str();
-}
-
 /// Split on sep at top level (ignore separators inside braces).
 str_vec split_top_(const std::string &s)
 {
@@ -143,16 +111,62 @@ DefinitionParser::ASTNode parse_expression_(const std::string &expr)
 /// Construct and parse expression into AST (and flattens it).
 DefinitionParser::DefinitionParser(const std::string &expr) { root = parse_expression_(expr); }
 
-#define MAKE_PARSER_LIST_TYPE_DEPEN(type_check, type_flag)                \
-    str_vec DefinitionParser::list_##type_check##_depen() const           \
-    {                                                                     \
-        str_vec output = {};                                              \
-        for (const auto &node : *this)                                    \
-            if (node.is_terminal() && HSP_IS_TYPE_##type_flag(node.type)) \
-                output.push_back(node.value);                             \
-        return tools::str::unique(output);                                \
+/// Rebuild string from node using recursion.
+std::string DefinitionParser::ASTNode::str() const
+{
+    if (is_empty())
+        return "";
+    else if (is_func_default())
+        return func;
+    else if (is_terminal())
+        return value + "|" + type;
+
+    std::ostringstream ss_args;
+    std::ostringstream ss_children;
+    for (size_t i = 0; i < children.size(); ++i)
+    {
+        const ASTNode &child = children[i];
+        if (i > 0)
+        {
+            ss_args << HSP_LIST_DELIM;
+            ss_children << HSP_LIST_DELIM;
+        }
+        ss_args << child.key;
+
+        const std::string cs = child.str();
+        if (child.is_braced)
+            ss_children << "{" << cs << "}";
+        else
+            ss_children << cs;
     }
 
-MAKE_PARSER_LIST_TYPE_DEPEN(augm, AUGM)
-MAKE_PARSER_LIST_TYPE_DEPEN(data, DATA)
-MAKE_PARSER_LIST_TYPE_DEPEN(param, PARAM)
+    return func + "|" + ss_args.str() + "|" + ss_children.str();
+}
+
+/// Append dependencies of chosen type to stack.
+#define MAKE_NODE_LIST_TYPE_DEPEN(type_flag, TYPE_FLAG)                              \
+    void DefinitionParser::ASTNode::append_##type_flag##_depen(str_vec &stack) const \
+    {                                                                                \
+        if (is_terminal() && HSP_IS_TYPE_##TYPE_FLAG(type))                          \
+            stack.push_back(value);                                                  \
+        else                                                                         \
+            for (const ASTNode &child : children)                                    \
+                child.append_##type_flag##_depen(stack);                             \
+    }
+
+/// Return unique list of dependencies of chosen type.
+#define MAKE_PARSER_LIST_TYPE_DEPEN(type_flag)                 \
+    str_vec DefinitionParser::list_##type_flag##_depen() const \
+    {                                                          \
+        str_vec stack = {};                                    \
+        root.append_##type_flag##_depen(stack);                \
+        return tools::str::unique(stack);                      \
+    }
+
+MAKE_NODE_LIST_TYPE_DEPEN(augm, AUGM)
+MAKE_NODE_LIST_TYPE_DEPEN(data, DATA)
+MAKE_NODE_LIST_TYPE_DEPEN(param, PARAM)
+
+MAKE_PARSER_LIST_TYPE_DEPEN(augm)
+MAKE_PARSER_LIST_TYPE_DEPEN(data)
+MAKE_PARSER_LIST_TYPE_DEPEN(param)

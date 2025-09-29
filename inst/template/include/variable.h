@@ -158,7 +158,7 @@ public:
     void user_reset()
     {
         value_ = user_value_;
-        pProp_->user_reset();
+        pProp_->user_reset(); // FIXME: if init_random, it should not be set to NA...
     }
 
     /// Assign an attribute to function.
@@ -188,8 +188,7 @@ public:
     /////////////////////////////////////////////////////////////////////////////////////////////
 
     bool is_constant() const override final { return Attribute::is_constant() && is_constant_; }
-    bool is_discrete() const { return pDistr_->is_discrete(); }
-    bool is_chain_dependency(const Variable &other) const;
+    bool is_discrete() const override final { return Attribute::is_discrete() || pDistr_->is_discrete(); }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////  Variable : Metropolis-Hastings  ////////////////////////////

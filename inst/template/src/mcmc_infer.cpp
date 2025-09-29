@@ -154,8 +154,8 @@ void MCMC::Impl::run_monte_carlo_()
     for (chain = 1; chain <= setup.n_chains; ++chain)
     {
         setup.prog_set_text();      // update progress bar text
-        param.init();               // initialize augmented variables
-        augm.init();                // initialize augmented variables
+        param.init();               // initialize augmented variables // FIXME! : user reset only!
+        augm.init();                // initialize augmented variables // FIXME! : user reset only!
         update_full_loglike_(true); // init cache + full loglikelihood
         init_move_counts_();        // init move counts for adaptive
 
@@ -333,7 +333,7 @@ void MCMC::Impl::Parameter::update_draws(unsigned long smpl_count)
         smpl_values[p][smpl_count] = get(p);
 }
 
-/// Clear posterior sample of parameters.
+/// Deep clear existing posterior sample of parameters.
 void MCMC::Impl::Parameter::clear_draws()
 {
     for (auto &pair : smpl_values)
@@ -373,13 +373,13 @@ void MCMC::Impl::DataWide::update_draws(unsigned long smpl_count)
     }
 }
 
-/// Clear posterior sample of dataset.
+/// Deep clear posterior sample of pointwise loglikelihood.
 void MCMC::Impl::DataWide::clear_draws()
 {
-    for (size_t R = 0; R < restrict_indexes_.size(); ++R)
+    for (auto &vec : smpl_values_)
     {
-        smpl_values_[R].clear();
-        smpl_values_[R].shrink_to_fit();
+        vec.clear();
+        vec.shrink_to_fit();
     }
     smpl_values_.clear();
     smpl_values_.shrink_to_fit();
@@ -422,7 +422,7 @@ void MCMC::Impl::update_posterior_sample_()
     ++smpl_count_;
 }
 
-/// Clear posterior sampling.
+/// Deep clear pre-existing posterior draws.
 void MCMC::Impl::clear_posterior_sample_()
 {
     smpl_count_ = 0;
