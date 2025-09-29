@@ -8,7 +8,8 @@ new_housepi_model(
   choice = NA,
   as_template = FALSE,
   force = FALSE,
-  quiet = TRUE
+  quiet = TRUE,
+  ...
 )
 }
 \arguments{
@@ -30,6 +31,8 @@ Default is \code{FALSE}.}
 
 \item{quiet}{\code{logical(1)} to hide compilation commands and warnings.\cr
 Default is \code{TRUE}.}
+
+\item{...}{Named arguments with additional compilation options.}
 }
 \value{
 \code{HousepiModel} object.

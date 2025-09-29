@@ -19,14 +19,15 @@
 #' @param as_template `r rd_mdl_astmpl_`
 #' @param force `r rd_mdl_force_`
 #' @param quiet `r rd_mdl_quiet_`
+#' @param ... `r rd_mdl_flags_`
 #'
 #' @return `r rd_model_in_`
 #'
 #' @export
 new_housepi_model <- function(choice = NA, as_template = FALSE,
-                              force = FALSE, quiet = TRUE) {
+                              force = FALSE, quiet = TRUE, ...) {
   HousepiModel$new(choice = choice, as_template = as_template,
-                   force = force, quiet = quiet)
+                   force = force, quiet = quiet, ...)
 }
 
 ############################################################################

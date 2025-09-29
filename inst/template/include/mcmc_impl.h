@@ -518,6 +518,7 @@ public:
         str_vec list_draws = {};
         str_vec list_full = {};
         str_vec list_export = {};
+        str_vec user_list_discrete = {};
 
         u_dict<std::vector<size_t>> status_to_def_row = {}; // definition rows by status
         std::unordered_map<int, u_dict<str_vec>> status_map_model = {};
@@ -544,6 +545,7 @@ public:
 
         void clear_all(Individual &member);
         void init_all(Individual &member);
+        void init_user_list_discrete(const str_vec &x) { user_list_discrete = x; }
 
         void init_draws(unsigned long sample_size);
         void update_draws(unsigned long smpl_count);
@@ -734,7 +736,7 @@ private:
     double full_loglike_ = 0.; /// current full loglikelihood
     double full_buffer_ = 0.;  /// buffer loglikelihood
 
-    unsigned long smpl_count_ = 0; /// count of store samples
+    unsigned long smpl_count_ = 0;   /// count of store samples
     dbl_vec smpl_full_loglike_ = {}; /// vector of full loglikelihood samples
 
     void assert_proper_dataset_();

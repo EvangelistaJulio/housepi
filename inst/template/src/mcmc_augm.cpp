@@ -617,7 +617,8 @@ void MCMC::Impl::Augmented::init_all(Individual &member)
     // loop over augmented variable definitions to assign placheholders
     for (size_t k : definition_order)
     {
-        member.init_augm(deftable["name"][k],
+        const std::string &a = deftable["name"][k];
+        member.init_augm(a,
                          pImpl_.read_scalar_(deftable["value"][k], member),
                          tools::str::tobool(deftable["const"][k]),
                          tools::str::tobool(deftable["discr"][k]),
@@ -627,7 +628,15 @@ void MCMC::Impl::Augmented::init_all(Individual &member)
         // assign dependencies to each augmented variable
         init_helper_variable_dependencies_(member, k);
         // assign function reshaping and check if inherently constants
-        member.get_augm_variable(deftable["name"][k]).init_func_reshaping();
+        Variable &xaugm = member.get_augm_variable(a);
+        xaugm.init_func_reshaping();
+
+        // eventually assert that it's discrete as for user request
+        if (user_list_discrete % a)
+            if (!xaugm.is_discrete())
+                throw std::invalid_argument(
+                "Discrete condition not satisifed for " + xaugm.err_name() + 
+                " in " + member.err_name() + " with status " + std::to_string(member.status()) + ".");
     }
 }
 

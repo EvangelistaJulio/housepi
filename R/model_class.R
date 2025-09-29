@@ -392,13 +392,14 @@ HousepiModel <- R6::R6Class(
     #' @param as_template `r rd_mdl_astmpl_`
     #' @param force `r rd_mdl_force_`
     #' @param quiet `r rd_mdl_quiet_`
+    #' @param ... `r rd_mdl_flags_`
     initialize = function(choice = NA, as_template = FALSE,
-                          force = FALSE, quiet = TRUE) {
+                          force = FALSE, quiet = TRUE, ...) {
       # initialize internal fields
       self$drop_all()
       # generate model wrapper
       super$initialize(choice = choice, as_template = as_template,
-                       force = force, quiet = quiet)
+                       force = force, quiet = quiet, ...)
       # import blank template data_wide
       if (private$.is_blank()) self$add_data_wide(template_blank_data_wide_())
 

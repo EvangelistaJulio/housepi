@@ -569,7 +569,7 @@ public:
     Minus_Function() : Function("minus", {}, {}) {}
 
     void init_truncation() override final {}
-    bool is_discrete() const override final { args_[n_args_].is_discrete(); }
+    bool is_discrete() const override final { return args_[n_args_].is_discrete(); }
 
 protected:
     double raw_function_(double x) const override final { return -x; }
@@ -585,7 +585,7 @@ protected:
                                                                                         \
         bool is_discrete() const override final                                         \
         {                                                                               \
-            args_[0].is_discrete() && args_[n_args_].is_discrete();                     \
+            return args_[0].is_discrete() && args_[n_args_].is_discrete();                     \
         }                                                                               \
                                                                                         \
     protected:                                                                          \
@@ -617,7 +617,7 @@ public:
 
     bool is_discrete() const override final
     {
-        Function::is_discrete() || (args_[0].is_discrete() && args_[n_args_].is_discrete());
+        return Function::is_discrete() || (args_[0].is_discrete() && args_[n_args_].is_discrete());
     }
 
 protected:

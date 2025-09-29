@@ -74,7 +74,13 @@ List containing current group rate definitions.}
 Create a new object of class 'HousepiModel'
 used to run inference and simulation routines.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$new(choice = NA, as_template = FALSE, force = FALSE, quiet = TRUE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$new(
+  choice = NA,
+  as_template = FALSE,
+  force = FALSE,
+  quiet = TRUE,
+  ...
+)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -98,6 +104,8 @@ Default is \code{FALSE}.}
 
 \item{\code{quiet}}{\code{logical(1)} to hide compilation commands and warnings.\cr
 Default is \code{TRUE}.}
+
+\item{\code{...}}{Named arguments with additional compilation options.}
 }
 \if{html}{\out{</div>}}
 }

@@ -293,25 +293,23 @@ HousepiGenerator <- R6::R6Class(
     # @description
     # Process user options for compilation.
     .process_user_options = function(...) {
-      my_func <- function(...) {
-        user_paths <- character()
-        user_flags <- character()
-        user_linkers <- character()
-        user_options <- list(...)
+      user_paths <- character()
+      user_flags <- character()
+      user_linkers <- character()
+      user_options <- list(...)
 
-        # process time discrete option
-        if ("discr" %in% names(user_options)) {
-          if (isTRUE(user_options$discr)) {
-            user_flags <- c(user_flags, "_HSP_DISCRETE_TIME")
-          }
+      # process time discrete option
+      if ("discr" %in% names(user_options)) {
+        if (isTRUE(user_options$discr)) {
+          user_flags <- c(user_flags, "_HSP_DISCRETE_TIME")
         }
-
-        list(
-          "user_paths" = user_paths,
-          "user_flags" = user_flags,
-          "user_linkers" = user_linkers
-        )
       }
+
+      list(
+        "user_paths" = user_paths,
+        "user_flags" = user_flags,
+        "user_linkers" = user_linkers
+      )
     },
 
     # @description
@@ -555,13 +553,10 @@ HousepiGenerator <- R6::R6Class(
       }
 
       # finally recompile only the model script, if necessary.
-      if (private$.need_compile) {
-        do.call(private$.compile, user_options)
-      }
+      if (private$.need_compile) do.call(private$.compile, user_options)
+
       # generate the Rcpp model object.
-      if (is.null(private$.rcpp)) {
-        private$.rcpp <- private$.new_rcpp_model()
-      }
+      if (is.null(private$.rcpp)) private$.rcpp <- private$.new_rcpp_model()
 
       invisible(self)
     }
