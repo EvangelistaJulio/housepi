@@ -229,7 +229,7 @@ HousepiModel <- R6::R6Class(
                            sample_size = NA, n_steps = 0,
                            n_burnin = 0, thin = 1, n_adapt = 0,
                            n_chains = 1, n_threads = 1,
-                           rand_init = TRUE, id_draws = NA,
+                           id_draws = NA,
                            seed = NA, progress = FALSE) {
       # build data_wide
       self$add_data_wide(data_wide)
@@ -249,7 +249,7 @@ HousepiModel <- R6::R6Class(
         sample_size = ifelse(is.na(sample_size), 0, sample_size),
         n_steps = n_steps, thin = thin,
         n_burnin = n_burnin, n_adapt = n_adapt, n_chains = n_chains,
-        n_threads = n_threads, rand_init = rand_init,
+        n_threads = n_threads,
         id_draws = id_draws,
         seed = private$.adjust_seed(seed),
         progress = as.integer(progress)
@@ -564,7 +564,6 @@ HousepiModel <- R6::R6Class(
     #' @param name `r rd_var_name_`
     #' @param status `r rd_aug_status_`
     #' @param value `r rd_aug_val_`
-    #' @param init_rand `r rd_aug_rndin_`
     #' @param const `r rd_var_const_`
     #' @param discr `r rd_aug_discr_`
     #' @param func `r rd_aug_func_`
@@ -577,17 +576,15 @@ HousepiModel <- R6::R6Class(
     #' @param scale `r rd_var_scale_`
     #' @param expr `r rd_aug_expr_`
     add_augmented = function(name = NA, status = NA,
-                             const = NA, discr = FALSE,
+                             value = NULL, const = NA, discr = FALSE,
                              func = NA, func_args = NULL,
-                             value = NULL, init_rand = FALSE,
                              model = NA, args = list(),
                              min = NULL, max = NULL,
                              rule = NA, scale = NA,
                              expr = NULL) {
       private$.augm$add(name = name, status = status,
-                        const = const, discr = discr,
+                        value = value, const = const, discr = discr,
                         func = func, func_args = func_args,
-                        value = value, init_rand = init_rand,
                         model = model, args = args,
                         min = min, max = max,
                         rule = rule, scale = scale,
@@ -709,7 +706,7 @@ HousepiModel <- R6::R6Class(
     #' @return `numeric(1)`
     loglikelihood = function(data_wide = NULL, seed = NA) {
       # internal build function
-      private$.build_full(data_wide = data_wide, seed = seed, rand_init = FALSE)
+      private$.build_full(data_wide = data_wide, seed = seed)
       private$.multiplicity_engine(data_wide = data_wide)
       return(private$.rcpp$evaluate())
     },
@@ -725,7 +722,6 @@ HousepiModel <- R6::R6Class(
     #' @param n_adapt `r rd_smpl_adapt_`
     #' @param n_chains `r rd_smpl_chain_`
     #' @param n_threads `r rd_smpl_thread_`
-    #' @param rand_init `r rd_smpl_rndin_`
     #' @param id_draws `r rd_smpl_iddrw_`
     #' @param seed `r rd_seed_`
     #' @param progress `r rd_progress_`
@@ -733,13 +729,13 @@ HousepiModel <- R6::R6Class(
                      sample_size = NA, n_steps = 10000,
                      n_burnin = 0, thin = 1, n_adapt = 0,
                      n_chains = 1, n_threads = 1,
-                     rand_init = TRUE, id_draws = NA,
+                     id_draws = NA,
                      seed = NA, progress = TRUE) {
       # internal build function
       private$.build_full(data_wide = data_wide, sample_size = sample_size,
                           n_steps = n_steps, n_burnin = n_burnin, thin = thin,
                           n_adapt = n_adapt, n_chains = n_chains,
-                          n_threads = n_threads, rand_init = rand_init,
+                          n_threads = n_threads,
                           id_draws = id_draws, seed = seed, progress = progress)
       private$.multiplicity_engine(data_wide = data_wide)
 
@@ -778,7 +774,7 @@ HousepiModel <- R6::R6Class(
                           n_steps = n_steps, thin = thin,
                           n_burnin = n_burnin, n_adapt = n_adapt,
                           n_chains = n_chains, n_threads = n_threads,
-                          rand_init = TRUE, seed = seed, progress = progress)
+                          seed = seed, progress = progress)
       private$.multiplicity_engine(data_wide = data_wide)
 
       # load options
@@ -846,7 +842,7 @@ HousepiModel <- R6::R6Class(
                         data_wide = NULL,
                         progress = FALSE) {
       # internal build function
-      private$.build_full(data_wide = data_wide, rand_init = FALSE,
+      private$.build_full(data_wide = data_wide,
                           seed = seed, progress = progress)
 
       # refactor static data_wide of simulation

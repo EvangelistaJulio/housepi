@@ -155,11 +155,7 @@ public:
     void recover_value() { value_ = buffer_; }
 
     /// Restore user defined variable initialization.
-    void user_reset()
-    {
-        value_ = user_value_;
-        pProp_->user_reset(); // FIXME: if init_random, it should not be set to NA...
-    }
+    void user_reset(rnd_gen &prng);
 
     /// Assign an attribute to function.
     void init_func_attr(const std::string &key, const Attribute &attr) { pFunc_->init_attr(key, attr); }
@@ -188,7 +184,7 @@ public:
     /////////////////////////////////////////////////////////////////////////////////////////////
 
     bool is_constant() const override final { return Attribute::is_constant() && is_constant_; }
-    bool is_discrete() const override final { return Attribute::is_discrete() || pDistr_->is_discrete(); }
+    bool is_discrete() const override final { return (pDistr_->is_empty()) ? Attribute::is_discrete() : pDistr_->is_discrete(); }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////  Variable : Metropolis-Hastings  ////////////////////////////

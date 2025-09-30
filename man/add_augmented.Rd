@@ -8,12 +8,11 @@ add_augmented(
   object,
   name = NA,
   status = NA,
+  value = NULL,
   const = NA,
   discr = FALSE,
   func = NA,
   func_args = NULL,
-  value = NULL,
-  init_rand = FALSE,
   model = NA,
   args = NULL,
   min = NULL,
@@ -31,6 +30,14 @@ add_augmented(
 \item{status}{\code{integer(1)} with positive status to specify individual definitions.\cr
 If NA (default), the generic defition is associated to all infectious individuals.}
 
+\item{value}{\code{numeric(1)} or \code{character(1)} with the initial value. \cr
+One between:\cr
+\itemize{
+\item Scalar value;\cr
+\item Parameter name (followed by \verb{@P});\cr
+\item Dataset name (followed by \verb{@D}).
+}}
+
 \item{const}{\code{logical(1)} to treat definition as constant (other details are ignored).\cr
 Default is \code{FALSE}.}
 
@@ -40,17 +47,6 @@ Default is \code{FALSE}.}
 \item{func}{\code{character(1)} with the name of the augmented function.}
 
 \item{func_args}{named \code{list} with the arguments of the augmented function.}
-
-\item{value}{\code{numeric(1)} or \code{character(1)} with the initial value. \cr
-One between:\cr
-\itemize{
-\item Scalar value;\cr
-\item Parameter name (followed by \verb{@P});\cr
-\item Dataset name (followed by \verb{@D}).
-}}
-
-\item{init_rand}{\code{character(1)} to draw initial value from model distribution.\cr
-Default is \code{FALSE}.}
 
 \item{model}{\code{character(1)} wit the choice for the model distribution.}
 

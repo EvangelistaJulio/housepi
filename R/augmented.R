@@ -58,7 +58,8 @@ HousepiAugmented <- R6::R6Class(
       }
 
       if (!is.na(opts$func)) {
-        opts$init_rand <- opts$const <- opts$discr <- FALSE
+        opts$const <- FALSE
+        opts$discr <- FALSE
       } else if (is.na(opts$const)) {
         opts$const <- is.na(opts$model) && is.na(opts$rule)
       }
@@ -91,33 +92,22 @@ HousepiAugmented <- R6::R6Class(
       opts
     },
 
-    # process constant or random
+    # Process constant or random.
     .helper_const_vs_rand = function(opts, value) {
       parsed <- DefEncoder$new(value)
+      opts$value <- parsed$x
 
-      if (isTRUE(opts$const)) {
-        if (is.na(parsed$x)) stop_h(sprintf(
-          "Missing initial value for constant augmented \"%s\".", opts$name
-        ))
-        opts$value <- parsed$x
-
-      } else if (isTRUE(opts$init_rand)) {
-        if (is.na(opts$model)) stop_h(sprintf(
+      if (isFALSE(opts$const) && is.na(opts$value) && is.na(opts$model)) {
+        stop_h(sprintf(
           "Unknown model for random initialization of augmented \"%s\".",
           opts$name
         ))
-
-      } else if (is.na(parsed$x)) {
-        if (!is.na(opts$model)) opts$init_rand <- TRUE
-        # else: constant NA augmented variable
-      } else {
-        opts$value <- parsed$x
       }
 
       opts
     },
 
-    # interpret user choice for proposer rule
+    # Interpret user choice for proposer rule.
     .helper_proposer_rule = function(opts, scale) {
       if (isFALSE(opts$const)) {
         if (is.na(opts$rule)) {
@@ -263,7 +253,6 @@ HousepiAugmented <- R6::R6Class(
                    func = NA,
                    func_args = NULL,
                    value = NA,
-                   init_rand = FALSE,
                    model = NA,
                    args = NULL,
                    min = NULL,
@@ -283,7 +272,6 @@ HousepiAugmented <- R6::R6Class(
         func = as.character(func),
         fcumul = FALSE,
         value = NA,
-        init_rand = isTRUE(init_rand),
         model = as.character(model),
         min = NA,
         rule = as.character(rule),
@@ -295,7 +283,8 @@ HousepiAugmented <- R6::R6Class(
         opts <- private$.helper_implicit_func(opts, expr)
       } else if (!is.na(opts$func)) {
         opts <- private$.helper_function_arguments(opts, func_args)
-        opts$init_rand <- opts$const <- opts$discr <- FALSE
+        opts$const <- FALSE
+        opts$discr <- FALSE
       }
 
       # model arguments

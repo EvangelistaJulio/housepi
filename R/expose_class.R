@@ -244,7 +244,6 @@ get_augmented <- function(object, ...) {
 #' @param name `r rd_var_name_`
 #' @param status `r rd_aug_status_`
 #' @param value `r rd_aug_val_`
-#' @param init_rand `r rd_aug_rndin_`
 #' @param const `r rd_var_const_`
 #' @param discr `r rd_aug_discr_`
 #' @param func `r rd_aug_func_`
@@ -262,9 +261,8 @@ get_augmented <- function(object, ...) {
 #' @export
 add_augmented <- function(object,
                           name = NA, status = NA,
-                          const = NA, discr = FALSE,
+                          value = NULL, const = NA, discr = FALSE,
                           func = NA, func_args = NULL,
-                          value = NULL, init_rand = FALSE,
                           model = NA, args = NULL,
                           min = NULL, max = NULL,
                           rule = NA, scale = NA,
@@ -272,9 +270,8 @@ add_augmented <- function(object,
   stopifnot(inherits(object, "HousepiModel"))
   object$clone(deep = TRUE)$add_augmented(
     name = name, status = status,
-    const = const, discr = discr,
+    value = value, const = const, discr = discr,
     func = func, func_args = func_args,
-    value = value, init_rand = init_rand,
     model = model, args = args,
     min = min, max = max,
     rule = rule, scale = scale,
@@ -426,7 +423,6 @@ loglikelihood <- function(object, data_wide = NULL, seed = NA) {
 #' @param n_adapt `r rd_smpl_adapt_`
 #' @param n_chains `r rd_smpl_chain_`
 #' @param n_threads `r rd_smpl_thread_`
-#' @param rand_init `r rd_smpl_rndin_`
 #' @param id_draws `r rd_smpl_iddrw_`
 #' @param seed `r rd_seed_`
 #' @param progress `r rd_progress_`
@@ -439,14 +435,13 @@ infer <- function(object, data_wide = NULL,
                   sample_size = NA, n_steps = 5000,
                   n_burnin = 0, thin = 1, n_adapt = 0,
                   n_chains = 1, n_threads = 1,
-                  rand_init = TRUE, id_draws = NA,
-                  seed = NA, progress = TRUE) {
+                  id_draws = NA, seed = NA, progress = TRUE) {
   stopifnot(inherits(object, "HousepiModel"))
   object$infer(
     data_wide = data_wide, sample_size = sample_size,
     n_steps = n_steps, n_burnin = n_burnin, thin = thin,
     n_adapt = n_adapt, n_chains = n_chains,
-    n_threads = n_threads, rand_init = rand_init,
+    n_threads = n_threads,
     id_draws = id_draws, seed = seed, progress = progress
   )
 }

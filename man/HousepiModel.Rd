@@ -294,12 +294,11 @@ If the augmented variablw already exists, it is updated.
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_augmented(
   name = NA,
   status = NA,
+  value = NULL,
   const = NA,
   discr = FALSE,
   func = NA,
   func_args = NULL,
-  value = NULL,
-  init_rand = FALSE,
   model = NA,
   args = list(),
   min = NULL,
@@ -318,6 +317,14 @@ If the augmented variablw already exists, it is updated.
 \item{\code{status}}{\code{integer(1)} with positive status to specify individual definitions.\cr
 If NA (default), the generic defition is associated to all infectious individuals.}
 
+\item{\code{value}}{\code{numeric(1)} or \code{character(1)} with the initial value. \cr
+One between:\cr
+\itemize{
+\item Scalar value;\cr
+\item Parameter name (followed by \verb{@P});\cr
+\item Dataset name (followed by \verb{@D}).
+}}
+
 \item{\code{const}}{\code{logical(1)} to treat definition as constant (other details are ignored).\cr
 Default is \code{FALSE}.}
 
@@ -327,17 +334,6 @@ Default is \code{FALSE}.}
 \item{\code{func}}{\code{character(1)} with the name of the augmented function.}
 
 \item{\code{func_args}}{named \code{list} with the arguments of the augmented function.}
-
-\item{\code{value}}{\code{numeric(1)} or \code{character(1)} with the initial value. \cr
-One between:\cr
-\itemize{
-\item Scalar value;\cr
-\item Parameter name (followed by \verb{@P});\cr
-\item Dataset name (followed by \verb{@D}).
-}}
-
-\item{\code{init_rand}}{\code{character(1)} to draw initial value from model distribution.\cr
-Default is \code{FALSE}.}
 
 \item{\code{model}}{\code{character(1)} wit the choice for the model distribution.}
 
@@ -583,7 +579,6 @@ Run inference with Bayesian Markov Chain Monte Carlo.
   n_adapt = 0,
   n_chains = 1,
   n_threads = 1,
-  rand_init = TRUE,
   id_draws = NA,
   seed = NA,
   progress = TRUE
@@ -608,12 +603,6 @@ Run inference with Bayesian Markov Chain Monte Carlo.
 \item{\code{n_chains}}{\code{integer(1)} with the number of independent MCMC chains to run.}
 
 \item{\code{n_threads}}{\code{integer(1)} with the number of threads to run in parallel.}
-
-\item{\code{rand_init}}{\code{logical(1)} to control random initialization of variables:\cr
-\itemize{
-\item If \code{TRUE} (default), initial values are randomly drawn from respective distributions;\cr
-\item If \code{FALSE} uses initial value definitions.
-}}
 
 \item{\code{id_draws}}{\code{character()} with individuals identifiers.\cr
 Store draws of public augmented variables for the chosen individuals.}

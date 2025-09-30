@@ -14,7 +14,6 @@ infer(
   n_adapt = 0,
   n_chains = 1,
   n_threads = 1,
-  rand_init = TRUE,
   id_draws = NA,
   seed = NA,
   progress = TRUE
@@ -38,12 +37,6 @@ infer(
 \item{n_chains}{\code{integer(1)} with the number of independent MCMC chains to run.}
 
 \item{n_threads}{\code{integer(1)} with the number of threads to run in parallel.}
-
-\item{rand_init}{\code{logical(1)} to control random initialization of variables:\cr
-\itemize{
-\item If \code{TRUE} (default), initial values are randomly drawn from respective distributions;\cr
-\item If \code{FALSE} uses initial value definitions.
-}}
 
 \item{id_draws}{\code{character()} with individuals identifiers.\cr
 Store draws of public augmented variables for the chosen individuals.}

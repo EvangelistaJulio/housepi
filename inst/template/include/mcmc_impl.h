@@ -73,11 +73,10 @@ public:
 
         const str_vec file_headers = {"sample_size", "seed", "n_chains",
                                       "n_steps", "n_adapt", "thin",
-                                      "n_burnin", "rand_init", "n_threads",
+                                      "n_burnin", "n_threads",
                                       "id_draws", "progress"};
 
         std::int32_t seed;               /// random generator seed
-        bool rand_init_params = true;    /// random initialization of parameters
         unsigned long progress = 1;      /// thinning seconds for progress bar
         unsigned long n_chains = 1;      /// n. chains
         unsigned long n_steps = 1;       /// n. iterations
@@ -211,7 +210,7 @@ public:
 
         void build(const dict_str_vec &input);
         void make_cache_dependent(const std::string &p);
-        void init();
+        void user_reset();
 
         void init_draws(unsigned long sample_size);
         void update_draws(unsigned long smpl_count);
@@ -230,6 +229,9 @@ public:
         MCMC::Impl &pImpl_; // pointer to external class
 
         u_dict<Variable> dictionary_ = {}; // parameters dictionary
+
+        void build_constant_parameter_(const dict_str_vec &deftable, size_t k);
+        void build_parameter_to_sample_(const dict_str_vec &deftable, size_t k);
     } param;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -505,10 +507,8 @@ public:
         dict_str_vec deftable = {};
         const str_vec file_headers = {"name", "status",
                                       "func", "fcumul",
-                                      "value", "init_rand",
-                                      "const", "discr",
-                                      "model",
-                                      HSP_PARAM_MIN, HSP_PARAM_MAX,
+                                      "value", "const", "discr",
+                                      "model", HSP_PARAM_MIN, HSP_PARAM_MAX,
                                       "rule", "scale"};
 
         str_vec list_model = {};
@@ -541,6 +541,7 @@ public:
 
         void build();
         void init();
+        void user_reset();
 
         void clear_all(Individual &member);
         void init_all(Individual &member);

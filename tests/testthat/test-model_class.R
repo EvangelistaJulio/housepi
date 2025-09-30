@@ -47,7 +47,9 @@ test_that("Deep clone works as expected", {
   # UPDATE: change to a model with data augmentation
   hhmodel <- new_housepi_model("chain_binomial_heterogeneous")
   hhmodel$load_parameter_template()
-  out <- hhmodel$infer(housepi::survey, n_steps = 2, progress = FALSE)
+  expect_no_error(
+    out <- hhmodel$infer(housepi::survey, n_steps = 2, progress = FALSE)
+  )
 
   # shallow clone
   hhclone <- hhmodel$clone(deep = FALSE)
@@ -115,6 +117,13 @@ test_that("Nested definitions raise errors", {
       log_proba = ~log(..proba)
     )$loglikelihood()
   )
+  
+  hhmodel$load_augmented_list(
+    ..proba = list(model = "unif", status = 1),
+    ..proba = list(expr = ~..layer, status = c(2, 3, 4)),
+    ..layer = list(model = "unif"),
+    log_proba = ~log(..proba)
+  )$loglikelihood(seed = TRUE)
 
   # simple nest
   expect_error(
@@ -168,6 +177,23 @@ test_that("Nested definitions raise errors", {
                         func_args = c(shape = ~shape@D, scale = ~ scale@P))
   hhmodel$add_augmented(name = "log_proba", expr = ~log(gamma))
   expect_error(hhmodel$loglikelihood())
+})
+
+test_that("Augmented loglikelihood seeding is fine", {
+  hhmodel <- new_housepi_model("augmented_example")
+  hhmodel$data_wide <- data.frame(house_id = 1, id = seq(4), status = seq(4))
+  hhmodel$load_augmented_list(
+    proba = list(model = "unif", status = 1),
+    proba = list(expr = ~layer, status = c(2, 3, 4)),
+    layer = list(model = "unif"),
+    log_proba = ~log(proba)
+  )
+  
+  ll1 <- hhmodel$loglikelihood(seed = 1)
+  ll2 <- hhmodel$loglikelihood(seed = 2)
+  expect_true(ll1 != ll2)
+  expect_identical(ll2, hhmodel$loglikelihood(seed = 2))
+  expect_identical(ll2, sum(log(hhmodel$export_augmented_data()$proba)))
 })
 
 test_that("Augmented aliasing works as expected", {

@@ -79,10 +79,6 @@ void MCMC::Impl::Setup::build(const dict_str &deflist)
         if (deflist.count("n_burnin") && (!tools::is_na(deflist.at("n_burnin"))))
             n_burnin = tools::str::toul(deflist.at("n_burnin"), "burn-in");
 
-        // Random Initialization of Parameters
-        if (deflist.count("rand_init") && (!tools::is_na(deflist.at("rand_init"))))
-            rand_init_params = tools::str::tobool(deflist.at("rand_init"));
-
         // Individual ID for Augmented Trace
         if (deflist.count("id_draws") && (!tools::is_na(deflist.at("id_draws"))))
             parse_id_draws_list_(deflist.at("id_draws"), HSP_LIST_DELIM);
@@ -679,79 +675,84 @@ void MCMC::Impl::Parameter::build(const dict_str_vec &deftable)
         list_sample_standard.clear();
         list_sample_cache.clear();
 
+        // assert that parameter is not already defined
+        if (deftable.at("name").size() != tools::str::unique(deftable.at("name")).size())
+            throw std::invalid_argument(
+                "Found multiple definitions for the same parameters.");
+
         // load parameters from the row with options
         for (size_t k = 0; k < deftable.at("name").size(); ++k)
-        {
-            const std::string &name = deftable.at("name")[k]; // parameter name
-            double value = HSP_NA_DOUBLE;                     // init value
-            const std::string p = name;
-
-            // Add entry to shared parameter dictionary
-            if (dictionary_.count(p))
-            {
-                // parameter is already defined
-                throw std::invalid_argument(
-                    "Parameter \"" + p + "\" has multiple definitions.");
-            }
-            else if (tools::str::tobool(deftable.at("const")[k]))
-            {
-                // assign constant parameter to the set of variables
-                if (tools::is_na(deftable.at("value")[k]))
-                    throw std::invalid_argument(
-                        "Undefined value for constant parameter \"" + name + "\".");
-                else
-                    value = pImpl_.read_scalar_(deftable.at("value")[k]);
-
-                // assign constant parameter to the set of variables
-                dictionary_.emplace(p, Variable(name, value));
-                // update the lists of constant parameters
-                list_const.push_back(p);
-            }
+            if (tools::str::tobool(deftable.at("const")[k]))
+                build_constant_parameter_(deftable, k);
             else
             {
-                // load value
-                value = pImpl_.read_scalar_(deftable.at("value")[k]);
-
-                // load boolean flag for discrete variables
-                bool is_discrete = tools::str::tobool(deftable.at("discr")[k]);
-
-                // load rule name
-                std::string rule_name = "draw";
-                if (!tools::is_na(deftable.at("rule")[k]))
-                    rule_name = deftable.at("rule")[k];
-
-                // load rule scale
-                double rule_scale = 1.;
-                if (!tools::is_na(deftable.at("scale")[k]))
-                    rule_scale = tools::str::tod(deftable.at("scale")[k]);
-
-                // create a new Parameter Variable
-                dictionary_.emplace(p, Variable(name, value, false, is_discrete));
-                Variable &new_param = this->at(p);
-
-                // assign a prior distribution to the parameter
-                DefinitionParser parser(deftable.at("prior")[k]);
-                new_param.init_distr(parser);
-
-                for (const auto &child : parser.root.children)
-                    new_param.init_distr_attr(child.key, pImpl_.read_scalar_(child));
-
-                // load parameter range
-                new_param.init_distr_attr(HSP_PARAM_MIN, pImpl_.read_scalar_(deftable.at(HSP_PARAM_MIN)[k]));
-                new_param.init_distr_attr(HSP_PARAM_MAX, pImpl_.read_scalar_(deftable.at(HSP_PARAM_MAX)[k]));
-                new_param.init_distr_reshaping();
-
-                // assign the rule for the proposer to the parameter
-                new_param.init_proposer(rule_name, rule_scale);
-
-                // update the lists of parameters to be sampled
-                list_sample.push_back(p);
+                list_sample.push_back(deftable.at("name")[k]);
+                build_parameter_to_sample_(deftable, k);
             }
-        }
 
         // initialize all parameters to standard
         list_sample_standard = list_sample;
     }
+}
+
+/// Helper to build constant parameter.
+void MCMC::Impl::Parameter::build_constant_parameter_(const dict_str_vec &deftable, size_t k)
+{
+    const std::string &p = deftable.at("name")[k]; // parameter name
+
+    if (tools::is_na(deftable.at("value")[k]))
+        throw std::invalid_argument(
+            "Undefined value for constant parameter \"" + p + "\".");
+
+    // assign constant parameter to the set of variables
+    double value = pImpl_.read_scalar_(deftable.at("value")[k]);
+    dictionary_.emplace(p, Variable(p, value));
+    // update the lists of constant parameters
+    list_const.push_back(p);
+}
+
+/// Helper to build parameter to sample.
+void MCMC::Impl::Parameter::build_parameter_to_sample_(const dict_str_vec &deftable, size_t k)
+{
+    const std::string &p = deftable.at("name")[k]; // parameter name
+
+    // assert parameter to sample has a valid value initialization
+    if (tools::is_na(deftable.at("value")[k]))
+        if (tools::is_na(deftable.at("prior")[k]))
+            throw std::invalid_argument(
+                "Undefined prior for undefined non-constant parameter \"" + p + "\".");
+
+    // load boolean flag for discrete variables
+    bool is_discrete = tools::str::tobool(deftable.at("discr")[k]);
+
+    // load rule name
+    std::string rule_name = "sample";
+    if (!tools::is_na(deftable.at("rule")[k]))
+        rule_name = deftable.at("rule")[k];
+
+    // load rule scale
+    double rule_scale = 1.;
+    if (!tools::is_na(deftable.at("scale")[k]))
+        rule_scale = tools::str::tod(deftable.at("scale")[k]);
+
+    // create a new Parameter Variable
+    dictionary_.emplace(p, Variable(p, pImpl_.read_scalar_(deftable.at("value")[k]), false, is_discrete));
+    Variable &new_param = this->at(p);
+
+    // assign a prior distribution to the parameter
+    DefinitionParser parser(deftable.at("prior")[k]);
+    new_param.init_distr(parser);
+
+    for (const auto &child : parser.root.children)
+        new_param.init_distr_attr(child.key, pImpl_.read_scalar_(child));
+
+    // load parameter range
+    new_param.init_distr_attr(HSP_PARAM_MIN, pImpl_.read_scalar_(deftable.at(HSP_PARAM_MIN)[k]));
+    new_param.init_distr_attr(HSP_PARAM_MAX, pImpl_.read_scalar_(deftable.at(HSP_PARAM_MAX)[k]));
+    new_param.init_distr_reshaping();
+
+    // assign the rule for the proposer to the parameter
+    new_param.init_proposer(rule_name, rule_scale);
 }
 
 /// Adjust lists of parameters to be inferred making parameter as dependent on cache.
@@ -767,51 +768,8 @@ void MCMC::Impl::Parameter::make_cache_dependent(const std::string &p)
 }
 
 /// Randomly initialize values of the parameters to be inferred */
-void MCMC::Impl::Parameter::init()
+void MCMC::Impl::Parameter::user_reset()
 {
     for (const std::string &p : list_sample)
-    {
-        Variable &xparam = this->at(p);
-
-        if (pImpl_.setup.rand_init_params)
-        {
-            if (tools::is_na(xparam.distr_name()))
-                throw std::invalid_argument(
-                    "Parameters with undefined values are not allowed.");
-            else
-                xparam.init_rand(pImpl_.setup.prng());
-        }
-        else if (tools::is_na(xparam.get()))
-            throw std::invalid_argument(
-                "Value of parameter \"" + p + "\" is undefined with no random initialization.");
-        else
-            xparam.user_reset();
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  MCMC : Impl : init Monte Carlo  /////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Assert setup definitions are ok to proceed with mcmc sampling.
-void MCMC::Impl::init_monte_carlo_()
-{
-    setup.assert_mcmc_setup();
-
-    // check if there is a dataset
-    assert_proper_dataset_();
-
-    // check if there is actually something to sample
-    if (!(param.is_any_sample() || augm.is_any_sample()))
-        throw std::length_error(
-            "Nothing to sample. Check your parameter and augmented variable definitions.");
-}
-
-/// Assert dataset is not empty.
-void MCMC::Impl::assert_proper_dataset_()
-{
-    if (dataset.n_houses() == 0)
-        throw std::length_error("Unable to proceed. No database was found.");
+        this->at(p).user_reset(pImpl_.setup.prng());
 }

@@ -39,9 +39,8 @@ test_that("Augmented variable definition is correct", {
 test_that("Augmented sampling default is correct", {
   augm <- housepi:::HousepiAugmented$new()
   augm$add(name = "dummy", model = "norm")
-  
+
   expect_equal(augm$defs$const, FALSE)
-  expect_equal(augm$defs$init_rand, TRUE)
   expect_equal(augm$defs$rule, "sample")
 })
 

@@ -177,13 +177,14 @@ unsigned short Function::assert_arg(const std::string &arg_name) const
     if (arg_name == "x")
         return n_args_; // by convention, last argument is 'x'
     else
-        for (unsigned short c = 0; c < n_args_; ++c)
-            if (args_[c].name() == arg_name)
-                return c;
+        for (unsigned short i = 0; i < n_args_; ++i)
+            if (args_[i].name() == arg_name)
+                return i;
 
+    // throw error showing options
     str_vec options = {};
-    for (unsigned short c = 0; c < n_args_; ++c)
-        options.push_back(args_[c].name());
+    for (unsigned short i = 0; i < n_args_; ++i)
+        options.push_back(args_[i].name());
     throw std::invalid_argument(
         "Unknown argument \"" + arg_name + "\" for " + err_name() + "." +
         tools::str::find_closest(arg_name, options, HSP_MIN_STR_DIST));
@@ -330,7 +331,7 @@ void Function::init_range_helper_(bool is_min_open, bool is_max_open)
 std::string Function::str_range() const
 {
     if (is_valid_ == &Function::do_is_valid_always_)
-        return "";
+        return "(-Inf, Inf)";
 
     else if (is_valid_ == &Function::do_is_valid_open_min_)
         return "(" + str_min() + ", Inf)";
@@ -478,9 +479,7 @@ std::string Function::str_summary() const
     output += "(" + args_[n_args_].name() + "=" + args_[n_args_].str();
     for (unsigned short c = 0; c < n_args_; ++c)
         output += ", " + args_[c].name() + "=" + args_[c].str();
-    output += ")";
-    if (is_valid_ != &Function::do_is_valid_always_)
-        output += " : " + str_range();
+    output += ") : " + str_range();
     return output;
 }
 
@@ -569,7 +568,7 @@ public:
     Minus_Function() : Function("minus", {}, {}) {}
 
     void init_truncation() override final {}
-    bool is_discrete() const override final { args_[n_args_].is_discrete(); }
+    bool is_discrete() const override final { return args_[n_args_].is_discrete(); }
 
 protected:
     double raw_function_(double x) const override final { return -x; }
@@ -585,7 +584,7 @@ protected:
                                                                                         \
         bool is_discrete() const override final                                         \
         {                                                                               \
-            args_[0].is_discrete() && args_[n_args_].is_discrete();                     \
+            return args_[0].is_discrete() && args_[n_args_].is_discrete();              \
         }                                                                               \
                                                                                         \
     protected:                                                                          \
@@ -617,7 +616,7 @@ public:
 
     bool is_discrete() const override final
     {
-        Function::is_discrete() || (args_[0].is_discrete() && args_[n_args_].is_discrete());
+        return Function::is_discrete() || (args_[0].is_discrete() && args_[n_args_].is_discrete());
     }
 
 protected:

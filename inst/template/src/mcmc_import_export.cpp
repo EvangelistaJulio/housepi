@@ -91,7 +91,6 @@ Rcpp::List MCMC::Impl::Setup::rcpp_export() const
                         _["n_adapt"] = n_adapt,
                         _["n_burnin"] = n_burnin,
                         _["thin"] = thin,
-                        _["rand_init"] = rand_init_params,
                         _["seed"] = seed,
                         _["n_threads"] = n_threads,
                         _["id_draws"] = CharacterVector(wrap(id_draws)),
@@ -923,7 +922,6 @@ void MCMC::Impl::Setup::show() const
               << "\nn_adapt" << HSP_DELIM << n_adapt
               << "\nn_burnin" << HSP_DELIM << n_burnin
               << "\nthin" << HSP_DELIM << thin
-              << "\nrand_init" << HSP_DELIM << tools::str::format(rand_init_params)
               << "\nprogress" << HSP_DELIM << progress
               << "\nid_draws" << HSP_DELIM << id_draws_txt
               << "\n";
@@ -949,18 +947,18 @@ void MCMC::Impl::Parameter::show() const
     str_vec all_params = list_sample + list_const;
     for (const std::string &p : all_params)
     {
-        const Variable &aux = dictionary_.find(p)->second;
-        std::cout << aux.name()
-                  << HSP_DELIM << tools::str::format(aux.get())
-                  << HSP_DELIM << tools::str::format(aux.is_constant())
-                  << HSP_DELIM << tools::str::format(aux.is_discrete())
-                  << HSP_DELIM << aux.distr_name()
-                  << HSP_DELIM << aux.distr_str_arg_names()
-                  << HSP_DELIM << aux.distr_str_arg_values()
-                  << HSP_DELIM << aux.prop_name()
-                  << HSP_DELIM << aux.prop_str_scale()
-                  << HSP_DELIM << aux.str_min()
-                  << HSP_DELIM << aux.str_max()
+        const Variable &xparam = this->at(p);
+        std::cout << xparam.name()
+                  << HSP_DELIM << tools::str::format(xparam.get())
+                  << HSP_DELIM << tools::str::format(xparam.is_constant())
+                  << HSP_DELIM << tools::str::format(xparam.is_discrete())
+                  << HSP_DELIM << xparam.distr_name()
+                  << HSP_DELIM << xparam.distr_str_arg_names()
+                  << HSP_DELIM << xparam.distr_str_arg_values()
+                  << HSP_DELIM << xparam.prop_name()
+                  << HSP_DELIM << xparam.prop_str_scale()
+                  << HSP_DELIM << xparam.str_min()
+                  << HSP_DELIM << xparam.str_max()
                   << "\n";
     }
     std::cout << std::endl;

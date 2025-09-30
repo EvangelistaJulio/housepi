@@ -51,7 +51,11 @@ observ_dbl_ptr MCMC::param_pointer(const std::string &p) const { return pImpl_->
 //////////////////////////////////////  MCMC : augmented variables  /////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-void MCMC::init_all_augm(Individual &member) { pImpl_->augm.init_all(member); }
+void MCMC::init_all_augm(Individual &member)
+{
+    pImpl_->augm.init_all(member);
+    member.user_reset(pImpl_->setup.prng());
+}
 void MCMC::clear_all_augm(Individual &member) { pImpl_->augm.clear_all(member); }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
