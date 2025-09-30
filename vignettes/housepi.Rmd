@@ -227,23 +227,21 @@ hhsimul <- hhsimul |>
 We then run a simulation with the method `simulate`, using the same community structure from the survey, but dropping cases.
 In this configuration, introductions are sampled randomly. 
 Simulation will associated augmented incubation periods and onset times in addition to status.
+We then propose a simple observation process, where we assume onsets after 6 PM (18/24) are reported to next day. We also want to drop unobserved quantities. We can do both by assigning such a function to the argument `observation`:
 
 ```{r}
+obs_process <- function(x) {
+  x |>
+    dplyr::mutate(onset_date = dplyr::if_else(
+      status > 0, floor(onset_time) + ((onset_time %% 1) > 0.75), NA
+      )) |>
+    dplyr::select(-incub_period, -onset_time, -infec_time)
+}
+
 simulated <- hhsimul |>
   add_data_wide(dplyr::mutate(housepi::survey, status = NA)) |>
-  simulate()
-head(simulated)
-```
+  simulate(obs_process = obs_process)
 
-We then propose a simple observation process, where we assume onsets after 6 PM (18/24) are reported to next day.
-Finally, we remove unobserved quantities:
-
-```{r}
-simulated <- simulated |>
-  dplyr::mutate(onset_date = dplyr::if_else(
-    status > 0, floor(onset_time) + ((onset_time %% 1) > 0.75), NA
-  )) |>
-  dplyr::select(-incub_period, -onset_time, -infec_time)
 head(simulated)
 ```
 

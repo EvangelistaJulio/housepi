@@ -25,10 +25,10 @@ add_augmented(
 \arguments{
 \item{object}{\code{HousepiModel} object.}
 
-\item{name}{\code{character(1)} name used by interna; calls.}
+\item{name}{\code{character(1)} name used by internal calls.}
 
 \item{status}{\code{integer(1)} with positive status to specify individual definitions.\cr
-If NA (default), the generic defition is associated to all infectious individuals.}
+If NA the generic defition is associated to all infectious individuals (default).}
 
 \item{value}{\code{numeric(1)} or \code{character(1)} with the initial value. \cr
 One between:\cr

@@ -214,13 +214,13 @@ HousepiAugmented <- R6::R6Class(
     #' @description
     #' Remove a given augmented variable.
     #'
-    #' @param x `character(1)`\cr
-    #' Name of the augmented variable to remove.
-    #' @param status `integer(1)`\cr
-    #' The associated status of the definition.
-    #' Default NA is for all infected status.
-    #' @param show_warnings `logical(1)`\cr
-    #' Whether to show warnings or not. Default is `TRUE`.
+    #' @param x
+    #' A `character(1)` with the name of the augmented definition to remove.
+    #' @param status
+    #' An `integer(1)` with the associated status of the definition.
+    #' If `NA`, remove for all infected status.
+    #' @param show_warnings
+    #' `logical(1)`to show warnings or not.
     #'
     #' @return `logical(1)`
     remove = function(x, status = NA, show_warnings = TRUE) {
@@ -308,10 +308,10 @@ HousepiAugmented <- R6::R6Class(
     #'
     #' @param ...
     #' Named arguments with respective list of definition details.
-    #' @param from named `list`\cr
-    #' Named list of parameter definitions.
-    #' @param append `logical(1)`\cr
-    #' If `TRUE` appends to current definitions.
+    #' @param from
+    #' A named `list` of parameter definitions.
+    #' @param append
+    #' A `logical(1)` to append to current definitions.
     #' If `FALSE` drop all pre-existing definitions (default).
     load_list = function(...,
                          from = NULL,
@@ -360,10 +360,10 @@ HousepiAugmented <- R6::R6Class(
     #'
     #' @param templ_file
     #' Path/to/.refer template file.
-    #' @param required `character()`\cr
-    #' Vector containing required parameters.
-    #' @param append `logical(1)`\cr
-    #' If `TRUE` append missing augmented variable definitions.
+    #' @param required
+    #' A `character()` containing required parameters.
+    #' @param append
+    #' `logical(1)` to append missing augmented variable definitions.
     #' If `FALSE` drop all pre-existing definitions (default).
     load_template = function(templ_file, required = NULL, append = FALSE) {
       # check if template file exists
@@ -407,10 +407,10 @@ HousepiAugmented <- R6::R6Class(
     #' @description
     #' Assert augmented definitions from the model implementation script.
     #'
-    #' @param required `character()`\cr
-    #' Vector containing required parameters.
-    #' @param status_set `integer()`\cr
-    #' All statuses present in current data.
+    #' @param required
+    #' A `character()` containing required parameters.
+    #' @param status_set
+    #' A `integer()` with all statuses present in the current data.
     assert = function(required, status_set) {
       status_set <- sort(status_set)
       defined <- self$defs[["name"]]

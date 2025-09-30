@@ -15,7 +15,7 @@
 #' @description
 #' Utility functions for error messages.
 #'
-#' @param ...\cr
+#' @param ...
 #' Lists of messages printed in sequence on different lines.
 #'
 #' @noRd
@@ -29,7 +29,7 @@ stop_h <- function(...) {
 #' @description
 #' Utility functions for warning messages.
 #'
-#' @param ...\cr
+#' @param ...
 #' Lists of messages printed in sequence on different lines.
 #'
 #' @noRd
@@ -51,10 +51,10 @@ require_suggested_library <- function(libname) {
 #' @description
 #' Collapse a character vector into string of quoted words.
 #'
-#' @param mylist`character()`\cr
-#' Vector of characters.
-#' @param max_print `integer(1)`\cr
-#' Maximum number of elements to print (default is 4).
+#' @param mylist
+#' A `character()` vector to be print.
+#' @param max_print
+#' An `integer(1)` with the maximum number of elements to print.
 #'
 #' @return
 #' String formatted as a list of quoted words.
@@ -73,8 +73,8 @@ character_to_string_list <- function(mylist, max_print = 4) {
 #' @description
 #' Collapse a character vector into a phrase.
 #'
-#' @param mylist`character()`\cr
-#' Vector of characters.
+#' @param mylist
+#' A `character()` vector.
 #'
 #' @return
 #' String formatted as a phrase.
@@ -98,12 +98,12 @@ character_to_phrase <- function(mylist) {
 #' @description
 #' Find the closest match among a list of options.
 #'
-#' @param input `character(1)`\cr
-#' Vector of characters.
-#' @param options `character()`\cr
-#' Vector of options.
-#' @param min_dist `integer(1)`\cr
-#' Threshold for minimal distance.
+#' @param input
+#' A `character(1)` with the string to be inspected.
+#' @param options
+#' A `character()` with the options.
+#' @param min_dist
+#' An `integer(1)` with the threshold for minimal distance.
 #'
 #' @return `character()`\cr
 #' String with helpful comments
@@ -154,10 +154,10 @@ get_val_ <- function(lst, key, default = NA) {
 #' @description
 #' Load definitions either as direct arguments or from predefined list.
 #'
-#' @param ...\cr
+#' @param ...
 #' Named arguments with respective list of definition details.
-#' @param from named `list`\cr
-#' Named list of definitions (alternative to named arguments).
+#' @param from
+#' A named `list` of definitions (alternative to named arguments).
 #'
 #' @return
 #' `list` of `list`
@@ -208,10 +208,10 @@ trunc_mtime <- function(path) {
 #' @description
 #' Tell if source files was modified or if a more recent installation exists.
 #'
-#' @param source_dir `character(1)`\cr
-#' Path to source directory.
-#' @param dll `character(1)`\cr
-#' Expected dynamic library file name.
+#' @param source_dir
+#' A `character(1)` with the path to source directory.
+#' @param dll
+#' A `character(1)` with the expected dynamic library file name.
 #'
 #' @return
 #' `bool`
@@ -291,8 +291,8 @@ helper_clone <- function(x) {
 #' @description
 #' Format elements of a list to pass to import_setup Rcpp method.
 #'
-#' @param defs `list`\cr
-#' List of setup command
+#' @param defs
+#' A `list` of setup command
 #'
 #' @return `character()`
 #'
@@ -315,8 +315,8 @@ char_setup_input_ <- function(defs) {
 #' @description
 #' Format elements of data (wide or long) to pass to import Rcpp method.
 #'
-#' @param df `data.frame()`\cr
-#' Dataest or datalist.
+#' @param df
+#' A `data.frame` with definition table or list.
 #'
 #' @return `character()`
 #'
@@ -332,8 +332,8 @@ char_data_input_ <- function(df) {
 #' @description
 #' Factorize dates and non numerical quanties from data to pass Cpp.
 #'
-#' @param df `data.frame`\cr
-#' Dataset.
+#' @param df
+#' A `data.frame` with dataset.
 #'
 #' @return `list`
 #'
@@ -373,12 +373,12 @@ cpp_data_factorize <- function(df) {
 #' @description
 #' Restore factored quanties on data return from Cpp implementation.
 #'
-#' @param data `data.frame`\cr
-#' Data as output from rcpp model object.
-#' @param info `list` of `list\cr
-#' Infor about class and levels of data columns.
-#' @param headers `character()`\cr
-#' Headers of the columns.
+#' @param data
+#' A `data.frame` as output from the Rcpp model object.
+#' @param info
+#' A `list` of `list`s with info about class and levels of data columns.
+#' @param headers
+#' A `character()` with the column headers.
 #'
 #' @return `data.frame`
 #'
@@ -581,7 +581,9 @@ DefEncoder <- R6::R6Class(
     },
 
     #' @description Return the value, if applicable.
-    #' @param func_name `character(1)`
+    #' @param func_name
+    #' A `character(1)` with the function name.
+    #'
     #' @return `character(1)` or `NA`
     combine_to_call = function(func_name) {
       if (self$is_call()) stop_h("Already a call, impossible to combine.")
@@ -610,8 +612,10 @@ DefEncoder <- R6::R6Class(
 #' @description
 #' Recursively walk an encoded function to extract all values of a given type.
 #'
-#' @param input A `character(1)` with encoded function string.
-#' @param type A `character(1)` with the type to extract.
+#' @param input
+#' A `character(1)` with encoded function string.
+#' @param type
+#' A `character(1)` with the type to extract.
 #'
 #' @return `character()`
 #' @keywords internal
@@ -680,7 +684,8 @@ evaluate_block <- function(block, type) {
 #' @description
 #' Convert encoded definition strings into a more human-readable format.
 #'
-#' @param defs A `data.frame()` with encoded definition strings.
+#' @param defs
+#' A `data.frame()` with encoded definition strings.
 #'
 #' @return `data.frame()`
 #' @keywords internal

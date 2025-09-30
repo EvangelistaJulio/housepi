@@ -10,8 +10,7 @@ FIXME: missing.
 \section{Active bindings}{
 \if{html}{\out{<div class="r6-active-bindings">}}
 \describe{
-\item{\code{hierarchy}}{\code{data.frame}\cr
-Features as hierchically reordered by the sampler.}
+\item{\code{hierarchy}}{A \code{data.frame} with features as hierchically reordered by the sampler.}
 }
 \if{html}{\out{</div>}}
 }
@@ -39,8 +38,7 @@ New object of class
 \describe{
 \item{\code{...}}{Named features with respective list of definition details.}
 
-\item{\code{from}}{\code{list} of \code{list}\cr
-List containing encoding dictionary definitions for each feature.}
+\item{\code{from}}{A \code{list} of \code{list}s with encoding definitions for each feature.}
 }
 \if{html}{\out{</div>}}
 }
@@ -57,8 +55,7 @@ Encode individuals from data_wide according to encoding dictionary.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{data_wide}}{\code{data.frame()}\cr
-A data.frame containing the data_wide with individual information by row.}
+\item{\code{data_wide}}{\code{data.frame} with the household data used for analysis in wide format.}
 }
 \if{html}{\out{</div>}}
 }
@@ -75,8 +72,7 @@ Decode individual featrues.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{feats}}{\code{numeric()}\cr
-Encoded features of each individual.}
+\item{\code{feats}}{A \code{numeric()} with the encoded features of each individual.}
 }
 \if{html}{\out{</div>}}
 }

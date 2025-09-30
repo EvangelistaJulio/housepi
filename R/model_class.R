@@ -23,7 +23,6 @@
 #' and variable defintions from a single class.
 #'
 #' @docType class
-#' @keywords internal
 HousepiModel <- R6::R6Class(
   classname = "HousepiModel",
   inherit = HousepiGenerator,
@@ -315,8 +314,8 @@ HousepiModel <- R6::R6Class(
   ############################################################################
 
   active = list(
-    #' @field data_wide `data.frame`\cr
-    #' Dataset with individual level information of current data_wide.
+    #' @field data_wide
+    #' A `data.frame` with individual level information.
     data_wide = function(value) {
       if (missing(value)) {
         if (is.null(private$.rcpp)) stop_h(
@@ -328,8 +327,8 @@ HousepiModel <- R6::R6Class(
       }
     },
 
-    #' @field data_long `data.frame`\cr
-    #' Datalist with multiple rows indexed by individual.
+    #' @field data_long
+    #' A `data.frame` with the additional data rows indexed by individual.
     data_long = function(value) {
       if (missing(value)) {
         if (is.null(private$.rcpp)) stop_h(
@@ -341,22 +340,22 @@ HousepiModel <- R6::R6Class(
       }
     },
 
-    #' @field parameters `data.frame`\cr
-    #' Parameter formatted definitions.
+    #' @field parameters
+    #' A `data.frame` with parameter formatted definitions.
     parameters = function(value) {
       if (missing(value)) return(make_def_readable(private$.param$defs))
       else private$.param$load_list(from = value, append = FALSE)
     },
 
-    #' @field augmented `data.frame`\cr
-    #' Augmented variable formatted definitions.
+    #' @field augmented
+    #' A`data.frame` with augmented formatted definitions.
     augmented = function(value) {
       if (missing(value)) return(make_def_readable(private$.augm$defs))
       else private$.augm$load_list(from = value, append = FALSE)
     },
 
-    #' @field infec_profile_defs `list`\cr
-    #' Infectivity profile definition list.
+    #' @field infec_profile_defs
+    #' A `list` with infectivity profile definitions.
     infec_profile_defs = function(value) {
       if (missing(value)) {
         defs <- private$.infec_profile$defs
@@ -367,8 +366,8 @@ HousepiModel <- R6::R6Class(
       }
     },
 
-    #' @field group_rates `list`\cr
-    #' List containing current group rate definitions.
+    #' @field group_rates
+    #' A `list` with group rate definitions.
     group_rates = function(value) {
       if (missing(value)) {
         private$.build_group_rates()
@@ -793,7 +792,7 @@ HousepiModel <- R6::R6Class(
     },
 
     #' @description
-    #' Dataset with associated augmented variables at current state.
+    #' Dataset with associated augmented variables for last state.
     #'
     #' @return
     #' `data.frame`
@@ -805,10 +804,10 @@ HousepiModel <- R6::R6Class(
     },
 
     #' @description
-    #' A snapshot of all current internal state of a given household.
+    #' All variables associated to given household for last state.
     #'
-    #' @param house_id `character(1)`\cr
-    #' Id of the household to export.
+    #' @param house_id
+    #' A `character(1)` with the ID of the household to export.
     #'
     #' @return `list`
     export_house_snapshot = function(house_id) {
@@ -829,30 +828,42 @@ HousepiModel <- R6::R6Class(
     },
 
     #' @description
-    #' Generate a simulated outbreak with the same community structure of the loaded data.
+    #' Generate a simulated outbreak.
+    #' It assumes the same community structure of the loaded data.
     #'
-    #' @param nsim `r rd_smpl_nsim_`
-    #' @param seed `r rd_seed_`
     #' @param data_wide `r rd_smpl_data_wide_`
+    #' @param obs_process `r rd_simul_observ_`
+    #' @param n_sim `r rd_simul_n_sim_`
+    #' @param seed `r rd_seed_`
     #' @param progress `r rd_progress_`
     #'
     #' @return `data.frame`
-    simulate = function(nsim = 1,
+    simulate = function(data_wide = NULL,
+                        obs_process = NULL,
+                        n_sim = 1,
                         seed = NA,
-                        data_wide = NULL,
                         progress = FALSE) {
+      # set observation process to identity if not provided
+      if (is.null(obs_process)) obs_process <- function(x) x
+      else if (!is.function(obs_process)) stop_h(
+        "Unrecognized function passed as observation process."
+      )
+
       # internal build function
       private$.build_full(data_wide = data_wide,
                           seed = seed, progress = progress)
 
       # refactor static data_wide of simulation
       static_df <- private$.rcpp$data_wide_for_simulation()
+      # produce list of simulated dataframes
+      # then bind simulated entries with static part
+      output <- lapply(private$.rcpp$simulate(n_sim), function(x) {
+        obs_process(private$.refactor_data_wide(cbind(static_df, x)))
+      })
+      # return a single data.frame if single simulation
+      if (n_sim == 1) output <- output[[1]]
 
-      # bind simulated entries with static part
-      # UPDATE : n_rep = 1 for development
-      private$.refactor_data_wide(
-        cbind(static_df, private$.rcpp$simulate(nsim))
-      )
+      output
     },
 
     ############################################################################

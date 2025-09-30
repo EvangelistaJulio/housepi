@@ -9,7 +9,7 @@ compute_household_marginals(object, data_wide)
 \arguments{
 \item{object}{An instance of the \code{HousepiSampler} class.}
 
-\item{data_wide}{A \code{data.frame} containing individual-level data with household IDs.}
+\item{data_wide}{\code{data.frame} with the household data used for analysis in wide format.}
 }
 \description{
 Computes marginal distributions for household features based on a survey dataset.

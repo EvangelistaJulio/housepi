@@ -9,10 +9,10 @@ sample_households(object, size)
 \arguments{
 \item{object}{An instance of the \code{HousepiSampler} class.}
 
-\item{size}{An integer specifying the number of households to sample.}
+\item{size}{`integer(1) with the number of households to sample.}
 }
 \value{
-A \code{data.frame} containing the sampled households.
+\code{data.frame}
 }
 \description{
 Samples synthetic households based on the marginal distributions computed by the \code{HousepiSampler}.

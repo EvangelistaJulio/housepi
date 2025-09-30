@@ -43,12 +43,10 @@ New object of class
 \describe{
 \item{\code{...}}{Named features with respective list of definition details.}
 
-\item{\code{from}}{\code{list} of \code{list}\cr
-List containing encoding dictionary definitions for each feature.}
+\item{\code{from}}{A \code{list} of \code{list}s with encoding definitions for each feature.}
 
-\item{\code{ascending}}{\code{logical(1)}\cr
-If \code{TRUE} hierarchy between feature numbers is ascending.
-If \code{FALSE} (default) is descending.}
+\item{\code{ascending}}{A \code{logical(1)} to set ascending hierarchy between feature numbers.\cr
+If \code{FALSE} is descending (default).}
 }
 \if{html}{\out{</div>}}
 }
@@ -65,12 +63,10 @@ Compute household marginal distributions according to hierarchical model.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{data_wide}}{\code{data.frame()}\cr
-A data.frame containing the data_wide with individual information by row.}
+\item{\code{data_wide}}{\code{data.frame} with the household data used for analysis in wide format.}
 
-\item{\code{ascending}}{\code{logical(1)}\cr
-If \code{TRUE} hierarchy between feature numbers is ascending.
-If \code{FALSE} (default) is descending.}
+\item{\code{ascending}}{A \code{logical(1)} to set ascending hierarchy between feature numbers.\cr
+If \code{FALSE} is descending (default).}
 }
 \if{html}{\out{</div>}}
 }
@@ -87,8 +83,7 @@ Sample households according to feature distribution.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{size}}{\code{integer(1)}\cr
-Number of households to sample.}
+\item{\code{size}}{`integer(1) with the number of households to sample.}
 }
 \if{html}{\out{</div>}}
 }

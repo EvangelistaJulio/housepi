@@ -493,12 +493,14 @@ evidence <- function(object, data_wide = NULL,
 
 #' @title Simulate household data
 #' @description
-#' Generate a simulated outbreak with the same community structure of the loaded data.
+#' Generate a simulated outbreak.
+#' It assumes the same community structure of the loaded data.
 #'
 #' @param object `r rd_model_in_`
-#' @param nsim `r rd_smpl_nsim_`
-#' @param seed `r rd_seed_`
 #' @param data_wide `r rd_smpl_data_wide_`
+#' @param obs_process `r rd_simul_observ_`
+#' @param n_sim `r rd_simul_n_sim_`
+#' @param seed `r rd_seed_`
 #' @param progress `r rd_progress_`
 #' @param ... Ignored.
 #'
@@ -507,12 +509,14 @@ evidence <- function(object, data_wide = NULL,
 #' @importFrom stats simulate
 #' @export
 simulate.HousepiModel <- function(object,
-                                  nsim = 1, seed = NA,
-                                  data_wide = NULL, progress = FALSE,
+                                  data_wide = NULL,
+                                  obs_process = NULL,
+                                  n_sim = 1, seed = NA,
+                                  progress = FALSE,
                                   ...) {
   stopifnot(inherits(object, "HousepiModel"))
   object$simulate(
-    nsim = nsim, seed = seed, 
-    data_wide = data_wide, progress = progress
+    data_wide = data_wide, obs_process = obs_process,
+    n_sim = n_sim, seed = seed, progress = progress
   )
 }

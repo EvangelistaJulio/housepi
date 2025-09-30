@@ -50,13 +50,13 @@ Number of rungs in the thermodynamic ladder.}
 \item{n_threads}{\code{integer(1)} with the number of threads to run in parallel.}
 
 \item{seed}{\code{integer(1)} with the seed for the random number generator.\cr
-If \code{NA} (default), uses current R seed.}
+If \code{NA} uses current R seed (default).}
 
 \item{progress}{\code{integer(1)} or \code{logical(1)} to control progress visualization.\cr
 One between:\cr
 \itemize{
 \item If \code{integer}, prints progress every \code{progress} seconds;\cr
-\item If \code{TRUE} (default), prints progress every second;\cr
+\item If \code{TRUE} prints progress every second (default);\cr
 \item If \code{FALSE} or \code{0}, suppresses progress display.
 }}
 }

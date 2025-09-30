@@ -22,19 +22,19 @@ add_group_rate(
 \arguments{
 \item{object}{\code{HousepiModel} object.}
 
-\item{name}{\code{character(1)} name used by interna; calls.}
+\item{name}{\code{character(1)} name used by internal calls.}
 
 \item{by}{\code{list} with feature(s) associated to group rate as data headers.\cr
 Corresponding data columns have to be categorical.}
 
 \item{prefix}{\code{character(1)} with prefix to parameter names associated to the group rate.\cr
-If \code{NA} (default), used the first 3 letters of rate name.}
+If \code{NA} uses the first 3 letters of rate name (default).}
 
 \item{reference}{named \code{list} to choose reference group providing corresponding features.\cr
 Default is the group with the largest sample size.}
 
 \item{independent}{\code{logical(1)} to consider features as independent.\cr
-If \code{FALSE}, features are combined (default).}
+If \code{FALSE} features are combined (default).}
 
 \item{prior}{\code{character(1)} wit the choice for the prior distribution.
 Default is "lnorm".}

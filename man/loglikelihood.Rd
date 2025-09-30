@@ -12,7 +12,7 @@ loglikelihood(object, data_wide = NULL, seed = NA)
 \item{data_wide}{\code{data.frame} with the household data used for analysis in wide format. If \code{NULL}, uses the previously stored data.}
 
 \item{seed}{\code{integer(1)} with the seed for the random number generator.\cr
-If \code{NA} (default), uses current R seed.}
+If \code{NA} uses current R seed (default).}
 }
 \value{
 \code{numeric(1)}

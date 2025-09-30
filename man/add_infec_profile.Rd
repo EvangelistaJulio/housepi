@@ -9,7 +9,7 @@ add_infec_profile(object, name, discr = FALSE, args = NULL, max = NULL)
 \arguments{
 \item{object}{\code{HousepiModel} object.}
 
-\item{name}{\code{character(1)} name used by interna; calls.}
+\item{name}{\code{character(1)} name used by internal calls.}
 
 \item{discr}{\code{logical(1)} to treat definition as discrete and the profile is discretized (if applicable).\cr
 Default is \code{FALSE}.}

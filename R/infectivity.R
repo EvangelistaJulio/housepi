@@ -95,19 +95,7 @@ HousepiInfecProfile <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description
-    #' Add definition of infectivity profile.
-    #'
-    #' @param name `character(1)`\cr
-    #' Name of the infectivity profile.
-    #' @param discr `logical(1)`\cr
-    #' IF `TRUE` the profile is discrete.
-    #' @param args named `list`\cr
-    #' Arguments (eventually with types) for the profile.
-    #' @param max `double(1)` | `character(1)`\cr
-    #' One between:
-    #' - Scalar value;
-    #' - Parameter name (followed by `@P`).
+    #' @inherit add_infec_profile
     add = function(name,
                    discr = FALSE,
                    args = NULL,

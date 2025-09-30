@@ -473,20 +473,10 @@ HousepiGenerator <- R6::R6Class(
     #' @description
     #' Initialize model generator defining name of dynamic library.
     #'
-    #' @param choice `character(1)`\cr
-    #' Choose a model providing one between:
-    #' - "blank" template name;
-    #' - template name;
-    #' - path/to/folder with implementation;
-    #' - path/to/folder with previously compiled model.
-    #' @param as_template `logical(1)`\cr
-    #' If `TRUE` store the dynamic library as a local template.
-    #' If `FALSE` recompile the model at every new session.
-    #' @param force `logical(1)`\cr
-    #' If `TRUE` compile even if a cached model already exists.
-    #' @param quiet `logical(1)`\cr
-    #' If `TRUE` hide `pkgbuild` compilation commands.
-    #'
+    #' @param choice `r rd_mdl_choice_`
+    #' @param as_template `r rd_mdl_astmpl_`
+    #' @param force `r rd_mdl_force_`
+    #' @param quiet `r rd_mdl_quiet_`
     initialize = function(choice, as_template = FALSE,
                           force = FALSE, quiet = TRUE) {
       # check model choice
