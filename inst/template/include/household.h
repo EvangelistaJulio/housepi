@@ -54,7 +54,7 @@ public:
 
 	void set_augm_value(const std::string &a, double x) { safe_at(augm_map_, a, "augmented").set(x); }
 	void clear_augm(const std::string &a) { augm_map_[a] = Variable(); }
-	void user_reset();
+	void user_reset(rnd_gen &prng);
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////  AugmentedMap : getter  ///////////////////////////////////

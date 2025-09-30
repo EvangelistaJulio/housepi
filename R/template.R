@@ -24,8 +24,8 @@ template_models_dir <- function() {
 #' @description
 #' Return the directory of chosen housepi template model.
 #'
-#' @param x `character(1)`\cr
-#' Choice of the template.
+#' @param x
+#' A `character(1)` with the choice of the template.
 #'
 #' @return `character(1)`
 #' @keywords internal
@@ -45,8 +45,8 @@ get_template_dir <- function(x) {
 #' @description
 #' Return the directory of chosen housepi template model.
 #'
-#' @param x `character(1)`\cr
-#' Choice of the template.
+#' @param x
+#' A `character(1)` with the choice of the template.
 #'
 #' @return `character(1)`
 #' @keywords internal
@@ -82,11 +82,12 @@ show_model_names <- function() {
 #' @description
 #' Copy a default model to a given directory.
 #'
-#' @param name `character(1)`\cr
-#' Name of template model. If `NA`, list of available templates.
-#' @param path `character(1)`\cr
-#' Where to copy the template scripts.
-#' If `NA`, show template model description in RStudio Help window.
+#' @param name
+#' A `character(1)` with the name of template model.
+#' If `NA` returns list of available templates.
+#' @param path
+#' A `character(1)` with the path to where to copy the template scripts.
+#' If `NA` shows template model description in RStudio Help window.
 #'
 #' @keywords internal
 #' @noRd
@@ -121,8 +122,8 @@ copy_template_to_path <- function(name, path) {
 #' @description
 #' Preview the model description in RStudio Help window.
 #'
-#' @param choice `character(1)`\cr
-#' Path/to/model folder.
+#' @param choice
+#' A `character(1)` with the path/to/model folder.
 #'
 #' @noRd
 open_model_helper_ <- function(path) {
@@ -150,14 +151,14 @@ open_model_helper_ <- function(path) {
 #' @description
 #' Navigate through housepi templates of household models.
 #'
-#' @param name `character(1)`\cr
-#' Name of template model. If `NA`, list of available templates.
-#' @param path `character(1)`\cr
-#' Where to copy the template scripts.
-#' If `NA`, show template model description in RStudio Help window.
-#' @param replace `logical(1)`\cr
-#' If `TRUE`, replaces previous content of the path.
-#' Default is `FALSE`.
+#' @param name
+#' A `character(1)` with the name of template model.
+#' If `NA` returns list of available templates.
+#' @param path
+#' A `character(1)` with the path to where to copy the template scripts.
+#' If `NA` and name is not, shows template description in RStudio Help window.
+#' @param replace
+#' `logical(1)` to replace previous content of the path.
 #'
 #' @export
 template_household_model <- function(name = NA, path = NA, replace = FALSE) {
@@ -213,13 +214,12 @@ set_source_name_ <- function(x, name = NA) {
 #' @description
 #' Assert if a given string expression is present in source file.
 #'
-#' @param refer_file `character(1)`\cr
-#' path/to/.refer containing the model source.
-#' @param expr `character(1)`\cr
-#' Expression.
+#' @param refer_file
+#' A `character(1)` with the path/to/.refer containing the model source.
+#' @param expr
+#' A `character(1)` with the expression.
 #'
-#' @return
-#' `logical(1)`
+#' @return `logical(1)`
 #'
 #' @keywords internal
 #' @noRd
@@ -241,10 +241,10 @@ template_assert_expression <- function(refer_file, expression) {
 #' @description
 #' Find the vector of definition names required by the model according.
 #'
-#' @param refer_file `character(1)`\cr
-#' path/to/.refer containing the model source.
-#' @param regular_expr `character()`\cr
-#' Vector containing regular expressions.
+#' @param refer_file
+#' A `character(1)` with the path/to/.refer containing the model source.
+#' @param regular_expr
+#' A `character()` of regular expressions.
 #'
 #' @return
 #' `character()`
@@ -283,10 +283,10 @@ template_required_find <- function(refer_file, regular_expr) {
 #' @description
 #' Compared required definitions to current definitions and find missing ones.
 #'
-#' @param required `character()`\cr
-#' Vector with required definitions.
-#' @param defined `character()`\cr
-#' Vector with current definitions.
+#' @param required
+#' A `character()` with required definitions.
+#' @param defined
+#' A `character()` with current definitions.
 #'
 #' @return
 #' `character()`)
@@ -304,12 +304,12 @@ template_missing_find <- function(required, defined) {
 #' @description
 #' Stop if missing definitions are found
 #'
-#' @param required `character()`\cr
-#' Vector with required definitions.
-#' @param defined `character()`\cr
-#' Vector with current definitions.
-#' @param family `character(1)`\cr
-#' Name of the definition family.
+#' @param required
+#' A `character()` with required definitions.
+#' @param defined
+#' A `character()` with current definitions.
+#' @param family
+#' A `character(1)` with the name of the definition family.
 #'
 #' @return
 #' `character()`
@@ -345,10 +345,10 @@ template_missing_stop <- function(required, defined, family) {
 #' @description
 #' Compared required definitions to current definitions and find unused ones.
 #'
-#' @param required `character()`\cr
-#' Vector with required definitions.
-#' @param defined `character()`\cr
-#' Vector with current definitions.
+#' @param required
+#' A `character()` with required definitions.
+#' @param defined
+#' A `character()` with current definitions.
 #'
 #' @return
 #' `character()`
@@ -366,12 +366,12 @@ template_not_used_find <- function(required, defined) {
 #' @description
 #' Raise a warning if unused definitions are found
 #'
-#' @param required `character()`\cr
-#' Vector with required definitions.
-#' @param defined `character()`\cr
-#' Vector with current definitions.
-#' @param family `character(1)`\cr
-#' Name of the definition family.
+#' @param required
+#' A `character()` with required definitions.
+#' @param defined
+#' A `character()` with current definitions.
+#' @param family
+#' A `character(1)` with the name of the definition family.
 #'
 #' @return
 #' `character()`

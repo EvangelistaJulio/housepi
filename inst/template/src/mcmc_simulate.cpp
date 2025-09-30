@@ -23,14 +23,13 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Auxiliary method to initialize simulations.
+// UPDATE: once I allow for multi-treading and a flag than n_chains = 0, I can drop this...
 void MCMC::Impl::aux_init_simulate_()
 {
     assert_proper_dataset_();       // check if dataset is empty
-    setup.rand_init_params = false; // disable random parameter initialization
     setup.n_chains = 0;             // use 0 chains as a state variable
     setup.n_threads = 1;            // impose no parallelization
     setup.set_n_threads();          // change accordingly
-    param.init();                   // check no undefined parameters
     init_model_for_simulation_();   // initialize model for simulation
 }
 

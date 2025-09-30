@@ -245,7 +245,6 @@ get_augmented <- function(object, ...) {
 #' @param name `r rd_var_name_`
 #' @param status `r rd_aug_status_`
 #' @param value `r rd_aug_val_`
-#' @param init_rand `r rd_aug_rndin_`
 #' @param const `r rd_var_const_`
 #' @param discr `r rd_aug_discr_`
 #' @param func `r rd_aug_func_`
@@ -263,9 +262,8 @@ get_augmented <- function(object, ...) {
 #' @export
 add_augmented <- function(object,
                           name = NA, status = NA,
-                          const = NA, discr = FALSE,
+                          value = NULL, const = NA, discr = FALSE,
                           func = NA, func_args = NULL,
-                          value = NULL, init_rand = FALSE,
                           model = NA, args = NULL,
                           min = NULL, max = NULL,
                           rule = NA, scale = NA,
@@ -273,9 +271,8 @@ add_augmented <- function(object,
   stopifnot(inherits(object, "HousepiModel"))
   object$clone(deep = TRUE)$add_augmented(
     name = name, status = status,
-    const = const, discr = discr,
+    value = value, const = const, discr = discr,
     func = func, func_args = func_args,
-    value = value, init_rand = init_rand,
     model = model, args = args,
     min = min, max = max,
     rule = rule, scale = scale,
@@ -427,7 +424,6 @@ loglikelihood <- function(object, data_wide = NULL, seed = NA) {
 #' @param n_adapt `r rd_smpl_adapt_`
 #' @param n_chains `r rd_smpl_chain_`
 #' @param n_threads `r rd_smpl_thread_`
-#' @param rand_init `r rd_smpl_rndin_`
 #' @param id_draws `r rd_smpl_iddrw_`
 #' @param seed `r rd_seed_`
 #' @param progress `r rd_progress_`
@@ -440,14 +436,13 @@ infer <- function(object, data_wide = NULL,
                   sample_size = NA, n_steps = 5000,
                   n_burnin = 0, thin = 1, n_adapt = 0,
                   n_chains = 1, n_threads = 1,
-                  rand_init = TRUE, id_draws = NA,
-                  seed = NA, progress = TRUE) {
+                  id_draws = NA, seed = NA, progress = TRUE) {
   stopifnot(inherits(object, "HousepiModel"))
   object$infer(
     data_wide = data_wide, sample_size = sample_size,
     n_steps = n_steps, n_burnin = n_burnin, thin = thin,
     n_adapt = n_adapt, n_chains = n_chains,
-    n_threads = n_threads, rand_init = rand_init,
+    n_threads = n_threads,
     id_draws = id_draws, seed = seed, progress = progress
   )
 }
@@ -499,12 +494,14 @@ evidence <- function(object, data_wide = NULL,
 
 #' @title Simulate household data
 #' @description
-#' Generate a simulated outbreak with the same community structure of the loaded data.
+#' Generate a simulated outbreak.
+#' It assumes the same community structure of the loaded data.
 #'
 #' @param object `r rd_model_in_`
-#' @param nsim `r rd_smpl_nsim_`
-#' @param seed `r rd_seed_`
 #' @param data_wide `r rd_smpl_data_wide_`
+#' @param obs_process `r rd_simul_observ_`
+#' @param n_sim `r rd_simul_n_sim_`
+#' @param seed `r rd_seed_`
 #' @param progress `r rd_progress_`
 #' @param ... Ignored.
 #'
@@ -513,12 +510,14 @@ evidence <- function(object, data_wide = NULL,
 #' @importFrom stats simulate
 #' @export
 simulate.HousepiModel <- function(object,
-                                  nsim = 1, seed = NA,
-                                  data_wide = NULL, progress = FALSE,
+                                  data_wide = NULL,
+                                  obs_process = NULL,
+                                  n_sim = 1, seed = NA,
+                                  progress = FALSE,
                                   ...) {
   stopifnot(inherits(object, "HousepiModel"))
   object$simulate(
-    nsim = nsim, seed = seed, 
-    data_wide = data_wide, progress = progress
+    data_wide = data_wide, obs_process = obs_process,
+    n_sim = n_sim, seed = seed, progress = progress
   )
 }

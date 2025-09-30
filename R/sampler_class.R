@@ -49,8 +49,8 @@ IndividualSampler <- R6::R6Class(
     # @description
     # Reorder according to hierarchy
     #
-    # @param this_house `data.frame`\cr
-    # Input encoded hosuehold data.
+    # @param this_house
+    # A `data.frame` with input encoded hosuehold data.
     #
     # @return `data.frame`
     .reorder = function(this_house) {
@@ -79,8 +79,8 @@ IndividualSampler <- R6::R6Class(
     # @description
     # Associate a marginal probability to each individual feature.
     #
-    # @param data_wide `data.frame()`\cr
-    # A data.frame containing the data_wide with individual information by row.
+    # @param data_wide
+    # A `data.frame` containing individual data by row.
     .compute_individual_marginals = function(data_wide) {
       df <- data_wide
       df$feature <- self$encode(df)
@@ -104,8 +104,8 @@ IndividualSampler <- R6::R6Class(
     # @description
     # Generate random individuals according to feature distribution.
     #
-    # @param size `integer(1)`\cr
-    # Number of individuals to generate.
+    # @param size
+    # An `integer(1)` with number of individuals to generate.
     .sample_individuals = function(size) {
       if ((size > 0) && (nrow(private$.feats_pdf) > 0)) {
         # sample according to observed features
@@ -130,8 +130,8 @@ IndividualSampler <- R6::R6Class(
   ############################################################################
 
   active = list(
-    #' @field hierarchy `data.frame`\cr
-    #' Features as hierchically reordered by the sampler.
+    #' @field hierarchy
+    #' A `data.frame` with features as hierchically reordered by the sampler.
     hierarchy = function(value) {
       if (missing(value)) {
         output <- private$.get_distinct_features()
@@ -153,8 +153,7 @@ IndividualSampler <- R6::R6Class(
     #'
     #' @param ...
     #' Named features with respective list of definition details.
-    #' @param from `list` of `list`\cr
-    #' List containing encoding dictionary definitions for each feature.
+    #' @param from `r rd_hhsampler_from_`
     initialize = function(..., from = NULL) {
       # assign encoding dictionary
       enc_dict <- load_definition_list(..., from = from)
@@ -208,8 +207,7 @@ IndividualSampler <- R6::R6Class(
     #' @description
     #' Encode individuals from data_wide according to encoding dictionary.
     #'
-    #' @param data_wide `data.frame()`\cr
-    #' A data.frame containing the data_wide with individual information by row.
+    #' @param data_wide `r rd_add_data_wide_`
     encode = function(data_wide) {
       # initialize output
       output <- rep(0, nrow(data_wide))
@@ -244,8 +242,8 @@ IndividualSampler <- R6::R6Class(
     #' @description
     #' Decode individual featrues.
     #'
-    #' @param feats `numeric()`\cr
-    #' Encoded features of each individual.
+    #' @param feats
+    #' A `numeric()` with the encoded features of each individual.
     decode = function(feats) {
       output <- as.data.frame(matrix(
         ncol = length(private$.enc_dict),
@@ -316,11 +314,8 @@ HousepiSampler <- R6::R6Class(
     #'
     #' @param ...
     #' Named features with respective list of definition details.
-    #' @param from `list` of `list`\cr
-    #' List containing encoding dictionary definitions for each feature.
-    #' @param ascending `logical(1)`\cr
-    #' If `TRUE` hierarchy between feature numbers is ascending.
-    #' If `FALSE` (default) is descending.
+    #' @param from `r rd_hhsampler_from_`
+    #' @param ascending `r rd_hhsampler_asc_`
     initialize = function(..., from = NULL, ascending = FALSE) {
       # ininitialize parent class IndividualSampler
       super$initialize(..., from = from)
@@ -339,11 +334,8 @@ HousepiSampler <- R6::R6Class(
     #' @description
     #' Compute household marginal distributions according to hierarchical model.
     #'
-    #' @param data_wide `data.frame()`\cr
-    #' A data.frame containing the data_wide with individual information by row.
-    #' @param ascending `logical(1)`\cr
-    #' If `TRUE` hierarchy between feature numbers is ascending.
-    #' If `FALSE` (default) is descending.
+    #' @param data_wide `r rd_add_data_wide_`
+    #' @param ascending `r rd_hhsampler_asc_`
     compute_marginals = function(data_wide, ascending = NA) {
       if (!is.na(ascending)) private$.ascending <- ascending
 
@@ -454,8 +446,7 @@ HousepiSampler <- R6::R6Class(
     #' @description
     #' Sample households according to feature distribution.
     #'
-    #' @param size `integer(1)`\cr
-    #' Number of households to sample.
+    #' @param size `r rd_hhsampler_size_`
     sample = function(size = 1) {
 
       if (size < 1) stop_h(
@@ -567,7 +558,7 @@ new_household_sampler <- function(...) {
 #' Computes marginal distributions for household features based on a survey dataset.
 #'
 #' @param object An instance of the `HousepiSampler` class.
-#' @param data_wide A `data.frame` containing individual-level data with household IDs.
+#' @param data_wide `r rd_add_data_wide_`
 #'
 #' @export
 compute_household_marginals <- function(object, data_wide) {
@@ -580,9 +571,9 @@ compute_household_marginals <- function(object, data_wide) {
 #' Samples synthetic households based on the marginal distributions computed by the `HousepiSampler`.
 #'
 #' @param object An instance of the `HousepiSampler` class.
-#' @param size An integer specifying the number of households to sample.
+#' @param size `r rd_hhsampler_size_`
 #'
-#' @return A `data.frame` containing the sampled households.
+#' @return `data.frame`
 #'
 #' @export
 sample_households <- function(object, size) {

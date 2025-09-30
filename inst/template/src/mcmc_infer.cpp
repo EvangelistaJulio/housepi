@@ -27,14 +27,13 @@ double MCMC::Impl::evaluate()
 {
     try
     {
-        setup.n_chains = 0;             // use 0 chains as a state variable
-        assert_proper_dataset_();       // check if dataset is empty
-        setup.rand_init_params = false; // UPDATE: this should also be true..
-        param.init();                   // check no undefined parameters
-        augm.init();                    // check no undefined augmented variables
-        init_model_for_inference_();    // initialize model for inference
-        update_full_loglike_(true);     // initialize cache + full loglikelihood
-
+        setup.n_chains = 0;          // use 0 chains as a state variable
+        assert_proper_dataset_();    // check if dataset is empty
+        param.user_reset();          // initialize non constant parameters
+        augm.init();                 // initialize individual augmented relations
+        augm.user_reset();           // initialize non constant augmented
+        init_model_for_inference_(); // initialize model for inference
+        update_full_loglike_(true);  // initialize cache + full loglikelihood
         return full_loglike_;
     }
     catch (const std::exception &e)
@@ -43,6 +42,13 @@ double MCMC::Impl::evaluate()
     }
 
     return HSP_NA_DOUBLE;
+}
+
+/// Assert dataset is not empty.
+void MCMC::Impl::assert_proper_dataset_()
+{
+    if (dataset.n_houses() == 0)
+        throw std::length_error("Unable to proceed. No database was found.");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -126,6 +132,7 @@ void MCMC::Impl::infer()
         setup.prog_declare();                               // declare current progress bar
         init_monte_carlo_();                                // initialize mcmc sampling
         init_model_for_inference_();                        // user initialization model
+        augm.init();                                        // initialize augmented variables
         setup.prog_open(setup.c_n_sweeps * setup.n_chains); // open progress bar
         run_monte_carlo_();                                 // run Monte Carlo
         setup.prog_close();                                 // close progress bar
@@ -135,6 +142,20 @@ void MCMC::Impl::infer()
         setup.prog_crash();
         tools::error(e.what());
     }
+}
+
+/// Assert setup definitions are ok to proceed with mcmc sampling.
+void MCMC::Impl::init_monte_carlo_()
+{
+    setup.assert_mcmc_setup();
+
+    // check if there is a dataset
+    assert_proper_dataset_();
+
+    // check if there is actually something to sample
+    if (!(param.is_any_sample() || augm.is_any_sample()))
+        throw std::length_error(
+            "Nothing to sample. Check your parameter and augmented definitions.");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -154,8 +175,8 @@ void MCMC::Impl::run_monte_carlo_()
     for (chain = 1; chain <= setup.n_chains; ++chain)
     {
         setup.prog_set_text();      // update progress bar text
-        param.init();               // initialize augmented variables // FIXME! : user reset only!
-        augm.init();                // initialize augmented variables // FIXME! : user reset only!
+        param.user_reset();         // reset parameter user definitions
+        augm.user_reset();          // reset augmented user definitions
         update_full_loglike_(true); // init cache + full loglikelihood
         init_move_counts_();        // init move counts for adaptive
 
@@ -222,8 +243,7 @@ bool MCMC::Impl::move_single_parameter_(const std::string &p, bool cache_depen)
 /// Move all augmented variables and model parameters and adapt their rule arguments.
 void MCMC::Impl::move_all_and_adapt_params_(unsigned long step)
 {
-    // move augmented variables if
-    move_all_augm_();
+    move_all_augm_(); // move augmented variables to sample
 
     // move all model parameters and adapt their rule arguments
     const double ratio = static_cast<double>(step) / setup.n_adapt;

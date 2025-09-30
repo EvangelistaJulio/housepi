@@ -7,16 +7,13 @@
 template_household_model(name = NA, path = NA, replace = FALSE)
 }
 \arguments{
-\item{name}{\code{character(1)}\cr
-Name of template model. If \code{NA}, list of available templates.}
+\item{name}{A \code{character(1)} with the name of template model.
+If \code{NA} returns list of available templates.}
 
-\item{path}{\code{character(1)}\cr
-Where to copy the template scripts.
-If \code{NA}, show template model description in RStudio Help window.}
+\item{path}{A \code{character(1)} with the path to where to copy the template scripts.
+If \code{NA} and name is not, shows template description in RStudio Help window.}
 
-\item{replace}{\code{logical(1)}\cr
-If \code{TRUE}, replaces previous content of the path.
-Default is \code{FALSE}.}
+\item{replace}{\code{logical(1)} to replace previous content of the path.}
 }
 \description{
 Navigate through housepi templates of household models.

@@ -14,7 +14,6 @@ infer(
   n_adapt = 0,
   n_chains = 1,
   n_threads = 1,
-  rand_init = TRUE,
   id_draws = NA,
   seed = NA,
   progress = TRUE
@@ -39,23 +38,17 @@ infer(
 
 \item{n_threads}{\code{integer(1)} with the number of threads to run in parallel.}
 
-\item{rand_init}{\code{logical(1)} to control random initialization of variables:\cr
-\itemize{
-\item If \code{TRUE} (default), initial values are randomly drawn from respective distributions;\cr
-\item If \code{FALSE} uses initial value definitions.
-}}
-
 \item{id_draws}{\code{character()} with individuals identifiers.\cr
 Store draws of public augmented variables for the chosen individuals.}
 
 \item{seed}{\code{integer(1)} with the seed for the random number generator.\cr
-If \code{NA} (default), uses current R seed.}
+If \code{NA} uses current R seed (default).}
 
 \item{progress}{\code{integer(1)} or \code{logical(1)} to control progress visualization.\cr
 One between:\cr
 \itemize{
 \item If \code{integer}, prints progress every \code{progress} seconds;\cr
-\item If \code{TRUE} (default), prints progress every second;\cr
+\item If \code{TRUE} prints progress every second (default);\cr
 \item If \code{FALSE} or \code{0}, suppresses progress display.
 }}
 }

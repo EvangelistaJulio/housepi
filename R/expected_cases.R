@@ -88,13 +88,11 @@ measure_cases_by_house_size <- function(data_wide) {
 #' Apply function `func` to corresponding elements
 #' across a list of data.frame that share the same dimensions.
 #'
-#' @param frame_list `list` | `data.frame`\cr
-#' List of data frames, all having the same dimensions.
-#' @param func `closure`\cr
-#' Function applied to corresponding elements across data frames in the list.
+#' @param frame_list A `list` of `data.frame`s, all sharing the same dimensions.
+#' @param func
+#' A `function` to be applied to corresponding elements across dataframes.
 #'
-#' @return `data.frame()`\cr
-#' Data frame of the same dimensions as the input frames.
+#' @return A `data.frame` of the same dimensions as the input dataframes.
 #' Columns and rownames of the first data.frame in the list.
 #'
 #' @keywords internal
@@ -132,9 +130,10 @@ frame_apply <- function(frame_list, func) {
 #' @description
 #' Compute the mean across different dataframes.
 #'
-#' @param frame_list `list` | `data.frame`\cr
+#' @param frame_list
+#' A `list` of `data.frame`s.
 #'
-#' @return `data.frame()`
+#' @return `data.frame`
 #'
 #' @keywords internal
 #' @noRd
@@ -154,13 +153,14 @@ frame_apply_mean <- function(frame_list) {
 #' @description
 #' Compute the credible interval across different dataframes.
 #'
-#' @param frame_list `list` | `data.frame`\cr
-#' List of data frames, all having the same dimensions.
+#' @param frame_list
+#' A `list` of `data.frame`s sharing the same dimensions.
 #' @param cri_level `r rd_smpl_cri_level_`
-#' @param upper A `logical(1)` to compute the upper credible interval.
+#' @param upper
+#' `logical(1)` to compute the upper credible interval.
 #' If `FALSE`, compute the lower interval.
 #'
-#' @return `data.frame()`
+#' @return `data.frame`
 #'
 #' @keywords internal
 #' @noRd
@@ -257,16 +257,17 @@ HousepiExpectation <- R6::R6Class(
     #'
     #' @param model `r rd_model_in_`
     #' @param param_table `r rd_param_table_`
-    #' @param ...
-    #' Named arguments with respective functions.
-    #' If `measure` is provided, arguments are ignored.
-    #' @param measure `closure` | `list` of `closure`\cr
-    #' Function(s) to extract the desired measure from a data.
+    #' @param measure `r rd_measure_`
+    #' @param obs_process `r rd_simul_observ_`
     #' @param progress `r rd_progress_`
     #' @param cri_level `r rd_smpl_cri_level_`
-    initialize = function(model, param_table, ...,
-                          measure = NULL, progress = NA,
-                          cri_level = 0.95) {
+    #' @param ... `r rd_measure_dots_`
+    initialize = function(model,
+                          param_table,
+                          measure = NULL,
+                          obs_process = NULL,
+                          progress = NA,
+                          cri_level = 0.95, ...) {
       if (is.null(measure)) measure <- list(...)
       if (is.null(measure)) stop_h("No measure was provided.")
 
@@ -330,7 +331,9 @@ HousepiExpectation <- R6::R6Class(
           append = FALSE
         )
         # run simulation and extract cases by house size
-        apply_func(hmc$simulate(seed = rng_seeds[r], progress = FALSE))
+        apply_func(hmc$simulate(seed = rng_seeds[r],
+                                obs_process = obs_process,
+                                progress = FALSE))
       }
 
       # apply loop function
@@ -553,9 +556,12 @@ ExpectedCasesBySize <- R6::R6Class(
   public = list(
     #' @param model `r rd_model_in_`
     #' @param param_table `r rd_param_table_`
+    #' @param obs_process `r rd_simul_observ_`
     #' @param progress `r rd_progress_`
     #' @param cri_level `r rd_smpl_cri_level_`
-    initialize = function(model, param_table,
+    initialize = function(model,
+                          param_table,
+                          obs_process = NULL,
                           progress = NA, cri_level = 0.95) {
       # ininitialize parent class HousepiExpectation
       super$initialize(
@@ -563,6 +569,7 @@ ExpectedCasesBySize <- R6::R6Class(
         param_table = param_table,
         measure = c(cases_by_size = measure_cases_by_house_size,
                     sar = measure_sar_by_house_size),
+        obs_process = obs_process,
         progress = progress,
         cri_level = cri_level
       )
@@ -581,8 +588,9 @@ ExpectedCasesBySize <- R6::R6Class(
     #' @description
     #' Set maximum household size to consider in result outputs.
     #'
-    #' @param n `integer(1)`\cr
-    #' Maximum household size. If `NA`, restore observed maximum.
+    #' @param n
+    #' An `integer(1)` with the maximum household size to consider.
+    #' If `NA`, restore observed maximum.
     set_max_house_size = function(n) {
       private$.max_house_size <- n
       invisible(self)
@@ -598,8 +606,9 @@ ExpectedCasesBySize <- R6::R6Class(
     #' @description
     #' Perform Chi-squared test and return list with results.
     #'
-    #' @param lower_tail `logical(1)`\cr
-    #' if TRUE (default), probabilities are `P[X<=x]`, otherwise `P[X>x]`.
+    #' @param lower_tail
+    #' `logical(1)` to consider lower tail probabilities `P[X<=x]` (default).
+    #' If `FALSE`, consider upper tail `P[X>x]`.
     #'
     #' @return
     #' `list`
@@ -623,23 +632,26 @@ ExpectedCasesBySize <- R6::R6Class(
 #'
 #' @param object `r rd_model_in_`
 #' @param param_table `r rd_param_table_`
-#' @param ...
-#' Named arguments with respective functions.
-#' If `measure` is provided, arguments are ignored.
-#' @param measure `closure` | `list` of `closure`\cr
-#' Function(s) to extract the desired measure from a data.
+#' @param measure `r rd_measure_`
+#' @param obs_process `r rd_simul_observ_`
 #' @param progress `r rd_progress_`
+#' @param ... `r rd_measure_dots_`
 #'
-#' @return
-#' An object of class
+#' @return An object of class
 #' [HousepiExpectation][housepi::HousepiExpectation].
 #'
 #' @export
-expec_posterior_measure <- function(object, param_table, ...,
-                                    measure = NULL, progress = NA) {
+expec_posterior_measure <- function(object, param_table,
+                                    measure = NULL,
+                                    obs_process = NULL,
+                                    progress = NA,
+                                    ...) {
   stopifnot(inherits(object, "HousepiModel"))
-  HousepiExpectation$new(object, param_table, ...,
-                         measure = measure, progress = progress)
+  HousepiExpectation$new(object, param_table,
+                         measure = measure,
+                         obs_process = obs_process,
+                         progress = progress,
+                         ...)
 }
 
 #' @title Expected cases by household size
@@ -650,6 +662,7 @@ expec_posterior_measure <- function(object, param_table, ...,
 #'
 #' @param object `r rd_model_in_`
 #' @param param_table `r rd_param_table_`
+#' @param obs_process `r rd_simul_observ_`
 #' @param progress `r rd_progress_`
 #'
 #' @return
@@ -658,7 +671,13 @@ expec_posterior_measure <- function(object, param_table, ...,
 #' containing methods to compare observed and expected cases.
 #'
 #' @export
-expec_cases_by_house_size <- function(object, param_table, progress = NA) {
+expec_cases_by_house_size <- function(object,
+                                      param_table,
+                                      obs_process = NULL,
+                                      progress = NA) {
   stopifnot(inherits(object, "HousepiModel"))
-  ExpectedCasesBySize$new(object, param_table, progress = progress)
+  ExpectedCasesBySize$new(object,
+                          param_table,
+                          obs_process = obs_process,
+                          progress = progress)
 }

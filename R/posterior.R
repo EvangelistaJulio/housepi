@@ -48,8 +48,8 @@ HousepiPosteriorDraws <- R6::R6Class(
     # @description
     # Convert draws export from `Rcpp_ModelHousepi` to `posterior.`
     #
-    # @param trs `matrix` | `data.frame`\cr
-    # Traces as exported from Rcpp core.
+    # @param x
+    # `matrix` or `data.frame` with draws as exported from Rcpp core.
     #
     # @return
     # `posterior::draws_df`

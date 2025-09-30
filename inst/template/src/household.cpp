@@ -96,16 +96,16 @@ double AugmentedMap::compute_and_set_augm_model_logratio(const std::string &a)
 	if (tools::is_na(loglike_))
 		throw std::runtime_error(
 			"Augmented loglikelihood returned NaN for " + err_name() +
-			" after changing " + augm_map_[a].err_name() + ".");
+			" after change of " + augm_map_[a].err_name() + ".");
 
 	return delta_ll;
 }
 
 /// Restore user values if applicable.
-void AugmentedMap::user_reset()
+void AugmentedMap::user_reset(rnd_gen &prng)
 {
 	for (auto &pair : augm_map_)
-		pair.second.user_reset();
+		pair.second.user_reset(prng);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -257,7 +257,7 @@ void Household::set_obs_loglike(double x)
 {
 	if (tools::is_na(x))
 		throw std::runtime_error(
-			"Observation loglikelihood returned NaN " + err_name() + ".");
+			"Observation loglikelihood returned NaN.");
 
 	obs_buffer_ = obs_loglike_;
 	obs_loglike_ = x;

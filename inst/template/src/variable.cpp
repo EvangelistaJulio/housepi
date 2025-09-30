@@ -205,15 +205,15 @@ void Variable::init(const std::string &name, double value,
     this->name_ = name;
     this->is_constant_ = is_const;
     this->is_discrete_ = is_discr;
-    // UPDATE: what if constant = T, discrete = T and value != integer?
 
     user_value_ = HSP_NA_DOUBLE;
     evaluate_ = &Variable::do_eval_error_;
 
-    if (parser.is_na()) // initialization as a numeric variable
+    if (is_const || parser.is_na()) // initialization as a numeric variable
     {
         init_scalar(value);
         user_value_ = value;
+        // UPDATE: what if constant = T, discrete = T and value != integer?
     }
     else if (parser.is_terminal()) // initialization as a pointer
     {
@@ -224,6 +224,23 @@ void Variable::init(const std::string &name, double value,
         init_function(parser.root.func, is_primitive);
         evaluate_ = &Variable::do_eval_func_;
     }
+}
+
+/// Restore user defined variable initialization.
+/// NOTE: if user value is NA and a distribution is,
+/// by construction convention it is possible to randomly initialize,
+/// otherwise it is truely a NA value.
+void Variable::user_reset(rnd_gen &prng)
+{
+    if (tools::is_na(user_value_))
+    {
+        if (!pDistr_->is_empty())
+            init_rand(prng);
+    }
+    else
+        value_ = user_value_;
+
+    pProp_->user_reset();
 }
 
 /// Initialize function reshaping.
@@ -245,9 +262,6 @@ void Variable::init_func_reshaping()
             if (is_discrete_)
                 pFunc_->init_discretization();
             pFunc_->init_truncation();
-
-            // FIXME: check that all function arguments have not missing dependencies
-            // NOTE: if attributes are NA it could still be fair use as a callable
         }
     }
 }
@@ -256,11 +270,12 @@ void Variable::init_func_reshaping()
 void Variable::init_distr(const DefinitionParser &expr)
 {
     pDistr_ = compose_distr_registries(
-        expr.root.func, 
+        expr.root.func,
         "distribution",
         {&ContinuosDistrRegistry::inst(),
          &DiscreteDistrRegistry::inst()});
 }
+
 /// Assign an attribute to distribution.
 void Variable::init_distr_attr(const std::string &key, const Attribute &attr)
 {
@@ -269,6 +284,7 @@ void Variable::init_distr_attr(const std::string &key, const Attribute &attr)
     else
         pDistr_->init_attr(key, attr);
 }
+
 /// Initialize distribution reshaping.
 void Variable::init_distr_reshaping()
 {

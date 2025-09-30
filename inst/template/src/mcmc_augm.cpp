@@ -417,22 +417,11 @@ void MCMC::Impl::Augmented::build_variable_to_sample_(size_t k)
     const std::string &s = deftable["status"][k];
     const std::string &value = deftable["value"][k];
     const std::string &rule = deftable["rule"][k];
-    const bool init_rand = tools::str::tobool(deftable["init_rand"][k]);
 
-    // check random initialization option
-    // UPDATE: check pImpl_.setup.rand_init_params
-    // UPDATE: check value
-    if (init_rand)
-    {
-        if (tools::is_na(deftable["model"][k]))
-            throw std::invalid_argument(
-                "Unable to randomly initialize augmented\"" +
-                a + "\" without a model.");
-    }
-    else if (tools::is_na(value))
+    if (tools::is_na(value) && tools::is_na(deftable["model"][k]))
         throw std::invalid_argument(
-            "No initial value provided for augmented \"" + a + "\" " +
-            "to be sampled.\nIn alternative, enable random initialization.");
+            "Unable to initialize augmented\"" +
+            a + "\" without a model. In alternative provide a value.");
 
     // read option for monte carlo proposer
     if (!tools::is_na(rule))
@@ -601,6 +590,15 @@ void MCMC::Impl::Augmented::init()
     }
 }
 
+/// Initialize augmented dependecies for evaluations (not for simulation).
+void MCMC::Impl::Augmented::user_reset()
+{
+    if (is_any())
+        for (Household &house : pImpl_.dataset)
+            for (Individual &member : house.infected())
+                member.user_reset(pImpl_.setup.prng());
+}
+
 /// Assign augmented variables to single individual.
 void MCMC::Impl::Augmented::init_all(Individual &member)
 {
@@ -669,15 +667,8 @@ void MCMC::Impl::Augmented::init_helper_variable_dependencies_(Individual &membe
             xaugm.init_pointer(aux_attr.get_ptr());
     }
     else if (!xaugm.is_constant()) // variable to be sampled
-    {
         // assign proposer rule
         xaugm.init_proposer(deftable["rule"][k], tools::str::tod(deftable["scale"][k]));
-
-        // random initialization
-        // UPDATE: need a more general switch connected to pImpl_.setup.rand_init_params)
-        if (tools::str::tobool(deftable["init_rand"][k]))
-            xaugm.init_rand(pImpl_.setup.prng());
-    }
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////

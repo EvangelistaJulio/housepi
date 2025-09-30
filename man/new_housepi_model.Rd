@@ -20,11 +20,11 @@ One between:\cr
 \item path/to/folder with implementation files "model.cpp" and "model.h";\cr
 \item path/to/folder with previously compiled model;
 \item "blank": template name for blank model.
-\item \code{NA} (default): fall back to "blank".
+\item \code{NA}: fall back to "blank" (default).
 }}
 
 \item{as_template}{\code{logical(1)} to store the dynamic library as a local template.\cr
-IF \code{FALSE} (default) recompile the model at every new session.}
+If \code{FALSE} recompile the model at every new session (default).}
 
 \item{force}{\code{logical(1)} to compile even if a cached model already exists.\cr
 Default is \code{FALSE}.}

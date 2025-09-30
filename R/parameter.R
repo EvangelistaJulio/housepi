@@ -121,30 +121,7 @@ HousepiParameter <- R6::R6Class(
       return(any(mask))
     },
 
-    #' @description
-    #' Add a new parameter definition.
-    #'
-    #' @param name `character(1)`\cr
-    #' Name of the parameter.
-    #' @param const `logical(1)`\cr
-    #' If `FALSE` the parameter is treated as a constant.
-    #' @param discr `logical(1)`\cr
-    #' If `TRUE` the parameter is discrete.
-    #' @param value `double(1)`\cr
-    #' Initial value of the parameter.
-    #' @param prior `character(1)`\cr
-    #' Name of the prior distribution.
-    #' @param args named `list`\cr
-    #' Arguments for the prior distribution.
-    #' @param rule `character(1)`\cr
-    #' Name of the inference proposal rule.
-    #' @param scale `double(1)`\cr
-    #' Scale parameter for the proposal rule.
-    #' Changed automatically during inference if `n_adpat`>0.
-    #' @param min `double(1)`\cr
-    #' Value of the minimum.
-    #' @param max `double(1)`\cr
-    #' Value of the maximum.
+    #' @inherit add_parameter
     add = function(name,
                    const = NA,
                    discr = FALSE,

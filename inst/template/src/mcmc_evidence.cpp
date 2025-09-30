@@ -71,10 +71,10 @@ std::vector<dbl_vec> MCMC::Impl::power_posteriors_(const std::string &scheme, un
 
     // buffer user setup
     double buffer_inv_T = setup.inv_T;
-    bool buffer_rand_init_params = setup.rand_init_params;
 
     setup.prog_declare();        // declare current progress bar
     init_model_for_inference_(); // initialize model for inference
+    augm.init();                 // initialize augmented variables
     setup.prog_open((setup.c_n_sweeps * setup.n_chains) * (setup.n_rungs + 1));
 
     // thermodynamic ladder estimates
@@ -94,7 +94,6 @@ std::vector<dbl_vec> MCMC::Impl::power_posteriors_(const std::string &scheme, un
 
     // restore user setup
     setup.inv_T = buffer_inv_T;
-    setup.rand_init_params = buffer_rand_init_params;
 
     return {itm, avg, var};
 }
@@ -105,8 +104,6 @@ void MCMC::Impl::power_post_zero_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
     // UPDATE: should I use previous inference for itm = 1 if available?
     // UPDATE: always under-estimate time if starting from itm = 0
 
-    setup.rand_init_params = true;
-
     setup.rung = 0;
     setup.inv_T = 0.0;
     run_monte_carlo_();
@@ -115,8 +112,6 @@ void MCMC::Impl::power_post_zero_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
     itm.push_back(setup.inv_T);
     avg.push_back(stats.first);
     var.push_back(stats.second);
-
-    setup.rand_init_params = false;
 }
 
 /// Power posteriors with adaptive scheme for the thermodynamic ladder.

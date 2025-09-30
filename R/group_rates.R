@@ -144,8 +144,8 @@ associate_param_names <- function(this_table,
 #' @description
 #' Combine list with group rate definition into a single dataframe
 #'
-#' @param all_tables `list`\cr
-#' List containing definitions for each group rate.
+#' @param all_tables
+#' A `list` containing definitions for each group rate.
 #'
 #' @return
 #' `data.frame`
@@ -299,10 +299,11 @@ HousepiGroupRate <- R6::R6Class(
     #' @description
     #' Remove a given group_rate definition.
     #'
-    #' @param rate_id `character(1)`\cr
-    #' The group rate definition to remove.
-    #' @param show_warnings `logical(1)`\cr
-    #' Wheter to show warnings.
+    #' @param rate_id
+    #' A `character(1)` with the group rate definition to remove.
+    #' @param show_warnings
+    #' `logical(1)` to show warnings.
+    #' Default is `TRUE`.
     #'
     #' @return
     #' `logical(1)`
@@ -324,41 +325,7 @@ HousepiGroupRate <- R6::R6Class(
       return(FALSE)
     },
 
-    #' @description
-    #' Add a new group rate definition.
-    #'
-    #' @param name `character(1)`\cr
-    #' Name of the group rate.
-    #' @param by `list`\cr
-    #' Feature(s) associated to group rate as datasedatat headers.
-    #' Corresponding data column have to be categorical.
-    #' @param prefix `character(1)`\cr
-    #' Prefix to parameter names associated to the group rate.
-    #' @param reference named `list`\cr
-    #' Choose reference group providing corresponding features.
-    #' Default is the group with the largest sample size.
-    #' @param independent
-    #' If `TRUE` features are considered separately.
-    #' @param prior `character(1)`\cr
-    #' Name of the prior distribution.
-    #' @param args named `list`\cr
-    #' Arguments for the prior distribution.
-    #' @param rule `character(1)`\cr
-    #' Name of the inference proposal rule.
-    #' @param scale `double(1)`\cr
-    #' Scale parameter for the proposal rule.
-    #' Changed automatically during inference if `n_adpat`>0.
-    #' @param min `double(1)`\cr
-    #' Value of the minimum.
-    #' @param max `double(1)`\cr
-    #' Value of the maximum.
-    #' @param show_warnings `logical(1)`\cr
-    #' If `TRUE` (default) show warnings about overwriting definitions.
-    #'
-    #' @references
-    #' Cauchemez, et al. (2009)
-    #' Household Transmission of 2009 Pandemic Influenza A (H1N1) Virus in the United States.
-    #' New England Journal of Medicine. 361: 2619–2627. doi:10.1056/NEJMoa0905498
+    #' @inherit add_group_rate
     add = function(name, by,
                    prefix = NA,
                    reference = NULL,
@@ -429,10 +396,10 @@ HousepiGroupRate <- R6::R6Class(
     #'
     #' @param ...
     #' Named arguments with respective list of definition details.
-    #' @param from named `list`\cr
-    #' Named list of parameter definitions.
-    #' @param append `logical(1)`\cr
-    #' If `TRUE` appends to current definitions.
+    #' @param from
+    #' A named `list` with parameter definitions.
+    #' @param append
+    #' `logical(1)` to append to current definitions.
     #' If `FALSE` drop all pre-existing definitions (default).
     load_list = function(..., from = NULL, append = FALSE) {
       definitions <- load_definition_list(..., from = from)
@@ -460,10 +427,10 @@ HousepiGroupRate <- R6::R6Class(
     #' @description
     #' Implement group rate definition according to data.
     #'
-    #' @param data_wide `data.frame`\cr
-    #' Dataset to be considered.
-    #' @param factor_info `list`\cr
-    #' Levels for each factorized feature.
+    #' @param data_wide
+    #' A `data.frame` with the dataset to be considered.
+    #' @param factor_info
+    #' A `list` with the levels for each factorized feature.
     implement = function(data_wide, factor_info) {
       self$logic_tables <- list()
 
@@ -522,8 +489,8 @@ HousepiGroupRate <- R6::R6Class(
     #' @description
     #' Assert that group rate definitions match the requirements.
     #'
-    #' @param required `character()`\cr
-    #' Vector containing required group rates.
+    #' @param required
+    #' A `character()` containing the required group rates.
     assert = function(required) {
       # load definitions
       defined <- names(self$defs)
@@ -553,7 +520,8 @@ HousepiGroupRate <- R6::R6Class(
     #' @description
     #' Tidy table of group rates definition to be passed to Cpp.
     #'
-    #' @param info `list`\cr
+    #' @param info
+    #' A `list` of `list`s with info about class and levels of data columns.
     #'
     expose_to_cpp = function(info) {
       defs <- self$tidy_table

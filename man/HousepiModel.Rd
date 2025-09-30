@@ -8,30 +8,23 @@
 Compile household model, manage your data
 and variable defintions from a single class.
 }
-\keyword{internal}
 \section{Super class}{
 \code{housepi::HousepiGenerator} -> \code{HousepiModel}
 }
 \section{Active bindings}{
 \if{html}{\out{<div class="r6-active-bindings">}}
 \describe{
-\item{\code{data_wide}}{\code{data.frame}\cr
-Dataset with individual level information of current data_wide.}
+\item{\code{data_wide}}{A \code{data.frame} with individual level information.}
 
-\item{\code{data_long}}{\code{data.frame}\cr
-Datalist with multiple rows indexed by individual.}
+\item{\code{data_long}}{A \code{data.frame} with the additional data rows indexed by individual.}
 
-\item{\code{parameters}}{\code{data.frame}\cr
-Parameter formatted definitions.}
+\item{\code{parameters}}{A \code{data.frame} with parameter formatted definitions.}
 
-\item{\code{augmented}}{\code{data.frame}\cr
-Augmented variable formatted definitions.}
+\item{\code{augmented}}{A\code{data.frame} with augmented formatted definitions.}
 
-\item{\code{infec_profile_defs}}{\code{list}\cr
-Infectivity profile definition list.}
+\item{\code{infec_profile_defs}}{A \code{list} with infectivity profile definitions.}
 
-\item{\code{group_rates}}{\code{list}\cr
-List containing current group rate definitions.}
+\item{\code{group_rates}}{A \code{list} with group rate definitions.}
 }
 \if{html}{\out{</div>}}
 }
@@ -93,11 +86,11 @@ One between:\cr
 \item path/to/folder with implementation files "model.cpp" and "model.h";\cr
 \item path/to/folder with previously compiled model;
 \item "blank": template name for blank model.
-\item \code{NA} (default): fall back to "blank".
+\item \code{NA}: fall back to "blank" (default).
 }}
 
 \item{\code{as_template}}{\code{logical(1)} to store the dynamic library as a local template.\cr
-IF \code{FALSE} (default) recompile the model at every new session.}
+If \code{FALSE} recompile the model at every new session (default).}
 
 \item{\code{force}}{\code{logical(1)} to compile even if a cached model already exists.\cr
 Default is \code{FALSE}.}
@@ -214,7 +207,7 @@ If the parameter already exists, it is updated.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{name}}{\code{character(1)} name used by interna; calls.}
+\item{\code{name}}{\code{character(1)} name used by internal calls.}
 
 \item{\code{value}}{\code{numeric(1)} with initial value.\cr
 Required only if constant or random initialization has been disabled.}
@@ -302,12 +295,11 @@ If the augmented variablw already exists, it is updated.
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_augmented(
   name = NA,
   status = NA,
+  value = NULL,
   const = NA,
   discr = FALSE,
   func = NA,
   func_args = NULL,
-  value = NULL,
-  init_rand = FALSE,
   model = NA,
   args = list(),
   min = NULL,
@@ -321,10 +313,18 @@ If the augmented variablw already exists, it is updated.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{name}}{\code{character(1)} name used by interna; calls.}
+\item{\code{name}}{\code{character(1)} name used by internal calls.}
 
 \item{\code{status}}{\code{integer(1)} with positive status to specify individual definitions.\cr
-If NA (default), the generic defition is associated to all infectious individuals.}
+If NA the generic defition is associated to all infectious individuals (default).}
+
+\item{\code{value}}{\code{numeric(1)} or \code{character(1)} with the initial value. \cr
+One between:\cr
+\itemize{
+\item Scalar value;\cr
+\item Parameter name (followed by \verb{@P});\cr
+\item Dataset name (followed by \verb{@D}).
+}}
 
 \item{\code{const}}{\code{logical(1)} to treat definition as constant (other details are ignored).\cr
 Default is \code{FALSE}.}
@@ -335,17 +335,6 @@ Default is \code{FALSE}.}
 \item{\code{func}}{\code{character(1)} with the name of the augmented function.}
 
 \item{\code{func_args}}{named \code{list} with the arguments of the augmented function.}
-
-\item{\code{value}}{\code{numeric(1)} or \code{character(1)} with the initial value. \cr
-One between:\cr
-\itemize{
-\item Scalar value;\cr
-\item Parameter name (followed by \verb{@P});\cr
-\item Dataset name (followed by \verb{@D}).
-}}
-
-\item{\code{init_rand}}{\code{character(1)} to draw initial value from model distribution.\cr
-Default is \code{FALSE}.}
 
 \item{\code{model}}{\code{character(1)} wit the choice for the model distribution.}
 
@@ -453,19 +442,19 @@ Reference value has unitary rate and can be specified
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{name}}{\code{character(1)} name used by interna; calls.}
+\item{\code{name}}{\code{character(1)} name used by internal calls.}
 
 \item{\code{by}}{\code{list} with feature(s) associated to group rate as data headers.\cr
 Corresponding data columns have to be categorical.}
 
 \item{\code{prefix}}{\code{character(1)} with prefix to parameter names associated to the group rate.\cr
-If \code{NA} (default), used the first 3 letters of rate name.}
+If \code{NA} uses the first 3 letters of rate name (default).}
 
 \item{\code{reference}}{named \code{list} to choose reference group providing corresponding features.\cr
 Default is the group with the largest sample size.}
 
 \item{\code{independent}}{\code{logical(1)} to consider features as independent.\cr
-If \code{FALSE}, features are combined (default).}
+If \code{FALSE} features are combined (default).}
 
 \item{\code{prior}}{\code{character(1)} wit the choice for the prior distribution.
 Default is "lnorm".}
@@ -531,7 +520,7 @@ Add definition of infectivity profile.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{name}}{\code{character(1)} name used by interna; calls.}
+\item{\code{name}}{\code{character(1)} name used by internal calls.}
 
 \item{\code{discr}}{\code{logical(1)} to treat definition as discrete and the profile is discretized (if applicable).\cr
 Default is \code{FALSE}.}
@@ -566,7 +555,7 @@ Compute the loglikelihood.
 \item{\code{data_wide}}{\code{data.frame} with the household data used for analysis in wide format. If \code{NULL}, uses the previously stored data.}
 
 \item{\code{seed}}{\code{integer(1)} with the seed for the random number generator.\cr
-If \code{NA} (default), uses current R seed.}
+If \code{NA} uses current R seed (default).}
 
 \item{\code{object}}{\code{HousepiModel} object.}
 }
@@ -591,7 +580,6 @@ Run inference with Bayesian Markov Chain Monte Carlo.
   n_adapt = 0,
   n_chains = 1,
   n_threads = 1,
-  rand_init = TRUE,
   id_draws = NA,
   seed = NA,
   progress = TRUE
@@ -617,23 +605,17 @@ Run inference with Bayesian Markov Chain Monte Carlo.
 
 \item{\code{n_threads}}{\code{integer(1)} with the number of threads to run in parallel.}
 
-\item{\code{rand_init}}{\code{logical(1)} to control random initialization of variables:\cr
-\itemize{
-\item If \code{TRUE} (default), initial values are randomly drawn from respective distributions;\cr
-\item If \code{FALSE} uses initial value definitions.
-}}
-
 \item{\code{id_draws}}{\code{character()} with individuals identifiers.\cr
 Store draws of public augmented variables for the chosen individuals.}
 
 \item{\code{seed}}{\code{integer(1)} with the seed for the random number generator.\cr
-If \code{NA} (default), uses current R seed.}
+If \code{NA} uses current R seed (default).}
 
 \item{\code{progress}}{\code{integer(1)} or \code{logical(1)} to control progress visualization.\cr
 One between:\cr
 \itemize{
 \item If \code{integer}, prints progress every \code{progress} seconds;\cr
-\item If \code{TRUE} (default), prints progress every second;\cr
+\item If \code{TRUE} prints progress every second (default);\cr
 \item If \code{FALSE} or \code{0}, suppresses progress display.
 }}
 }
@@ -693,13 +675,13 @@ Number of rungs in the thermodynamic ladder.}
 \item{\code{n_threads}}{\code{integer(1)} with the number of threads to run in parallel.}
 
 \item{\code{seed}}{\code{integer(1)} with the seed for the random number generator.\cr
-If \code{NA} (default), uses current R seed.}
+If \code{NA} uses current R seed (default).}
 
 \item{\code{progress}}{\code{integer(1)} or \code{logical(1)} to control progress visualization.\cr
 One between:\cr
 \itemize{
 \item If \code{integer}, prints progress every \code{progress} seconds;\cr
-\item If \code{TRUE} (default), prints progress every second;\cr
+\item If \code{TRUE} prints progress every second (default);\cr
 \item If \code{FALSE} or \code{0}, suppresses progress display.
 }}
 }
@@ -713,7 +695,7 @@ One between:\cr
 \if{html}{\out{<a id="method-HousepiModel-export_augmented_data"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-export_augmented_data}{}}}
 \subsection{Method \code{export_augmented_data()}}{
-Dataset with associated augmented variables at current state.
+Dataset with associated augmented variables for last state.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$export_augmented_data()}\if{html}{\out{</div>}}
 }
@@ -726,7 +708,7 @@ Dataset with associated augmented variables at current state.
 \if{html}{\out{<a id="method-HousepiModel-export_house_snapshot"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-export_house_snapshot}{}}}
 \subsection{Method \code{export_house_snapshot()}}{
-A snapshot of all current internal state of a given household.
+All variables associated to given household for last state.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$export_house_snapshot(house_id)}\if{html}{\out{</div>}}
 }
@@ -734,8 +716,7 @@ A snapshot of all current internal state of a given household.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{house_id}}{\code{character(1)}\cr
-Id of the household to export.}
+\item{\code{house_id}}{A \code{character(1)} with the ID of the household to export.}
 }
 \if{html}{\out{</div>}}
 }
@@ -747,26 +728,37 @@ Id of the household to export.}
 \if{html}{\out{<a id="method-HousepiModel-simulate"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-simulate}{}}}
 \subsection{Method \code{simulate()}}{
-Generate a simulated outbreak with the same community structure of the loaded data.
+Generate a simulated outbreak.
+It assumes the same community structure of the loaded data.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$simulate(nsim = 1, seed = NA, data_wide = NULL, progress = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$simulate(
+  data_wide = NULL,
+  obs_process = NULL,
+  n_sim = 1,
+  seed = NA,
+  progress = FALSE
+)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{nsim}}{\code{integer(1)} with the number of simulated outbreaks.}
+\item{\code{data_wide}}{\code{data.frame} with the household data used for analysis in wide format. If \code{NULL}, uses the previously stored data.}
+
+\item{\code{obs_process}}{A \code{function} with the observation process.\cr
+It expects as input the \code{data.frame} generated by simulation.\cr
+If \code{NULL}, observation process is ignored.}
+
+\item{\code{n_sim}}{\code{integer(1)} with the number of simulated outbreaks.}
 
 \item{\code{seed}}{\code{integer(1)} with the seed for the random number generator.\cr
-If \code{NA} (default), uses current R seed.}
-
-\item{\code{data_wide}}{\code{data.frame} with the household data used for analysis in wide format. If \code{NULL}, uses the previously stored data.}
+If \code{NA} uses current R seed (default).}
 
 \item{\code{progress}}{\code{integer(1)} or \code{logical(1)} to control progress visualization.\cr
 One between:\cr
 \itemize{
 \item If \code{integer}, prints progress every \code{progress} seconds;\cr
-\item If \code{TRUE} (default), prints progress every second;\cr
+\item If \code{TRUE} prints progress every second (default);\cr
 \item If \code{FALSE} or \code{0}, suppresses progress display.
 }}
 }

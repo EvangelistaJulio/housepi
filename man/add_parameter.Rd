@@ -21,7 +21,7 @@ add_parameter(
 \arguments{
 \item{object}{\code{HousepiModel} object.}
 
-\item{name}{\code{character(1)} name used by interna; calls.}
+\item{name}{\code{character(1)} name used by internal calls.}
 
 \item{value}{\code{numeric(1)} with initial value.\cr
 Required only if constant or random initialization has been disabled.}
