@@ -125,41 +125,37 @@ Function::Function(const std::string &name,
                    double domain_min, bool is_min_open,
                    double domain_max, bool is_max_open)
 {
-    bool is_x_default = arg_name % "x";
-
     // name of the function
     this->name_ = name;
 
     // number of arguments
     if (arg_name.size() != arg_value.size())
-    {
-        std::ostringstream oss;
-        oss << "Inconsistent arguments for " << err_name() << "."
-            << "Found " << arg_name.size() << " default names but "
-            << arg_value.size() << " values.";
-        tools::error(oss.str());
-    }
-    n_args_ = arg_name.size() - (is_x_default);
+         tools::error(
+            "Inconsistent arguments for " + err_name() + "." +
+            "Found " + std::to_string(arg_name.size()) + " default names but " +
+            std::to_string(arg_value.size()) + " values.");
+    
+    // initialize default 'x' argument
+    x_arg_.name(HSP_PARAM_X);
+    x_arg_.set(HSP_NA_DOUBLE);
 
-    // assign default arguments
-    args_ = new Attribute[n_args_ + 1];
-    // by convention, last argument is 'x' and NA by default
-    args_[n_args_].name("x");
-    args_[n_args_].set(HSP_NA_DOUBLE);
+    // allocate attribute for remaining arguments
+    size_t n_args = arg_name.size() - (arg_name % HSP_PARAM_X);
+    arguments_ = std::vector<Attribute>(n_args);
 
-    unsigned short c = 0;
-    for (unsigned short k = 0; k < arg_name.size(); ++k)
-        if (arg_name[k] == "x")
-            args_[n_args_].set(arg_value[k]);
+    size_t c = 0;
+    for (size_t k = 0; k < arg_name.size(); ++k)
+        if (arg_name[k] == HSP_PARAM_X)
+            x_arg_.set(arg_value[k]);
         else
         {
-            args_[c].name(arg_name[k]);
-            args_[c++].set(arg_value[k]);
+            arguments_[c].name(arg_name[k]);
+            arguments_[c++].set(arg_value[k]);
         }
 
     // Assign Domain
-    // NOTE: at the moment only place where to set open ranges
-    // NOTE: not sure if setting pointer to smtg exiting the domain I still have control
+    // UPDATE: at the moment only place where to set open ranges
+    // UPDATE: not sure if setting pointer to smtg exiting the domain I still have control
     init_attr(HSP_PARAM_MIN, domain_min);
     init_attr(HSP_PARAM_MAX, domain_max);
     init_range_helper_(is_min_open, is_max_open);
@@ -172,19 +168,21 @@ Function::Function(const std::string &name,
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Assert argument exists at assignment. Returns it's index.
-unsigned short Function::assert_arg(const std::string &arg_name) const
+Attribute &Function::find_arg_(const std::string &arg_name)
 {
-    if (arg_name == "x")
-        return n_args_; // by convention, last argument is 'x'
+    if (arg_name == HSP_PARAM_X)
+        return x_arg_;
     else
-        for (unsigned short i = 0; i < n_args_; ++i)
-            if (args_[i].name() == arg_name)
-                return i;
+        for (Attribute &attr : arguments_)
+            if (attr.name() == arg_name)
+                return attr;
+
+    // else throw error showing options
+    str_vec options = {HSP_PARAM_X};
+    for (const Attribute &attr : arguments_)
+        options.push_back(attr.name());
 
     // throw error showing options
-    str_vec options = {};
-    for (unsigned short i = 0; i < n_args_; ++i)
-        options.push_back(args_[i].name());
     throw std::invalid_argument(
         "Unknown argument \"" + arg_name + "\" for " + err_name() + "." +
         tools::str::find_closest(arg_name, options, HSP_MIN_STR_DIST));
@@ -193,19 +191,22 @@ unsigned short Function::assert_arg(const std::string &arg_name) const
 /// Wheter return value is always constant.
 bool Function::is_constant() const
 {
-    // check arguments
-    for (unsigned short i = 0; i < n_args_; ++i)
-        if (!args_[i].is_constant())
-            return false;
     // check X value
     // NOTE: a function with undefined 'x' is not constant
-    if (args_[n_args_].is_empty() || !args_[n_args_].is_constant())
+    if (x_arg_.is_empty() || !x_arg_.is_constant())
         return false;
+
+    // check arguments
+    for (const Attribute &attr : arguments_)
+        if (!attr.is_constant())
+            return false;
+
     // check range
     if (!range_min_.is_constant())
         return false;
     if (!range_max_.is_constant())
         return false;
+
     // else is constant
     return true;
 }
@@ -224,14 +225,14 @@ unsigned short Function::which_valid_case_() const
 void Function::init_uniform_range_()
 {
     // impose range minimum equal to argument minimum
-    const Attribute &min_arg = args_[this->assert_arg(HSP_PARAM_MIN)];
+    const Attribute &min_arg = find_arg_(HSP_PARAM_MIN);
     if (min_arg.is_function())
         range_min_.init_function(min_arg.get_function());
     else
         range_min_.init_pointer(min_arg.get_ptr());
 
     // impose range maximum equal to argument maximum
-    const Attribute &max_arg = args_[this->assert_arg(HSP_PARAM_MAX)];
+    const Attribute &max_arg = find_arg_(HSP_PARAM_MAX);
     if (max_arg.is_function())
         range_max_.init_function(max_arg.get_function());
     else
@@ -371,7 +372,8 @@ void Function::init_attr(const std::string &what, const Attribute &attr)
     if (attr.is_function())
         if (!attr.get_function()->is_implicit_callable())
             throw std::invalid_argument(
-                "Undefined attribute \"" + what + "\" for " + err_name() + "    .");
+                "Impossible to associate \"" + what + "\" to " + err_name() + ".\n" +
+                "Missing a value for argument \"x\".");
 
     // distinguish between range keys and standard keys
     if (HSP_RANGE_KEYS % what)
@@ -379,14 +381,14 @@ void Function::init_attr(const std::string &what, const Attribute &attr)
         if (attr.is_empty())
             ; // skip NA for range
         else if (name_ == "unif")
-            args_[assert_arg(what)].transfer(attr);
+            find_arg_(what).transfer(attr);
         else if (what == HSP_PARAM_MIN)
             range_min_.transfer(attr);
         else // what == HSP_PARAM_MAX
             range_max_.transfer(attr);
     }
     else
-        args_[assert_arg(what)].transfer(attr);
+        find_arg_(what).transfer(attr);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -450,11 +452,11 @@ unsigned short Function::which_discrete_case_() const
 /// Return formatted argument names of the distribution.
 std::string Function::str_arg_names() const
 {
-    if (n_args_ > 0)
+    if (!arguments_.empty())
     {
-        std::string output = args_[0].name();
-        for (unsigned short c = 1; c < n_args_; ++c)
-            output += HSP_LIST_DELIM + args_[c].name();
+        std::string output = arguments_[0].name();
+        for (size_t c = 1; c < arguments_.size(); ++c)
+            output += HSP_LIST_DELIM + arguments_[c].name();
         return output;
     }
     return HSP_NA_STRING;
@@ -462,23 +464,22 @@ std::string Function::str_arg_names() const
 /// Return formatted argument names of the distribution.
 std::string Function::str_arg_values() const
 {
-    if (n_args_ > 0)
+    if (!arguments_.empty())
     {
-        std::string output = args_[0].str();
-        for (unsigned short c = 1; c < n_args_; ++c)
-            output += HSP_LIST_DELIM + args_[c].str();
+        std::string output = arguments_[0].str();
+        for (size_t c = 1; c < arguments_.size(); ++c)
+            output += HSP_LIST_DELIM + arguments_[c].str();
         return output;
     }
     return HSP_NA_STRING;
 }
-
 /// Return formatted function summary.
 std::string Function::str_summary() const
 {
     std::string output = name_;
-    output += "(" + args_[n_args_].name() + "=" + args_[n_args_].str();
-    for (unsigned short c = 0; c < n_args_; ++c)
-        output += ", " + args_[c].name() + "=" + args_[c].str();
+    output += "(" + x_arg_.name() + "=" + x_arg_.str();
+    for (size_t c = 0; c < arguments_.size(); ++c)
+        output += ", " + arguments_[c].name() + "=" + arguments_[c].str();
     output += ") : " + str_range();
     return output;
 }
@@ -489,12 +490,13 @@ Rcpp::NumericVector Function::rcpp_export_args() const
 {
     using namespace Rcpp;
 
-    NumericVector vals(n_args_);
-    CharacterVector keys(n_args_);
-    for (size_t k = 0; k < n_args_; ++k)
+    size_t n_args = arguments_.size();
+    NumericVector vals(n_args);
+    CharacterVector keys(n_args);
+    for (size_t k = 0; k < n_args; ++k)
     {
-        vals[k] = args_[k].get();
-        keys[k] = args_[k].name();
+        vals[k] = arguments_[k].get();
+        keys[k] = arguments_[k].name();
     }
     vals.names() = std::move(keys);
     return vals;
@@ -535,8 +537,8 @@ std::shared_ptr<Function> FunctionRegistry::get(const std::string &opt, bool is_
 
 std::shared_ptr<Function> compose_func_registries(const std::string &opt,
                                                   const std::string &name,
-                                                  bool is_primitive,
-                                                  const std::vector<const FunctionRegistry *> &registries)
+                                                  const std::vector<const FunctionRegistry *> &registries,
+                                                  bool is_primitive)
 {
     str_vec options = {};
 
@@ -562,19 +564,21 @@ std::shared_ptr<Function> compose_func_registries(const std::string &opt,
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+/// Minus Function.
 class Minus_Function : public Function
 {
 public:
-    Minus_Function() : Function("minus", {}, {}) {}
+    Minus_Function() : Function("minus") {}
 
     void init_truncation() override final {}
-    bool is_discrete() const override final { return args_[n_args_].is_discrete(); }
+    bool is_discrete() const override final { return x_arg_.is_discrete(); }
 
 protected:
     double raw_function_(double x) const override final { return -x; }
 };
 
-#define DEFINE_ARITHMETIC_FUNCTION(ClassName, FunctionName, Symbol, DefaultY)           \
+/// Arithmetic function factory.
+#define MAKE_ARITHMETIC_FUNCTION(ClassName, FunctionName, Symbol, DefaultY)             \
     class ClassName : public Function                                                   \
     {                                                                                   \
     public:                                                                             \
@@ -584,16 +588,17 @@ protected:
                                                                                         \
         bool is_discrete() const override final                                         \
         {                                                                               \
-            return args_[0].is_discrete() && args_[n_args_].is_discrete();              \
+            return arguments_[0].is_discrete() && x_arg_.is_discrete();                 \
         }                                                                               \
                                                                                         \
     protected:                                                                          \
         double raw_function_(double x) const override final { return x Symbol arg(0); } \
     };
-DEFINE_ARITHMETIC_FUNCTION(Addition_Function, "add", +, 0.)
-DEFINE_ARITHMETIC_FUNCTION(Subtraction_Function, "sub", -, 0.)
-DEFINE_ARITHMETIC_FUNCTION(Multiplication_Function, "mult", *, 1.)
+MAKE_ARITHMETIC_FUNCTION(Addition_Function, "add", +, 0.)
+MAKE_ARITHMETIC_FUNCTION(Subtraction_Function, "sub", -, 0.)
+MAKE_ARITHMETIC_FUNCTION(Multiplication_Function, "mult", *, 1.)
 
+/// Division Function.
 class Division_Function : public Function
 {
 public:
@@ -616,7 +621,7 @@ public:
 
     bool is_discrete() const override final
     {
-        return Function::is_discrete() || (args_[0].is_discrete() && args_[n_args_].is_discrete());
+        return Function::is_discrete() || (arguments_[0].is_discrete() && x_arg_.is_discrete());
     }
 
 protected:
@@ -723,6 +728,68 @@ protected:
     double raw_logratio_(double xo, double xn) const override final { return std::log(std::tan(xn) / std::tan(xo)); }
 };
 
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////  Variadic_Function : class  ///////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Auxialiary class to deal with variadic functions.
+class Variadic_Function : public Function
+{
+public:
+    Variadic_Function(const std::string &name = HSP_NA_STRING) : Function(name) {}
+    virtual ~Variadic_Function() = default;
+
+protected:
+    /// Variadic function version of the find argument method.
+    Attribute &find_arg_(const std::string &arg_name) override final
+    {
+        if (arg_name == HSP_PARAM_X)
+            return x_arg_;
+        else
+            for (Attribute &attr : arguments_)
+                if (attr.name() == arg_name)
+                    return attr;
+
+        // if attribute doesn't exist at initialization, create it
+        arguments_.emplace_back();
+        return arguments_.back();
+    }
+};
+
+/// VARIADIC function factory.
+#define MAKE_VARIADIC_FUNCTION(ClassName, FunctionName, Symbol) \
+    class ClassName : public Variadic_Function                  \
+    {                                                           \
+    public:                                                     \
+        ClassName() : Variadic_Function(FunctionName) {}        \
+                                                                \
+        void init_truncation() override final {}                \
+        bool is_discrete() const override final                 \
+        {                                                       \
+            if (!x_arg_.is_discrete())                          \
+                return false;                                   \
+            for (const Attribute &attr : arguments_)            \
+                if (!attr.is_discrete())                        \
+                    return false;                               \
+            return true;                                        \
+        }                                                       \
+                                                                \
+    protected:                                                  \
+        double raw_function_(double x) const override final     \
+        {                                                       \
+            for (const Attribute &attr : arguments_)            \
+                x Symbol attr.get();                            \
+            return x;                                           \
+        }                                                       \
+    };
+
+MAKE_VARIADIC_FUNCTION(Summation_Function, "sum", +=)
+MAKE_VARIADIC_FUNCTION(Product_Function, "prod", *=)
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////  Variadic_Function : class  ///////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
 #define IMPLEMENT_HOUSEPI_FUNCTION_REGISTRY(ClassName) \
     ClassName &ClassName::inst()                       \
     {                                                  \
@@ -736,6 +803,8 @@ REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Addition_Function)
 REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Subtraction_Function)
 REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Multiplication_Function)
 REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Division_Function)
+REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Summation_Function)
+REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Product_Function)
 
 IMPLEMENT_HOUSEPI_FUNCTION_REGISTRY(TranscendentalRegistry)
 REGISTER_HOUSEPI_FUNCTION(TranscendentalRegistry, Power_Function)

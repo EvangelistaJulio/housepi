@@ -244,7 +244,7 @@ std::shared_ptr<Distribution> compose_distr_registries(const std::string &opt,
 #define GET_ARGS_1 arg(0)
 #define GET_ARGS_2 arg(0), arg(1)
 
-#define DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(distr_, n_args)            \
+#define MAKE_RAW_NUMR_IMPORT_FOR_DISTR(distr_, n_args)            \
     double raw_pdf_(double x) const override final                  \
     {                                                               \
         return numr::distr_::pdf(x, GET_ARGS_##n_args);             \
@@ -339,7 +339,7 @@ public:
 protected:
     std::normal_distribution<double> distr_gen;
 
-    DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(normal, 2)
+    MAKE_RAW_NUMR_IMPORT_FOR_DISTR(normal, 2)
     double raw_rand_(rnd_gen &prng) override final { return arg(0) + arg(1) * distr_gen(prng); }
 };
 
@@ -365,7 +365,7 @@ protected:
 
     void update_args_() override final { distr_gen.param(std::lognormal_distribution<double>::param_type(arg(0), arg(1))); } // UPDATE
 
-    DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(lognormal, 2)
+    MAKE_RAW_NUMR_IMPORT_FOR_DISTR(lognormal, 2)
     double raw_rand_(rnd_gen &prng) override final { return distr_gen(prng); }
 };
 
@@ -415,7 +415,7 @@ protected:
         gamma_2.param(std::gamma_distribution<double>::param_type(arg(1), 1.));
     }
 
-    DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(beta, 2)
+    MAKE_RAW_NUMR_IMPORT_FOR_DISTR(beta, 2)
     double raw_rand_(rnd_gen &prng) override final
     {
         double x1 = gamma_1(prng);
@@ -446,7 +446,7 @@ protected:
 
     void update_args_() override final { distr_gen.param(std::gamma_distribution<double>::param_type(arg(0), arg(1))); } // UPDATE
 
-    DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(gamma, 2)
+    MAKE_RAW_NUMR_IMPORT_FOR_DISTR(gamma, 2)
     double raw_rand_(rnd_gen &prng) override final { return distr_gen(prng); }
 };
 
@@ -528,7 +528,7 @@ public:
 protected:
     std::uniform_real_distribution<double> unif_gen;
 
-    DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(rayleigh, 1)
+    MAKE_RAW_NUMR_IMPORT_FOR_DISTR(rayleigh, 1)
     double raw_rand_(rnd_gen &prng) override final { return arg(0) * sqrt(-2 * std::log(unif_gen(prng))); }
 };
 
@@ -554,7 +554,7 @@ protected:
 
     void update_args_() override final { distr_gen.param(std::weibull_distribution<double>::param_type(arg(0), arg(1))); } // UPDATE
 
-    DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(weibull, 2)
+    MAKE_RAW_NUMR_IMPORT_FOR_DISTR(weibull, 2)
     double raw_rand_(rnd_gen &prng) override final { return distr_gen(prng); }
 };
 
@@ -580,7 +580,7 @@ protected:
 
     void update_args_() override final { distr_gen.param(std::exponential_distribution<double>::param_type(arg(0))); } // UPDATE
 
-    DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(exponential, 1)
+    MAKE_RAW_NUMR_IMPORT_FOR_DISTR(exponential, 1)
     double raw_rand_(rnd_gen &prng) override final { return distr_gen(prng); }
 };
 
@@ -614,7 +614,7 @@ protected:
 
     void update_args_() override final { distr_gen.param(std::poisson_distribution<unsigned>::param_type(arg(0))); } // UPDATE
 
-    DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(poisson, 1)
+    MAKE_RAW_NUMR_IMPORT_FOR_DISTR(poisson, 1)
     double raw_rand_(rnd_gen &prng) override final { return distr_gen(prng); }
 };
 
@@ -659,7 +659,7 @@ protected:
 
     void update_args_() override final { distr_gen.param(std::binomial_distribution<unsigned>::param_type(arg(0), arg(1))); } // UPDATE
 
-    DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(binomial, 2)
+    MAKE_RAW_NUMR_IMPORT_FOR_DISTR(binomial, 2)
     double raw_rand_(rnd_gen &prng) override final { return distr_gen(prng); }
 };
 
@@ -685,7 +685,7 @@ protected:
 
     void update_args_() override final { distr_gen.param(std::negative_binomial_distribution<unsigned>::param_type(arg(0), arg(1))); } // UPDATE
 
-    DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(negbinomial, 2)
+    MAKE_RAW_NUMR_IMPORT_FOR_DISTR(negbinomial, 2)
     double raw_rand_(rnd_gen &prng) override final { return distr_gen(prng); }
 };
 
@@ -711,7 +711,7 @@ protected:
 
     void update_args_() override final { distr_gen.param(std::geometric_distribution<unsigned>::param_type(arg(0))); } // UPDATE
 
-    DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(geometric, 1)
+    MAKE_RAW_NUMR_IMPORT_FOR_DISTR(geometric, 1)
     double raw_rand_(rnd_gen &prng) override final { return distr_gen(prng); }
 };
 
@@ -842,11 +842,12 @@ REGISTER_HOUSEPI_DISTRIBUTION(InfecProfileRegistry, InfecProfile_Ferretti20)
 void Attribute::init_function(const std::string &s, bool is_primitive)
 {
     init_function(compose_func_registries(
-        s, "function", is_primitive,
+        s, "function", 
         {&UserFuncRegistry::inst(),
          &TranscendentalRegistry::inst(),
          &ArithmeticRegistry::inst(),
          &ContinuosDistrRegistry::inst(),
          &DiscreteDistrRegistry::inst(),
-         &InfecProfileRegistry::inst()}));
+         &InfecProfileRegistry::inst()},
+        is_primitive));
 }

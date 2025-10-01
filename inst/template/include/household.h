@@ -131,7 +131,7 @@ public:
 				"No datalong entries for " + err_name() + ".");
 		return pdatalong_->at(d);
 	}
-	double group_rate(const std::string &r) const { return safe_at(rate_map_, r, "group rate").get(); }
+	double group_rate(const std::string &r) const { return safe_at(group_rate_map_, r, "group rate").get(); }
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////  Individual : setter  ////////////////////////////////////
@@ -142,29 +142,6 @@ public:
 	void init_all_group_rates(const u_dict<std::vector<observ_dbl_ptr>> &ptrs);
 
 private:
-	///////////////////////////////////////////////////////////////////////////////////////////////
-	//////////////////////////////  Individual : GroupRate_ : struct  /////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////
-
-	struct GroupRate_
-	{
-	public:
-		GroupRate_(const std::string &name = HSP_NA_STRING,
-				   const std::vector<observ_dbl_ptr> &ptrs = {});
-
-		double get() const
-		{
-			double output = 1.0;
-			for (observ_dbl_ptr ptr : pointers_)
-				output *= *ptr;
-			return output;
-		}
-
-	private:
-		std::string name_ = "";
-		std::vector<observ_dbl_ptr> pointers_ = {};
-	};
-
 	std::string id_ = HSP_NA_STRING;  // user id
 	size_t index_ = 0;				  // housepi internal index
 	size_t hhindex_ = 0;			  // household relative index
@@ -172,7 +149,7 @@ private:
 
 	// NOTE: allowd data variables are numerical only
 	u_dict<double> data_map_ = {};	   // data
-	u_dict<GroupRate_> rate_map_ = {}; // group rates
+	u_dict<Attribute> group_rate_map_ = {}; // group rates
 
 	u_dict<dbl_vec> *pdatalong_ = nullptr; // datalong to be associated
 };

@@ -146,9 +146,6 @@ void MCMC::read_infec_profile(const std::string &f) { pImpl_->infec_profile.read
 /////////////////////////////////////  MCMC : show, C++ print  ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void MCMC::show_setup() const { pImpl_->setup.show(); }
-void MCMC::show_all_params() const { pImpl_->param.show(); }
-void MCMC::show_summary() const { pImpl_->dataset.show_summary(); }
 void MCMC::print_infer_state(const std::string &f) const { pImpl_->print_infer_state(f); }
 #endif
 

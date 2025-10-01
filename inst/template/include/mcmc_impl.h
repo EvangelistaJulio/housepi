@@ -128,7 +128,6 @@ public:
         Rcpp::CharacterVector draws_iter_names() const;
 #else
         void read(const std::string &pathtofile);
-        void show() const;
 #endif
 
     private:
@@ -222,7 +221,6 @@ public:
         Rcpp::DataFrame rcpp_export() const;
 #else
         void read(const std::string &pathtofile);
-        void show() const;
 #endif
     private:
         const std::string section_name_ = "parameter";
@@ -373,7 +371,6 @@ public:
 #else
         void read(const std::string &pathtofile);
         void read_multiplicity(const std::string &pathtofile);
-        void show_summary() const;
 
         void print_open(const std::string &pathtofile);
         void print_update(Household &house);

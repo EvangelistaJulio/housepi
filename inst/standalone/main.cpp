@@ -182,17 +182,6 @@ int main(int argc, char *argv[])
     user_model->read_augm(augm_file);                   // 6) Load Augmented Variables
     user_model->read_multiplicity(multiplicity_file);   // 7) Load Multiplicities
 
-    if (verbose)
-    {
-        print_decorator("Setup");
-        user_model->show_setup();
-        print_decorator("Parameters");
-        user_model->show_all_params();
-        print_decorator("Dataset");
-        user_model->show_summary();
-        // UPDATE: missing show_augm
-    }
-
     //////////////////////////////
     ////////  EXECUTION  /////////
     //////////////////////////////

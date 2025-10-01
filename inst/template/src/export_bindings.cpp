@@ -16,7 +16,7 @@
 #include "model.h"
 
 // macro to define RCPP wrapper classes to export to R
-#define DEFINE_HOUSEPI_RCPP_WRAPPER_CLASS(WrapperName, type_string, registry_list)                     \
+#define MAKE_HOUSEPI_RCPP_WRAPPER_CLASS(WrapperName, type_string, registry_list)                       \
     class WrapperName##Housepi                                                                         \
     {                                                                                                  \
     private:                                                                                           \
@@ -27,7 +27,7 @@
         {                                                                                              \
             try                                                                                        \
             {                                                                                          \
-                ptr_ = compose_func_registries(name_, type_string, is_cumul, registry_list);           \
+                ptr_ = compose_func_registries(name_, type_string, registry_list, is_cumul);           \
                                                                                                        \
                 if (args_ != R_NilValue)                                                               \
                 {                                                                                      \
@@ -35,19 +35,8 @@
                     const Rcpp::CharacterVector arg_names = args.names();                              \
                     for (R_xlen_t i = 0; i < args.size(); ++i)                                         \
                     {                                                                                  \
-                        bool known_arg = true;                                                         \
                         const std::string this_arg = Rcpp::as<std::string>(arg_names[i]);              \
-                        try                                                                            \
-                        {                                                                              \
-                            ptr_->assert_arg(this_arg);                                                \
-                        }                                                                              \
-                        catch (const std::exception &e)                                                \
-                        {                                                                              \
-                            tools::warning(e.what());                                                  \
-                            known_arg = false;                                                         \
-                        }                                                                              \
-                        if (known_arg)                                                                 \
-                            ptr_->init_attr(this_arg, Rcpp::as<double>(args[i]));                      \
+                        ptr_->init_attr(this_arg, Rcpp::as<double>(args[i]));                          \
                     }                                                                                  \
                 }                                                                                      \
                                                                                                        \
@@ -108,7 +97,7 @@
 RCPP_MODULE(housepi_function)
 {
 #define FUNCTION_REGISTRIES {&UserFuncRegistry::inst(), &TranscendentalRegistry::inst(), &ArithmeticRegistry::inst()}
-    DEFINE_HOUSEPI_RCPP_WRAPPER_CLASS(Function, "function", FUNCTION_REGISTRIES);
+    MAKE_HOUSEPI_RCPP_WRAPPER_CLASS(Function, "function", FUNCTION_REGISTRIES);
 
     Rcpp::class_<FunctionHousepi>("FunctionHousepi")
         .constructor<std::string, bool, SEXP, SEXP, bool>()
@@ -131,7 +120,7 @@ RCPP_MODULE(housepi_function)
 RCPP_MODULE(housepi_distribution)
 {
 #define DISTRIBUTION_REGISTRIES {&ContinuosDistrRegistry::inst(), &DiscreteDistrRegistry::inst()}
-    DEFINE_HOUSEPI_RCPP_WRAPPER_CLASS(Distribution, "distribution", DISTRIBUTION_REGISTRIES);
+    MAKE_HOUSEPI_RCPP_WRAPPER_CLASS(Distribution, "distribution", DISTRIBUTION_REGISTRIES);
 
     Rcpp::class_<DistributionHousepi>("DistributionHousepi")
         .constructor<std::string, bool, SEXP, SEXP, bool>()
@@ -154,7 +143,7 @@ RCPP_MODULE(housepi_distribution)
 #define INFEC_PROFILE_REGISTRIES {&InfecProfileRegistry::inst(), &ContinuosDistrRegistry::inst(), &DiscreteDistrRegistry::inst()}
 RCPP_MODULE(housepi_infec_profile)
 {
-    DEFINE_HOUSEPI_RCPP_WRAPPER_CLASS(InfecProfile, "infectivity profile", INFEC_PROFILE_REGISTRIES);
+    MAKE_HOUSEPI_RCPP_WRAPPER_CLASS(InfecProfile, "infectivity profile", INFEC_PROFILE_REGISTRIES);
 
     Rcpp::class_<InfecProfileHousepi>("InfecProfileHousepi")
         .constructor<std::string, bool, SEXP, SEXP, bool>()

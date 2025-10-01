@@ -115,6 +115,7 @@ constexpr double HSP_TIME_STEP = 0.05;          /// time step for real time simu
 #define HSP_LIST_DELIM ':' /// dictionary delimiter
 
 // special parameter names
+#define HSP_PARAM_X "x"     /// evaluation parameter
 #define HSP_PARAM_LOC "loc" /// location parameter
 #define HSP_PARAM_MIN "min" /// minimum value
 #define HSP_PARAM_MAX "max" /// maximum value
@@ -274,11 +275,11 @@ namespace tools
 
         // check for unused entries from a vector of options and throw exception
         void assert_missing_entries(const str_vec &entries,
-                             const str_vec &options,
-                             const std::string &where = "column");
+                                    const str_vec &options,
+                                    const std::string &where = "column");
         void assert_unused_entries(const str_vec &entries,
-                            const str_vec &options,
-                            const std::string &where = "column");
+                                   const str_vec &options,
+                                   const std::string &where = "column");
     }
 
     namespace read
@@ -290,12 +291,12 @@ namespace tools
         str_vec table_headers(const dict_str_vec &deftable);
         dict_str_vec csv_table(const std::string &pathtofile);
     }
-    
-    #ifdef _HOUSEPI_RCPP
-            Rcpp::String stoRString(const std::string &x);
-            dict_str rlist_to_map(SEXP input);
-            dict_str_vec rdataframe_to_map(SEXP input);
-    #endif
+
+#ifdef _HOUSEPI_RCPP
+    Rcpp::String stoRString(const std::string &x);
+    dict_str rlist_to_map(SEXP input);
+    dict_str_vec rdataframe_to_map(SEXP input);
+#endif
 }
 
 #endif // HOUSEPI__TOOLS__H

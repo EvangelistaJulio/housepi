@@ -162,7 +162,7 @@ public:
     /// Central method to return function's value at given x.
     double evaluate(double x) const { return (this->*evaluate_)(x); }
     /// By convention, the argument 'x' is automatically the last one.
-    double evaluate() const { return (this->*evaluate_)(arg(n_args_)); }
+    double evaluate() const { return (this->*evaluate_)(x_arg_.get()); }
 
     /// Select call method for return value.
     void set_eval_function() { evaluate_ = &Function::eval_function_; }
@@ -177,12 +177,11 @@ public:
     ///////////////////////////////////  Function : getter  /////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    unsigned short assert_arg(const std::string &arg_name) const;
-    double arg(unsigned short i) const { return args_[i].get(); }
+    double arg(unsigned short i) const { return arguments_[i].get(); }
     double get_min() const { return range_min_.get(); }
     double get_max() const { return range_max_.get(); }
 
-    observ_dbl_ptr get_ptr_to_arg(unsigned short i) const { return args_[i].get_ptr(); }
+    observ_dbl_ptr get_ptr_to_arg(unsigned short i) const { return arguments_[i].get_ptr(); }
     observ_dbl_ptr get_ptr_to_min() const { return range_min_.get_ptr(); }
     observ_dbl_ptr get_ptr_to_max() const { return range_max_.get_ptr(); }
 
@@ -193,7 +192,7 @@ public:
     /// Wheter return value is always discrete.
     virtual bool is_discrete() const { return function_ != &Function::raw_function_; }
     /// Wheter it can be called implicitely, i. e. if a 'x' has been linked.
-    bool is_implicit_callable() const { return !args_[n_args_].is_empty(); }
+    bool is_implicit_callable() const { return !x_arg_.is_empty(); }
 
     /// Returns TRUE if value x is below range minimum.
     bool is_below(double x) const { return (this->*is_below_)(x); }
@@ -209,7 +208,7 @@ public:
     void init_attr(const std::string &what, const Attribute &attr);
 
     /// Set argument value.
-    void set_arg(unsigned short i, double x) { args_[i].set(x); }
+    void set_arg(unsigned short i, double x) { arguments_[i].set(x); }
 
     /// Virtual function to initialize discretization.
     virtual void init_discretization() { throw std::invalid_argument(
@@ -244,11 +243,14 @@ public:
 protected:
     std::string err_type_ = "function";                                      // type name displayed in errors
     std::string name_ = HSP_NA_STRING;                                       /// function name
-    unsigned short n_args_ = 0;                                              /// n. of arguments
-    Attribute *args_ = nullptr;                                              /// array with arguments
+    std::vector<Attribute> arguments_ = {};                                  /// array with arguments
+    Attribute x_arg_ = Attribute();                                          /// 'x' argument
     Attribute range_min_ = Attribute();                                      /// lower bound
     Attribute range_max_ = Attribute();                                      /// upper bound
     double (Function::*evaluate_)(double) const = &Function::eval_function_; /// return value method
+
+    /// Find attribute and return. If doesn't exists, return an empty attribute.
+    virtual Attribute &find_arg_(const std::string &arg_name);
 
     /// Return value of call.
     double eval_function_(double x) const { return (this->*function_)(x); }
@@ -451,7 +453,7 @@ struct StaticFunctionRegistatror
 /// Compose registries to get a function from them.
 std::shared_ptr<Function> compose_func_registries(const std::string &opt,
                                                   const std::string &name,
-                                                  bool is_primitive,
-                                                  const std::vector<const FunctionRegistry *> &registries);
+                                                  const std::vector<const FunctionRegistry *> &registries,
+                                                  bool is_primitive = false);
 
 #endif // HOUSEPI__FUNCTION__H
