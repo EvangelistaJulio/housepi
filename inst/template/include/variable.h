@@ -126,6 +126,7 @@ public:
     /////////////////////////////////////////////////////////////////////////////////////////////
 
     Variable(const std::string &name = HSP_NA_STRING,
+             const std::string &err_type = "variable",
              double value = HSP_NA_DOUBLE,
              bool is_const = true,
              bool is_discr = false,
@@ -134,8 +135,8 @@ public:
         : pDistr_(std::make_shared<Distribution>()),
           pProp_(std::make_shared<Proposer>())
     {
-        err_type_ = "variable";
-        init(name, value, is_const, is_discr, expr, is_prim);
+        this->name(name, err_type);
+        init(value, is_const, is_discr, expr, is_prim);
     }
     ~Variable() = default;
 
@@ -143,7 +144,7 @@ public:
     double operator()(double x) const { return (this->*evaluate_)(x); }
 
     /// Helper to initialize variable.
-    void init(const std::string &name, double value,
+    void init(double value,
               bool is_const, bool is_discr,
               const DefinitionParser &parser, bool is_prim);
 
@@ -183,8 +184,8 @@ public:
     /////////////////////////////////////  Variable : getter  ///////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    bool is_constant() const override final { return Attribute::is_constant() && is_constant_; }
-    bool is_discrete() const override final { return (pDistr_->is_empty()) ? Attribute::is_discrete() : pDistr_->is_discrete(); }
+    bool is_constant() const override ;
+    bool is_discrete() const override final;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////  Variable : Metropolis-Hastings  ////////////////////////////
@@ -265,7 +266,7 @@ protected:
     }
     /// Set error.
     void do_set_error_(double) override final { throw std::runtime_error(
-        "Non scalar " + err_name() + " cannot be changed."); }
+        "Non numeric " + err_name() + " cannot be changed."); }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////  Variable : Metropolis-Hastings [private]  ///////////////////////

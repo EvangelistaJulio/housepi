@@ -104,7 +104,7 @@ class Uniform_Proposer : public Proposer
 {
 public:
     Uniform_Proposer(double rule_scale = HSP_NA_DOUBLE, bool is_discrete = false)
-        : Proposer("unif", rule_scale, {0, 1}, is_discrete) { user_reset(); }
+        : Proposer("uniform", rule_scale, {0, 1}, is_discrete) { user_reset(); }
 
     void user_reset() override final
     {
@@ -126,7 +126,7 @@ class Normal_Proposer : public Proposer
 {
 public:
     Normal_Proposer(double rule_scale = HSP_NA_DOUBLE, bool is_discrete = false)
-        : Proposer("norm", rule_scale, {1}, is_discrete) { user_reset(); }
+        : Proposer("normal", rule_scale, {1}, is_discrete) { user_reset(); }
 
     void user_reset() override final
     {
@@ -148,7 +148,7 @@ class Lognorm_Proposer : public Proposer
 {
 public:
     Lognorm_Proposer(double rule_scale = 1., bool is_discrete = false)
-        : Proposer("lnorm", rule_scale, {1}, is_discrete) { user_reset(); }
+        : Proposer("lognormal", rule_scale, {1}, is_discrete) { user_reset(); }
 
     void user_reset() override final
     {
@@ -171,18 +171,18 @@ std::shared_ptr<Proposer> proposer_switch(const std::string &rule_name = HSP_NA_
                                           double rule_scale = HSP_NA_DOUBLE,
                                           bool is_discrete = false)
 {
-    const str_vec options = {"sample", "unif", "norm", "lnorm"};
+    const str_vec options = {"sample", "uniform", "normal", "lognormal"};
 
     if (tools::is_na(rule_name))
         return std::make_shared<Proposer>(std::make_shared<Distribution>());
 
-    else if (rule_name == "unif")
+    else if (rule_name == "uniform")
         return std::make_shared<Uniform_Proposer>(rule_scale, is_discrete);
 
-    else if (rule_name == "norm")
+    else if (rule_name == "normal")
         return std::make_shared<Normal_Proposer>(rule_scale, is_discrete);
 
-    else if (rule_name == "lnorm")
+    else if (rule_name == "lognormal")
         return std::make_shared<Lognorm_Proposer>(rule_scale, is_discrete);
 
     else
@@ -198,11 +198,9 @@ std::shared_ptr<Proposer> proposer_switch(const std::string &rule_name = HSP_NA_
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Initialize variable.
-void Variable::init(const std::string &name, double value,
-                    bool is_const, bool is_discr,
+void Variable::init(double value, bool is_const, bool is_discr,
                     const DefinitionParser &parser, bool is_primitive)
 {
-    this->name_ = name;
     this->is_constant_ = is_const;
     this->is_discrete_ = is_discr;
 
@@ -211,7 +209,7 @@ void Variable::init(const std::string &name, double value,
 
     if (is_const || parser.is_na()) // initialization as a numeric variable
     {
-        init_scalar(value);
+        init_numeric(value);
         user_value_ = value;
         // UPDATE: what if constant = T, discrete = T and value != integer?
     }
@@ -253,12 +251,16 @@ void Variable::init_func_reshaping()
         {
             double x = pFunc_->evaluate();
             evaluate_ = &Variable::do_eval_error_;
-            init_scalar(x);
+            init_numeric(x);
             user_value_ = x;
             is_constant_ = true;
         }
         else
         {
+            if (is_constant())
+                throw std::invalid_argument(
+                    "Impossible to set " + err_name() + " as constant. Check its dependencies.");
+
             if (is_discrete_)
                 pFunc_->init_discretization();
             pFunc_->init_truncation();
@@ -341,7 +343,7 @@ void Variable::init_proposer(const std::string &rule_name, double rule_scale)
         // if no rule is defined assume constant
         is_constant_ = true;
         propose_ = &Variable::do_propose_error_;
-        pProp_ = proposer_switch();
+        // pProp_ = proposer_switch(); // FIXME <- this call is useles, but should not raise error!
     }
     else
     {
@@ -397,4 +399,25 @@ void Variable::helper_init_sample_proposer_()
 
     is_valid_move_ = &Variable::do_is_valid_move_sample_;
     get_move_logratio_ = &Variable::do_move_logratio_sample_;
+}
+
+/// Wheter the variable is constant.
+bool Variable::is_constant() const
+{
+    if (is_numeric())
+        return is_constant_;
+    else if (is_pointer())
+        return false;
+    else if (is_function())
+        return pFunc_->is_constant();
+    else
+        return is_constant_;
+}
+/// Wheter the variable is discrete.
+bool Variable::is_discrete() const
+{
+    if (pDistr_->is_empty())
+        return Attribute::is_discrete();
+    else
+        return pDistr_->is_discrete();
 }

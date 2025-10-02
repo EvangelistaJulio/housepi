@@ -16,20 +16,61 @@
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////  Attribute : constructor ///////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+Attribute::Attribute(double x)
+{
+    name(HSP_NA_STRING, "numeric");
+    init_numeric(x);
+}
+Attribute::Attribute(observ_dbl_ptr y)
+{
+    name(HSP_NA_STRING, "pointer");
+    init_pointer(y);
+}
+Attribute::Attribute(const std::shared_ptr<Function> f)
+{
+    name(f->name(), "function");
+    init_function(f);
+}
+Attribute::Attribute(const std::string &s, bool is_primitive)
+{
+    name(s, "function");
+    init_function(s, is_primitive);
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  Attribute : getter //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
+
+std::string Attribute::what() const
+{
+    std::string sms = is_constant() ? "const" : "var";
+    if (is_numeric())
+        sms += " numeric";
+    else if (is_pointer())
+        sms += " pointer";
+    else if (is_function())
+        sms += " function";
+    else
+        sms += " empty";
+    return sms;
+}
 
 /// Get attribute value from external function.
 /// note: this can't be moved in the class because of forward declaration of Function
 double Attribute::do_get_from_function_() const { return pFunc_->evaluate(); }
 
 /// Wheter it's constant.
-/// NOTE: by construction convention, a pointer to constant must initialize to scalar instead.
+/// NOTE: by construction convention, a pointer to constant must be initialized to numeric instead.
 /// NOTE: if empty, then it's constant by convention.
 bool Attribute::is_constant() const
 {
-    if (is_scalar())
+    if (is_numeric())
         return true;
     else if (is_pointer())
         return false;
@@ -43,7 +84,7 @@ bool Attribute::is_constant() const
 /// NOTE: if empty, then it's discrete by convention.
 bool Attribute::is_discrete() const
 {
-    if (is_scalar())
+    if (is_numeric())
         return value_ == std::floor(value_);
     else if (is_pointer())
         return false; // FIXME: here it becomes problematic..
@@ -59,8 +100,8 @@ bool Attribute::is_discrete() const
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Initialize attribute as scalar.
-void Attribute::init_scalar(double x)
+/// Initialize attribute as numeric.
+void Attribute::init_numeric(double x)
 {
     get_ = &Attribute::do_get_default_;
     get_ptr_ = &Attribute::do_get_ptr_default_;
@@ -106,11 +147,11 @@ void Attribute::init_function(const std::shared_ptr<Function> f)
 void Attribute::transfer(const Attribute &other)
 {
     if (other.is_constant())
-        init_scalar(other.get());
-    else if (other.is_pointer())
-        init_pointer(other.get_ptr());
+        init_numeric(other.get());
     else if (other.is_function())
         init_function(other.get_function());
+    else
+        init_pointer(other.get_ptr());
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -130,11 +171,11 @@ Function::Function(const std::string &name,
 
     // number of arguments
     if (arg_name.size() != arg_value.size())
-         tools::error(
+        tools::error(
             "Inconsistent arguments for " + err_name() + "." +
             "Found " + std::to_string(arg_name.size()) + " default names but " +
             std::to_string(arg_value.size()) + " values.");
-    
+
     // initialize default 'x' argument
     x_arg_.name(HSP_PARAM_X);
     x_arg_.set(HSP_NA_DOUBLE);
@@ -366,29 +407,29 @@ std::string Function::str_range() const
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Assign attribute to function.
-void Function::init_attr(const std::string &what, const Attribute &attr)
+void Function::init_attr(const std::string &key, const Attribute &attr)
 {
     // assert that function attribute are implicitely callable
     if (attr.is_function())
         if (!attr.get_function()->is_implicit_callable())
             throw std::invalid_argument(
-                "Impossible to associate \"" + what + "\" to " + err_name() + ".\n" +
-                "Missing a value for argument \"x\".");
+                "Impossible to associate " + attr.err_name() + " as argument \"" + key + "\" of " + err_name() + ".\n" +
+                "Value of argument \"x\" of " + attr.err_name() + " cannot be missing.");
 
     // distinguish between range keys and standard keys
-    if (HSP_RANGE_KEYS % what)
+    if (HSP_RANGE_KEYS % key)
     {
         if (attr.is_empty())
             ; // skip NA for range
-        else if (name_ == "unif")
-            find_arg_(what).transfer(attr);
-        else if (what == HSP_PARAM_MIN)
+        else if (name_ == "uniform")
+            find_arg_(key).transfer(attr);
+        else if (key == HSP_PARAM_MIN)
             range_min_.transfer(attr);
-        else // what == HSP_PARAM_MAX
+        else // key == HSP_PARAM_MAX
             range_max_.transfer(attr);
     }
     else
-        find_arg_(what).transfer(attr);
+        find_arg_(key).transfer(attr);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -474,10 +515,11 @@ std::string Function::str_arg_values() const
     return HSP_NA_STRING;
 }
 /// Return formatted function summary.
-std::string Function::str_summary() const
+std::string Function::str_summary(bool show_x_arg) const
 {
-    std::string output = name_;
-    output += "(" + x_arg_.name() + "=" + x_arg_.str();
+    std::string output = name_ + "(";
+    if (show_x_arg)
+        output += x_arg_.name() + "=" + x_arg_.str();
     for (size_t c = 0; c < arguments_.size(); ++c)
         output += ", " + arguments_[c].name() + "=" + arguments_[c].str();
     output += ") : " + str_range();

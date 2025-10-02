@@ -582,6 +582,7 @@ public:
         void build_helper_set_id_draws_();
 
         void init_helper_variable_dependencies_(Individual &member, size_t k);
+        std::vector<size_t> init_get_definition_order_(Individual &member);
         void init_model_attributes_(Individual &member, size_t k);
         void init_func_attributes_(Individual &member, size_t k);
     } augm;
@@ -697,8 +698,8 @@ private:
     /////////////////////////  MCMC : Impl : definition helpers [private]  //////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    double read_scalar_(const DefinitionParser::ASTNode &node, const Individual &member = Individual());
-    double read_scalar_(const std::string &expr, const Individual &member = Individual());
+    double read_numeric_(const DefinitionParser::ASTNode &node, const Individual &member = Individual());
+    double read_numeric_(const std::string &expr, const Individual &member = Individual());
     Attribute read_attribute_(const DefinitionParser::ASTNode &node, const Individual &member = Individual());
     Attribute read_attribute_(const std::string &expr, const Individual &member = Individual());
     void make_param_cache_depen_(const DefinitionParser::ASTNode &node);

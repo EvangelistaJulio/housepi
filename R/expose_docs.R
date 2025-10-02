@@ -52,9 +52,9 @@ rd_var_rule_ <- "`character(1)` with the proposer rule used during inference.\\c
 One between:\\cr
 - `NA` (default): see \"sample\";\\cr
 - \"sample\": sampled from the %s distribution;\\cr
-- \"unif\": increment is drawn from a uniform distribution;\\cr
-- \"norm\": increment is drawn from a normal distribution;\\cr
-- \"lnorm\": increment id drawn from a lognormal distribution (for positive values only).
+- \"unifrm\": increment is drawn from a uniform distribution;\\cr
+- \"normal\": increment is drawn from a normal distribution;\\cr
+- \"lognormal\": increment id drawn from a lognormal distribution (for positive values only).
 "
 rd_var_scale_ <- "`numeric(1)`with the scale of the proposer rule (if applicable).\\cr 
 Changed automatically during inference if `n_adpat`>0.\\cr

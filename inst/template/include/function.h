@@ -39,23 +39,28 @@ public:
 
     Attribute() {};
     /// Auxiliary constructors allowing for implicit definition.
-    Attribute(double x) { init_scalar(x); }
-    Attribute(observ_dbl_ptr y) { init_pointer(y); }
-    Attribute(const std::shared_ptr<Function> f) { init_function(f); }
-    Attribute(const std::string &s, bool is_primitive = false) { init_function(s, is_primitive); }
+    Attribute(double x);
+    Attribute(observ_dbl_ptr y);
+    Attribute(const std::shared_ptr<Function> f);
+    Attribute(const std::string &s, bool is_primitive = false);
     virtual ~Attribute() = default;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////  Attribute : setter  //////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    /// Set attribute name.
-    void name(const std::string &s) { name_ = s; }
     /// Set attribute value.
     void set(double x) { (this->*do_set_)(x); }
+    /// Set attribute name. Eventually also err type.
+    void name(const std::string &s, const std::string &e = HSP_NA_STRING)
+    {
+        name_ = s;
+        if (!tools::is_na(e))
+            err_type_ = e;
+    }
 
-    /// Initialize attribute as scalar.
-    void init_scalar(double x);
+    /// Initialize attribute as numeric.
+    void init_numeric(double x);
     /// Initialize attribute as pointer.
     void init_pointer(observ_dbl_ptr y);
     /// Initialize attribute as function.
@@ -73,6 +78,9 @@ public:
     std::string name() const { return name_; }
     /// Get attribute name to display in errors.
     std::string err_name() const { return err_type_ + " \"" + name_ + "\""; }
+    /// Get a description about the functional status.
+    std::string what() const;
+
     /// Get attribute numeric value.
     double get() const { return (this->*get_)(); }
     /// Get pointer to attribute value.
@@ -87,14 +95,14 @@ public:
     /// Wheter it's discrete.
     virtual bool is_discrete() const;
 
-    /// Wheter it's a scalar.
-    bool is_scalar() const { return !tools::is_na(value_); }
+    /// Wheter it's a number.
+    bool is_numeric() const { return !tools::is_na(value_); }
     /// Wheter it's a pointer.
     bool is_pointer() const { return ptr_to_value_ != nullptr; }
     /// Wheter it's a function.
     bool is_function() const { return pFunc_ != nullptr; }
     /// Wheter it has no definitions.
-    bool is_empty() const { return !is_scalar() && !is_pointer() && !is_function(); }
+    bool is_empty() const { return !is_numeric() && !is_pointer() && !is_function(); }
 
 protected:
     std::string err_type_ = "attribute";        // type name displayed in errors
@@ -124,10 +132,10 @@ protected:
 
     // Functional setter
     void (Attribute::*do_set_)(double) = &Attribute::do_set_default_;
-    /// Set error. Non scalar attributes can't be set, but just assigned.
+    /// Set error. Non numeric attributes can't be set, but just assigned.
     /// NOTE: so far set_arg is only used for adaptation.
     virtual void do_set_error_(double) { throw std::runtime_error(
-        "Non scalar " + err_name() + " cannot be changed."); }
+        "Non nuemric " + err_name() + " cannot be changed."); }
     /// Set attribute internal value.
     virtual void do_set_default_(double x) { value_ = x; }
 };
@@ -205,7 +213,8 @@ public:
     ///////////////////////////////////  Function : setter  /////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    void init_attr(const std::string &what, const Attribute &attr);
+    /// Initialize given function attribute.
+    void init_attr(const std::string &key, const Attribute &attr);
 
     /// Set argument value.
     void set_arg(unsigned short i, double x) { arguments_[i].set(x); }
@@ -233,7 +242,7 @@ public:
     std::string str_max() const { return range_max_.str(); }
 
     std::string str_range() const;
-    std::string str_summary() const;
+    std::string str_summary(bool show_x_arg = true) const;
 
 #ifdef _HOUSEPI_RCPP
     Rcpp::NumericVector rcpp_export_args() const;

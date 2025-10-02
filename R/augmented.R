@@ -69,7 +69,6 @@ HousepiAugmented <- R6::R6Class(
 
     # process function arguments
     .helper_function_arguments = function(opts, func_args) {
-
       if (!is.null(func_args)) {
         parsed <- DefEncoder$new(as.list(func_args))
         opts$func <- parsed$combine_to_call(opts$func)
@@ -97,27 +96,40 @@ HousepiAugmented <- R6::R6Class(
       parsed <- DefEncoder$new(value)
       opts$value <- parsed$x
 
-      if (isFALSE(opts$const) && is.na(opts$value) && is.na(opts$model)) {
-        stop_h(sprintf(
-          "Unknown model for random initialization of augmented \"%s\".",
-          opts$name
-        ))
-      }
+      if (isFALSE(opts$const) && is.na(opts$value) && is.na(opts$model)) stop_h(
+        sprintf("Impossible to randomly initialize undefined augmented \"%s\".",
+                opts$name),
+        "Provide one between value and model."
+      )
 
       opts
     },
 
     # Interpret user choice for proposer rule.
     .helper_proposer_rule = function(opts, scale) {
+      # sampling rule but no constant parameter provided
+      if (is.na(opts$const)) {
+        if (!(is.na(opts$rule) && is.na(opts$model))) {
+          opts$const <- FALSE
+        }
+      }
+
       if (isFALSE(opts$const)) {
         if (is.na(opts$rule)) {
           if (is.na(opts$model)) opts$const <- TRUE
           else opts$rule <- "sample"
-        } else if (opts$rule != "sample") {
+        } else if (opts$rule == "sample") {
+          if (is.na(opts$model)) stop_h(
+            sprintf("No model to sample from for augmented \"%s\".",
+                    opts$name)
+          )
+        } else {
           if (is.na(scale)) opts$scale <- 1
           else if (is.numeric(scale) && (scale > 0)) opts$scale <- scale
           else stop_h("Rule scale should be a numeric value greater than 0.")
         }
+      } else {
+        opts$rule <- NA
       }
 
       opts
@@ -267,7 +279,7 @@ HousepiAugmented <- R6::R6Class(
       opts <- list(
         name = as.character(name),
         status = as.integer(status),
-        const = isTRUE(const),
+        const = const,
         discr = isTRUE(discr),
         func = as.character(func),
         fcumul = FALSE,
@@ -291,8 +303,8 @@ HousepiAugmented <- R6::R6Class(
       if (length(args) > 0) opts <- private$.helper_model_args(opts, args)
 
       if (is.na(opts$func)) {
-        opts <- private$.helper_const_vs_rand(opts, value)
         opts <- private$.helper_proposer_rule(opts, scale)
+        opts <- private$.helper_const_vs_rand(opts, value)
       }
 
       opts$min <- DefEncoder$new(min)$x

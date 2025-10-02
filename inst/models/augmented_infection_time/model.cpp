@@ -32,7 +32,7 @@ void Model::init_advanced_setup()
 {
 	// template infectivity profile (otherwise user defined)
 	init_infec_profile_template(
-		{{"func", "gamma_meanvar|mean:var|{2|S}:{1|S}"}});
+		{{"func", "gamma_meanvar|mean:var|{2|N}:{1|N}"}});
 }
 
 /// Initialize parameters and augmented variables.

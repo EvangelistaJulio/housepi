@@ -30,7 +30,7 @@ void MCMC::Impl::InfecProfile::init_template(dict_str deflist)
 		{
 			if (!deflist.count("func"))
 				throw std::invalid_argument(
-					"Missing name for infectivity profile template.");
+					"Missing function name for infectivity profile template.");
 
 			for (const std::string &key : headers_)
 				if (!deflist.count(key))
@@ -199,9 +199,9 @@ void MCMC::Impl::InfecProfile::build_generic_profile_(const dict_str &deflist)
 
 	// range minimum
 	if (profile_->is_discrete())
-		profile_->init_attr(HSP_PARAM_MIN, pImpl_.read_attribute_("1|S"));
+		profile_->init_attr(HSP_PARAM_MIN, pImpl_.read_attribute_("1|N"));
 	else
-		profile_->init_attr(HSP_PARAM_MIN, pImpl_.read_attribute_("0|S"));
+		profile_->init_attr(HSP_PARAM_MIN, pImpl_.read_attribute_("0|N"));
 
 	// range maximum
 	profile_->init_attr(HSP_PARAM_MAX, pImpl_.read_attribute_(deflist.at(HSP_PARAM_MAX)));
@@ -265,7 +265,7 @@ void MCMC::Impl::InfecProfile::build_augmented_profile_(const dict_str &deflist)
 	const dict_str_vec matcher = {{"name", str_vec({HSP_PROFILE_INST, HSP_PROFILE_CUMUL})},
 								  {"func", str_vec(2, func_name)},
 								  {"fcumul", {"false", "true"}},
-								  {HSP_PARAM_MIN, str_vec(2, (is_discrete) ? "1|S" : "0|S")},
+								  {HSP_PARAM_MIN, str_vec(2, (is_discrete) ? "1|N" : "0|N")},
 								  {HSP_PARAM_MAX, str_vec(2, deflist.at(HSP_PARAM_MAX))}};
 
 	for (auto &pair : matcher)

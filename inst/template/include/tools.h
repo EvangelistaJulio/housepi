@@ -122,10 +122,10 @@ constexpr double HSP_TIME_STEP = 0.05;          /// time step for real time simu
 #define HSP_RANGE_KEYS str_vec({HSP_PARAM_MIN, HSP_PARAM_MAX})
 
 // declaration for typed file inputs
-#define HSP_IS_TYPE_PARAM(s) ((s) == "P")  /// == Parameter type
-#define HSP_IS_TYPE_DATA(s) ((s) == "D")   /// == Data type
-#define HSP_IS_TYPE_SCALAR(s) ((s) == "S") /// == Scalar type
-#define HSP_IS_TYPE_AUGM(s) ((s) == "A")   /// == Augmented type
+#define HSP_IS_TYPE_AUGMENTED(s) ((s) == "A") /// == Augmented type
+#define HSP_IS_TYPE_DATA(s) ((s) == "D")      /// == Data type
+#define HSP_IS_TYPE_NUMERIC(s) ((s) == "N")   /// == Numeric type
+#define HSP_IS_TYPE_PARAMETER(s) ((s) == "P") /// == Parameter type
 
 // discretization types
 #define HSP_DISCR_NONE 0    /// none

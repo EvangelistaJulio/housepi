@@ -24,6 +24,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Assign definitions for the augmented variable model.
+/// NOTE: a Variable must already be allocated with clear_augm.
 void AugmentedMap::init_augm(const std::string &a,
 							 double value,
 							 bool is_const,
@@ -33,7 +34,7 @@ void AugmentedMap::init_augm(const std::string &a,
 							 const DefinitionParser &model_name)
 {
 	Variable &this_augm = safe_at(augm_map_, a, "augmented variable");
-	this_augm.init(a, value, is_const, is_discr, func_name, is_prim);
+	this_augm.init(value, is_const, is_discr, func_name, is_prim);
 	this_augm.init_distr(model_name);
 }
 

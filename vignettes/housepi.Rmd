@@ -115,11 +115,11 @@ Different approaches are available to perform the same operation, we can call `a
 # alpha : community transmission rate
 hhmodel <- hhmodel |>
   add_parameter(name = "alpha", # name matching the model source
-                prior = "unif", # uniform prior
-                rule = "lnorm") # mcmc proposer rule
+                prior = "uniform", # uniform prior
+                rule = "lognormal") # mcmc proposer rule
 
 # beta : in-household person to person transmission rate
-hhmodel$add_parameter(name = "beta", prior = "unif", rule = "lnorm")
+hhmodel$add_parameter(name = "beta", prior = "uniform", rule = "lognormal")
 ```
 
 At any moment we can turn a parameter definition into a constant definition: it is sufficient to set the argument `const = TRUE` (in such case a `value` must be provided).
@@ -204,7 +204,7 @@ hhsimul <- hhsimul |>
 
     # define an 'onset_time' for each individual
     onset_time = list(
-      model = "lnorm",
+      model = "lognormal",
       args = c(meanlog = 4, sdlog = 0.5),
       max = 365
     ),
@@ -257,7 +257,7 @@ hhmodel <- hhsimul |>
   load_augmented_list(
     infec_time = ~onset_time - incub_period,
     onset_time = list(
-      model = "norm",
+      model = "normal",
       args = c(mean = ~onset_date@D, sd = 1)
     ),
     incub_period = list(

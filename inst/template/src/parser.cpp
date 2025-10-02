@@ -163,9 +163,9 @@ std::string DefinitionParser::ASTNode::str() const
         return tools::str::unique(stack);                      \
     }
 
-MAKE_NODE_LIST_TYPE_DEPEN(augm, AUGM)
+MAKE_NODE_LIST_TYPE_DEPEN(augm, AUGMENTED)
 MAKE_NODE_LIST_TYPE_DEPEN(data, DATA)
-MAKE_NODE_LIST_TYPE_DEPEN(param, PARAM)
+MAKE_NODE_LIST_TYPE_DEPEN(param, PARAMETER)
 
 MAKE_PARSER_LIST_TYPE_DEPEN(augm)
 MAKE_PARSER_LIST_TYPE_DEPEN(data)

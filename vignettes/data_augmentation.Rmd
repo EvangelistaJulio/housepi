@@ -54,9 +54,9 @@ E. g. "onset_max\@D" will source the value at individual data "onset_max".
 | Source    | Symbol | Examples         |
 |-----------|:------:|:----------------:|
 | Augmented | A      | proba, proba\@A  |
-| Dataset   | D      | onset_max\@D     |
+| Data      | D      | onset_max\@D     |
+| Numeric   | N      | 14, 14\@N        |
 | Parameter | P      | mean\@P          |
-| Scalar    | S      | 14, 14\@S        |
 
 More in general, definition arguments `value`, `args`, `min`, `max` and `from` can be linked to external values in the following ways
 
@@ -90,12 +90,8 @@ hhmodel <- new_housepi_model("augmented_example") |>
 
   # augmented variable definitions as function calls
   load_augmented_list(
-    # declare 'incub_period' as the difference
-    # between augmented onset and infection times
-    incub_period = ~onset_time - infec_time,
-
     # explicit declaration of incubation period distribution
-    ..proba = list(
+    proba = list(
       func = "gamma_meanvar", # gamma distribution (by mean and variance)
       func_args = c(
         x = ~incub_period,   # compute from individual augmented 'incub_period'
@@ -104,35 +100,40 @@ hhmodel <- new_housepi_model("augmented_example") |>
       ),
       max = 14               # truncation
     ),
-
-    # declare the augmented variable 'log_proba'
-    log_proba = ~log(..proba)
+    
+    # declare 'incub_period' as the difference
+    # between augmented onset and infection times
+    incub_period = ~..onset_time - ..infec_time,
+    
+    # here we correct right censoring of maximum values
+    # to allow for the event to occur during the whole day
+    # add 'infec_time' time definition
+    ..infec_time = list(
+      value = ~exposure_min@D, # start from data value 'exposure_min'
+      model = "uniform", # uniform model within range [0, exposure_max + 0.99]
+      args = c(max = ~exposure_max@D + 0.99), # min = 0 by default
+      rule = "normal", # normal distribution for the mcmc proposer
+      scale = 0.25     # with scale 0.25 (i. e. standard deviation)
+    ),
+    
+    # add 'onset_time' time definition
+    ..onset_time = list(
+      value = ~onset_max@D + 0.99,
+      model = "uniform", 
+      args = c(min = ~onset_min@D, max = ~onset_max@D + 0.99),
+      rule = "normal", 
+      scale = 0.25
+    )
   ) |>
 
   # define the gamma distribution parameter to be inferred
   load_parameter_list(
-    mean = list(prior = "unif", args = c(min = 0.1, max = 5), rule = "norm"),
-    var = list(prior = "unif", args = c(min = 0.1, max = 5), rule = "norm")
-  )
-
-# here we correct right censoring of maximum values
-# to allow for the event to occur during the whole day
-hhmodel <- hhmodel |>
-  # add 'infec_time' time definition
-  add_augmented(
-    name = "infec_time",
-    value = ~exposure_min@D, # start from data value 'exposure_min'
-    # uniform model within the range [0, 'exposure_max']
-    model = "unif",
-    args = c(min = 0, max = ~exposure_max@D + 0.99),
-    rule = "norm", # normal distribution for the mcmc proposer
-    scale = 0.25   # with scale 0.25 (i. e. standard deviation)
-  ) |>
-  # add 'onset_time' time definition
-  add_augmented(
-    name = "onset_time", value = ~onset_max@D + 0.99,
-    model = "unif", args = c(min = ~onset_min@D, max = ~onset_max@D + 0.99),
-    rule = "norm", scale = 0.25
+    mean = list(
+      prior = "uniform", args = c(min = 0.1, max = 5), rule = "normal"
+    ),
+    var = list(
+      prior = "uniform", args = c(min = 0.1, max = 5), rule = "normal"
+    )
   )
 ```
 
@@ -141,8 +142,8 @@ hhmodel <- hhmodel |>
 We could run the inference and extract the results as usual.
 However, sometimes we might be interested in extracting also to check if augmented variables evolve as expected.
 We can do so by providing in the setup arguments of `infer()`, the `id` of individual whose augmented variables we want to store.
-Notice that we had to introduce an auxiliary augmented function `..proba`.
-The name starting with `..` is a convention for housepi to interpet such as private and don't store its draws.
+Note that here the data has no demographic structure.
+We are implicitly assuming that all individuals live in distinct households.
 
 ```{r}
 #| fig.height: 3
@@ -154,12 +155,15 @@ hhmodel |>
         # store augmented draws for individual "7"
         id_draws = "7",
         progress = FALSE) |>
-  get_param_draws() |>
-  bayesplot::mcmc_trace(facet_args = list(ncol = 2))
+  (\(x)
+  list(
+    augmented =  bayesplot::mcmc_trace(get_augm_draws(x)),
+    parameters =  bayesplot::mcmc_trace(get_param_draws(x),
+                                        facet_args = list(ncol = 2))
+  ))()
 ```
-
-Note that here the dataset has no demographic structure.
-We are assuming all individuals livto live in distinct households.
+In this example we had to introduce auxiliary augmented variables `..onset_time` and `..infec_time`.
+The prefix `..` we added to name is a convention to ensure that housepi will not store its corresponding draws.
 
 # Other proposer rules for the augmented variables
 
@@ -178,18 +182,22 @@ We always recommend a visual assessment before choosing a new move.
 #| warning: false
 # with model (default sample)
 new_housepi_model("blank") |>
-  add_augmented(name = "sample from model",
-                model = "norm", args = c(mean = 14)) |>
+  add_augmented(name = "sample_from_model",
+                model = "normal", args = c(mean = 14)) |>
   infer() |>
   (\(x)
     list(
       augmented =  bayesplot::mcmc_trace(get_augm_draws(x)),
       loglikelihood =  bayesplot::mcmc_trace(get_loglike_draws(x))
     ))()
+```
 
+```{r}
+#| fig.height: 2
+#| warning: false
 # random walk (without model)
 new_housepi_model("blank") |>
-  add_augmented(name = "random walk", value = 14, rule = "norm") |>
+  add_augmented(name = "random_walk", value = 14, rule = "normal") |>
   infer() |>
   (\(x)
     list(

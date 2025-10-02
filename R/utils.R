@@ -436,10 +436,10 @@ DefEncoder <- R6::R6Class(
 
     # Check type definitions and set defaults.
     .default_types = function(types, values) {
-      valid_types <- list("S" = "scalar",
-                          "P" = "parameter",
+      valid_types <- list("A" = "augmented",
                           "D" = "data",
-                          "A" = "augmented")
+                          "N" = "numeric",
+                          "P" = "parameter")
 
       for (i in seq_along(types)) {
         k <- types[i]
@@ -448,9 +448,9 @@ DefEncoder <- R6::R6Class(
         if (is.na(k)) {
           # no explicit type provided, then format for default types
           if (is.na(y)) types[i] <- NA
-          else if (is.numeric(y)) types[i] <- "S"
+          else if (is.numeric(y)) types[i] <- "N"
           else if (is.character(y)) types[i] <- ifelse(
-            is.na(suppressWarnings(as.numeric(y))), "A", "S"
+            is.na(suppressWarnings(as.numeric(y))), "A", "N"
           )
           else types[i] <- "A"
 
@@ -576,7 +576,7 @@ DefEncoder <- R6::R6Class(
 
     #' @description Flag to tell if object is a call or a value.
     is_call = function() {
-      # FIXME: default function are are 0 '|'
+      # NOTE: default function are 0 '|'
       isTRUE(stringr::str_count(self$x, "\\|") > 1)
     },
 
@@ -586,7 +586,9 @@ DefEncoder <- R6::R6Class(
     #'
     #' @return `character(1)` or `NA`
     combine_to_call = function(func_name) {
-      if (self$is_call()) stop_h("Already a call, impossible to combine.")
+      if (DefEncoder$new(func_name)$is_call()) stop_h(
+        "Function name is actually a call, impossible to combine."
+      )
       sprintf("%s|%s|%s", func_name,
               paste(names(self$x), collapse = ":"),
               paste(sprintf("{%s}", self$x), collapse = ":"))
@@ -690,13 +692,13 @@ evaluate_block <- function(block, type) {
 #' @return `data.frame()`
 #' @keywords internal
 make_def_readable <- function(defs) {
-  .extract_scalar <- function(x) {
+  .extract_numeric <- function(x) {
     sapply(x, function(element) {
       if (is.na(element)) {
         NA
       } else if (is.character(element)) {
         z <- strsplit(element, "\\|")[[1]]
-        if (length(z) == 2 && z[2] == "S") as.numeric(z[1])
+        if (length(z) == 2 && z[2] == "N") as.numeric(z[1])
         else element
       } else {
         element
@@ -732,7 +734,7 @@ make_def_readable <- function(defs) {
     }, USE.NAMES = FALSE)
   }
 
-  output <- as.data.frame(lapply(defs, .extract_scalar))
+  output <- as.data.frame(lapply(defs, .extract_numeric))
   for (col in colnames(defs)) {
     if (isTRUE(any(stringr::str_count(output[[col]], "\\|") > 1))) {
       pos <- match(col, names(output))

@@ -44,6 +44,13 @@ public:
 	///////////////////////////////////  AugmentedMap : setter  ///////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
+	/// Clear augmented definition (also used for allocation).
+	void clear_augm(const std::string &a)
+	{
+		augm_map_[a] = Variable();
+		augm_map_[a].name(a, "augmented");
+	}
+
 	void init_augm(const std::string &a,
 				   double value,
 				   bool is_const,
@@ -52,9 +59,8 @@ public:
 				   bool is_prim,
 				   const DefinitionParser &model_name);
 
-	void set_augm_value(const std::string &a, double x) { safe_at(augm_map_, a, "augmented").set(x); }
-	void clear_augm(const std::string &a) { augm_map_[a] = Variable(); }
 	void user_reset(rnd_gen &prng);
+	void set_augm_value(const std::string &a, double x) { safe_at(augm_map_, a, "augmented").set(x); }
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////  AugmentedMap : getter  ///////////////////////////////////
@@ -77,11 +83,11 @@ public:
 
 private:
 	u_dict<Variable> augm_map_ = {}; /// dictionary of augmented definitions
-	
+
 	double loglike_ = 0; // current augmented model loglikelihood
-	double buffer_ = 0;  // buffer augmented model loglikelihood
-	
-	// container for the logratio lists according to dependencies 
+	double buffer_ = 0;	 // buffer augmented model loglikelihood
+
+	// container for the logratio lists according to dependencies
 	u_dict<std::vector<std::function<double()>>> model_logratios_ = {};
 };
 
@@ -148,7 +154,7 @@ private:
 	int status_ = HSP_MISSING_STATUS; // status of the individual
 
 	// NOTE: allowd data variables are numerical only
-	u_dict<double> data_map_ = {};	   // data
+	u_dict<double> data_map_ = {};			// data
 	u_dict<Attribute> group_rate_map_ = {}; // group rates
 
 	u_dict<dbl_vec> *pdatalong_ = nullptr; // datalong to be associated

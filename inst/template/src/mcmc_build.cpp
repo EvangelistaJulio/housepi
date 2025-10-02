@@ -705,8 +705,8 @@ void MCMC::Impl::Parameter::build_constant_parameter_(const dict_str_vec &deftab
             "Undefined value for constant parameter \"" + p + "\".");
 
     // assign constant parameter to the set of variables
-    double value = pImpl_.read_scalar_(deftable.at("value")[k]);
-    dictionary_.emplace(p, Variable(p, value));
+    double value = pImpl_.read_numeric_(deftable.at("value")[k]);
+    dictionary_.emplace(p, Variable(p, "parameter", value));
     // update the lists of constant parameters
     list_const.push_back(p);
 }
@@ -736,7 +736,9 @@ void MCMC::Impl::Parameter::build_parameter_to_sample_(const dict_str_vec &defta
         rule_scale = tools::str::tod(deftable.at("scale")[k]);
 
     // create a new Parameter Variable
-    dictionary_.emplace(p, Variable(p, pImpl_.read_scalar_(deftable.at("value")[k]), false, is_discrete));
+    dictionary_.emplace(
+        p, Variable(p, "parameter", pImpl_.read_numeric_(deftable.at("value")[k]), false, is_discrete)
+    );
     Variable &new_param = this->at(p);
 
     // assign a prior distribution to the parameter
@@ -744,11 +746,11 @@ void MCMC::Impl::Parameter::build_parameter_to_sample_(const dict_str_vec &defta
     new_param.init_distr(parser);
 
     for (const auto &child : parser.root.children)
-        new_param.init_distr_attr(child.key, pImpl_.read_scalar_(child));
+        new_param.init_distr_attr(child.key, pImpl_.read_numeric_(child));
 
     // load parameter range
-    new_param.init_distr_attr(HSP_PARAM_MIN, pImpl_.read_scalar_(deftable.at(HSP_PARAM_MIN)[k]));
-    new_param.init_distr_attr(HSP_PARAM_MAX, pImpl_.read_scalar_(deftable.at(HSP_PARAM_MAX)[k]));
+    new_param.init_distr_attr(HSP_PARAM_MIN, pImpl_.read_numeric_(deftable.at(HSP_PARAM_MIN)[k]));
+    new_param.init_distr_attr(HSP_PARAM_MAX, pImpl_.read_numeric_(deftable.at(HSP_PARAM_MAX)[k]));
     new_param.init_distr_reshaping();
 
     // assign the rule for the proposer to the parameter
