@@ -446,9 +446,9 @@ infer <- function(object, data_wide = NULL,
   )
 }
 
-#' @title Estimate evidence of housepi model
+#' @title Estimate logevidence of housepi model
 #' @description
-#' Estimate the model evidence (or marginal likelihood).
+#' Estimate the logarithm of the marginal likelihood (aka evidence).
 #' It uses the method of power posteriors with different available schemes.
 #'
 #' @param object `r rd_model_in_`
@@ -470,21 +470,21 @@ infer <- function(object, data_wide = NULL,
 #' Improving power posterior estimation of statistical evidence.
 #' Stat Comput. 2014;24: 709-723. doi:10.1007/s11222-013-9397-1
 #'
-#' @return `numeric(1)`
+#' @return `list()`
 #'
-#' @export
-evidence <- function(object, data_wide = NULL,
-                     scheme = "power-fractions", n_rungs = 40,
-                     sample_size = NA, n_steps = 5000,
-                     n_burnin = 0, thin = 1, n_adapt = 0,
-                     n_chains = 1, n_threads = 1,
-                     seed = NA, progress = TRUE) {
+#' @keywords internal
+logevidence <- function(object, data_wide = NULL,
+                        scheme = "power-fractions", n_rungs = 40,
+                        sample_size = NA, n_steps = 5000,
+                        n_burnin = 0, thin = 1, n_adapt = 0,
+                        n_chains = 1, n_threads = 1,
+                        seed = NA, progress = TRUE) {
   stopifnot(inherits(object, "HousepiModel"))
-  object$evidence(data_wide = data_wide, scheme = scheme, n_rungs = n_rungs,
-                  sample_size = sample_size, n_steps = n_steps,
-                  n_burnin = n_burnin, thin = thin, n_adapt = n_adapt,
-                  n_chains = n_chains, n_threads = n_threads,
-                  seed = seed, progress = progress)
+  object$logevidence(data_wide = data_wide, scheme = scheme, n_rungs = n_rungs,
+                     sample_size = sample_size, n_steps = n_steps,
+                     n_burnin = n_burnin, thin = thin, n_adapt = n_adapt,
+                     n_chains = n_chains, n_threads = n_threads,
+                     seed = seed, progress = progress)
 }
 
 ############################################################################

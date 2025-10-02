@@ -194,6 +194,20 @@ HousepiPosteriorDraws <- R6::R6Class(
       # release memory in original object
       rcpp_object$clear_memory()
       invisible()
+    },
+
+    #' @description
+    #' Override the default printing behavior.
+    print = function() {
+      x1 <- x2 <- NULL
+      if (posterior::is_draws(self$param_draws)) {
+        x1 <- posterior::summarize_draws(self$param_draws)
+      }
+      if (posterior::is_draws(self$augm_draws)) {
+        x2 <- posterior::summarize_draws(self$augm_draws)
+      }
+      print(rbind(x1, x2))
+      invisible()
     }
   )
 )

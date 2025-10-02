@@ -90,7 +90,7 @@ Rcpp::DataFrame MCMC::data_wide_for_simulation() const
     return pImpl_->dataset.rcpp_export(pImpl_->dataset.headers() - pImpl_->augm.list_export, false);
 }
 Rcpp::List MCMC::simulate(size_t n_rep) { return pImpl_->simulate(n_rep); }
-Rcpp::List MCMC::evidence(const std::string &scheme, unsigned long n_rungs) { return pImpl_->evidence(scheme, n_rungs); }
+Rcpp::List MCMC::logevidence(const std::string &scheme, unsigned long n_rungs) { return pImpl_->logevidence(scheme, n_rungs); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  MCMC : exports to Rcpp ////////////////////////////////////
@@ -127,7 +127,7 @@ void MCMC::import_augm(SEXP input) { pImpl_->augm.rcpp_import(input); }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 void MCMC::print_simulated_data_wide(const std::string &f) { pImpl_->print_simulated_data_wide(f); }
-void MCMC::print_evidence(const std::string &scheme, unsigned long n_rungs) { pImpl_->print_evidence(scheme, n_rungs); }
+void MCMC::print_logevidence(const std::string &scheme, unsigned long n_rungs) { pImpl_->print_logevidence(scheme, n_rungs); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////  MCMC : read  //////////////////////////////////////////

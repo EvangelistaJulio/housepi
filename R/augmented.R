@@ -101,6 +101,7 @@ HousepiAugmented <- R6::R6Class(
                 opts$name),
         "Provide one between value and model."
       )
+      else if (is.na(opts$const)) opts$const <- TRUE
 
       opts
     },
@@ -286,6 +287,7 @@ HousepiAugmented <- R6::R6Class(
         value = NA,
         model = as.character(model),
         min = NA,
+        max = NA,
         rule = as.character(rule),
         scale = NA
       )

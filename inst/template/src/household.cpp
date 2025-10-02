@@ -220,7 +220,7 @@ void Household::init_member(size_t index,
 
 /// Change_status of individual i to new status (without controls).
 ///	NOTE : this introduces augmented variables -> it requires RJMCMC in case of inference.
-bool Household::change_status(Individual &member, int new_status)
+bool Household::set_status(Individual &member, int new_status)
 {
 	if (new_status != member.status())
 	{
@@ -234,7 +234,7 @@ bool Household::change_status(Individual &member, int new_status)
 			missing_list_.erase(std::find(missing_list_.begin(), missing_list_.end(), i));
 
 		// change member status
-		member.set_status(new_status);
+		member.status_ = new_status;
 
 		if (member.is_infected_status())
 			infected_list_.push_back(i);

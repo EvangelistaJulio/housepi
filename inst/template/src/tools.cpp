@@ -30,7 +30,7 @@ namespace tools
     /// https://gallery.rcpp.org/articles/quiet-stop-and-warning/
     void warning(const std::string &txt)
     {
-        if (_issued_warnings_.find(txt) == _issued_warnings_.end())
+        if (!(_issued_warnings_ % txt))
         {
 #ifdef _HOUSEPI_RCPP
             // Rcpp::warning(txt);
@@ -354,14 +354,12 @@ namespace tools
         }
 
         /// Check for missing entries given a vector of options.
-        void assert_missing_entries(const str_vec &entries,
-                             const str_vec &options,
-                             const std::string &where)
+        void assert_no_missing_entries(const str_vec &entries,
+                                       const str_vec &options,
+                                       const std::string &where)
         {
-            // proceed only if there's a given vector of options
             if (!options.empty())
             {
-                //----- check for missing entries -----//
                 str_vec missing = {};
 
                 for (const std::string &x : options)
@@ -381,9 +379,9 @@ namespace tools
         }
 
         /// Check for unused entries given a vector of options.
-        void assert_unused_entries(const str_vec &entries,
-                            const str_vec &options,
-                            const std::string &where)
+        void assert_no_unused_entries(const str_vec &entries,
+                                      const str_vec &options,
+                                      const std::string &where)
         {
             str_vec unused = {};
             for (const std::string &x : entries)

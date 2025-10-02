@@ -131,8 +131,8 @@ To see how to associate group rates in heterogeneous models, see the vignette [G
 # Perform inference
 
 After having provided all necessary definitions, we can perform inference calling `infer()`.
-This will return an object wrapping [posterior](https://cran.r-project.org/web/packages/posterior/) `draws` object that can be used to compute estimates.
-We can then extract the parameters draws by calling `get_param_draws`:
+This will return an object wrapping [posterior](https://cran.r-project.org/web/packages/posterior/) `draws` objects that can be accessed to compute estimates.
+It's default printing behavior will be to show the results of `posterior::summarize_draws` on the draws stored in the results
 
 ```{r}
 # run the Monte Carlo specifying setup options
@@ -144,22 +144,17 @@ results <- hhmodel |>
         n_chains = 3,     # number of independent chains
         n_threads = 1,    # number of threads
         progress = FALSE) # disable progress bar
-
-estimates <- results |>
-  # export to psoterior draws_df
-  get_param_draws() |>
-  posterior::summarise_draws()
-estimates
+results
 ```
 
 *Note:* parallel computations are implemented with *openMP* which is not supported on latest macOS distributions, thus the option `n_threads` is not granted on such systems.
 
 We can proceed as usual with other popolar R packages for Bayesian analysis.
-For example, we can plot the draws with [bayesplot](https://cran.r-project.org/web/packages/bayesplot/)
+For example, we can extract the parameters draws by calling `get_param_draws` and plot traces with [bayesplot](https://cran.r-project.org/web/packages/bayesplot/)
 
 ```{r}
 # visualize the traces of the first chain with 'bayesplot'
-results |>
+results |>  
   get_param_draws() |>
   bayesplot::mcmc_trace(facet_args = list(ncol = 1))
 ```
@@ -231,11 +226,9 @@ We then propose a simple observation process, where we assume onsets after 6 PM 
 
 ```{r}
 obs_process <- function(x) {
-  x |>
-    dplyr::mutate(onset_date = dplyr::if_else(
-      status > 0, floor(onset_time) + ((onset_time %% 1) > 0.75), NA
-      )) |>
-    dplyr::select(-incub_period, -onset_time, -infec_time)
+  x$onset_date <- ifelse(x$status > 0, floor(x$onset_time + 1 - 18 / 24), NA)
+  x$incub_period <- x$onset_time <- x$infec_time <- NULL
+  x
 }
 
 simulated <- hhsimul |>

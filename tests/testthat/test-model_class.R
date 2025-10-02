@@ -370,3 +370,32 @@ test_that("Loglikelihood of augmented infection time model is correct", {
     loglike_susceptible(house, param) + loglike_infectious(house, param)
   )
 })
+
+test_that("Simulations behave as expected", {
+  hhsimul <- new_housepi_model("augmented_infection_time")
+  hhsimul$data_wide <- dplyr::mutate(housepi::survey, status = NA)
+  hhsimul$load_parameter_list(alpha = 0, 
+                              beta = 0,
+                              study_period = 21,
+                              gamma = 1,
+                              size_ref = 4)
+  # UPDATE: these dependencies should not be in template
+  
+  hhsimul$load_augmented_list(
+    infec_time = ~onset_time - incub_period,
+    onset_time = 0,
+    incub_period = list(model = "gamma", args = c(shape = 2, scale = 1))
+  ) 
+  
+  # simulate just introduction cases
+  simulated <- hhsimul$simulate()
+  expect_identical(
+    length(unique(simulated$house_id)),
+    sum(simulated$onset_time == 0, na.rm = TRUE)
+  )
+  
+  # simulate all infected
+  expect_warning(hhsimul$add_parameter(name = "beta", value = 100))
+  simulated <- hhsimul$simulate()
+  expect_false(any(is.na(simulated$infec_time)))
+})

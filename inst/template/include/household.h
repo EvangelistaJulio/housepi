@@ -97,6 +97,9 @@ private:
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+/// Forward declaration.
+class Household;
+
 /// Class for individual household study member.
 class Individual : public AugmentedMap
 {
@@ -143,7 +146,6 @@ public:
 	////////////////////////////////////  Individual : setter  ////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	void set_status(int s) { status_ = s; }
 	void init_pointer_to_datalong(u_dict<dbl_vec> *y) { pdatalong_ = y; }
 	void init_all_group_rates(const u_dict<std::vector<observ_dbl_ptr>> &ptrs);
 
@@ -158,6 +160,8 @@ private:
 	u_dict<Attribute> group_rate_map_ = {}; // group rates
 
 	u_dict<dbl_vec> *pdatalong_ = nullptr; // datalong to be associated
+
+	friend class Household;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -283,7 +287,7 @@ public:
 
 	void set_multiplicity(unsigned long m, size_t class_idx);
 	void init_member(size_t index, const std::string &id, int status, const u_dict<double> &data);
-	bool change_status(Individual &member, int new_status);
+	bool set_status(Individual &member, int new_status);
 	void init_contact_rates(size_t from, size_t to, observ_dbl_ptr x);
 
 	///////////////////////////////////////////////////////////////////////////////////////////////

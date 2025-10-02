@@ -49,7 +49,7 @@ Attribute::Attribute(const std::string &s, bool is_primitive)
 
 std::string Attribute::what() const
 {
-    std::string sms = is_constant() ? "const" : "var";
+    std::string sms = is_constant() ? "constant" : "variable";
     if (is_numeric())
         sms += " numeric";
     else if (is_pointer())

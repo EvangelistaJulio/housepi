@@ -116,8 +116,8 @@ void MCMC::Impl::Augmented::build()
     {
         // check entries
         str_vec headers = tools::read::table_headers(deftable);
-        tools::str::assert_missing_entries(headers, file_headers);
-        tools::str::assert_unused_entries(headers, file_headers);
+        tools::str::assert_no_missing_entries(headers, file_headers);
+        tools::str::assert_no_unused_entries(headers, file_headers);
 
         // assert that augmented definitions are univocal
         build_helper_assert_correct_definitions_();
@@ -179,8 +179,7 @@ void MCMC::Impl::Augmented::build_helper_assert_correct_definitions_()
     }
     assert_univocal(name_to_status);
 
-    // NOTE: NA does not need checking in all cases. I just deal with it if requested
-    // FIXME: what about simulations?
+    // NOTE: NA (i. e. generic) does not necessarily need checking.
     if (pImpl_.dataset.all_infected_status_list.empty())
         build_definition_order_(HSP_NA_STRING);
     else
@@ -199,7 +198,7 @@ void walk_dependency_tree(const std::string &entry,
                           str_vec &recursion_stack,
                           str_vec &ordered)
 {
-    if (!tree.count(entry))
+    if (!(tree % entry))
         throw std::invalid_argument(
             "Missing definition for augmented \"" + entry + "\" ");
     if (recursion_stack % entry)
@@ -223,15 +222,15 @@ std::vector<size_t> extract_status_definition_rows(const u_dict<std::vector<size
 {
     std::vector<size_t> allrows;
     // load the list of status-specific definition rows
-    if (status_to_def_row.count(s))
+    if (status_to_def_row % s)
     {
         allrows = status_to_def_row.at(s);
         // add generic definitions to current list (if not generic already)
         if (!tools::is_na(s))
-            if (status_to_def_row.count(HSP_NA_STRING))
+            if (status_to_def_row % HSP_NA_STRING)
                 allrows += status_to_def_row.at(HSP_NA_STRING);
     }
-    else if (status_to_def_row.count(HSP_NA_STRING))
+    else if (status_to_def_row % HSP_NA_STRING)
         // use generic definitions if status-specific don't exist
         allrows = status_to_def_row.at(HSP_NA_STRING);
     else
@@ -324,7 +323,7 @@ str_vec get_dependents_order(const std::string &start, const u_dict<str_vec> &gr
             reverse_graph[dep].push_back(node);
 
         // ensure isolated nodes are present
-        if (!reverse_graph.count(node))
+        if (!(reverse_graph % node))
             reverse_graph[node] = {};
     }
 
@@ -476,7 +475,7 @@ void MCMC::Impl::Augmented::build_helper_set_id_draws_()
                     }
 
             // check all user request are satisfied
-            tools::str::assert_missing_entries(already_stored_id, id_draws, "trace id");
+            tools::str::assert_no_missing_entries(already_stored_id, id_draws, "trace id");
 
             if (is_any_draw())
             {
@@ -610,6 +609,7 @@ void MCMC::Impl::Augmented::init_all(Individual &member)
     for (size_t k : init_get_definition_order_(member))
     {
         const std::string &a = deftable["name"][k];
+
         member.init_augm(a,
                          pImpl_.read_numeric_(deftable["value"][k], member),
                          tools::str::tobool(deftable["const"][k]),
@@ -629,13 +629,16 @@ void MCMC::Impl::Augmented::init_all(Individual &member)
 std::vector<size_t> MCMC::Impl::Augmented::init_get_definition_order_(Individual &member)
 {
     const std::string s = std::to_string(member.status());
-    if (status_to_def_row.count(s))
+    if (status_to_def_row % s)
         return status_to_def_row[s];
-    else if (status_to_def_row.count(HSP_NA_STRING))
+    else if (status_to_def_row % HSP_NA_STRING)
         return status_to_def_row[HSP_NA_STRING];
+    else if (member.is_infected_status())
+        throw std::invalid_argument(
+            "No augmented definitions for " + member.err_name() + " with status " + s + ".");
     else
         throw std::invalid_argument(
-            "Impossible to initialize augmented for " + member.err_name() + " with status " + s + ".");
+            "Missing generic augmented definition for non-infectious " + member.err_name() + ".");
 }
 
 /// Assign model arguments and range. Same for function, otherwise assign proposer.

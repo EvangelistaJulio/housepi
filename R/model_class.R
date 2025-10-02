@@ -745,7 +745,7 @@ HousepiModel <- R6::R6Class(
     },
 
     #' @description
-    #' Estimate the model evidence (or marginal likelihood).
+    #' Estimate the model logevidence (or marginal likelihood).
     #' It uses the method of power posteriors with different available schemes.
     #'
     #' @param data_wide `r rd_smpl_data_wide_`
@@ -762,12 +762,18 @@ HousepiModel <- R6::R6Class(
     #' @param progress `r rd_progress_`
     #'
     #' @return `numeric(1)`
-    evidence = function(data_wide = NULL,
-                        scheme = "power-fractions", n_rungs = 40,
-                        sample_size = NA, n_steps = 10000,
-                        n_burnin = 0, thin = 1, n_adapt = 0,
-                        n_chains = 1, n_threads = 1,
-                        seed = NA, progress = TRUE) {
+    logevidence = function(data_wide = NULL,
+                           scheme = "power-fractions", n_rungs = 40,
+                           sample_size = NA, n_steps = 10000,
+                           n_burnin = 0, thin = 1, n_adapt = 0,
+                           n_chains = 1, n_threads = 1,
+                           seed = NA, progress = TRUE) {
+      # developer
+      warning_h(
+        "The method to estimate logevidence is currently under development.",
+        "Its usage is deprecated."
+      )
+
       # internal build function
       private$.build_full(data_wide, sample_size = sample_size,
                           n_steps = n_steps, thin = thin,
@@ -781,7 +787,7 @@ HousepiModel <- R6::R6Class(
       n_rungs <- as.integer(n_rungs)
 
       # evaluate marginal from the internal Rcpp object
-      output <- private$.rcpp$evidence(scheme, n_rungs)
+      output <- private$.rcpp$logevidence(scheme, n_rungs)
 
       # reformat dataframe
       mask <- c("inv_temper", "mean_loglike", "var_loglike")

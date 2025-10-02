@@ -128,9 +128,9 @@ void Model::simulate_single_household(Household &house)
 
 	for (Individual &member : house)
 		if (uniform() < commu_esc_proba)
-			house.change_status(member, HSP_HEALTHY_STATUS);
+			house.set_status(member, HSP_HEALTHY_STATUS);
 		else
-			house.change_status(member, HSP_INFECTED_STATUS);
+			house.set_status(member, HSP_INFECTED_STATUS);
 
 	//////////////////////////////////////////////////////////////////
 	//////  Generation >=1 : infection by previous generation  ///////
@@ -147,7 +147,7 @@ void Model::simulate_single_household(Household &house)
 		for (Individual &member : house.healthy())
 			if (uniform() >= exp(n_old_gen * log_p2p_esc_proba))
 			{
-				house.change_status(member, HSP_INFECTED_STATUS);
+				house.set_status(member, HSP_INFECTED_STATUS);
 				++n_new_gen;
 			}
 	}

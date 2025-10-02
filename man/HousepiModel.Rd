@@ -49,7 +49,7 @@ and variable defintions from a single class.
 \item \href{#method-HousepiModel-add_infec_profile}{\code{HousepiModel$add_infec_profile()}}
 \item \href{#method-HousepiModel-loglikelihood}{\code{HousepiModel$loglikelihood()}}
 \item \href{#method-HousepiModel-infer}{\code{HousepiModel$infer()}}
-\item \href{#method-HousepiModel-evidence}{\code{HousepiModel$evidence()}}
+\item \href{#method-HousepiModel-logevidence}{\code{HousepiModel$logevidence()}}
 \item \href{#method-HousepiModel-export_augmented_data}{\code{HousepiModel$export_augmented_data()}}
 \item \href{#method-HousepiModel-export_house_snapshot}{\code{HousepiModel$export_house_snapshot()}}
 \item \href{#method-HousepiModel-simulate}{\code{HousepiModel$simulate()}}
@@ -615,13 +615,13 @@ One between:\cr
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-evidence"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-evidence}{}}}
-\subsection{Method \code{evidence()}}{
-Estimate the model evidence (or marginal likelihood).
+\if{html}{\out{<a id="method-HousepiModel-logevidence"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiModel-logevidence}{}}}
+\subsection{Method \code{logevidence()}}{
+Estimate the model logevidence (or marginal likelihood).
 It uses the method of power posteriors with different available schemes.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$evidence(
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$logevidence(
   data_wide = NULL,
   scheme = "power-fractions",
   n_rungs = 40,

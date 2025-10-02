@@ -30,20 +30,30 @@ test_that("Undefined definitions are controoled", {
   expect_true(is.na(augm$defs$rule))
 })
 
-test_that("Augmented variable definition is correct", {
+test_that("Augmented variable definitions are correct", {
+  # basic constant definition
   augm <- housepi:::HousepiAugmented$new()
-
+  augm$add(name = "dummy", value = 3)
+  expect_equal(augm$defs$name, "dummy")
+  expect_equal(augm$defs$status, NA_integer_)
+  expect_equal(augm$defs$const, TRUE)
+  expect_equal(augm$defs$discr, FALSE)
+  expect_equal(augm$defs$value, "3|N")
+  expect_equal(augm$defs$rule, NA)
+  expect_equal(augm$defs$scale, NA)
+  
+  # variable definition
+  augm <- housepi:::HousepiAugmented$new()
   augm$add(name = "dummy", value = ~expo@D, model = "uniform",
            args = c(min = ~expo_min@A, max = ~expo_max@P),
            max = 3)
-
   expect_equal(augm$defs$name, "dummy")
   expect_equal(augm$defs$status, as.integer(NA))
   expect_equal(augm$defs$value, "expo|D")
   expect_equal(augm$defs$model, "uniform|min:max|{expo_min|A}:{expo_max|P}")
   expect_equal(augm$defs$max, "3|N")
 
-  # consequent required definitions # FIXME!
+  # consequent required definitions
   private <- augm$.__enclos_env__$private
   expect_equal(names(private$.find_def_required("P")), "augmented")
   expect_equal(unname(private$.find_def_required("P")), "expo_max")

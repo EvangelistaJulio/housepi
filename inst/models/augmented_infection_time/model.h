@@ -38,8 +38,7 @@ public:
 
 	double loglike_healthy(const Household &house) const;
 	double loglike_infectious(const Household &house) const;
-	double roi_inst_simulation(const std::vector<size_t> &infectors,
-							   Household &house,
+	double roi_inst_simulation(Household &house,
 							   Individual &member_i,
 							   double t_infec_i) const;
 

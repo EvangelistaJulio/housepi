@@ -138,7 +138,7 @@ public:
 
 	Rcpp::DataFrame data_wide_for_simulation() const;
 	Rcpp::List simulate(size_t n_rep);
-	Rcpp::List evidence(const std::string &scheme, unsigned long n_rungs);
+	Rcpp::List logevidence(const std::string &scheme, unsigned long n_rungs);
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////  MCMC : Rcpp imports  ///////////////////////////////////
@@ -175,7 +175,7 @@ public:
 
 	void print_infer_state(const std::string &output_filename = HSP_NA_STRING) const;
 	void print_simulated_data_wide(const std::string &output_filename = HSP_NA_STRING);
-	void print_evidence(const std::string &scheme, unsigned long n_rungs);
+	void print_logevidence(const std::string &scheme, unsigned long n_rungs);
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////  MCMC : C++ standalone read  ///////////////////////////////

@@ -252,7 +252,7 @@ public:
         Household &operator()(size_t H) { return house_vector_[H]; }
         const Household &operator()(const std::string &house_id) const
         {
-            if (!hhid_to_index_.count(house_id))
+            if (!(hhid_to_index_ % house_id))
                 throw std::invalid_argument(
                     "Index \"" + house_id + "\" does not match any household in the dataset.");
             return house_vector_.at(hhid_to_index_.at(house_id));
@@ -681,7 +681,7 @@ public:
     Rcpp::List simulate(size_t n_rep);
     Rcpp::DataFrame simulate_repetition();
 
-    Rcpp::List evidence(const std::string &scheme, unsigned long n_rungs);
+    Rcpp::List logevidence(const std::string &scheme, unsigned long n_rungs);
 
     //----- Rcpp EXPORTS -----//
     Rcpp::NumericMatrix rcpp_export_draws() const;
@@ -690,7 +690,7 @@ public:
     //----- C++ Print -----//
     void print_infer_state(const std::string &output_filename = HSP_NA_STRING) const;
     void print_simulated_data_wide(const std::string &output_filename = HSP_NA_STRING);
-    void print_evidence(const std::string &scheme, unsigned long n_rungs);
+    void print_logevidence(const std::string &scheme, unsigned long n_rungs);
 #endif
 
 private:

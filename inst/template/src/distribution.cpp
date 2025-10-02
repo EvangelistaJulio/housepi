@@ -183,7 +183,7 @@ str_vec DistributionRegistry::get_options() const
 
 std::shared_ptr<Distribution> DistributionRegistry::get_distr(const std::string &opt) const
 {
-    if (factory_map_.find(opt) != factory_map_.end())
+    if (factory_map_ % opt)
         return factory_map_.find(opt)->second();
     return nullptr;
 }

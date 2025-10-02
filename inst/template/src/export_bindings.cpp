@@ -160,7 +160,8 @@ RCPP_MODULE(housepi_infec_profile)
 //' @field data_wide_for_simulation\cr Dataset without status and augmented entries.
 //' @field simulate\cr Simulated status and augmented variables.
 //' @field evaluate\cr Evaluate the loglikelihood according to the current state.
-//' @field evidence\cr Evaluate the logarithm of the marginal likelihood with the method of power posteriors. \itemize{
+//' @field logevidence\cr Evaluate the logarithm of the marginal likelihood (aka evidence).
+//' Uses the method of power posteriors. \itemize{
 //'   \item Parameter: scheme
 //'   \item Parameter: n_rungs
 //' }
@@ -193,7 +194,7 @@ RCPP_MODULE(housepi_model_core)
         .method("data_wide_for_simulation", &MCMC::data_wide_for_simulation)
         .method("simulate", &MCMC::simulate)
         .method("evaluate", &MCMC::evaluate)
-        .method("evidence", &MCMC::evidence)
+        .method("logevidence", &MCMC::logevidence)
         .method("import_data_wide", &MCMC::import_data_wide)
         .method("import_data_long", &MCMC::import_data_long)
         .method("import_multiplicity", &MCMC::import_multiplicity)

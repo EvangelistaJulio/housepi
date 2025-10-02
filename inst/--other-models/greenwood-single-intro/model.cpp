@@ -138,11 +138,11 @@ void Model::simulate_single_household(Household &house)
 
 	// set all cases to susceptible
 	for (indiv i = 0; i < house.size(); i++)
-		house.change_status(i, HSP_HEALTHY_STATUS);
+		house.set_status(i, HSP_HEALTHY_STATUS);
 
 	// pick a random introduction
 	indiv first_case = uniform() * house.size();
-	house.change_status(first_case, HSP_INFECTED_STATUS);
+	house.set_status(first_case, HSP_INFECTED_STATUS);
 
 	//=============================================================//
 	//===== GENERATION >=1 : infection by previous generation =====//
@@ -154,12 +154,12 @@ void Model::simulate_single_household(Household &house)
 	{
 		n_new_gen = 0;
 
-		// note : here househ[h].get_healthy_status_hhindexes is not allowed because of change_status
+		// note : here househ[h].get_healthy_status_hhindexes is not allowed because of set_status
 		for (indiv i = 0; i < house.size(); ++i)
 			if (house.status(i) == HSP_HEALTHY_STATUS)
 				if (uniform() >= exp(log_p2p_esc_proba))
 				{
-					house.change_status(i, HSP_INFECTED_STATUS);
+					house.set_status(i, HSP_INFECTED_STATUS);
 					++n_new_gen;
 				}
 	}

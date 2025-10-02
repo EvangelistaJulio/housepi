@@ -28,22 +28,22 @@ void MCMC::Impl::InfecProfile::init_template(dict_str deflist)
 	if (tools::is_na(profile_->name()) && augm_infec_profile_deflist_.empty())
 		if (!deflist.empty())
 		{
-			if (!deflist.count("func"))
+			if (!(deflist % "func"))
 				throw std::invalid_argument(
 					"Missing function name for infectivity profile template.");
 
 			for (const std::string &key : headers_)
-				if (!deflist.count(key))
+				if (!(deflist % key))
 					deflist.emplace(key, HSP_NA_STRING);
 
 			std::string str_is_discr = "false";
-			if (deflist.count("discr"))
+			if (deflist % "discr")
 				if (!tools::is_na(deflist.at("discr")))
 					str_is_discr = deflist.at("discr");
 			deflist["discr"] = str_is_discr;
 
 			build(deflist);
-			
+
 			// forbid augmented infectivity profile for template
 			if (is_augmented())
 				throw std::invalid_argument(
@@ -67,10 +67,7 @@ void MCMC::Impl::InfecProfile::append_augm_definition()
 
 		// append new definitions
 		for (const auto &pair : augm_infec_profile_deflist_)
-		{
-			auto &aux = pImpl_.augm.deftable.at(pair.first);
-			aux.insert(aux.end(), pair.second.begin(), pair.second.end());
-		}
+			pImpl_.augm.deftable.at(pair.first) += pair.second;
 	}
 }
 
@@ -150,7 +147,7 @@ void MCMC::Impl::InfecProfile::build(const dict_str &deflist)
 	if (!deflist.empty())
 	{
 		// check entries
-		tools::str::assert_unused_entries(
+		tools::str::assert_no_unused_entries(
 			tools::read::list_headers(deflist), headers_);
 
 		// check if definition is generic or augmented
@@ -172,7 +169,7 @@ void MCMC::Impl::InfecProfile::build_generic_profile_(const dict_str &deflist)
 	cumul_ = &InfecProfile::do_cumul_default_;
 
 	// name
-	if ((deflist.count("func")) && (!tools::is_na(deflist.at("func"))))
+	if (deflist % "func" && !tools::is_na(deflist.at("func")))
 	{
 		DefinitionParser parser(DefinitionParser(deflist.at("func")));
 
@@ -193,7 +190,7 @@ void MCMC::Impl::InfecProfile::build_generic_profile_(const dict_str &deflist)
 		throw std::invalid_argument("Missing name.");
 
 	// discretization
-	if (deflist.count("discr"))
+	if (deflist % "discr")
 		if (tools::str::tobool(deflist.at("discr")))
 			profile_->init_discretization();
 
@@ -221,7 +218,7 @@ void MCMC::Impl::InfecProfile::build_augmented_profile_(const dict_str &deflist)
 {
 	// check definition list has a name
 	std::string func_name;
-	if ((deflist.count("func")) && (!tools::is_na(deflist.at("func"))))
+	if (deflist % ("func") && !tools::is_na(deflist.at("func")))
 		func_name = deflist.at("func");
 	else
 		throw std::invalid_argument("Missing name.");

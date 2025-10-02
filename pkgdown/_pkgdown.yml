@@ -32,7 +32,6 @@ reference:
     - simulate.HousepiModel
     - summarise_cases
     - summarise_house_sizes
-    - evidence
     - HousepiModel
 
 - title: "Model definitions"

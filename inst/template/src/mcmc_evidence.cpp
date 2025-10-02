@@ -42,7 +42,7 @@ std::pair<double, double> compute_stats(const dbl_vec &data)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  MCMC : Impl : estimate evidence  ///////////////////////////////
+////////////////////////////////  MCMC : Impl : estimate logevidence  /////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -176,7 +176,7 @@ void MCMC::Impl::power_post_fractions_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
 }
 
 #ifdef _HOUSEPI_RCPP
-/// Estimate evidence according to a given scheme and number of rungs.
+/// Estimate logevidence according to a given scheme and number of rungs.
 /// Uses trapezoidal rule to estimate logarithm of marginal likelihood (evidence).
 ///
 /// Ref.
@@ -184,7 +184,7 @@ void MCMC::Impl::power_post_fractions_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
 /// Ref: Friel, N., Hurn, M. & Wyse, J.
 /// Improving power posterior estimation of statistical evidence.
 /// Stat Comput 24, 709–723 (2014).
-Rcpp::List MCMC::Impl::evidence(const std::string &scheme, unsigned long n_rungs)
+Rcpp::List MCMC::Impl::logevidence(const std::string &scheme, unsigned long n_rungs)
 {
     using namespace Rcpp;
 
@@ -212,14 +212,14 @@ Rcpp::List MCMC::Impl::evidence(const std::string &scheme, unsigned long n_rungs
     }
     catch (const std::exception &e)
     {
-        tools::error("While estimating evidence with power posteriors:\n" +
+        tools::error("While estimating logevidence with power posteriors:\n" +
                      std::string(e.what()));
     }
     return List();
 }
 
 #else
-/// Estimate evidence according to a given scheme and number of rungs.
+/// Estimate logevidence according to a given scheme and number of rungs.
 /// Uses trapezoidal rule to estimate logarithm of marginal likelihood (evidence).
 ///
 /// Ref.
@@ -227,7 +227,7 @@ Rcpp::List MCMC::Impl::evidence(const std::string &scheme, unsigned long n_rungs
 /// Ref: Friel, N., Hurn, M. & Wyse, J.
 /// Improving power posterior estimation of statistical evidence.
 /// Stat Comput 24, 709–723 (2014).
-void MCMC::Impl::print_evidence(const std::string &scheme, unsigned long n_rungs)
+void MCMC::Impl::print_logevidence(const std::string &scheme, unsigned long n_rungs)
 {
     try
     {
@@ -249,7 +249,7 @@ void MCMC::Impl::print_evidence(const std::string &scheme, unsigned long n_rungs
     }
     catch (const std::exception &e)
     {
-        tools::error("While estimating evidence with power posteriors:\n" +
+        tools::error("While estimating logevidence with power posteriors:\n" +
                      std::string(e.what()));
     }
 }
