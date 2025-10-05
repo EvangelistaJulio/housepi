@@ -41,46 +41,46 @@ void MCMC::Impl::Setup::build(const dict_str &deflist)
     {
         // check entries
         const str_vec &headers = tools::read::list_headers(deflist);
-        tools::str::assert_unused_entries(headers, file_headers);
+        tools::str::assert_no_unused_entries(headers, file_headers);
 
         // Random Initialization of Parameters
-        if (deflist.count("progress") && (!tools::is_na(deflist.at("progress"))))
+        if (deflist % "progress" && !tools::is_na(deflist.at("progress")))
             progress = tools::str::toul(deflist.at("progress"));
 
         // N. of Threads
-        if (deflist.count("n_threads") && (!tools::is_na(deflist.at("n_threads"))))
-            n_threads = tools::str::toi(deflist.at("n_threads"), "n. of threads");
+        if (deflist % "threads" && !tools::is_na(deflist.at("threads")))
+            n_threads = tools::str::toi(deflist.at("threads"), "n. of threads");
 
         // PRNG Seed
-        if (deflist.count("seed") && (!tools::is_na(deflist.at("seed"))))
+        if (deflist % "seed" && !tools::is_na(deflist.at("seed")))
             seed = tools::str::toi32(deflist.at("seed"), "random seed");
 
         // N. of Chains
-        if (deflist.count("n_chains") && (!tools::is_na(deflist.at("n_chains"))))
-            n_chains = tools::str::toul(deflist.at("n_chains"), "n. of chains");
+        if (deflist % "chains" && !tools::is_na(deflist.at("chains")))
+            n_chains = tools::str::toul(deflist.at("chains"), "n. of chains");
 
         // Single Chain Sample Size
-        if (deflist.count("sample_size") && (!tools::is_na(deflist.at("sample_size"))))
+        if (deflist % "sample_size" && !tools::is_na(deflist.at("sample_size")))
             c_sample_size = tools::str::toul(deflist.at("sample_size"), "sample size");
 
         // N. of Steps
-        if (deflist.count("n_steps") && (!tools::is_na(deflist.at("n_steps"))))
-            n_steps = tools::str::toul(deflist.at("n_steps"), "n. of steps");
+        if (deflist % "steps" && !tools::is_na(deflist.at("steps")))
+            n_steps = tools::str::toul(deflist.at("steps"), "n. of steps");
 
         // N. of Adaptive Steps
-        if (deflist.count("n_adapt") && (!tools::is_na(deflist.at("n_adapt"))))
-            n_adapt = tools::str::toul(deflist.at("n_adapt"), "n. of adaptive steps");
+        if (deflist % "adapt" && !tools::is_na(deflist.at("adapt")))
+            n_adapt = tools::str::toul(deflist.at("adapt"), "n. of adaptive steps");
 
         // N. of Thinning Steps
-        if (deflist.count("thin") && (!tools::is_na(deflist.at("thin"))))
-            thin = tools::str::toul(deflist.at("thin"), "thin");
+        if (deflist % "thin" && !tools::is_na(deflist.at("thin")))
+            n_thin = tools::str::toul(deflist.at("thin"), "thin");
 
         // N. of Steps to "Burn-In"
-        if (deflist.count("n_burnin") && (!tools::is_na(deflist.at("n_burnin"))))
-            n_burnin = tools::str::toul(deflist.at("n_burnin"), "burn-in");
+        if (deflist % "burnin" && !tools::is_na(deflist.at("burnin")))
+            n_burnin = tools::str::toul(deflist.at("burnin"), "burn-in");
 
         // Individual ID for Augmented Trace
-        if (deflist.count("id_draws") && (!tools::is_na(deflist.at("id_draws"))))
+        if (deflist % "id_draws" && !tools::is_na(deflist.at("id_draws")))
             parse_id_draws_list_(deflist.at("id_draws"), HSP_LIST_DELIM);
     }
 
@@ -154,8 +154,8 @@ void MCMC::Impl::Setup::assert_mcmc_setup()
         throw std::out_of_range("Number of chains must be greater than 0.");
 
     // Interpret thinning equal to 0 has been interpreted as 1.
-    if (thin == 0)
-        thin = 1;
+    if (n_thin == 0)
+        n_thin = 1;
 
     if (c_sample_size == 0)
     {
@@ -165,22 +165,22 @@ void MCMC::Impl::Setup::assert_mcmc_setup()
         if (n_burnin >= n_steps)
             throw std::out_of_range(
                 "Burn-in must be smaller than n. of steps.");
-        if (thin > n_steps)
+        if (n_thin > n_steps)
             throw std::out_of_range(
                 "Thinning must be smaller than (or equal to) n. of steps. ");
 
-        c_sample_size = (n_steps - n_burnin) / thin;
+        c_sample_size = (n_steps - n_burnin) / n_thin;
 
         if (c_sample_size == 0)
             throw std::out_of_range(
                 "Choice of steps, burn-in and thin return a 0 sample size.");
     }
     else
-        n_steps = n_burnin + c_sample_size * thin;
+        n_steps = n_burnin + c_sample_size * n_thin;
 
     // assign number of sweeps
-    c_n_sweeps = n_adapt / thin;
-    c_n_sweeps += n_burnin / thin;
+    c_n_sweeps = n_adapt / n_thin;
+    c_n_sweeps += n_burnin / n_thin;
     c_n_sweeps += c_sample_size;
 }
 
@@ -258,7 +258,7 @@ void MCMC::Impl::DataWide::build(const dict_str_vec &input)
                 }
 
             // if household index doesn't exist, add new household
-            if (hhid_to_index_.find(house_id) == hhid_to_index_.end())
+            if (!(hhid_to_index_ % house_id))
             {
                 // map data index to household number
                 hhid_to_index_.emplace(house_id, n_houses());
@@ -306,8 +306,9 @@ void MCMC::Impl::DataWide::build_helper_fill_report_data_()
     {
         // list of unique infected statuses
         for (const Individual &member : house)
-            if (!(all_infected_status_list % member.status()))
-                all_infected_status_list.push_back(member.status());
+            if (member.is_infected_status())
+                if (!(all_infected_status_list % member.status()))
+                    all_infected_status_list.push_back(member.status());
 
         const unsigned short house_size = house.size();
         const unsigned short n_infec = house.n_infec_status();
@@ -364,7 +365,7 @@ void MCMC::Impl::DataWide::build_helper_fill_report_data_()
 unsigned long MCMC::Impl::DataWide::get_report_indiv(const std::string &key) const
 {
     // UPDATE: this should be generalized to avoid double check with at
-    if (report_indiv_.count(key))
+    if (report_indiv_ % key)
         return report_indiv_.at(key);
     else
         throw std::invalid_argument(
@@ -376,7 +377,7 @@ unsigned long MCMC::Impl::DataWide::get_report_indiv(const std::string &key) con
 unsigned long MCMC::Impl::DataWide::get_report_house(const std::string &key) const
 {
     // UPDATE: this should be generalized to avoid double check with at
-    if (report_house_.count(key))
+    if (report_house_ % key)
         return report_house_.at(key);
     else
         throw std::invalid_argument(
@@ -387,7 +388,7 @@ unsigned long MCMC::Impl::DataWide::get_report_house(const std::string &key) con
 /// Return a value from household sizes report.
 std::pair<unsigned short, unsigned long> MCMC::Impl::DataWide::get_report_hh_size(const std::string &key) const
 {
-    if (report_size_.count(key))
+    if (report_size_ % key)
         return report_size_.at(key);
     else
         throw std::invalid_argument(
@@ -495,7 +496,7 @@ void MCMC::Impl::DataLong::build(const dict_str_vec &input)
         size_t c = 0;
         for (const Household &house : pImpl_.dataset)
             for (const Individual &member : house)
-                if (id_to_index.find(member.id()) != id_to_index.end())
+                if (id_to_index % member.id())
                     throw std::invalid_argument(
                         "Multiple individuals id equal to \"" + member.id() + "\"");
                 else
@@ -507,11 +508,7 @@ void MCMC::Impl::DataLong::build(const dict_str_vec &input)
 
         for (u_dict<dbl_vec> &xmap : indiv_datalist_)
             for (const std::string &key : headers_)
-            {
-                if (xmap.count(key) > 0)
-                    xmap[key].clear();
-                xmap.emplace(key, dbl_vec({}));
-            }
+                xmap[key].clear();
 
         // load individual data list
         const size_t n_rows = input.at(headers_[0]).size();
@@ -521,7 +518,7 @@ void MCMC::Impl::DataLong::build(const dict_str_vec &input)
             if (tools::is_na(id))
                 throw std::invalid_argument(
                     "Invalid id for datalong in row n." + std::to_string(r + 2) + ".");
-            else if (id_to_index.find(id) == id_to_index.end())
+            else if (!(id_to_index % id))
             {
                 if (pImpl_.dataset.is_empty())
                     throw std::invalid_argument(
@@ -559,12 +556,12 @@ void MCMC::Impl::GroupRates::build(const dict_str_vec &deftable)
     {
         // check that tempalte headers are present
         str_vec data_headers = tools::read::table_headers(deftable);
-        tools::str::assert_missing_entries(data_headers, file_headers_);
+        tools::str::assert_no_missing_entries(data_headers, file_headers_);
 
         // remove template headers to keep only dataset
         data_headers = data_headers - file_headers_;
         // check that required dataset columns are present
-        tools::str::assert_unused_entries(data_headers, pImpl_.dataset.headers());
+        tools::str::assert_no_unused_entries(data_headers, pImpl_.dataset.headers());
 
         const size_t n_rows = deftable.at("group_rate").size();
 
@@ -593,7 +590,7 @@ void MCMC::Impl::GroupRates::build(const dict_str_vec &deftable)
                     {
                         const std::string &g = deftable.at("group_rate")[r];
                         const std::string &p = deftable.at("param_name")[r];
-                        if (these_rates.count(g))
+                        if (these_rates % g)
                             these_rates[g].push_back(p);
                         else
                             these_rates.emplace(g, str_vec({p}));
@@ -665,8 +662,8 @@ void MCMC::Impl::Parameter::build(const dict_str_vec &deftable)
     {
         // check entries
         str_vec headers = tools::read::table_headers(deftable);
-        tools::str::assert_missing_entries(headers, file_headers);
-        tools::str::assert_unused_entries(headers, file_headers);
+        tools::str::assert_no_missing_entries(headers, file_headers);
+        tools::str::assert_no_unused_entries(headers, file_headers);
 
         // drop current list of parameters
         dictionary_.clear();
@@ -705,8 +702,8 @@ void MCMC::Impl::Parameter::build_constant_parameter_(const dict_str_vec &deftab
             "Undefined value for constant parameter \"" + p + "\".");
 
     // assign constant parameter to the set of variables
-    double value = pImpl_.read_scalar_(deftable.at("value")[k]);
-    dictionary_.emplace(p, Variable(p, value));
+    double value = pImpl_.read_numeric_(deftable.at("value")[k]);
+    dictionary_.emplace(p, Variable(p, "parameter", value));
     // update the lists of constant parameters
     list_const.push_back(p);
 }
@@ -736,7 +733,8 @@ void MCMC::Impl::Parameter::build_parameter_to_sample_(const dict_str_vec &defta
         rule_scale = tools::str::tod(deftable.at("scale")[k]);
 
     // create a new Parameter Variable
-    dictionary_.emplace(p, Variable(p, pImpl_.read_scalar_(deftable.at("value")[k]), false, is_discrete));
+    dictionary_.emplace(
+        p, Variable(p, "parameter", pImpl_.read_numeric_(deftable.at("value")[k]), false, is_discrete));
     Variable &new_param = this->at(p);
 
     // assign a prior distribution to the parameter
@@ -744,11 +742,11 @@ void MCMC::Impl::Parameter::build_parameter_to_sample_(const dict_str_vec &defta
     new_param.init_distr(parser);
 
     for (const auto &child : parser.root.children)
-        new_param.init_distr_attr(child.key, pImpl_.read_scalar_(child));
+        new_param.init_distr_attr(child.key, pImpl_.read_numeric_(child));
 
     // load parameter range
-    new_param.init_distr_attr(HSP_PARAM_MIN, pImpl_.read_scalar_(deftable.at(HSP_PARAM_MIN)[k]));
-    new_param.init_distr_attr(HSP_PARAM_MAX, pImpl_.read_scalar_(deftable.at(HSP_PARAM_MAX)[k]));
+    new_param.init_distr_attr(HSP_PARAM_MIN, pImpl_.read_numeric_(deftable.at(HSP_PARAM_MIN)[k]));
+    new_param.init_distr_attr(HSP_PARAM_MAX, pImpl_.read_numeric_(deftable.at(HSP_PARAM_MAX)[k]));
     new_param.init_distr_reshaping();
 
     // assign the rule for the proposer to the parameter

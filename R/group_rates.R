@@ -330,11 +330,11 @@ HousepiGroupRate <- R6::R6Class(
                    prefix = NA,
                    reference = NULL,
                    independent = TRUE,
-                   prior = "lnorm",
+                   prior = "lognormal",
                    args = list(meanlog = 0, sdlog = 3),
                    min = NA,
                    max = 10,
-                   rule = "lnorm",
+                   rule = "lognormal",
                    scale = 1) {
 
       # UPDATE: controls are missing

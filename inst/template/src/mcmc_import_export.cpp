@@ -21,7 +21,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define DEFINE_RCPP_IMPORT_METHOD(ImplSection, r_to_map)            \
+#define MAKE_RCPP_IMPORT_METHOD(ImplSection, r_to_map)              \
     void MCMC::Impl::ImplSection::rcpp_import(SEXP input)           \
     {                                                               \
         try                                                         \
@@ -35,15 +35,15 @@
         }                                                           \
     }
 
-#define DEFINE_RCPP_IMPORT_LIST_METHOD(ImplSection) DEFINE_RCPP_IMPORT_METHOD(ImplSection, rlist_to_map)
-DEFINE_RCPP_IMPORT_LIST_METHOD(Setup)
-DEFINE_RCPP_IMPORT_LIST_METHOD(InfecProfile)
+#define MAKE_RCPP_IMPORT_LIST_METHOD(ImplSection) MAKE_RCPP_IMPORT_METHOD(ImplSection, rlist_to_map)
+MAKE_RCPP_IMPORT_LIST_METHOD(Setup)
+MAKE_RCPP_IMPORT_LIST_METHOD(InfecProfile)
 
-#define DEFINE_RCPP_IMPORT_TABLE_METHOD(ImplSection) DEFINE_RCPP_IMPORT_METHOD(ImplSection, rdataframe_to_map)
-DEFINE_RCPP_IMPORT_TABLE_METHOD(Parameter);
-DEFINE_RCPP_IMPORT_TABLE_METHOD(DataWide);
-DEFINE_RCPP_IMPORT_TABLE_METHOD(DataLong);
-DEFINE_RCPP_IMPORT_TABLE_METHOD(GroupRates);
+#define MAKE_RCPP_IMPORT_TABLE_METHOD(ImplSection) MAKE_RCPP_IMPORT_METHOD(ImplSection, rdataframe_to_map)
+MAKE_RCPP_IMPORT_TABLE_METHOD(Parameter);
+MAKE_RCPP_IMPORT_TABLE_METHOD(DataWide);
+MAKE_RCPP_IMPORT_TABLE_METHOD(DataLong);
+MAKE_RCPP_IMPORT_TABLE_METHOD(GroupRates);
 
 /// Import multiplicity definitions from R DataFrame and run build.
 void MCMC::Impl::DataWide::rcpp_import_multiplicity(SEXP input)
@@ -90,7 +90,7 @@ Rcpp::List MCMC::Impl::Setup::rcpp_export() const
                         _["n_steps"] = n_steps,
                         _["n_adapt"] = n_adapt,
                         _["n_burnin"] = n_burnin,
-                        _["thin"] = thin,
+                        _["thin"] = n_thin,
                         _["seed"] = seed,
                         _["n_threads"] = n_threads,
                         _["id_draws"] = CharacterVector(wrap(id_draws)),
@@ -423,7 +423,7 @@ Rcpp::CharacterVector MCMC::Impl::Setup::draws_iter_names() const
     std::vector<unsigned long> iteration(c_sample_size * n_chains);
     for (size_t c = 0; c < n_chains; ++c)
         for (size_t k = 0; k < c_sample_size; k++)
-            iteration[k + c * c_sample_size] = n_burnin + (k + 1) * thin;
+            iteration[k + c * c_sample_size] = n_burnin + (k + 1) * n_thin;
     return CharacterVector(wrap(std::move(iteration)));
 }
 
@@ -801,7 +801,7 @@ Rcpp::List MCMC::Impl::rcpp_export_house_snapshot(const std::string &house_id) c
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #else
-#define DEFINE_READ_METHOD(ImplSection, csv_object)                 \
+#define MAKE_READ_METHOD(ImplSection, csv_object)                   \
     void MCMC::Impl::ImplSection::read(const std::string &f)        \
     {                                                               \
         try                                                         \
@@ -815,15 +815,15 @@ Rcpp::List MCMC::Impl::rcpp_export_house_snapshot(const std::string &house_id) c
         }                                                           \
     }
 
-#define DEFINE_READ_LIST_METHOD(ImplSection) DEFINE_READ_METHOD(ImplSection, csv_list)
-DEFINE_READ_LIST_METHOD(Setup)
-DEFINE_READ_LIST_METHOD(InfecProfile)
+#define MAKE_READ_LIST_METHOD(ImplSection) MAKE_READ_METHOD(ImplSection, csv_list)
+MAKE_READ_LIST_METHOD(Setup)
+MAKE_READ_LIST_METHOD(InfecProfile)
 
-#define DEFINE_READ_TABLE_METHOD(ImplSection) DEFINE_READ_METHOD(ImplSection, csv_table)
-DEFINE_READ_TABLE_METHOD(Parameter);
-DEFINE_READ_TABLE_METHOD(DataWide);
-DEFINE_READ_TABLE_METHOD(DataLong);
-DEFINE_READ_TABLE_METHOD(GroupRates);
+#define MAKE_READ_TABLE_METHOD(ImplSection) MAKE_READ_METHOD(ImplSection, csv_table)
+MAKE_READ_TABLE_METHOD(Parameter);
+MAKE_READ_TABLE_METHOD(DataWide);
+MAKE_READ_TABLE_METHOD(DataLong);
+MAKE_READ_TABLE_METHOD(GroupRates);
 
 /// Read multiplicity file and then run assignment.
 void MCMC::Impl::DataWide::read_multiplicity(const std::string &f)
@@ -854,114 +854,6 @@ void MCMC::Impl::Augmented::read(const std::string &f)
         tools::error("While reading " + section_name_ + ":\n" +
                      std::string(e.what()));
     }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  MCMC : show summary  ///////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Auxiliary function to call percentuage.
-const std::string _percent_(int n, int d) { return std::string(std::round(100. * n / d), 1); }
-
-/// Auxiliary function to call percentuage.
-const std::string _trail_percent_(int n, int d) { return std::to_string(n) + " (" + _percent_(n, d) + ")"; }
-
-/// Print the report of the database and of the model group rates.
-void MCMC::Impl::DataWide::show_summary() const
-{
-    std::cout << "n. of individuals: " << n_individuals_
-              << "\n    * n. of cases: "
-              << _trail_percent_(get_report_indiv("infected"), n_individuals_)
-              << "\n    * n. of missing status : "
-              << _trail_percent_(get_report_indiv("missing"), n_individuals_);
-
-    std::cout << "\nn. of households: " << n_houses()
-              << "\n    * with no cases: "
-              << _trail_percent_(get_report_house("no cases"), n_houses())
-              << "\n    * with at least 1 case: "
-              << _trail_percent_(get_report_house("at least 1 case"), n_houses())
-              << "\n    * with at least 2 cases: "
-              << _trail_percent_(get_report_house("at least 2 cases"), n_houses());
-
-    std::cout << "\nmax n. house cases: " << get_report_hh_size("max cases").first
-              << " (" << _percent_(get_report_hh_size("max cases").second, n_houses()) << ")"
-              << "\nmin n. house members: " << get_report_hh_size("min size").first
-              << " (" << _percent_(get_report_hh_size("min size").second, n_houses()) << ")"
-              << "\nmax n. house members: " << get_report_hh_size("max size").first
-              << " (" << _percent_(get_report_hh_size("max size").second, n_houses()) << ")";
-
-    std::cout << std::endl;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  MCMC : show setup  ////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Show the complete choices for the setup.
-void MCMC::Impl::Setup::show() const
-{
-
-    std::string id_draws_txt = HSP_NA_STRING;
-    if (pImpl_.augm.is_any_draw())
-    {
-        id_draws_txt = pImpl_.augm.smpl_individuals[0]->id();
-        for (size_t k = 1; k < pImpl_.augm.smpl_individuals.size(); ++k)
-            id_draws_txt += HSP_LIST_DELIM + pImpl_.augm.smpl_individuals[k]->id();
-    }
-
-    // common setup variables
-    std::cout << "seed" << HSP_DELIM << seed
-              << "\nn_threads" << HSP_DELIM << n_threads
-              << "\nn_chains" << HSP_DELIM << n_chains
-              << "\nsample_size" << HSP_DELIM << c_sample_size
-              << "\nn_steps" << HSP_DELIM << n_steps
-              << "\nn_adapt" << HSP_DELIM << n_adapt
-              << "\nn_burnin" << HSP_DELIM << n_burnin
-              << "\nthin" << HSP_DELIM << thin
-              << "\nprogress" << HSP_DELIM << progress
-              << "\nid_draws" << HSP_DELIM << id_draws_txt
-              << "\n";
-    std::cout << std::endl;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  MCMC : show parameters  //////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Show the user model parameters
-void MCMC::Impl::Parameter::show() const
-{
-    // show the headers
-    std::cout << file_headers[0];
-    for (size_t k = 1; k < file_headers.size(); ++k)
-        std::cout << HSP_DELIM << file_headers[k];
-    std::cout << "\n";
-
-    // show parameter definitions
-    str_vec all_params = list_sample + list_const;
-    for (const std::string &p : all_params)
-    {
-        const Variable &xparam = this->at(p);
-        std::cout << xparam.name()
-                  << HSP_DELIM << tools::str::format(xparam.get())
-                  << HSP_DELIM << tools::str::format(xparam.is_constant())
-                  << HSP_DELIM << tools::str::format(xparam.is_discrete())
-                  << HSP_DELIM << xparam.distr_name()
-                  << HSP_DELIM << xparam.distr_str_arg_names()
-                  << HSP_DELIM << xparam.distr_str_arg_values()
-                  << HSP_DELIM << xparam.prop_name()
-                  << HSP_DELIM << xparam.prop_str_scale()
-                  << HSP_DELIM << xparam.str_min()
-                  << HSP_DELIM << xparam.str_max()
-                  << "\n";
-    }
-    std::cout << std::endl;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1004,7 +896,7 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
                     size_t i = k + c * setup.c_sample_size;
 
                     // print iteration
-                    unsigned long sweep = setup.n_burnin + (k + 1) * setup.thin;
+                    unsigned long sweep = setup.n_burnin + (k + 1) * setup.n_thin;
                     inferstate_ofstream << sweep;
 
                     // print loglikelihood

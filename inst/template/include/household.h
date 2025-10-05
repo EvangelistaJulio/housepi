@@ -44,6 +44,13 @@ public:
 	///////////////////////////////////  AugmentedMap : setter  ///////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
+	/// Clear augmented definition (also used for allocation).
+	void clear_augm(const std::string &a)
+	{
+		augm_map_[a] = Variable();
+		augm_map_[a].name(a, "augmented");
+	}
+
 	void init_augm(const std::string &a,
 				   double value,
 				   bool is_const,
@@ -52,9 +59,8 @@ public:
 				   bool is_prim,
 				   const DefinitionParser &model_name);
 
-	void set_augm_value(const std::string &a, double x) { safe_at(augm_map_, a, "augmented").set(x); }
-	void clear_augm(const std::string &a) { augm_map_[a] = Variable(); }
 	void user_reset(rnd_gen &prng);
+	void set_augm_value(const std::string &a, double x) { safe_at(augm_map_, a, "augmented").set(x); }
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////  AugmentedMap : getter  ///////////////////////////////////
@@ -77,11 +83,11 @@ public:
 
 private:
 	u_dict<Variable> augm_map_ = {}; /// dictionary of augmented definitions
-	
+
 	double loglike_ = 0; // current augmented model loglikelihood
-	double buffer_ = 0;  // buffer augmented model loglikelihood
-	
-	// container for the logratio lists according to dependencies 
+	double buffer_ = 0;	 // buffer augmented model loglikelihood
+
+	// container for the logratio lists according to dependencies
 	u_dict<std::vector<std::function<double()>>> model_logratios_ = {};
 };
 
@@ -90,6 +96,9 @@ private:
 ////////////////////////////////// *** Individual : class *** /////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Forward declaration.
+class Household;
 
 /// Class for individual household study member.
 class Individual : public AugmentedMap
@@ -131,50 +140,28 @@ public:
 				"No datalong entries for " + err_name() + ".");
 		return pdatalong_->at(d);
 	}
-	double group_rate(const std::string &r) const { return safe_at(rate_map_, r, "group rate").get(); }
+	double group_rate(const std::string &r) const { return safe_at(group_rate_map_, r, "group rate").get(); }
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////  Individual : setter  ////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	void set_status(int s) { status_ = s; }
 	void init_pointer_to_datalong(u_dict<dbl_vec> *y) { pdatalong_ = y; }
 	void init_all_group_rates(const u_dict<std::vector<observ_dbl_ptr>> &ptrs);
 
 private:
-	///////////////////////////////////////////////////////////////////////////////////////////////
-	//////////////////////////////  Individual : GroupRate_ : struct  /////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////
-
-	struct GroupRate_
-	{
-	public:
-		GroupRate_(const std::string &name = HSP_NA_STRING,
-				   const std::vector<observ_dbl_ptr> &ptrs = {});
-
-		double get() const
-		{
-			double output = 1.0;
-			for (observ_dbl_ptr ptr : pointers_)
-				output *= *ptr;
-			return output;
-		}
-
-	private:
-		std::string name_ = "";
-		std::vector<observ_dbl_ptr> pointers_ = {};
-	};
-
 	std::string id_ = HSP_NA_STRING;  // user id
 	size_t index_ = 0;				  // housepi internal index
 	size_t hhindex_ = 0;			  // household relative index
 	int status_ = HSP_MISSING_STATUS; // status of the individual
 
 	// NOTE: allowd data variables are numerical only
-	u_dict<double> data_map_ = {};	   // data
-	u_dict<GroupRate_> rate_map_ = {}; // group rates
+	u_dict<double> data_map_ = {};			// data
+	u_dict<Attribute> group_rate_map_ = {}; // group rates
 
 	u_dict<dbl_vec> *pdatalong_ = nullptr; // datalong to be associated
+
+	friend class Household;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -300,7 +287,7 @@ public:
 
 	void set_multiplicity(unsigned long m, size_t class_idx);
 	void init_member(size_t index, const std::string &id, int status, const u_dict<double> &data);
-	bool change_status(Individual &member, int new_status);
+	bool set_status(Individual &member, int new_status);
 	void init_contact_rates(size_t from, size_t to, observ_dbl_ptr x);
 
 	///////////////////////////////////////////////////////////////////////////////////////////////

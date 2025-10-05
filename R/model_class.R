@@ -123,7 +123,7 @@ HousepiModel <- R6::R6Class(
 
     # @description
     # Enable multiplicity engine.
-    .multiplicity_engine = function(data_wide = NULL) {
+    .multiplicity_engine = function() {
       # check if model allows for multiplicity
       refer_file <- private$.reference()
       regexp <- ".multiplicity\\s*\\(\\s*\\)"
@@ -135,16 +135,14 @@ HousepiModel <- R6::R6Class(
           "Model with augmentated variable called multiplicity engine."
         )
 
-        # if data_wide not provided, load previous
+        # load data_wide
         # UPDATE: this "back & forth" of data_wide is not optimal!
-        if ((length(data_wide) == 0) && (length(private$.cols_data_wide) > 0)) {
-          data_wide <- self$data_wide
-        }
+        data_wide <- self$data_wide
 
         headers <- c(
-          # data_wide headers required by implementation
+          # data headers required by implementation
           private$.get_all_required_data(),
-          # data_wide headers required by group rates
+          # data headers required by group rates
           unlist(lapply(
             private$.group_rates$logic_tables,
             function(x) unlist(lapply(x, names))
@@ -153,7 +151,7 @@ HousepiModel <- R6::R6Class(
         # remove logic tables auxiliary column names
         headers <- setdiff(unique(headers), c("n", "param_name"))
 
-        # list of splitted data_wide by house_id
+        # list of splitted data by house_id
         split_data <- split(data_wide[c("status", headers)], data_wide$house_id)
         # sort individuals in each household by all columns
         sorted_data <- lapply(split_data, function(x) {
@@ -201,7 +199,8 @@ HousepiModel <- R6::R6Class(
 
       # proceed only if definitions exist
       if (length(private$.group_rates$defs) > 0) {
-        # if data_wide not provided, load previous
+        # load data_wide
+        # UPDATE: this "back & forth" of data_wide is not optimal!
         # UPDATE: count in the wrapper while storing data_wide_levels
         if (length(private$.cols_data_wide) == 0) data_wide <- NULL
         else data_wide <- self$data_wide
@@ -224,15 +223,11 @@ HousepiModel <- R6::R6Class(
 
     # @description
     # Full model build with complete list of definitions.
-    .build_full = function(data_wide = NULL,
-                           sample_size = NA, n_steps = 0,
-                           n_burnin = 0, thin = 1, n_adapt = 0,
-                           n_chains = 1, n_threads = 1,
+    .build_full = function(sample_size = NA, steps = 0,
+                           burnin = 0, thin = 1, adapt = 0,
+                           chains = 1, threads = 1,
                            id_draws = NA,
                            seed = NA, progress = FALSE) {
-      # build data_wide
-      self$add_data_wide(data_wide)
-
       # individual id for blank model augmented draws
       # if no default columns, assume debugging mode
       if (private$.is_blank() && all(is.na(id_draws))) {
@@ -243,37 +238,42 @@ HousepiModel <- R6::R6Class(
         }
       }
 
-      # build setup
+      # import setup
       private$.rcpp$import_setup(char_setup_input_(list(
-        sample_size = ifelse(is.na(sample_size), 0, sample_size),
-        n_steps = n_steps, thin = thin,
-        n_burnin = n_burnin, n_adapt = n_adapt, n_chains = n_chains,
-        n_threads = n_threads,
+        sample_size = ifelse(is.na(sample_size), 0, as.integer(sample_size)),
+        steps = as.integer(steps),
+        thin = as.integer(thin),
+        burnin = as.integer(burnin),
+        adapt = as.integer(adapt),
+        chains = as.integer(chains),
+        threads = as.integer(threads),
         id_draws = id_draws,
         seed = private$.adjust_seed(seed),
         progress = as.integer(progress)
       )))
 
-      # assert parameter definitions before importing
+      # build group rate definitions
+      private$.build_group_rates()
+      # build contact rates (UPDATE: temporary)
+      private$.rcpp$build_all_rates()
+
+      # assert parameter definitions
       private$.assert_param()
+      # import parameters
       private$.rcpp$import_param(private$.param$defs)
 
-      # group rates (import depends on param)
-      private$.build_group_rates()
+      # import group rates
       private$.rcpp$import_group_rates(
         private$.group_rates$expose_to_cpp(private$.info_data_wide)
       )
 
-      # build contact rates (UPDATE: temporary)
-      private$.rcpp$build_all_rates()
-
       # assert augmented variable definitions
       private$.assert_augm()
 
-      # build infectivity profile
+      # import infectivity profile
       private$.rcpp$import_infec_profile(private$.infec_profile$defs)
 
-      # build augmented variables
+      # import augmented variables
       private$.rcpp$import_augm(private$.augm$defs)
 
       invisible(self)
@@ -454,19 +454,16 @@ HousepiModel <- R6::R6Class(
         private$.assert_data_wide(private$.cols_data_wide)
       }
 
-      # implement group rates and build
-      private$.build_group_rates()
-
       invisible(self)
     },
 
-    #' @description Summarise statuses in the data_wide.
+    #' @description Summarise statuses in loaded data.
     #' @return`data.frame`
     summarise_cases = function() {
       private$.rcpp$summarise_cases()
     },
 
-    #' @description Summary house sizes in the data_wide.
+    #' @description Summary house sizes in loaded data.
     #' @return `data.frame`
     summarise_house_sizes = function() {
       private$.rcpp$summarise_house_sizes()
@@ -626,7 +623,7 @@ HousepiModel <- R6::R6Class(
     ############################################################################
 
     #' @description
-    #' Add definitions of a group rate by given data_wide feature(s).
+    #' Add definitions of a group rate by given data feature(s).
     #' Reference value has unitary rate and can be specified
     #' (default is most represented group).
     #'
@@ -700,44 +697,41 @@ HousepiModel <- R6::R6Class(
     #' Compute the loglikelihood.
     #'
     #' @param object `r rd_model_in_`
-    #' @param data_wide `r rd_smpl_data_wide_`
     #' @param seed `r rd_seed_`
     #'
     #' @return `numeric(1)`
-    loglikelihood = function(data_wide = NULL, seed = NA) {
+    loglikelihood = function(seed = NA) {
       # internal build function
-      private$.build_full(data_wide = data_wide, seed = seed)
-      private$.multiplicity_engine(data_wide = data_wide)
+      private$.build_full(seed = seed)
+      private$.multiplicity_engine()
       return(private$.rcpp$evaluate())
     },
 
     #' @description
     #' Run inference with Bayesian Markov Chain Monte Carlo.
     #'
-    #' @param data_wide `r rd_smpl_data_wide_`
     #' @param sample_size `r rd_smpl_size_`
-    #' @param n_steps `r rd_smpl_steps_`
-    #' @param n_burnin `r rd_smpl_burn_`
+    #' @param steps `r rd_smpl_steps_`
+    #' @param burnin `r rd_smpl_burn_`
     #' @param thin `r rd_smpl_thin_`
-    #' @param n_adapt `r rd_smpl_adapt_`
-    #' @param n_chains `r rd_smpl_chain_`
-    #' @param n_threads `r rd_smpl_thread_`
+    #' @param adapt `r rd_smpl_adapt_`
+    #' @param chains `r rd_smpl_chain_`
+    #' @param threads `r rd_smpl_thread_`
     #' @param id_draws `r rd_smpl_iddrw_`
     #' @param seed `r rd_seed_`
     #' @param progress `r rd_progress_`
-    infer = function(data_wide = NULL,
-                     sample_size = NA, n_steps = 10000,
-                     n_burnin = 0, thin = 1, n_adapt = 0,
-                     n_chains = 1, n_threads = 1,
+    infer = function(sample_size = NA, steps = 10000,
+                     burnin = 0, thin = 1, adapt = 0,
+                     chains = 1, threads = 1,
                      id_draws = NA,
                      seed = NA, progress = TRUE) {
       # internal build function
-      private$.build_full(data_wide = data_wide, sample_size = sample_size,
-                          n_steps = n_steps, n_burnin = n_burnin, thin = thin,
-                          n_adapt = n_adapt, n_chains = n_chains,
-                          n_threads = n_threads,
+      private$.build_full(sample_size = sample_size,
+                          steps = steps, burnin = burnin, thin = thin,
+                          adapt = adapt, chains = chains,
+                          threads = threads,
                           id_draws = id_draws, seed = seed, progress = progress)
-      private$.multiplicity_engine(data_wide = data_wide)
+      private$.multiplicity_engine()
 
       # infer method from cpp model object
       private$.rcpp$infer()
@@ -746,43 +740,47 @@ HousepiModel <- R6::R6Class(
     },
 
     #' @description
-    #' Estimate the model evidence (or marginal likelihood).
+    #' Estimate the model logevidence (or marginal likelihood).
     #' It uses the method of power posteriors with different available schemes.
     #'
-    #' @param data_wide `r rd_smpl_data_wide_`
     #' @param scheme `r rd_evi_scheme_`
-    #' @param n_rungs `r rd_evi_rungs_`
+    #' @param rungs `r rd_evi_rungs_`
     #' @param sample_size `r rd_smpl_size_`
-    #' @param n_steps `r rd_smpl_steps_`
-    #' @param n_burnin `r rd_smpl_burn_`
+    #' @param steps `r rd_smpl_steps_`
+    #' @param burnin `r rd_smpl_burn_`
     #' @param thin `r rd_smpl_thin_`
-    #' @param n_adapt `r rd_smpl_adapt_`
-    #' @param n_chains `r rd_smpl_chain_`
-    #' @param n_threads `r rd_smpl_thread_`
+    #' @param adapt `r rd_smpl_adapt_`
+    #' @param chains `r rd_smpl_chain_`
+    #' @param threads `r rd_smpl_thread_`
     #' @param seed `r rd_seed_`
     #' @param progress `r rd_progress_`
     #'
     #' @return `numeric(1)`
-    evidence = function(data_wide = NULL,
-                        scheme = "power-fractions", n_rungs = 40,
-                        sample_size = NA, n_steps = 10000,
-                        n_burnin = 0, thin = 1, n_adapt = 0,
-                        n_chains = 1, n_threads = 1,
-                        seed = NA, progress = TRUE) {
+    logevidence = function(scheme = "power-fractions", rungs = 40,
+                           sample_size = NA, steps = 10000,
+                           burnin = 0, thin = 1, adapt = 0,
+                           chains = 1, threads = 1,
+                           seed = NA, progress = TRUE) {
+      # developer
+      warning_h(
+        "The method to estimate logevidence is currently under development.",
+        "Its usage is deprecated."
+      )
+
       # internal build function
-      private$.build_full(data_wide, sample_size = sample_size,
-                          n_steps = n_steps, thin = thin,
-                          n_burnin = n_burnin, n_adapt = n_adapt,
-                          n_chains = n_chains, n_threads = n_threads,
+      private$.build_full(sample_size = sample_size,
+                          steps = steps, thin = thin,
+                          burnin = burnin, adapt = adapt,
+                          chains = chains, threads = threads,
                           seed = seed, progress = progress)
-      private$.multiplicity_engine(data_wide = data_wide)
+      private$.multiplicity_engine()
 
       # load options
       scheme <- as.character(scheme)
-      n_rungs <- as.integer(n_rungs)
+      rungs <- as.integer(rungs)
 
       # evaluate marginal from the internal Rcpp object
-      output <- private$.rcpp$evidence(scheme, n_rungs)
+      output <- private$.rcpp$logevidence(scheme, rungs)
 
       # reformat dataframe
       mask <- c("inv_temper", "mean_loglike", "var_loglike")
@@ -832,18 +830,16 @@ HousepiModel <- R6::R6Class(
     #' Generate a simulated outbreak.
     #' It assumes the same community structure of the loaded data.
     #'
-    #' @param data_wide `r rd_smpl_data_wide_`
-    #' @param obs_process `r rd_simul_observ_`
-    #' @param n_sim `r rd_simul_n_sim_`
+    #' @param nsim `r rd_simul_nsim_`
     #' @param seed `r rd_seed_`
     #' @param progress `r rd_progress_`
+    #' @param obs_process `r rd_simul_observ_`
     #'
     #' @return `data.frame`
-    simulate = function(data_wide = NULL,
-                        obs_process = NULL,
-                        n_sim = 1,
+    simulate = function(nsim = 1,
                         seed = NA,
-                        progress = FALSE) {
+                        progress = FALSE,
+                        obs_process = NULL) {
       # set observation process to identity if not provided
       if (is.null(obs_process)) obs_process <- function(x) x
       else if (!is.function(obs_process)) stop_h(
@@ -851,18 +847,17 @@ HousepiModel <- R6::R6Class(
       )
 
       # internal build function
-      private$.build_full(data_wide = data_wide,
-                          seed = seed, progress = progress)
+      private$.build_full(seed = seed, progress = progress)
 
-      # refactor static data_wide of simulation
+      # refactor static data for simulation
       static_df <- private$.rcpp$data_wide_for_simulation()
       # produce list of simulated dataframes
       # then bind simulated entries with static part
-      output <- lapply(private$.rcpp$simulate(n_sim), function(x) {
+      output <- lapply(private$.rcpp$simulate(nsim), function(x) {
         obs_process(private$.refactor_data_wide(cbind(static_df, x)))
       })
       # return a single data.frame if single simulation
-      if (n_sim == 1) output <- output[[1]]
+      if (nsim == 1) output <- output[[1]]
 
       output
     },

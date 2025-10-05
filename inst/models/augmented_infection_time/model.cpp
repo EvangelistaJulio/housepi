@@ -32,12 +32,7 @@ void Model::init_advanced_setup()
 {
 	// template infectivity profile (otherwise user defined)
 	init_infec_profile_template(
-		{{"func", "gamma_meanvar|mean:var|{2|S}:{1|S}"}});
-
-	// ensure 'infection time' is declared discrete when asking for discrete time
-#ifdef _HSP_DISCRETE_TIME
-	init_user_list_discrete({"infec_time"});
-#endif
+		{{"func", "gamma_meanvar|mean:var|{2|N}:{1|N}"}});
 }
 
 /// Initialize parameters and augmented variables.
@@ -256,9 +251,9 @@ void Model::simulate_single_household(Household &house)
 	for (Individual &member : house)
 	{
 		if (member == member_0)
-			house.change_status(member, HSP_INFECTED_STATUS);
+			house.set_status(member, HSP_INFECTED_STATUS);
 		else
-			house.change_status(member, HSP_HEALTHY_STATUS);
+			house.set_status(member, HSP_HEALTHY_STATUS);
 		init_all_augm(member);
 	}
 
@@ -271,22 +266,17 @@ void Model::simulate_single_household(Household &house)
 
 	// infection of secondary cases following the first case
 	for (double t = t0 + Dt; (t < tf) && (house.n_healthy_status() > 0); t += Dt)
-	{
-		// store copies of infected/healthy individuals
-		const std::vector<size_t> infected_hhindexes = house.infected_hhindexes();
-
 		for (Individual &member_i : house.healthy())
-			if (uniform() >= exp(-roi_inst_simulation(infected_hhindexes, house, member_i, t) * Dt))
+			if (uniform() >= exp(-roi_inst_simulation(house, member_i, t) * Dt))
 			{
 				member_i.set_augm_value("onset_time", t + member_i.augm("incub_period"));
-				house.change_status(member_i, HSP_INFECTED_STATUS);
+				house.set_status(member_i, HSP_INFECTED_STATUS);
 			}
-	}
 
 	// format infected with unseen onset as healthy
 	for (Individual &member : house.infected())
 		if (member.augm("onset_time") >= tf)
-			house.change_status(member, HSP_HEALTHY_STATUS);
+			house.set_status(member, HSP_HEALTHY_STATUS);
 
 	// format all augmented variables of susceptibles
 	for (Individual &member : house.healthy())
@@ -298,22 +288,20 @@ void Model::simulate_single_household(Household &house)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Instantaneous Risk of Infection for individual i (for simulation).
-double Model::roi_inst_simulation(const std::vector<size_t> &infected_hhindexes,
-								  Household &house,
+double Model::roi_inst_simulation(Household &house,
 								  Individual &member_i,
 								  double t_infec_i) const
 {
-	double hh_roi_inst = 0.;
+	double roi = 0.; // instantaneous risk of infection
 
-	for (size_t k : infected_hhindexes)
+	// `k` : infector, `i` : infectee
+	for (const Individual &member_k : house.infected())
 	{
-		// `k` : infector, `i` : infectee
-		const Individual &member_k = house.get_member(k);
-		double gentime = t_infec_i - member_k.augm("infec_time");
-		double mu_k = member_k.group_rate("infectivity");
-		hh_roi_inst += infec_profile_inst(member_k, gentime) * mu_k;
+		const double gentime = t_infec_i - member_k.augm("infec_time");
+		const double mu_k = member_k.group_rate("infectivity");
+		roi += infec_profile_inst(member_k, gentime) * mu_k;
 	}
-	hh_roi_inst *= member_i.group_rate("susceptibility") * transmission_rate(house);
+	roi *= member_i.group_rate("susceptibility") * transmission_rate(house);
 
-	return param("alpha") + hh_roi_inst;
+	return param("alpha") + roi;
 }

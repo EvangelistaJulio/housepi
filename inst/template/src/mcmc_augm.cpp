@@ -26,10 +26,10 @@
 Attribute MCMC::Impl::read_attribute_(const DefinitionParser::ASTNode &node,
                                       const Individual &member)
 {
-    if (node.is_empty())
+    if (node.is_empty()) // empty node
         return Attribute();
 
-    else if (!node.is_terminal())
+    else if (!node.is_terminal()) // function node
     {
         Attribute attr(node.func);
         for (const auto &child : node.children)
@@ -37,34 +37,39 @@ Attribute MCMC::Impl::read_attribute_(const DefinitionParser::ASTNode &node,
         return attr;
     }
 
-    else if (HSP_IS_TYPE_SCALAR(node.type))
-        return Attribute(tools::str::tod(node.value, "argument with scalar type"));
-
-    else if (HSP_IS_TYPE_DATA(node.type))
-        return Attribute(member.data(node.value));
-
-    else if (HSP_IS_TYPE_PARAM(node.type))
+    else if (HSP_IS_TYPE_AUGMENTED(node.type)) // terminal augmented node
     {
-        if (param.at(node.value).is_constant())
-            return Attribute(param.get(node.value));
-        else
-            return Attribute(param.get_ptr(node.value));
-    }
-    else if (HSP_IS_TYPE_AUGM(node.type))
-    {
-        if (!(augm.list_full % node.value))
-            throw std::invalid_argument(
-                "Undeclared augmented \"" + node.value + "\".");
-
+        Attribute attr;
+        attr.name(node.value, "augmented");
         const Variable &other_augm = member.get_augm_variable(node.value);
-        if (other_augm.is_function())
-            return Attribute(other_augm.get_function());
-        else
-            return Attribute(other_augm.get_ptr());
+        attr.transfer(other_augm);
+        return attr;
     }
+
+    else if (HSP_IS_TYPE_DATA(node.type)) // terminal data node
+    {
+        Attribute attr(member.data(node.value));
+        attr.name(node.value, "data");
+        return attr;
+    }
+
+    else if (HSP_IS_TYPE_NUMERIC(node.type)) // terminal numeric node
+        return Attribute(tools::str::tod(node.value, "argument with numeric type"));
+
+    else if (HSP_IS_TYPE_PARAMETER(node.type)) // terminal parameter node
+    {
+        Attribute attr;
+        attr.name(node.value, "parameter");
+        if (param.at(node.value).is_constant())
+            attr.init_numeric(param.get(node.value));
+        else
+            attr.init_pointer(param.get_ptr(node.value));
+        return attr;
+    }
+
     else
         throw std::invalid_argument(
-            "Unknown error found while loading \"" + node.str() + "\".");
+            "Unknown source type \"" + node.type + "\" found while parsing \"" + node.str() + "\".");
 }
 Attribute MCMC::Impl::read_attribute_(const std::string &expr, const Individual &member)
 {
@@ -72,7 +77,7 @@ Attribute MCMC::Impl::read_attribute_(const std::string &expr, const Individual 
 }
 
 /// Convert a typed string into a double.
-double MCMC::Impl::read_scalar_(const DefinitionParser::ASTNode &node, const Individual &member)
+double MCMC::Impl::read_numeric_(const DefinitionParser::ASTNode &node, const Individual &member)
 {
     const Attribute aux_attr_ = read_attribute_(node, member);
 
@@ -84,14 +89,14 @@ double MCMC::Impl::read_scalar_(const DefinitionParser::ASTNode &node, const Ind
         throw std::invalid_argument(
             "Unable to interpret definition \"" + node.str() + "\" as a double.");
 }
-double MCMC::Impl::read_scalar_(const std::string &expr, const Individual &member)
+double MCMC::Impl::read_numeric_(const std::string &expr, const Individual &member)
 {
-    return read_scalar_(DefinitionParser(expr).root, member);
+    return read_numeric_(DefinitionParser(expr).root, member);
 }
 void MCMC::Impl::make_param_cache_depen_(const DefinitionParser::ASTNode &node)
 {
     // cache dependecy if an augmented function depends on a parameter to be inferred
-    if (HSP_IS_TYPE_PARAM(node.type) && !param.at(node.value).is_constant())
+    if (HSP_IS_TYPE_PARAMETER(node.type) && !param.at(node.value).is_constant())
         param.make_cache_dependent(node.value);
 }
 
@@ -111,15 +116,15 @@ void MCMC::Impl::Augmented::build()
     {
         // check entries
         str_vec headers = tools::read::table_headers(deftable);
-        tools::str::assert_missing_entries(headers, file_headers);
-        tools::str::assert_unused_entries(headers, file_headers);
+        tools::str::assert_no_missing_entries(headers, file_headers);
+        tools::str::assert_no_unused_entries(headers, file_headers);
 
         // assert that augmented definitions are univocal
-        build_helper_assert_correct_definitions_();
+        helper_build_definition_();
         // build status-specific maps of augmented variables
-        build_helper_usage_lists_();
+        helper_build_usage_list_();
         // set individual id for augmented draws follow-up
-        build_helper_set_id_draws_();
+        helper_build_id_draws_();
 
         // allocate memory for augmented variables to each individual
         for (Household &house : pImpl_.dataset)
@@ -134,24 +139,11 @@ void MCMC::Impl::Augmented::build()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Assert that name and status are univocal.
-void assert_univocal(const u_dict<str_vec> &name_to_status)
-{
-    for (const auto &pair : name_to_status)
-        if (pair.second.size() != tools::str::unique(pair.second).size())
-            throw std::invalid_argument(
-                "Incompatible definitions for augmented \"" + pair.first + "\".");
-        else if (pair.second.size() > 1 && tools::is_any_na(pair.second))
-            throw std::invalid_argument(
-                "Conflicting generic and status-specific definitions for augmented \"" + pair.first + "\".");
-}
-
 /// Assert that augmented definitions are univocal, complete and acyclic.
-void MCMC::Impl::Augmented::build_helper_assert_correct_definitions_()
+void MCMC::Impl::Augmented::helper_build_definition_()
 {
     status_to_def_row.clear();
 
-    u_dict<str_vec> name_to_status = {};
     for (size_t k = 0; k < deftable["name"].size(); ++k)
     {
         // check augmented name
@@ -169,18 +161,32 @@ void MCMC::Impl::Augmented::build_helper_assert_correct_definitions_()
             throw std::invalid_argument(
                 "Unable to associate augmented \"" + a + "\" for non infectious status " + s + ".");
 
-        name_to_status[a].push_back(s);    // store name to status
-        status_to_def_row[s].push_back(k); // store status to definition row index
+        // store status to definition row index
+        status_to_def_row[s].push_back(k);
     }
-    assert_univocal(name_to_status);
+    build_definition_make_univocal_();
 
-    // NOTE: NA does not need checking in all cases. I just deal with it if requested
-    // FIXME: what about simulations?
+    // NOTE: NA (i. e. generic) does not necessarily need checking.
     if (pImpl_.dataset.all_infected_status_list.empty())
-        build_definition_order_(HSP_NA_STRING);
+        build_definition_dependency_order_(HSP_NA_STRING);
     else
         for (int status : pImpl_.dataset.all_infected_status_list)
-            build_definition_order_(std::to_string(status));
+            build_definition_dependency_order_(std::to_string(status));
+}
+
+/// Assert that name and status are univocal.
+void MCMC::Impl::Augmented::build_definition_make_univocal_()
+{
+    for (const auto &pair : status_to_def_row)
+    {
+        str_vec name_to_status = {};
+        for (size_t k : pair.second)
+            name_to_status.push_back(deftable["name"][k]);
+
+        if (name_to_status.size() != tools::str::unique(name_to_status).size())
+            throw std::invalid_argument(
+                "Incompatible definitions for augmented \"" + pair.first + "\".");
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -194,7 +200,7 @@ void walk_dependency_tree(const std::string &entry,
                           str_vec &recursion_stack,
                           str_vec &ordered)
 {
-    if (!tree.count(entry))
+    if (!(tree % entry))
         throw std::invalid_argument(
             "Missing definition for augmented \"" + entry + "\" ");
     if (recursion_stack % entry)
@@ -212,35 +218,12 @@ void walk_dependency_tree(const std::string &entry,
     ordered.push_back(entry);
 }
 
-/// Extract status-specific definitions row indexes.
-std::vector<size_t> extract_status_definition_rows(const u_dict<std::vector<size_t>> &status_to_def_row,
-                                                   const std::string &s)
-{
-    std::vector<size_t> allrows;
-    // load the list of status-specific definition rows
-    if (status_to_def_row.count(s))
-    {
-        allrows = status_to_def_row.at(s);
-        // add generic definitions to current list (if not generic already)
-        if (!tools::is_na(s))
-            if (status_to_def_row.count(HSP_NA_STRING))
-                allrows += status_to_def_row.at(HSP_NA_STRING);
-    }
-    else if (status_to_def_row.count(HSP_NA_STRING))
-        // use generic definitions if status-specific don't exist
-        allrows = status_to_def_row.at(HSP_NA_STRING);
-    else
-        throw std::invalid_argument(
-            "No definitions compatible with augmented status " + s + ".");
-    return allrows;
-}
-
 /// Assert valid dependency tree and return definition order.
-void MCMC::Impl::Augmented::build_definition_order_(const std::string &s)
+void MCMC::Impl::Augmented::build_definition_dependency_order_(const std::string &s)
 {
     u_dict<str_vec> tree;       // populate augmented dependency tree
     u_dict<size_t> name_to_row; // ... and reverse dictionary name to index
-    for (const size_t k : extract_status_definition_rows(status_to_def_row, s))
+    for (const size_t k : definition_rows_by_status_(s))
     {
         str_vec xdepen = {};
         for (const std::string &c : str_vec({"value", "model", "func"}) + HSP_RANGE_KEYS)
@@ -268,13 +251,44 @@ void MCMC::Impl::Augmented::build_definition_order_(const std::string &s)
     }
 }
 
+/// Extract status-specific definitions row indexes.
+std::vector<size_t> MCMC::Impl::Augmented::definition_rows_by_status_(const std::string &s)
+{
+    std::vector<size_t> allrows;
+    // load the list of status-specific definition rows
+    if (status_to_def_row % s)
+    {
+        allrows = status_to_def_row.at(s);
+
+        // extract names
+        str_vec name_to_status = {};
+        for (size_t k : allrows)
+            name_to_status.push_back(deftable["name"][k]);
+
+        // add generic definitions to current list (if not generic already)
+        if (!tools::is_na(s))
+            if (status_to_def_row % HSP_NA_STRING)
+                for (size_t k : status_to_def_row.at(HSP_NA_STRING))
+                    // skip generic if status-specific already exist
+                    if (!(name_to_status % deftable["name"][k]))
+                        allrows.push_back(k);
+    }
+    else if (status_to_def_row % HSP_NA_STRING)
+        // use generic definitions if status-specific don't exist
+        allrows = status_to_def_row.at(HSP_NA_STRING);
+    else
+        throw std::invalid_argument(
+            "No definitions compatible with augmented status " + s + ".");
+    return allrows;
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////  MCMC : Impl : Augmented : build function  //////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void MCMC::Impl::Augmented::build_helper_usage_lists_()
+void MCMC::Impl::Augmented::helper_build_usage_list_()
 {
     // drop previous definitions
     list_sample.clear();
@@ -284,15 +298,15 @@ void MCMC::Impl::Augmented::build_helper_usage_lists_()
     list_draws.clear();
     status_map_sample.clear();
 
-    build_variable_models_();
+    build_list_model_();
 
     for (size_t k = 0; k < deftable["name"].size(); ++k)
         if (tools::str::tobool(deftable["const"][k]))
             list_const.push_back(deftable["name"][k]);
         else if (!tools::is_na(deftable["func"][k]))
-            build_function_(k);
+            build_list_function_(k);
         else
-            build_variable_to_sample_(k);
+            build_list_sample_(k);
 
     // finalize augmented lists
     list_sample = tools::str::unique(list_sample);
@@ -319,7 +333,7 @@ str_vec get_dependents_order(const std::string &start, const u_dict<str_vec> &gr
             reverse_graph[dep].push_back(node);
 
         // ensure isolated nodes are present
-        if (!reverse_graph.count(node))
+        if (!(reverse_graph % node))
             reverse_graph[node] = {};
     }
 
@@ -333,8 +347,8 @@ str_vec get_dependents_order(const std::string &start, const u_dict<str_vec> &gr
 }
 
 /// Deal with the definition of augmented variable with a model.
-// NOTE: here;s there;s no need to initialize to generic since only used for posterior sampling.
-void MCMC::Impl::Augmented::build_variable_models_()
+// NOTE: here there's no need to initialize to generic since only used for posterior sampling.
+void MCMC::Impl::Augmented::build_list_model_()
 {
     status_map_model.clear();
 
@@ -345,7 +359,7 @@ void MCMC::Impl::Augmented::build_variable_models_()
         u_dict<str_vec> tree;       // populate augmented dependency tree
         u_dict<size_t> name_to_row; // ... and reverse dictionary name to index
         str_vec without_model;      // list of augmented without models
-        for (const size_t k : extract_status_definition_rows(status_to_def_row, s))
+        for (const size_t k : definition_rows_by_status_(s))
         {
             const std::string &a = deftable["name"][k];
             str_vec xdepen = {};
@@ -377,16 +391,16 @@ void MCMC::Impl::Augmented::build_variable_models_()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Deal with the definition of augmented function.
-void MCMC::Impl::Augmented::build_function_(size_t k)
+void MCMC::Impl::Augmented::build_list_function_(size_t k)
 {
     if (DefinitionParser(deftable["func"][k]).is_terminal())
-        build_function_identity_helper_(k);
+        build_list_function_identity_case_(k);
     else
         list_func.push_back(deftable["name"][k]);
 }
 
 /// Build augmented equality function and change deftable.
-void MCMC::Impl::Augmented::build_function_identity_helper_(size_t k)
+void MCMC::Impl::Augmented::build_list_function_identity_case_(size_t k)
 {
     const std::string &a = deftable["name"][k];
     const DefinitionParser parser(deftable["func"][k]);
@@ -394,9 +408,9 @@ void MCMC::Impl::Augmented::build_function_identity_helper_(size_t k)
     bool is_identity_const = true;
 
     // check the type of requested equality
-    if (HSP_IS_TYPE_PARAM(parser.root.type))
+    if (HSP_IS_TYPE_PARAMETER(parser.root.type))
         is_identity_const = pImpl_.param.at(parser.root.value).is_constant();
-    else if (HSP_IS_TYPE_AUGM(parser.root.type))
+    else if (HSP_IS_TYPE_AUGMENTED(parser.root.type))
         is_identity_const = false; // FIXME: use an augmented dependecies tree to see if constant
 
     if (is_identity_const)
@@ -409,9 +423,9 @@ void MCMC::Impl::Augmented::build_function_identity_helper_(size_t k)
 /////////////////////////  MCMC : Impl : Augmented : build variable to sample  ////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Deal with the definition 'k' of augmented to be sampled.
+/// Deal with the definition 'k' of augmented to be sampled (const = FALSE).
 /// NOTE: this assume definitions are univocal and status correct.
-void MCMC::Impl::Augmented::build_variable_to_sample_(size_t k)
+void MCMC::Impl::Augmented::build_list_sample_(size_t k)
 {
     const std::string &a = deftable["name"][k];
     const std::string &s = deftable["status"][k];
@@ -443,7 +457,7 @@ void MCMC::Impl::Augmented::build_variable_to_sample_(size_t k)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Set individual id for augmented draws follow-up.
-void MCMC::Impl::Augmented::build_helper_set_id_draws_()
+void MCMC::Impl::Augmented::helper_build_id_draws_()
 {
     str_vec &id_draws = pImpl_.setup.id_draws;
     smpl_individuals.clear();
@@ -471,7 +485,7 @@ void MCMC::Impl::Augmented::build_helper_set_id_draws_()
                     }
 
             // check all user request are satisfied
-            tools::str::assert_missing_entries(already_stored_id, id_draws, "trace id");
+            tools::str::assert_no_missing_entries(already_stored_id, id_draws, "trace id");
 
             if (is_any_draw())
             {
@@ -570,24 +584,23 @@ void MCMC::Impl::Augmented::clear_all(Individual &member)
 /// Initialize augmented dependecies for evaluations (not for simulation).
 void MCMC::Impl::Augmented::init()
 {
-    try
-    {
-        if (is_any())
-            for (Household &house : pImpl_.dataset)
-                for (Individual &member : house.infected())
+    if (is_any())
+        for (Household &house : pImpl_.dataset)
+            for (Individual &member : house.infected())
+                try
                 {
                     // intialize all augmented definitions
                     init_all(member);
                     // initialize augmented model
                     member.init_augm_model_logratios(status_map_model[member.status()]);
                 }
-    }
-    catch (const std::exception &e)
-    {
-        throw std::runtime_error(
-            "While initializing " + section_name_ + ":\n" +
-            std::string(e.what()));
-    }
+                catch (const std::exception &e)
+                {
+                    throw std::runtime_error(
+                        "While initializing " + section_name_ +
+                        " for " + member.err_name() + ":\n" +
+                        std::string(e.what()));
+                }
 }
 
 /// Initialize augmented dependecies for evaluations (not for simulation).
@@ -602,44 +615,44 @@ void MCMC::Impl::Augmented::user_reset()
 /// Assign augmented variables to single individual.
 void MCMC::Impl::Augmented::init_all(Individual &member)
 {
-    std::vector<size_t> definition_order;
-    const std::string s = std::to_string(member.status());
-    if (status_to_def_row.count(s))
-        definition_order = status_to_def_row[s];
-    else if (status_to_def_row.count(HSP_NA_STRING))
-        definition_order = status_to_def_row[HSP_NA_STRING];
-    else
-        throw std::invalid_argument(
-            "Impossible to initialize augmented for " + member.err_name() + " with status " + s + ".");
-
     // loop over augmented variable definitions to assign placheholders
-    for (size_t k : definition_order)
+    for (size_t k : init_get_definition_order_(member))
     {
         const std::string &a = deftable["name"][k];
+
         member.init_augm(a,
-                         pImpl_.read_scalar_(deftable["value"][k], member),
+                         pImpl_.read_numeric_(deftable["value"][k], member),
                          tools::str::tobool(deftable["const"][k]),
                          tools::str::tobool(deftable["discr"][k]),
                          deftable["func"][k],
                          tools::str::tobool(deftable["fcumul"][k]),
                          deftable["model"][k]);
-        // assign dependencies to each augmented variable
-        init_helper_variable_dependencies_(member, k);
-        // assign function reshaping and check if inherently constants
-        Variable &xaugm = member.get_augm_variable(a);
-        xaugm.init_func_reshaping();
 
-        // eventually assert that it's discrete as for user request
-        if (user_list_discrete % a)
-            if (!xaugm.is_discrete())
-                throw std::invalid_argument(
-                "Discrete condition not satisifed for " + xaugm.err_name() + 
-                " in " + member.err_name() + " with status " + std::to_string(member.status()) + ".");
+        // assign dependencies to each augmented variable
+        helper_init_dependencies_(member, k);
+        // assign function reshaping and check if inherently constants
+        member.get_augm_variable(a).init_func_reshaping();
     }
 }
 
+/// Get the definition order for current member according to its status.
+std::vector<size_t> MCMC::Impl::Augmented::init_get_definition_order_(Individual &member)
+{
+    const std::string s = std::to_string(member.status());
+    if (status_to_def_row % s)
+        return status_to_def_row[s];
+    else if (status_to_def_row % HSP_NA_STRING)
+        return status_to_def_row[HSP_NA_STRING];
+    else if (member.is_infected_status())
+        throw std::invalid_argument(
+            "No augmented definitions for " + member.err_name() + " with status " + s + ".");
+    else
+        throw std::invalid_argument(
+            "Missing generic augmented definition for non-infectious " + member.err_name() + ".");
+}
+
 /// Assign model arguments and range. Same for function, otherwise assign proposer.
-void MCMC::Impl::Augmented::init_helper_variable_dependencies_(Individual &member, size_t k)
+void MCMC::Impl::Augmented::helper_init_dependencies_(Individual &member, size_t k)
 {
     Variable &xaugm = member.get_augm_variable(deftable["name"][k]);
 
@@ -660,13 +673,13 @@ void MCMC::Impl::Augmented::init_helper_variable_dependencies_(Individual &membe
     else if (xaugm.is_pointer()) // pointer (case of identity function)
     {
         const Attribute &aux_attr = pImpl_.read_attribute_(deftable["func"][k], member);
-
         if (aux_attr.is_constant())
-            xaugm.init_scalar(aux_attr.get());
+            xaugm.init_numeric(aux_attr.get());
         else
             xaugm.init_pointer(aux_attr.get_ptr());
     }
-    else if (!xaugm.is_constant()) // variable to be sampled
+
+    if (!xaugm.is_constant()) // variable to be sampled
         // assign proposer rule
         xaugm.init_proposer(deftable["rule"][k], tools::str::tod(deftable["scale"][k]));
 }

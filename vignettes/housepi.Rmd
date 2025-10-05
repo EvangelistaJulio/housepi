@@ -115,11 +115,11 @@ Different approaches are available to perform the same operation, we can call `a
 # alpha : community transmission rate
 hhmodel <- hhmodel |>
   add_parameter(name = "alpha", # name matching the model source
-                prior = "unif", # uniform prior
-                rule = "lnorm") # mcmc proposer rule
+                prior = "uniform", # uniform prior
+                rule = "lognormal") # mcmc proposer rule
 
 # beta : in-household person to person transmission rate
-hhmodel$add_parameter(name = "beta", prior = "unif", rule = "lnorm")
+hhmodel$add_parameter(name = "beta", prior = "uniform", rule = "lognormal")
 ```
 
 At any moment we can turn a parameter definition into a constant definition: it is sufficient to set the argument `const = TRUE` (in such case a `value` must be provided).
@@ -131,35 +131,30 @@ To see how to associate group rates in heterogeneous models, see the vignette [G
 # Perform inference
 
 After having provided all necessary definitions, we can perform inference calling `infer()`.
-This will return an object wrapping [posterior](https://cran.r-project.org/web/packages/posterior/) `draws` object that can be used to compute estimates.
-We can then extract the parameters draws by calling `get_param_draws`:
+This will return an object wrapping [posterior](https://cran.r-project.org/web/packages/posterior/) `draws` objects that can be accessed to compute estimates.
+It's default printing behavior will be to show the results of `posterior::summarize_draws` on the draws stored in the results
 
 ```{r}
 # run the Monte Carlo specifying setup options
 results <- hhmodel |>
-  infer(n_steps = 20000,  # number of mcmc steps (per chain)
-        n_burnin = 1000,  # steps to burn
+  infer(steps = 20000,  # number of mcmc steps (per chain)
+        burnin = 1000,  # steps to burn
         thin = 8,         # delay between sampling steps
-        n_adapt = 1000,   # finite adaptation steps before sampling
-        n_chains = 3,     # number of independent chains
-        n_threads = 1,    # number of threads
+        adapt = 1000,   # finite adaptation steps before sampling
+        chains = 3,     # number of independent chains
+        threads = 1,    # number of threads
         progress = FALSE) # disable progress bar
-
-estimates <- results |>
-  # export to psoterior draws_df
-  get_param_draws() |>
-  posterior::summarise_draws()
-estimates
+results
 ```
 
-*Note:* parallel computations are implemented with *openMP* which is not supported on latest macOS distributions, thus the option `n_threads` is not granted on such systems.
+*Note:* parallel computations are implemented with *openMP* which is not supported on latest macOS distributions, thus the option `threads` is not granted on such systems.
 
 We can proceed as usual with other popolar R packages for Bayesian analysis.
-For example, we can plot the draws with [bayesplot](https://cran.r-project.org/web/packages/bayesplot/)
+For example, we can extract the parameters draws by calling `get_param_draws` and plot traces with [bayesplot](https://cran.r-project.org/web/packages/bayesplot/)
 
 ```{r}
 # visualize the traces of the first chain with 'bayesplot'
-results |>
+results |>  
   get_param_draws() |>
   bayesplot::mcmc_trace(facet_args = list(ncol = 1))
 ```
@@ -204,7 +199,7 @@ hhsimul <- hhsimul |>
 
     # define an 'onset_time' for each individual
     onset_time = list(
-      model = "lnorm",
+      model = "lognormal",
       args = c(meanlog = 4, sdlog = 0.5),
       max = 365
     ),
@@ -231,11 +226,9 @@ We then propose a simple observation process, where we assume onsets after 6 PM 
 
 ```{r}
 obs_process <- function(x) {
-  x |>
-    dplyr::mutate(onset_date = dplyr::if_else(
-      status > 0, floor(onset_time) + ((onset_time %% 1) > 0.75), NA
-      )) |>
-    dplyr::select(-incub_period, -onset_time, -infec_time)
+  x$onset_date <- ifelse(x$status > 0, floor(x$onset_time + 1 - 18 / 24), NA)
+  x$incub_period <- x$onset_time <- x$infec_time <- NULL
+  x
 }
 
 simulated <- hhsimul |>
@@ -257,7 +250,7 @@ hhmodel <- hhsimul |>
   load_augmented_list(
     infec_time = ~onset_time - incub_period,
     onset_time = list(
-      model = "norm",
+      model = "normal",
       args = c(mean = ~onset_date@D, sd = 1)
     ),
     incub_period = list(
@@ -267,9 +260,9 @@ hhmodel <- hhsimul |>
   )
 
 results <- hhmodel |>
-  # perform the inference
-  infer(simulated, n_chains = 3, n_steps = 10000, n_adapt = 2000,
-        n_burnin = 1000, thin = 10, progress = 20) |>
+  add_data_wide(simulated) |>
+  infer(chains = 3, steps = 10000, adapt = 2000,
+        burnin = 1000, thin = 10, progress = 20) |>
   # extract sample to posterioir::draws_df
   get_param_draws()
 ```

@@ -13,7 +13,7 @@ MISSING DESCRIPTION
 }
 \section{Augmented Variables}{
 \itemize{
-\item \code{log_proba} : 
+\item \code{proba} : 
 }
 \if{html}{\out{<hr>}}
 }

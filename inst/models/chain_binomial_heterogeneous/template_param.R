@@ -1,10 +1,4 @@
 list(
-  alpha = list(
-    value = 0.15, prior = "unif", args = list(min = 0, max = 1),
-    rule = "lnorm", scale = 1
-  ),
-  beta = list(
-    value = 0.22, prior = "unif", args = list(min = 0, max = 1),
-    rule = "lnorm", scale = 1
-  )
+  alpha = list(value = 0.15, prior = "uniform", rule = "lognormal"),
+  beta = list(value = 0.22, prior = "uniform", rule = "lognormal")
 )

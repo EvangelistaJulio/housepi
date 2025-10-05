@@ -107,7 +107,7 @@ int main(int argc, char *argv[])
             tools::error(oss.str());
         }
 
-        else if (tolow(carg) == "--evidence")
+        else if (tolow(carg) == "--logevidence")
             num_rungs = tools::str::toul(argv[++carg_i], "number of rungs");
 
         else if (tolow(carg) == "--loglikelihood")
@@ -156,13 +156,13 @@ int main(int argc, char *argv[])
     }
 
     // check for command
-    bool is_evidence = (num_rungs > 0); // power posterior option
-    int aux = is_loglikelihood + is_infer + is_simulate + is_evidence;
+    bool is_logevidence = (num_rungs > 0); // power posterior option
+    int aux = is_loglikelihood + is_infer + is_simulate + is_logevidence;
     if (aux == 0)
         is_loglikelihood = true; // default
     else if (aux > 1)
         tools::error(
-            "Incompatible commands: choose one between --loglikelihood, --infer, --simulate or --evidence.");
+            "Incompatible commands: choose one between --loglikelihood, --infer, --simulate or --logevidence.");
 
     //////////////////////////////
     //////  INITIALIZATION  //////
@@ -181,17 +181,6 @@ int main(int argc, char *argv[])
     user_model->build_all_rates();                      // ... and Contact Rates (temporary)
     user_model->read_augm(augm_file);                   // 6) Load Augmented Variables
     user_model->read_multiplicity(multiplicity_file);   // 7) Load Multiplicities
-
-    if (verbose)
-    {
-        print_decorator("Setup");
-        user_model->show_setup();
-        print_decorator("Parameters");
-        user_model->show_all_params();
-        print_decorator("Dataset");
-        user_model->show_summary();
-        // UPDATE: missing show_augm
-    }
 
     //////////////////////////////
     ////////  EXECUTION  /////////
@@ -224,10 +213,10 @@ int main(int argc, char *argv[])
         else
             tools::error("Missing output file for simulation.");
     }
-    else if (is_evidence) // estimate evidence
+    else if (is_logevidence) // estimate logevidence
     {
         print_decorator("Evidence", verbose);
-        user_model->print_evidence("adaptive", num_rungs);
+        user_model->print_logevidence("adaptive", num_rungs);
     }
 
     return EXIT_SUCCESS;

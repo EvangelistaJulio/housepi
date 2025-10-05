@@ -118,11 +118,9 @@ namespace bax
 		for (ushort root = n - 1; root > 0; --root)
 			for (gentype g : recursive_span_generation(n - root))
 			{
-				gentype temp(root, 0);
 				for (int i = 0; i < n - root; ++i)
 					g[i] += 1;
-				temp.insert(temp.end(), g.begin(), g.end());
-				output.push_back(temp);
+				output.push_back(gentype(root, 0) + g);
 			}
 
 		return output;
@@ -165,7 +163,7 @@ namespace bax
 
 				// I take advantage of the order granted by the map
 				for (ushort val : g)
-					if (freq_map.find(val) != freq_map.end())
+					if (freq_map % val)
 						++freq_map[val];
 					else
 						freq_map.emplace(val, 1);

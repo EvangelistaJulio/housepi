@@ -39,23 +39,28 @@ public:
 
     Attribute() {};
     /// Auxiliary constructors allowing for implicit definition.
-    Attribute(double x) { init_scalar(x); }
-    Attribute(observ_dbl_ptr y) { init_pointer(y); }
-    Attribute(const std::shared_ptr<Function> f) { init_function(f); }
-    Attribute(const std::string &s, bool is_primitive = false) { init_function(s, is_primitive); }
+    Attribute(double x);
+    Attribute(observ_dbl_ptr y);
+    Attribute(const std::shared_ptr<Function> f);
+    Attribute(const std::string &s, bool is_primitive = false);
     virtual ~Attribute() = default;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////  Attribute : setter  //////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    /// Set attribute name.
-    void name(const std::string &s) { name_ = s; }
     /// Set attribute value.
     void set(double x) { (this->*do_set_)(x); }
+    /// Set attribute name. Eventually also err type.
+    void name(const std::string &s, const std::string &e = HSP_NA_STRING)
+    {
+        name_ = s;
+        if (!tools::is_na(e))
+            err_type_ = e;
+    }
 
-    /// Initialize attribute as scalar.
-    void init_scalar(double x);
+    /// Initialize attribute as numeric.
+    void init_numeric(double x);
     /// Initialize attribute as pointer.
     void init_pointer(observ_dbl_ptr y);
     /// Initialize attribute as function.
@@ -73,6 +78,9 @@ public:
     std::string name() const { return name_; }
     /// Get attribute name to display in errors.
     std::string err_name() const { return err_type_ + " \"" + name_ + "\""; }
+    /// Get a description about the functional status.
+    std::string what() const;
+
     /// Get attribute numeric value.
     double get() const { return (this->*get_)(); }
     /// Get pointer to attribute value.
@@ -87,14 +95,14 @@ public:
     /// Wheter it's discrete.
     virtual bool is_discrete() const;
 
-    /// Wheter it's a scalar.
-    bool is_scalar() const { return !tools::is_na(value_); }
+    /// Wheter it's a number.
+    bool is_numeric() const { return !tools::is_na(value_); }
     /// Wheter it's a pointer.
     bool is_pointer() const { return ptr_to_value_ != nullptr; }
     /// Wheter it's a function.
     bool is_function() const { return pFunc_ != nullptr; }
     /// Wheter it has no definitions.
-    bool is_empty() const { return !is_scalar() && !is_pointer() && !is_function(); }
+    bool is_empty() const { return !is_numeric() && !is_pointer() && !is_function(); }
 
 protected:
     std::string err_type_ = "attribute";        // type name displayed in errors
@@ -124,10 +132,10 @@ protected:
 
     // Functional setter
     void (Attribute::*do_set_)(double) = &Attribute::do_set_default_;
-    /// Set error. Non scalar attributes can't be set, but just assigned.
+    /// Set error. Non numeric attributes can't be set, but just assigned.
     /// NOTE: so far set_arg is only used for adaptation.
     virtual void do_set_error_(double) { throw std::runtime_error(
-        "Non scalar " + err_name() + " cannot be changed."); }
+        "Non nuemric " + err_name() + " cannot be changed."); }
     /// Set attribute internal value.
     virtual void do_set_default_(double x) { value_ = x; }
 };
@@ -162,7 +170,7 @@ public:
     /// Central method to return function's value at given x.
     double evaluate(double x) const { return (this->*evaluate_)(x); }
     /// By convention, the argument 'x' is automatically the last one.
-    double evaluate() const { return (this->*evaluate_)(arg(n_args_)); }
+    double evaluate() const { return (this->*evaluate_)(x_arg_.get()); }
 
     /// Select call method for return value.
     void set_eval_function() { evaluate_ = &Function::eval_function_; }
@@ -177,12 +185,11 @@ public:
     ///////////////////////////////////  Function : getter  /////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    unsigned short assert_arg(const std::string &arg_name) const;
-    double arg(unsigned short i) const { return args_[i].get(); }
+    double arg(unsigned short i) const { return arguments_[i].get(); }
     double get_min() const { return range_min_.get(); }
     double get_max() const { return range_max_.get(); }
 
-    observ_dbl_ptr get_ptr_to_arg(unsigned short i) const { return args_[i].get_ptr(); }
+    observ_dbl_ptr get_ptr_to_arg(unsigned short i) const { return arguments_[i].get_ptr(); }
     observ_dbl_ptr get_ptr_to_min() const { return range_min_.get_ptr(); }
     observ_dbl_ptr get_ptr_to_max() const { return range_max_.get_ptr(); }
 
@@ -193,7 +200,7 @@ public:
     /// Wheter return value is always discrete.
     virtual bool is_discrete() const { return function_ != &Function::raw_function_; }
     /// Wheter it can be called implicitely, i. e. if a 'x' has been linked.
-    bool is_implicit_callable() const { return !args_[n_args_].is_empty(); }
+    bool is_implicit_callable() const { return !x_arg_.is_empty(); }
 
     /// Returns TRUE if value x is below range minimum.
     bool is_below(double x) const { return (this->*is_below_)(x); }
@@ -206,10 +213,11 @@ public:
     ///////////////////////////////////  Function : setter  /////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    void init_attr(const std::string &what, const Attribute &attr);
+    /// Initialize given function attribute.
+    void init_attr(const std::string &key, const Attribute &attr);
 
     /// Set argument value.
-    void set_arg(unsigned short i, double x) { args_[i].set(x); }
+    void set_arg(unsigned short i, double x) { arguments_[i].set(x); }
 
     /// Virtual function to initialize discretization.
     virtual void init_discretization() { throw std::invalid_argument(
@@ -234,7 +242,7 @@ public:
     std::string str_max() const { return range_max_.str(); }
 
     std::string str_range() const;
-    std::string str_summary() const;
+    std::string str_summary(bool show_x_arg = true) const;
 
 #ifdef _HOUSEPI_RCPP
     Rcpp::NumericVector rcpp_export_args() const;
@@ -244,11 +252,14 @@ public:
 protected:
     std::string err_type_ = "function";                                      // type name displayed in errors
     std::string name_ = HSP_NA_STRING;                                       /// function name
-    unsigned short n_args_ = 0;                                              /// n. of arguments
-    Attribute *args_ = nullptr;                                              /// array with arguments
+    std::vector<Attribute> arguments_ = {};                                  /// array with arguments
+    Attribute x_arg_ = Attribute();                                          /// 'x' argument
     Attribute range_min_ = Attribute();                                      /// lower bound
     Attribute range_max_ = Attribute();                                      /// upper bound
     double (Function::*evaluate_)(double) const = &Function::eval_function_; /// return value method
+
+    /// Find attribute and return. If doesn't exists, return an empty attribute.
+    virtual Attribute &find_arg_(const std::string &arg_name);
 
     /// Return value of call.
     double eval_function_(double x) const { return (this->*function_)(x); }
@@ -451,7 +462,7 @@ struct StaticFunctionRegistatror
 /// Compose registries to get a function from them.
 std::shared_ptr<Function> compose_func_registries(const std::string &opt,
                                                   const std::string &name,
-                                                  bool is_primitive,
-                                                  const std::vector<const FunctionRegistry *> &registries);
+                                                  const std::vector<const FunctionRegistry *> &registries,
+                                                  bool is_primitive = false);
 
 #endif // HOUSEPI__FUNCTION__H

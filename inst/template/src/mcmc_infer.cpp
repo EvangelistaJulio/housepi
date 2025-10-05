@@ -181,19 +181,19 @@ void MCMC::Impl::run_monte_carlo_()
         init_move_counts_();        // init move counts for adaptive
 
         // (Finite) Adaptative Iterations
-        for (unsigned long i = 0; i < setup.n_adapt; i += setup.thin, setup.prog_update())
-            for (unsigned long t = 1; t <= setup.thin; ++t)
+        for (unsigned long i = 0; i < setup.n_adapt; i += setup.n_thin, setup.prog_update())
+            for (unsigned long t = 1; t <= setup.n_thin; ++t)
                 move_all_and_adapt_params_(i + t);
 
         // Burn-in Iterations
-        for (unsigned long i = 0; i < setup.n_burnin; i += setup.thin, setup.prog_update())
-            for (unsigned long t = 1; t <= setup.thin; ++t)
+        for (unsigned long i = 0; i < setup.n_burnin; i += setup.n_thin, setup.prog_update())
+            for (unsigned long t = 1; t <= setup.n_thin; ++t)
                 move_all_();
 
         // Posterior sampling
-        for (unsigned long i = setup.n_burnin; i < setup.n_steps; i += setup.thin, setup.prog_update())
+        for (unsigned long i = setup.n_burnin; i < setup.n_steps; i += setup.n_thin, setup.prog_update())
         {
-            for (unsigned long t = 1; t <= setup.thin; ++t)
+            for (unsigned long t = 1; t <= setup.n_thin; ++t)
                 move_all_();
             update_posterior_sample_(); // store sample
         }

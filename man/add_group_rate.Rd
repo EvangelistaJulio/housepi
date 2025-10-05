@@ -53,9 +53,9 @@ One between:\cr
 \itemize{
 \item \code{NA} (default): see "sample";\cr
 \item "sample": sampled from the \%s distribution;\cr
-\item "unif": increment is drawn from a uniform distribution;\cr
-\item "norm": increment is drawn from a normal distribution;\cr
-\item "lnorm": increment id drawn from a lognormal distribution (for positive values only).
+\item "unifrm": increment is drawn from a uniform distribution;\cr
+\item "normal": increment is drawn from a normal distribution;\cr
+\item "lognormal": increment id drawn from a lognormal distribution (for positive values only).
 }}
 
 \item{scale}{\code{numeric(1)}with the scale of the proposer rule (if applicable).\cr

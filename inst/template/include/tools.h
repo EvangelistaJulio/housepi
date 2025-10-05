@@ -115,16 +115,17 @@ constexpr double HSP_TIME_STEP = 0.05;          /// time step for real time simu
 #define HSP_LIST_DELIM ':' /// dictionary delimiter
 
 // special parameter names
+#define HSP_PARAM_X "x"     /// evaluation parameter
 #define HSP_PARAM_LOC "loc" /// location parameter
 #define HSP_PARAM_MIN "min" /// minimum value
 #define HSP_PARAM_MAX "max" /// maximum value
 #define HSP_RANGE_KEYS str_vec({HSP_PARAM_MIN, HSP_PARAM_MAX})
 
 // declaration for typed file inputs
-#define HSP_IS_TYPE_PARAM(s) ((s) == "P")  /// == Parameter type
-#define HSP_IS_TYPE_DATA(s) ((s) == "D")   /// == Data type
-#define HSP_IS_TYPE_SCALAR(s) ((s) == "S") /// == Scalar type
-#define HSP_IS_TYPE_AUGM(s) ((s) == "A")   /// == Augmented type
+#define HSP_IS_TYPE_AUGMENTED(s) ((s) == "A") /// == Augmented type
+#define HSP_IS_TYPE_DATA(s) ((s) == "D")      /// == Data type
+#define HSP_IS_TYPE_NUMERIC(s) ((s) == "N")   /// == Numeric type
+#define HSP_IS_TYPE_PARAMETER(s) ((s) == "P") /// == Parameter type
 
 // discretization types
 #define HSP_DISCR_NONE 0    /// none
@@ -147,14 +148,26 @@ constexpr double HSP_TIME_STEP = 0.05;          /// time step for real time simu
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Check if container containes given value (% overload)
+/// (% overload) Check if container containes given value.
 template <typename Container, typename T>
 bool operator%(const Container &c, const T &x)
 {
     return std::find(c.begin(), c.end(), x) != c.end();
 }
+/// (% overload) Check if map containes given value.
+template <typename K, typename V, typename Compare, typename Alloc, typename T>
+bool operator%(const std::map<K, V, Compare, Alloc> &m, const T &key)
+{
+    return m.find(key) != m.end();
+}
+/// (% overload) Check if unordered_map containes given value.
+template <typename K, typename V, typename Hash, typename Eq, typename Alloc, typename T>
+bool operator%(const std::unordered_map<K, V, Hash, Eq, Alloc> &m, const T &key)
+{
+    return m.find(key) != m.end();
+}
 
-/// Concatenate containers (+ overload)
+/// (+ overload) Concatenate containers.
 template <typename T>
 std::vector<T> operator+(const std::vector<T> &x, const std::vector<T> &y)
 {
@@ -165,7 +178,7 @@ std::vector<T> operator+(const std::vector<T> &x, const std::vector<T> &y)
     return vec;
 }
 
-/// Concatenate containers (+ overload)
+/// (+ overload) Concatenate containers.
 template <typename T>
 std::vector<T> &operator+=(std::vector<T> &x, const std::vector<T> &y)
 {
@@ -174,8 +187,7 @@ std::vector<T> &operator+=(std::vector<T> &x, const std::vector<T> &y)
     return x;
 }
 
-/// @brief Overload minus operator.
-/// Remove all elements of first containers contained in second.
+/// (- overload) Remove all elements of first containers contained in second.
 template <typename T>
 std::vector<T> operator-(std::vector<T> v, const std::vector<T> &w)
 {
@@ -186,12 +198,8 @@ std::vector<T> operator-(std::vector<T> v, const std::vector<T> &w)
     return v;
 }
 
-/// @brief Safely access an element in a u_dict by key.
+/// Safely access an element in a u_dict by key.
 /// If the key does not exist, an exception is thrown with the key name.
-/// @tparam T
-/// @param m
-/// @param k
-/// @return
 template <typename T>
 inline T &safe_at(u_dict<T> &m, const std::string &k, const char *what = "key")
 {
@@ -257,6 +265,15 @@ namespace tools
         std::string format(bool condition);
         /// Format a list of string options.
         std::string format(const str_vec &options, size_t max_print = HSP_MAX_STR_PRINT);
+        /// Format a list of types castable to string.
+        template <typename T>
+        std::string format(const std::vector<T> &entries, size_t max_print = HSP_MAX_STR_PRINT)
+        {
+            str_vec options;
+            for (const T i : entries)
+                options.push_back(std::to_string(i));
+            return format(options, max_print);
+        }
         /// Format a 2D matrix.
         std::string format(const matrix<double> &vec);
 
@@ -273,12 +290,12 @@ namespace tools
                                  bool show_avail_options = false);
 
         // check for unused entries from a vector of options and throw exception
-        void assert_missing_entries(const str_vec &entries,
-                             const str_vec &options,
-                             const std::string &where = "column");
-        void assert_unused_entries(const str_vec &entries,
-                            const str_vec &options,
-                            const std::string &where = "column");
+        void assert_no_missing_entries(const str_vec &entries,
+                                    const str_vec &options,
+                                    const std::string &where = "column");
+        void assert_no_unused_entries(const str_vec &entries,
+                                   const str_vec &options,
+                                   const std::string &where = "column");
     }
 
     namespace read
@@ -290,12 +307,12 @@ namespace tools
         str_vec table_headers(const dict_str_vec &deftable);
         dict_str_vec csv_table(const std::string &pathtofile);
     }
-    
-    #ifdef _HOUSEPI_RCPP
-            Rcpp::String stoRString(const std::string &x);
-            dict_str rlist_to_map(SEXP input);
-            dict_str_vec rdataframe_to_map(SEXP input);
-    #endif
+
+#ifdef _HOUSEPI_RCPP
+    Rcpp::String stoRString(const std::string &x);
+    dict_str rlist_to_map(SEXP input);
+    dict_str_vec rdataframe_to_map(SEXP input);
+#endif
 }
 
 #endif // HOUSEPI__TOOLS__H

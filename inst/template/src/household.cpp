@@ -24,6 +24,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Assign definitions for the augmented variable model.
+/// NOTE: a Variable must already be allocated with clear_augm.
 void AugmentedMap::init_augm(const std::string &a,
 							 double value,
 							 bool is_const,
@@ -33,7 +34,7 @@ void AugmentedMap::init_augm(const std::string &a,
 							 const DefinitionParser &model_name)
 {
 	Variable &this_augm = safe_at(augm_map_, a, "augmented variable");
-	this_augm.init(a, value, is_const, is_discr, func_name, is_prim);
+	this_augm.init(value, is_const, is_discr, func_name, is_prim);
 	this_augm.init_distr(model_name);
 }
 
@@ -137,31 +138,36 @@ void Individual::init_all_group_rates(const u_dict<std::vector<observ_dbl_ptr>> 
 {
 	for (const auto &pair : ptrs)
 	{
-		std::string r = pair.first;
-		std::vector<observ_dbl_ptr> vec_par_ptr = pair.second;
+		const std::string &r = pair.first;
+		const std::vector<observ_dbl_ptr> &vec_par_ptr = pair.second;
 
 		if (vec_par_ptr.empty())
 			std::invalid_argument(
 				"Missing rate \"" + r + "\" for " + err_name() + ".");
+
+		else if (vec_par_ptr.size() == 1)
+			// use pointer
+			group_rate_map_[r] = Attribute(vec_par_ptr[0]);
+
 		else
-			rate_map_[r] = GroupRate_(r, vec_par_ptr);
-	}
-}
+		{
+			std::shared_ptr<Function> fun;
+			if (vec_par_ptr.size() == 2)
+				// use simple multiplication
+				fun = compose_func_registries(
+					"mult", "function", {&ArithmeticRegistry::inst()});
+			else
+				// use variadic product
+				fun = compose_func_registries(
+					"prod", "function", {&ArithmeticRegistry::inst()});
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////  Individual::Group Rate : constructor  //////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
+			// initialize attributes to pointers
+			fun->init_attr(HSP_PARAM_X, vec_par_ptr[0]);
+			for (size_t i = 1; i < vec_par_ptr.size(); ++i)
+				fun->init_attr(HSP_PARAM_X + std::to_string(i + 1), vec_par_ptr[i]);
 
-Individual::GroupRate_::GroupRate_(const std::string &name,
-								   const std::vector<observ_dbl_ptr> &ptrs)
-{
-	if (!tools::is_na(name))
-	{
-		if (ptrs.empty())
-			throw std::invalid_argument(
-				"No parameters associated to group rate \"" + name + "\".");
-		name_ = name;
-		pointers_ = ptrs;
+			group_rate_map_[r] = Attribute(std::move(fun));
+		}
 	}
 }
 
@@ -214,7 +220,7 @@ void Household::init_member(size_t index,
 
 /// Change_status of individual i to new status (without controls).
 ///	NOTE : this introduces augmented variables -> it requires RJMCMC in case of inference.
-bool Household::change_status(Individual &member, int new_status)
+bool Household::set_status(Individual &member, int new_status)
 {
 	if (new_status != member.status())
 	{
@@ -228,7 +234,7 @@ bool Household::change_status(Individual &member, int new_status)
 			missing_list_.erase(std::find(missing_list_.begin(), missing_list_.end(), i));
 
 		// change member status
-		member.set_status(new_status);
+		member.status_ = new_status;
 
 		if (member.is_infected_status())
 			infected_list_.push_back(i);

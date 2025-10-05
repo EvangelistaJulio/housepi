@@ -28,7 +28,8 @@ double Distribution::rand(rnd_gen &prng)
     return (this->*rand_)(prng);
 }
 
-/// Rejection sampling.
+/// Rejection sampling. 
+/// UPDATE: not efficient at all, need to use quantiles probably.
 double Distribution::rejec_sample_(rnd_gen &prng, double (Distribution::*func)(rnd_gen &))
 {
     double xnew = (this->*func)(prng);
@@ -37,7 +38,7 @@ double Distribution::rejec_sample_(rnd_gen &prng, double (Distribution::*func)(r
     if (!is_valid(xnew))
         throw std::runtime_error(
             "Exceeded attempts (N > " + std::to_string(HSP_MAX_NUM_ATTEMPTS) +
-            ") in random draw of " + str_summary() + ".");
+            ") in random draw of " + str_summary(false) + ".");
     return xnew;
 }
 
@@ -156,7 +157,7 @@ void Distribution::init_trunc_helper_()
         }
         break;
 
-    default: // No Truncation (case 0) 
+    default: // No Truncation (case 0)
         trunc_ = &Distribution::do_trunc_dummy_;
         logtrunc_ = &Distribution::do_logtrunc_dummy_;
         shift_ = &Distribution::do_shift_dummy_;
@@ -182,7 +183,7 @@ str_vec DistributionRegistry::get_options() const
 
 std::shared_ptr<Distribution> DistributionRegistry::get_distr(const std::string &opt) const
 {
-    if (factory_map_.find(opt) != factory_map_.end())
+    if (factory_map_ % opt)
         return factory_map_.find(opt)->second();
     return nullptr;
 }
@@ -244,7 +245,7 @@ std::shared_ptr<Distribution> compose_distr_registries(const std::string &opt,
 #define GET_ARGS_1 arg(0)
 #define GET_ARGS_2 arg(0), arg(1)
 
-#define DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(distr_, n_args)            \
+#define MAKE_RAW_NUMR_IMPORT_FOR_DISTR(distr_, n_args)              \
     double raw_pdf_(double x) const override final                  \
     {                                                               \
         return numr::distr_::pdf(x, GET_ARGS_##n_args);             \
@@ -273,7 +274,7 @@ class Uniform_Distribution : public Distribution
 {
 public:
     Uniform_Distribution()
-        : Distribution("unif", HSP_RANGE_KEYS, {0., 1.},
+        : Distribution("uniform", HSP_RANGE_KEYS, {0., 1.},
                        HSP_NA_DOUBLE, false, HSP_NA_DOUBLE, false),
           distr_gen(arg(0), arg(1)) { init_uniform_range_(); }
 
@@ -312,7 +313,7 @@ class Normal_Distribution : public Distribution
 {
 public:
     Normal_Distribution()
-        : Distribution("norm", {"mean", "sd"}, {0., 1.},
+        : Distribution("normal", {"mean", "sd"}, {0., 1.},
                        HSP_NA_DOUBLE, false, HSP_NA_DOUBLE, false),
           distr_gen(arg(0), arg(1)) {}
 
@@ -339,7 +340,7 @@ public:
 protected:
     std::normal_distribution<double> distr_gen;
 
-    DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(normal, 2)
+    MAKE_RAW_NUMR_IMPORT_FOR_DISTR(normal, 2)
     double raw_rand_(rnd_gen &prng) override final { return arg(0) + arg(1) * distr_gen(prng); }
 };
 
@@ -354,7 +355,7 @@ class Lognormal_Distribution : public Distribution
 {
 public:
     Lognormal_Distribution()
-        : Distribution("lnorm", {"meanlog", "sdlog"}, {0., 1.},
+        : Distribution("lognormal", {"meanlog", "sdlog"}, {0., 1.},
                        0., true, HSP_NA_DOUBLE, false),
           distr_gen(arg(0), arg(1)) {}
 
@@ -365,7 +366,7 @@ protected:
 
     void update_args_() override final { distr_gen.param(std::lognormal_distribution<double>::param_type(arg(0), arg(1))); } // UPDATE
 
-    DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(lognormal, 2)
+    MAKE_RAW_NUMR_IMPORT_FOR_DISTR(lognormal, 2)
     double raw_rand_(rnd_gen &prng) override final { return distr_gen(prng); }
 };
 
@@ -415,7 +416,7 @@ protected:
         gamma_2.param(std::gamma_distribution<double>::param_type(arg(1), 1.));
     }
 
-    DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(beta, 2)
+    MAKE_RAW_NUMR_IMPORT_FOR_DISTR(beta, 2)
     double raw_rand_(rnd_gen &prng) override final
     {
         double x1 = gamma_1(prng);
@@ -446,7 +447,7 @@ protected:
 
     void update_args_() override final { distr_gen.param(std::gamma_distribution<double>::param_type(arg(0), arg(1))); } // UPDATE
 
-    DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(gamma, 2)
+    MAKE_RAW_NUMR_IMPORT_FOR_DISTR(gamma, 2)
     double raw_rand_(rnd_gen &prng) override final { return distr_gen(prng); }
 };
 
@@ -528,7 +529,7 @@ public:
 protected:
     std::uniform_real_distribution<double> unif_gen;
 
-    DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(rayleigh, 1)
+    MAKE_RAW_NUMR_IMPORT_FOR_DISTR(rayleigh, 1)
     double raw_rand_(rnd_gen &prng) override final { return arg(0) * sqrt(-2 * std::log(unif_gen(prng))); }
 };
 
@@ -554,7 +555,7 @@ protected:
 
     void update_args_() override final { distr_gen.param(std::weibull_distribution<double>::param_type(arg(0), arg(1))); } // UPDATE
 
-    DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(weibull, 2)
+    MAKE_RAW_NUMR_IMPORT_FOR_DISTR(weibull, 2)
     double raw_rand_(rnd_gen &prng) override final { return distr_gen(prng); }
 };
 
@@ -569,7 +570,7 @@ class Exponential_Distribution : public Distribution
 {
 public:
     Exponential_Distribution()
-        : Distribution("exp", {"rate"}, {1.},
+        : Distribution("exponential", {"rate"}, {1.},
                        0., false, HSP_NA_DOUBLE, false),
           distr_gen(arg(0)) {}
 
@@ -580,7 +581,7 @@ protected:
 
     void update_args_() override final { distr_gen.param(std::exponential_distribution<double>::param_type(arg(0))); } // UPDATE
 
-    DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(exponential, 1)
+    MAKE_RAW_NUMR_IMPORT_FOR_DISTR(exponential, 1)
     double raw_rand_(rnd_gen &prng) override final { return distr_gen(prng); }
 };
 
@@ -603,7 +604,7 @@ class Poisson_Distribution : public Distribution
 {
 public:
     Poisson_Distribution()
-        : Distribution("pois", {"lambda"}, {1.},
+        : Distribution("poisson", {"lambda"}, {1.},
                        0., false, HSP_NA_DOUBLE, false),
           distr_gen(1.) { init_discr_helper_(HSP_DISCR_DEFINED); }
 
@@ -614,7 +615,7 @@ protected:
 
     void update_args_() override final { distr_gen.param(std::poisson_distribution<unsigned>::param_type(arg(0))); } // UPDATE
 
-    DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(poisson, 1)
+    MAKE_RAW_NUMR_IMPORT_FOR_DISTR(poisson, 1)
     double raw_rand_(rnd_gen &prng) override final { return distr_gen(prng); }
 };
 
@@ -629,7 +630,7 @@ class Binomial_Distribution : public Distribution
 {
 public:
     Binomial_Distribution()
-        : Distribution("binom", {"size", "prob"}, {4, 0.5},
+        : Distribution("binomial", {"size", "prob"}, {4, 0.5},
                        0., false, HSP_NA_DOUBLE, false),
           distr_gen(arg(0), arg(1))
     {
@@ -659,7 +660,7 @@ protected:
 
     void update_args_() override final { distr_gen.param(std::binomial_distribution<unsigned>::param_type(arg(0), arg(1))); } // UPDATE
 
-    DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(binomial, 2)
+    MAKE_RAW_NUMR_IMPORT_FOR_DISTR(binomial, 2)
     double raw_rand_(rnd_gen &prng) override final { return distr_gen(prng); }
 };
 
@@ -674,7 +675,7 @@ class NegativeBinomial_Distribution : public Distribution
 {
 public:
     NegativeBinomial_Distribution()
-        : Distribution("nbinom", {"size", "prob"}, {4, .5},
+        : Distribution("negative_binomial", {"size", "prob"}, {4, .5},
                        0., false, HSP_NA_DOUBLE, false),
           distr_gen(arg(0), arg(1)) { init_discr_helper_(HSP_DISCR_DEFINED); }
 
@@ -685,7 +686,7 @@ protected:
 
     void update_args_() override final { distr_gen.param(std::negative_binomial_distribution<unsigned>::param_type(arg(0), arg(1))); } // UPDATE
 
-    DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(negbinomial, 2)
+    MAKE_RAW_NUMR_IMPORT_FOR_DISTR(negbinomial, 2)
     double raw_rand_(rnd_gen &prng) override final { return distr_gen(prng); }
 };
 
@@ -700,7 +701,7 @@ class Geometric_Distribution : public Distribution
 {
 public:
     Geometric_Distribution()
-        : Distribution("geom", {"proba"}, {0.5},
+        : Distribution("geometric", {"proba"}, {0.5},
                        0., false, HSP_NA_DOUBLE, false),
           distr_gen(arg(0)) { init_discr_helper_(HSP_DISCR_DEFINED); }
 
@@ -711,7 +712,7 @@ protected:
 
     void update_args_() override final { distr_gen.param(std::geometric_distribution<unsigned>::param_type(arg(0))); } // UPDATE
 
-    DEFINE_RAW_NUMR_IMPORT_FOR_DISTR(geometric, 1)
+    MAKE_RAW_NUMR_IMPORT_FOR_DISTR(geometric, 1)
     double raw_rand_(rnd_gen &prng) override final { return distr_gen(prng); }
 };
 
@@ -764,7 +765,7 @@ REGISTER_HOUSEPI_DISTRIBUTION(DiscreteDistrRegistry, Geometric_Distribution)
 ///   4) "incub_period" (individual incubation period);
 /// Note: symtoms can occur after infection (pre-symptomatic transmission),
 /// i. e. 't_ost' can be negative.
-/// 
+///
 /// Ref:
 /// ----
 /// Ferretti L, Ledda A, Wymant C, Zhao L, Ledda V, Abeler-Dorner L, et al.
@@ -842,11 +843,12 @@ REGISTER_HOUSEPI_DISTRIBUTION(InfecProfileRegistry, InfecProfile_Ferretti20)
 void Attribute::init_function(const std::string &s, bool is_primitive)
 {
     init_function(compose_func_registries(
-        s, "function", is_primitive,
+        s, "function",
         {&UserFuncRegistry::inst(),
          &TranscendentalRegistry::inst(),
          &ArithmeticRegistry::inst(),
          &ContinuosDistrRegistry::inst(),
          &DiscreteDistrRegistry::inst(),
-         &InfecProfileRegistry::inst()}));
+         &InfecProfileRegistry::inst()},
+        is_primitive));
 }

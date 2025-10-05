@@ -27,13 +27,13 @@ We use the same chain binomial example presented in [Get started](housepi.html):
 set.seed(42)
 hhmodel <- new_housepi_model("chain_binomial") |>
   add_data_wide(housepi::survey) |>
-  load_parameter_list(alpha = list(prior = "unif",  rule = "lnorm"),
-                      beta = list(prior = "unif", rule = "lnorm"))
+  load_parameter_list(alpha = list(prior = "uniform",  rule = "lognormal"),
+                      beta = list(prior = "uniform", rule = "lognormal"))
 
 # estimate parameters
 results <- hhmodel |>
-  infer(n_steps = 20000, n_burnin = 1000, thin = 8,
-        n_adapt = 1000, n_chains = 3, n_threads = 1)
+  infer(steps = 20000, burnin = 1000, thin = 8,
+        adapt = 1000, chains = 3, threads = 1)
 estimates <- results |>
   get_param_draws() |>
   posterior::summarise_draws()

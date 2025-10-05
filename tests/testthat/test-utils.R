@@ -10,8 +10,8 @@ test_that("Rlang standard functions work as expected", {
 })
 
 test_that("Rlang basic identity assignments work as expected", {
-  expect_equal(housepi:::DefEncoder$new(+3)$x, "3|S")
-  expect_equal(housepi:::DefEncoder$new(-1)$x, "-1|S")
+  expect_equal(housepi:::DefEncoder$new(+3)$x, "3|N")
+  expect_equal(housepi:::DefEncoder$new(-1)$x, "-1|N")
 
   expect_equal(housepi:::DefEncoder$new(~ alpha)$x, "alpha|A")
   expect_equal(housepi:::DefEncoder$new(~ alpha @ P)$x, "alpha|P")
@@ -42,7 +42,7 @@ test_that("Rlang arithmetic operations work as expected", {
 
 test_that("Rlang nested expression", {
   expect_equal(housepi:::DefEncoder$new(~a + 3 * b)$x,
-               "add|x:x2|{a|A}:{mult|x:x2|{3|S}:{b|A}}")
+               "add|x:x2|{a|A}:{mult|x:x2|{3|N}:{b|A}}")
   expect_equal(housepi:::DefEncoder$new(~a + b - c)$x,
                "sub|x:x2|{add|x:x2|{a|A}:{b|A}}:{c|A}")
   expect_equal(housepi:::DefEncoder$new(~log ( + alpha@P  ))$x,

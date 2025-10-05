@@ -28,8 +28,8 @@ To perform the sampling we consider the "blank" model, i. e. a data independent 
 Here's the full list of available continuos distributions present in `housepi`:
 ```{r}
 # real distributions in housepi
-continuos_distri <- c("unif", "norm", "lnorm", "gamma",
-                      "weibull", "rayleigh", "beta", "exp")
+continuos_distri <- c("uniform", "normal", "lognormal", "gamma",
+                      "weibull", "rayleigh", "beta", "exponential")
 
 # generate list with definitions
 defs <- Map(list, prior = continuos_distri) |>
@@ -57,10 +57,10 @@ library(ggplot2)
 
 new_housepi_model("blank") |>
   load_parameter_list(
-    default = list(prior = "norm"),
-    below = list(prior = "norm", min = -1),
-    above = list(prior = "norm", max = 1),
-    both = list(prior = "norm", min = -1, max = 1)
+    default = list(prior = "normal"),
+    below = list(prior = "normal", min = -1),
+    above = list(prior = "normal", max = 1),
+    both = list(prior = "normal", min = -1, max = 1)
   ) |>
   infer() |>
   get_param_draws() |>
@@ -87,7 +87,7 @@ Here's the full list of available discrete distributions present in `housepi`:
 
 ```{r}
 # discrete distributions in housepi
-discrete_distri <- c("pois", "binom", "nbinom", "geom")
+discrete_distri <- c("poisson", "binomial", "negative_binomial", "geometric")
 defs <- Map(list, prior = discrete_distri) |>
   setNames(discrete_distri)
 
@@ -123,24 +123,24 @@ bayesplot::color_scheme_set(scheme = "brightblue")
 
 ```{r}
 # available proposer rules in housepi
-prop_rules <- c("sample", "unif", "norm", "lnorm")
-defs <- Map(list, prior = "norm", min = 0, rule = prop_rules, scale = 0.01) |>
+prop_rules <- c("sample", "uniform", "normal", "lognormal")
+defs <- Map(list, prior = "normal", min = 0, rule = prop_rules, scale = 0.01) |>
   setNames(paste("rule", prop_rules))
 
 new_housepi_model("blank") |>
   load_parameter_list(from = defs) |>
-  infer(n_steps = 100) |>
+  infer(steps = 100) |>
   get_param_draws() |>
   bayesplot::mcmc_trace()
 ```
-Note that the proposer rule "lnorm" does not fit the case of negative values.
+Note that the proposer rule "lognormal" does not fit the case of negative values.
 
 ## Role of finite adaptation
 
 ```{r}
 new_housepi_model("blank") |>
   load_parameter_list(from = defs) |>
-  infer(n_steps = 100, n_adapt = 1000) |>
+  infer(steps = 100, adapt = 1000) |>
   get_param_draws() |>
   bayesplot::mcmc_trace()
 ```

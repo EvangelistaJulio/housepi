@@ -71,9 +71,9 @@ public:
             : pImpl_(ptr), unif_(0., 1.) {}
         ~Setup() = default;
 
-        const str_vec file_headers = {"sample_size", "seed", "n_chains",
-                                      "n_steps", "n_adapt", "thin",
-                                      "n_burnin", "n_threads",
+        const str_vec file_headers = {"sample_size", "seed", "chains",
+                                      "steps", "adapt", "thin",
+                                      "burnin", "threads",
                                       "id_draws", "progress"};
 
         std::int32_t seed;               /// random generator seed
@@ -81,7 +81,7 @@ public:
         unsigned long n_chains = 1;      /// n. chains
         unsigned long n_steps = 1;       /// n. iterations
         unsigned long n_adapt = 0;       /// n. (finite) adaptive steps
-        unsigned long thin = 1;          /// n. thinning iterations
+        unsigned long n_thin = 1;          /// n. thinning iterations
         unsigned long n_burnin = 0;      /// n. burnin iterations
         unsigned long n_rungs = 0;       /// n. of rungs
         unsigned long c_sample_size = 0; /// single chain sample size
@@ -128,7 +128,6 @@ public:
         Rcpp::CharacterVector draws_iter_names() const;
 #else
         void read(const std::string &pathtofile);
-        void show() const;
 #endif
 
     private:
@@ -222,7 +221,6 @@ public:
         Rcpp::DataFrame rcpp_export() const;
 #else
         void read(const std::string &pathtofile);
-        void show() const;
 #endif
     private:
         const std::string section_name_ = "parameter";
@@ -254,7 +252,7 @@ public:
         Household &operator()(size_t H) { return house_vector_[H]; }
         const Household &operator()(const std::string &house_id) const
         {
-            if (!hhid_to_index_.count(house_id))
+            if (!(hhid_to_index_ % house_id))
                 throw std::invalid_argument(
                     "Index \"" + house_id + "\" does not match any household in the dataset.");
             return house_vector_.at(hhid_to_index_.at(house_id));
@@ -373,7 +371,6 @@ public:
 #else
         void read(const std::string &pathtofile);
         void read_multiplicity(const std::string &pathtofile);
-        void show_summary() const;
 
         void print_open(const std::string &pathtofile);
         void print_update(Household &house);
@@ -577,16 +574,21 @@ public:
         const std::string section_name_ = "augmented";
         MCMC::Impl &pImpl_; // pointer to external class
 
-        void build_helper_assert_correct_definitions_();
-        void build_definition_order_(const std::string &s);
-        void build_helper_usage_lists_();
-        void build_variable_models_();
-        void build_function_(size_t k);
-        void build_function_identity_helper_(size_t k);
-        void build_variable_to_sample_(size_t k);
-        void build_helper_set_id_draws_();
+        void helper_build_definition_();
+        void build_definition_make_univocal_();
+        void build_definition_dependency_order_(const std::string &s);
+        std::vector<size_t> definition_rows_by_status_(const std::string &s);
 
-        void init_helper_variable_dependencies_(Individual &member, size_t k);
+        void helper_build_usage_list_();
+        void build_list_model_();
+        void build_list_function_(size_t k);
+        void build_list_function_identity_case_(size_t k);
+        void build_list_sample_(size_t k);
+
+        void helper_build_id_draws_();
+
+        void helper_init_dependencies_(Individual &member, size_t k);
+        std::vector<size_t> init_get_definition_order_(Individual &member);
         void init_model_attributes_(Individual &member, size_t k);
         void init_func_attributes_(Individual &member, size_t k);
     } augm;
@@ -685,7 +687,7 @@ public:
     Rcpp::List simulate(size_t n_rep);
     Rcpp::DataFrame simulate_repetition();
 
-    Rcpp::List evidence(const std::string &scheme, unsigned long n_rungs);
+    Rcpp::List logevidence(const std::string &scheme, unsigned long n_rungs);
 
     //----- Rcpp EXPORTS -----//
     Rcpp::NumericMatrix rcpp_export_draws() const;
@@ -694,7 +696,7 @@ public:
     //----- C++ Print -----//
     void print_infer_state(const std::string &output_filename = HSP_NA_STRING) const;
     void print_simulated_data_wide(const std::string &output_filename = HSP_NA_STRING);
-    void print_evidence(const std::string &scheme, unsigned long n_rungs);
+    void print_logevidence(const std::string &scheme, unsigned long n_rungs);
 #endif
 
 private:
@@ -702,8 +704,8 @@ private:
     /////////////////////////  MCMC : Impl : definition helpers [private]  //////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    double read_scalar_(const DefinitionParser::ASTNode &node, const Individual &member = Individual());
-    double read_scalar_(const std::string &expr, const Individual &member = Individual());
+    double read_numeric_(const DefinitionParser::ASTNode &node, const Individual &member = Individual());
+    double read_numeric_(const std::string &expr, const Individual &member = Individual());
     Attribute read_attribute_(const DefinitionParser::ASTNode &node, const Individual &member = Individual());
     Attribute read_attribute_(const std::string &expr, const Individual &member = Individual());
     void make_param_cache_depen_(const DefinitionParser::ASTNode &node);
