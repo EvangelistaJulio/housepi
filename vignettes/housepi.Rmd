@@ -137,17 +137,17 @@ It's default printing behavior will be to show the results of `posterior::summar
 ```{r}
 # run the Monte Carlo specifying setup options
 results <- hhmodel |>
-  infer(n_steps = 20000,  # number of mcmc steps (per chain)
-        n_burnin = 1000,  # steps to burn
+  infer(steps = 20000,  # number of mcmc steps (per chain)
+        burnin = 1000,  # steps to burn
         thin = 8,         # delay between sampling steps
-        n_adapt = 1000,   # finite adaptation steps before sampling
-        n_chains = 3,     # number of independent chains
-        n_threads = 1,    # number of threads
+        adapt = 1000,   # finite adaptation steps before sampling
+        chains = 3,     # number of independent chains
+        threads = 1,    # number of threads
         progress = FALSE) # disable progress bar
 results
 ```
 
-*Note:* parallel computations are implemented with *openMP* which is not supported on latest macOS distributions, thus the option `n_threads` is not granted on such systems.
+*Note:* parallel computations are implemented with *openMP* which is not supported on latest macOS distributions, thus the option `threads` is not granted on such systems.
 
 We can proceed as usual with other popolar R packages for Bayesian analysis.
 For example, we can extract the parameters draws by calling `get_param_draws` and plot traces with [bayesplot](https://cran.r-project.org/web/packages/bayesplot/)
@@ -260,9 +260,9 @@ hhmodel <- hhsimul |>
   )
 
 results <- hhmodel |>
-  # perform the inference
-  infer(simulated, n_chains = 3, n_steps = 10000, n_adapt = 2000,
-        n_burnin = 1000, thin = 10, progress = 20) |>
+  add_data_wide(simulated) |>
+  infer(chains = 3, steps = 10000, adapt = 2000,
+        burnin = 1000, thin = 10, progress = 20) |>
   # extract sample to posterioir::draws_df
   get_param_draws()
 ```

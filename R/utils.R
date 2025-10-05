@@ -741,10 +741,10 @@ make_def_readable <- function(defs) {
 
       output <- cbind(
         output[1:(pos - 1)],
-        setNames(list(.extract_func(output[[col]])), col),
-        setNames(list(.extract_args(output[[col]])),
-                 ifelse(col %in% c("prior", "model"),
-                        "args", paste0(col, "_args"))),
+        stats::setNames(list(.extract_func(output[[col]])), col),
+        stats::setNames(list(.extract_args(output[[col]])),
+                        ifelse(col %in% c("prior", "model"),
+                               "args", paste0(col, "_args"))),
         output[(pos + 1):ncol(output)]
       )
     }

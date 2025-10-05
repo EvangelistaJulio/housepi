@@ -396,7 +396,7 @@ HousepiGenerator <- R6::R6Class(
     .adjust_seed = function(seed) {
       max_r_int <- .Machine$integer.max
       if (is.na(seed)) seed <- sample.int(max_r_int, 1)
-      else seed <- abs(seed)
+      else seed <- abs(as.integer(seed))
 
       # control that seed is 32bit (for custom seed)
       if (seed > max_r_int) stop_h(

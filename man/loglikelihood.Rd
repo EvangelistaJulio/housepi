@@ -4,12 +4,10 @@
 \alias{loglikelihood}
 \title{Compute loglikelihood of housepi model}
 \usage{
-loglikelihood(object, data_wide = NULL, seed = NA)
+loglikelihood(object, seed = NA)
 }
 \arguments{
 \item{object}{\code{HousepiModel} object.}
-
-\item{data_wide}{\code{data.frame} with the household data used for analysis in wide format. If \code{NULL}, uses the previously stored data.}
 
 \item{seed}{\code{integer(1)} with the seed for the random number generator.\cr
 If \code{NA} uses current R seed (default).}

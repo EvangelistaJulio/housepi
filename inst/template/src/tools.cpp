@@ -343,14 +343,14 @@ namespace tools
                 if (show_avail_options)
                 {
                     if (options.size() == 1)
-                        return "\nAvailable option is " + format(options, 1);
+                        return " Available option is " + format(options, 1);
                     else
                         return "\nAvailable options are: " + format(options, HSP_MAX_STR_PRINT);
                 }
                 return "";
             }
             else
-                return "\nDid you mean \"" + closest + "\"?";
+                return " Did you mean \"" + closest + "\"?";
         }
 
         /// Check for missing entries given a vector of options.

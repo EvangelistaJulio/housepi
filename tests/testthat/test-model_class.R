@@ -44,12 +44,10 @@ test_that("Model class blank calls", {
 })
 
 test_that("Deep clone works as expected", {
-  # UPDATE: change to a model with data augmentation
   hhmodel <- new_housepi_model("chain_binomial_heterogeneous")
+  hhmodel$data_wide <- housepi::survey
   hhmodel$load_parameter_template()
-  expect_no_error(
-    out <- hhmodel$infer(housepi::survey, n_steps = 2, progress = FALSE)
-  )
+  expect_no_error(out <- hhmodel$infer(steps = 2, progress = FALSE))
 
   # shallow clone
   hhclone <- hhmodel$clone(deep = FALSE)
@@ -79,8 +77,8 @@ test_that("Deep clone works as expected", {
 test_that("Loglikelihood traces and pointwise traces are coherent", {
   results <- new_housepi_model("chain_binomial") |>
     load_parameter_template() |>
-    infer(housepi::survey, sample_size = 10,
-          thin = 4, n_adapt = 0, n_burnin = 0)
+    add_data_wide(housepi::survey) |> 
+    infer(sample_size = 10, thin = 4, adapt = 0, burnin = 0)
 
   pointwise <- results$house_draws |>
     posterior::as_draws_matrix() |>
@@ -93,15 +91,17 @@ test_that("Chain binomial models are coherent", {
   # loglikelihood from chain binomial model
   hhmodel1 <- new_housepi_model("chain_binomial")
 
-  hhmodel1$load_parameter_list(alpha = 0.15, beta = 0.22)
-  ll1 <- hhmodel1$loglikelihood(housepi::survey)
+  hhmodel1$parameters <- list(alpha = 0.15, beta = 0.22)
+  hhmodel1$data_wide <- housepi::survey
+  ll1 <- hhmodel1$loglikelihood()
 
   # loglikelihood from heterogeneous chain binomial model
   # with homogenous rates
   hhmodel2 <- new_housepi_model("chain_binomial_heterogeneous")
 
-  hhmodel2$load_parameter_list(alpha = 0.15, beta = 0.22)
-  ll2 <- hhmodel2$loglikelihood(housepi::survey)
+  hhmodel2$parameters <- list(alpha = 0.15, beta = 0.22)
+  hhmodel2$data_wide <- housepi::survey
+  ll2 <- hhmodel2$loglikelihood()
 
   expect_equal(ll1, ll2)
 })
@@ -245,11 +245,10 @@ test_that("Augmentation example on incubation from delays is coherent", {
     proba = list(func = "gamma",
                  func_args = c(x = ~ip@D, shape = shape, scale = scale))
   )
-
   # warning for no structure
-  expect_warning(x <- hhmodel$loglikelihood(df),
+  expect_warning(hhmodel$data_wide <- df,
                  regexp = "Ignored household structure")
-  expect_equal(x, exact)
+  expect_equal(hhmodel$loglikelihood(), exact)
 })
 
 test_that("NNested definittions works as expected", {
@@ -263,7 +262,7 @@ test_that("NNested definittions works as expected", {
     z0 = ~sqrt(- 2 * log(u1)) * cos(6.283185 * u2)
   )
 
-  results <- hhmodel$infer(n_steps = 1e5, progress = 0)
+  results <- hhmodel$infer(steps = 1e5, progress = 0)
   sample_norm <- results$augm_draws$hh_01_1_norm
   sample_boxmul <- results$augm_draws$hh_01_1_z0
 

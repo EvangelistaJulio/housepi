@@ -136,7 +136,7 @@ Make an internal copy of the provided household data_wide.
 \if{html}{\out{<a id="method-HousepiModel-summarise_cases"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-summarise_cases}{}}}
 \subsection{Method \code{summarise_cases()}}{
-Summarise statuses in the data_wide.
+Summarise statuses in loaded data.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$summarise_cases()}\if{html}{\out{</div>}}
 }
@@ -149,7 +149,7 @@ Summarise statuses in the data_wide.
 \if{html}{\out{<a id="method-HousepiModel-summarise_house_sizes"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-summarise_house_sizes}{}}}
 \subsection{Method \code{summarise_house_sizes()}}{
-Summary house sizes in the data_wide.
+Summary house sizes in loaded data.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$summarise_house_sizes()}\if{html}{\out{</div>}}
 }
@@ -412,7 +412,7 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 \if{html}{\out{<a id="method-HousepiModel-add_group_rate"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-add_group_rate}{}}}
 \subsection{Method \code{add_group_rate()}}{
-Add definitions of a group rate by given data_wide feature(s).
+Add definitions of a group rate by given data feature(s).
 Reference value has unitary rate and can be specified
 (default is most represented group).
 \subsection{Usage}{
@@ -538,14 +538,12 @@ One between:\cr
 \subsection{Method \code{loglikelihood()}}{
 Compute the loglikelihood.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$loglikelihood(data_wide = NULL, seed = NA)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$loglikelihood(seed = NA)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{data_wide}}{\code{data.frame} with the household data used for analysis in wide format. If \code{NULL}, uses the previously stored data.}
-
 \item{\code{seed}}{\code{integer(1)} with the seed for the random number generator.\cr
 If \code{NA} uses current R seed (default).}
 
@@ -564,14 +562,13 @@ If \code{NA} uses current R seed (default).}
 Run inference with Bayesian Markov Chain Monte Carlo.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$infer(
-  data_wide = NULL,
   sample_size = NA,
-  n_steps = 10000,
-  n_burnin = 0,
+  steps = 10000,
+  burnin = 0,
   thin = 1,
-  n_adapt = 0,
-  n_chains = 1,
-  n_threads = 1,
+  adapt = 0,
+  chains = 1,
+  threads = 1,
   id_draws = NA,
   seed = NA,
   progress = TRUE
@@ -581,21 +578,19 @@ Run inference with Bayesian Markov Chain Monte Carlo.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{data_wide}}{\code{data.frame} with the household data used for analysis in wide format. If \code{NULL}, uses the previously stored data.}
-
 \item{\code{sample_size}}{\code{integer(1)} with the number of posterior draws stored for each chain.}
 
-\item{\code{n_steps}}{\code{integer(1)}  with the total number of MCMC steps for each chain.}
+\item{\code{steps}}{\code{integer(1)}  with the total number of MCMC steps for each chain.}
 
-\item{\code{n_burnin}}{\code{integer(1)} with the number of initial steps to discard as burn-in.}
+\item{\code{burnin}}{\code{integer(1)} with the number of initial steps to discard as burn-in.}
 
 \item{\code{thin}}{\code{integer(1)} with the thinning interval, i. e. the number of steps to skip between each saved sample.}
 
-\item{\code{n_adapt}}{\code{integer(1)} with the number of adaptation steps before starting the main sampling.}
+\item{\code{adapt}}{\code{integer(1)} with the number of adaptation steps before starting the main sampling.}
 
-\item{\code{n_chains}}{\code{integer(1)} with the number of independent MCMC chains to run.}
+\item{\code{chains}}{\code{integer(1)} with the number of independent MCMC chains to run.}
 
-\item{\code{n_threads}}{\code{integer(1)} with the number of threads to run in parallel.}
+\item{\code{threads}}{\code{integer(1)} with the number of threads to run in parallel.}
 
 \item{\code{id_draws}}{\code{character()} with individuals identifiers.\cr
 Store draws of public augmented variables for the chosen individuals.}
@@ -622,16 +617,15 @@ Estimate the model logevidence (or marginal likelihood).
 It uses the method of power posteriors with different available schemes.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$logevidence(
-  data_wide = NULL,
   scheme = "power-fractions",
-  n_rungs = 40,
+  rungs = 40,
   sample_size = NA,
-  n_steps = 10000,
-  n_burnin = 0,
+  steps = 10000,
+  burnin = 0,
   thin = 1,
-  n_adapt = 0,
-  n_chains = 1,
-  n_threads = 1,
+  adapt = 0,
+  chains = 1,
+  threads = 1,
   seed = NA,
   progress = TRUE
 )}\if{html}{\out{</div>}}
@@ -640,8 +634,6 @@ It uses the method of power posteriors with different available schemes.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{data_wide}}{\code{data.frame} with the household data used for analysis in wide format. If \code{NULL}, uses the previously stored data.}
-
 \item{\code{scheme}}{\code{character(1)} with the scheme used for evidence estimation.\cr
 One between\cr
 \itemize{
@@ -649,22 +641,22 @@ One between\cr
 \item "adaptive": uses adaptive thermodynamic ladder.
 }}
 
-\item{\code{n_rungs}}{\code{integer(1)} \cr
+\item{\code{rungs}}{\code{integer(1)} \cr
 Number of rungs in the thermodynamic ladder.}
 
 \item{\code{sample_size}}{\code{integer(1)} with the number of posterior draws stored for each chain.}
 
-\item{\code{n_steps}}{\code{integer(1)}  with the total number of MCMC steps for each chain.}
+\item{\code{steps}}{\code{integer(1)}  with the total number of MCMC steps for each chain.}
 
-\item{\code{n_burnin}}{\code{integer(1)} with the number of initial steps to discard as burn-in.}
+\item{\code{burnin}}{\code{integer(1)} with the number of initial steps to discard as burn-in.}
 
 \item{\code{thin}}{\code{integer(1)} with the thinning interval, i. e. the number of steps to skip between each saved sample.}
 
-\item{\code{n_adapt}}{\code{integer(1)} with the number of adaptation steps before starting the main sampling.}
+\item{\code{adapt}}{\code{integer(1)} with the number of adaptation steps before starting the main sampling.}
 
-\item{\code{n_chains}}{\code{integer(1)} with the number of independent MCMC chains to run.}
+\item{\code{chains}}{\code{integer(1)} with the number of independent MCMC chains to run.}
 
-\item{\code{n_threads}}{\code{integer(1)} with the number of threads to run in parallel.}
+\item{\code{threads}}{\code{integer(1)} with the number of threads to run in parallel.}
 
 \item{\code{seed}}{\code{integer(1)} with the seed for the random number generator.\cr
 If \code{NA} uses current R seed (default).}
@@ -724,24 +716,17 @@ Generate a simulated outbreak.
 It assumes the same community structure of the loaded data.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$simulate(
-  data_wide = NULL,
-  obs_process = NULL,
-  n_sim = 1,
+  nsim = 1,
   seed = NA,
-  progress = FALSE
+  progress = FALSE,
+  obs_process = NULL
 )}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{data_wide}}{\code{data.frame} with the household data used for analysis in wide format. If \code{NULL}, uses the previously stored data.}
-
-\item{\code{obs_process}}{A \code{function} with the observation process.\cr
-It expects as input the \code{data.frame} generated by simulation.\cr
-If \code{NULL}, observation process is ignored.}
-
-\item{\code{n_sim}}{\code{integer(1)} with the number of simulated outbreaks.}
+\item{\code{nsim}}{\code{integer(1)} with the number of simulated outbreaks.}
 
 \item{\code{seed}}{\code{integer(1)} with the seed for the random number generator.\cr
 If \code{NA} uses current R seed (default).}
@@ -753,6 +738,10 @@ One between:\cr
 \item If \code{TRUE} prints progress every second (default);\cr
 \item If \code{FALSE} or \code{0}, suppresses progress display.
 }}
+
+\item{\code{obs_process}}{A \code{function} with the observation process.\cr
+It expects as input the \code{data.frame} generated by simulation.\cr
+If \code{NULL}, observation process is ignored.}
 }
 \if{html}{\out{</div>}}
 }

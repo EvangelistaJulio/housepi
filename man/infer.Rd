@@ -6,14 +6,13 @@
 \usage{
 infer(
   object,
-  data_wide = NULL,
   sample_size = NA,
-  n_steps = 5000,
-  n_burnin = 0,
+  steps = 5000,
+  burnin = 0,
   thin = 1,
-  n_adapt = 0,
-  n_chains = 1,
-  n_threads = 1,
+  adapt = 0,
+  chains = 1,
+  threads = 1,
   id_draws = NA,
   seed = NA,
   progress = TRUE
@@ -22,21 +21,19 @@ infer(
 \arguments{
 \item{object}{\code{HousepiModel} object.}
 
-\item{data_wide}{\code{data.frame} with the household data used for analysis in wide format. If \code{NULL}, uses the previously stored data.}
-
 \item{sample_size}{\code{integer(1)} with the number of posterior draws stored for each chain.}
 
-\item{n_steps}{\code{integer(1)}  with the total number of MCMC steps for each chain.}
+\item{steps}{\code{integer(1)}  with the total number of MCMC steps for each chain.}
 
-\item{n_burnin}{\code{integer(1)} with the number of initial steps to discard as burn-in.}
+\item{burnin}{\code{integer(1)} with the number of initial steps to discard as burn-in.}
 
 \item{thin}{\code{integer(1)} with the thinning interval, i. e. the number of steps to skip between each saved sample.}
 
-\item{n_adapt}{\code{integer(1)} with the number of adaptation steps before starting the main sampling.}
+\item{adapt}{\code{integer(1)} with the number of adaptation steps before starting the main sampling.}
 
-\item{n_chains}{\code{integer(1)} with the number of independent MCMC chains to run.}
+\item{chains}{\code{integer(1)} with the number of independent MCMC chains to run.}
 
-\item{n_threads}{\code{integer(1)} with the number of threads to run in parallel.}
+\item{threads}{\code{integer(1)} with the number of threads to run in parallel.}
 
 \item{id_draws}{\code{character()} with individuals identifiers.\cr
 Store draws of public augmented variables for the chosen individuals.}

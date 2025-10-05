@@ -142,8 +142,8 @@ We can do so by providing the `id` of individuals whose augmented variables we w
 #| warning: false
 results <- hhmodel |>
   add_data_wide(dataset) |>
-  infer(n_steps = 10000, n_burnin = 500,
-        thin = 8, n_chains = 3, n_adapt = 3000,
+  infer(steps = 10000, burnin = 500,
+        thin = 8, chains = 3, adapt = 3000,
         id_draws = c("7"), # store augmented draws for individual "7"
         progress = FALSE)
 

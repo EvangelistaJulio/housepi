@@ -102,8 +102,8 @@ hhmodel <- hhmodel |>
   )
 
 results <- hhmodel |>
-  infer(n_chains = 3, n_steps = 6000, n_burnin = 2000,
-        thin = 5, n_adapt = 1000, progress = 20) |>
+  infer(chains = 3, steps = 6000, burnin = 2000,
+        thin = 5, adapt = 1000, progress = 20) |>
   get_param_draws()
 ```
 

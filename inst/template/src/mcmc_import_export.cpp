@@ -90,7 +90,7 @@ Rcpp::List MCMC::Impl::Setup::rcpp_export() const
                         _["n_steps"] = n_steps,
                         _["n_adapt"] = n_adapt,
                         _["n_burnin"] = n_burnin,
-                        _["thin"] = thin,
+                        _["thin"] = n_thin,
                         _["seed"] = seed,
                         _["n_threads"] = n_threads,
                         _["id_draws"] = CharacterVector(wrap(id_draws)),
@@ -423,7 +423,7 @@ Rcpp::CharacterVector MCMC::Impl::Setup::draws_iter_names() const
     std::vector<unsigned long> iteration(c_sample_size * n_chains);
     for (size_t c = 0; c < n_chains; ++c)
         for (size_t k = 0; k < c_sample_size; k++)
-            iteration[k + c * c_sample_size] = n_burnin + (k + 1) * thin;
+            iteration[k + c * c_sample_size] = n_burnin + (k + 1) * n_thin;
     return CharacterVector(wrap(std::move(iteration)));
 }
 
@@ -896,7 +896,7 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
                     size_t i = k + c * setup.c_sample_size;
 
                     // print iteration
-                    unsigned long sweep = setup.n_burnin + (k + 1) * setup.thin;
+                    unsigned long sweep = setup.n_burnin + (k + 1) * setup.n_thin;
                     inferstate_ofstream << sweep;
 
                     // print loglikelihood

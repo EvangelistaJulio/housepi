@@ -150,6 +150,14 @@ void MCMC::Impl::InfecProfile::build(const dict_str &deflist)
 		tools::str::assert_no_unused_entries(
 			tools::read::list_headers(deflist), headers_);
 
+		// check definition list has a function
+		if (!(deflist % "func"))
+			throw std::invalid_argument(
+				"Missing function definition for infectivity profile.");
+		else if (DefinitionParser(deflist.at("func")).is_na())
+			throw std::invalid_argument(
+				"Empty function definition for infectivity profile.");
+
 		// check if definition is generic or augmented
 		bool is_augm = DefinitionParser(deflist.at("func")).is_augm_depen() ||
 					   DefinitionParser(deflist.at(HSP_PARAM_MAX)).is_augm_depen();
@@ -168,26 +176,17 @@ void MCMC::Impl::InfecProfile::build_generic_profile_(const dict_str &deflist)
 	inst_ = &InfecProfile::do_inst_default_;
 	cumul_ = &InfecProfile::do_cumul_default_;
 
-	// name
-	if (deflist % "func" && !tools::is_na(deflist.at("func")))
+	DefinitionParser parser(DefinitionParser(deflist.at("func")));
+	profile_ = compose_distr_registries(parser.root.func,
+										"infectivity profile",
+										{&InfecProfileRegistry::inst(),
+										 &ContinuosDistrRegistry::inst(),
+										 &DiscreteDistrRegistry::inst()});
+	for (const auto &node : parser.root.children)
 	{
-		DefinitionParser parser(DefinitionParser(deflist.at("func")));
-
-		profile_ = compose_distr_registries(
-			parser.root.func,
-			"infectivity profile",
-			{&InfecProfileRegistry::inst(),
-			 &ContinuosDistrRegistry::inst(),
-			 &DiscreteDistrRegistry::inst()});
-
-		for (const auto &node : parser.root.children)
-		{
-			profile_->init_attr(node.key, pImpl_.read_attribute_(node));
-			pImpl_.make_param_cache_depen_(node);
-		}
+		profile_->init_attr(node.key, pImpl_.read_attribute_(node));
+		pImpl_.make_param_cache_depen_(node);
 	}
-	else
-		throw std::invalid_argument("Missing name.");
 
 	// discretization
 	if (deflist % "discr")
@@ -201,8 +200,8 @@ void MCMC::Impl::InfecProfile::build_generic_profile_(const dict_str &deflist)
 		profile_->init_attr(HSP_PARAM_MIN, pImpl_.read_attribute_("0|N"));
 
 	// range maximum
-	profile_->init_attr(HSP_PARAM_MAX, pImpl_.read_attribute_(deflist.at(HSP_PARAM_MAX)));
-
+	if (deflist % HSP_PARAM_MAX)
+		profile_->init_attr(HSP_PARAM_MAX, pImpl_.read_attribute_(deflist.at(HSP_PARAM_MAX)));
 	// range truncation
 	profile_->init_truncation();
 
@@ -216,37 +215,14 @@ void MCMC::Impl::InfecProfile::build_generic_profile_(const dict_str &deflist)
 /// Build for individual augmented function infectivity profile.
 void MCMC::Impl::InfecProfile::build_augmented_profile_(const dict_str &deflist)
 {
-	// check definition list has a name
-	std::string func_name;
-	if (deflist % ("func") && !tools::is_na(deflist.at("func")))
-		func_name = deflist.at("func");
-	else
-		throw std::invalid_argument("Missing name.");
-
 	// use generic build to check profile name at this stage
-	build_generic_profile_({{"func", func_name}});
+	build_generic_profile_({{"func", DefinitionParser(deflist.at("func")).root.func}});
 
 	// drop generic definition
 	clear_lookup_();
 	profile_ = std::make_unique<Distribution>();
 	inst_ = &InfecProfile::do_inst_augm_;
 	cumul_ = &InfecProfile::do_cumul_augm_;
-
-	// auxiliary vector of string with single NA option for generation time
-	const str_vec aux_str({HSP_NA_STRING});
-
-	// adjust arguments to connect to generation time
-	std::string arg_key = deflist.at("arg_key");
-	if (!tools::is_na(arg_key))
-		arg_key += HSP_LIST_DELIM;
-
-	std::string arg_val = deflist.at("arg_val");
-	if (!tools::is_na(arg_val))
-		arg_val += HSP_LIST_DELIM;
-
-	std::string arg_at = deflist.at("arg_at");
-	if (!tools::is_na(arg_at))
-		arg_at += HSP_LIST_DELIM;
 
 	// initialize for instantaneous and cumulative profiles
 	bool is_discrete = tools::str::tobool(deflist.at("discr"));
@@ -256,11 +232,10 @@ void MCMC::Impl::InfecProfile::build_augmented_profile_(const dict_str &deflist)
 
 	augm_infec_profile_deflist_.at("const") = str_vec(2, "false");
 	augm_infec_profile_deflist_.at("discr") = str_vec(2, tools::str::format(is_discrete));
-	augm_infec_profile_deflist_.at("init_rand") = str_vec(2, "false");
 
 	// match infectivity profile and augmented variable definition
 	const dict_str_vec matcher = {{"name", str_vec({HSP_PROFILE_INST, HSP_PROFILE_CUMUL})},
-								  {"func", str_vec(2, func_name)},
+								  {"func", str_vec(2, deflist.at("func"))},
 								  {"fcumul", {"false", "true"}},
 								  {HSP_PARAM_MIN, str_vec(2, (is_discrete) ? "1|N" : "0|N")},
 								  {HSP_PARAM_MAX, str_vec(2, deflist.at(HSP_PARAM_MAX))}};

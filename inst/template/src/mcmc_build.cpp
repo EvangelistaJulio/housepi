@@ -48,36 +48,36 @@ void MCMC::Impl::Setup::build(const dict_str &deflist)
             progress = tools::str::toul(deflist.at("progress"));
 
         // N. of Threads
-        if (deflist % "n_threads" && !tools::is_na(deflist.at("n_threads")))
-            n_threads = tools::str::toi(deflist.at("n_threads"), "n. of threads");
+        if (deflist % "threads" && !tools::is_na(deflist.at("threads")))
+            n_threads = tools::str::toi(deflist.at("threads"), "n. of threads");
 
         // PRNG Seed
-        if (deflist %"seed" && !tools::is_na(deflist.at("seed")))
+        if (deflist % "seed" && !tools::is_na(deflist.at("seed")))
             seed = tools::str::toi32(deflist.at("seed"), "random seed");
 
         // N. of Chains
-        if (deflist % "n_chains" && !tools::is_na(deflist.at("n_chains")))
-            n_chains = tools::str::toul(deflist.at("n_chains"), "n. of chains");
+        if (deflist % "chains" && !tools::is_na(deflist.at("chains")))
+            n_chains = tools::str::toul(deflist.at("chains"), "n. of chains");
 
         // Single Chain Sample Size
         if (deflist % "sample_size" && !tools::is_na(deflist.at("sample_size")))
             c_sample_size = tools::str::toul(deflist.at("sample_size"), "sample size");
 
         // N. of Steps
-        if (deflist % "n_steps" && !tools::is_na(deflist.at("n_steps")))
-            n_steps = tools::str::toul(deflist.at("n_steps"), "n. of steps");
+        if (deflist % "steps" && !tools::is_na(deflist.at("steps")))
+            n_steps = tools::str::toul(deflist.at("steps"), "n. of steps");
 
         // N. of Adaptive Steps
-        if (deflist % "n_adapt" && !tools::is_na(deflist.at("n_adapt")))
-            n_adapt = tools::str::toul(deflist.at("n_adapt"), "n. of adaptive steps");
+        if (deflist % "adapt" && !tools::is_na(deflist.at("adapt")))
+            n_adapt = tools::str::toul(deflist.at("adapt"), "n. of adaptive steps");
 
         // N. of Thinning Steps
         if (deflist % "thin" && !tools::is_na(deflist.at("thin")))
-            thin = tools::str::toul(deflist.at("thin"), "thin");
+            n_thin = tools::str::toul(deflist.at("thin"), "thin");
 
         // N. of Steps to "Burn-In"
-        if (deflist % "n_burnin" && !tools::is_na(deflist.at("n_burnin")))
-            n_burnin = tools::str::toul(deflist.at("n_burnin"), "burn-in");
+        if (deflist % "burnin" && !tools::is_na(deflist.at("burnin")))
+            n_burnin = tools::str::toul(deflist.at("burnin"), "burn-in");
 
         // Individual ID for Augmented Trace
         if (deflist % "id_draws" && !tools::is_na(deflist.at("id_draws")))
@@ -154,8 +154,8 @@ void MCMC::Impl::Setup::assert_mcmc_setup()
         throw std::out_of_range("Number of chains must be greater than 0.");
 
     // Interpret thinning equal to 0 has been interpreted as 1.
-    if (thin == 0)
-        thin = 1;
+    if (n_thin == 0)
+        n_thin = 1;
 
     if (c_sample_size == 0)
     {
@@ -165,22 +165,22 @@ void MCMC::Impl::Setup::assert_mcmc_setup()
         if (n_burnin >= n_steps)
             throw std::out_of_range(
                 "Burn-in must be smaller than n. of steps.");
-        if (thin > n_steps)
+        if (n_thin > n_steps)
             throw std::out_of_range(
                 "Thinning must be smaller than (or equal to) n. of steps. ");
 
-        c_sample_size = (n_steps - n_burnin) / thin;
+        c_sample_size = (n_steps - n_burnin) / n_thin;
 
         if (c_sample_size == 0)
             throw std::out_of_range(
                 "Choice of steps, burn-in and thin return a 0 sample size.");
     }
     else
-        n_steps = n_burnin + c_sample_size * thin;
+        n_steps = n_burnin + c_sample_size * n_thin;
 
     // assign number of sweeps
-    c_n_sweeps = n_adapt / thin;
-    c_n_sweeps += n_burnin / thin;
+    c_n_sweeps = n_adapt / n_thin;
+    c_n_sweeps += n_burnin / n_thin;
     c_n_sweeps += c_sample_size;
 }
 

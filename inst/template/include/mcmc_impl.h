@@ -71,9 +71,9 @@ public:
             : pImpl_(ptr), unif_(0., 1.) {}
         ~Setup() = default;
 
-        const str_vec file_headers = {"sample_size", "seed", "n_chains",
-                                      "n_steps", "n_adapt", "thin",
-                                      "n_burnin", "n_threads",
+        const str_vec file_headers = {"sample_size", "seed", "chains",
+                                      "steps", "adapt", "thin",
+                                      "burnin", "threads",
                                       "id_draws", "progress"};
 
         std::int32_t seed;               /// random generator seed
@@ -81,7 +81,7 @@ public:
         unsigned long n_chains = 1;      /// n. chains
         unsigned long n_steps = 1;       /// n. iterations
         unsigned long n_adapt = 0;       /// n. (finite) adaptive steps
-        unsigned long thin = 1;          /// n. thinning iterations
+        unsigned long n_thin = 1;          /// n. thinning iterations
         unsigned long n_burnin = 0;      /// n. burnin iterations
         unsigned long n_rungs = 0;       /// n. of rungs
         unsigned long c_sample_size = 0; /// single chain sample size
@@ -572,16 +572,20 @@ public:
         const std::string section_name_ = "augmented";
         MCMC::Impl &pImpl_; // pointer to external class
 
-        void build_helper_assert_correct_definitions_();
-        void build_definition_order_(const std::string &s);
-        void build_helper_usage_lists_();
-        void build_variable_models_();
-        void build_function_(size_t k);
-        void build_function_identity_helper_(size_t k);
-        void build_variable_to_sample_(size_t k);
-        void build_helper_set_id_draws_();
+        void helper_build_definition_();
+        void build_definition_make_univocal_();
+        void build_definition_dependency_order_(const std::string &s);
+        std::vector<size_t> definition_rows_by_status_(const std::string &s);
 
-        void init_helper_variable_dependencies_(Individual &member, size_t k);
+        void helper_build_usage_list_();
+        void build_list_model_();
+        void build_list_function_(size_t k);
+        void build_list_function_identity_case_(size_t k);
+        void build_list_sample_(size_t k);
+
+        void helper_build_id_draws_();
+
+        void helper_init_dependencies_(Individual &member, size_t k);
         std::vector<size_t> init_get_definition_order_(Individual &member);
         void init_model_attributes_(Individual &member, size_t k);
         void init_func_attributes_(Individual &member, size_t k);
