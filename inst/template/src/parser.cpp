@@ -143,6 +143,25 @@ std::string DefinitionParser::ASTNode::str() const
     return func + "|" + ss_args.str() + "|" + ss_children.str();
 }
 
+/// Wheter is implicitely callable.
+bool DefinitionParser::ASTNode::is_implicit_callable() const
+{
+    if (!is_terminal())
+    {
+        bool is_x_arg = false;
+        for (const ASTNode &child : children)
+        {
+            if (!child.is_implicit_callable())
+                return false;
+            else if (child.key == HSP_PARAM_X)
+                is_x_arg = true;
+        }
+        if (!is_x_arg)
+            return false;
+    }
+    return true;
+}
+
 /// Append dependencies of chosen type to stack.
 #define MAKE_NODE_LIST_TYPE_DEPEN(type_flag, TYPE_FLAG)                              \
     void DefinitionParser::ASTNode::append_##type_flag##_depen(str_vec &stack) const \

@@ -78,7 +78,7 @@ test_that("Loglikelihood traces and pointwise traces are coherent", {
   results <- new_housepi_model("chain_binomial") |>
     load_parameter_template() |>
     add_data_wide(housepi::survey) |> 
-    infer(sample_size = 10, thin = 4, adapt = 0, burnin = 0)
+    infer(steps = 10, thin = 1, adapt = 0, burnin = 0)
 
   pointwise <- results$house_draws |>
     posterior::as_draws_matrix() |>
@@ -159,17 +159,33 @@ test_that("Nested definitions raise errors", {
   ))
   expect_match(err_msg, "Missing definition")
   expect_match(err_msg, "status 4")
+})
 
-  # error for missing 'x' in nested function 'gamma'
+test_that("Missing function arguments raise errors", {
   hhmodel <- new_housepi_model("augmented_example")
-  hhmodel$data_wide <- data.frame(
-    house_id = "hh1", id = seq(1, 3), shape = 2 + runif(3), status = 1
+  # data with NA values
+  hhmodel$data_wide <- data.frame(house_id = seq(3), id = seq(3),
+                                  status = 1, test = c(5.5, NA, -1.5))
+  
+  hhmodel$add_augmented(name = "proba", func = "gamma")
+  expect_error(hhmodel$loglikelihood(), regexp = "Impossible to return value")
+  
+  hhmodel$add_augmented(name = "gamma", func = "gamma")
+  expect_warning(
+    hhmodel$add_augmented(name = "proba", expr = ~exp(-gamma)),
+    "Overwriting existing"
   )
-  hhmodel$add_parameter(name = "scale", value = 1)
-  hhmodel$add_augmented(name = "gamma", func = "gamma",
-                        func_args = c(shape = ~shape@D, scale = ~ scale@P))
-  hhmodel$add_augmented(name = "proba", expr = ~gamma)
-  expect_error(hhmodel$loglikelihood())
+  expect_error(hhmodel$loglikelihood(), regexp = "Impossible to associate")
+  
+  # check that NaN + something causes errors
+  hhmodel$load_augmented_list(noise = list(model = "normal"),
+                              proba = ~exp(test@D + noise))
+  expect_error(hhmodel$loglikelihood(), regexp = "Impossible to associate")
+  
+  # check that log(NaN) = NaN
+  hhmodel$load_augmented_list(proba = ~log(test@D))
+  expect_error(hhmodel$infer(), regexp = "Nothing to sample")
+  expect_error(hhmodel$loglikelihood(), regexp = "Impossible to return value")
 })
 
 test_that("Augmented loglikelihood seeding is fine", {
@@ -214,23 +230,6 @@ test_that("Augmented aliasing works as expected", {
   expect_equal(hhmodel$loglikelihood(), ll)
 })
 
-test_that("Loglikelihood equal to NaN is well handled", {
-  hhmodel <- new_housepi_model("augmented_example")
-
-  # NA values
-  hhmodel$data_wide <- data.frame(house_id = seq(3), id = seq(3),
-                                  status = 1, test = c(5.5, NA, -1.5))
-  # check that NaN + something causes errors
-  hhmodel$load_augmented_list(noise = list(model = "normal"),
-                              proba = ~exp(test@D + noise))
-  expect_error(hhmodel$infer(), regexp = "missing")
-
-  # check that log(NaN) = NaN
-  hhmodel$load_augmented_list(proba = ~log(test@D))
-  expect_error(hhmodel$infer(), regexp = "Nothing to sample")
-  expect_error(hhmodel$loglikelihood(), regexp = "returned NaN")
-})
-
 test_that("Augmentation example on incubation from delays is coherent", {
   # loglikelihood from simulated delays
   shape <- 2.0
@@ -251,7 +250,7 @@ test_that("Augmentation example on incubation from delays is coherent", {
   expect_equal(hhmodel$loglikelihood(), exact)
 })
 
-test_that("NNested definittions works as expected", {
+test_that("Nested definittions works as expected", {
   hhmodel <- new_housepi_model("blank")
 
   # define Box-Muller transformation
@@ -381,9 +380,9 @@ test_that("Simulations behave as expected", {
   # UPDATE: these dependencies should not be in template
   
   hhsimul$load_augmented_list(
-    infec_time = ~onset_time - incub_period,
-    onset_time = 0,
-    incub_period = list(model = "gamma", args = c(shape = 2, scale = 1))
+    incub_period = list(model = "gamma", args = c(shape = 2, scale = 1)),
+    infec_time = ~- incub_period,
+    onset_time = ~infec_time + incub_period
   ) 
   
   # simulate just introduction cases
@@ -396,5 +395,10 @@ test_that("Simulations behave as expected", {
   # simulate all infected
   expect_warning(hhsimul$add_parameter(name = "beta", value = 100))
   simulated <- hhsimul$simulate()
+  expect_true(all(simulated$status > 0))
   expect_false(any(is.na(simulated$infec_time)))
+  expect_equal(
+    simulated$infec_time,
+    simulated$onset_time - simulated$incub_period
+  )
 })

@@ -47,6 +47,8 @@ public:
         bool is_func_default() const { return !is_terminal() && children.empty(); }
         /// Wheter node is a terminal node. Otherwise it is a function node.
         bool is_empty() const { return is_terminal() && tools::is_na(value); }
+        /// Wheter is implicitely callable.
+        bool is_implicit_callable() const;
 
         /// List of dependencies per type contained in current and children definitions.
         void append_augm_depen(str_vec &stack) const;
@@ -73,6 +75,8 @@ public:
     bool is_terminal() const { return root.is_terminal(); }
     /// Wheter terminal value is NA.
     bool is_na() const { return is_terminal() && tools::is_na(root.value); }
+    /// Wheter is implicitely callable.
+    bool is_implicit_callable() const { return root.is_implicit_callable(); }
 
     /// List of dependencies per type contained in currenet definition.
     str_vec list_augm_depen() const;

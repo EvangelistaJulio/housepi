@@ -59,10 +59,6 @@ void MCMC::Impl::Setup::build(const dict_str &deflist)
         if (deflist % "chains" && !tools::is_na(deflist.at("chains")))
             n_chains = tools::str::toul(deflist.at("chains"), "n. of chains");
 
-        // Single Chain Sample Size
-        if (deflist % "sample_size" && !tools::is_na(deflist.at("sample_size")))
-            c_sample_size = tools::str::toul(deflist.at("sample_size"), "sample size");
-
         // N. of Steps
         if (deflist % "steps" && !tools::is_na(deflist.at("steps")))
             n_steps = tools::str::toul(deflist.at("steps"), "n. of steps");
@@ -85,12 +81,23 @@ void MCMC::Impl::Setup::build(const dict_str &deflist)
     }
 
     // reset internal states
-    chain = 1;   // current chain
-    rung = 0;    // current thermodynamic rung
-    n_rungs = 0; // number of rungs
+    chain = 1; // current chain
+    rung = 0;  // current thermodynamic rung
 
     set_n_threads(); // define number of threads
     set_prng_seed(); // pseudo-random number generator seeding
+}
+
+/// Parse the list from the std::string.
+void MCMC::Impl::Setup::parse_id_draws_list_(const std::string &tkn, const char delim)
+{
+    id_draws.clear();
+    std::istringstream args_ss(tkn);
+    std::string tmp;
+
+    // rea the entries of the dictionary
+    while (getline(args_ss, tmp, delim))
+        id_draws.push_back(tmp);
 }
 
 /// Set the number of threads for parrell computations (default is 1).
@@ -157,26 +164,21 @@ void MCMC::Impl::Setup::assert_mcmc_setup()
     if (n_thin == 0)
         n_thin = 1;
 
+    if (n_steps < 1)
+        throw std::out_of_range(
+            "N. of steps must be greater than 0.");
+    if (n_burnin >= n_steps)
+        throw std::out_of_range(
+            "Burn-in must be smaller than n. of steps.");
+    if (n_thin > n_steps)
+        throw std::out_of_range(
+            "Thinning must be smaller than (or equal to) n. of steps. ");
+
+    c_sample_size = (n_steps - n_burnin) / n_thin;
+
     if (c_sample_size == 0)
-    {
-        if (n_steps < 1)
-            throw std::out_of_range(
-                "N. of steps must be greater than 0.");
-        if (n_burnin >= n_steps)
-            throw std::out_of_range(
-                "Burn-in must be smaller than n. of steps.");
-        if (n_thin > n_steps)
-            throw std::out_of_range(
-                "Thinning must be smaller than (or equal to) n. of steps. ");
-
-        c_sample_size = (n_steps - n_burnin) / n_thin;
-
-        if (c_sample_size == 0)
-            throw std::out_of_range(
-                "Choice of steps, burn-in and thin return a 0 sample size.");
-    }
-    else
-        n_steps = n_burnin + c_sample_size * n_thin;
+        throw std::out_of_range(
+            "Choice of steps, burn-in and thin correspond to an empty sample.");
 
     // assign number of sweeps
     c_n_sweeps = n_adapt / n_thin;

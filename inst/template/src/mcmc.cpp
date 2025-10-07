@@ -45,16 +45,15 @@ std::pair<unsigned short, unsigned long> MCMC::get_report_hh_size(const std::str
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 double MCMC::param(const std::string &p) const { return pImpl_->param.get(p); }
-observ_dbl_ptr MCMC::param_pointer(const std::string &p) const { return pImpl_->param.get_ptr(p); }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  MCMC : augmented variables  /////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-void MCMC::init_all_augm(Individual &member)
+void MCMC::init_missing_augm(Individual &member)
 {
-    pImpl_->augm.init_all(member);
-    member.user_reset(pImpl_->setup.prng());
+    pImpl_->augm.build_missing(member);
+    pImpl_->augm.user_reset(member);
 }
 void MCMC::clear_all_augm(Individual &member) { pImpl_->augm.clear_all(member); }
 

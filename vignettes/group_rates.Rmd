@@ -133,7 +133,7 @@ prefix <- "sus_"
 tmp <- hhmodel |>
   get_group_rates() |>
   # extract reference value and create a label
-  dplyr::filter(group_rate == rate_id, param_name == "..reference..") |>
+  dplyr::filter(group_rate == rate_id, param_name == ".reference") |>
   dplyr::select(-group_rate, -param_name, -n)
 ylabel <- sprintf("%s (Ref: %s)", rate_id,
                   paste(paste(names(tmp), tmp, sep = " "), collapse = " "))

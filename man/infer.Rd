@@ -6,7 +6,6 @@
 \usage{
 infer(
   object,
-  sample_size = NA,
   steps = 5000,
   burnin = 0,
   thin = 1,
@@ -20,8 +19,6 @@ infer(
 }
 \arguments{
 \item{object}{\code{HousepiModel} object.}
-
-\item{sample_size}{\code{integer(1)} with the number of posterior draws stored for each chain.}
 
 \item{steps}{\code{integer(1)}  with the total number of MCMC steps for each chain.}
 

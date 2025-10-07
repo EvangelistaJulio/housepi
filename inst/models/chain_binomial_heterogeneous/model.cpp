@@ -147,10 +147,10 @@ void Model::simulate_single_household(Household &house)
 
 	for (Individual &member : house)
 		if (uniform() < exp(-commu_rate * member.group_rate("community")))
-			house.set_status(member, HSP_HEALTHY_STATUS);
+			house.set_healthy_status(member);
 		else
 		{
-			house.set_status(member, HSP_INFECTED_STATUS);
+			house.set_infected_status(member);
 			new_gen_set.push_back(&member);
 		}
 
@@ -175,7 +175,7 @@ void Model::simulate_single_household(Household &house)
 
 			if (uniform() >= exp(-r * p2p_rate * sus_i))
 			{
-				house.set_status(member_i, HSP_INFECTED_STATUS);
+				house.set_infected_status(member_i);
 				new_gen_set.push_back(&member_i);
 			}
 		}

@@ -85,15 +85,14 @@ Rcpp::List MCMC::Impl::Setup::rcpp_export() const
 {
     using namespace Rcpp;
 
-    return List::create(_["n_chains"] = n_chains,
-                        _["sample_size"] = c_sample_size,
-                        _["n_steps"] = n_steps,
-                        _["n_adapt"] = n_adapt,
-                        _["n_burnin"] = n_burnin,
+    return List::create(_["steps"] = n_steps,
+                        _["burnin"] = n_burnin,
                         _["thin"] = n_thin,
-                        _["seed"] = seed,
-                        _["n_threads"] = n_threads,
+                        _["adapt"] = n_adapt,
+                        _["chains"] = n_chains,
+                        _["threads"] = n_threads,
                         _["id_draws"] = CharacterVector(wrap(id_draws)),
+                        _["seed"] = seed,
                         _["progress"] = progress);
 }
 
@@ -971,7 +970,7 @@ void MCMC::Impl::DataWide::print_update(Household &house)
 
             for (const std::string &a : pImpl_.augm.list_export)
                 if (member.is_infected_status())
-                    aux_ofstream_ << HSP_DELIM << tools::str::format(member.augm(a));
+                    aux_ofstream_ << HSP_DELIM << member.augm(a);
                 else
                     aux_ofstream_ << HSP_DELIM << HSP_NA_DOUBLE;
 

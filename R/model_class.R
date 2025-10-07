@@ -223,8 +223,8 @@ HousepiModel <- R6::R6Class(
 
     # @description
     # Full model build with complete list of definitions.
-    .build_full = function(sample_size = NA, steps = 0,
-                           burnin = 0, thin = 1, adapt = 0,
+    .build_full = function(steps = 0, adapt = 0,
+                           burnin = 0, thin = 1,
                            chains = 1, threads = 1,
                            id_draws = NA,
                            seed = NA, progress = FALSE) {
@@ -240,11 +240,10 @@ HousepiModel <- R6::R6Class(
 
       # import setup
       private$.rcpp$import_setup(char_setup_input_(list(
-        sample_size = ifelse(is.na(sample_size), 0, as.integer(sample_size)),
         steps = as.integer(steps),
-        thin = as.integer(thin),
-        burnin = as.integer(burnin),
         adapt = as.integer(adapt),
+        burnin = as.integer(burnin),
+        thin = as.integer(thin),
         chains = as.integer(chains),
         threads = as.integer(threads),
         id_draws = id_draws,
@@ -709,7 +708,6 @@ HousepiModel <- R6::R6Class(
     #' @description
     #' Run inference with Bayesian Markov Chain Monte Carlo.
     #'
-    #' @param sample_size `r rd_smpl_size_`
     #' @param steps `r rd_smpl_steps_`
     #' @param burnin `r rd_smpl_burn_`
     #' @param thin `r rd_smpl_thin_`
@@ -719,16 +717,15 @@ HousepiModel <- R6::R6Class(
     #' @param id_draws `r rd_smpl_iddrw_`
     #' @param seed `r rd_seed_`
     #' @param progress `r rd_progress_`
-    infer = function(sample_size = NA, steps = 10000,
-                     burnin = 0, thin = 1, adapt = 0,
+    infer = function(steps = 10000, burnin = 0,
+                     thin = 1, adapt = 0,
                      chains = 1, threads = 1,
                      id_draws = NA,
                      seed = NA, progress = TRUE) {
       # internal build function
-      private$.build_full(sample_size = sample_size,
-                          steps = steps, burnin = burnin, thin = thin,
-                          adapt = adapt, chains = chains,
-                          threads = threads,
+      private$.build_full(steps = steps, burnin = burnin,
+                          thin = thin, adapt = adapt,
+                          chains = chains, threads = threads,
                           id_draws = id_draws, seed = seed, progress = progress)
       private$.multiplicity_engine()
 
@@ -744,7 +741,6 @@ HousepiModel <- R6::R6Class(
     #'
     #' @param scheme `r rd_evi_scheme_`
     #' @param rungs `r rd_evi_rungs_`
-    #' @param sample_size `r rd_smpl_size_`
     #' @param steps `r rd_smpl_steps_`
     #' @param burnin `r rd_smpl_burn_`
     #' @param thin `r rd_smpl_thin_`
@@ -756,8 +752,8 @@ HousepiModel <- R6::R6Class(
     #'
     #' @return `numeric(1)`
     logevidence = function(scheme = "power-fractions", rungs = 40,
-                           sample_size = NA, steps = 10000,
-                           burnin = 0, thin = 1, adapt = 0,
+                           steps = 10000, burnin = 0,
+                           thin = 1, adapt = 0,
                            chains = 1, threads = 1,
                            seed = NA, progress = TRUE) {
       # developer
@@ -767,9 +763,8 @@ HousepiModel <- R6::R6Class(
       )
 
       # internal build function
-      private$.build_full(sample_size = sample_size,
-                          steps = steps, thin = thin,
-                          burnin = burnin, adapt = adapt,
+      private$.build_full(steps = steps, burnin = burnin,
+                          thin = thin, adapt = adapt,
                           chains = chains, threads = threads,
                           seed = seed, progress = progress)
       private$.multiplicity_engine()

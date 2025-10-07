@@ -28,7 +28,7 @@ double Distribution::rand(rnd_gen &prng)
     return (this->*rand_)(prng);
 }
 
-/// Rejection sampling. 
+/// Rejection sampling.
 /// UPDATE: not efficient at all, need to use quantiles probably.
 double Distribution::rejec_sample_(rnd_gen &prng, double (Distribution::*func)(rnd_gen &))
 {
@@ -276,7 +276,7 @@ public:
     Uniform_Distribution()
         : Distribution("uniform", HSP_RANGE_KEYS, {0., 1.},
                        HSP_NA_DOUBLE, false, HSP_NA_DOUBLE, false),
-          distr_gen(arg(0), arg(1)) { init_uniform_range_(); }
+          unif_gen(arg(0), arg(1)) { init_uniform_range_(); }
 
     void init_discretization() override final
     {
@@ -284,12 +284,13 @@ public:
     }
     void init_truncation() override final
     {
+        init_uniform_range_();
         init_range_helper_(false, false);
-        init_trunc_helper_();
+        // NOTE: no truncation for uniform distribution
     }
 
 protected:
-    std::uniform_real_distribution<double> distr_gen;
+    std::uniform_real_distribution<double> unif_gen;
 
     double raw_pdf_(double) const override final { return 1.; }
     double raw_cdf_(double x) const override final { return x; }
@@ -297,8 +298,27 @@ protected:
     double raw_logratio_(double, double) const override final { return 0.; }
     double raw_rand_(rnd_gen &prng) override final
     {
-        const double r = distr_gen(prng);
+        const double r = unif_gen(prng);
         return arg(0) * (1 - r) + arg(1) * r;
+    }
+
+private:
+    /// Ensure uniform range (min, max) match argument (min, max).
+    void init_uniform_range_()
+    {
+        // impose range minimum equal to argument minimum
+        const Attribute &min_arg = arguments_[0];
+        if (min_arg.is_function())
+            range_min_ = min_arg.get_function();
+        else
+            range_min_ = min_arg.get_ptr();
+
+        // impose range maximum equal to argument maximum
+        const Attribute &max_arg = arguments_[1];
+        if (max_arg.is_function())
+            range_max_ = max_arg.get_function();
+        else
+            range_max_ = max_arg.get_ptr();
     }
 };
 
@@ -315,7 +335,7 @@ public:
     Normal_Distribution()
         : Distribution("normal", {"mean", "sd"}, {0., 1.},
                        HSP_NA_DOUBLE, false, HSP_NA_DOUBLE, false),
-          distr_gen(arg(0), arg(1)) {}
+          norm_gen(0., 1.) {}
 
     void init_discretization() override final
     {
@@ -338,10 +358,10 @@ public:
     }
 
 protected:
-    std::normal_distribution<double> distr_gen;
+    std::normal_distribution<double> norm_gen;
 
     MAKE_RAW_NUMR_IMPORT_FOR_DISTR(normal, 2)
-    double raw_rand_(rnd_gen &prng) override final { return arg(0) + arg(1) * distr_gen(prng); }
+    double raw_rand_(rnd_gen &prng) override final { return arg(0) + arg(1) * norm_gen(prng); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -357,17 +377,15 @@ public:
     Lognormal_Distribution()
         : Distribution("lognormal", {"meanlog", "sdlog"}, {0., 1.},
                        0., true, HSP_NA_DOUBLE, false),
-          distr_gen(arg(0), arg(1)) {}
+          norm_gen(0., 1.) {}
 
     INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
 protected:
-    std::lognormal_distribution<double> distr_gen;
-
-    void update_args_() override final { distr_gen.param(std::lognormal_distribution<double>::param_type(arg(0), arg(1))); } // UPDATE
+    std::normal_distribution<double> norm_gen;
 
     MAKE_RAW_NUMR_IMPORT_FOR_DISTR(lognormal, 2)
-    double raw_rand_(rnd_gen &prng) override final { return distr_gen(prng); }
+    double raw_rand_(rnd_gen &prng) override final { return std::exp(arg(0) + arg(1) * norm_gen(prng)); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -546,17 +564,15 @@ public:
     Weibull_Distribution()
         : Distribution("weibull", {"shape", "scale"}, {1., 1.},
                        0., false, HSP_NA_DOUBLE, false),
-          distr_gen(arg(0), arg(1)) {}
+          unif_gen(0., 1.) {}
 
     INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
-protected:
-    std::weibull_distribution<double> distr_gen;
-
-    void update_args_() override final { distr_gen.param(std::weibull_distribution<double>::param_type(arg(0), arg(1))); } // UPDATE
+protected:  
+    std::uniform_real_distribution<double> unif_gen;
 
     MAKE_RAW_NUMR_IMPORT_FOR_DISTR(weibull, 2)
-    double raw_rand_(rnd_gen &prng) override final { return distr_gen(prng); }
+    double raw_rand_(rnd_gen &prng) override final { return arg(1) * std::pow(-std::log(unif_gen(prng)), 1.0 / arg(0)); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -572,17 +588,15 @@ public:
     Exponential_Distribution()
         : Distribution("exponential", {"rate"}, {1.},
                        0., false, HSP_NA_DOUBLE, false),
-          distr_gen(arg(0)) {}
+          unif_gen(0., 1.) {}
 
     INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
 protected:
-    std::exponential_distribution<double> distr_gen;
-
-    void update_args_() override final { distr_gen.param(std::exponential_distribution<double>::param_type(arg(0))); } // UPDATE
+    std::uniform_real_distribution<double> unif_gen;
 
     MAKE_RAW_NUMR_IMPORT_FOR_DISTR(exponential, 1)
-    double raw_rand_(rnd_gen &prng) override final { return distr_gen(prng); }
+    double raw_rand_(rnd_gen &prng) override final { return -std::log(unif_gen(prng)) / arg(0); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////

@@ -8,7 +8,6 @@ logevidence(
   object,
   scheme = "power-fractions",
   rungs = 40,
-  sample_size = NA,
   steps = 5000,
   burnin = 0,
   thin = 1,
@@ -31,8 +30,6 @@ One between\cr
 
 \item{rungs}{\code{integer(1)} \cr
 Number of rungs in the thermodynamic ladder.}
-
-\item{sample_size}{\code{integer(1)} with the number of posterior draws stored for each chain.}
 
 \item{steps}{\code{integer(1)}  with the total number of MCMC steps for each chain.}
 

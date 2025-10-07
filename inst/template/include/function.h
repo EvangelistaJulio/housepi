@@ -79,7 +79,7 @@ public:
     /// Get attribute name to display in errors.
     std::string err_name() const { return err_type_ + " \"" + name_ + "\""; }
     /// Get a description about the functional status.
-    std::string what() const;
+    virtual std::string str_summary() const;
 
     /// Get attribute numeric value.
     double get() const { return (this->*get_)(); }
@@ -119,6 +119,8 @@ protected:
     double do_get_from_pointer_() const { return *(ptr_to_value_); }
     /// Get attribute value from external function.
     double do_get_from_function_() const;
+    /// Get attribute error for not callable functions.
+    double do_get_error_() const;
 
     // Functional pointer getter
     observ_dbl_ptr (Attribute::*get_ptr_)() const = &Attribute::do_get_ptr_default_;
@@ -132,12 +134,11 @@ protected:
 
     // Functional setter
     void (Attribute::*do_set_)(double) = &Attribute::do_set_default_;
-    /// Set error. Non numeric attributes can't be set, but just assigned.
-    /// NOTE: so far set_arg is only used for adaptation.
-    virtual void do_set_error_(double) { throw std::runtime_error(
-        "Non nuemric " + err_name() + " cannot be changed."); }
     /// Set attribute internal value.
     virtual void do_set_default_(double x) { value_ = x; }
+    /// Set error. Non numeric attributes can't be set, but just assigned.
+    void do_set_error_(double) { throw std::runtime_error(
+        "Non numeric " + err_name() + " cannot be changed."); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -346,7 +347,6 @@ protected:
 
     /// Internal code to define the type of range.
     unsigned short which_valid_case_() const;
-    void init_uniform_range_();
     bool init_range_min_(double min_val = 0., bool is_min_open = false);
     void init_range_helper_(bool is_min_open = false, bool is_max_open = false);
 

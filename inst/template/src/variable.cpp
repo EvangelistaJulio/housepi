@@ -225,9 +225,10 @@ void Variable::init(double value, bool is_const, bool is_discr,
 }
 
 /// Restore user defined variable initialization.
-/// NOTE: if user value is NA and a distribution is,
-/// by construction convention it is possible to randomly initialize,
-/// otherwise it is truely a NA value.
+///
+/// NOTE: by construction convention it is possible to randomly initialize
+///       if user value is NA but a distribution is given.
+///       Otherwise it is truly a constant NA value.
 void Variable::user_reset(rnd_gen &prng)
 {
     if (tools::is_na(user_value_))
@@ -237,7 +238,6 @@ void Variable::user_reset(rnd_gen &prng)
     }
     else
         value_ = user_value_;
-
     pProp_->user_reset();
 }
 
@@ -260,6 +260,9 @@ void Variable::init_func_reshaping()
             if (is_constant())
                 throw std::invalid_argument(
                     "Impossible to set " + err_name() + " as constant. Check its dependencies.");
+            
+            if (!pFunc_->is_implicit_callable())
+                get_ = &Variable::do_get_error_;
 
             if (is_discrete_)
                 pFunc_->init_discretization();
@@ -420,4 +423,13 @@ bool Variable::is_discrete() const
         return Attribute::is_discrete();
     else
         return pDistr_->is_discrete();
+}
+
+/// Get a description about the functional status.
+std::string Variable::str_summary() const
+{
+    std::string output = Attribute::str_summary();
+    if (is_model())
+        output += " | ~" + pDistr_->str_summary(false);
+    return output;
 }

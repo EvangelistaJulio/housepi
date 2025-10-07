@@ -231,27 +231,23 @@ HousepiAugmented <- R6::R6Class(
     #' A `character(1)` with the name of the augmented definition to remove.
     #' @param status
     #' An `integer(1)` with the associated status of the definition.
-    #' If `NA`, remove for all infected status.
     #' @param show_warnings
     #' `logical(1)`to show warnings or not.
     #'
     #' @return `logical(1)`
-    remove = function(x, status = NA, show_warnings = TRUE) {
-      mask <- (self$defs[["name"]] == x)
+    remove = function(x, status, show_warnings = TRUE) {
+      mask <- self$defs[["name"]] == x
       if (any(mask)) {
-        if (is.na(status)) {
-          self$defs <- self$defs[!mask, ]
-        } else {
-          # check if same name and status
-          mask <- mask & (self$defs[["status"]] == status)
-          mask[is.na(mask)] <- FALSE
+        # check if same name and status
+        mask <- mask & sapply(self$defs[["status"]], function(x) {
+          identical(x, as.integer(status)) 
+        })
 
-          if (any(mask)) self$defs <- self$defs[!mask, ]
-          else if (isTRUE(show_warnings)) warning_h(sprintf(
-            "Unknown augmented variable \"%s\" for status %d to remove.",
-            x, status
-          ))
-        }
+        if (any(mask)) self$defs <- self$defs[!mask, ]
+        else if (isTRUE(show_warnings)) warning_h(sprintf(
+          "Unknown augmented variable \"%s\" for status %d to remove.",
+          x, status
+        ))
       } else if (isTRUE(show_warnings)) {
         warning_h(sprintf("Unknown augmented variable \"%s\" to remove.", x))
       }

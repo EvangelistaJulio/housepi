@@ -47,23 +47,33 @@ Attribute::Attribute(const std::string &s, bool is_primitive)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-std::string Attribute::what() const
+std::string Attribute::str_summary() const
 {
-    std::string sms = is_constant() ? "constant" : "variable";
+    std::string sms = std::to_string(get()) + " | ";
+    if (is_constant())
+        sms += "constant";
+    else
+        sms += "variable";
+
     if (is_numeric())
         sms += " numeric";
     else if (is_pointer())
         sms += " pointer";
     else if (is_function())
-        sms += " function";
+        sms += " function " + pFunc_->str_summary();
     else
         sms += " empty";
     return sms;
 }
 
 /// Get attribute value from external function.
-/// note: this can't be moved in the class because of forward declaration of Function
+///
+/// NOTE: these can't be moved in the class because of forward declaration of Function
 double Attribute::do_get_from_function_() const { return pFunc_->evaluate(); }
+/// Get attribute error for not callable functions.
+double Attribute::do_get_error_() const { throw std::runtime_error(
+    "Impossible to return value for " + err_name() +
+    ". Argument \"x\" of " + pFunc_->err_name() + " cannot be missing."); }
 
 /// Wheter it's constant.
 /// NOTE: by construction convention, a pointer to constant must be initialized to numeric instead.
@@ -87,7 +97,7 @@ bool Attribute::is_discrete() const
     if (is_numeric())
         return value_ == std::floor(value_);
     else if (is_pointer())
-        return false; // FIXME: here it becomes problematic..
+        return false; // FIXME: here it becomes problematic!
     else if (is_function())
         return pFunc_->is_discrete();
     else
@@ -262,24 +272,6 @@ unsigned short Function::which_valid_case_() const
     return (!range_min_.is_empty()) + 2 * (!range_max_.is_empty());
 }
 
-/// Ensure uniform range (min, max) match argument (min, max).
-void Function::init_uniform_range_()
-{
-    // impose range minimum equal to argument minimum
-    const Attribute &min_arg = find_arg_(HSP_PARAM_MIN);
-    if (min_arg.is_function())
-        range_min_.init_function(min_arg.get_function());
-    else
-        range_min_.init_pointer(min_arg.get_ptr());
-
-    // impose range maximum equal to argument maximum
-    const Attribute &max_arg = find_arg_(HSP_PARAM_MAX);
-    if (max_arg.is_function())
-        range_max_.init_function(max_arg.get_function());
-    else
-        range_max_.init_pointer(max_arg.get_ptr());
-}
-
 /// Functional range for lower bound and no upper bound.
 bool Function::init_range_min_(double min_val, bool is_min_open)
 {
@@ -414,7 +406,7 @@ void Function::init_attr(const std::string &key, const Attribute &attr)
         if (!attr.get_function()->is_implicit_callable())
             throw std::invalid_argument(
                 "Impossible to associate " + attr.err_name() + " as argument \"" + key + "\" of " + err_name() + ".\n" +
-                "Value of argument \"x\" of " + attr.err_name() + " cannot be missing.");
+                "Argument \"x\" of " + attr.err_name() + " cannot be missing.");
 
     // distinguish between range keys and standard keys
     if (HSP_RANGE_KEYS % key)
@@ -521,9 +513,12 @@ std::string Function::str_summary(bool show_x_arg) const
     if (show_x_arg)
         output += x_arg_.name() + "=" + x_arg_.str();
     for (size_t c = 0; c < arguments_.size(); ++c)
-        output += ", " + arguments_[c].name() + "=" + arguments_[c].str();
-    output += ") : " + str_range();
-    return output;
+    {
+        if (c > 0 || show_x_arg)
+            output += ", ";
+        output += arguments_[c].name() + "=" + arguments_[c].str();
+    }
+    return output + ") : " + str_range();
 }
 
 #ifdef _HOUSEPI_RCPP

@@ -186,6 +186,9 @@ public:
 
     bool is_constant() const override ;
     bool is_discrete() const override final;
+    bool is_model() const { return !pDistr_->is_empty(); }
+    /// Get a description about the functional status.
+    std::string str_summary() const override final;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////  Variable : Metropolis-Hastings  ////////////////////////////
@@ -212,14 +215,12 @@ public:
     std::string distr_name() const { return pDistr_->name(); }
     std::string distr_str_arg_names() const { return pDistr_->str_arg_names(); }
     std::string distr_str_arg_values() const { return pDistr_->str_arg_values(); }
-    std::string distr_str_summary() const { return pDistr_->str_summary(); }
 
     std::string str_min() const { return pDistr_->str_min(); }
     std::string str_max() const { return pDistr_->str_max(); }
     std::string str_range() const { return pDistr_->str_range(); }
 
     std::string func_name() const { return pFunc_->name(); }
-    std::string func_str_summary() const { return pFunc_->str_summary(); }
 
     std::string prop_name() const { return pProp_->name(); }
     std::string prop_str_arg_names() const { return pProp_->str_arg_names(); }
@@ -264,9 +265,6 @@ protected:
         buffer_ = value_;
         value_ = x;
     }
-    /// Set error.
-    void do_set_error_(double) override final { throw std::runtime_error(
-        "Non numeric " + err_name() + " cannot be changed."); }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////  Variable : Metropolis-Hastings [private]  ///////////////////////

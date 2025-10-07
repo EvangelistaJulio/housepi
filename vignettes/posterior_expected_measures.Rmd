@@ -19,7 +19,7 @@ source("theme.R")
 library(housepi)
 ```
 
-In this vignette we show how to compute standard and custom posterior measures.
+In this vignette we show how to compute common household measures according to the model posterior distribution.
 We use the same chain binomial example presented in [Get started](housepi.html):
 
 ```{r}

@@ -23,7 +23,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Auxiliary method to initialize simulations.
-// UPDATE: once I allow for multi-treading and a flag than n_chains = 0, I can drop this...
+// UPDATE: once I allow for multi-treading and a flag than n_chains = 0, I can drop this.
 void MCMC::Impl::aux_init_simulate_()
 {
     assert_proper_dataset_();       // check if dataset is empty

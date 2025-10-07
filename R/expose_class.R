@@ -319,7 +319,7 @@ get_group_rates <- function(object, ...) {
 #' @param reference `r rd_grr_refer_`
 #' @param independent `r rd_grr_indep_`
 #' @param prior `r rd_par_model_`
-#' Default is "lnorm".
+#' Default is "lognormal".
 #' @param args `r rd_par_args_`
 #' Default is `list(meanlog = 0, sdlog = 3)`.
 #' @param min `r rd_var_min_`
@@ -340,10 +340,10 @@ get_group_rates <- function(object, ...) {
 add_group_rate <-  function(object,
                             name, by, prefix = NA,
                             reference = NULL, independent = TRUE,
-                            prior = "lnorm",
+                            prior = "lognormal",
                             args = list(meanlog = 0, sdlog = 3),
                             min = 0, max = 10,
-                            rule = "lnorm", scale = 1) {
+                            rule = "lognormal", scale = 1) {
   stopifnot(inherits(object, "HousepiModel"))
   object$clone(deep = TRUE)$add_group_rate(
     name = name, by = by, prefix = prefix,
@@ -414,7 +414,6 @@ loglikelihood <- function(object, seed = NA) {
 #' Run inference with Bayesian Markov Chain Monte Carlo.
 #'
 #' @param object `r rd_model_in_`
-#' @param sample_size `r rd_smpl_size_`
 #' @param steps `r rd_smpl_steps_`
 #' @param burnin `r rd_smpl_burn_`
 #' @param thin `r rd_smpl_thin_`
@@ -430,16 +429,15 @@ loglikelihood <- function(object, seed = NA) {
 #'
 #' @export
 infer <- function(object,
-                  sample_size = NA, steps = 5000,
-                  burnin = 0, thin = 1, adapt = 0,
+                  steps = 5000, burnin = 0,
+                  thin = 1, adapt = 0,
                   chains = 1, threads = 1,
                   id_draws = NA, seed = NA, progress = TRUE) {
   stopifnot(inherits(object, "HousepiModel"))
   object$infer(
-    sample_size = sample_size,
-    steps = steps, burnin = burnin, thin = thin,
-    adapt = adapt, chains = chains,
-    threads = threads,
+    steps = steps, burnin = burnin,
+    thin = thin, adapt = adapt,
+    chains = chains, threads = threads,
     id_draws = id_draws, seed = seed, progress = progress
   )
 }
@@ -452,7 +450,6 @@ infer <- function(object,
 #' @param object `r rd_model_in_`
 #' @param scheme `r rd_evi_scheme_`
 #' @param rungs `r rd_evi_rungs_`
-#' @param sample_size `r rd_smpl_size_`
 #' @param steps `r rd_smpl_steps_`
 #' @param burnin `r rd_smpl_burn_`
 #' @param thin `r rd_smpl_thin_`
@@ -472,14 +469,14 @@ infer <- function(object,
 #' @keywords internal
 logevidence <- function(object,
                         scheme = "power-fractions", rungs = 40,
-                        sample_size = NA, steps = 5000,
-                        burnin = 0, thin = 1, adapt = 0,
+                        steps = 5000, burnin = 0,
+                        thin = 1, adapt = 0,
                         chains = 1, threads = 1,
                         seed = NA, progress = TRUE) {
   stopifnot(inherits(object, "HousepiModel"))
   object$logevidence(scheme = scheme, rungs = rungs,
-                     sample_size = sample_size, steps = steps,
-                     burnin = burnin, thin = thin, adapt = adapt,
+                     steps = steps, burnin = burnin,
+                     thin = thin, adapt = adapt,
                      chains = chains, threads = threads,
                      seed = seed, progress = progress)
 }

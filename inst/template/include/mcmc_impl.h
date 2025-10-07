@@ -71,23 +71,23 @@ public:
             : pImpl_(ptr), unif_(0., 1.) {}
         ~Setup() = default;
 
-        const str_vec file_headers = {"sample_size", "seed", "chains",
-                                      "steps", "adapt", "thin",
-                                      "burnin", "threads",
-                                      "id_draws", "progress"};
+        const str_vec file_headers = {"steps", "burnin", "thin",
+                                      "adapt", "chains", "threads",
+                                      "id_draws", "seed", "progress"};
 
-        std::int32_t seed;               /// random generator seed
-        unsigned long progress = 1;      /// thinning seconds for progress bar
-        unsigned long n_chains = 1;      /// n. chains
-        unsigned long n_steps = 1;       /// n. iterations
-        unsigned long n_adapt = 0;       /// n. (finite) adaptive steps
-        unsigned long n_thin = 1;          /// n. thinning iterations
-        unsigned long n_burnin = 0;      /// n. burnin iterations
-        unsigned long n_rungs = 0;       /// n. of rungs
+        unsigned long n_steps = 1;  /// n. iterations
+        unsigned long n_burnin = 0; /// n. burnin iterations
+        unsigned long n_thin = 1;   /// n. thinning iterations
+        unsigned long n_adapt = 0;  /// n. (finite) adaptive steps
+        unsigned long n_chains = 1; /// n. chains
+        unsigned n_threads = 1;     /// n. of OMP threads
+        std::int32_t seed;          /// random generator seed
+        unsigned long progress = 1; /// thinning seconds for progress bar
+        unsigned long n_rungs = 0;  /// n. of rungs
+
         unsigned long c_sample_size = 0; /// single chain sample size
         unsigned long c_n_sweeps = 0;    /// single chain n. of sweeps
         double inv_T = 1.;               /// inverse temperature
-        unsigned n_threads = 1;          /// n. of OMP threads
         str_vec id_draws = {};           /// augmented trace to save
 
         unsigned long chain = 1; /// current MCMC chain
@@ -147,16 +147,7 @@ public:
 #endif
 
         /// Parse the list from the std::string.
-        void parse_id_draws_list_(const std::string &tkn, const char delim)
-        {
-            id_draws.clear();
-            std::istringstream args_ss(tkn);
-            std::string tmp;
-
-            // rea the entries of the dictionary
-            while (getline(args_ss, tmp, delim))
-                id_draws.push_back(tmp);
-        }
+        void parse_id_draws_list_(const std::string &tkn, const char delim);
     } setup;
 
     std::string error_message = {}; // error message for the last exception
@@ -508,10 +499,6 @@ public:
                                       "model", HSP_PARAM_MIN, HSP_PARAM_MAX,
                                       "rule", "scale"};
 
-        str_vec list_model = {};
-        str_vec list_const = {};
-        str_vec list_sample = {};
-        str_vec list_func = {};
         str_vec list_draws = {};
         str_vec list_full = {};
         str_vec list_export = {};
@@ -541,7 +528,9 @@ public:
         void user_reset();
 
         void clear_all(Individual &member);
-        void init_all(Individual &member);
+        void build_all(Individual &member);
+        void build_missing(Individual &member);
+        void user_reset(Individual &member);
 
         void init_draws(unsigned long sample_size);
         void update_draws(unsigned long smpl_count);
@@ -554,9 +543,9 @@ public:
         /// Flag if there are any augmented definitions.
         bool is_any() const { return !list_full.empty(); }
         /// Flag if there are non-constant augmented definitions.
-        bool is_any_sample() const { return !list_sample.empty(); }
+        bool is_any_sample() const { return !status_map_sample.empty(); }
         /// Flag if there are augmented definitions with a model.
-        bool is_any_model() const { return !list_model.empty(); }
+        bool is_any_model() const { return !status_map_model.empty(); }
         /// Flag if augmented draws are stored.
         bool is_any_draw() const { return !smpl_individuals.empty(); }
 
@@ -573,19 +562,15 @@ public:
         MCMC::Impl &pImpl_; // pointer to external class
 
         void helper_build_definition_();
-        void build_definition_make_univocal_();
-        void build_definition_dependency_order_(const std::string &s);
-        std::vector<size_t> definition_rows_by_status_(const std::string &s);
-
-        void helper_build_usage_list_();
-        void build_list_model_();
-        void build_list_function_(size_t k);
-        void build_list_function_identity_case_(size_t k);
-        void build_list_sample_(size_t k);
-
+        void helper_build_definition_order_();
+        void set_definition_dependency_order_for_(const std::string &s);
+        std::vector<size_t> get_unsorted_definition_rows_by_(const std::string &s) const;
+        void set_sample_map_for_(const std::string &s, size_t k);
+        void set_function_or_identity_for_(size_t k);
+        void helper_build_model_status_maps_();
         void helper_build_id_draws_();
 
-        void helper_init_dependencies_(Individual &member, size_t k);
+        void helper_init_attributes_(Individual &member, size_t k);
         std::vector<size_t> init_get_definition_order_(Individual &member);
         void init_model_attributes_(Individual &member, size_t k);
         void init_func_attributes_(Individual &member, size_t k);
@@ -737,7 +722,7 @@ private:
     double full_loglike_ = 0.; /// current full loglikelihood
     double full_buffer_ = 0.;  /// buffer loglikelihood
 
-    unsigned long smpl_count_ = 0; /// count of store samples
+    unsigned long smpl_count_ = 0;   /// count of store samples
     dbl_vec smpl_full_loglike_ = {}; /// vector of full loglikelihood samples
 
     void assert_proper_dataset_();

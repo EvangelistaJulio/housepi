@@ -11,11 +11,11 @@ add_group_rate(
   prefix = NA,
   reference = NULL,
   independent = TRUE,
-  prior = "lnorm",
+  prior = "lognormal",
   args = list(meanlog = 0, sdlog = 3),
   min = 0,
   max = 10,
-  rule = "lnorm",
+  rule = "lognormal",
   scale = 1
 )
 }
@@ -37,7 +37,7 @@ Default is the group with the largest sample size.}
 If \code{FALSE} features are combined (default).}
 
 \item{prior}{\code{character(1)} wit the choice for the prior distribution.
-Default is "lnorm".}
+Default is "lognormal".}
 
 \item{args}{named \code{numeric()} or \code{list} with custom arguments for the prior distribution.
 Default is \code{list(meanlog = 0, sdlog = 3)}.}

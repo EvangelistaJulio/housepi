@@ -38,6 +38,15 @@ void AugmentedMap::init_augm(const std::string &a,
 	this_augm.init_distr(model_name);
 }
 
+/// A string containing a summary of the augmented map.
+std::string AugmentedMap::str_augm_summary() const
+{
+	std::ostringstream oss;
+	for (const auto &pair : augm_map_)
+		oss << "- " << pair.first << " : " << pair.second.str_summary() << "\n";
+	return oss.str();
+}
+
 /// Associate functional methods for augmented model pdfs.
 void AugmentedMap::init_augm_model_logratios(const u_dict<str_vec> &models_ordered)
 {
@@ -100,13 +109,6 @@ double AugmentedMap::compute_and_set_augm_model_logratio(const std::string &a)
 			" after change of " + augm_map_[a].err_name() + ".");
 
 	return delta_ll;
-}
-
-/// Restore user values if applicable.
-void AugmentedMap::user_reset(rnd_gen &prng)
-{
-	for (auto &pair : augm_map_)
-		pair.second.user_reset(prng);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -220,7 +222,7 @@ void Household::init_member(size_t index,
 
 /// Change_status of individual i to new status (without controls).
 ///	NOTE : this introduces augmented variables -> it requires RJMCMC in case of inference.
-bool Household::set_status(Individual &member, int new_status)
+void Household::set_status_(Individual &member, int new_status)
 {
 	if (new_status != member.status())
 	{
@@ -233,19 +235,14 @@ bool Household::set_status(Individual &member, int new_status)
 		else
 			missing_list_.erase(std::find(missing_list_.begin(), missing_list_.end(), i));
 
-		// change member status
-		member.status_ = new_status;
-
+		member.status_ = new_status; // change member status
 		if (member.is_infected_status())
 			infected_list_.push_back(i);
 		else if (member.is_healthy_status())
 			healthy_list_.push_back(i);
 		else
 			missing_list_.push_back(i);
-
-		return true;
 	}
-	return false;
 }
 
 /// Associate a pointer to parameter value for the contact from->to.

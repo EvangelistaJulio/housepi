@@ -134,7 +134,7 @@ associate_param_names <- function(this_table,
       paste0(prefix, paste(paste(colmask, row, sep = "_"), collapse = "_"))
     }
   )
-  this_table$param_name[idx_refer] <- "..reference.."
+  this_table$param_name[idx_refer] <- ".reference"
 
   return(this_table)
 }
@@ -159,7 +159,7 @@ tidyup_group_rate_tables <- function(all_tables) {
   for (rate in names(all_tables)) {
     this_table <- all_tables[[rate]]
     if (length(this_table) == 0) {
-      df <- list(data.frame(group_rate = rate, param_name = "..reference.."))
+      df <- list(data.frame(group_rate = rate, param_name = ".reference"))
     } else {
       df <- lapply(this_table, function(x) cbind_rate(x, rate))
     }
@@ -222,7 +222,7 @@ HousepiGroupRate <- R6::R6Class(
         new_params <- list()
         for (rate_id in names(self$logic_tables)) {
           for (this_table in self$logic_tables[[rate_id]]) {
-            for (par_id in setdiff(this_table$param_name, c("..reference.."))) {
+            for (par_id in setdiff(this_table$param_name, c(".reference"))) {
               new_params[[par_id]] <- private$.parameters[[rate_id]]
             }
           }
@@ -242,7 +242,7 @@ HousepiGroupRate <- R6::R6Class(
             required <- c(required, this_table$param_name)
           }
         }
-        output <- setdiff(unique(required), c("..reference.."))
+        output <- setdiff(unique(required), c(".reference"))
         return(set_source_name_(output, "group rate"))
       }
       stop_h("'param_required' is read only.")
@@ -475,7 +475,7 @@ HousepiGroupRate <- R6::R6Class(
             }
             # concatenate new lines to the script
             # mask reference case
-            mask <- this_table$param_name == "..reference.."
+            mask <- this_table$param_name == ".reference"
           }
         }
 

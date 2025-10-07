@@ -90,17 +90,17 @@ const double HSP_NA_DOUBLE = std::numeric_limits<double>::quiet_NaN(); /// NA va
 #define HSP_NA_STRING "<NA>"                                           /// NA value for string.
 
 // private object names
-#define HSP_HIDE_PRFX ".."               /// prefic for hidden objects
-#define HSP_CHAIN_COL "..chain.."        /// chain column name in draws
-#define HSP_IDENTITY_FUNC "..identity.." /// identity function name
+#define HSP_HIDE_PRFX "."               /// prefic for hidden objects
+#define HSP_CHAIN_COL ".chain"        /// chain column name in draws
+#define HSP_IDENTITY_FUNC ".identity" /// identity function name
 // group rates
 constexpr double HSP_REFER_VALUE = 1.0;     /// alias for reference value
-#define HSP_REFERENCE "..reference.."       /// reference choice
-#define HSP_CONTACT_RATE "..contact.."      /// contact rate
-#define HSP_MISSING_RATE "..missing_rate.." /// missing rate
+#define HSP_REFERENCE ".reference"       /// reference choice
+#define HSP_CONTACT_RATE ".contact"      /// contact rate
+#define HSP_MISSING_RATE ".missing_rate" /// missing rate
 // infectivity profile
-#define HSP_PROFILE_INST "..profile_inst.."   /// augmented instantaneous infectivity profile
-#define HSP_PROFILE_CUMUL "..profile_cumul.." /// augmented cumulative infectivity profile
+#define HSP_PROFILE_INST ".profile_inst"   /// augmented instantaneous infectivity profile
+#define HSP_PROFILE_CUMUL ".profile_cumul" /// augmented cumulative infectivity profile
 
 // advanced setup constants
 constexpr unsigned HSP_MAX_STR_PRINT = 5;       /// maximum options to print

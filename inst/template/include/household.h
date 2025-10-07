@@ -59,7 +59,6 @@ public:
 				   bool is_prim,
 				   const DefinitionParser &model_name);
 
-	void user_reset(rnd_gen &prng);
 	void set_augm_value(const std::string &a, double x) { safe_at(augm_map_, a, "augmented").set(x); }
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
@@ -70,6 +69,7 @@ public:
 	double augm(const std::string &a) const { return safe_at(augm_map_, a, "augmented").get(); }
 	Variable &get_augm_variable(const std::string &a) { return safe_at(augm_map_, a, "augmented"); }
 	const Variable &get_augm_variable(const std::string &a) const { return safe_at(augm_map_, a, "augmented"); }
+	std::string str_augm_summary() const;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	/////////////////////////////////  Individual : loglikelihood  ////////////////////////////////
@@ -287,7 +287,14 @@ public:
 
 	void set_multiplicity(unsigned long m, size_t class_idx);
 	void init_member(size_t index, const std::string &id, int status, const u_dict<double> &data);
-	bool set_status(Individual &member, int new_status);
+	void set_healthy_status(Individual &member) { set_status_(member, HSP_HEALTHY_STATUS); }
+	void set_infected_status(Individual &member, int new_status = HSP_INFECTED_STATUS)
+	{
+		if (!HSP_IS_INFECTED(new_status))
+			throw std::invalid_argument(
+				"Status " + std::to_string(new_status) + " is not an infected status.");
+		set_status_(member, new_status);
+	}
 	void init_contact_rates(size_t from, size_t to, observ_dbl_ptr x);
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
@@ -342,6 +349,9 @@ private:
 
 	// contact rate pointers
 	matrix<observ_dbl_ptr> contact_rates_;
+
+	/// Change_status of individual i to new status (without controls).
+	void set_status_(Individual &member, int new_status);
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////  Household : loglikelihood [private]  ////////////////////////////
