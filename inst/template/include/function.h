@@ -44,10 +44,13 @@ public:
 
     /// Empty attribute.
     Attribute() {};
-    /// Auxiliary constructors allowing for implicit definitions.
+    /// Numeric attribute.
     Attribute(double x);
+    /// Pointer to double attribute.
     Attribute(observ_dbl_ptr y);
+    /// Function attribute.
     Attribute(const std::shared_ptr<Function> f);
+    /// Function attribute by registry choice.
     Attribute(const std::string &s, bool is_primitive = false);
     /// Deconstructor.
     virtual ~Attribute() = default;

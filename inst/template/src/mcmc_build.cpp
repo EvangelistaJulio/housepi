@@ -17,7 +17,7 @@
 #include "tools/string.h"
 #include "tools/read.h"
 #include "tools/error.h"
-#include "tools/status.h" 
+#include "tools/status.h"
 #include "tools/params.h"
 #include "tools/rates.h"
 #include "mcmc_impl.h"
@@ -550,24 +550,10 @@ void MCMC::Impl::GroupRates::build(const u_dict<str_vec> &deftable)
 {
     if (!deftable.empty())
     {
-        // check that tempalte headers are present
-        str_vec data_headers = hsp::read::table_headers(deftable);
-        hsp::str::assert_no_missing_entries(data_headers, file_headers_);
-
-        // remove template headers to keep only dataset
-        data_headers = data_headers - file_headers_;
-        // check that required dataset columns are present
-        hsp::str::assert_no_unused_entries(data_headers, pImpl_.dataset.headers());
-
-        const size_t n_rows = deftable.at("group_rate").size();
-
-        // store the names of the used group rates
-        headers_ = {};
-        for (const std::string &g : deftable.at("group_rate"))
-            if (!(headers_ % g))
-                headers_.push_back(g);
+        const str_vec data_headers(helper_assert_definitions_(deftable));
 
         // loop over all household members
+        const size_t n_rows = deftable.at("group_rate").size();
         for (Household &house : pImpl_.dataset)
             for (Individual &member : house)
             {
@@ -577,72 +563,86 @@ void MCMC::Impl::GroupRates::build(const u_dict<str_vec> &deftable)
                 for (size_t r = 0; r < n_rows; ++r)
                 {
                     // check if all conditions are satisfied
-                    bool tag = true;
+                    bool is_this_class = true;
                     for (const std::string &d : data_headers)
                         if (!hsp::na::is(deftable.at(d)[r]))
-                            tag &= (member.data(d) == hsp::str::tod(deftable.at(d)[r]));
+                            is_this_class &= (member.data(d) == hsp::str::tod(deftable.at(d)[r]));
 
-                    if (tag)
-                    {
-                        const std::string &g = deftable.at("group_rate")[r];
-                        const std::string &p = deftable.at("param_name")[r];
-                        if (these_rates % g)
-                            these_rates[g].push_back(p);
-                        else
-                            these_rates.emplace(g, str_vec({p}));
-                    }
+                    // if it's the case, add the parameter name
+                    if (is_this_class)
+                        these_rates[deftable.at("group_rate")[r]].push_back(deftable.at("param_name")[r]);
                 }
 
                 // assign rates to the individual
-                init_rate_as_ptrs_(member, these_rates);
+                helper_init_all_rates_(member, these_rates);
             }
     }
 }
 
-/// Convert to a dictionary of parameter pointers and pass the pointers to the individual */
-void MCMC::Impl::GroupRates::init_rate_as_ptrs_(Individual &member,
-                                                const u_dict<str_vec> &these_rates)
+/// Verify that group rates definitions are correct.
+str_vec MCMC::Impl::GroupRates::helper_assert_definitions_(const u_dict<str_vec> &deftable)
 {
-    u_dict<std::vector<observ_dbl_ptr>> rate_ptrs = {};
+    // check that tempalte headers are present
+    str_vec data_headers = hsp::read::table_headers(deftable);
+    hsp::str::assert_no_missing_entries(data_headers, file_headers_);
 
+    // remove template headers to keep only dataset
+    data_headers = data_headers - file_headers_;
+    // check that required dataset columns are present
+    hsp::str::assert_no_unused_entries(data_headers, pImpl_.dataset.headers());
+
+    // assert the group rate names are allowed
+    headers_.clear();
+    for (const std::string &g : deftable.at("group_rate"))
+        if (g == hsp::rates::CONTACT || g == hsp::rates::MISSING)
+            throw std::invalid_argument(
+                "The group rate name \"" + g + "\" is reserved. Choose a different one.");
+        else if (hsp::na::is(g))
+            throw std::invalid_argument(
+                "Found a missing group rate name in the definitions.");
+        else
+            headers_.push_back(g);
+    headers_ = hsp::str::unique(headers_);
+
+    return data_headers;
+}
+
+/// Convert to a dictionary of parameter pointers and pass the pointers to the individual.
+void MCMC::Impl::GroupRates::helper_init_all_rates_(Individual &member,
+                                                    const u_dict<str_vec> &these_rates)
+{
     for (const auto &pair : these_rates)
     {
-        const std::string &r = pair.first;
+        const std::string &g = pair.first;
 
-        if (str_vec({hsp::rates::CONTACT, hsp::rates::MISSING}) % r)
-            throw std::invalid_argument(
-                "The group rate name \"" + r + "\" is reserved. Choose a different one.");
+        // extract non-reference parameter pointers
+        std::vector<observ_dbl_ptr> vec_par_ptr = {};
+        for (const std::string &p : pair.second)
+            if (hsp::na::is(p) || p == hsp::rates::MISSING)
+                throw std::invalid_argument(
+                    "Missing rate \"" + g + "\" for " + member.err_name() + ".");
+            else if (p != hsp::rates::REFERENCE)
+                vec_par_ptr.emplace_back(pImpl_.param.get_ptr(p));
 
-        else if (!hsp::na::is(r))
+        if (vec_par_ptr.empty()) // stick to reference
+            member.init_group_rate_to_reference(g);
+
+        else if (vec_par_ptr.size() == 1) // use simple pointer
+            member.init_group_rate(g, Attribute(vec_par_ptr[0]));
+
+        else // use variadic product
         {
-            bool is_all_reference = true;                 // all reference state
-            std::vector<observ_dbl_ptr> vec_par_ptr = {}; // parameter pointers
+            std::shared_ptr<Function> fun = compose_func_registries(
+                "prod", "function", {&ArithmeticRegistry::inst()});
 
-            for (const std::string &p : pair.second)
-            {
-                if ((hsp::na::is(p)) || (p == hsp::rates::MISSING))
-                    std::invalid_argument(
-                        "Missing rate \"" + r + "\" for " + member.err_name() + ".");
+            // initialize attributes to pointers
+            fun->init_attr(hsp::params::X, vec_par_ptr[0]);
+            for (size_t i = 1; i < vec_par_ptr.size(); ++i)
+                fun->init_attr(hsp::params::X + std::to_string(i + 1), vec_par_ptr[i]);
 
-                else if (p == hsp::rates::REFERENCE)
-                    vec_par_ptr.emplace_back(&hsp::rates::VALUE_REFERENCE);
-
-                else
-                {
-                    is_all_reference = false;
-                    vec_par_ptr.emplace_back(pImpl_.param.get_ptr(p));
-                }
-            }
-
-            // simplify for the combined reference values
-            if (is_all_reference)
-                rate_ptrs[r] = {&hsp::rates::VALUE_REFERENCE};
-            else
-                rate_ptrs[r] = vec_par_ptr;
+            member.init_group_rate(g, fun);
         }
     }
-
-    member.init_all_group_rates(rate_ptrs);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

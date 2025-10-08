@@ -526,9 +526,9 @@ DefEncoder <- R6::R6Class(
       # map to function name
       func_name <- switch(
         rlang::call_name(call),
-        `+` = if (length(args) == 1) NA else "add",
+        `+` = if (length(args) == 1) NA else "sum",
         `-` = if (length(args) == 1) "minus" else "sub",
-        `*` = "mult",
+        `*` = "prod",
         `/` = "div",
         `^` = "pow",
         rlang::call_name(call) # default

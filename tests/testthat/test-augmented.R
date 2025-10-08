@@ -41,7 +41,7 @@ test_that("Augmented variable definitions are correct", {
   expect_equal(augm$defs$value, "3|N")
   expect_equal(augm$defs$rule, NA)
   expect_equal(augm$defs$scale, NA)
-  
+
   # variable definition
   augm <- housepi:::HousepiAugmented$new()
   augm$add(name = "dummy", value = ~expo@D, model = "uniform",

@@ -446,12 +446,6 @@ public:
         ~GroupRates() = default;
 
         /////////////////////////////////////////////////////////////////////////////////////////
-        ////////////////////////////  MCMC : Impl : GroupRates : getter  ////////////////////////
-        /////////////////////////////////////////////////////////////////////////////////////////
-
-        bool is_empty() const { return headers_.empty(); }
-
-        /////////////////////////////////////////////////////////////////////////////////////////
         ////////////////////////////  MCMC : Impl : GroupRates : setter  ////////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////
 
@@ -467,15 +461,16 @@ public:
 #else
         void read(const std::string &pathtofile);
 #endif
+
     private:
         const std::string section_name_ = "group rates";
         MCMC::Impl &pImpl_; // pointer to external class
 
         const str_vec file_headers_ = {"group_rate", "param_name"};
-        str_vec headers_ = {};
+        str_vec headers_;
 
-        void init_rate_as_ptrs_(Individual &member,
-                                const u_dict<str_vec> &these_rates);
+        str_vec helper_assert_definitions_(const u_dict<str_vec> &deftable);
+        void helper_init_all_rates_(Individual &member, const u_dict<str_vec> &these_rates);
     } group_rates;
 
     /////////////////////////////////////////////////////////////////////////////////////////////

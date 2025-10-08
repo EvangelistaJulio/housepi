@@ -24,6 +24,7 @@ namespace hsp
     {
         inline bool is_augmented(const std::string &s) { return s == "A"; }
         inline bool is_data(const std::string &s) { return s == "D"; }
+        inline bool is_group_rate(const std::string &s) { return s == "G"; }
         inline bool is_numeric(const std::string &s) { return s == "N"; }
         inline bool is_parameter(const std::string &s) { return s == "P"; }
     }

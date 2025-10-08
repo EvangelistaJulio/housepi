@@ -597,26 +597,22 @@ protected:
     double raw_function_(double x) const override final { return -x; }
 };
 
-/// Arithmetic function factory.
-#define MAKE_ARITHMETIC_FUNCTION(ClassName, FunctionName, Symbol, DefaultY)             \
-    class ClassName : public Function                                                   \
-    {                                                                                   \
-    public:                                                                             \
-        ClassName() : Function(FunctionName, {"x2"}, {DefaultY}) {}                     \
-                                                                                        \
-        void init_truncation() override final {}                                        \
-                                                                                        \
-        bool is_discrete() const override final                                         \
-        {                                                                               \
-            return arguments_[0].is_discrete() && x_arg_.is_discrete();                 \
-        }                                                                               \
-                                                                                        \
-    protected:                                                                          \
-        double raw_function_(double x) const override final { return x Symbol arg(0); } \
-    };
-MAKE_ARITHMETIC_FUNCTION(Addition_Function, "add", +, 0.)
-MAKE_ARITHMETIC_FUNCTION(Subtraction_Function, "sub", -, 0.)
-MAKE_ARITHMETIC_FUNCTION(Multiplication_Function, "mult", *, 1.)
+/// Subtraction function.
+class Subtraction_Function : public Function
+{
+public:
+    Subtraction_Function() : Function("sub", {"x2"}, {0.}) {}
+
+    void init_truncation() override final {}
+
+    bool is_discrete() const override final
+    {
+        return arguments_[0].is_discrete() && x_arg_.is_discrete();
+    }
+
+protected:
+    double raw_function_(double x) const override final { return x - arg(0); }
+};
 
 /// Division Function.
 class Division_Function : public Function
@@ -819,9 +815,7 @@ MAKE_VARIADIC_FUNCTION(Product_Function, "prod", *=)
 
 IMPLEMENT_HOUSEPI_FUNCTION_REGISTRY(ArithmeticRegistry)
 REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Minus_Function)
-REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Addition_Function)
 REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Subtraction_Function)
-REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Multiplication_Function)
 REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Division_Function)
 REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Summation_Function)
 REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Product_Function)

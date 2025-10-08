@@ -110,12 +110,19 @@ Attribute MCMC::Impl::read_attribute_(const DefinitionParser::ASTNode &node,
         return attr;
     }
 
-    else if (hsp::sources::is_augmented(node.type)) // terminal augmented node
+    else if (hsp::sources::is_augmented(node.type)) // augmented terminal node
     {
         Attribute attr;
         attr.name(node.value, "augmented");
-        const Variable &other_augm = member.get_augm_variable(node.value);
-        attr.transfer(other_augm);
+        attr.transfer(member.get_augm_variable(node.value));
+        return attr;
+    }
+
+    else if (hsp::sources::is_group_rate(node.type)) // group rate terminal node
+    {
+        Attribute attr;
+        attr.name(node.value, "group_rate");
+        attr.transfer(member.get_group_rate_attribute(node.value));
         return attr;
     }
 

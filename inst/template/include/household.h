@@ -19,6 +19,7 @@
 #include "tools/na_utils.h"
 #include "tools/operators.h"
 #include "tools/status.h"
+#include "function.h"
 #include "variable.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -139,14 +140,16 @@ public:
 				"No datalong entries for " + err_name() + ".");
 		return pdatalong_->at(d);
 	}
-	double group_rate(const std::string &r) const { return safe_at(group_rate_map_, r, "group rate").get(); }
+	double group_rate(const std::string &g) const { return safe_at(group_rate_map_, g, "group rate").get(); }
+	const Attribute &get_group_rate_attribute(const std::string &g) const { return safe_at(group_rate_map_, g, "group rate"); }
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////  Individual : setter  ////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	void init_pointer_to_datalong(u_dict<dbl_vec> *y) { pdatalong_ = y; }
-	void init_all_group_rates(const u_dict<std::vector<observ_dbl_ptr>> &ptrs);
+	void init_group_rate(const std::string &g, const Attribute &attr);
+	void init_group_rate_to_reference(const std::string &g);
 
 private:
 	std::string id_ = hsp::na::STRING;	// user id

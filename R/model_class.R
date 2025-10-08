@@ -71,7 +71,7 @@ HousepiModel <- R6::R6Class(
       c(
         required, # by the model
         private$.group_rates$param_required, # by group rates
-        private$.augm$param_required, # by augmented variable
+        private$.augm$param_required, # by augmented
         private$.infec_profile$param_required # by infectivity profile
       )
     },
@@ -105,7 +105,10 @@ HousepiModel <- R6::R6Class(
     # @description
     # Group rates required by implementation file and other definitions.
     .get_all_group_rate = function() {
-      private$.group_rates$require(private$.reference())
+      c(
+        private$.group_rates$require(private$.reference()), # by the model
+        private$.augm$group_rate_required # by augmented
+      )
     },
 
     # @description

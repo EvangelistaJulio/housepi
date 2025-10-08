@@ -45,15 +45,15 @@ In many applications, augmented variable definitions can also depend on the data
 We can declare the source of argument value with the convention `<argument> \@ <source_symbol>`.
 E. g. "visit_day\@D" will source the value at individual data "visit_day".
 
-| Source    | Symbol | Examples       |
-|-----------|:------:|:--------------:|
-| Augmented | A      | time, time\@A  |
-| Data      | D      | visit_day\@D   |
-| Numeric   | N      | 14, 14\@N      |
-| Parameter | P      | mean\@P        |
+| Source     | Symbol | Examples          |
+|------------|:------:|:-----------------:|
+| Augmented  | A      | time, time\@A     |
+| Data       | D      | visit_day\@D      |
+| Group Rate | G      | susceptibility\@G |
+| Numeric    | N      | 14, 14\@N         |
+| Parameter  | P      | mean\@P           |
 
 More in general, definition arguments `value`, `args`, `min`, `max` and `from` can be linked to external values in the following ways
-
 
 # Example: estimate incubation periods distribution
 

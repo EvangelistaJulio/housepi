@@ -137,42 +137,18 @@ Individual::Individual(size_t index,
 //////////////////////////////////////  Individual : setter  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Initialize all group rates for the individual.
-void Individual::init_all_group_rates(const u_dict<std::vector<observ_dbl_ptr>> &ptrs)
+/// Initialize group rate according to given attribute.
+void Individual::init_group_rate(const std::string &g, const Attribute &attr)
 {
-	for (const auto &pair : ptrs)
-	{
-		const std::string &r = pair.first;
-		const std::vector<observ_dbl_ptr> &vec_par_ptr = pair.second;
+	group_rate_map_[g] = Attribute();
+	group_rate_map_[g].name(g);
+}
 
-		if (vec_par_ptr.empty())
-			std::invalid_argument(
-				"Missing rate \"" + r + "\" for " + err_name() + ".");
-
-		else if (vec_par_ptr.size() == 1)
-			// use pointer
-			group_rate_map_[r] = Attribute(vec_par_ptr[0]);
-
-		else
-		{
-			std::shared_ptr<Function> fun;
-			if (vec_par_ptr.size() == 2)
-				// use simple multiplication
-				fun = compose_func_registries(
-					"mult", "function", {&ArithmeticRegistry::inst()});
-			else
-				// use variadic product
-				fun = compose_func_registries(
-					"prod", "function", {&ArithmeticRegistry::inst()});
-
-			// initialize attributes to pointers
-			fun->init_attr(hsp::params::X, vec_par_ptr[0]);
-			for (size_t i = 1; i < vec_par_ptr.size(); ++i)
-				fun->init_attr(hsp::params::X + std::to_string(i + 1), vec_par_ptr[i]);
-
-			group_rate_map_[r] = Attribute(std::move(fun));
-		}
-	}
+/// Initialize group rate to reference.
+void Individual::init_group_rate_to_reference(const std::string &g)
+{
+	group_rate_map_[g] = Attribute(hsp::rates::VALUE_REFERENCE);
+	group_rate_map_[g].name(g);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

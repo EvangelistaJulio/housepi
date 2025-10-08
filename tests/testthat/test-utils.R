@@ -23,28 +23,28 @@ test_that("Rlang basic identity assignments work as expected", {
 
 test_that("Rlang arithmetic operations work as expected", {
   expect_equal(housepi:::DefEncoder$new(~ alpha + beta)$x,
-               "add|x:x2|{alpha|A}:{beta|A}")
+               "sum|x:x2|{alpha|A}:{beta|A}")
   expect_equal(housepi:::DefEncoder$new(~ alpha @ P+ beta)$x,
-               "add|x:x2|{alpha|P}:{beta|A}")
+               "sum|x:x2|{alpha|P}:{beta|A}")
   expect_equal(housepi:::DefEncoder$new(~ alpha + beta @ P)$x,
-               "add|x:x2|{alpha|A}:{beta|P}")
+               "sum|x:x2|{alpha|A}:{beta|P}")
   expect_equal(housepi:::DefEncoder$new(~ alpha @ P + beta @ P)$x,
-               "add|x:x2|{alpha|P}:{beta|P}")
+               "sum|x:x2|{alpha|P}:{beta|P}")
   expect_equal(housepi:::DefEncoder$new(~ (alpha) -(beta))$x,
                "sub|x:x2|{alpha|A}:{beta|A}")
   expect_equal(housepi:::DefEncoder$new(~ alpha * (beta))$x,
-               "mult|x:x2|{alpha|A}:{beta|A}")
+               "prod|x:x2|{alpha|A}:{beta|A}")
   expect_equal(housepi:::DefEncoder$new(~ alpha * (beta @ P))$x,
-               "mult|x:x2|{alpha|A}:{beta|P}")
+               "prod|x:x2|{alpha|A}:{beta|P}")
   expect_equal(housepi:::DefEncoder$new(~ alpha @P * beta @ P)$x,
-               "mult|x:x2|{alpha|P}:{beta|P}")
+               "prod|x:x2|{alpha|P}:{beta|P}")
 })
 
 test_that("Rlang nested expression", {
   expect_equal(housepi:::DefEncoder$new(~a + 3 * b)$x,
-               "add|x:x2|{a|A}:{mult|x:x2|{3|N}:{b|A}}")
+               "sum|x:x2|{a|A}:{prod|x:x2|{3|N}:{b|A}}")
   expect_equal(housepi:::DefEncoder$new(~a + b - c)$x,
-               "sub|x:x2|{add|x:x2|{a|A}:{b|A}}:{c|A}")
+               "sub|x:x2|{sum|x:x2|{a|A}:{b|A}}:{c|A}")
   expect_equal(housepi:::DefEncoder$new(~log ( + alpha@P  ))$x,
                "log|x|{alpha|P}")
 })

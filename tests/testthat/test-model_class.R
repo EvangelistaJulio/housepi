@@ -172,22 +172,22 @@ test_that("Missing function arguments raise errors", {
   # data with NA values
   hhmodel$data_wide <- data.frame(house_id = seq(3), id = seq(3),
                                   status = 1, test = c(5.5, NA, -1.5))
-  
+
   hhmodel$add_augmented(name = "proba", func = "gamma")
   expect_error(hhmodel$loglikelihood(), regexp = "Impossible to return value")
-  
+
   hhmodel$add_augmented(name = "gamma", func = "gamma")
   expect_warning(
     hhmodel$add_augmented(name = "proba", expr = ~exp(-gamma)),
     "Overwriting existing"
   )
   expect_error(hhmodel$loglikelihood(), regexp = "Impossible to associate")
-  
+
   # check that NaN + something causes errors
   hhmodel$load_augmented_list(noise = list(model = "normal"),
                               proba = ~exp(test@D + noise))
   expect_error(hhmodel$loglikelihood(), regexp = "Impossible to associate")
-  
+
   # check that log(NaN) = NaN
   hhmodel$load_augmented_list(proba = ~log(test@D))
   expect_error(hhmodel$infer(), regexp = "Nothing to sample")
@@ -378,26 +378,26 @@ test_that("Loglikelihood of augmented infection time model is correct", {
 test_that("Simulations behave as expected", {
   hhsimul <- new_housepi_model("augmented_infection_time")
   hhsimul$data_wide <- dplyr::mutate(housepi::survey, status = NA)
-  hhsimul$load_parameter_list(alpha = 0, 
+  hhsimul$load_parameter_list(alpha = 0,
                               beta = 0,
                               study_period = 21,
                               gamma = 1,
                               size_ref = 4)
   # UPDATE: these dependencies should not be in template
-  
+
   hhsimul$load_augmented_list(
     incub_period = list(model = "gamma", args = c(shape = 2, scale = 1)),
     infec_time = ~- incub_period,
     onset_time = ~infec_time + incub_period
-  ) 
-  
+  )
+
   # simulate just introduction cases
   simulated <- hhsimul$simulate()
   expect_identical(
     length(unique(simulated$house_id)),
     sum(simulated$onset_time == 0, na.rm = TRUE)
   )
-  
+
   # simulate all infected
   expect_warning(hhsimul$add_parameter(name = "beta", value = 100))
   simulated <- hhsimul$simulate()

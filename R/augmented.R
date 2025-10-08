@@ -164,12 +164,6 @@ HousepiAugmented <- R6::R6Class(
   ############################################################################
 
   active = list(
-    #' @field param_required `character()`\cr
-    #' Find parameters required by augmented variable definitions.
-    param_required = function(value) {
-      if (missing(value)) return(private$.find_def_required("P"))
-      stop_h("'param_required' is read only.")
-    },
 
     #' @field augm_required `character()`\cr
     #' Find augmented required by augmented variable definitions.
@@ -183,6 +177,20 @@ HousepiAugmented <- R6::R6Class(
     data_required = function(value) {
       if (missing(value)) return(private$.find_def_required("D"))
       stop_h("'data_required' is read only.")
+    },
+
+    #' @field group_rate_required `character()`\cr
+    #' Find group rates required by augmented variable definitions.
+    group_rate_required = function(value) {
+      if (missing(value)) return(private$.find_def_required("G"))
+      stop_h("'group_rate_required' is read only.")
+    },
+
+    #' @field param_required `character()`\cr
+    #' Find parameters required by augmented variable definitions.
+    param_required = function(value) {
+      if (missing(value)) return(private$.find_def_required("P"))
+      stop_h("'param_required' is read only.")
     }
   ),
 
@@ -240,7 +248,7 @@ HousepiAugmented <- R6::R6Class(
       if (any(mask)) {
         # check if same name and status
         mask <- mask & sapply(self$defs[["status"]], function(x) {
-          identical(x, as.integer(status)) 
+          identical(x, as.integer(status))
         })
 
         if (any(mask)) self$defs <- self$defs[!mask, ]
