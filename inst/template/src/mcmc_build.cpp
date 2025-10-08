@@ -14,6 +14,12 @@
 
 #include <chrono>
 
+#include "tools/string.h"
+#include "tools/read.h"
+#include "tools/error.h"
+#include "tools/status.h" 
+#include "tools/params.h"
+#include "tools/rates.h"
 #include "mcmc_impl.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -32,7 +38,7 @@ std::int32_t default_setup_seed()
     return static_cast<std::int32_t>(mixed & 0x7FFFFFFF);
 }
 
-void MCMC::Impl::Setup::build(const dict_str &deflist)
+void MCMC::Impl::Setup::build(const u_dict<std::string> &deflist)
 {
     // default seed
     seed = default_setup_seed();
@@ -40,44 +46,44 @@ void MCMC::Impl::Setup::build(const dict_str &deflist)
     if (!deflist.empty())
     {
         // check entries
-        const str_vec &headers = tools::read::list_headers(deflist);
-        tools::str::assert_no_unused_entries(headers, file_headers);
+        const str_vec &headers = hsp::read::list_headers(deflist);
+        hsp::str::assert_no_unused_entries(headers, file_headers);
 
         // Random Initialization of Parameters
-        if (deflist % "progress" && !tools::is_na(deflist.at("progress")))
-            progress = tools::str::toul(deflist.at("progress"));
+        if (deflist % "progress" && !hsp::na::is(deflist.at("progress")))
+            progress = hsp::str::toul(deflist.at("progress"));
 
         // N. of Threads
-        if (deflist % "threads" && !tools::is_na(deflist.at("threads")))
-            n_threads = tools::str::toi(deflist.at("threads"), "n. of threads");
+        if (deflist % "threads" && !hsp::na::is(deflist.at("threads")))
+            n_threads = hsp::str::toi(deflist.at("threads"), "n. of threads");
 
         // PRNG Seed
-        if (deflist % "seed" && !tools::is_na(deflist.at("seed")))
-            seed = tools::str::toi32(deflist.at("seed"), "random seed");
+        if (deflist % "seed" && !hsp::na::is(deflist.at("seed")))
+            seed = hsp::str::toi32(deflist.at("seed"), "random seed");
 
         // N. of Chains
-        if (deflist % "chains" && !tools::is_na(deflist.at("chains")))
-            n_chains = tools::str::toul(deflist.at("chains"), "n. of chains");
+        if (deflist % "chains" && !hsp::na::is(deflist.at("chains")))
+            n_chains = hsp::str::toul(deflist.at("chains"), "n. of chains");
 
         // N. of Steps
-        if (deflist % "steps" && !tools::is_na(deflist.at("steps")))
-            n_steps = tools::str::toul(deflist.at("steps"), "n. of steps");
+        if (deflist % "steps" && !hsp::na::is(deflist.at("steps")))
+            n_steps = hsp::str::toul(deflist.at("steps"), "n. of steps");
 
         // N. of Adaptive Steps
-        if (deflist % "adapt" && !tools::is_na(deflist.at("adapt")))
-            n_adapt = tools::str::toul(deflist.at("adapt"), "n. of adaptive steps");
+        if (deflist % "adapt" && !hsp::na::is(deflist.at("adapt")))
+            n_adapt = hsp::str::toul(deflist.at("adapt"), "n. of adaptive steps");
 
         // N. of Thinning Steps
-        if (deflist % "thin" && !tools::is_na(deflist.at("thin")))
-            n_thin = tools::str::toul(deflist.at("thin"), "thin");
+        if (deflist % "thin" && !hsp::na::is(deflist.at("thin")))
+            n_thin = hsp::str::toul(deflist.at("thin"), "thin");
 
         // N. of Steps to "Burn-In"
-        if (deflist % "burnin" && !tools::is_na(deflist.at("burnin")))
-            n_burnin = tools::str::toul(deflist.at("burnin"), "burn-in");
+        if (deflist % "burnin" && !hsp::na::is(deflist.at("burnin")))
+            n_burnin = hsp::str::toul(deflist.at("burnin"), "burn-in");
 
         // Individual ID for Augmented Trace
-        if (deflist % "id_draws" && !tools::is_na(deflist.at("id_draws")))
-            parse_id_draws_list_(deflist.at("id_draws"), HSP_LIST_DELIM);
+        if (deflist % "id_draws" && !hsp::na::is(deflist.at("id_draws")))
+            id_draws = hsp::read::parse_list(deflist.at("id_draws"));
     }
 
     // reset internal states
@@ -86,18 +92,6 @@ void MCMC::Impl::Setup::build(const dict_str &deflist)
 
     set_n_threads(); // define number of threads
     set_prng_seed(); // pseudo-random number generator seeding
-}
-
-/// Parse the list from the std::string.
-void MCMC::Impl::Setup::parse_id_draws_list_(const std::string &tkn, const char delim)
-{
-    id_draws.clear();
-    std::istringstream args_ss(tkn);
-    std::string tmp;
-
-    // rea the entries of the dictionary
-    while (getline(args_ss, tmp, delim))
-        id_draws.push_back(tmp);
 }
 
 /// Set the number of threads for parrell computations (default is 1).
@@ -111,7 +105,7 @@ void MCMC::Impl::Setup::set_n_threads()
 
     if (n_threads > max_threads)
     {
-        tools::warning(
+        hsp::warning(
             "N. of threads reduced to " + std::to_string(max_threads) + " available processors.");
         n_threads = max_threads;
     }
@@ -121,7 +115,7 @@ void MCMC::Impl::Setup::set_n_threads()
 
 #else
     if (n_threads != 1)
-        tools::warning("Parallelization with OpenMP is not supported.");
+        hsp::warning("Parallelization with OpenMP is not supported.");
 
     n_threads = 1;
 #endif
@@ -204,7 +198,7 @@ std::string MCMC::Impl::Setup::fmt_progtxt()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Assign data after pre-processing.
-void MCMC::Impl::DataWide::build(const dict_str_vec &input)
+void MCMC::Impl::DataWide::build(const u_dict<str_vec> &input)
 {
     if (!input.empty())
     {
@@ -221,7 +215,7 @@ void MCMC::Impl::DataWide::build(const dict_str_vec &input)
 
         // assess the presence of house IDs
         if (!(headers_ % "house_id"))
-            tools::warning(
+            hsp::warning(
                 "Ignored household structure. Missing data column \"house_id\".");
 
         // safe load of households
@@ -230,33 +224,33 @@ void MCMC::Impl::DataWide::build(const dict_str_vec &input)
             // read individual data
             std::string id = std::to_string(i + 1);                // default id
             std::string house_id = std::to_string(n_houses() + 1); // default house_id
-            int status = HSP_MISSING_STATUS;
+            int status = hsp::status::MISSING;
             u_dict<double> data = {};
 
             for (const std::string &key : headers_)
                 if (key == "id")
                 {
                     id = input.at("id")[i];
-                    if (tools::is_na(id))
+                    if (hsp::na::is(id))
                         throw std::invalid_argument(
                             "Missing id for individual in row n." + std::to_string(i + 2) + ".");
                 }
                 else if (key == "house_id")
                 {
                     house_id = input.at("house_id")[i];
-                    if (tools::is_na(house_id))
+                    if (hsp::na::is(house_id))
                         throw std::invalid_argument(
                             "Missing house_id for individual in row n." + std::to_string(i + 2) + ".");
                 }
                 else if (key == "status")
                 {
                     // note: NA status is a missing status
-                    if (!tools::is_na(input.at("status")[i]))
-                        status = tools::str::toi(input.at("status")[i], "individual status");
+                    if (!hsp::na::is(input.at("status")[i]))
+                        status = hsp::str::toi(input.at("status")[i], "individual status");
                 }
                 else
                 {
-                    data.emplace(key, tools::str::tod(input.at(key)[i], "data \"" + key + "\""));
+                    data.emplace(key, hsp::str::tod(input.at(key)[i], "data \"" + key + "\""));
                 }
 
             // if household index doesn't exist, add new household
@@ -430,13 +424,13 @@ void MCMC::Impl::DataWide::init_cache_double_matrix(const std::string &e)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Build multiplicities.
-void MCMC::Impl::DataWide::build_multiplicity(const dict_str_vec &table)
+void MCMC::Impl::DataWide::build_multiplicity(const u_dict<str_vec> &table)
 {
     if (pImpl_.augm.is_any() || (table.size() == 0))
     {
         // note: multiplicities are not compatible with data augmentation
         if (!table.empty())
-            tools::warning(
+            hsp::warning(
                 "Data augmentation is incompatible with multiplicity simplification.");
 
         // default choice for restricted household indexes
@@ -459,7 +453,7 @@ void MCMC::Impl::DataWide::build_multiplicity(const dict_str_vec &table)
         {
             size_t H = hhid_to_index_.at(table.at("house_id")[r]);
             size_t H0 = hhid_to_index_.at(table.at("class_id")[r]);
-            unsigned long m = tools::str::toul(table.at("multiplicity")[r]);
+            unsigned long m = hsp::str::toul(table.at("multiplicity")[r]);
 
             house_vector_[H].set_multiplicity(m, H0);
 
@@ -476,7 +470,7 @@ void MCMC::Impl::DataWide::build_multiplicity(const dict_str_vec &table)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Assign data after pre-processing.
-void MCMC::Impl::DataLong::build(const dict_str_vec &input)
+void MCMC::Impl::DataLong::build(const u_dict<str_vec> &input)
 {
     if (!input.empty())
     {
@@ -517,7 +511,7 @@ void MCMC::Impl::DataLong::build(const dict_str_vec &input)
         for (size_t r = 0; r < n_rows; ++r)
         {
             std::string id = input.at("id")[r];
-            if (tools::is_na(id))
+            if (hsp::na::is(id))
                 throw std::invalid_argument(
                     "Invalid id for datalong in row n." + std::to_string(r + 2) + ".");
             else if (!(id_to_index % id))
@@ -534,7 +528,7 @@ void MCMC::Impl::DataLong::build(const dict_str_vec &input)
             u_dict<dbl_vec> &xdict = indiv_datalist_.at(id_to_index.at(id));
             for (const std::string &key : headers_)
                 xdict.at(key).emplace_back(
-                    tools::str::tod(input.at(key).at(r), "datalong \"" + key + "\""));
+                    hsp::str::tod(input.at(key).at(r), "datalong \"" + key + "\""));
         }
 
         // assign pointers to relative datalong to all individuals
@@ -552,18 +546,18 @@ void MCMC::Impl::DataLong::build(const dict_str_vec &input)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Update model report and set group rates associate to new individual.
-void MCMC::Impl::GroupRates::build(const dict_str_vec &deftable)
+void MCMC::Impl::GroupRates::build(const u_dict<str_vec> &deftable)
 {
     if (!deftable.empty())
     {
         // check that tempalte headers are present
-        str_vec data_headers = tools::read::table_headers(deftable);
-        tools::str::assert_no_missing_entries(data_headers, file_headers_);
+        str_vec data_headers = hsp::read::table_headers(deftable);
+        hsp::str::assert_no_missing_entries(data_headers, file_headers_);
 
         // remove template headers to keep only dataset
         data_headers = data_headers - file_headers_;
         // check that required dataset columns are present
-        tools::str::assert_no_unused_entries(data_headers, pImpl_.dataset.headers());
+        hsp::str::assert_no_unused_entries(data_headers, pImpl_.dataset.headers());
 
         const size_t n_rows = deftable.at("group_rate").size();
 
@@ -585,8 +579,8 @@ void MCMC::Impl::GroupRates::build(const dict_str_vec &deftable)
                     // check if all conditions are satisfied
                     bool tag = true;
                     for (const std::string &d : data_headers)
-                        if (!tools::is_na(deftable.at(d)[r]))
-                            tag &= (member.data(d) == tools::str::tod(deftable.at(d)[r]));
+                        if (!hsp::na::is(deftable.at(d)[r]))
+                            tag &= (member.data(d) == hsp::str::tod(deftable.at(d)[r]));
 
                     if (tag)
                     {
@@ -615,23 +609,23 @@ void MCMC::Impl::GroupRates::init_rate_as_ptrs_(Individual &member,
     {
         const std::string &r = pair.first;
 
-        if (str_vec({HSP_CONTACT_RATE, HSP_MISSING_RATE}) % r)
+        if (str_vec({hsp::rates::CONTACT, hsp::rates::MISSING}) % r)
             throw std::invalid_argument(
                 "The group rate name \"" + r + "\" is reserved. Choose a different one.");
 
-        else if (!tools::is_na(r))
+        else if (!hsp::na::is(r))
         {
             bool is_all_reference = true;                 // all reference state
             std::vector<observ_dbl_ptr> vec_par_ptr = {}; // parameter pointers
 
             for (const std::string &p : pair.second)
             {
-                if ((tools::is_na(p)) || (p == HSP_MISSING_RATE))
+                if ((hsp::na::is(p)) || (p == hsp::rates::MISSING))
                     std::invalid_argument(
                         "Missing rate \"" + r + "\" for " + member.err_name() + ".");
 
-                else if (p == HSP_REFERENCE)
-                    vec_par_ptr.emplace_back(&HSP_REFER_VALUE);
+                else if (p == hsp::rates::REFERENCE)
+                    vec_par_ptr.emplace_back(&hsp::rates::VALUE_REFERENCE);
 
                 else
                 {
@@ -642,7 +636,7 @@ void MCMC::Impl::GroupRates::init_rate_as_ptrs_(Individual &member,
 
             // simplify for the combined reference values
             if (is_all_reference)
-                rate_ptrs[r] = {&HSP_REFER_VALUE};
+                rate_ptrs[r] = {&hsp::rates::VALUE_REFERENCE};
             else
                 rate_ptrs[r] = vec_par_ptr;
         }
@@ -658,14 +652,20 @@ void MCMC::Impl::GroupRates::init_rate_as_ptrs_(Individual &member,
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Assign parameter definitions to dictionary.
-void MCMC::Impl::Parameter::build(const dict_str_vec &deftable)
+void MCMC::Impl::Parameter::build(const u_dict<str_vec> &deftable)
 {
     if (!deftable.empty())
     {
+        const str_vec file_headers = {"name", "value",
+                                      "const", "discr",
+                                      "prior",
+                                      hsp::params::MIN, hsp::params::MAX,
+                                      "rule", "scale"};
+
         // check entries
-        str_vec headers = tools::read::table_headers(deftable);
-        tools::str::assert_no_missing_entries(headers, file_headers);
-        tools::str::assert_no_unused_entries(headers, file_headers);
+        str_vec headers = hsp::read::table_headers(deftable);
+        hsp::str::assert_no_missing_entries(headers, file_headers);
+        hsp::str::assert_no_unused_entries(headers, file_headers);
 
         // drop current list of parameters
         dictionary_.clear();
@@ -675,13 +675,13 @@ void MCMC::Impl::Parameter::build(const dict_str_vec &deftable)
         list_sample_cache.clear();
 
         // assert that parameter is not already defined
-        if (deftable.at("name").size() != tools::str::unique(deftable.at("name")).size())
+        if (deftable.at("name").size() != hsp::str::unique(deftable.at("name")).size())
             throw std::invalid_argument(
                 "Found multiple definitions for the same parameters.");
 
         // load parameters from the row with options
         for (size_t k = 0; k < deftable.at("name").size(); ++k)
-            if (tools::str::tobool(deftable.at("const")[k]))
+            if (hsp::str::tobool(deftable.at("const")[k]))
                 build_constant_parameter_(deftable, k);
             else
             {
@@ -695,11 +695,11 @@ void MCMC::Impl::Parameter::build(const dict_str_vec &deftable)
 }
 
 /// Helper to build constant parameter.
-void MCMC::Impl::Parameter::build_constant_parameter_(const dict_str_vec &deftable, size_t k)
+void MCMC::Impl::Parameter::build_constant_parameter_(const u_dict<str_vec> &deftable, size_t k)
 {
     const std::string &p = deftable.at("name")[k]; // parameter name
 
-    if (tools::is_na(deftable.at("value")[k]))
+    if (hsp::na::is(deftable.at("value")[k]))
         throw std::invalid_argument(
             "Undefined value for constant parameter \"" + p + "\".");
 
@@ -711,28 +711,28 @@ void MCMC::Impl::Parameter::build_constant_parameter_(const dict_str_vec &deftab
 }
 
 /// Helper to build parameter to sample.
-void MCMC::Impl::Parameter::build_parameter_to_sample_(const dict_str_vec &deftable, size_t k)
+void MCMC::Impl::Parameter::build_parameter_to_sample_(const u_dict<str_vec> &deftable, size_t k)
 {
     const std::string &p = deftable.at("name")[k]; // parameter name
 
     // assert parameter to sample has a valid value initialization
-    if (tools::is_na(deftable.at("value")[k]))
-        if (tools::is_na(deftable.at("prior")[k]))
+    if (hsp::na::is(deftable.at("value")[k]))
+        if (hsp::na::is(deftable.at("prior")[k]))
             throw std::invalid_argument(
                 "Undefined prior for undefined non-constant parameter \"" + p + "\".");
 
     // load boolean flag for discrete variables
-    bool is_discrete = tools::str::tobool(deftable.at("discr")[k]);
+    bool is_discrete = hsp::str::tobool(deftable.at("discr")[k]);
 
     // load rule name
     std::string rule_name = "sample";
-    if (!tools::is_na(deftable.at("rule")[k]))
+    if (!hsp::na::is(deftable.at("rule")[k]))
         rule_name = deftable.at("rule")[k];
 
     // load rule scale
     double rule_scale = 1.;
-    if (!tools::is_na(deftable.at("scale")[k]))
-        rule_scale = tools::str::tod(deftable.at("scale")[k]);
+    if (!hsp::na::is(deftable.at("scale")[k]))
+        rule_scale = hsp::str::tod(deftable.at("scale")[k]);
 
     // create a new Parameter Variable
     dictionary_.emplace(
@@ -747,8 +747,10 @@ void MCMC::Impl::Parameter::build_parameter_to_sample_(const dict_str_vec &defta
         new_param.init_distr_attr(child.key, pImpl_.read_numeric_(child));
 
     // load parameter range
-    new_param.init_distr_attr(HSP_PARAM_MIN, pImpl_.read_numeric_(deftable.at(HSP_PARAM_MIN)[k]));
-    new_param.init_distr_attr(HSP_PARAM_MAX, pImpl_.read_numeric_(deftable.at(HSP_PARAM_MAX)[k]));
+    new_param.init_distr_attr(hsp::params::MIN,
+                              pImpl_.read_numeric_(deftable.at(hsp::params::MIN)[k]));
+    new_param.init_distr_attr(hsp::params::MAX,
+                              pImpl_.read_numeric_(deftable.at(hsp::params::MAX)[k]));
     new_param.init_distr_reshaping();
 
     // assign the rule for the proposer to the parameter

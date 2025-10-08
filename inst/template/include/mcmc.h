@@ -16,14 +16,14 @@
 #define HOUSEPI__MCMC__H
 
 #include <memory>
-#include <string>
-#include <vector>
+
+#include "tools/types.h"
+#include "tools/na_utils.h"
+#include "household.h"
 
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
 #endif
-
-#include "household.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -55,6 +55,7 @@ public:
 	unsigned long get_report_indiv(const std::string &s) const;
 	unsigned long get_report_house(const std::string &s) const;
 	std::pair<unsigned short, unsigned long> get_report_hh_size(const std::string &s) const;
+	void assert_no_missing_status() const;
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////  MCMC : group & contact rates  //////////////////////////////
@@ -97,7 +98,7 @@ public:
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
 
-	void init_infec_profile_template(dict_str x);
+	void init_infec_profile_template(u_dict<std::string> x);
 	double infec_profile_inst(const Individual &member, double t) const;
 	double infec_profile_cumul(const Individual &member, double t) const;
 
@@ -162,7 +163,6 @@ public:
 	Rcpp::DataFrame summarise_house_sizes() const;
 	Rcpp::List export_setup() const;
 	Rcpp::List export_infec_profile() const;
-	Rcpp::DataFrame export_param() const;
 	Rcpp::DataFrame export_augmented_data_wide() const;
 	Rcpp::NumericMatrix export_draws() const;
 	Rcpp::NumericMatrix export_house_loglike_draws() const;
@@ -172,22 +172,22 @@ public:
 	///////////////////////////////  MCMC : C++ standalone print  ///////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
-	void print_infer_state(const std::string &output_filename = HSP_NA_STRING) const;
-	void print_simulated_data_wide(const std::string &output_filename = HSP_NA_STRING);
-	void print_logevidence(const std::string &scheme, unsigned long n_rungs);
+	void print_infer_state(const std::string &output_filename = hsp::na::STRING) const;
+	void print_simulated_data_wide(const std::string &output_filename = hsp::na::STRING);
+	double logevidence(const std::string &scheme, unsigned long n_rungs);
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////  MCMC : C++ standalone read  ///////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
-	void read_setup(const std::string &pathtofile = HSP_NA_STRING);
-	void read_data_wide(const std::string &pathtofile = HSP_NA_STRING);
-	void read_data_long(const std::string &pathtofile = HSP_NA_STRING);
-	void read_multiplicity(const std::string &pathtofile = HSP_NA_STRING);
-	void read_group_rates(const std::string &pathtofile = HSP_NA_STRING);
-	void read_param(const std::string &pathtofile = HSP_NA_STRING);
-	void read_infec_profile(const std::string &pathtofile = HSP_NA_STRING);
-	void read_augm(const std::string &pathtofile = HSP_NA_STRING);
+	void read_setup(const std::string &pathtofile = hsp::na::STRING);
+	void read_data_wide(const std::string &pathtofile = hsp::na::STRING);
+	void read_data_long(const std::string &pathtofile = hsp::na::STRING);
+	void read_multiplicity(const std::string &pathtofile = hsp::na::STRING);
+	void read_group_rates(const std::string &pathtofile = hsp::na::STRING);
+	void read_param(const std::string &pathtofile = hsp::na::STRING);
+	void read_infec_profile(const std::string &pathtofile = hsp::na::STRING);
+	void read_augm(const std::string &pathtofile = hsp::na::STRING);
 #endif
 
 private:

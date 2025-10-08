@@ -14,6 +14,8 @@
 
 #include <algorithm>
 
+#include "tools/params.h"
+#include "tools/rates.h"
 #include "variable.h"
 #include "household.h"
 
@@ -41,10 +43,10 @@ void AugmentedMap::init_augm(const std::string &a,
 /// A string containing a summary of the augmented map.
 std::string AugmentedMap::str_augm_summary() const
 {
-	std::ostringstream oss;
+	std::string output;
 	for (const auto &pair : augm_map_)
-		oss << "- " << pair.first << " : " << pair.second.str_summary() << "\n";
-	return oss.str();
+		output += "- " + pair.first + " : " + pair.second.str_summary() + "\n";
+	return output;
 }
 
 /// Associate functional methods for augmented model pdfs.
@@ -86,7 +88,7 @@ double AugmentedMap::compute_and_set_augm_model_loglike()
 	for (const auto &pair : model_logratios_)
 		loglike_ += augm_map_[pair.first].get_distr_logpdf();
 
-	if (tools::is_na(loglike_))
+	if (hsp::na::is(loglike_))
 		throw std::runtime_error(
 			"Augmented loglikelihood returned NaN for " + err_name() + ".");
 
@@ -103,7 +105,7 @@ double AugmentedMap::compute_and_set_augm_model_logratio(const std::string &a)
 		delta_ll += f();
 	loglike_ += delta_ll;
 
-	if (tools::is_na(loglike_))
+	if (hsp::na::is(loglike_))
 		throw std::runtime_error(
 			"Augmented loglikelihood returned NaN for " + err_name() +
 			" after change of " + augm_map_[a].err_name() + ".");
@@ -164,9 +166,9 @@ void Individual::init_all_group_rates(const u_dict<std::vector<observ_dbl_ptr>> 
 					"prod", "function", {&ArithmeticRegistry::inst()});
 
 			// initialize attributes to pointers
-			fun->init_attr(HSP_PARAM_X, vec_par_ptr[0]);
+			fun->init_attr(hsp::params::X, vec_par_ptr[0]);
 			for (size_t i = 1; i < vec_par_ptr.size(); ++i)
-				fun->init_attr(HSP_PARAM_X + std::to_string(i + 1), vec_par_ptr[i]);
+				fun->init_attr(hsp::params::X + std::to_string(i + 1), vec_par_ptr[i]);
 
 			group_rate_map_[r] = Attribute(std::move(fun));
 		}
@@ -250,7 +252,7 @@ void Household::init_contact_rates(size_t from, size_t to, observ_dbl_ptr x)
 {
 	// initialize contact rate matrix if necessary
 	if (contact_rates_.empty())
-		contact_rates_.resize(size(), std::vector<observ_dbl_ptr>(size(), &HSP_REFER_VALUE));
+		contact_rates_.resize(size(), std::vector<observ_dbl_ptr>(size(), &hsp::rates::VALUE_REFERENCE));
 
 	contact_rates_[from][to] = x;
 }
@@ -258,7 +260,7 @@ void Household::init_contact_rates(size_t from, size_t to, observ_dbl_ptr x)
 /// Store the loglikelihood of household observation.
 void Household::set_obs_loglike(double x)
 {
-	if (tools::is_na(x))
+	if (hsp::na::is(x))
 		throw std::runtime_error(
 			"Observation loglikelihood returned NaN.");
 

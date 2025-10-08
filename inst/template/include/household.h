@@ -15,11 +15,10 @@
 #ifndef HOUSEPI__HOUSEHOLD__H
 #define HOUSEPI__HOUSEHOLD__H
 
-#include <memory>
-#include <string>
-#include <vector>
-
-#include "tools.h"
+#include "tools/types.h"
+#include "tools/na_utils.h"
+#include "tools/operators.h"
+#include "tools/status.h"
 #include "variable.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -129,9 +128,9 @@ public:
 	const std::string &id() const { return id_; }
 	std::string err_name() const override final { return "individual \"" + id_ + "\""; }
 	int status() const { return status_; }
-	bool is_infected_status() const { return HSP_IS_INFECTED(status_); }
-	bool is_healthy_status() const { return HSP_IS_HEALTHY(status_); }
-	bool is_missing_status() const { return HSP_IS_MISSING(status_); }
+	bool is_infected_status() const { return hsp::status::is_infected(status_); }
+	bool is_healthy_status() const { return hsp::status::is_healthy(status_); }
+	bool is_missing_status() const { return hsp::status::is_missing(status_); }
 	double data(const std::string &d) const { return safe_at(data_map_, d, "data"); }
 	const dbl_vec &datalong(const std::string &d) const
 	{
@@ -150,10 +149,10 @@ public:
 	void init_all_group_rates(const u_dict<std::vector<observ_dbl_ptr>> &ptrs);
 
 private:
-	std::string id_ = HSP_NA_STRING;  // user id
-	size_t index_ = 0;				  // housepi internal index
-	size_t hhindex_ = 0;			  // household relative index
-	int status_ = HSP_MISSING_STATUS; // status of the individual
+	std::string id_ = hsp::na::STRING;	// user id
+	size_t index_ = 0;					// housepi internal index
+	size_t hhindex_ = 0;				// household relative index
+	int status_ = hsp::status::MISSING; // status of the individual
 
 	// NOTE: allowd data variables are numerical only
 	u_dict<double> data_map_ = {};			// data
@@ -178,7 +177,7 @@ public:
 	//////////////////////////////////  Household : constructor  //////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	Household(const std::string &house_id = HSP_NA_STRING,
+	Household(const std::string &house_id = hsp::na::STRING,
 			  size_t index = SIZE_MAX);
 	~Household() = default;
 
@@ -287,10 +286,10 @@ public:
 
 	void set_multiplicity(unsigned long m, size_t class_idx);
 	void init_member(size_t index, const std::string &id, int status, const u_dict<double> &data);
-	void set_healthy_status(Individual &member) { set_status_(member, HSP_HEALTHY_STATUS); }
-	void set_infected_status(Individual &member, int new_status = HSP_INFECTED_STATUS)
+	void set_healthy_status(Individual &member) { set_status_(member, hsp::status::HEALTHY); }
+	void set_infected_status(Individual &member, int new_status = hsp::status::INFECTED)
 	{
-		if (!HSP_IS_INFECTED(new_status))
+		if (!hsp::status::is_infected(new_status))
 			throw std::invalid_argument(
 				"Status " + std::to_string(new_status) + " is not an infected status.");
 		set_status_(member, new_status);
@@ -334,11 +333,11 @@ public:
 	void recover_buffer_values(bool is_cache_depen);
 
 private:
-	std::string house_id_ = HSP_NA_STRING; // user house id
-	size_t index_ = -1;					   // housepi internal index
-	unsigned short house_size_ = 0;		   // n. of house members
-	unsigned long house_multiplicity_ = 1; // n. of equivalent houses
-	size_t multiplicity_class_ = -1;	   // index of multiplicity class
+	std::string house_id_ = hsp::na::STRING; // user house id
+	size_t index_ = -1;						 // housepi internal index
+	unsigned short house_size_ = 0;			 // n. of house members
+	unsigned long house_multiplicity_ = 1;	 // n. of equivalent houses
+	size_t multiplicity_class_ = -1;		 // index of multiplicity class
 
 	std::vector<Individual> members_ = {}; // members
 

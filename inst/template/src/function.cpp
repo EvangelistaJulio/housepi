@@ -12,6 +12,11 @@
  *
  */
 
+#include "tools/discr.h"
+#include "tools/params.h"
+#include "tools/error.h"
+#include "tools/string.h"
+#include "tools/operators.h"
 #include "function.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -22,12 +27,12 @@
 
 Attribute::Attribute(double x)
 {
-    name(HSP_NA_STRING, "numeric");
+    name(hsp::na::STRING, "numeric");
     init_numeric(x);
 }
 Attribute::Attribute(observ_dbl_ptr y)
 {
-    name(HSP_NA_STRING, "pointer");
+    name(hsp::na::STRING, "pointer");
     init_pointer(y);
 }
 Attribute::Attribute(const std::shared_ptr<Function> f)
@@ -130,7 +135,7 @@ void Attribute::init_pointer(observ_dbl_ptr y)
     get_ = &Attribute::do_get_from_pointer_;
     get_ptr_ = &Attribute::do_get_pointer_from_pointer_;
     do_set_ = &Attribute::do_set_error_;
-    value_ = HSP_NA_DOUBLE;
+    value_ = hsp::na::DOUBLE;
     ptr_to_value_ = y;
     pFunc_ = nullptr;
 }
@@ -148,7 +153,7 @@ void Attribute::init_function(const std::shared_ptr<Function> f)
     get_ = &Attribute::do_get_from_function_;
     get_ptr_ = &Attribute::do_get_pointer_error_;
     do_set_ = &Attribute::do_set_error_;
-    value_ = HSP_NA_DOUBLE;
+    value_ = hsp::na::DOUBLE;
     ptr_to_value_ = nullptr;
     pFunc_ = f;
 }
@@ -181,22 +186,22 @@ Function::Function(const std::string &name,
 
     // number of arguments
     if (arg_name.size() != arg_value.size())
-        tools::error(
+        hsp::error(
             "Inconsistent arguments for " + err_name() + "." +
             "Found " + std::to_string(arg_name.size()) + " default names but " +
             std::to_string(arg_value.size()) + " values.");
 
     // initialize default 'x' argument
-    x_arg_.name(HSP_PARAM_X);
-    x_arg_.set(HSP_NA_DOUBLE);
+    x_arg_.name(hsp::params::X);
+    x_arg_.set(hsp::na::DOUBLE);
 
     // allocate attribute for remaining arguments
-    size_t n_args = arg_name.size() - (arg_name % HSP_PARAM_X);
+    size_t n_args = arg_name.size() - (arg_name % hsp::params::X);
     arguments_ = std::vector<Attribute>(n_args);
 
     size_t c = 0;
     for (size_t k = 0; k < arg_name.size(); ++k)
-        if (arg_name[k] == HSP_PARAM_X)
+        if (arg_name[k] == hsp::params::X)
             x_arg_.set(arg_value[k]);
         else
         {
@@ -207,8 +212,8 @@ Function::Function(const std::string &name,
     // Assign Domain
     // UPDATE: at the moment only place where to set open ranges
     // UPDATE: not sure if setting pointer to smtg exiting the domain I still have control
-    init_attr(HSP_PARAM_MIN, domain_min);
-    init_attr(HSP_PARAM_MAX, domain_max);
+    init_attr(hsp::params::MIN, domain_min);
+    init_attr(hsp::params::MAX, domain_max);
     init_range_helper_(is_min_open, is_max_open);
 }
 
@@ -221,7 +226,7 @@ Function::Function(const std::string &name,
 /// Assert argument exists at assignment. Returns it's index.
 Attribute &Function::find_arg_(const std::string &arg_name)
 {
-    if (arg_name == HSP_PARAM_X)
+    if (arg_name == hsp::params::X)
         return x_arg_;
     else
         for (Attribute &attr : arguments_)
@@ -229,14 +234,14 @@ Attribute &Function::find_arg_(const std::string &arg_name)
                 return attr;
 
     // else throw error showing options
-    str_vec options = {HSP_PARAM_X};
+    str_vec options = {hsp::params::X};
     for (const Attribute &attr : arguments_)
         options.push_back(attr.name());
 
     // throw error showing options
     throw std::invalid_argument(
         "Unknown argument \"" + arg_name + "\" for " + err_name() + "." +
-        tools::str::find_closest(arg_name, options, HSP_MIN_STR_DIST));
+        hsp::str::find_closest(arg_name, options));
 }
 
 /// Wheter return value is always constant.
@@ -277,8 +282,8 @@ bool Function::init_range_min_(double min_val, bool is_min_open)
 {
     if (get_min() < min_val)
         throw std::invalid_argument(
-            "Invalid min value " + str_min() + " for " + err_name() + ".");
-    else if ((get_min() > min_val) || (!tools::is_na(get_max())))
+            "Invalid min value " + hsp::str::format(range_min_.get()) + " for " + err_name() + ".");
+    else if ((get_min() > min_val) || (!hsp::na::is(get_max())))
     {
         init_range_helper_(((is_min_open) ? (get_min() == min_val) : false), false);
         return true;
@@ -364,32 +369,35 @@ void Function::init_range_helper_(bool is_min_open, bool is_max_open)
 /// Return formatted range.
 std::string Function::str_range() const
 {
+    const std::string str_min = hsp::str::format(range_min_.get());
+    const std::string str_max = hsp::str::format(range_max_.get());
+
     if (is_valid_ == &Function::do_is_valid_always_)
         return "(-Inf, Inf)";
 
     else if (is_valid_ == &Function::do_is_valid_open_min_)
-        return "(" + str_min() + ", Inf)";
+        return "(" + str_min + ", Inf)";
 
     else if (is_valid_ == &Function::do_is_valid_close_min_)
-        return "[" + str_min() + ", Inf)";
+        return "[" + str_min + ", Inf)";
 
     else if (is_valid_ == &Function::do_is_valid_open_max_)
-        return "(-Inf, " + str_max() + ")";
+        return "(-Inf, " + str_max + ")";
 
     else if (is_valid_ == &Function::do_is_valid_close_max_)
-        return "(-Inf, " + str_max() + "]";
+        return "(-Inf, " + str_max + "]";
 
     else if (is_valid_ == &Function::do_is_valid_both_open_)
-        return "(" + str_min() + ", " + str_max() + ")";
+        return "(" + str_min + ", " + str_max + ")";
 
     else if (is_valid_ == &Function::do_is_valid_open_min_close_max_)
-        return "(" + str_min() + ", " + str_max() + "]";
+        return "(" + str_min + ", " + str_max + "]";
 
     else if (is_valid_ == &Function::do_is_valid_close_min_open_max_)
-        return "[" + str_min() + ", " + str_max() + ")";
+        return "[" + str_min + ", " + str_max + ")";
 
     else // (is_valid_ == &Function::do_is_valid_both_close_)
-        return "[" + str_min() + ", " + str_max() + "]";
+        return "[" + str_min + ", " + str_max + "]";
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -409,15 +417,15 @@ void Function::init_attr(const std::string &key, const Attribute &attr)
                 "Argument \"x\" of " + attr.err_name() + " cannot be missing.");
 
     // distinguish between range keys and standard keys
-    if (HSP_RANGE_KEYS % key)
+    if (key == hsp::params::MIN || key == hsp::params::MAX)
     {
         if (attr.is_empty())
             ; // skip NA for range
         else if (name_ == "uniform")
             find_arg_(key).transfer(attr);
-        else if (key == HSP_PARAM_MIN)
+        else if (key == hsp::params::MIN)
             range_min_.transfer(attr);
-        else // key == HSP_PARAM_MAX
+        else // key == hsp::params::MAX
             range_max_.transfer(attr);
     }
     else
@@ -435,21 +443,21 @@ void Function::init_discr_helper_(unsigned short discr_type)
 {
     switch (discr_type)
     {
-    case HSP_DISCR_DEFINED: // discrete defined
+    case hsp::discr::DEFINED: // discrete defined
         function_ = &Function::do_function_discrete_;
         log_func_ = &Function::do_logfunc_discrete_;
         primitive_ = &Function::do_primitive_discrete_;
         log_ratio_ = &Function::do_logratio_discrete_;
         break;
 
-    case HSP_DISCR_CENTER: // centered discretization
+    case hsp::discr::CENTER: // centered discretization
         function_ = &Function::do_function_discr_center_;
         log_func_ = &Function::do_logfunc_discr_center_;
         primitive_ = &Function::do_primitive_discr_center_;
         log_ratio_ = &Function::do_logratio_discr_center_;
         break;
 
-    case HSP_DISCR_LEFT: // left discretization
+    case hsp::discr::LEFT: // left discretization
         function_ = &Function::do_function_discr_left_;
         log_func_ = &Function::do_logfunc_discr_left_;
         primitive_ = &Function::do_primitive_discr_left_;
@@ -468,12 +476,12 @@ void Function::init_discr_helper_(unsigned short discr_type)
 unsigned short Function::which_discrete_case_() const
 {
     if (function_ == &Function::do_function_discrete_)
-        return HSP_DISCR_DEFINED;
+        return hsp::discr::DEFINED;
     else if (function_ == &Function::do_function_discr_center_)
-        return HSP_DISCR_CENTER;
+        return hsp::discr::CENTER;
     else if (function_ == &Function::do_function_discr_left_)
-        return HSP_DISCR_LEFT;
-    return HSP_DISCR_NONE;
+        return hsp::discr::LEFT;
+    return hsp::discr::NONE;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -482,41 +490,17 @@ unsigned short Function::which_discrete_case_() const
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Return formatted argument names of the distribution.
-std::string Function::str_arg_names() const
-{
-    if (!arguments_.empty())
-    {
-        std::string output = arguments_[0].name();
-        for (size_t c = 1; c < arguments_.size(); ++c)
-            output += HSP_LIST_DELIM + arguments_[c].name();
-        return output;
-    }
-    return HSP_NA_STRING;
-}
-/// Return formatted argument names of the distribution.
-std::string Function::str_arg_values() const
-{
-    if (!arguments_.empty())
-    {
-        std::string output = arguments_[0].str();
-        for (size_t c = 1; c < arguments_.size(); ++c)
-            output += HSP_LIST_DELIM + arguments_[c].str();
-        return output;
-    }
-    return HSP_NA_STRING;
-}
 /// Return formatted function summary.
 std::string Function::str_summary(bool show_x_arg) const
 {
     std::string output = name_ + "(";
     if (show_x_arg)
-        output += x_arg_.name() + "=" + x_arg_.str();
+        output += x_arg_.name() + "=" + hsp::str::format(x_arg_.get());
     for (size_t c = 0; c < arguments_.size(); ++c)
     {
         if (c > 0 || show_x_arg)
             output += ", ";
-        output += arguments_[c].name() + "=" + arguments_[c].str();
+        output += arguments_[c].name() + "=" + hsp::str::format(arguments_[c].get());
     }
     return output + ") : " + str_range();
 }
@@ -542,8 +526,8 @@ Rcpp::NumericVector Function::rcpp_export_args() const
 Rcpp::NumericVector Function::rcpp_export_range() const
 {
     using namespace Rcpp;
-    return NumericVector::create(_[HSP_PARAM_MIN] = range_min_.get(),
-                                 _[HSP_PARAM_MAX] = range_max_.get());
+    return NumericVector::create(_[hsp::params::MIN] = range_min_.get(),
+                                 _[hsp::params::MAX] = range_max_.get());
 }
 #endif
 
@@ -581,18 +565,17 @@ std::shared_ptr<Function> compose_func_registries(const std::string &opt,
 
     if (registries.empty())
         throw std::invalid_argument("No registries provided for \"" + name + "\".");
-    else if (tools::is_na(opt))
+    else if (hsp::na::is(opt))
         return std::make_shared<Function>();
     else
         for (const auto &r : registries)
-            if (r->is_valid_option(opt))
+            if (r->get_options() % opt)
                 return r->get(opt, is_primitive);
             else
                 options += r->get_options();
 
     throw std::invalid_argument(
-        "Unknown " + name + " \"" + opt + "\"." +
-        tools::str::find_closest(opt, options, HSP_MIN_STR_DIST));
+        "Unknown " + name + " \"" + opt + "\"." + hsp::str::find_closest(opt, options));
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -679,7 +662,7 @@ class SquareRoot_Function : public Function
 {
 public:
     SquareRoot_Function() : Function("sqrt", {}, {},
-                                     0., false, HSP_NA_DOUBLE, false) {}
+                                     0., false, hsp::na::DOUBLE, false) {}
 
     void init_truncation() override final { init_range_min_(); }
 
@@ -710,7 +693,7 @@ class Logarithm_Function : public Function
 {
 public:
     Logarithm_Function() : Function("log", {}, {},
-                                    0., true, HSP_NA_DOUBLE, false) {}
+                                    0., true, hsp::na::DOUBLE, false) {}
 
     void init_truncation() override final { init_range_min_(0., true); }
 
@@ -773,14 +756,14 @@ protected:
 class Variadic_Function : public Function
 {
 public:
-    Variadic_Function(const std::string &name = HSP_NA_STRING) : Function(name) {}
+    Variadic_Function(const std::string &name = hsp::na::STRING) : Function(name) {}
     virtual ~Variadic_Function() = default;
 
 protected:
     /// Variadic function version of the find argument method.
     Attribute &find_arg_(const std::string &arg_name) override final
     {
-        if (arg_name == HSP_PARAM_X)
+        if (arg_name == hsp::params::X)
             return x_arg_;
         else
             for (Attribute &attr : arguments_)

@@ -40,6 +40,7 @@ compile_template_library <- function(pkgname) {
     dll <- template_dll_file(m)
     if (isFALSE(file.exists(dll)) || untracked_changes(m, dll)) {
       msg <- paste0("COMPILING TEMPLATE ", spaced_template_choice(basename(m)))
+      cat("\n")
       cli::cat_rule(msg, col = "cyan")
       HousepiGenerator$new(m, as_template = TRUE, quiet = FALSE)
     }

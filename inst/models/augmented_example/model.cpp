@@ -33,3 +33,9 @@ double Model::compute_household_obs_loglike(Household &house)
 		output += std::log(member.augm("proba"));
 	return output;
 }
+
+/// Augmented variable initialization.
+void Model::simulate_single_household(Household &house) {
+	for (Individual &member : house.infected())
+		init_missing_augm(member);
+}

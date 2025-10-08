@@ -13,6 +13,9 @@
  */
 
 #include <Rcpp.h>
+
+#include "tools/na_utils.h"
+#include "tools/error.h"
 #include "model.h"
 
 // macro to define RCPP wrapper classes to export to R
@@ -45,7 +48,7 @@
                     Rcpp::List range(range_);                                                          \
                     const Rcpp::CharacterVector range_names = range.names();                           \
                     for (R_xlen_t i = 0; i < range.size(); ++i)                                        \
-                        if (!tools::is_na(Rcpp::as<double>(range[i])))                                 \
+                        if (!hsp::na::is(Rcpp::as<double>(range[i])))                                 \
                             ptr_->init_attr(Rcpp::as<std::string>(range_names[i]),                     \
                                             Rcpp::as<double>(range[i]));                               \
                 }                                                                                      \
@@ -56,7 +59,7 @@
             }                                                                                          \
             catch (const std::exception &e)                                                            \
             {                                                                                          \
-                tools::error(                                                                          \
+                hsp::error(                                                                          \
                     "While initializing " type_string " \"" + name_ + "\":\n" + e.what());             \
             }                                                                                          \
         }                                                                                              \
@@ -74,7 +77,7 @@
             }                                                                                          \
             catch (const std::exception &e)                                                            \
             {                                                                                          \
-                tools::error(                                                                          \
+                hsp::error(                                                                          \
                     "While calling " type_string " \"" + ptr_->name() + "\":\n" + e.what());           \
             }                                                                                          \
             return Rcpp::NumericVector();                                                              \
@@ -175,7 +178,6 @@ RCPP_MODULE(housepi_infec_profile)
 //' @field import_augm\cr Import augmented variable definitions from R Data.Frame.
 //' @field buil_all_rates\cr Assign all contact and group rates.
 //' @field export_setup\cr Return a List with current setup.
-//' @field export_param\cr Return a DataFrame with current parameters.
 //' @field export_infec_profile\cr Return a List with infectivity profile.
 //' @field export_data_wide\cr Return a DataFrame with current database.
 //' @field summarise_cases\cr Return a DataFrame with a report of the current database.
@@ -209,7 +211,6 @@ RCPP_MODULE(housepi_model_core)
         .method("summarise_cases", &MCMC::summarise_cases)
         .method("summarise_house_sizes", &MCMC::summarise_house_sizes)
         .method("export_setup", &MCMC::export_setup)
-        .method("export_param", &MCMC::export_param)
         .method("export_augmented_data_wide", &MCMC::export_augmented_data_wide)
         .method("export_infec_profile", &MCMC::export_infec_profile)
         .method("export_draws", &MCMC::export_draws)

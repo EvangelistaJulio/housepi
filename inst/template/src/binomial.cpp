@@ -12,13 +12,12 @@
  *
  */
 
-#include <map>
-#include <iostream>
 #include <sstream>
-#include <iomanip>
+#include <map>
 
-#include "numerical_recipes.h"
 #include "binomial.h"
+#include "numerical_recipes.h"
+#include "tools/operators.h"
 
 namespace bax
 {
@@ -46,15 +45,15 @@ namespace bax
 	/// Add a new entry for the escape matrix.
 	void EscapePattern::add_entry(ushort new_entry)
 	{
-		_entries.push_back(new_entry);
-		++_n_entries;
+		entries_.push_back(new_entry);
+		++n_entries_;
 	}
 
 	/// Add a new pattern index.
 	void EscapePattern::add_pattern(ulong new_pattern_idx)
 	{
-		_pattern_idxs.push_back(new_pattern_idx);
-		++_n_patterns;
+		pattern_idxs_.push_back(new_pattern_idx);
+		++n_patterns_;
 	}
 
 	/// Compute the loglikelihood starting from the current escape pattern.
@@ -63,11 +62,11 @@ namespace bax
 	{
 		double output = 1.;
 
-		for (size_t c = 0; c < _n_patterns; ++c)
-			output -= EscapePatterns_LookupTable[_N_star][_pattern_idxs[c]].likelihood(esc_mtx);
+		for (size_t c = 0; c < n_patterns_; ++c)
+			output -= EscapePatterns_LookupTable[N_star_][pattern_idxs_[c]].likelihood(esc_mtx);
 
-		for (size_t c = 0; c < _n_entries; ++c)
-			output *= esc_mtx[_entries[c]];
+		for (size_t c = 0; c < n_entries_; ++c)
+			output *= esc_mtx[entries_[c]];
 
 		return output;
 	}
@@ -77,26 +76,26 @@ namespace bax
 	{
 		std::ostringstream oss;
 
-		for (size_t c = 0; c < _n_entries; ++c)
+		for (size_t c = 0; c < n_entries_; ++c)
 		{
-			ushort u = _entries[c];
-			if (u < _N_star)
+			ushort u = entries_[c];
+			if (u < N_star_)
 				oss << "B" << u + 1;
 			else
-				oss << "Q" << u / _N_star << "_" << u % _N_star + 1;
+				oss << "Q" << u / N_star_ << "_" << u % N_star_ + 1;
 
-			if (c < _n_entries - 1)
+			if (c < n_entries_ - 1)
 				oss << "*";
 		}
 
-		if (_n_patterns > 0)
+		if (n_patterns_ > 0)
 		{
-			if (_n_entries > 0)
+			if (n_entries_ > 0)
 				oss << "*(";
 			oss << "1";
-			for (size_t c = 0; c < _n_patterns; ++c)
-				oss << " - " << EscapePatterns_LookupTable[_N_star][_pattern_idxs[c]].str();
-			if (_n_entries > 0)
+			for (size_t c = 0; c < n_patterns_; ++c)
+				oss << " - " << EscapePatterns_LookupTable[N_star_][pattern_idxs_[c]].str();
+			if (n_entries_ > 0)
 				oss << ")";
 		}
 
@@ -163,7 +162,7 @@ namespace bax
 
 				// I take advantage of the order granted by the map
 				for (ushort val : g)
-					if (freq_map % val)
+					if (freq_map.count(val))
 						++freq_map[val];
 					else
 						freq_map.emplace(val, 1);

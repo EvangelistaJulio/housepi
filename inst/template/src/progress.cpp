@@ -12,15 +12,16 @@
  *
  */
 
-#include <algorithm>
-#include <fstream>
 #include <iomanip>
 #include <sstream>
 #include <iostream>
 #include <chrono>
 
-#include "tools.h"
-#include "progress.h"
+#include "tools/progress.h"
+
+#ifdef _HOUSEPI_RCPP
+#include <Rcpp.h>
+#endif
 
 namespace progress
 {

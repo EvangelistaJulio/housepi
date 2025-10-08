@@ -40,7 +40,13 @@ test_that("Model class blank calls", {
   expect_equal(x, 0)
 
   # blank simulation
-  expect_error(hhmodel$simulate())
+  hhmodel <- new_housepi_model("blank")
+  hhmodel$add_augmented(name = "dummy", value = 3)
+  expect_warning(out <- hhmodel$simulate(), 
+                 regexp = "blank")
+  expect_true(
+    all(sapply(out$dummy[out$status == 0], function(x) identical(x, NA_real_)))
+  )
 })
 
 test_that("Deep clone works as expected", {

@@ -16,11 +16,11 @@
 #define HOUSEPI__VARIABLE__H
 
 #include <memory>
-#include <string>
-#include <vector>
 
-#include "tools.h"
-#include "parser.h"
+#include "tools/types.h"
+#include "tools/na_utils.h"
+#include "tools/random.h"
+#include "tools/parser.h"
 #include "distribution.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -37,15 +37,23 @@ public:
     //////////////////////////////////  Proposer : constructor  /////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
+    /// Empty proposer.
     Proposer() {};
+
+    /// Proposer constructor from Distribution pointer.
     Proposer(std::shared_ptr<Distribution>,
-             double rule_scale = HSP_NA_DOUBLE,
+             double rule_scale = hsp::na::DOUBLE,
              const std::vector<unsigned short> &args_to_adapt = {},
              bool is_discrete = false);
+
+    /// Proposer constructor from Distribution name.
     Proposer(const std::string &distr_name,
-             double rule_scale = HSP_NA_DOUBLE,
+             double rule_scale = hsp::na::DOUBLE,
              const std::vector<unsigned short> &args_to_adapt = {},
-             bool is_discrete = false);
+             bool is_discrete = false)
+        : Proposer(ContinuosDistrRegistry::inst().get_distr(distr_name),
+                   rule_scale, args_to_adapt, is_discrete) {}
+
     virtual ~Proposer() {};
 
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -54,9 +62,11 @@ public:
 
     std::string name() const { return this->name_; }
     double get_arg(unsigned short argID) const { return pDistr_->arg(argID); }
-    virtual double propose(rnd_gen &, double) { throw std::invalid_argument(
-        "Called method of an undefined proposer."); }
+    virtual double propose(rnd_gen &, double) { throw std::invalid_argument("Called method of undefined proposer."); }
     virtual double logratio(double, double) const { return 0.; }
+
+    /// Return proposer scale.
+    double scale() const { return args_to_adapt_.empty() ? hsp::na::DOUBLE : std::fabs((pDistr_->arg)(args_to_adapt_[0])); }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////  Proposer : setter  ///////////////////////////////////
@@ -79,27 +89,25 @@ public:
         accept_rate_ = 0.;
         n_proposed_ = 0;
     }
-    void adapt(double ratio);
 
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////////  Proposer : show  ////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
-
-    std::string str_arg_names() const { return pDistr_->str_arg_names(); }
-    std::string str_arg_values() const { return pDistr_->str_arg_values(); }
-    std::string str_scale() const;
+    /// Increase spread if acceptation rate is high and viceversa.
+    void adapt(double ratio)
+    {
+        // target accept rate set to 1/4.
+        const double factor = 1. + (1. - ratio) * (get_accept_rate() - 0.25);
+        // loop over all ids of arguments to adapt
+        for (unsigned short i : args_to_adapt_)
+            (pDistr_->set_arg)(i, factor * (pDistr_->arg)(i));
+    }
 
 protected:
-    std::string name_ = HSP_NA_STRING;
+    std::string name_ = hsp::na::STRING;
     std::shared_ptr<Distribution> pDistr_;
 
-    double user_rule_scale_ = 1.; /// scale of the Metropolis rule
-
-    double accept_rate_ = 0.;      /// acceptance rate
-    unsigned long n_proposed_ = 0; /// n. of proposed moves
-
-    unsigned short n_args_to_adapt_ = 0;           /// how many arguments to adapt
-    unsigned short *args_to_adapt_list_ = nullptr; /// which arguments should be adapted
+    double user_rule_scale_ = 1.;                    /// scale of the Metropolis rule
+    double accept_rate_ = 0.;                        /// acceptance rate
+    unsigned long n_proposed_ = 0;                   /// n. of proposed moves
+    std::vector<unsigned short> args_to_adapt_ = {}; /// which arguments should be adapted
 
     //===== propose : functional methods =====//
     double do_propose_sum_to_previous_(rnd_gen &prng, double xo) { return xo + pDistr_->rand(prng); }
@@ -125,12 +133,12 @@ public:
     //////////////////////////////////  Variable : constructor  /////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    Variable(const std::string &name = HSP_NA_STRING,
+    Variable(const std::string &name = hsp::na::STRING,
              const std::string &err_type = "variable",
-             double value = HSP_NA_DOUBLE,
+             double value = hsp::na::DOUBLE,
              bool is_const = true,
              bool is_discr = false,
-             const DefinitionParser &expr = HSP_NA_STRING,
+             const DefinitionParser &expr = hsp::na::STRING,
              bool is_prim = false)
         : pDistr_(std::make_shared<Distribution>()),
           pProp_(std::make_shared<Proposer>())
@@ -177,18 +185,16 @@ public:
     void init_rand(rnd_gen &prng);
 
     /// Initialize pointer to proposer.
-    void init_proposer(const std::string &rule_name = HSP_NA_STRING,
-                       double rule_scale = HSP_NA_DOUBLE);
+    void init_proposer(const std::string &rule_name = hsp::na::STRING,
+                       double rule_scale = hsp::na::DOUBLE);
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////  Variable : getter  ///////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    bool is_constant() const override ;
+    bool is_constant() const override;
     bool is_discrete() const override final;
     bool is_model() const { return !pDistr_->is_empty(); }
-    /// Get a description about the functional status.
-    std::string str_summary() const override final;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////  Variable : Metropolis-Hastings  ////////////////////////////
@@ -212,20 +218,13 @@ public:
     //////////////////////////////////////  Variable : show  ////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
+    /// Get a description about the functional status.
+    std::string str_summary() const override final;
+
     std::string distr_name() const { return pDistr_->name(); }
-    std::string distr_str_arg_names() const { return pDistr_->str_arg_names(); }
-    std::string distr_str_arg_values() const { return pDistr_->str_arg_values(); }
-
-    std::string str_min() const { return pDistr_->str_min(); }
-    std::string str_max() const { return pDistr_->str_max(); }
     std::string str_range() const { return pDistr_->str_range(); }
-
     std::string func_name() const { return pFunc_->name(); }
-
     std::string prop_name() const { return pProp_->name(); }
-    std::string prop_str_arg_names() const { return pProp_->str_arg_names(); }
-    std::string prop_str_arg_values() const { return pProp_->str_arg_values(); }
-    std::string prop_str_scale() const { return pProp_->str_scale(); }
 
 #ifdef _HOUSEPI_RCPP
     Rcpp::NumericVector rcpp_export_distr_args() const { return pDistr_->rcpp_export_args(); }
@@ -234,8 +233,8 @@ public:
 #endif
 
 protected:
-    double buffer_ = HSP_NA_DOUBLE;     /// buffered value
-    double user_value_ = HSP_NA_DOUBLE; /// initial user defined value
+    double buffer_ = hsp::na::DOUBLE;     /// buffered value
+    double user_value_ = hsp::na::DOUBLE; /// initial user defined value
     Attribute loc_;                     /// location parameter
     bool is_constant_ = true;           /// user flag for wheter constant or not
     bool is_discrete_ = false;          /// user flag for wheter discrete or not

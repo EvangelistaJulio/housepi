@@ -12,6 +12,9 @@
  *
  */
 
+#include "tools/params.h"
+#include "tools/read.h"
+#include "tools/string.h"
 #include "mcmc_impl.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -21,35 +24,44 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Set model template while constructiing model.
-void MCMC::Impl::InfecProfile::init_template(dict_str deflist)
+void MCMC::Impl::InfecProfile::init_template(u_dict<std::string> deflist)
 {
 	// if not previous build, proceed with template
 	// if no template, assume no need for an infectivity profile
-	if (tools::is_na(profile_->name()) && augm_infec_profile_deflist_.empty())
+	if (hsp::na::is(profile_->name()) && augm_infec_profile_deflist_.empty())
 		if (!deflist.empty())
-		{
-			if (!(deflist % "func"))
-				throw std::invalid_argument(
-					"Missing function name for infectivity profile template.");
+			try
+			{
+				if (!(deflist % "func"))
+					throw std::invalid_argument(
+						"Missing function name for infectivity profile template.");
 
-			for (const std::string &key : headers_)
-				if (!(deflist % key))
-					deflist.emplace(key, HSP_NA_STRING);
+				const str_vec file_headers = {"func", "discr", hsp::params::MAX};
 
-			std::string str_is_discr = "false";
-			if (deflist % "discr")
-				if (!tools::is_na(deflist.at("discr")))
-					str_is_discr = deflist.at("discr");
-			deflist["discr"] = str_is_discr;
+				for (const std::string &key : file_headers)
+					if (!(deflist % key))
+						deflist.emplace(key, hsp::na::STRING);
 
-			build(deflist);
+				std::string str_is_discr = "false";
+				if (deflist % "discr")
+					if (!hsp::na::is(deflist.at("discr")))
+						str_is_discr = deflist.at("discr");
+				deflist["discr"] = str_is_discr;
 
-			// forbid augmented infectivity profile for template
-			if (is_augmented())
-				throw std::invalid_argument(
-					"Infectivity profile templates depending on augmented variables are not supported.");
-			// UPDATE: maybe also not depending on parameters?
-		}
+				build(deflist);
+
+				// forbid augmented infectivity profile for template
+				if (is_augmented())
+					throw std::invalid_argument(
+						"Infectivity profile templates depending on augmented variables are not supported.");
+
+				// UPDATE: maybe also not depending on parameters?
+			}
+			catch (const std::exception &e)
+			{
+				throw std::runtime_error(
+					"While building infectivity profile template:\n" + std::string(e.what()));
+			}
 }
 
 /// Append infectivity profile to augmented variable definitions.
@@ -60,7 +72,7 @@ void MCMC::Impl::InfecProfile::append_augm_definition()
 	{
 		// check for reserved augmented names
 		for (const std::string &a : pImpl_.augm.deftable.at("func"))
-			for (const std::string &forbid : {HSP_PROFILE_INST, HSP_PROFILE_CUMUL})
+			for (const std::string &forbid : {hsp::infprof::INSTANTANEOUS, hsp::infprof::CUMULATIVE})
 				if (a == forbid)
 					throw std::invalid_argument(
 						"Augmented variable \"" + forbid + "\" is reserved. Please, pick another name.");
@@ -77,8 +89,8 @@ void MCMC::Impl::InfecProfile::init_lookup_()
 	inst_ = &InfecProfile::do_inst_lookup_;
 	cumul_ = &InfecProfile::do_cumul_lookup_;
 
-	if (tools::is_na(profile_->get_max()))
-		size_lut_ = HSP_DEFAULT_MAX_SIZE;
+	if (hsp::na::is(profile_->get_max()))
+		size_lut_ = hsp::infprof::LOOKUP_SIZE;
 	else
 		size_lut_ = profile_->get_max() + 1;
 
@@ -142,13 +154,14 @@ void MCMC::Impl::InfecProfile::recover(bool is_cache_depen)
 }
 
 /// Build infectivity profile distribution .
-void MCMC::Impl::InfecProfile::build(const dict_str &deflist)
+void MCMC::Impl::InfecProfile::build(const u_dict<std::string> &deflist)
 {
 	if (!deflist.empty())
 	{
+		const str_vec file_headers = {"func", "discr", hsp::params::MAX};
+
 		// check entries
-		tools::str::assert_no_unused_entries(
-			tools::read::list_headers(deflist), headers_);
+		hsp::str::assert_no_unused_entries(hsp::read::list_headers(deflist), file_headers);
 
 		// check definition list has a function
 		if (!(deflist % "func"))
@@ -159,8 +172,8 @@ void MCMC::Impl::InfecProfile::build(const dict_str &deflist)
 				"Empty function definition for infectivity profile.");
 
 		// check if definition is generic or augmented
-		bool is_augm = DefinitionParser(deflist.at("func")).is_augm_depen() ||
-					   DefinitionParser(deflist.at(HSP_PARAM_MAX)).is_augm_depen();
+		bool is_augm = DefinitionParser(deflist.at("func")).is_augmented_depen() ||
+					   DefinitionParser(deflist.at(hsp::params::MAX)).is_augmented_depen();
 
 		if (is_augm)
 			build_augmented_profile_(deflist);
@@ -170,7 +183,7 @@ void MCMC::Impl::InfecProfile::build(const dict_str &deflist)
 }
 
 /// Build for generic infectivity profile.
-void MCMC::Impl::InfecProfile::build_generic_profile_(const dict_str &deflist)
+void MCMC::Impl::InfecProfile::build_generic_profile_(const u_dict<std::string> &deflist)
 {
 	augm_infec_profile_deflist_.clear();
 	inst_ = &InfecProfile::do_inst_default_;
@@ -190,18 +203,18 @@ void MCMC::Impl::InfecProfile::build_generic_profile_(const dict_str &deflist)
 
 	// discretization
 	if (deflist % "discr")
-		if (tools::str::tobool(deflist.at("discr")))
+		if (hsp::str::tobool(deflist.at("discr")))
 			profile_->init_discretization();
 
 	// range minimum
 	if (profile_->is_discrete())
-		profile_->init_attr(HSP_PARAM_MIN, pImpl_.read_attribute_("1|N"));
+		profile_->init_attr(hsp::params::MIN, pImpl_.read_attribute_("1|N"));
 	else
-		profile_->init_attr(HSP_PARAM_MIN, pImpl_.read_attribute_("0|N"));
+		profile_->init_attr(hsp::params::MIN, pImpl_.read_attribute_("0|N"));
 
 	// range maximum
-	if (deflist % HSP_PARAM_MAX)
-		profile_->init_attr(HSP_PARAM_MAX, pImpl_.read_attribute_(deflist.at(HSP_PARAM_MAX)));
+	if (deflist % hsp::params::MAX)
+		profile_->init_attr(hsp::params::MAX, pImpl_.read_attribute_(deflist.at(hsp::params::MAX)));
 	// range truncation
 	profile_->init_truncation();
 
@@ -213,7 +226,7 @@ void MCMC::Impl::InfecProfile::build_generic_profile_(const dict_str &deflist)
 }
 
 /// Build for individual augmented function infectivity profile.
-void MCMC::Impl::InfecProfile::build_augmented_profile_(const dict_str &deflist)
+void MCMC::Impl::InfecProfile::build_augmented_profile_(const u_dict<std::string> &deflist)
 {
 	// use generic build to check profile name at this stage
 	build_generic_profile_({{"func", DefinitionParser(deflist.at("func")).root.func}});
@@ -225,23 +238,21 @@ void MCMC::Impl::InfecProfile::build_augmented_profile_(const dict_str &deflist)
 	cumul_ = &InfecProfile::do_cumul_augm_;
 
 	// initialize for instantaneous and cumulative profiles
-	bool is_discrete = tools::str::tobool(deflist.at("discr"));
-
-	for (auto &entry : pImpl_.augm.file_headers)
-		augm_infec_profile_deflist_.emplace(entry, str_vec(2, HSP_NA_STRING));
-
-	augm_infec_profile_deflist_.at("const") = str_vec(2, "false");
-	augm_infec_profile_deflist_.at("discr") = str_vec(2, tools::str::format(is_discrete));
+	bool is_discrete = hsp::str::tobool(deflist.at("discr"));
 
 	// match infectivity profile and augmented variable definition
-	const dict_str_vec matcher = {{"name", str_vec({HSP_PROFILE_INST, HSP_PROFILE_CUMUL})},
-								  {"func", str_vec(2, deflist.at("func"))},
-								  {"fcumul", {"false", "true"}},
-								  {HSP_PARAM_MIN, str_vec(2, (is_discrete) ? "1|N" : "0|N")},
-								  {HSP_PARAM_MAX, str_vec(2, deflist.at(HSP_PARAM_MAX))}};
-
-	for (auto &pair : matcher)
-		augm_infec_profile_deflist_.at(pair.first) = pair.second;
+	augm_infec_profile_deflist_ = {
+		{"name", str_vec({hsp::infprof::INSTANTANEOUS, hsp::infprof::CUMULATIVE})},
+		{"status", str_vec(2, hsp::na::STRING)}, // UPDATE
+		{"func", str_vec(2, deflist.at("func"))},
+		{"fcumul", {"false", "true"}},
+		{"value", str_vec(2, hsp::na::STRING)},
+		{"const", str_vec(2, "false")},
+		{"discr", str_vec(2, hsp::str::format(is_discrete))},
+		{hsp::params::MIN, str_vec(2, (is_discrete) ? "1|N" : "0|N")},
+		{hsp::params::MAX, str_vec(2, deflist.at(hsp::params::MAX))},
+		{"rule", str_vec(2, hsp::na::STRING)},
+		{"scale", str_vec(2, hsp::na::STRING)}};
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////

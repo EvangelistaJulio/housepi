@@ -14,6 +14,7 @@
 
 #include <atomic>
 
+#include "tools/error.h"
 #include "mcmc_impl.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -38,10 +39,10 @@ double MCMC::Impl::evaluate()
     }
     catch (const std::exception &e)
     {
-        tools::error(e.what());
+        hsp::error(e.what());
     }
 
-    return HSP_NA_DOUBLE;
+    return hsp::na::DOUBLE;
 }
 
 /// Assert dataset is not empty.
@@ -140,7 +141,7 @@ void MCMC::Impl::infer()
     catch (std::exception &e)
     {
         setup.prog_crash();
-        tools::error(e.what());
+        hsp::error(e.what());
     }
 }
 
@@ -342,7 +343,7 @@ void MCMC::Impl::Parameter::init_draws(unsigned long sample_size)
     {
         smpl_values[p].clear();
         smpl_values[p].reserve(sample_size);
-        smpl_values[p].assign(sample_size, HSP_NA_DOUBLE);
+        smpl_values[p].assign(sample_size, hsp::na::DOUBLE);
     }
 }
 
@@ -375,7 +376,7 @@ void MCMC::Impl::DataWide::init_draws(unsigned long sample_size)
     {
         smpl_values_[R].clear();
         smpl_values_[R].reserve(sample_size);
-        smpl_values_[R].assign(sample_size, HSP_NA_DOUBLE);
+        smpl_values_[R].assign(sample_size, hsp::na::DOUBLE);
     }
 }
 
@@ -414,10 +415,11 @@ void MCMC::Impl::init_posterior_sample_()
     smpl_count_ = 0;
     smpl_full_loglike_.clear();
     smpl_full_loglike_.reserve(sample_size);
-    smpl_full_loglike_.assign(sample_size, HSP_NA_DOUBLE);
+    smpl_full_loglike_.assign(sample_size, hsp::na::DOUBLE);
 
     // initialize  other diagnostic vectors
-    // UPDATE: I might want to store also power posterior sample
+    // UPDATE: I need to store also power posterior sample
+    // NOTE: it will depend on chosen rungs in that case
     if (!setup.is_power_post())
     {
         dataset.init_draws(sample_size);

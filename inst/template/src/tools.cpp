@@ -12,13 +12,27 @@
  *
  */
 
+#include <fstream>
+#include <iomanip>
+#include <sstream>
 #include <algorithm>
 #include <unordered_set>
 
-#include "tools.h"
+#include "tools/types.h"
+#include "tools/error.h"
+#include "tools/na_utils.h"
+#include "tools/operators.h"
+#include "tools/string.h"
+#include "tools/read.h"
+
+#ifdef _HOUSEPI_RCPP
+#include <Rcpp.h>
+#else
+#include <iostream>
+#endif
 
 // TOOLS NAMESPACE
-namespace tools
+namespace hsp
 {
     std::unordered_set<std::string> _issued_warnings_;
 
@@ -60,29 +74,6 @@ namespace tools
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////////  Auxiliary Functions  ////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-
-    /// Internal check for std::string representing NA.
-    bool is_na(const std::string &txt)
-    {
-        if (txt.empty())
-            return true;
-        else if (txt == HSP_NA_STRING)
-            return true;
-        else
-            return (str_vec({"<NA>", "NA", "NAN"}) % str::toup(txt));
-    }
-
-    /// Internal check for double representing NA.
-    bool is_na(double x)
-    {
-        if (std::isnan(x))
-            return true;
-        return false;
-    }
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////  String Manipulation Functions  /////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -91,54 +82,36 @@ namespace tools
     // TOOLS::STR NAMESPACE
     namespace str
     {
-        /// Convert to lower case.
-        std::string tolow(const std::string s)
-        {
-            std::string out = s;
-            std::transform(out.begin(), out.end(), out.begin(), ::tolower);
-            return out;
-        }
-
-        /// Convert to upper case.
-        std::string toup(const std::string s)
-        {
-            std::string out = s;
-            std::transform(out.begin(), out.end(), out.begin(), ::toupper);
-            return out;
-        }
-
-        /// Convert vector of strings to lower case.
-        str_vec tolow(const str_vec &svec)
-        {
-            str_vec out;
-            out.reserve(svec.size());
-            for (const auto &s : svec)
-                out.push_back(tolow(s));
-            return out;
-        }
-
-        /// Convert vector of strings to upper case.
-        str_vec toup(const str_vec &svec)
-        {
-            str_vec out;
-            out.reserve(svec.size());
-            for (const auto &s : svec)
-                out.push_back(toup(s));
-            return out;
-        }
-
         /////////////////////////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////  Converter Functions  //////////////////////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////////////
 
+        /// Convert to lower case.
+        std::string tolow(std::string s)
+        {
+            std::transform(s.begin(), s.end(), s.begin(),
+                           [](unsigned char c)
+                           { return std::tolower(c); });
+            return s;
+        }
+
+        /// Convert to upper case.
+        std::string toup(std::string s)
+        {
+            std::transform(s.begin(), s.end(), s.begin(),
+                           [](unsigned char c)
+                           { return std::toupper(c); });
+            return s;
+        }
+
         /// Convert std::string to boolean variable. NA is assumed as FALSE.
         bool tobool(const std::string &tkn)
         {
-            if (is_na(tkn))
+            if (na::is(tkn))
                 return false;
-            else if (toup(tkn) == "FALSE" || tkn == "0")
+            else if (tkn == "FALSE" || tkn == "false" || tkn == "False" || tkn == "0")
                 return false;
-            else if (toup(tkn) == "TRUE" || tkn == "1")
+            else if (tkn == "TRUE" || tkn == "true" || tkn == "True" || tkn == "1")
                 return true;
             else
                 throw std::invalid_argument(
@@ -160,6 +133,14 @@ namespace tools
             }
         }
 
+        /// Converter to double using std::stod with function pointer casting.
+        double tod(const std::string &input, const std::string &errtxt)
+        {
+            if (na::is(input))
+                return na::DOUBLE;
+            return converter_(static_cast<double (*)(const std::string &, std::size_t *)>(std::stod), input, errtxt, nullptr);
+        }
+
         /// Converter to int using std::stoi with function pointer casting.
         int toi(const std::string &input, const std::string &errtxt)
         {
@@ -178,32 +159,10 @@ namespace tools
             return static_cast<std::int32_t>(toul(input, errtxt));
         }
 
-        /// Converter to double using std::stod with function pointer casting.
-        double tod(const std::string &input, const std::string &errtxt)
-        {
-            if (tools::is_na(input))
-                return HSP_NA_DOUBLE;
-            return converter_(static_cast<double (*)(const std::string &, std::size_t *)>(std::stod), input, errtxt, nullptr);
-        }
-
         /////////////////////////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////  Formatter Functions  //////////////////////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////////////
 
-        /// Format a dobule value (it deals with NA).
-        std::string format(double x)
-        {
-            return is_na(x) ? HSP_NA_STRING : std::to_string(x);
-        }
-        /// Format a boolean value.
-        std::string format(bool condition)
-        {
-#ifdef _HOUSEPI_RCPP
-            return (condition ? "true" : "false");
-#else
-            return (condition ? "TRUE" : "FALSE");
-#endif
-        }
         /// Format a list of string options.
         std::string format(const str_vec &options, size_t max_print)
         {
@@ -211,16 +170,14 @@ namespace tools
                 return "";
             else
             {
-                std::ostringstream oss;
                 max_print = std::min(options.size(), max_print);
 
-                oss << "\"" << options[0] << "\"";
+                std::string output = "\"" + options[0] + "\"";
                 for (size_t i = 1; i < max_print; ++i)
-                    oss << ", \"" << options[i] << "\"";
+                    output += ", \"" + options[i] + "\"";
                 if (options.size() > max_print)
-                    oss << ", ..";
-                oss << ".";
-                return oss.str();
+                    output += ", ..";
+                return output + ".";
             }
         }
 
@@ -231,23 +188,21 @@ namespace tools
                 return "";
             else
             {
-                std::ostringstream oss;
-                oss << "[";
+                std::string output = "[";
                 for (size_t i = 0; i < vec.size(); ++i)
                 {
-                    oss << "[";
+                    output += "[";
                     for (size_t j = 0; j < vec[i].size(); ++j)
                     {
-                        oss << std::fixed << std::setprecision(4) << vec[i][j];
+                        output += vec[i][j];
                         if (j < vec[i].size() - 1)
-                            oss << ", ";
+                            output += ", ";
                     }
-                    oss << "]";
+                    output += "]";
                     if (i < vec.size() - 1)
-                        oss << ",\n";
+                        output += ",\n";
                 }
-                oss << "]\n";
-                return oss.str();
+                return output + "]\n";
             }
         }
 
@@ -272,8 +227,8 @@ namespace tools
             auto new_end = std::remove_if(
                 vec.begin(), vec.end(),
                 [](const std::string &a)
-                { return a.size() >= std::string(HSP_HIDE_PRFX).size() &&
-                         a.compare(0, std::string(HSP_HIDE_PRFX).size(), HSP_HIDE_PRFX) == 0; });
+                { return a.size() >= std::string(HIDDEN_PREFIX).size() &&
+                         a.compare(0, std::string(HIDDEN_PREFIX).size(), HIDDEN_PREFIX) == 0; });
             vec.erase(new_end, vec.end());
             return vec;
         }
@@ -345,7 +300,7 @@ namespace tools
                     if (options.size() == 1)
                         return " Available option is " + format(options, 1);
                     else
-                        return "\nAvailable options are: " + format(options, HSP_MAX_STR_PRINT);
+                        return "\nAvailable options are: " + format(options);
                 }
                 return "";
             }
@@ -373,7 +328,7 @@ namespace tools
                             "Missing " + where + " " + str::format(missing, 1));
                     else
                         throw std::invalid_argument(
-                            "Missing " + where + "s: " + str::format(missing, HSP_MAX_STR_PRINT));
+                            "Missing " + where + "s: " + str::format(missing));
                 }
             }
         }
@@ -391,12 +346,12 @@ namespace tools
             if (unused.size() == 1)
                 throw std::invalid_argument(
                     "Unknown " + where + " " + str::format(unused, 1) +
-                    str::find_closest(unused[0], options, HSP_MIN_STR_DIST));
+                    str::find_closest(unused[0], options));
 
             else if (unused.size() > 1)
                 throw std::invalid_argument(
-                    "Unknown " + where + "s: " + str::format(unused, HSP_MAX_STR_PRINT) +
-                    str::find_closest(HSP_NA_STRING, options, 0));
+                    "Unknown " + where + "s: " + str::format(unused) +
+                    str::find_closest(hsp::na::STRING, options, 0));
         }
     } // TOOLS::STR NAMESPACE
 
@@ -416,8 +371,8 @@ namespace tools
             for (char r : {'"', '\r', '\n'})
                 tkn.erase(remove(tkn.begin(), tkn.end(), r), tkn.end());
             // check for undefined
-            if (is_na(tkn))
-                tkn = HSP_NA_STRING;
+            if (na::is(tkn))
+                tkn = hsp::na::STRING;
             return tkn;
         }
 
@@ -429,32 +384,32 @@ namespace tools
 
             // read first line
             std::string line, tkn;
-            getline(input, line);
+            std::getline(input, line);
             std::istringstream iss(line);
 
             // get headers from first line
-            while (getline(iss, tkn, HSP_DELIM))
+            while (std::getline(iss, tkn, DELIMITER))
                 headers.push_back(strcleaner_(tkn));
 
             return headers;
         }
 
         /// Load files from the row with headers.
-        bool read_row_by_headers_(std::ifstream &input, const str_vec &headers, dict_str &this_row)
+        bool read_row_by_headers_(std::ifstream &input, const str_vec &headers, u_dict<std::string> &this_row)
         {
             std::string line, tkn;
 
-            if (getline(input, line))
+            if (std::getline(input, line))
             {
                 std::istringstream iss(line);
                 size_t n_cols = 0;
 
-                while (getline(iss, tkn, HSP_DELIM))
+                while (std::getline(iss, tkn, DELIMITER))
                     this_row.emplace(headers[n_cols++], strcleaner_(tkn));
 
                 // last column is empty
                 for (size_t i = n_cols; i < headers.size(); i++)
-                    this_row.emplace(headers[i], HSP_NA_STRING);
+                    this_row.emplace(headers[i], hsp::na::STRING);
 
                 return true;
             }
@@ -462,38 +417,52 @@ namespace tools
             return false;
         }
 
-        /// Extract headers from deflist.
-        str_vec list_headers(const dict_str &deflist)
+        /// Parse the list from the string.
+        str_vec parse_list(const std::string &tkn)
         {
-            str_vec entries = {};
+            str_vec output = {};
+            std::istringstream args_ss(strcleaner_(tkn));
+            std::string tmp;
+
+            // rea the entries of the dictionary
+            while (std::getline(args_ss, tmp, LIST_DELIMITER))
+                output.push_back(tmp);
+            return output;
+        }
+
+        /// Extract headers from deflist.
+        str_vec list_headers(const u_dict<std::string> &deflist)
+        {
+            str_vec entries;
+            entries.reserve(deflist.size());
             for (const auto &pair : deflist)
                 entries.push_back(pair.first);
             return entries;
         }
 
         /// Read csv list store in pathtofile and store it parsed in csv_parsed_list.
-        dict_str csv_list(const std::string &pathtofile)
+        u_dict<std::string> csv_list(const std::string &pathtofile)
         {
-            dict_str output = {};
+            u_dict<std::string> output = {};
 
-            if (!is_na(pathtofile))
+            if (!na::is(pathtofile))
             {
                 std::ifstream input(pathtofile.c_str());
 
                 if (input.is_open())
                 {
                     // Create a std::stringstream of the current line
-                    for (std::string line; getline(input, line);)
+                    for (std::string line; std::getline(input, line);)
                     {
                         std::string name, choice;
                         std::istringstream iss(line);
 
                         // name
-                        if (!getline(iss, name, HSP_DELIM))
+                        if (!std::getline(iss, name, DELIMITER))
                             throw std::runtime_error(
                                 "Unable to extract list name. Check file line \"" + line + "\".");
                         // choice
-                        if (!getline(iss, choice))
+                        if (!std::getline(iss, choice))
                             throw std::runtime_error(
                                 "Unable to extract list value. Check file line \"" + line + "\".");
 
@@ -510,20 +479,21 @@ namespace tools
         }
 
         /// Extract headers from deftable.
-        str_vec table_headers(const dict_str_vec &deftable)
+        str_vec table_headers(const u_dict<str_vec> &deftable)
         {
-            str_vec entries = {};
+            str_vec entries;
+            entries.reserve(deftable.size());
             for (const auto &pair : deftable)
                 entries.push_back(pair.first);
             return entries;
         }
 
         /// Read csv table in pathtofile and store it parsed in csv_parsed_table.
-        dict_str_vec csv_table(const std::string &pathtofile)
+        u_dict<str_vec> csv_table(const std::string &pathtofile)
         {
-            dict_str_vec output = {};
+            u_dict<str_vec> output = {};
 
-            if (!is_na(pathtofile))
+            if (!na::is(pathtofile))
             {
                 std::ifstream input(pathtofile.c_str());
 
@@ -532,7 +502,7 @@ namespace tools
                     // read and check for valid headers
                     const str_vec headers = read_column_headers_(input);
 
-                    dict_str this_row = {};
+                    u_dict<std::string> this_row = {};
                     while (read_row_by_headers_(input, headers, this_row))
                     {
                         for (const auto &x : this_row)
@@ -548,64 +518,4 @@ namespace tools
             return output;
         }
     } // TOOLS::READ NAMESPACE
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////  R I/O Auxiliary Functions  //////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef _HOUSEPI_RCPP
-    /// Format C++ string into Rcpp string.
-    Rcpp::String stoRString(const std::string &x)
-    {
-        if (tools::is_na(x))
-            return HSP_NA_STRING;
-        return Rcpp::String(x);
-    }
-
-    /// Convert R List into map<string, string>.
-    dict_str rlist_to_map(SEXP input)
-    {
-        using namespace Rcpp;
-        dict_str output = {};
-
-        if (!Rf_isNull(input))
-        {
-            List list(input);
-            CharacterVector rownames = list.names();
-
-            for (R_xlen_t i = 0; i < list.size(); ++i)
-            {
-                CharacterVector element = list[i];
-                std::string value = as<std::string>(wrap(element[0]));
-                output[as<std::string>(rownames[i])] = value;
-            }
-        }
-
-        return output;
-    }
-
-    /// Convert R dataframe into map<string, vector<string>>.
-    dict_str_vec rdataframe_to_map(SEXP input)
-    {
-        using namespace Rcpp;
-        dict_str_vec output = {};
-
-        if (!Rf_isNull(input))
-        {
-            Rcpp::DataFrame df(input);
-            CharacterVector colnames = df.names();
-
-            for (R_xlen_t i = 0; i < df.size(); ++i)
-            {
-                CharacterVector col_str = as<CharacterVector>(df[i]);
-                str_vec col_data(col_str.begin(), col_str.end());
-                output[as<std::string>(colnames[i])] = std::move(col_data);
-            }
-        }
-
-        return output;
-    }
-#endif
 } // TOOLS NAMESPACE

@@ -15,7 +15,7 @@
 #ifndef HOUSEPI__BINOMIAL__H
 #define HOUSEPI__BINOMIAL__H
 
-#include "tools.h"
+#include "tools/types.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -40,7 +40,7 @@ namespace bax
     {
     public:
         EscapePattern(ushort N_star)
-            : _N_star(N_star) {}
+            : N_star_(N_star) {}
         ~EscapePattern() {}
 
         void add_entry(ushort new_entry);
@@ -49,12 +49,12 @@ namespace bax
         const std::string str();
 
     private:
-        const ushort _N_star;
-        size_t _n_entries = 0;
-        size_t _n_patterns = 0;
+        const ushort N_star_;
+        size_t n_entries_ = 0;
+        size_t n_patterns_ = 0;
 
-        ushort_vec _entries = {};
-        std::vector<ulong> _pattern_idxs = {};
+        ushort_vec entries_ = {};
+        std::vector<ulong> pattern_idxs_ = {};
     };
 
     /////////////////////////////////////////////////////////////////////////////////////////////////

@@ -14,6 +14,8 @@
 
 #include <atomic>
 
+#include "tools/string.h"
+#include "tools/error.h"
 #include "mcmc_impl.h"
 
 /// Welford online's algorithm for mean and variance.
@@ -59,7 +61,7 @@ std::vector<dbl_vec> MCMC::Impl::power_posteriors_(const std::string &scheme, un
     const str_vec options = {"adaptive", "power-fractions"};
     if (!(options % scheme))
         throw std::invalid_argument("Unknown power posterior scheme \"" + scheme + "\"." +
-                                    tools::str::find_closest(scheme, options, HSP_MIN_STR_DIST));
+                                    hsp::str::find_closest(scheme, options));
 
     // check number of rungs for the thermodynamic ladder
     if (n_rungs < 2)
@@ -212,8 +214,8 @@ Rcpp::List MCMC::Impl::logevidence(const std::string &scheme, unsigned long n_ru
     }
     catch (const std::exception &e)
     {
-        tools::error("While estimating logevidence with power posteriors:\n" +
-                     std::string(e.what()));
+        hsp::error("While estimating logevidence with power posteriors:\n" +
+                   std::string(e.what()));
     }
     return List();
 }
@@ -227,7 +229,7 @@ Rcpp::List MCMC::Impl::logevidence(const std::string &scheme, unsigned long n_ru
 /// Ref: Friel, N., Hurn, M. & Wyse, J.
 /// Improving power posterior estimation of statistical evidence.
 /// Stat Comput 24, 709–723 (2014).
-void MCMC::Impl::print_logevidence(const std::string &scheme, unsigned long n_rungs)
+double MCMC::Impl::logevidence(const std::string &scheme, unsigned long n_rungs)
 {
     try
     {
@@ -244,13 +246,14 @@ void MCMC::Impl::print_logevidence(const std::string &scheme, unsigned long n_ru
             output += (var_vec[k] - var_vec[k + 1]) * d_inv_tem * d_inv_tem / 12.;
         }
 
-        // print result to stdout
-        std::cout << output << std::endl;
+        return output;
     }
     catch (const std::exception &e)
     {
-        tools::error("While estimating logevidence with power posteriors:\n" +
-                     std::string(e.what()));
+        hsp::error("While estimating logevidence with power posteriors:\n" +
+                   std::string(e.what()));
     }
+
+    return hsp::na::DOUBLE;
 }
 #endif

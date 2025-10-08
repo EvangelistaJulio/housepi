@@ -230,7 +230,7 @@ void Model::simulate_single_household(Household &house)
 #ifdef _HSP_DISCRETE_TIME
 	const double Dt = 1;
 #else
-	const double Dt = HSP_TIME_STEP;
+	const double Dt = 0.05; // UDPDATE: it should be possible to change from outside
 #endif
 
 	/////////////////////////////////////////////////////////////////

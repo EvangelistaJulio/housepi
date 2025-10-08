@@ -16,10 +16,10 @@
 #define HOUSEPI__DISTRIBUTION__H
 
 #include <memory>
-#include <string>
-#include <vector>
 
-#include "tools.h"
+#include "tools/types.h"
+#include "tools/na_utils.h"
+#include "tools/random.h"
 #include "function.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -36,10 +36,10 @@ public:
 	///////////////////////////////  Distribution : constructor  ////////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
-	Distribution(const std::string &name = HSP_NA_STRING,
+	Distribution(const std::string &name = hsp::na::STRING,
 				 const str_vec &arg_name = {}, const dbl_vec &arg_value = {},
-				 double domain_min = HSP_NA_DOUBLE, bool is_min_open = true,
-				 double domain_max = HSP_NA_DOUBLE, bool is_max_open = true)
+				 double domain_min = hsp::na::DOUBLE, bool is_min_open = true,
+				 double domain_max = hsp::na::DOUBLE, bool is_max_open = true)
 		: Function(name, arg_name, arg_value,
 				   domain_min, is_min_open,
 				   domain_max, is_max_open)

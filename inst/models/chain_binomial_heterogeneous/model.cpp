@@ -31,19 +31,17 @@
 /// Initialize the Lookup Table.
 void Model::init_model_for_inference()
 {
-	//==== Unknown status are not modeled =====//
-	if (get_report_indiv("missing") > 0)
-		tools::error(
-			"A missing status was found : incompatible with the model.");
+	// unknown status are not modeled
+	assert_no_missing_status();
 
-	//===== Allocate memory for the escape matrix =====//
+	// initialize look-up-table to largest possible value
+	bax::init_escape_patterns_lookuptable(
+		get_report_hh_size("max cases").first);
+
+	// allocate memory for the escape matrix
 	cache_house_size_t_vector("order");
 	cache_house_double_vector("commu-escape-proba");
 	cache_house_double_matrix("p2p-escape-proba");
-
-	//=====Initialize look-up-table to largest possible value=====//
-	bax::init_escape_patterns_lookuptable(
-		get_report_hh_size("max cases").first);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -55,15 +53,14 @@ void Model::init_model_for_inference()
 /// Compute the log-likelihood for a single household.
 double Model::compute_household_obs_loglike(Household &house)
 {
-	//===== Fill Escape Probabilities =====//
+	// fill matrix with escape probabilities
 	fill_house_escape_matrix(house);
 
-	//=====compute the loglikelihood=====//
-	const double loglikelihood = bax::chain_binomial_heter_loglikelihood(
-		house.n_infec_status(),
-		house.cache_double_vector("commu-escape-proba"),
-		house.cache_double_matrix("p2p-escape-proba"));
-	return loglikelihood * house.multiplicity();
+	// compute corresponding loglikelihood times house multiplicity
+	return house.multiplicity() * bax::chain_binomial_heter_loglikelihood(
+									  house.n_infec_status(),
+									  house.cache_double_vector("commu-escape-proba"),
+									  house.cache_double_matrix("p2p-escape-proba"));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
