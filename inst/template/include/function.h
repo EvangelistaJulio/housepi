@@ -15,10 +15,15 @@
 #ifndef HOUSEPI__FUNCTION__H
 #define HOUSEPI__FUNCTION__H
 
-#include <string>
-#include <vector>
+#include <memory>
+#include <functional>
 
-#include "tools.h"
+#include "tools/types.h"
+#include "tools/na_utils.h"
+
+#ifdef _HOUSEPI_RCPP
+#include <Rcpp.h>
+#endif
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -37,12 +42,17 @@ public:
     ///////////////////////////////////  Attribute : constructor  ///////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
+    /// Empty attribute.
     Attribute() {};
-    /// Auxiliary constructors allowing for implicit definition.
+    /// Numeric attribute.
     Attribute(double x);
+    /// Pointer to double attribute.
     Attribute(observ_dbl_ptr y);
+    /// Function attribute.
     Attribute(const std::shared_ptr<Function> f);
+    /// Function attribute by registry choice.
     Attribute(const std::string &s, bool is_primitive = false);
+    /// Deconstructor.
     virtual ~Attribute() = default;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -52,10 +62,10 @@ public:
     /// Set attribute value.
     void set(double x) { (this->*do_set_)(x); }
     /// Set attribute name. Eventually also err type.
-    void name(const std::string &s, const std::string &e = HSP_NA_STRING)
+    void name(const std::string &s, const std::string &e = hsp::na::STRING)
     {
         name_ = s;
-        if (!tools::is_na(e))
+        if (!hsp::na::is(e))
             err_type_ = e;
     }
 
@@ -79,7 +89,7 @@ public:
     /// Get attribute name to display in errors.
     std::string err_name() const { return err_type_ + " \"" + name_ + "\""; }
     /// Get a description about the functional status.
-    std::string what() const;
+    virtual std::string str_summary() const;
 
     /// Get attribute numeric value.
     double get() const { return (this->*get_)(); }
@@ -87,8 +97,6 @@ public:
     observ_dbl_ptr get_ptr() const { return (this->*get_ptr_)(); }
     /// Get pointer to attribute function.
     const std::shared_ptr<Function> get_function() const { return pFunc_; }
-    /// Get formatted value.
-    std::string str() const { return tools::str::format(get()); }
 
     /// Wheter it's constant.
     virtual bool is_constant() const;
@@ -96,7 +104,7 @@ public:
     virtual bool is_discrete() const;
 
     /// Wheter it's a number.
-    bool is_numeric() const { return !tools::is_na(value_); }
+    bool is_numeric() const { return !hsp::na::is(value_); }
     /// Wheter it's a pointer.
     bool is_pointer() const { return ptr_to_value_ != nullptr; }
     /// Wheter it's a function.
@@ -106,8 +114,8 @@ public:
 
 protected:
     std::string err_type_ = "attribute";        // type name displayed in errors
-    std::string name_ = HSP_NA_STRING;          /// name of argument
-    double value_ = HSP_NA_DOUBLE;              /// internal value
+    std::string name_ = hsp::na::STRING;        /// name of argument
+    double value_ = hsp::na::DOUBLE;            /// internal value
     observ_dbl_ptr ptr_to_value_ = nullptr;     /// pointer to value // UPDATE: nullptr might be dangerous
     std::shared_ptr<Function> pFunc_ = nullptr; /// pointer to function // UPDATE: nullptr might be dangerous
 
@@ -119,6 +127,8 @@ protected:
     double do_get_from_pointer_() const { return *(ptr_to_value_); }
     /// Get attribute value from external function.
     double do_get_from_function_() const;
+    /// Get attribute error for not callable functions.
+    double do_get_error_() const;
 
     // Functional pointer getter
     observ_dbl_ptr (Attribute::*get_ptr_)() const = &Attribute::do_get_ptr_default_;
@@ -132,12 +142,11 @@ protected:
 
     // Functional setter
     void (Attribute::*do_set_)(double) = &Attribute::do_set_default_;
-    /// Set error. Non numeric attributes can't be set, but just assigned.
-    /// NOTE: so far set_arg is only used for adaptation.
-    virtual void do_set_error_(double) { throw std::runtime_error(
-        "Non nuemric " + err_name() + " cannot be changed."); }
     /// Set attribute internal value.
     virtual void do_set_default_(double x) { value_ = x; }
+    /// Set error. Non numeric attributes can't be set, but just assigned.
+    void do_set_error_(double) { throw std::runtime_error(
+        "Non numeric " + err_name() + " cannot be changed."); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -154,10 +163,10 @@ public:
     ////////////////////////////////  Function : constructor  ///////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    Function(const std::string &name = HSP_NA_STRING,
+    Function(const std::string &name = hsp::na::STRING,
              const str_vec &arg_name = {}, const dbl_vec &arg_value = {},
-             double domain_min = HSP_NA_DOUBLE, bool is_min_open = false,
-             double domain_max = HSP_NA_DOUBLE, bool is_max_open = false);
+             double domain_min = hsp::na::DOUBLE, bool is_min_open = false,
+             double domain_max = hsp::na::DOUBLE, bool is_max_open = false);
     virtual ~Function() = default;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -194,7 +203,7 @@ public:
     observ_dbl_ptr get_ptr_to_max() const { return range_max_.get_ptr(); }
 
     /// Wheter it is empty.
-    bool is_empty() const { return tools::is_na(name()); }
+    bool is_empty() const { return hsp::na::is(name()); }
     /// Wheter return value is always constant.
     bool is_constant() const;
     /// Wheter return value is always discrete.
@@ -235,11 +244,6 @@ public:
     std::string name() const { return name_; }
     /// Get attribute name to display in errors.
     std::string err_name() const { return err_type_ + " \"" + name_ + "\""; }
-    std::string str_arg_names() const;
-    std::string str_arg_values() const;
-
-    std::string str_min() const { return range_min_.str(); }
-    std::string str_max() const { return range_max_.str(); }
 
     std::string str_range() const;
     std::string str_summary(bool show_x_arg = true) const;
@@ -251,7 +255,7 @@ public:
 
 protected:
     std::string err_type_ = "function";                                      // type name displayed in errors
-    std::string name_ = HSP_NA_STRING;                                       /// function name
+    std::string name_ = hsp::na::STRING;                                     /// function name
     std::vector<Attribute> arguments_ = {};                                  /// array with arguments
     Attribute x_arg_ = Attribute();                                          /// 'x' argument
     Attribute range_min_ = Attribute();                                      /// lower bound
@@ -346,7 +350,6 @@ protected:
 
     /// Internal code to define the type of range.
     unsigned short which_valid_case_() const;
-    void init_uniform_range_();
     bool init_range_min_(double min_val = 0., bool is_min_open = false);
     void init_range_helper_(bool is_min_open = false, bool is_max_open = false);
 
@@ -387,8 +390,6 @@ protected:
 
 class FunctionRegistry
 {
-    using FactoryFunc = std::function<std::shared_ptr<Function>()>;
-
 public:
     /////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////  FunctionRegistry : constructor  ////////////////////////////
@@ -404,7 +405,6 @@ public:
 
     const std::string &name() const { return name_; }
     virtual str_vec get_options() const;
-    bool is_valid_option(const std::string &opt) const { return get_options() % opt; }
     virtual std::shared_ptr<Function> get(const std::string &opt, bool is_primitive) const;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -422,7 +422,7 @@ public:
 
 private:
     std::string name_;
-    u_dict<FactoryFunc> factory_map_ = {};
+    u_dict<std::function<std::shared_ptr<Function>()>> factory_map_ = {};
 };
 
 /// Separate functions registries.

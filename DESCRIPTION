@@ -1,7 +1,7 @@
 Package: housepi
 Type: Package
 Title: Household Epidemiological Modeling and Analysis
-Version: 0.8.23
+Version: 0.8.26
 Authors@R:
     person("Francesco", "Camaglia",
            email = "francesco.camaglia@pasteur.fr", 
@@ -9,7 +9,7 @@ Authors@R:
            comment = c(ORCID = "0000-0003-4810-2631"))
 Description: A platform for epidemiological modeling of household surveys.
 URL: https://mmmi-pasteur.gitlab.io/housepi
-License: GPL-3 + file LICENSE
+License: MIT + file LICENSE
 Encoding: UTF-8
 Imports:
     cli,

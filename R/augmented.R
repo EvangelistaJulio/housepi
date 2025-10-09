@@ -164,12 +164,6 @@ HousepiAugmented <- R6::R6Class(
   ############################################################################
 
   active = list(
-    #' @field param_required `character()`\cr
-    #' Find parameters required by augmented variable definitions.
-    param_required = function(value) {
-      if (missing(value)) return(private$.find_def_required("P"))
-      stop_h("'param_required' is read only.")
-    },
 
     #' @field augm_required `character()`\cr
     #' Find augmented required by augmented variable definitions.
@@ -183,6 +177,20 @@ HousepiAugmented <- R6::R6Class(
     data_required = function(value) {
       if (missing(value)) return(private$.find_def_required("D"))
       stop_h("'data_required' is read only.")
+    },
+
+    #' @field group_rate_required `character()`\cr
+    #' Find group rates required by augmented variable definitions.
+    group_rate_required = function(value) {
+      if (missing(value)) return(private$.find_def_required("G"))
+      stop_h("'group_rate_required' is read only.")
+    },
+
+    #' @field param_required `character()`\cr
+    #' Find parameters required by augmented variable definitions.
+    param_required = function(value) {
+      if (missing(value)) return(private$.find_def_required("P"))
+      stop_h("'param_required' is read only.")
     }
   ),
 
@@ -231,27 +239,23 @@ HousepiAugmented <- R6::R6Class(
     #' A `character(1)` with the name of the augmented definition to remove.
     #' @param status
     #' An `integer(1)` with the associated status of the definition.
-    #' If `NA`, remove for all infected status.
     #' @param show_warnings
     #' `logical(1)`to show warnings or not.
     #'
     #' @return `logical(1)`
-    remove = function(x, status = NA, show_warnings = TRUE) {
-      mask <- (self$defs[["name"]] == x)
+    remove = function(x, status, show_warnings = TRUE) {
+      mask <- self$defs[["name"]] == x
       if (any(mask)) {
-        if (is.na(status)) {
-          self$defs <- self$defs[!mask, ]
-        } else {
-          # check if same name and status
-          mask <- mask & (self$defs[["status"]] == status)
-          mask[is.na(mask)] <- FALSE
+        # check if same name and status
+        mask <- mask & sapply(self$defs[["status"]], function(x) {
+          identical(x, as.integer(status))
+        })
 
-          if (any(mask)) self$defs <- self$defs[!mask, ]
-          else if (isTRUE(show_warnings)) warning_h(sprintf(
-            "Unknown augmented variable \"%s\" for status %d to remove.",
-            x, status
-          ))
-        }
+        if (any(mask)) self$defs <- self$defs[!mask, ]
+        else if (isTRUE(show_warnings)) warning_h(sprintf(
+          "Unknown augmented variable \"%s\" for status %d to remove.",
+          x, status
+        ))
       } else if (isTRUE(show_warnings)) {
         warning_h(sprintf("Unknown augmented variable \"%s\" to remove.", x))
       }
@@ -259,19 +263,19 @@ HousepiAugmented <- R6::R6Class(
     },
 
     #' @inherit add_augmented
-    add = function(name = NA,
-                   status = NA,
+    add = function(name = NA_character_,
+                   status = NA_integer_,
                    const = NA,
                    discr = FALSE,
-                   func = NA,
+                   func = NA_character_,
                    func_args = NULL,
-                   value = NA,
-                   model = NA,
+                   value = NULL,
+                   model = NA_character_,
                    args = NULL,
                    min = NULL,
                    max = NULL,
-                   rule = NA,
-                   scale = NA,
+                   rule = NA_character_,
+                   scale = NA_real_,
                    expr = NULL) {
       # handle (name, status) and check for existing definitions
       private$.helper_existing_definition(name, status)
@@ -280,16 +284,16 @@ HousepiAugmented <- R6::R6Class(
       opts <- list(
         name = as.character(name),
         status = as.integer(status),
-        const = const,
+        const = as.logical(const),
         discr = isTRUE(discr),
         func = as.character(func),
         fcumul = FALSE,
-        value = NA,
+        value = NA_real_,
         model = as.character(model),
-        min = NA,
-        max = NA,
+        min = NA_real_,
+        max = NA_real_,
         rule = as.character(rule),
-        scale = NA
+        scale = NA_real_
       )
 
       # augmented function

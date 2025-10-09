@@ -12,7 +12,11 @@
  *
  */
 
-#include "parser.h"
+#include "tools/string.h"
+#include "tools/read.h"
+#include "tools/params.h"
+#include "tools/sources.h"
+#include "tools/parser.h"
 
 /// Split on sep at top level (ignore separators inside braces).
 str_vec split_top_(const std::string &s)
@@ -29,7 +33,7 @@ str_vec split_top_(const std::string &s)
         else if (c == '}')
             --level;
         // parse only top level
-        if (c == HSP_LIST_DELIM && level == 0)
+        if (c == hsp::read::LIST_DELIMITER && level == 0)
         {
             entries.push_back(current);
             current.clear();
@@ -47,7 +51,7 @@ str_vec split_top_(const std::string &s)
 DefinitionParser::ASTNode parse_expression_(const std::string &expr)
 {
     // empty node
-    if (tools::is_na(expr))
+    if (hsp::na::is(expr))
         return DefinitionParser::ASTNode();
 
     // pure function node
@@ -100,7 +104,7 @@ DefinitionParser::ASTNode parse_expression_(const std::string &expr)
                 throw std::runtime_error(
                     "Missing terminal \'|\' in definition \"" + expr + "\".");
             DefinitionParser::ASTNode child(c.substr(0, barc), c.substr(barc + 1));
-            child.key = args[i]; // FIXME check not NA
+            child.key = args[i];
             node.children.push_back(std::move(child));
         }
     }
@@ -110,6 +114,12 @@ DefinitionParser::ASTNode parse_expression_(const std::string &expr)
 
 /// Construct and parse expression into AST (and flattens it).
 DefinitionParser::DefinitionParser(const std::string &expr) { root = parse_expression_(expr); }
+
+DefinitionParser::ASTNode::ASTNode(const std::string &value_, const std::string &type_)
+{
+    value = value_;
+    type = hsp::str::toup(type_);
+}
 
 /// Rebuild string from node using recursion.
 std::string DefinitionParser::ASTNode::str() const
@@ -121,38 +131,59 @@ std::string DefinitionParser::ASTNode::str() const
     else if (is_terminal())
         return value + "|" + type;
 
-    std::ostringstream ss_args;
-    std::ostringstream ss_children;
+    std::string str_args, str_children;
     for (size_t i = 0; i < children.size(); ++i)
     {
         const ASTNode &child = children[i];
         if (i > 0)
         {
-            ss_args << HSP_LIST_DELIM;
-            ss_children << HSP_LIST_DELIM;
+            str_args += hsp::read::DELIMITER;
+            str_children += hsp::read::DELIMITER;
         }
-        ss_args << child.key;
+        str_args += child.key;
 
         const std::string cs = child.str();
         if (child.is_braced)
-            ss_children << "{" << cs << "}";
+            str_children += "{" + cs + "}";
         else
-            ss_children << cs;
+            str_children + cs;
     }
+    return func + "|" + str_args + "|" + str_children;
+}
 
-    return func + "|" + ss_args.str() + "|" + ss_children.str();
+/// Wheter is implicitely callable.
+bool DefinitionParser::ASTNode::is_implicit_callable() const
+{
+    if (!is_terminal())
+    {
+        bool is_x_arg = false;
+        for (const ASTNode &child : children)
+        {
+            if (!child.is_implicit_callable())
+                return false;
+            else if (child.key == hsp::params::X)
+                is_x_arg = true;
+        }
+        if (!is_x_arg)
+            return false;
+    }
+    return true;
 }
 
 /// Append dependencies of chosen type to stack.
-#define MAKE_NODE_LIST_TYPE_DEPEN(type_flag, TYPE_FLAG)                              \
+#define MAKE_NODE_LIST_TYPE_DEPEN(type_flag)                                         \
     void DefinitionParser::ASTNode::append_##type_flag##_depen(str_vec &stack) const \
     {                                                                                \
-        if (is_terminal() && HSP_IS_TYPE_##TYPE_FLAG(type))                          \
+        if (is_terminal() && hsp::sources::is_##type_flag(type))                     \
             stack.push_back(value);                                                  \
         else                                                                         \
             for (const ASTNode &child : children)                                    \
                 child.append_##type_flag##_depen(stack);                             \
     }
+
+MAKE_NODE_LIST_TYPE_DEPEN(augmented)
+MAKE_NODE_LIST_TYPE_DEPEN(data)
+MAKE_NODE_LIST_TYPE_DEPEN(parameter)
 
 /// Return unique list of dependencies of chosen type.
 #define MAKE_PARSER_LIST_TYPE_DEPEN(type_flag)                 \
@@ -160,13 +191,9 @@ std::string DefinitionParser::ASTNode::str() const
     {                                                          \
         str_vec stack = {};                                    \
         root.append_##type_flag##_depen(stack);                \
-        return tools::str::unique(stack);                      \
+        return hsp::str::unique(stack);                        \
     }
 
-MAKE_NODE_LIST_TYPE_DEPEN(augm, AUGMENTED)
-MAKE_NODE_LIST_TYPE_DEPEN(data, DATA)
-MAKE_NODE_LIST_TYPE_DEPEN(param, PARAMETER)
-
-MAKE_PARSER_LIST_TYPE_DEPEN(augm)
+MAKE_PARSER_LIST_TYPE_DEPEN(augmented)
 MAKE_PARSER_LIST_TYPE_DEPEN(data)
-MAKE_PARSER_LIST_TYPE_DEPEN(param)
+MAKE_PARSER_LIST_TYPE_DEPEN(parameter)

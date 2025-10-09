@@ -41,7 +41,7 @@ test_that("Augmented variable definitions are correct", {
   expect_equal(augm$defs$value, "3|N")
   expect_equal(augm$defs$rule, NA)
   expect_equal(augm$defs$scale, NA)
-  
+
   # variable definition
   augm <- housepi:::HousepiAugmented$new()
   augm$add(name = "dummy", value = ~expo@D, model = "uniform",
@@ -71,19 +71,22 @@ test_that("Augmented sampling default is correct", {
 
 test_that("Augmented function definition is correct", {
   augm <- housepi:::HousepiAugmented$new()
-
-  # empty definition
   expect_error(augm$add(), regexp = "Incomplete definition")
 
   # difference definition
   augm$add(name = "dummy", expr = ~onset - incub)
-
   expect_equal(augm$defs$func, "sub|x:x2|{onset|A}:{incub|A}")
   expect_equal(augm$defs$value, NA)
 
-  # overwriting warning
+  # overwriting warnings
   expect_warning(
-    augm$add(name = "dummy", func = "log", func_args = c(x = ~infec@A))
+    augm$add(name = "dummy", func = "log", func_args = c(x = ~infec@A)),
+    "Overwriting existing"
+  )
+  augm$add(name = "rate", value = 3)
+  expect_warning(
+    augm$add(name = "dummy", expr = ~exp(-rate)),
+    "Overwriting existing"
   )
 })
 

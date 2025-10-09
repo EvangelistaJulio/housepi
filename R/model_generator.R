@@ -31,10 +31,10 @@ HousepiGenerator <- R6::R6Class(
   ############################################################################
 
   private = list(
-    .name = NA,
-    .dll = NA,
-    .cache_dir = NA,
-    .source_dir = NA,
+    .name = NA_character_,
+    .dll = NA_character_,
+    .cache_dir = NA_character_,
+    .source_dir = NA_character_,
     .quiet = TRUE,
     .need_compile = FALSE,
     .rcpp = NULL,

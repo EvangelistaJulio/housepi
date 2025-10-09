@@ -35,6 +35,7 @@ class Model : public MCMC
 public:
 	// override general MCMC methods
 	double compute_household_obs_loglike(Household &house) override final;
+	void simulate_single_household(Household &house) override final;
 };
 
 #endif // HOUSEPI__MODEL__H

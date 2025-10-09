@@ -5,7 +5,7 @@
 \title{New housepi model}
 \usage{
 new_housepi_model(
-  choice = NA,
+  choice = NA_character_,
   as_template = FALSE,
   force = FALSE,
   quiet = TRUE,

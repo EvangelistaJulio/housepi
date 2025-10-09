@@ -30,11 +30,10 @@
 /// Initialize the Lookup Table.
 void Model::init_model_for_inference()
 {
-	// Unknown status are not modeled
-	if (get_report_indiv("missing") > 0)
-		tools::error("A missing status was found : incompatible with the model.");
+	// missing status are not modeled
+	assert_no_missing_status();
 
-	//=====Initialize look-up-table to largest possible value=====//
+	// initialize look-up-table to largest possible value
 	bax::init_generations_lookuptable(get_report_hh_size("max cases").first);
 }
 
@@ -97,7 +96,7 @@ double Model::compute_household_obs_loglike(Household &house)
 		log_likelihood += std::log(sero_positive_term);
 	}
 
-	return log_likelihood * house.multiplicity();
+	return house.multiplicity() * log_likelihood;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -128,9 +127,9 @@ void Model::simulate_single_household(Household &house)
 
 	for (Individual &member : house)
 		if (uniform() < commu_esc_proba)
-			house.set_status(member, HSP_HEALTHY_STATUS);
+			house.set_healthy_status(member);
 		else
-			house.set_status(member, HSP_INFECTED_STATUS);
+			house.set_infected_status(member);
 
 	//////////////////////////////////////////////////////////////////
 	//////  Generation >=1 : infection by previous generation  ///////
@@ -147,7 +146,7 @@ void Model::simulate_single_household(Household &house)
 		for (Individual &member : house.healthy())
 			if (uniform() >= exp(n_old_gen * log_p2p_esc_proba))
 			{
-				house.set_status(member, HSP_INFECTED_STATUS);
+				house.set_infected_status(member);
 				++n_new_gen;
 			}
 	}

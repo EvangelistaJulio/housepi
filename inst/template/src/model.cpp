@@ -18,15 +18,23 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+#include "tools/error.h"
 #include "model.h"
 
 /// Raise error when "blank" model.
-void Model::init_model_for_inference() { tools::warning(
+void Model::init_model_for_inference() { hsp::warning(
 	"Computing loglikelihood with \"blank\" model."); }
 
 /// Raise error when "blank" model.
-void Model::init_model_for_simulation() { tools::error(
-	"Simulations with \"blank\" model are not supported."); }
+void Model::init_model_for_simulation() { hsp::warning(
+	"Performing simulation with \"blank\" model."); }
 
 /// Unitary likelihood.
 double Model::compute_household_obs_loglike(Household &) { return 0.; }
+
+/// Augmented variable initialization.
+void Model::simulate_single_household(Household &house)
+{
+	for (Individual &member : house.infected())
+		init_missing_augm(member);
+}

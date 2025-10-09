@@ -12,6 +12,8 @@
  *
  */
 
+#include <string>
+
 #include "numerical_recipes.h"
 
 // namespace containing numerical recipes used to compute distributions

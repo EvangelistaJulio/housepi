@@ -126,12 +126,12 @@ HousepiParameter <- R6::R6Class(
                    const = NA,
                    discr = FALSE,
                    value = NULL,
-                   prior = NA,
+                   prior = NA_character_,
                    args = NULL,
                    min = NULL,
                    max = NULL,
-                   rule = NA,
-                   scale = NA) {
+                   rule = NA_character_,
+                   scale = NA_real_) {
       if (is.na(name)) stop_h(
         "Incomplete parameter definition: missing name."
       )
@@ -142,9 +142,9 @@ HousepiParameter <- R6::R6Class(
 
       opts <- list(name = name,
                    const = TRUE, discr = FALSE,
-                   value = NA, prior = NA,
-                   min = NA, max = NA,
-                   rule = NA, scale = NA)
+                   value = NA_real_, prior = NA_character_,
+                   min = NA_real_, max = NA_real_,
+                   rule = NA_character_, scale = NA_real_)
 
       # assume it's a constant if a prior is not provided
       if (is.na(const)) const <- is.na(prior)

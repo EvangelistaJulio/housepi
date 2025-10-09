@@ -168,11 +168,11 @@ load_definition_list <- function(..., from = NULL) {
   definitions <- list(...)
 
   if (length(definitions) == 0) {
-    if (length(from) == 0) stop_h("No definitions provided.")
+    if (length(from) == 0) stop_h("No definition provided while loading list.")
     else if (is.list(from)) definitions <- from
     else stop_h("Argument 'from' should be a list.")
   } else if (any(names(definitions) == "")) {
-    stop_h("Found definition without name.")
+    stop_h("Found definition(s) without name.")
   }
 
   return(definitions)
@@ -304,7 +304,7 @@ char_setup_input_ <- function(defs) {
   # correct id trace vector
   if ("id_draws" %in% names(defs)) {
     y <- unlist(defs$id_draws)
-    if (length(y) == 0) defs$id_draws <- NA
+    if (length(y) == 0) defs$id_draws <- NA_character_
     else defs$id_draws <- paste0(unique(y), collapse = ":")
   }
   data.frame(lapply(defs, as.character))
@@ -438,6 +438,7 @@ DefEncoder <- R6::R6Class(
     .default_types = function(types, values) {
       valid_types <- list("A" = "augmented",
                           "D" = "data",
+                          "G" = "group rate",
                           "N" = "numeric",
                           "P" = "parameter")
 
@@ -447,7 +448,7 @@ DefEncoder <- R6::R6Class(
 
         if (is.na(k)) {
           # no explicit type provided, then format for default types
-          if (is.na(y)) types[i] <- NA
+          if (is.na(y)) types[i] <- NA_character_
           else if (is.numeric(y)) types[i] <- "N"
           else if (is.character(y)) types[i] <- ifelse(
             is.na(suppressWarnings(as.numeric(y))), "A", "N"
@@ -473,7 +474,7 @@ DefEncoder <- R6::R6Class(
 
     # Add default types if not a call.
     .format_types = function(func_args) {
-      output <- NA
+      output <- NA_character_
       if (!(is.null(func_args) || all(is.na(func_args)))) {
         splitted <- strsplit(as.character(func_args), "\\@")
         output <- sapply(splitted, function(x) {
@@ -488,7 +489,7 @@ DefEncoder <- R6::R6Class(
 
     # Format a call to match housepi standard typed definitions
     .format_identity = function(func_args) {
-      if (is.null(func_args)) NA
+      if (is.null(func_args)) NA_character_
       else private$.format_types(func_args)
     },
 
@@ -526,9 +527,9 @@ DefEncoder <- R6::R6Class(
       # map to function name
       func_name <- switch(
         rlang::call_name(call),
-        `+` = if (length(args) == 1) NA else "add",
+        `+` = if (length(args) == 1) NA_character_ else "sum",
         `-` = if (length(args) == 1) "minus" else "sub",
-        `*` = "mult",
+        `*` = "prod",
         `/` = "div",
         `^` = "pow",
         rlang::call_name(call) # default
@@ -572,7 +573,7 @@ DefEncoder <- R6::R6Class(
   public = list(
     #' @field x `character(1)`\cr
     #' Encoding after initialization.
-    x = NA,
+    x = NA_character_,
 
     #' @description Flag to tell if object is a call or a value.
     is_call = function() {
@@ -695,7 +696,7 @@ make_def_readable <- function(defs) {
   .extract_numeric <- function(x) {
     sapply(x, function(element) {
       if (is.na(element)) {
-        NA
+        NA_character_
       } else if (is.character(element)) {
         z <- strsplit(element, "\\|")[[1]]
         if (length(z) == 2 && z[2] == "N") as.numeric(z[1])
@@ -707,23 +708,25 @@ make_def_readable <- function(defs) {
   }
 
   .extract_args <- function(x) {
-    sapply(x, function(element) {
+    y <- sapply(x, function(element) {
       if (is.na(element)) {
-        NA
+        c(NA_character_, NA_character_)
       } else if (is.character(element)) {
         z <- strsplit(element, "\\|")[[1]]
-        if (length(z) > 2) paste(z[2:length(z)], collapse = "|")
-        else element
+        if (length(z) > 2) c(z[2], paste(z[3:length(z)], collapse = "|"))
+        else c(NA_character_, NA_character_)
       } else {
-        element
+        c(element, NA_character_)
       }
     }, USE.NAMES = FALSE)
+
+    as.data.frame(t(y))
   }
 
   .extract_func <- function(x) {
     sapply(x, function(element) {
       if (is.na(element)) {
-        NA
+        NA_character_
       } else if (is.character(element)) {
         z <- strsplit(element, "\\|")[[1]]
         if (length(z) > 2) z[1]
@@ -742,9 +745,14 @@ make_def_readable <- function(defs) {
       output <- cbind(
         output[1:(pos - 1)],
         stats::setNames(list(.extract_func(output[[col]])), col),
-        stats::setNames(list(.extract_args(output[[col]])),
-                        ifelse(col %in% c("prior", "model"),
-                               "args", paste0(col, "_args"))),
+        stats::setNames(
+          .extract_args(output[[col]]),
+          paste0(
+            ifelse(col %in% c("prior", "model"),
+                   "arg", paste0(col, "_arg")),
+            c("_names", "_values")
+          )
+        ),
         output[(pos + 1):ncol(output)]
       )
     }

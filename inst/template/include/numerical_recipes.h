@@ -12,10 +12,10 @@
  *
  */
 
-#include <stdexcept>
+#ifndef HOUSEPI__NUMERICAL_RECIPES__H
+#define HOUSEPI__NUMERICAL_RECIPES__H
+
 #include <cmath>
-#include <algorithm>
-#include <string>
 
 #ifndef M_1_SQRT_2PI
 #define M_1_SQRT_2PI 0.398942280401432677939946059934 /// 1/sqrt(2pi)
@@ -28,9 +28,6 @@
 #ifndef M_LN_SQRT_2PI
 #define M_LN_SQRT_2PI 0.918938533204672741780329736406 /// log(sqrt(2pi))
 #endif
-
-#ifndef HOUSEPI__NUMERICAL_RECIPES__H
-#define HOUSEPI__NUMERICAL_RECIPES__H
 
 // namespace containing numerical recipes used to compute distributions
 namespace numr
@@ -114,7 +111,7 @@ namespace numr
         inline double pdf(double x, double mean, double sd)
         {
             const double z = (x - mean) / sd;
-            return M_1_SQRT_2PI * exp(-.5 * z * z) / sd;
+            return static_cast<double>(M_1_SQRT_2PI) * exp(-.5 * z * z) / sd;
         }
         inline double cdf(double x, double mean, double sd)
         {
@@ -123,7 +120,7 @@ namespace numr
         inline double logpdf(double x, double mean, double sd)
         {
             const double z = (x - mean) / sd;
-            return -.5 * z * z - M_LN_SQRT_2PI - log(sd);
+            return -.5 * z * z - static_cast<double>(M_LN_SQRT_2PI) - log(sd);
         }
         inline double logratio(double xo, double xn, double mean, double sd)
         {
@@ -140,16 +137,16 @@ namespace numr
         inline double pdf(double x, double meanlog, double sdlog)
         {
             const double z = (log(x) - meanlog) / sdlog;
-            return exp(-.5 * z * z) * M_1_SQRT_2PI / (x * sdlog);
+            return exp(-.5 * z * z) * static_cast<double>(M_1_SQRT_2PI) / (x * sdlog);
         }
         inline double cdf(double x, double meanlog, double sdlog)
         {
-            return .5 + .5 * std::erf(M_SQRT1_2 * (log(x) - meanlog) / sdlog);
+            return .5 + .5 * std::erf(static_cast<double>(M_SQRT1_2) * (log(x) - meanlog) / sdlog);
         }
         inline double logpdf(double x, double meanlog, double sdlog)
         {
             const double z = (log(x) - meanlog) / sdlog;
-            return -.5 * z * z - log(x * sdlog) - M_LN_SQRT_2PI;
+            return -.5 * z * z - log(x * sdlog) - static_cast<double>(M_LN_SQRT_2PI);
         }
         inline double logratio(double xo, double xn, double meanlog, double sdlog)
         {

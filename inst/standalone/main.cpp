@@ -23,6 +23,9 @@
 #include <time.h>
 
 #include "mcmc.h"
+#include "tools/na_utils.h"
+#include "tools/error.h"
+#include "tools/string.h"
 
 // Header to the user defined model provided by the Make command
 #include "model.h"
@@ -32,7 +35,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Display a decorator for a section (if VERBOSE).
-void print_decorator(const std::string &title, bool verbose = true, const std::string &txt = HSP_NA_STRING)
+void print_decorator(const std::string &title, bool verbose = true, const std::string &txt = hsp::na::STRING)
 {
     const unsigned decor_left = 3;   // left size of decorator
     const unsigned decor_width = 65; // total size of decorator
@@ -42,8 +45,8 @@ void print_decorator(const std::string &title, bool verbose = true, const std::s
     {
         std::cout << std::string(decor_left, decor);
         std::cout << " " << title << " ";
-        std::cout << std::string(decor_width - title.length() - decor_left, decor);
-        if (!tools::is_na(txt))
+        std::cout << std::string(decor_width - title.size() - decor_left, decor);
+        if (!hsp::na::is(txt))
             std::cout << "\n"
                       << txt;
         std::cout << std::endl;
@@ -59,8 +62,8 @@ void print_decorator(const std::string &title, bool verbose = true, const std::s
 /// Main function for the standalone version of 'housepi'.
 int main(int argc, char *argv[])
 {
-    using tools::str::tolow;
-    using tools::str::toup;
+    using hsp::str::tolow;
+    using hsp::str::toup;
 
     int carg_i = 1;   // command line iterator
     std::string carg; // command line argument
@@ -71,15 +74,15 @@ int main(int argc, char *argv[])
     unsigned long num_rungs = 0;   // n. rungs power posteriors
 
     // paths/to/files for import
-    std::string augm_file = HSP_NA_STRING;
-    std::string data_wide_file = HSP_NA_STRING;
-    std::string data_long_file = HSP_NA_STRING;
-    std::string group_rates_file = HSP_NA_STRING;
-    std::string infec_profile_file = HSP_NA_STRING;
-    std::string multiplicity_file = HSP_NA_STRING;
-    std::string output_file = HSP_NA_STRING;
-    std::string param_file = HSP_NA_STRING;
-    std::string setup_file = HSP_NA_STRING;
+    std::string augm_file = hsp::na::STRING;
+    std::string data_wide_file = hsp::na::STRING;
+    std::string data_long_file = hsp::na::STRING;
+    std::string group_rates_file = hsp::na::STRING;
+    std::string infec_profile_file = hsp::na::STRING;
+    std::string multiplicity_file = hsp::na::STRING;
+    std::string output_file = hsp::na::STRING;
+    std::string param_file = hsp::na::STRING;
+    std::string setup_file = hsp::na::STRING;
 
     bool verbose = false; // verbose option
 
@@ -89,7 +92,7 @@ int main(int argc, char *argv[])
         std::ostringstream oss;
         oss << "No argument or command found. Check the usage through:\n"
             << argv[0] << " -h";
-        tools::error(oss.str());
+        hsp::error(oss.str());
     }
 
     // parse commands and options
@@ -104,11 +107,11 @@ int main(int argc, char *argv[])
             std::ostringstream oss;
             oss << "No Software Manual is available, refer to the Rcpp tutorials.\n"
                 << "Apologies for the inconvenience.";
-            tools::error(oss.str());
+            hsp::error(oss.str());
         }
 
         else if (tolow(carg) == "--logevidence")
-            num_rungs = tools::str::toul(argv[++carg_i], "number of rungs");
+            num_rungs = hsp::str::toul(argv[++carg_i], "number of rungs");
 
         else if (tolow(carg) == "--loglikelihood")
             is_loglikelihood = true;
@@ -150,7 +153,7 @@ int main(int argc, char *argv[])
             verbose = true;
 
         else
-            tools::error("Unrecognized option `" + carg + "`.");
+            hsp::error("Unrecognized option `" + carg + "`.");
 
         carg_i++; // move to the next command line argument
     }
@@ -161,7 +164,7 @@ int main(int argc, char *argv[])
     if (aux == 0)
         is_loglikelihood = true; // default
     else if (aux > 1)
-        tools::error(
+        hsp::error(
             "Incompatible commands: choose one between --loglikelihood, --infer, --simulate or --logevidence.");
 
     //////////////////////////////
@@ -193,7 +196,7 @@ int main(int argc, char *argv[])
     }
     else if (is_infer) // perform inference
     {
-        if (!tools::is_na(output_file))
+        if (!hsp::na::is(output_file))
         {
             print_decorator("Inference", verbose);
             user_model->infer();
@@ -201,22 +204,22 @@ int main(int argc, char *argv[])
             user_model->print_infer_state(output_file);
         }
         else
-            tools::error("Missing output file for inference.");
+            hsp::error("Missing output file for inference.");
     }
     else if (is_simulate) // simulation an outbreak
     {
-        if (!tools::is_na(output_file))
+        if (!hsp::na::is(output_file))
         {
             print_decorator("Simulation", verbose, "# save: " + output_file);
             user_model->print_simulated_data_wide(output_file);
         }
         else
-            tools::error("Missing output file for simulation.");
+            hsp::error("Missing output file for simulation.");
     }
     else if (is_logevidence) // estimate logevidence
     {
         print_decorator("Evidence", verbose);
-        user_model->print_logevidence("adaptive", num_rungs);
+        std::cout << user_model->logevidence("adaptive", num_rungs) << std::endl;
     }
 
     return EXIT_SUCCESS;

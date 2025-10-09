@@ -7,7 +7,7 @@
 \method{simulate}{HousepiModel}(
   object,
   nsim = 1,
-  seed = NA,
+  seed = NA_integer_,
   progress = FALSE,
   obs_process = NULL,
   ...

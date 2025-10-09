@@ -40,8 +40,8 @@ HousepiPosteriorDraws <- R6::R6Class(
     .split_draws_by_chain = function(x) {
       if (length(x) == 0) stop_h("Traces are empty.")
       lapply(
-        split(seq_len(nrow(x)), x[, "..chain.."]),
-        function(idx) x[idx, colnames(x) != "..chain..", drop = FALSE]
+        split(seq_len(nrow(x)), x[, ".chain"]),
+        function(idx) x[idx, colnames(x) != ".chain", drop = FALSE]
       )
     },
 

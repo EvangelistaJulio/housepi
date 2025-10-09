@@ -12,7 +12,7 @@
 
 # Get template name from DLL file
 get_template_from_dll <- function(dll) {
-  if (is.null(dll) || is.na(dll) || !file.exists(dll)) NA
+  if (is.null(dll) || is.na(dll) || !file.exists(dll)) NA_character_
   else tools::file_path_sans_ext(basename(dll))
 }
 
@@ -24,7 +24,7 @@ get_rcpp_module_from_dll <- function(module_name, dll) {
 
 # Get Rcpp module from model object
 get_rcpp_module_from_model <- function(module_name, model = NULL) {
-  dll <- ifelse(is.null(model), NA, model$path_to_dll)
+  dll <- ifelse(is.null(model), NA_character_, model$path_to_dll)
   if (is.na(dll)) {
     housepi_dir <- system.file("template", package = "housepi")
     dll <- file.path(housepi_dir, "src", dll_file_ext("housepienvironment"))
@@ -62,7 +62,8 @@ If `NULL` (default) the built-in registry is used."
 #'
 #' @export
 test_function <- function(name, x, prim = FALSE, args = NULL,
-                          min = NA, max = NA, discr = FALSE, model = NULL) {
+                          min = NA_real_, max = NA_real_,
+                          discr = FALSE, model = NULL) {
   # note: for simple function no reshaping -> discr = FALSE
   get_rcpp_module_from_model(
     "housepi_function", model
@@ -91,7 +92,8 @@ test_function <- function(name, x, prim = FALSE, args = NULL,
 #'
 #' @export
 test_distribution <- function(name, x, cumul = FALSE, args = NULL,
-                              min = NA, max = NA, discr = FALSE, model = NULL) {
+                              min = NA_real_, max = NA_real_,
+                              discr = FALSE, model = NULL) {
   get_rcpp_module_from_model(
     "housepi_distribution", model
   )$DistributionHousepi$new(
@@ -118,7 +120,8 @@ test_distribution <- function(name, x, cumul = FALSE, args = NULL,
 #'
 #' @export
 test_infec_profile <- function(name, x, cumul = FALSE, args = NULL,
-                               max = NA, discr = FALSE, model = NULL) {
+                               min = NA_real_, max = NA_real_,
+                               discr = FALSE, model = NULL) {
   # UPDATE: the minimum should be imposed from within
   get_rcpp_module_from_model(
     "housepi_infec_profile", model

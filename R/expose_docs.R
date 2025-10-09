@@ -139,7 +139,6 @@ rd_smpl_data_wide_ <- paste(rd_add_data_wide_,
 
 rd_add_data_long_ <- "`data.frame` with the individual data (long format) used for analysis."
 
-rd_smpl_size_ <- "`integer(1)` with the number of posterior draws stored for each chain."
 rd_smpl_steps_ <- "`integer(1)`  with the total number of MCMC steps for each chain."
 rd_smpl_burn_ <- "`integer(1)` with the number of initial steps to discard as burn-in."
 rd_smpl_thin_ <- "`integer(1)` with the thinning interval, i. e. the number of steps to skip between each saved sample."

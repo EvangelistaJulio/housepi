@@ -6,11 +6,11 @@
 \alias{load_group_rate_list}
 \title{Load list of definitions}
 \usage{
-load_parameter_list(object, ..., from = NA, append = FALSE)
+load_parameter_list(object, ..., from = NULL, append = FALSE)
 
-load_augmented_list(object, ..., from = NA, append = FALSE)
+load_augmented_list(object, ..., from = NULL, append = FALSE)
 
-load_group_rate_list(object, ..., from = NA, append = FALSE)
+load_group_rate_list(object, ..., from = NULL, append = FALSE)
 }
 \arguments{
 \item{object}{\code{HousepiModel} object.}

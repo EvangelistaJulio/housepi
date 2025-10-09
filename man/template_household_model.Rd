@@ -4,7 +4,11 @@
 \alias{template_household_model}
 \title{Template Household Model}
 \usage{
-template_household_model(name = NA, path = NA, replace = FALSE)
+template_household_model(
+  name = NA_character_,
+  path = NA_character_,
+  replace = FALSE
+)
 }
 \arguments{
 \item{name}{A \code{character(1)} with the name of template model.

@@ -12,8 +12,12 @@
  *
  */
 
-#include "numerical_recipes.h"
+#include "tools/operators.h"
+#include "tools/discr.h"
+#include "tools/params.h"
+#include "tools/string.h"
 #include "distribution.h"
+#include "numerical_recipes.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -21,23 +25,23 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-// UPDATE: random generator classes should be redesigned to deal with this
+// UPDATE: random generator classes should be redesigned to avoid update_args_...
 double Distribution::rand(rnd_gen &prng)
 {
     update_args_();
     return (this->*rand_)(prng);
 }
 
-/// Rejection sampling. 
+/// Rejection sampling.
 /// UPDATE: not efficient at all, need to use quantiles probably.
 double Distribution::rejec_sample_(rnd_gen &prng, double (Distribution::*func)(rnd_gen &))
 {
     double xnew = (this->*func)(prng);
-    for (unsigned n = 0; !is_valid(xnew) && (n < HSP_MAX_NUM_ATTEMPTS); ++n)
+    for (unsigned n = 0; !is_valid(xnew) && (n < 100); ++n)
         xnew = (this->*func)(prng);
     if (!is_valid(xnew))
         throw std::runtime_error(
-            "Exceeded attempts (N > " + std::to_string(HSP_MAX_NUM_ATTEMPTS) +
+            "Exceeded attempts (N > " + std::to_string(100) +
             ") in random draw of " + str_summary(false) + ".");
     return xnew;
 }
@@ -55,10 +59,10 @@ void Distribution::init_discr_helper_(unsigned short discr_type)
 
     switch (discr_type)
     {
-    case HSP_DISCR_CENTER: // centered discretization
+    case hsp::discr::CENTER: // centered discretization
         rand_ = &Distribution::do_discr_center_rand_;
         break;
-    case HSP_DISCR_LEFT: // left discretization
+    case hsp::discr::LEFT: // left discretization
         rand_ = &Distribution::do_discr_left_rand_;
         break;
     default: // discrete defined or no discretization
@@ -76,19 +80,19 @@ void Distribution::init_trunc_helper_()
     case 1: // Lower Range Truncation
         switch (discr_type)
         {
-        case HSP_DISCR_DEFINED: // discrete defined
+        case hsp::discr::DEFINED: // discrete defined
             trunc_ = &Distribution::do_trunc_min_discr_defined_;
             logtrunc_ = &Distribution::do_logtrunc_min_discr_defined_;
             shift_ = &Distribution::do_shift_min_discr_defined_;
             rand_ = &Distribution::do_trunc_rand_;
             break;
-        case HSP_DISCR_CENTER: // centered discretization
+        case hsp::discr::CENTER: // centered discretization
             trunc_ = &Distribution::do_trunc_min_discr_center_;
             logtrunc_ = &Distribution::do_logtrunc_min_discr_center_;
             shift_ = &Distribution::do_shift_min_discr_center_;
             rand_ = &Distribution::do_trunc_rand_discr_center_;
             break;
-        case HSP_DISCR_LEFT: // left discretization
+        case hsp::discr::LEFT: // left discretization
             trunc_ = &Distribution::do_trunc_min_discr_left_;
             logtrunc_ = &Distribution::do_logtrunc_min_discr_left_;
             shift_ = &Distribution::do_shift_min_discr_left_;
@@ -106,17 +110,17 @@ void Distribution::init_trunc_helper_()
         shift_ = &Distribution::do_shift_dummy_;
         switch (discr_type)
         {
-        case HSP_DISCR_DEFINED: // discrete defined
+        case hsp::discr::DEFINED: // discrete defined
             trunc_ = &Distribution::do_trunc_max_discr_defined_;
             logtrunc_ = &Distribution::do_logtrunc_max_discr_defined_;
             rand_ = &Distribution::do_trunc_rand_;
             break;
-        case HSP_DISCR_CENTER: // centered discretization
+        case hsp::discr::CENTER: // centered discretization
             trunc_ = &Distribution::do_trunc_max_discr_center_;
             logtrunc_ = &Distribution::do_logtrunc_max_discr_center_;
             rand_ = &Distribution::do_trunc_rand_discr_center_;
             break;
-        case HSP_DISCR_LEFT: // left discretization
+        case hsp::discr::LEFT: // left discretization
             trunc_ = &Distribution::do_trunc_max_discr_left_;
             logtrunc_ = &Distribution::do_logtrunc_max_discr_left_;
             rand_ = &Distribution::do_trunc_rand_discr_left_;
@@ -131,19 +135,19 @@ void Distribution::init_trunc_helper_()
     case 3: // Both Sides Truncation
         switch (discr_type)
         {
-        case HSP_DISCR_DEFINED: // discrete defined
+        case hsp::discr::DEFINED: // discrete defined
             trunc_ = &Distribution::do_trunc_both_sides_discr_defined_;
             logtrunc_ = &Distribution::do_logtrunc_both_sides_discr_defined_;
             shift_ = &Distribution::do_shift_min_discr_defined_;
             rand_ = &Distribution::do_trunc_rand_;
             break;
-        case HSP_DISCR_CENTER: // centered discretization
+        case hsp::discr::CENTER: // centered discretization
             trunc_ = &Distribution::do_trunc_both_sides_discr_center_;
             logtrunc_ = &Distribution::do_logtrunc_both_sides_discr_center_;
             shift_ = &Distribution::do_shift_min_discr_center_;
             rand_ = &Distribution::do_trunc_rand_discr_center_;
             break;
-        case HSP_DISCR_LEFT: // left discretization
+        case hsp::discr::LEFT: // left discretization
             trunc_ = &Distribution::do_trunc_both_sides_discr_left_;
             logtrunc_ = &Distribution::do_logtrunc_both_sides_discr_left_;
             shift_ = &Distribution::do_shift_min_discr_left_;
@@ -210,18 +214,18 @@ std::shared_ptr<Distribution> compose_distr_registries(const std::string &opt,
 
     if (registries.empty())
         throw std::invalid_argument("No registries provided for \"" + name + "\".");
-    else if (tools::is_na(opt))
+    else if (hsp::na::is(opt))
         return std::make_shared<Distribution>();
     else
         for (auto &r : registries)
-            if (r->is_valid_option(opt))
+            if (r->get_options() % opt)
                 return r->get_distr(opt);
             else
                 options += r->get_options();
 
     throw std::invalid_argument(
         "Unknown " + name + " \"" + opt + "\"." +
-        tools::str::find_closest(opt, options, HSP_MIN_STR_DIST));
+        hsp::str::find_closest(opt, options));
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -234,7 +238,7 @@ std::shared_ptr<Distribution> compose_distr_registries(const std::string &opt,
 #define INIT_DISCR_LEFT_MIN_ZERO_CLOSE()      \
     void init_discretization() override final \
     {                                         \
-        init_discr_helper_(HSP_DISCR_LEFT);   \
+        init_discr_helper_(hsp::discr::LEFT);   \
     }                                         \
     void init_truncation() override final     \
     {                                         \
@@ -274,22 +278,23 @@ class Uniform_Distribution : public Distribution
 {
 public:
     Uniform_Distribution()
-        : Distribution("uniform", HSP_RANGE_KEYS, {0., 1.},
-                       HSP_NA_DOUBLE, false, HSP_NA_DOUBLE, false),
-          distr_gen(arg(0), arg(1)) { init_uniform_range_(); }
+        : Distribution("uniform", {hsp::params::MIN, hsp::params::MAX}, {0., 1.},
+                       hsp::na::DOUBLE, false, hsp::na::DOUBLE, false),
+          unif_gen(arg(0), arg(1)) { init_uniform_range_(); }
 
     void init_discretization() override final
     {
-        init_discr_helper_(HSP_DISCR_CENTER);
+        init_discr_helper_(hsp::discr::CENTER);
     }
     void init_truncation() override final
     {
+        init_uniform_range_();
         init_range_helper_(false, false);
-        init_trunc_helper_();
+        // NOTE: no truncation for uniform distribution
     }
 
 protected:
-    std::uniform_real_distribution<double> distr_gen;
+    std::uniform_real_distribution<double> unif_gen;
 
     double raw_pdf_(double) const override final { return 1.; }
     double raw_cdf_(double x) const override final { return x; }
@@ -297,8 +302,27 @@ protected:
     double raw_logratio_(double, double) const override final { return 0.; }
     double raw_rand_(rnd_gen &prng) override final
     {
-        const double r = distr_gen(prng);
+        const double r = unif_gen(prng);
         return arg(0) * (1 - r) + arg(1) * r;
+    }
+
+private:
+    /// Ensure uniform range (min, max) match argument (min, max).
+    void init_uniform_range_()
+    {
+        // impose range minimum equal to argument minimum
+        const Attribute &min_arg = arguments_[0];
+        if (min_arg.is_function())
+            range_min_ = min_arg.get_function();
+        else
+            range_min_ = min_arg.get_ptr();
+
+        // impose range maximum equal to argument maximum
+        const Attribute &max_arg = arguments_[1];
+        if (max_arg.is_function())
+            range_max_ = max_arg.get_function();
+        else
+            range_max_ = max_arg.get_ptr();
     }
 };
 
@@ -314,21 +338,21 @@ class Normal_Distribution : public Distribution
 public:
     Normal_Distribution()
         : Distribution("normal", {"mean", "sd"}, {0., 1.},
-                       HSP_NA_DOUBLE, false, HSP_NA_DOUBLE, false),
-          distr_gen(arg(0), arg(1)) {}
+                       hsp::na::DOUBLE, false, hsp::na::DOUBLE, false),
+          norm_gen(0., 1.) {}
 
     void init_discretization() override final
     {
         switch (which_valid_case_())
         {
         case 1: // lower range truncation
-            init_discr_helper_(HSP_DISCR_LEFT);
+            init_discr_helper_(hsp::discr::LEFT);
             break;
         case 3: // both sides truncation
-            init_discr_helper_(HSP_DISCR_LEFT);
+            init_discr_helper_(hsp::discr::LEFT);
             break;
         default:
-            init_discr_helper_(HSP_DISCR_CENTER);
+            init_discr_helper_(hsp::discr::CENTER);
         }
     }
     void init_truncation() override final
@@ -338,10 +362,10 @@ public:
     }
 
 protected:
-    std::normal_distribution<double> distr_gen;
+    std::normal_distribution<double> norm_gen;
 
     MAKE_RAW_NUMR_IMPORT_FOR_DISTR(normal, 2)
-    double raw_rand_(rnd_gen &prng) override final { return arg(0) + arg(1) * distr_gen(prng); }
+    double raw_rand_(rnd_gen &prng) override final { return arg(0) + arg(1) * norm_gen(prng); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -356,18 +380,16 @@ class Lognormal_Distribution : public Distribution
 public:
     Lognormal_Distribution()
         : Distribution("lognormal", {"meanlog", "sdlog"}, {0., 1.},
-                       0., true, HSP_NA_DOUBLE, false),
-          distr_gen(arg(0), arg(1)) {}
+                       0., true, hsp::na::DOUBLE, false),
+          norm_gen(0., 1.) {}
 
     INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
 protected:
-    std::lognormal_distribution<double> distr_gen;
-
-    void update_args_() override final { distr_gen.param(std::lognormal_distribution<double>::param_type(arg(0), arg(1))); } // UPDATE
+    std::normal_distribution<double> norm_gen;
 
     MAKE_RAW_NUMR_IMPORT_FOR_DISTR(lognormal, 2)
-    double raw_rand_(rnd_gen &prng) override final { return distr_gen(prng); }
+    double raw_rand_(rnd_gen &prng) override final { return std::exp(arg(0) + arg(1) * norm_gen(prng)); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -394,10 +416,10 @@ public:
     {
         if (get_min() < 0)
             throw std::invalid_argument(
-                "Invalid min value " + str_min() + " for " + err_name() + ".");
+                "Invalid min value " + hsp::str::format(range_min_.get()) + " for " + err_name() + ".");
         else if (get_max() > 1)
             throw std::invalid_argument(
-                "Invalid max value " + str_max() + " for " + err_name() + ".");
+                "Invalid max value " + hsp::str::format(range_max_.get()) + " for " + err_name() + ".");
         else if ((get_min() > 0) || (get_max() < 1))
         {
             init_range_helper_((get_min() == 0), (get_max() == 1));
@@ -437,7 +459,7 @@ class Gamma_Distribution : public Distribution
 public:
     Gamma_Distribution()
         : Distribution("gamma", {"shape", "scale"}, {1., 1.},
-                       0., false, HSP_NA_DOUBLE, false),
+                       0., false, hsp::na::DOUBLE, false),
           distr_gen(arg(0), arg(1)) {}
 
     INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
@@ -469,7 +491,7 @@ class GammaMeanVar_Distribution : public Distribution
 public:
     GammaMeanVar_Distribution()
         : Distribution("gamma_meanvar", {"mean", "var"}, {1., 1.},
-                       0., false, HSP_NA_DOUBLE, false),
+                       0., false, hsp::na::DOUBLE, false),
           distr_gen(arg(0), arg(1)) {}
 
     INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
@@ -521,7 +543,7 @@ class Rayleigh_Distribution : public Distribution
 public:
     Rayleigh_Distribution()
         : Distribution("rayleigh", {"scale"}, {1.},
-                       0., false, HSP_NA_DOUBLE, false),
+                       0., false, hsp::na::DOUBLE, false),
           unif_gen(0., 1.) {}
 
     INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
@@ -545,18 +567,16 @@ class Weibull_Distribution : public Distribution
 public:
     Weibull_Distribution()
         : Distribution("weibull", {"shape", "scale"}, {1., 1.},
-                       0., false, HSP_NA_DOUBLE, false),
-          distr_gen(arg(0), arg(1)) {}
+                       0., false, hsp::na::DOUBLE, false),
+          unif_gen(0., 1.) {}
 
     INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
-protected:
-    std::weibull_distribution<double> distr_gen;
-
-    void update_args_() override final { distr_gen.param(std::weibull_distribution<double>::param_type(arg(0), arg(1))); } // UPDATE
+protected:  
+    std::uniform_real_distribution<double> unif_gen;
 
     MAKE_RAW_NUMR_IMPORT_FOR_DISTR(weibull, 2)
-    double raw_rand_(rnd_gen &prng) override final { return distr_gen(prng); }
+    double raw_rand_(rnd_gen &prng) override final { return arg(1) * std::pow(-std::log(unif_gen(prng)), 1.0 / arg(0)); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -571,18 +591,16 @@ class Exponential_Distribution : public Distribution
 public:
     Exponential_Distribution()
         : Distribution("exponential", {"rate"}, {1.},
-                       0., false, HSP_NA_DOUBLE, false),
-          distr_gen(arg(0)) {}
+                       0., false, hsp::na::DOUBLE, false),
+          unif_gen(0., 1.) {}
 
     INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
 protected:
-    std::exponential_distribution<double> distr_gen;
-
-    void update_args_() override final { distr_gen.param(std::exponential_distribution<double>::param_type(arg(0))); } // UPDATE
+    std::uniform_real_distribution<double> unif_gen;
 
     MAKE_RAW_NUMR_IMPORT_FOR_DISTR(exponential, 1)
-    double raw_rand_(rnd_gen &prng) override final { return distr_gen(prng); }
+    double raw_rand_(rnd_gen &prng) override final { return -std::log(unif_gen(prng)) / arg(0); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -605,8 +623,8 @@ class Poisson_Distribution : public Distribution
 public:
     Poisson_Distribution()
         : Distribution("poisson", {"lambda"}, {1.},
-                       0., false, HSP_NA_DOUBLE, false),
-          distr_gen(1.) { init_discr_helper_(HSP_DISCR_DEFINED); }
+                       0., false, hsp::na::DOUBLE, false),
+          distr_gen(1.) { init_discr_helper_(hsp::discr::DEFINED); }
 
     INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
 
@@ -631,11 +649,11 @@ class Binomial_Distribution : public Distribution
 public:
     Binomial_Distribution()
         : Distribution("binomial", {"size", "prob"}, {4, 0.5},
-                       0., false, HSP_NA_DOUBLE, false),
+                       0., false, hsp::na::DOUBLE, false),
           distr_gen(arg(0), arg(1))
     {
-        init_discr_helper_(HSP_DISCR_DEFINED);
-        init_attr(HSP_PARAM_MAX, get_ptr_to_arg(0));
+        init_discr_helper_(hsp::discr::DEFINED);
+        init_attr(hsp::params::MAX, get_ptr_to_arg(0));
         init_range_helper_(false, false);
     }
 
@@ -644,12 +662,12 @@ public:
     {
         if (get_min() < 0.)
             throw std::invalid_argument(
-                "Invalid min value " + str_min() + " for " + err_name() + ".");
+                "Invalid min value " + hsp::str::format(range_min_.get()) + " for " + err_name() + ".");
         else if ((get_min() > 0.) || (get_ptr_to_arg(0) != get_ptr_to_max()))
         {
             if (get_max() > arg(0))
                 throw std::invalid_argument(
-                    "Invalid max value " + str_max() + " for " + err_name() + " with size " + std::to_string(arg(0)) + ".");
+                    "Invalid max value " + hsp::str::format(range_max_.get()) + " for " + err_name() + " with size " + std::to_string(arg(0)) + ".");
             init_range_helper_(false, false);
             init_trunc_helper_();
         }
@@ -676,8 +694,8 @@ class NegativeBinomial_Distribution : public Distribution
 public:
     NegativeBinomial_Distribution()
         : Distribution("negative_binomial", {"size", "prob"}, {4, .5},
-                       0., false, HSP_NA_DOUBLE, false),
-          distr_gen(arg(0), arg(1)) { init_discr_helper_(HSP_DISCR_DEFINED); }
+                       0., false, hsp::na::DOUBLE, false),
+          distr_gen(arg(0), arg(1)) { init_discr_helper_(hsp::discr::DEFINED); }
 
     INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
 
@@ -702,8 +720,8 @@ class Geometric_Distribution : public Distribution
 public:
     Geometric_Distribution()
         : Distribution("geometric", {"proba"}, {0.5},
-                       0., false, HSP_NA_DOUBLE, false),
-          distr_gen(arg(0)) { init_discr_helper_(HSP_DISCR_DEFINED); }
+                       0., false, hsp::na::DOUBLE, false),
+          distr_gen(arg(0)) { init_discr_helper_(hsp::discr::DEFINED); }
 
     INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
 
@@ -778,7 +796,7 @@ public:
         : Distribution("ferretti20",
                        {"shape", "loc", "scale", "mean_incub", "incub_period"},
                        {5.85, -4.0, 1.85, 5.8, 5.8},
-                       0., false, HSP_NA_DOUBLE, false) {}
+                       0., false, hsp::na::DOUBLE, false) {}
 
     INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 

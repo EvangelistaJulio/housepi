@@ -8,12 +8,12 @@
  *
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  *
- * progress.h
+ * tools/progress.h
  *
  */
 
-#ifndef HOUSEPI__PROGRESS__H
-#define HOUSEPI__PROGRESS__H
+#ifndef HOUSEPI__TOOLS__PROGRESS__H
+#define HOUSEPI__TOOLS__PROGRESS__H
 
 #include <string>
 #include <memory>
@@ -54,4 +54,4 @@ namespace progress
     };
 }
 
-#endif // HOUSEPI__PROGRESS__H
+#endif // HOUSEPI__TOOLS__PROGRESS__H

@@ -31,19 +31,17 @@
 /// Initialize the Lookup Table.
 void Model::init_model_for_inference()
 {
-	//==== Unknown status are not modeled =====//
-	if (get_report_indiv("missing") > 0)
-		tools::error(
-			"A missing status was found : incompatible with the model.");
+	// unknown status are not modeled
+	assert_no_missing_status();
 
-	//===== Allocate memory for the escape matrix =====//
+	// initialize look-up-table to largest possible value
+	bax::init_escape_patterns_lookuptable(
+		get_report_hh_size("max cases").first);
+
+	// allocate memory for the escape matrix
 	cache_house_size_t_vector("order");
 	cache_house_double_vector("commu-escape-proba");
 	cache_house_double_matrix("p2p-escape-proba");
-
-	//=====Initialize look-up-table to largest possible value=====//
-	bax::init_escape_patterns_lookuptable(
-		get_report_hh_size("max cases").first);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -55,15 +53,14 @@ void Model::init_model_for_inference()
 /// Compute the log-likelihood for a single household.
 double Model::compute_household_obs_loglike(Household &house)
 {
-	//===== Fill Escape Probabilities =====//
+	// fill matrix with escape probabilities
 	fill_house_escape_matrix(house);
 
-	//=====compute the loglikelihood=====//
-	const double loglikelihood = bax::chain_binomial_heter_loglikelihood(
-		house.n_infec_status(),
-		house.cache_double_vector("commu-escape-proba"),
-		house.cache_double_matrix("p2p-escape-proba"));
-	return loglikelihood * house.multiplicity();
+	// compute corresponding loglikelihood times house multiplicity
+	return house.multiplicity() * bax::chain_binomial_heter_loglikelihood(
+									  house.n_infec_status(),
+									  house.cache_double_vector("commu-escape-proba"),
+									  house.cache_double_matrix("p2p-escape-proba"));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -147,10 +144,10 @@ void Model::simulate_single_household(Household &house)
 
 	for (Individual &member : house)
 		if (uniform() < exp(-commu_rate * member.group_rate("community")))
-			house.set_status(member, HSP_HEALTHY_STATUS);
+			house.set_healthy_status(member);
 		else
 		{
-			house.set_status(member, HSP_INFECTED_STATUS);
+			house.set_infected_status(member);
 			new_gen_set.push_back(&member);
 		}
 
@@ -175,7 +172,7 @@ void Model::simulate_single_household(Household &house)
 
 			if (uniform() >= exp(-r * p2p_rate * sus_i))
 			{
-				house.set_status(member_i, HSP_INFECTED_STATUS);
+				house.set_infected_status(member_i);
 				new_gen_set.push_back(&member_i);
 			}
 		}

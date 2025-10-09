@@ -9,7 +9,8 @@ test_infec_profile(
   x,
   cumul = FALSE,
   args = NULL,
-  max = NA,
+  min = NA_real_,
+  max = NA_real_,
   discr = FALSE,
   model = NULL
 )

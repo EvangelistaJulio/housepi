@@ -14,6 +14,8 @@
 
 #include <algorithm>
 
+#include "tools/params.h"
+#include "tools/rates.h"
 #include "variable.h"
 #include "household.h"
 
@@ -36,6 +38,15 @@ void AugmentedMap::init_augm(const std::string &a,
 	Variable &this_augm = safe_at(augm_map_, a, "augmented variable");
 	this_augm.init(value, is_const, is_discr, func_name, is_prim);
 	this_augm.init_distr(model_name);
+}
+
+/// A string containing a summary of the augmented map.
+std::string AugmentedMap::str_augm_summary() const
+{
+	std::string output;
+	for (const auto &pair : augm_map_)
+		output += "- " + pair.first + " : " + pair.second.str_summary() + "\n";
+	return output;
 }
 
 /// Associate functional methods for augmented model pdfs.
@@ -77,7 +88,7 @@ double AugmentedMap::compute_and_set_augm_model_loglike()
 	for (const auto &pair : model_logratios_)
 		loglike_ += augm_map_[pair.first].get_distr_logpdf();
 
-	if (tools::is_na(loglike_))
+	if (hsp::na::is(loglike_))
 		throw std::runtime_error(
 			"Augmented loglikelihood returned NaN for " + err_name() + ".");
 
@@ -94,19 +105,12 @@ double AugmentedMap::compute_and_set_augm_model_logratio(const std::string &a)
 		delta_ll += f();
 	loglike_ += delta_ll;
 
-	if (tools::is_na(loglike_))
+	if (hsp::na::is(loglike_))
 		throw std::runtime_error(
 			"Augmented loglikelihood returned NaN for " + err_name() +
 			" after change of " + augm_map_[a].err_name() + ".");
 
 	return delta_ll;
-}
-
-/// Restore user values if applicable.
-void AugmentedMap::user_reset(rnd_gen &prng)
-{
-	for (auto &pair : augm_map_)
-		pair.second.user_reset(prng);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -133,42 +137,18 @@ Individual::Individual(size_t index,
 //////////////////////////////////////  Individual : setter  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Initialize all group rates for the individual.
-void Individual::init_all_group_rates(const u_dict<std::vector<observ_dbl_ptr>> &ptrs)
+/// Initialize group rate according to given attribute.
+void Individual::init_group_rate(const std::string &g, const Attribute &attr)
 {
-	for (const auto &pair : ptrs)
-	{
-		const std::string &r = pair.first;
-		const std::vector<observ_dbl_ptr> &vec_par_ptr = pair.second;
+	group_rate_map_[g] = Attribute();
+	group_rate_map_[g].name(g);
+}
 
-		if (vec_par_ptr.empty())
-			std::invalid_argument(
-				"Missing rate \"" + r + "\" for " + err_name() + ".");
-
-		else if (vec_par_ptr.size() == 1)
-			// use pointer
-			group_rate_map_[r] = Attribute(vec_par_ptr[0]);
-
-		else
-		{
-			std::shared_ptr<Function> fun;
-			if (vec_par_ptr.size() == 2)
-				// use simple multiplication
-				fun = compose_func_registries(
-					"mult", "function", {&ArithmeticRegistry::inst()});
-			else
-				// use variadic product
-				fun = compose_func_registries(
-					"prod", "function", {&ArithmeticRegistry::inst()});
-
-			// initialize attributes to pointers
-			fun->init_attr(HSP_PARAM_X, vec_par_ptr[0]);
-			for (size_t i = 1; i < vec_par_ptr.size(); ++i)
-				fun->init_attr(HSP_PARAM_X + std::to_string(i + 1), vec_par_ptr[i]);
-
-			group_rate_map_[r] = Attribute(std::move(fun));
-		}
-	}
+/// Initialize group rate to reference.
+void Individual::init_group_rate_to_reference(const std::string &g)
+{
+	group_rate_map_[g] = Attribute(hsp::rates::VALUE_REFERENCE);
+	group_rate_map_[g].name(g);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -220,7 +200,7 @@ void Household::init_member(size_t index,
 
 /// Change_status of individual i to new status (without controls).
 ///	NOTE : this introduces augmented variables -> it requires RJMCMC in case of inference.
-bool Household::set_status(Individual &member, int new_status)
+void Household::set_status_(Individual &member, int new_status)
 {
 	if (new_status != member.status())
 	{
@@ -233,19 +213,14 @@ bool Household::set_status(Individual &member, int new_status)
 		else
 			missing_list_.erase(std::find(missing_list_.begin(), missing_list_.end(), i));
 
-		// change member status
-		member.status_ = new_status;
-
+		member.status_ = new_status; // change member status
 		if (member.is_infected_status())
 			infected_list_.push_back(i);
 		else if (member.is_healthy_status())
 			healthy_list_.push_back(i);
 		else
 			missing_list_.push_back(i);
-
-		return true;
 	}
-	return false;
 }
 
 /// Associate a pointer to parameter value for the contact from->to.
@@ -253,7 +228,7 @@ void Household::init_contact_rates(size_t from, size_t to, observ_dbl_ptr x)
 {
 	// initialize contact rate matrix if necessary
 	if (contact_rates_.empty())
-		contact_rates_.resize(size(), std::vector<observ_dbl_ptr>(size(), &HSP_REFER_VALUE));
+		contact_rates_.resize(size(), std::vector<observ_dbl_ptr>(size(), &hsp::rates::VALUE_REFERENCE));
 
 	contact_rates_[from][to] = x;
 }
@@ -261,7 +236,7 @@ void Household::init_contact_rates(size_t from, size_t to, observ_dbl_ptr x)
 /// Store the loglikelihood of household observation.
 void Household::set_obs_loglike(double x)
 {
-	if (tools::is_na(x))
+	if (hsp::na::is(x))
 		throw std::runtime_error(
 			"Observation loglikelihood returned NaN.");
 

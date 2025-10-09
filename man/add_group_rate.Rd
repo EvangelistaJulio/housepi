@@ -8,15 +8,15 @@ add_group_rate(
   object,
   name,
   by,
-  prefix = NA,
+  prefix = NA_character_,
   reference = NULL,
   independent = TRUE,
-  prior = "lnorm",
-  args = list(meanlog = 0, sdlog = 3),
-  min = 0,
-  max = 10,
-  rule = "lnorm",
-  scale = 1
+  prior = NA_character_,
+  args = NULL,
+  min = NULL,
+  max = NULL,
+  rule = NA_character_,
+  scale = NA_real_
 )
 }
 \arguments{
@@ -36,17 +36,13 @@ Default is the group with the largest sample size.}
 \item{independent}{\code{logical(1)} to consider features as independent.\cr
 If \code{FALSE} features are combined (default).}
 
-\item{prior}{\code{character(1)} wit the choice for the prior distribution.
-Default is "lnorm".}
+\item{prior}{\code{character(1)} wit the choice for the prior distribution.}
 
-\item{args}{named \code{numeric()} or \code{list} with custom arguments for the prior distribution.
-Default is \code{list(meanlog = 0, sdlog = 3)}.}
+\item{args}{named \code{numeric()} or \code{list} with custom arguments for the prior distribution.}
 
-\item{min}{\code{numeric(1)} to truncate to a minimum value.
-Default is 0.}
+\item{min}{\code{numeric(1)} to truncate to a minimum value.}
 
-\item{max}{\code{numeric(1)} to truncate to a maximum value.
-Default is 10.}
+\item{max}{\code{numeric(1)} to truncate to a maximum value.}
 
 \item{rule}{\code{character(1)} with the proposer rule used during inference.\cr
 One between:\cr
@@ -68,7 +64,14 @@ A deep clone of the input object with updated definitions.
 }
 \description{
 Add definitions of a group rate by given data feature(s).
-The reference value is equal to 1 and can be specified.
+Group rates are relative to a reference class that can be specified.
+If no MCMC options are provided, the following configuration is assumed
+\itemize{
+\item \code{prior}: "lognormal"
+\item \code{args}: \code{c(meanlog = 0, sdlog = 3)}
+\item \code{min}: 0
+\item \code{max} 10
+}
 }
 \references{
 Cauchemez, et al. (2009)

@@ -230,7 +230,7 @@ void Model::simulate_single_household(Household &house)
 #ifdef _HSP_DISCRETE_TIME
 	const double Dt = 1;
 #else
-	const double Dt = HSP_TIME_STEP;
+	const double Dt = 0.05; // UDPDATE: it should be possible to change from outside
 #endif
 
 	/////////////////////////////////////////////////////////////////
@@ -245,17 +245,14 @@ void Model::simulate_single_household(Household &house)
 	else
 		// amongst all members
 		i0 = uniform() * house.size();
-	const Individual &member_0 = house.get_member(i0);
+	Individual &member_0 = house.get_member(i0);
+	house.set_infected_status(member_0);
+	init_missing_augm(member_0);
 
-	// set all susceptible except from introduction, then assign augmented variables
+	// set all to susceptible except from introduction
 	for (Individual &member : house)
-	{
-		if (member == member_0)
-			house.set_status(member, HSP_INFECTED_STATUS);
-		else
-			house.set_status(member, HSP_HEALTHY_STATUS);
-		init_all_augm(member);
-	}
+		if (member != member_0)
+			house.set_healthy_status(member);
 
 	/////////////////////////////////////////////////////////////////
 	//////  Generation >=1 : infection by previous generation  //////
@@ -269,18 +266,10 @@ void Model::simulate_single_household(Household &house)
 		for (Individual &member_i : house.healthy())
 			if (uniform() >= exp(-roi_inst_simulation(house, member_i, t) * Dt))
 			{
-				member_i.set_augm_value("onset_time", t + member_i.augm("incub_period"));
-				house.set_status(member_i, HSP_INFECTED_STATUS);
+				house.set_infected_status(member_i);
+				member_i.set_augm_value("infec_time", t);
+				init_missing_augm(member_i);
 			}
-
-	// format infected with unseen onset as healthy
-	for (Individual &member : house.infected())
-		if (member.augm("onset_time") >= tf)
-			house.set_status(member, HSP_HEALTHY_STATUS);
-
-	// format all augmented variables of susceptibles
-	for (Individual &member : house.healthy())
-		clear_all_augm(member);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -288,9 +277,7 @@ void Model::simulate_single_household(Household &house)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Instantaneous Risk of Infection for individual i (for simulation).
-double Model::roi_inst_simulation(Household &house,
-								  Individual &member_i,
-								  double t_infec_i) const
+double Model::roi_inst_simulation(Household &house, Individual &member_i, double t_infec_i) const
 {
 	double roi = 0.; // instantaneous risk of infection
 

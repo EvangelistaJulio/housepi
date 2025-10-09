@@ -6,19 +6,19 @@
 \usage{
 add_augmented(
   object,
-  name = NA,
-  status = NA,
+  name = NA_character_,
+  status = NA_integer_,
   value = NULL,
   const = NA,
   discr = FALSE,
-  func = NA,
+  func = NA_character_,
   func_args = NULL,
-  model = NA,
+  model = NA_character_,
   args = NULL,
   min = NULL,
   max = NULL,
-  rule = NA,
-  scale = NA,
+  rule = NA_character_,
+  scale = NA_real_,
   expr = NULL
 )
 }

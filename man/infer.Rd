@@ -6,22 +6,19 @@
 \usage{
 infer(
   object,
-  sample_size = NA,
   steps = 5000,
   burnin = 0,
   thin = 1,
   adapt = 0,
   chains = 1,
   threads = 1,
-  id_draws = NA,
-  seed = NA,
+  id_draws = NULL,
+  seed = NA_integer_,
   progress = TRUE
 )
 }
 \arguments{
 \item{object}{\code{HousepiModel} object.}
-
-\item{sample_size}{\code{integer(1)} with the number of posterior draws stored for each chain.}
 
 \item{steps}{\code{integer(1)}  with the total number of MCMC steps for each chain.}
 

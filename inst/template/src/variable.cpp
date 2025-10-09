@@ -13,6 +13,9 @@
  */
 
 #include "variable.h"
+#include "tools/error.h"
+#include "tools/params.h"
+#include "tools/string.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -37,49 +40,12 @@ Proposer::Proposer(std::shared_ptr<Distribution> distr,
     pDistr_->init_truncation();
 
     // assign user rule scale
-    if (!tools::is_na(rule_scale))
+    if (!hsp::na::is(rule_scale))
         user_rule_scale_ = std::fabs(rule_scale);
 
     // load which are the parameter to be adapted
-    n_args_to_adapt_ = args_to_adapt.size();
-    args_to_adapt_list_ = new unsigned short[n_args_to_adapt_];
-
-    for (unsigned short c = 0; c < n_args_to_adapt_; ++c)
-        args_to_adapt_list_[c] = args_to_adapt[c];
+    args_to_adapt_ = args_to_adapt;
 };
-
-/// Proposer constructor from Distribution name.
-Proposer::Proposer(const std::string &name,
-                   double rule_scale,
-                   const std::vector<unsigned short> &args_to_adapt,
-                   bool is_discrete)
-    : Proposer(ContinuosDistrRegistry::inst().get_distr(name),
-               rule_scale, args_to_adapt, is_discrete) {}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  Proposer - adaptation  /////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Increase spread if acceptation rate is high and viceversa
-void Proposer::adapt(double ratio)
-{
-    const double factor = 1. + (1. - ratio) * (get_accept_rate() - HSP_TARGET_ACCEPT_RATE);
-    // loop over all arguments to adapt
-    for (unsigned short c = 0; c < n_args_to_adapt_; ++c)
-    {
-        unsigned short arg_id = args_to_adapt_list_[c];
-        (pDistr_->set_arg)(arg_id, factor * (pDistr_->arg)(arg_id));
-    }
-}
-
-/// Format proposer scale as a string.
-std::string Proposer::str_scale() const
-{
-    if (n_args_to_adapt_ == 0)
-        return HSP_NA_STRING;
-    else
-        return std::to_string(std::fabs((pDistr_->arg)(args_to_adapt_list_[0])));
-}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -103,13 +69,13 @@ public:
 class Uniform_Proposer : public Proposer
 {
 public:
-    Uniform_Proposer(double rule_scale = HSP_NA_DOUBLE, bool is_discrete = false)
+    Uniform_Proposer(double rule_scale = hsp::na::DOUBLE, bool is_discrete = false)
         : Proposer("uniform", rule_scale, {0, 1}, is_discrete) { user_reset(); }
 
     void user_reset() override final
     {
-        pDistr_->init_attr(HSP_PARAM_MIN, -user_rule_scale_);
-        pDistr_->init_attr(HSP_PARAM_MAX, user_rule_scale_);
+        pDistr_->init_attr(hsp::params::MIN, -user_rule_scale_);
+        pDistr_->init_attr(hsp::params::MAX, user_rule_scale_);
     }
 
     double propose(rnd_gen &prng, double xo) override final { return xo + pDistr_->rand(prng); }
@@ -125,7 +91,7 @@ public:
 class Normal_Proposer : public Proposer
 {
 public:
-    Normal_Proposer(double rule_scale = HSP_NA_DOUBLE, bool is_discrete = false)
+    Normal_Proposer(double rule_scale = hsp::na::DOUBLE, bool is_discrete = false)
         : Proposer("normal", rule_scale, {1}, is_discrete) { user_reset(); }
 
     void user_reset() override final
@@ -167,13 +133,13 @@ public:
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Switchboard to select the custom metropolis proposer rule.
-std::shared_ptr<Proposer> proposer_switch(const std::string &rule_name = HSP_NA_STRING,
-                                          double rule_scale = HSP_NA_DOUBLE,
+std::shared_ptr<Proposer> proposer_switch(const std::string &rule_name = hsp::na::STRING,
+                                          double rule_scale = hsp::na::DOUBLE,
                                           bool is_discrete = false)
 {
     const str_vec options = {"sample", "uniform", "normal", "lognormal"};
 
-    if (tools::is_na(rule_name))
+    if (hsp::na::is(rule_name))
         return std::make_shared<Proposer>(std::make_shared<Distribution>());
 
     else if (rule_name == "uniform")
@@ -188,7 +154,7 @@ std::shared_ptr<Proposer> proposer_switch(const std::string &rule_name = HSP_NA_
     else
         throw std::invalid_argument(
             "Unknown proposer rule \"" + rule_name + "\"." +
-            tools::str::find_closest(rule_name, options, HSP_MIN_STR_DIST));
+            hsp::str::find_closest(rule_name, options));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -204,7 +170,7 @@ void Variable::init(double value, bool is_const, bool is_discr,
     this->is_constant_ = is_const;
     this->is_discrete_ = is_discr;
 
-    user_value_ = HSP_NA_DOUBLE;
+    user_value_ = hsp::na::DOUBLE;
     evaluate_ = &Variable::do_eval_error_;
 
     if (is_const || parser.is_na()) // initialization as a numeric variable
@@ -225,19 +191,19 @@ void Variable::init(double value, bool is_const, bool is_discr,
 }
 
 /// Restore user defined variable initialization.
-/// NOTE: if user value is NA and a distribution is,
-/// by construction convention it is possible to randomly initialize,
-/// otherwise it is truely a NA value.
+///
+/// NOTE: by construction convention it is possible to randomly initialize
+///       if user value is NA but a distribution is given.
+///       Otherwise it is truly a constant NA value.
 void Variable::user_reset(rnd_gen &prng)
 {
-    if (tools::is_na(user_value_))
+    if (hsp::na::is(user_value_))
     {
         if (!pDistr_->is_empty())
             init_rand(prng);
     }
     else
         value_ = user_value_;
-
     pProp_->user_reset();
 }
 
@@ -261,6 +227,9 @@ void Variable::init_func_reshaping()
                 throw std::invalid_argument(
                     "Impossible to set " + err_name() + " as constant. Check its dependencies.");
 
+            if (!pFunc_->is_implicit_callable())
+                get_ = &Variable::do_get_error_;
+
             if (is_discrete_)
                 pFunc_->init_discretization();
             pFunc_->init_truncation();
@@ -281,7 +250,7 @@ void Variable::init_distr(const DefinitionParser &expr)
 /// Assign an attribute to distribution.
 void Variable::init_distr_attr(const std::string &key, const Attribute &attr)
 {
-    if (key == HSP_PARAM_LOC)
+    if (key == hsp::params::LOCATION)
         init_location_arg(attr);
     else
         pDistr_->init_attr(key, attr);
@@ -338,7 +307,7 @@ void Variable::init_location_arg(const Attribute &x)
 /// Assign proposer.
 void Variable::init_proposer(const std::string &rule_name, double rule_scale)
 {
-    if (tools::is_na(rule_name))
+    if (hsp::na::is(rule_name))
     {
         // if no rule is defined assume constant
         is_constant_ = true;
@@ -357,7 +326,7 @@ void Variable::init_proposer(const std::string &rule_name, double rule_scale)
             // raise a warning if "lnorm" rule when varaible can be negative
             // UPDATE: generalize in case of new positive-defined proposer rules
             if ((pDistr_->get_min() < 0) && (rule_name == "lnorm"))
-                tools::warning(
+                hsp::warning(
                     "Lognormal proposer rule for non-positive " + err_name() + ".");
 
             // assign the pointer to the proposer
@@ -420,4 +389,13 @@ bool Variable::is_discrete() const
         return Attribute::is_discrete();
     else
         return pDistr_->is_discrete();
+}
+
+/// Get a description about the functional status.
+std::string Variable::str_summary() const
+{
+    std::string output = Attribute::str_summary();
+    if (is_model())
+        output += " | ~" + pDistr_->str_summary(false);
+    return output;
 }
