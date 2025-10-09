@@ -67,7 +67,12 @@ and variable defintions from a single class.
 Create a new object of class 'HousepiModel'
 used to run inference and simulation routines.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$new(choice = NA, as_template = FALSE, force = FALSE, quiet = TRUE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$new(
+  choice = NA_character_,
+  as_template = FALSE,
+  force = FALSE,
+  quiet = TRUE
+)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -183,16 +188,16 @@ Add a new parameter to houspepi model definitions.
 If the parameter already exists, it is updated.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_parameter(
-  name = NA,
+  name = NA_character_,
   value = NULL,
   const = NA,
   discr = FALSE,
-  prior = NA,
+  prior = NA_character_,
   args = NULL,
   min = NULL,
   max = NULL,
-  rule = NA,
-  scale = NA
+  rule = NA_character_,
+  scale = NA_real_
 )}\if{html}{\out{</div>}}
 }
 
@@ -243,7 +248,7 @@ Default is \code{1}.}
 \subsection{Method \code{load_parameter_list()}}{
 Load parameter definitions either as arguments or from predefined list.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$load_parameter_list(..., from = NA, append = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$load_parameter_list(..., from = NULL, append = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -285,19 +290,19 @@ Add a new augmented variable/function to houspepi model definitions.
 If the augmented variablw already exists, it is updated.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_augmented(
-  name = NA,
-  status = NA,
+  name = NA_character_,
+  status = NA_integer_,
   value = NULL,
   const = NA,
   discr = FALSE,
-  func = NA,
+  func = NA_character_,
   func_args = NULL,
-  model = NA,
-  args = list(),
+  model = NA_character_,
+  args = NULL,
   min = NULL,
   max = NULL,
-  rule = NA,
-  scale = NA,
+  rule = NA_character_,
+  scale = NA_real_,
   expr = NULL
 )}\if{html}{\out{</div>}}
 }
@@ -374,7 +379,7 @@ Default is \code{1}.}
 Load augmented variable/function definitions
 either as arguments or from predefined list.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$load_augmented_list(..., from = NA, append = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$load_augmented_list(..., from = NULL, append = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -413,21 +418,27 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 \if{latex}{\out{\hypertarget{method-HousepiModel-add_group_rate}{}}}
 \subsection{Method \code{add_group_rate()}}{
 Add definitions of a group rate by given data feature(s).
-Reference value has unitary rate and can be specified
-(default is most represented group).
+Group rates are relative to a reference class that can be specified.
+If no MCMC options are provided, the following configuration is assumed
+\itemize{
+\item \code{prior}: "lognormal"
+\item \code{args}: \code{c(meanlog = 0, sdlog = 3)}
+\item \code{min}: 0
+\item \code{max} 10
+}
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_group_rate(
   name,
   by,
-  prefix = NA,
+  prefix = NA_character_,
   reference = NULL,
   independent = TRUE,
-  prior = "lnorm",
-  args = list(meanlog = 0, sdlog = 3),
-  min = NA,
-  max = 10,
-  rule = "lnorm",
-  scale = 1
+  prior = NA_character_,
+  args = NULL,
+  min = NULL,
+  max = NULL,
+  rule = NA_character_,
+  scale = NA_real_
 )}\if{html}{\out{</div>}}
 }
 
@@ -448,17 +459,13 @@ Default is the group with the largest sample size.}
 \item{\code{independent}}{\code{logical(1)} to consider features as independent.\cr
 If \code{FALSE} features are combined (default).}
 
-\item{\code{prior}}{\code{character(1)} wit the choice for the prior distribution.
-Default is "lnorm".}
+\item{\code{prior}}{\code{character(1)} wit the choice for the prior distribution.}
 
-\item{\code{args}}{named \code{numeric()} or \code{list} with custom arguments for the prior distribution.
-Default is \code{list(meanlog = 0, sdlog = 3)}.}
+\item{\code{args}}{named \code{numeric()} or \code{list} with custom arguments for the prior distribution.}
 
-\item{\code{min}}{\code{numeric(1)} to truncate to a minimum value.
-Default is 0.}
+\item{\code{min}}{\code{numeric(1)} to truncate to a minimum value.}
 
-\item{\code{max}}{\code{numeric(1)} to truncate to a maximum value.
-Default is 10.}
+\item{\code{max}}{\code{numeric(1)} to truncate to a maximum value.}
 
 \item{\code{rule}}{\code{character(1)} with the proposer rule used during inference.\cr
 One between:\cr
@@ -484,7 +491,7 @@ Default is \code{1}.}
 Load group rate definitions either as direct arguments
 or from predefined list.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$load_group_rate_list(..., from = NA, append = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$load_group_rate_list(..., from = NULL, append = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -538,7 +545,7 @@ One between:\cr
 \subsection{Method \code{loglikelihood()}}{
 Compute the loglikelihood.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$loglikelihood(seed = NA)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$loglikelihood(seed = NA_integer_)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -568,8 +575,8 @@ Run inference with Bayesian Markov Chain Monte Carlo.
   adapt = 0,
   chains = 1,
   threads = 1,
-  id_draws = NA,
-  seed = NA,
+  id_draws = NULL,
+  seed = NA_integer_,
   progress = TRUE
 )}\if{html}{\out{</div>}}
 }
@@ -622,7 +629,7 @@ It uses the method of power posteriors with different available schemes.
   adapt = 0,
   chains = 1,
   threads = 1,
-  seed = NA,
+  seed = NA_integer_,
   progress = TRUE
 )}\if{html}{\out{</div>}}
 }
@@ -711,7 +718,7 @@ It assumes the same community structure of the loaded data.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$simulate(
   nsim = 1,
-  seed = NA,
+  seed = NA_integer_,
   progress = FALSE,
   obs_process = NULL
 )}\if{html}{\out{</div>}}

@@ -23,7 +23,7 @@
 #' @return `r rd_model_in_`
 #'
 #' @export
-new_housepi_model <- function(choice = NA, as_template = FALSE,
+new_housepi_model <- function(choice = NA_character_, as_template = FALSE,
                               force = FALSE, quiet = TRUE) {
   HousepiModel$new(choice = choice, as_template = as_template,
                    force = force, quiet = quiet)
@@ -173,11 +173,11 @@ get_parameters <- function(object, ...) {
 #'
 #' @export
 add_parameter <- function(object,
-                          name = NA, value = NULL,
+                          name = NA_character_, value = NULL,
                           const = NA, discr = FALSE,
-                          prior = NA, args = NULL,
+                          prior = NA_character_, args = NULL,
                           min = NULL, max = NULL,
-                          rule = NA, scale = NA) {
+                          rule = NA_character_, scale = NA_real_) {
   stopifnot(inherits(object, "HousepiModel"))
   object$clone(deep = TRUE)$add_parameter(
     name = name, value = value,
@@ -201,7 +201,7 @@ add_parameter <- function(object,
 #'
 #' @rdname load_definitions_list
 #' @export
-load_parameter_list <- function(object, ..., from = NA, append = FALSE) {
+load_parameter_list <- function(object, ..., from = NULL, append = FALSE) {
   stopifnot(inherits(object, "HousepiModel"))
   object$clone(deep = TRUE)$load_parameter_list(
     ..., from = from, append = append
@@ -260,12 +260,12 @@ get_augmented <- function(object, ...) {
 #'
 #' @export
 add_augmented <- function(object,
-                          name = NA, status = NA,
+                          name = NA_character_, status = NA_integer_,
                           value = NULL, const = NA, discr = FALSE,
-                          func = NA, func_args = NULL,
-                          model = NA, args = NULL,
+                          func = NA_character_, func_args = NULL,
+                          model = NA_character_, args = NULL,
                           min = NULL, max = NULL,
-                          rule = NA, scale = NA,
+                          rule = NA_character_, scale = NA_real_,
                           expr = NULL) {
   stopifnot(inherits(object, "HousepiModel"))
   object$clone(deep = TRUE)$add_augmented(
@@ -281,7 +281,7 @@ add_augmented <- function(object,
 
 #' @rdname load_definitions_list
 #' @export
-load_augmented_list <- function(object, ..., from = NA, append = FALSE) {
+load_augmented_list <- function(object, ..., from = NULL, append = FALSE) {
   stopifnot(inherits(object, "HousepiModel"))
   object$clone(deep = TRUE)$load_augmented_list(
     ..., from = from, append = append
@@ -310,7 +310,12 @@ get_group_rates <- function(object, ...) {
 #' @title Add group rate definition
 #' @description
 #' Add definitions of a group rate by given data feature(s).
-#' The reference value is equal to 1 and can be specified.
+#' Group rates are relative to a reference class that can be specified.
+#' If no MCMC options are provided, the following configuration is assumed
+#' - `prior`: "lognormal"
+#' - `args`: `c(meanlog = 0, sdlog = 3)`
+#' - `min`: 0
+#' - `max` 10
 #'
 #' @param object `r rd_model_in_`
 #' @param name `r rd_var_name_`
@@ -319,13 +324,9 @@ get_group_rates <- function(object, ...) {
 #' @param reference `r rd_grr_refer_`
 #' @param independent `r rd_grr_indep_`
 #' @param prior `r rd_par_model_`
-#' Default is "lognormal".
 #' @param args `r rd_par_args_`
-#' Default is `list(meanlog = 0, sdlog = 3)`.
 #' @param min `r rd_var_min_`
-#' Default is 0.
 #' @param max `r rd_var_max_`
-#' Default is 10.
 #' @param rule `r rd_var_rule_`
 #' @param scale `r rd_var_scale_`
 #'
@@ -338,12 +339,11 @@ get_group_rates <- function(object, ...) {
 #'
 #' @export
 add_group_rate <-  function(object,
-                            name, by, prefix = NA,
+                            name, by, prefix = NA_character_,
                             reference = NULL, independent = TRUE,
-                            prior = "lognormal",
-                            args = list(meanlog = 0, sdlog = 3),
-                            min = 0, max = 10,
-                            rule = "lognormal", scale = 1) {
+                            prior = NA_character_, args = NULL,
+                            min = NULL, max = NULL,
+                            rule = NA_character_, scale = NA_real_) {
   stopifnot(inherits(object, "HousepiModel"))
   object$clone(deep = TRUE)$add_group_rate(
     name = name, by = by, prefix = prefix,
@@ -356,7 +356,7 @@ add_group_rate <-  function(object,
 
 #' @rdname load_definitions_list
 #' @export
-load_group_rate_list <- function(object, ..., from = NA, append = FALSE) {
+load_group_rate_list <- function(object, ..., from = NULL, append = FALSE) {
   stopifnot(inherits(object, "HousepiModel"))
   object$clone(deep = TRUE)$load_group_rate_list(
     ..., from = from, append = append
@@ -404,7 +404,7 @@ add_infec_profile <- function(object,
 #' @return `numeric(1)`
 #'
 #' @export
-loglikelihood <- function(object, seed = NA) {
+loglikelihood <- function(object, seed = NA_integer_) {
   stopifnot(inherits(object, "HousepiModel"))
   object$loglikelihood(seed = seed)
 }
@@ -432,7 +432,7 @@ infer <- function(object,
                   steps = 5000, burnin = 0,
                   thin = 1, adapt = 0,
                   chains = 1, threads = 1,
-                  id_draws = NA, seed = NA, progress = TRUE) {
+                  id_draws = NULL, seed = NA_integer_, progress = TRUE) {
   stopifnot(inherits(object, "HousepiModel"))
   object$infer(
     steps = steps, burnin = burnin,
@@ -472,7 +472,7 @@ logevidence <- function(object,
                         steps = 5000, burnin = 0,
                         thin = 1, adapt = 0,
                         chains = 1, threads = 1,
-                        seed = NA, progress = TRUE) {
+                        seed = NA_integer_, progress = TRUE) {
   stopifnot(inherits(object, "HousepiModel"))
   object$logevidence(scheme = scheme, rungs = rungs,
                      steps = steps, burnin = burnin,
@@ -502,7 +502,7 @@ logevidence <- function(object,
 #' @importFrom stats simulate
 #' @export
 simulate.HousepiModel <- function(object,
-                                  nsim = 1, seed = NA,
+                                  nsim = 1, seed = NA_integer_,
                                   progress = FALSE,
                                   obs_process = NULL,
                                   ...) {

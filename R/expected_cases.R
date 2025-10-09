@@ -139,7 +139,7 @@ frame_apply <- function(frame_list, func) {
 #' @noRd
 frame_apply_mean <- function(frame_list) {
   frame_apply(frame_list, function(x) {
-    if (all(is.na(x))) NA
+    if (all(is.na(x))) NA_real_
     else if (all(is.numeric(x))) mean(x, na.rm = TRUE)
     else if (length(unique(x)) == 1) unique(x)
     else stop_h(
@@ -167,7 +167,7 @@ frame_apply_mean <- function(frame_list) {
 frame_apply_cri <- function(frame_list, cri_level = 0.95, upper = TRUE) {
   p <- 0.5 + ifelse(isTRUE(upper), 0.5, -0.5) * cri_level
   frame_apply(frame_list, function(x) {
-    if (all(is.na(x))) NA
+    if (all(is.na(x))) NA_real_
     else if (all(is.numeric(x))) stats::quantile(x, probs = p, na.rm = TRUE)
     else if (length(unique(x)) == 1) unique(x)
     else stop_h(
@@ -441,7 +441,7 @@ ExpectedCasesBySize <- R6::R6Class(
 
   private = list(
     deep_clone = function(name, value) helper_clone(value),
-    .max_house_size = NA,
+    .max_house_size = NA_integer_,
     .counts = NULL,
 
     # @description
@@ -599,7 +599,7 @@ ExpectedCasesBySize <- R6::R6Class(
     #' @description
     #' Restore maximum household size to observed maximum.
     drop_max_house_size = function() {
-      self$set_max_house_size(NA)
+      self$set_max_house_size(NA_integer_)
       invisible(self)
     },
 

@@ -126,6 +126,7 @@ HousepiModel <- R6::R6Class(
 
     # @description
     # Enable multiplicity engine.
+    # UPDATE: this will be moved inside C++ standalone.
     .multiplicity_engine = function() {
       # check if model allows for multiplicity
       refer_file <- private$.reference()
@@ -175,7 +176,7 @@ HousepiModel <- R6::R6Class(
         # use hashes to produce multiplicity table
         defs <- data.frame(house_id = unique(data_wide$house_id),
                            multiplicity = 0,
-                           class_id = NA,
+                           class_id = NA_integer_,
                            stringsAsFactors = FALSE)
         rownames(defs) <- defs$house_id
         defs[multi_hh_table$class_id, "multiplicity"] <- multi_hh_table$multiplicity
@@ -197,27 +198,30 @@ HousepiModel <- R6::R6Class(
     # @description
     # Pre-build to deal with group rates.
     .build_group_rates = function() {
-      # assert definitions are complete
-      private$.assert_group_rate()
-
-      # proceed only if definitions exist
+      # proceed only if definitions exist and data loaded
       if (length(private$.group_rates$defs) > 0) {
-        # load data_wide
-        # UPDATE: this "back & forth" of data_wide is not optimal!
-        # UPDATE: count in the wrapper while storing data_wide_levels
-        if (length(private$.cols_data_wide) == 0) data_wide <- NULL
-        else data_wide <- self$data_wide
+        if (length(private$.cols_data_wide) > 0) {
+          # load data_wide
+          # UPDATE: this "back & forth" of data_wide is not optimal!
+          # UPDATE: count in the wrapper while storing data_wide_levels
+          data_wide <- self$data_wide
 
-        # implement group rates
-        private$.group_rates$implement(data_wide, private$.info_data_wide)
+          # implement group rates
+          private$.group_rates$implement(data_wide, private$.info_data_wide)
 
-        # append parameter definitions if missing
-        new_parameters <- private$.group_rates$parameters
-        # find missing parameter definitions
-        mask <- setdiff(names(new_parameters), private$.param$defs$name)
-        new_parameters <- new_parameters[mask]
-        if (length(new_parameters) > 0) {
-          private$.param$load_list(from = new_parameters, append = TRUE)
+          # append parameter definitions if missing
+          new_parameters <- private$.group_rates$parameters
+          # find missing parameter definitions
+          mask <- setdiff(names(new_parameters), private$.param$defs$name)
+          new_parameters <- new_parameters[mask]
+          if (length(new_parameters) > 0) {
+            private$.param$load_list(from = new_parameters, append = TRUE)
+          }
+        } else {
+          warning_h(
+            "Pending data needed before building group rates.",
+            "Ensure to provide all necessary data before proceeding."
+          )
         }
       }
 
@@ -229,8 +233,8 @@ HousepiModel <- R6::R6Class(
     .build_full = function(steps = 0, adapt = 0,
                            burnin = 0, thin = 1,
                            chains = 1, threads = 1,
-                           id_draws = NA,
-                           seed = NA, progress = FALSE) {
+                           id_draws = NULL,
+                           seed = NA_integer_, progress = FALSE) {
       # individual id for blank model augmented draws
       # if no default columns, assume debugging mode
       if (private$.is_blank() && all(is.na(id_draws))) {
@@ -254,8 +258,11 @@ HousepiModel <- R6::R6Class(
         progress = as.integer(progress)
       )))
 
+      # assert group rate definitions
+      private$.assert_group_rate()
       # build group rate definitions
       private$.build_group_rates()
+
       # build contact rates (UPDATE: temporary)
       private$.rcpp$build_all_rates()
 
@@ -324,9 +331,8 @@ HousepiModel <- R6::R6Class(
           "Impossible to export data_wide before model build."
         )
         return(private$.refactor_data_wide(private$.rcpp$export_data_wide()))
-      } else {
-        self$add_data_wide(value)
       }
+      self$add_data_wide(value)
     },
 
     #' @field data_long
@@ -337,23 +343,25 @@ HousepiModel <- R6::R6Class(
           "Impossible to export data_long before model build."
         )
         return(private$.refactor_data_long(private$.rcpp$export_data_long()))
-      } else {
-        self$add_data_long(value)
       }
+      self$add_data_long(value)
     },
 
     #' @field parameters
     #' A `data.frame` with parameter formatted definitions.
     parameters = function(value) {
-      if (missing(value)) return(make_def_readable(private$.param$defs))
-      else private$.param$load_list(from = value, append = FALSE)
+      if (missing(value)) {
+        private$.build_group_rates()
+        return(make_def_readable(private$.param$defs))
+      }
+      private$.param$load_list(from = value, append = FALSE)
     },
 
     #' @field augmented
     #' A`data.frame` with augmented formatted definitions.
     augmented = function(value) {
       if (missing(value)) return(make_def_readable(private$.augm$defs))
-      else private$.augm$load_list(from = value, append = FALSE)
+      private$.augm$load_list(from = value, append = FALSE)
     },
 
     #' @field infec_profile_defs
@@ -363,9 +371,8 @@ HousepiModel <- R6::R6Class(
         defs <- private$.infec_profile$defs
         if (!is.null(defs)) return(make_def_readable(defs))
         else return(make_def_readable(private$.rcpp$export_infec_profile()))
-      } else {
-        do.call(self$add_infec_profile, value)
       }
+      do.call(self$add_infec_profile, value)
     },
 
     #' @field group_rates
@@ -374,9 +381,8 @@ HousepiModel <- R6::R6Class(
       if (missing(value)) {
         private$.build_group_rates()
         return(private$.group_rates$tidy_table)
-      } else {
-        self$load_group_rate_list(from = value, append = FALSE)
       }
+      self$load_group_rate_list(from = value, append = FALSE)
     }
   ),
 
@@ -393,7 +399,7 @@ HousepiModel <- R6::R6Class(
     #' @param as_template `r rd_mdl_astmpl_`
     #' @param force `r rd_mdl_force_`
     #' @param quiet `r rd_mdl_quiet_`
-    initialize = function(choice = NA, as_template = FALSE,
+    initialize = function(choice = NA_character_, as_template = FALSE,
                           force = FALSE, quiet = TRUE) {
       # initialize internal fields
       self$drop_all()
@@ -511,11 +517,11 @@ HousepiModel <- R6::R6Class(
     #' @param max `r rd_var_max_`
     #' @param rule `r rd_par_rule_`
     #' @param scale `r rd_var_scale_`
-    add_parameter = function(name = NA, value = NULL,
+    add_parameter = function(name = NA_character_, value = NULL,
                              const = NA, discr = FALSE,
-                             prior = NA, args = NULL,
+                             prior = NA_character_, args = NULL,
                              min = NULL, max = NULL,
-                             rule = NA, scale = NA) {
+                             rule = NA_character_, scale = NA_real_) {
       private$.param$add(name = name, value = value, const = const,
                          discr = discr, prior = prior, args = args,
                          min = min, max = max,
@@ -529,7 +535,7 @@ HousepiModel <- R6::R6Class(
     #' @param ... `r rd_list_args_`
     #' @param from `r rd_list_from_`
     #' @param append `r rd_list_append_`
-    load_parameter_list = function(..., from = NA, append = FALSE) {
+    load_parameter_list = function(..., from = NULL, append = FALSE) {
       private$.param$load_list(..., from = from, append = append)
       invisible(self)
     },
@@ -573,12 +579,12 @@ HousepiModel <- R6::R6Class(
     #' @param rule `r rd_var_rule_`
     #' @param scale `r rd_var_scale_`
     #' @param expr `r rd_aug_expr_`
-    add_augmented = function(name = NA, status = NA,
+    add_augmented = function(name = NA_character_, status = NA_integer_,
                              value = NULL, const = NA, discr = FALSE,
-                             func = NA, func_args = NULL,
-                             model = NA, args = list(),
+                             func = NA_character_, func_args = NULL,
+                             model = NA_character_, args = NULL,
                              min = NULL, max = NULL,
-                             rule = NA, scale = NA,
+                             rule = NA_character_, scale = NA_real_,
                              expr = NULL) {
       private$.augm$add(name = name, status = status,
                         value = value, const = const, discr = discr,
@@ -597,7 +603,7 @@ HousepiModel <- R6::R6Class(
     #' @param ... `r rd_list_args_`
     #' @param from `r rd_list_from_`
     #' @param append `r rd_list_append_`
-    load_augmented_list = function(..., from = NA, append = FALSE) {
+    load_augmented_list = function(..., from = NULL, append = FALSE) {
       private$.augm$load_list(..., from = from, append = append)
       invisible(self)
     },
@@ -625,8 +631,12 @@ HousepiModel <- R6::R6Class(
 
     #' @description
     #' Add definitions of a group rate by given data feature(s).
-    #' Reference value has unitary rate and can be specified
-    #' (default is most represented group).
+    #' Group rates are relative to a reference class that can be specified.
+    #' If no MCMC options are provided, the following configuration is assumed
+    #' - `prior`: "lognormal"
+    #' - `args`: `c(meanlog = 0, sdlog = 3)`
+    #' - `min`: 0
+    #' - `max` 10
     #'
     #' @param name `r rd_var_name_`
     #' @param by `r rd_grr_by_`
@@ -634,22 +644,16 @@ HousepiModel <- R6::R6Class(
     #' @param reference `r rd_grr_refer_`
     #' @param independent `r rd_grr_indep_`
     #' @param prior `r rd_par_model_`
-    #' Default is "lnorm".
     #' @param args `r rd_par_args_`
-    #' Default is `list(meanlog = 0, sdlog = 3)`.
     #' @param min `r rd_var_min_`
-    #' Default is 0.
     #' @param max `r rd_var_max_`
-    #' Default is 10.
     #' @param rule `r rd_var_rule_`
     #' @param scale `r rd_var_scale_`
-    add_group_rate = function(name, by,
-                              prefix = NA,
+    add_group_rate = function(name, by, prefix = NA_character_,
                               reference = NULL, independent = TRUE,
-                              prior = "lnorm",
-                              args = list(meanlog = 0, sdlog = 3),
-                              min = NA, max = 10,
-                              rule = "lnorm", scale = 1) {
+                              prior = NA_character_, args = NULL,
+                              min = NULL, max = NULL,
+                              rule = NA_character_, scale = NA_real_) {
       private$.group_rates$add(name = name, by = by, prefix = prefix,
                                reference = reference, independent = independent,
                                prior = prior, args = args,
@@ -665,7 +669,7 @@ HousepiModel <- R6::R6Class(
     #' @param ... ` r rd_list_args_`
     #' @param from `r rd_list_from_`
     #' @param append `r rd_list_append_`
-    load_group_rate_list = function(..., from = NA, append = FALSE) {
+    load_group_rate_list = function(..., from = NULL, append = FALSE) {
       if (isFALSE(append)) self$drop_group_rates()
       private$.group_rates$load_list(..., from = from, append = append)
       invisible(self)
@@ -701,7 +705,7 @@ HousepiModel <- R6::R6Class(
     #' @param seed `r rd_seed_`
     #'
     #' @return `numeric(1)`
-    loglikelihood = function(seed = NA) {
+    loglikelihood = function(seed = NA_integer_) {
       # internal build function
       private$.build_full(seed = seed)
       private$.multiplicity_engine()
@@ -723,8 +727,8 @@ HousepiModel <- R6::R6Class(
     infer = function(steps = 10000, burnin = 0,
                      thin = 1, adapt = 0,
                      chains = 1, threads = 1,
-                     id_draws = NA,
-                     seed = NA, progress = TRUE) {
+                     id_draws = NULL,
+                     seed = NA_integer_, progress = TRUE) {
       # internal build function
       private$.build_full(steps = steps, burnin = burnin,
                           thin = thin, adapt = adapt,
@@ -758,8 +762,8 @@ HousepiModel <- R6::R6Class(
                            steps = 10000, burnin = 0,
                            thin = 1, adapt = 0,
                            chains = 1, threads = 1,
-                           seed = NA, progress = TRUE) {
-      # developer
+                           seed = NA_integer_, progress = TRUE) {
+      # UPDATE: developer warning
       warning_h(
         "The method to estimate logevidence is currently under development.",
         "Its usage is deprecated."
@@ -834,7 +838,7 @@ HousepiModel <- R6::R6Class(
     #'
     #' @return `data.frame`
     simulate = function(nsim = 1,
-                        seed = NA,
+                        seed = NA_integer_,
                         progress = FALSE,
                         obs_process = NULL) {
       # set observation process to identity if not provided

@@ -14,7 +14,7 @@ logevidence(
   adapt = 0,
   chains = 1,
   threads = 1,
-  seed = NA,
+  seed = NA_integer_,
   progress = TRUE
 )
 }

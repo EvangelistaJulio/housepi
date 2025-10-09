@@ -34,7 +34,7 @@ assert_data_features <- function(features, headers) {
       ifelse(length(missing) > 1, "s:", ""),
       character_to_string_list(missing)
     ),
-    "Check your features and data headers."
+    "Please check your data headers."
   )
 }
 
@@ -102,9 +102,7 @@ group_rate_logic_table <- function(data_wide, by) {
 #'
 #' @keywords internal
 #' @noRd
-associate_param_names <- function(this_table,
-                                  prefix = NA,
-                                  reference = NULL) {
+associate_param_names <- function(this_table, prefix, reference) {
   # column names to consider
   colmask <- setdiff(names(this_table), c("n", "param_name"))
 
@@ -119,14 +117,14 @@ associate_param_names <- function(this_table,
             function(row) all(row == unlist(reference[colmask])))
     ))
 
-    if (length(idx_refer) != 1) stop_h(
-      "Provided reference group is not valid."
-    )
+    if (length(idx_refer) != 1) stop_h("Provided reference group is not valid.")
   }
 
   # format prefix and associate parameter names
-  prefix <- ifelse((!is.na(prefix)) && is.character(prefix),
-                   paste0(prefix, "_"), "")
+  prefix <- ifelse(
+    (prefix == "") || (!is.character(prefix)),
+    "", paste0(prefix, "_")
+  )
 
   # associate parameter names
   this_table$param_name <- apply(
@@ -136,7 +134,7 @@ associate_param_names <- function(this_table,
   )
   this_table$param_name[idx_refer] <- ".reference"
 
-  return(this_table)
+  this_table
 }
 
 #' @title
@@ -173,7 +171,7 @@ tidyup_group_rate_tables <- function(all_tables) {
   # Add missing columns with NA
   combined_df <- do.call(rbind, lapply(df_list, function(df) {
     missing_cols <- setdiff(all_cols, names(df))
-    df[missing_cols] <- NA
+    df[missing_cols] <- NA_character_
     df[all_cols]
   }))
   rownames(combined_df) <- NULL
@@ -207,7 +205,35 @@ HousepiGroupRate <- R6::R6Class(
 
     # @field parameters `list`\cr
     # List containing parameters definitions.
-    .parameters = list()
+    .parameters = list(),
+
+    # @title
+    # Default MCMC Setup
+    # @description
+    # Return list with default MCMC setup if user choice is missing.
+    #
+    # @return `list`
+    #
+    # @references
+    # Cauchemez, et al. (2009)
+    # Household Transmission of 2009 Pandemic Influenza A (H1N1) Virus in the United States.
+    # New England Journal of Medicine. 361: 2619-2627. doi:10.1056/NEJMoa0905498
+    #
+    # @keywords internal
+    # @noRd
+    .get_default_mcmc_setup = function(prior, args, min, max, rule, scale) {
+      # check wheter default configuration
+      is_default <- sapply(c(prior, args, min, max, rule, scale),
+                           function(x) is.na(x) || is.null(x))
+      # if all defaults, provide default choice
+      if (all(is_default)) return(
+        list(value = 1, prior = "lognormal", args = c(meanlog = 0, sdlog = 3),
+             min = NA_real_, max = 10, rule = "lognormal", scale = 1)
+      )
+      # else go with user choice
+      list(value = 1, prior = prior, args = args,
+           min = min, max = max, rule = rule, scale)
+    }
   ),
 
   ############################################################################
@@ -326,16 +352,11 @@ HousepiGroupRate <- R6::R6Class(
     },
 
     #' @inherit add_group_rate
-    add = function(name, by,
-                   prefix = NA,
-                   reference = NULL,
-                   independent = TRUE,
-                   prior = "lognormal",
-                   args = list(meanlog = 0, sdlog = 3),
-                   min = NA,
-                   max = 10,
-                   rule = "lognormal",
-                   scale = 1) {
+    add = function(name, by, prefix = NA_character_,
+                   reference = NULL, independent = TRUE,
+                   prior = NA_character_, args = NULL,
+                   min = NA_real_, max = NA_real_,
+                   rule = NA_character_, scale = NA_real_) {
 
       # UPDATE: controls are missing
       if (is.na(name)) stop_h(
@@ -377,8 +398,8 @@ HousepiGroupRate <- R6::R6Class(
       )
 
       # add parameter definitions
-      private$.parameters[[name]] <- list(
-        value = 1, prior = prior, args = args,
+      private$.parameters[[name]] <- private$.get_default_mcmc_setup(
+        prior = prior, args = args,
         min = min, max = max, rule = rule, scale = scale
       )
 
@@ -511,7 +532,7 @@ HousepiGroupRate <- R6::R6Class(
 
       # find missing group rates and set as default
       for (g in template_missing_find(required, defined)) {
-        self$add(g, by = NA)
+        self$add(g, by = NA_character_)
       }
 
       invisible(self)

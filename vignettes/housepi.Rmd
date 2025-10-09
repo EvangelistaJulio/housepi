@@ -84,7 +84,7 @@ The `housepi` package comes with a few public datasets to be used for testing.
 # import data in wide from R6 active field
 hhmodel$data_wide <- housepi::survey
 ```
-Alternatively, we can pipe such call by using wrapper `add_data_wide()`. 
+Alternatively, we can pipe such call by using the wrapper `add_data_wide()`. 
 We can extract summary information about current loaded data with `summarise_cases()`:
 
 ```{r}
@@ -109,7 +109,7 @@ At any moment we can export the loaded data by invoking the method `$data_wide`.
 ## Associate parameter definitions
 
 Here we show how to provide a single parameter definition (prior and proposer rule needed for the Bayesian Monte Carlo).
-Different approaches are available to perform the same operation, we can call `add_parameter()` or invoke the homonyme R6 method:
+Different approaches are available to perform the same operation, we can call `add_parameter()` or invoke the namesake R6 method:
 
 ```{r}
 # alpha : community transmission rate

@@ -6,16 +6,16 @@
 \usage{
 add_parameter(
   object,
-  name = NA,
+  name = NA_character_,
   value = NULL,
   const = NA,
   discr = FALSE,
-  prior = NA,
+  prior = NA_character_,
   args = NULL,
   min = NULL,
   max = NULL,
-  rule = NA,
-  scale = NA
+  rule = NA_character_,
+  scale = NA_real_
 )
 }
 \arguments{

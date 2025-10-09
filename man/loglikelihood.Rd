@@ -4,7 +4,7 @@
 \alias{loglikelihood}
 \title{Compute loglikelihood of housepi model}
 \usage{
-loglikelihood(object, seed = NA)
+loglikelihood(object, seed = NA_integer_)
 }
 \arguments{
 \item{object}{\code{HousepiModel} object.}

@@ -12,8 +12,8 @@ infer(
   adapt = 0,
   chains = 1,
   threads = 1,
-  id_draws = NA,
-  seed = NA,
+  id_draws = NULL,
+  seed = NA_integer_,
   progress = TRUE
 )
 }

@@ -9,8 +9,8 @@ test_function(
   x,
   prim = FALSE,
   args = NULL,
-  min = NA,
-  max = NA,
+  min = NA_real_,
+  max = NA_real_,
   discr = FALSE,
   model = NULL
 )

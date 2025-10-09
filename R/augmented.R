@@ -263,19 +263,19 @@ HousepiAugmented <- R6::R6Class(
     },
 
     #' @inherit add_augmented
-    add = function(name = NA,
-                   status = NA,
+    add = function(name = NA_character_,
+                   status = NA_integer_,
                    const = NA,
                    discr = FALSE,
-                   func = NA,
+                   func = NA_character_,
                    func_args = NULL,
-                   value = NA,
-                   model = NA,
+                   value = NULL,
+                   model = NA_character_,
                    args = NULL,
                    min = NULL,
                    max = NULL,
-                   rule = NA,
-                   scale = NA,
+                   rule = NA_character_,
+                   scale = NA_real_,
                    expr = NULL) {
       # handle (name, status) and check for existing definitions
       private$.helper_existing_definition(name, status)
@@ -284,16 +284,16 @@ HousepiAugmented <- R6::R6Class(
       opts <- list(
         name = as.character(name),
         status = as.integer(status),
-        const = const,
+        const = as.logical(const),
         discr = isTRUE(discr),
         func = as.character(func),
         fcumul = FALSE,
-        value = NA,
+        value = NA_real_,
         model = as.character(model),
-        min = NA,
-        max = NA,
+        min = NA_real_,
+        max = NA_real_,
         rule = as.character(rule),
-        scale = NA
+        scale = NA_real_
       )
 
       # augmented function

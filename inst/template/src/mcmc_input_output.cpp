@@ -637,7 +637,7 @@ Rcpp::DataFrame MCMC::Impl::GroupRates::rcpp_snapshot(const std::string &house_i
 {
     using namespace Rcpp;
 
-    if (!is_empty())
+    if (!headers_.empty())
     {
         const Household &house = pImpl_.dataset(house_id);
         const size_t n_rows = house.size();

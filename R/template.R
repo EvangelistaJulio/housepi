@@ -37,7 +37,7 @@ get_template_dir <- function(x) {
   # extract path if present (unique since folder name)
   mask <- flat_options == flat_choice
   if (any(mask)) return(path_to_options[mask])
-  NA
+  NA_character_
 }
 
 #' @title
@@ -130,7 +130,7 @@ open_model_helper_ <- function(path) {
   # check for info file
   info_file <- file.path(path, "template_info.Rd")
   if (!file.exists(info_file)) stop_h(
-    "Impossible to show model description",
+    "Impossible to show model description.",
     "No template info available for the given model."
   )
 
@@ -161,7 +161,9 @@ open_model_helper_ <- function(path) {
 #' `logical(1)` to replace previous content of the path.
 #'
 #' @export
-template_household_model <- function(name = NA, path = NA, replace = FALSE) {
+template_household_model <- function(name = NA_character_,
+                                     path = NA_character_,
+                                     replace = FALSE) {
   if (is.na(name)) {
     # asking for model names
     show_model_names()
@@ -202,7 +204,7 @@ template_household_model <- function(name = NA, path = NA, replace = FALSE) {
 ############################################################################
 
 # Associate same name to all elements of a vector
-set_source_name_ <- function(x, name = NA) {
+set_source_name_ <- function(x, name = NA_character_) {
   if (!is.na(name) && is.character(name) && nchar(name) > 0) {
     if (!is.null(x)) x <- stats::setNames(x, rep(name, length(x)))
   }
