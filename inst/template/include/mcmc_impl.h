@@ -512,7 +512,7 @@ public:
 
         void clear_all(Individual &member);
         void build_all(Individual &member);
-        void init_user_list_discrete(const str_vec &x) { user_list_discrete = x; }
+        void init_user_list_discrete(const std::string &x) { user_list_discrete.emplace_back(x); }
         void build_missing(Individual &member);
         void user_reset(Individual &member);
 

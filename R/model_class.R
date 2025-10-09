@@ -219,7 +219,7 @@ HousepiModel <- R6::R6Class(
           }
         } else {
           warning_h(
-            "Pending data needed before building group rates.",
+            "Missing data needed for building group rates.",
             "Ensure to provide all necessary data before proceeding."
           )
         }
@@ -399,8 +399,9 @@ HousepiModel <- R6::R6Class(
     #' @param as_template `r rd_mdl_astmpl_`
     #' @param force `r rd_mdl_force_`
     #' @param quiet `r rd_mdl_quiet_`
+    #' @param ... `r rd_mdl_flags_`
     initialize = function(choice = NA_character_, as_template = FALSE,
-                          force = FALSE, quiet = TRUE) {
+                          force = FALSE, quiet = TRUE, ...) {
       # initialize internal fields
       self$drop_all()
       # generate model wrapper

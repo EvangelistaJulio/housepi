@@ -29,7 +29,8 @@ rd_mdl_force_ <- "`logical(1)` to compile even if a cached model already exists.
 Default is `FALSE`."
 rd_mdl_quiet_ <- "`logical(1)` to hide compilation commands and warnings.\\cr
 Default is `TRUE`."
-rd_mdl_flags_ <- "Named arguments with additional compilation options."
+rd_mdl_flags_ <- "Named arguments with additional compilation options:\\cr
+- If `discr = TRUE`, uses the model in discrete time, if applicable."
 
 ############################################################################
 ############################################################################
@@ -38,10 +39,12 @@ rd_mdl_flags_ <- "Named arguments with additional compilation options."
 rd_var_name_ <- "`character(1)` name used by internal calls."
 rd_var_value_ <- "`numeric(1)` with initial value.\\cr
 Required only if constant or random initialization has been disabled."
-rd_var_const_ <- "`logical(1)` to treat definition as constant (other details are ignored).\\cr
+rd_var_const_ <- "`logical(1)` to treat definition as constant.\\cr
+If `TRUE`, additional Monte Carlo details are ignored.\\cr
 Default is `FALSE`."
 
-rd_var_discr_ <- "`logical(1)` to treat definition as discrete and the %s is discretized (if applicable).\\cr
+rd_var_discr_ <- "`logical(1)` to treat definition as discrete.\\cr
+If applicable, the %s is discretized.\\cr
 Default is `FALSE`."
 rd_var_model_ <- "`character(1)` wit the choice for the %s distribution."
 rd_var_args_ <- "named `numeric()` or `list` with custom arguments for the %s distribution."
@@ -49,17 +52,17 @@ rd_var_args_ <- "named `numeric()` or `list` with custom arguments for the %s di
 rd_var_min_ <- "`numeric(1)` to truncate to a minimum value."
 rd_var_max_ <- "`numeric(1)` to truncate to a maximum value."
 
-rd_var_rule_ <- "`character(1)` with the proposer rule used during inference.\\cr
+rd_var_rule_ <- "`character(1)` with proposer rule used during inference.\\cr
 One between:\\cr
-- `NA` (default): see \"sample\";\\cr
 - \"sample\": sampled from the %s distribution;\\cr
-- \"unifrm\": increment is drawn from a uniform distribution;\\cr
-- \"normal\": increment is drawn from a normal distribution;\\cr
-- \"lognormal\": increment id drawn from a lognormal distribution (for positive values only).
+- \"unifrm\": increments drawn from uniform distribution;\\cr
+- \"normal\": increments drawn from normal distribution;\\cr
+- \"lognormal\": log-increments drawn from lognormal distribution (for positive values only);
+- `NA` (default): same as \"sample\".
 "
-rd_var_scale_ <- "`numeric(1)`with the scale of the proposer rule (if applicable).\\cr 
+rd_var_scale_ <- "`numeric(1)` with scale of the proposer rule.\\cr 
 Changed automatically during inference if `n_adpat`>0.\\cr
-Default is `1`."
+Not applicable if rule is \"sample\". Default is `1` otherwise."
 
 rd_par_discr_ <- sprintf(rd_var_discr_, "prior")
 rd_par_model_ <- sprintf(rd_var_model_, "prior")
@@ -92,11 +95,11 @@ One between:\\cr
 - Parameter name (followed by `@P`);\\cr
 - Dataset name (followed by `@D`)."
 
-rd_aug_status_ <- "`integer(1)` with positive status to specify individual definitions.\\cr
-If NA the generic defition is associated to all infectious individuals (default)."
-rd_aug_val_ <- paste("`numeric(1)` or `character(1)` with the initial value.", rd_types_)
-rd_aug_rndin_ <- "`character(1)` to draw initial value from model distribution.\\cr
-Default is `FALSE`."
+rd_aug_status_ <- "`integer(1)` with household member positive status.\\cr
+It is used to specify status-specific definitions.
+If `NA`, associate the definition to all other infectious members (default)."
+rd_aug_val_ <- paste("`numeric(1)` or `character(1)` with initial value.",
+                     rd_types_)
 rd_aug_func_ <- "`character(1)` with the name of the augmented function."
 rd_aug_funargs_ <- "named `list` with the arguments of the augmented function."
 rd_aug_min_ <- paste(rd_var_min_, rd_types_)
@@ -137,40 +140,39 @@ If `NULL`, observation process is ignored."
 rd_smpl_data_wide_ <- paste(rd_add_data_wide_,
                             "If `NULL`, uses the previously stored data.")
 
-rd_add_data_long_ <- "`data.frame` with the individual data (long format) used for analysis."
+rd_add_data_long_ <- "`data.frame` with additional individal long format data."
 
-rd_smpl_steps_ <- "`integer(1)`  with the total number of MCMC steps for each chain."
-rd_smpl_burn_ <- "`integer(1)` with the number of initial steps to discard as burn-in."
-rd_smpl_thin_ <- "`integer(1)` with the thinning interval, i. e. the number of steps to skip between each saved sample."
-rd_smpl_adapt_ <- "`integer(1)` with the number of adaptation steps before starting the main sampling."
-rd_smpl_chain_ <- "`integer(1)` with the number of independent MCMC chains to run."
-rd_smpl_thread_ <- "`integer(1)` with the number of threads to run in parallel."
+rd_smpl_steps_ <- "`integer(1)`  with total number of MCMC steps per chain."
+rd_smpl_burn_ <- "`integer(1)` with number of initial steps to discard."
+rd_smpl_thin_ <- "`integer(1)` with number of steps to skip between each saved sample."
+rd_smpl_adapt_ <- "`integer(1)` with number of adaptation steps before sampling."
+rd_smpl_chain_ <- "`integer(1)` with number of independent MCMC chains to run."
+rd_smpl_thread_ <- "`integer(1)` with number of threads to run in parallel."
 
 rd_smpl_rndin_ <- "`logical(1)` to control random initialization of variables:\\cr
-- If `TRUE` initial values are randomly drawn from respective distributions (default);\\cr
+- If `TRUE` initial values are drawn from respective distributions (default);\\cr
 - If `FALSE` uses initial value definitions."
 rd_smpl_iddrw_ <- "`character()` with individuals identifiers.\\cr
 Store draws of public augmented variables for the chosen individuals."
-rd_smpl_cri_level_ <- "`numeric(1)` with the level for the credible interval in (0.5, 1.0).\\cr
-Default is 0.95."
+rd_smpl_cri_level_ <- "`numeric(1)` with the level for credible interval\\cr
+It must be a value in (0.5, 1.0). Default is 0.95."
 
 ############################################################################
 ############################################################################
 ############################################################################
 
-rd_evi_scheme_ <- "`character(1)` with the scheme used for evidence estimation.\\cr
+rd_evi_scheme_ <- "`character(1)` with scheme used for evidence estimation.\\cr
 One between\\cr
-- \"power-fractions\": uses inverse temperatures \\eqn{\\frac{r^5}{{n_\\mathrm{rungs}}^5}}{r^5 / n_rungs^5}  (default).
+- \"power-fractions\": uses inverse temperatures \\eqn{\\frac{r^5}{{n_\\mathrm{rungs}}^5}}{r^5 / n_rungs^5} (default).
 - \"adaptive\": uses adaptive thermodynamic ladder."
-rd_evi_rungs_ <- "`integer(1)` \\cr
-Number of rungs in the thermodynamic ladder."
+rd_evi_rungs_ <- "`integer(1)` wiht number of rungs in thermodynamic ladder."
 
 rd_param_table_ <- "One between\\cr
 - `data.frame`;
 - `posterior::draws`;
 - `HousepiPosteriorDraws`.
 "
-rd_measure_ <- "A `function` or `list` of `function` used to compute the desired measure from data."
+rd_measure_ <- "`function` or `list` of `function`s to compute measures from data."
 rd_measure_dots_ <- "Named arguments with respective measure `function`.\\cr
 If `measure` is provided, arguments are ignored."
 
@@ -179,6 +181,6 @@ If `measure` is provided, arguments are ignored."
 ############################################################################
 
 rd_hhsampler_size_ <- "`integer(1) with the number of households to sample."
-rd_hhsampler_from_ <- "A `list` of `list`s with encoding definitions for each feature."
-rd_hhsampler_asc_ <- "A `logical(1)` to set ascending hierarchy between feature numbers.\\cr
+rd_hhsampler_from_ <- "`list` of `list`s with encoding definitions per feature."
+rd_hhsampler_asc_ <- "`logical(1)` to set ascending hierarchy between feature numbers.\\cr
 If `FALSE` is descending (default)."

@@ -32,14 +32,14 @@ get_rcpp_module_from_model <- function(module_name, model = NULL) {
   get_rcpp_module_from_dll(module_name, dll)
 }
 
-rd_test_disclaimer_ <- "This function is meant for testing only and not for repeated operations."
+rd_test_disclaimer_ <- "Meant for testing only, not for repeated operations."
 rd_test_name_ <- "`character(1)` with the name of the %s."
 rd_test_x_ <- "`numeric()` with values."
 rd_test_prim_ <- "`logical(1)` to consider %s instead.\\cr
 Default is `FALSE`."
 rd_test_args_ <- "named `numeric()` or `list` with custom arguments."
 rd_test_discr_ <- "`logical(1)` to treat definition as discrete."
-rd_test_model_ <- "`HousepiModel` object eventually containing the custom registred %s.\\cr
+rd_test_model_ <- "`HousepiModel` object containing the custom registred %s.\\cr
 If `NULL` (default) the built-in registry is used."
 
 #' @title

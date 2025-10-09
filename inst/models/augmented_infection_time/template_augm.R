@@ -6,7 +6,7 @@ list(
     args = c(mean = ~onset_date@D)
   ),
   incub_period = list(
-    init_rand = TRUE, model = "gamma",
+    model = "gamma",
     args = c(shape = 2, scale = 1),
     max = 14
   )

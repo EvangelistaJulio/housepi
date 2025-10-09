@@ -49,7 +49,7 @@ double MCMC::Impl::evaluate()
 void MCMC::Impl::assert_proper_dataset_()
 {
     if (dataset.n_houses() == 0)
-        throw std::length_error("Unable to proceed. No database was found.");
+        throw std::length_error("Unable to proceed: no data was found.");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

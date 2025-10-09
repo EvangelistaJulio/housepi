@@ -33,6 +33,10 @@ void Model::init_advanced_setup()
 	// template infectivity profile (otherwise user defined)
 	init_infec_profile_template(
 		{{"func", "gamma_meanvar|mean:var|{2|N}:{1|N}"}});
+
+#ifdef _HSP_DISCRETE_TIME
+	init_user_list_discrete("infec_time");
+#endif
 }
 
 /// Initialize parameters and augmented variables.

@@ -38,6 +38,7 @@ HousepiGenerator <- R6::R6Class(
     .quiet = TRUE,
     .need_compile = FALSE,
     .rcpp = NULL,
+    .last_user_flags = character(),
 
     # @field .infec_status_set `integer()`\cr
     # All positive status extracted from data.
@@ -145,6 +146,66 @@ HousepiGenerator <- R6::R6Class(
     },
 
     # @description
+    # Process user options for compilation.
+    .process_user_options = function(...) {
+      user_paths <- character()
+      user_flags <- character()
+      user_linkers <- character()
+      user_options <- list(...)
+
+      # process time discrete option
+      if ("discr" %in% names(user_options)) {
+        if (isTRUE(user_options$discr)) {
+          user_flags <- c(user_flags, "_HSP_DISCRETE_TIME")
+        }
+      }
+
+      # store raw flags for later checks
+      private$.last_user_flags <- user_flags
+
+      list("user_paths" = user_paths,
+           "user_flags" = user_flags,
+           "user_linkers" = user_linkers)
+    },
+
+    # @description
+    # Check whether source model contains a literal macro/token.
+    .assert_allows_flag = function(source_dir, flag) {
+      candidates <- c(file.path(source_dir, "src", "model.cpp"),
+                      file.path(source_dir, "model.cpp"))
+      model_cpp <- candidates[file.exists(candidates)][1]
+      if (is.na(model_cpp)) return(FALSE)
+      lines <- readLines(model_cpp, warn = FALSE)
+      patt <- paste0("\\b", gsub("([\\W])", "\\\\\\1", flag), "\\b")
+      any(grepl(patt, lines, perl = TRUE))
+    },
+
+    # @description
+    # Filter requested flags according to source.
+    # If a flag is not present in model.cpp, raise a warning.
+    .filter_user_flags = function(source_dir) {
+      keep <- character()
+      for (f in private$.last_user_flags) {
+        if (private$.assert_allows_flag(source_dir, f)) keep <- c(keep, f)
+        else if (f == "_HSP_DISCRETE_TIME") warning_h(
+          sprintf("No visible discrete time option for model \"%s\".",
+                  private$.name)
+        )
+        else warning_h(
+          sprintf("Ignoring unused flag '%s' not found in model source.", f),
+          "Only flags present in model.cpp are applied at compile time."
+        )
+      }
+      # store just effective flags
+      private$.last_user_flags <- keep
+      invisible()
+    },
+
+    ############################################################################
+    ############################################################################
+    ############################################################################
+
+    # @description
     # Initialize a new custom model.
     #
     # @param source_dir `character(1)`\cr
@@ -155,6 +216,9 @@ HousepiGenerator <- R6::R6Class(
     # @param force `logical(1)`\cr
     # If `TRUE` compile even if a cached model already exists.
     .new_custom_model = function(source_dir, as_template, force) {
+      # asses if model flags actually make sense
+      private$.filter_user_flags(source_dir)
+
       # asses if model choice requires recompilation
       private$.need_compile <- TRUE
 
@@ -288,28 +352,6 @@ HousepiGenerator <- R6::R6Class(
       private$.save_reference()
 
       invisible(self)
-    },
-
-    # @description
-    # Process user options for compilation.
-    .process_user_options = function(...) {
-      user_paths <- character()
-      user_flags <- character()
-      user_linkers <- character()
-      user_options <- list(...)
-
-      # process time discrete option
-      if ("discr" %in% names(user_options)) {
-        if (isTRUE(user_options$discr)) {
-          user_flags <- c(user_flags, "_HSP_DISCRETE_TIME")
-        }
-      }
-
-      list(
-        "user_paths" = user_paths,
-        "user_flags" = user_flags,
-        "user_linkers" = user_linkers
-      )
     },
 
     # @description

@@ -64,7 +64,7 @@ void MCMC::init_missing_augm(Individual &member)
     pImpl_->augm.user_reset(member);
 }
 void MCMC::clear_all_augm(Individual &member) { pImpl_->augm.clear_all(member); }
-void MCMC::init_user_list_discrete(const str_vec &x) { pImpl_->augm.init_user_list_discrete(x); }
+void MCMC::init_user_list_discrete(const std::string &x) { pImpl_->augm.init_user_list_discrete(x); }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////  MCMC : cache attributes  ///////////////////////////////

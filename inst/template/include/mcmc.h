@@ -80,7 +80,7 @@ public:
 
 	void init_missing_augm(Individual &member);
 	void clear_all_augm(Individual &member);
-	void init_user_list_discrete(const str_vec &x);
+	void init_user_list_discrete(const std::string &x);
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////  MCMC : cache attributes  //////////////////////////////////

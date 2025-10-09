@@ -501,7 +501,7 @@ ExpectedCasesBySize <- R6::R6Class(
   ############################################################################
 
   active = list(
-    #' @field sar A `data.frame` with observed and expected secondary attack rates by household size.
+    #' @field sar `data.frame` with observed and expected secondary attack rates by household size.
     #' If a maximum house size is set, larger sizes are not returned.
     sar = function(value) {
       if (missing(value)) {

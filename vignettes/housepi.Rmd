@@ -225,15 +225,13 @@ Simulation will associated augmented incubation periods and onset times in addit
 We then propose a simple observation process, where we assume onsets after 6 PM (18/24) are reported to next day. We also want to drop unobserved quantities. We can do both by assigning such a function to the argument `observation`:
 
 ```{r}
-obs_process <- function(x) {
-  x$onset_date <- ifelse(x$status > 0, floor(x$onset_time + 1 - 18 / 24), NA)
-  x$incub_period <- x$onset_time <- x$infec_time <- NULL
-  x
-}
-
 simulated <- hhsimul |>
   add_data_wide(dplyr::mutate(housepi::survey, status = NA)) |>
-  simulate(obs_process = obs_process)
+  simulate(obs_process = function(x) {
+    x$onset_date <- ifelse(x$status > 0, floor(x$onset_time + 0.25), NA)
+    x$incub_period <- x$onset_time <- x$infec_time <- NULL
+    x
+  })
 
 head(simulated)
 ```

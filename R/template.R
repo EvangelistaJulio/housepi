@@ -306,30 +306,30 @@ template_missing_find <- function(required, defined) {
 #' @description
 #' Stop if missing definitions are found
 #'
-#' @param required
-#' A `character()` with required definitions.
-#' @param defined
-#' A `character()` with current definitions.
-#' @param family
-#' A `character(1)` with the name of the definition family.
+#' @param required A `character()` with required definitions.
+#' @param defined A `character()` with current definitions.
+#' @param family A `character(1)` with the name of the definition family.
+#' @param max_print `integer(1)` with the maximum number of elements to print.
 #'
 #' @return
 #' `character()`
 #'
 #' @keywords internal
 #' @noRd
-template_missing_stop <- function(required, defined, family) {
+template_missing_stop <- function(required, defined, family, max_print = 4) {
   miss <- template_missing_find(required, defined)
   len_miss <- length(miss)
   # find sources of missing definitions
   sources <- unique(names(required[required %in% miss]))
   # show error message
   if (len_miss > 0) stop_h(
-    sprintf("There %s %s missing %s definition%s: %s",
-            ifelse(len_miss > 1, "are", "is"), len_miss,
+    sprintf("There %s %s missing %s definition%s%s",
+            ifelse(len_miss > 1, "are", "is"),
+            ifelse(len_miss > max_print,
+                   paste0("more than ", max_print), len_miss),
             family,
-            ifelse(len_miss > 1, "s", ""),
-            character_to_string_list(miss)),
+            ifelse(len_miss > 1, "s:\n", ": "),
+            character_to_string_list(miss, max_print)),
     sprintf("The %s definition%s required by %s",
             family,
             ifelse(len_miss > 1, "s are", " is"),
@@ -368,28 +368,27 @@ template_not_used_find <- function(required, defined) {
 #' @description
 #' Raise a warning if unused definitions are found
 #'
-#' @param required
-#' A `character()` with required definitions.
-#' @param defined
-#' A `character()` with current definitions.
-#' @param family
-#' A `character(1)` with the name of the definition family.
+#' @param required A `character()` with required definitions.
+#' @param defined A `character()` with current definitions.
+#' @param max_print `integer(1)` with the maximum number of elements to print.
 #'
 #' @return
 #' `character()`
 #'
 #' @keywords internal
 #' @noRd
-template_not_used_warn <- function(required, defined, family) {
+template_not_used_warn <- function(required, defined, family, max_print = 5) {
   notused <- template_not_used_find(required, defined)
 
   len_not_used <- length(notused)
   if (len_not_used > 0) warning_h(
-    sprintf("There %s %s unused %s definition%s: %s",
+    sprintf("There %s %s unused %s definition%s%s",
             ifelse(len_not_used > 1, "are", "is"),
-            len_not_used, family,
-            ifelse(len_not_used > 1, "s", ""),
-            character_to_string_list(notused))
+            ifelse(len_not_used > max_print,
+                   paste0("more than ", max_print), len_not_used),
+            family,
+            ifelse(len_not_used > 1, "s:\n", ": "),
+            character_to_string_list(notused, max_print))
   )
   invisible()
 }
