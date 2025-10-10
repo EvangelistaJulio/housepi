@@ -34,7 +34,7 @@ void Model::init_model_for_inference()
 	assert_no_missing_status();
 
 	// initialize look-up-table to largest possible value
-	bax::init_generations_lookuptable(get_report_hh_size("max cases").first);
+	bax::init_generations_lookuptable(get_report_hh_size().max_cases.first);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -27,15 +27,15 @@
 #include "variable.h"
 #include "mcmc.h"
 
-#ifdef _HOUSEPI_RCPP
+#if defined(_HOUSEPI_RCPP)
 #include <Rcpp.h>
 #endif
 
-#ifdef _OPENMP
+#if defined(_OPENMP)
 #include <omp.h>
 #endif
 
-#ifdef _HOUSEPI_RCPP
+#if defined(_HOUSEPI_RCPP)
 /// Auxiliary converter to R NA real values.
 inline double hsp_to_rcpp(double x) { return hsp::na::is(x) ? NA_REAL : x; }
 #endif
@@ -128,7 +128,7 @@ public:
         rnd_gen &prng() { return (this->*get_prng_)(); }
         double unif() { return unif_(prng()); }
 
-#ifdef _HOUSEPI_RCPP
+#if defined(_HOUSEPI_RCPP)
         void rcpp_import(SEXP input);
         Rcpp::List rcpp_export() const;
 
@@ -149,7 +149,7 @@ public:
         rnd_gen &do_prng_unique_thread_() { return prng_; }
         std::uniform_real_distribution<double> unif_; // uniform sampler
 
-#ifdef _OPENMP
+#if defined(_OPENMP)
         std::vector<rnd_gen> prng_parallel_ = {}; // parallel generators (for multi-threading)
         rnd_gen &do_prng_parallel_threads_() { return prng_parallel_[omp_get_thread_num()]; }
 #endif
@@ -206,7 +206,7 @@ public:
         void update_draws(unsigned long smpl_count);
         void clear_draws();
 
-#ifdef _HOUSEPI_RCPP
+#if defined(_HOUSEPI_RCPP)
         void rcpp_import(SEXP input);
         Rcpp::NumericVector rcpp_snapshot() const;
 #else
@@ -229,8 +229,13 @@ public:
     /// Implementation of Dataset.
     struct DataWide
     {
-        int_vec all_infected_status_list = {}; // list of all infected statuses in the dataset
+        // list of all infected statuses in the dataset
+        int_vec all_infected_status_list = {};
 
+        ReportIndividual report_indiv;
+        ReportHousehold report_house;
+        ReportHouseSizes report_hh_size;
+        
         /////////////////////////////////////////////////////////////////////////////////////////
         /////////////////////////  MCMC : Impl : DataSet : constructor  /////////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////
@@ -255,9 +260,6 @@ public:
         size_t n_houses() const { return house_vector_.size(); }
         size_t n_restricted_houses() const { return restrict_indexes_.size(); }
         size_t n_individuals() const { return n_individuals_; }
-        unsigned long get_report_indiv(const std::string &key) const;
-        unsigned long get_report_house(const std::string &key) const;
-        std::pair<unsigned short, unsigned long> get_report_hh_size(const std::string &key) const;
         bool is_empty() const { return house_vector_.empty(); }
         const str_vec &headers() const { return headers_; }
         Household copy(size_t H) const { return house_vector_[H]; }
@@ -348,7 +350,7 @@ public:
         /////////////////////////  MCMC : Impl : DataWide : import/export  ///////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////
 
-#ifdef _HOUSEPI_RCPP
+#if defined(_HOUSEPI_RCPP)
         void rcpp_import(SEXP input);
         void rcpp_import_multiplicity(SEXP input);
 
@@ -374,10 +376,6 @@ public:
         std::vector<size_t> restrict_indexes_ = {};
 
         std::vector<dbl_vec> smpl_values_ = {};
-
-        u_dict<unsigned long> report_indiv_ = {};
-        u_dict<unsigned long> report_house_ = {};
-        u_dict<std::pair<unsigned short, unsigned long>> report_size_ = {};
 
         /// Use the loaded data to fill-in the respective report.
         void build_helper_fill_report_data_();
@@ -415,7 +413,7 @@ public:
         /////////////////////////  MCMC : Impl : DataLong : import/export  //////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////
 
-#ifdef _HOUSEPI_RCPP
+#if defined(_HOUSEPI_RCPP)
         void rcpp_import(SEXP input);
 
         Rcpp::DataFrame rcpp_snapshot(const std::string &house_id) const;
@@ -455,7 +453,7 @@ public:
         ////////////////////////  MCMC : Impl : GroupRates : import/export  /////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////
 
-#ifdef _HOUSEPI_RCPP
+#if defined(_HOUSEPI_RCPP)
         void rcpp_import(SEXP input);
         Rcpp::DataFrame rcpp_snapshot(const std::string &house_id) const;
 #else
@@ -533,7 +531,7 @@ public:
         /// Flag if augmented draws are stored.
         bool is_any_draw() const { return !smpl_individuals.empty(); }
 
-#ifdef _HOUSEPI_RCPP
+#if defined(_HOUSEPI_RCPP)
         void rcpp_import(SEXP input);
         Rcpp::DataFrame rcpp_export_data_wide() const;
         Rcpp::DataFrame rcpp_snapshot(const std::string &house_id) const;
@@ -597,7 +595,7 @@ public:
         double inst(const Individual *member, double t) { return (this->*inst_)(member, t); }
         double cumul(const Individual *member, double t) { return (this->*cumul_)(member, t); }
 
-#ifdef _HOUSEPI_RCPP
+#if defined(_HOUSEPI_RCPP)
         void rcpp_import(SEXP input);
         Rcpp::List rcpp_export() const;
         Rcpp::List rcpp_snapshot(const std::string &house_id) const;
@@ -647,7 +645,7 @@ public:
     /// Release memory.
     void clear_memory() { clear_posterior_sample_(); }
 
-#ifdef _HOUSEPI_RCPP
+#if defined(_HOUSEPI_RCPP)
     Rcpp::List simulate(size_t n_rep);
     Rcpp::DataFrame simulate_repetition();
     Rcpp::List logevidence(const std::string &scheme, unsigned long n_rungs);

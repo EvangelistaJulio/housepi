@@ -46,10 +46,10 @@ namespace hsp
         /// Format a boolean value.
         inline std::string format(bool condition)
         {
-#ifdef _HOUSEPI_RCPP
-            return (condition ? "true" : "false");
-#else
+#if defined(_HOUSEPI_RCPP)
             return (condition ? "TRUE" : "FALSE");
+#else
+            return (condition ? "true" : "false");
 #endif
         }
 
