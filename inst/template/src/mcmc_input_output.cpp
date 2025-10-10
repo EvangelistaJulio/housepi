@@ -16,7 +16,7 @@
 #include "tools/read.h"
 #include "mcmc_impl.h"
 
-#if defined(_HOUSEPI_RCPP)
+#ifdef _HOUSEPI_RCPP
 
 #include "tools/infprof.h"
 
@@ -48,23 +48,23 @@ u_dict<std::string> rlist_to_map(SEXP input)
     return output;
 }
 
-/// Convert R dataframe into map<string, vector<string>>.
+/// Convert R dataframe into unordered_map<string, vector<string>>.
 u_dict<str_vec> rdataframe_to_map(SEXP input)
 {
     using namespace Rcpp;
     u_dict<str_vec> output = {};
 
-    if (!Rf_isNull(input))
-    {
-        Rcpp::DataFrame df(input);
-        CharacterVector colnames = df.names();
+    if (Rf_isNull(input))
+        return output;
 
-        for (R_xlen_t i = 0; i < df.size(); ++i)
-        {
-            CharacterVector col_str = as<CharacterVector>(df[i]);
-            str_vec col_data(col_str.begin(), col_str.end());
-            output[as<std::string>(colnames[i])] = std::move(col_data);
-        }
+    DataFrame df(input);
+    CharacterVector colnames = df.names();
+
+    for (R_xlen_t i = 0; i < df.size(); ++i)
+    {
+        CharacterVector col_str = as<CharacterVector>(df[i]);
+        str_vec col_data(col_str.begin(), col_str.end());
+        output[as<std::string>(colnames[i])] = std::move(col_data);
     }
 
     return output;
@@ -114,7 +114,6 @@ void MCMC::Impl::Augmented::rcpp_import(SEXP input)
 {
     try
     {
-        // UPDATE: deftable should not be stored internally in this format
         deftable = rdataframe_to_map(input);
         build();
     }

@@ -424,7 +424,8 @@ DefEncoder <- R6::R6Class(
   private = list(
     # If it's a call to "(" with a single argument that's a symbol, unwrap it.
     .strip_useless_parens = function(x) {
-      while (rlang::is_call(x) && rlang::call_name(x) == "(" &&
+      while (rlang::is_call(x) &&
+               rlang::call_name(x) == "(" &&
                length(rlang::call_args(x)) == 1) {
         inner_arg <- rlang::call_args(x)[[1]]
         if (rlang::is_symbol(inner_arg)) x <- inner_arg

@@ -229,22 +229,28 @@ HousepiModel <- R6::R6Class(
     },
 
     # @description
+    # Get individual for blank model augmented draws.
+    .get_blank_id_draws = function(id_draws) {
+      # if no default columns, assume debugging mode
+      if (private$.is_blank() &&
+            is.null(id_draws) &&
+            !is.null(private$.augm$defs)) {
+        # UPDATE: not robust if data has only default columns
+        if (length(setdiff(private$.cols_data_wide,
+                           c("house_id", "id", "status"))) == 0) {
+          id_draws <- template_blank_data_wide_()$id[1]
+        }
+      }
+      id_draws
+    },
+
+    # @description
     # Full model build with complete list of definitions.
     .build_full = function(steps = 0, adapt = 0,
                            burnin = 0, thin = 1,
                            chains = 1, threads = 1,
                            id_draws = NULL,
                            seed = NA_integer_, progress = FALSE) {
-      # individual id for blank model augmented draws
-      # if no default columns, assume debugging mode
-      if (private$.is_blank() && all(is.na(id_draws))) {
-        # UPDATE: not robust in case of data_wide with only default columns
-        if (length(setdiff(private$.cols_data_wide,
-                           c("house_id", "id", "status"))) == 0) {
-          id_draws <- template_blank_data_wide_()$id[1]
-        }
-      }
-
       # import setup
       private$.rcpp$import_setup(char_setup_input_(list(
         steps = as.integer(steps),
@@ -253,7 +259,7 @@ HousepiModel <- R6::R6Class(
         thin = as.integer(thin),
         chains = as.integer(chains),
         threads = as.integer(threads),
-        id_draws = id_draws,
+        id_draws = private$.get_blank_id_draws(id_draws),
         seed = private$.adjust_seed(seed),
         progress = as.integer(progress)
       )))

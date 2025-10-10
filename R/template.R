@@ -205,10 +205,11 @@ template_household_model <- function(name = NA_character_,
 
 # Associate same name to all elements of a vector
 set_source_name_ <- function(x, name = NA_character_) {
-  if (!is.na(name) && is.character(name) && nchar(name) > 0) {
-    if (!is.null(x)) x <- stats::setNames(x, rep(name, length(x)))
-  }
-  return(x)
+  if (!is.na(name) &&
+        is.character(name) &&
+        nchar(name) > 0 &&
+        !is.null(x)) names(x) <- rep(name, length(x))
+  x
 }
 
 #' @title

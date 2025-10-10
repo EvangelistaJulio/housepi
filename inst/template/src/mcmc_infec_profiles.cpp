@@ -249,6 +249,7 @@ void MCMC::Impl::InfecProfile::build_augmented_profile_(const u_dict<std::string
 		{"value", str_vec(2, hsp::na::STRING)},
 		{"const", str_vec(2, "false")},
 		{"discr", str_vec(2, hsp::str::format(is_discrete))},
+		{"model", str_vec(2, hsp::na::STRING)},
 		{hsp::params::MIN, str_vec(2, (is_discrete) ? "1|N" : "0|N")},
 		{hsp::params::MAX, str_vec(2, deflist.at(hsp::params::MAX))},
 		{"rule", str_vec(2, hsp::na::STRING)},
