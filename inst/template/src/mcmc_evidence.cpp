@@ -177,7 +177,7 @@ void MCMC::Impl::power_post_fractions_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
     }
 }
 
-#if defined(_HOUSEPI_RCPP)
+#ifdef _HOUSEPI_RCPP
 /// Estimate logevidence according to a given scheme and number of rungs.
 /// Uses trapezoidal rule to estimate logarithm of marginal likelihood (evidence).
 ///

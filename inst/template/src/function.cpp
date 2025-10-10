@@ -505,7 +505,7 @@ std::string Function::str_summary(bool show_x_arg) const
     return output + ") : " + str_range();
 }
 
-#if defined(_HOUSEPI_RCPP)
+#ifdef _HOUSEPI_RCPP
 /// Export argument list to R.
 Rcpp::NumericVector Function::rcpp_export_args() const
 {

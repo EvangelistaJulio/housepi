@@ -21,7 +21,7 @@
 #include "tools/types.h"
 #include "tools/na_utils.h"
 
-#if defined(_HOUSEPI_RCPP)
+#ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
 #endif
 
@@ -248,7 +248,7 @@ public:
     std::string str_range() const;
     std::string str_summary(bool show_x_arg = true) const;
 
-#if defined(_HOUSEPI_RCPP)
+#ifdef _HOUSEPI_RCPP
     Rcpp::NumericVector rcpp_export_args() const;
     Rcpp::NumericVector rcpp_export_range() const;
 #endif

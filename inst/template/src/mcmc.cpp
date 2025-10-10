@@ -92,7 +92,7 @@ double MCMC::evaluate() { return pImpl_->evaluate(); }
 void MCMC::infer() { pImpl_->infer(); }
 void MCMC::clear_memory() { pImpl_->clear_memory(); }
 
-#if defined(_HOUSEPI_RCPP)
+#ifdef _HOUSEPI_RCPP
 Rcpp::DataFrame MCMC::data_wide_for_simulation() const
 {
     return pImpl_->dataset.rcpp_export(pImpl_->dataset.headers() - pImpl_->augm.list_export, false);

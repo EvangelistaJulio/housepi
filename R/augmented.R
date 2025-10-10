@@ -96,7 +96,9 @@ HousepiAugmented <- R6::R6Class(
       parsed <- DefEncoder$new(value)
       opts$value <- parsed$x
 
-      if (isFALSE(opts$const) && is.na(opts$value) && is.na(opts$model)) stop_h(
+      if (isFALSE(opts$const) &&
+            is.na(opts$value) &&
+            is.na(opts$model)) stop_h(
         sprintf("Impossible to randomly initialize undefined augmented \"%s\".",
                 opts$name),
         "Provide one between value and model."
@@ -109,10 +111,8 @@ HousepiAugmented <- R6::R6Class(
     # Interpret user choice for proposer rule.
     .helper_proposer_rule = function(opts, scale) {
       # sampling rule but no constant parameter provided
-      if (is.na(opts$const)) {
-        if (!(is.na(opts$rule) && is.na(opts$model))) {
-          opts$const <- FALSE
-        }
+      if (is.na(opts$const) && !(is.na(opts$rule) && is.na(opts$model))) {
+        opts$const <- FALSE
       }
 
       if (isFALSE(opts$const)) {

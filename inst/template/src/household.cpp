@@ -140,14 +140,14 @@ Individual::Individual(size_t index,
 /// Initialize group rate according to given attribute.
 void Individual::init_group_rate(const std::string &g, const Attribute &attr)
 {
-	group_rate_map_[g] = Attribute();
+	group_rate_map_[g].transfer(attr);
 	group_rate_map_[g].name(g);
 }
 
 /// Initialize group rate to reference.
 void Individual::init_group_rate_to_reference(const std::string &g)
 {
-	group_rate_map_[g] = Attribute(hsp::rates::VALUE_REFERENCE);
+	group_rate_map_[g] = hsp::rates::VALUE_REFERENCE;
 	group_rate_map_[g].name(g);
 }
 

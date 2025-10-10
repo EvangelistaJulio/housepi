@@ -21,7 +21,7 @@
 #include "tools/na_utils.h"
 #include "household.h"
 
-#if defined(_HOUSEPI_RCPP)
+#ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
 #endif
 
@@ -158,7 +158,7 @@ public:
 	virtual void simulate_single_household(Household &) { throw std::runtime_error(
 		"Wrong call to virtual simulation method of undefined model."); }
 
-#if defined(_HOUSEPI_RCPP)
+#ifdef _HOUSEPI_RCPP
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	/////////////////////////////////  MCMC : Rcpp operations  //////////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
