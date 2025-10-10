@@ -21,7 +21,7 @@
 #include "tools/na_utils.h"
 #include "household.h"
 
-#ifdef _HOUSEPI_RCPP
+#if defined(_HOUSEPI_RCPP)
 #include <Rcpp.h>
 #endif
 
@@ -30,6 +30,33 @@
 /////////////////////////////////////////  MCMC : class  ////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Report for all individuals in the data.
+struct ReportIndividual
+{
+	unsigned long total;
+	unsigned long missing;
+	unsigned long healthy;
+	unsigned long infected;
+};
+
+/// Report for all households in the data.
+struct ReportHousehold
+{
+	unsigned long total;
+	unsigned long no_cases;
+	unsigned long at_least_1_case;
+	unsigned long at_least_2_cases;
+};
+
+/// Report for all household sizes.
+struct ReportHouseSizes
+{
+	std::pair<unsigned short, unsigned long> max_cases;
+	std::pair<unsigned short, unsigned long> max_miss;
+	std::pair<unsigned short, unsigned long> min_size;
+	std::pair<unsigned short, unsigned long> max_size;
+};
 
 /// Household models base class 'Monte Carlo Markov Chain'.
 class MCMC
@@ -52,9 +79,9 @@ public:
 	/////////////////////////////////////  MCMC : summaries  ////////////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
-	unsigned long get_report_indiv(const std::string &s) const;
-	unsigned long get_report_house(const std::string &s) const;
-	std::pair<unsigned short, unsigned long> get_report_hh_size(const std::string &s) const;
+	const ReportIndividual &get_report_indiv() const;
+	const ReportHousehold &get_report_house() const;
+	const ReportHouseSizes &get_report_hh_size() const;
 	void assert_no_missing_status() const;
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
@@ -97,7 +124,6 @@ public:
 	///////////////////////////////  MCMC : infectivity profile  ////////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
-
 	void init_infec_profile_template(u_dict<std::string> x);
 	double infec_profile_inst(const Individual &member, double t) const;
 	double infec_profile_cumul(const Individual &member, double t) const;
@@ -131,7 +157,7 @@ public:
 	virtual void simulate_single_household(Household &) { throw std::runtime_error(
 		"Wrong call to virtual simulation method of undefined model."); }
 
-#ifdef _HOUSEPI_RCPP
+#if defined(_HOUSEPI_RCPP)
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	/////////////////////////////////  MCMC : Rcpp operations  //////////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
@@ -191,7 +217,7 @@ public:
 #endif
 
 private:
-	class Impl; 	/// pointer to Implementation
+	class Impl; /// pointer to Implementation
 	std::unique_ptr<Impl> pImpl_;
 
 	/// Contact Rateas

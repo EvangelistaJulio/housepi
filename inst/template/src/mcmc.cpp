@@ -38,12 +38,12 @@ MCMC::~MCMC() = default;
 /////////////////////////////////////////////  MCMC : data  /////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-unsigned long MCMC::get_report_indiv(const std::string &s) const { return pImpl_->dataset.get_report_indiv(s); }
-unsigned long MCMC::get_report_house(const std::string &s) const { return pImpl_->dataset.get_report_house(s); }
-std::pair<unsigned short, unsigned long> MCMC::get_report_hh_size(const std::string &s) const { return pImpl_->dataset.get_report_hh_size(s); }
+const ReportIndividual &MCMC::get_report_indiv() const { return pImpl_->dataset.report_indiv; }
+const ReportHousehold &MCMC::get_report_house() const { return pImpl_->dataset.report_house; }
+const ReportHouseSizes &MCMC::get_report_hh_size() const { return pImpl_->dataset.report_hh_size; }
 void MCMC::assert_no_missing_status() const
 {
-    if (get_report_indiv("missing") > 0)
+    if (pImpl_->dataset.report_indiv.missing > 0)
         hsp::error(
             "Individual with missing status are incompatible with current model.");
 }
@@ -91,7 +91,7 @@ double MCMC::evaluate() { return pImpl_->evaluate(); }
 void MCMC::infer() { pImpl_->infer(); }
 void MCMC::clear_memory() { pImpl_->clear_memory(); }
 
-#ifdef _HOUSEPI_RCPP
+#if defined(_HOUSEPI_RCPP)
 Rcpp::DataFrame MCMC::data_wide_for_simulation() const
 {
     return pImpl_->dataset.rcpp_export(pImpl_->dataset.headers() - pImpl_->augm.list_export, false);

@@ -19,7 +19,7 @@
 
 #include "tools/progress.h"
 
-#ifdef _HOUSEPI_RCPP
+#if defined(_HOUSEPI_RCPP)
 #include <Rcpp.h>
 #endif
 
@@ -94,7 +94,7 @@ namespace progress
 
         void print_(const std::string &sms) const
         {
-#ifdef _HOUSEPI_RCPP
+#if defined(_HOUSEPI_RCPP)
             Rcpp::Rcout << sms;
             Rcpp::Rcout.flush();
 #else
@@ -117,7 +117,7 @@ namespace progress
 
         Impl()
         {
-#ifdef _HOUSEPI_RCPP
+#if defined(_HOUSEPI_RCPP)
             Rcpp::checkUserInterrupt();
             // change barwidth according to console width
             barwidth_ = Rcpp::as<unsigned>(Rcpp::Function("getOption")("width")) / 2;
@@ -149,7 +149,7 @@ namespace progress
         /// Start progressbar clock and display firs message.
         void open(unsigned long total)
         {
-#ifdef _HOUSEPI_RCPP
+#if defined(_HOUSEPI_RCPP)
             Rcpp::checkUserInterrupt();
 #endif
             if (total == 0)
@@ -167,7 +167,7 @@ namespace progress
         /// Update progress bar given the progress state.
         void update()
         {
-#ifdef _HOUSEPI_RCPP
+#if defined(_HOUSEPI_RCPP)
             Rcpp::checkUserInterrupt();
 #endif
             // update internal state
@@ -215,7 +215,7 @@ namespace progress
         /// End the progress bar because of a crash.
         void crash() const
         {
-#ifdef _HOUSEPI_RCPP
+#if defined(_HOUSEPI_RCPP)
             Rcpp::checkUserInterrupt();
 #endif
             if (is_bar_print_)
@@ -225,7 +225,7 @@ namespace progress
         /// Close the progress bar.
         void close()
         {
-#ifdef _HOUSEPI_RCPP
+#if defined(_HOUSEPI_RCPP)
             Rcpp::checkUserInterrupt();
 #endif
             if (verbose_)

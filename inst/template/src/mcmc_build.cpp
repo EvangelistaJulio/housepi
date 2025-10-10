@@ -100,7 +100,7 @@ void MCMC::Impl::Setup::set_n_threads()
     if (n_threads == 0)
         throw std::invalid_argument("N. of threads must be greater than 0.");
 
-#ifdef _OPENMP
+#if defined(_OPENMP)
     unsigned int max_threads = omp_get_num_procs();
 
     if (n_threads > max_threads)
@@ -128,7 +128,7 @@ void MCMC::Impl::Setup::set_prng_seed()
     prng_.seed(seed);
     get_prng_ = &Impl::Setup::do_prng_unique_thread_;
 
-#ifdef _OPENMP
+#if defined(_OPENMP)
     // seeds for the case of parallelization
     if (n_threads > 1)
     {
@@ -282,20 +282,20 @@ void MCMC::Impl::DataWide::build_helper_fill_report_data_()
 {
     all_infected_status_list.clear();
 
-    report_indiv_ = {{"total", n_individuals_},
-                     {"missing", 0},
-                     {"healthy", 0},
-                     {"infected", 0}};
+    report_indiv.total = n_individuals_;
+    report_indiv.missing = 0;
+    report_indiv.healthy = 0;
+    report_indiv.infected = 0;
 
-    report_house_ = {{"total", n_houses()},
-                     {"no cases", 0},
-                     {"at least 1 case", 0},
-                     {"at least 2 cases", 0}};
+    report_house.total = n_houses();
+    report_house.no_cases = 0;
+    report_house.at_least_1_case = 0;
+    report_house.at_least_2_cases = 0;
 
-    report_size_ = {{"max cases", {0, 0}},
-                    {"max miss", {0, 0}},
-                    {"min size", {1000, 0}},
-                    {"max size", {0, 0}}};
+    report_hh_size.max_cases = {0, 0};
+    report_hh_size.max_miss = {0, 0};
+    report_hh_size.min_size = {1000, 0};
+    report_hh_size.max_size = {0, 0};
 
     // set report counts
     for (const Household &house : house_vector_)
@@ -306,90 +306,38 @@ void MCMC::Impl::DataWide::build_helper_fill_report_data_()
                 if (!(all_infected_status_list % member.status()))
                     all_infected_status_list.push_back(member.status());
 
+        // observed quantities in-house
         const unsigned short house_size = house.size();
         const unsigned short n_infec = house.n_infec_status();
         const unsigned short n_miss = house.n_missing_status();
         const unsigned short n_heal = house.n_healthy_status();
 
-        report_indiv_["infected"] += n_infec;
-        report_indiv_["missing"] += n_miss;
-        report_indiv_["healthy"] += n_heal;
+        report_indiv.infected += n_infec;
+        report_indiv.missing += n_miss;
+        report_indiv.healthy += n_heal;
 
-        report_house_["no cases"] += (n_infec == 0);
-        report_house_["at least 1 case"] += (n_infec > 0);
-        report_house_["at least 2 cases"] += (n_infec > 1);
+        report_house.no_cases += (n_infec == 0);
+        report_house.at_least_1_case += (n_infec > 0);
+        report_house.at_least_2_cases += (n_infec > 1);
+
+#define UPDATE_REPORT_SIZE(Report, Value, Symbol) \
+    if (Report.first Symbol Value)                \
+    {                                             \
+        Report.first = Value;                     \
+        Report.second = 1;                        \
+    }                                             \
+    else if (Report.first == Value)               \
+        ++Report.second;
 
         // max number of house cases
-        if (report_size_["max cases"].first < n_infec)
-        {
-            report_size_["max cases"].first = n_infec;
-            report_size_["max cases"].second = 1;
-        }
-        else if (report_size_["max cases"].first == n_infec)
-            ++report_size_["max cases"].second;
-
+        UPDATE_REPORT_SIZE(report_hh_size.max_cases, n_infec, <);
         // max number of missing status
-        if (report_size_["max miss"].first < n_miss)
-        {
-            report_size_["max miss"].first = n_miss;
-            report_size_["max miss"].second = 1;
-        }
-        else if (report_size_["max miss"].first == n_miss)
-            ++report_size_["max miss"].second;
-
+        UPDATE_REPORT_SIZE(report_hh_size.max_miss, n_miss, <);
         // minimum house number of members
-        if (report_size_["min size"].first > house_size)
-        {
-            report_size_["min size"].first = house_size;
-            report_size_["min size"].second = 1;
-        }
-        else if (report_size_["min size"].first == house_size)
-            ++report_size_["min size"].second;
-
+        UPDATE_REPORT_SIZE(report_hh_size.min_size, house_size, >);
         // maximum house number of members
-        if (report_size_["max size"].first < house_size)
-        {
-            report_size_["max size"].first = house_size;
-            report_size_["max size"].second = 1;
-        }
-        else if (report_size_["max size"].first == house_size)
-            ++report_size_["max size"].second;
+        UPDATE_REPORT_SIZE(report_hh_size.max_cases, house_size, <);
     }
-}
-
-/// Return a value from individaul data report.
-unsigned long MCMC::Impl::DataWide::get_report_indiv(const std::string &key) const
-{
-    // UPDATE: this should be generalized to avoid double check with at
-    if (report_indiv_ % key)
-        return report_indiv_.at(key);
-    else
-        throw std::invalid_argument(
-            "Unknown individual report entry \"" + key + "\".");
-    return 0.;
-}
-
-/// Return a value from household data report.
-unsigned long MCMC::Impl::DataWide::get_report_house(const std::string &key) const
-{
-    // UPDATE: this should be generalized to avoid double check with at
-    if (report_house_ % key)
-        return report_house_.at(key);
-    else
-        throw std::invalid_argument(
-            "Unknown household report entry \"" + key + "\".");
-    return 0;
-}
-
-/// Return a value from household sizes report.
-std::pair<unsigned short, unsigned long> MCMC::Impl::DataWide::get_report_hh_size(const std::string &key) const
-{
-    if (report_size_ % key)
-        return report_size_.at(key);
-    else
-        throw std::invalid_argument(
-            "Unknown household sizes report entry \"" + key + "\".");
-    return std::pair<unsigned short, unsigned long>({0, 0});
 }
 
 /// Extra integer vectors for all households.

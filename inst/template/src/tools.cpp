@@ -25,7 +25,7 @@
 #include "tools/string.h"
 #include "tools/read.h"
 
-#ifdef _HOUSEPI_RCPP
+#if defined(_HOUSEPI_RCPP)
 #include <Rcpp.h>
 #else
 #include <iostream>
@@ -46,7 +46,7 @@ namespace hsp
     {
         if (!(_issued_warnings_ % txt))
         {
-#ifdef _HOUSEPI_RCPP
+#if defined(_HOUSEPI_RCPP)
             // Rcpp::warning(txt);
             Rf_warningcall(R_NilValue, "%s", txt.c_str());
 #else
@@ -64,7 +64,7 @@ namespace hsp
     /// https://gallery.rcpp.org/articles/quiet-stop-and-warning/
     void error(const std::string &txt)
     {
-#ifdef _HOUSEPI_RCPP
+#if defined(_HOUSEPI_RCPP)
         throw Rcpp::exception(txt.c_str(), false);
 #else
         std::cerr << "Error: " + txt + "\nExit..."

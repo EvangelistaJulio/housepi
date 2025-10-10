@@ -35,8 +35,7 @@ void Model::init_model_for_inference()
 	assert_no_missing_status();
 
 	// initialize look-up-table to largest possible value
-	bax::init_escape_patterns_lookuptable(
-		get_report_hh_size("max cases").first);
+	bax::init_generations_lookuptable(get_report_hh_size().max_cases.first);
 
 	// allocate memory for the escape matrix
 	cache_house_size_t_vector("order");

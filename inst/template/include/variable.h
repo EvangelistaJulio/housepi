@@ -226,7 +226,7 @@ public:
     std::string func_name() const { return pFunc_->name(); }
     std::string prop_name() const { return pProp_->name(); }
 
-#ifdef _HOUSEPI_RCPP
+#if defined(_HOUSEPI_RCPP)
     Rcpp::NumericVector rcpp_export_distr_args() const { return pDistr_->rcpp_export_args(); }
     Rcpp::NumericVector rcpp_export_func_args() const { return pFunc_->rcpp_export_args(); }
     Rcpp::NumericVector rcpp_export_range() const { return pDistr_->rcpp_export_range(); }

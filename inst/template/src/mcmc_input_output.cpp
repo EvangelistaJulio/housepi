@@ -16,7 +16,7 @@
 #include "tools/read.h"
 #include "mcmc_impl.h"
 
-#ifdef _HOUSEPI_RCPP
+#if defined(_HOUSEPI_RCPP)
 
 #include "tools/infprof.h"
 
@@ -105,7 +105,7 @@ void MCMC::Impl::DataWide::rcpp_import_multiplicity(SEXP input)
     catch (const std::exception &e)
     {
         hsp::error("While reading multiplicity:\n" +
-                     std::string(e.what()));
+                   std::string(e.what()));
     }
 }
 
@@ -121,7 +121,7 @@ void MCMC::Impl::Augmented::rcpp_import(SEXP input)
     catch (const std::exception &e)
     {
         hsp::error("While reading " + section_name_ + ":\n" +
-                     std::string(e.what()));
+                   std::string(e.what()));
     }
 }
 
@@ -290,7 +290,7 @@ Rcpp::DataFrame MCMC::Impl::DataLong::rcpp_export() const
     catch (const std::exception &e)
     {
         hsp::error("While exporting data (long):\n" +
-                     std::string(e.what()));
+                   std::string(e.what()));
     }
     return DataFrame();
 }
@@ -307,31 +307,37 @@ Rcpp::DataFrame MCMC::Impl::DataWide::rcpp_summarise_cases() const
     try
     {
         if (is_empty())
-            throw std::length_error(
-                "No report available for empty data.");
+            throw std::length_error("No report available for empty data.");
 
-        size_t n_rows = report_indiv_.size() + report_house_.size();
-        CharacterVector type(n_rows), comment(n_rows);
+        CharacterVector type = wrap(str_vec(4, "individual") + str_vec(4, "household"));
+        const size_t n_rows = type.size();
+        CharacterVector comment = {"total", "missing", "healthy", "infected",
+                                   "total", "no cases", "at least 1 case", "at least 2 cases"};
         IntegerVector counts(n_rows);
         NumericVector pct(n_rows);
 
-        size_t k = 0;
-        for (const auto &pair : report_indiv_)
-        {
-            type[k] = "individual";
-            comment[k] = pair.first;
-            counts[k] = pair.second;
-            pct[k] = 100. * static_cast<double>(pair.second) / n_individuals();
-            ++k;
-        }
-        for (const auto &pair : report_house_)
-        {
-            type[k] = "household";
-            comment[k] = pair.first;
-            counts[k] = pair.second;
-            pct[k] = 100. * static_cast<double>(pair.second) / n_houses();
-            ++k;
-        }
+        counts[0] = report_indiv.total;
+        pct[0] = 100.;
+
+        counts[1] = report_indiv.missing;
+        pct[1] = 100. * static_cast<double>(report_indiv.missing) / report_indiv.total;
+
+        counts[2] = report_indiv.healthy;
+        pct[2] = 100. * static_cast<double>(report_indiv.healthy) / report_indiv.total;
+
+        counts[3] = report_indiv.infected;
+        pct[3] = 100. * static_cast<double>(report_indiv.infected) / report_indiv.total;
+
+        counts[4] = report_house.total;
+        pct[4] = 100.;
+        counts[5] = report_house.no_cases;
+        pct[5] = 100. * static_cast<double>(report_house.no_cases) / report_house.total;
+
+        counts[6] = report_house.at_least_1_case;
+        pct[6] = 100. * static_cast<double>(report_house.at_least_1_case) / report_house.total;
+
+        counts[7] = report_house.at_least_2_cases;
+        pct[7] = 100. * static_cast<double>(report_house.at_least_2_cases) / report_house.total;
 
         return DataFrame::create(_["type"] = std::move(type),
                                  _["comment"] = std::move(comment),
@@ -341,7 +347,7 @@ Rcpp::DataFrame MCMC::Impl::DataWide::rcpp_summarise_cases() const
     catch (const std::exception &e)
     {
         hsp::error("While exporting data report:\n" +
-                     std::string(e.what()));
+                   std::string(e.what()));
     }
     return DataFrame();
 }
@@ -357,20 +363,26 @@ Rcpp::DataFrame MCMC::Impl::DataWide::rcpp_summarise_house_sizes() const
 
     try
     {
-        size_t n_rows = report_size_.size();
-        CharacterVector comment(n_rows);
+        CharacterVector comment({"max cases", "max miss", "min size", "max size"});
+        const size_t n_rows = comment.size();
         IntegerVector value(n_rows), counts(n_rows);
         NumericVector pct(n_rows);
 
-        size_t k = 0;
-        for (const auto &pair : report_size_)
-        {
-            comment[k] = pair.first;
-            value[k] = pair.second.first;
-            counts[k] = pair.second.second;
-            pct[k] = 100. * static_cast<double>(pair.second.second) / n_individuals_;
-            ++k;
-        }
+        value[0] = report_hh_size.max_cases.first;
+        counts[0] = report_hh_size.max_cases.second;
+        pct[0] = 100. * static_cast<double>(report_hh_size.max_cases.second) / report_indiv.total;
+
+        value[1] = report_hh_size.max_miss.first;
+        counts[1] = report_hh_size.max_miss.second;
+        pct[1] = 100. * static_cast<double>(report_hh_size.max_miss.second) / report_indiv.total;
+
+        value[2] = report_hh_size.min_size.first;
+        counts[2] = report_hh_size.min_size.second;
+        pct[2] = 100. * static_cast<double>(report_hh_size.min_size.second) / report_indiv.total;
+
+        value[3] = report_hh_size.max_size.first;
+        counts[3] = report_hh_size.max_size.second;
+        pct[3] = 100. * static_cast<double>(report_hh_size.max_size.second) / report_indiv.total;
 
         return DataFrame::create(_["comment"] = std::move(comment),
                                  _["value"] = std::move(value),
@@ -380,7 +392,7 @@ Rcpp::DataFrame MCMC::Impl::DataWide::rcpp_summarise_house_sizes() const
     catch (const std::exception &e)
     {
         hsp::error("While exporting household size report:\n" +
-                     std::string(e.what()));
+                   std::string(e.what()));
     }
     return DataFrame();
 }
@@ -471,7 +483,7 @@ Rcpp::NumericMatrix MCMC::Impl::rcpp_export_draws() const
     catch (const std::exception &e)
     {
         hsp::error("While exporting MCMC draws:\n" +
-                     std::string(e.what()));
+                   std::string(e.what()));
     }
     return NumericMatrix();
 }
@@ -522,7 +534,7 @@ Rcpp::NumericMatrix MCMC::Impl::DataWide::rcpp_export_draws() const
     catch (const std::exception &e)
     {
         hsp::error("While exporting household loglikelihood draws:\n" +
-                     std::string(e.what()));
+                   std::string(e.what()));
     }
     return NumericMatrix();
 }
@@ -775,7 +787,7 @@ Rcpp::List MCMC::Impl::rcpp_export_house_snapshot(const std::string &house_id) c
     catch (const std::exception &e)
     {
         hsp::error("While exporting house \"" + house_id + "\" for debug:\n" +
-                     std::string(e.what()));
+                   std::string(e.what()));
     }
     return List::create();
 }
@@ -948,7 +960,7 @@ std::ofstream open_ofstream_datawide(const std::string &f,
     }
     else
         throw std::runtime_error("Unable to open file: \"" + f + "\"");
-    
+
     return ofs;
 }
 
