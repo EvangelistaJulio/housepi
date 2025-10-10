@@ -27,10 +27,11 @@ add_augmented(
 
 \item{name}{\code{character(1)} name used by internal calls.}
 
-\item{status}{\code{integer(1)} with positive status to specify individual definitions.\cr
-If NA the generic defition is associated to all infectious individuals (default).}
+\item{status}{\code{integer(1)} with household member positive status.\cr
+It is used to specify status-specific definitions.
+If \code{NA}, associate the definition to all other infectious members (default).}
 
-\item{value}{\code{numeric(1)} or \code{character(1)} with the initial value. \cr
+\item{value}{\code{numeric(1)} or \code{character(1)} with initial value. \cr
 One between:\cr
 \itemize{
 \item Scalar value;\cr
@@ -38,10 +39,12 @@ One between:\cr
 \item Dataset name (followed by \verb{@D}).
 }}
 
-\item{const}{\code{logical(1)} to treat definition as constant (other details are ignored).\cr
+\item{const}{\code{logical(1)} to treat definition as constant.\cr
+If \code{TRUE}, additional Monte Carlo details are ignored.\cr
 Default is \code{FALSE}.}
 
-\item{discr}{\code{logical(1)} to treat definition as discrete and the model is discretized (if applicable).\cr
+\item{discr}{\code{logical(1)} to treat definition as discrete.\cr
+If applicable, the model is discretized.\cr
 Default is \code{FALSE}.}
 
 \item{func}{\code{character(1)} with the name of the augmented function.}
@@ -68,19 +71,19 @@ One between:\cr
 \item Dataset name (followed by \verb{@D}).
 }}
 
-\item{rule}{\code{character(1)} with the proposer rule used during inference.\cr
+\item{rule}{\code{character(1)} with proposer rule used during inference.\cr
 One between:\cr
 \itemize{
-\item \code{NA} (default): see "sample";\cr
 \item "sample": sampled from the \%s distribution;\cr
-\item "unifrm": increment is drawn from a uniform distribution;\cr
-\item "normal": increment is drawn from a normal distribution;\cr
-\item "lognormal": increment id drawn from a lognormal distribution (for positive values only).
+\item "unifrm": increments drawn from uniform distribution;\cr
+\item "normal": increments drawn from normal distribution;\cr
+\item "lognormal": log-increments drawn from lognormal distribution (for positive values only);
+\item \code{NA} (default): same as "sample".
 }}
 
-\item{scale}{\code{numeric(1)}with the scale of the proposer rule (if applicable).\cr
+\item{scale}{\code{numeric(1)} with scale of the proposer rule.\cr
 Changed automatically during inference if \code{n_adpat}>0.\cr
-Default is \code{1}.}
+Not applicable if rule is "sample". Default is \code{1} otherwise.}
 
 \item{expr}{Provide an expression.}
 }

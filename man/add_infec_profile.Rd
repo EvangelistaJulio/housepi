@@ -11,7 +11,8 @@ add_infec_profile(object, name, discr = FALSE, args = NULL, max = NULL)
 
 \item{name}{\code{character(1)} name used by internal calls.}
 
-\item{discr}{\code{logical(1)} to treat definition as discrete and the profile is discretized (if applicable).\cr
+\item{discr}{\code{logical(1)} to treat definition as discrete.\cr
+If applicable, the profile is discretized.\cr
 Default is \code{FALSE}.}
 
 \item{args}{named \code{numeric()} or \code{list} with custom arguments for the profile distribution.}

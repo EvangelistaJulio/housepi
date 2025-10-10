@@ -20,17 +20,17 @@ infer(
 \arguments{
 \item{object}{\code{HousepiModel} object.}
 
-\item{steps}{\code{integer(1)}  with the total number of MCMC steps for each chain.}
+\item{steps}{\code{integer(1)}  with total number of MCMC steps per chain.}
 
-\item{burnin}{\code{integer(1)} with the number of initial steps to discard as burn-in.}
+\item{burnin}{\code{integer(1)} with number of initial steps to discard.}
 
-\item{thin}{\code{integer(1)} with the thinning interval, i. e. the number of steps to skip between each saved sample.}
+\item{thin}{\code{integer(1)} with number of steps to skip between each saved sample.}
 
-\item{adapt}{\code{integer(1)} with the number of adaptation steps before starting the main sampling.}
+\item{adapt}{\code{integer(1)} with number of adaptation steps before sampling.}
 
-\item{chains}{\code{integer(1)} with the number of independent MCMC chains to run.}
+\item{chains}{\code{integer(1)} with number of independent MCMC chains to run.}
 
-\item{threads}{\code{integer(1)} with the number of threads to run in parallel.}
+\item{threads}{\code{integer(1)} with number of threads to run in parallel.}
 
 \item{id_draws}{\code{character()} with individuals identifiers.\cr
 Store draws of public augmented variables for the chosen individuals.}

@@ -38,7 +38,7 @@ New object of class
 \describe{
 \item{\code{...}}{Named features with respective list of definition details.}
 
-\item{\code{from}}{A \code{list} of \code{list}s with encoding definitions for each feature.}
+\item{\code{from}}{\code{list} of \code{list}s with encoding definitions per feature.}
 }
 \if{html}{\out{</div>}}
 }

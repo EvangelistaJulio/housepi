@@ -13,7 +13,7 @@ Output object of expected cases by household size, method of household model.
 \section{Active bindings}{
 \if{html}{\out{<div class="r6-active-bindings">}}
 \describe{
-\item{\code{sar}}{A \code{data.frame} with observed and expected secondary attack rates by household size.
+\item{\code{sar}}{\code{data.frame} with observed and expected secondary attack rates by household size.
 If a maximum house size is set, larger sizes are not returned.}
 
 \item{\code{formatted_cases_table}}{\code{data.frame}\cr
@@ -71,8 +71,8 @@ One between:\cr
 \item If \code{FALSE} or \code{0}, suppresses progress display.
 }}
 
-\item{\code{cri_level}}{\code{numeric(1)} with the level for the credible interval in (0.5, 1.0).\cr
-Default is 0.95.}
+\item{\code{cri_level}}{\code{numeric(1)} with the level for credible interval\cr
+It must be a value in (0.5, 1.0). Default is 0.95.}
 }
 \if{html}{\out{</div>}}
 }

@@ -8,8 +8,7 @@ new_housepi_model(
   choice = NA_character_,
   as_template = FALSE,
   force = FALSE,
-  quiet = TRUE,
-  ...
+  quiet = TRUE
 )
 }
 \arguments{
@@ -32,7 +31,10 @@ Default is \code{FALSE}.}
 \item{quiet}{\code{logical(1)} to hide compilation commands and warnings.\cr
 Default is \code{TRUE}.}
 
-\item{...}{Named arguments with additional compilation options.}
+\item{...}{Named arguments with additional compilation options:\cr
+\itemize{
+\item If \code{discr = TRUE}, uses the model in discrete time, if applicable.
+}}
 }
 \value{
 \code{HousepiModel} object.

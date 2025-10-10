@@ -9,7 +9,7 @@ add_data_long(object, data_long)
 \arguments{
 \item{object}{\code{HousepiModel} object.}
 
-\item{data_long}{\code{data.frame} with the individual data (long format) used for analysis.}
+\item{data_long}{\code{data.frame} with additional individal long format data.}
 }
 \value{
 \code{HousepiModel}\cr

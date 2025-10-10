@@ -71,7 +71,8 @@ used to run inference and simulation routines.
   choice = NA_character_,
   as_template = FALSE,
   force = FALSE,
-  quiet = TRUE
+  quiet = TRUE,
+  ...
 )}\if{html}{\out{</div>}}
 }
 
@@ -97,7 +98,10 @@ Default is \code{FALSE}.}
 \item{\code{quiet}}{\code{logical(1)} to hide compilation commands and warnings.\cr
 Default is \code{TRUE}.}
 
-\item{\code{...}}{Named arguments with additional compilation options.}
+\item{\code{...}}{Named arguments with additional compilation options:\cr
+\itemize{
+\item If \code{discr = TRUE}, uses the model in discrete time, if applicable.
+}}
 }
 \if{html}{\out{</div>}}
 }
@@ -177,7 +181,7 @@ Maje an internal copy of the provided data_long.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{data_long}}{\code{data.frame} with the individual data (long format) used for analysis.}
+\item{\code{data_long}}{\code{data.frame} with additional individal long format data.}
 }
 \if{html}{\out{</div>}}
 }
@@ -211,10 +215,12 @@ If the parameter already exists, it is updated.
 \item{\code{value}}{\code{numeric(1)} with initial value.\cr
 Required only if constant or random initialization has been disabled.}
 
-\item{\code{const}}{\code{logical(1)} to treat definition as constant (other details are ignored).\cr
+\item{\code{const}}{\code{logical(1)} to treat definition as constant.\cr
+If \code{TRUE}, additional Monte Carlo details are ignored.\cr
 Default is \code{FALSE}.}
 
-\item{\code{discr}}{\code{logical(1)} to treat definition as discrete and the prior is discretized (if applicable).\cr
+\item{\code{discr}}{\code{logical(1)} to treat definition as discrete.\cr
+If applicable, the prior is discretized.\cr
 Default is \code{FALSE}.}
 
 \item{\code{prior}}{\code{character(1)} wit the choice for the prior distribution.}
@@ -225,19 +231,19 @@ Default is \code{FALSE}.}
 
 \item{\code{max}}{\code{numeric(1)} to truncate to a maximum value.}
 
-\item{\code{rule}}{\code{character(1)} with the proposer rule used during inference.\cr
+\item{\code{rule}}{\code{character(1)} with proposer rule used during inference.\cr
 One between:\cr
 \itemize{
-\item \code{NA} (default): see "sample";\cr
 \item "sample": sampled from the prior distribution;\cr
-\item "unifrm": increment is drawn from a uniform distribution;\cr
-\item "normal": increment is drawn from a normal distribution;\cr
-\item "lognormal": increment id drawn from a lognormal distribution (for positive values only).
+\item "unifrm": increments drawn from uniform distribution;\cr
+\item "normal": increments drawn from normal distribution;\cr
+\item "lognormal": log-increments drawn from lognormal distribution (for positive values only);
+\item \code{NA} (default): same as "sample".
 }}
 
-\item{\code{scale}}{\code{numeric(1)}with the scale of the proposer rule (if applicable).\cr
+\item{\code{scale}}{\code{numeric(1)} with scale of the proposer rule.\cr
 Changed automatically during inference if \code{n_adpat}>0.\cr
-Default is \code{1}.}
+Not applicable if rule is "sample". Default is \code{1} otherwise.}
 
 \item{\code{object}}{\code{HousepiModel} object.}
 }
@@ -314,10 +320,11 @@ If the augmented variablw already exists, it is updated.
 \describe{
 \item{\code{name}}{\code{character(1)} name used by internal calls.}
 
-\item{\code{status}}{\code{integer(1)} with positive status to specify individual definitions.\cr
-If NA the generic defition is associated to all infectious individuals (default).}
+\item{\code{status}}{\code{integer(1)} with household member positive status.\cr
+It is used to specify status-specific definitions.
+If \code{NA}, associate the definition to all other infectious members (default).}
 
-\item{\code{value}}{\code{numeric(1)} or \code{character(1)} with the initial value. \cr
+\item{\code{value}}{\code{numeric(1)} or \code{character(1)} with initial value. \cr
 One between:\cr
 \itemize{
 \item Scalar value;\cr
@@ -325,10 +332,12 @@ One between:\cr
 \item Dataset name (followed by \verb{@D}).
 }}
 
-\item{\code{const}}{\code{logical(1)} to treat definition as constant (other details are ignored).\cr
+\item{\code{const}}{\code{logical(1)} to treat definition as constant.\cr
+If \code{TRUE}, additional Monte Carlo details are ignored.\cr
 Default is \code{FALSE}.}
 
-\item{\code{discr}}{\code{logical(1)} to treat definition as discrete and the model is discretized (if applicable).\cr
+\item{\code{discr}}{\code{logical(1)} to treat definition as discrete.\cr
+If applicable, the model is discretized.\cr
 Default is \code{FALSE}.}
 
 \item{\code{func}}{\code{character(1)} with the name of the augmented function.}
@@ -355,19 +364,19 @@ One between:\cr
 \item Dataset name (followed by \verb{@D}).
 }}
 
-\item{\code{rule}}{\code{character(1)} with the proposer rule used during inference.\cr
+\item{\code{rule}}{\code{character(1)} with proposer rule used during inference.\cr
 One between:\cr
 \itemize{
-\item \code{NA} (default): see "sample";\cr
 \item "sample": sampled from the \%s distribution;\cr
-\item "unifrm": increment is drawn from a uniform distribution;\cr
-\item "normal": increment is drawn from a normal distribution;\cr
-\item "lognormal": increment id drawn from a lognormal distribution (for positive values only).
+\item "unifrm": increments drawn from uniform distribution;\cr
+\item "normal": increments drawn from normal distribution;\cr
+\item "lognormal": log-increments drawn from lognormal distribution (for positive values only);
+\item \code{NA} (default): same as "sample".
 }}
 
-\item{\code{scale}}{\code{numeric(1)}with the scale of the proposer rule (if applicable).\cr
+\item{\code{scale}}{\code{numeric(1)} with scale of the proposer rule.\cr
 Changed automatically during inference if \code{n_adpat}>0.\cr
-Default is \code{1}.}
+Not applicable if rule is "sample". Default is \code{1} otherwise.}
 
 \item{\code{expr}}{Provide an expression.}
 }
@@ -469,19 +478,19 @@ If \code{FALSE} features are combined (default).}
 
 \item{\code{max}}{\code{numeric(1)} to truncate to a maximum value.}
 
-\item{\code{rule}}{\code{character(1)} with the proposer rule used during inference.\cr
+\item{\code{rule}}{\code{character(1)} with proposer rule used during inference.\cr
 One between:\cr
 \itemize{
-\item \code{NA} (default): see "sample";\cr
 \item "sample": sampled from the \%s distribution;\cr
-\item "unifrm": increment is drawn from a uniform distribution;\cr
-\item "normal": increment is drawn from a normal distribution;\cr
-\item "lognormal": increment id drawn from a lognormal distribution (for positive values only).
+\item "unifrm": increments drawn from uniform distribution;\cr
+\item "normal": increments drawn from normal distribution;\cr
+\item "lognormal": log-increments drawn from lognormal distribution (for positive values only);
+\item \code{NA} (default): same as "sample".
 }}
 
-\item{\code{scale}}{\code{numeric(1)}with the scale of the proposer rule (if applicable).\cr
+\item{\code{scale}}{\code{numeric(1)} with scale of the proposer rule.\cr
 Changed automatically during inference if \code{n_adpat}>0.\cr
-Default is \code{1}.}
+Not applicable if rule is "sample". Default is \code{1} otherwise.}
 }
 \if{html}{\out{</div>}}
 }
@@ -523,7 +532,8 @@ Add definition of infectivity profile.
 \describe{
 \item{\code{name}}{\code{character(1)} name used by internal calls.}
 
-\item{\code{discr}}{\code{logical(1)} to treat definition as discrete and the profile is discretized (if applicable).\cr
+\item{\code{discr}}{\code{logical(1)} to treat definition as discrete.\cr
+If applicable, the profile is discretized.\cr
 Default is \code{FALSE}.}
 
 \item{\code{args}}{named \code{numeric()} or \code{list} with custom arguments for the profile distribution.}
@@ -586,17 +596,17 @@ Run inference with Bayesian Markov Chain Monte Carlo.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{steps}}{\code{integer(1)}  with the total number of MCMC steps for each chain.}
+\item{\code{steps}}{\code{integer(1)}  with total number of MCMC steps per chain.}
 
-\item{\code{burnin}}{\code{integer(1)} with the number of initial steps to discard as burn-in.}
+\item{\code{burnin}}{\code{integer(1)} with number of initial steps to discard.}
 
-\item{\code{thin}}{\code{integer(1)} with the thinning interval, i. e. the number of steps to skip between each saved sample.}
+\item{\code{thin}}{\code{integer(1)} with number of steps to skip between each saved sample.}
 
-\item{\code{adapt}}{\code{integer(1)} with the number of adaptation steps before starting the main sampling.}
+\item{\code{adapt}}{\code{integer(1)} with number of adaptation steps before sampling.}
 
-\item{\code{chains}}{\code{integer(1)} with the number of independent MCMC chains to run.}
+\item{\code{chains}}{\code{integer(1)} with number of independent MCMC chains to run.}
 
-\item{\code{threads}}{\code{integer(1)} with the number of threads to run in parallel.}
+\item{\code{threads}}{\code{integer(1)} with number of threads to run in parallel.}
 
 \item{\code{id_draws}}{\code{character()} with individuals identifiers.\cr
 Store draws of public augmented variables for the chosen individuals.}
@@ -639,27 +649,26 @@ It uses the method of power posteriors with different available schemes.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{scheme}}{\code{character(1)} with the scheme used for evidence estimation.\cr
+\item{\code{scheme}}{\code{character(1)} with scheme used for evidence estimation.\cr
 One between\cr
 \itemize{
-\item "power-fractions": uses inverse temperatures \eqn{\frac{r^5}{{n_\mathrm{rungs}}^5}}{r^5 / n_rungs^5}  (default).
+\item "power-fractions": uses inverse temperatures \eqn{\frac{r^5}{{n_\mathrm{rungs}}^5}}{r^5 / n_rungs^5} (default).
 \item "adaptive": uses adaptive thermodynamic ladder.
 }}
 
-\item{\code{rungs}}{\code{integer(1)} \cr
-Number of rungs in the thermodynamic ladder.}
+\item{\code{rungs}}{\code{integer(1)} wiht number of rungs in thermodynamic ladder.}
 
-\item{\code{steps}}{\code{integer(1)}  with the total number of MCMC steps for each chain.}
+\item{\code{steps}}{\code{integer(1)}  with total number of MCMC steps per chain.}
 
-\item{\code{burnin}}{\code{integer(1)} with the number of initial steps to discard as burn-in.}
+\item{\code{burnin}}{\code{integer(1)} with number of initial steps to discard.}
 
-\item{\code{thin}}{\code{integer(1)} with the thinning interval, i. e. the number of steps to skip between each saved sample.}
+\item{\code{thin}}{\code{integer(1)} with number of steps to skip between each saved sample.}
 
-\item{\code{adapt}}{\code{integer(1)} with the number of adaptation steps before starting the main sampling.}
+\item{\code{adapt}}{\code{integer(1)} with number of adaptation steps before sampling.}
 
-\item{\code{chains}}{\code{integer(1)} with the number of independent MCMC chains to run.}
+\item{\code{chains}}{\code{integer(1)} with number of independent MCMC chains to run.}
 
-\item{\code{threads}}{\code{integer(1)} with the number of threads to run in parallel.}
+\item{\code{threads}}{\code{integer(1)} with number of threads to run in parallel.}
 
 \item{\code{seed}}{\code{integer(1)} with the seed for the random number generator.\cr
 If \code{NA} uses current R seed (default).}

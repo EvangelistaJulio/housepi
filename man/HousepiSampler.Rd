@@ -43,9 +43,9 @@ New object of class
 \describe{
 \item{\code{...}}{Named features with respective list of definition details.}
 
-\item{\code{from}}{A \code{list} of \code{list}s with encoding definitions for each feature.}
+\item{\code{from}}{\code{list} of \code{list}s with encoding definitions per feature.}
 
-\item{\code{ascending}}{A \code{logical(1)} to set ascending hierarchy between feature numbers.\cr
+\item{\code{ascending}}{\code{logical(1)} to set ascending hierarchy between feature numbers.\cr
 If \code{FALSE} is descending (default).}
 }
 \if{html}{\out{</div>}}
@@ -65,7 +65,7 @@ Compute household marginal distributions according to hierarchical model.
 \describe{
 \item{\code{data_wide}}{\code{data.frame} with the household data used for analysis in wide format.}
 
-\item{\code{ascending}}{A \code{logical(1)} to set ascending hierarchy between feature numbers.\cr
+\item{\code{ascending}}{\code{logical(1)} to set ascending hierarchy between feature numbers.\cr
 If \code{FALSE} is descending (default).}
 }
 \if{html}{\out{</div>}}

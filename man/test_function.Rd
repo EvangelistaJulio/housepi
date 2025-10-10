@@ -31,7 +31,7 @@ Default is \code{FALSE}.}
 
 \item{discr}{\code{logical(1)} to treat definition as discrete.}
 
-\item{model}{\code{HousepiModel} object eventually containing the custom registred \%s.\cr
+\item{model}{\code{HousepiModel} object containing the custom registred \%s.\cr
 If \code{NULL} (default) the built-in registry is used.\cr}
 }
 \value{
@@ -39,5 +39,5 @@ If \code{NULL} (default) the built-in registry is used.\cr}
 }
 \description{
 Call housepi registered function.
-This function is meant for testing only and not for repeated operations.
+Meant for testing only, not for repeated operations.
 }

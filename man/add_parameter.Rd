@@ -26,10 +26,12 @@ add_parameter(
 \item{value}{\code{numeric(1)} with initial value.\cr
 Required only if constant or random initialization has been disabled.}
 
-\item{const}{\code{logical(1)} to treat definition as constant (other details are ignored).\cr
+\item{const}{\code{logical(1)} to treat definition as constant.\cr
+If \code{TRUE}, additional Monte Carlo details are ignored.\cr
 Default is \code{FALSE}.}
 
-\item{discr}{\code{logical(1)} to treat definition as discrete and the prior is discretized (if applicable).\cr
+\item{discr}{\code{logical(1)} to treat definition as discrete.\cr
+If applicable, the prior is discretized.\cr
 Default is \code{FALSE}.}
 
 \item{prior}{\code{character(1)} wit the choice for the prior distribution.}
@@ -40,19 +42,19 @@ Default is \code{FALSE}.}
 
 \item{max}{\code{numeric(1)} to truncate to a maximum value.}
 
-\item{rule}{\code{character(1)} with the proposer rule used during inference.\cr
+\item{rule}{\code{character(1)} with proposer rule used during inference.\cr
 One between:\cr
 \itemize{
-\item \code{NA} (default): see "sample";\cr
 \item "sample": sampled from the prior distribution;\cr
-\item "unifrm": increment is drawn from a uniform distribution;\cr
-\item "normal": increment is drawn from a normal distribution;\cr
-\item "lognormal": increment id drawn from a lognormal distribution (for positive values only).
+\item "unifrm": increments drawn from uniform distribution;\cr
+\item "normal": increments drawn from normal distribution;\cr
+\item "lognormal": log-increments drawn from lognormal distribution (for positive values only);
+\item \code{NA} (default): same as "sample".
 }}
 
-\item{scale}{\code{numeric(1)}with the scale of the proposer rule (if applicable).\cr
+\item{scale}{\code{numeric(1)} with scale of the proposer rule.\cr
 Changed automatically during inference if \code{n_adpat}>0.\cr
-Default is \code{1}.}
+Not applicable if rule is "sample". Default is \code{1} otherwise.}
 }
 \value{
 \code{HousepiModel}\cr

@@ -21,27 +21,26 @@ logevidence(
 \arguments{
 \item{object}{\code{HousepiModel} object.}
 
-\item{scheme}{\code{character(1)} with the scheme used for evidence estimation.\cr
+\item{scheme}{\code{character(1)} with scheme used for evidence estimation.\cr
 One between\cr
 \itemize{
-\item "power-fractions": uses inverse temperatures \eqn{\frac{r^5}{{n_\mathrm{rungs}}^5}}{r^5 / n_rungs^5}  (default).
+\item "power-fractions": uses inverse temperatures \eqn{\frac{r^5}{{n_\mathrm{rungs}}^5}}{r^5 / n_rungs^5} (default).
 \item "adaptive": uses adaptive thermodynamic ladder.
 }}
 
-\item{rungs}{\code{integer(1)} \cr
-Number of rungs in the thermodynamic ladder.}
+\item{rungs}{\code{integer(1)} wiht number of rungs in thermodynamic ladder.}
 
-\item{steps}{\code{integer(1)}  with the total number of MCMC steps for each chain.}
+\item{steps}{\code{integer(1)}  with total number of MCMC steps per chain.}
 
-\item{burnin}{\code{integer(1)} with the number of initial steps to discard as burn-in.}
+\item{burnin}{\code{integer(1)} with number of initial steps to discard.}
 
-\item{thin}{\code{integer(1)} with the thinning interval, i. e. the number of steps to skip between each saved sample.}
+\item{thin}{\code{integer(1)} with number of steps to skip between each saved sample.}
 
-\item{adapt}{\code{integer(1)} with the number of adaptation steps before starting the main sampling.}
+\item{adapt}{\code{integer(1)} with number of adaptation steps before sampling.}
 
-\item{chains}{\code{integer(1)} with the number of independent MCMC chains to run.}
+\item{chains}{\code{integer(1)} with number of independent MCMC chains to run.}
 
-\item{threads}{\code{integer(1)} with the number of threads to run in parallel.}
+\item{threads}{\code{integer(1)} with number of threads to run in parallel.}
 
 \item{seed}{\code{integer(1)} with the seed for the random number generator.\cr
 If \code{NA} uses current R seed (default).}
