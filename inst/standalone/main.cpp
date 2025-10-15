@@ -13,14 +13,7 @@
  */
 
 #include <string>
-#include <map>
-#include <cmath>
-#include <random>
 #include <iostream>
-#include <fstream>
-#include <sstream>
-#include <iomanip>
-#include <time.h>
 
 #include "mcmc.h"
 #include "tools/na_utils.h"
@@ -42,15 +35,11 @@ void print_decorator(const std::string &title, bool verbose = true, const std::s
     const char decor = '-';          // decorator for prints
 
     if (verbose)
-    {
-        std::cout << std::string(decor_left, decor);
-        std::cout << " " << title << " ";
-        std::cout << std::string(decor_width - title.size() - decor_left, decor);
-        if (!hsp::na::is(txt))
-            std::cout << "\n"
-                      << txt;
-        std::cout << std::endl;
-    }
+        std::cout << std::string(decor_left, decor)
+                  << " " << title << " "
+                  << std::string(decor_width - title.size() - decor_left, decor)
+                  << (hsp::na::is(txt) ? "" : "\n" + txt)
+                  << std::endl;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -68,6 +57,7 @@ int main(int argc, char *argv[])
     int carg_i = 1;   // command line iterator
     std::string carg; // command line argument
 
+    bool verbose = false;          // verbose option
     bool is_loglikelihood = false; // loglikelihood option
     bool is_infer = false;         // inference option
     bool is_simulate = false;      // simulation option
@@ -84,16 +74,10 @@ int main(int argc, char *argv[])
     std::string param_file = hsp::na::STRING;
     std::string setup_file = hsp::na::STRING;
 
-    bool verbose = false; // verbose option
-
     // check any command was supplied
     if (argc < 2)
-    {
-        std::ostringstream oss;
-        oss << "No argument or command found. Check the usage through:\n"
-            << argv[0] << " -h";
-        hsp::error(oss.str());
-    }
+        hsp::msg::error("No argument or command found. Check the usage through:\n" +
+                        std::string(argv[0]) + " -h");
 
     // parse commands and options
     while (carg_i < argc)
@@ -102,13 +86,10 @@ int main(int argc, char *argv[])
 
         // Command line argument asking for help
         if (toup(carg) == "-H" || tolow(carg) == "--help")
-        {
-            // Show the manual using man and installed manpages // UPDATE : produce a manual
-            std::ostringstream oss;
-            oss << "No Software Manual is available, refer to the Rcpp tutorials.\n"
-                << "Apologies for the inconvenience.";
-            hsp::error(oss.str());
-        }
+            // Show the manual using man and installed manpages
+            // UPDATE : produce a manual
+            hsp::msg::error(
+                "No Software Manual is available, refer to the Rcpp tutorials.\nApologies for the inconvenience.");
 
         else if (tolow(carg) == "--logevidence")
             num_rungs = hsp::str::toul(argv[++carg_i], "number of rungs");
@@ -153,7 +134,7 @@ int main(int argc, char *argv[])
             verbose = true;
 
         else
-            hsp::error("Unrecognized option `" + carg + "`.");
+            hsp::msg::error("Unrecognized option `" + carg + "`.");
 
         carg_i++; // move to the next command line argument
     }
@@ -164,7 +145,7 @@ int main(int argc, char *argv[])
     if (aux == 0)
         is_loglikelihood = true; // default
     else if (aux > 1)
-        hsp::error(
+        hsp::msg::error(
             "Incompatible commands: choose one between --loglikelihood, --infer, --simulate or --logevidence.");
 
     //////////////////////////////
@@ -204,7 +185,7 @@ int main(int argc, char *argv[])
             user_model->print_infer_state(output_file);
         }
         else
-            hsp::error("Missing output file for inference.");
+            hsp::msg::error("Missing output file for inference.");
     }
     else if (is_simulate) // simulation an outbreak
     {
@@ -214,7 +195,7 @@ int main(int argc, char *argv[])
             user_model->print_simulated_data_wide(output_file);
         }
         else
-            hsp::error("Missing output file for simulation.");
+            hsp::msg::error("Missing output file for simulation.");
     }
     else if (is_logevidence) // estimate logevidence
     {

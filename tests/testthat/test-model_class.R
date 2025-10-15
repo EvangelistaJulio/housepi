@@ -42,8 +42,7 @@ test_that("Model class blank calls", {
   # blank simulation
   hhmodel <- new_housepi_model("blank")
   hhmodel$add_augmented(name = "dummy", value = 3)
-  expect_warning(out <- hhmodel$simulate(), 
-                 regexp = "blank")
+  expect_warning(out <- hhmodel$simulate(), regexp = "blank")
   expect_true(
     all(sapply(out$dummy[out$status == 0], function(x) identical(x, NA_real_)))
   )
@@ -78,6 +77,20 @@ test_that("Deep clone works as expected", {
   # check no backward changes
   hhmodel$add_group_rate("susceptibility", by = "sex")
   expect_failure(expect_equal(hhmodel$group_rates, hhclone$group_rates))
+})
+
+test_that("Discretization is enabled as expected", {
+  # blank household model object
+  hhmodel <- new_housepi_model("blank")
+  hhmodel$load_parameter_list(
+    sample = list(prior = "gamma", discr = TRUE),
+    uniform = list(prior = "gamma", discr = TRUE, rule = "uniform"),
+    normal = list(prior = "gamma", discr = TRUE, rule = "normal"),
+    lognormal = list(prior = "gamma", discr = TRUE, rule = "lognormal")
+  )
+
+  y <- posterior::as_draws_matrix(get_param_draws(hhmodel$infer()))
+  expect_true(all(y == floor(y)))
 })
 
 test_that("Loglikelihood traces and pointwise traces are coherent", {
@@ -150,7 +163,7 @@ test_that("Nested definitions raise errors", {
       proba = ~..layer
     )$loglikelihood()
   ))
-  expect_match(err_msg, "Missing definition")
+  expect_match(err_msg, "Could not find a definition")
   expect_match(err_msg, "status 3")
 
   # second generation of definitions
@@ -163,7 +176,7 @@ test_that("Nested definitions raise errors", {
       proba = ~..layer
     )$loglikelihood()
   ))
-  expect_match(err_msg, "Missing definition")
+  expect_match(err_msg, "Could not find a definition")
   expect_match(err_msg, "status 4")
 })
 

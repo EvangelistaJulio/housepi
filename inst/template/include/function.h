@@ -134,7 +134,7 @@ protected:
     observ_dbl_ptr (Attribute::*get_ptr_)() const = &Attribute::do_get_ptr_default_;
     /// Get pointer to attribute error.
     observ_dbl_ptr do_get_pointer_error_() const { throw std::runtime_error(
-        "Cannot return a pointer to " + err_name() + "."); }
+        "Tried to return a pointer to " + err_name() + "."); }
     /// Get pointer to attribute value internal value.
     observ_dbl_ptr do_get_ptr_default_() const { return &value_; }
     /// Get pointer to attribute value from external value.
@@ -146,7 +146,7 @@ protected:
     virtual void do_set_default_(double x) { value_ = x; }
     /// Set error. Non numeric attributes can't be set, but just assigned.
     void do_set_error_(double) { throw std::runtime_error(
-        "Non numeric " + err_name() + " cannot be changed."); }
+        "Tried to change non numeric " + err_name() + "."); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -230,12 +230,12 @@ public:
 
     /// Virtual function to initialize discretization.
     virtual void init_discretization() { throw std::invalid_argument(
-        "Wrong call to undefined method discretization of " + err_name() + "."); }
+        "Called undefined method discretization of " + err_name() + "."); }
 
     /// Virtual function to initialize truncation.
     /// NOTE: always to be call after init_discretization.
     virtual void init_truncation() { throw std::invalid_argument(
-        "Wrong call to undefined method truncation of " + err_name() + "."); }
+        "Called to undefined method truncation of " + err_name() + "."); }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////  Function : show  //////////////////////////////////////
@@ -280,13 +280,13 @@ protected:
 
     /// Raw call method.
     virtual double raw_function_(double) const { throw std::invalid_argument(
-        "Wrong call to undefined method \"function\" of " + err_name() + "."); }
+        "Called undefined method \"function\" of " + err_name() + "."); }
     /// Raw log-call method.
     virtual double raw_logfunc_(double) const { throw std::invalid_argument(
-        "Wrong call to undefined method \"logfunc\" of " + err_name() + "."); }
+        "Called undefined method \"logfunc\" of " + err_name() + "."); }
     /// Raw primitive method.
     virtual double raw_primitive_(double) const { throw std::invalid_argument(
-        "Wrong call to undefined method \"primitive\" of " + err_name() + "."); }
+        "Called undefined method \"primitive\" of " + err_name() + "."); }
     /// Raw log-ratio method. NOTE: empty function return 0 by convention.
     virtual double raw_logratio_(double, double) const { return 0.; }
 

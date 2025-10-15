@@ -70,18 +70,19 @@ u_dict<str_vec> rdataframe_to_map(SEXP input)
     return output;
 }
 
-#define MAKE_RCPP_IMPORT_METHOD(ImplSection, r_to_map)            \
-    void MCMC::Impl::ImplSection::rcpp_import(SEXP input)         \
-    {                                                             \
-        try                                                       \
-        {                                                         \
-            build(r_to_map(input));                               \
-        }                                                         \
-        catch (const std::exception &e)                           \
-        {                                                         \
-            hsp::error("While reading " + section_name_ + ":\n" + \
-                       std::string(e.what()));                    \
-        }                                                         \
+#define MAKE_RCPP_IMPORT_METHOD(ImplSection, r_to_map)     \
+    void MCMC::Impl::ImplSection::rcpp_import(SEXP input)  \
+    {                                                      \
+        try                                                \
+        {                                                  \
+            build(r_to_map(input));                        \
+        }                                                  \
+        catch (const std::exception &e)                    \
+        {                                                  \
+            hsp::msg::error(                               \
+                "While reading " + section_name_ + ":\n" + \
+                std::string(e.what()));                    \
+        }                                                  \
     }
 
 #define MAKE_RCPP_IMPORT_LIST_METHOD(ImplSection) MAKE_RCPP_IMPORT_METHOD(ImplSection, rlist_to_map)
@@ -104,8 +105,8 @@ void MCMC::Impl::DataWide::rcpp_import_multiplicity(SEXP input)
     }
     catch (const std::exception &e)
     {
-        hsp::error("While reading multiplicity:\n" +
-                   std::string(e.what()));
+        hsp::msg::error("While reading multiplicity:\n" +
+                        std::string(e.what()));
     }
 }
 
@@ -119,8 +120,8 @@ void MCMC::Impl::Augmented::rcpp_import(SEXP input)
     }
     catch (const std::exception &e)
     {
-        hsp::error("While reading " + section_name_ + ":\n" +
-                   std::string(e.what()));
+        hsp::msg::error("While reading " + section_name_ + ":\n" +
+                        std::string(e.what()));
     }
 }
 
@@ -236,8 +237,8 @@ Rcpp::DataFrame MCMC::Impl::DataWide::rcpp_export(const str_vec &columns, bool i
     }
     catch (const std::exception &e)
     {
-        hsp::error("While exporting data (wide):\n" +
-                   std::string(e.what()));
+        hsp::msg::error("While exporting data (wide):\n" +
+                        std::string(e.what()));
     }
     return DataFrame();
 }
@@ -288,8 +289,8 @@ Rcpp::DataFrame MCMC::Impl::DataLong::rcpp_export() const
     }
     catch (const std::exception &e)
     {
-        hsp::error("While exporting data (long):\n" +
-                   std::string(e.what()));
+        hsp::msg::error("While exporting data (long):\n" +
+                        std::string(e.what()));
     }
     return DataFrame();
 }
@@ -306,7 +307,7 @@ Rcpp::DataFrame MCMC::Impl::DataWide::rcpp_summarise_cases() const
     try
     {
         if (is_empty())
-            throw std::length_error("No report available for empty data.");
+            hsp::msg::warning("Calling a summarise_cases on empty data.");
 
         CharacterVector type = wrap(str_vec(4, "individual") + str_vec(4, "household"));
         const size_t n_rows = type.size();
@@ -345,8 +346,8 @@ Rcpp::DataFrame MCMC::Impl::DataWide::rcpp_summarise_cases() const
     }
     catch (const std::exception &e)
     {
-        hsp::error("While exporting data report:\n" +
-                   std::string(e.what()));
+        hsp::msg::error("While exporting data report:\n" +
+                        std::string(e.what()));
     }
     return DataFrame();
 }
@@ -390,8 +391,8 @@ Rcpp::DataFrame MCMC::Impl::DataWide::rcpp_summarise_house_sizes() const
     }
     catch (const std::exception &e)
     {
-        hsp::error("While exporting household size report:\n" +
-                   std::string(e.what()));
+        hsp::msg::error("While exporting household size report:\n" +
+                        std::string(e.what()));
     }
     return DataFrame();
 }
@@ -481,8 +482,8 @@ Rcpp::NumericMatrix MCMC::Impl::rcpp_export_draws() const
     }
     catch (const std::exception &e)
     {
-        hsp::error("While exporting MCMC draws:\n" +
-                   std::string(e.what()));
+        hsp::msg::error("While exporting MCMC draws:\n" +
+                        std::string(e.what()));
     }
     return NumericMatrix();
 }
@@ -532,8 +533,8 @@ Rcpp::NumericMatrix MCMC::Impl::DataWide::rcpp_export_draws() const
     }
     catch (const std::exception &e)
     {
-        hsp::error("While exporting household loglikelihood draws:\n" +
-                   std::string(e.what()));
+        hsp::msg::error("While exporting household loglikelihood draws:\n" +
+                        std::string(e.what()));
     }
     return NumericMatrix();
 }
@@ -785,8 +786,8 @@ Rcpp::List MCMC::Impl::rcpp_export_house_snapshot(const std::string &house_id) c
     }
     catch (const std::exception &e)
     {
-        hsp::error("While exporting house \"" + house_id + "\" for debug:\n" +
-                   std::string(e.what()));
+        hsp::msg::error("While exporting house \"" + house_id + "\" for debug:\n" +
+                        std::string(e.what()));
     }
     return List::create();
 }
@@ -802,18 +803,18 @@ Rcpp::List MCMC::Impl::rcpp_export_house_snapshot(const std::string &house_id) c
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define MAKE_READ_METHOD(ImplSection, csv_object)                 \
-    void MCMC::Impl::ImplSection::read(const std::string &f)      \
-    {                                                             \
-        try                                                       \
-        {                                                         \
-            build(hsp::read::csv_object(f));                      \
-        }                                                         \
-        catch (const std::exception &e)                           \
-        {                                                         \
-            hsp::error("While reading " + section_name_ + ":\n" + \
-                       std::string(e.what()));                    \
-        }                                                         \
+#define MAKE_READ_METHOD(ImplSection, csv_object)                      \
+    void MCMC::Impl::ImplSection::read(const std::string &f)           \
+    {                                                                  \
+        try                                                            \
+        {                                                              \
+            build(hsp::read::csv_object(f));                           \
+        }                                                              \
+        catch (const std::exception &e)                                \
+        {                                                              \
+            hsp::msg::error("While reading " + section_name_ + ":\n" + \
+                            std::string(e.what()));                    \
+        }                                                              \
     }
 
 #define MAKE_READ_LIST_METHOD(ImplSection) MAKE_READ_METHOD(ImplSection, csv_list)
@@ -836,8 +837,8 @@ void MCMC::Impl::DataWide::read_multiplicity(const std::string &f)
     }
     catch (const std::exception &e)
     {
-        hsp::error("While reading multiplicity:\n" +
-                   std::string(e.what()));
+        hsp::msg::error("While reading multiplicity:\n" +
+                        std::string(e.what()));
     }
 }
 
@@ -852,8 +853,8 @@ void MCMC::Impl::Augmented::read(const std::string &f)
     }
     catch (const std::exception &e)
     {
-        hsp::error("While reading " + section_name_ + ":\n" +
-                   std::string(e.what()));
+        hsp::msg::error("While reading " + section_name_ + ":\n" +
+                        std::string(e.what()));
     }
 }
 
@@ -1034,7 +1035,7 @@ void MCMC::Impl::print_simulated_data_wide(const std::string &pathtofile)
     catch (const std::exception &e)
     {
         setup.prog_crash();
-        hsp::error(e.what());
+        hsp::msg::error(e.what());
     }
 }
 

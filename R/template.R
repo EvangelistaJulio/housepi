@@ -99,11 +99,11 @@ copy_template_to_path <- function(name, path) {
                      "template_param.R",
                      "template_info.Rd")
     for (f in templ_files) {
-      from_file <- file.path(template_models_dir(), name, f)
+      from_file <- file.path(get_template_dir(name), f)
       overwrite(from_file, file.path(path, f))
     }
     for (f in c("template_augm.R")) {
-      from_file <- file.path(template_models_dir(), name, f)
+      from_file <- file.path(get_template_dir(name), f)
       if (file.exists(from_file)) {
         overwrite(from_file, file.path(path, f))
       }
@@ -172,20 +172,16 @@ template_household_model <- function(name = NA_character_,
     # asking for description or for copying template
 
     # if name is a template...
-    if (name %in% list.files(template_models_dir())) {
-      if (is.na(path)) {
-        # ... ask for template model description
-        open_model_helper_(file.path(template_models_dir(), name))
-      } else if (any(file.exists(source_files(path))) && isFALSE(replace)) {
-        # ... ask for copying template to folder with model
-        warning_h(
-          "A model already exists in the specified folder.",
-          "Remove its content before creating a new model."
-        )
-      } else {
-        # ... ask for copying template to empty folder
-        copy_template_to_path(name, path)
-      }
+    if (!is.na(get_template_dir(name))) {
+      # ... ask for template model description
+      if (is.na(path)) open_model_helper_(get_template_dir(name))
+      # ... ask for copying template to folder with model
+      else if (any(file.exists(source_files(path)), !replace)) warning_h(
+        "A model already exists in the specified folder.",
+        "If you want to replace it, run again with option 'replace = TRUE'."
+      )
+      # ... ask for copying template to empty folder
+      else copy_template_to_path(name, path)
 
     } else {
       stop_h(
@@ -327,13 +323,13 @@ template_missing_stop <- function(required, defined, family) {
   # show error message
   if (len_miss > 0) stop_h(
     sprintf("There %s %s missing %s definition%s: %s",
-            ifelse(len_miss > 1, "are", "is"), len_miss,
+            ifelse(len_miss > 1, "were", "was"), len_miss,
             family,
             ifelse(len_miss > 1, "s", ""),
             character_to_string_list(miss)),
     sprintf("The %s definition%s required by %s",
             family,
-            ifelse(len_miss > 1, "s are", " is"),
+            ifelse(len_miss > 1, "s were", " was"),
             character_to_phrase(sources))
   )
   invisible()
@@ -387,7 +383,7 @@ template_not_used_warn <- function(required, defined, family) {
   len_not_used <- length(notused)
   if (len_not_used > 0) warning_h(
     sprintf("There %s %s unused %s definition%s: %s",
-            ifelse(len_not_used > 1, "are", "is"),
+            ifelse(len_not_used > 1, "were", "was"),
             len_not_used, family,
             ifelse(len_not_used > 1, "s", ""),
             character_to_string_list(notused))

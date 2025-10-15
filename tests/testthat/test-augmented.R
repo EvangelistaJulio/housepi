@@ -39,8 +39,8 @@ test_that("Augmented variable definitions are correct", {
   expect_equal(augm$defs$const, TRUE)
   expect_equal(augm$defs$discr, FALSE)
   expect_equal(augm$defs$value, "3|N")
-  expect_equal(augm$defs$rule, NA)
-  expect_equal(augm$defs$scale, NA)
+  expect_equal(augm$defs$rule, NA_character_)
+  expect_equal(augm$defs$scale, NA_real_)
 
   # variable definition
   augm <- housepi:::HousepiAugmented$new()
@@ -48,7 +48,7 @@ test_that("Augmented variable definitions are correct", {
            args = c(min = ~expo_min@A, max = ~expo_max@P),
            max = 3)
   expect_equal(augm$defs$name, "dummy")
-  expect_equal(augm$defs$status, as.integer(NA))
+  expect_equal(augm$defs$status, NA_integer_)
   expect_equal(augm$defs$value, "expo|D")
   expect_equal(augm$defs$model, "uniform|min:max|{expo_min|A}:{expo_max|P}")
   expect_equal(augm$defs$max, "3|N")
@@ -76,7 +76,7 @@ test_that("Augmented function definition is correct", {
   # difference definition
   augm$add(name = "dummy", expr = ~onset - incub)
   expect_equal(augm$defs$func, "sub|x:x2|{onset|A}:{incub|A}")
-  expect_equal(augm$defs$value, NA)
+  expect_equal(augm$defs$value, NA_real_)
 
   # overwriting warnings
   expect_warning(

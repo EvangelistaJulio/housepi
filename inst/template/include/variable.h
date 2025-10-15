@@ -62,7 +62,8 @@ public:
 
     std::string name() const { return this->name_; }
     double get_arg(unsigned short argID) const { return pDistr_->arg(argID); }
-    virtual double propose(rnd_gen &, double) { throw std::invalid_argument("Called method of undefined proposer."); }
+    virtual double propose(rnd_gen &, double) { throw std::invalid_argument(
+        "Called propose method of undefined Monte Carlo proposer."); }
     virtual double logratio(double, double) const { return 0.; }
 
     /// Return proposer scale.
@@ -137,14 +138,13 @@ public:
              const std::string &err_type = "variable",
              double value = hsp::na::DOUBLE,
              bool is_const = true,
-             bool is_discr = false,
              const DefinitionParser &expr = hsp::na::STRING,
              bool is_prim = false)
         : pDistr_(std::make_shared<Distribution>()),
           pProp_(std::make_shared<Proposer>())
     {
         this->name(name, err_type);
-        init(value, is_const, is_discr, expr, is_prim);
+        init(value, is_const, expr, is_prim);
     }
     ~Variable() = default;
 
@@ -152,8 +152,7 @@ public:
     double operator()(double x) const { return (this->*evaluate_)(x); }
 
     /// Helper to initialize variable.
-    void init(double value,
-              bool is_const, bool is_discr,
+    void init(double value, bool is_const,
               const DefinitionParser &parser, bool is_prim);
 
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -169,14 +168,14 @@ public:
     /// Assign an attribute to function.
     void init_func_attr(const std::string &key, const Attribute &attr) { pFunc_->init_attr(key, attr); }
     /// Initialize function reshaping. NOTE: to be called necessarily.
-    void init_func_reshaping();
+    void init_func_reshaping(bool discr);
 
     /// Initialize pointer to distribution.
     void init_distr(const DefinitionParser &expr);
     /// Assign an attribute to distribution.
     void init_distr_attr(const std::string &key, const Attribute &attr);
     /// Finalize reshaping of distribution. NOTE: to be called necessarily.
-    void init_distr_reshaping();
+    void init_distr_reshaping(bool discr);
 
     /// Initialize location parameter.
     void init_location_arg(const Attribute &x);
@@ -235,9 +234,8 @@ public:
 protected:
     double buffer_ = hsp::na::DOUBLE;     /// buffered value
     double user_value_ = hsp::na::DOUBLE; /// initial user defined value
-    Attribute loc_;                     /// location parameter
-    bool is_constant_ = true;           /// user flag for wheter constant or not
-    bool is_discrete_ = false;          /// user flag for wheter discrete or not
+    Attribute loc_;                       /// location parameter
+    bool is_constant_ = true;             /// user flag for wheter constant or not
 
     std::shared_ptr<Distribution> pDistr_; /// prior\model distribution of the variable
     std::shared_ptr<Proposer> pProp_;      /// Monte Carlo proposer
@@ -248,7 +246,7 @@ protected:
 
     double (Variable::*evaluate_)(double) const = &Variable::do_eval_error_;
     double do_eval_error_(double) const { throw std::runtime_error(
-        "Wrong call to evaluate operator for non-function " + err_name() + "."); }
+        "Called undefined evaluate operator for non-function " + err_name() + "."); }
     double do_eval_func_(double x) const { return pFunc_->evaluate(x); }
 
     /////////////////////////////////////////////////////////////////////////////////////////////

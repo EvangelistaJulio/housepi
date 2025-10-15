@@ -18,6 +18,7 @@
 #include <chrono>
 
 #include "tools/progress.h"
+#include "tools/error.h"
 
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
@@ -92,23 +93,12 @@ namespace progress
         steady_clock::time_point lastprint_;
         unsigned long thintime_ = 0;
 
-        void print_(const std::string &sms) const
-        {
-#ifdef _HOUSEPI_RCPP
-            Rcpp::Rcout << sms;
-            Rcpp::Rcout.flush();
-#else
-            std::cout << sms;
-            std::cout.flush();
-#endif
-        }
-
         /// Function to display the progress bar.
         void bar_(const std::string &sms) const { (this->*which_bar_)(sms); }
 
         void (Impl::*which_bar_)(const std::string &) const = &Impl::do_bar_carriage_return_;
-        void do_bar_carriage_return_(const std::string &sms) const { print_("\r" + sms); }
-        void do_bar_new_line_(const std::string &sms) const { print_(sms + "\n"); }
+        void do_bar_carriage_return_(const std::string &sms) const { hsp::msg::message("\r" + sms); }
+        void do_bar_new_line_(const std::string &sms) const { hsp::msg::message(sms + "\n"); }
 
     public:
         /////////////////////////////////////////////////////////////////////////////////////////////
@@ -205,7 +195,7 @@ namespace progress
                             << std::string(barwidth_, ' ') << "| 0% ";
                         if (which_bar_ == &Impl::do_bar_new_line_)
                             oss << "\n";
-                        print_(oss.str());
+                        hsp::msg::message(oss.str());
 
                         is_bar_print_ = true;
                     }
@@ -219,7 +209,7 @@ namespace progress
             Rcpp::checkUserInterrupt();
 #endif
             if (is_bar_print_)
-                print_("\n");
+                hsp::msg::message("\n");
         }
 
         /// Close the progress bar.

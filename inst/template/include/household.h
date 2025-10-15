@@ -54,7 +54,6 @@ public:
 	void init_augm(const std::string &a,
 				   double value,
 				   bool is_const,
-				   bool is_discr,
 				   const DefinitionParser &func_name,
 				   bool is_prim,
 				   const DefinitionParser &model_name);
@@ -135,10 +134,9 @@ public:
 	double data(const std::string &d) const { return safe_at(data_map_, d, "data"); }
 	const dbl_vec &datalong(const std::string &d) const
 	{
-		if (pdatalong_ == nullptr)
-			throw std::invalid_argument(
-				"No datalong entries for " + err_name() + ".");
-		return pdatalong_->at(d);
+		// return a reference to a stable empty vector when no datalong is attached
+		static const dbl_vec EMPTY_DBL_VEC = dbl_vec();
+		return (pdatalong_ == nullptr) ? EMPTY_DBL_VEC : pdatalong_->at(d);
 	}
 	double group_rate(const std::string &g) const { return safe_at(group_rate_map_, g, "group rate").get(); }
 	const Attribute &get_group_rate_attribute(const std::string &g) const { return safe_at(group_rate_map_, g, "group rate"); }
@@ -294,7 +292,8 @@ public:
 	{
 		if (!hsp::status::is_infected(new_status))
 			throw std::invalid_argument(
-				"Status " + std::to_string(new_status) + " is not an infected status.");
+				"Tried to set as infected status " + std::to_string(new_status) + 
+				" to " + err_name() + ".\nInfected status must be an integer greater than 0.");
 		set_status_(member, new_status);
 	}
 	void init_contact_rates(size_t from, size_t to, observ_dbl_ptr x);

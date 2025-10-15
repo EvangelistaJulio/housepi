@@ -257,28 +257,16 @@ HousepiExpectation <- R6::R6Class(
     #'
     #' @param model `r rd_model_in_`
     #' @param param_table `r rd_param_table_`
-    #' @param measure `r rd_measure_`
+    #' @param ... `r rd_measure_dots_`
     #' @param obs_process `r rd_simul_observ_`
     #' @param progress `r rd_progress_`
     #' @param cri_level `r rd_smpl_cri_level_`
-    #' @param ... `r rd_measure_dots_`
     initialize = function(model,
                           param_table,
-                          measure = NULL,
+                          ...,
                           obs_process = NULL,
                           progress = NA,
-                          cri_level = 0.95, ...) {
-      if (is.null(measure)) measure <- list(...)
-      if (is.null(measure)) stop_h("No measure was provided.")
-
-      # function to be applied also in the case of multiple measures
-      apply_func <- ifelse(
-        is.list(measure),
-        function(x) lapply(measure, function(f) f(x)),
-        measure
-      )
-
-      private$.set_cri_level(cri_level)
+                          cri_level = 0.95) {
 
       # extract draws without loglikelihood
       if (inherits(param_table, "HousepiPosteriorDraws")) {
@@ -293,11 +281,20 @@ HousepiExpectation <- R6::R6Class(
         stop_h("Type of param_table not supported")
       }
 
+      # load measure functions
+      measure <- list(...)
+      if (is.null(measure)) stop_h("No measure was provided.")
+
+      # associate credible interval
+      private$.set_cri_level(cri_level)
+
+      # function to be applied also in the case of multiple measures
+      apply_func <- function(x) lapply(measure, function(func) func(x))
+
       # initialize with results from observed data_wide
       private$.observed <- apply_func(model$data_wide)
 
       # deep clone model before proceeding
-      # FIXME/ UPDATE: I might just need to restore...
       hmc <- model$clone(deep = TRUE)
       # cleanup at end
       withr::defer(rm(hmc))
@@ -317,10 +314,11 @@ HousepiExpectation <- R6::R6Class(
       )
 
       # extract constant parameters
-      aux <- hmc$parameters
-      tmp <- aux[aux$const, c("name", "value")]
-      constants <- as.list(tmp$value)
-      names(constants) <- as.list(tmp$name)
+      # UPDATE: add a more extensive control on parameter consistency
+      params <- hmc$parameters
+      constants <- as.list(params[params$const, "value"])
+      names(constants) <- as.list(params[params$const, "name"])
+      constants <- constants[setdiff(names(constants), colnames(param_table))]
 
       # define loop function working by row index
       # UPDATE: this should be improved with loops in C++
@@ -401,9 +399,8 @@ combine_obs_exp <- function(obsdf, expdf) {
 
   # format columns to extract labels with labelizor
   colnames(combined)[3:ncol(combined)] <- sapply(
-    colnames(combined)[3:ncol(combined)], function(x) {
-      paste("cases", x, sep = "_")
-    }
+    colnames(combined)[3:ncol(combined)],
+    function(x) paste("cases", x, sep = "_")
   )
 
   combined
@@ -567,8 +564,8 @@ ExpectedCasesBySize <- R6::R6Class(
       super$initialize(
         model = model,
         param_table = param_table,
-        measure = c(cases_by_size = measure_cases_by_house_size,
-                    sar = measure_sar_by_house_size),
+        cases_by_size = measure_cases_by_house_size,
+        sar = measure_sar_by_house_size,
         obs_process = obs_process,
         progress = progress,
         cri_level = cri_level
@@ -632,26 +629,19 @@ ExpectedCasesBySize <- R6::R6Class(
 #'
 #' @param object `r rd_model_in_`
 #' @param param_table `r rd_param_table_`
-#' @param measure `r rd_measure_`
+#' @param ... `r rd_measure_dots_`
 #' @param obs_process `r rd_simul_observ_`
 #' @param progress `r rd_progress_`
-#' @param ... `r rd_measure_dots_`
 #'
 #' @return An object of class
 #' [HousepiExpectation][housepi::HousepiExpectation].
 #'
 #' @export
-expec_posterior_measure <- function(object, param_table,
-                                    measure = NULL,
-                                    obs_process = NULL,
-                                    progress = NA,
-                                    ...) {
+expec_posterior_measure <- function(object, param_table, ...,
+                                    obs_process = NULL, progress = NA) {
   stopifnot(inherits(object, "HousepiModel"))
-  HousepiExpectation$new(object, param_table,
-                         measure = measure,
-                         obs_process = obs_process,
-                         progress = progress,
-                         ...)
+  HousepiExpectation$new(object, param_table, ...,
+                         obs_process = obs_process, progress = progress)
 }
 
 #' @title Expected cases by household size
@@ -671,13 +661,9 @@ expec_posterior_measure <- function(object, param_table,
 #' containing methods to compare observed and expected cases.
 #'
 #' @export
-expec_cases_by_house_size <- function(object,
-                                      param_table,
-                                      obs_process = NULL,
-                                      progress = NA) {
+expec_cases_by_house_size <- function(object, param_table,
+                                      obs_process = NULL, progress = NA) {
   stopifnot(inherits(object, "HousepiModel"))
-  ExpectedCasesBySize$new(object,
-                          param_table,
-                          obs_process = obs_process,
-                          progress = progress)
+  ExpectedCasesBySize$new(object, param_table,
+                          obs_process = obs_process, progress = progress)
 }

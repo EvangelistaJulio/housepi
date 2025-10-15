@@ -22,11 +22,11 @@
 #include "model.h"
 
 /// Raise error when "blank" model.
-void Model::init_model_for_inference() { hsp::warning(
+void Model::init_model_for_inference() { hsp::msg::warning(
 	"Computing loglikelihood with \"blank\" model."); }
 
 /// Raise error when "blank" model.
-void Model::init_model_for_simulation() { hsp::warning(
+void Model::init_model_for_simulation() { hsp::msg::warning(
 	"Performing simulation with \"blank\" model."); }
 
 /// Unitary likelihood.

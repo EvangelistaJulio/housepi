@@ -72,7 +72,7 @@ main.o: main.cpp
 
 # To clean objects
 clean:
-	$(RM) $(EXECUTABLE) main.o $(SRC)/*.{o,so,exe} $(TMPL)/*/*.{o,so,exe} $(TMPL)/*/.refer 
+	$(RM) $(EXECUTABLE) main.o $(MODEL)/*.{o,so,exe,refer} $(SRC)/*.{o,so,exe} $(TMPL)/*/*.{o,so,exe} $(TMPL)/*/.refer 
 
 # Run make in debugging mode using standard housepi files
 debug:

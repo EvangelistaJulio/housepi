@@ -17,7 +17,7 @@ test_that("Default parameter definitions are correct", {
   expect_equal(param$defs$const, FALSE)
   expect_equal(param$defs$discr, FALSE)
   expect_equal(param$defs$rule, "sample")
-  expect_equal(param$defs$scale, NA)
+  expect_equal(param$defs$scale, NA_real_)
   expect_equal(param$defs$prior, "uniform|min:max|{0|N}:{5|N}")
 
   # load_list and single add should be coherent
@@ -32,7 +32,7 @@ test_that("Default parameter definitions are correct", {
             rule = "normal")
 
   expect_equal(param$defs$name, "dummy")
-  expect_equal(param$defs$value, NA)
+  expect_equal(param$defs$value, NA_real_)
   expect_equal(param$defs$const, FALSE)
   expect_equal(param$defs$discr, FALSE)
   expect_equal(param$defs$rule, "normal")
@@ -54,8 +54,8 @@ test_that("Constant parameter definitions are correct", {
   expect_equal(param$defs$name, "dummy")
   expect_equal(param$defs$value, "3|N")
   expect_equal(param$defs$const, TRUE)
-  expect_equal(param$defs$rule, NA)
-  expect_equal(param$defs$scale, NA)
+  expect_equal(param$defs$rule, NA_character_)
+  expect_equal(param$defs$scale, NA_real_)
 
   expect_warning(
     param <- param$add(name = "dummy", value = 3, prior = "uniform",

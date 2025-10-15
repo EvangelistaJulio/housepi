@@ -98,14 +98,14 @@ void MCMC::Impl::Setup::build(const u_dict<std::string> &deflist)
 void MCMC::Impl::Setup::set_n_threads()
 {
     if (n_threads == 0)
-        throw std::invalid_argument("N. of threads must be greater than 0.");
+        throw std::invalid_argument("N. of threads was not greater than 0.");
 
 #if defined(_OPENMP)
     unsigned int max_threads = omp_get_num_procs();
 
     if (n_threads > max_threads)
     {
-        hsp::warning(
+        hsp::msg::warning(
             "N. of threads reduced to " + std::to_string(max_threads) + " available processors.");
         n_threads = max_threads;
     }
@@ -115,7 +115,7 @@ void MCMC::Impl::Setup::set_n_threads()
 
 #else
     if (n_threads != 1)
-        hsp::warning("Parallelization with OpenMP is not supported.");
+        hsp::msg::warning("Parallelization with OpenMP is not supported.");
 
     n_threads = 1;
 #endif
@@ -149,10 +149,10 @@ void MCMC::Impl::Setup::assert_mcmc_setup()
 {
     if ((inv_T < 0.) || (inv_T > 1.))
         throw std::range_error(
-            "Inverse temperature " + std::to_string(inv_T) + " out of range [0, 1].");
+            "Inverse temperature " + std::to_string(inv_T) + " was out of range [0, 1].");
 
     if (n_chains < 1)
-        throw std::out_of_range("Number of chains must be greater than 0.");
+        throw std::out_of_range("Number of chains was not greater than 0.");
 
     // Interpret thinning equal to 0 has been interpreted as 1.
     if (n_thin == 0)
@@ -160,19 +160,19 @@ void MCMC::Impl::Setup::assert_mcmc_setup()
 
     if (n_steps < 1)
         throw std::out_of_range(
-            "N. of steps must be greater than 0.");
+            "N. of steps was not greater than 0.");
     if (n_burnin >= n_steps)
         throw std::out_of_range(
-            "Burn-in must be smaller than n. of steps.");
+            "Burn-in must was not smaller than n. of steps.");
     if (n_thin > n_steps)
         throw std::out_of_range(
-            "Thinning must be smaller than (or equal to) n. of steps. ");
+            "Thinning was not be smaller than (or equal to) n. of steps. ");
 
     c_sample_size = (n_steps - n_burnin) / n_thin;
 
     if (c_sample_size == 0)
         throw std::out_of_range(
-            "Choice of steps, burn-in and thin correspond to an empty sample.");
+            "Choice of steps, burn-in and thin generated an empty sample.");
 
     // assign number of sweeps
     c_n_sweeps = n_adapt / n_thin;
@@ -215,7 +215,7 @@ void MCMC::Impl::DataWide::build(const u_dict<str_vec> &input)
 
         // assess the presence of house IDs
         if (!(headers_ % "house_id"))
-            hsp::warning(
+            hsp::msg::warning(
                 "Ignored household structure. Missing data column \"house_id\".");
 
         // safe load of households
@@ -233,14 +233,14 @@ void MCMC::Impl::DataWide::build(const u_dict<str_vec> &input)
                     id = input.at("id")[i];
                     if (hsp::na::is(id))
                         throw std::invalid_argument(
-                            "Missing id for individual in row n." + std::to_string(i + 2) + ".");
+                            "Individual in row n." + std::to_string(i + 2) + " had missing id.");
                 }
                 else if (key == "house_id")
                 {
                     house_id = input.at("house_id")[i];
                     if (hsp::na::is(house_id))
                         throw std::invalid_argument(
-                            "Missing house_id for individual in row n." + std::to_string(i + 2) + ".");
+                            "Individual in row n." + std::to_string(i + 2) + " had missing house_id.");
                 }
                 else if (key == "status")
                 {
@@ -378,8 +378,8 @@ void MCMC::Impl::DataWide::build_multiplicity(const u_dict<str_vec> &table)
     {
         // note: multiplicities are not compatible with data augmentation
         if (!table.empty())
-            hsp::warning(
-                "Data augmentation is incompatible with multiplicity simplification.");
+            hsp::msg::warning(
+                "Ignored multiplicity optimization: incompatible with data augmentation.");
 
         // default choice for restricted household indexes
         restrict_indexes_.clear();
@@ -392,9 +392,10 @@ void MCMC::Impl::DataWide::build_multiplicity(const u_dict<str_vec> &table)
     }
     else
     {
+        // UPDATE: this error is purely internal
         if (n_houses() != table.at("house_id").size())
             throw std::out_of_range(
-                "Multiplicity definitions have different dimensions than dataset.");
+                "Multiplicity definitions had different dimensions than dataset.");
 
         restrict_indexes_.clear();
         for (size_t r = 0; r < n_houses(); ++r)
@@ -430,7 +431,7 @@ void MCMC::Impl::DataLong::build(const u_dict<str_vec> &input)
         // check for individual IDs
         if (!(headers_ % "id"))
             throw std::invalid_argument(
-                "Missing individual identifier column \"id\" in datalong.");
+                "Individual identifier column \"id\" was missing.");
         // remove "id"
         headers_ = headers_ - str_vec({"id"});
 
@@ -442,7 +443,7 @@ void MCMC::Impl::DataLong::build(const u_dict<str_vec> &input)
             for (const Individual &member : house)
                 if (id_to_index % member.id())
                     throw std::invalid_argument(
-                        "Multiple individuals id equal to \"" + member.id() + "\"");
+                        "There were multiple individuals with id equal to \"" + member.id() + "\".");
                 else
                     id_to_index.emplace(member.id(), c++);
 
@@ -461,15 +462,16 @@ void MCMC::Impl::DataLong::build(const u_dict<str_vec> &input)
             std::string id = input.at("id")[r];
             if (hsp::na::is(id))
                 throw std::invalid_argument(
-                    "Invalid id for datalong in row n." + std::to_string(r + 2) + ".");
+                    "Invalid id found in row n." + std::to_string(r + 2) + ".");
             else if (!(id_to_index % id))
             {
+                // UPDATE: these errors should be more self-explicative
                 if (pImpl_.dataset.is_empty())
                     throw std::invalid_argument(
-                        "Unable to define datalong before dataset.");
+                        "Tried to define data long format before wide format.");
                 else
                     throw std::invalid_argument(
-                        "Id \"" + id + "\" from datalong has no match in loaded dataset.");
+                        "Id \"" + id + "\" from data long format had no match in loaded data wide format.");
             }
 
             // append (since vector is initialized to empty)
@@ -544,7 +546,7 @@ str_vec MCMC::Impl::GroupRates::helper_assert_definitions_(const u_dict<str_vec>
     for (const std::string &g : deftable.at("group_rate"))
         if (g == hsp::rates::CONTACT || g == hsp::rates::MISSING)
             throw std::invalid_argument(
-                "The group rate name \"" + g + "\" is reserved. Choose a different one.");
+                "Tried to use the reserved group rate name \"" + g + "\".\nPlease, choose a different name.");
         else if (hsp::na::is(g))
             throw std::invalid_argument(
                 "Found a missing group rate name in the definitions.");
@@ -568,7 +570,7 @@ void MCMC::Impl::GroupRates::helper_init_all_rates_(Individual &member,
         for (const std::string &p : pair.second)
             if (hsp::na::is(p) || p == hsp::rates::MISSING)
                 throw std::invalid_argument(
-                    "Missing rate \"" + g + "\" for " + member.err_name() + ".");
+                    "A group rate defintion \"" + g + "\" was missing for " + member.err_name() + ".");
             else if (p != hsp::rates::REFERENCE)
                 vec_par_ptr.emplace_back(pImpl_.param.get_ptr(p));
 
@@ -649,7 +651,7 @@ void MCMC::Impl::Parameter::build_constant_parameter_(const u_dict<str_vec> &def
 
     if (hsp::na::is(deftable.at("value")[k]))
         throw std::invalid_argument(
-            "Undefined value for constant parameter \"" + p + "\".");
+            "Constant parameter \"" + p + "\" had undefined value.");
 
     // assign constant parameter to the set of variables
     double value = pImpl_.read_numeric_(deftable.at("value")[k]);
@@ -667,7 +669,7 @@ void MCMC::Impl::Parameter::build_parameter_to_sample_(const u_dict<str_vec> &de
     if (hsp::na::is(deftable.at("value")[k]))
         if (hsp::na::is(deftable.at("prior")[k]))
             throw std::invalid_argument(
-                "Undefined prior for undefined non-constant parameter \"" + p + "\".");
+                "Non-constant parameter \"" + p + "\" had undefined prior.");
 
     // load boolean flag for discrete variables
     bool is_discrete = hsp::str::tobool(deftable.at("discr")[k]);
@@ -684,7 +686,7 @@ void MCMC::Impl::Parameter::build_parameter_to_sample_(const u_dict<str_vec> &de
 
     // create a new Parameter Variable
     dictionary_.emplace(
-        p, Variable(p, "parameter", pImpl_.read_numeric_(deftable.at("value")[k]), false, is_discrete));
+        p, Variable(p, "parameter", pImpl_.read_numeric_(deftable.at("value")[k]), false));
     Variable &new_param = this->at(p);
 
     // assign a prior distribution to the parameter
@@ -699,7 +701,7 @@ void MCMC::Impl::Parameter::build_parameter_to_sample_(const u_dict<str_vec> &de
                               pImpl_.read_numeric_(deftable.at(hsp::params::MIN)[k]));
     new_param.init_distr_attr(hsp::params::MAX,
                               pImpl_.read_numeric_(deftable.at(hsp::params::MAX)[k]));
-    new_param.init_distr_reshaping();
+    new_param.init_distr_reshaping(is_discrete);
 
     // assign the rule for the proposer to the parameter
     new_param.init_proposer(rule_name, rule_scale);

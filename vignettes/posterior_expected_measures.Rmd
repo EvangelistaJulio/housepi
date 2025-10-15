@@ -34,8 +34,7 @@ hhmodel <- new_housepi_model("chain_binomial") |>
 results <- hhmodel |>
   infer(steps = 20000, burnin = 1000, thin = 8,
         adapt = 1000, chains = 3, threads = 1)
-estimates <- results |>
-  get_param_draws() |>
+estimates <- get_param_draws(results) |>
   posterior::summarise_draws()
 estimates
 ```
@@ -80,18 +79,15 @@ combined[mask_exp, mask_cols] <- mapply(
 names(combined)[names(combined) == "house_size"] <- "size"
 
 # generate cases by household size table
-combined |>
-  flextable::flextable() |>
+flextable::flextable(combined) |>
   flextable::separate_header() |>
   flextable::theme_vanilla() |>
   flextable::bold(j = ~ size, bold = TRUE) |>
   flextable::merge_v(j = ~ size) |>
   flextable::align(align = "center", , part = "all") |>
-  flextable::labelizor(labels = c(
-    size = "Size",
-    distr = "Distribution",
-    cases = "Number of cases"
-  )) |>
+  flextable::labelizor(labels = c(size = "Size",
+                                  distr = "Distribution",
+                                  cases = "Number of cases")) |>
   flextable::bg(bg = "white", part = "all") |>
   flextable::fontsize(size = 12, part = "all") |>
   flextable::autofit()
@@ -118,18 +114,19 @@ library(ggplot2)
 col_dict <- c(Expected = "coral", Observed = "black")
 
 # extract values for secondary attack rate
-expec$sar |>
-  ggplot(aes(x = house_size)) +
+ggplot(expec$sar, aes(x = house_size)) +
   # expected SAR
   geom_point(aes(y = mean, color = "Expected"), size = 2) +
-  geom_errorbar(
-    aes(y = mean, ymin = q5, ymax = q95, color = "Expected"),
-    width = 0.2
-  ) +
+  geom_errorbar(aes(y = mean,
+                    ymin = q5,
+                    ymax = q95,
+                    color = "Expected"),
+                width = 0.2) +
   # observed SAR
   geom_point(aes(y = observed, color = "Observed"), size = 2) +
   # text with observed counts
-  geom_text(aes(x = house_size + 0.3, y = observed,
+  geom_text(aes(x = house_size + 0.3,
+                y = observed,
                 label = sprintf("[%s]", counts)),
             color = col_dict["Observed"]) +
   scale_color_manual(values = col_dict) +

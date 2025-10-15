@@ -130,7 +130,7 @@ void Attribute::init_pointer(observ_dbl_ptr y)
 {
     if (y == nullptr)
         throw std::invalid_argument(
-            "Attempt to assign empty pointer to " + err_name() + ".");
+            "Tried to assign empty pointer to " + err_name() + ".");
 
     get_ = &Attribute::do_get_from_pointer_;
     get_ptr_ = &Attribute::do_get_pointer_from_pointer_;
@@ -145,10 +145,10 @@ void Attribute::init_function(const std::shared_ptr<Function> f)
     // check the function is different from the current one
     if (f == nullptr)
         throw std::invalid_argument(
-            "Attempt to assign empty function to " + err_name() + ".");
+            "Tried to assign empty function to " + err_name() + ".");
     else if (f == pFunc_)
         throw std::invalid_argument(
-            "Cannot assign " + err_name() + " as its own argument.");
+            "Tried to assign " + err_name() + " as its own argument.");
 
     get_ = &Attribute::do_get_from_function_;
     get_ptr_ = &Attribute::do_get_pointer_error_;
@@ -186,7 +186,7 @@ Function::Function(const std::string &name,
 
     // number of arguments
     if (arg_name.size() != arg_value.size())
-        hsp::error(
+        hsp::msg::error(
             "Inconsistent arguments for " + err_name() + "." +
             "Found " + std::to_string(arg_name.size()) + " default names but " +
             std::to_string(arg_value.size()) + " values.");
@@ -233,12 +233,10 @@ Attribute &Function::find_arg_(const std::string &arg_name)
             if (attr.name() == arg_name)
                 return attr;
 
-    // else throw error showing options
+    // else format the error showing options
     str_vec options = {hsp::params::X};
     for (const Attribute &attr : arguments_)
         options.push_back(attr.name());
-
-    // throw error showing options
     throw std::invalid_argument(
         "Unknown argument \"" + arg_name + "\" for " + err_name() + "." +
         hsp::str::find_closest(arg_name, options));
@@ -282,7 +280,7 @@ bool Function::init_range_min_(double min_val, bool is_min_open)
 {
     if (get_min() < min_val)
         throw std::invalid_argument(
-            "Invalid min value " + hsp::str::format(range_min_.get()) + " for " + err_name() + ".");
+            "Invoked invalid min value " + hsp::str::format(range_min_.get()) + " for " + err_name() + ".");
     else if ((get_min() > min_val) || (!hsp::na::is(get_max())))
     {
         init_range_helper_(((is_min_open) ? (get_min() == min_val) : false), false);
@@ -361,7 +359,7 @@ void Function::init_range_helper_(bool is_min_open, bool is_max_open)
         bool wrong_close = (is_valid_ == &Function::do_is_valid_both_close_) && (range_min_.get() > range_max_.get());
         if (wrong_open || wrong_close)
             throw std::invalid_argument(
-                "Inconsistent range " + str_range() + " for " + err_name() + ".");
+                "Generated an inconsistent range " + str_range() + " for " + err_name() + ".");
         break;
     }
 }
@@ -564,7 +562,8 @@ std::shared_ptr<Function> compose_func_registries(const std::string &opt,
     str_vec options = {};
 
     if (registries.empty())
-        throw std::invalid_argument("No registries provided for \"" + name + "\".");
+        throw std::invalid_argument(
+            "No registries were provided for \"" + name + "\".");
     else if (hsp::na::is(opt))
         return std::make_shared<Function>();
     else

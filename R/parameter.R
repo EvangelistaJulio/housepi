@@ -148,8 +148,10 @@ HousepiParameter <- R6::R6Class(
 
       # assume it's a constant if a prior is not provided
       if (is.na(const)) const <- is.na(prior)
+
       # parse initial value
-      opts$value <- DefEncoder$new(value)$x
+      if (is.na(DefEncoder$new(value)$x)) opts$value <- NA_real_
+      else opts$value <- DefEncoder$new(value)$x
 
       if (isTRUE(const)) {
         # check that a value is provided

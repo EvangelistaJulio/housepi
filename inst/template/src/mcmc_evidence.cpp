@@ -60,12 +60,14 @@ std::vector<dbl_vec> MCMC::Impl::power_posteriors_(const std::string &scheme, un
     // check scheme choice
     const str_vec options = {"adaptive", "power-fractions"};
     if (!(options % scheme))
-        throw std::invalid_argument("Unknown power posterior scheme \"" + scheme + "\"." +
-                                    hsp::str::find_closest(scheme, options));
+        throw std::invalid_argument(
+            "Invoked invalid power posterior scheme \"" + scheme + "\"." +
+            hsp::str::find_closest(scheme, options));
 
     // check number of rungs for the thermodynamic ladder
     if (n_rungs < 2)
-        throw std::invalid_argument("N. of rungs must be greater than 1.");
+        throw std::invalid_argument(
+            "N. of rungs was not greater than 1.");
     setup.n_rungs = n_rungs; // NOTE: set before progress bar
 
     // initialize mcmc sampling
@@ -214,7 +216,7 @@ Rcpp::List MCMC::Impl::logevidence(const std::string &scheme, unsigned long n_ru
     }
     catch (const std::exception &e)
     {
-        hsp::error("While estimating logevidence with power posteriors:\n" +
+        hsp::msg::error("While estimating logevidence with power posteriors:\n" +
                    std::string(e.what()));
     }
     return List();
@@ -250,8 +252,8 @@ double MCMC::Impl::logevidence(const std::string &scheme, unsigned long n_rungs)
     }
     catch (const std::exception &e)
     {
-        hsp::error("While estimating logevidence with power posteriors:\n" +
-                   std::string(e.what()));
+        hsp::msg::error("While estimating logevidence with power posteriors:\n" +
+                        std::string(e.what()));
     }
 
     return hsp::na::DOUBLE;

@@ -39,7 +39,7 @@ double MCMC::Impl::evaluate()
     }
     catch (const std::exception &e)
     {
-        hsp::error(e.what());
+        hsp::msg::error(e.what());
     }
 
     return hsp::na::DOUBLE;
@@ -141,7 +141,7 @@ void MCMC::Impl::infer()
     catch (std::exception &e)
     {
         setup.prog_crash();
-        hsp::error(e.what());
+        hsp::msg::error(e.what());
     }
 }
 
@@ -175,9 +175,9 @@ void MCMC::Impl::run_monte_carlo_()
     // run multiple MCMC chains&
     for (chain = 1; chain <= setup.n_chains; ++chain)
     {
-        setup.prog_set_text();      // update progress bar text
-        param.user_reset();         // reset parameter user definitions
-        augm.user_reset();          // reset augmented user definitions
+        setup.prog_set_text(); // update progress bar text
+        param.user_reset();    // reset parameter user definitions
+        augm.user_reset();     // reset augmented user definitions
         update_full_loglike_(true); // init cache + full loglikelihood
         init_move_counts_();        // init move counts for adaptive
 

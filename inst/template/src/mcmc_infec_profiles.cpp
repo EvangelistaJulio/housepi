@@ -34,7 +34,7 @@ void MCMC::Impl::InfecProfile::init_template(u_dict<std::string> deflist)
 			{
 				if (!(deflist % "func"))
 					throw std::invalid_argument(
-						"Missing function name for infectivity profile template.");
+						"A function name was missing for infectivity profile template.");
 
 				const str_vec file_headers = {"func", "discr", hsp::params::MAX};
 
@@ -53,7 +53,7 @@ void MCMC::Impl::InfecProfile::init_template(u_dict<std::string> deflist)
 				// forbid augmented infectivity profile for template
 				if (is_augmented())
 					throw std::invalid_argument(
-						"Infectivity profile templates depending on augmented variables are not supported.");
+						"Tried to define an infectivity profile template depending on augmented variables.");
 
 				// UPDATE: maybe also not depending on parameters?
 			}
@@ -72,10 +72,9 @@ void MCMC::Impl::InfecProfile::append_augm_definition()
 	{
 		// check for reserved augmented names
 		for (const std::string &a : pImpl_.augm.deftable.at("func"))
-			for (const std::string &forbid : {hsp::infprof::INSTANTANEOUS, hsp::infprof::CUMULATIVE})
-				if (a == forbid)
-					throw std::invalid_argument(
-						"Augmented variable \"" + forbid + "\" is reserved. Please, pick another name.");
+			if (a == hsp::infprof::INSTANTANEOUS || a == hsp::infprof::CUMULATIVE)
+				throw std::invalid_argument(
+					"Tried to use the reserved augmented name \"" + a + "\".\nPlease, choose a different name.");
 
 		// append new definitions
 		for (const auto &pair : augm_infec_profile_deflist_)
@@ -166,10 +165,10 @@ void MCMC::Impl::InfecProfile::build(const u_dict<std::string> &deflist)
 		// check definition list has a function
 		if (!(deflist % "func"))
 			throw std::invalid_argument(
-				"Missing function definition for infectivity profile.");
+				"A function name choice was missing in the infectivity profile definition.");
 		else if (DefinitionParser(deflist.at("func")).is_na())
 			throw std::invalid_argument(
-				"Empty function definition for infectivity profile.");
+				"Provided NA as a function name in the infectivity profile definition.");
 
 		// check if definition is generic or augmented
 		bool is_augm = DefinitionParser(deflist.at("func")).is_augmented_depen() ||

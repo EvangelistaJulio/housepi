@@ -43,11 +43,9 @@ Also, encoding implies an implicit representation of a dataset, e. g.
 
 ```{r}
 # example house dataset
-eg_house <- data.frame(
-  house_id = "HH_1",
-  age = c(43, 39, 12, 7),
-  sex = c("M", "F", "F", "M")
-)
+eg_house <- data.frame(house_id = "HH_1",
+                       age = c(43, 39, 12, 7),
+                       sex = c("M", "F", "F", "M"))
 
 # underlining representation of data
 hhsampler$decode(hhsampler$encode(eg_house))

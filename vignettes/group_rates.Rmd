@@ -30,7 +30,7 @@ hhmodel <- new_housepi_model("chain_binomial_heterogeneous") |>
   load_parameter_template() # use templated parameters
 
 # inspect parameter definitions
-hhmodel |> get_parameters()
+get_parameters(hhmodel)
 ```
 
 # Format data features
@@ -123,8 +123,7 @@ hhmodel <- hhmodel |>
   )
 
 # show parameter definitions used for the inference
-hhmodel |> 
-  get_parameters()
+get_parameters(hhmodel)
 
 # perform inference
 results <- hhmodel |>
@@ -132,8 +131,7 @@ results <- hhmodel |>
         adapt = 1000, chains = 3, progress = 20) |>
   get_param_draws()
 
-results |>
-  bayesplot::mcmc_trace()
+bayesplot::mcmc_trace(results)
 ```
 
 Finally, we propose the following approach to visualize the difference between the estimates for the susceptibility with respect to the reference group:
@@ -146,8 +144,7 @@ library(ggplot2)
 rate_id <- "susceptibility"
 prefix <- "sus_"
 
-tmp <- hhmodel |>
-  get_group_rates() |>
+tmp <- get_group_rates(hhmodel) |>
   # extract reference value and create a label
   dplyr::filter(group_rate == rate_id, param_name == ".reference") |>
   dplyr::select(-group_rate, -param_name, -n)
@@ -155,8 +152,7 @@ ylabel <- sprintf("%s (Ref: %s)", rate_id,
                   paste(paste(names(tmp), tmp, sep = " "), collapse = " "))
 
 # compare inferred susceptibility group rates
-results |>
-  posterior::summarise_draws() |>
+posterior::summarise_draws(results) |>
   dplyr::filter(stringr::str_starts(variable, prefix)) |>
   dplyr::mutate(
     variable = stringr::str_remove(variable, paste0("^", prefix)) |>

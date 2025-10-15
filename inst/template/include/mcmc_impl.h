@@ -235,7 +235,7 @@ public:
         ReportIndividual report_indiv;
         ReportHousehold report_house;
         ReportHouseSizes report_hh_size;
-        
+
         /////////////////////////////////////////////////////////////////////////////////////////
         /////////////////////////  MCMC : Impl : DataSet : constructor  /////////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////
@@ -249,7 +249,7 @@ public:
         {
             if (!(hhid_to_index_ % house_id))
                 throw std::invalid_argument(
-                    "Index \"" + house_id + "\" does not match any household in the dataset.");
+                    "Index \"" + house_id + "\" did not match any household in the dataset.");
             return house_vector_.at(hhid_to_index_.at(house_id));
         }
 

@@ -37,10 +37,10 @@ void walk_dependency_tree(const std::string &entry,
 {
     if (!(tree % entry))
         throw std::invalid_argument(
-            "Missing definition for augmented \"" + entry + "\"");
+            "Could not find a definition for augmented \"" + entry + "\".");
     if (recursion_stack % entry)
         throw std::invalid_argument(
-            "Inadmissible nested definitions for augmented \"" + entry + "\"");
+            "Found inadmissible nested definitions for augmented \"" + entry + "\"");
     if (visited % entry)
         return;
 
@@ -149,7 +149,7 @@ Attribute MCMC::Impl::read_attribute_(const DefinitionParser::ASTNode &node,
 
     else
         throw std::invalid_argument(
-            "Unknown source type \"" + node.type + "\" found while parsing \"" + node.str() + "\".");
+            "Unrecognized source type \"" + node.type + "\" found while parsing \"" + node.str() + "\".");
 }
 Attribute MCMC::Impl::read_attribute_(const std::string &expr, const Individual &member)
 {
@@ -167,7 +167,7 @@ double MCMC::Impl::read_numeric_(const DefinitionParser::ASTNode &node, const In
         return aux_attr_.get();
     else
         throw std::invalid_argument(
-            "Unable to interpret definition \"" + node.str() + "\" as numeric constant.");
+            "Definition \"" + node.str() + "\" could not be interpreted as a numeric constant.");
 }
 double MCMC::Impl::read_numeric_(const std::string &expr, const Individual &member)
 {
@@ -234,7 +234,7 @@ void MCMC::Impl::Augmented::helper_build_definition_()
         const std::string &a = deftable["name"][k];
         if (hsp::na::is(a))
             throw std::invalid_argument(
-                "Augmented variable name cannot be undefined.");
+                "Found an augmented variable with undefined name.");
 
         // check that status-specific definition is for infected status
         std::string &s = deftable["status"][k];
@@ -243,7 +243,7 @@ void MCMC::Impl::Augmented::helper_build_definition_()
 
         else if (!hsp::status::is_infected(hsp::str::toi(s, "augmented status")))
             throw std::invalid_argument(
-                "Unable to associate augmented \"" + a + "\" for non infectious status " + s + ".");
+                "Impossible to associate augmented \"" + a + "\" for non infectious status " + s + ".");
 
         // store status to definition row index
         status_to_def_row[s].push_back(k);
@@ -258,7 +258,7 @@ void MCMC::Impl::Augmented::helper_build_definition_()
 
         if (name_to_status.size() != hsp::str::unique(name_to_status).size())
             throw std::invalid_argument(
-                "Incompatible definitions for augmented \"" + pair.first + "\".");
+                "Incompatible definitions found for augmented \"" + pair.first + "\".");
     }
 }
 
@@ -352,7 +352,7 @@ std::vector<size_t> MCMC::Impl::Augmented::get_unsorted_definition_rows_by_(cons
 
     else
         throw std::invalid_argument(
-            "No definitions compatible with augmented status " + s + ".");
+            "No definitions were compatible with augmented status " + s + ".");
 }
 
 /// Set sample map and relative usage list.
@@ -368,7 +368,7 @@ void MCMC::Impl::Augmented::set_sample_map_for_(const std::string &s, size_t k)
 
     else if (hsp::na::is(deftable["value"][k]) && hsp::na::is(deftable["model"][k]))
         throw std::invalid_argument(
-            "Unable to initialize augmented\"" + a + "\" for status " + s + " without value nor model");
+            "Impossible to initialize augmented \"" + a + "\" for status " + s + " without a value or model.");
 
     else if (!hsp::na::is(deftable["rule"][k]))
     {
@@ -379,8 +379,8 @@ void MCMC::Impl::Augmented::set_sample_map_for_(const std::string &s, size_t k)
     }
     else
         throw std::runtime_error(
-            "Ambigous non-constant definition of augmented \"" + a +
-            "\" for status " + s + ". No rule was provided.");
+            "No rule was provided for non-constant definition of augmented \"" + a +
+            "\" for status " + s + ".");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -532,10 +532,10 @@ std::vector<size_t> MCMC::Impl::Augmented::init_get_definition_order_(Individual
         return status_to_def_row[hsp::na::STRING];
     else if (member.is_infected_status())
         throw std::invalid_argument(
-            "No augmented definitions for " + member.err_name() + " with status " + s + ".");
+            "No augmented definitions were found for " + member.err_name() + " with status " + s + ".");
     else
         throw std::invalid_argument(
-            "Missing generic augmented definition for non-infectious " + member.err_name() + ".");
+            "Generic augmented definition for non-infectious " + member.err_name() + " was missing.");
 }
 
 /// Assign model arguments and range. Same for function, otherwise assign proposer.
@@ -545,23 +545,22 @@ void MCMC::Impl::Augmented::helper_init_attributes_(Individual &member, size_t k
     member.init_augm(a,
                      pImpl_.read_numeric_(deftable["value"][k], member),
                      hsp::str::tobool(deftable["const"][k]),
-                     hsp::str::tobool(deftable["discr"][k]),
                      deftable["func"][k],
                      hsp::str::tobool(deftable["fcumul"][k]),
                      deftable["model"][k]);
     Variable &xaugm = member.get_augm_variable(a);
 
+    // assign arguments to model and associate discretization 
+    init_model_attributes_(member, k);
+
     if (xaugm.is_function()) // function
         init_func_attributes_(member, k);
-
     else if (xaugm.is_pointer()) // pointer (case of identity function)
         xaugm.transfer(pImpl_.read_attribute_(deftable["func"][k], member));
 
-    if (!xaugm.is_constant()) // variable to be sampled
+    // assign proposer if variable to be sampled
+    if (!xaugm.is_constant()) 
         xaugm.init_proposer(deftable["rule"][k], hsp::str::tod(deftable["scale"][k]));
-
-    // assign arguments to model
-    init_model_attributes_(member, k);
 }
 
 /// Auxiliary method to assign attributes to augmented model.
@@ -574,7 +573,7 @@ void MCMC::Impl::Augmented::init_model_attributes_(Individual &member, size_t k)
 
     for (const std::string &key : {hsp::params::MIN, hsp::params::MAX})
         xaugm.init_distr_attr(key, pImpl_.read_attribute_(deftable[key][k], member));
-    xaugm.init_distr_reshaping();
+    xaugm.init_distr_reshaping(hsp::str::tobool(deftable["discr"][k]));
 }
 
 /// Auxiliary method to assign attributes to augmented function.
@@ -591,7 +590,7 @@ void MCMC::Impl::Augmented::init_func_attributes_(Individual &member, size_t k)
 
     for (const std::string &key : {hsp::params::MIN, hsp::params::MAX})
         xaugm.init_func_attr(key, pImpl_.read_attribute_(deftable[key][k], member));
-    xaugm.init_func_reshaping();
+    xaugm.init_func_reshaping(hsp::str::tobool(deftable["discr"][k]));
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -640,7 +639,7 @@ void MCMC::Impl::Augmented::helper_init_id_draws_()
                     {
                         if (already_stored_id % member.id())
                             throw std::invalid_argument(
-                                "Multiple individuals share the same id trace \"" + member.id() + "\".");
+                                "Multiple individuals shared the same id \"" + member.id() + "\".");
                         else
                         {
                             already_stored_id.push_back(member.id());
@@ -655,21 +654,21 @@ void MCMC::Impl::Augmented::helper_init_id_draws_()
             {
                 for (const auto member : smpl_individuals)
                     if (!member->is_infected_status())
-                        hsp::warning(
-                            "Ignornig draws of non infected " + member->err_name() + ".");
+                        hsp::msg::warning(
+                            "Ignored draws of non infected " + member->err_name() + ".");
             }
             else
             {
                 // UPDATE: is this even possible?
-                hsp::warning(
-                    "Ignoring id draws for individual(s) " + hsp::str::format(id_draws));
+                hsp::msg::warning(
+                    "Ignored id draws for individual(s) " + hsp::str::format(id_draws));
                 id_draws.clear();
             }
         }
         else
         {
-            hsp::warning(
-                "Ignoring id draws. No augmented variables to infer.");
+            hsp::msg::warning(
+                "Ignored id draws. No augmented variables to sample were defined.");
             id_draws.clear();
         }
     }

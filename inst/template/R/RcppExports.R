@@ -71,6 +71,9 @@ NULL
 #' @field import_augm\cr Import augmented variable definitions from R Data.Frame.
 #' @field buil_all_rates\cr Assign all contact and group rates.
 #' @field export_setup\cr Return a List with current setup.
+#' @field export_param_list_const\cr Return a CharacterVector with constant parameters.
+#' @field export_param_list_sample_standard\cr Return a CharacterVector with parameters to sample.
+#' @field export_param_list_sample_cache\cr Return a CharacterVector with parameters to sample with cached dependecies.
 #' @field export_infec_profile\cr Return a List with infectivity profile.
 #' @field export_data_wide\cr Return a DataFrame with current database.
 #' @field summarise_cases\cr Return a DataFrame with a report of the current database.

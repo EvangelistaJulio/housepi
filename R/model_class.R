@@ -113,7 +113,7 @@ HousepiModel <- R6::R6Class(
 
     # @description
     # Assert group rate definitions from the model implementation script.
-    .assert_group_rate = function() {
+    .assert_group_rates = function() {
       if (!private$.is_blank()) {
         private$.group_rates$assert(private$.get_all_group_rate())
       }
@@ -265,7 +265,7 @@ HousepiModel <- R6::R6Class(
       )))
 
       # assert group rate definitions
-      private$.assert_group_rate()
+      private$.assert_group_rates()
       # build group rate definitions
       private$.build_group_rates()
 
@@ -298,6 +298,9 @@ HousepiModel <- R6::R6Class(
     # this could be designed to be more helpful
     # e. g. create a standalone folder somewhere with correct links to headers
     .export_to_cpp_standalone = function(outpath = "inst/standalone/") {
+      private$.assert_group_rates()
+      private$.build_group_rates()
+      
       write.csv(private$.rcpp$export_data_wide(),
                 file.path(outpath, "data_wide.csv"),
                 quote = FALSE, row.names = FALSE)
@@ -370,9 +373,9 @@ HousepiModel <- R6::R6Class(
       private$.augm$load_list(from = value, append = FALSE)
     },
 
-    #' @field infec_profile_defs
+    #' @field infec_profile
     #' A `list` with infectivity profile definitions.
-    infec_profile_defs = function(value) {
+    infec_profile = function(value) {
       if (missing(value)) {
         defs <- private$.infec_profile$defs
         if (!is.null(defs)) return(make_def_readable(defs))
@@ -385,6 +388,7 @@ HousepiModel <- R6::R6Class(
     #' A `list` with group rate definitions.
     group_rates = function(value) {
       if (missing(value)) {
+        private$.assert_group_rates()
         private$.build_group_rates()
         return(private$.group_rates$tidy_table)
       }
