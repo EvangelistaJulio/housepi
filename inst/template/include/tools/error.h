@@ -19,10 +19,15 @@
 
 namespace hsp
 {
-    /// Display a single-line warning message.
-    void warning(const std::string &txt);
-    /// Display a single-line error message.
-    void error(const std::string &txt);
+    namespace msg
+    {
+        /// Throw an error message.
+        void error(const std::string &txt);
+        /// Show a message to stdout and flush.
+        void message(const std::string &txt);
+        /// Display a warning message if not already displayed before.
+        void warning(const std::string &txt);
+    }
 }
 
 #endif // HOUSEPI__TOOLS__ERROR__H

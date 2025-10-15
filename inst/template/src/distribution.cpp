@@ -213,7 +213,8 @@ std::shared_ptr<Distribution> compose_distr_registries(const std::string &opt,
     str_vec options = {};
 
     if (registries.empty())
-        throw std::invalid_argument("No registries provided for \"" + name + "\".");
+        throw std::invalid_argument(
+            "No registries were provided for \"" + name + "\".");
     else if (hsp::na::is(opt))
         return std::make_shared<Distribution>();
     else
@@ -410,16 +411,16 @@ public:
     void init_discretization() override final
     {
         throw std::invalid_argument(
-            "Invalid option discrete for " + err_name() + ".");
+            "Invoked invalid option discrete for " + err_name() + ".");
     }
     void init_truncation() override final
     {
         if (get_min() < 0)
             throw std::invalid_argument(
-                "Invalid min value " + hsp::str::format(range_min_.get()) + " for " + err_name() + ".");
+                "Invoked invalid min value " + hsp::str::format(range_min_.get()) + " for " + err_name() + ".");
         else if (get_max() > 1)
             throw std::invalid_argument(
-                "Invalid max value " + hsp::str::format(range_max_.get()) + " for " + err_name() + ".");
+                "Invoked invalid max value " + hsp::str::format(range_max_.get()) + " for " + err_name() + ".");
         else if ((get_min() > 0) || (get_max() < 1))
         {
             init_range_helper_((get_min() == 0), (get_max() == 1));
@@ -662,12 +663,12 @@ public:
     {
         if (get_min() < 0.)
             throw std::invalid_argument(
-                "Invalid min value " + hsp::str::format(range_min_.get()) + " for " + err_name() + ".");
+                "Invoked invalid min value " + hsp::str::format(range_min_.get()) + " for " + err_name() + ".");
         else if ((get_min() > 0.) || (get_ptr_to_arg(0) != get_ptr_to_max()))
         {
             if (get_max() > arg(0))
                 throw std::invalid_argument(
-                    "Invalid max value " + hsp::str::format(range_max_.get()) + " for " + err_name() + " with size " + std::to_string(arg(0)) + ".");
+                    "Invoked invalid max value " + hsp::str::format(range_max_.get()) + " for " + err_name() + " with size " + std::to_string(arg(0)) + ".");
             init_range_helper_(false, false);
             init_trunc_helper_();
         }

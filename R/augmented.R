@@ -130,7 +130,7 @@ HousepiAugmented <- R6::R6Class(
           else stop_h("Rule scale should be a numeric value greater than 0.")
         }
       } else {
-        opts$rule <- NA
+        opts$rule <- NA_character_
       }
 
       opts

@@ -34,43 +34,66 @@
 // TOOLS NAMESPACE
 namespace hsp
 {
-    std::unordered_set<std::string> _issued_warnings_;
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////  Stdout Message Function  ////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /// Display a single-line warning message.
-    /// Ref:
-    /// -----
-    /// Suppressing Call Stack Info in Rcpp-Generated Errors and Warnings
-    /// Michael Weylandt — written Mar 27, 2018
-    /// https://gallery.rcpp.org/articles/quiet-stop-and-warning/
-    void warning(const std::string &txt)
+    // TOOLS::MSG NAMESPACE
+    namespace msg
     {
-        if (!(_issued_warnings_ % txt))
+        /// Set of already issued warnings.
+        std::unordered_set<std::string> housepi_issued_warnings_set;
+
+        /// Throw an error message.
+        /// Ref:
+        /// -----
+        /// Suppressing Call Stack Info in Rcpp-Generated Errors and Warnings
+        /// Michael Weylandt — written Mar 27, 2018
+        /// https://gallery.rcpp.org/articles/quiet-stop-and-warning/
+        void error(const std::string &txt)
         {
 #ifdef _HOUSEPI_RCPP
-            // Rcpp::warning(txt);
-            Rf_warningcall(R_NilValue, "%s", txt.c_str());
+            throw Rcpp::exception(txt.c_str(), false);
 #else
-            std::cerr << "Warning: " + txt << std::endl;
+            std::cerr << "Error: " + txt + "\nExit..."
+                      << std::endl;
+            std::exit(EXIT_FAILURE);
 #endif
-            _issued_warnings_.insert(txt);
         }
-    }
 
-    /// Display a single-line error message.
-    /// Ref:
-    /// -----
-    /// Suppressing Call Stack Info in Rcpp-Generated Errors and Warnings
-    /// Michael Weylandt — written Mar 27, 2018
-    /// https://gallery.rcpp.org/articles/quiet-stop-and-warning/
-    void error(const std::string &txt)
-    {
+        /// Show a message to stdout.
+        void message(const std::string &txt)
+        {
 #ifdef _HOUSEPI_RCPP
-        throw Rcpp::exception(txt.c_str(), false);
+            Rcpp::Rcout << txt;
+            Rcpp::Rcout.flush();
 #else
-        std::cerr << "Error: " + txt + "\nExit..."
-                  << std::endl;
-        std::exit(EXIT_FAILURE);
+            std::cout << txt;
+            std::cout.flush();
 #endif
+        }
+
+        /// Display a warning message if not already displayed before.
+        /// Ref:
+        /// -----
+        /// Suppressing Call Stack Info in Rcpp-Generated Errors and Warnings
+        /// Michael Weylandt — written Mar 27, 2018
+        /// https://gallery.rcpp.org/articles/quiet-stop-and-warning/
+        void warning(const std::string &txt)
+        {
+            if (!(housepi_issued_warnings_set % txt))
+            {
+#ifdef _HOUSEPI_RCPP
+                // Rcpp::warning(txt);
+                Rf_warningcall(R_NilValue, "%s", txt.c_str());
+#else
+                std::cerr << "Warning: " << txt << std::endl;
+#endif
+                housepi_issued_warnings_set.insert(txt);
+            }
+        }
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -194,7 +217,7 @@ namespace hsp
                     output += "[";
                     for (size_t j = 0; j < vec[i].size(); ++j)
                     {
-                        output += vec[i][j];
+                        output += std::to_string(vec[i][j]);
                         if (j < vec[i].size() - 1)
                             output += ", ";
                     }

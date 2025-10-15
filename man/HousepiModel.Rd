@@ -22,7 +22,7 @@ and variable defintions from a single class.
 
 \item{\code{augmented}}{A\code{data.frame} with augmented formatted definitions.}
 
-\item{\code{infec_profile_defs}}{A \code{list} with infectivity profile definitions.}
+\item{\code{infec_profile}}{A \code{list} with infectivity profile definitions.}
 
 \item{\code{group_rates}}{A \code{list} with group rate definitions.}
 }

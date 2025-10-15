@@ -44,7 +44,7 @@ const ReportHouseSizes &MCMC::get_report_hh_size() const { return pImpl_->datase
 void MCMC::assert_no_missing_status() const
 {
     if (pImpl_->dataset.report_indiv.missing > 0)
-        hsp::error(
+        hsp::msg::error(
             "Individual with missing status are incompatible with current model.");
 }
 
@@ -101,21 +101,6 @@ Rcpp::List MCMC::simulate(size_t n_rep) { return pImpl_->simulate(n_rep); }
 Rcpp::List MCMC::logevidence(const std::string &scheme, unsigned long n_rungs) { return pImpl_->logevidence(scheme, n_rungs); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  MCMC : exports to Rcpp ////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-Rcpp::List MCMC::export_setup() const { return pImpl_->setup.rcpp_export(); }
-Rcpp::List MCMC::export_infec_profile() const { return pImpl_->infec_profile.rcpp_export(); }
-Rcpp::DataFrame MCMC::export_augmented_data_wide() const { return pImpl_->augm.rcpp_export_data_wide(); }
-Rcpp::DataFrame MCMC::export_data_wide() const { return pImpl_->dataset.rcpp_export(pImpl_->dataset.headers(), true); }
-Rcpp::DataFrame MCMC::summarise_cases() const { return pImpl_->dataset.rcpp_summarise_cases(); }
-Rcpp::DataFrame MCMC::summarise_house_sizes() const { return pImpl_->dataset.rcpp_summarise_house_sizes(); }
-Rcpp::NumericMatrix MCMC::export_house_loglike_draws() const { return pImpl_->dataset.rcpp_export_draws(); }
-Rcpp::DataFrame MCMC::export_data_long() const { return pImpl_->datalong.rcpp_export(); }
-Rcpp::NumericMatrix MCMC::export_draws() const { return pImpl_->rcpp_export_draws(); }
-Rcpp::List MCMC::export_house_snapshot(const std::string &house_id) const { return pImpl_->rcpp_export_house_snapshot(house_id); }
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////  MCMC : imports from Rcpp ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -127,6 +112,27 @@ void MCMC::import_group_rates(SEXP input) { pImpl_->group_rates.rcpp_import(inpu
 void MCMC::import_param(SEXP input) { pImpl_->param.rcpp_import(input); }
 void MCMC::import_infec_profile(SEXP input) { pImpl_->infec_profile.rcpp_import(input); }
 void MCMC::import_augm(SEXP input) { pImpl_->augm.rcpp_import(input); }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////  MCMC : exports to Rcpp ////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+Rcpp::DataFrame MCMC::export_data_wide() const { return pImpl_->dataset.rcpp_export(pImpl_->dataset.headers(), true); }
+Rcpp::DataFrame MCMC::export_data_long() const { return pImpl_->datalong.rcpp_export(); }
+Rcpp::DataFrame MCMC::summarise_cases() const { return pImpl_->dataset.rcpp_summarise_cases(); }
+Rcpp::DataFrame MCMC::summarise_house_sizes() const { return pImpl_->dataset.rcpp_summarise_house_sizes(); }
+Rcpp::List MCMC::export_setup() const { return pImpl_->setup.rcpp_export(); }
+Rcpp::CharacterVector MCMC::export_param_list_const() const { return Rcpp::wrap(pImpl_->param.list_const); }
+Rcpp::CharacterVector MCMC::export_param_list_sample_standard() const { return Rcpp::wrap(pImpl_->param.list_sample_standard); }
+Rcpp::CharacterVector MCMC::export_param_list_sample_cache() const { return Rcpp::wrap(pImpl_->param.list_sample_cache); }
+Rcpp::List MCMC::export_infec_profile() const { return pImpl_->infec_profile.rcpp_export(); }
+Rcpp::CharacterVector MCMC::export_augm_list_draws() const { return Rcpp::wrap(pImpl_->augm.list_draws); }
+Rcpp::CharacterVector MCMC::export_augm_list_full() const { return Rcpp::wrap(pImpl_->augm.list_full); }
+Rcpp::CharacterVector MCMC::export_augm_list_export() const { return Rcpp::wrap(pImpl_->augm.list_export); }
+Rcpp::DataFrame MCMC::export_augmented_data_wide() const { return pImpl_->augm.rcpp_export_data_wide(); }
+Rcpp::NumericMatrix MCMC::export_draws() const { return pImpl_->rcpp_export_draws(); }
+Rcpp::NumericMatrix MCMC::export_house_loglike_draws() const { return pImpl_->dataset.rcpp_export_draws(); }
+Rcpp::List MCMC::export_house_snapshot(const std::string &house_id) const { return pImpl_->rcpp_export_house_snapshot(house_id); }
 
 #else
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -170,7 +176,7 @@ void MCMC::build_all_rates()
     }
     catch (const std::exception &e)
     {
-        hsp::error("While initializing contact rates:\n" +
+        hsp::msg::error("While initializing contact rates:\n" +
                    std::string(e.what()));
     }
 }

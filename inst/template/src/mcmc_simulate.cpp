@@ -113,7 +113,7 @@ Rcpp::List MCMC::Impl::simulate(size_t n_rep)
     }
     catch (std::exception &e)
     {
-        hsp::error(e.what());
+        hsp::msg::error(e.what());
     }
 
     return List::create();

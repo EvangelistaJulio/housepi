@@ -164,11 +164,10 @@ std::shared_ptr<Proposer> proposer_switch(const std::string &rule_name = hsp::na
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Initialize variable.
-void Variable::init(double value, bool is_const, bool is_discr,
+void Variable::init(double value, bool is_const,
                     const DefinitionParser &parser, bool is_primitive)
 {
     this->is_constant_ = is_const;
-    this->is_discrete_ = is_discr;
 
     user_value_ = hsp::na::DOUBLE;
     evaluate_ = &Variable::do_eval_error_;
@@ -209,7 +208,7 @@ void Variable::user_reset(rnd_gen &prng)
 
 /// Initialize function reshaping.
 /// Drop function if it's constant when reshaping.
-void Variable::init_func_reshaping()
+void Variable::init_func_reshaping(bool discr)
 {
     if (is_function())
     {
@@ -229,8 +228,13 @@ void Variable::init_func_reshaping()
 
             if (!pFunc_->is_implicit_callable())
                 get_ = &Variable::do_get_error_;
+            
+            // discretization of model has priority
+            // NOTE: e. g. if user discr is FALSE, but discrete-defined model
+            if (!pDistr_->is_empty()) 
+                discr = pDistr_->is_discrete();
 
-            if (is_discrete_)
+            if (discr)
                 pFunc_->init_discretization();
             pFunc_->init_truncation();
         }
@@ -257,11 +261,11 @@ void Variable::init_distr_attr(const std::string &key, const Attribute &attr)
 }
 
 /// Initialize distribution reshaping.
-void Variable::init_distr_reshaping()
+void Variable::init_distr_reshaping(bool discr)
 {
     if (!pDistr_->is_empty())
     {
-        if (is_discrete_)
+        if (discr)
             pDistr_->init_discretization();
         pDistr_->init_truncation();
 
@@ -304,7 +308,8 @@ void Variable::init_location_arg(const Attribute &x)
     }
 }
 
-/// Assign proposer.
+/// Assign proposer to variable. 
+/// NOTE: it must be assigned after model initialization.
 void Variable::init_proposer(const std::string &rule_name, double rule_scale)
 {
     if (hsp::na::is(rule_name))
@@ -326,7 +331,7 @@ void Variable::init_proposer(const std::string &rule_name, double rule_scale)
             // raise a warning if "lnorm" rule when varaible can be negative
             // UPDATE: generalize in case of new positive-defined proposer rules
             if ((pDistr_->get_min() < 0) && (rule_name == "lnorm"))
-                hsp::warning(
+                hsp::msg::warning(
                     "Lognormal proposer rule for non-positive " + err_name() + ".");
 
             // assign the pointer to the proposer

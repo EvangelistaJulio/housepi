@@ -30,13 +30,12 @@
 void AugmentedMap::init_augm(const std::string &a,
 							 double value,
 							 bool is_const,
-							 bool is_discr,
 							 const DefinitionParser &func_name,
 							 bool is_prim,
 							 const DefinitionParser &model_name)
 {
 	Variable &this_augm = safe_at(augm_map_, a, "augmented variable");
-	this_augm.init(value, is_const, is_discr, func_name, is_prim);
+	this_augm.init(value, is_const, func_name, is_prim);
 	this_augm.init_distr(model_name);
 }
 
@@ -45,7 +44,14 @@ std::string AugmentedMap::str_augm_summary() const
 {
 	std::string output;
 	for (const auto &pair : augm_map_)
-		output += "- " + pair.first + " : " + pair.second.str_summary() + "\n";
+	{
+		output += "- " + pair.first + " : ";
+		if (pair.second.is_function() && !pair.second.get_function()->is_implicit_callable())
+			output += pair.second.get_function()->str_summary();
+		else
+			output += pair.second.str_summary();
+		output += "\n";
+	}
 	return output;
 }
 

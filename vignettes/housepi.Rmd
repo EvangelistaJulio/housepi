@@ -89,8 +89,7 @@ We can extract summary information about current loaded data with `summarise_cas
 
 ```{r}
 # show a summary of cases as a `flextable`
-hhmodel |>
-  summarise_cases() |>
+summarise_cases(hhmodel) |>
   flextable::flextable() |>
   flextable::theme_vanilla() |>
   flextable::set_formatter(pct = function(x) round(x, 1)) |>
@@ -154,8 +153,7 @@ For example, we can extract the parameters draws by calling `get_param_draws` an
 
 ```{r}
 # visualize the traces of the first chain with 'bayesplot'
-results |>  
-  get_param_draws() |>
+get_param_draws(results) |>
   bayesplot::mcmc_trace(facet_args = list(ncol = 1))
 ```
 
@@ -164,8 +162,7 @@ We can extract the sample of pointwise loglikelihood for each household and comp
 
 ```{r}
 # LOO-CV (leave-one-out cross-validation)
-results |>
-  get_house_loglike_draws() |>
+get_house_loglike_draws(results) |>
   posterior::as_draws_matrix() |>
   loo::loo()
 ```
@@ -182,8 +179,7 @@ hhsimul <- new_housepi_model("augmented_infection_time") |>
   load_parameter_template()
 
 # inspect parameter definitions
-hhsimul |>
-  get_parameters()
+get_parameters(hhsimul)
 ```
 
 ## Simulate an outbreak
@@ -272,15 +268,13 @@ We can visualize traces vs expected values as follows
 library(ggplot2)
 
 # select parameters used for the simulation
-simul_parameters <- hhsimul |>
-  get_parameters() |>
+simul_parameters <- get_parameters(hhsimul) |>
   dplyr::filter(!const) |>
   dplyr::select(name, value) |>
   dplyr::rename(parameter = name, simulated = value)
 
 # use bayesplot to plot the posterior draws
-results |>
-  bayesplot::mcmc_trace(facet_args = list(ncol = 1)) +
+bayesplot::mcmc_trace(results, facet_args = list(ncol = 1)) +
   geom_hline(data = simul_parameters, aes(yintercept = simulated),
              colour = "coral", linewidth = 1)
 ```
@@ -289,8 +283,7 @@ results |>
 #| fig.width: 5
 #| fig.height: 2.5
 # compute Rhat values associate to inferred parameters
-var_names <- hhmodel |>
-  get_parameters() |>
+var_names <- get_parameters(hhmodel) |>
   dplyr::filter(!const) |>
   dplyr::pull(name)
 rhat_values <- sapply(var_names, function(v) posterior::rhat(results[[v]]))
@@ -305,8 +298,7 @@ Here we performed R-hat diagnostics computing the values of $\hat{R}$ with [post
 Finally we wrap all together to compare to parameters used for simulation.
 
 ```{r}
-results |>
-  posterior::summarise_draws() |>
+posterior::summarise_draws(results) |>
   dplyr::reframe(parameter = variable,
                  inferred = sprintf("%0.4f [%0.4f, %0.4f]", mean, q5, q95)) |>
   dplyr::inner_join(simul_parameters, by = "parameter") |>

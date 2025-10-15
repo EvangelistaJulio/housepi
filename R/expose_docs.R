@@ -172,9 +172,8 @@ rd_param_table_ <- "One between\\cr
 - `posterior::draws`;
 - `HousepiPosteriorDraws`.
 "
-rd_measure_ <- "`function` or `list` of `function`s to compute measures from data."
-rd_measure_dots_ <- "Named arguments with respective measure `function`.\\cr
-If `measure` is provided, arguments are ignored."
+rd_measure_dots_ <- "Named arguments with `function`s to compute the respective measure from data.\\cr
+Each function should return one between `numeric()`, `list` or `data.frame`."
 
 ############################################################################
 ############################################################################

@@ -35,7 +35,7 @@ void Model::init_model_for_inference()
 	assert_no_missing_status();
 
 	// initialize look-up-table to largest possible value
-	bax::init_generations_lookuptable(get_report_hh_size().max_cases.first);
+	bax::init_escape_patterns_lookuptable(get_report_hh_size().max_cases.first);
 
 	// allocate memory for the escape matrix
 	cache_house_size_t_vector("order");
@@ -111,13 +111,13 @@ void Model::fill_house_escape_matrix(Household &house) const
 //////////////////////////////////// Model : transmission rate  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// [CHANGE-ME] Risk of infection from the community.
+/// Risk of infection from the community.
 double Model::community_risk() const
 {
 	return param("alpha");
 }
 
-/// [CHANGE-ME] Risk of infection from another household member.
+/// Risk of infection from another household member.
 double Model::person_to_person_risk() const
 {
 	return param("beta");

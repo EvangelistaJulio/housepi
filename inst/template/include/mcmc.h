@@ -144,7 +144,7 @@ public:
 
 	/// Compute the loglikelihood for a single household.
 	virtual double compute_household_obs_loglike(Household &) { throw std::runtime_error(
-		"Wrong call to virtual loglikelihood method of undefined model."); }
+		"Called undefined loglikelihood method.\nOverride it in your custom model implementation before proceeding."); }
 	double evaluate();
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
@@ -156,7 +156,7 @@ public:
 
 	/// Simulation for a single household.
 	virtual void simulate_single_household(Household &) { throw std::runtime_error(
-		"Wrong call to virtual simulation method of undefined model."); }
+		"Called undefined simulation method.\nOverride it in your custom model implementation before proceeding."); }
 
 #ifdef _HOUSEPI_RCPP
 	/////////////////////////////////////////////////////////////////////////////////////////////
@@ -189,7 +189,13 @@ public:
 	Rcpp::DataFrame summarise_cases() const;
 	Rcpp::DataFrame summarise_house_sizes() const;
 	Rcpp::List export_setup() const;
+	Rcpp::CharacterVector export_param_list_const() const;
+	Rcpp::CharacterVector export_param_list_sample_standard() const;
+	Rcpp::CharacterVector export_param_list_sample_cache() const;
 	Rcpp::List export_infec_profile() const;
+	Rcpp::CharacterVector export_augm_list_draws() const;
+	Rcpp::CharacterVector export_augm_list_full() const;
+	Rcpp::CharacterVector export_augm_list_export() const;
 	Rcpp::DataFrame export_augmented_data_wide() const;
 	Rcpp::NumericMatrix export_draws() const;
 	Rcpp::NumericMatrix export_house_loglike_draws() const;

@@ -122,12 +122,12 @@ hhmodel <- new_housepi_model("augmented_example") |>
 
   # define the gamma distribution parameter to be inferred
   load_parameter_list(
-    mean = list(
-      prior = "uniform", args = c(min = 0.1, max = 5), rule = "normal"
-    ),
-    var = list(
-      prior = "uniform", args = c(min = 0.1, max = 5), rule = "normal"
-    )
+    mean = list(prior = "uniform",
+                args = c(min = 0.1, max = 5),
+                rule = "normal"),
+    var = list(prior = "uniform",
+               args = c(min = 0.1, max = 5),
+               rule = "normal")
   )
 ```
 
