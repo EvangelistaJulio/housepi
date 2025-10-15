@@ -66,8 +66,11 @@ public:
         "Called propose method of undefined Monte Carlo proposer."); }
     virtual double logratio(double, double) const { return 0.; }
 
+    /// Wheter proposer rule can be adapted.
+    bool is_adaptable() const { return !args_to_adapt_.empty(); }
+
     /// Return proposer scale.
-    double scale() const { return args_to_adapt_.empty() ? hsp::na::DOUBLE : std::fabs((pDistr_->arg)(args_to_adapt_[0])); }
+    double scale() const { return is_adaptable() ? std::fabs((pDistr_->arg)(args_to_adapt_[0])) : hsp::na::DOUBLE; }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////  Proposer : setter  ///////////////////////////////////
@@ -90,16 +93,8 @@ public:
         accept_rate_ = 0.;
         n_proposed_ = 0;
     }
-
     /// Increase spread if acceptation rate is high and viceversa.
-    void adapt(double ratio)
-    {
-        // target accept rate set to 1/4.
-        const double factor = 1. + (1. - ratio) * (get_accept_rate() - 0.25);
-        // loop over all ids of arguments to adapt
-        for (unsigned short i : args_to_adapt_)
-            (pDistr_->set_arg)(i, factor * (pDistr_->arg)(i));
-    }
+    void adapt(double ratio);
 
 protected:
     std::string name_ = hsp::na::STRING;
@@ -194,6 +189,7 @@ public:
     bool is_constant() const override;
     bool is_discrete() const override final;
     bool is_model() const { return !pDistr_->is_empty(); }
+    bool is_adaptable() const { return pProp_->is_adaptable(); }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////  Variable : Metropolis-Hastings  ////////////////////////////

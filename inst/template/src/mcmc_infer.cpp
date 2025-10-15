@@ -17,6 +17,9 @@
 #include "tools/error.h"
 #include "mcmc_impl.h"
 
+// FLAG
+#include "tools/string.h"
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////  MCMC::Impl : evaluate loglikelihood  /////////////////////////////
@@ -157,6 +160,10 @@ void MCMC::Impl::init_monte_carlo_()
     if (!(param.is_any_sample() || augm.is_any_sample()))
         throw std::length_error(
             "Nothing to sample. Check your parameter and augmented definitions.");
+
+    // initialize parameter lists for adaptation
+    // NOTE: after all definitions finished to make cached parameters
+    param.init_adaptable_lists();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -175,18 +182,21 @@ void MCMC::Impl::run_monte_carlo_()
     // run multiple MCMC chains&
     for (chain = 1; chain <= setup.n_chains; ++chain)
     {
-        setup.prog_set_text(); // update progress bar text
-        param.user_reset();    // reset parameter user definitions
-        augm.user_reset();     // reset augmented user definitions
+        setup.prog_set_text();      // update progress bar text
+        param.user_reset();         // reset parameter user definitions
+        augm.user_reset();          // reset augmented user definitions
         update_full_loglike_(true); // init cache + full loglikelihood
         init_move_counts_();        // init move counts for adaptive
 
-        // (Finite) Adaptative Iterations
+        // Finite adaptative iterations
         for (unsigned long i = 0; i < setup.n_adapt; i += setup.n_thin, setup.prog_update())
             for (unsigned long t = 1; t <= setup.n_thin; ++t)
-                move_all_and_adapt_params_(i + t);
+            {
+                move_all_();
+                adapt_rules_of_sampled_params_(i + t);
+            }
 
-        // Burn-in Iterations
+        // Burn-in iterations
         for (unsigned long i = 0; i < setup.n_burnin; i += setup.n_thin, setup.prog_update())
             for (unsigned long t = 1; t <= setup.n_thin; ++t)
                 move_all_();
@@ -196,7 +206,7 @@ void MCMC::Impl::run_monte_carlo_()
         {
             for (unsigned long t = 1; t <= setup.n_thin; ++t)
                 move_all_();
-            update_posterior_sample_(); // store sample
+            update_posterior_sample_();
         }
     }
 }
@@ -210,15 +220,20 @@ void MCMC::Impl::run_monte_carlo_()
 /// Move all model parameters.
 void MCMC::Impl::move_all_()
 {
-    // move augmented variables if any
-    move_all_augm_();
+    // move augmented variables to sample, if any
+    if (augm.is_any_sample())
+        move_all_augm_();
 
-    // move all simple model parameters
-    for (const std::string &p : param.list_sample_standard)
+    // move all standard model parameters
+    for (const std::string &p : param.list_adaptable_sample_standard)
+        param.at(p).update_accept_rate(move_single_parameter_(p, false));
+    for (const std::string &p : param.list_non_adapt_sample_standard)
         move_single_parameter_(p, false);
 
-    // move parameters with cache dependecies
-    for (const std::string &p : param.list_sample_cache)
+    // move parameters with cached dependecies
+    for (const std::string &p : param.list_adaptable_sample_cached)
+        param.at(p).update_accept_rate(move_single_parameter_(p, true));
+    for (const std::string &p : param.list_non_adapt_sample_cached)
         move_single_parameter_(p, true);
 }
 
@@ -241,31 +256,18 @@ bool MCMC::Impl::move_single_parameter_(const std::string &p, bool cache_depen)
     return false; // refused move
 }
 
-/// Move all augmented variables and model parameters and adapt their rule arguments.
-void MCMC::Impl::move_all_and_adapt_params_(unsigned long step)
+/// Adpat the rules of model parameters.
+void MCMC::Impl::adapt_rules_of_sampled_params_(unsigned long step)
 {
-    move_all_augm_(); // move augmented variables to sample
-
-    // move all model parameters and adapt their rule arguments
     const double ratio = static_cast<double>(step) / setup.n_adapt;
 
-    // UPDATE: loops can be improved with viewers
+    // adpat all standard model parameters
+    for (const std::string &p : param.list_adaptable_sample_standard)
+        param.at(p).adapt_rule(ratio);
 
-    // move all simple model parameters
-    for (const std::string &p : param.list_sample_standard)
-    {
-        Variable &this_param = param.at(p);
-        this_param.update_accept_rate(move_single_parameter_(p, false));
-        this_param.adapt_rule(ratio);
-    }
-
-    // move parameters with cache dependecies
-    for (const std::string &p : param.list_sample_cache)
-    {
-        Variable &this_param = param.at(p);
-        this_param.update_accept_rate(move_single_parameter_(p, true));
-        this_param.adapt_rule(ratio);
-    }
+    // adapt all parameters with cached dependecies
+    for (const std::string &p : param.list_adaptable_sample_cached)
+        param.at(p).adapt_rule(ratio);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

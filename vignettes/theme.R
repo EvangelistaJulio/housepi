@@ -11,13 +11,11 @@ options(knitr.kable.NA = "")
 my_element_text <- ggplot2::element_text(size = 12, face = "plain")
 ggplot2::theme_set(
   ggplot2::theme_gray() +
-    ggplot2::theme(
-      text = my_element_text,
-      axis.text = my_element_text,
-      strip.text = my_element_text,
-      legend.text = my_element_text,
-      legend.title = ggplot2::element_blank()
-    )
+    ggplot2::theme(text = my_element_text,
+                   axis.text = my_element_text,
+                   strip.text = my_element_text,
+                   legend.text = my_element_text,
+                   legend.title = ggplot2::element_blank())
 )
 
 # bayesplot theme

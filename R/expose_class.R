@@ -25,7 +25,7 @@
 #'
 #' @export
 new_housepi_model <- function(choice = NA_character_, as_template = FALSE,
-                              force = FALSE, quiet = TRUE) {
+                              force = FALSE, quiet = TRUE, ...) {
   HousepiModel$new(choice = choice, as_template = as_template,
                    force = force, quiet = quiet, ...)
 }

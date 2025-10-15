@@ -166,8 +166,13 @@ public:
     {
         str_vec list_const = {};
         str_vec list_sample_standard = {};
-        str_vec list_sample_cache = {};
+        str_vec list_sample_cached = {};
         str_vec list_sample = {};
+
+        str_vec list_adaptable_sample_standard = {};
+        str_vec list_non_adapt_sample_standard = {};
+        str_vec list_adaptable_sample_cached = {};
+        str_vec list_non_adapt_sample_cached = {};
 
         // values of the sample
         u_dict<dbl_vec> smpl_values = {};
@@ -201,6 +206,7 @@ public:
         void build(const u_dict<str_vec> &input);
         void make_cache_dependent(const std::string &p);
         void user_reset();
+        void init_adaptable_lists();
 
         void init_draws(unsigned long sample_size);
         void update_draws(unsigned long smpl_count);
@@ -723,7 +729,7 @@ private:
 
     void run_monte_carlo_();
     void move_all_();
-    void move_all_and_adapt_params_(unsigned long step);
+    void adapt_rules_of_sampled_params_(unsigned long step);
 
     void init_posterior_sample_();
     void update_posterior_sample_();

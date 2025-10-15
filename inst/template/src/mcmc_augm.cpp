@@ -550,7 +550,7 @@ void MCMC::Impl::Augmented::helper_init_attributes_(Individual &member, size_t k
                      deftable["model"][k]);
     Variable &xaugm = member.get_augm_variable(a);
 
-    // assign arguments to model and associate discretization 
+    // assign arguments to model and associate discretization
     init_model_attributes_(member, k);
 
     if (xaugm.is_function()) // function
@@ -559,7 +559,7 @@ void MCMC::Impl::Augmented::helper_init_attributes_(Individual &member, size_t k
         xaugm.transfer(pImpl_.read_attribute_(deftable["func"][k], member));
 
     // assign proposer if variable to be sampled
-    if (!xaugm.is_constant()) 
+    if (!xaugm.is_constant())
         xaugm.init_proposer(deftable["rule"][k], hsp::str::tod(deftable["scale"][k]));
 }
 
@@ -736,39 +736,36 @@ void MCMC::Impl::Augmented::clear_draws()
 /// Move augmented variables from all households.
 void MCMC::Impl::move_all_augm_()
 {
-    if (augm.is_any_sample())
-    {
-        double delta_ll = 0.;
-        std::atomic<bool> has_error(false);
+    double delta_ll = 0.;
+    std::atomic<bool> has_error(false);
 
 #pragma omp parallel for reduction(+ : delta_ll)
-        for (size_t H = 0; H < dataset.n_houses(); ++H)
-        {
-            if (has_error.load(std::memory_order_relaxed))
-                continue;
+    for (size_t H = 0; H < dataset.n_houses(); ++H)
+    {
+        if (has_error.load(std::memory_order_relaxed))
+            continue;
 
-            Household &this_house = dataset(H);
-            try
-            {
-                delta_ll += move_augm_single_house_(this_house);
-            }
-            catch (const std::exception &e)
-            {
+        Household &this_house = dataset(H);
+        try
+        {
+            delta_ll += move_augm_single_house_(this_house);
+        }
+        catch (const std::exception &e)
+        {
 #pragma omp critical
-                {
-                    if (!has_error.exchange(true))
-                        error_message = "While sampling augmented variables for " +
-                                        this_house.err_name() + ":\n" +
-                                        std::string(e.what());
-                }
+            {
+                if (!has_error.exchange(true))
+                    error_message = "While sampling augmented variables for " +
+                                    this_house.err_name() + ":\n" +
+                                    std::string(e.what());
             }
         }
-
-        if (!error_message.empty())
-            throw std::runtime_error(error_message);
-
-        increment_full_loglike_(delta_ll);
     }
+
+    if (!error_message.empty())
+        throw std::runtime_error(error_message);
+
+    increment_full_loglike_(delta_ll);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

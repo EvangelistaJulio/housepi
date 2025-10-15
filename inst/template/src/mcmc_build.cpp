@@ -622,7 +622,7 @@ void MCMC::Impl::Parameter::build(const u_dict<str_vec> &deftable)
         list_const.clear();
         list_sample.clear();
         list_sample_standard.clear();
-        list_sample_cache.clear();
+        list_sample_cached.clear();
 
         // assert that parameter is not already defined
         if (deftable.at("name").size() != hsp::str::unique(deftable.at("name")).size())
@@ -715,13 +715,34 @@ void MCMC::Impl::Parameter::make_cache_dependent(const std::string &p)
         list_sample_standard = list_sample_standard - str_vec({p});
 
     // add the parameter as cache
-    if (!(list_sample_cache % p))
-        list_sample_cache.push_back(p);
+    if (!(list_sample_cached % p))
+        list_sample_cached.push_back(p);
 }
 
-/// Randomly initialize values of the parameters to be inferred */
+/// Randomly initialize values of the parameters to be inferred.
 void MCMC::Impl::Parameter::user_reset()
 {
     for (const std::string &p : list_sample)
         this->at(p).user_reset(pImpl_.setup.prng());
+}
+
+/// Initialize adaptable parameter lists.
+void MCMC::Impl::Parameter::init_adaptable_lists()
+{
+    list_adaptable_sample_standard.clear();
+    list_non_adapt_sample_standard.clear();
+    list_adaptable_sample_cached.clear();
+    list_non_adapt_sample_cached.clear();
+
+    for (const std::string &p : list_sample_standard)
+        if (at(p).is_adaptable())
+            list_adaptable_sample_standard.push_back(p);
+        else
+            list_non_adapt_sample_standard.push_back(p);
+
+    for (const std::string &p : list_sample_cached)
+        if (at(p).is_adaptable())
+            list_adaptable_sample_cached.push_back(p);
+        else
+            list_non_adapt_sample_cached.push_back(p);
 }

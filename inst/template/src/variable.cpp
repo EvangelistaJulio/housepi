@@ -47,6 +47,16 @@ Proposer::Proposer(std::shared_ptr<Distribution> distr,
     args_to_adapt_ = args_to_adapt;
 };
 
+/// Increase spread if acceptation rate is high and viceversa.
+void Proposer::adapt(double ratio)
+{
+    // target accept rate set to 1/4.
+    const double factor = 1. + (1. - ratio) * (get_accept_rate() - 0.25);
+    // loop over all ids of arguments to adapt
+    for (unsigned short i : args_to_adapt_)
+        (pDistr_->set_arg)(i, factor * (pDistr_->arg)(i));
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////// *** Sample_Proposer : class *** /////////////////////////////////
@@ -228,10 +238,10 @@ void Variable::init_func_reshaping(bool discr)
 
             if (!pFunc_->is_implicit_callable())
                 get_ = &Variable::do_get_error_;
-            
+
             // discretization of model has priority
             // NOTE: e. g. if user discr is FALSE, but discrete-defined model
-            if (!pDistr_->is_empty()) 
+            if (!pDistr_->is_empty())
                 discr = pDistr_->is_discrete();
 
             if (discr)
@@ -308,7 +318,7 @@ void Variable::init_location_arg(const Attribute &x)
     }
 }
 
-/// Assign proposer to variable. 
+/// Assign proposer to variable.
 /// NOTE: it must be assigned after model initialization.
 void Variable::init_proposer(const std::string &rule_name, double rule_scale)
 {

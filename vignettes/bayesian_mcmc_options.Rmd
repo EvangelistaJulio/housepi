@@ -120,7 +120,7 @@ bayesplot::color_scheme_set(scheme = "brightblue")
 ```{r}
 # available proposer rules in housepi
 prop_rules <- c("sample", "uniform", "normal", "lognormal")
-defs <- Map(list, prior = "normal", min = 0, rule = prop_rules, scale = 0.01) |>
+defs <- Map(list, prior = "normal", min = 0, rule = prop_rules, scale = 100) |>
   setNames(paste("rule", prop_rules))
 
 new_housepi_model("blank") |>
@@ -136,7 +136,7 @@ Note that the proposer rule "lognormal" does not fit the case of negative values
 ```{r}
 new_housepi_model("blank") |>
   load_parameter_list(from = defs) |>
-  infer(steps = 100, adapt = 100) |>
+  infer(steps = 100, adapt = 1000) |>
   get_param_draws() |>
   bayesplot::mcmc_trace()
 ```
