@@ -156,7 +156,7 @@ HousepiGenerator <- R6::R6Class(
       # process time discrete option
       if ("discr" %in% names(user_options)) {
         if (isTRUE(user_options$discr)) {
-          user_flags <- c(user_flags, "_HSP_DISCRETE_TIME")
+          user_flags <- c(user_flags, "_HOUSEPI_DISCRETE_TIME")
         }
       }
 
@@ -187,7 +187,7 @@ HousepiGenerator <- R6::R6Class(
       keep <- character()
       for (f in private$.last_user_flags) {
         if (private$.assert_allows_flag(source_dir, f)) keep <- c(keep, f)
-        else if (f == "_HSP_DISCRETE_TIME") warning_h(
+        else if (f == "_HOUSEPI_DISCRETE_TIME") warning_h(
           sprintf("No visible discrete time option for model \"%s\".",
                   private$.name)
         )
@@ -198,12 +198,124 @@ HousepiGenerator <- R6::R6Class(
       }
       # store just effective flags
       private$.last_user_flags <- keep
-      invisible()
+      invisible(self)
+    },
+
+    # @description
+    # Wheter user flags are the same as existing dll.
+    .is_same_flags_as_dll = function() {
+      if (file.exists(private$.dll)) {
+        m <- get_rcpp_module_from_dll("housepi_flags", private$.dll)
+        m <- m$CompiledFlagsHousepi$new()
+        flags_dll <- strsplit(m$get_flags(), ":")[[1]]
+        return(setequal(private$.last_user_flags, flags_dll))
+      }
+      TRUE
     },
 
     ############################################################################
     ############################################################################
     ############################################################################
+
+    # @description
+    # Wheter model choice is interpretable.
+    .initialize_helper_choice = function(choice) {
+      choice_ <- "blank"
+      if (is.na(choice)) warning_h(
+        "No model specified. Falling back to \"blank\" model.",
+        "To show available templates, run 'template_household_model'."
+      )
+      else if (as.character(choice) %in% list(".")) stop_h(
+        sprintf("Invalid choice \"%s\" for housepi model.", choice),
+        "Move your implementation in a different folder."
+      )
+      else choice_ <- as.character(choice)
+
+      # assign name to the model
+      private$.name <- basename(choice_)
+
+      choice_
+    },
+
+    # @description
+    # Initialize to "blank" model for developer mode.
+    .initialize_blank_mode = function() {
+      private$.dll <- file.path(system.file(package = "housepi"),
+                                "template", "src",
+                                dll_file_ext("housepienvironment"))
+      private$.source_dir <- dirname(private$.dll)
+      invisible(self)
+    },
+
+    # @description
+    # Initialize to custom mode loading path to model source code.
+    .initialize_custom_mode = function(choice, as_template, force) {
+      private$.source_dir <- choice
+      private$.dll <- template_dll_file(choice)
+      private$.new_custom_model(choice, as_template, force)
+      if (!private$.is_same_flags_as_dll()) {
+        private$.need_compile <- TRUE
+      }
+      invisible(self)
+    },
+
+    # @description
+    # Initialize to template mode loading template model name.
+    .initialize_template_mode = function(choice, force) {
+      private$.source_dir <- get_template_dir(choice)
+      private$.dll <- template_dll_file(private$.source_dir)
+      if (!private$.is_same_flags_as_dll()) {
+        private$.new_custom_model(private$.source_dir, FALSE, force)
+      }
+      invisible(self)
+    },
+
+    ############################################################################
+    ############################################################################
+    ############################################################################
+
+    # @description
+    # Predispose temporare fodler for the installation.
+    .new_temporary_cache = function(as_template) {
+      private$.cache_dir <- file.path(tempdir(), template_name(private$.name))
+
+      if (!dir.exists(private$.cache_dir)) {
+        if (!dir.create(private$.cache_dir, recursive = TRUE,
+                        showWarnings = FALSE)) stop_h(
+          "Impossibile to create a cache directory for compilation.",
+          "Check your user permissions."
+        )
+      }
+
+      if (as_template) {
+        if (file.exists(private$.dll)) {
+          # check if dll is loaded
+          namespace <- template_name(private$.name)
+          dll_info <- base::getLoadedDLLs()[[namespace]]
+
+          if (is.null(dll_info) | isFALSE(dll_info[["dynamicLookup"]])) {
+            # safely remove previous template dll
+            unlink(private$.dll)
+
+          } else {
+            private$.need_compile <- FALSE
+            warning_h(
+              "Impossible to replace existing template in current session.",
+              "Start a new R session to re-compile your model as a template.",
+              "Warning raised because model changed or 'force = TRUE'."
+            )
+          }
+        }
+
+      } else if (force) {
+        private$.need_compile <- TRUE
+
+      } else {
+        # search cached dll and check if to be recompiled
+        private$.need_compile <- private$.search_for_cached_dll(source_dir)
+      }
+      invisible(self)
+    },
 
     # @description
     # Initialize a new custom model.
@@ -230,52 +342,14 @@ HousepiGenerator <- R6::R6Class(
       }
 
       # temporary directory where to store source code
-      if (private$.need_compile) {
-        private$.cache_dir <- file.path(tempdir(), template_name(private$.name))
-
-        if (!dir.exists(private$.cache_dir)) {
-          if (!dir.create(private$.cache_dir, recursive = TRUE,
-                          showWarnings = FALSE)) stop_h(
-            "Impossibile to create a cache directory for compilation.",
-            "Check your user permissions."
-          )
-        }
-
-        if (as_template) {
-          if (file.exists(private$.dll)) {
-            # check if dll is loaded
-            namespace <- template_name(private$.name)
-            dll_info <- base::getLoadedDLLs()[[namespace]]
-
-            if (is.null(dll_info) | isFALSE(dll_info[["dynamicLookup"]])) {
-              # safely remove previous template dll
-              unlink(private$.dll)
-
-            } else {
-              private$.need_compile <- FALSE
-              warning_h(
-                "Impossible to replace existing template in current session.",
-                "Start a new R session to re-compile your model as a template.",
-                "Warning raised because model changed or 'force = TRUE'."
-              )
-            }
-          }
-
-        } else if (force) {
-          private$.need_compile <- TRUE
-        } else {
-          # search cached dll and check if to be recompiled
-          private$.need_compile <- private$.search_for_cached_dll(source_dir)
-        }
-      }
+      if (private$.need_compile) private$.new_temporary_cache(as_template)
 
       # asses if still to be compiled after further checks
       if (private$.need_compile) {
         # change dll name if not as template
-        if (!as_template) {
-          private$.dll <- file.path(private$.cache_dir,
-                                    dll_file_ext(random_name(source_dir)))
-        }
+        if (!as_template) private$.dll <- file.path(
+          private$.cache_dir, dll_file_ext(random_name(source_dir))
+        )
         # source directory must contain source files
         private$.assert_source_files(source_dir)
         # organize cache directory to perform compilation
@@ -348,9 +422,6 @@ HousepiGenerator <- R6::R6Class(
         }
       }
 
-      # Create a reference script
-      private$.save_reference()
-
       invisible(self)
     },
 
@@ -379,6 +450,8 @@ HousepiGenerator <- R6::R6Class(
       }
       # touch as source model file was more recent
       Sys.setFileTime(file.path(cache_dir_src, "model.cpp"), touch_time + 1)
+      # same for registry about current flags
+      Sys.setFileTime(file.path(cache_dir_src, "flags.cpp"), touch_time + 1)
 
       # compile the dynamic library
       withr::with_envvar(
@@ -412,16 +485,6 @@ HousepiGenerator <- R6::R6Class(
     ############################################################################
     ############################################################################
 
-    # @description Save the reference script.
-    .save_reference = function() {
-      # reference script
-      refer_file <- file.path(dirname(private$.dll), ".refer")
-      overwrite(file.path(private$.cache_dir, "src", "model.cpp"),
-                refer_file)
-
-      invisible(self)
-    },
-
     # @description Wheter model is blank.
     # @return `logical(1)`
     .is_blank = function() {
@@ -444,17 +507,12 @@ HousepiGenerator <- R6::R6Class(
     # @description Reference script.
     # @return `character(1)`
     .reference = function() {
-      if (private$.is_blank()) {
-        output <- file.path(private$.source_dir, "model.cpp")
-      } else {
-        # reference script
-        output <- file.path(private$.path(), ".refer")
-        # check if reference file exists
-        if (!file.exists(output)) stop_h(
-          sprintf("Impossible to find reference file: \"%s\".", output),
-          "Try to re-generate the model with 'force = TRUE'."
-        )
-      }
+      output <- file.path(private$.source_dir, "model.cpp")
+      # check if reference file exists
+      if (!file.exists(output)) stop_h(
+        sprintf("Impossible to find reference file: \"%s\".", output),
+        "Try to re-generate the model with 'force = TRUE'."
+      )
       output
     },
 
@@ -512,17 +570,10 @@ HousepiGenerator <- R6::R6Class(
 
   active = list(
     #' @field name `character(1)`\cr
-    #' Model name.
+    #' Model name. To change, just assign a new `character(1)`.
     name = function(value) {
       if (missing(value)) return(private$.name)
-      stop_h("'name' is read only.")
-    },
-
-    #' @field path_to_dll `character(1)`\cr
-    #' Path to dynamic library file of the model.
-    path_to_dll = function(value) {
-      if (missing(value)) return(private$.dll)
-      stop_h("'path_to_dll' is read only.")
+      private$.name <- as.character(value)
     },
 
     #' @field setup `list`\cr
@@ -548,55 +599,25 @@ HousepiGenerator <- R6::R6Class(
     #' @param ... `r rd_mdl_flags_`
     initialize = function(choice, as_template = FALSE,
                           force = FALSE, quiet = TRUE, ...) {
-      # check model choice
-      if (is.na(choice)) {
-        warning_h(
-          "No model specified. Falling back to \"blank\" model.",
-          "To show available templates, run 'template_household_model'."
-        )
-        choice <- "blank"
-      } else if (choice %in% list(".")) {
-        stop_h(
-          sprintf("Invalid choice \"%s\" for housepi model.", choice),
-          "Move your implementation in a different folder."
-        )
-      }
+      choice <- private$.initialize_helper_choice(choice)
 
-      # assign name to the model
-      private$.name <- basename(choice)
       # assign quiet field
       private$.quiet <- isTRUE(quiet)
       # load user options # FIXME they can change if need recompile
       user_options <- private$.process_user_options(...)
 
-      if (choice == "blank") {
-        # 1: blank model (developer mode)
-        private$.dll <- file.path(system.file(package = "housepi"),
-                                  "template", "src",
-                                  dll_file_ext("housepienvironment"))
-        private$.source_dir <- dirname(private$.dll)
-
-      } else if (dir.exists(choice)) {
-        # 2: model path contains source code
-        private$.source_dir <- choice
-        private$.dll <- template_dll_file(choice)
-        private$.new_custom_model(choice, as_template, force)
-
-      } else if (!is.na(get_template_dir(choice))) {
-        # 3: template model choice
-        private$.source_dir <- get_template_dir(choice)
-        private$.dll <- template_dll_file(private$.source_dir)
-
-      } else {
-        stop_h(
-          sprintf("\"%s\" is not a folder nor a template name.", choice),
-          find_closest_template_name(choice)
-        )
-      }
+      if (choice == "blank") private$.initialize_blank_mode()
+      else if (dir.exists(choice)) private$.initialize_custom_mode(
+        choice, as_template, force
+      )
+      else if (is.na(get_template_dir(choice))) stop_h(
+        sprintf("\"%s\" is not a folder nor a template name.", choice),
+        find_closest_template_name(choice)
+      )
+      else private$.initialize_template_mode(choice, force)
 
       # finally recompile only the model script, if necessary.
       if (private$.need_compile) do.call(private$.compile, user_options)
-
       # generate the Rcpp model object.
       if (is.null(private$.rcpp)) private$.rcpp <- private$.new_rcpp_model()
 

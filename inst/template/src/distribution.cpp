@@ -17,6 +17,7 @@
 #include "tools/params.h"
 #include "tools/string.h"
 #include "distribution.h"
+#include "distribution_registry.h"
 #include "numerical_recipes.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -171,66 +172,6 @@ void Distribution::init_trunc_helper_()
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  Distribution Registry : getter  //////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Override get_options method of generic function with distribution.
-/// note: this differ in the choice of factory_map_ member.
-str_vec DistributionRegistry::get_options() const
-{
-    str_vec keys(factory_map_.size());
-    for (const auto &pair : factory_map_)
-        keys.push_back(pair.first);
-    return keys;
-}
-
-std::shared_ptr<Distribution> DistributionRegistry::get_distr(const std::string &opt) const
-{
-    if (factory_map_ % opt)
-        return factory_map_.find(opt)->second();
-    return nullptr;
-}
-
-std::shared_ptr<Function> DistributionRegistry::get(const std::string &opt, bool is_primitive) const
-{
-    auto output = get_distr(opt);
-    if (is_primitive)
-        output->set_eval_as_distr_primitive();
-    else
-        output->set_eval_as_distr_call();
-    return output;
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  Distribution Registry : setter  //////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-std::shared_ptr<Distribution> compose_distr_registries(const std::string &opt,
-                                                       const std::string &name,
-                                                       const std::vector<const DistributionRegistry *> &registries)
-{
-    str_vec options = {};
-
-    if (registries.empty())
-        throw std::invalid_argument(
-            "No registries were provided for \"" + name + "\".");
-    else if (hsp::na::is(opt))
-        return std::make_shared<Distribution>();
-    else
-        for (auto &r : registries)
-            if (r->get_options() % opt)
-                return r->get_distr(opt);
-            else
-                options += r->get_options();
-
-    throw std::invalid_argument(
-        "Unknown " + name + " \"" + opt + "\"." +
-        hsp::str::find_closest(opt, options));
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////  MACROS  ///////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -239,7 +180,7 @@ std::shared_ptr<Distribution> compose_distr_registries(const std::string &opt,
 #define INIT_DISCR_LEFT_MIN_ZERO_CLOSE()      \
     void init_discretization() override final \
     {                                         \
-        init_discr_helper_(hsp::discr::LEFT);   \
+        init_discr_helper_(hsp::discr::LEFT); \
     }                                         \
     void init_truncation() override final     \
     {                                         \
@@ -573,7 +514,7 @@ public:
 
     INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
-protected:  
+protected:
     std::uniform_real_distribution<double> unif_gen;
 
     MAKE_RAW_NUMR_IMPORT_FOR_DISTR(weibull, 2)
@@ -737,36 +678,6 @@ protected:
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  Register Distributions  ///////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-#define IMPLEMENT_HOUSEPI_DISTRIBUTION_REGISTRY(ClassName) \
-    ClassName &ClassName::inst()                           \
-    {                                                      \
-        static ClassName _inst;                            \
-        return _inst;                                      \
-    }
-
-IMPLEMENT_HOUSEPI_DISTRIBUTION_REGISTRY(ContinuosDistrRegistry)
-REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, Uniform_Distribution)
-REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, Normal_Distribution)
-REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, Lognormal_Distribution)
-REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, Beta_Distribution)
-REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, Gamma_Distribution)
-REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, GammaMeanVar_Distribution)
-REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, Rayleigh_Distribution)
-REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, Weibull_Distribution)
-REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, Exponential_Distribution)
-
-IMPLEMENT_HOUSEPI_DISTRIBUTION_REGISTRY(DiscreteDistrRegistry)
-REGISTER_HOUSEPI_DISTRIBUTION(DiscreteDistrRegistry, Poisson_Distribution)
-REGISTER_HOUSEPI_DISTRIBUTION(DiscreteDistrRegistry, Binomial_Distribution)
-REGISTER_HOUSEPI_DISTRIBUTION(DiscreteDistrRegistry, NegativeBinomial_Distribution)
-REGISTER_HOUSEPI_DISTRIBUTION(DiscreteDistrRegistry, Geometric_Distribution)
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  InfecProfile_Ferretti20 : class  ///////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -843,10 +754,96 @@ protected:
     }
 };
 
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////  Distribution Registry : getter  //////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Override get_options method of generic function with distribution.
+/// note: this differ in the choice of factory_map_ member.
+str_vec DistributionRegistry::get_options() const
+{
+    str_vec keys(factory_map_.size());
+    for (const auto &pair : factory_map_)
+        keys.push_back(pair.first);
+    return keys;
+}
+
+std::shared_ptr<Distribution> DistributionRegistry::get_distr(const std::string &opt) const
+{
+    if (factory_map_ % opt)
+        return factory_map_.find(opt)->second();
+    return nullptr;
+}
+
+std::shared_ptr<Function> DistributionRegistry::get(const std::string &opt, bool is_primitive) const
+{
+    auto output = get_distr(opt);
+    if (is_primitive)
+        output->set_eval_as_distr_primitive();
+    else
+        output->set_eval_as_distr_call();
+    return output;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////  Distribution Registry : setter  //////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+std::shared_ptr<Distribution> compose_distr_registries(const std::string &opt,
+                                                       const std::string &name,
+                                                       const std::vector<const DistributionRegistry *> &registries)
+{
+    str_vec options = {};
+
+    if (registries.empty())
+        throw std::invalid_argument(
+            "No registries were provided for \"" + name + "\".");
+    else if (hsp::na::is(opt))
+        return std::make_shared<Distribution>();
+    else
+        for (auto &r : registries)
+            if (r->get_options() % opt)
+                return r->get_distr(opt);
+            else
+                options += r->get_options();
+
+    throw std::invalid_argument(
+        "Unknown " + name + " \"" + opt + "\"." +
+        hsp::str::find_closest(opt, options));
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////  Register Distributions  ///////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+#define IMPLEMENT_HOUSEPI_DISTRIBUTION_REGISTRY(ClassName) \
+    ClassName &ClassName::inst()                           \
+    {                                                      \
+        static ClassName _inst;                            \
+        return _inst;                                      \
+    }
+
+IMPLEMENT_HOUSEPI_DISTRIBUTION_REGISTRY(ContinuosDistrRegistry)
+REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, Uniform_Distribution)
+REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, Normal_Distribution)
+REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, Lognormal_Distribution)
+REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, Beta_Distribution)
+REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, Gamma_Distribution)
+REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, GammaMeanVar_Distribution)
+REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, Rayleigh_Distribution)
+REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, Weibull_Distribution)
+REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, Exponential_Distribution)
+
+IMPLEMENT_HOUSEPI_DISTRIBUTION_REGISTRY(DiscreteDistrRegistry)
+REGISTER_HOUSEPI_DISTRIBUTION(DiscreteDistrRegistry, Poisson_Distribution)
+REGISTER_HOUSEPI_DISTRIBUTION(DiscreteDistrRegistry, Binomial_Distribution)
+REGISTER_HOUSEPI_DISTRIBUTION(DiscreteDistrRegistry, NegativeBinomial_Distribution)
+REGISTER_HOUSEPI_DISTRIBUTION(DiscreteDistrRegistry, Geometric_Distribution)
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  Register Infectivity Profiles  ////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 IMPLEMENT_HOUSEPI_DISTRIBUTION_REGISTRY(InfecProfileRegistry)
@@ -854,7 +851,7 @@ REGISTER_HOUSEPI_DISTRIBUTION(InfecProfileRegistry, InfecProfile_Ferretti20)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  Attribute : init function from name  /////////////////////////////
+////////////////////////////////  Attribute : init function from name  ////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 

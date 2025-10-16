@@ -8,7 +8,8 @@ new_housepi_model(
   choice = NA_character_,
   as_template = FALSE,
   force = FALSE,
-  quiet = TRUE
+  quiet = TRUE,
+  ...
 )
 }
 \arguments{

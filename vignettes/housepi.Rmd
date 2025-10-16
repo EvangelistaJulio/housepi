@@ -192,25 +192,23 @@ hhsimul <- hhsimul |>
   load_augmented_list(
     # define default 'infec_time' so that onset of introduction case is 0
     # secondary infection times are taken care by the simulation
-    infec_time = list(
-      model = "lognormal", args = c(meanlog = 4, sdlog = 0.5),
-      max = 365
-    ),
+    infec_time = list(model = "lognormal", 
+                      args = c(meanlog = 4, sdlog = 0.5),
+                      max = 365),
     
     # define an 'incub_period' for each individual
-    incub_period = list(
-      model = "gamma",
-      # arguments of incubation period are linked to parameters
-      args = c(shape = ~inc_shape@P,  scale = ~inc_scale@P),
-      max = 14
-    ),
+    # arguments of incubation period are linked to parameters
+    incub_period = list(model = "gamma",
+                        args = c(shape = ~inc_shape@P,  scale = ~inc_scale@P),
+                        max = 14),
     
     # define 'onset_time' as the sum betwween incubation period and infection time
     onset_time = ~infec_time + incub_period
   ) |>
   # append parameters for incubation period
   load_parameter_list(
-    inc_shape = 2, inc_scale = 1.1,
+    inc_shape = 2,
+    inc_scale = 1.1,
     append = TRUE
   )
 ```
@@ -243,14 +241,10 @@ hhmodel <- hhsimul |>
   # load definitions from list
   load_augmented_list(
     infec_time = ~onset_time - incub_period,
-    onset_time = list(
-      model = "normal",
-      args = c(mean = ~onset_date@D, sd = 1)
-    ),
-    incub_period = list(
-      model = "gamma",
-      args = c(shape = ~inc_shape@P, scale = ~inc_scale@P)
-    )
+    onset_time = list(model = "normal",
+                      args = c(mean = ~onset_date@D, sd = 1)),
+    incub_period = list(model = "gamma",
+                        args = c(shape = ~inc_shape@P, scale = ~inc_scale@P))
   )
 
 results <- hhmodel |>

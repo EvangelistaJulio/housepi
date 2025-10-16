@@ -51,10 +51,9 @@ HousepiParameter <- R6::R6Class(
     .helper_proposer = function(opts, discr, rule, scale) {
       opts$discr <- isTRUE(discr)
 
-      if (is.na(rule)) {
-        # default proposer rule
-        opts$rule <- "sample"
-      } else {
+      # default proposer rule
+      opts$rule <- "sample"
+      if (!is.na(rule)) {
         opts$rule <- rule
         opts$scale <- ifelse(is.na(scale), 1, scale)
       }

@@ -21,6 +21,7 @@
 #include "tools/params.h"
 #include "tools/rates.h"
 #include "mcmc_impl.h"
+#include "function_registry.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  MCMC : Impl : Setup : build  //////////////////////////////////
@@ -115,7 +116,8 @@ void MCMC::Impl::Setup::set_n_threads()
 
 #else
     if (n_threads != 1)
-        hsp::msg::warning("Parallelization with OpenMP is not supported.");
+        hsp::msg::warning(
+            "Disable multi-threading: OpenMP is not supported on current machine.");
 
     n_threads = 1;
 #endif
@@ -207,7 +209,7 @@ void MCMC::Impl::DataWide::build(const u_dict<str_vec> &input)
         for (const auto &x : input)
             headers_.push_back(x.first);
 
-        n_individuals_ = input.at(headers_[0]).size();
+        report_indiv.total = input.at(headers_[0]).size();
 
         house_vector_.clear();
         restrict_indexes_.clear();
@@ -219,14 +221,16 @@ void MCMC::Impl::DataWide::build(const u_dict<str_vec> &input)
                 "Ignored household structure. Missing data column \"house_id\".");
 
         // safe load of households
-        for (size_t i = 0; i < n_individuals_; ++i)
+        for (size_t i = 0; i < report_indiv.total; ++i)
         {
-            // read individual data
-            std::string id = std::to_string(i + 1);                // default id
-            std::string house_id = std::to_string(n_houses() + 1); // default house_id
+            // default id
+            std::string id = std::to_string(i + 1);
+            // default house_id
+            std::string house_id = std::to_string(house_vector_.size() + 1);
             int status = hsp::status::MISSING;
             u_dict<double> data = {};
 
+            // read individual data
             for (const std::string &key : headers_)
                 if (key == "id")
                 {
@@ -257,11 +261,11 @@ void MCMC::Impl::DataWide::build(const u_dict<str_vec> &input)
             if (!(hhid_to_index_ % house_id))
             {
                 // map data index to household number
-                hhid_to_index_.emplace(house_id, n_houses());
+                hhid_to_index_.emplace(house_id, house_vector_.size());
                 // default choice for restricted indeces
-                restrict_indexes_.push_back(n_houses());
+                restrict_indexes_.push_back(house_vector_.size());
                 // create a new empty household
-                house_vector_.emplace_back(house_id, n_houses());
+                house_vector_.emplace_back(house_id, house_vector_.size());
             }
 
             // extract the household reference
@@ -270,6 +274,8 @@ void MCMC::Impl::DataWide::build(const u_dict<str_vec> &input)
             // assign the individual the respective household
             house.init_member(i, id, status, data);
         }
+        report_house.total = house_vector_.size();
+
         headers_ = headers_ - str_vec({"id", "house_id", "status"});
 
         // update report for data
@@ -278,25 +284,17 @@ void MCMC::Impl::DataWide::build(const u_dict<str_vec> &input)
 }
 
 /// Use the loaded data to fill-in the respective report.
-void MCMC::Impl::DataWide::build_helper_fill_report_data_()
+void MCMC::Impl::DataWide::build_helper_clear_report_data_()
 {
     all_infected_status_list.clear();
+    report_indiv = ReportIndividual();
+    report_house = ReportHousehold();
+    report_hh_size = ReportHouseSizes();
+}
 
-    report_indiv.total = n_individuals_;
-    report_indiv.missing = 0;
-    report_indiv.healthy = 0;
-    report_indiv.infected = 0;
-
-    report_house.total = n_houses();
-    report_house.no_cases = 0;
-    report_house.at_least_1_case = 0;
-    report_house.at_least_2_cases = 0;
-
-    report_hh_size.max_cases = {0, 0};
-    report_hh_size.max_miss = {0, 0};
-    report_hh_size.min_size = {1000, 0};
-    report_hh_size.max_size = {0, 0};
-
+/// Use the loaded data to fill-in the respective report.
+void MCMC::Impl::DataWide::build_helper_fill_report_data_()
+{
     // set report counts
     for (const Household &house : house_vector_)
     {
@@ -383,8 +381,8 @@ void MCMC::Impl::DataWide::build_multiplicity(const u_dict<str_vec> &table)
 
         // default choice for restricted household indexes
         restrict_indexes_.clear();
-        restrict_indexes_.resize(n_houses());
-        for (size_t H = 0; H < n_houses(); ++H)
+        restrict_indexes_.resize(report_house.total);
+        for (size_t H = 0; H < report_house.total; ++H)
         {
             house_vector_[H].set_multiplicity(1, H);
             restrict_indexes_[H] = H;
@@ -393,12 +391,12 @@ void MCMC::Impl::DataWide::build_multiplicity(const u_dict<str_vec> &table)
     else
     {
         // UPDATE: this error is purely internal
-        if (n_houses() != table.at("house_id").size())
+        if (report_house.total != table.at("house_id").size())
             throw std::out_of_range(
                 "Multiplicity definitions had different dimensions than dataset.");
 
         restrict_indexes_.clear();
-        for (size_t r = 0; r < n_houses(); ++r)
+        for (size_t r = 0; r < report_house.total; ++r)
         {
             size_t H = hhid_to_index_.at(table.at("house_id")[r]);
             size_t H0 = hhid_to_index_.at(table.at("class_id")[r]);
@@ -449,7 +447,7 @@ void MCMC::Impl::DataLong::build(const u_dict<str_vec> &input)
 
         // datalong allocation
         if (indiv_datalist_.empty())
-            indiv_datalist_.resize(pImpl_.dataset.n_individuals());
+            indiv_datalist_.resize(pImpl_.dataset.report_indiv.total);
 
         for (u_dict<dbl_vec> &xmap : indiv_datalist_)
             for (const std::string &key : headers_)

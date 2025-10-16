@@ -121,8 +121,7 @@ HousepiAugmented <- R6::R6Class(
           else opts$rule <- "sample"
         } else if (opts$rule == "sample") {
           if (is.na(opts$model)) stop_h(
-            sprintf("No model to sample from for augmented \"%s\".",
-                    opts$name)
+            sprintf("No model to sample from for augmented \"%s\".", opts$name)
           )
         } else {
           if (is.na(scale)) opts$scale <- 1

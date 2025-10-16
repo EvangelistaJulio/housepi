@@ -39,7 +39,7 @@ If a maximum household size is set, larger sizes are not returned.}
 \subsection{Method \code{new()}}{
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{ExpectedCasesBySize$new(
-  model,
+  hhmodel,
   param_table,
   obs_process = NULL,
   progress = NA,
@@ -50,7 +50,7 @@ If a maximum household size is set, larger sizes are not returned.}
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{model}}{\code{HousepiModel} object.}
+\item{\code{hhmodel}}{\code{HousepiModel} object.}
 
 \item{\code{param_table}}{One between\cr
 \itemize{

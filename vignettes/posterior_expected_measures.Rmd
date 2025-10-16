@@ -52,8 +52,7 @@ expec <- expec_cases_by_house_size(hhmodel, results, progress = FALSE)
 To show both observed and expected cases by size, we can extract the formatted cases table from our output object as follows:
 
 ```{r}
-# from the rest of analysis consider sizes up to 5
-# to restore, call method $drop_max_house_size()
+# from the rest of analysis we consider only house sizes up to 5
 expec$set_max_house_size(5)
 
 # return a data.frame with observed and expected cases
@@ -109,6 +108,10 @@ We can have a quick look at secondary attack rates of observed vs expected cases
 ```{r}
 #| message: false
 #| waring: false
+
+# we drop maximum house size before proceeding
+expec$drop_max_house_size()
+
 library(ggplot2)
 
 col_dict <- c(Expected = "coral", Observed = "black")
@@ -134,6 +137,8 @@ ggplot(expec$sar, aes(x = house_size)) +
        y = "Secondary Attack Rate",
        color = "")
 ```
+
+# Other custom posterior measures (advanced)
 
 ---
 `r show_session_info()`

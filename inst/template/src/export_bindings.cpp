@@ -14,9 +14,19 @@
 
 #include <Rcpp.h>
 
+#include "tools/flags.h"
 #include "tools/na_utils.h"
 #include "tools/error.h"
 #include "model.h"
+#include "function_registry.h"
+#include "distribution_registry.h"
+
+RCPP_MODULE(housepi_flags)
+{
+    Rcpp::class_<CompiledFlagsHousepi>("CompiledFlagsHousepi")
+        .constructor<>()
+        .method("get_flags", &CompiledFlagsHousepi::get_flags);
+}
 
 // macro to define RCPP wrapper classes to export to R
 #define MAKE_HOUSEPI_RCPP_WRAPPER_CLASS(WrapperName, type_string, registry_list)                       \
@@ -48,7 +58,7 @@
                     Rcpp::List range(range_);                                                          \
                     const Rcpp::CharacterVector range_names = range.names();                           \
                     for (R_xlen_t i = 0; i < range.size(); ++i)                                        \
-                        if (!hsp::na::is(Rcpp::as<double>(range[i])))                                 \
+                        if (!hsp::na::is(Rcpp::as<double>(range[i])))                                  \
                             ptr_->init_attr(Rcpp::as<std::string>(range_names[i]),                     \
                                             Rcpp::as<double>(range[i]));                               \
                 }                                                                                      \
@@ -59,7 +69,7 @@
             }                                                                                          \
             catch (const std::exception &e)                                                            \
             {                                                                                          \
-                hsp::msg::error(                                                                          \
+                hsp::msg::error(                                                                       \
                     "While initializing " type_string " \"" + name_ + "\":\n" + e.what());             \
             }                                                                                          \
         }                                                                                              \
@@ -77,7 +87,7 @@
             }                                                                                          \
             catch (const std::exception &e)                                                            \
             {                                                                                          \
-                hsp::msg::error(                                                                          \
+                hsp::msg::error(                                                                       \
                     "While calling " type_string " \"" + ptr_->name() + "\":\n" + e.what());           \
             }                                                                                          \
             return Rcpp::NumericVector();                                                              \
@@ -88,10 +98,10 @@
 //' @title Function from Housepi
 //' @description Call housepi registered function.
 //' @field initialize\cr \itemize{
-//'   \item Parameter: name `character(1)`\cr Name of the function.
+//'   \item Parameter: name `character(1)` with function name.
 //'   \item Parameter: is_discr `logical(1)`\cr Wheter discrete (not used).
-//'   \item Parameter: args `numeric()`\cr Custom arguments.
-//'   \item Parameter: range `numeric()`\cr Minimum and maximum range of the function.
+//'   \item Parameter: args A named `numeric()` with arguments.
+//'   \item Parameter: range A named `numeric()`\cr with min and max for minimum and maximum.
 //' }
 //' @field call\cr \itemize{
 //'   \item Parameter: x `numeric()`\cr Input vector.
@@ -217,6 +227,10 @@ RCPP_MODULE(housepi_model_core)
         .method("export_param_list_const", &MCMC::export_param_list_const)
         .method("export_param_list_sample_standard", &MCMC::export_param_list_sample_standard)
         .method("export_param_list_sample_cache", &MCMC::export_param_list_sample_cache)
+        .method("export_augm_list_draws", &MCMC::export_augm_list_draws)
+        .method("export_augm_list_full", &MCMC::export_augm_list_full)
+        .method("export_augm_list_export", &MCMC::export_augm_list_export)
+        .method("export_augm_list_discrete", &MCMC::export_augm_list_discrete)
         .method("export_augmented_data_wide", &MCMC::export_augmented_data_wide)
         .method("export_infec_profile", &MCMC::export_infec_profile)
         .method("export_draws", &MCMC::export_draws)

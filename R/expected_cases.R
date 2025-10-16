@@ -199,6 +199,7 @@ HousepiExpectation <- R6::R6Class(
 
   private = list(
     deep_clone = function(name, value) helper_clone(value),
+    .apply_func = NULL,
     .posterior = NULL,
     .observed = NULL,
     .cri_level = 0.95,
@@ -223,6 +224,68 @@ HousepiExpectation <- R6::R6Class(
         "Credible interval level must be a value between 0.5 and 1."
       )
       else private$.cri_level <- value
+      invisible(self)
+    },
+
+    # Extract progress choice.
+    .extract_progress = function(hhmodel, progress) {
+      # if progress not provided, import from model
+      progress <- ifelse(is.na(progress), hhmodel$setup$progress, progress)
+      # UPDATE: can't manually set the frequency here
+      if (is.numeric(progress)) progress <- TRUE
+      progress
+    },
+
+    # Extract random number seeds choice.
+    .extract_rng_seeds = function(hhmodel, n_rep) {
+      withr::with_seed(hhmodel$setup$seed,
+                       rng_seeds <- sample(1:max(.Machine$integer.max, n_rep),
+                                           n_rep, replace = FALSE))
+      rng_seeds
+    },
+
+    # Extract constant parameters from model.
+    # UPDATE: add a more extensive control on parameter consistency
+    .extract_const_params = function(hhmodel, param_table) {
+      params <- hhmodel$parameters
+      constants <- as.list(params[params$const, "value"])
+      names(constants) <- as.list(params[params$const, "name"])
+      constants <- constants[setdiff(names(constants), colnames(param_table))]
+      constants
+    },
+
+    # Run measure function on posterior simulations.
+    .run_measure = function(hhmodel, param_table, obs_process, progress) {
+      # extract constant parameters
+      constants <- private$.extract_const_params(hhmodel, param_table)
+      # deep clone model before proceeding
+      hmc <- hhmodel$clone(deep = TRUE)
+      # cleanup at end
+      withr::defer(rm(hmc))
+      # number of repetitions
+      n_rep <- dim(param_table)[1]
+      # extract seeds
+      rng_seeds <- private$.extract_rng_seeds(hhmodel, n_rep)
+
+      # define loop function working by row index
+      # UPDATE: this has to be improved with loops in C++
+      loop_func <- function(r) {
+        # associate parameters from table, plus constants
+        hmc$load_parameter_list(from = c(as.list(param_table[r, ]), constants),
+                                append = FALSE)
+        # run simulation and extract cases by house size
+        private$.apply_func(hmc$simulate(seed = rng_seeds[r],
+                                         obs_process = obs_process,
+                                         progress = FALSE))
+      }
+
+      # apply loop function
+      iterator <- seq_len(n_rep)
+      progress <- private$.extract_progress(hhmodel, progress)
+      if (isTRUE(progress)) iterator <- cli::cli_progress_along(
+        iterator, name = "simulations", type = "tasks", clear = FALSE
+      )
+      lapply(iterator, loop_func)
     }
   ),
 
@@ -255,101 +318,47 @@ HousepiExpectation <- R6::R6Class(
     #' Given a model and a posterior sample of parameters,
     #' performs simulation and compute expected values of a set of measures.
     #'
-    #' @param model `r rd_model_in_`
+    #' @param hhmodel `r rd_model_in_`
     #' @param param_table `r rd_param_table_`
     #' @param ... `r rd_measure_dots_`
     #' @param obs_process `r rd_simul_observ_`
     #' @param progress `r rd_progress_`
     #' @param cri_level `r rd_smpl_cri_level_`
-    initialize = function(model,
+    initialize = function(hhmodel,
                           param_table,
                           ...,
                           obs_process = NULL,
                           progress = NA,
                           cri_level = 0.95) {
+      # associate credible interval
+      private$.set_cri_level(cri_level)
 
       # extract draws without loglikelihood
       if (inherits(param_table, "HousepiPosteriorDraws")) {
-        param_table <- as.data.frame(
-          posterior::as_draws_matrix(param_table$param_draws)
-        )
+        param_table <- posterior::as_draws_matrix(param_table$param_draws)
       } else if (posterior::is_draws(param_table)) {
-        param_table <- as.data.frame(
-          posterior::as_draws_matrix(param_table)
-        )
-      } else if (!is.data.frame(param_table)) {
-        stop_h("Type of param_table not supported")
+        param_table <- posterior::as_draws_matrix(param_table)
       }
+      tryCatch({
+        param_table <- as.data.frame(param_table)
+      }, error = function(e) {
+        stop_h("Type of param_table not supported.")
+      })
 
       # load measure functions
       measure <- list(...)
       if (is.null(measure)) stop_h("No measure was provided.")
-
-      # associate credible interval
-      private$.set_cri_level(cri_level)
-
       # function to be applied also in the case of multiple measures
-      apply_func <- function(x) lapply(measure, function(func) func(x))
+      private$.apply_func <- function(x) lapply(measure, function(func) func(x))
+      # initialize with results from observed data as a test
+      private$.observed <- private$.apply_func(hhmodel$data_wide)
 
-      # initialize with results from observed data_wide
-      private$.observed <- apply_func(model$data_wide)
-
-      # deep clone model before proceeding
-      hmc <- model$clone(deep = TRUE)
-      # cleanup at end
-      withr::defer(rm(hmc))
-
-      # if progress not provided, import from model
-      progress <- ifelse(is.na(progress), hmc$setup$progress, progress)
-      # UPDATE: can't manually set the frequency here
-      if (is.numeric(progress)) progress <- TRUE
-
-      # number of repetitions
-      n_rep <- dim(param_table)[1]
-      # generator seeds
-      withr::with_seed(
-        hmc$setup$seed,
-        rng_seeds <- sample(1:max(.Machine$integer.max, n_rep),
-                            n_rep, replace = FALSE)
-      )
-
-      # extract constant parameters
-      # UPDATE: add a more extensive control on parameter consistency
-      params <- hmc$parameters
-      constants <- as.list(params[params$const, "value"])
-      names(constants) <- as.list(params[params$const, "name"])
-      constants <- constants[setdiff(names(constants), colnames(param_table))]
-
-      # define loop function working by row index
-      # UPDATE: this should be improved with loops in C++
-      loop_func <- function(r) {
-        # associate parameters from table, plus constants
-        hmc$load_parameter_list(
-          from = c(as.list(param_table[r, ]), constants),
-          append = FALSE
-        )
-        # run simulation and extract cases by house size
-        apply_func(hmc$simulate(seed = rng_seeds[r],
-                                obs_process = obs_process,
-                                progress = FALSE))
-      }
-
-      # apply loop function
-      if (isTRUE(progress)) output <- lapply(
-        cli::cli_progress_along(seq_len(n_rep), name = "simulations",
-                                type = "tasks", clear = FALSE),
-        loop_func
-      )
-      else output <- lapply(seq_len(n_rep), loop_func)
-
-      if (is.list(measure)) {
-        output <- lapply(names(measure), function(x) lapply(output, `[[`, x))
-        names(output) <- names(measure)
-        private$.posterior <- lapply(output, private$.extract_posterior_results)
-
-      } else {
-        private$.posterior <- private$.extract_posterior_results(output)
-      }
+      # run measures on posterior simulations
+      output <- private$.run_measure(hhmodel, param_table,
+                                     obs_process, progress)
+      output <- lapply(names(measure), function(x) lapply(output, `[[`, x))
+      names(output) <- names(measure)
+      private$.posterior <- lapply(output, private$.extract_posterior_results)
 
       invisible(self)
     },
@@ -474,22 +483,19 @@ ExpectedCasesBySize <- R6::R6Class(
       mask_col <- (colSums(obsdf == 0, na.rm = TRUE) != nrow(obsdf)) | (colnames(obsdf) != "0")
 
       # implement max household size mask
-      mhs <- private$.max_house_size
-      if (!is.na(mhs)) {
-        col_max <- which(colnames(obsdf) == as.character(mhs))
-        row_max <- which(rownames(obsdf) == as.character(mhs))
+      if (!is.na(private$.max_house_size)) {
+        col_max <- which(colnames(obsdf) == private$.max_house_size)
+        row_max <- which(obsdf$house_size == private$.max_house_size)
 
         mask_col <- mask_col & (seq_len(ncol(obsdf)) <= col_max)
         mask_row <- mask_row & (seq_along(mask_row) <= row_max & mask_row)
       }
 
       expdf <- private$.posterior$cases_by_size
-      list(
-        observed = obsdf[mask_row, mask_col],
-        expected = expdf$expected[mask_row, mask_col],
-        cri_lower = expdf$cri_lower[mask_row, mask_col],
-        cri_upper = expdf$cri_upper[mask_row, mask_col]
-      )
+      list(observed = obsdf[mask_row, mask_col],
+           expected = expdf$expected[mask_row, mask_col],
+           cri_lower = expdf$cri_lower[mask_row, mask_col],
+           cri_upper = expdf$cri_upper[mask_row, mask_col])
     }
   ),
 
@@ -516,6 +522,11 @@ ExpectedCasesBySize <- R6::R6Class(
         colnames(output) <- naming_convention_(colnames(output),
                                                private$.cri_level)
 
+        # filter to maximum house size if applicable
+        if (!is.na(private$.max_house_size)) {
+          output <- output[output$house_size <= private$.max_house_size, ]
+        }
+
         return(output)
       }
       stop_h("'sar' is read only.")
@@ -531,7 +542,7 @@ ExpectedCasesBySize <- R6::R6Class(
 
         # empty frame as a placeholder for Credible Interval
         na_df <- cases$observed
-        na_df[] <- lapply(na_df, function(col) if (is.numeric(col)) NA else col)
+        na_df[] <- lapply(na_df, function(col) ifelse(is.numeric(col), NA, col))
         na_df$house_size <- cases$observed$house_size
 
         output <- list(
@@ -551,18 +562,18 @@ ExpectedCasesBySize <- R6::R6Class(
   ############################################################################
 
   public = list(
-    #' @param model `r rd_model_in_`
+    #' @param hhmodel `r rd_model_in_`
     #' @param param_table `r rd_param_table_`
     #' @param obs_process `r rd_simul_observ_`
     #' @param progress `r rd_progress_`
     #' @param cri_level `r rd_smpl_cri_level_`
-    initialize = function(model,
+    initialize = function(hhmodel,
                           param_table,
                           obs_process = NULL,
                           progress = NA, cri_level = 0.95) {
       # ininitialize parent class HousepiExpectation
       super$initialize(
-        model = model,
+        hhmodel = hhmodel,
         param_table = param_table,
         cases_by_size = measure_cases_by_house_size,
         sar = measure_sar_by_house_size,
@@ -570,7 +581,7 @@ ExpectedCasesBySize <- R6::R6Class(
         progress = progress,
         cri_level = cri_level
       )
-      private$.counts <- private$.count_non_zero_cases(model$data_wide)
+      private$.counts <- private$.count_non_zero_cases(hhmodel$data_wide)
 
       invisible(self)
     },

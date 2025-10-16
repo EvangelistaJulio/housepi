@@ -18,6 +18,7 @@
 
 #ifdef _HOUSEPI_RCPP
 
+#include "tools/params.h"
 #include "tools/infprof.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -126,8 +127,40 @@ void MCMC::Impl::Augmented::rcpp_import(SEXP input)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////  MCMC : exports to Rcpp //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Export Function argument list to R.
+Rcpp::NumericVector rcpp_export_args(const Function &f)
+{
+    using namespace Rcpp;
+
+    size_t n_args = f.n_args();
+    NumericVector vals(n_args);
+    CharacterVector keys(n_args);
+    for (size_t k = 0; k < n_args; ++k)
+    {
+        vals[k] = f.arg(k);
+        keys[k] = f.arg_name(k);
+    }
+    vals.names() = std::move(keys);
+    return vals;
+}
+/// Export Function range list to R.
+Rcpp::NumericVector rcpp_export_range(const Function &f)
+{
+    using namespace Rcpp;
+    return NumericVector::create(_[hsp::params::MIN] = f.get_min(),
+                                 _[hsp::params::MAX] = f.get_max());
+}
+/// Export arguments of a Variable which is a function to R.
+Rcpp::NumericVector rcpp_export_func_args(const Variable &v) { return rcpp_export_args(*v.get_function()); }
+/// Export arguments of a Variable model to R.
+Rcpp::NumericVector rcpp_export_distr_args(const Variable &v) { return rcpp_export_args(*v.get_distribution()); }
+/// Export range of a Variable to R.
+Rcpp::NumericVector rcpp_export_range(const Variable &v) { return rcpp_export_range(*v.get_distribution()); }
 
 /// Export current setup configurations to R List.
 Rcpp::List MCMC::Impl::Setup::rcpp_export() const
@@ -155,8 +188,8 @@ Rcpp::List MCMC::Impl::InfecProfile::rcpp_export() const
     if (profile_ != nullptr)
         return List::create(_["name"] = profile_->name(),
                             _["discr"] = profile_->is_discrete(),
-                            _["args"] = profile_->rcpp_export_args(),
-                            _["range"] = profile_->rcpp_export_range());
+                            _["args"] = rcpp_export_args(*profile_),
+                            _["range"] = rcpp_export_range(*profile_));
     return List::create();
 }
 
@@ -165,7 +198,7 @@ Rcpp::DataFrame MCMC::Impl::Augmented::rcpp_export_data_wide() const
 {
     using namespace Rcpp;
 
-    const size_t n_cols = pImpl_.dataset.n_individuals();
+    const size_t n_cols = pImpl_.dataset.report_indiv.total;
 
     int_vec status_col(n_cols);
     std::vector<dbl_vec> augm_cols(list_export.size());
@@ -202,7 +235,7 @@ Rcpp::DataFrame MCMC::Impl::DataWide::rcpp_export(const str_vec &columns, bool i
         if (is_empty())
             return DataFrame();
 
-        const size_t n_rows = n_individuals_;
+        const size_t n_rows = report_indiv.total;
         CharacterVector df_id = CharacterVector(n_rows);
         CharacterVector df_house_id = CharacterVector(n_rows);
         IntegerVector df_status = IntegerVector(n_rows);
@@ -259,7 +292,7 @@ Rcpp::DataFrame MCMC::Impl::DataLong::rcpp_export() const
 
         // retrieve total number of rows
         size_t n_rows = 0;
-        for (size_t i = 0; i < pImpl_.dataset.n_individuals(); ++i)
+        for (size_t i = 0; i < pImpl_.dataset.report_indiv.total; ++i)
             n_rows += indiv_datalist_[i].at(headers_[0]).size();
 
         CharacterVector datalist_index = CharacterVector(n_rows);
@@ -307,7 +340,7 @@ Rcpp::DataFrame MCMC::Impl::DataWide::rcpp_summarise_cases() const
     try
     {
         if (is_empty())
-            hsp::msg::warning("Calling a summarise_cases on empty data.");
+            hsp::msg::warning("Called \'summarise_cases\' on empty data.");
 
         CharacterVector type = wrap(str_vec(4, "individual") + str_vec(4, "household"));
         const size_t n_rows = type.size();
@@ -504,9 +537,9 @@ Rcpp::NumericMatrix MCMC::Impl::DataWide::rcpp_export_draws() const
 
         // create a NumericMatrix with n_house columns
         const unsigned long sample_size = pImpl_.setup.n_chains * pImpl_.setup.c_sample_size;
-        NumericMatrix output(sample_size, n_houses() + 1);
-        CharacterVector columns(n_houses() + 1);
-        columns[n_houses()] = hsp::read::CHAIN_COLUMN;
+        NumericMatrix output(sample_size, report_house.total + 1);
+        CharacterVector columns(report_house.total + 1);
+        columns[report_house.total] = hsp::read::CHAIN_COLUMN;
 
         // retrieve restricted index by general index of multiplicity head class
         std::unordered_map<size_t, size_t> restr_idx_map = {};
@@ -515,7 +548,7 @@ Rcpp::NumericMatrix MCMC::Impl::DataWide::rcpp_export_draws() const
             restr_idx_map.emplace(restrict_indexes_[R], R);
 
         // assign each NumericVector to a column of the matrix
-        for (size_t H = 0; H < n_houses(); ++H)
+        for (size_t H = 0; H < report_house.total; ++H)
         {
             size_t R = restr_idx_map.at(house_vector_[H].multiplicity_class_index());
             output(_, H) = NumericVector(wrap(std::move(smpl_values_[R])));
@@ -523,7 +556,7 @@ Rcpp::NumericMatrix MCMC::Impl::DataWide::rcpp_export_draws() const
         }
 
         // asssociate chain tag
-        output(_, n_houses()) = pImpl_.setup.draws_chain_tags();
+        output(_, report_house.total) = pImpl_.setup.draws_chain_tags();
         // associate column names
         colnames(output) = columns;
         // associate row names
@@ -740,15 +773,15 @@ Rcpp::List MCMC::Impl::InfecProfile::rcpp_snapshot(const std::string &house_id) 
                     const Variable &var = member.get_augm_variable(hsp::infprof::INSTANTANEOUS);
                     infprof_name[r] = var.func_name();
                     infprof_discr[r] = var.is_discrete();
-                    infprof_args[r] = var.rcpp_export_func_args();
-                    infprof_range[r] = var.rcpp_export_range();
+                    infprof_args[r] = rcpp_export_func_args(var);
+                    infprof_range[r] = rcpp_export_range(var);
                 }
                 else
                 {
                     infprof_name[r] = profile_->name();
                     infprof_discr[r] = profile_->is_discrete();
-                    infprof_args[r] = profile_->rcpp_export_args();
-                    infprof_range[r] = profile_->rcpp_export_range();
+                    infprof_args[r] = rcpp_export_args(*profile_);
+                    infprof_range[r] = rcpp_export_range(*profile_);
                 }
             }
             else
@@ -1003,7 +1036,7 @@ void MCMC::Impl::print_simulated_data_wide(const std::string &pathtofile)
                                                    augm.list_export);
         aux_init_simulate_();
         // open progress bar
-        setup.prog_open(dataset.n_houses());
+        setup.prog_open(dataset.report_house.total);
 
         for (Household house : dataset) // NOTE: deep copy of household
             try

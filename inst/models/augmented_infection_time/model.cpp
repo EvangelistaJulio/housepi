@@ -34,8 +34,8 @@ void Model::init_advanced_setup()
 	init_infec_profile_template(
 		{{"func", "gamma_meanvar|mean:var|{2|N}:{1|N}"}});
 
-#ifdef _HSP_DISCRETE_TIME
-	init_user_list_discrete("infec_time");
+#ifdef _HOUSEPI_DISCRETE_TIME
+	request_augm_discrete("infec_time");
 #endif
 }
 
@@ -124,7 +124,7 @@ double Model::loglike_infectious(const Household &house) const
 			// Risk of infection from community
 			roi_inst_i += alpha;
 
-#ifdef _HSP_DISCRETE_TIME
+#ifdef _HOUSEPI_DISCRETE_TIME
 			roi_cumul_i += alpha * (member_i.augm("infec_time") - 1. - t_intro);
 			output += std::log(1. - std::exp(-roi_inst_i)) - roi_cumul_i;
 #else
@@ -182,7 +182,7 @@ void Model::update_cache_dependecies(Household &house, Individual &member_i)
 			if (gentime > 0)
 			{ // `i` : infector, `k` : infectee
 				inst_mtx[member_i][member_k] = infec_profile_inst(member_i, gentime);
-#ifdef _HSP_DISCRETE_TIME
+#ifdef _HOUSEPI_DISCRETE_TIME
 				cumul_mtx[member_i][member_k] = infec_profile_cumul(member_i, gentime - 1);
 #else
 				cumul_mtx[member_i][member_k] = infec_profile_cumul(member_i, gentime);
@@ -191,7 +191,7 @@ void Model::update_cache_dependecies(Household &house, Individual &member_i)
 			else if (gentime < 0)
 			{ // `k` : infector, `i` : infectee
 				inst_mtx[member_k][member_i] = infec_profile_inst(member_k, -gentime);
-#ifdef _HSP_DISCRETE_TIME
+#ifdef _HOUSEPI_DISCRETE_TIME
 				cumul_mtx[member_k][member_i] = infec_profile_cumul(member_k, -gentime - 1);
 #else
 				cumul_mtx[member_k][member_i] = infec_profile_cumul(member_k, -gentime);
@@ -231,7 +231,7 @@ void Model::update_cache_dependecies(Household &house, Individual &member_i)
 /// Poisson point process to simulate outbreak in a single household.
 void Model::simulate_single_household(Household &house)
 {
-#ifdef _HSP_DISCRETE_TIME
+#ifdef _HOUSEPI_DISCRETE_TIME
 	const double Dt = 1;
 #else
 	const double Dt = 0.05; // UDPDATE: it should be possible to change from outside

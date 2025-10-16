@@ -5,10 +5,10 @@
 #' @title Function from Housepi
 #' @description Call housepi registered function.
 #' @field initialize\cr \itemize{
-#'   \item Parameter: name `character(1)`\cr Name of the function.
+#'   \item Parameter: name `character(1)` with function name.
 #'   \item Parameter: is_discr `logical(1)`\cr Wheter discrete (not used).
-#'   \item Parameter: args `numeric()`\cr Custom arguments.
-#'   \item Parameter: range `numeric()`\cr Minimum and maximum range of the function.
+#'   \item Parameter: args A named `numeric()` with arguments.
+#'   \item Parameter: range A named `numeric()`\cr with min and max for minimum and maximum.
 #' }
 #' @field call\cr \itemize{
 #'   \item Parameter: x `numeric()`\cr Input vector.

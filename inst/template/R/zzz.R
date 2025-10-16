@@ -11,6 +11,12 @@
 # zzz.R
 #
 
+#' @import Rcpp
+#' @import methods
+#' @useDynLib housepienvironment, .registration = TRUE
+NULL
+
+Rcpp::loadModule("housepi_flags", TRUE)
 Rcpp::loadModule("housepi_function", TRUE)
 Rcpp::loadModule("housepi_distribution", TRUE)
 Rcpp::loadModule("housepi_infec_profile", TRUE)

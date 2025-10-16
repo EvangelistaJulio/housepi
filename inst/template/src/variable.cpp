@@ -16,6 +16,7 @@
 #include "tools/error.h"
 #include "tools/params.h"
 #include "tools/string.h"
+#include "distribution_registry.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -46,6 +47,14 @@ Proposer::Proposer(std::shared_ptr<Distribution> distr,
     // load which are the parameter to be adapted
     args_to_adapt_ = args_to_adapt;
 };
+
+/// Proposer constructor from Distribution name.
+Proposer::Proposer(const std::string &distr_name,
+                   double rule_scale,
+                   const std::vector<unsigned short> &args_to_adapt,
+                   bool is_discrete)
+    : Proposer(ContinuosDistrRegistry::inst().get_distr(distr_name),
+               rule_scale, args_to_adapt, is_discrete) {}
 
 /// Increase spread if acceptation rate is high and viceversa.
 void Proposer::adapt(double ratio)
@@ -339,10 +348,9 @@ void Variable::init_proposer(const std::string &rule_name, double rule_scale)
         else // other proposer rules
         {
             // raise a warning if "lnorm" rule when varaible can be negative
-            // UPDATE: generalize in case of new positive-defined proposer rules
             if ((pDistr_->get_min() < 0) && (rule_name == "lnorm"))
                 hsp::msg::warning(
-                    "Lognormal proposer rule for non-positive " + err_name() + ".");
+                    "Provided a lognormal proposer rule for non-positive " + err_name() + ".");
 
             // assign the pointer to the proposer
             pProp_ = proposer_switch(rule_name, rule_scale, is_discrete());

@@ -18,6 +18,7 @@
 #include "tools/string.h"
 #include "tools/operators.h"
 #include "function.h"
+#include "function_registry.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -503,80 +504,6 @@ std::string Function::str_summary(bool show_x_arg) const
     return output + ") : " + str_range();
 }
 
-#ifdef _HOUSEPI_RCPP
-/// Export argument list to R.
-Rcpp::NumericVector Function::rcpp_export_args() const
-{
-    using namespace Rcpp;
-
-    size_t n_args = arguments_.size();
-    NumericVector vals(n_args);
-    CharacterVector keys(n_args);
-    for (size_t k = 0; k < n_args; ++k)
-    {
-        vals[k] = arguments_[k].get();
-        keys[k] = arguments_[k].name();
-    }
-    vals.names() = std::move(keys);
-    return vals;
-}
-/// Export range list to R.
-Rcpp::NumericVector Function::rcpp_export_range() const
-{
-    using namespace Rcpp;
-    return NumericVector::create(_[hsp::params::MIN] = range_min_.get(),
-                                 _[hsp::params::MAX] = range_max_.get());
-}
-#endif
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  FunctionRegistry : getter  //////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-str_vec FunctionRegistry::get_options() const
-{
-    str_vec keys;
-    keys.reserve(factory_map_.size());
-    for (const auto &pair : factory_map_)
-        keys.push_back(pair.first);
-    return keys;
-}
-
-std::shared_ptr<Function> FunctionRegistry::get(const std::string &opt, bool is_primitive) const
-{
-    auto output = factory_map_.find(opt)->second();
-    if (is_primitive)
-        output->set_eval_primitive();
-    else
-        output->set_eval_function();
-    return output;
-}
-
-std::shared_ptr<Function> compose_func_registries(const std::string &opt,
-                                                  const std::string &name,
-                                                  const std::vector<const FunctionRegistry *> &registries,
-                                                  bool is_primitive)
-{
-    str_vec options = {};
-
-    if (registries.empty())
-        throw std::invalid_argument(
-            "No registries were provided for \"" + name + "\".");
-    else if (hsp::na::is(opt))
-        return std::make_shared<Function>();
-    else
-        for (const auto &r : registries)
-            if (r->get_options() % opt)
-                return r->get(opt, is_primitive);
-            else
-                options += r->get_options();
-
-    throw std::invalid_argument(
-        "Unknown " + name + " \"" + opt + "\"." + hsp::str::find_closest(opt, options));
-}
-
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  FunctionRegistry : entries  //////////////////////////////////
@@ -802,7 +729,55 @@ MAKE_VARIADIC_FUNCTION(Summation_Function, "sum", +=)
 MAKE_VARIADIC_FUNCTION(Product_Function, "prod", *=)
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  Variadic_Function : class  ///////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  FunctionRegistry : getter  //////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+str_vec FunctionRegistry::get_options() const
+{
+    str_vec keys;
+    keys.reserve(factory_map_.size());
+    for (const auto &pair : factory_map_)
+        keys.push_back(pair.first);
+    return keys;
+}
+
+std::shared_ptr<Function> FunctionRegistry::get(const std::string &opt, bool is_primitive) const
+{
+    auto output = factory_map_.find(opt)->second();
+    if (is_primitive)
+        output->set_eval_primitive();
+    else
+        output->set_eval_function();
+    return output;
+}
+
+std::shared_ptr<Function> compose_func_registries(const std::string &opt,
+                                                  const std::string &name,
+                                                  const std::vector<const FunctionRegistry *> &registries,
+                                                  bool is_primitive)
+{
+    str_vec options = {};
+
+    if (registries.empty())
+        throw std::invalid_argument(
+            "No registries were provided for \"" + name + "\".");
+    else if (hsp::na::is(opt))
+        return std::make_shared<Function>();
+    else
+        for (const auto &r : registries)
+            if (r->get_options() % opt)
+                return r->get(opt, is_primitive);
+            else
+                options += r->get_options();
+
+    throw std::invalid_argument(
+        "Unknown " + name + " \"" + opt + "\"." + hsp::str::find_closest(opt, options));
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  Register functions  //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 #define IMPLEMENT_HOUSEPI_FUNCTION_REGISTRY(ClassName) \

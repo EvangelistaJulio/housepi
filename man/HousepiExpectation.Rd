@@ -34,7 +34,7 @@ Given a model and a posterior sample of parameters,
 performs simulation and compute expected values of a set of measures.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiExpectation$new(
-  model,
+  hhmodel,
   param_table,
   ...,
   obs_process = NULL,
@@ -46,7 +46,7 @@ performs simulation and compute expected values of a set of measures.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{model}}{\code{HousepiModel} object.}
+\item{\code{hhmodel}}{\code{HousepiModel} object.}
 
 \item{\code{param_table}}{One between\cr
 \itemize{
@@ -70,8 +70,8 @@ One between:\cr
 \item If \code{FALSE} or \code{0}, suppresses progress display.
 }}
 
-\item{\code{cri_level}}{\code{numeric(1)} with the level for the credible interval in (0.5, 1.0).\cr
-Default is 0.95.}
+\item{\code{cri_level}}{\code{numeric(1)} with the level for credible interval\cr
+It must be a value in (0.5, 1.0). Default is 0.95.}
 }
 \if{html}{\out{</div>}}
 }

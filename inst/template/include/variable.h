@@ -22,6 +22,7 @@
 #include "tools/random.h"
 #include "tools/parser.h"
 #include "distribution.h"
+#include "function.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -50,9 +51,7 @@ public:
     Proposer(const std::string &distr_name,
              double rule_scale = hsp::na::DOUBLE,
              const std::vector<unsigned short> &args_to_adapt = {},
-             bool is_discrete = false)
-        : Proposer(ContinuosDistrRegistry::inst().get_distr(distr_name),
-                   rule_scale, args_to_adapt, is_discrete) {}
+             bool is_discrete = false);
 
     virtual ~Proposer() {};
 
@@ -186,6 +185,9 @@ public:
     /////////////////////////////////////  Variable : getter  ///////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
+    /// Get pointer to distribution.
+    const std::shared_ptr<Distribution> get_distribution() const { return pDistr_;}
+
     bool is_constant() const override;
     bool is_discrete() const override final;
     bool is_model() const { return !pDistr_->is_empty(); }
@@ -220,12 +222,6 @@ public:
     std::string str_range() const { return pDistr_->str_range(); }
     std::string func_name() const { return pFunc_->name(); }
     std::string prop_name() const { return pProp_->name(); }
-
-#ifdef _HOUSEPI_RCPP
-    Rcpp::NumericVector rcpp_export_distr_args() const { return pDistr_->rcpp_export_args(); }
-    Rcpp::NumericVector rcpp_export_func_args() const { return pFunc_->rcpp_export_args(); }
-    Rcpp::NumericVector rcpp_export_range() const { return pDistr_->rcpp_export_range(); }
-#endif
 
 protected:
     double buffer_ = hsp::na::DOUBLE;     /// buffered value

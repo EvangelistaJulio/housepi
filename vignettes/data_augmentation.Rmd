@@ -92,7 +92,7 @@ hhmodel <- new_housepi_model("augmented_example") |>
         mean = ~mean@P,      # use model parameter 'mean'
         var = ~var@P         # and 'var'
       ),
-      max = 14               # truncation
+      max = 14               # truncate to given maximum
     ),
     
     # declare 'incub_period' as the difference
@@ -113,9 +113,9 @@ hhmodel <- new_housepi_model("augmented_example") |>
     # add 'onset_time' time definition
     .onset_time = list(
       value = ~onset_max@D + 0.99,
-      model = "uniform", 
+      model = "uniform",
       args = c(min = ~onset_min@D, max = ~onset_max@D + 0.99),
-      rule = "normal", 
+      rule = "normal",
       scale = 0.25
     )
   ) |>

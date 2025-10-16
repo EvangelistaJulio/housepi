@@ -8,17 +8,15 @@
  *
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  *
- * mcmc_build_param.cpp
+ * mcmc_execute.cpp
  *
  */
 
 #include <atomic>
 
+#include "tools/string.h"
 #include "tools/error.h"
 #include "mcmc_impl.h"
-
-// FLAG
-#include "tools/string.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -31,13 +29,14 @@ double MCMC::Impl::evaluate()
 {
     try
     {
-        setup.n_chains = 0;          // use 0 chains as a state variable
-        assert_proper_dataset_();    // check if dataset is empty
-        param.user_reset();          // initialize non constant parameters
-        augm.init();                 // initialize individual augmented relations
-        augm.user_reset();           // initialize non constant augmented
-        init_model_for_inference_(); // initialize model for inference
-        update_full_loglike_(true);  // initialize cache + full loglikelihood
+        setup.n_chains = 0;             // use 0 chains as a state variable
+        assert_non_empty_dataset_();    // check if dataset is empty
+        warn_ift_all_missing_status_(); // warn if all missing status
+        param.user_reset();             // initialize non constant parameters
+        augm.init();                    // initialize individual augmented relations
+        augm.user_reset();              // initialize non constant augmented
+        init_model_for_inference_();    // initialize model for inference
+        update_full_loglike_(true);     // initialize cache + full loglikelihood
         return full_loglike_;
     }
     catch (const std::exception &e)
@@ -46,13 +45,6 @@ double MCMC::Impl::evaluate()
     }
 
     return hsp::na::DOUBLE;
-}
-
-/// Assert dataset is not empty.
-void MCMC::Impl::assert_proper_dataset_()
-{
-    if (dataset.n_houses() == 0)
-        throw std::length_error("Unable to proceed: no data was found.");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -151,10 +143,9 @@ void MCMC::Impl::infer()
 /// Assert setup definitions are ok to proceed with mcmc sampling.
 void MCMC::Impl::init_monte_carlo_()
 {
-    setup.assert_mcmc_setup();
-
-    // check if there is a dataset
-    assert_proper_dataset_();
+    setup.assert_mcmc_setup();      // assert if setup is ok for mcmc
+    assert_non_empty_dataset_();    // check if dataset is empty
+    warn_ift_all_missing_status_(); // warn if all missing status
 
     // check if there is actually something to sample
     if (!(param.is_any_sample() || augm.is_any_sample()))
@@ -457,3 +448,349 @@ void MCMC::Impl::clear_posterior_sample_()
     param.clear_draws();
     augm.clear_draws();
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////  MCMC : Impl : estimate logevidence  /////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Welford online's algorithm for mean and variance.
+/// Ref :
+/// ----
+/// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+std::pair<double, double> compute_stats(const dbl_vec &data)
+{
+    size_t i = 0;
+    size_t N = data.size();
+    double x, delta, delta2;
+    double sqr_diff = 0.;
+
+    double avg = 0.;
+    while (i < N)
+    {
+        x = data[i++];
+        delta = x - avg;
+        avg += delta / i;
+        delta2 = x - avg;
+        sqr_diff += delta * delta2;
+    }
+
+    return {avg, sqr_diff / (N - 1.)};
+}
+
+/// Trapezoidal rule to estimate logarithm of marginal likelihood (evidence) with power posteriors.
+///
+/// Ref
+/// -----
+/// Friel, N., Hurn, M. & Wyse, J.
+/// Improving power posterior estimation of statistical evidence.
+/// Stat Comput 24, 709–723 (2014).
+std::vector<dbl_vec> MCMC::Impl::power_posteriors_(const std::string &scheme, unsigned long n_rungs)
+{
+    // check scheme choice
+    const str_vec options = {"adaptive", "power-fractions"};
+    if (!(options % scheme))
+        throw std::invalid_argument(
+            "Invoked invalid power posterior scheme \"" + scheme + "\"." +
+            hsp::str::find_closest(scheme, options));
+
+    // check number of rungs for the thermodynamic ladder
+    if (n_rungs < 2)
+        throw std::invalid_argument(
+            "N. of rungs was not greater than 1.");
+    setup.n_rungs = n_rungs; // NOTE: set before progress bar
+
+    // initialize mcmc sampling
+    init_monte_carlo_();
+
+    // buffer user setup
+    double buffer_inv_T = setup.inv_T;
+
+    setup.prog_declare();        // declare current progress bar
+    init_model_for_inference_(); // initialize model for inference
+    augm.init();                 // initialize augmented variables
+    setup.prog_open((setup.c_n_sweeps * setup.n_chains) * (setup.n_rungs + 1));
+
+    // thermodynamic ladder estimates
+    dbl_vec itm = {}; // inverse temperature
+    dbl_vec avg = {}; // mean loglikelihood
+    dbl_vec var = {}; // variance loglikelihood
+
+    // run power posteriors
+    power_post_zero_(itm, avg, var);
+    if (scheme == "adaptive")
+        power_post_adaptive_(itm, avg, var);
+    else if (scheme == "power-fractions")
+        power_post_fractions_(itm, avg, var);
+
+    // close progress bar
+    setup.prog_close();
+
+    // restore user setup
+    setup.inv_T = buffer_inv_T;
+
+    return {itm, avg, var};
+}
+
+/// Power posteriors at 0 inverse temperature.
+void MCMC::Impl::power_post_zero_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
+{
+    // UPDATE: should I use previous inference for itm = 1 if available?
+    // UPDATE: always under-estimate time if starting from itm = 0
+
+    setup.rung = 0;
+    setup.inv_T = 0.0;
+    run_monte_carlo_();
+    std::pair<double, double> stats = compute_stats(smpl_full_loglike_);
+
+    itm.push_back(setup.inv_T);
+    avg.push_back(stats.first);
+    var.push_back(stats.second);
+}
+
+/// Power posteriors with adaptive scheme for the thermodynamic ladder.
+void MCMC::Impl::power_post_adaptive_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
+{
+    // Inverse Temperature 1
+    setup.rung = 1;
+    setup.inv_T = 1.0;
+    run_monte_carlo_();
+    std::pair<double, double> stats = compute_stats(smpl_full_loglike_);
+
+    itm.push_back(setup.inv_T);
+    avg.push_back(stats.first);
+    var.push_back(stats.second);
+
+    // Inverse Temperatures (0, 1)
+    size_t k = 0; // index to interval lower bound
+    bool is_right = false;
+    while (setup.rung < setup.n_rungs)
+    {
+        ++setup.rung;
+
+        // adaptive choice of inverse temperature
+        // intersection between tangents
+        double new_t = (avg[k + 1] - itm[k + 1] * var[k + 1] - avg[k] + itm[k] * var[k]) / (var[k] - var[k + 1]);
+        // otherwise weighted average
+        if ((new_t <= itm[k]) || (new_t >= itm[k + 1]))
+            new_t = itm[k] + var[k + 1] * (itm[k + 1] - itm[k]) / (var[k] + var[k + 1]);
+
+        // power posterior sampling
+        setup.inv_T = new_t;
+        run_monte_carlo_();
+        stats = compute_stats(smpl_full_loglike_);
+
+        // find larger rectangular discretization error
+        is_right = (itm[k + 1] - setup.inv_T) * (avg[k + 1] - stats.first) > (new_t - itm[k]) * (stats.first - avg[k]);
+
+        // insert in-between for all lists
+        itm.insert(itm.begin() + k + 1, setup.inv_T);
+        avg.insert(avg.begin() + k + 1, stats.first);
+        var.insert(var.begin() + k + 1, stats.second);
+
+        // if right interval is chosen, index points to inserted as lower bound
+        k += (is_right);
+    }
+}
+
+/// Power posteriors with power fractions scheme for the thermodynamic ladder.
+void MCMC::Impl::power_post_fractions_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
+{
+    for (setup.rung = 1; setup.rung <= setup.n_rungs; ++setup.rung)
+    {
+        // inverse tempearture = (rung / #rungs)^5
+        setup.inv_T = std::pow(static_cast<double>(setup.rung) / setup.n_rungs, 5);
+        run_monte_carlo_();
+
+        std::pair<double, double> stats = compute_stats(smpl_full_loglike_);
+        itm.push_back(setup.inv_T);
+        avg.push_back(stats.first);
+        var.push_back(stats.second);
+    }
+}
+
+#ifdef _HOUSEPI_RCPP
+/// Estimate logevidence according to a given scheme and number of rungs.
+/// Uses trapezoidal rule to estimate logarithm of marginal likelihood (evidence).
+///
+/// Ref.
+/// -----
+/// Ref: Friel, N., Hurn, M. & Wyse, J.
+/// Improving power posterior estimation of statistical evidence.
+/// Stat Comput 24, 709–723 (2014).
+Rcpp::List MCMC::Impl::logevidence(const std::string &scheme, unsigned long n_rungs)
+{
+    using namespace Rcpp;
+
+    try
+    {
+        double output = 0;
+        const std::vector<dbl_vec> pp = power_posteriors_(scheme, n_rungs);
+        const dbl_vec &inv_tem = pp[0];
+        const dbl_vec &avg_vec = pp[1];
+        const dbl_vec &var_vec = pp[2];
+
+        for (unsigned long k = 0; k < setup.n_rungs; ++k)
+        {
+            double d_inv_tem = inv_tem[k + 1] - inv_tem[k];
+            output += (avg_vec[k + 1] + avg_vec[k]) * d_inv_tem / 2.;
+            output += (var_vec[k] - var_vec[k + 1]) * d_inv_tem * d_inv_tem / 12.;
+        }
+
+        return List::create(_["estimate"] = output,
+                            _["scheme"] = scheme,
+                            _["n_rungs"] = setup.n_rungs,
+                            _["inv_temper"] = wrap(inv_tem),
+                            _["mean_loglike"] = wrap(avg_vec),
+                            _["var_loglike"] = wrap(var_vec));
+    }
+    catch (const std::exception &e)
+    {
+        hsp::msg::error("While estimating logevidence with power posteriors:\n" +
+                        std::string(e.what()));
+    }
+    return List();
+}
+
+#else
+/// Estimate logevidence according to a given scheme and number of rungs.
+/// Uses trapezoidal rule to estimate logarithm of marginal likelihood (evidence).
+///
+/// Ref.
+/// -----
+/// Ref: Friel, N., Hurn, M. & Wyse, J.
+/// Improving power posterior estimation of statistical evidence.
+/// Stat Comput 24, 709–723 (2014).
+double MCMC::Impl::logevidence(const std::string &scheme, unsigned long n_rungs)
+{
+    try
+    {
+        double output = 0;
+        const std::vector<dbl_vec> pp = power_posteriors_(scheme, n_rungs);
+        const dbl_vec &inv_tem = pp[0];
+        const dbl_vec &avg_vec = pp[1];
+        const dbl_vec &var_vec = pp[2];
+
+        for (unsigned long k = 0; k < setup.n_rungs; ++k)
+        {
+            double d_inv_tem = inv_tem[k + 1] - inv_tem[k];
+            output += (avg_vec[k + 1] + avg_vec[k]) * d_inv_tem / 2.;
+            output += (var_vec[k] - var_vec[k + 1]) * d_inv_tem * d_inv_tem / 12.;
+        }
+
+        return output;
+    }
+    catch (const std::exception &e)
+    {
+        hsp::msg::error("While estimating logevidence with power posteriors:\n" +
+                        std::string(e.what()));
+    }
+
+    return hsp::na::DOUBLE;
+}
+#endif
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  MCMC : Impl : simulation  /////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef _HOUSEPI_RCPP
+/// Perform a unique repetition.
+Rcpp::DataFrame MCMC::Impl::simulate_repetition()
+{
+    using namespace Rcpp;
+
+    const size_t n_rows = dataset.report_indiv.total;
+
+    IntegerVector df_status = IntegerVector(n_rows);
+
+    std::vector<NumericVector> df_augm;
+    df_augm.reserve(augm.list_export.size());
+    for (size_t c = 0; c < augm.list_export.size(); ++c)
+        df_augm.emplace_back(n_rows);
+
+    size_t r = 0;
+    for (Household house : dataset) // NOTE: deep copy of household
+        try
+        {
+            simulate_single_household_(house); // inplace simulation
+            for (const Individual &member : house)
+            {
+                df_status[r] = member.status();
+                for (size_t c = 0; c < augm.list_export.size(); ++c)
+                    df_augm[c][r] = hsp_to_rcpp(member.augm(augm.list_export[c]));
+                ++r;
+            }
+        }
+        catch (const std::exception &e)
+        {
+            throw std::runtime_error(
+                "While simulating " + house.err_name() + ":\n" +
+                std::string(e.what()));
+        }
+
+    DataFrame output = DataFrame::create(_["status"] = df_status);
+    for (size_t c = 0; c < augm.list_export.size(); ++c)
+        output.push_back(df_augm[c], augm.list_export[c]);
+
+    return output;
+}
+
+/// Perform simulation and return simulated dataset.
+Rcpp::List MCMC::Impl::simulate(size_t n_rep)
+{
+    using namespace Rcpp;
+    std::atomic<bool> has_error(false);
+
+    try
+    {
+        // initialization
+        aux_init_simulate_();
+        setup.prog_open(dataset.report_house.total * n_rep);
+
+        // run simulations
+        std::vector<DataFrame> results(n_rep);
+
+#pragma omp parallel for
+        for (size_t rep = 0; rep < n_rep; ++rep)
+        {
+            if (has_error.load(std::memory_order_relaxed))
+                continue;
+            try
+            {
+                results[rep] = simulate_repetition();
+            }
+            catch (const std::exception &e)
+            {
+#pragma omp critical
+                {
+                    if (!has_error.exchange(true))
+                        error_message = e.what();
+                }
+            }
+        }
+        if (!error_message.empty())
+            throw std::runtime_error(error_message);
+
+        // convert to Rcpp List
+        List output(n_rep);
+        for (size_t rep = 0; rep < n_rep; ++rep)
+            output[rep] = std::move(results[rep]);
+
+        // close progress bar
+        setup.prog_close();
+
+        return output;
+    }
+    catch (std::exception &e)
+    {
+        hsp::msg::error(e.what());
+    }
+
+    return List::create();
+}
+
+#endif

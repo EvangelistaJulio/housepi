@@ -16,14 +16,9 @@
 #define HOUSEPI__FUNCTION__H
 
 #include <memory>
-#include <functional>
 
 #include "tools/types.h"
 #include "tools/na_utils.h"
-
-#ifdef _HOUSEPI_RCPP
-#include <Rcpp.h>
-#endif
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -194,6 +189,7 @@ public:
     ///////////////////////////////////  Function : getter  /////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
+    size_t n_args() const { return arguments_.size(); }
     double arg(unsigned short i) const { return arguments_[i].get(); }
     double get_min() const { return range_min_.get(); }
     double get_max() const { return range_max_.get(); }
@@ -241,17 +237,15 @@ public:
     ////////////////////////////////////  Function : show  //////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
+    /// Get function name.
     std::string name() const { return name_; }
-    /// Get attribute name to display in errors.
+    /// Get argument name.
+    std::string arg_name(unsigned short i) const { return arguments_[i].name(); }
+    /// Get function name complete with type to display in errors.
     std::string err_name() const { return err_type_ + " \"" + name_ + "\""; }
 
     std::string str_range() const;
     std::string str_summary(bool show_x_arg = true) const;
-
-#ifdef _HOUSEPI_RCPP
-    Rcpp::NumericVector rcpp_export_args() const;
-    Rcpp::NumericVector rcpp_export_range() const;
-#endif
 
 protected:
     std::string err_type_ = "function";                                      // type name displayed in errors
@@ -381,88 +375,5 @@ protected:
     bool do_is_valid_close_min_open_max_(double x) const { return (x >= range_min_.get()) && (x < range_max_.get()); }
     bool do_is_valid_both_close_(double x) const { return (x >= range_min_.get()) && (x <= range_max_.get()); }
 };
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////// *** FunctionRegistry : class *** //////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-class FunctionRegistry
-{
-public:
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////  FunctionRegistry : constructor  ////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
-
-    FunctionRegistry(const std::string &name)
-        : name_(name) {}
-    virtual ~FunctionRegistry() = default;
-
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////  FunctionRegistry : getter  //////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
-
-    const std::string &name() const { return name_; }
-    virtual str_vec get_options() const;
-    virtual std::shared_ptr<Function> get(const std::string &opt, bool is_primitive) const;
-
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////  FunctionRegistry : setter  //////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
-
-    template <typename T>
-    void register_func()
-    {
-        static_assert(std::is_base_of<Function, T>::value,
-                      "T must be derived from Function");
-        factory_map_[T().name()] = []()
-        { return std::make_shared<T>(); };
-    }
-
-private:
-    std::string name_;
-    u_dict<std::function<std::shared_ptr<Function>()>> factory_map_ = {};
-};
-
-/// Separate functions registries.
-#define DECLARE_HOUSEPI_FUNCTION_REGISTRY(ClassName, Description) \
-    class ClassName : public FunctionRegistry                     \
-    {                                                             \
-    public:                                                       \
-        static ClassName &inst();                                 \
-                                                                  \
-    private:                                                      \
-        ClassName() : FunctionRegistry(Description) {}            \
-    };
-DECLARE_HOUSEPI_FUNCTION_REGISTRY(ArithmeticRegistry, "arithmetic function")
-DECLARE_HOUSEPI_FUNCTION_REGISTRY(TranscendentalRegistry, "transcendental function")
-DECLARE_HOUSEPI_FUNCTION_REGISTRY(UserFuncRegistry, "user function")
-
-/// Register a Function derived class T to FungRegistry derived class R.
-template <typename R, typename T>
-struct StaticFunctionRegistatror
-{
-    StaticFunctionRegistatror()
-    {
-        static_assert(std::is_base_of<FunctionRegistry, R>::value,
-                      "R must be derived from FunctionRegistry.");
-        R::inst().template register_func<T>();
-    }
-};
-#define REGISTER_HOUSEPI_FUNCTION(R, T)        \
-    namespace                                  \
-    {                                          \
-        static StaticFunctionRegistatror<R, T> \
-            housepi_register_##T##_to_##R;     \
-    }
-
-#define REGISTER_USER_FUNCTION(T) REGISTER_HOUSEPI_FUNCTION(UserFuncRegistry, T)
-
-/// Compose registries to get a function from them.
-std::shared_ptr<Function> compose_func_registries(const std::string &opt,
-                                                  const std::string &name,
-                                                  const std::vector<const FunctionRegistry *> &registries,
-                                                  bool is_primitive = false);
 
 #endif // HOUSEPI__FUNCTION__H

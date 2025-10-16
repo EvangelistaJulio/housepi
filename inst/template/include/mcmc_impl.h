@@ -20,6 +20,7 @@
 
 #include "tools/types.h"
 #include "tools/na_utils.h"
+#include "tools/error.h"
 #include "tools/progress.h"
 #include "tools/infprof.h"
 #include "function.h"
@@ -263,9 +264,7 @@ public:
         ////////////////////////////  MCMC : Impl : DataWide : getter  ///////////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////
 
-        size_t n_houses() const { return house_vector_.size(); }
         size_t n_restricted_houses() const { return restrict_indexes_.size(); }
-        size_t n_individuals() const { return n_individuals_; }
         bool is_empty() const { return house_vector_.empty(); }
         const str_vec &headers() const { return headers_; }
         Household copy(size_t H) const { return house_vector_[H]; }
@@ -376,12 +375,14 @@ public:
 
         str_vec headers_ = {};
 
-        size_t n_individuals_ = 0;
         std::vector<Household> house_vector_ = {};
         std::unordered_map<std::string, size_t> hhid_to_index_ = {};
         std::vector<size_t> restrict_indexes_ = {};
 
         std::vector<dbl_vec> smpl_values_ = {};
+
+        /// Clear data report.
+        void build_helper_clear_report_data_();
 
         /// Use the loaded data to fill-in the respective report.
         void build_helper_fill_report_data_();
@@ -516,7 +517,7 @@ public:
 
         void clear_all(Individual &member);
         void build_all(Individual &member);
-        void init_user_list_discrete(const std::string &x) { user_list_discrete.emplace_back(x); }
+        void request_augm_discrete(const std::string &x) { user_list_discrete.emplace_back(x); }
         void build_missing(Individual &member);
         void user_reset(Individual &member);
 
@@ -709,7 +710,20 @@ private:
     unsigned long smpl_count_ = 0;   /// count of store samples
     dbl_vec smpl_full_loglike_ = {}; /// vector of full loglikelihood samples
 
-    void assert_proper_dataset_();
+    /// Assert dataset is not empty.
+    void assert_non_empty_dataset_()
+    {
+        if (dataset.report_house.total == 0)
+            throw std::length_error("Unable to proceed: no data was found.");
+    }
+
+    /// Warn if all individuals have missing status.
+    void warn_ift_all_missing_status_()
+    {
+        if (dataset.report_indiv.total == dataset.report_indiv.missing)
+            hsp::msg::warning("All individuals in the data had missing status.");
+    }
+
     void init_monte_carlo_();
 
     /// Set new full loglikelihood value and buffer old value.
@@ -760,7 +774,7 @@ private:
     // UPDATE: once I allow for multi-treading and a flag other than n_chains = 0, I can drop this.
     void aux_init_simulate_()
     {
-        assert_proper_dataset_();     // check if dataset is empty
+        assert_non_empty_dataset_();  // check if dataset is empty
         setup.n_chains = 0;           // use 0 chains as a state variable
         setup.n_threads = 1;          // impose no parallelization
         setup.set_n_threads();        // change accordingly
