@@ -55,7 +55,7 @@ rd_var_max_ <- "`numeric(1)` to truncate to a maximum value."
 rd_var_rule_ <- "`character(1)` with proposer rule used during inference.\\cr
 One between:\\cr
 - \"sample\": sampled from the %s distribution;\\cr
-- \"unifrm\": increments drawn from uniform distribution;\\cr
+- \"uniform\": increments drawn from uniform distribution;\\cr
 - \"normal\": increments drawn from normal distribution;\\cr
 - \"lognormal\": log-increments drawn from lognormal distribution (for positive values only);
 - `NA` (default): same as \"sample\".

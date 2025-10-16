@@ -5,7 +5,7 @@
 \title{Expected posterior measure}
 \usage{
 expec_posterior_measure(
-  object,
+  hhmodel,
   param_table,
   ...,
   obs_process = NULL,
@@ -13,7 +13,7 @@ expec_posterior_measure(
 )
 }
 \arguments{
-\item{object}{\code{HousepiModel} object.}
+\item{hhmodel}{\code{HousepiModel} object.}
 
 \item{param_table}{One between\cr
 \itemize{

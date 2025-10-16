@@ -92,11 +92,8 @@ HousepiGenerator <- R6::R6Class(
 
     # @description
     # Assert source files exist.
-    #
-    # @param source_dir `character(1)`\cr
-    # The path to source code
-    .assert_source_files = function(source_dir) {
-      for (file_name in source_files(source_dir)) {
+    .assert_source_files = function() {
+      for (file_name in source_files(private$.source_dir)) {
         if (!file.exists(file_name)) stop_h(
           sprintf("File \"%s\" was not found.", file_name),
           "Check your model directory."
@@ -107,12 +104,9 @@ HousepiGenerator <- R6::R6Class(
 
     # @description
     # Assert cache allocations in source code match calls.
-    #
-    # @param source_dir `character(1)`\cr
-    # The path to source code
-    .assert_cache = function(source_dir) {
+    .assert_cache = function() {
       # use source file as a reference
-      refer_file <- file.path(source_dir, "model.cpp")
+      refer_file <- file.path(private$.source_dir, "model.cpp")
 
       # dictionary of allocate\call functions
       checks <- list(
@@ -181,9 +175,10 @@ HousepiGenerator <- R6::R6Class(
     },
 
     # @description
-    # Filter requested flags according to source.
+    # Assign source directory and filter requested flags according to source.
     # If a flag is not present in model.cpp, raise a warning.
-    .filter_user_flags = function(source_dir) {
+    .store_source_and_filter_flags = function(source_dir) {
+      # asses if model flags actually make sense
       keep <- character()
       for (f in private$.last_user_flags) {
         if (private$.assert_allows_flag(source_dir, f)) keep <- c(keep, f)
@@ -198,19 +193,20 @@ HousepiGenerator <- R6::R6Class(
       }
       # store just effective flags
       private$.last_user_flags <- keep
+
+      # store source directory for later checks
+      private$.source_dir <- source_dir
+
       invisible(self)
     },
 
     # @description
     # Wheter user flags are the same as existing dll.
-    .is_same_flags_as_dll = function() {
-      if (file.exists(private$.dll)) {
-        m <- get_rcpp_module_from_dll("housepi_flags", private$.dll)
-        m <- m$CompiledFlagsHousepi$new()
-        flags_dll <- strsplit(m$get_flags(), ":")[[1]]
-        return(setequal(private$.last_user_flags, flags_dll))
-      }
-      TRUE
+    .wheter_same_flags_as_dll = function() {
+      m <- get_rcpp_module_from_dll("housepi_flags", private$.dll)
+      m <- m$CompiledFlagsHousepi$new()
+      flags_dll <- strsplit(m$get_flags(), ":")[[1]]
+      setequal(private$.last_user_flags, flags_dll)
     },
 
     ############################################################################
@@ -238,35 +234,30 @@ HousepiGenerator <- R6::R6Class(
     },
 
     # @description
-    # Initialize to "blank" model for developer mode.
-    .initialize_blank_mode = function() {
+    # Initialize to "blank" model.
+    .initialize_blank_model = function() {
       private$.dll <- file.path(system.file(package = "housepi"),
                                 "template", "src",
                                 dll_file_ext("housepienvironment"))
-      private$.source_dir <- dirname(private$.dll)
+      private$.store_source_and_filter_flags(dirname(private$.dll))
       invisible(self)
     },
 
     # @description
-    # Initialize to custom mode loading path to model source code.
-    .initialize_custom_mode = function(choice, as_template, force) {
-      private$.source_dir <- choice
+    # Initialize custom model loading path to model source code.
+    .initialize_custom_model = function(choice, as_template, force) {
+      private$.store_source_and_filter_flags(choice)
       private$.dll <- template_dll_file(choice)
-      private$.new_custom_model(choice, as_template, force)
-      if (!private$.is_same_flags_as_dll()) {
-        private$.need_compile <- TRUE
-      }
+      private$.new_custom_model(as_template, force)
       invisible(self)
     },
 
     # @description
-    # Initialize to template mode loading template model name.
-    .initialize_template_mode = function(choice, force) {
-      private$.source_dir <- get_template_dir(choice)
+    # Initialize template model loading template model name.
+    .initialize_template_model = function(choice, force) {
+      private$.store_source_and_filter_flags(get_template_dir(choice))
       private$.dll <- template_dll_file(private$.source_dir)
-      if (!private$.is_same_flags_as_dll()) {
-        private$.new_custom_model(private$.source_dir, FALSE, force)
-      }
+      private$.new_custom_model(FALSE, force)
       invisible(self)
     },
 
@@ -276,7 +267,7 @@ HousepiGenerator <- R6::R6Class(
 
     # @description
     # Predispose temporare fodler for the installation.
-    .new_temporary_cache = function(as_template) {
+    .new_temporary_cache = function(as_template, force) {
       private$.cache_dir <- file.path(tempdir(), template_name(private$.name))
 
       if (!dir.exists(private$.cache_dir)) {
@@ -312,7 +303,7 @@ HousepiGenerator <- R6::R6Class(
 
       } else {
         # search cached dll and check if to be recompiled
-        private$.need_compile <- private$.search_for_cached_dll(source_dir)
+        private$.need_compile <- private$.search_for_cached_dll()
       }
       invisible(self)
     },
@@ -320,41 +311,37 @@ HousepiGenerator <- R6::R6Class(
     # @description
     # Initialize a new custom model.
     #
-    # @param source_dir `character(1)`\cr
-    # The path to source code.
     # @param as_template `logical(1)`\cr
     # If `TRUE` store the dynamic library as a local template.
     # If `FALSE` recompile the model at every new session.
     # @param force `logical(1)`\cr
     # If `TRUE` compile even if a cached model already exists.
-    .new_custom_model = function(source_dir, as_template, force) {
-      # asses if model flags actually make sense
-      private$.filter_user_flags(source_dir)
-
-      # asses if model choice requires recompilation
-      private$.need_compile <- TRUE
-
+    .new_custom_model = function(as_template, force) {
       # force re-compilation or check for changes
-      if (file.exists(private$.dll)) {
-        if (!(force || untracked_changes(source_dir, private$.dll))) {
-          private$.need_compile <- FALSE
-        }
+      private$.need_compile <- TRUE
+      if (file.exists(private$.dll) &&
+            !force &&
+            !untracked_changes(private$.source_dir, private$.dll) &&
+            private$.wheter_same_flags_as_dll()) {
+        private$.need_compile <- FALSE
       }
 
       # temporary directory where to store source code
-      if (private$.need_compile) private$.new_temporary_cache(as_template)
+      if (private$.need_compile) {
+        private$.new_temporary_cache(as_template, force)
+      }
 
       # asses if still to be compiled after further checks
       if (private$.need_compile) {
         # change dll name if not as template
         if (!as_template) private$.dll <- file.path(
-          private$.cache_dir, dll_file_ext(random_name(source_dir))
+          private$.cache_dir, dll_file_ext(random_name(private$.source_dir))
         )
         # source directory must contain source files
-        private$.assert_source_files(source_dir)
+        private$.assert_source_files()
         # organize cache directory to perform compilation
-        private$.assert_cache(source_dir)
-        private$.copy_source_code(source_dir)
+        private$.assert_cache()
+        private$.copy_source_code()
       }
 
       invisible(self)
@@ -363,35 +350,28 @@ HousepiGenerator <- R6::R6Class(
     # @description
     # Check for previous cached dll files and tell if to be recompiled.
     #
-    # @param source_dir
-    # The path to source code.
-    #
     # @return `logical(1)`\cr
     # Wheter nothing is cached or changes are untracked.
-    .search_for_cached_dll = function(source_dir) {
+    .search_for_cached_dll = function() {
       # look for dynamic library name
       cache_dll_files <- list.files(private$.cache_dir,
                                     pattern = dll_file_ext(),
                                     full.names = TRUE)
-      # NOTE: at the moment multiple dlls are treated as an error
+      # NOTE: multiple dlls are treated as an error
       if (length(cache_dll_files) == 1) {
         # if all changes are tracked, dll is the one
-        if (!untracked_changes(source_dir, cache_dll_files[1])) {
+        if (!untracked_changes(private$.source_dir, cache_dll_files[1])) {
           private$.dll <- cache_dll_files[1]
           return(FALSE)
         }
       }
-
       # no dll cached or multiple dlls require recompilation
       TRUE
     },
 
     # @description
     # Create temporary folder and copy source code there.
-    #
-    # @param source_dir
-    # The path to source code.
-    .copy_source_code = function(source_dir) {
+    .copy_source_code = function() {
 
       # clean all previous file in the cache
       unlink(list.files(private$.cache_dir, full.names = TRUE),
@@ -411,12 +391,12 @@ HousepiGenerator <- R6::R6Class(
       }
 
       # copy model specific source files in the new folder
-      for (f in source_files(source_dir)) {
+      for (f in source_files(private$.source_dir)) {
         overwrite(f, file.path(private$.cache_dir, "src", basename(f)))
       }
 
       # copy helper files in the output directory
-      for (f in helper_files(source_dir)) {
+      for (f in helper_files(private$.source_dir)) {
         if (file.exists(f)) {
           overwrite(f, file.path(dirname(private$.dll), basename(f)))
         }
@@ -606,15 +586,15 @@ HousepiGenerator <- R6::R6Class(
       # load user options # FIXME they can change if need recompile
       user_options <- private$.process_user_options(...)
 
-      if (choice == "blank") private$.initialize_blank_mode()
-      else if (dir.exists(choice)) private$.initialize_custom_mode(
+      if (choice == "blank") private$.initialize_blank_model()
+      else if (dir.exists(choice)) private$.initialize_custom_model(
         choice, as_template, force
       )
       else if (is.na(get_template_dir(choice))) stop_h(
         sprintf("\"%s\" is not a folder nor a template name.", choice),
         find_closest_template_name(choice)
       )
-      else private$.initialize_template_mode(choice, force)
+      else private$.initialize_template_model(choice, force)
 
       # finally recompile only the model script, if necessary.
       if (private$.need_compile) do.call(private$.compile, user_options)

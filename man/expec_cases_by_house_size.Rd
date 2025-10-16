@@ -5,14 +5,14 @@
 \title{Expected cases by household size}
 \usage{
 expec_cases_by_house_size(
-  object,
+  hhmodel,
   param_table,
   obs_process = NULL,
   progress = NA
 )
 }
 \arguments{
-\item{object}{\code{HousepiModel} object.}
+\item{hhmodel}{\code{HousepiModel} object.}
 
 \item{param_table}{One between\cr
 \itemize{

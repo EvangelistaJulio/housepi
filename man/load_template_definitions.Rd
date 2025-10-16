@@ -5,12 +5,12 @@
 \alias{load_augmented_template}
 \title{Load template definitions}
 \usage{
-load_parameter_template(object, append = FALSE)
+load_parameter_template(hhmodel, append = FALSE)
 
-load_augmented_template(object, append = FALSE)
+load_augmented_template(hhmodel, append = FALSE)
 }
 \arguments{
-\item{object}{\code{HousepiModel} object.}
+\item{hhmodel}{\code{HousepiModel} object.}
 
 \item{append}{\code{logical(1)} to append only missing definitions.\cr
 If \code{FALSE} drop all pre-existing definitions (default).}

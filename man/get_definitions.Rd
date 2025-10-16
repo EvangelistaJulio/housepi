@@ -6,14 +6,14 @@
 \alias{get_group_rates}
 \title{Get definitions}
 \usage{
-get_parameters(object, ...)
+get_parameters(hhmodel, ...)
 
-get_augmented(object, ...)
+get_augmented(hhmodel, ...)
 
-get_group_rates(object, ...)
+get_group_rates(hhmodel, ...)
 }
 \arguments{
-\item{object}{\code{HousepiModel} object.}
+\item{hhmodel}{\code{HousepiModel} object.}
 
 \item{...}{Ignored.}
 }

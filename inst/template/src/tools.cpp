@@ -872,7 +872,7 @@ DefinitionParser::ASTNode parse_expression_(const std::string &expr)
             // parse inner expression and keep braced flag
             DefinitionParser::ASTNode child = parse_expression_(c.substr(1, c.size() - 2));
             child.is_braced = true;
-            child.key = args[i]; // FIXME check not NA
+            child.key = args[i];
             node.children.push_back(std::move(child));
         }
         else

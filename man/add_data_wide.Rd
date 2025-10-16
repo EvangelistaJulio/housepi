@@ -4,10 +4,10 @@
 \alias{add_data_wide}
 \title{Add data wide}
 \usage{
-add_data_wide(object, data_wide)
+add_data_wide(hhmodel, data_wide)
 }
 \arguments{
-\item{object}{\code{HousepiModel} object.}
+\item{hhmodel}{\code{HousepiModel} object.}
 
 \item{data_wide}{\code{data.frame} with the household data used for analysis in wide format.}
 }

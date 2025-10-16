@@ -557,26 +557,26 @@ new_household_sampler <- function(...) {
 #' @description
 #' Computes marginal distributions for household features based on a survey dataset.
 #'
-#' @param object An instance of the `HousepiSampler` class.
+#' @param hhsampler An instance of the `HousepiSampler` class.
 #' @param data_wide `r rd_add_data_wide_`
 #'
 #' @export
-compute_household_marginals <- function(object, data_wide) {
-  stopifnot(inherits(object, "HousepiSampler"))
-  object$clone(deep = TRUE)$compute_marginals(data_wide)
+compute_household_marginals <- function(hhsampler, data_wide) {
+  stopifnot(inherits(hhsampler, "HousepiSampler"))
+  hhsampler$clone(deep = TRUE)$compute_marginals(data_wide)
 }
 
 #' @title Sample Households
 #' @description
 #' Samples synthetic households based on the marginal distributions computed by the `HousepiSampler`.
 #'
-#' @param object An instance of the `HousepiSampler` class.
+#' @param hhsampler An instance of the `HousepiSampler` class.
 #' @param size `r rd_hhsampler_size_`
 #'
 #' @return `data.frame`
 #'
 #' @export
-sample_households <- function(object, size) {
-  stopifnot(inherits(object, "HousepiSampler"))
-  object$sample(size)
+sample_households <- function(hhsampler, size) {
+  stopifnot(inherits(hhsampler, "HousepiSampler"))
+  hhsampler$sample(size)
 }

@@ -664,7 +664,7 @@ void MCMC::Impl::Augmented::set_function_or_identity_for_(size_t k)
             is_identity_const = pImpl_.param.at(parser.root.value).is_constant();
 
         else if (hsp::sources::is_augmented(parser.root.type))
-            is_identity_const = false; // FIXME: use an augmented dependecies tree to see if constant
+            is_identity_const = false; // UPDATE: use an augmented dependecies tree to see if constant
 
         if (is_identity_const)
             list_export.push_back(a);
@@ -827,7 +827,7 @@ void MCMC::Impl::Augmented::helper_init_attributes_(Individual &member, size_t k
     if (!user_list_discrete.empty() && (user_list_discrete % a) && !xaugm.is_discrete())
         throw std::invalid_argument(
             "Definition of " + xaugm.err_name() +
-            "did not return a discrete defined object as requested by the model.");
+            " did not return a discrete defined object as requested by the model.");
 }
 
 /// Auxiliary method to assign attributes to augmented model.

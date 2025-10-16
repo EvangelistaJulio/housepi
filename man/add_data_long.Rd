@@ -4,10 +4,10 @@
 \alias{add_data_long}
 \title{Add data long}
 \usage{
-add_data_long(object, data_long)
+add_data_long(hhmodel, data_long)
 }
 \arguments{
-\item{object}{\code{HousepiModel} object.}
+\item{hhmodel}{\code{HousepiModel} object.}
 
 \item{data_long}{\code{data.frame} with additional individal long format data.}
 }

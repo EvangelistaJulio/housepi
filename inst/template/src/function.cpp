@@ -531,10 +531,7 @@ public:
 
     void init_truncation() override final {}
 
-    bool is_discrete() const override final
-    {
-        return arguments_[0].is_discrete() && x_arg_.is_discrete();
-    }
+    bool is_discrete() const override final { return arguments_[0].is_discrete() && x_arg_.is_discrete(); }
 
 protected:
     double raw_function_(double x) const override final { return x - arg(0); }

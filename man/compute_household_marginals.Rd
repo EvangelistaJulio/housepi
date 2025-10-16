@@ -4,10 +4,10 @@
 \alias{compute_household_marginals}
 \title{Compute Marginals}
 \usage{
-compute_household_marginals(object, data_wide)
+compute_household_marginals(hhsampler, data_wide)
 }
 \arguments{
-\item{object}{An instance of the \code{HousepiSampler} class.}
+\item{hhsampler}{An instance of the \code{HousepiSampler} class.}
 
 \item{data_wide}{\code{data.frame} with the household data used for analysis in wide format.}
 }

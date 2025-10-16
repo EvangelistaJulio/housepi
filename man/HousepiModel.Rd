@@ -16,7 +16,7 @@ and variable defintions from a single class.
 \describe{
 \item{\code{data_wide}}{A \code{data.frame} with individual level information.}
 
-\item{\code{data_long}}{A \code{data.frame} with the additional data rows indexed by individual.}
+\item{\code{data_long}}{A \code{data.frame} with additional data rows indexed by individual.}
 
 \item{\code{parameters}}{A \code{data.frame} with parameter formatted definitions.}
 
@@ -235,7 +235,7 @@ Default is \code{FALSE}.}
 One between:\cr
 \itemize{
 \item "sample": sampled from the prior distribution;\cr
-\item "unifrm": increments drawn from uniform distribution;\cr
+\item "uniform": increments drawn from uniform distribution;\cr
 \item "normal": increments drawn from normal distribution;\cr
 \item "lognormal": log-increments drawn from lognormal distribution (for positive values only);
 \item \code{NA} (default): same as "sample".
@@ -244,8 +244,6 @@ One between:\cr
 \item{\code{scale}}{\code{numeric(1)} with scale of the proposer rule.\cr
 Changed automatically during inference if \code{n_adpat}>0.\cr
 Not applicable if rule is "sample". Default is \code{1} otherwise.}
-
-\item{\code{object}}{\code{HousepiModel} object.}
 }
 \if{html}{\out{</div>}}
 }
@@ -368,7 +366,7 @@ One between:\cr
 One between:\cr
 \itemize{
 \item "sample": sampled from the \%s distribution;\cr
-\item "unifrm": increments drawn from uniform distribution;\cr
+\item "uniform": increments drawn from uniform distribution;\cr
 \item "normal": increments drawn from normal distribution;\cr
 \item "lognormal": log-increments drawn from lognormal distribution (for positive values only);
 \item \code{NA} (default): same as "sample".
@@ -482,7 +480,7 @@ If \code{FALSE} features are combined (default).}
 One between:\cr
 \itemize{
 \item "sample": sampled from the \%s distribution;\cr
-\item "unifrm": increments drawn from uniform distribution;\cr
+\item "uniform": increments drawn from uniform distribution;\cr
 \item "normal": increments drawn from normal distribution;\cr
 \item "lognormal": log-increments drawn from lognormal distribution (for positive values only);
 \item \code{NA} (default): same as "sample".
@@ -545,8 +543,6 @@ One between:\cr
 \item Parameter name (followed by \verb{@P});\cr
 \item Dataset name (followed by \verb{@D}).
 }}
-
-\item{\code{object}}{\code{HousepiModel} object.}
 }
 \if{html}{\out{</div>}}
 }
@@ -565,8 +561,6 @@ Compute the loglikelihood.
 \describe{
 \item{\code{seed}}{\code{integer(1)} with the seed for the random number generator.\cr
 If \code{NA} uses current R seed (default).}
-
-\item{\code{object}}{\code{HousepiModel} object.}
 }
 \if{html}{\out{</div>}}
 }

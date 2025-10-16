@@ -336,7 +336,6 @@ void Variable::init_proposer(const std::string &rule_name, double rule_scale)
         // if no rule is defined assume constant
         is_constant_ = true;
         propose_ = &Variable::do_propose_error_;
-        // pProp_ = proposer_switch(); // FIXME <- this call is useles, but should not raise error!
     }
     else
     {

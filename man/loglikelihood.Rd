@@ -4,10 +4,10 @@
 \alias{loglikelihood}
 \title{Compute loglikelihood of housepi model}
 \usage{
-loglikelihood(object, seed = NA_integer_)
+loglikelihood(hhmodel, seed = NA_integer_)
 }
 \arguments{
-\item{object}{\code{HousepiModel} object.}
+\item{hhmodel}{\code{HousepiModel} object.}
 
 \item{seed}{\code{integer(1)} with the seed for the random number generator.\cr
 If \code{NA} uses current R seed (default).}

@@ -5,7 +5,7 @@
 \title{Add group rate definition}
 \usage{
 add_group_rate(
-  object,
+  hhmodel,
   name,
   by,
   prefix = NA_character_,
@@ -20,7 +20,7 @@ add_group_rate(
 )
 }
 \arguments{
-\item{object}{\code{HousepiModel} object.}
+\item{hhmodel}{\code{HousepiModel} object.}
 
 \item{name}{\code{character(1)} name used by internal calls.}
 
@@ -48,7 +48,7 @@ If \code{FALSE} features are combined (default).}
 One between:\cr
 \itemize{
 \item "sample": sampled from the \%s distribution;\cr
-\item "unifrm": increments drawn from uniform distribution;\cr
+\item "uniform": increments drawn from uniform distribution;\cr
 \item "normal": increments drawn from normal distribution;\cr
 \item "lognormal": log-increments drawn from lognormal distribution (for positive values only);
 \item \code{NA} (default): same as "sample".

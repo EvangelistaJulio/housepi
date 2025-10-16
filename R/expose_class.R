@@ -38,58 +38,58 @@ new_housepi_model <- function(choice = NA_character_, as_template = FALSE,
 #' @description
 #' Make an internal copy of the provided household data.
 #'
-#' @param object `r rd_model_in_`
+#' @param hhmodel `r rd_model_in_`
 #' @param data_wide `r rd_add_data_wide_`
 #'
 #' @return `r rd_model_out_`
 #'
 #' @export
-add_data_wide  <- function(object, data_wide) {
-  stopifnot(inherits(object, "HousepiModel"))
-  object$clone(deep = TRUE)$add_data_wide(data_wide)
+add_data_wide  <- function(hhmodel, data_wide) {
+  stopifnot(inherits(hhmodel, "HousepiModel"))
+  hhmodel$clone(deep = TRUE)$add_data_wide(data_wide)
 }
 
 #' @title Add data long
 #' @description
 #' Male an internal copy of the provided data in long format.
 #'
-#' @param object `r rd_model_in_`
+#' @param hhmodel `r rd_model_in_`
 #' @param data_long `r rd_add_data_long_`
 #'
 #' @return `r rd_model_out_`
 #'
 #' @export
-add_data_long <- function(object, data_long) {
-  stopifnot(inherits(object, "HousepiModel"))
-  object$clone(deep = TRUE)$add_data_long(data_long)
+add_data_long <- function(hhmodel, data_long) {
+  stopifnot(inherits(hhmodel, "HousepiModel"))
+  hhmodel$clone(deep = TRUE)$add_data_long(data_long)
 }
 
 #' @title Summarise cases in household data
 #' @description
 #' Summarise cases as given from the statuses in the laoded household data.
 #'
-#' @param object `r rd_model_in_`
+#' @param hhmodel `r rd_model_in_`
 #' @param ... Ignored.
 #'
 #' @return `data.frame`
 #'
 #' @export
-summarise_cases <- function(object, ...) {
-  object$summarise_cases()
+summarise_cases <- function(hhmodel, ...) {
+  hhmodel$summarise_cases()
 }
 
 #' @title Summarise house sizes in household data
 #' @description
 #' Summarise number of members (size) in the laoded household data.
 #'
-#' @param object `r rd_model_in_`
+#' @param hhmodel `r rd_model_in_`
 #' @param ... Ignored.
 #'
 #' @return `data.frame`
 #'
 #' @export
-summarise_house_sizes <- function(object, ...) {
-  object$summarise_house_sizes()
+summarise_house_sizes <- function(hhmodel, ...) {
+  hhmodel$summarise_house_sizes()
 }
 
 ############################################################################
@@ -100,37 +100,37 @@ summarise_house_sizes <- function(object, ...) {
 #' @description
 #' Drop current formatted definitions.
 #'
-#' @param object `r rd_model_in_`
+#' @param hhmodel `r rd_model_in_`
 #' @param ... Ignored.
 #'
 #' @return `r rd_model_out_`
 #'
 #' @rdname drop_definitions
 #' @export
-drop_parameters <-  function(object, ...) {
-  stopifnot(inherits(object, "HousepiModel"))
-  object$clone(deep = TRUE)$drop_parameters(...)
+drop_parameters <-  function(hhmodel, ...) {
+  stopifnot(inherits(hhmodel, "HousepiModel"))
+  hhmodel$clone(deep = TRUE)$drop_parameters(...)
 }
 
 #' @rdname drop_definitions
 #' @export
-drop_augmented <-  function(object, ...) {
-  stopifnot(inherits(object, "HousepiModel"))
-  object$clone(deep = TRUE)$drop_augmented(...)
+drop_augmented <-  function(hhmodel, ...) {
+  stopifnot(inherits(hhmodel, "HousepiModel"))
+  hhmodel$clone(deep = TRUE)$drop_augmented(...)
 }
 
 #' @rdname drop_definitions
 #' @export
-drop_group_rates <-  function(object, ...) {
-  stopifnot(inherits(object, "HousepiModel"))
-  object$clone(deep = TRUE)$drop_group_rates(...)
+drop_group_rates <-  function(hhmodel, ...) {
+  stopifnot(inherits(hhmodel, "HousepiModel"))
+  hhmodel$clone(deep = TRUE)$drop_group_rates(...)
 }
 
 #' @rdname drop_definitions
 #' @export
-drop_all <- function(object) {
-  stopifnot(inherits(object, "HousepiModel"))
-  object$clone(deep = TRUE)$drop_all()
+drop_all <- function(hhmodel) {
+  stopifnot(inherits(hhmodel, "HousepiModel"))
+  hhmodel$clone(deep = TRUE)$drop_all()
 }
 
 ############################################################################
@@ -141,16 +141,16 @@ drop_all <- function(object) {
 #' @description
 #' Get current formatted definitions.
 #'
-#' @param object `r rd_model_in_`
+#' @param hhmodel `r rd_model_in_`
 #' @param ... Ignored.
 #'
 #' @return `data.frame`
 #'
 #' @rdname get_definitions
 #' @export
-get_parameters <- function(object, ...) {
-  stopifnot(inherits(object, "HousepiModel"))
-  object$parameters
+get_parameters <- function(hhmodel, ...) {
+  stopifnot(inherits(hhmodel, "HousepiModel"))
+  hhmodel$parameters
 }
 
 #' @title Add parameter definition
@@ -158,7 +158,7 @@ get_parameters <- function(object, ...) {
 #' Add a new parameter to houspepi model definitions.
 #' If the parameter already exists, it is overwritten.
 #'
-#' @param object `r rd_model_in_`
+#' @param hhmodel `r rd_model_in_`
 #' @param name `r rd_var_name_`
 #' @param value `r rd_var_value_`
 #' @param const `r rd_var_const_`
@@ -173,14 +173,14 @@ get_parameters <- function(object, ...) {
 #' @return `r rd_model_out_`
 #'
 #' @export
-add_parameter <- function(object,
+add_parameter <- function(hhmodel,
                           name = NA_character_, value = NULL,
                           const = NA, discr = FALSE,
                           prior = NA_character_, args = NULL,
                           min = NULL, max = NULL,
                           rule = NA_character_, scale = NA_real_) {
-  stopifnot(inherits(object, "HousepiModel"))
-  object$clone(deep = TRUE)$add_parameter(
+  stopifnot(inherits(hhmodel, "HousepiModel"))
+  hhmodel$clone(deep = TRUE)$add_parameter(
     name = name, value = value,
     const = const, discr = discr,
     prior = prior, args = args,
@@ -193,7 +193,7 @@ add_parameter <- function(object,
 #' @description
 #' Load definitions either as arguments or from predefined list.
 #'
-#' @param object `r rd_model_in_`
+#' @param hhmodel `r rd_model_in_`
 #' @param ... `r rd_list_args_`
 #' @param from `r rd_list_from_`
 #' @param append `r rd_list_append_`
@@ -202,9 +202,9 @@ add_parameter <- function(object,
 #'
 #' @rdname load_definitions_list
 #' @export
-load_parameter_list <- function(object, ..., from = NULL, append = FALSE) {
-  stopifnot(inherits(object, "HousepiModel"))
-  object$clone(deep = TRUE)$load_parameter_list(
+load_parameter_list <- function(hhmodel, ..., from = NULL, append = FALSE) {
+  stopifnot(inherits(hhmodel, "HousepiModel"))
+  hhmodel$clone(deep = TRUE)$load_parameter_list(
     ..., from = from, append = append
   )
 }
@@ -213,16 +213,16 @@ load_parameter_list <- function(object, ..., from = NULL, append = FALSE) {
 #' @description
 #' Load default definitions from model template.
 #'
-#' @param object `r rd_model_in_`
+#' @param hhmodel `r rd_model_in_`
 #' @param append `r rd_tmpl_append_`
 #'
 #' @return `r rd_model_out_`
 #'
 #' @rdname load_template_definitions
 #' @export
-load_parameter_template <- function(object, append = FALSE) {
-  stopifnot(inherits(object, "HousepiModel"))
-  object$clone(deep = TRUE)$load_parameter_template(append = append)
+load_parameter_template <- function(hhmodel, append = FALSE) {
+  stopifnot(inherits(hhmodel, "HousepiModel"))
+  hhmodel$clone(deep = TRUE)$load_parameter_template(append = append)
 }
 
 ############################################################################
@@ -231,9 +231,9 @@ load_parameter_template <- function(object, append = FALSE) {
 
 #' @rdname get_definitions
 #' @export
-get_augmented <- function(object, ...) {
-  stopifnot(inherits(object, "HousepiModel"))
-  object$augmented
+get_augmented <- function(hhmodel, ...) {
+  stopifnot(inherits(hhmodel, "HousepiModel"))
+  hhmodel$augmented
 }
 
 #' @title Add augmented definition
@@ -241,7 +241,7 @@ get_augmented <- function(object, ...) {
 #' Add a new augmented variable/function to houspepi model definitions.
 #' If the augmented variablw already exists, it is updated.
 #'
-#' @param object `r rd_model_in_`
+#' @param hhmodel `r rd_model_in_`
 #' @param name `r rd_var_name_`
 #' @param status `r rd_aug_status_`
 #' @param value `r rd_aug_val_`
@@ -260,7 +260,7 @@ get_augmented <- function(object, ...) {
 #' @return `r rd_model_out_`
 #'
 #' @export
-add_augmented <- function(object,
+add_augmented <- function(hhmodel,
                           name = NA_character_, status = NA_integer_,
                           value = NULL, const = NA, discr = FALSE,
                           func = NA_character_, func_args = NULL,
@@ -268,8 +268,8 @@ add_augmented <- function(object,
                           min = NULL, max = NULL,
                           rule = NA_character_, scale = NA_real_,
                           expr = NULL) {
-  stopifnot(inherits(object, "HousepiModel"))
-  object$clone(deep = TRUE)$add_augmented(
+  stopifnot(inherits(hhmodel, "HousepiModel"))
+  hhmodel$clone(deep = TRUE)$add_augmented(
     name = name, status = status,
     value = value, const = const, discr = discr,
     func = func, func_args = func_args,
@@ -282,18 +282,18 @@ add_augmented <- function(object,
 
 #' @rdname load_definitions_list
 #' @export
-load_augmented_list <- function(object, ..., from = NULL, append = FALSE) {
-  stopifnot(inherits(object, "HousepiModel"))
-  object$clone(deep = TRUE)$load_augmented_list(
+load_augmented_list <- function(hhmodel, ..., from = NULL, append = FALSE) {
+  stopifnot(inherits(hhmodel, "HousepiModel"))
+  hhmodel$clone(deep = TRUE)$load_augmented_list(
     ..., from = from, append = append
   )
 }
 
 #' @rdname load_template_definitions
 #' @export
-load_augmented_template <- function(object, append = FALSE) {
-  stopifnot(inherits(object, "HousepiModel"))
-  object$clone(deep = TRUE)$load_augmented_template(append = append)
+load_augmented_template <- function(hhmodel, append = FALSE) {
+  stopifnot(inherits(hhmodel, "HousepiModel"))
+  hhmodel$clone(deep = TRUE)$load_augmented_template(append = append)
 }
 
 ############################################################################
@@ -302,10 +302,10 @@ load_augmented_template <- function(object, append = FALSE) {
 
 #' @rdname get_definitions
 #' @export
-get_group_rates <- function(object, ...) {
-  stopifnot(inherits(object, "HousepiModel"))
+get_group_rates <- function(hhmodel, ...) {
+  stopifnot(inherits(hhmodel, "HousepiModel"))
   # internal build requires deep clone to avoid inplace
-  object$clone(deep = TRUE)$group_rates
+  hhmodel$clone(deep = TRUE)$group_rates
 }
 
 #' @title Add group rate definition
@@ -318,7 +318,7 @@ get_group_rates <- function(object, ...) {
 #' - `min`: 0
 #' - `max` 10
 #'
-#' @param object `r rd_model_in_`
+#' @param hhmodel `r rd_model_in_`
 #' @param name `r rd_var_name_`
 #' @param by `r rd_grr_by_`
 #' @param prefix `r rd_grr_prefix_`
@@ -339,14 +339,14 @@ get_group_rates <- function(object, ...) {
 #' @return `r rd_model_out_`
 #'
 #' @export
-add_group_rate <-  function(object,
+add_group_rate <-  function(hhmodel,
                             name, by, prefix = NA_character_,
                             reference = NULL, independent = TRUE,
                             prior = NA_character_, args = NULL,
                             min = NULL, max = NULL,
                             rule = NA_character_, scale = NA_real_) {
-  stopifnot(inherits(object, "HousepiModel"))
-  object$clone(deep = TRUE)$add_group_rate(
+  stopifnot(inherits(hhmodel, "HousepiModel"))
+  hhmodel$clone(deep = TRUE)$add_group_rate(
     name = name, by = by, prefix = prefix,
     reference = reference, independent = independent,
     prior = prior, args = args,
@@ -357,9 +357,9 @@ add_group_rate <-  function(object,
 
 #' @rdname load_definitions_list
 #' @export
-load_group_rate_list <- function(object, ..., from = NULL, append = FALSE) {
-  stopifnot(inherits(object, "HousepiModel"))
-  object$clone(deep = TRUE)$load_group_rate_list(
+load_group_rate_list <- function(hhmodel, ..., from = NULL, append = FALSE) {
+  stopifnot(inherits(hhmodel, "HousepiModel"))
+  hhmodel$clone(deep = TRUE)$load_group_rate_list(
     ..., from = from, append = append
   )
 }
@@ -372,7 +372,7 @@ load_group_rate_list <- function(object, ..., from = NULL, append = FALSE) {
 #' @description
 #' Add definition of infectivity profile.
 #'
-#' @param object `r rd_model_in_`
+#' @param hhmodel `r rd_model_in_`
 #' @param name `r rd_var_name_`
 #' @param discr `r rd_inf_discr_`
 #' @param args `r rd_inf_args_`
@@ -381,11 +381,11 @@ load_group_rate_list <- function(object, ..., from = NULL, append = FALSE) {
 #' @return `r rd_model_out_`
 #'
 #' @export
-add_infec_profile <- function(object,
+add_infec_profile <- function(hhmodel,
                               name, discr = FALSE,
                               args = NULL, max = NULL) {
-  stopifnot(inherits(object, "HousepiModel"))
-  object$clone(deep = TRUE)$add_infec_profile(
+  stopifnot(inherits(hhmodel, "HousepiModel"))
+  hhmodel$clone(deep = TRUE)$add_infec_profile(
     name = name, discr = discr,
     args = args, max = max
   )
@@ -399,22 +399,22 @@ add_infec_profile <- function(object,
 #' @description
 #' Compute the log-likelihood of a `HousepiModel` object.
 #'
-#' @param object `r rd_model_in_`
+#' @param hhmodel `r rd_model_in_`
 #' @param seed `r rd_seed_`
 #'
 #' @return `numeric(1)`
 #'
 #' @export
-loglikelihood <- function(object, seed = NA_integer_) {
-  stopifnot(inherits(object, "HousepiModel"))
-  object$loglikelihood(seed = seed)
+loglikelihood <- function(hhmodel, seed = NA_integer_) {
+  stopifnot(inherits(hhmodel, "HousepiModel"))
+  hhmodel$loglikelihood(seed = seed)
 }
 
 #' @title Run inference on housepi model
 #' @description
 #' Run inference with Bayesian Markov Chain Monte Carlo.
 #'
-#' @param object `r rd_model_in_`
+#' @param hhmodel `r rd_model_in_`
 #' @param steps `r rd_smpl_steps_`
 #' @param burnin `r rd_smpl_burn_`
 #' @param thin `r rd_smpl_thin_`
@@ -429,13 +429,13 @@ loglikelihood <- function(object, seed = NA_integer_) {
 #' Container with posterior draws.
 #'
 #' @export
-infer <- function(object,
+infer <- function(hhmodel,
                   steps = 5000, burnin = 0,
                   thin = 1, adapt = 0,
                   chains = 1, threads = 1,
                   id_draws = NULL, seed = NA_integer_, progress = TRUE) {
-  stopifnot(inherits(object, "HousepiModel"))
-  object$infer(
+  stopifnot(inherits(hhmodel, "HousepiModel"))
+  hhmodel$infer(
     steps = steps, burnin = burnin,
     thin = thin, adapt = adapt,
     chains = chains, threads = threads,
@@ -448,7 +448,7 @@ infer <- function(object,
 #' Estimate the logarithm of the marginal likelihood (aka evidence).
 #' It uses the method of power posteriors with different available schemes.
 #'
-#' @param object `r rd_model_in_`
+#' @param hhmodel `r rd_model_in_`
 #' @param scheme `r rd_evi_scheme_`
 #' @param rungs `r rd_evi_rungs_`
 #' @param steps `r rd_smpl_steps_`
@@ -468,18 +468,18 @@ infer <- function(object,
 #' @return `list()`
 #'
 #' @keywords internal
-logevidence <- function(object,
+logevidence <- function(hhmodel,
                         scheme = "power-fractions", rungs = 40,
                         steps = 5000, burnin = 0,
                         thin = 1, adapt = 0,
                         chains = 1, threads = 1,
                         seed = NA_integer_, progress = TRUE) {
-  stopifnot(inherits(object, "HousepiModel"))
-  object$logevidence(scheme = scheme, rungs = rungs,
-                     steps = steps, burnin = burnin,
-                     thin = thin, adapt = adapt,
-                     chains = chains, threads = threads,
-                     seed = seed, progress = progress)
+  stopifnot(inherits(hhmodel, "HousepiModel"))
+  hhmodel$logevidence(scheme = scheme, rungs = rungs,
+                      steps = steps, burnin = burnin,
+                      thin = thin, adapt = adapt,
+                      chains = chains, threads = threads,
+                      seed = seed, progress = progress)
 }
 
 ############################################################################
@@ -491,7 +491,7 @@ logevidence <- function(object,
 #' Generate a simulated outbreak.
 #' It assumes the same community structure of the loaded data.
 #'
-#' @param object `r rd_model_in_`
+#' @param hhmodel `r rd_model_in_`
 #' @param nsim `r rd_simul_nsim_`
 #' @param seed `r rd_seed_`
 #' @param progress `r rd_progress_`
@@ -502,13 +502,13 @@ logevidence <- function(object,
 #'
 #' @importFrom stats simulate
 #' @export
-simulate.HousepiModel <- function(object,
+simulate.HousepiModel <- function(hhmodel,
                                   nsim = 1, seed = NA_integer_,
                                   progress = FALSE,
                                   obs_process = NULL,
                                   ...) {
-  stopifnot(inherits(object, "HousepiModel"))
-  object$simulate(
+  stopifnot(inherits(hhmodel, "HousepiModel"))
+  hhmodel$simulate(
     nsim = nsim, seed = seed, progress = progress,
     obs_process = obs_process
   )

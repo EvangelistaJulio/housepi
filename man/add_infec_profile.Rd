@@ -4,10 +4,10 @@
 \alias{add_infec_profile}
 \title{Add infectivity profile definition}
 \usage{
-add_infec_profile(object, name, discr = FALSE, args = NULL, max = NULL)
+add_infec_profile(hhmodel, name, discr = FALSE, args = NULL, max = NULL)
 }
 \arguments{
-\item{object}{\code{HousepiModel} object.}
+\item{hhmodel}{\code{HousepiModel} object.}
 
 \item{name}{\code{character(1)} name used by internal calls.}
 

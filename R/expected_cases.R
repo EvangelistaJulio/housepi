@@ -638,7 +638,7 @@ ExpectedCasesBySize <- R6::R6Class(
 #' Extract the posterior expectation of a given measure.
 #' Perform simulations over given table of parameters.
 #'
-#' @param object `r rd_model_in_`
+#' @param hhmodel `r rd_model_in_`
 #' @param param_table `r rd_param_table_`
 #' @param ... `r rd_measure_dots_`
 #' @param obs_process `r rd_simul_observ_`
@@ -648,10 +648,10 @@ ExpectedCasesBySize <- R6::R6Class(
 #' [HousepiExpectation][housepi::HousepiExpectation].
 #'
 #' @export
-expec_posterior_measure <- function(object, param_table, ...,
+expec_posterior_measure <- function(hhmodel, param_table, ...,
                                     obs_process = NULL, progress = NA) {
-  stopifnot(inherits(object, "HousepiModel"))
-  HousepiExpectation$new(object, param_table, ...,
+  stopifnot(inherits(hhmodel, "HousepiModel"))
+  HousepiExpectation$new(hhmodel, param_table, ...,
                          obs_process = obs_process, progress = progress)
 }
 
@@ -661,7 +661,7 @@ expec_posterior_measure <- function(object, param_table, ...,
 #' It can be used to estimate the secondary attack rate.
 #' Perform simulations over given table of parameters.
 #'
-#' @param object `r rd_model_in_`
+#' @param hhmodel `r rd_model_in_`
 #' @param param_table `r rd_param_table_`
 #' @param obs_process `r rd_simul_observ_`
 #' @param progress `r rd_progress_`
@@ -672,9 +672,9 @@ expec_posterior_measure <- function(object, param_table, ...,
 #' containing methods to compare observed and expected cases.
 #'
 #' @export
-expec_cases_by_house_size <- function(object, param_table,
+expec_cases_by_house_size <- function(hhmodel, param_table,
                                       obs_process = NULL, progress = NA) {
-  stopifnot(inherits(object, "HousepiModel"))
-  ExpectedCasesBySize$new(object, param_table,
+  stopifnot(inherits(hhmodel, "HousepiModel"))
+  ExpectedCasesBySize$new(hhmodel, param_table,
                           obs_process = obs_process, progress = progress)
 }

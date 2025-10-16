@@ -4,10 +4,10 @@
 \alias{sample_households}
 \title{Sample Households}
 \usage{
-sample_households(object, size)
+sample_households(hhsampler, size)
 }
 \arguments{
-\item{object}{An instance of the \code{HousepiSampler} class.}
+\item{hhsampler}{An instance of the \code{HousepiSampler} class.}
 
 \item{size}{`integer(1) with the number of households to sample.}
 }

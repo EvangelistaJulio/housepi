@@ -300,7 +300,7 @@ HousepiModel <- R6::R6Class(
     .export_to_cpp_standalone = function(outpath = "inst/standalone/") {
       private$.assert_group_rates()
       private$.build_group_rates()
-      
+
       write.csv(private$.rcpp$export_data_wide(),
                 file.path(outpath, "data_wide.csv"),
                 quote = FALSE, row.names = FALSE)
@@ -345,7 +345,7 @@ HousepiModel <- R6::R6Class(
     },
 
     #' @field data_long
-    #' A `data.frame` with the additional data rows indexed by individual.
+    #' A `data.frame` with additional data rows indexed by individual.
     data_long = function(value) {
       if (missing(value)) {
         if (is.null(private$.rcpp)) stop_h(
@@ -517,7 +517,6 @@ HousepiModel <- R6::R6Class(
     #' Add a new parameter to houspepi model definitions.
     #' If the parameter already exists, it is updated.
     #'
-    #' @param object `r rd_model_in_`
     #' @param name `r rd_var_name_`
     #' @param value `r rd_var_value_`
     #' @param const `r rd_var_const_`
@@ -693,7 +692,6 @@ HousepiModel <- R6::R6Class(
     #' @description
     #' Add definition of infectivity profile.
     #'
-    #' @param object `r rd_model_in_`
     #' @param name `r rd_var_name_`
     #' @param discr `r rd_inf_discr_`
     #' @param args `r rd_inf_args_`
@@ -712,7 +710,6 @@ HousepiModel <- R6::R6Class(
     #' @description
     #' Compute the loglikelihood.
     #'
-    #' @param object `r rd_model_in_`
     #' @param seed `r rd_seed_`
     #'
     #' @return `numeric(1)`

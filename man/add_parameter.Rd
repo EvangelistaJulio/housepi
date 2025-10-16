@@ -5,7 +5,7 @@
 \title{Add parameter definition}
 \usage{
 add_parameter(
-  object,
+  hhmodel,
   name = NA_character_,
   value = NULL,
   const = NA,
@@ -19,7 +19,7 @@ add_parameter(
 )
 }
 \arguments{
-\item{object}{\code{HousepiModel} object.}
+\item{hhmodel}{\code{HousepiModel} object.}
 
 \item{name}{\code{character(1)} name used by internal calls.}
 
@@ -46,7 +46,7 @@ Default is \code{FALSE}.}
 One between:\cr
 \itemize{
 \item "sample": sampled from the prior distribution;\cr
-\item "unifrm": increments drawn from uniform distribution;\cr
+\item "uniform": increments drawn from uniform distribution;\cr
 \item "normal": increments drawn from normal distribution;\cr
 \item "lognormal": log-increments drawn from lognormal distribution (for positive values only);
 \item \code{NA} (default): same as "sample".

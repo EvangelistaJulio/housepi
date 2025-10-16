@@ -5,7 +5,7 @@
 \title{Add augmented definition}
 \usage{
 add_augmented(
-  object,
+  hhmodel,
   name = NA_character_,
   status = NA_integer_,
   value = NULL,
@@ -23,7 +23,7 @@ add_augmented(
 )
 }
 \arguments{
-\item{object}{\code{HousepiModel} object.}
+\item{hhmodel}{\code{HousepiModel} object.}
 
 \item{name}{\code{character(1)} name used by internal calls.}
 
@@ -75,7 +75,7 @@ One between:\cr
 One between:\cr
 \itemize{
 \item "sample": sampled from the \%s distribution;\cr
-\item "unifrm": increments drawn from uniform distribution;\cr
+\item "uniform": increments drawn from uniform distribution;\cr
 \item "normal": increments drawn from normal distribution;\cr
 \item "lognormal": log-increments drawn from lognormal distribution (for positive values only);
 \item \code{NA} (default): same as "sample".

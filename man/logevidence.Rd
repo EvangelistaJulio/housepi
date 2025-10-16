@@ -5,7 +5,7 @@
 \title{Estimate logevidence of housepi model}
 \usage{
 logevidence(
-  object,
+  hhmodel,
   scheme = "power-fractions",
   rungs = 40,
   steps = 5000,
@@ -19,7 +19,7 @@ logevidence(
 )
 }
 \arguments{
-\item{object}{\code{HousepiModel} object.}
+\item{hhmodel}{\code{HousepiModel} object.}
 
 \item{scheme}{\code{character(1)} with scheme used for evidence estimation.\cr
 One between\cr

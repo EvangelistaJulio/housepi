@@ -86,7 +86,7 @@ flextable::flextable(combined) |>
   flextable::align(align = "center", , part = "all") |>
   flextable::labelizor(labels = c(size = "Size",
                                   distr = "Distribution",
-                                  cases = "Number of cases")) |>
+                                  cases = "Number of Cases")) |>
   flextable::bg(bg = "white", part = "all") |>
   flextable::fontsize(size = 12, part = "all") |>
   flextable::autofit()

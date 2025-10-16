@@ -5,7 +5,7 @@
 \title{Run inference on housepi model}
 \usage{
 infer(
-  object,
+  hhmodel,
   steps = 5000,
   burnin = 0,
   thin = 1,
@@ -18,7 +18,7 @@ infer(
 )
 }
 \arguments{
-\item{object}{\code{HousepiModel} object.}
+\item{hhmodel}{\code{HousepiModel} object.}
 
 \item{steps}{\code{integer(1)}  with total number of MCMC steps per chain.}
 

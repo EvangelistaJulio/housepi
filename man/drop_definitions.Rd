@@ -7,16 +7,16 @@
 \alias{drop_all}
 \title{Drop definitions}
 \usage{
-drop_parameters(object, ...)
+drop_parameters(hhmodel, ...)
 
-drop_augmented(object, ...)
+drop_augmented(hhmodel, ...)
 
-drop_group_rates(object, ...)
+drop_group_rates(hhmodel, ...)
 
-drop_all(object)
+drop_all(hhmodel)
 }
 \arguments{
-\item{object}{\code{HousepiModel} object.}
+\item{hhmodel}{\code{HousepiModel} object.}
 
 \item{...}{Ignored.}
 }
