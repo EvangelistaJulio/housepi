@@ -71,16 +71,15 @@ HousepiGenerator <- R6::R6Class(
     deep_clone = function(name, value) {
       # make a new object of rcpp model class
       if (name == ".rcpp") {
-        if (is.null(value)) {
-          output <- NULL
-        } else {
+        output <- NULL
+        if (!is.null(value)) {
           output <- private$.new_rcpp_model()
           # note: no factorization is needed here
           output$import_setup(char_setup_input_(value$export_setup()))
           output$import_data_wide(char_data_input_(value$export_data_wide()))
           output$import_data_long(char_data_input_(value$export_data_long()))
-          return(output)
         }
+        return(output)
       }
       # for all other fields, just return the value
       value
@@ -430,8 +429,11 @@ HousepiGenerator <- R6::R6Class(
       }
       # touch as source model file was more recent
       Sys.setFileTime(file.path(cache_dir_src, "model.cpp"), touch_time + 1)
-      # same for registry about current flags
-      Sys.setFileTime(file.path(cache_dir_src, "flags.cpp"), touch_time + 1)
+      # same for registry about current flags if any
+      # NOTE: default installation has empty flags
+      if (length(private$.last_user_flags) > 0) {
+        Sys.setFileTime(file.path(cache_dir_src, "flags.cpp"), touch_time + 1)
+      }
 
       # compile the dynamic library
       withr::with_envvar(

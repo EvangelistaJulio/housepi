@@ -26,13 +26,14 @@
 #include "function.h"
 #include "distribution.h"
 #include "variable.h"
+#include "household.h"
 #include "mcmc.h"
 
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
 #endif
 
-#if defined(_OPENMP)
+#ifdef _OPENMP
 #include <omp.h>
 #endif
 
@@ -60,8 +61,9 @@ public:
          std::function<double(Household &)> func_household_loglike,
          std::function<void(Household &)> func_simulate_house,
          std::function<void(Household &, Individual &)> func_update_cache)
-        : setup(*this), param(*this), dataset(*this), datalong(*this),
-          group_rates(*this), augm(*this), infec_profile(*this),
+        : setup(*this), param(*this),
+          data_wide(*this), multiplicity(*this), data_long(*this),
+          group_rates(*this), infec_profile(*this), augm(*this),
           callback_init_inference_(std::move(func_init_inference)),
           callback_init_simulation_(std::move(func_init_simulation)),
           callback_house_loglike_(std::move(func_household_loglike)),
@@ -194,8 +196,6 @@ public:
         const Variable &at(const std::string &p) const { return safe_at(dictionary_, p, "parameter"); }
         // get value of the parameter
         double get(const std::string &p) const { return this->at(p).get(); }
-        // get pointer to the parameter
-        observ_dbl_ptr get_ptr(const std::string &p) const { return this->at(p).get_ptr(); }
 
         // flag to check if there are parameters to sample
         bool is_any_sample() const { return !list_sample.empty(); }
@@ -204,7 +204,7 @@ public:
         ///////////////////////////  MCMC : Impl : Parameter : setter  //////////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////
 
-        void build(const u_dict<str_vec> &input);
+        void build(const u_dict<str_vec> &deftable);
         void make_cache_dependent(const std::string &p);
         void user_reset();
         void init_adaptable_lists();
@@ -233,7 +233,7 @@ public:
     ///////////////////////////////  MCMC : Impl : DataWide : struct  ////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    /// Implementation of Dataset.
+    /// Implementation of individidual data wide format.
     struct DataWide
     {
         // list of all infected statuses in the dataset
@@ -252,19 +252,14 @@ public:
         ~DataWide() = default;
 
         Household &operator()(size_t H) { return house_vector_[H]; }
-        const Household &operator()(const std::string &house_id) const
-        {
-            if (!(hhid_to_index_ % house_id))
-                throw std::invalid_argument(
-                    "Index \"" + house_id + "\" did not match any household in the dataset.");
-            return house_vector_.at(hhid_to_index_.at(house_id));
-        }
+        const Household &operator()(size_t H) const { return house_vector_.at(H); }
+        Household &operator()(const std::string &house_id) { return (*this)(house_id_to_index_(house_id)); }
+        const Household &operator()(const std::string &house_id) const { return (*this)(house_id_to_index_(house_id)); }
 
         /////////////////////////////////////////////////////////////////////////////////////////
         ////////////////////////////  MCMC : Impl : DataWide : getter  ///////////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////
 
-        size_t n_restricted_houses() const { return restrict_indexes_.size(); }
         bool is_empty() const { return house_vector_.empty(); }
         const str_vec &headers() const { return headers_; }
         Household copy(size_t H) const { return house_vector_[H]; }
@@ -273,8 +268,7 @@ public:
         ////////////////////////////  MCMC : Impl : DataWide : setter  ///////////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////
 
-        void build(const u_dict<str_vec> &input);
-        void build_multiplicity(const u_dict<str_vec> &input);
+        void build(const u_dict<str_vec> &deftable);
         void init_cache_integer_vector(const std::string &e);
         void init_cache_size_t_vector(const std::string &e);
         void init_cache_double_vector(const std::string &e);
@@ -347,9 +341,9 @@ public:
             iterator end() { return iterator(vec, indexes, indexes.size()); }
         };
 
-        View<Household> restricted() { return View<Household>(house_vector_, restrict_indexes_); }
-        View<const Household> restricted() const { return View<const Household>(house_vector_, restrict_indexes_); }
-        Household &restricted(size_t R) { return house_vector_[restrict_indexes_[R]]; }
+        View<Household> restricted() { return View<Household>(house_vector_, pImpl_.multiplicity.indexes); }
+        View<const Household> restricted() const { return View<const Household>(house_vector_, pImpl_.multiplicity.indexes); }
+        Household &restricted(size_t R) { return house_vector_[pImpl_.multiplicity.indexes[R]]; }
 
         /////////////////////////////////////////////////////////////////////////////////////////
         /////////////////////////  MCMC : Impl : DataWide : import/export  ///////////////////////
@@ -357,7 +351,6 @@ public:
 
 #ifdef _HOUSEPI_RCPP
         void rcpp_import(SEXP input);
-        void rcpp_import_multiplicity(SEXP input);
 
         Rcpp::DataFrame rcpp_snapshot(const std::string &house_id) const;
         Rcpp::DataFrame rcpp_export(const str_vec &columns, bool is_status) const;
@@ -367,32 +360,69 @@ public:
 
 #else
         void read(const std::string &pathtofile);
-        void read_multiplicity(const std::string &pathtofile);
 #endif
     private:
-        const std::string section_name_ = "dataset";
+        const std::string section_name_ = "data-wide";
         MCMC::Impl &pImpl_; // pointer to external class
 
         str_vec headers_ = {};
 
         std::vector<Household> house_vector_ = {};
         std::unordered_map<std::string, size_t> hhid_to_index_ = {};
-        std::vector<size_t> restrict_indexes_ = {};
 
         std::vector<dbl_vec> smpl_values_ = {};
+
+        size_t house_id_to_index_(const std::string &house_id) const
+        {
+            if (hhid_to_index_.count(house_id))
+                return hhid_to_index_.at(house_id);
+            throw std::invalid_argument(
+                "Index \"" + house_id + "\" did not match any household in the data.");
+        }
 
         /// Clear data report.
         void build_helper_clear_report_data_();
 
         /// Use the loaded data to fill-in the respective report.
         void build_helper_fill_report_data_();
-    } dataset;
+    } data_wide;
+
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////  MCMC : Impl : Multiplicity : struct  /////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// Implementation of multiplicity optimization.
+    struct Multiplicity
+    {
+        std::vector<size_t> indexes = {};
+
+        /////////////////////////////////////////////////////////////////////////////////////////
+        ///////////////////////  MCMC : Impl : Multiplicity : constructor  //////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////
+
+        Multiplicity(MCMC::Impl &ptr)
+            : pImpl_(ptr) {}
+        ~Multiplicity() = default;
+
+        void build(const u_dict<str_vec> &deftable);
+
+#ifdef _HOUSEPI_RCPP
+        void rcpp_import(SEXP input);
+#else
+        void read(const std::string &pathtofile);
+#endif
+
+    private:
+        const std::string section_name_ = "multiplicity";
+        MCMC::Impl &pImpl_; // pointer to external class
+
+    } multiplicity;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////  MCMC : Impl : DataLong : struct  ///////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    /// Implementation of Individual Datalist.
+    /// Implementation of additional individual data long format.
     struct DataLong
     {
         /////////////////////////////////////////////////////////////////////////////////////////
@@ -414,7 +444,7 @@ public:
         ////////////////////////////  MCMC : Impl : DataLong : setter  //////////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////
 
-        void build(const u_dict<str_vec> &input);
+        void build(const u_dict<str_vec> &deftable);
 
         /////////////////////////////////////////////////////////////////////////////////////////
         /////////////////////////  MCMC : Impl : DataLong : import/export  //////////////////////
@@ -429,11 +459,11 @@ public:
         void read(const std::string &pathtofile);
 #endif
     private:
-        const std::string section_name_ = "datalong";
+        const std::string section_name_ = "data-long";
         MCMC::Impl &pImpl_; // pointer to external class
         str_vec headers_ = {};
         std::vector<u_dict<dbl_vec>> indiv_datalist_ = {};
-    } datalong;
+    } data_long;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////  MCMC : Impl : GroupRates : class  ///////////////////////////
@@ -454,7 +484,7 @@ public:
         ////////////////////////////  MCMC : Impl : GroupRates : setter  ////////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////
 
-        void build(const u_dict<str_vec> &input);
+        void build(const u_dict<str_vec> &deftable);
 
         /////////////////////////////////////////////////////////////////////////////////////////
         ////////////////////////  MCMC : Impl : GroupRates : import/export  /////////////////////
@@ -479,93 +509,6 @@ public:
     } group_rates;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////  MCMC : Impl : Augmented : class  ///////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
-
-    /// Implementation of Augmented Variables.
-    struct Augmented
-    {
-        u_dict<str_vec> deftable = {};
-        str_vec list_draws = {};
-        str_vec list_full = {};
-        str_vec list_export = {};
-        str_vec user_list_discrete = {};
-
-        u_dict<std::vector<size_t>> status_to_def_row = {}; // definition rows by status
-        std::unordered_map<int, u_dict<str_vec>> status_map_model = {};
-        std::unordered_map<int, str_vec> status_map_sample = {};
-
-        // optional augmented posterior sample
-        std::vector<const Individual *> smpl_individuals = {};
-        std::vector<u_dict<dbl_vec>> smpl_values = {};
-
-        /////////////////////////////////////////////////////////////////////////////////////////
-        //////////////////////////  MCMC : Impl : Augmented : constructor  //////////////////////
-        /////////////////////////////////////////////////////////////////////////////////////////
-
-        Augmented(MCMC::Impl &ptr)
-            : pImpl_(ptr) {}
-        ~Augmented() = default;
-
-        /////////////////////////////////////////////////////////////////////////////////////////
-        ////////////////////////////  MCMC : Impl : Augmented : setter  /////////////////////////
-        /////////////////////////////////////////////////////////////////////////////////////////
-
-        void build();
-        void init();
-        void user_reset();
-
-        void clear_all(Individual &member);
-        void build_all(Individual &member);
-        void request_augm_discrete(const std::string &x) { user_list_discrete.emplace_back(x); }
-        void build_missing(Individual &member);
-        void user_reset(Individual &member);
-
-        void init_draws(unsigned long sample_size);
-        void update_draws(unsigned long smpl_count);
-        void clear_draws();
-
-        /////////////////////////////////////////////////////////////////////////////////////////
-        ////////////////////////////  MCMC : Impl : Augmented : getter  /////////////////////////
-        /////////////////////////////////////////////////////////////////////////////////////////
-
-        /// Flag if there are any augmented definitions.
-        bool is_any() const { return !list_full.empty(); }
-        /// Flag if there are non-constant augmented definitions.
-        bool is_any_sample() const { return !status_map_sample.empty(); }
-        /// Flag if there are augmented definitions with a model.
-        bool is_any_model() const { return !status_map_model.empty(); }
-        /// Flag if augmented draws are stored.
-        bool is_any_draw() const { return !smpl_individuals.empty(); }
-
-#ifdef _HOUSEPI_RCPP
-        void rcpp_import(SEXP input);
-        Rcpp::DataFrame rcpp_export_data_wide() const;
-        Rcpp::DataFrame rcpp_snapshot(const std::string &house_id) const;
-#else
-        void read(const std::string &pathtofile);
-#endif
-
-    private:
-        const std::string section_name_ = "augmented";
-        MCMC::Impl &pImpl_; // pointer to external class
-
-        void helper_build_definition_();
-        void helper_build_definition_order_();
-        void set_definition_dependency_order_for_(const std::string &s);
-        std::vector<size_t> get_unsorted_definition_rows_by_(const std::string &s) const;
-        void set_sample_map_for_(const std::string &s, size_t k);
-        void set_function_or_identity_for_(size_t k);
-        void helper_build_model_status_maps_();
-
-        void helper_init_attributes_(Individual &member, size_t k);
-        std::vector<size_t> init_get_definition_order_(Individual &member);
-        void init_model_attributes_(Individual &member, size_t k);
-        void init_func_attributes_(Individual &member, size_t k);
-        void helper_init_id_draws_();
-    } augm;
-
-    /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////  MCMC : Impl : InfecProfile : class  //////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -587,8 +530,7 @@ public:
         /////////////////////////////////////////////////////////////////////////////////////////
 
         void build(const u_dict<std::string> &deflist);
-        void init_template(u_dict<std::string> deflist);
-        void append_augm_definition();
+        void init_template(u_dict<std::string> input);
         void update(bool is_cache_depen);
         void recover(bool is_cache_depen);
 
@@ -598,6 +540,7 @@ public:
 
         bool is_lookup() const { return inst_ == &InfecProfile::do_inst_lookup_; }
         bool is_augmented() const { return inst_ == &InfecProfile::do_inst_augm_; }
+        const u_dict<str_vec> &get_augm_deftable() const { return augm_infec_profile_deflist_; }
 
         double inst(const Individual *member, double t) { return (this->*inst_)(member, t); }
         double cumul(const Individual *member, double t) { return (this->*cumul_)(member, t); }
@@ -643,6 +586,93 @@ public:
     } infec_profile;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////  MCMC : Impl : Augmented : class  ///////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// Implementation of Augmented Variables.
+    struct Augmented
+    {
+        str_vec list_draws = {};
+        str_vec list_full = {};
+        str_vec list_export = {};
+        str_vec user_list_discrete = {};
+
+        u_dict<std::vector<size_t>> status_to_def_row = {}; // definition rows by status
+        std::unordered_map<int, u_dict<str_vec>> status_map_model = {};
+        std::unordered_map<int, str_vec> status_map_sample = {};
+
+        // optional augmented posterior sample
+        std::vector<const Individual *> smpl_individuals = {};
+        std::vector<u_dict<dbl_vec>> smpl_values = {};
+
+        /////////////////////////////////////////////////////////////////////////////////////////
+        //////////////////////////  MCMC : Impl : Augmented : constructor  //////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////
+
+        Augmented(MCMC::Impl &ptr)
+            : pImpl_(ptr) {}
+        ~Augmented() = default;
+
+        /////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////  MCMC : Impl : Augmented : setter  /////////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////
+
+        void build(const u_dict<str_vec> &deftable);
+        void init();
+        void user_reset();
+
+        void clear_all(Individual &member);
+        void build_all(Individual &member);
+        void request_augm_discrete(const std::string &x) { user_list_discrete.emplace_back(x); }
+        void build_missing(Individual &member);
+        void user_reset(Individual &member);
+
+        void init_draws(unsigned long sample_size);
+        void update_draws(unsigned long smpl_count);
+        void clear_draws();
+
+        /////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////  MCMC : Impl : Augmented : getter  /////////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////
+
+        /// Flag if there are any augmented definitions.
+        bool is_any() const { return !list_full.empty(); }
+        /// Flag if there are non-constant augmented definitions.
+        bool is_any_sample() const { return !status_map_sample.empty(); }
+        /// Flag if there are augmented definitions with a model.
+        bool is_any_model() const { return !status_map_model.empty(); }
+        /// Flag if augmented draws are stored.
+        bool is_any_draw() const { return !smpl_individuals.empty(); }
+
+#ifdef _HOUSEPI_RCPP
+        void rcpp_import(SEXP input);
+        Rcpp::DataFrame rcpp_export_data_wide() const;
+        Rcpp::DataFrame rcpp_snapshot(const std::string &house_id) const;
+#else
+        void read(const std::string &pathtofile);
+#endif
+
+    private:
+        const std::string section_name_ = "augmented";
+        MCMC::Impl &pImpl_;             // pointer to external class
+        u_dict<str_vec> deftable_ = {}; // store definition table
+
+        void helper_build_definition_();
+        void helper_build_definition_order_();
+        void set_definition_dependency_order_for_(const std::string &s);
+        std::vector<size_t> get_unsorted_definition_rows_by_(const std::string &s) const;
+        void set_sample_map_for_(const std::string &s, size_t k);
+        void set_function_or_identity_for_(size_t k);
+        void helper_build_model_status_maps_();
+
+        void helper_init_attributes_(Individual &member, size_t k);
+        std::vector<size_t> init_get_definition_order_(Individual &member);
+        void init_model_attributes_(Individual &member, size_t k);
+        void init_func_attributes_(Individual &member, size_t k);
+        void helper_init_id_draws_();
+    } augm;
+
+    /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////  MCMC : Impl : Metropolis-Hastings  ///////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -672,10 +702,11 @@ private:
     /////////////////////////  MCMC : Impl : definition helpers [private]  //////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    double read_numeric_(const DefinitionParser::ASTNode &node, const Individual &member = Individual());
-    double read_numeric_(const std::string &expr, const Individual &member = Individual());
-    Attribute read_attribute_(const DefinitionParser::ASTNode &node, const Individual &member = Individual());
-    Attribute read_attribute_(const std::string &expr, const Individual &member = Individual());
+    mutable Attribute storage_;
+    const Attribute &read_numeric_(const DefinitionParser::ASTNode &node, const Individual &member = Individual()) const;
+    const Attribute &read_numeric_(const std::string &expr, const Individual &member = Individual()) const;
+    const Attribute &read_attribute_(const DefinitionParser::ASTNode &node, const Individual &member = Individual()) const;
+    const Attribute &read_attribute_(const std::string &expr, const Individual &member = Individual()) const;
     void make_param_cache_depen_(const DefinitionParser::ASTNode &node);
 
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -710,17 +741,17 @@ private:
     unsigned long smpl_count_ = 0;   /// count of store samples
     dbl_vec smpl_full_loglike_ = {}; /// vector of full loglikelihood samples
 
-    /// Assert dataset is not empty.
-    void assert_non_empty_dataset_()
+    /// Assert data_wide is not empty.
+    void assert_non_empty_data_wide_()
     {
-        if (dataset.report_house.total == 0)
+        if (data_wide.report_house.total == 0)
             throw std::length_error("Unable to proceed: no data was found.");
     }
 
     /// Warn if all individuals have missing status.
     void warn_ift_all_missing_status_()
     {
-        if (dataset.report_indiv.total == dataset.report_indiv.missing)
+        if (data_wide.report_indiv.total == data_wide.report_indiv.missing)
             hsp::msg::warning("All individuals in the data had missing status.");
     }
 
@@ -774,11 +805,11 @@ private:
     // UPDATE: once I allow for multi-treading and a flag other than n_chains = 0, I can drop this.
     void aux_init_simulate_()
     {
-        assert_non_empty_dataset_();  // check if dataset is empty
-        setup.n_chains = 0;           // use 0 chains as a state variable
-        setup.n_threads = 1;          // impose no parallelization
-        setup.set_n_threads();        // change accordingly
-        init_model_for_simulation_(); // initialize model for simulation
+        assert_non_empty_data_wide_(); // check if data is empty
+        setup.n_chains = 0;            // use 0 chains as a state variable
+        setup.n_threads = 1;           // impose no parallelization
+        setup.set_n_threads();         // change accordingly
+        init_model_for_simulation_();  // initialize model for simulation
     }
 };
 

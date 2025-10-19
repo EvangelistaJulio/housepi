@@ -137,7 +137,7 @@ public:
         : pDistr_(std::make_shared<Distribution>()),
           pProp_(std::make_shared<Proposer>())
     {
-        this->name(name, err_type);
+        this->set_name(name, err_type);
         init(value, is_const, expr, is_prim);
     }
     ~Variable() = default;

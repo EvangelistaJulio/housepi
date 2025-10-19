@@ -14,14 +14,19 @@
 
 #include <chrono>
 
+#include "tools/types.h"
+#include "tools/na_utils.h"
 #include "tools/string.h"
 #include "tools/read.h"
 #include "tools/error.h"
 #include "tools/status.h"
 #include "tools/params.h"
 #include "tools/rates.h"
-#include "mcmc_impl.h"
+#include "function.h"
 #include "function_registry.h"
+#include "variable.h"
+#include "household.h"
+#include "mcmc_impl.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  MCMC : Impl : Setup : build  //////////////////////////////////
@@ -51,39 +56,39 @@ void MCMC::Impl::Setup::build(const u_dict<std::string> &deflist)
         hsp::str::assert_no_unused_entries(headers, file_headers);
 
         // Random Initialization of Parameters
-        if (deflist % "progress" && !hsp::na::is(deflist.at("progress")))
+        if (deflist.count("progress") && !hsp::na::is(deflist.at("progress")))
             progress = hsp::str::toul(deflist.at("progress"));
 
         // N. of Threads
-        if (deflist % "threads" && !hsp::na::is(deflist.at("threads")))
+        if (deflist.count("threads") && !hsp::na::is(deflist.at("threads")))
             n_threads = hsp::str::toi(deflist.at("threads"), "n. of threads");
 
         // PRNG Seed
-        if (deflist % "seed" && !hsp::na::is(deflist.at("seed")))
+        if (deflist.count("seed") && !hsp::na::is(deflist.at("seed")))
             seed = hsp::str::toi32(deflist.at("seed"), "random seed");
 
         // N. of Chains
-        if (deflist % "chains" && !hsp::na::is(deflist.at("chains")))
+        if (deflist.count("chains") && !hsp::na::is(deflist.at("chains")))
             n_chains = hsp::str::toul(deflist.at("chains"), "n. of chains");
 
         // N. of Steps
-        if (deflist % "steps" && !hsp::na::is(deflist.at("steps")))
+        if (deflist.count("steps") && !hsp::na::is(deflist.at("steps")))
             n_steps = hsp::str::toul(deflist.at("steps"), "n. of steps");
 
         // N. of Adaptive Steps
-        if (deflist % "adapt" && !hsp::na::is(deflist.at("adapt")))
+        if (deflist.count("adapt") && !hsp::na::is(deflist.at("adapt")))
             n_adapt = hsp::str::toul(deflist.at("adapt"), "n. of adaptive steps");
 
         // N. of Thinning Steps
-        if (deflist % "thin" && !hsp::na::is(deflist.at("thin")))
+        if (deflist.count("thin") && !hsp::na::is(deflist.at("thin")))
             n_thin = hsp::str::toul(deflist.at("thin"), "thin");
 
         // N. of Steps to "Burn-In"
-        if (deflist % "burnin" && !hsp::na::is(deflist.at("burnin")))
+        if (deflist.count("burnin") && !hsp::na::is(deflist.at("burnin")))
             n_burnin = hsp::str::toul(deflist.at("burnin"), "burn-in");
 
         // Individual ID for Augmented Trace
-        if (deflist % "id_draws" && !hsp::na::is(deflist.at("id_draws")))
+        if (deflist.count("id_draws") && !hsp::na::is(deflist.at("id_draws")))
             id_draws = hsp::read::parse_list(deflist.at("id_draws"));
     }
 
@@ -195,6 +200,87 @@ std::string MCMC::Impl::Setup::fmt_progtxt()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////  Household : setter  ///////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Link an individual to the household.
+void Household::init_member(size_t index,
+                            const std::string &id,
+                            int status,
+                            const u_dict<double> &data)
+{
+    // emplace new individual
+    members_.emplace_back(index, house_size_, id, status, data);
+
+    // update status lists within the household
+    if (members_.back().is_infected_status())
+        infected_list_.push_back(house_size_);
+    else if (members_.back().is_healthy_status())
+        healthy_list_.push_back(house_size_);
+    else
+        missing_list_.push_back(house_size_);
+
+    ++house_size_;
+}
+
+/// Change_status of individual i to new status (without controls).
+///	NOTE : this introduces augmented variables -> it requires RJMCMC in case of inference.
+void Household::set_status_(Individual &member, int new_status)
+{
+    if (new_status != member.status())
+    {
+        const size_t i = static_cast<size_t>(member); // get within house index
+
+        if (member.is_infected_status())
+            infected_list_.erase(std::find(infected_list_.begin(), infected_list_.end(), i));
+        else if (member.is_healthy_status())
+            healthy_list_.erase(std::find(healthy_list_.begin(), healthy_list_.end(), i));
+        else
+            missing_list_.erase(std::find(missing_list_.begin(), missing_list_.end(), i));
+
+        member.status_ = new_status; // change member status
+        if (member.is_infected_status())
+            infected_list_.push_back(i);
+        else if (member.is_healthy_status())
+            healthy_list_.push_back(i);
+        else
+            missing_list_.push_back(i);
+    }
+}
+
+/// Associate a pointer to parameter value for the contact from->to.
+void Household::init_contact_rates(size_t from, size_t to, const Attribute &x)
+{
+    // initialize contact rate matrix if necessary
+    if (contact_rates_.empty())
+        contact_rates_.resize(
+            house_size_,
+            std::vector<Attribute>(house_size_, Attribute(hsp::rates::VALUE_REFERENCE)));
+
+    contact_rates_[from][to] = x;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////  Household : cache attributes  //////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Recover previous values of the loglikelihood and cached depedencies.
+void Household::recover_buffer_values(bool is_cache_depen)
+{
+    obs_loglike_ = obs_buffer_;
+    if (is_cache_depen)
+    {
+        // swap buffer into  cache attributes
+        cache_int_vec_.swap(buffer_cache_int_vec_);
+        cache_size_t_vec_.swap(buffer_cache_size_t_vec_);
+        cache_dbl_vec_.swap(buffer_cache_dbl_vec_);
+        cache_dbl_mtx_.swap(buffer_cache_dbl_mtx_);
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////  MCMC::Impl : build data  ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -212,7 +298,6 @@ void MCMC::Impl::DataWide::build(const u_dict<str_vec> &input)
         report_indiv.total = input.at(headers_[0]).size();
 
         house_vector_.clear();
-        restrict_indexes_.clear();
         hhid_to_index_.clear();
 
         // assess the presence of house IDs
@@ -258,12 +343,10 @@ void MCMC::Impl::DataWide::build(const u_dict<str_vec> &input)
                 }
 
             // if household index doesn't exist, add new household
-            if (!(hhid_to_index_ % house_id))
+            if (!hhid_to_index_.count(house_id))
             {
                 // map data index to household number
                 hhid_to_index_.emplace(house_id, house_vector_.size());
-                // default choice for restricted indeces
-                restrict_indexes_.push_back(house_vector_.size());
                 // create a new empty household
                 house_vector_.emplace_back(house_id, house_vector_.size());
             }
@@ -370,42 +453,43 @@ void MCMC::Impl::DataWide::init_cache_double_matrix(const std::string &e)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Build multiplicities.
-void MCMC::Impl::DataWide::build_multiplicity(const u_dict<str_vec> &table)
+// UPDATE I should find a way to deal internally with multiplicity.
+void MCMC::Impl::Multiplicity::build(const u_dict<str_vec> &deftable)
 {
-    if (pImpl_.augm.is_any() || (table.size() == 0))
+    indexes.clear();
+    size_t n_houses = pImpl_.data_wide.report_house.total;
+    if (pImpl_.augm.is_any() || (deftable.size() == 0))
     {
         // note: multiplicities are not compatible with data augmentation
-        if (!table.empty())
+        if (!deftable.empty())
             hsp::msg::warning(
                 "Ignored multiplicity optimization: incompatible with data augmentation.");
 
         // default choice for restricted household indexes
-        restrict_indexes_.clear();
-        restrict_indexes_.resize(report_house.total);
-        for (size_t H = 0; H < report_house.total; ++H)
+        indexes.resize(n_houses);
+        for (size_t H = 0; H < n_houses; ++H)
         {
-            house_vector_[H].set_multiplicity(1, H);
-            restrict_indexes_[H] = H;
+            pImpl_.data_wide(H).set_multiplicity(1, H);
+            indexes[H] = H;
         }
     }
     else
     {
         // UPDATE: this error is purely internal
-        if (report_house.total != table.at("house_id").size())
+        if (deftable.at("house_id").size() != n_houses)
             throw std::out_of_range(
-                "Multiplicity definitions had different dimensions than dataset.");
+                "Multiplicity definitions had different dimensions than data.");
 
-        restrict_indexes_.clear();
-        for (size_t r = 0; r < report_house.total; ++r)
+        for (size_t r = 0; r < n_houses; ++r)
         {
-            size_t H = hhid_to_index_.at(table.at("house_id")[r]);
-            size_t H0 = hhid_to_index_.at(table.at("class_id")[r]);
-            unsigned long m = hsp::str::toul(table.at("multiplicity")[r]);
+            Household &house = pImpl_.data_wide(deftable.at("house_id")[r]);
+            size_t H0 = pImpl_.data_wide(deftable.at("class_id")[r]).house_index();
+            unsigned long m = hsp::str::toul(deftable.at("multiplicity")[r]);
 
-            house_vector_[H].set_multiplicity(m, H0);
+            house.set_multiplicity(m, H0);
 
-            if (house_vector_[H].is_multiplicity_head_class())
-                restrict_indexes_.emplace_back(H);
+            if (house.is_multiplicity_head_class())
+                indexes.emplace_back(house.house_index());
         }
     }
 }
@@ -437,17 +521,17 @@ void MCMC::Impl::DataLong::build(const u_dict<str_vec> &input)
         // note: this could be moved elsewhere if required
         std::unordered_map<std::string, size_t> id_to_index = {};
         size_t c = 0;
-        for (const Household &house : pImpl_.dataset)
+        for (const Household &house : pImpl_.data_wide)
             for (const Individual &member : house)
-                if (id_to_index % member.id())
+                if (id_to_index.count(member.id()))
                     throw std::invalid_argument(
                         "There were multiple individuals with id equal to \"" + member.id() + "\".");
                 else
                     id_to_index.emplace(member.id(), c++);
 
-        // datalong allocation
+        // data-long allocation
         if (indiv_datalist_.empty())
-            indiv_datalist_.resize(pImpl_.dataset.report_indiv.total);
+            indiv_datalist_.resize(pImpl_.data_wide.report_indiv.total);
 
         for (u_dict<dbl_vec> &xmap : indiv_datalist_)
             for (const std::string &key : headers_)
@@ -461,10 +545,10 @@ void MCMC::Impl::DataLong::build(const u_dict<str_vec> &input)
             if (hsp::na::is(id))
                 throw std::invalid_argument(
                     "Invalid id found in row n." + std::to_string(r + 2) + ".");
-            else if (!(id_to_index % id))
+            else if (!id_to_index.count(id))
             {
                 // UPDATE: these errors should be more self-explicative
-                if (pImpl_.dataset.is_empty())
+                if (pImpl_.data_wide.is_empty())
                     throw std::invalid_argument(
                         "Tried to define data long format before wide format.");
                 else
@@ -476,14 +560,14 @@ void MCMC::Impl::DataLong::build(const u_dict<str_vec> &input)
             u_dict<dbl_vec> &xdict = indiv_datalist_.at(id_to_index.at(id));
             for (const std::string &key : headers_)
                 xdict.at(key).emplace_back(
-                    hsp::str::tod(input.at(key).at(r), "datalong \"" + key + "\""));
+                    hsp::str::tod(input.at(key).at(r), "data long format \"" + key + "\""));
         }
 
-        // assign pointers to relative datalong to all individuals
+        // assign pointers to relative data-long to all individuals
         c = 0;
-        for (Household &house : pImpl_.dataset)
+        for (Household &house : pImpl_.data_wide)
             for (Individual &member : house)
-                member.init_pointer_to_datalong(&indiv_datalist_.at(c++));
+                member.init_pointer_to_data_long(&indiv_datalist_.at(c++));
     }
 }
 
@@ -502,7 +586,7 @@ void MCMC::Impl::GroupRates::build(const u_dict<str_vec> &deftable)
 
         // loop over all household members
         const size_t n_rows = deftable.at("group_rate").size();
-        for (Household &house : pImpl_.dataset)
+        for (Household &house : pImpl_.data_wide)
             for (Individual &member : house)
             {
                 u_dict<str_vec> these_rates = {};
@@ -534,10 +618,10 @@ str_vec MCMC::Impl::GroupRates::helper_assert_definitions_(const u_dict<str_vec>
     str_vec data_headers = hsp::read::table_headers(deftable);
     hsp::str::assert_no_missing_entries(data_headers, file_headers_);
 
-    // remove template headers to keep only dataset
+    // remove template headers to keep only data
     data_headers = data_headers - file_headers_;
-    // check that required dataset columns are present
-    hsp::str::assert_no_unused_entries(data_headers, pImpl_.dataset.headers());
+    // check that required data columns are present
+    hsp::str::assert_no_unused_entries(data_headers, pImpl_.data_wide.headers());
 
     // assert the group rate names are allowed
     headers_.clear();
@@ -564,13 +648,13 @@ void MCMC::Impl::GroupRates::helper_init_all_rates_(Individual &member,
         const std::string &g = pair.first;
 
         // extract non-reference parameter pointers
-        std::vector<observ_dbl_ptr> vec_par_ptr = {};
+        std::vector<const Attribute *> vec_par_ptr = {};
         for (const std::string &p : pair.second)
             if (hsp::na::is(p) || p == hsp::rates::MISSING)
                 throw std::invalid_argument(
                     "A group rate defintion \"" + g + "\" was missing for " + member.err_name() + ".");
             else if (p != hsp::rates::REFERENCE)
-                vec_par_ptr.emplace_back(pImpl_.param.get_ptr(p));
+                vec_par_ptr.emplace_back(pImpl_.param.at(p).get_ptr());
 
         if (vec_par_ptr.empty()) // stick to reference
             member.init_group_rate_to_reference(g);
@@ -581,14 +665,14 @@ void MCMC::Impl::GroupRates::helper_init_all_rates_(Individual &member,
         else // use variadic product
         {
             std::shared_ptr<Function> fun = compose_func_registries(
-                "prod", "function", {&ArithmeticRegistry::inst()});
+                "prod", "function", {&ArithmeticRegistry::inst()}, false);
 
             // initialize attributes to pointers
-            fun->init_attr(hsp::params::X, vec_par_ptr[0]);
+            fun->init_attr(hsp::params::X, Attribute(vec_par_ptr[0]));
             for (size_t i = 1; i < vec_par_ptr.size(); ++i)
-                fun->init_attr(hsp::params::X + std::to_string(i + 1), vec_par_ptr[i]);
+                fun->init_attr(hsp::params::X + std::to_string(i + 1), Attribute(vec_par_ptr[i]));
 
-            member.init_group_rate(g, fun);
+            member.init_group_rate(g, Attribute(fun));
         }
     }
 }
@@ -652,7 +736,7 @@ void MCMC::Impl::Parameter::build_constant_parameter_(const u_dict<str_vec> &def
             "Constant parameter \"" + p + "\" had undefined value.");
 
     // assign constant parameter to the set of variables
-    double value = pImpl_.read_numeric_(deftable.at("value")[k]);
+    double value = pImpl_.read_numeric_(deftable.at("value")[k]).get();
     dictionary_.emplace(p, Variable(p, "parameter", value));
     // update the lists of constant parameters
     list_const.push_back(p);
@@ -684,7 +768,7 @@ void MCMC::Impl::Parameter::build_parameter_to_sample_(const u_dict<str_vec> &de
 
     // create a new Parameter Variable
     dictionary_.emplace(
-        p, Variable(p, "parameter", pImpl_.read_numeric_(deftable.at("value")[k]), false));
+        p, Variable(p, "parameter", pImpl_.read_numeric_(deftable.at("value")[k]).get(), false));
     Variable &new_param = this->at(p);
 
     // assign a prior distribution to the parameter
@@ -743,4 +827,98 @@ void MCMC::Impl::Parameter::init_adaptable_lists()
             list_adaptable_sample_cached.push_back(p);
         else
             list_non_adapt_sample_cached.push_back(p);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////  MCMC : constructor  /////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+MCMC::MCMC()
+    : pImpl_(std::make_unique<Impl>(
+          [this]()
+          { this->init_model_for_inference(); },
+          [this]()
+          { this->init_model_for_simulation(); },
+          [this](Household &h) -> double
+          { return this->compute_household_obs_loglike(h); },
+          [this](Household &h)
+          { return this->simulate_single_household(h); },
+          [this](Household &h, Individual &i)
+          { this->update_cache_dependecies(h, i); })) {}
+MCMC::~MCMC() = default;
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////  MCMC : general methods  /////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+double MCMC::uniform() { return pImpl_->setup.unif(); }
+double MCMC::param(const std::string &p) const { return pImpl_->param.get(p); }
+const ReportIndividual &MCMC::get_report_indiv() const { return pImpl_->data_wide.report_indiv; }
+const ReportHousehold &MCMC::get_report_house() const { return pImpl_->data_wide.report_house; }
+const ReportHouseSizes &MCMC::get_report_hh_size() const { return pImpl_->data_wide.report_hh_size; }
+void MCMC::assert_no_missing_status() const
+{
+    if (pImpl_->data_wide.report_indiv.missing > 0)
+        hsp::msg::error(
+            "Individual with missing status are incompatible with current model.");
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////  MCMC : cache attributes  ///////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+void MCMC::cache_house_integer_vector(const std::string &e) { pImpl_->data_wide.init_cache_integer_vector(e); }
+void MCMC::cache_house_size_t_vector(const std::string &e) { pImpl_->data_wide.init_cache_size_t_vector(e); }
+void MCMC::cache_house_double_vector(const std::string &e) { pImpl_->data_wide.init_cache_double_vector(e); }
+void MCMC::cache_house_double_matrix(const std::string &e) { pImpl_->data_wide.init_cache_double_matrix(e); }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  MCMC : contact rates ///////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Build all group rates and contact rates and set rate per group. // UPDATE
+void MCMC::build_all_rates()
+{
+    try
+    {
+        for (Household &house : pImpl_->data_wide)
+            init_contact_rates_(house);
+    }
+    catch (const std::exception &e)
+    {
+        hsp::msg::error("While initializing contact rates:\n" +
+                        std::string(e.what()));
+    }
+}
+
+/// Set contact rate according to user assignement. // UPDATE
+void MCMC::init_contact_rates_(Household &house)
+{
+    // loop over all couples
+    for (const Individual &member_k : house)     // from : member_k
+        for (const Individual &member_i : house) // -> to : member_i
+            if (member_k != member_i)
+            {
+                _pair_contact_rate = hsp::na::STRING;
+                init_household_contact_rates(house, member_k, member_i);
+
+                if (!hsp::na::is(_pair_contact_rate))
+                {
+                    // default reference rate
+                    Attribute y(hsp::rates::VALUE_REFERENCE);
+
+                    if (_pair_contact_rate == hsp::rates::MISSING)
+                        throw std::invalid_argument(
+                            "Missing contact rate for individuals \"" +
+                            member_k.id() + "\" and \"" + member_i.id() +
+                            "\" (" + house.err_name() + ").");
+
+                    else if (_pair_contact_rate != hsp::rates::REFERENCE)
+                        y = pImpl_->param.at(_pair_contact_rate); // parameter rate
+
+                    house.init_contact_rates(static_cast<size_t>(member_k), static_cast<size_t>(member_i), y);
+                }
+            }
 }

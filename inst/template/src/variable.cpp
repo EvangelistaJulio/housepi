@@ -93,8 +93,8 @@ public:
 
     void user_reset() override final
     {
-        pDistr_->init_attr(hsp::params::MIN, -user_rule_scale_);
-        pDistr_->init_attr(hsp::params::MAX, user_rule_scale_);
+        pDistr_->init_attr(hsp::params::MIN, Attribute(-user_rule_scale_));
+        pDistr_->init_attr(hsp::params::MAX, Attribute(user_rule_scale_));
     }
 
     double propose(rnd_gen &prng, double xo) override final { return xo + pDistr_->rand(prng); }
@@ -115,8 +115,8 @@ public:
 
     void user_reset() override final
     {
-        pDistr_->init_attr("mean", 0.);
-        pDistr_->init_attr("sd", user_rule_scale_);
+        pDistr_->init_attr("mean", Attribute(0.));
+        pDistr_->init_attr("sd", Attribute(user_rule_scale_));
     }
 
     double propose(rnd_gen &prng, double xo) override final { return xo + pDistr_->rand(prng); }
@@ -137,8 +137,8 @@ public:
 
     void user_reset() override final
     {
-        pDistr_->init_attr("meanlog", 0.);
-        pDistr_->init_attr("sdlog", user_rule_scale_);
+        pDistr_->init_attr("meanlog", Attribute(0.));
+        pDistr_->init_attr("sdlog", Attribute(user_rule_scale_));
     }
 
     double propose(rnd_gen &prng, double xo) override final { return xo * pDistr_->rand(prng); }
@@ -199,7 +199,7 @@ void Variable::init(double value, bool is_const,
     }
     else if (parser.is_terminal()) // initialization as a pointer
     {
-        init_pointer(&user_value_); // NOTE: this is just a placeholder
+        init_pointer(this); // NOTE: this is just a placeholder
     }
     else // initialization as a function
     {

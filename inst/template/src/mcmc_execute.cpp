@@ -30,7 +30,7 @@ double MCMC::Impl::evaluate()
     try
     {
         setup.n_chains = 0;             // use 0 chains as a state variable
-        assert_non_empty_dataset_();    // check if dataset is empty
+        assert_non_empty_data_wide_();  // check if data is empty
         warn_ift_all_missing_status_(); // warn if all missing status
         param.user_reset();             // initialize non constant parameters
         augm.init();                    // initialize individual augmented relations
@@ -46,6 +46,7 @@ double MCMC::Impl::evaluate()
 
     return hsp::na::DOUBLE;
 }
+double MCMC::evaluate() { return pImpl_->evaluate(); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -64,12 +65,12 @@ void MCMC::Impl::update_full_loglike_(bool cache_depen)
     infec_profile.update(cache_depen);
 
 #pragma omp parallel for reduction(+ : new_ll)
-    for (size_t R = 0; R < dataset.n_restricted_houses(); ++R)
+    for (size_t R = 0; R < multiplicity.indexes.size(); ++R)
     {
         if (has_error.load(std::memory_order_relaxed))
             continue;
 
-        Household &this_house = dataset.restricted(R);
+        Household &this_house = data_wide.restricted(R);
         try
         {
             new_ll += update_house_loglike_(this_house, is_augm_ll, cache_depen);
@@ -139,12 +140,13 @@ void MCMC::Impl::infer()
         hsp::msg::error(e.what());
     }
 }
+void MCMC::infer() { pImpl_->infer(); }
 
 /// Assert setup definitions are ok to proceed with mcmc sampling.
 void MCMC::Impl::init_monte_carlo_()
 {
     setup.assert_mcmc_setup();      // assert if setup is ok for mcmc
-    assert_non_empty_dataset_();    // check if dataset is empty
+    assert_non_empty_data_wide_();  // check if data is empty
     warn_ift_all_missing_status_(); // warn if all missing status
 
     // check if there is actually something to sample
@@ -302,7 +304,7 @@ void MCMC::Impl::recover_parameter_(const std::string &p, bool is_cache_depen)
     full_loglike_ = full_buffer_;
 
     // recover buffered loglikelihood in households
-    for (Household &house : dataset.restricted())
+    for (Household &house : data_wide.restricted())
     {
         house.recover_buffer_values(is_cache_depen);
         if (augm.is_any_sample())
@@ -364,8 +366,8 @@ void MCMC::Impl::DataWide::init_draws(unsigned long sample_size)
 {
     // sample over households
     smpl_values_.clear();
-    smpl_values_.resize(restrict_indexes_.size());
-    for (size_t R = 0; R < restrict_indexes_.size(); ++R)
+    smpl_values_.resize(pImpl_.multiplicity.indexes.size());
+    for (size_t R = 0; R < pImpl_.multiplicity.indexes.size(); ++R)
     {
         smpl_values_[R].clear();
         smpl_values_[R].reserve(sample_size);
@@ -377,9 +379,9 @@ void MCMC::Impl::DataWide::init_draws(unsigned long sample_size)
 void MCMC::Impl::DataWide::update_draws(unsigned long smpl_count)
 {
     // store sample for restricted households
-    for (size_t R = 0; R < restrict_indexes_.size(); ++R)
+    for (size_t R = 0; R < pImpl_.multiplicity.indexes.size(); ++R)
     {
-        Household &house = house_vector_[restrict_indexes_[R]];
+        Household &house = house_vector_[pImpl_.multiplicity.indexes[R]];
         double x = house.get_obs_loglike() / house.multiplicity();
         for (const Individual &member : house.infected())
             x += member.get_augm_model_loglike();
@@ -415,7 +417,7 @@ void MCMC::Impl::init_posterior_sample_()
     // NOTE: it will depend on chosen rungs in that case
     if (!setup.is_power_post())
     {
-        dataset.init_draws(sample_size);
+        data_wide.init_draws(sample_size);
         param.init_draws(sample_size);
         augm.init_draws(sample_size);
     }
@@ -430,7 +432,7 @@ void MCMC::Impl::update_posterior_sample_()
     if (!setup.is_power_post())
     {
         param.update_draws(smpl_count_);
-        dataset.update_draws(smpl_count_);
+        data_wide.update_draws(smpl_count_);
         augm.update_draws(smpl_count_);
     }
 
@@ -444,10 +446,11 @@ void MCMC::Impl::clear_posterior_sample_()
     smpl_full_loglike_.clear();
     smpl_full_loglike_.shrink_to_fit();
 
-    dataset.clear_draws();
+    data_wide.clear_draws();
     param.clear_draws();
     augm.clear_draws();
 }
+void MCMC::clear_memory() { pImpl_->clear_memory(); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -652,6 +655,7 @@ Rcpp::List MCMC::Impl::logevidence(const std::string &scheme, unsigned long n_ru
     }
     return List();
 }
+Rcpp::List MCMC::logevidence(const std::string &scheme, unsigned long n_rungs) { return pImpl_->logevidence(scheme, n_rungs); }
 
 #else
 /// Estimate logevidence according to a given scheme and number of rungs.
@@ -689,6 +693,7 @@ double MCMC::Impl::logevidence(const std::string &scheme, unsigned long n_rungs)
 
     return hsp::na::DOUBLE;
 }
+double MCMC::logevidence(const std::string &scheme, unsigned long n_rungs) { return pImpl_->logevidence(scheme, n_rungs); }
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -703,7 +708,7 @@ Rcpp::DataFrame MCMC::Impl::simulate_repetition()
 {
     using namespace Rcpp;
 
-    const size_t n_rows = dataset.report_indiv.total;
+    const size_t n_rows = data_wide.report_indiv.total;
 
     IntegerVector df_status = IntegerVector(n_rows);
 
@@ -713,7 +718,7 @@ Rcpp::DataFrame MCMC::Impl::simulate_repetition()
         df_augm.emplace_back(n_rows);
 
     size_t r = 0;
-    for (Household house : dataset) // NOTE: deep copy of household
+    for (Household house : data_wide) // NOTE: deep copy of household
         try
         {
             simulate_single_household_(house); // inplace simulation
@@ -739,7 +744,7 @@ Rcpp::DataFrame MCMC::Impl::simulate_repetition()
     return output;
 }
 
-/// Perform simulation and return simulated dataset.
+/// Perform simulation and return simulated data.
 Rcpp::List MCMC::Impl::simulate(size_t n_rep)
 {
     using namespace Rcpp;
@@ -749,7 +754,7 @@ Rcpp::List MCMC::Impl::simulate(size_t n_rep)
     {
         // initialization
         aux_init_simulate_();
-        setup.prog_open(dataset.report_house.total * n_rep);
+        setup.prog_open(data_wide.report_house.total * n_rep);
 
         // run simulations
         std::vector<DataFrame> results(n_rep);
@@ -792,5 +797,5 @@ Rcpp::List MCMC::Impl::simulate(size_t n_rep)
 
     return List::create();
 }
-
+Rcpp::List MCMC::simulate(size_t n_rep) { return pImpl_->simulate(n_rep); }
 #endif

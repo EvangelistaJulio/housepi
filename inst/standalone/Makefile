@@ -8,7 +8,7 @@ MODEL ?= $(SRC)
 
 # Standard fields used for debugging
 # exported by .__enclos_env__$private$.export_to_cpp_standalone
-STD_IN := -A augm.csv -D data_wide.csv -L data_long.csv -G group_rates.csv -I infec.csv -P param.csv -S setup.csv
+STD_IN := -A augm.csv -D data_wide.csv -L data_long.csv -G group_rates.csv -I infec.csv -P param.csv -S setup.csv -M multiplicity.csv
 
 # Lost of source files with exclusions
 EXCL_FILES := $(SRC)/export_bindings.cpp $(SRC)/RcppExports.cpp $(SRC)/model.cpp

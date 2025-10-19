@@ -19,6 +19,7 @@
 #include "tools/na_utils.h"
 #include "tools/operators.h"
 #include "tools/status.h"
+#include "tools/rates.h"
 #include "function.h"
 #include "variable.h"
 
@@ -48,15 +49,22 @@ public:
 	void clear_augm(const std::string &a)
 	{
 		augm_map_[a] = Variable();
-		augm_map_[a].name(a, "augmented");
+		augm_map_[a].set_name(a, "augmented");
 	}
 
+	/// Assign definitions for the augmented variable model.
+	/// NOTE: a Variable must already be allocated with clear_augm.
 	void init_augm(const std::string &a,
 				   double value,
 				   bool is_const,
 				   const DefinitionParser &func_name,
 				   bool is_prim,
-				   const DefinitionParser &model_name);
+				   const DefinitionParser &model_name)
+	{
+		Variable &this_augm = safe_at(augm_map_, a, "augmented variable");
+		this_augm.init(value, is_const, func_name, is_prim);
+		this_augm.init_distr(model_name);
+	}
 
 	void set_augm_value(const std::string &a, double x) { safe_at(augm_map_, a, "augmented").set(x); }
 
@@ -79,6 +87,13 @@ public:
 	double compute_and_set_augm_model_loglike();
 	double compute_and_set_augm_model_logratio(const std::string &a);
 	void recover_augm_model_loglike() { loglike_ = buffer_; };
+	void assert_loglike_not_NaN(const std::string &a = hsp::na::STRING) const
+	{
+		if (hsp::na::is(loglike_))
+			throw std::runtime_error(
+				"Augmented loglikelihood returned NaN for " + err_name() +
+				(hsp::na::is(a) ? "" : " after change of " + augm_map_.find(a)->second.err_name()) + ".");
+	}
 
 private:
 	u_dict<Variable> augm_map_ = {}; /// dictionary of augmented definitions
@@ -112,7 +127,14 @@ public:
 			   size_t hhindex,
 			   const std::string &id,
 			   int status,
-			   const u_dict<double> &data);
+			   const u_dict<double> &data)
+	{
+		index_ = index;
+		hhindex_ = hhindex;
+		id_ = id;
+		status_ = status;
+		data_map_ = data;
+	}
 
 	/// Sugar to tell if the corresponding members are the same.
 	bool operator==(const Individual &other) const { return this->index_ == other.index_; }
@@ -132,7 +154,7 @@ public:
 	bool is_healthy_status() const { return hsp::status::is_healthy(status_); }
 	bool is_missing_status() const { return hsp::status::is_missing(status_); }
 	double data(const std::string &d) const { return safe_at(data_map_, d, "data"); }
-	const dbl_vec &datalong(const std::string &d) const
+	const dbl_vec &data_long(const std::string &d) const
 	{
 		// return a reference to a stable empty vector when no datalong is attached
 		static const dbl_vec EMPTY_DBL_VEC = dbl_vec();
@@ -145,9 +167,20 @@ public:
 	////////////////////////////////////  Individual : setter  ////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	void init_pointer_to_datalong(u_dict<dbl_vec> *y) { pdatalong_ = y; }
-	void init_group_rate(const std::string &g, const Attribute &attr);
-	void init_group_rate_to_reference(const std::string &g);
+	/// Initialize pointer to data long format.
+	void init_pointer_to_data_long(u_dict<dbl_vec> *y) { pdatalong_ = y; }
+	/// Initialize group rate according to given attribute.
+	void init_group_rate(const std::string &g, const Attribute &attr)
+	{
+		group_rate_map_[g].transfer(attr);
+		group_rate_map_[g].set_name(g, "group rate");
+	}
+	/// Initialize group rate to reference.
+	void init_group_rate_to_reference(const std::string &g)
+	{
+		group_rate_map_[g].transfer(Attribute(hsp::rates::VALUE_REFERENCE));
+		group_rate_map_[g].set_name(g, "group rate");
+	}
 
 private:
 	std::string id_ = hsp::na::STRING;	// user id
@@ -159,7 +192,7 @@ private:
 	u_dict<double> data_map_ = {};			// data
 	u_dict<Attribute> group_rate_map_ = {}; // group rates
 
-	u_dict<dbl_vec> *pdatalong_ = nullptr; // datalong to be associated
+	u_dict<dbl_vec> *pdatalong_ = nullptr; // data long format associated
 
 	friend class Household;
 };
@@ -179,7 +212,14 @@ public:
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	Household(const std::string &house_id = hsp::na::STRING,
-			  size_t index = SIZE_MAX);
+			  size_t index = SIZE_MAX)
+	{
+		house_id_ = house_id;
+		index_ = index;
+		house_multiplicity_ = 1;
+		multiplicity_class_ = index;
+		house_size_ = 0;
+	}
 	~Household() = default;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
@@ -265,7 +305,7 @@ public:
 	Individual &get_member(size_t i) { return members_.at(i); }
 	const Individual &get_member(size_t i) const { return members_.at(i); }
 
-	double contact_rate(size_t from, size_t to) const { return *contact_rates_[from][to]; }
+	double contact_rate(size_t from, size_t to) const { return contact_rates_[from][to].get(); }
 
 	// Household Getter
 	const std::string &house_id() const { return house_id_; }
@@ -285,18 +325,23 @@ public:
 	////////////////////////////////////  Household : setter  /////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	void set_multiplicity(unsigned long m, size_t class_idx);
+	/// Assign a multiplicity to the household.
+	void set_multiplicity(unsigned long m, size_t class_idx)
+	{
+		house_multiplicity_ = m;
+		multiplicity_class_ = class_idx;
+	}
 	void init_member(size_t index, const std::string &id, int status, const u_dict<double> &data);
 	void set_healthy_status(Individual &member) { set_status_(member, hsp::status::HEALTHY); }
 	void set_infected_status(Individual &member, int new_status = hsp::status::INFECTED)
 	{
 		if (!hsp::status::is_infected(new_status))
 			throw std::invalid_argument(
-				"Tried to set as infected status " + std::to_string(new_status) + 
+				"Tried to set as infected status " + std::to_string(new_status) +
 				" to " + err_name() + ".\nInfected status must be an integer greater than 0.");
 		set_status_(member, new_status);
 	}
-	void init_contact_rates(size_t from, size_t to, observ_dbl_ptr x);
+	void init_contact_rates(size_t from, size_t to, const Attribute &x);
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////  Household : cache attributes  ////////////////////////////////
@@ -304,7 +349,14 @@ public:
 
 	/// Check if any cache quantity is associated to the household.
 	bool is_any_cache() { return !(cache_int_vec_.empty() && cache_dbl_vec_.empty() && cache_dbl_mtx_.empty()); }
-	void buffer_all_cache();
+	/// Deep copies of cache attributes in the buffer
+	void buffer_all_cache()
+	{
+		buffer_cache_int_vec_ = cache_int_vec_;
+		buffer_cache_size_t_vec_ = cache_size_t_vec_;
+		buffer_cache_dbl_vec_ = cache_dbl_vec_;
+		buffer_cache_dbl_mtx_ = cache_dbl_mtx_;
+	}
 
 	// Cache integer vector
 	void init_cache_integer_vector(const std::string &e) { cache_int_vec_[e] = int_vec(size(), 0); }
@@ -330,8 +382,22 @@ public:
 	/////////////////////////////////  Household : loglikelihood  /////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
+	/// Return value of the household observation loglikelihood.
 	double get_obs_loglike() const { return obs_loglike_; }
-	void set_obs_loglike(double x);
+	/// Store the loglikelihood of household observation.
+	void set_obs_loglike(double x)
+	{
+		obs_buffer_ = obs_loglike_;
+		obs_loglike_ = x;
+		assert_loglike_not_NaN();
+	}
+	/// Assert that current loglikelihood id not a NaN.
+	void assert_loglike_not_NaN() const
+	{
+		if (hsp::na::is(obs_loglike_))
+			throw std::runtime_error(
+				"Observation loglikelihood returned NaN.");
+	}
 	void recover_buffer_values(bool is_cache_depen);
 
 private:
@@ -349,7 +415,7 @@ private:
 	std::vector<size_t> missing_list_ = {};
 
 	// contact rate pointers
-	matrix<observ_dbl_ptr> contact_rates_;
+	matrix<Attribute> contact_rates_;
 
 	/// Change_status of individual i to new status (without controls).
 	void set_status_(Individual &member, int new_status);

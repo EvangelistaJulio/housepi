@@ -40,13 +40,13 @@ public:
     /// Empty attribute.
     Attribute() {};
     /// Numeric attribute.
-    Attribute(double x);
+    explicit Attribute(double x);
     /// Pointer to double attribute.
-    Attribute(observ_dbl_ptr y);
+    explicit Attribute(const Attribute *y); 
     /// Function attribute.
-    Attribute(const std::shared_ptr<Function> f);
+    explicit Attribute(const std::shared_ptr<Function> f);
     /// Function attribute by registry choice.
-    Attribute(const std::string &s, bool is_primitive = false);
+    explicit Attribute(const std::string &s, bool is_primitive = false);
     /// Deconstructor.
     virtual ~Attribute() = default;
 
@@ -57,17 +57,17 @@ public:
     /// Set attribute value.
     void set(double x) { (this->*do_set_)(x); }
     /// Set attribute name. Eventually also err type.
-    void name(const std::string &s, const std::string &e = hsp::na::STRING)
+    void set_name(const std::string &name, const std::string &err_type = hsp::na::STRING)
     {
-        name_ = s;
-        if (!hsp::na::is(e))
-            err_type_ = e;
+        this->name_ = name;
+        if (!hsp::na::is(err_type))
+            this->err_type_ = err_type;
     }
 
     /// Initialize attribute as numeric.
     void init_numeric(double x);
     /// Initialize attribute as pointer.
-    void init_pointer(observ_dbl_ptr y);
+    void init_pointer(const Attribute *y);
     /// Initialize attribute as function.
     void init_function(const std::shared_ptr<Function> f);
     /// Initialize attribute as function given the function name.
@@ -79,17 +79,10 @@ public:
     /////////////////////////////////////  Attribute : getter  //////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    /// Get attribute name.
-    std::string name() const { return name_; }
-    /// Get attribute name to display in errors.
-    std::string err_name() const { return err_type_ + " \"" + name_ + "\""; }
-    /// Get a description about the functional status.
-    virtual std::string str_summary() const;
-
     /// Get attribute numeric value.
     double get() const { return (this->*get_)(); }
     /// Get pointer to attribute value.
-    observ_dbl_ptr get_ptr() const { return (this->*get_ptr_)(); }
+    const Attribute *get_ptr() const { return (this->*get_ptr_)(); }
     /// Get pointer to attribute function.
     const std::shared_ptr<Function> get_function() const { return pFunc_; }
 
@@ -101,39 +94,46 @@ public:
     /// Wheter it's a number.
     bool is_numeric() const { return !hsp::na::is(value_); }
     /// Wheter it's a pointer.
-    bool is_pointer() const { return ptr_to_value_ != nullptr; }
+    bool is_pointer() const { return pAttr_ != nullptr; }
     /// Wheter it's a function.
     bool is_function() const { return pFunc_ != nullptr; }
     /// Wheter it has no definitions.
     bool is_empty() const { return !is_numeric() && !is_pointer() && !is_function(); }
 
+    /// Get attribute name.
+    std::string get_name() const { return name_; }
+    /// Get attribute name to display in errors.
+    std::string err_name() const { return err_type_ + " \"" + name_ + "\""; }
+    /// Get a description about the functional status.
+    virtual std::string str_summary() const;
+
 protected:
     std::string err_type_ = "attribute";        // type name displayed in errors
     std::string name_ = hsp::na::STRING;        /// name of argument
     double value_ = hsp::na::DOUBLE;            /// internal value
-    observ_dbl_ptr ptr_to_value_ = nullptr;     /// pointer to value // UPDATE: nullptr might be dangerous
-    std::shared_ptr<Function> pFunc_ = nullptr; /// pointer to function // UPDATE: nullptr might be dangerous
+    const Attribute *pAttr_ = nullptr;          /// pointer to attribute
+    std::shared_ptr<Function> pFunc_ = nullptr; /// pointer to function
 
     // Functional getter
     double (Attribute::*get_)() const = &Attribute::do_get_default_;
     /// Get attribute value from internal value.
     double do_get_default_() const { return value_; }
     /// Get attribute value from external value.
-    double do_get_from_pointer_() const { return *(ptr_to_value_); }
+    double do_get_from_pointer_() const { return pAttr_->get(); }
     /// Get attribute value from external function.
     double do_get_from_function_() const;
     /// Get attribute error for not callable functions.
     double do_get_error_() const;
 
     // Functional pointer getter
-    observ_dbl_ptr (Attribute::*get_ptr_)() const = &Attribute::do_get_ptr_default_;
+    const Attribute *(Attribute::*get_ptr_)() const = &Attribute::do_get_ptr_default_;
     /// Get pointer to attribute error.
-    observ_dbl_ptr do_get_pointer_error_() const { throw std::runtime_error(
+    const Attribute *do_get_pointer_error_() const { throw std::runtime_error(
         "Tried to return a pointer to " + err_name() + "."); }
     /// Get pointer to attribute value internal value.
-    observ_dbl_ptr do_get_ptr_default_() const { return &value_; }
+    const Attribute *do_get_ptr_default_() const { return this; }
     /// Get pointer to attribute value from external value.
-    observ_dbl_ptr do_get_pointer_from_pointer_() const { return ptr_to_value_; }
+    const Attribute *do_get_pointer_from_pointer_() const { return pAttr_; }
 
     // Functional setter
     void (Attribute::*do_set_)(double) = &Attribute::do_set_default_;
@@ -194,9 +194,9 @@ public:
     double get_min() const { return range_min_.get(); }
     double get_max() const { return range_max_.get(); }
 
-    observ_dbl_ptr get_ptr_to_arg(unsigned short i) const { return arguments_[i].get_ptr(); }
-    observ_dbl_ptr get_ptr_to_min() const { return range_min_.get_ptr(); }
-    observ_dbl_ptr get_ptr_to_max() const { return range_max_.get_ptr(); }
+    const Attribute *get_ptr_to_arg(unsigned short i) const { return arguments_[i].get_ptr(); }
+    const Attribute *get_ptr_to_min() const { return range_min_.get_ptr(); }
+    const Attribute *get_ptr_to_max() const { return range_max_.get_ptr(); }
 
     /// Wheter it is empty.
     bool is_empty() const { return hsp::na::is(name()); }
@@ -240,7 +240,7 @@ public:
     /// Get function name.
     std::string name() const { return name_; }
     /// Get argument name.
-    std::string arg_name(unsigned short i) const { return arguments_[i].name(); }
+    std::string arg_name(unsigned short i) const { return arguments_[i].get_name(); }
     /// Get function name complete with type to display in errors.
     std::string err_name() const { return err_type_ + " \"" + name_ + "\""; }
 

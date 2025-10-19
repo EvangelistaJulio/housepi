@@ -94,7 +94,7 @@ namespace hsp
         /// https://gallery.rcpp.org/articles/quiet-stop-and-warning/
         void warning(const std::string &txt)
         {
-            if (!(housepi_issued_warnings_set % txt))
+            if (!housepi_issued_warnings_set.count(txt))
             {
 #ifdef _HOUSEPI_RCPP
                 Rf_warningcall(R_NilValue, "%s", txt.c_str());

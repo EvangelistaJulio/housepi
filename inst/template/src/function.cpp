@@ -28,22 +28,22 @@
 
 Attribute::Attribute(double x)
 {
-    name(hsp::na::STRING, "numeric");
+    set_name(hsp::na::STRING, "numeric");
     init_numeric(x);
 }
-Attribute::Attribute(observ_dbl_ptr y)
+Attribute::Attribute(const Attribute *y)
 {
-    name(hsp::na::STRING, "pointer");
+    set_name(hsp::na::STRING, "pointer");
     init_pointer(y);
 }
 Attribute::Attribute(const std::shared_ptr<Function> f)
 {
-    name(f->name(), "function");
+    set_name(f->name(), "function");
     init_function(f);
 }
 Attribute::Attribute(const std::string &s, bool is_primitive)
 {
-    name(s, "function");
+    set_name(s, "function");
     init_function(s, is_primitive);
 }
 
@@ -64,7 +64,7 @@ std::string Attribute::str_summary() const
     if (is_numeric())
         sms += " numeric";
     else if (is_pointer())
-        sms += " pointer";
+        sms += " pointer -> " + pAttr_->err_name();
     else if (is_function())
         sms += " function " + pFunc_->str_summary();
     else
@@ -89,7 +89,7 @@ bool Attribute::is_constant() const
     if (is_numeric())
         return true;
     else if (is_pointer())
-        return false;
+        return pAttr_->is_constant();
     else if (is_function())
         return pFunc_->is_constant();
     else // NOTE: is_empty(), constant by convention
@@ -103,7 +103,7 @@ bool Attribute::is_discrete() const
     if (is_numeric())
         return value_ == std::floor(value_);
     else if (is_pointer())
-        return false; // FIXME: here it becomes problematic!
+        return pAttr_->is_discrete();
     else if (is_function())
         return pFunc_->is_discrete();
     else
@@ -123,11 +123,11 @@ void Attribute::init_numeric(double x)
     get_ptr_ = &Attribute::do_get_ptr_default_;
     do_set_ = &Attribute::do_set_default_;
     value_ = x;
-    ptr_to_value_ = nullptr;
+    pAttr_ = nullptr;
     pFunc_ = nullptr;
 }
 /// Initialize attribute as pointer.
-void Attribute::init_pointer(observ_dbl_ptr y)
+void Attribute::init_pointer(const Attribute *y)
 {
     if (y == nullptr)
         throw std::invalid_argument(
@@ -137,7 +137,7 @@ void Attribute::init_pointer(observ_dbl_ptr y)
     get_ptr_ = &Attribute::do_get_pointer_from_pointer_;
     do_set_ = &Attribute::do_set_error_;
     value_ = hsp::na::DOUBLE;
-    ptr_to_value_ = y;
+    pAttr_ = y;
     pFunc_ = nullptr;
 }
 /// Initialize attribute as function.
@@ -155,7 +155,7 @@ void Attribute::init_function(const std::shared_ptr<Function> f)
     get_ptr_ = &Attribute::do_get_pointer_error_;
     do_set_ = &Attribute::do_set_error_;
     value_ = hsp::na::DOUBLE;
-    ptr_to_value_ = nullptr;
+    pAttr_ = nullptr;
     pFunc_ = f;
 }
 
@@ -193,7 +193,7 @@ Function::Function(const std::string &name,
             std::to_string(arg_value.size()) + " values.");
 
     // initialize default 'x' argument
-    x_arg_.name(hsp::params::X);
+    x_arg_.set_name(hsp::params::X);
     x_arg_.set(hsp::na::DOUBLE);
 
     // allocate attribute for remaining arguments
@@ -206,15 +206,15 @@ Function::Function(const std::string &name,
             x_arg_.set(arg_value[k]);
         else
         {
-            arguments_[c].name(arg_name[k]);
+            arguments_[c].set_name(arg_name[k]);
             arguments_[c++].set(arg_value[k]);
         }
 
     // Assign Domain
     // UPDATE: at the moment only place where to set open ranges
     // UPDATE: not sure if setting pointer to smtg exiting the domain I still have control
-    init_attr(hsp::params::MIN, domain_min);
-    init_attr(hsp::params::MAX, domain_max);
+    init_attr(hsp::params::MIN, Attribute(domain_min));
+    init_attr(hsp::params::MAX, Attribute(domain_max));
     init_range_helper_(is_min_open, is_max_open);
 }
 
@@ -231,13 +231,13 @@ Attribute &Function::find_arg_(const std::string &arg_name)
         return x_arg_;
     else
         for (Attribute &attr : arguments_)
-            if (attr.name() == arg_name)
+            if (attr.get_name() == arg_name)
                 return attr;
 
     // else format the error showing options
     str_vec options = {hsp::params::X};
     for (const Attribute &attr : arguments_)
-        options.push_back(attr.name());
+        options.push_back(attr.get_name());
     throw std::invalid_argument(
         "Unknown argument \"" + arg_name + "\" for " + err_name() + "." +
         hsp::str::find_closest(arg_name, options));
@@ -494,12 +494,12 @@ std::string Function::str_summary(bool show_x_arg) const
 {
     std::string output = name_ + "(";
     if (show_x_arg)
-        output += x_arg_.name() + "=" + hsp::str::format(x_arg_.get());
+        output += x_arg_.get_name() + "=" + hsp::str::format(x_arg_.get());
     for (size_t c = 0; c < arguments_.size(); ++c)
     {
         if (c > 0 || show_x_arg)
             output += ", ";
-        output += arguments_[c].name() + "=" + hsp::str::format(arguments_[c].get());
+        output += arguments_[c].get_name() + "=" + hsp::str::format(arguments_[c].get());
     }
     return output + ") : " + str_range();
 }
@@ -686,7 +686,7 @@ protected:
             return x_arg_;
         else
             for (Attribute &attr : arguments_)
-                if (attr.name() == arg_name)
+                if (attr.get_name() == arg_name)
                     return attr;
 
         // if attribute doesn't exist at initialization, create it

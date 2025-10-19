@@ -125,13 +125,16 @@ HousepiModel <- R6::R6Class(
     ############################################################################
 
     # @description
-    # Enable multiplicity engine.
-    # UPDATE: this will be moved inside C++ standalone.
-    .multiplicity_engine = function() {
+    # Generate multiplicity definitions
+    # UPDATE: this will be moved inside C++ standalone in a future version.
+    #
+    # @return `data.frame`
+    .generate_multiplicity_defs = function() {
       # check if model allows for multiplicity
       refer_file <- private$.reference()
       regexp <- ".multiplicity\\s*\\(\\s*\\)"
 
+      defs <- NULL
       if (template_assert_expression(refer_file, regexp)) {
 
         # note: this might be a modeler error
@@ -184,11 +187,8 @@ HousepiModel <- R6::R6Class(
         for (i in seq_len(nrow(multi_hh_table))) {
           defs[hash_groups[[i]], "class_id"] <- multi_hh_table$class_id[i]
         }
-        # call rcpp method
-        private$.rcpp$import_multiplicity(defs)
       }
-
-      invisible(self)
+      defs
     },
 
     ############################################################################
@@ -291,6 +291,8 @@ HousepiModel <- R6::R6Class(
       # import augmented variables
       private$.rcpp$import_augm(private$.augm$defs)
 
+      # associate multiplicity engine
+      private$.rcpp$import_multiplicity(private$.generate_multiplicity_defs())
       invisible(self)
     },
 
@@ -303,6 +305,9 @@ HousepiModel <- R6::R6Class(
 
       write.csv(private$.rcpp$export_data_wide(),
                 file.path(outpath, "data_wide.csv"),
+                quote = FALSE, row.names = FALSE)
+      write.csv(private$.generate_multiplicity_defs(),
+                file.path(outpath, "multiplicity.csv"),
                 quote = FALSE, row.names = FALSE)
       write.csv(private$.rcpp$export_data_long(),
                 file.path(outpath, "data_long.csv"),
@@ -716,7 +721,6 @@ HousepiModel <- R6::R6Class(
     loglikelihood = function(seed = NA_integer_) {
       # internal build function
       private$.build_full(seed = seed)
-      private$.multiplicity_engine()
       return(private$.rcpp$evaluate())
     },
 
@@ -742,11 +746,8 @@ HousepiModel <- R6::R6Class(
                           thin = thin, adapt = adapt,
                           chains = chains, threads = threads,
                           id_draws = id_draws, seed = seed, progress = progress)
-      private$.multiplicity_engine()
-
       # infer method from cpp model object
       private$.rcpp$infer()
-
       return(HousepiPosteriorDraws$new(private$.rcpp))
     },
 
@@ -782,15 +783,11 @@ HousepiModel <- R6::R6Class(
                           thin = thin, adapt = adapt,
                           chains = chains, threads = threads,
                           seed = seed, progress = progress)
-      private$.multiplicity_engine()
-
       # load options
       scheme <- as.character(scheme)
       rungs <- as.integer(rungs)
-
       # evaluate marginal from the internal Rcpp object
       output <- private$.rcpp$logevidence(scheme, rungs)
-
       # reformat dataframe
       mask <- c("inv_temper", "mean_loglike", "var_loglike")
       output$detail <- as.data.frame(output[mask])

@@ -23,8 +23,6 @@
 #include <unordered_map>
 #include <limits>
 
-using observ_dbl_ptr = const double *;
-
 using int_vec = std::vector<int>;
 using dbl_vec = std::vector<double>;
 using str_vec = std::vector<std::string>;

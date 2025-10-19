@@ -24,13 +24,6 @@ bool operator%(const Container &c, const T &x)
     return std::find(c.begin(), c.end(), x) != c.end();
 }
 
-/// (% overload) Check if unordered_map containes given value.
-template <typename K, typename V, typename Hash, typename Eq, typename Alloc, typename T>
-bool operator%(const std::unordered_map<K, V, Hash, Eq, Alloc> &m, const T &key)
-{
-    return m.find(key) != m.end();
-}
-
 /// (+ overload) Concatenate containers.
 template <typename T>
 std::vector<T> operator+(const std::vector<T> &x, const std::vector<T> &y)

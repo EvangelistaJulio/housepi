@@ -255,16 +255,16 @@ private:
         // impose range minimum equal to argument minimum
         const Attribute &min_arg = arguments_[0];
         if (min_arg.is_function())
-            range_min_ = min_arg.get_function();
+            range_min_.transfer(min_arg);
         else
-            range_min_ = min_arg.get_ptr();
+            range_min_.transfer(min_arg);
 
         // impose range maximum equal to argument maximum
         const Attribute &max_arg = arguments_[1];
         if (max_arg.is_function())
-            range_max_ = max_arg.get_function();
+            range_max_.transfer(max_arg);
         else
-            range_max_ = max_arg.get_ptr();
+            range_max_.transfer(max_arg);
     }
 };
 
@@ -595,7 +595,7 @@ public:
           distr_gen(arg(0), arg(1))
     {
         init_discr_helper_(hsp::discr::DEFINED);
-        init_attr(hsp::params::MAX, get_ptr_to_arg(0));
+        init_attr(hsp::params::MAX, Attribute(get_ptr_to_arg(0)));
         init_range_helper_(false, false);
     }
 
@@ -772,7 +772,7 @@ str_vec DistributionRegistry::get_options() const
 
 std::shared_ptr<Distribution> DistributionRegistry::get_distr(const std::string &opt) const
 {
-    if (factory_map_ % opt)
+    if (factory_map_.count(opt))
         return factory_map_.find(opt)->second();
     return nullptr;
 }

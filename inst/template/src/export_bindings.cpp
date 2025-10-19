@@ -17,9 +17,10 @@
 #include "tools/flags.h"
 #include "tools/na_utils.h"
 #include "tools/error.h"
-#include "model.h"
+#include "function.h"
 #include "function_registry.h"
 #include "distribution_registry.h"
+#include "model.h"
 
 RCPP_MODULE(housepi_flags)
 {
@@ -49,7 +50,7 @@ RCPP_MODULE(housepi_flags)
                     for (R_xlen_t i = 0; i < args.size(); ++i)                                         \
                     {                                                                                  \
                         const std::string this_arg = Rcpp::as<std::string>(arg_names[i]);              \
-                        ptr_->init_attr(this_arg, Rcpp::as<double>(args[i]));                          \
+                        ptr_->init_attr(this_arg, Attribute(Rcpp::as<double>(args[i])));               \
                     }                                                                                  \
                 }                                                                                      \
                                                                                                        \
@@ -60,7 +61,7 @@ RCPP_MODULE(housepi_flags)
                     for (R_xlen_t i = 0; i < range.size(); ++i)                                        \
                         if (!hsp::na::is(Rcpp::as<double>(range[i])))                                  \
                             ptr_->init_attr(Rcpp::as<std::string>(range_names[i]),                     \
-                                            Rcpp::as<double>(range[i]));                               \
+                                            Attribute(Rcpp::as<double>(range[i])));                    \
                 }                                                                                      \
                                                                                                        \
                 if (is_discr)                                                                          \
