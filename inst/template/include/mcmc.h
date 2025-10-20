@@ -128,6 +128,7 @@ public:
 	void init_infec_profile_template(u_dict<std::string> x);
 	double infec_profile_inst(const Individual &member, double t) const;
 	double infec_profile_cumul(const Individual &member, double t) const;
+	void request_infec_profile_discrete();
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////  MCMC : inference //////////////////////////////////////

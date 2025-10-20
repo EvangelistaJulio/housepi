@@ -31,11 +31,11 @@
 void Model::init_advanced_setup()
 {
 	// template infectivity profile (otherwise user defined)
-	init_infec_profile_template(
-		{{"func", "gamma_meanvar|mean:var|{2|N}:{1|N}"}});
+	init_infec_profile_template({{"func", "gamma_meanvar|mean:var|{2|N}:{1|N}"}});
 
 #ifdef _HOUSEPI_DISCRETE_TIME
 	request_augm_discrete("infec_time");
+	request_infec_profile_discrete();
 #endif
 }
 
@@ -214,7 +214,7 @@ void Model::update_cache_dependecies(Household &house, Individual &member_i)
 	//////  Susceptible Members  //////
 	///////////////////////////////////
 
-	double exposure = param("study_period") + house.get_member(i0).augm("onset_time") - t_infec_i;
+	const double exposure = param("study_period") + house.get_member(i0).augm("onset_time") - t_infec_i;
 	for (const Individual &member_k : house.healthy())
 	{
 		cumul_mtx[member_i][member_k] = infec_profile_cumul(member_i, exposure);

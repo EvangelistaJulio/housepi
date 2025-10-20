@@ -197,7 +197,7 @@ HousepiParameter <- R6::R6Class(
         if (length(names(this_def)) == 0) {
           if (length(this_def) == 1) names(this_def) <- "value"
           else stop_h(
-            sprintf("Wrong definition for parameter \"%s\"", def_name),
+            sprintf("Invalid definition for parameter \"%s\"", def_name),
             "Provide a definition list or a scalar (if constant)."
           )
         }

@@ -106,7 +106,7 @@ void MCMC::Impl::Setup::set_n_threads()
     if (n_threads == 0)
         throw std::invalid_argument("N. of threads was not greater than 0.");
 
-#if defined(_OPENMP)
+#ifdef _OPENMP
     unsigned int max_threads = omp_get_num_procs();
 
     if (n_threads > max_threads)
@@ -122,7 +122,7 @@ void MCMC::Impl::Setup::set_n_threads()
 #else
     if (n_threads != 1)
         hsp::msg::warning(
-            "Disable multi-threading: OpenMP is not supported on current machine.");
+            "Multi-threading was disabled. OpenMP is not supported on current machine.");
 
     n_threads = 1;
 #endif
@@ -135,7 +135,7 @@ void MCMC::Impl::Setup::set_prng_seed()
     prng_.seed(seed);
     get_prng_ = &Impl::Setup::do_prng_unique_thread_;
 
-#if defined(_OPENMP)
+#ifdef OPENMP
     // seeds for the case of parallelization
     if (n_threads > 1)
     {
@@ -228,25 +228,25 @@ void Household::init_member(size_t index,
 ///	NOTE : this introduces augmented variables -> it requires RJMCMC in case of inference.
 void Household::set_status_(Individual &member, int new_status)
 {
-    if (new_status != member.status())
-    {
-        const size_t i = static_cast<size_t>(member); // get within house index
+    if (new_status == member.status())
+        return;
 
-        if (member.is_infected_status())
-            infected_list_.erase(std::find(infected_list_.begin(), infected_list_.end(), i));
-        else if (member.is_healthy_status())
-            healthy_list_.erase(std::find(healthy_list_.begin(), healthy_list_.end(), i));
-        else
-            missing_list_.erase(std::find(missing_list_.begin(), missing_list_.end(), i));
+    const size_t i = static_cast<size_t>(member); // get within house index
 
-        member.status_ = new_status; // change member status
-        if (member.is_infected_status())
-            infected_list_.push_back(i);
-        else if (member.is_healthy_status())
-            healthy_list_.push_back(i);
-        else
-            missing_list_.push_back(i);
-    }
+    if (member.is_infected_status())
+        infected_list_.erase(std::find(infected_list_.begin(), infected_list_.end(), i));
+    else if (member.is_healthy_status())
+        healthy_list_.erase(std::find(healthy_list_.begin(), healthy_list_.end(), i));
+    else
+        missing_list_.erase(std::find(missing_list_.begin(), missing_list_.end(), i));
+
+    member.status_ = new_status; // change member status
+    if (member.is_infected_status())
+        infected_list_.push_back(i);
+    else if (member.is_healthy_status())
+        healthy_list_.push_back(i);
+    else
+        missing_list_.push_back(i);
 }
 
 /// Associate a pointer to parameter value for the contact from->to.
@@ -288,87 +288,84 @@ void Household::recover_buffer_values(bool is_cache_depen)
 /// Assign data after pre-processing.
 void MCMC::Impl::DataWide::build(const u_dict<str_vec> &input)
 {
-    if (!input.empty())
+    if (input.empty())
+        return;
+
+    // drop all previous data and prepare for new
+    build_helper_clear_data_();
+
+    // extract headers
+    for (const auto &x : input)
+        headers_.push_back(x.first);
+    // assess the presence of house IDs
+    if (!(headers_ % "house_id"))
+        hsp::msg::warning(
+            "Ignored household structure. Missing data column \"house_id\".");
+
+    // safe load of households
+    report_indiv.total = input.at(headers_[0]).size();
+    for (size_t i = 0; i < report_indiv.total; ++i)
     {
-        // drop all previous data and prepare for new
-        headers_.clear();
-        for (const auto &x : input)
-            headers_.push_back(x.first);
+        std::string id = std::to_string(i + 1);                          // default id
+        std::string house_id = std::to_string(house_vector_.size() + 1); // default house_id
+        int status = hsp::status::MISSING;
+        u_dict<double> data = {};
 
-        report_indiv.total = input.at(headers_[0]).size();
-
-        house_vector_.clear();
-        hhid_to_index_.clear();
-
-        // assess the presence of house IDs
-        if (!(headers_ % "house_id"))
-            hsp::msg::warning(
-                "Ignored household structure. Missing data column \"house_id\".");
-
-        // safe load of households
-        for (size_t i = 0; i < report_indiv.total; ++i)
-        {
-            // default id
-            std::string id = std::to_string(i + 1);
-            // default house_id
-            std::string house_id = std::to_string(house_vector_.size() + 1);
-            int status = hsp::status::MISSING;
-            u_dict<double> data = {};
-
-            // read individual data
-            for (const std::string &key : headers_)
-                if (key == "id")
-                {
-                    id = input.at("id")[i];
-                    if (hsp::na::is(id))
-                        throw std::invalid_argument(
-                            "Individual in row n." + std::to_string(i + 2) + " had missing id.");
-                }
-                else if (key == "house_id")
-                {
-                    house_id = input.at("house_id")[i];
-                    if (hsp::na::is(house_id))
-                        throw std::invalid_argument(
-                            "Individual in row n." + std::to_string(i + 2) + " had missing house_id.");
-                }
-                else if (key == "status")
-                {
-                    // note: NA status is a missing status
-                    if (!hsp::na::is(input.at("status")[i]))
-                        status = hsp::str::toi(input.at("status")[i], "individual status");
-                }
-                else
-                {
-                    data.emplace(key, hsp::str::tod(input.at(key)[i], "data \"" + key + "\""));
-                }
-
-            // if household index doesn't exist, add new household
-            if (!hhid_to_index_.count(house_id))
+        // read individual data
+        for (const std::string &key : headers_)
+            if (key == "id")
             {
-                // map data index to household number
-                hhid_to_index_.emplace(house_id, house_vector_.size());
-                // create a new empty household
-                house_vector_.emplace_back(house_id, house_vector_.size());
+                id = input.at("id")[i];
+                if (hsp::na::is(id))
+                    throw std::invalid_argument(
+                        "Individual in row n." + std::to_string(i + 2) + " had missing id.");
+            }
+            else if (key == "house_id")
+            {
+                house_id = input.at("house_id")[i];
+                if (hsp::na::is(house_id))
+                    throw std::invalid_argument(
+                        "Individual in row n." + std::to_string(i + 2) + " had missing house_id.");
+            }
+            else if (key == "status")
+            {
+                // note: NA status is a missing status
+                if (!hsp::na::is(input.at("status")[i]))
+                    status = hsp::str::toi(input.at("status")[i], "individual status");
+            }
+            else
+            {
+                data.emplace(key, hsp::str::tod(input.at(key)[i], "data \"" + key + "\""));
             }
 
-            // extract the household reference
-            Household &house = house_vector_.at(hhid_to_index_.at(house_id));
-
-            // assign the individual the respective household
-            house.init_member(i, id, status, data);
+        // if household index doesn't exist, add new household
+        if (!hhid_to_index_.count(house_id))
+        {
+            // map data index to household number
+            hhid_to_index_.emplace(house_id, house_vector_.size());
+            // create a new empty household
+            house_vector_.emplace_back(house_id, house_vector_.size());
         }
-        report_house.total = house_vector_.size();
+        // extract the household reference
+        Household &house = house_vector_.at(hhid_to_index_.at(house_id));
 
-        headers_ = headers_ - str_vec({"id", "house_id", "status"});
-
-        // update report for data
-        build_helper_fill_report_data_();
+        // assign the individual the respective household
+        house.init_member(i, id, status, data);
     }
+    report_house.total = house_vector_.size();
+
+    headers_ = headers_ - str_vec({"id", "house_id", "status"});
+
+    // update report for data
+    build_helper_fill_report_data_();
 }
 
 /// Use the loaded data to fill-in the respective report.
-void MCMC::Impl::DataWide::build_helper_clear_report_data_()
+void MCMC::Impl::DataWide::build_helper_clear_data_()
 {
+    headers_.clear();
+    house_vector_.clear();
+    hhid_to_index_.clear();
     all_infected_status_list.clear();
     report_indiv = ReportIndividual();
     report_house = ReportHousehold();
@@ -503,72 +500,72 @@ void MCMC::Impl::Multiplicity::build(const u_dict<str_vec> &deftable)
 /// Assign data after pre-processing.
 void MCMC::Impl::DataLong::build(const u_dict<str_vec> &input)
 {
-    if (!input.empty())
-    {
-        // data sequence headers
-        headers_.clear();
-        for (const auto &x : input)
-            headers_.push_back(x.first);
+    if (input.empty())
+        return;
 
-        // check for individual IDs
-        if (!(headers_ % "id"))
-            throw std::invalid_argument(
-                "Individual identifier column \"id\" was missing.");
-        // remove "id"
-        headers_ = headers_ - str_vec({"id"});
+    // data sequence headers
+    headers_.clear();
+    for (const auto &x : input)
+        headers_.push_back(x.first);
 
-        // individual map for id -> index
-        // note: this could be moved elsewhere if required
-        std::unordered_map<std::string, size_t> id_to_index = {};
-        size_t c = 0;
-        for (const Household &house : pImpl_.data_wide)
-            for (const Individual &member : house)
-                if (id_to_index.count(member.id()))
-                    throw std::invalid_argument(
-                        "There were multiple individuals with id equal to \"" + member.id() + "\".");
-                else
-                    id_to_index.emplace(member.id(), c++);
+    // check for individual IDs
+    if (!(headers_ % "id"))
+        throw std::invalid_argument(
+            "Individual identifier column \"id\" was missing.");
+    // remove "id"
+    headers_ = headers_ - str_vec({"id"});
 
-        // data-long allocation
-        if (indiv_datalist_.empty())
-            indiv_datalist_.resize(pImpl_.data_wide.report_indiv.total);
-
-        for (u_dict<dbl_vec> &xmap : indiv_datalist_)
-            for (const std::string &key : headers_)
-                xmap[key].clear();
-
-        // load individual data list
-        const size_t n_rows = input.at(headers_[0]).size();
-        for (size_t r = 0; r < n_rows; ++r)
-        {
-            std::string id = input.at("id")[r];
-            if (hsp::na::is(id))
+    // individual map for id -> index
+    // note: this could be moved elsewhere if required
+    std::unordered_map<std::string, size_t> id_to_index = {};
+    size_t c = 0;
+    for (const Household &house : pImpl_.data_wide)
+        for (const Individual &member : house)
+            if (id_to_index.count(member.id()))
                 throw std::invalid_argument(
-                    "Invalid id found in row n." + std::to_string(r + 2) + ".");
-            else if (!id_to_index.count(id))
-            {
-                // UPDATE: these errors should be more self-explicative
-                if (pImpl_.data_wide.is_empty())
-                    throw std::invalid_argument(
-                        "Tried to define data long format before wide format.");
-                else
-                    throw std::invalid_argument(
-                        "Id \"" + id + "\" from data long format had no match in loaded data wide format.");
-            }
+                    "There were multiple individuals with id equal to \"" + member.id() + "\".");
+            else
+                id_to_index.emplace(member.id(), c++);
 
-            // append (since vector is initialized to empty)
-            u_dict<dbl_vec> &xdict = indiv_datalist_.at(id_to_index.at(id));
-            for (const std::string &key : headers_)
-                xdict.at(key).emplace_back(
-                    hsp::str::tod(input.at(key).at(r), "data long format \"" + key + "\""));
+    // data-long allocation
+    if (indiv_datalist_.empty())
+        indiv_datalist_.resize(pImpl_.data_wide.report_indiv.total);
+
+    for (u_dict<dbl_vec> &xmap : indiv_datalist_)
+        for (const std::string &key : headers_)
+            xmap[key].clear();
+
+    // load individual data list
+    const size_t n_rows = input.at(headers_[0]).size();
+    for (size_t r = 0; r < n_rows; ++r)
+    {
+        std::string id = input.at("id")[r];
+        if (hsp::na::is(id))
+            throw std::invalid_argument(
+                "Invalid id found in row n." + std::to_string(r + 2) + ".");
+        else if (!id_to_index.count(id))
+        {
+            // UPDATE: these errors should be more self-explicative
+            if (pImpl_.data_wide.is_empty())
+                throw std::invalid_argument(
+                    "Tried to define data long format before wide format.");
+            else
+                throw std::invalid_argument(
+                    "Id \"" + id + "\" from data long format had no match in loaded data wide format.");
         }
 
-        // assign pointers to relative data-long to all individuals
-        c = 0;
-        for (Household &house : pImpl_.data_wide)
-            for (Individual &member : house)
-                member.init_pointer_to_data_long(&indiv_datalist_.at(c++));
+        // append (since vector is initialized to empty)
+        u_dict<dbl_vec> &xdict = indiv_datalist_.at(id_to_index.at(id));
+        for (const std::string &key : headers_)
+            xdict.at(key).emplace_back(
+                hsp::str::tod(input.at(key).at(r), "data long format \"" + key + "\""));
     }
+
+    // assign pointers to relative data-long to all individuals
+    c = 0;
+    for (Household &house : pImpl_.data_wide)
+        for (Individual &member : house)
+            member.init_pointer_to_data_long(&indiv_datalist_.at(c++));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -580,35 +577,35 @@ void MCMC::Impl::DataLong::build(const u_dict<str_vec> &input)
 /// Update model report and set group rates associate to new individual.
 void MCMC::Impl::GroupRates::build(const u_dict<str_vec> &deftable)
 {
-    if (!deftable.empty())
-    {
-        const str_vec data_headers(helper_assert_definitions_(deftable));
+    if (deftable.empty())
+        return;
 
-        // loop over all household members
-        const size_t n_rows = deftable.at("group_rate").size();
-        for (Household &house : pImpl_.data_wide)
-            for (Individual &member : house)
+    const str_vec data_headers(helper_assert_definitions_(deftable));
+
+    // loop over all household members
+    const size_t n_rows = deftable.at("group_rate").size();
+    for (Household &house : pImpl_.data_wide)
+        for (Individual &member : house)
+        {
+            u_dict<str_vec> these_rates = {};
+
+            // obtain group rates for given member
+            for (size_t r = 0; r < n_rows; ++r)
             {
-                u_dict<str_vec> these_rates = {};
+                // check if all conditions are satisfied
+                bool is_this_class = true;
+                for (const std::string &d : data_headers)
+                    if (!hsp::na::is(deftable.at(d)[r]))
+                        is_this_class &= (member.data(d) == hsp::str::tod(deftable.at(d)[r]));
 
-                // obtain group rates for given member
-                for (size_t r = 0; r < n_rows; ++r)
-                {
-                    // check if all conditions are satisfied
-                    bool is_this_class = true;
-                    for (const std::string &d : data_headers)
-                        if (!hsp::na::is(deftable.at(d)[r]))
-                            is_this_class &= (member.data(d) == hsp::str::tod(deftable.at(d)[r]));
-
-                    // if it's the case, add the parameter name
-                    if (is_this_class)
-                        these_rates[deftable.at("group_rate")[r]].push_back(deftable.at("param_name")[r]);
-                }
-
-                // assign rates to the individual
-                helper_init_all_rates_(member, these_rates);
+                // if it's the case, add the parameter name
+                if (is_this_class)
+                    these_rates[deftable.at("group_rate")[r]].push_back(deftable.at("param_name")[r]);
             }
-    }
+
+            // assign rates to the individual
+            helper_init_all_rates_(member, these_rates);
+        }
 }
 
 /// Verify that group rates definitions are correct.
@@ -686,44 +683,44 @@ void MCMC::Impl::GroupRates::helper_init_all_rates_(Individual &member,
 /// Assign parameter definitions to dictionary.
 void MCMC::Impl::Parameter::build(const u_dict<str_vec> &deftable)
 {
-    if (!deftable.empty())
-    {
-        const str_vec file_headers = {"name", "value",
-                                      "const", "discr",
-                                      "prior",
-                                      hsp::params::MIN, hsp::params::MAX,
-                                      "rule", "scale"};
+    if (deftable.empty())
+        return;
 
-        // check entries
-        str_vec headers = hsp::read::table_headers(deftable);
-        hsp::str::assert_no_missing_entries(headers, file_headers);
-        hsp::str::assert_no_unused_entries(headers, file_headers);
+    const str_vec file_headers = {"name", "value",
+                                  "const", "discr",
+                                  "prior",
+                                  hsp::params::MIN, hsp::params::MAX,
+                                  "rule", "scale"};
 
-        // drop current list of parameters
-        dictionary_.clear();
-        list_const.clear();
-        list_sample.clear();
-        list_sample_standard.clear();
-        list_sample_cached.clear();
+    // check entries
+    str_vec headers = hsp::read::table_headers(deftable);
+    hsp::str::assert_no_missing_entries(headers, file_headers);
+    hsp::str::assert_no_unused_entries(headers, file_headers);
 
-        // assert that parameter is not already defined
-        if (deftable.at("name").size() != hsp::str::unique(deftable.at("name")).size())
-            throw std::invalid_argument(
-                "Found multiple definitions for the same parameters.");
+    // drop current list of parameters
+    dictionary_.clear();
+    list_const.clear();
+    list_sample.clear();
+    list_sample_standard.clear();
+    list_sample_cached.clear();
 
-        // load parameters from the row with options
-        for (size_t k = 0; k < deftable.at("name").size(); ++k)
-            if (hsp::str::tobool(deftable.at("const")[k]))
-                build_constant_parameter_(deftable, k);
-            else
-            {
-                list_sample.push_back(deftable.at("name")[k]);
-                build_parameter_to_sample_(deftable, k);
-            }
+    // assert that parameter is not already defined
+    if (deftable.at("name").size() != hsp::str::unique(deftable.at("name")).size())
+        throw std::invalid_argument(
+            "Found multiple definitions for the same parameters.");
 
-        // initialize all parameters to standard
-        list_sample_standard = list_sample;
-    }
+    // load parameters from the row with options
+    for (size_t k = 0; k < deftable.at("name").size(); ++k)
+        if (hsp::str::tobool(deftable.at("const")[k]))
+            build_constant_parameter_(deftable, k);
+        else
+        {
+            list_sample.push_back(deftable.at("name")[k]);
+            build_parameter_to_sample_(deftable, k);
+        }
+
+    // initialize all parameters to standard
+    list_sample_standard = list_sample;
 }
 
 /// Helper to build constant parameter.

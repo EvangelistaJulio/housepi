@@ -33,10 +33,10 @@ HousepiAugmented <- R6::R6Class(
       if (is.na(name)) stop_h("Incomplete definition: missing name.")
       # wrong status
       else if (!is.na(status) && !is.numeric(status)) stop_h(
-        "Wrong status: must be NA or a positive integer alue."
+        "Invalid status: must be NA or a positive integer alue."
       )
       else if (!is.na(status) && (status <= 0)) stop_h(
-        "Wrong status: must be NA or a positive integer value."
+        "Invalid status: must be NA or a positive integer value."
       )
       # remove previous definition
       else if (self$remove(name, status, FALSE)) warning_h(sprintf(
@@ -353,7 +353,7 @@ HousepiAugmented <- R6::R6Class(
             else names(this_def) <- "expr"
           } else {
             stop_h(
-              sprintf("Wrong definition for augmented \"%s\".", def_name),
+              sprintf("Invalid definition for augmented \"%s\".", def_name),
               "Provide scalar, expression or named list (see 'add_augmented')."
             )
           }

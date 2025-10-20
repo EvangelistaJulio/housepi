@@ -92,6 +92,14 @@ show_model_names <- function() {
 #' @keywords internal
 #' @noRd
 copy_template_to_path <- function(name, path) {
+  # avoid current directory
+  if (path == ".") {
+    path <- name
+    warning_h(
+      "Using current directory is not allowed for copying a template.",
+      sprintf("Creating folder \"%s\" instead.", path)
+    )
+  }
   dir.create(path, recursive = TRUE, showWarnings = FALSE)
   if (dir.exists(path)) {
     templ_files <- c("model.cpp",
@@ -176,7 +184,7 @@ template_household_model <- function(name = NA_character_,
       # ... ask for template model description
       if (is.na(path)) open_model_helper_(get_template_dir(name))
       # ... ask for copying template to folder with model
-      else if (any(file.exists(source_files(path)), !replace)) warning_h(
+      else if (all(file.exists(source_files(path)), !replace)) warning_h(
         "A model already exists in the specified folder.",
         "If you want to replace it, run again with option 'replace = TRUE'."
       )

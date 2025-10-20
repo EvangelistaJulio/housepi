@@ -381,8 +381,7 @@ public:
         }
 
         /// Clear data report.
-        void build_helper_clear_report_data_();
-
+        void build_helper_clear_data_();
         /// Use the loaded data to fill-in the respective report.
         void build_helper_fill_report_data_();
     } data_wide;
@@ -533,6 +532,8 @@ public:
         void init_template(u_dict<std::string> input);
         void update(bool is_cache_depen);
         void recover(bool is_cache_depen);
+        void request_discrete() { is_discrete_requested_ = true;};
+        void transfer_augm_definitions(u_dict<str_vec> &target) const;
 
         /////////////////////////////////////////////////////////////////////////////////////////
         ///////////////////////////  MCMC : Impl : InfecProfile : getter  ///////////////////////
@@ -540,7 +541,6 @@ public:
 
         bool is_lookup() const { return inst_ == &InfecProfile::do_inst_lookup_; }
         bool is_augmented() const { return inst_ == &InfecProfile::do_inst_augm_; }
-        const u_dict<str_vec> &get_augm_deftable() const { return augm_infec_profile_deflist_; }
 
         double inst(const Individual *member, double t) { return (this->*inst_)(member, t); }
         double cumul(const Individual *member, double t) { return (this->*cumul_)(member, t); }
@@ -559,6 +559,7 @@ public:
         std::shared_ptr<Distribution> profile_;
 
         // lookup table
+        bool is_discrete_requested_ = false;
         size_t size_lut_ = 0;
         dbl_vec lookup_inst_ = {};
         dbl_vec lookup_cumul_ = {};
@@ -626,7 +627,6 @@ public:
         void build_missing(Individual &member);
         void build_model_logratios(Individual &member);
         void user_reset(Individual &member);
-        void request_augm_discrete(const std::string &x) { user_list_discrete.emplace_back(x); }
 
         void init_draws(unsigned long sample_size);
         void update_draws(unsigned long smpl_count);

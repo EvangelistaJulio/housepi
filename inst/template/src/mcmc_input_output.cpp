@@ -329,6 +329,8 @@ Rcpp::DataFrame MCMC::export_data_long() const { return pImpl_->data_long.rcpp_e
 /////////////////////////////////  MCMC : Impl : report exports  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+double format_percentage(double value, double total) { return std::round(10000. * value / total) / 100.; }
+
 /// Export current data configurations to R DataFrame.
 Rcpp::DataFrame MCMC::Impl::DataWide::rcpp_summarise_cases() const
 {
@@ -350,24 +352,24 @@ Rcpp::DataFrame MCMC::Impl::DataWide::rcpp_summarise_cases() const
         pct[0] = 100.;
 
         counts[1] = report_indiv.missing;
-        pct[1] = 100. * static_cast<double>(report_indiv.missing) / report_indiv.total;
+        pct[1] = format_percentage(report_indiv.missing, report_indiv.total);
 
         counts[2] = report_indiv.healthy;
-        pct[2] = 100. * static_cast<double>(report_indiv.healthy) / report_indiv.total;
+        pct[2] = format_percentage(report_indiv.healthy, report_indiv.total);
 
         counts[3] = report_indiv.infected;
-        pct[3] = 100. * static_cast<double>(report_indiv.infected) / report_indiv.total;
+        pct[3] = format_percentage(report_indiv.infected, report_indiv.total);
 
         counts[4] = report_house.total;
         pct[4] = 100.;
         counts[5] = report_house.no_cases;
-        pct[5] = 100. * static_cast<double>(report_house.no_cases) / report_house.total;
+        pct[5] = format_percentage(report_house.no_cases, report_house.total);
 
         counts[6] = report_house.at_least_1_case;
-        pct[6] = 100. * static_cast<double>(report_house.at_least_1_case) / report_house.total;
+        pct[6] = format_percentage(report_house.at_least_1_case, report_house.total);
 
         counts[7] = report_house.at_least_2_cases;
-        pct[7] = 100. * static_cast<double>(report_house.at_least_2_cases) / report_house.total;
+        pct[7] = format_percentage(report_house.at_least_2_cases, report_house.total);
 
         return DataFrame::create(_["type"] = std::move(type),
                                  _["comment"] = std::move(comment),
@@ -401,19 +403,19 @@ Rcpp::DataFrame MCMC::Impl::DataWide::rcpp_summarise_house_sizes() const
 
         value[0] = report_hh_size.max_cases.first;
         counts[0] = report_hh_size.max_cases.second;
-        pct[0] = 100. * static_cast<double>(report_hh_size.max_cases.second) / report_indiv.total;
+        pct[0] = format_percentage(report_hh_size.max_cases.second, report_indiv.total);
 
         value[1] = report_hh_size.max_miss.first;
         counts[1] = report_hh_size.max_miss.second;
-        pct[1] = 100. * static_cast<double>(report_hh_size.max_miss.second) / report_indiv.total;
+        pct[1] = format_percentage(report_hh_size.max_miss.second, report_indiv.total);
 
         value[2] = report_hh_size.min_size.first;
         counts[2] = report_hh_size.min_size.second;
-        pct[2] = 100. * static_cast<double>(report_hh_size.min_size.second) / report_indiv.total;
+        pct[2] = format_percentage(report_hh_size.min_size.second, report_indiv.total);
 
         value[3] = report_hh_size.max_size.first;
         counts[3] = report_hh_size.max_size.second;
-        pct[3] = 100. * static_cast<double>(report_hh_size.max_size.second) / report_indiv.total;
+        pct[3] = format_percentage(report_hh_size.max_size.second, report_indiv.total);
 
         return DataFrame::create(_["comment"] = std::move(comment),
                                  _["value"] = std::move(value),
@@ -582,23 +584,21 @@ Rcpp::NumericVector MCMC::Impl::Parameter::rcpp_snapshot() const
 {
     using namespace Rcpp;
 
-    if (!dictionary_.empty())
+    if (dictionary_.empty())
+        return NumericVector::create();
+
+    NumericVector output = NumericVector(dictionary_.size());
+    CharacterVector names(dictionary_.size());
+
+    size_t c = 0;
+    for (const auto &this_param : dictionary_)
     {
-        NumericVector output = NumericVector(dictionary_.size());
-        CharacterVector names(dictionary_.size());
-
-        size_t c = 0;
-        for (const auto &this_param : dictionary_)
-        {
-            names[c] = this_param.first;
-            output[c++] = this_param.second.get();
-        }
-        output.names() = names;
-
-        return output;
+        names[c] = this_param.first;
+        output[c++] = this_param.second.get();
     }
+    output.names() = names;
 
-    return NumericVector::create();
+    return output;
 }
 Rcpp::List MCMC::export_house_snapshot(const std::string &house_id) const { return pImpl_->rcpp_export_house_snapshot(house_id); }
 
@@ -644,39 +644,38 @@ Rcpp::DataFrame MCMC::Impl::DataLong::rcpp_snapshot(const std::string &house_id)
 {
     using namespace Rcpp;
 
-    if (!is_empty())
-    {
-        const Household &house = pImpl_.data_wide(house_id);
-        size_t n_rows = 0;
+    if (is_empty())
+        return DataFrame::create();
 
-        for (const Individual &member : house)
-            n_rows += member.data_long(headers_[0]).size();
+    const Household &house = pImpl_.data_wide(house_id);
+    size_t n_rows = 0;
 
-        CharacterVector datalist_id = CharacterVector(n_rows);
+    for (const Individual &member : house)
+        n_rows += member.data_long(headers_[0]).size();
 
-        std::vector<NumericVector> datalist_dbl = {};
-        datalist_dbl.reserve(headers_.size());
-        for (size_t i = 0; i < headers_.size(); ++i)
-            datalist_dbl.emplace_back(n_rows);
+    CharacterVector datalist_id = CharacterVector(n_rows);
 
-        size_t r = 0;
-        for (const Individual &member : house)
-            for (size_t i = 0; i < member.data_long(headers_[0]).size(); ++i)
-            {
-                datalist_id[r] = member.id();
-                for (size_t c = 0; c < headers_.size(); ++c)
-                    datalist_dbl[c][r] = hsp_to_rcpp(member.data_long(headers_[c])[i]);
-                ++r;
-            }
+    std::vector<NumericVector> datalist_dbl = {};
+    datalist_dbl.reserve(headers_.size());
+    for (size_t i = 0; i < headers_.size(); ++i)
+        datalist_dbl.emplace_back(n_rows);
 
-        // assign vectors to dataframe
-        DataFrame output = DataFrame::create(_["id"] = std::move(datalist_id));
-        for (size_t c = 0; c < headers_.size(); ++c)
-            output.push_back(datalist_dbl[c], headers_[c]);
+    size_t r = 0;
+    for (const Individual &member : house)
+        for (size_t i = 0; i < member.data_long(headers_[0]).size(); ++i)
+        {
+            datalist_id[r] = member.id();
+            for (size_t c = 0; c < headers_.size(); ++c)
+                datalist_dbl[c][r] = hsp_to_rcpp(member.data_long(headers_[c])[i]);
+            ++r;
+        }
 
-        return output;
-    }
-    return DataFrame::create();
+    // assign vectors to dataframe
+    DataFrame output = DataFrame::create(_["id"] = std::move(datalist_id));
+    for (size_t c = 0; c < headers_.size(); ++c)
+        output.push_back(datalist_dbl[c], headers_[c]);
+
+    return output;
 }
 
 /// Export to R a snapshot of current state of house augmented variables.
@@ -684,34 +683,33 @@ Rcpp::DataFrame MCMC::Impl::GroupRates::rcpp_snapshot(const std::string &house_i
 {
     using namespace Rcpp;
 
-    if (!headers_.empty())
+    if (headers_.empty())
+        return DataFrame::create();
+
+    const Household &house = pImpl_.data_wide(house_id);
+    const size_t n_rows = house.size();
+    CharacterVector df_id = CharacterVector(n_rows);
+
+    std::vector<NumericVector> group_rate_dbl;
+    group_rate_dbl.reserve(headers_.size());
+    for (size_t c = 0; c < headers_.size(); ++c)
+        group_rate_dbl.emplace_back(NumericVector(n_rows));
+
+    size_t r = 0;
+    for (const Individual &member : house)
     {
-        const Household &house = pImpl_.data_wide(house_id);
-        const size_t n_rows = house.size();
-        CharacterVector df_id = CharacterVector(n_rows);
+        df_id[r] = member.id();
 
-        std::vector<NumericVector> group_rate_dbl;
-        group_rate_dbl.reserve(headers_.size());
         for (size_t c = 0; c < headers_.size(); ++c)
-            group_rate_dbl.emplace_back(NumericVector(n_rows));
-
-        size_t r = 0;
-        for (const Individual &member : house)
-        {
-            df_id[r] = member.id();
-
-            for (size_t c = 0; c < headers_.size(); ++c)
-                group_rate_dbl[c][r] = hsp_to_rcpp(member.group_rate(headers_[c]));
-            ++r;
-        }
-
-        DataFrame output = DataFrame::create(_["id"] = df_id);
-        for (size_t c = 0; c < headers_.size(); ++c)
-            output.push_back(group_rate_dbl[c], headers_[c]);
-
-        return output;
+            group_rate_dbl[c][r] = hsp_to_rcpp(member.group_rate(headers_[c]));
+        ++r;
     }
-    return DataFrame::create();
+
+    DataFrame output = DataFrame::create(_["id"] = df_id);
+    for (size_t c = 0; c < headers_.size(); ++c)
+        output.push_back(group_rate_dbl[c], headers_[c]);
+
+    return output;
 }
 
 /// Export to R a snapshot of current state of house augmented variables.
@@ -719,33 +717,32 @@ Rcpp::DataFrame MCMC::Impl::Augmented::rcpp_snapshot(const std::string &house_id
 {
     using namespace Rcpp;
 
-    if (!list_export.empty())
+    if (list_export.empty())
+        return DataFrame::create();
+
+    const Household &house = pImpl_.data_wide(house_id);
+    const size_t n_rows = house.size();
+    CharacterVector df_id = CharacterVector(n_rows);
+
+    std::vector<NumericVector> augm_dbl;
+    augm_dbl.reserve(list_export.size());
+    for (size_t c = 0; c < list_export.size(); ++c)
+        augm_dbl.emplace_back(NumericVector(n_rows));
+
+    size_t r = 0;
+    for (const Individual &member : house)
     {
-        const Household &house = pImpl_.data_wide(house_id);
-        const size_t n_rows = house.size();
-        CharacterVector df_id = CharacterVector(n_rows);
-
-        std::vector<NumericVector> augm_dbl;
-        augm_dbl.reserve(list_export.size());
+        df_id[r] = member.id();
         for (size_t c = 0; c < list_export.size(); ++c)
-            augm_dbl.emplace_back(NumericVector(n_rows));
-
-        size_t r = 0;
-        for (const Individual &member : house)
-        {
-            df_id[r] = member.id();
-            for (size_t c = 0; c < list_export.size(); ++c)
-                augm_dbl[c][r] = hsp_to_rcpp(member.augm(list_export[c]));
-            ++r;
-        }
-
-        DataFrame output = DataFrame::create(_["id"] = df_id);
-        for (size_t c = 0; c < list_export.size(); ++c)
-            output.push_back(augm_dbl[c], list_export[c]);
-
-        return output;
+            augm_dbl[c][r] = hsp_to_rcpp(member.augm(list_export[c]));
+        ++r;
     }
-    return DataFrame::create();
+
+    DataFrame output = DataFrame::create(_["id"] = df_id);
+    for (size_t c = 0; c < list_export.size(); ++c)
+        output.push_back(augm_dbl[c], list_export[c]);
+
+    return output;
 }
 
 /// Export to R a snapshot of current state of house infectivity profile.
@@ -874,66 +871,64 @@ MAKE_READ_METHOD(Augmented, augm, csv_table)
 /// Initialize the output file with inferred parameters with column names and initial values.
 void MCMC::Impl::print_infer_state(const std::string &output_filename) const
 {
-    if (!hsp::na::is(output_filename))
-    {
-        std::ofstream ofs;
-        ofs.open(output_filename.c_str());
+    if (hsp::na::is(output_filename))
+        return;
 
-        if (ofs.is_open())
+    std::ofstream ofs;
+    ofs.open(output_filename.c_str());
+
+    if (!ofs.is_open())
+        throw std::runtime_error(
+            "Unable to open file: " + output_filename);
+
+    // Headers
+    // header loglikelihood
+    ofs << "iteration" << hsp::read::DELIMITER << "loglikelihood";
+
+    // header parameters
+    for (const std::string &p : param.list_sample)
+        ofs << hsp::read::DELIMITER << p;
+
+    // header augmented variable of id trace
+    if (augm.is_any_draw())
+        for (size_t k = 0; k < augm.smpl_individuals.size(); ++k)
+            for (const std::string &a : augm.list_draws)
+                ofs << hsp::read::DELIMITER << augm.smpl_individuals[k]->id() + "_" + a;
+
+    // header chain
+    ofs << hsp::read::DELIMITER << hsp::read::CHAIN_COLUMN << std::endl;
+
+    // Values
+    for (size_t c = 0; c < setup.n_chains; ++c)
+        for (size_t k = 0; k < setup.c_sample_size; k++)
         {
-            // Headers
-            // header loglikelihood
-            ofs << "iteration" << hsp::read::DELIMITER << "loglikelihood";
+            size_t i = k + c * setup.c_sample_size;
 
-            // header parameters
+            // print iteration
+            unsigned long sweep = setup.n_burnin + (k + 1) * setup.n_thin;
+            ofs << sweep;
+
+            // print loglikelihood
+            ofs << hsp::read::DELIMITER << std::setprecision(2)
+                << std::fixed << smpl_full_loglike_[i];
+
+            // print parameter values
             for (const std::string &p : param.list_sample)
-                ofs << hsp::read::DELIMITER << p;
+                ofs << hsp::read::DELIMITER << std::setprecision(5)
+                    << std::fixed << param.smpl_values.find(p)->second[i];
 
-            // header augmented variable of id trace
-            if (augm.is_any_draw())
+            // print augmented variable of id trace
+            if (!augm.smpl_values.empty())
                 for (size_t k = 0; k < augm.smpl_individuals.size(); ++k)
                     for (const std::string &a : augm.list_draws)
-                        ofs << hsp::read::DELIMITER << augm.smpl_individuals[k]->id() + "_" + a;
-
-            // header chain
-            ofs << hsp::read::DELIMITER << hsp::read::CHAIN_COLUMN << std::endl;
-
-            // Values
-            for (size_t c = 0; c < setup.n_chains; ++c)
-                for (size_t k = 0; k < setup.c_sample_size; k++)
-                {
-                    size_t i = k + c * setup.c_sample_size;
-
-                    // print iteration
-                    unsigned long sweep = setup.n_burnin + (k + 1) * setup.n_thin;
-                    ofs << sweep;
-
-                    // print loglikelihood
-                    ofs << hsp::read::DELIMITER << std::setprecision(2)
-                        << std::fixed << smpl_full_loglike_[i];
-
-                    // print parameter values
-                    for (const std::string &p : param.list_sample)
                         ofs << hsp::read::DELIMITER << std::setprecision(5)
-                            << std::fixed << param.smpl_values.find(p)->second[i];
+                            << std::fixed << augm.smpl_values[k].find(a)->second[i];
 
-                    // print augmented variable of id trace
-                    if (!augm.smpl_values.empty())
-                        for (size_t k = 0; k < augm.smpl_individuals.size(); ++k)
-                            for (const std::string &a : augm.list_draws)
-                                ofs << hsp::read::DELIMITER << std::setprecision(5)
-                                    << std::fixed << augm.smpl_values[k].find(a)->second[i];
-
-                    // print which chain
-                    ofs << hsp::read::DELIMITER << (c + 1) << std::endl;
-                }
-
-            ofs.close();
+            // print which chain
+            ofs << hsp::read::DELIMITER << (c + 1) << std::endl;
         }
-        else
-            throw std::runtime_error(
-                "Unable to open file: " + output_filename);
-    }
+
+    ofs.close();
 }
 void MCMC::print_infer_state(const std::string &f) const { pImpl_->print_infer_state(f); }
 
@@ -951,23 +946,21 @@ std::ofstream open_ofstream_datawide(const std::string &f,
     std::ofstream ofs;
     ofs.open(f.c_str());
 
-    if (ofs.is_open())
-    {
-        // print default data headers
-        ofs << "id" << hsp::read::DELIMITER << "house_id" << hsp::read::DELIMITER << "status";
-
-        // print other data headers
-        for (const std::string &d : data_headers)
-            ofs << hsp::read::DELIMITER << d;
-
-        // print augmented variables headers
-        for (const std::string &a : augm_headers)
-            ofs << hsp::read::DELIMITER << a;
-
-        ofs << std::endl;
-    }
-    else
+    if (!ofs.is_open())
         throw std::runtime_error("Unable to open file: \"" + f + "\"");
+
+    // print default data headers
+    ofs << "id" << hsp::read::DELIMITER << "house_id" << hsp::read::DELIMITER << "status";
+
+    // print other data headers
+    for (const std::string &d : data_headers)
+        ofs << hsp::read::DELIMITER << d;
+
+    // print augmented variables headers
+    for (const std::string &a : augm_headers)
+        ofs << hsp::read::DELIMITER << a;
+
+    ofs << std::endl;
 
     return ofs;
 }
@@ -978,25 +971,25 @@ void update_ofstream_datawide(std::ofstream &ofs,
                               const str_vec &data_headers,
                               const str_vec &augm_headers)
 {
-    if (ofs.is_open())
-        for (const Individual &member : house)
-        {
-            ofs << member.id()
-                << hsp::read::DELIMITER << house.house_id()
-                << hsp::read::DELIMITER << member.status();
-            for (const std::string &d : data_headers)
-                ofs << hsp::read::DELIMITER << member.data(d);
-
-            for (const std::string &a : augm_headers)
-                if (member.is_infected_status())
-                    ofs << hsp::read::DELIMITER << member.augm(a);
-                else
-                    ofs << hsp::read::DELIMITER << hsp::na::DOUBLE;
-
-            ofs << std::endl;
-        }
-    else
+    if (!ofs.is_open())
         throw std::runtime_error("Output file closed unexpectedly.");
+
+    for (const Individual &member : house)
+    {
+        ofs << member.id()
+            << hsp::read::DELIMITER << house.house_id()
+            << hsp::read::DELIMITER << member.status();
+        for (const std::string &d : data_headers)
+            ofs << hsp::read::DELIMITER << member.data(d);
+
+        for (const std::string &a : augm_headers)
+            if (member.is_infected_status())
+                ofs << hsp::read::DELIMITER << member.augm(a);
+            else
+                ofs << hsp::read::DELIMITER << hsp::na::DOUBLE;
+
+        ofs << std::endl;
+    }
 }
 
 /// Print the simulated data to the provided file.

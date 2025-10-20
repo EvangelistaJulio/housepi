@@ -76,7 +76,9 @@ test_that("Deep clone works as expected", {
 
   # check no backward changes
   hhmodel$add_group_rate("susceptibility", by = "sex")
+  hhclone$data_wide <- dplyr::mutate(housepi::survey, status = NA)
   expect_failure(expect_equal(hhmodel$group_rates, hhclone$group_rates))
+  expect_failure(expect_equal(hhmodel$data_wide, hhclone$data_wide))
 })
 
 test_that("Discretization is enabled as expected", {

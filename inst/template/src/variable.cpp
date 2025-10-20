@@ -272,18 +272,18 @@ void Variable::init_distr_attr(const std::string &key, const Attribute &attr)
 /// Initialize distribution reshaping.
 void Variable::init_distr_reshaping(bool discr)
 {
-    if (!pDistr_->is_empty())
-    {
-        if (discr)
-            pDistr_->init_discretization();
-        pDistr_->init_truncation();
+    if (pDistr_->is_empty())
+        return;
 
-        // check that non-constant variable has non-zero dimensional range
-        if ((!is_constant_) && (pDistr_->get_min() == pDistr_->get_max()))
-            throw std::invalid_argument(
-                "Degenerate range " + pDistr_->str_range() +
-                " defined for non constant " + err_name() + ".");
-    }
+    if (discr)
+        pDistr_->init_discretization();
+    pDistr_->init_truncation();
+
+    // check that non-constant variable has non-zero dimensional range
+    if ((!is_constant_) && (pDistr_->get_min() == pDistr_->get_max()))
+        throw std::invalid_argument(
+            "Degenerate range " + pDistr_->str_range() +
+            " defined for non constant " + err_name() + ".");
 }
 
 /// Random initialization of variable.

@@ -229,10 +229,10 @@ Attribute &Function::find_arg_(const std::string &arg_name)
 {
     if (arg_name == hsp::params::X)
         return x_arg_;
-    else
-        for (Attribute &attr : arguments_)
-            if (attr.get_name() == arg_name)
-                return attr;
+
+    for (Attribute &attr : arguments_)
+        if (attr.get_name() == arg_name)
+            return attr;
 
     // else format the error showing options
     str_vec options = {hsp::params::X};
@@ -684,10 +684,10 @@ protected:
     {
         if (arg_name == hsp::params::X)
             return x_arg_;
-        else
-            for (Attribute &attr : arguments_)
-                if (attr.get_name() == arg_name)
-                    return attr;
+
+        for (Attribute &attr : arguments_)
+            if (attr.get_name() == arg_name)
+                return attr;
 
         // if attribute doesn't exist at initialization, create it
         arguments_.emplace_back();
@@ -760,14 +760,15 @@ std::shared_ptr<Function> compose_func_registries(const std::string &opt,
     if (registries.empty())
         throw std::invalid_argument(
             "No registries were provided for \"" + name + "\".");
-    else if (hsp::na::is(opt))
+
+    if (hsp::na::is(opt))
         return std::make_shared<Function>();
-    else
-        for (const auto &r : registries)
-            if (r->get_options() % opt)
-                return r->get(opt, is_primitive);
-            else
-                options += r->get_options();
+
+    for (const auto &r : registries)
+        if (r->get_options() % opt)
+            return r->get(opt, is_primitive);
+        else
+            options += r->get_options();
 
     throw std::invalid_argument(
         "Unknown " + name + " \"" + opt + "\"." + hsp::str::find_closest(opt, options));

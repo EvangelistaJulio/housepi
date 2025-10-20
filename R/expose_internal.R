@@ -24,7 +24,8 @@ get_rcpp_module_from_dll <- function(module_name, dll) {
 
 # Get Rcpp module from model object
 get_rcpp_module_from_model <- function(module_name, model = NULL) {
-  dll <- ifelse(is.null(model), NA_character_, model$path_to_dll)
+  dll <- ifelse(is.null(model), NA_character_,
+                model$.__enclos_env__$private$.dll)
   if (is.na(dll)) {
     housepi_dir <- system.file("template", package = "housepi")
     dll <- file.path(housepi_dir, "src", dll_file_ext("housepienvironment"))

@@ -31,6 +31,28 @@ HousepiGenerator <- R6::R6Class(
   ############################################################################
 
   private = list(
+    # @description
+    # When x$clone(deep=TRUE) is called, the deep_clone gets invoked once for
+    # each field, with the name and value.
+    # UPDATE: when piping I am using this a lot, check for safety...
+    # UPDATE: data should live in a separate environment
+    deep_clone = function(name, value) {
+      # make a new object of rcpp model class
+      if (name == ".rcpp") {
+        output <- NULL
+        if (!is.null(value)) {
+          output <- private$.new_rcpp_model()
+          # note: no factorization is needed here
+          output$import_setup(char_setup_input_(value$export_setup()))
+          output$import_data_wide(char_data_input_(value$export_data_wide()))
+          output$import_data_long(char_data_input_(value$export_data_long()))
+        }
+        return(output)
+      }
+      # for all other fields, use generalized helper for deep clone
+      helper_clone(value)
+    },
+
     .name = NA_character_,
     .dll = NA_character_,
     .cache_dir = NA_character_,
@@ -59,31 +81,6 @@ HousepiGenerator <- R6::R6Class(
     # @field .info_data_long `list`\cr
     # List of levels of the factors in the data long.
     .info_data_long = NULL,
-
-    ############################################################################
-    ############################################################################
-    ############################################################################
-
-    # @description
-    # When x$clone(deep=TRUE) is called, the deep_clone gets invoked once for
-    # each field, with the name and value.
-    # UPDATE: when piping I am using this a lot, check safety
-    deep_clone = function(name, value) {
-      # make a new object of rcpp model class
-      if (name == ".rcpp") {
-        output <- NULL
-        if (!is.null(value)) {
-          output <- private$.new_rcpp_model()
-          # note: no factorization is needed here
-          output$import_setup(char_setup_input_(value$export_setup()))
-          output$import_data_wide(char_data_input_(value$export_data_wide()))
-          output$import_data_long(char_data_input_(value$export_data_long()))
-        }
-        return(output)
-      }
-      # for all other fields, just return the value
-      value
-    },
 
     ############################################################################
     ############################################################################

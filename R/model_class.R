@@ -34,7 +34,6 @@ HousepiModel <- R6::R6Class(
   ############################################################################
 
   private = list(
-    deep_clone = function(name, value) helper_clone(value),
     .param = NULL,
     .augm = NULL,
     .group_rates = NULL,

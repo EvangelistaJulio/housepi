@@ -111,40 +111,44 @@ void MCMC::Impl::InfecProfile::init_template(u_dict<std::string> deflist)
 {
     // if not previous build, proceed with template
     // if no template, assume no need for an infectivity profile
-    if (hsp::na::is(profile_->name()) && augm_infec_profile_deflist_.empty())
-        if (!deflist.empty())
-            try
-            {
-                if (!deflist.count("func"))
-                    throw std::invalid_argument(
-                        "A function name was missing for infectivity profile template.");
+    if (!hsp::na::is(profile_->name()) ||
+        !augm_infec_profile_deflist_.empty() ||
+        deflist.empty())
+        return;
 
-                const str_vec file_headers = {"func", "discr", hsp::params::MAX};
+    try
+    {
+        if (!deflist.count("func"))
+            throw std::invalid_argument(
+                "A function name was missing for infectivity profile template.");
 
-                for (const std::string &key : file_headers)
-                    if (!deflist.count(key))
-                        deflist.emplace(key, hsp::na::STRING);
+        const str_vec file_headers = {"func", "discr", hsp::params::MAX};
 
-                std::string str_is_discr = "false";
-                if (deflist.count("discr"))
-                    if (!hsp::na::is(deflist.at("discr")))
-                        str_is_discr = deflist.at("discr");
-                deflist["discr"] = str_is_discr;
+        for (const std::string &key : file_headers)
+            if (!deflist.count(key))
+                deflist.emplace(key, hsp::na::STRING);
 
-                build(deflist);
+        // discretization
+        deflist["discr"] = "false";
+        if (is_discrete_requested_)
+            deflist["discr"] = "true";
+        else if (deflist.count("discr") && !hsp::na::is(deflist.at("discr")))
+            deflist["discr"] = deflist.at("discr");
+            
+        build(deflist);
 
-                // forbid augmented infectivity profile for template
-                if (is_augmented())
-                    throw std::invalid_argument(
-                        "Tried to define an infectivity profile template depending on augmented variables.");
+        // forbid augmented infectivity profile for template
+        if (is_augmented())
+            throw std::invalid_argument(
+                "Tried to define an infectivity profile template depending on augmented variables.");
 
-                // UPDATE: maybe also not depending on parameters?
-            }
-            catch (const std::exception &e)
-            {
-                throw std::runtime_error(
-                    "While building infectivity profile template:\n" + std::string(e.what()));
-            }
+        // UPDATE: maybe also not depending on parameters?
+    }
+    catch (const std::exception &e)
+    {
+        throw std::runtime_error(
+            "While building infectivity profile template:\n" + std::string(e.what()));
+    }
 }
 
 /// Store values of the infectivity profile.
@@ -182,39 +186,37 @@ void MCMC::Impl::InfecProfile::clear_lookup_()
 }
 
 /// If infectivity profile is a lookup table, store its values.
+/// UPDATE: this should not be recoverd if constant.
 void MCMC::Impl::InfecProfile::update(bool is_cache_depen)
 {
-    // UPDATE: this should not be updated if constant
-    if (is_cache_depen)
-        if (is_lookup())
-        {
-            // move current lookup table to buffer
-            lookup_inst_.swap(lookup_buffer_inst_);
-            lookup_cumul_.swap(lookup_buffer_cumul_);
+    if (!is_cache_depen || !is_lookup())
+        return;
 
-            // Set infectivity to 0 on the same day
-            lookup_inst_[0] = 0.;
-            lookup_cumul_[0] = 0.;
+    // move current lookup table to buffer
+    lookup_inst_.swap(lookup_buffer_inst_);
+    lookup_cumul_.swap(lookup_buffer_cumul_);
 
-            for (size_t i = 1; i < size_lut_; ++i)
-            {
-                double x = do_inst_default_(nullptr, i);
-                lookup_inst_[i] = x;
-                lookup_cumul_[i] = x + lookup_cumul_[i - 1];
-            }
-        }
+    // Set infectivity to 0 on the same day
+    lookup_inst_[0] = 0.;
+    lookup_cumul_[0] = 0.;
+
+    for (size_t i = 1; i < size_lut_; ++i)
+    {
+        double x = do_inst_default_(nullptr, i);
+        lookup_inst_[i] = x;
+        lookup_cumul_[i] = x + lookup_cumul_[i - 1];
+    }
 }
 
 /// If infectivity profile is a lookup table, recover its buffered values.
+/// UPDATE: this should not be recoverd if constant.
 void MCMC::Impl::InfecProfile::recover(bool is_cache_depen)
 {
-    // UPDATE: this should not be recoverd if constant
-    if (is_cache_depen)
-        if (is_lookup())
-        {
-            lookup_inst_.swap(lookup_buffer_inst_);
-            lookup_cumul_.swap(lookup_buffer_cumul_);
-        }
+    if (!is_cache_depen && !is_lookup())
+        return;
+
+    lookup_inst_.swap(lookup_buffer_inst_);
+    lookup_cumul_.swap(lookup_buffer_cumul_);
 }
 
 /// Build infectivity profile distribution .
@@ -222,30 +224,30 @@ void MCMC::Impl::InfecProfile::build(const u_dict<std::string> &deflist)
 {
     augm_infec_profile_deflist_.clear();
 
-    if (!deflist.empty())
-    {
-        const str_vec file_headers = {"func", "discr", hsp::params::MAX};
+    if (deflist.empty())
+        return;
 
-        // check entries
-        hsp::str::assert_no_unused_entries(hsp::read::list_headers(deflist), file_headers);
+    const str_vec file_headers = {"func", "discr", hsp::params::MAX};
 
-        // check definition list has a function
-        if (!deflist.count("func"))
-            throw std::invalid_argument(
-                "A function name choice was missing in the infectivity profile definition.");
-        else if (DefinitionParser(deflist.at("func")).is_na())
-            throw std::invalid_argument(
-                "Provided NA as a function name in the infectivity profile definition.");
+    // check entries
+    hsp::str::assert_no_unused_entries(hsp::read::list_headers(deflist), file_headers);
 
-        // check if definition is generic or augmented
-        bool is_augm = DefinitionParser(deflist.at("func")).is_augmented_depen() ||
-                       DefinitionParser(deflist.at(hsp::params::MAX)).is_augmented_depen();
+    // check definition list has a function
+    if (!deflist.count("func"))
+        throw std::invalid_argument(
+            "A function name choice was missing in the infectivity profile definition.");
+    else if (DefinitionParser(deflist.at("func")).is_na())
+        throw std::invalid_argument(
+            "Provided NA as a function name in the infectivity profile definition.");
 
-        if (is_augm)
-            build_augmented_profile_(deflist);
-        else
-            build_generic_profile_(deflist);
-    }
+    // check if definition is generic or augmented
+    bool is_augm = DefinitionParser(deflist.at("func")).is_augmented_depen() ||
+                   DefinitionParser(deflist.at(hsp::params::MAX)).is_augmented_depen();
+
+    if (is_augm)
+        build_augmented_profile_(deflist);
+    else
+        build_generic_profile_(deflist);
 }
 
 /// Build for generic infectivity profile.
@@ -267,9 +269,11 @@ void MCMC::Impl::InfecProfile::build_generic_profile_(const u_dict<std::string> 
     }
 
     // discretization
-    if (deflist.count("discr"))
-        if (hsp::str::tobool(deflist.at("discr")))
-            profile_->init_discretization();
+    if (deflist.count("discr") && hsp::str::tobool(deflist.at("discr")))
+        profile_->init_discretization();
+    else if (is_discrete_requested_)
+        hsp::msg::error(
+            "Definition of infectivity profile did not return a discrete object as requested by the model.");
 
     // range minimum
     if (profile_->is_discrete())
@@ -294,6 +298,7 @@ void MCMC::Impl::InfecProfile::build_generic_profile_(const u_dict<std::string> 
 void MCMC::Impl::InfecProfile::build_augmented_profile_(const u_dict<std::string> &deflist)
 {
     // use generic build to check profile name at this stage
+    // NOTE: this also control for discretization
     build_generic_profile_({{"func", DefinitionParser(deflist.at("func")).root.func}});
 
     // drop generic definition
@@ -320,6 +325,23 @@ void MCMC::Impl::InfecProfile::build_augmented_profile_(const u_dict<std::string
         {"rule", str_vec(2, hsp::na::STRING)},
         {"scale", str_vec(2, hsp::na::STRING)}};
 }
+
+// Eventually append infectivity profile definitions to augmented.
+void MCMC::Impl::InfecProfile::transfer_augm_definitions(u_dict<str_vec> &augm_deftable) const
+{
+    if (!is_augmented())
+        return;
+
+    for (const auto &pair : augm_infec_profile_deflist_)
+        augm_deftable.at(pair.first) += pair.second;
+
+    if (is_discrete_requested_)
+        for (const std::string &a : {hsp::infprof::INSTANTANEOUS, hsp::infprof::CUMULATIVE})
+            pImpl_.augm.user_list_discrete.emplace_back(a);
+}
+
+/// Request discrete infectivity profile.
+void MCMC::request_infec_profile_discrete() { pImpl_->infec_profile.request_discrete(); }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////  MCMC : Impl : InfecProfile : getter methods  ///////////////////////
@@ -496,33 +518,30 @@ void MCMC::Impl::make_param_cache_depen_(const DefinitionParser::ASTNode &node)
 void MCMC::Impl::Augmented::build(const u_dict<str_vec> &deftable)
 {
     this->deftable_ = deftable;
+    pImpl_.infec_profile.transfer_augm_definitions(this->deftable_);
 
-    // eventually append infectivity profile definition
-    for (const auto &pair : pImpl_.infec_profile.get_augm_deftable())
-        deftable_.at(pair.first) += pair.second;
+    if (deftable_.empty())
+        return;
 
-    if (!deftable_.empty())
-    {
-        const str_vec file_headers = {"name", "status",
-                                      "func", "fcumul",
-                                      "value", "const", "discr",
-                                      "model", hsp::params::MIN, hsp::params::MAX,
-                                      "rule", "scale"};
+    const str_vec file_headers = {"name", "status",
+                                  "func", "fcumul",
+                                  "value", "const", "discr",
+                                  "model", hsp::params::MIN, hsp::params::MAX,
+                                  "rule", "scale"};
 
-        // check entries
-        str_vec headers = hsp::read::table_headers(deftable_);
-        hsp::str::assert_no_missing_entries(headers, file_headers);
-        hsp::str::assert_no_unused_entries(headers, file_headers);
+    // check entries
+    str_vec headers = hsp::read::table_headers(deftable_);
+    hsp::str::assert_no_missing_entries(headers, file_headers);
+    hsp::str::assert_no_unused_entries(headers, file_headers);
 
-        helper_build_definition_();
-        helper_build_definition_order_();
-        helper_build_model_status_maps_();
+    helper_build_definition_();
+    helper_build_definition_order_();
+    helper_build_model_status_maps_();
 
-        // allocate memory for augmented variables to each individual
-        for (Household &house : pImpl_.data_wide)
-            for (Individual &member : house)
-                clear_all(member);
-    }
+    // allocate memory for augmented variables to each individual
+    for (Household &house : pImpl_.data_wide)
+        for (Individual &member : house)
+            clear_all(member);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -789,13 +808,15 @@ void MCMC::Impl::Augmented::init()
 {
     helper_init_id_draws_();
 
-    if (is_any())
-        for (Household &house : pImpl_.data_wide)
-            for (Individual &member : house.infected())
-            {
-                build_all(member);
-                build_model_logratios(member);
-            }
+    if (!is_any())
+        return;
+
+    for (Household &house : pImpl_.data_wide)
+        for (Individual &member : house.infected())
+        {
+            build_all(member);
+            build_model_logratios(member);
+        }
 }
 
 /// Assign all augmented variables to single individual.
@@ -884,7 +905,7 @@ void MCMC::Impl::Augmented::helper_init_attributes_(Individual &member, size_t k
         if (!user_list_discrete.empty() && (user_list_discrete % a) && !xaugm.is_discrete())
             throw std::invalid_argument(
                 "Definition of " + xaugm.err_name() +
-                " did not return a discrete defined object as requested by the model.");
+                " did not return a discrete object as requested by the model.");
     }
     catch (const std::exception &e)
     {
@@ -912,7 +933,7 @@ void MCMC::Impl::Augmented::init_model_attributes_(Individual &member, size_t k)
 void MCMC::Impl::Augmented::init_func_attributes_(Individual &member, size_t k)
 {
     Variable &xaugm = member.get_augm_variable(deftable_["name"][k]);
-    
+
     // initialize function
     for (const auto &child : DefinitionParser(deftable_["func"][k]).root.children)
     {
@@ -942,10 +963,12 @@ void MCMC::Impl::Augmented::user_reset(Individual &member)
 /// Initialize augmented initial values for all individuals.
 void MCMC::Impl::Augmented::user_reset()
 {
-    if (is_any())
-        for (Household &house : pImpl_.data_wide)
-            for (Individual &member : house.infected())
-                user_reset(member);
+    if (!is_any())
+        return;
+
+    for (Household &house : pImpl_.data_wide)
+        for (Individual &member : house.infected())
+            user_reset(member);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -960,83 +983,85 @@ void MCMC::Impl::Augmented::helper_init_id_draws_()
     str_vec &id_draws = pImpl_.setup.id_draws;
     smpl_individuals.clear();
 
-    if (!id_draws.empty())
+    if (id_draws.empty())
+        return;
+
+    if (is_any_sample())
     {
-        if (is_any_sample())
-        {
-            smpl_individuals.reserve(id_draws.size());
+        smpl_individuals.reserve(id_draws.size());
 
-            // check id across all individuals
-            str_vec already_stored_id = {};
-            for (const Household &house : pImpl_.data_wide)
-                for (const Individual &member : house)
-                    if (id_draws % member.id())
+        // check id across all individuals
+        str_vec already_stored_id = {};
+        for (const Household &house : pImpl_.data_wide)
+            for (const Individual &member : house)
+                if (id_draws % member.id())
+                {
+                    if (already_stored_id % member.id())
+                        throw std::invalid_argument(
+                            "Multiple individuals shared the same id \"" + member.id() + "\".");
+                    else
                     {
-                        if (already_stored_id % member.id())
-                            throw std::invalid_argument(
-                                "Multiple individuals shared the same id \"" + member.id() + "\".");
-                        else
-                        {
-                            already_stored_id.push_back(member.id());
-                            smpl_individuals.emplace_back(&member);
-                        }
+                        already_stored_id.push_back(member.id());
+                        smpl_individuals.emplace_back(&member);
                     }
+                }
 
-            // check all user request are satisfied
-            hsp::str::assert_no_missing_entries(already_stored_id, id_draws, "trace id");
+        // check all user request are satisfied
+        hsp::str::assert_no_missing_entries(already_stored_id, id_draws, "trace id");
 
-            if (is_any_draw())
-            {
-                for (const auto member : smpl_individuals)
-                    if (!member->is_infected_status())
-                        hsp::msg::warning(
-                            "Ignored draws of non infected " + member->err_name() + ".");
-            }
-            else
-            {
-                // UPDATE: is this even possible?
-                hsp::msg::warning(
-                    "Ignored id draws for individual(s) " + hsp::str::format(id_draws));
-                id_draws.clear();
-            }
+        if (is_any_draw())
+        {
+            for (const auto member : smpl_individuals)
+                if (!member->is_infected_status())
+                    hsp::msg::warning(
+                        "Ignored draws of non infected " + member->err_name() + ".");
         }
         else
         {
+            // UPDATE: is this even possible?
             hsp::msg::warning(
-                "Ignored id draws. No augmented variables to sample were defined.");
+                "Ignored id draws for individual(s) " + hsp::str::format(id_draws));
             id_draws.clear();
         }
+    }
+    else
+    {
+        hsp::msg::warning(
+            "Ignored id draws. No augmented variables to sample were defined.");
+        id_draws.clear();
     }
 }
 
 /// Initialize sample for individual augmented variable followup.
 void MCMC::Impl::Augmented::init_draws(unsigned long sample_size)
 {
-    if (is_any_draw())
+    if (!is_any_draw())
+        return;
+
+    smpl_values.clear();
+    smpl_values.resize(smpl_individuals.size());
+    for (size_t k = 0; k < smpl_individuals.size(); ++k)
     {
-        smpl_values.clear();
-        smpl_values.resize(smpl_individuals.size());
-        for (size_t k = 0; k < smpl_individuals.size(); ++k)
-        {
-            smpl_values[k].clear();
-            smpl_values[k].reserve(list_draws.size());
-            for (const std::string &a : list_draws)
-                smpl_values[k][a].assign(sample_size, hsp::na::DOUBLE);
-        }
+        smpl_values[k].clear();
+        smpl_values[k].reserve(list_draws.size());
+        for (const std::string &a : list_draws)
+            smpl_values[k][a].assign(sample_size, hsp::na::DOUBLE);
     }
 }
 
 /// Store sample for individual augmented variable followup.
 void MCMC::Impl::Augmented::update_draws(unsigned long smpl_count)
 {
-    if (is_any_draw())
-        for (size_t k = 0; k < smpl_individuals.size(); ++k)
-        {
-            auto &smpl_augm_value_k = smpl_values[k];
-            const auto member_star = smpl_individuals[k];
-            for (const std::string &a : list_draws)
-                smpl_augm_value_k[a][smpl_count] = member_star->augm(a);
-        }
+    if (!is_any_draw())
+        return;
+
+    for (size_t k = 0; k < smpl_individuals.size(); ++k)
+    {
+        auto &smpl_augm_value_k = smpl_values[k];
+        const auto member_star = smpl_individuals[k];
+        for (const std::string &a : list_draws)
+            smpl_augm_value_k[a][smpl_count] = member_star->augm(a);
+    }
 }
 
 /// Clears all memory allocated by the Augmented structure.
@@ -1171,4 +1196,4 @@ void MCMC::init_missing_augm(Individual &member)
     pImpl_->augm.user_reset(member);
 }
 void MCMC::clear_all_augm(Individual &member) { pImpl_->augm.clear_all(member); }
-void MCMC::request_augm_discrete(const std::string &x) { pImpl_->augm.request_augm_discrete(x); }
+void MCMC::request_augm_discrete(const std::string &x) { pImpl_->augm.user_list_discrete.emplace_back(x); }
