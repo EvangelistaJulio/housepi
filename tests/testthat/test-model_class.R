@@ -247,6 +247,17 @@ test_that("Augmented aliasing works as expected", {
     ..dummy = ~x @D
   )
   expect_equal(hhmodel$loglikelihood(), ll)
+  
+  # check normalization of binomial with augmented example
+  hhmodel <- new_housepi_model("augmented_example")
+  hhmodel$data_wide <- data.frame(
+    id = seq(0, 100), house_id = "hh1", status = 1, X = seq(0, 100))
+  hhmodel$load_augmented_list(
+    pdf = list(func = "binomial", 
+               func_args = c(x = ~ X@D, size = 10, prob = 0.5)),
+    proba = ~exp(pdf)
+  )
+  expect_equal(hhmodel$loglikelihood(), 1)
 })
 
 test_that("Augmentation example on incubation from delays is coherent", {

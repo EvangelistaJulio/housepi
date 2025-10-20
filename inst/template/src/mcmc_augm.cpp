@@ -424,13 +424,14 @@ const Attribute &MCMC::Impl::read_attribute_(const DefinitionParser::ASTNode &no
     storage_ = Attribute(); // reset storage
 
     if (node.is_empty()) // empty node
-        return storage_; 
+        return storage_;
 
     if (!node.is_terminal()) // function node
     {
-        storage_ = Attribute(node.func);
+        Attribute temporary(node.func);
         for (const auto &child : node.children)
-            storage_.get_function()->init_attr(child.key, read_attribute_(child, member));
+            temporary.get_function()->init_attr(child.key, read_attribute_(child, member));
+        storage_ = std::move(temporary);
         return storage_;
     }
 
@@ -786,25 +787,15 @@ void MCMC::Impl::Augmented::clear_all(Individual &member)
 /// NOTE: this must not be called before simulation which build on demand.
 void MCMC::Impl::Augmented::init()
 {
+    helper_init_id_draws_();
+
     if (is_any())
         for (Household &house : pImpl_.data_wide)
             for (Individual &member : house.infected())
-                try
-                {
-                    // intialize all augmented definitions
-                    build_all(member);
-                    // initialize augmented model
-                    member.init_augm_model_logratios(status_map_model[member.status()]);
-                }
-                catch (const std::exception &e)
-                {
-                    throw std::runtime_error(
-                        "While initializing " + section_name_ +
-                        " for " + member.err_name() + ":\n" +
-                        std::string(e.what()));
-                }
-
-    helper_init_id_draws_();
+            {
+                build_all(member);
+                build_model_logratios(member);
+            }
 }
 
 /// Assign all augmented variables to single individual.
@@ -822,6 +813,22 @@ void MCMC::Impl::Augmented::build_missing(Individual &member)
     for (size_t k : init_get_definition_order_(member))
         if (member.get_augm_variable(deftable_["name"][k]).is_empty())
             helper_init_attributes_(member, k);
+}
+
+// Assign all augmented models to single individual.
+void MCMC::Impl::Augmented::build_model_logratios(Individual &member)
+{
+    try
+    {
+        member.init_augm_model_logratios(status_map_model[member.status()]);
+    }
+    catch (const std::exception &e)
+    {
+        throw std::runtime_error(
+            "While initializing " + section_name_ + " model " +
+            " for " + member.err_name() + ":\n" +
+            std::string(e.what()));
+    }
 }
 
 /// Get the definition order for current member according to its status.
@@ -853,29 +860,39 @@ std::vector<size_t> MCMC::Impl::Augmented::init_get_definition_order_(Individual
 void MCMC::Impl::Augmented::helper_init_attributes_(Individual &member, size_t k)
 {
     const std::string &a = deftable_["name"][k];
-    member.init_augm(a, pImpl_.read_numeric_(deftable_["value"][k], member).get(),
-                     hsp::str::tobool(deftable_["const"][k]),
-                     deftable_["func"][k], hsp::str::tobool(deftable_["fcumul"][k]),
-                     deftable_["model"][k]);
-    Variable &xaugm = member.get_augm_variable(a);
 
-    // assign arguments to model and associate discretization
-    init_model_attributes_(member, k);
+    try
+    {
+        member.init_augm(a, pImpl_.read_numeric_(deftable_["value"][k], member).get(),
+                         hsp::str::tobool(deftable_["const"][k]),
+                         deftable_["func"][k], hsp::str::tobool(deftable_["fcumul"][k]),
+                         deftable_["model"][k]);
+        Variable &xaugm = member.get_augm_variable(a);
 
-    if (xaugm.is_function()) // function
-        init_func_attributes_(member, k);
-    else if (xaugm.is_pointer()) // pointer (case of identity function)
-        xaugm.transfer(pImpl_.read_attribute_(deftable_["func"][k], member));
+        // assign arguments to model and associate discretization
+        init_model_attributes_(member, k);
+        if (xaugm.is_function()) // function
+            init_func_attributes_(member, k);
+        else if (xaugm.is_pointer()) // pointer (case of identity function)
+            xaugm.transfer(pImpl_.read_attribute_(deftable_["func"][k], member));
 
-    // assign proposer if variable to be sampled
-    if (!xaugm.is_constant())
-        xaugm.init_proposer(deftable_["rule"][k], hsp::str::tod(deftable_["scale"][k]));
+        // assign proposer if variable to be sampled
+        if (!xaugm.is_constant())
+            xaugm.init_proposer(deftable_["rule"][k], hsp::str::tod(deftable_["scale"][k]));
 
-    // check if satisfies discrete requirement, if any
-    if (!user_list_discrete.empty() && (user_list_discrete % a) && !xaugm.is_discrete())
-        throw std::invalid_argument(
-            "Definition of " + xaugm.err_name() +
-            " did not return a discrete defined object as requested by the model.");
+        // check if satisfies discrete requirement, if any
+        if (!user_list_discrete.empty() && (user_list_discrete % a) && !xaugm.is_discrete())
+            throw std::invalid_argument(
+                "Definition of " + xaugm.err_name() +
+                " did not return a discrete defined object as requested by the model.");
+    }
+    catch (const std::exception &e)
+    {
+        throw std::runtime_error(
+            "While initializing " + section_name_ + " \"" + a +
+            "\" for " + member.err_name() + ":\n" +
+            std::string(e.what()));
+    }
 }
 
 /// Auxiliary method to assign attributes to augmented model.
@@ -895,16 +912,19 @@ void MCMC::Impl::Augmented::init_model_attributes_(Individual &member, size_t k)
 void MCMC::Impl::Augmented::init_func_attributes_(Individual &member, size_t k)
 {
     Variable &xaugm = member.get_augm_variable(deftable_["name"][k]);
-
+    
+    // initialize function
     for (const auto &child : DefinitionParser(deftable_["func"][k]).root.children)
     {
-        // get auxiliary attribute
         xaugm.init_func_attr(child.key, pImpl_.read_attribute_(child, member));
         pImpl_.make_param_cache_depen_(child);
     }
 
+    // initialize range
     for (const std::string &key : {hsp::params::MIN, hsp::params::MAX})
         xaugm.init_func_attr(key, pImpl_.read_attribute_(deftable_[key][k], member));
+
+    // initialize discretization and truncation
     xaugm.init_func_reshaping(hsp::str::tobool(deftable_["discr"][k]));
 }
 

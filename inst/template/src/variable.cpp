@@ -229,34 +229,24 @@ void Variable::user_reset(rnd_gen &prng)
 /// Drop function if it's constant when reshaping.
 void Variable::init_func_reshaping(bool discr)
 {
-    if (is_function())
+    // NOTE: discretization of model has priority
+    // e. g. user discr is FALSE, but discrete-defined model
+    if (!pDistr_->is_empty())
+        discr = pDistr_->is_discrete();
+    if (discr)
+        pFunc_->init_discretization();
+    pFunc_->init_truncation();
+
+    if (pFunc_->is_constant())
+        init(pFunc_->evaluate(), true);
+    else
     {
-        if (pFunc_->is_constant())
-        {
-            double x = pFunc_->evaluate();
-            evaluate_ = &Variable::do_eval_error_;
-            init_numeric(x);
-            user_value_ = x;
-            is_constant_ = true;
-        }
-        else
-        {
-            if (is_constant())
-                throw std::invalid_argument(
-                    "Impossible to set " + err_name() + " as constant. Check its dependencies.");
+        if (is_constant())
+            throw std::invalid_argument(
+                "Impossible to set " + err_name() + " as constant. Check its dependencies.");
 
-            if (!pFunc_->is_implicit_callable())
-                get_ = &Variable::do_get_error_;
-
-            // discretization of model has priority
-            // NOTE: e. g. if user discr is FALSE, but discrete-defined model
-            if (!pDistr_->is_empty())
-                discr = pDistr_->is_discrete();
-
-            if (discr)
-                pFunc_->init_discretization();
-            pFunc_->init_truncation();
-        }
+        if (!pFunc_->is_implicit_callable())
+            get_ = &Variable::do_get_error_;
     }
 }
 

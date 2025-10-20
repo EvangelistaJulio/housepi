@@ -623,9 +623,10 @@ public:
 
         void clear_all(Individual &member);
         void build_all(Individual &member);
-        void request_augm_discrete(const std::string &x) { user_list_discrete.emplace_back(x); }
         void build_missing(Individual &member);
+        void build_model_logratios(Individual &member);
         void user_reset(Individual &member);
+        void request_augm_discrete(const std::string &x) { user_list_discrete.emplace_back(x); }
 
         void init_draws(unsigned long sample_size);
         void update_draws(unsigned long smpl_count);
@@ -702,7 +703,7 @@ private:
     /////////////////////////  MCMC : Impl : definition helpers [private]  //////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    mutable Attribute storage_;
+    mutable Attribute storage_; /// Auxiliary storage attribute used for reading.
     const Attribute &read_numeric_(const DefinitionParser::ASTNode &node, const Individual &member = Individual()) const;
     const Attribute &read_numeric_(const std::string &expr, const Individual &member = Individual()) const;
     const Attribute &read_attribute_(const DefinitionParser::ASTNode &node, const Individual &member = Individual()) const;
@@ -749,7 +750,7 @@ private:
     }
 
     /// Warn if all individuals have missing status.
-    void warn_ift_all_missing_status_()
+    void warn_if_all_missing_status_()
     {
         if (data_wide.report_indiv.total == data_wide.report_indiv.missing)
             hsp::msg::warning("All individuals in the data had missing status.");

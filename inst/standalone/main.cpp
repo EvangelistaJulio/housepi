@@ -15,10 +15,10 @@
 #include <string>
 #include <iostream>
 
-#include "mcmc.h"
 #include "tools/na_utils.h"
 #include "tools/error.h"
 #include "tools/string.h"
+#include "mcmc.h"
 
 // Header to the user defined model provided by the Make command
 #include "model.h"

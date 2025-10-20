@@ -29,14 +29,14 @@ double MCMC::Impl::evaluate()
 {
     try
     {
-        setup.n_chains = 0;             // use 0 chains as a state variable
-        assert_non_empty_data_wide_();  // check if data is empty
-        warn_ift_all_missing_status_(); // warn if all missing status
-        param.user_reset();             // initialize non constant parameters
-        augm.init();                    // initialize individual augmented relations
-        augm.user_reset();              // initialize non constant augmented
-        init_model_for_inference_();    // initialize model for inference
-        update_full_loglike_(true);     // initialize cache + full loglikelihood
+        setup.n_chains = 0;            // use 0 chains as a state variable
+        assert_non_empty_data_wide_(); // check if data is empty
+        warn_if_all_missing_status_(); // warn if all missing status
+        param.user_reset();            // initialize non constant parameters
+        augm.init();                   // initialize individual augmented relations
+        augm.user_reset();             // initialize non constant augmented
+        init_model_for_inference_();   // initialize model for inference
+        update_full_loglike_(true);    // initialize cache + full loglikelihood
         return full_loglike_;
     }
     catch (const std::exception &e)
@@ -145,9 +145,9 @@ void MCMC::infer() { pImpl_->infer(); }
 /// Assert setup definitions are ok to proceed with mcmc sampling.
 void MCMC::Impl::init_monte_carlo_()
 {
-    setup.assert_mcmc_setup();      // assert if setup is ok for mcmc
-    assert_non_empty_data_wide_();  // check if data is empty
-    warn_ift_all_missing_status_(); // warn if all missing status
+    setup.assert_mcmc_setup();     // assert if setup is ok for mcmc
+    assert_non_empty_data_wide_(); // check if data is empty
+    warn_if_all_missing_status_(); // warn if all missing status
 
     // check if there is actually something to sample
     if (!(param.is_any_sample() || augm.is_any_sample()))

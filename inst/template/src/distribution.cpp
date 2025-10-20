@@ -34,7 +34,7 @@ double Distribution::rand(rnd_gen &prng)
 }
 
 /// Rejection sampling.
-/// UPDATE: not efficient at all, need to use quantiles probably.
+/// UPDATE: not efficient at all, need to use quantiles.
 double Distribution::rejec_sample_(rnd_gen &prng, double (Distribution::*func)(rnd_gen &))
 {
     double xnew = (this->*func)(prng);
@@ -595,7 +595,7 @@ public:
           distr_gen(arg(0), arg(1))
     {
         init_discr_helper_(hsp::discr::DEFINED);
-        init_attr(hsp::params::MAX, Attribute(get_ptr_to_arg(0)));
+        range_max_.init_pointer(get_ptr_to_arg(0));
         init_range_helper_(false, false);
     }
 
@@ -605,7 +605,7 @@ public:
         if (get_min() < 0.)
             throw std::invalid_argument(
                 "Invoked invalid min value " + hsp::str::format(range_min_.get()) + " for " + err_name() + ".");
-        else if ((get_min() > 0.) || (get_ptr_to_arg(0) != get_ptr_to_max()))
+        else if (get_min() > 0. || get_ptr_to_arg(0) != get_ptr_to_max())
         {
             if (get_max() > arg(0))
                 throw std::invalid_argument(

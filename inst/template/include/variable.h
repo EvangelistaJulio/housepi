@@ -147,7 +147,7 @@ public:
 
     /// Helper to initialize variable.
     void init(double value, bool is_const,
-              const DefinitionParser &parser, bool is_prim);
+              const DefinitionParser &parser = hsp::na::STRING, bool is_prim = false);
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////  Variable : setter  ///////////////////////////////////
@@ -186,7 +186,7 @@ public:
     /////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Get pointer to distribution.
-    const std::shared_ptr<Distribution> get_distribution() const { return pDistr_;}
+    const std::shared_ptr<Distribution> get_distribution() const { return pDistr_; }
 
     bool is_constant() const override;
     bool is_discrete() const override final;
