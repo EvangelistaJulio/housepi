@@ -148,7 +148,7 @@ public:
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	const std::string &id() const { return id_; }
-	std::string err_name() const override final { return "individual \"" + id_ + "\""; }
+	std::string err_name() const override final { return "individual '" + id_ + "'"; }
 	int status() const { return status_; }
 	bool is_infected_status() const { return hsp::status::is_infected(status_); }
 	bool is_healthy_status() const { return hsp::status::is_healthy(status_); }
@@ -309,7 +309,7 @@ public:
 
 	// Household Getter
 	const std::string &house_id() const { return house_id_; }
-	std::string err_name() const { return "household \"" + house_id_ + "\""; }
+	std::string err_name() const { return "household '" + house_id_ + "'"; }
 	size_t house_index() const { return index_; }
 	size_t size() const { return house_size_; }
 

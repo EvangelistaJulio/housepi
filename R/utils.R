@@ -41,8 +41,8 @@ warning_h <- function(...) {
 # check if suggested library is installed
 require_suggested_library <- function(libname) {
   if (!requireNamespace(libname, quietly = TRUE)) stop_h(
-    sprintf("Attempt to call missing library \"%s\".", libname),
-    sprintf("Install it running: install.packages(\"%s\")", libname)
+    sprintf("Attempt to call missing library '%s'.", libname),
+    sprintf("Install it running: install.packages('%s')", libname)
   )
 }
 
@@ -62,7 +62,7 @@ require_suggested_library <- function(libname) {
 #' @noRd
 character_to_string_list <- function(mylist, max_print = 4) {
   sms <- paste(lapply(mylist[seq_len(min(max_print, length(mylist)))],
-                      function(x) paste0("\"", x, "\"")),
+                      function(x) paste0("'", x, "'")),
                collapse = ", ")
   if (length(mylist) > max_print) return(paste0(sms, ", ..."))
   else return(paste0(sms, "."))
@@ -119,7 +119,7 @@ find_closest_match <- function(input, options, min_dist = 1) {
 
     if (any(idxs)) {
       closest <- options[apply(dists[idxs, , drop = FALSE], 1, which.min)]
-      output <- sprintf("Did you mean \"%s\"?", closest)
+      output <- sprintf("Did you mean '%s'?", closest)
     }
 
     if (!all(idxs)) output <- c(output,
@@ -460,9 +460,9 @@ DefEncoder <- R6::R6Class(
           # explicit type checking
           k <- toupper(k)
           if (!(k %in% names(valid_types))) stop_h(
-            paste0("Invalid type \"", k, "\" for value \"", y, "\"."),
+            paste0("Invalid type '", k, "' for value '", y, "'."),
             paste(
-              sprintf("\"%s\"", names(valid_types)),
+              sprintf("'%s'", names(valid_types)),
               sprintf("(%s)", unlist(valid_types)),
               collapse = ", "
             )

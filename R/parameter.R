@@ -35,7 +35,7 @@ HousepiParameter <- R6::R6Class(
     .helper_prior = function(opts, prior, args) {
       # prior to tell if constant
       if (is.na(prior)) stop_h(
-        sprintf("No prior provided for parameter \"%s\".", opts$name)
+        sprintf("No prior provided for parameter '%s'.", opts$name)
       )
 
       if (!is.null(args)) {
@@ -115,7 +115,7 @@ HousepiParameter <- R6::R6Class(
       mask <- (self$defs[["name"]] == name)
       if (any(mask)) self$defs <- self$defs[!mask, ]
       else if (isTRUE(show_warnings)) warning_h(
-        sprintf("Attempt to remove unknown parameter \"%s\".", name)
+        sprintf("Attempt to remove unknown parameter '%s'.", name)
       )
       return(any(mask))
     },
@@ -136,7 +136,7 @@ HousepiParameter <- R6::R6Class(
       )
       # remove previous definition if it exists
       if (self$remove(name, FALSE)) warning_h(
-        sprintf("Overwriting definition of parameter \"%s\".", name)
+        sprintf("Overwriting definition of parameter '%s'.", name)
       )
 
       opts <- list(name = name,
@@ -155,7 +155,7 @@ HousepiParameter <- R6::R6Class(
       if (isTRUE(const)) {
         # check that a value is provided
         if (is.na(opts$value)) stop_h(
-          sprintf("Missing value for constant parameter \"%s\".", opts$name)
+          sprintf("Missing value for constant parameter '%s'.", opts$name)
         )
       } else {
         opts <- private$.helper_prior(opts, prior, args)
@@ -197,7 +197,7 @@ HousepiParameter <- R6::R6Class(
         if (length(names(this_def)) == 0) {
           if (length(this_def) == 1) names(this_def) <- "value"
           else stop_h(
-            sprintf("Invalid definition for parameter \"%s\"", def_name),
+            sprintf("Invalid definition for parameter '%s'", def_name),
             "Provide a definition list or a scalar (if constant)."
           )
         }

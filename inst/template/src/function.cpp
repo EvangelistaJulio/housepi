@@ -82,7 +82,7 @@ double Attribute::do_get_from_function_() const { return pFunc_->evaluate(); }
 /// Get attribute error for not callable functions.
 double Attribute::do_get_error_() const { throw std::runtime_error(
     "Impossible to return value for " + err_name() +
-    ". Argument \"x\" of " + pFunc_->err_name() + " cannot be missing."); }
+    ". Argument 'x' of " + pFunc_->err_name() + " cannot be missing."); }
 
 /// Wheter it's constant.
 /// NOTE: by construction convention, a pointer to constant must be initialized to numeric instead.
@@ -242,7 +242,7 @@ Attribute &Function::find_arg_(const std::string &arg_name)
     for (const Attribute &attr : arguments_)
         options.push_back(attr.get_name());
     throw std::invalid_argument(
-        "Unknown argument \"" + arg_name + "\" for " + err_name() + "." +
+        "Unknown argument '" + arg_name + "' for " + err_name() + "." +
         hsp::str::find_closest(arg_name, options));
 }
 
@@ -414,8 +414,8 @@ void Function::init_attr(const std::string &key, const Attribute &attr)
     // assert that function attribute are implicitely callable
     if (attr.is_function() && !attr.get_function()->is_implicit_callable())
         throw std::invalid_argument(
-            "Impossible to associate " + attr.err_name() + " as argument \"" + key + "\" of " + err_name() + ".\n" +
-            "Argument \"x\" of " + attr.err_name() + " cannot be missing.");
+            "Impossible to associate " + attr.err_name() + " as argument '" + key + "' of " + err_name() + ".\n" +
+            "Argument 'x' of " + attr.err_name() + " cannot be missing.");
 
     // distinguish between range keys and standard keys
     if (key == hsp::params::MIN || key == hsp::params::MAX)
@@ -765,7 +765,7 @@ std::shared_ptr<Function> compose_func_registries(const std::string &opt,
 
     if (registries.empty())
         throw std::invalid_argument(
-            "No registries were provided for \"" + name + "\".");
+            "No registries were provided for '" + name + "'.");
 
     if (hsp::na::is(opt))
         return std::make_shared<Function>();
@@ -777,7 +777,7 @@ std::shared_ptr<Function> compose_func_registries(const std::string &opt,
             options += r->get_options();
 
     throw std::invalid_argument(
-        "Unknown " + name + " \"" + opt + "\"." + hsp::str::find_closest(opt, options));
+        "Unknown " + name + " '" + opt + "'." + hsp::str::find_closest(opt, options));
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////

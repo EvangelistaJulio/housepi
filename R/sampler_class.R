@@ -186,8 +186,8 @@ IndividualSampler <- R6::R6Class(
 
           } else {
             stop_h(
-              sprintf("Incomplete encoding for feature \"%s\"", col),
-              "Provide one between \"breaks\" ans \"levels\"."
+              sprintf("Incomplete encoding for feature '%s'", col),
+              "Provide one between 'breaks' ans 'levels'."
             )
           }
 

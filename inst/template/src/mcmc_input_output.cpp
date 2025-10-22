@@ -337,7 +337,7 @@ Rcpp::DataFrame MCMC::Impl::DataWide::rcpp_summarise_cases() const
     try
     {
         if (is_empty())
-            hsp::msg::warning("Called \'summarise_cases\' on empty data.");
+            hsp::msg::warning("Called 'summarise_cases' on empty data.");
 
         CharacterVector type = wrap(str_vec(4, "individual") + str_vec(4, "household"));
         const size_t n_rows = type.size();
@@ -813,7 +813,7 @@ Rcpp::List MCMC::Impl::rcpp_export_house_snapshot(const std::string &house_id) c
     }
     catch (const std::exception &e)
     {
-        hsp::msg::error("While exporting house \"" + house_id + "\" for debug:\n" +
+        hsp::msg::error("While exporting house '" + house_id + "' for debug:\n" +
                         std::string(e.what()));
     }
     return List::create();
@@ -942,7 +942,7 @@ std::ofstream open_ofstream_datawide(const std::string &f,
     ofs.open(f.c_str());
 
     if (!ofs.is_open())
-        throw std::runtime_error("Unable to open file: \"" + f + "\"");
+        throw std::runtime_error("Unable to open file: '" + f + "'");
 
     // print default data headers
     ofs << "id" << hsp::read::DELIMITER << "house_id" << hsp::read::DELIMITER << "status";
@@ -1026,7 +1026,7 @@ void MCMC::Impl::print_simulated_data_wide(const std::string &pathtofile)
             ofs.close();
         else
             throw std::runtime_error(
-                "Output file \"" + pathtofile + "\" closed unexpectedly.");
+                "Output file '" + pathtofile + "' closed unexpectedly.");
     }
     catch (const std::exception &e)
     {

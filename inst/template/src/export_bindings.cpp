@@ -71,7 +71,7 @@ RCPP_MODULE(housepi_flags)
             catch (const std::exception &e)                                                            \
             {                                                                                          \
                 hsp::msg::error(                                                                       \
-                    "While initializing " type_string " \"" + name_ + "\":\n" + e.what());             \
+                    "While initializing " type_string " '" + name_ + "':\n" + e.what());               \
             }                                                                                          \
         }                                                                                              \
         ~WrapperName##Housepi() = default;                                                             \
@@ -89,7 +89,7 @@ RCPP_MODULE(housepi_flags)
             catch (const std::exception &e)                                                            \
             {                                                                                          \
                 hsp::msg::error(                                                                       \
-                    "While calling " type_string " \"" + ptr_->name() + "\":\n" + e.what());           \
+                    "While calling " type_string " '" + ptr_->name() + "':\n" + e.what());             \
             }                                                                                          \
             return Rcpp::NumericVector();                                                              \
         }                                                                                              \

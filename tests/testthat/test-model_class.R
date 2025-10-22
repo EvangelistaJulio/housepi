@@ -203,7 +203,7 @@ test_that("Augmented aliasing works as expected", {
       delay = list(model = "uniform", args = c(min = ~ day, max = ~ day + 1)),
       day = list(model = "gamma", args = c(shape = 2, scale = 1))
     )
-  expect_warning(simulated <- simulate(hhmodel), regexp = "blank")
+  simulated <- simulate(hhmodel)
   expect_true(all(simulated$day < simulated$delay))
 })
 

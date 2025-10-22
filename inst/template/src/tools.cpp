@@ -63,7 +63,7 @@ namespace hsp
         /// Suppressing Call Stack Info in Rcpp-Generated Errors and Warnings
         /// Michael Weylandt — written Mar 27, 2018
         /// https://gallery.rcpp.org/articles/quiet-stop-and-warning/
-        void error(const std::string &txt)
+        [[noreturn]] void error(const std::string &txt)
         {
 #ifdef _HOUSEPI_RCPP
             throw Rcpp::exception(txt.c_str(), false);
@@ -148,7 +148,7 @@ namespace hsp
                 return true;
 
             throw std::invalid_argument(
-                "Unrecognized boolean value \"" + tkn + "\".");
+                "Unrecognized boolean value '" + tkn + "'.");
         }
 
         /// Template function to wrap conversion functions with try-catch.
@@ -162,7 +162,7 @@ namespace hsp
             catch (const std::invalid_argument &e)
             {
                 std::string sms = (errtxt.empty()) ? "" : "Unable to import " + errtxt + ". ";
-                throw std::invalid_argument(sms + "Value \"" + input + "\" is not suitable to conversion.");
+                throw std::invalid_argument(sms + "Value '" + input + "' is not suitable to conversion.");
             }
         }
 
@@ -203,9 +203,9 @@ namespace hsp
                 return "";
 
             max_print = std::min(options.size(), max_print);
-            std::string output = "\"" + options[0] + "\"";
+            std::string output = "'" + options[0] + "'";
             for (size_t i = 1; i < max_print; ++i)
-                output += ", \"" + options[i] + "\"";
+                output += ", '" + options[i] + "'";
             if (options.size() > max_print)
                 output += ", ..";
             return output + ".";
@@ -333,7 +333,7 @@ namespace hsp
                 return "";
             }
             else
-                return " Did you mean \"" + closest + "\"?";
+                return " Did you mean '" + closest + "'?";
         }
 
         /// Check for missing entries given a vector of options.
@@ -475,7 +475,7 @@ namespace hsp
             std::ifstream input(pathtofile.c_str());
             if (!input.is_open())
                 throw std::runtime_error(
-                    "Unable to open file \"" + pathtofile + "\".");
+                    "Unable to open file '" + pathtofile + "'.");
 
             // Create a std::stringstream of the current line
             u_dict<std::string> output = {};
@@ -487,11 +487,11 @@ namespace hsp
                 // name
                 if (!std::getline(iss, name, DELIMITER))
                     throw std::runtime_error(
-                        "Unable to extract list name. Check file line \"" + line + "\".");
+                        "Unable to extract list name. Check file line '" + line + "'.");
                 // choice
                 if (!std::getline(iss, choice))
                     throw std::runtime_error(
-                        "Unable to extract list value. Check file line \"" + line + "\".");
+                        "Unable to extract list value. Check file line '" + line + "'.");
 
                 // add the new setup
                 output.emplace(strcleaner_(name), strcleaner_(choice));
@@ -519,7 +519,7 @@ namespace hsp
             std::ifstream input(pathtofile.c_str());
             if (!input.is_open())
                 throw std::runtime_error(
-                    "Unable to open file \"" + pathtofile + "\".");
+                    "Unable to open file '" + pathtofile + "'.");
 
             // read and check for valid headers
             const str_vec headers = read_column_headers_(input);
@@ -841,7 +841,7 @@ DefinitionParser::ASTNode parse_expression_(const std::string &expr)
 
     if (args.size() != children.size())
         throw std::runtime_error(
-            "Mismatch in the number of keys and arguments of definition \"" + expr + "\".");
+            "Mismatch in the number of keys and arguments of definition '" + expr + "'.");
 
     // populate the parent node with children nodes
     DefinitionParser::ASTNode node;
@@ -865,7 +865,7 @@ DefinitionParser::ASTNode parse_expression_(const std::string &expr)
             size_t barc = c.find('|');
             if (barc == std::string::npos)
                 throw std::runtime_error(
-                    "Missing terminal \'|\' in definition \"" + expr + "\".");
+                    "Missing terminal '|' in definition '" + expr + "'.");
             DefinitionParser::ASTNode child(c.substr(0, barc), c.substr(barc + 1));
             child.key = args[i];
             node.children.push_back(std::move(child));

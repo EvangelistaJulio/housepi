@@ -19,10 +19,10 @@ A deep clone of the input object with updated definitions."
 rd_mdl_choice_ <- "`character(1)` with the choice for the model.\\cr
 One between:\\cr
 - template name;\\cr
-- path/to/folder with implementation files \"model.cpp\" and \"model.h\";\\cr
+- path/to/folder with implementation files 'model.cpp' and 'model.h';\\cr
 - path/to/folder with previously compiled model;
-- \"blank\": template name for blank model.
-- `NA`: fall back to \"blank\" (default)."
+- 'blank': template name for blank model.
+- `NA`: fall back to 'blank' (default)."
 rd_mdl_astmpl_ <- "`logical(1)` to store the dynamic library as a local template.\\cr
 If `FALSE` recompile the model at every new session (default)."
 rd_mdl_force_ <- "`logical(1)` to compile even if a cached model already exists.\\cr
@@ -54,15 +54,15 @@ rd_var_max_ <- "`numeric(1)` to truncate to a maximum value."
 
 rd_var_rule_ <- "`character(1)` with proposer rule used during inference.\\cr
 One between:\\cr
-- \"sample\": sampled from the %s distribution;\\cr
-- \"uniform\": increments drawn from uniform distribution;\\cr
-- \"normal\": increments drawn from normal distribution;\\cr
-- \"lognormal\": log-increments drawn from lognormal distribution (for positive values only);
-- `NA` (default): same as \"sample\".
+- 'sample': sampled from the %s distribution;\\cr
+- 'uniform': increments drawn from uniform distribution;\\cr
+- 'normal': increments drawn from normal distribution;\\cr
+- 'lognormal': log-increments drawn from lognormal distribution (for positive values only);
+- `NA` (default): same as 'sample'.
 "
 rd_var_scale_ <- "`numeric(1)` with scale of the proposer rule.\\cr 
 Changed automatically during inference if `n_adpat`>0.\\cr
-Not applicable if rule is \"sample\". Default is `1` otherwise."
+Not applicable if rule is 'sample'. Default is `1` otherwise."
 
 rd_par_discr_ <- sprintf(rd_var_discr_, "prior")
 rd_par_model_ <- sprintf(rd_var_model_, "prior")
@@ -163,8 +163,8 @@ It must be a value in (0.5, 1.0). Default is 0.95."
 
 rd_evi_scheme_ <- "`character(1)` with scheme used for evidence estimation.\\cr
 One between\\cr
-- \"power-fractions\": uses inverse temperatures \\eqn{\\frac{r^5}{{n_\\mathrm{rungs}}^5}}{r^5 / n_rungs^5} (default).
-- \"adaptive\": uses adaptive thermodynamic ladder."
+- 'power-fractions': uses inverse temperatures \\eqn{\\frac{r^5}{{n_\\mathrm{rungs}}^5}}{r^5 / n_rungs^5} (default).
+- 'adaptive': uses adaptive thermodynamic ladder."
 rd_evi_rungs_ <- "`integer(1)` wiht number of rungs in thermodynamic ladder."
 
 rd_param_table_ <- "One between\\cr

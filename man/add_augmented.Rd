@@ -74,16 +74,16 @@ One between:\cr
 \item{rule}{\code{character(1)} with proposer rule used during inference.\cr
 One between:\cr
 \itemize{
-\item "sample": sampled from the \%s distribution;\cr
-\item "uniform": increments drawn from uniform distribution;\cr
-\item "normal": increments drawn from normal distribution;\cr
-\item "lognormal": log-increments drawn from lognormal distribution (for positive values only);
-\item \code{NA} (default): same as "sample".
+\item 'sample': sampled from the \%s distribution;\cr
+\item 'uniform': increments drawn from uniform distribution;\cr
+\item 'normal': increments drawn from normal distribution;\cr
+\item 'lognormal': log-increments drawn from lognormal distribution (for positive values only);
+\item \code{NA} (default): same as 'sample'.
 }}
 
 \item{scale}{\code{numeric(1)} with scale of the proposer rule.\cr
 Changed automatically during inference if \code{n_adpat}>0.\cr
-Not applicable if rule is "sample". Default is \code{1} otherwise.}
+Not applicable if rule is 'sample'. Default is \code{1} otherwise.}
 
 \item{expr}{Provide an expression.}
 }

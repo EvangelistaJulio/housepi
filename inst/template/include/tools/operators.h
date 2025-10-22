@@ -63,7 +63,7 @@ inline T &safe_at(u_dict<T> &m, const std::string &k, const char *what = "key")
     const auto it = m.find(k);
     if (it != m.end())
         return it->second;
-    throw std::out_of_range(std::string("Unknown ") + what + " \"" + k + "\".");
+    throw std::out_of_range(std::string("Unknown ") + what + " '" + k + "'.");
 }
 template <typename T>
 inline const T &safe_at(const u_dict<T> &m, const std::string &k, const char *what = "key")
@@ -71,7 +71,7 @@ inline const T &safe_at(const u_dict<T> &m, const std::string &k, const char *wh
     const auto it = m.find(k);
     if (it != m.end())
         return it->second;
-    throw std::out_of_range(std::string("Unknown ") + what + " \"" + k + "\".");
+    throw std::out_of_range(std::string("Unknown ") + what + " '" + k + "'.");
 }
 
 #endif // HOUSEPI__TOOLS__OPERATORS__H

@@ -22,7 +22,7 @@ namespace hsp
     namespace msg
     {
         /// Throw an error message.
-        void error(const std::string &txt);
+        [[noreturn]] void error(const std::string &txt);
         /// Show a message to stdout and flush.
         void message(const std::string &txt);
         /// Display a warning message if not already displayed before.

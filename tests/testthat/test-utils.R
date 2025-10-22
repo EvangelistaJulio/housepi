@@ -2,7 +2,7 @@ library(testthat)
 
 test_that("Rlang standard functions work as expected", {
   expect_error(housepi:::DefEncoder$new(~log ( alpha @ B )),
-               regexp = "Invalid type \"B\"")
+               regexp = "Invalid type 'B'")
   expect_equal(housepi:::DefEncoder$new(~log(alpha))$x,
                "log|x|{alpha|A}")
   expect_equal(housepi:::DefEncoder$new(~log(alpha @ P))$x,

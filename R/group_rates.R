@@ -345,7 +345,7 @@ HousepiGroupRate <- R6::R6Class(
         return(!is_old_default)
 
       } else if (isTRUE(show_warnings)) {
-        warning_h(sprintf("Attempt to remove unknown group_rate \"%s\".", this))
+        warning_h(sprintf("Attempt to remove unknown group_rate '%s'.", this))
       }
 
       return(FALSE)
@@ -365,7 +365,7 @@ HousepiGroupRate <- R6::R6Class(
 
       # remove previous definition if it exists
       if (self$remove(name, FALSE)) warning_h(
-        sprintf("Overwriting existing \"%s\" definition.", name)
+        sprintf("Overwriting existing '%s' definition.", name)
       )
 
       forbidden <- c("n", "param_name", "group_rate")
@@ -374,7 +374,7 @@ HousepiGroupRate <- R6::R6Class(
           "Argument 'by' must be of type character."
         )
         else if (any(by %in% forbidden)) stop_h(
-          sprintf("Feature name \"%s\" is a reserved word.", by),
+          sprintf("Feature name '%s' is a reserved word.", by),
           "Please, rename feature and corresponding data column."
         )
       }
@@ -434,7 +434,7 @@ HousepiGroupRate <- R6::R6Class(
         if (length(names(this_def)) == 0) {
           if (length(this_def) == 1) names(this_def) <- "by"
           else stop_h(
-            sprintf("Wrong definition for parameter \"%s\"", def_name),
+            sprintf("Wrong definition for parameter '%s'", def_name),
             "Provide a definition list or a scalar (if constant)."
           )
         }
@@ -485,7 +485,7 @@ HousepiGroupRate <- R6::R6Class(
             for (col in names(factor_info)) {
               lv <- factor_info[[col]]$levels
               if (is.null(lv)) stop_h(
-                "Wrong group rate definition: \"", col, "\" has no levels."
+                "Wrong group rate definition: '", col, "' has no levels."
               )
 
               if (col %in% colnames(this_table)) {

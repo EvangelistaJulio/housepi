@@ -83,10 +83,10 @@ used to run inference and simulation routines.
 One between:\cr
 \itemize{
 \item template name;\cr
-\item path/to/folder with implementation files "model.cpp" and "model.h";\cr
+\item path/to/folder with implementation files 'model.cpp' and 'model.h';\cr
 \item path/to/folder with previously compiled model;
-\item "blank": template name for blank model.
-\item \code{NA}: fall back to "blank" (default).
+\item 'blank': template name for blank model.
+\item \code{NA}: fall back to 'blank' (default).
 }}
 
 \item{\code{as_template}}{\code{logical(1)} to store the dynamic library as a local template.\cr
@@ -234,16 +234,16 @@ Default is \code{FALSE}.}
 \item{\code{rule}}{\code{character(1)} with proposer rule used during inference.\cr
 One between:\cr
 \itemize{
-\item "sample": sampled from the prior distribution;\cr
-\item "uniform": increments drawn from uniform distribution;\cr
-\item "normal": increments drawn from normal distribution;\cr
-\item "lognormal": log-increments drawn from lognormal distribution (for positive values only);
-\item \code{NA} (default): same as "sample".
+\item 'sample': sampled from the prior distribution;\cr
+\item 'uniform': increments drawn from uniform distribution;\cr
+\item 'normal': increments drawn from normal distribution;\cr
+\item 'lognormal': log-increments drawn from lognormal distribution (for positive values only);
+\item \code{NA} (default): same as 'sample'.
 }}
 
 \item{\code{scale}}{\code{numeric(1)} with scale of the proposer rule.\cr
 Changed automatically during inference if \code{n_adpat}>0.\cr
-Not applicable if rule is "sample". Default is \code{1} otherwise.}
+Not applicable if rule is 'sample'. Default is \code{1} otherwise.}
 }
 \if{html}{\out{</div>}}
 }
@@ -365,16 +365,16 @@ One between:\cr
 \item{\code{rule}}{\code{character(1)} with proposer rule used during inference.\cr
 One between:\cr
 \itemize{
-\item "sample": sampled from the \%s distribution;\cr
-\item "uniform": increments drawn from uniform distribution;\cr
-\item "normal": increments drawn from normal distribution;\cr
-\item "lognormal": log-increments drawn from lognormal distribution (for positive values only);
-\item \code{NA} (default): same as "sample".
+\item 'sample': sampled from the \%s distribution;\cr
+\item 'uniform': increments drawn from uniform distribution;\cr
+\item 'normal': increments drawn from normal distribution;\cr
+\item 'lognormal': log-increments drawn from lognormal distribution (for positive values only);
+\item \code{NA} (default): same as 'sample'.
 }}
 
 \item{\code{scale}}{\code{numeric(1)} with scale of the proposer rule.\cr
 Changed automatically during inference if \code{n_adpat}>0.\cr
-Not applicable if rule is "sample". Default is \code{1} otherwise.}
+Not applicable if rule is 'sample'. Default is \code{1} otherwise.}
 
 \item{\code{expr}}{Provide an expression.}
 }
@@ -479,16 +479,16 @@ If \code{FALSE} features are combined (default).}
 \item{\code{rule}}{\code{character(1)} with proposer rule used during inference.\cr
 One between:\cr
 \itemize{
-\item "sample": sampled from the \%s distribution;\cr
-\item "uniform": increments drawn from uniform distribution;\cr
-\item "normal": increments drawn from normal distribution;\cr
-\item "lognormal": log-increments drawn from lognormal distribution (for positive values only);
-\item \code{NA} (default): same as "sample".
+\item 'sample': sampled from the \%s distribution;\cr
+\item 'uniform': increments drawn from uniform distribution;\cr
+\item 'normal': increments drawn from normal distribution;\cr
+\item 'lognormal': log-increments drawn from lognormal distribution (for positive values only);
+\item \code{NA} (default): same as 'sample'.
 }}
 
 \item{\code{scale}}{\code{numeric(1)} with scale of the proposer rule.\cr
 Changed automatically during inference if \code{n_adpat}>0.\cr
-Not applicable if rule is "sample". Default is \code{1} otherwise.}
+Not applicable if rule is 'sample'. Default is \code{1} otherwise.}
 }
 \if{html}{\out{</div>}}
 }
@@ -646,8 +646,8 @@ It uses the method of power posteriors with different available schemes.
 \item{\code{scheme}}{\code{character(1)} with scheme used for evidence estimation.\cr
 One between\cr
 \itemize{
-\item "power-fractions": uses inverse temperatures \eqn{\frac{r^5}{{n_\mathrm{rungs}}^5}}{r^5 / n_rungs^5} (default).
-\item "adaptive": uses adaptive thermodynamic ladder.
+\item 'power-fractions': uses inverse temperatures \eqn{\frac{r^5}{{n_\mathrm{rungs}}^5}}{r^5 / n_rungs^5} (default).
+\item 'adaptive': uses adaptive thermodynamic ladder.
 }}
 
 \item{\code{rungs}}{\code{integer(1)} wiht number of rungs in thermodynamic ladder.}

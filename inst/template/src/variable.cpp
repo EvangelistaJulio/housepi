@@ -171,7 +171,7 @@ std::shared_ptr<Proposer> proposer_switch(const std::string &rule_name = hsp::na
         return std::make_shared<Lognorm_Proposer>(rule_scale, is_discrete);
 
     throw std::invalid_argument(
-        "Unknown proposer rule \"" + rule_name + "\"." +
+        "Unknown proposer rule '" + rule_name + "'." +
         hsp::str::find_closest(rule_name, options));
 }
 

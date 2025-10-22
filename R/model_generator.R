@@ -91,7 +91,7 @@ HousepiGenerator <- R6::R6Class(
     .assert_source_files = function() {
       for (file_name in source_files(private$.source_dir)) {
         if (!file.exists(file_name)) stop_h(
-          sprintf("File \"%s\" was not found.", file_name),
+          sprintf("File '%s' was not found.", file_name),
           "Check your model directory."
         )
       }
@@ -116,11 +116,11 @@ HousepiGenerator <- R6::R6Class(
       defined <- c()
       for (i in seq_along(checks)) {
         # regular expression
-        reg <- '%s\\s*\\(\\s*["\'](.*?)["\']'
+        regexp <- '%s\\s*\\(\\s*["\'](.*?)["\']'
         # .extra_<type>("string")
-        reg_called <- sprintf(reg, checks[[i]])
+        reg_called <- sprintf(regexp, checks[[i]])
         # allocate_extra_house_<type>("string")
-        reg_allocated <- sprintf(reg, names(checks)[[i]])
+        reg_allocated <- sprintf(regexp, names(checks)[[i]])
 
         # set of extra variables
         required <- c(required, template_required_find(refer_file, reg_called))
@@ -179,7 +179,7 @@ HousepiGenerator <- R6::R6Class(
       for (f in private$.last_user_flags) {
         if (private$.assert_allows_flag(source_dir, f)) keep <- c(keep, f)
         else if (f == "_HOUSEPI_DISCRETE_TIME") warning_h(
-          sprintf("No visible discrete time option for model \"%s\".",
+          sprintf("No visible discrete time option for model '%s'.",
                   private$.name)
         )
         else warning_h(
@@ -214,11 +214,11 @@ HousepiGenerator <- R6::R6Class(
     .initialize_helper_choice = function(choice) {
       choice_ <- "blank"
       if (is.na(choice)) warning_h(
-        "No model specified. Falling back to \"blank\" model.",
+        "No model specified. Falling back to 'blank' model.",
         "To show available templates, run 'template_household_model'."
       )
       else if (as.character(choice) %in% list(".")) stop_h(
-        sprintf("Invalid choice \"%s\" for housepi model.", choice),
+        sprintf("Invalid choice '%s' for housepi model.", choice),
         "Move your implementation in a different folder."
       )
       else choice_ <- as.character(choice)
@@ -477,7 +477,7 @@ HousepiGenerator <- R6::R6Class(
       output <- dirname(private$.dll)
       # check if reference file exists
       if (!dir.exists(output)) stop_h(
-        sprintf("Impossible to find environment path: \"%s\".", output),
+        sprintf("Impossible to find environment path: '%s'.", output),
         "Try to re-generate the model with 'force = TRUE'."
       )
       output
@@ -489,7 +489,7 @@ HousepiGenerator <- R6::R6Class(
       output <- file.path(private$.source_dir, "model.cpp")
       # check if reference file exists
       if (!file.exists(output)) stop_h(
-        sprintf("Impossible to find reference file: \"%s\".", output),
+        sprintf("Impossible to find reference file: '%s'.", output),
         "Try to re-generate the model with 'force = TRUE'."
       )
       output
@@ -590,7 +590,7 @@ HousepiGenerator <- R6::R6Class(
         choice, as_template, force
       )
       else if (is.na(get_template_dir(choice))) stop_h(
-        sprintf("\"%s\" is not a folder nor a template name.", choice),
+        sprintf("'%s' is not a folder nor a template name.", choice),
         find_closest_template_name(choice)
       )
       else private$.initialize_template_model(choice, force)

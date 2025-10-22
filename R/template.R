@@ -97,7 +97,7 @@ copy_template_to_path <- function(name, path) {
     path <- name
     warning_h(
       "Using current directory is not allowed for copying a template.",
-      sprintf("Creating folder \"%s\" instead.", path)
+      sprintf("Creating folder '%s' instead.", path)
     )
   }
   dir.create(path, recursive = TRUE, showWarnings = FALSE)
@@ -119,7 +119,7 @@ copy_template_to_path <- function(name, path) {
 
   } else {
     stop_h(
-      sprintf("Failed to create directory \"%s\".", path),
+      sprintf("Failed to create directory '%s'.", path),
       "Check your user permissions."
     )
   }
@@ -193,7 +193,7 @@ template_household_model <- function(name = NA_character_,
 
     } else {
       stop_h(
-        sprintf("Provided model template \"%s\" is unknown.", name),
+        sprintf("Provided model template '%s' is unknown.", name),
         "Show available templates calling 'template_household_model'."
       )
     }
@@ -277,7 +277,7 @@ template_required_find <- function(refer_file, regular_expr) {
 
   } else {
     warning_h(
-      sprintf("Impossible to find reference file \"%s\".", refer_file),
+      sprintf("Impossible to find reference file '%s'.", refer_file),
       "Try to generate a new model object."
     )
   }

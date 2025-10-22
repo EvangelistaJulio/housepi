@@ -24,8 +24,8 @@ logevidence(
 \item{scheme}{\code{character(1)} with scheme used for evidence estimation.\cr
 One between\cr
 \itemize{
-\item "power-fractions": uses inverse temperatures \eqn{\frac{r^5}{{n_\mathrm{rungs}}^5}}{r^5 / n_rungs^5} (default).
-\item "adaptive": uses adaptive thermodynamic ladder.
+\item 'power-fractions': uses inverse temperatures \eqn{\frac{r^5}{{n_\mathrm{rungs}}^5}}{r^5 / n_rungs^5} (default).
+\item 'adaptive': uses adaptive thermodynamic ladder.
 }}
 
 \item{rungs}{\code{integer(1)} wiht number of rungs in thermodynamic ladder.}

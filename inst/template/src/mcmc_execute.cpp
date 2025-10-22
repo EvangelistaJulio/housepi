@@ -496,7 +496,7 @@ std::vector<dbl_vec> MCMC::Impl::power_posteriors_(const std::string &scheme, un
     const str_vec options = {"adaptive", "power-fractions"};
     if (!(options % scheme))
         throw std::invalid_argument(
-            "Invoked invalid power posterior scheme \"" + scheme + "\"." +
+            "Invoked invalid power posterior scheme '" + scheme + "'." +
             hsp::str::find_closest(scheme, options));
 
     // check number of rungs for the thermodynamic ladder

@@ -300,7 +300,7 @@ void MCMC::Impl::DataWide::build(const u_dict<str_vec> &input)
     // assess the presence of house IDs
     if (!(headers_ % "house_id"))
         hsp::msg::warning(
-            "Ignored household structure. Missing data column \"house_id\".");
+            "Ignored household structure. Missing data column 'house_id'.");
 
     // safe load of households
     report_indiv.total = input.at(headers_[0]).size();
@@ -335,7 +335,7 @@ void MCMC::Impl::DataWide::build(const u_dict<str_vec> &input)
             }
             else
             {
-                data.emplace(key, hsp::str::tod(input.at(key)[i], "data \"" + key + "\""));
+                data.emplace(key, hsp::str::tod(input.at(key)[i], "data '" + key + "'"));
             }
 
         // if household index doesn't exist, add new household
@@ -510,7 +510,7 @@ void MCMC::Impl::DataLong::build(const u_dict<str_vec> &input)
     // check for individual IDs
     if (!(headers_ % "id"))
         throw std::invalid_argument(
-            "Individual identifier column \"id\" was missing.");
+            "Individual identifier column 'id' was missing.");
     // remove "id"
     headers_ = headers_ - str_vec({"id"});
 
@@ -522,7 +522,7 @@ void MCMC::Impl::DataLong::build(const u_dict<str_vec> &input)
         for (const Individual &member : house)
             if (id_to_index.count(member.id()))
                 throw std::invalid_argument(
-                    "There were multiple individuals with id equal to \"" + member.id() + "\".");
+                    "There were multiple individuals with id equal to '" + member.id() + "'.");
             else
                 id_to_index.emplace(member.id(), c++);
 
@@ -550,14 +550,14 @@ void MCMC::Impl::DataLong::build(const u_dict<str_vec> &input)
                     "Tried to define data long format before wide format.");
             else
                 throw std::invalid_argument(
-                    "Id \"" + id + "\" from data long format had no match in loaded data wide format.");
+                    "Id '" + id + "' from data long format had no match in loaded data wide format.");
         }
 
         // append (since vector is initialized to empty)
         u_dict<dbl_vec> &xdict = indiv_datalist_.at(id_to_index.at(id));
         for (const std::string &key : headers_)
             xdict.at(key).emplace_back(
-                hsp::str::tod(input.at(key).at(r), "data long format \"" + key + "\""));
+                hsp::str::tod(input.at(key).at(r), "data long format '" + key + "'"));
     }
 
     // assign pointers to relative data-long to all individuals
@@ -624,7 +624,7 @@ str_vec MCMC::Impl::GroupRates::helper_assert_definitions_(const u_dict<str_vec>
     for (const std::string &g : deftable.at("group_rate"))
         if (g == hsp::rates::CONTACT || g == hsp::rates::MISSING)
             throw std::invalid_argument(
-                "Tried to use the reserved group rate name \"" + g + "\".\nPlease, choose a different name.");
+                "Tried to use the reserved group rate name '" + g + "'.\nPlease, choose a different name.");
         else if (hsp::na::is(g))
             throw std::invalid_argument(
                 "Found a missing group rate name in the definitions.");
@@ -648,7 +648,7 @@ void MCMC::Impl::GroupRates::helper_init_all_rates_(Individual &member,
         for (const std::string &p : pair.second)
             if (hsp::na::is(p) || p == hsp::rates::MISSING)
                 throw std::invalid_argument(
-                    "A group rate defintion \"" + g + "\" was missing for " + member.err_name() + ".");
+                    "A group rate defintion '" + g + "' was missing for " + member.err_name() + ".");
             else if (p != hsp::rates::REFERENCE)
                 vec_par_ptr.emplace_back(pImpl_.param.at(p).get_ptr());
 
@@ -729,7 +729,7 @@ void MCMC::Impl::Parameter::build_constant_parameter_(const u_dict<str_vec> &def
 
     if (hsp::na::is(deftable.at("value")[k]))
         throw std::invalid_argument(
-            "Constant parameter \"" + p + "\" had undefined value.");
+            "Constant parameter '" + p + "' had undefined value.");
 
     // assign constant parameter to the set of variables
     double value = pImpl_.read_numeric_(deftable.at("value")[k]).get();
@@ -746,7 +746,7 @@ void MCMC::Impl::Parameter::build_parameter_to_sample_(const u_dict<str_vec> &de
     // assert parameter to sample has a valid value initialization
     if (hsp::na::is(deftable.at("value")[k]) && hsp::na::is(deftable.at("prior")[k]))
         throw std::invalid_argument(
-            "Non-constant parameter \"" + p + "\" had undefined prior.");
+            "Non-constant parameter '" + p + "' had undefined prior.");
 
     // load boolean flag for discrete variables
     bool is_discrete = hsp::str::tobool(deftable.at("discr")[k]);
@@ -906,9 +906,9 @@ void MCMC::init_contact_rates_(Household &house)
 
                     if (_pair_contact_rate == hsp::rates::MISSING)
                         throw std::invalid_argument(
-                            "Missing contact rate for individuals \"" +
-                            member_k.id() + "\" and \"" + member_i.id() +
-                            "\" (" + house.err_name() + ").");
+                            "Missing contact rate for individuals '" +
+                            member_k.id() + "' and '" + member_i.id() +
+                            "' (" + house.err_name() + ").");
 
                     else if (_pair_contact_rate != hsp::rates::REFERENCE)
                         y = pImpl_->param.at(_pair_contact_rate); // parameter rate

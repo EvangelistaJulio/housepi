@@ -377,7 +377,7 @@ public:
             if (hhid_to_index_.count(house_id))
                 return hhid_to_index_.at(house_id);
             throw std::invalid_argument(
-                "Index \"" + house_id + "\" did not match any household in the data.");
+                "Index '" + house_id + "' did not match any household in the data.");
         }
 
         /// Clear data report.

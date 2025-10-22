@@ -79,19 +79,19 @@ protected:
 	/// Raw random sampling method of the distribution.
 	/// @param prng : pseudo-random number generator.
 	virtual double raw_rand_(rnd_gen &) { throw std::invalid_argument(
-		"Called undefined method \"rand\" of " + err_name() + "."); }
+		"Called undefined method 'rand' of " + err_name() + "."); }
 
 	/// Raw probability density/mass function of the distribution.
 	virtual double raw_pdf_(double) const { throw std::invalid_argument(
-		"Called to undefined method \"pdf\" of " + err_name() + "."); }
+		"Called to undefined method 'pdf' of " + err_name() + "."); }
 
 	/// Raw log-probability density/mass function of the distribution.
 	virtual double raw_logpdf_(double) const { throw std::invalid_argument(
-		"Called to undefined method \"logpdf\" of " + err_name() + "."); }
+		"Called to undefined method 'logpdf' of " + err_name() + "."); }
 
 	/// Raw cumulative distribution function.
 	virtual double raw_cdf_(double) const { throw std::invalid_argument(
-		"Called to undefined method \"cdf\" of " + err_name() + "."); }
+		"Called to undefined method 'cdf' of " + err_name() + "."); }
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////  Distribution : getter [protected] /////////////////////////////

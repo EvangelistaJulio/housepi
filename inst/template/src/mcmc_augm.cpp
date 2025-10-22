@@ -387,10 +387,10 @@ void walk_dependency_tree(const std::string &entry,
 {
     if (!tree.count(entry))
         throw std::invalid_argument(
-            "Could not find a definition for augmented \"" + entry + "\".");
+            "Could not find a definition for augmented '" + entry + "'.");
     if (recursion_stack % entry)
         throw std::invalid_argument(
-            "Found inadmissible nested definitions for augmented \"" + entry + "\"");
+            "Found inadmissible nested definitions for augmented '" + entry + "'");
     if (visited % entry)
         return;
 
@@ -477,7 +477,7 @@ const Attribute &MCMC::Impl::read_attribute_(const DefinitionParser::ASTNode &no
 
     else if (!node.is_empty())
         throw std::invalid_argument(
-            "Unrecognized source type \"" + node.type + "\" found while parsing \"" + node.str() + "\".");
+            "Unrecognized source type '" + node.type + "' found while parsing '" + node.str() + "'.");
 
     return storage_;
 }
@@ -492,7 +492,7 @@ const Attribute &MCMC::Impl::read_numeric_(const DefinitionParser::ASTNode &node
     const Attribute &aux_attr_ = read_attribute_(node, member);
     if (!aux_attr_.is_empty() && !aux_attr_.is_constant())
         throw std::invalid_argument(
-            "Definition \"" + node.str() + "\" could not be interpreted as a numeric constant.");
+            "Definition '" + node.str() + "' could not be interpreted as a numeric constant.");
     return aux_attr_;
 }
 const Attribute &MCMC::Impl::read_numeric_(const std::string &expr, const Individual &member) const
@@ -556,7 +556,7 @@ void MCMC::Impl::Augmented::helper_assert_no_reserved_()
                 "Found an augmented variable with undefined name.");
         else if (a == hsp::infprof::INSTANTANEOUS || a == hsp::infprof::CUMULATIVE)
             throw std::invalid_argument(
-                "Tried to use the reserved augmented name \"" + a + "\".\nPlease, choose a different name.");
+                "Tried to use the reserved augmented name '" + a + "'.\nPlease, choose a different name.");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -580,7 +580,7 @@ void MCMC::Impl::Augmented::helper_build_definition_()
 
         else if (!hsp::status::is_infected(hsp::str::toi(s, "augmented status")))
             throw std::invalid_argument(
-                "Impossible to associate augmented \"" + deftable_["name"][k] + "\" for non infectious status " + s + ".");
+                "Impossible to associate augmented '" + deftable_["name"][k] + "' for non infectious status " + s + ".");
 
         // store status to definition row index
         status_to_def_row[s].push_back(k);
@@ -595,7 +595,7 @@ void MCMC::Impl::Augmented::helper_build_definition_()
 
         if (name_to_status.size() != hsp::str::unique(name_to_status).size())
             throw std::invalid_argument(
-                "Incompatible definitions found for augmented \"" + pair.first + "\".");
+                "Incompatible definitions found for augmented '" + pair.first + "'.");
     }
 }
 
@@ -704,7 +704,7 @@ void MCMC::Impl::Augmented::set_sample_map_for_(const std::string &s, size_t k)
 
     else if (hsp::na::is(deftable_["value"][k]) && hsp::na::is(deftable_["model"][k]))
         throw std::invalid_argument(
-            "Impossible to initialize augmented \"" + a + "\" for status " + s + " without a value or model.");
+            "Impossible to initialize augmented '" + a + "' for status " + s + " without a value or model.");
 
     else if (!hsp::na::is(deftable_["rule"][k]))
     {
@@ -715,8 +715,8 @@ void MCMC::Impl::Augmented::set_sample_map_for_(const std::string &s, size_t k)
     }
     else
         throw std::runtime_error(
-            "No rule was provided for non-constant definition of augmented \"" + a +
-            "\" for status " + s + ".");
+            "No rule was provided for non-constant definition of augmented '" + a +
+            "' for status " + s + ".");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -920,8 +920,8 @@ void MCMC::Impl::Augmented::helper_init_attributes_(Individual &member, size_t k
     catch (const std::exception &e)
     {
         throw std::runtime_error(
-            "While initializing " + section_name_ + " \"" + a +
-            "\" for " + member.err_name() + ":\n" +
+            "While initializing " + section_name_ + " '" + a +
+            "' for " + member.err_name() + ":\n" +
             std::string(e.what()));
     }
 }
@@ -1010,7 +1010,7 @@ void MCMC::Impl::Augmented::helper_init_id_draws_()
                 {
                     if (already_stored_id % member.id())
                         throw std::invalid_argument(
-                            "Multiple individuals shared the same id \"" + member.id() + "\".");
+                            "Multiple individuals shared the same id '" + member.id() + "'.");
                     else
                     {
                         already_stored_id.push_back(member.id());

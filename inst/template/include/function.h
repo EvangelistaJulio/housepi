@@ -103,7 +103,7 @@ public:
     /// Get attribute name.
     std::string get_name() const { return name_; }
     /// Get attribute name to display in errors.
-    std::string err_name() const { return err_type_ + " \"" + name_ + "\""; }
+    std::string err_name() const { return err_type_ + " '" + name_ + "'"; }
     /// Get a description about the functional status.
     virtual std::string str_summary() const;
 
@@ -242,7 +242,7 @@ public:
     /// Get argument name.
     std::string arg_name(unsigned short i) const { return arguments_[i].get_name(); }
     /// Get function name complete with type to display in errors.
-    std::string err_name() const { return err_type_ + " \"" + name_ + "\""; }
+    std::string err_name() const { return err_type_ + " '" + name_ + "'"; }
 
     std::string str_range() const;
     std::string str_summary(bool show_x_arg = true) const;
@@ -274,13 +274,13 @@ protected:
 
     /// Raw call method.
     virtual double raw_function_(double) const { throw std::invalid_argument(
-        "Called undefined method \"function\" of " + err_name() + "."); }
+        "Called undefined method 'function' of " + err_name() + "."); }
     /// Raw log-call method.
     virtual double raw_logfunc_(double) const { throw std::invalid_argument(
-        "Called undefined method \"logfunc\" of " + err_name() + "."); }
+        "Called undefined method 'logfunc' of " + err_name() + "."); }
     /// Raw primitive method.
     virtual double raw_primitive_(double) const { throw std::invalid_argument(
-        "Called undefined method \"primitive\" of " + err_name() + "."); }
+        "Called undefined method 'primitive' of " + err_name() + "."); }
     /// Raw log-ratio method. NOTE: empty function return 0 by convention.
     virtual double raw_logratio_(double, double) const { return 0.; }
 

@@ -799,7 +799,7 @@ std::shared_ptr<Distribution> compose_distr_registries(const std::string &opt,
 
     if (registries.empty())
         throw std::invalid_argument(
-            "No registries were provided for \"" + name + "\".");
+            "No registries were provided for '" + name + "'.");
 
     if (hsp::na::is(opt))
         return std::make_shared<Distribution>();
@@ -811,7 +811,7 @@ std::shared_ptr<Distribution> compose_distr_registries(const std::string &opt,
             options += r->get_options();
 
     throw std::invalid_argument(
-        "Unknown " + name + " \"" + opt + "\"." +
+        "Unknown " + name + " '" + opt + "'." +
         hsp::str::find_closest(opt, options));
 }
 

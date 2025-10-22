@@ -40,7 +40,7 @@ HousepiAugmented <- R6::R6Class(
       )
       # remove previous definition
       else if (self$remove(name, status, FALSE)) warning_h(sprintf(
-        "Overwriting existing \"%s\" definition%s",
+        "Overwriting existing '%s' definition%s",
         name, ifelse(is.na(status), ".", sprintf(" for status %d.", status))
       ))
       invisible(self)
@@ -52,7 +52,7 @@ HousepiAugmented <- R6::R6Class(
       if (!is.na(parsed$x)) {
         if (is.na(opts$func)) opts$func <- parsed$x
         else stop_h(
-          sprintf("Mutiple function definitions for \"%s\".", opts$name),
+          sprintf("Mutiple function definitions for '%s'.", opts$name),
           "Use either 'expr' or 'func' argument."
         )
       }
@@ -79,7 +79,7 @@ HousepiAugmented <- R6::R6Class(
     # process model arguments
     .helper_model_args = function(opts, args) {
       if (is.na(opts$model))  {
-        msg <- sprintf("Spare arguments for augmented \"%s\".", opts$name)
+        msg <- sprintf("Spare arguments for augmented '%s'.", opts$name)
         if (!is.na(opts$func)) msg <- c(msg, "Did you mean 'func_args'?")
         stop_h(msg)
 
@@ -99,7 +99,7 @@ HousepiAugmented <- R6::R6Class(
       if (isFALSE(opts$const) &&
             is.na(opts$value) &&
             is.na(opts$model)) stop_h(
-        sprintf("Impossible to randomly initialize undefined augmented \"%s\".",
+        sprintf("Impossible to randomly initialize undefined augmented '%s'.",
                 opts$name),
         "Provide one between value and model."
       )
@@ -121,7 +121,7 @@ HousepiAugmented <- R6::R6Class(
           else opts$rule <- "sample"
         } else if (opts$rule == "sample") {
           if (is.na(opts$model)) stop_h(
-            sprintf("No model to sample from for augmented \"%s\".", opts$name)
+            sprintf("No model to sample from for augmented '%s'.", opts$name)
           )
         } else {
           if (is.na(scale)) opts$scale <- 1
@@ -252,11 +252,11 @@ HousepiAugmented <- R6::R6Class(
 
         if (any(mask)) self$defs <- self$defs[!mask, ]
         else if (isTRUE(show_warnings)) warning_h(sprintf(
-          "Unknown augmented variable \"%s\" for status %d to remove.",
+          "Unknown augmented variable '%s' for status %d to remove.",
           x, status
         ))
       } else if (isTRUE(show_warnings)) {
-        warning_h(sprintf("Unknown augmented variable \"%s\" to remove.", x))
+        warning_h(sprintf("Unknown augmented variable '%s' to remove.", x))
       }
       return(any(mask))
     },
@@ -353,7 +353,7 @@ HousepiAugmented <- R6::R6Class(
             else names(this_def) <- "expr"
           } else {
             stop_h(
-              sprintf("Invalid definition for augmented \"%s\".", def_name),
+              sprintf("Invalid definition for augmented '%s'.", def_name),
               "Provide scalar, expression or named list (see 'add_augmented')."
             )
           }
