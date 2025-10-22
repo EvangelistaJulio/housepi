@@ -167,13 +167,20 @@ public:
     /// Implementation of Parameters.
     struct Parameter
     {
+        /// NOTE: list_const + list+sample = all parameters in dictionary_
+        /// list of constant parameters
         str_vec list_const = {};
-        str_vec list_sample_standard = {};
-        str_vec list_sample_cached = {};
+        /// list of parameters to sample
         str_vec list_sample = {};
 
+        /// NOTE: list_sample_standard + list_sample_cached = list_sample
+        str_vec list_sample_standard = {};
+        str_vec list_sample_cached = {};
+
+        /// NOTE: list_adaptable_sample_standard + list_non_adapt_sample_standard = list_sample_standard
         str_vec list_adaptable_sample_standard = {};
         str_vec list_non_adapt_sample_standard = {};
+        /// NOTE: list_adaptable_sample_cached + list_non_adapt_sample_cached = list_sample_cached
         str_vec list_adaptable_sample_cached = {};
         str_vec list_non_adapt_sample_cached = {};
 
@@ -207,7 +214,6 @@ public:
         void build(const u_dict<str_vec> &deftable);
         void make_cache_dependent(const std::string &p);
         void user_reset();
-        void init_adaptable_lists();
 
         void init_draws(unsigned long sample_size);
         void update_draws(unsigned long smpl_count);
@@ -790,10 +796,10 @@ private:
     void clear_posterior_sample_();
 
     //----- Metropolis - parameter moves -----//
-    bool move_single_parameter_(const std::string &p, bool cache_depen);
+    bool move_single_parameter_(const std::string &p, bool is_cache_depen);
     bool propose_valid_param_move_(const std::string &p);
     bool accept_valid_param_move_(const std::string &p);
-    void recover_parameter_(const std::string &p, bool cache_depen);
+    void recover_parameter_(const std::string &p, bool is_cache_depen);
 
     //----- Metropolis : augmented moves -----//
     void move_all_augm_();

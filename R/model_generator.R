@@ -548,15 +548,16 @@ HousepiGenerator <- R6::R6Class(
   ############################################################################
 
   active = list(
-    #' @field name `character(1)`\cr
-    #' Model name. To change, just assign a new `character(1)`.
+    #' @field name
+    #' A `character(1)` with model name.
+    #' To change it, just assign a new `character(1)`.
     name = function(value) {
       if (missing(value)) return(private$.name)
       private$.name <- as.character(value)
     },
 
-    #' @field setup `list`\cr
-    #' Last setup used by the build process.
+    #' @field setup
+    #' A `list` wiht last setup used by the build process.
     setup = function(value) {
       if (missing(value)) return(private$.rcpp$export_setup())
       stop_h("'setup' is read only.")

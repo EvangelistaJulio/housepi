@@ -187,7 +187,6 @@ frame_apply_cri <- function(frame_list, cri_level = 0.95, upper = TRUE) {
 #' @description
 #' Class to extract expecteted measures over simulations.
 #'
-#' @export HousepiExpectation
 #' @docType class
 HousepiExpectation <- R6::R6Class(
   classname = "HousepiExpectation",
@@ -434,7 +433,6 @@ naming_convention_ <- function(x, cri_level) {
 #' @description
 #' Output object of expected cases by household size, method of household model.
 #'
-#' @export ExpectedCasesBySize
 #' @docType class
 ExpectedCasesBySize <- R6::R6Class(
   classname = "ExpectedCasesBySize",

@@ -130,23 +130,24 @@ To see how to associate group rates in heterogeneous models, see the vignette [G
 # Perform inference
 
 After having provided all necessary definitions, we can perform inference calling `infer()`.
+Standard options for the Monte Carlo Markov chain can be provided at this stage, including controls on the progress bar and number of threads^[Multi-threading is implemented with *openMP* which is not supported on latest macOS distributions.
+The option `threads` is not granted on such systems.].
 This will return an object wrapping [posterior](https://cran.r-project.org/web/packages/posterior/) `draws` objects that can be accessed to compute estimates.
-It's default printing behavior will be to show the results of `posterior::summarize_draws` on the draws stored in the results
 
 ```{r}
 # run the Monte Carlo specifying setup options
 results <- hhmodel |>
-  infer(steps = 20000,  # number of mcmc steps (per chain)
-        burnin = 1000,  # steps to burn
+  infer(steps = 20000,    # number of mcmc steps (per chain)
+        burnin = 1000,    # steps to burn
         thin = 8,         # delay between sampling steps
-        adapt = 1000,   # finite adaptation steps before sampling
-        chains = 3,     # number of independent chains
-        threads = 1,    # number of threads
+        adapt = 1000,     # finite adaptation steps before sampling
+        chains = 3,       # number of independent chains
+        threads = 1,      # number of threads
         progress = FALSE) # disable progress bar
-results
-```
 
-*Note:* parallel computations are implemented with *openMP* which is not supported on latest macOS distributions, thus the option `threads` is not granted on such systems.
+# summarize posterior draws of parameters
+posterior::summarize_draws(get_param_draws(results))
+```
 
 We can proceed as usual with other popolar R packages for Bayesian analysis.
 For example, we can extract the parameters draws by calling `get_param_draws` and plot traces with [bayesplot](https://cran.r-project.org/web/packages/bayesplot/)

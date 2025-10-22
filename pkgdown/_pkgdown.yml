@@ -48,6 +48,7 @@ reference:
   desc: >
     Extract draws from inference results.
   contents:
+  - HousepiPosteriorDraws
   - ends_with("draws")
   
 - title: "Posterior expectations"

@@ -21,7 +21,6 @@
 #' Posterior draws as a results of housepi model inference.
 #'
 #' @docType class
-#' @keywords internal
 HousepiPosteriorDraws <- R6::R6Class(
   classname = "HousepiPosteriorDraws",
 
@@ -31,6 +30,7 @@ HousepiPosteriorDraws <- R6::R6Class(
 
   private = list(
     # @field
+    .name = NA_character_,
     .param_df = NULL,
     .augm_df = NULL,
     .loglike_df = NULL,
@@ -155,9 +155,11 @@ HousepiPosteriorDraws <- R6::R6Class(
 
   public = list(
     #' store posterior::draws_df internally
+    #' @param name `character(1)` Model name.
     #' @param rcpp_object `Rcpp_ModelHousepi`
     #' @noRd
-    initialize = function(rcpp_object) {
+    initialize = function(name, rcpp_object) {
+      private$.name <- as.character(name)
       all_traces <- private$.cpp_draws_to_posterior(rcpp_object$export_draws())
       vars <- posterior::variables(all_traces)
 
@@ -199,15 +201,25 @@ HousepiPosteriorDraws <- R6::R6Class(
     #' @description
     #' Override the default printing behavior.
     print = function() {
-      x1 <- x2 <- NULL
+      cli::cli_alert_info("Posterior draws of model {.pkg {private$.name}}.")
+      invisible()
+    },
+
+    #' @description
+    #' Summarize all posterior draws.
+    #' @return `posterior::draws_df`
+    summarize_all_draws = function() {
+      x1 <- x2 <- x3 <- NULL
       if (posterior::is_draws(self$param_draws)) {
         x1 <- posterior::summarize_draws(self$param_draws)
       }
       if (posterior::is_draws(self$augm_draws)) {
         x2 <- posterior::summarize_draws(self$augm_draws)
       }
-      print(rbind(x1, x2))
-      invisible()
+      if (posterior::is_draws(self$loglike_draws)) {
+        x3 <- posterior::summarize_draws(self$loglike_draws)
+      }
+      rbind(x1, x2, x3)
     }
   )
 )

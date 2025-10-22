@@ -747,7 +747,7 @@ HousepiModel <- R6::R6Class(
                           id_draws = id_draws, seed = seed, progress = progress)
       # infer method from cpp model object
       private$.rcpp$infer()
-      return(HousepiPosteriorDraws$new(private$.rcpp))
+      return(HousepiPosteriorDraws$new(private$.name, private$.rcpp))
     },
 
     #' @description

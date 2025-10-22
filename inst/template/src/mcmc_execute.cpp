@@ -104,7 +104,7 @@ double MCMC::Impl::update_house_loglike_(Household &house, bool is_augm_ll, bool
         for (Individual &member : house.infected())
             update_cache_dependecies_(house, member);
     }
-
+    
     // update household observation loglikelihood
     double output = compute_and_set_household_obs_loglike_(house);
 
@@ -154,10 +154,6 @@ void MCMC::Impl::init_monte_carlo_()
     if (!(param.is_any_sample() || augm.is_any_sample()))
         throw std::length_error(
             "Nothing to sample. Check your parameter and augmented definitions.");
-
-    // initialize parameter lists for adaptation
-    // NOTE: after all definitions finished to make cached parameters
-    param.init_adaptable_lists();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -232,20 +228,20 @@ void MCMC::Impl::move_all_()
 }
 
 /// Attempt to move a single parameter for the given inverse temperature.
-bool MCMC::Impl::move_single_parameter_(const std::string &p, bool cache_depen)
+bool MCMC::Impl::move_single_parameter_(const std::string &p, bool is_cache_depen)
 {
     // proceed only if the new value is consistent
     // otherwise automatically refuse move
     if (propose_valid_param_move_(p))
     {
         // if parameter is cache dependent, update cache
-        update_full_loglike_(cache_depen);
+        update_full_loglike_(is_cache_depen);
 
         // perform Metropolis-Hastings to accept or not move
         if (accept_valid_param_move_(p))
             return true; // accepted move
         else
-            recover_parameter_(p, cache_depen);
+            recover_parameter_(p, is_cache_depen);
     }
     return false; // refused move
 }

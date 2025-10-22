@@ -685,14 +685,11 @@ void MCMC::Impl::Parameter::build(const u_dict<str_vec> &deftable)
     if (deftable.empty())
         return;
 
-    const str_vec file_headers = {"name", "value",
-                                  "const", "discr",
-                                  "prior",
-                                  hsp::params::MIN, hsp::params::MAX,
-                                  "rule", "scale"};
-
     // check entries
-    str_vec headers = hsp::read::table_headers(deftable);
+    const str_vec file_headers = {"name", "value", "const", "discr",
+                                  "prior", hsp::params::MIN, hsp::params::MAX,
+                                  "rule", "scale"};
+    const str_vec headers = hsp::read::table_headers(deftable);
     hsp::str::assert_no_missing_entries(headers, file_headers);
     hsp::str::assert_no_unused_entries(headers, file_headers);
 
@@ -701,7 +698,11 @@ void MCMC::Impl::Parameter::build(const u_dict<str_vec> &deftable)
     list_const.clear();
     list_sample.clear();
     list_sample_standard.clear();
+    list_adaptable_sample_standard.clear();
+    list_non_adapt_sample_standard.clear();
     list_sample_cached.clear();
+    list_adaptable_sample_cached.clear();
+    list_non_adapt_sample_cached.clear();
 
     // assert that parameter is not already defined
     if (deftable.at("name").size() != hsp::str::unique(deftable.at("name")).size())
@@ -713,13 +714,15 @@ void MCMC::Impl::Parameter::build(const u_dict<str_vec> &deftable)
         if (hsp::str::tobool(deftable.at("const")[k]))
             build_constant_parameter_(deftable, k);
         else
-        {
-            list_sample.push_back(deftable.at("name")[k]);
             build_parameter_to_sample_(deftable, k);
-        }
 
     // initialize all parameters to standard
     list_sample_standard = list_sample;
+    for (const std::string &p : list_sample_standard)
+        if (this->at(p).is_adaptable())
+            list_adaptable_sample_standard.push_back(p);
+        else
+            list_non_adapt_sample_standard.push_back(p);
 }
 
 /// Helper to build constant parameter.
@@ -748,9 +751,6 @@ void MCMC::Impl::Parameter::build_parameter_to_sample_(const u_dict<str_vec> &de
         throw std::invalid_argument(
             "Non-constant parameter '" + p + "' had undefined prior.");
 
-    // load boolean flag for discrete variables
-    bool is_discrete = hsp::str::tobool(deftable.at("discr")[k]);
-
     // load rule name
     std::string rule_name = "sample";
     if (!hsp::na::is(deftable.at("rule")[k]))
@@ -761,7 +761,7 @@ void MCMC::Impl::Parameter::build_parameter_to_sample_(const u_dict<str_vec> &de
     if (!hsp::na::is(deftable.at("scale")[k]))
         rule_scale = hsp::str::tod(deftable.at("scale")[k]);
 
-    // create a new Parameter Variable
+    // create a new parameter Variable
     dictionary_.emplace(
         p, Variable(p, "parameter", pImpl_.read_numeric_(deftable.at("value")[k]).get(), false));
     Variable &new_param = this->at(p);
@@ -769,19 +769,18 @@ void MCMC::Impl::Parameter::build_parameter_to_sample_(const u_dict<str_vec> &de
     // assign a prior distribution to the parameter
     DefinitionParser parser(deftable.at("prior")[k]);
     new_param.init_distr(parser);
-
+    // load prior arguments
     for (const auto &child : parser.root.children)
         new_param.init_distr_attr(child.key, pImpl_.read_numeric_(child));
-
     // load parameter range
-    new_param.init_distr_attr(hsp::params::MIN,
-                              pImpl_.read_numeric_(deftable.at(hsp::params::MIN)[k]));
-    new_param.init_distr_attr(hsp::params::MAX,
-                              pImpl_.read_numeric_(deftable.at(hsp::params::MAX)[k]));
-    new_param.init_distr_reshaping(is_discrete);
+    new_param.init_distr_attr(hsp::params::MIN, pImpl_.read_numeric_(deftable.at(hsp::params::MIN)[k]));
+    new_param.init_distr_attr(hsp::params::MAX, pImpl_.read_numeric_(deftable.at(hsp::params::MAX)[k]));
+    new_param.init_distr_reshaping(hsp::str::tobool(deftable.at("discr")[k]));
 
     // assign the rule for the proposer to the parameter
     new_param.init_proposer(rule_name, rule_scale);
+    // update the lists of parameters to sample
+    list_sample.push_back(p);
 }
 
 /// Adjust lists of parameters to be inferred making parameter as dependent on cache.
@@ -789,11 +788,21 @@ void MCMC::Impl::Parameter::make_cache_dependent(const std::string &p)
 {
     // remove a parameter from standard if it was defined as such
     if (list_sample_standard % p)
+    {
         list_sample_standard = list_sample_standard - str_vec({p});
+        list_adaptable_sample_standard = list_adaptable_sample_standard - str_vec({p});
+        list_non_adapt_sample_standard= list_non_adapt_sample_standard - str_vec({p});
+    }
 
-    // add the parameter as cache
+    // add the parameter as cache if not alread present
     if (!(list_sample_cached % p))
+    {
         list_sample_cached.push_back(p);
+        if (at(p).is_adaptable())
+            list_adaptable_sample_cached.push_back(p);
+        else
+            list_non_adapt_sample_cached.push_back(p);
+    }
 }
 
 /// Randomly initialize values of the parameters to be inferred.
@@ -801,27 +810,6 @@ void MCMC::Impl::Parameter::user_reset()
 {
     for (const std::string &p : list_sample)
         this->at(p).user_reset(pImpl_.setup.prng());
-}
-
-/// Initialize adaptable parameter lists.
-void MCMC::Impl::Parameter::init_adaptable_lists()
-{
-    list_adaptable_sample_standard.clear();
-    list_non_adapt_sample_standard.clear();
-    list_adaptable_sample_cached.clear();
-    list_non_adapt_sample_cached.clear();
-
-    for (const std::string &p : list_sample_standard)
-        if (at(p).is_adaptable())
-            list_adaptable_sample_standard.push_back(p);
-        else
-            list_non_adapt_sample_standard.push_back(p);
-
-    for (const std::string &p : list_sample_cached)
-        if (at(p).is_adaptable())
-            list_adaptable_sample_cached.push_back(p);
-        else
-            list_non_adapt_sample_cached.push_back(p);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
