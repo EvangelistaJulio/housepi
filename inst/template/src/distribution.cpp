@@ -40,11 +40,11 @@ double Distribution::rejec_sample_(rnd_gen &prng, double (Distribution::*func)(r
     double xnew = (this->*func)(prng);
     for (unsigned n = 0; !is_valid(xnew) && (n < 100); ++n)
         xnew = (this->*func)(prng);
-    if (!is_valid(xnew))
-        throw std::runtime_error(
-            "Exceeded attempts (N > " + std::to_string(100) +
-            ") in random draw of " + str_summary(false) + ".");
-    return xnew;
+    if (is_valid(xnew))
+        return xnew;
+    throw std::runtime_error(
+        "Exceeded attempts (N > " + std::to_string(100) +
+        ") in random draw of " + str_summary(false) + ".");
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -800,14 +800,15 @@ std::shared_ptr<Distribution> compose_distr_registries(const std::string &opt,
     if (registries.empty())
         throw std::invalid_argument(
             "No registries were provided for \"" + name + "\".");
-    else if (hsp::na::is(opt))
+
+    if (hsp::na::is(opt))
         return std::make_shared<Distribution>();
-    else
-        for (auto &r : registries)
-            if (r->get_options() % opt)
-                return r->get_distr(opt);
-            else
-                options += r->get_options();
+
+    for (auto &r : registries)
+        if (r->get_options() % opt)
+            return r->get_distr(opt);
+        else
+            options += r->get_options();
 
     throw std::invalid_argument(
         "Unknown " + name + " \"" + opt + "\"." +

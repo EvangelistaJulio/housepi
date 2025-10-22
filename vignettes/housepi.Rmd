@@ -259,10 +259,10 @@ We can visualize traces vs expected values as follows
 #| warning: false
 library(ggplot2)
 
-# select parameters used for the simulation
+# select original parameters used for the simulation
 simul_parameters <- get_parameters(hhsimul) |>
-  dplyr::filter(!const) |>
-  dplyr::select(name, value) |>
+  dplyr::select(name, value) |> 
+  dplyr::filter(name %in% posterior::variables(param_draws)) |> 
   dplyr::rename(parameter = name, simulated = value)
 
 # use bayesplot to plot the posterior draws

@@ -55,7 +55,10 @@ Attribute::Attribute(const std::string &s, bool is_primitive)
 
 std::string Attribute::str_summary() const
 {
-    std::string sms = std::to_string(get()) + " | ";
+    std::string sms = "";
+    if (!is_function() || pFunc_->is_implicit_callable())
+        sms = std::to_string(get()) + " | ";
+
     if (is_constant())
         sms += "constant";
     else
@@ -282,7 +285,7 @@ bool Function::init_range_min_(double min_val, bool is_min_open)
     if (get_min() < min_val)
         throw std::invalid_argument(
             "Invoked invalid min value " + hsp::str::format(range_min_.get()) + " for " + err_name() + ".");
-    else if ((get_min() > min_val) || (!hsp::na::is(get_max())))
+    if ((get_min() > min_val) || (!hsp::na::is(get_max())))
     {
         init_range_helper_(((is_min_open) ? (get_min() == min_val) : false), false);
         return true;
@@ -330,19 +333,19 @@ void Function::init_range_helper_(bool is_min_open, bool is_max_open)
         break;
 
     case 3: // Within an Interval
-        if ((is_min_open) && (is_max_open))
+        if (is_min_open && is_max_open)
         {
             is_below_ = &Function::do_is_below_open_min_;
             is_above_ = &Function::do_is_above_open_max_;
             is_valid_ = &Function::do_is_valid_both_open_;
         }
-        else if ((is_min_open) && (!is_max_open))
+        else if (is_min_open && !is_max_open)
         {
             is_below_ = &Function::do_is_below_open_min_;
             is_above_ = &Function::do_is_above_close_max_;
             is_valid_ = &Function::do_is_valid_open_min_close_max_;
         }
-        else if ((!is_min_open) && (is_max_open))
+        else if (!is_min_open && is_max_open)
         {
             is_below_ = &Function::do_is_below_close_min_;
             is_above_ = &Function::do_is_above_open_max_;
@@ -409,18 +412,21 @@ std::string Function::str_range() const
 void Function::init_attr(const std::string &key, const Attribute &attr)
 {
     // assert that function attribute are implicitely callable
-    if (attr.is_function())
-        if (!attr.get_function()->is_implicit_callable())
-            throw std::invalid_argument(
-                "Impossible to associate " + attr.err_name() + " as argument \"" + key + "\" of " + err_name() + ".\n" +
-                "Argument \"x\" of " + attr.err_name() + " cannot be missing.");
+    if (attr.is_function() && !attr.get_function()->is_implicit_callable())
+        throw std::invalid_argument(
+            "Impossible to associate " + attr.err_name() + " as argument \"" + key + "\" of " + err_name() + ".\n" +
+            "Argument \"x\" of " + attr.err_name() + " cannot be missing.");
 
     // distinguish between range keys and standard keys
     if (key == hsp::params::MIN || key == hsp::params::MAX)
     {
-        if (attr.is_empty())
-            ; // skip NA for range
-        else if (name_ == "uniform")
+        // skip empty constants for range
+        // NOTE: Variable overwrites 'is_constant' method,
+        // thus empty does not always imply constant
+        if (attr.is_empty() && attr.is_constant())
+            return; 
+        
+        if (name_ == "uniform")
             find_arg_(key).transfer(attr);
         else if (key == hsp::params::MIN)
             range_min_.transfer(attr);

@@ -33,10 +33,10 @@ HousepiAugmented <- R6::R6Class(
       if (is.na(name)) stop_h("Incomplete definition: missing name.")
       # wrong status
       else if (!is.na(status) && !is.numeric(status)) stop_h(
-        "Invalid status: must be NA or a positive integer alue."
+        "Invalid   status: must be NA or a positive integer alue."
       )
       else if (!is.na(status) && (status <= 0)) stop_h(
-        "Invalid status: must be NA or a positive integer value."
+        "Invalid   status: must be NA or a positive integer value."
       )
       # remove previous definition
       else if (self$remove(name, status, FALSE)) warning_h(sprintf(

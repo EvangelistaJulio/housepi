@@ -37,6 +37,7 @@ double MCMC::Impl::evaluate()
         augm.user_reset();             // initialize non constant augmented
         init_model_for_inference_();   // initialize model for inference
         update_full_loglike_(true);    // initialize cache + full loglikelihood
+
         return full_loglike_;
     }
     catch (const std::exception &e)

@@ -379,10 +379,9 @@ void MCMC::Impl::DataWide::build_helper_fill_report_data_()
     for (const Household &house : house_vector_)
     {
         // list of unique infected statuses
-        for (const Individual &member : house)
-            if (member.is_infected_status())
-                if (!(all_infected_status_list % member.status()))
-                    all_infected_status_list.push_back(member.status());
+        for (const Individual &member : house.infected())
+            if (!(all_infected_status_list % member.status()))
+                all_infected_status_list.push_back(member.status());
 
         // observed quantities in-house
         const unsigned short house_size = house.size();
@@ -745,10 +744,9 @@ void MCMC::Impl::Parameter::build_parameter_to_sample_(const u_dict<str_vec> &de
     const std::string &p = deftable.at("name")[k]; // parameter name
 
     // assert parameter to sample has a valid value initialization
-    if (hsp::na::is(deftable.at("value")[k]))
-        if (hsp::na::is(deftable.at("prior")[k]))
-            throw std::invalid_argument(
-                "Non-constant parameter \"" + p + "\" had undefined prior.");
+    if (hsp::na::is(deftable.at("value")[k]) && hsp::na::is(deftable.at("prior")[k]))
+        throw std::invalid_argument(
+            "Non-constant parameter \"" + p + "\" had undefined prior.");
 
     // load boolean flag for discrete variables
     bool is_discrete = hsp::str::tobool(deftable.at("discr")[k]);

@@ -170,10 +170,9 @@ std::shared_ptr<Proposer> proposer_switch(const std::string &rule_name = hsp::na
     else if (rule_name == "lognormal")
         return std::make_shared<Lognorm_Proposer>(rule_scale, is_discrete);
 
-    else
-        throw std::invalid_argument(
-            "Unknown proposer rule \"" + rule_name + "\"." +
-            hsp::str::find_closest(rule_name, options));
+    throw std::invalid_argument(
+        "Unknown proposer rule \"" + rule_name + "\"." +
+        hsp::str::find_closest(rule_name, options));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -215,13 +214,11 @@ void Variable::init(double value, bool is_const,
 ///       Otherwise it is truly a constant NA value.
 void Variable::user_reset(rnd_gen &prng)
 {
-    if (hsp::na::is(user_value_))
-    {
-        if (!pDistr_->is_empty())
-            init_rand(prng);
-    }
-    else
+    if (!hsp::na::is(user_value_))
         value_ = user_value_;
+    else if (!pDistr_->is_empty())
+        init_rand(prng);
+
     pProp_->user_reset();
 }
 
@@ -239,15 +236,13 @@ void Variable::init_func_reshaping(bool discr)
 
     if (pFunc_->is_constant())
         init(pFunc_->evaluate(), true);
-    else
-    {
-        if (is_constant())
-            throw std::invalid_argument(
-                "Impossible to set " + err_name() + " as constant. Check its dependencies.");
 
-        if (!pFunc_->is_implicit_callable())
-            get_ = &Variable::do_get_error_;
-    }
+    else if (is_constant())
+        throw std::invalid_argument(
+            "Impossible to set " + err_name() + " as constant. Check its dependencies.");
+
+    else if (!pFunc_->is_implicit_callable())
+        get_ = &Variable::do_get_error_;
 }
 
 /// Assign distribution with constant arguments.
@@ -280,7 +275,7 @@ void Variable::init_distr_reshaping(bool discr)
     pDistr_->init_truncation();
 
     // check that non-constant variable has non-zero dimensional range
-    if ((!is_constant_) && (pDistr_->get_min() == pDistr_->get_max()))
+    if (!is_constant_ && pDistr_->get_min() == pDistr_->get_max())
         throw std::invalid_argument(
             "Degenerate range " + pDistr_->str_range() +
             " defined for non constant " + err_name() + ".");
@@ -337,7 +332,7 @@ void Variable::init_proposer(const std::string &rule_name, double rule_scale)
         else // other proposer rules
         {
             // raise a warning if "lnorm" rule when varaible can be negative
-            if ((pDistr_->get_min() < 0) && (rule_name == "lnorm"))
+            if (pDistr_->get_min() < 0 && rule_name == "lnorm")
                 hsp::msg::warning(
                     "Provided a lognormal proposer rule for non-positive " + err_name() + ".");
 

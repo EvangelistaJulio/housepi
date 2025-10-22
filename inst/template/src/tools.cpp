@@ -146,9 +146,9 @@ namespace hsp
                 return false;
             else if (tkn == "TRUE" || tkn == "true" || tkn == "True" || tkn == "1")
                 return true;
-            else
-                throw std::invalid_argument(
-                    "Unrecognized boolean value \"" + tkn + "\".");
+
+            throw std::invalid_argument(
+                "Unrecognized boolean value \"" + tkn + "\".");
         }
 
         /// Template function to wrap conversion functions with try-catch.
@@ -201,17 +201,14 @@ namespace hsp
         {
             if (options.empty())
                 return "";
-            else
-            {
-                max_print = std::min(options.size(), max_print);
 
-                std::string output = "\"" + options[0] + "\"";
-                for (size_t i = 1; i < max_print; ++i)
-                    output += ", \"" + options[i] + "\"";
-                if (options.size() > max_print)
-                    output += ", ..";
-                return output + ".";
-            }
+            max_print = std::min(options.size(), max_print);
+            std::string output = "\"" + options[0] + "\"";
+            for (size_t i = 1; i < max_print; ++i)
+                output += ", \"" + options[i] + "\"";
+            if (options.size() > max_print)
+                output += ", ..";
+            return output + ".";
         }
 
         /// Format a 2D matrix.
@@ -219,24 +216,22 @@ namespace hsp
         {
             if (vec.empty())
                 return "";
-            else
+
+            std::string output = "[";
+            for (size_t i = 0; i < vec.size(); ++i)
             {
-                std::string output = "[";
-                for (size_t i = 0; i < vec.size(); ++i)
+                output += "[";
+                for (size_t j = 0; j < vec[i].size(); ++j)
                 {
-                    output += "[";
-                    for (size_t j = 0; j < vec[i].size(); ++j)
-                    {
-                        output += std::to_string(vec[i][j]);
-                        if (j < vec[i].size() - 1)
-                            output += ", ";
-                    }
-                    output += "]";
-                    if (i < vec.size() - 1)
-                        output += ",\n";
+                    output += std::to_string(vec[i][j]);
+                    if (j < vec[i].size() - 1)
+                        output += ", ";
                 }
-                return output + "]\n";
+                output += "]";
+                if (i < vec.size() - 1)
+                    output += ",\n";
             }
+            return output + "]\n";
         }
 
         /////////////////////////////////////////////////////////////////////////////////////////////
@@ -346,24 +341,22 @@ namespace hsp
                                        const str_vec &options,
                                        const std::string &where)
         {
-            if (!options.empty())
-            {
-                str_vec missing = {};
+            if (options.empty())
+                return;
 
-                for (const std::string &x : options)
-                    if (!(entries % x))
-                        missing.push_back(x);
+            str_vec missing = {};
 
-                if (!missing.empty())
-                {
-                    if (missing.size() == 1)
-                        throw std::invalid_argument(
-                            "Missing " + where + " " + str::format(missing, 1));
-                    else
-                        throw std::invalid_argument(
-                            "Missing " + where + "s: " + str::format(missing));
-                }
-            }
+            for (const std::string &x : options)
+                if (!(entries % x))
+                    missing.push_back(x);
+
+            if (missing.size() == 1)
+                throw std::invalid_argument(
+                    "Missing " + where + " " + str::format(missing, 1));
+
+            else if (!missing.empty())
+                throw std::invalid_argument(
+                    "Missing " + where + "s: " + str::format(missing));
         }
 
         /// Check for unused entries given a vector of options.
@@ -381,7 +374,7 @@ namespace hsp
                     "Unknown " + where + " " + str::format(unused, 1) +
                     str::find_closest(unused[0], options));
 
-            else if (unused.size() > 1)
+            else if (!unused.empty())
                 throw std::invalid_argument(
                     "Unknown " + where + "s: " + str::format(unused) +
                     str::find_closest(hsp::na::STRING, options, 0));
@@ -476,36 +469,32 @@ namespace hsp
         /// Read csv list store in pathtofile and store it parsed in csv_parsed_list.
         u_dict<std::string> csv_list(const std::string &pathtofile)
         {
+            if (na::is(pathtofile))
+                return {};
+
+            std::ifstream input(pathtofile.c_str());
+            if (!input.is_open())
+                throw std::runtime_error(
+                    "Unable to open file \"" + pathtofile + "\".");
+
+            // Create a std::stringstream of the current line
             u_dict<std::string> output = {};
-
-            if (!na::is(pathtofile))
+            for (std::string line; std::getline(input, line);)
             {
-                std::ifstream input(pathtofile.c_str());
+                std::string name, choice;
+                std::istringstream iss(line);
 
-                if (input.is_open())
-                {
-                    // Create a std::stringstream of the current line
-                    for (std::string line; std::getline(input, line);)
-                    {
-                        std::string name, choice;
-                        std::istringstream iss(line);
-
-                        // name
-                        if (!std::getline(iss, name, DELIMITER))
-                            throw std::runtime_error(
-                                "Unable to extract list name. Check file line \"" + line + "\".");
-                        // choice
-                        if (!std::getline(iss, choice))
-                            throw std::runtime_error(
-                                "Unable to extract list value. Check file line \"" + line + "\".");
-
-                        // add the new setup
-                        output.emplace(strcleaner_(name), strcleaner_(choice));
-                    }
-                }
-                else
+                // name
+                if (!std::getline(iss, name, DELIMITER))
                     throw std::runtime_error(
-                        "Unable to open file \"" + pathtofile + "\".");
+                        "Unable to extract list name. Check file line \"" + line + "\".");
+                // choice
+                if (!std::getline(iss, choice))
+                    throw std::runtime_error(
+                        "Unable to extract list value. Check file line \"" + line + "\".");
+
+                // add the new setup
+                output.emplace(strcleaner_(name), strcleaner_(choice));
             }
 
             return output;
@@ -524,28 +513,24 @@ namespace hsp
         /// Read csv table in pathtofile and store it parsed in csv_parsed_table.
         u_dict<str_vec> csv_table(const std::string &pathtofile)
         {
+            if (na::is(pathtofile))
+                return {};
+
+            std::ifstream input(pathtofile.c_str());
+            if (!input.is_open())
+                throw std::runtime_error(
+                    "Unable to open file \"" + pathtofile + "\".");
+
+            // read and check for valid headers
+            const str_vec headers = read_column_headers_(input);
+
             u_dict<str_vec> output = {};
-
-            if (!na::is(pathtofile))
+            u_dict<std::string> this_row = {};
+            while (read_row_by_headers_(input, headers, this_row))
             {
-                std::ifstream input(pathtofile.c_str());
-
-                if (input.is_open())
-                {
-                    // read and check for valid headers
-                    const str_vec headers = read_column_headers_(input);
-
-                    u_dict<std::string> this_row = {};
-                    while (read_row_by_headers_(input, headers, this_row))
-                    {
-                        for (const auto &x : this_row)
-                            output[x.first].push_back(x.second);
-                        this_row.clear();
-                    }
-                }
-                else
-                    throw std::runtime_error(
-                        "Unable to open file \"" + pathtofile + "\".");
+                for (const auto &x : this_row)
+                    output[x.first].push_back(x.second);
+                this_row.clear();
             }
 
             return output;
@@ -697,43 +682,43 @@ namespace progress
             // update internal state
             ++state_;
 
-            if (verbose_)
+            if (!verbose_)
+                return;
+
+            const double progress = static_cast<double>(state_) / total_;
+            steady_clock::time_point now = steady_clock::now();
+            seconds elapsed = duration_cast<seconds>(now - start_);
+            seconds missing = duration_cast<seconds>(elapsed * (1. / progress - 1.));
+
+            // print update message
+            if (static_cast<unsigned long>(duration_cast<seconds>(now - lastprint_).count()) > thintime_)
             {
-                const double progress = static_cast<double>(state_) / total_;
-                steady_clock::time_point now = steady_clock::now();
-                seconds elapsed = duration_cast<seconds>(now - start_);
-                seconds missing = duration_cast<seconds>(elapsed * (1. / progress - 1.));
+                const unsigned where = progress * barwidth_;
+                std::ostringstream oss;
+                oss << text_ << " |";
+                for (unsigned u = 0; u < where; ++u)
+                    oss << symbol_;
+                oss << std::string(barwidth_ - where, ' ') << "| "
+                    << std::fixed << std::setprecision(0) << 100. * progress << "% "
+                    << format(elapsed) << "<" << format(missing)
+                    << std::string(10, ' ');
+                bar_(oss.str());
 
-                // print update message
-                if (static_cast<unsigned long>(duration_cast<seconds>(now - lastprint_).count()) > thintime_)
+                lastprint_ = steady_clock::now();
+                is_bar_print_ = true;
+            }
+            else if (!is_bar_print_) // eventually print initial message
+                if (static_cast<unsigned long>(missing.count()) > thintime_)
                 {
-                    const unsigned where = progress * barwidth_;
                     std::ostringstream oss;
-                    oss << text_ << " |";
-                    for (unsigned u = 0; u < where; ++u)
-                        oss << symbol_;
-                    oss << std::string(barwidth_ - where, ' ') << "| "
-                        << std::fixed << std::setprecision(0) << 100. * progress << "% "
-                        << format(elapsed) << "<" << format(missing)
-                        << std::string(10, ' ');
-                    bar_(oss.str());
+                    oss << text_ << " |"
+                        << std::string(barwidth_, ' ') << "| 0% ";
+                    if (which_bar_ == &Impl::do_bar_new_line_)
+                        oss << "\n";
+                    hsp::msg::message(oss.str());
 
-                    lastprint_ = steady_clock::now();
                     is_bar_print_ = true;
                 }
-                else if (!is_bar_print_) // eventually print initial message
-                    if (static_cast<unsigned long>(missing.count()) > thintime_)
-                    {
-                        std::ostringstream oss;
-                        oss << text_ << " |"
-                            << std::string(barwidth_, ' ') << "| 0% ";
-                        if (which_bar_ == &Impl::do_bar_new_line_)
-                            oss << "\n";
-                        hsp::msg::message(oss.str());
-
-                        is_bar_print_ = true;
-                    }
-            }
         }
 
         /// End the progress bar because of a crash.
@@ -752,26 +737,25 @@ namespace progress
 #ifdef _HOUSEPI_RCPP
             Rcpp::checkUserInterrupt();
 #endif
-            if (verbose_)
-            {
-                seconds elapsed = duration_cast<seconds>(steady_clock::now() - start_);
-
-                if (static_cast<unsigned long>(elapsed.count()) > thintime_)
-                {
-                    std::ostringstream oss;
-                    oss << text_ << " |";
-                    for (unsigned u = 0; u < barwidth_; u++)
-                        oss << symbol_;
-                    oss << "| " << format(elapsed)
-                        << std::string(25, ' ');
-                    if (which_bar_ == &Impl::do_bar_carriage_return_)
-                        oss << "\n";
-                    bar_(oss.str());
-                }
-            }
-
             is_bar_print_ = false;
             state_ = total_;
+
+            if (!verbose_)
+                return;
+
+            seconds elapsed = duration_cast<seconds>(steady_clock::now() - start_);
+            if (static_cast<unsigned long>(elapsed.count()) > thintime_)
+            {
+                std::ostringstream oss;
+                oss << text_ << " |";
+                for (unsigned u = 0; u < barwidth_; u++)
+                    oss << symbol_;
+                oss << "| " << format(elapsed)
+                    << std::string(25, ' ');
+                if (which_bar_ == &Impl::do_bar_carriage_return_)
+                    oss << "\n";
+                bar_(oss.str());
+            }
         }
     };
 
@@ -933,20 +917,18 @@ std::string DefinitionParser::ASTNode::str() const
 /// Wheter is implicitely callable.
 bool DefinitionParser::ASTNode::is_implicit_callable() const
 {
-    if (!is_terminal())
+    if (is_terminal())
+        return true;
+
+    bool is_x_arg = false;
+    for (const ASTNode &child : children)
     {
-        bool is_x_arg = false;
-        for (const ASTNode &child : children)
-        {
-            if (!child.is_implicit_callable())
-                return false;
-            else if (child.key == hsp::params::X)
-                is_x_arg = true;
-        }
-        if (!is_x_arg)
+        if (!child.is_implicit_callable())
             return false;
+        else if (child.key == hsp::params::X)
+            is_x_arg = true;
     }
-    return true;
+    return is_x_arg;
 }
 
 /// Append dependencies of chosen type to stack.

@@ -545,6 +545,13 @@ public:
         double inst(const Individual *member, double t) { return (this->*inst_)(member, t); }
         double cumul(const Individual *member, double t) { return (this->*cumul_)(member, t); }
 
+        /// Get shared pointer to profile.
+        std::shared_ptr<Distribution> get_profile() const {
+            if (profile_ == nullptr)
+                throw std::invalid_argument("Infectivity profile is not defined.");
+            return profile_;
+        };
+
 #ifdef _HOUSEPI_RCPP
         void rcpp_import(SEXP input);
         Rcpp::List rcpp_export() const;
@@ -556,7 +563,7 @@ public:
     private:
         const std::string section_name_ = "infectivity profile";
         MCMC::Impl &pImpl_; // pointer to external class
-        std::shared_ptr<Distribution> profile_;
+        std::shared_ptr<Distribution> profile_ = nullptr;
 
         // lookup table
         bool is_discrete_requested_ = false;
@@ -623,9 +630,9 @@ public:
         void user_reset();
 
         void clear_all(Individual &member);
-        void build_all(Individual &member);
-        void build_missing(Individual &member);
-        void build_model_logratios(Individual &member);
+        void init_all(Individual &member);
+        void init_missing(Individual &member);
+        void init_model_logratios(Individual &member);
         void user_reset(Individual &member);
 
         void init_draws(unsigned long sample_size);
@@ -658,6 +665,7 @@ public:
         MCMC::Impl &pImpl_;             // pointer to external class
         u_dict<str_vec> deftable_ = {}; // store definition table
 
+        void helper_assert_no_reserved_();
         void helper_build_definition_();
         void helper_build_definition_order_();
         void set_definition_dependency_order_for_(const std::string &s);

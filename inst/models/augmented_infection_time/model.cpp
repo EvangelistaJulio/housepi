@@ -111,12 +111,11 @@ double Model::loglike_infectious(const Household &house) const
 			double roi_inst_i = 0.;
 			double roi_cumul_i = 0.;
 			for (const Individual &member_k : house.infected())
-				if (cumul_mtx[member_k][member_i] != 0)
-				{
-					double mu_k = member_k.group_rate("infectivity");
-					roi_inst_i += inst_mtx[member_k][member_i] * mu_k;
-					roi_cumul_i += cumul_mtx[member_k][member_i] * mu_k;
-				}
+			{
+				const double mu_k = member_k.group_rate("infectivity");
+				roi_inst_i += inst_mtx[member_k][member_i] * mu_k;
+				roi_cumul_i += cumul_mtx[member_k][member_i] * mu_k;
+			}
 
 			roi_inst_i *= b_i;
 			roi_cumul_i *= b_i;
@@ -266,7 +265,7 @@ void Model::simulate_single_household(Household &house)
 	const double tf = member_0.augm("onset_time") + param("study_period");
 
 	// infection of secondary cases following the first case
-	for (double t = t0 + Dt; (t < tf) && (house.n_healthy_status() > 0); t += Dt)
+	for (double t = t0 + Dt; t <= tf && house.n_healthy_status() > 0; t += Dt)
 		for (Individual &member_i : house.healthy())
 			if (uniform() >= exp(-roi_inst_simulation(house, member_i, t) * Dt))
 			{

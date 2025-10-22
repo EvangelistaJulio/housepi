@@ -40,46 +40,42 @@ namespace numr
     /// Binomial coefficient of N elements in k positions
     unsigned long binom_coeff(unsigned short N, unsigned short k)
     {
-        if ((N > 0) && (k != N))
-        {
-            unsigned long result = N;
-            unsigned short stop = (k > N - k) ? k : N - k; // use symmetry
-            for (unsigned short i = 1; i < stop; ++i)
-                result = (result * (N - i)) / (i + 1);
-            return result;
-        }
+        if (N == 0 || k == N)
+            return 1;
 
-        return 1;
+        unsigned long result = N;
+        unsigned short stop = (k > N - k) ? k : N - k; // use symmetry
+        for (unsigned short i = 1; i < stop; ++i)
+            result = (result * (N - i)) / (i + 1);
+        return result;
     }
 
     /// Logarithm of binomial coefficient.
     double log_binom_coeff(unsigned short N, unsigned short k)
     {
-        if ((N > 0) && (k != N))
-        {
-            double result = log(N);
-            unsigned short stop = (k > N - k) ? k : N - k; // use symmetry
-            for (unsigned short i = 1; i < stop; ++i)
-                result += log(N - i) - log(i + 1);
-            return result;
-        }
-        return 0.;
+        if (N == 0 || k == N)
+            return 0.;
+
+        double result = log(N);
+        unsigned short stop = (k > N - k) ? k : N - k; // use symmetry
+        for (unsigned short i = 1; i < stop; ++i)
+            result += log(N - i) - log(i + 1);
+        return result;
     }
 
     /// Log-ratio of binomial coefficients.
     double logratio_binom_coeff(unsigned short N, unsigned short ko, unsigned short kn)
     {
-        if ((N > 0) && (ko != kn))
-        {
-            double result = 0.;
-            if (ko > kn)
-                std::swap(ko, kn);
+        if (N == 0 || ko == kn)
+            return 0;
 
-            for (unsigned short i = ko + 1; i <= kn; ++i)
-                result += log(N - i + 1) - log(i);
-            return result;
-        }
-        return 0.;
+        double result = 0.;
+        if (ko > kn)
+            std::swap(ko, kn);
+
+        for (unsigned short i = ko + 1; i <= kn; ++i)
+            result += log(N - i + 1) - log(i);
+        return result;
     }
 
     /// UPDATE: To better reference this:

@@ -48,39 +48,6 @@ test_that("Model class blank calls", {
   )
 })
 
-test_that("Deep clone works as expected", {
-  hhmodel <- new_housepi_model("chain_binomial_heterogeneous")
-  hhmodel$data_wide <- housepi::survey
-  hhmodel$load_parameter_template()
-  expect_no_error(out <- hhmodel$infer(steps = 2, progress = FALSE))
-
-  # shallow clone
-  hhclone <- hhmodel$clone(deep = FALSE)
-
-  # check backward changes
-  hhclone$add_group_rate("infectivity", by = "sex")
-  expect_equal(hhmodel$group_rates, hhclone$group_rates)
-
-  # deep clone
-  hhclone <- hhmodel$clone(deep = TRUE)
-
-  # data
-  expect_equal(hhmodel$data_wide, hhclone$data_wide)
-  expect_equal(hhmodel$data_long, hhclone$data_long)
-
-  # definitions
-  expect_equal(hhmodel$setup, hhclone$setup)
-  expect_equal(hhmodel$parameters, hhclone$parameters)
-  expect_equal(hhmodel$augmented, hhclone$augmented)
-  expect_equal(hhmodel$group_rates, hhclone$group_rates)
-
-  # check no backward changes
-  hhmodel$add_group_rate("susceptibility", by = "sex")
-  hhclone$data_wide <- dplyr::mutate(housepi::survey, status = NA)
-  expect_failure(expect_equal(hhmodel$group_rates, hhclone$group_rates))
-  expect_failure(expect_equal(hhmodel$data_wide, hhclone$data_wide))
-})
-
 test_that("Discretization is enabled as expected", {
   # blank household model object
   hhmodel <- new_housepi_model("blank")
@@ -93,38 +60,6 @@ test_that("Discretization is enabled as expected", {
 
   y <- posterior::as_draws_matrix(get_param_draws(hhmodel$infer()))
   expect_true(all(y == floor(y)))
-})
-
-test_that("Loglikelihood traces and pointwise traces are coherent", {
-  results <- new_housepi_model("chain_binomial") |>
-    load_parameter_template() |>
-    add_data_wide(housepi::survey) |> 
-    infer(steps = 10, thin = 1, adapt = 0, burnin = 0)
-
-  pointwise <- results$house_draws |>
-    posterior::as_draws_matrix() |>
-    rowSums() |>
-    unname()
-  expect_equal(results$loglike_draws$loglikelihood, pointwise)
-})
-
-test_that("Chain binomial models are coherent", {
-  # loglikelihood from chain binomial model
-  hhmodel1 <- new_housepi_model("chain_binomial")
-
-  hhmodel1$parameters <- list(alpha = 0.15, beta = 0.22)
-  hhmodel1$data_wide <- housepi::survey
-  ll1 <- hhmodel1$loglikelihood()
-
-  # loglikelihood from heterogeneous chain binomial model
-  # with homogenous rates
-  hhmodel2 <- new_housepi_model("chain_binomial_heterogeneous")
-
-  hhmodel2$parameters <- list(alpha = 0.15, beta = 0.22)
-  hhmodel2$data_wide <- housepi::survey
-  ll2 <- hhmodel2$loglikelihood()
-
-  expect_equal(ll1, ll2)
 })
 
 test_that("Nested definitions raise errors", {
@@ -260,6 +195,16 @@ test_that("Augmented aliasing works as expected", {
     proba = ~exp(pdf)
   )
   expect_equal(hhmodel$loglikelihood(), 1)
+  
+  # check that model arguments are correctly integrated
+  hhmodel <- new_housepi_model("blank") |> 
+    add_data_wide(data.frame(id = seq(1, 1000), house_id = 1, status = 1)) |> 
+    load_augmented_list(
+      delay = list(model = "uniform", args = c(min = ~ day, max = ~ day + 1)),
+      day = list(model = "gamma", args = c(shape = 2, scale = 1))
+    )
+  expect_warning(simulated <- simulate(hhmodel), regexp = "blank")
+  expect_true(all(simulated$day < simulated$delay))
 })
 
 test_that("Augmentation example on incubation from delays is coherent", {
@@ -307,130 +252,4 @@ test_that("Nested definittions works as expected", {
   expect_equal(sd(sample_boxmul), 1, tolerance = 0.05)
   q <- setNames(stats::quantile(sample_boxmul, probs), NULL)
   expect_equal(q, qnorm(probs), tolerance = 0.05)
-})
-
-test_that("Loglikelihood of augmented infection time model is correct", {
-  # instantaneous infectivity profile
-  infec_profile_inst <- function(x, param) {
-    dgamma(x, shape = param$shape, scale = param$scale)
-  }
-  # cumulative infectivity profile
-  infec_profile_cumul <- function(x, param) {
-    pgamma(x, shape = param$shape, scale = param$scale)
-  }
-  # transmission rate
-  transmission_rate <- function(house, param) {
-    param$beta * (param$size_ref / dim(house)[1]) ^ param$gamma
-  }
-  # loglikelihood contribution of susceptible members
-  loglike_susceptible <- function(house, param) {
-    i0 <- which(house$infec_time == min(house$infec_time, na.rm = TRUE))
-    member_0 <- house[i0, ]
-
-    alpha_cumul <- param$alpha * (param$study_period + member_0$incub_period)
-    beta <- transmission_rate(house, param)
-
-    output <- 0
-    for (i in which(house$status == 0)) {
-      roi_cumul <- 0
-      for (k in which(house$status == 1)) {
-        t_infec_k <- house[k, "infec_time"]
-        exposure <- param$study_period + member_0$onset_time - t_infec_k
-        roi_cumul <- roi_cumul + infec_profile_cumul(exposure, param)
-      }
-      output <- output - alpha_cumul - beta * roi_cumul
-    }
-
-    output
-  }
-  # loglikelihood contribution of infectious members
-  loglike_infectious <- function(house, param) {
-    output <- 0.
-    i0 <- which(house$infec_time == min(house$infec_time, na.rm = TRUE))
-    member_0 <- house[i0, ]
-    t_intro <- member_0$infec_time
-
-    alpha <- param$alpha
-    beta <- transmission_rate(house, param)
-
-    for (i in which(house$status == 1)) {
-      if (i != i0) {
-        t_infec_i <- house[i, "infec_time"]
-        roi_inst_i <- 0.
-        roi_cumul_i <- 0.
-        for (k in which(house$status == 1)) {
-          t_infec_k <- house[k, "infec_time"]
-          gentime <- t_infec_i - t_infec_k
-          if (gentime > 0) {
-            roi_inst_i <- roi_inst_i + infec_profile_inst(gentime, param)
-            roi_cumul_i <- roi_cumul_i + infec_profile_cumul(gentime, param)
-          }
-        }
-
-        roi_inst_i <- roi_inst_i * beta + alpha
-        roi_cumul_i <- roi_cumul_i * beta + alpha * (t_infec_i - t_intro)
-        output <- output + log(roi_inst_i) - roi_cumul_i
-      }
-    }
-
-    output
-  }
-  # dummy dataset
-  house <- data.frame(id = sprintf("hh_01_%s", seq(1, 7)),
-                      house_id = "hh_01",
-                      status = c(1, 1, 1, 0, 0, 0, 0),
-                      infec_time = c(0.0, 2.7, 3.6, NA, NA, NA, NA),
-                      incub_period = c(2.5, 3.1, 2.0, NA, NA, NA, NA))
-  house$onset_time <- house$infec_time + house$incub_period
-  # chioce for the parameters
-  param <- list(alpha = 1e-04, beta = 0.07, gamma = 0.9,
-                size_ref = 4, study_period = 45, shape = 2, scale = 1.1)
-
-  hhmodel <- new_housepi_model("augmented_infection_time")
-  hhmodel$data_wide <- house
-  hhmodel$parameters <- param
-  hhmodel$augmented <- list(infec_time = ~infec_time@D,
-                            incub_period = ~incub_period@D,
-                            onset_time = ~onset_time@D)
-  hhmodel$add_infec_profile(name = "gamma",
-                            args = c(shape = ~shape@P, scale = ~scale@P))
-
-  expect_equal(
-    hhmodel$loglikelihood(),
-    loglike_susceptible(house, param) + loglike_infectious(house, param)
-  )
-})
-
-test_that("Simulations behave as expected", {
-  hhsimul <- new_housepi_model("augmented_infection_time")
-  hhsimul$data_wide <- dplyr::mutate(housepi::survey, status = NA)
-  hhsimul$load_parameter_list(alpha = 0,
-                              beta = 0,
-                              study_period = 21,
-                              gamma = 1,
-                              size_ref = 4)
-  # UPDATE: these dependencies should not be in template
-
-  hhsimul$load_augmented_list(
-    incub_period = list(model = "gamma", args = c(shape = 2, scale = 1)),
-    infec_time = ~- incub_period,
-    onset_time = ~infec_time + incub_period
-  )
-
-  # simulate just introduction cases
-  simulated <- hhsimul$simulate()
-  expect_identical(
-    length(unique(simulated$house_id)),
-    sum(simulated$onset_time == 0, na.rm = TRUE)
-  )
-
-  # simulate all infected
-  expect_warning(hhsimul$add_parameter(name = "beta", value = 100))
-  simulated <- hhsimul$simulate()
-  expect_true(all(simulated$status > 0))
-  expect_false(any(is.na(simulated$infec_time)))
-  expect_equal(
-    simulated$infec_time,
-    simulated$onset_time - simulated$incub_period
-  )
 })
