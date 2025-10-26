@@ -463,48 +463,46 @@ Rcpp::NumericMatrix MCMC::Impl::rcpp_export_draws() const
     try
     {
         // UPDATE: I shall allow for export even if _is_power_post
-        if (smpl_full_loglike_.empty())
+        if (smpl_total_loglike_.empty())
             throw std::length_error("No draws to export were found.");
 
-        // cllect the column names
-        str_vec headers = {"loglikelihood"};
-
+        // define matrix headers
+        str_vec headers = {"log_lik"};
         headers += param.list_sample;
-
+        // prior of sampled parameters
+        for (const std::string &p : param.list_sample)
+            headers.push_back("lprior_" + p);
         // augmented variable of id trace
         if (!augm.smpl_values.empty())
             for (size_t k = 0; k < augm.smpl_individuals.size(); ++k)
                 for (const std::string &a : augm.list_draws)
                     headers.push_back(augm.smpl_individuals[k]->id() + "_" + a);
-
         // multiple chains
         headers.push_back(hsp::read::CHAIN_COLUMN);
 
         // matrix with draws
-        NumericMatrix output(setup.n_chains * setup.c_sample_size,
-                             headers.size());
+        NumericMatrix output(setup.n_chains * setup.c_sample_size, headers.size());
+        
         size_t col = 0;
-
         // loglikelihood
-        output(_, col++) = NumericVector(wrap(std::move(smpl_full_loglike_)));
-
-        // parameters
+        output(_, col++) = NumericVector(wrap(smpl_total_loglike_));
+        // parameter values
         for (const std::string &p : param.list_sample)
-            output(_, col++) = NumericVector(wrap(std::move(param.smpl_values.at(p))));
+            output(_, col++) = NumericVector(wrap(param.smpl_values.at(p)));
+        // parameter values
+        for (const std::string &p : param.list_sample)
+            output(_, col++) = NumericVector(wrap(param.smpl_priors.at(p)));
 
         // augmented variables
         if (!augm.smpl_values.empty())
             for (size_t k = 0; k < augm.smpl_individuals.size(); ++k)
-            {
-                const auto &smpl_augm_value_k = augm.smpl_values[k];
                 for (const std::string &a : augm.list_draws)
-                    output(_, col++) = NumericVector(wrap(std::move(smpl_augm_value_k.at(a))));
-            }
+                    output(_, col++) = NumericVector(wrap(augm.smpl_values.at(k).at(a)));
 
         // asssociate chain tag
         output(_, col++) = setup.draws_chain_tags();
         // associate column names
-        colnames(output) = CharacterVector(wrap(std::move(headers)));
+        colnames(output) = CharacterVector(wrap(headers));
         // associate row names
         rownames(output) = setup.draws_iter_names();
 
@@ -878,7 +876,7 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
 
     // Headers
     // header loglikelihood
-    ofs << "iteration" << hsp::read::DELIMITER << "loglikelihood";
+    ofs << "iteration" << hsp::read::DELIMITER << "log_lik";
 
     // header parameters
     for (const std::string &p : param.list_sample)
@@ -905,7 +903,7 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
 
             // print loglikelihood
             ofs << hsp::read::DELIMITER << std::setprecision(2)
-                << std::fixed << smpl_full_loglike_[i];
+                << std::fixed << smpl_total_loglike_[i];
 
             // print parameter values
             for (const std::string &p : param.list_sample)

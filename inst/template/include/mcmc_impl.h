@@ -184,8 +184,8 @@ public:
         str_vec list_adaptable_sample_cached = {};
         str_vec list_non_adapt_sample_cached = {};
 
-        // values of the sample
-        u_dict<dbl_vec> smpl_values = {};
+        u_dict<dbl_vec> smpl_values = {}; /// values of the sample
+        u_dict<dbl_vec> smpl_priors = {}; /// prior values of the sample
 
         /////////////////////////////////////////////////////////////////////////////////////////
         /////////////////////////  MCMC : Impl : Parameter : constructor  ///////////////////////
@@ -538,7 +538,7 @@ public:
         void init_template(u_dict<std::string> input);
         void update(bool is_cache_depen);
         void recover(bool is_cache_depen);
-        void request_discrete() { is_discrete_requested_ = true;};
+        void request_discrete() { is_discrete_requested_ = true; };
         void transfer_augm_definitions(u_dict<str_vec> &target) const;
 
         /////////////////////////////////////////////////////////////////////////////////////////
@@ -552,7 +552,8 @@ public:
         double cumul(const Individual *member, double t) { return (this->*cumul_)(member, t); }
 
         /// Get shared pointer to profile.
-        std::shared_ptr<Distribution> get_profile() const {
+        std::shared_ptr<Distribution> get_profile() const
+        {
             if (profile_ == nullptr)
                 throw std::invalid_argument("Infectivity profile is not defined.");
             return profile_;
@@ -750,11 +751,11 @@ private:
     ////////////////////////  MCMC : Impl : Metropolis-Hastings [private]  //////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    double full_loglike_ = 0.; /// current full loglikelihood
-    double full_buffer_ = 0.;  /// buffer loglikelihood
+    double total_loglike_ = 0.; /// current total loglikelihood
+    double total_buffer_ = 0.;  /// buffer total loglikelihood
 
-    unsigned long smpl_count_ = 0;   /// count of store samples
-    dbl_vec smpl_full_loglike_ = {}; /// vector of full loglikelihood samples
+    unsigned long smpl_count_ = 0;    /// count of store samples
+    dbl_vec smpl_total_loglike_ = {}; /// vector of total loglikelihood samples
 
     /// Assert data_wide is not empty.
     void assert_non_empty_data_wide_()
@@ -772,19 +773,19 @@ private:
 
     void init_monte_carlo_();
 
-    /// Set new full loglikelihood value and buffer old value.
-    void set_full_loglike_(double new_ll)
+    /// Set new total loglikelihood value and buffer old value.
+    void set_total_loglike_(double new_ll)
     {
-        full_buffer_ = full_loglike_;
-        full_loglike_ = new_ll;
+        total_buffer_ = total_loglike_;
+        total_loglike_ = new_ll;
     }
 
-    /// Increment full loglikelohood by a delta, buffer old value.
-    void increment_full_loglike_(double delta) { set_full_loglike_(full_loglike_ + delta); }
+    /// Increment total loglikelohood by a delta, buffer old value.
+    void increment_total_loglike_(double delta) { set_total_loglike_(total_loglike_ + delta); }
 
     void init_move_counts_();
 
-    void update_full_loglike_(bool cache_depen);
+    void update_total_loglike_(bool cache_depen);
     double update_house_loglike_(Household &house, bool is_augm_ll, bool is_cache_depen);
 
     void run_monte_carlo_();

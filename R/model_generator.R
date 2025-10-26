@@ -144,10 +144,8 @@ HousepiGenerator <- R6::R6Class(
       user_options <- list(...)
 
       # process time discrete option
-      if ("discr" %in% names(user_options)) {
-        if (isTRUE(user_options$discr)) {
-          user_flags <- c(user_flags, "_HOUSEPI_DISCRETE_TIME")
-        }
+      if ("discr" %in% names(user_options) && isTRUE(user_options$discr)) {
+        user_flags <- c(user_flags, "_HOUSEPI_DISCRETE_TIME")
       }
 
       # store raw flags for later checks
@@ -470,7 +468,14 @@ HousepiGenerator <- R6::R6Class(
       private$.name == "blank"
     },
 
-    # @description Envirnoment path.
+    # @description Wheter model is template.
+    # @return `logical(1)`
+    .is_template = function() {
+      if (private$.is_blank()) return(TRUE)
+      dirname(private$.path()) == template_models_dir()
+    },
+
+    # @description Environment path.
     # @return `character(1)`
     .path = function() {
       # reference script
@@ -559,8 +564,8 @@ HousepiGenerator <- R6::R6Class(
     #' @field setup
     #' A `list` wiht last setup used by the build process.
     setup = function(value) {
-      if (missing(value)) return(private$.rcpp$export_setup())
-      stop_h("'setup' is read only.")
+      if (!missing(value)) stop_h("'setup' is read only.")
+      private$.rcpp$export_setup()
     }
   ),
 

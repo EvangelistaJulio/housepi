@@ -32,9 +32,10 @@ HousepiPosteriorDraws <- R6::R6Class(
     # @field
     .name = NA_character_,
     .param_df = NULL,
+    .prior_df = NULL,
     .augm_df = NULL,
-    .loglike_df = NULL,
-    .house_df = NULL,
+    .full_log_lik_df = NULL,
+    .point_log_lik_df = NULL,
 
     # split into a list of matrix
     .split_draws_by_chain = function(x) {
@@ -123,29 +124,51 @@ HousepiPosteriorDraws <- R6::R6Class(
     #' @field param_draws `posterior::draws_df`
     #' Posterior draws data.frame of parameters.
     param_draws = function(value) {
-      if (missing(value)) private$.param_df
-      else stop_h("'param_draws' is read only.")
+      if (!missing(value)) stop_h("'param_draws' is read only.")
+      private$.param_df
+    },
+
+    #' @field prior_draws `posterior::draws_df`
+    #' Posterior draws data.frame of values of parameter priors.
+    prior_draws = function(value) {
+      if (!missing(value)) stop_h("'prior_draws' is read only.")
+      private$.prior_df
     },
 
     #' @field augm_draws `posterior::draws_df`
     #' Posterior draws data.frame of selected individuals augmented variables.
     augm_draws = function(value) {
-      if (missing(value)) private$.augm_df
-      else stop_h("'augm_draws' is read only.")
+      if (!missing(value)) stop_h("'augm_draws' is read only.")
+      private$.augm_df
     },
 
-    #' @field loglike_draws `posterior::draws_df`
-    #' Posterior draws data.frame of full loglikelihood.
-    loglike_draws = function(value) {
-      if (missing(value)) private$.loglike_df
-      else stop_h("'loglike_draws' is read only.")
-    },
-
-    #' @field house_draws `posterior::draws_df`
+    #' @field log_lik_draws `posterior::draws_df`
     #' Posterior draws data.frame of households pointwise loglikelihood.
-    house_draws = function(value) {
-      if (missing(value)) private$.house_df
-      else stop_h("'house_draws' is read only.")
+    log_lik_draws = function(value) {
+      if (!missing(value)) stop_h("'log_lik_draws' is read only.")
+      private$.point_log_lik_df
+    },
+
+    #' @field total_log_lik_draws `posterior::draws_df`
+    #' Posterior draws data.frame of the total loglikelihood.
+    total_log_lik_draws = function(value) {
+      if (!missing(value)) stop_h("'total_log_lik_draws' is read only.")
+      private$.full_log_lik_df
+    },
+
+    #' @field complete_draws `posterior::draws_df`
+    #' Parameters draws complete of pointwise log-likelihood and priors.
+    complete_draws <- function(value) {
+      if (!missing(value)) stop_h("'complete_draws' is read only.")
+      # rename pointwise loglikelihood
+      aux <- private$.point_log_lik_df
+      n_vars <- posterior::nvariables(aux)
+      names(aux)[1:n_vars] <- paste0("log_lik[", 1:n_vars, "]")
+      # bind all together
+      posterior::mutate_variables(
+        posterior::bind_draws(private$.param_draws, aux, private$.prior_draws),
+        lprior = rowSums(posterior::as_draws_matrix(private$.prior_draws))
+      )
     }
   ),
 
@@ -178,18 +201,25 @@ HousepiPosteriorDraws <- R6::R6Class(
       }
 
       # loglikelihood draws
-      private$.loglike_df <- posterior::subset_draws(
-        all_traces, variable = c("loglikelihood")
+      private$.full_log_lik_df <- posterior::subset_draws(
+        all_traces, variable = c("log_lik")
       )
-      private$.loglike_df$.iteration <- all_traces$.iteration
-      vars <- setdiff(vars, c("loglikelihood"))
+      private$.full_log_lik_df$.iteration <- all_traces$.iteration
+      vars <- setdiff(vars, c("log_lik"))
+
+      # prior parameters draws
+      prior_vars <- vars[stringr::str_detect(vars, "lprior_")]
+      private$.prior_df <- posterior::subset_draws(all_traces,
+                                                   variable = prior_vars)
+      private$.prior_df$.iteration <- all_traces$.iteration
+      vars <- setdiff(vars, prior_vars)
 
       # parameters draws
       private$.param_df <- posterior::subset_draws(all_traces, variable = vars)
       private$.param_df$.iteration <- all_traces$.iteration
 
       # household pointwise loglikelihood
-      private$.house_df <- private$.cpp_draws_to_posterior(
+      private$.point_log_lik_df <- private$.cpp_draws_to_posterior(
         rcpp_object$export_house_loglike_draws()
       )
 
@@ -201,7 +231,21 @@ HousepiPosteriorDraws <- R6::R6Class(
     #' @description
     #' Override the default printing behavior.
     print = function() {
-      cli::cli_alert_info("Posterior draws of model {.pkg {private$.name}}.")
+      cli::cli_alert_info(sprintf(
+        "Posterior draws of model {.pkg %s}.\n%s",
+        spaced_template_choice(private$.name),
+        sprintf(
+          "%s iterations, %s chains%s%s.",
+          posterior::niterations(self$total_log_lik_draws),
+          posterior::nchains(self$total_log_lik_draws),
+          ifelse(is.null(self$param_draws), "",
+                 sprintf(", %s parameters",
+                         posterior::nvariables(self$param_draws))),
+          ifelse(is.null(self$augm_draws), "",
+                 sprintf(", %s augmented",
+                         posterior::nvariables(self$augm_draws)))
+        )
+      ))
       invisible()
     },
 
@@ -216,8 +260,8 @@ HousepiPosteriorDraws <- R6::R6Class(
       if (posterior::is_draws(self$augm_draws)) {
         x2 <- posterior::summarize_draws(self$augm_draws)
       }
-      if (posterior::is_draws(self$loglike_draws)) {
-        x3 <- posterior::summarize_draws(self$loglike_draws)
+      if (posterior::is_draws(self$total_log_lik_draws)) {
+        x3 <- posterior::summarize_draws(self$total_log_lik_draws)
       }
       rbind(x1, x2, x3)
     }
@@ -254,14 +298,28 @@ get_augm_draws <- function(hhdraws) {
 
 #' @rdname get_draws
 #' @export
-get_loglike_draws <- function(hhdraws) {
+get_log_lik_draws <- function(hhdraws) {
   stopifnot(inherits(hhdraws, "HousepiPosteriorDraws"))
-  hhdraws$loglike_draws
+  hhdraws$log_lik_draws
 }
 
 #' @rdname get_draws
 #' @export
-get_house_loglike_draws <- function(hhdraws) {
+get_total_log_lik_draws <- function(hhdraws) {
   stopifnot(inherits(hhdraws, "HousepiPosteriorDraws"))
-  hhdraws$house_draws
+  hhdraws$total_log_lik_draws
+}
+
+#' @rdname get_draws
+#' @export
+get_prior_draws <- function(hhdraws) {
+  stopifnot(inherits(hhdraws, "HousepiPosteriorDraws"))
+  hhdraws$prior_draws
+}
+
+#' @rdname get_draws
+#' @export
+get_complete_draws <- function(hhdraws) {
+  stopifnot(inherits(hhdraws, "HousepiPosteriorDraws"))
+  hhdraws$complete_draws
 }

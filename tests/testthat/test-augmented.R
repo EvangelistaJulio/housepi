@@ -81,12 +81,12 @@ test_that("Augmented function definition is correct", {
   # overwriting warnings
   expect_warning(
     augm$add(name = "dummy", func = "log", func_args = c(x = ~infec@A)),
-    "Overwriting existing"
+    regexp = "Overwriting"
   )
   augm$add(name = "rate", value = 3)
   expect_warning(
     augm$add(name = "dummy", expr = ~exp(-rate)),
-    "Overwriting existing"
+    regexp = "Overwriting"
   )
 })
 
@@ -100,7 +100,7 @@ test_that("Augmented load enable special definitions", {
   expect_equal(tmp$defs, augm$defs)
 
   expect_warning(tmp$add(name = "dummy", expr = ~log(infec@A)),
-                 regexp = "Overwriting existing")
+                 regexp = "Overwriting")
   expect_equal(tmp$defs, augm$defs)
 
   # multi-status definition

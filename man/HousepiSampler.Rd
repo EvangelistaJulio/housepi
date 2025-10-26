@@ -5,11 +5,11 @@
 \alias{HousepiSampler}
 \title{Household Sampler}
 \description{
-FIXME: missing.
+Missing.
 }
 \keyword{internal}
 \section{Super class}{
-\code{\link[housepi:IndividualSampler]{housepi::IndividualSampler}} -> \code{HousepiSampler}
+\code{housepi::IndividualSampler} -> \code{HousepiSampler}
 }
 \section{Methods}{
 \subsection{Public methods}{

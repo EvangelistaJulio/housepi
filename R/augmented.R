@@ -29,21 +29,15 @@ HousepiAugmented <- R6::R6Class(
 
     # handle existing definition
     .helper_existing_definition = function(name, status) {
-      # check for missing name
-      if (is.na(name)) stop_h("Incomplete definition: missing name.")
       # wrong status
-      else if (!is.na(status) && !is.numeric(status)) stop_h(
-        "Invalid   status: must be NA or a positive integer alue."
+      if (!is.na(status) && !is.numeric(status)) stop_h(
+        "Invalid status: must be NA or a positive integer value."
       )
-      else if (!is.na(status) && (status <= 0)) stop_h(
-        "Invalid   status: must be NA or a positive integer value."
+      if (!is.na(status) && (status <= 0)) stop_h(
+        "Invalid status: must be NA or a positive integer value."
       )
       # remove previous definition
-      else if (self$remove(name, status, FALSE)) warning_h(sprintf(
-        "Overwriting existing '%s' definition%s",
-        name, ifelse(is.na(status), ".", sprintf(" for status %d.", status))
-      ))
-      invisible(self)
+      self$remove(name, status)
     },
 
     # parse augmented implicit function
@@ -135,6 +129,33 @@ HousepiAugmented <- R6::R6Class(
       opts
     },
 
+    .helper_load_single_def = function(definition_i) {
+      def_name <- names(definition_i)
+
+      # interpret expression
+      expr <- definition_i[[1]]
+      if (rlang::is_call(expr)) this_def <- list("expr" = expr)
+      else this_def <- as.list(expr)
+
+      # interpret raw definition
+      if (length(names(this_def)) == 0) {
+        # distinguish between constant value definition and expression
+        if (length(this_def) == 1) {
+          if (is.na(expr)) names(this_def) <- "value"
+          else if (is.numeric(expr)) names(this_def) <- "value"
+          else names(this_def) <- "expr"
+        } else {
+          stop_h(
+            sprintf("Invalid definition for augmented '%s'.", def_name),
+            "Provide scalar, expression or named list (see 'add_augmented')."
+          )
+        }
+      }
+      # associate name
+      this_def$name <- def_name
+      this_def
+    },
+
     # Extract value of given type from augmented definitions.
     .extract_types = function(type) {
       # columns with types amongst augmented definitions
@@ -167,29 +188,29 @@ HousepiAugmented <- R6::R6Class(
     #' @field augm_required `character()`\cr
     #' Find augmented required by augmented variable definitions.
     augm_required = function(value) {
-      if (missing(value)) return(private$.find_def_required("A"))
-      stop_h("'augm_required' is read only.")
+      if (!missing(value)) stop_h("'augm_required' is read only.")
+      private$.find_def_required("A")
     },
 
     #' @field data_required `character()`\cr
     #' Find data required by augmented variable definitions.
     data_required = function(value) {
-      if (missing(value)) return(private$.find_def_required("D"))
-      stop_h("'data_required' is read only.")
+      if (!missing(value)) stop_h("'data_required' is read only.")
+      private$.find_def_required("D")
     },
 
-    #' @field group_rate_required `character()`\cr
+    #' @field group_rates_required `character()`\cr
     #' Find group rates required by augmented variable definitions.
-    group_rate_required = function(value) {
-      if (missing(value)) return(private$.find_def_required("G"))
-      stop_h("'group_rate_required' is read only.")
+    group_rates_required = function(value) {
+      if (!missing(value)) stop_h("'group_rates_required' is read only.")
+      private$.find_def_required("G")
     },
 
     #' @field param_required `character()`\cr
     #' Find parameters required by augmented variable definitions.
     param_required = function(value) {
-      if (missing(value)) return(private$.find_def_required("P"))
-      stop_h("'param_required' is read only.")
+      if (!missing(value)) stop_h("'param_required' is read only.")
+      private$.find_def_required("P")
     }
   ),
 
@@ -242,7 +263,7 @@ HousepiAugmented <- R6::R6Class(
     #' `logical(1)`to show warnings or not.
     #'
     #' @return `logical(1)`
-    remove = function(x, status, show_warnings = TRUE) {
+    remove = function(x, status, show_warnings = FALSE) {
       mask <- self$defs[["name"]] == x
       if (any(mask)) {
         # check if same name and status
@@ -258,7 +279,7 @@ HousepiAugmented <- R6::R6Class(
       } else if (isTRUE(show_warnings)) {
         warning_h(sprintf("Unknown augmented variable '%s' to remove.", x))
       }
-      return(any(mask))
+      any(mask)
     },
 
     #' @inherit add_augmented
@@ -276,8 +297,14 @@ HousepiAugmented <- R6::R6Class(
                    rule = NA_character_,
                    scale = NA_real_,
                    expr = NULL) {
+      # control valid name
+      assert_valid_definition_name(name, "augmented")
+
       # handle (name, status) and check for existing definitions
-      private$.helper_existing_definition(name, status)
+      if (private$.helper_existing_definition(name, status)) warning_h(sprintf(
+        "Overwriting augmented definition for '%s'%s.",
+        name, ifelse(is.na(status), "", sprintf(" (status %d).", status))
+      ))
 
       # auxiliary typed options for Rcpp build method
       opts <- list(
@@ -330,44 +357,39 @@ HousepiAugmented <- R6::R6Class(
     #' @param append
     #' A `logical(1)` to append to current definitions.
     #' If `FALSE` drop all pre-existing definitions (default).
-    load_list = function(...,
-                         from = NULL,
-                         append = FALSE) {
-      definitions <- load_definition_list(..., from = from)
+    load_list = function(..., from = NULL, append = FALSE) {
+      definitions <- helper_load_definition_list(..., from = from)
 
-      # remove previos definitions if not append
+      # remove previous definitions if append is false
       if (isFALSE(append)) self$initialize()
+      all_removed <- c()
 
-      for (i in seq_along(definitions)){
-        def_name <- names(definitions[i])
-        expr <- definitions[[i]]
-        if (rlang::is_call(expr)) this_def <- list("expr" = expr)
-        else this_def <- as.list(expr)
+      for (i in seq_along(definitions)) {
+        this_def <- private$.helper_load_single_def(definitions[i])
 
-        # raw definition
-        if (length(names(this_def)) == 0) {
-          # distinguish between constant value definition and expression
-          if (length(this_def) == 1) {
-            if (is.na(expr)) names(this_def) <- "value"
-            else if (is.numeric(expr)) names(this_def) <- "value"
-            else names(this_def) <- "expr"
-          } else {
-            stop_h(
-              sprintf("Invalid definition for augmented '%s'.", def_name),
-              "Provide scalar, expression or named list (see 'add_augmented')."
-            )
+        if (is.null(this_def$status)) {
+          # generic definition
+          if (private$.helper_existing_definition(this_def$name, NA)) {
+            all_removed <- c(all_removed, this_def$name)
+          }
+          do.call(self$add, this_def)
+
+        } else {
+          # status-specific or multi-status definitions
+          for (s in this_def$status) {
+            if (private$.helper_existing_definition(this_def$name, s)) {
+              all_removed <- c(all_removed, this_def$name)
+            }
+            do.call(self$add, utils::modifyList(this_def, list(status = s)))
           }
         }
-
-        # associate name
-        this_def$name <- def_name
-
-        # multi-status definitions
-        if (is.null(this_def$status)) do.call(self$add, this_def)
-        else for (s in this_def$status) {
-          do.call(self$add, utils::modifyList(this_def, list(status = s)))
-        }
       }
+
+      if (length(all_removed) > 0) warning_h(sprintf(
+        "Overwriting augmented definition%s%s",
+        ifelse(length(all_removed) > 1, "s for:\n", " for "),
+        character_to_string_list(all_removed, NA)
+      ))
 
       invisible(self)
     },
@@ -424,20 +446,19 @@ HousepiAugmented <- R6::R6Class(
     #' @description
     #' Assert augmented definitions from the model implementation script.
     #'
-    #' @param required
-    #' A `character()` containing required parameters.
-    #' @param status_set
-    #' A `integer()` with all statuses present in the current data.
-    assert = function(required, status_set) {
+    #' @param required `character()` containing required augmented
+    #' @param status_set `integer()` with all known statuses in data.
+    #' @param capital `logical(1)` to raise error.
+    assert = function(required, status_set, capital) {
       status_set <- sort(status_set)
       defined <- self$defs[["name"]]
       # point out augmented variables that are not used
       template_not_used_warn(required, defined, "augmented")
 
       # stop if augmented variables are missing
-      template_missing_stop(required, defined, "augmented")
-
-      invisible(self)
+      sms <- template_missing_stop(required, defined, "augmented")
+      if (isTRUE(capital) && length(sms) > 0) stop_h(sms)
+      else sms
     }
   )
 )

@@ -10,6 +10,21 @@
 # template.R
 #
 
+# Assert that given definition name is valid.
+assert_valid_definition_name <- function(x, family) {
+  if (is.na(x) || !is.character(x) || length(x) != 1 || nchar(x) == 0) stop_h(
+    sprintf("Definition name of %s must be a non-empty character(1).", family)
+  )
+  else if (is.na(x)) stop_h(
+    sprintf("Incomplete definition of %s: missing name.", family)
+  )
+  else if (!grepl("^[A-Za-z0-9_.]+$", x)) stop_h(
+    sprintf("Definition name '%s' of %s contains invalid characters.",
+            x, family),
+    "Only letters, numbers, underscores (_) and dots (.) are allowed."
+  )
+}
+
 spaced_template_choice <- function(x) {
   tolower(gsub("\\s+", " ", gsub("-|_| ", " ", x)))
 }
@@ -311,9 +326,9 @@ template_missing_find <- function(required, defined) {
 #' @description
 #' Stop if missing definitions are found
 #'
-#' @param required A `character()` with required definitions.
-#' @param defined A `character()` with current definitions.
-#' @param family A `character(1)` with the name of the definition family.
+#' @param required `character()` with required definitions.
+#' @param defined `character()` with current definitions.
+#' @param family `character(1)` with the name of the definition family.
 #' @param max_print `integer(1)` with the maximum number of elements to print.
 #'
 #' @return
@@ -327,20 +342,21 @@ template_missing_stop <- function(required, defined, family, max_print = 4) {
   # find sources of missing definitions
   sources <- unique(names(required[required %in% miss]))
   # show error message
-  if (len_miss > 0) stop_h(
-    sprintf("There %s %s missing %s definition%s%s",
+  output <- c()
+  if (len_miss > 0) output <- c(
+    sprintf("There %s %s missing %s definition%s: %s",
             ifelse(len_miss > 1, "were", "was"),
             ifelse(len_miss > max_print,
                    paste0("more than ", max_print), len_miss),
             family,
-            ifelse(len_miss > 1, "s:\n", ": "),
+            ifelse(len_miss > 1, "s", ""),
             character_to_string_list(miss, max_print)),
     sprintf("The %s definition%s required by %s",
             family,
             ifelse(len_miss > 1, "s were", " was"),
             character_to_phrase(sources))
   )
-  invisible()
+  output
 }
 
 ############################################################################
@@ -396,6 +412,24 @@ template_not_used_warn <- function(required, defined, family, max_print = 5) {
             character_to_string_list(notused, max_print))
   )
   invisible()
+}
+
+#' @title
+#' Cli format assertion Not Used Warning
+#' @description
+#' Format the output of an assert message with CLI.
+#'
+#' @keywords internal
+#' @noRd
+cli_format_assertion <- function(sms, section) {
+  if (length(sms) > 0) {
+    sms <- c(paste0(cli::col_yellow(section), ":"), sms)
+    sms <- gsub(sms, pattern = " were ", replacement = " are ")
+    sms <- paste0(sms, collapse = "\n")
+    cli::cli_alert_danger(sms)
+  } else {
+    cli::cli_alert_success(paste0(section, " definitions are complete."))
+  }
 }
 
 ############################################################################

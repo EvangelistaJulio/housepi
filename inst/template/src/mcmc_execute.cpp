@@ -36,9 +36,9 @@ double MCMC::Impl::evaluate()
         augm.init();                   // initialize individual augmented relations
         augm.user_reset();             // initialize non constant augmented
         init_model_for_inference_();   // initialize model for inference
-        update_full_loglike_(true);    // initialize cache + full loglikelihood
+        update_total_loglike_(true);    // initialize cache + full loglikelihood
 
-        return full_loglike_;
+        return total_loglike_;
     }
     catch (const std::exception &e)
     {
@@ -56,7 +56,7 @@ double MCMC::evaluate() { return pImpl_->evaluate(); }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Compute new loglikelihood, store old value in buffer. Same for households.
-void MCMC::Impl::update_full_loglike_(bool cache_depen)
+void MCMC::Impl::update_total_loglike_(bool cache_depen)
 {
     const bool is_augm_ll = augm.is_any_model();
     double new_ll = 0.0;
@@ -90,7 +90,7 @@ void MCMC::Impl::update_full_loglike_(bool cache_depen)
     if (!error_message.empty())
         throw std::runtime_error(error_message);
 
-    set_full_loglike_(new_ll);
+    set_total_loglike_(new_ll);
 }
 
 /// Update and return contribution of given household to full logliklehood.
@@ -175,7 +175,7 @@ void MCMC::Impl::run_monte_carlo_()
         setup.prog_set_text();      // update progress bar text
         param.user_reset();         // reset parameter user definitions
         augm.user_reset();          // reset augmented user definitions
-        update_full_loglike_(true); // init cache + full loglikelihood
+        update_total_loglike_(true); // init cache + full loglikelihood
         init_move_counts_();        // init move counts for adaptive
 
         // Finite adaptative iterations
@@ -235,7 +235,7 @@ bool MCMC::Impl::move_single_parameter_(const std::string &p, bool is_cache_depe
     if (propose_valid_param_move_(p))
     {
         // if parameter is cache dependent, update cache
-        update_full_loglike_(is_cache_depen);
+        update_total_loglike_(is_cache_depen);
 
         // perform Metropolis-Hastings to accept or not move
         if (accept_valid_param_move_(p))
@@ -298,7 +298,7 @@ void MCMC::Impl::recover_parameter_(const std::string &p, bool is_cache_depen)
     param.at(p).recover_value();
 
     // recover buffer value of full loglike
-    full_loglike_ = full_buffer_;
+    total_loglike_ = total_buffer_;
 
     // recover buffered loglikelihood in households
     for (Household &house : data_wide.restricted())
@@ -315,7 +315,7 @@ void MCMC::Impl::recover_parameter_(const std::string &p, bool is_cache_depen)
 /// Metropolis-Hastings to accept or not current parameter move.
 bool MCMC::Impl::accept_valid_param_move_(const std::string &p)
 {
-    const double D_ll = full_loglike_ - full_buffer_;
+    const double D_ll = total_loglike_ - total_buffer_;
     const double move_logratio = param.at(p).get_move_logratio();
     return setup.unif() < std::exp(setup.inv_T * D_ll + move_logratio);
 }
@@ -331,11 +331,16 @@ void MCMC::Impl::Parameter::init_draws(unsigned long sample_size)
 {
     smpl_values.clear();
     smpl_values.reserve(list_sample.size());
+    smpl_priors.clear();
+    smpl_priors.reserve(list_sample.size());
     for (const std::string &p : list_sample)
     {
         smpl_values[p].clear();
         smpl_values[p].reserve(sample_size);
         smpl_values[p].assign(sample_size, hsp::na::DOUBLE);
+        smpl_priors[p].clear();
+        smpl_priors[p].reserve(sample_size);
+        smpl_priors[p].assign(sample_size, hsp::na::DOUBLE);
     }
 }
 
@@ -343,19 +348,27 @@ void MCMC::Impl::Parameter::init_draws(unsigned long sample_size)
 void MCMC::Impl::Parameter::update_draws(unsigned long smpl_count)
 {
     for (const std::string &p : list_sample)
-        smpl_values[p][smpl_count] = get(p);
+    {
+        const Variable &this_par = this->at(p);
+        smpl_values[p][smpl_count] = this_par.get();
+        smpl_priors[p][smpl_count] = this_par.get_distr_logpdf();
+    }
 }
 
 /// Deep clear existing posterior sample of parameters.
 void MCMC::Impl::Parameter::clear_draws()
 {
-    for (auto &pair : smpl_values)
+    for (const std::string &p : list_sample)
     {
-        pair.second.clear();
-        pair.second.shrink_to_fit();
+        smpl_values[p].clear();
+        smpl_values[p].shrink_to_fit();
+        smpl_priors[p].clear();
+        smpl_priors[p].shrink_to_fit();
     }
     smpl_values.clear();
     smpl_values.rehash(0);
+    smpl_priors.clear();
+    smpl_priors.rehash(0);
 }
 
 /// Initialize posterior sample of parameters.
@@ -405,9 +418,9 @@ void MCMC::Impl::init_posterior_sample_()
 
     // diagnostics over full loglikelihood
     smpl_count_ = 0;
-    smpl_full_loglike_.clear();
-    smpl_full_loglike_.reserve(sample_size);
-    smpl_full_loglike_.assign(sample_size, hsp::na::DOUBLE);
+    smpl_total_loglike_.clear();
+    smpl_total_loglike_.reserve(sample_size);
+    smpl_total_loglike_.assign(sample_size, hsp::na::DOUBLE);
 
     // initialize  other diagnostic vectors
     // UPDATE: I need to store also power posterior sample
@@ -424,7 +437,7 @@ void MCMC::Impl::init_posterior_sample_()
 void MCMC::Impl::update_posterior_sample_()
 {
     // store sample of the full loglikelihood
-    smpl_full_loglike_[smpl_count_] = full_loglike_;
+    smpl_total_loglike_[smpl_count_] = total_loglike_;
 
     if (!setup.is_power_post())
     {
@@ -440,8 +453,8 @@ void MCMC::Impl::update_posterior_sample_()
 void MCMC::Impl::clear_posterior_sample_()
 {
     smpl_count_ = 0;
-    smpl_full_loglike_.clear();
-    smpl_full_loglike_.shrink_to_fit();
+    smpl_total_loglike_.clear();
+    smpl_total_loglike_.shrink_to_fit();
 
     data_wide.clear_draws();
     param.clear_draws();
@@ -542,7 +555,7 @@ void MCMC::Impl::power_post_zero_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
     setup.rung = 0;
     setup.inv_T = 0.0;
     run_monte_carlo_();
-    std::pair<double, double> stats = compute_stats(smpl_full_loglike_);
+    std::pair<double, double> stats = compute_stats(smpl_total_loglike_);
 
     itm.push_back(setup.inv_T);
     avg.push_back(stats.first);
@@ -556,7 +569,7 @@ void MCMC::Impl::power_post_adaptive_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
     setup.rung = 1;
     setup.inv_T = 1.0;
     run_monte_carlo_();
-    std::pair<double, double> stats = compute_stats(smpl_full_loglike_);
+    std::pair<double, double> stats = compute_stats(smpl_total_loglike_);
 
     itm.push_back(setup.inv_T);
     avg.push_back(stats.first);
@@ -579,7 +592,7 @@ void MCMC::Impl::power_post_adaptive_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
         // power posterior sampling
         setup.inv_T = new_t;
         run_monte_carlo_();
-        stats = compute_stats(smpl_full_loglike_);
+        stats = compute_stats(smpl_total_loglike_);
 
         // find larger rectangular discretization error
         is_right = (itm[k + 1] - setup.inv_T) * (avg[k + 1] - stats.first) > (new_t - itm[k]) * (stats.first - avg[k]);
@@ -603,7 +616,7 @@ void MCMC::Impl::power_post_fractions_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
         setup.inv_T = std::pow(static_cast<double>(setup.rung) / setup.n_rungs, 5);
         run_monte_carlo_();
 
-        std::pair<double, double> stats = compute_stats(smpl_full_loglike_);
+        std::pair<double, double> stats = compute_stats(smpl_total_loglike_);
         itm.push_back(setup.inv_T);
         avg.push_back(stats.first);
         var.push_back(stats.second);

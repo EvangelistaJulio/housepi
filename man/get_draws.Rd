@@ -3,17 +3,20 @@
 \name{get_param_draws}
 \alias{get_param_draws}
 \alias{get_augm_draws}
-\alias{get_loglike_draws}
-\alias{get_house_loglike_draws}
+\alias{get_log_lik_draws}
+\alias{get_full_log_lik_draws}
+\alias{get_prior_draws}
 \title{Get posterior draws}
 \usage{
 get_param_draws(hhdraws)
 
 get_augm_draws(hhdraws)
 
-get_loglike_draws(hhdraws)
+get_log_lik_draws(hhdraws)
 
-get_house_loglike_draws(hhdraws)
+get_full_log_lik_draws(hhdraws)
+
+get_prior_draws(hhdraws)
 }
 \arguments{
 \item{hhdraws}{\code{HousepiPosteriorDraws} object

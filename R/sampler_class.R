@@ -19,9 +19,11 @@
 #' @title
 #' Individual Sampler
 #' @description
-#' FIXME: missing.
+#' Missing.
 #'
+#' @docType class
 #' @keywords internal
+#' @noRd
 IndividualSampler <- R6::R6Class(
   classname = "IndividualSampler",
   cloneable = TRUE,
@@ -133,12 +135,10 @@ IndividualSampler <- R6::R6Class(
     #' @field hierarchy
     #' A `data.frame` with features as hierchically reordered by the sampler.
     hierarchy = function(value) {
-      if (missing(value)) {
-        output <- private$.get_distinct_features()
-        output$.features <- self$encode(output)
-        return(private$.reorder(output))
-      }
-      stop_h("'hierarchy' is read only.")
+      if (!missing(value)) stop_h("'hierarchy' is read only.")
+      output <- private$.get_distinct_features()
+      output$.features <- self$encode(output)
+      private$.reorder(output)
     }
   ),
 
@@ -156,7 +156,7 @@ IndividualSampler <- R6::R6Class(
     #' @param from `r rd_hhsampler_from_`
     initialize = function(..., from = NULL) {
       # assign encoding dictionary
-      enc_dict <- load_definition_list(..., from = from)
+      enc_dict <- helper_load_definition_list(..., from = from)
 
       # assign features distributions
       private$.feats_pdf <- data.frame()
@@ -282,8 +282,8 @@ IndividualSampler <- R6::R6Class(
 #' @title
 #' Household Sampler
 #' @description
-#' FIXME: missing.
-#'
+#' Missing.
+#' 
 #' @docType class
 #' @keywords internal
 HousepiSampler <- R6::R6Class(

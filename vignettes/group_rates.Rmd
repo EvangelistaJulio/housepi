@@ -128,11 +128,23 @@ get_parameters(hhmodel)
 # perform inference
 results <- hhmodel |>
   infer(steps = 6000, burnin = 2000, thin = 5, 
-        adapt = 1000, chains = 3, progress = 20) |>
-  get_param_draws()
+        adapt = 1000, chains = 3, progress = 20)
 
-bayesplot::mcmc_trace(results)
+bayesplot::mcmc_trace(get_param_draws(results))
 ```
+
+# Prior sensitivity
+
+We use the [priorsense](https://cran.r-project.org/web/packages/priorsense/) package to assess the sensitivity of our posterior 
+estimates to prior specifications and potential prior-data conflicts.
+To do so, we need to extract draws from results complete of pointwise loglikelihood values and logpriors with `get_complete_draws`
+
+```{r}
+get_complete_draws(results) |>
+  priorsense::powerscale_sensitivity()
+```
+
+# Compare group rates 
 
 Finally, we propose the following approach to visualize the difference between the estimates for the susceptibility with respect to the reference group:
 
@@ -152,7 +164,8 @@ ylabel <- sprintf("%s (Ref: %s)", rate_id,
                   paste(paste(names(tmp), tmp, sep = " "), collapse = " "))
 
 # compare inferred susceptibility group rates
-posterior::summarise_draws(results) |>
+get_param_draws(results) |>
+  posterior::summarise_draws() |>
   dplyr::filter(stringr::str_starts(variable, prefix)) |>
   dplyr::mutate(
     variable = stringr::str_remove(variable, paste0("^", prefix)) |>

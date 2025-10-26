@@ -1,7 +1,5 @@
 # housepi <img src="man/figures/logo.png" align="right" alt="" width="120" />
 
-## Overview
-
 `housepi` is an R package designed for statistical analysis of disease transmission within households. 
 The package is a toolkit to perform Bayesian inference and modeling using the implemented template models or user defined models.
 By combining ease of use and customizability, housepi supports both off-the-shelf analysis and advanced epidemiological investigation. 

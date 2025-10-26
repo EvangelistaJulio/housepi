@@ -81,104 +81,6 @@ measure_cases_by_house_size <- function(data_wide) {
 
 ############################################################################
 ############################################################################
-############################################################################
-
-#' @title Frame apply
-#' @description
-#' Apply function `func` to corresponding elements
-#' across a list of data.frame that share the same dimensions.
-#'
-#' @param frame_list A `list` of `data.frame`s, all sharing the same dimensions.
-#' @param func
-#' A `function` to be applied to corresponding elements across dataframes.
-#'
-#' @return A `data.frame` of the same dimensions as the input dataframes.
-#' Columns and rownames of the first data.frame in the list.
-#'
-#' @keywords internal
-#' @noRd
-frame_apply <- function(frame_list, func) {
-  elem_n1 <- frame_list[[1]]
-
-  # perform element-wise operations
-  if (is.null(dim(elem_n1))) {
-    # on scalar/vectors
-    output <- sapply(seq_along(elem_n1), function(x) {
-      func(sapply(frame_list, "[[", x))
-    })
-    names(output) <- names(elem_n1)
-    if (is.list(elem_n1)) output <- as.list(output)
-
-  } else {
-    # on matrix/data.frames
-    output <- matrix(
-      sapply(seq_along(elem_n1), function(x) {
-        apply(sapply(frame_list, "[[", x), 1, func)
-      }),
-      nrow = nrow(elem_n1),
-      byrow = FALSE
-    )
-    colnames(output) <- colnames(elem_n1)
-    rownames(output) <- rownames(elem_n1)
-    if (is.data.frame(elem_n1)) output <- as.data.frame(output)
-  }
-
-  output
-}
-
-#' @title Frame apply mean
-#' @description
-#' Compute the mean across different dataframes.
-#'
-#' @param frame_list
-#' A `list` of `data.frame`s.
-#'
-#' @return `data.frame`
-#'
-#' @keywords internal
-#' @noRd
-frame_apply_mean <- function(frame_list) {
-  frame_apply(frame_list, function(x) {
-    if (all(is.na(x))) NA_real_
-    else if (all(is.numeric(x))) mean(x, na.rm = TRUE)
-    else if (length(unique(x)) == 1) unique(x)
-    else stop_h(
-      "Undefined mean for non numeric, non unique values.",
-      "Check output of your posterioir measure function."
-    )
-  })
-}
-
-#' @title Frame apply credible interval
-#' @description
-#' Compute the credible interval across different dataframes.
-#'
-#' @param frame_list
-#' A `list` of `data.frame`s sharing the same dimensions.
-#' @param cri_level `r rd_smpl_cri_level_`
-#' @param upper
-#' `logical(1)` to compute the upper credible interval.
-#' If `FALSE`, compute the lower interval.
-#'
-#' @return `data.frame`
-#'
-#' @keywords internal
-#' @noRd
-frame_apply_cri <- function(frame_list, cri_level = 0.95, upper = TRUE) {
-  p <- 0.5 + ifelse(isTRUE(upper), 0.5, -0.5) * cri_level
-  frame_apply(frame_list, function(x) {
-    if (all(is.na(x))) NA_real_
-    else if (all(is.numeric(x))) stats::quantile(x, probs = p, na.rm = TRUE)
-    else if (length(unique(x)) == 1) unique(x)
-    else stop_h(
-      "Undefined credible interval for non numeric, non unique values.",
-      "Check output of your posterioir measure function."
-    )
-  })
-}
-
-############################################################################
-############################################################################
 ########################### Housepi Posterior Expec ########################
 ############################################################################
 ############################################################################
@@ -191,6 +93,7 @@ frame_apply_cri <- function(frame_list, cri_level = 0.95, upper = TRUE) {
 HousepiExpectation <- R6::R6Class(
   classname = "HousepiExpectation",
   cloneable = TRUE,
+  lock_objects = FALSE,
 
   ############################################################################
   ################################## PRIVATE #################################
@@ -199,21 +102,95 @@ HousepiExpectation <- R6::R6Class(
   private = list(
     deep_clone = function(name, value) helper_clone(value),
     .apply_func = NULL,
-    .posterior = NULL,
-    .observed = NULL,
     .cri_level = 0.95,
+
+    # @description
+    # Apply function `func` to corresponding elements
+    # across a list of data.frame that share the same dimensions.
+    #
+    # @param frame_list `list` of `data.frame`s with the same dimensions.
+    # @param func `function` to be applied to corresponding dataframe elements.
+    #
+    # @return A `data.frame` of the same dimensions as the input dataframes.
+    # Columns and rownames of the first data.frame in the list.
+    .frame_apply = function(frame_list, func) {
+      elem_n1 <- frame_list[[1]]
+
+      # perform element-wise operations
+      if (is.null(dim(elem_n1))) {
+        # on scalar/vectors
+        output <- sapply(seq_along(elem_n1), function(x) {
+          func(sapply(frame_list, "[[", x))
+        })
+        names(output) <- names(elem_n1)
+        if (is.list(elem_n1)) output <- as.list(output)
+
+      } else {
+        # on matrix/data.frames
+        output <- matrix(
+          sapply(seq_along(elem_n1), function(x) {
+            apply(sapply(frame_list, "[[", x), 1, func)
+          }),
+          nrow = nrow(elem_n1),
+          byrow = FALSE
+        )
+        colnames(output) <- colnames(elem_n1)
+        rownames(output) <- rownames(elem_n1)
+        if (is.data.frame(elem_n1)) output <- as.data.frame(output)
+      }
+
+      output
+    },
+
+    # @description
+    # Compute the mean across different dataframes.
+    #
+    # @param frame_list
+    # A `list` of `data.frame`s.
+    #
+    # @return `data.frame`
+    .frame_apply_mean = function(frame_list) {
+      private$.frame_apply(frame_list, function(x) {
+        if (all(is.na(x))) NA_real_
+        else if (all(is.numeric(x))) mean(x, na.rm = TRUE)
+        else if (length(unique(x)) == 1) unique(x)
+        else stop_h(
+          "Undefined mean for non numeric, non unique values.",
+          "Check output of your posterioir measure function."
+        )
+      })
+    },
+
+    # @description
+    # Compute the credible interval across different dataframes.
+    #
+    # @param frame_list
+    # A `list` of `data.frame`s sharing the same dimensions.
+    # @param cri_level `r rd_smpl_cri_level_`
+    # @param upper
+    # `logical(1)` to compute the upper credible interval.
+    # If `FALSE`, compute the lower interval.
+    #
+    # @return `data.frame`
+    .frame_apply_cri = function(frame_list, cri_level = 0.95, upper = TRUE) {
+      p <- 0.5 + ifelse(isTRUE(upper), 0.5, -0.5) * cri_level
+      private$.frame_apply(frame_list, function(x) {
+        if (all(is.na(x))) NA_real_
+        else if (all(is.numeric(x))) stats::quantile(x, probs = p, na.rm = TRUE)
+        else if (length(unique(x)) == 1) unique(x)
+        else stop_h(
+          "Undefined credible interval for non numeric, non unique values.",
+          "Check output of your posterioir measure function."
+        )
+      })
+    },
 
     # extract posterior quantities from cases-by-house-size table list
     .extract_posterior_results = function(x) {
       cri <- private$.cri_level
-      list(
-        # expected value
-        expected = frame_apply_mean(x),
-        # lower credible interval
-        cri_lower = frame_apply_cri(x, cri, upper = FALSE),
-        # upper credible interval
-        cri_upper = frame_apply_cri(x, cri, upper = TRUE)
-      )
+      list(expected = private$.frame_apply_mean(x),
+           cri_lower = private$.frame_apply_cri(x, cri, upper = FALSE),
+           cri_upper = private$.frame_apply_cri(x, cri, upper = TRUE))
     },
 
     # Set level for the credible interval.
@@ -289,26 +266,6 @@ HousepiExpectation <- R6::R6Class(
   ),
 
   ############################################################################
-  ################################## ACTIVE ##################################
-  ############################################################################
-
-  active = list(
-    #' @field observed `list`\cr
-    #' Observed values of the measure of the posterior sample.
-    observed = function(value) {
-      if (missing(value)) return(private$.observed)
-      stop_h("'observed' is read only.")
-    },
-
-    #' @field posterior `list`\cr
-    #' Expected values of the measure of the posterior sample.
-    posterior = function(value) {
-      if (missing(value)) return(private$.posterior)
-      stop_h("'posterior' is read only.")
-    }
-  ),
-
-  ############################################################################
   ################################### PUBLIC #################################
   ############################################################################
 
@@ -332,7 +289,7 @@ HousepiExpectation <- R6::R6Class(
       # associate credible interval
       private$.set_cri_level(cri_level)
 
-      # extract draws without loglikelihood
+      # extract parameter draws from table
       if (inherits(param_table, "HousepiPosteriorDraws")) {
         param_table <- posterior::as_draws_matrix(param_table$param_draws)
       } else if (posterior::is_draws(param_table)) {
@@ -350,14 +307,24 @@ HousepiExpectation <- R6::R6Class(
       # function to be applied also in the case of multiple measures
       private$.apply_func <- function(x) lapply(measure, function(func) func(x))
       # initialize with results from observed data as a test
-      private$.observed <- private$.apply_func(hhmodel$data_wide)
+      store_observed <- private$.apply_func(hhmodel$data_wide)
 
       # run measures on posterior simulations
       output <- private$.run_measure(hhmodel, param_table,
                                      obs_process, progress)
       output <- lapply(names(measure), function(x) lapply(output, `[[`, x))
-      names(output) <- names(measure)
-      private$.posterior <- lapply(output, private$.extract_posterior_results)
+      store_posterior <- lapply(output, private$.extract_posterior_results)
+      names(store_posterior) <- names(measure)
+
+      # change environment according to measures
+      for (measure_name in names(measure)) self[[measure_name]] <- list(
+        observed = store_observed[[measure_name]],
+        expected = store_posterior[[measure_name]]$expected,
+        cri_lower = store_posterior[[measure_name]]$cri_lower,
+        cri_upper = store_posterior[[measure_name]]$cri_upper
+      )
+      # restore locked environment
+      lockEnvironment(self, bindings = TRUE)
 
       invisible(self)
     },
@@ -420,15 +387,6 @@ combine_obs_exp <- function(obsdf, expdf) {
 ############################################################################
 ############################################################################
 
-# output naming convention
-naming_convention_ <- function(x, cri_level) {
-  qtag <- 100 * round(cri_level, 2)
-  x <- gsub("expected", "mean", x)
-  x <- gsub("cri_lower", sprintf("q%.0f", 100 - qtag), x)
-  x <- gsub("cri_upper", sprintf("q%.0f", qtag), x)
-  x
-}
-
 #' @title Expected Cases By Size
 #' @description
 #' Output object of expected cases by household size, method of household model.
@@ -438,6 +396,7 @@ ExpectedCasesBySize <- R6::R6Class(
   classname = "ExpectedCasesBySize",
   inherit = HousepiExpectation,
   cloneable = TRUE,
+  lock_objects = FALSE,
 
   ############################################################################
   ################################## PRIVATE #################################
@@ -471,14 +430,14 @@ ExpectedCasesBySize <- R6::R6Class(
     #
     # @return `list`
     .filtered_tables = function() {
-      # load observed table
-      obsdf <- private$.observed$cases_by_size
+      # load observed table to use as a type shape template
+      obsdf <- self$cases_table_by_size$observed
 
       # remove rows without counts
       mask_row <- rowSums(obsdf[colnames(obsdf) != "house_size"], na.rm = TRUE) != 0
 
       # remove column with zero cases if none was observed
-      mask_col <- (colSums(obsdf == 0, na.rm = TRUE) != nrow(obsdf)) | (colnames(obsdf) != "0")
+      mask_col <- colSums(obsdf == 0, na.rm = TRUE) != nrow(obsdf) | colnames(obsdf) != "0"
 
       # implement max household size mask
       if (!is.na(private$.max_house_size)) {
@@ -489,11 +448,19 @@ ExpectedCasesBySize <- R6::R6Class(
         mask_row <- mask_row & (seq_along(mask_row) <= row_max & mask_row)
       }
 
-      expdf <- private$.posterior$cases_by_size
       list(observed = obsdf[mask_row, mask_col],
-           expected = expdf$expected[mask_row, mask_col],
-           cri_lower = expdf$cri_lower[mask_row, mask_col],
-           cri_upper = expdf$cri_upper[mask_row, mask_col])
+           expected = self$cases_table_by_size$expected[mask_row, mask_col],
+           cri_lower = self$cases_table_by_size$cri_lower[mask_row, mask_col],
+           cri_upper = self$cases_table_by_size$cri_upper[mask_row, mask_col])
+    },
+
+    # Set naming convention of credible interval.
+    .get_name_convention = function(x) {
+      qtag <- 100 * round(private$.cri_level, 2)
+      x <- gsub("expected", "mean", x)
+      x <- gsub("cri_lower", sprintf("q%.0f", 100 - qtag), x)
+      x <- gsub("cri_upper", sprintf("q%.0f", qtag), x)
+      x
     }
   ),
 
@@ -502,56 +469,48 @@ ExpectedCasesBySize <- R6::R6Class(
   ############################################################################
 
   active = list(
-    #' @field sar `data.frame` with observed and expected secondary attack rates by household size.
+    #' @field formatted_sec_attack_rate
+    #' `data.frame` with observed and expected secondary attack rates by household size.
     #' If a maximum house size is set, larger sizes are not returned.
-    sar = function(value) {
-      if (missing(value)) {
-        # convert internal list to data.frame
-        output <- data.frame(
-          house_size = private$.observed$sar$house_size,
-          observed = private$.observed$sar$sar,
-          expected = private$.posterior$sar$expected$sar,
-          cri_lower = private$.posterior$sar$cri_lower$sar,
-          cri_upper = private$.posterior$sar$cri_upper$sar
-        )
-
-        # associate counts
-        output$counts <- private$.counts$count
-        colnames(output) <- naming_convention_(colnames(output),
-                                               private$.cri_level)
-
-        # filter to maximum house size if applicable
-        if (!is.na(private$.max_house_size)) {
-          output <- output[output$house_size <= private$.max_house_size, ]
-        }
-
-        return(output)
+    formatted_sec_attack_rate = function(value) {
+      if (!missing(value)) stop_h("'formatted_sec_attack_rate' is read only.")
+      # convert internal list to data.frame
+      output <- data.frame(
+        house_size = self$sec_attack_rate$observed$house_size,
+        observed = self$sec_attack_rate$observed$sar,
+        expected = self$sec_attack_rate$expected$sar,
+        cri_lower = self$sec_attack_rate$cri_lower$sar,
+        cri_upper = self$sec_attack_rate$cri_upper$sar,
+        counts = private$.counts$count
+      )
+      colnames(output) <- private$.get_name_convention(colnames(output))
+      # filter to maximum house size if applicable
+      if (!is.na(private$.max_house_size)) {
+        output <- output[output$house_size <= private$.max_house_size, ]
       }
-      stop_h("'sar' is read only.")
+      output
     },
 
     #' @field formatted_cases_table `data.frame`\cr
     #' Formatted observed and expected cases by household size.
     #' If a maximum household size is set, larger sizes are not returned.
     formatted_cases_table = function(value) {
-      if (missing(value)) {
-        # filter according to max_house_size
-        cases <- private$.filtered_tables()
+      if (!missing(value)) stop_h("'formatted_case_table' is read only.")
+      # filter according to max_house_size
+      cases <- private$.filtered_tables()
 
-        # empty frame as a placeholder for Credible Interval
-        na_df <- cases$observed
-        na_df[] <- lapply(na_df, function(col) ifelse(is.numeric(col), NA, col))
-        na_df$house_size <- cases$observed$house_size
+      # empty frame as a placeholder for Credible Interval
+      na_df <- cases$observed
+      na_df[] <- lapply(na_df, function(col) ifelse(is.numeric(col), NA, col))
+      na_df$house_size <- cases$observed$house_size
 
-        output <- list(
-          expected = combine_obs_exp(cases$observed, cases$expected),
-          cri_lower = combine_obs_exp(na_df, cases$cri_lower),
-          cri_upper = combine_obs_exp(na_df, cases$cri_upper)
-        )
-        names(output) <- naming_convention_(names(output), private$.cri_level)
-        return(output)
-      }
-      stop_h("'formatted_case_table' is read only.")
+      output <- list(
+        expected = combine_obs_exp(cases$observed, cases$expected),
+        cri_lower = combine_obs_exp(na_df, cases$cri_lower),
+        cri_upper = combine_obs_exp(na_df, cases$cri_upper)
+      )
+      names(output) <- private$.get_name_convention(names(output))
+      output
     }
   ),
 
@@ -565,20 +524,16 @@ ExpectedCasesBySize <- R6::R6Class(
     #' @param obs_process `r rd_simul_observ_`
     #' @param progress `r rd_progress_`
     #' @param cri_level `r rd_smpl_cri_level_`
-    initialize = function(hhmodel,
-                          param_table,
-                          obs_process = NULL,
+    initialize = function(hhmodel, param_table, obs_process = NULL,
                           progress = NA, cri_level = 0.95) {
       # ininitialize parent class HousepiExpectation
-      super$initialize(
-        hhmodel = hhmodel,
-        param_table = param_table,
-        cases_by_size = measure_cases_by_house_size,
-        sar = measure_sar_by_house_size,
-        obs_process = obs_process,
-        progress = progress,
-        cri_level = cri_level
-      )
+      super$initialize(hhmodel = hhmodel,
+                       param_table = param_table,
+                       cases_table_by_size = measure_cases_by_house_size,
+                       sec_attack_rate = measure_sar_by_house_size,
+                       obs_process = obs_process,
+                       progress = progress,
+                       cri_level = cri_level)
       private$.counts <- private$.count_non_zero_cases(hhmodel$data_wide)
 
       invisible(self)

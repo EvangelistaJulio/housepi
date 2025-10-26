@@ -244,42 +244,38 @@ HousepiGroupRate <- R6::R6Class(
     #' @field parameters `list`\cr
     #' List containing parameter definitions associated to group rates.
     parameters = function(value) {
-      if (missing(value)) {
-        new_params <- list()
-        for (rate_id in names(self$logic_tables)) {
-          for (this_table in self$logic_tables[[rate_id]]) {
-            for (par_id in setdiff(this_table$param_name, c(".reference"))) {
-              new_params[[par_id]] <- private$.parameters[[rate_id]]
-            }
+      if (!missing(value)) stop_h("'parameters' is read only.")
+      new_params <- list()
+      for (rate_id in names(self$logic_tables)) {
+        for (this_table in self$logic_tables[[rate_id]]) {
+          for (par_id in setdiff(this_table$param_name, c(".reference"))) {
+            new_params[[par_id]] <- private$.parameters[[rate_id]]
           }
         }
-        return(new_params)
       }
-      stop_h("'parameters' is read only.")
+      new_params
     },
 
     #' @field param_required `character()`\cr
     #' List of parameter required by group rates.
     param_required = function(value) {
-      if (missing(value)) {
-        required <- c()
-        for (rate_id in names(self$logic_tables)) {
-          for (this_table in self$logic_tables[[rate_id]]) {
-            required <- c(required, this_table$param_name)
-          }
+      if (!missing(value)) stop_h("'param_required' is read only.")
+      required <- c()
+      for (rate_id in names(self$logic_tables)) {
+        for (this_table in self$logic_tables[[rate_id]]) {
+          required <- c(required, this_table$param_name)
         }
-        output <- setdiff(unique(required), c(".reference"))
-        return(set_source_name_(output, "group rate"))
       }
-      stop_h("'param_required' is read only.")
+      output <- setdiff(unique(required), c(".reference"))
+      set_source_name_(output, "group rate")
     },
 
     #' @field tidy_table `data.frame()`\cr
     #' Data.Frame containg the combined list
     #' with group rate and parameter definitions.
     tidy_table = function(value) {
-      if (missing(value)) return(tidyup_group_rate_tables(self$logic_tables))
-      stop_h("'tidy_table' is read only.")
+      if (!missing(value)) stop_h("'tidy_table' is read only.")
+      tidyup_group_rate_tables(self$logic_tables)
     }
   ),
 
@@ -333,7 +329,7 @@ HousepiGroupRate <- R6::R6Class(
     #'
     #' @return
     #' `logical(1)`
-    remove = function(rate_id, show_warnings = TRUE) {
+    remove = function(rate_id, show_warnings = FALSE) {
       if (any(names(self$defs) == rate_id)) {
         # check if old definition was just default
         is_old_default <- all(is.na(self$defs[rate_id]$by))
@@ -348,7 +344,7 @@ HousepiGroupRate <- R6::R6Class(
         warning_h(sprintf("Attempt to remove unknown group_rate '%s'.", this))
       }
 
-      return(FALSE)
+      FALSE
     },
 
     #' @inherit add_group_rate
@@ -357,15 +353,12 @@ HousepiGroupRate <- R6::R6Class(
                    prior = NA_character_, args = NULL,
                    min = NA_real_, max = NA_real_,
                    rule = NA_character_, scale = NA_real_) {
-
-      # UPDATE: controls are missing
-      if (is.na(name)) stop_h(
-        "Incomplete definition: missing name."
-      )
+      # control valid name
+      assert_valid_definition_name(name, "group rate")
 
       # remove previous definition if it exists
-      if (self$remove(name, FALSE)) warning_h(
-        sprintf("Overwriting existing '%s' definition.", name)
+      if (self$remove(name)) warning_h(
+        sprintf("Overwriting group rate definition for '%s'.", name)
       )
 
       forbidden <- c("n", "param_name", "group_rate")
@@ -423,10 +416,11 @@ HousepiGroupRate <- R6::R6Class(
     #' `logical(1)` to append to current definitions.
     #' If `FALSE` drop all pre-existing definitions (default).
     load_list = function(..., from = NULL, append = FALSE) {
-      definitions <- load_definition_list(..., from = from)
+      definitions <- helper_load_definition_list(..., from = from)
 
       # remove previous definitions if not append
       if (isFALSE(append)) self$initialize()
+      all_removed <- c()
 
       for (i in seq_along(definitions)){
         this_def <- as.list(definitions[[i]])
@@ -439,8 +433,15 @@ HousepiGroupRate <- R6::R6Class(
           )
         }
         this_def$name <- def_name
+        if (self$remove(def_name)) all_removed <- c(all_removed, def_name)
         do.call(self$add, this_def)
       }
+
+      if (length(all_removed) > 0) warning_h(sprintf(
+        "Overwriting group rate definition%s%s",
+        ifelse(length(all_removed) > 1, "s for:\n", " for "),
+        character_to_string_list(all_removed, NA)
+      ))
 
       invisible(self)
     },
@@ -468,7 +469,7 @@ HousepiGroupRate <- R6::R6Class(
           # default prefix
           prefix <- as.character(this_def[["prefix"]])
           if (is.na(prefix)) {
-            prefix <- substring(format_string(tolower(rate_id)), 1, 3)
+            prefix <- substring(tolower(rate_id), 1, 3)
           }
 
           for (this_feat in features) {
@@ -510,9 +511,9 @@ HousepiGroupRate <- R6::R6Class(
     #' @description
     #' Assert that group rate definitions match the requirements.
     #'
-    #' @param required
-    #' A `character()` containing the required group rates.
-    assert = function(required) {
+    #' @param required `character()` containing the required group rates.
+    #' @param capital `logical(1)` to raise error.
+    assert = function(required, capital) {
       # load definitions
       defined <- names(self$defs)
 
@@ -521,21 +522,26 @@ HousepiGroupRate <- R6::R6Class(
       notused <- template_not_used_find(required, defined)
       # drop unused group rates
       if (length(notused) > 0) {
-        for (this in notused) self$remove(this)
-        stop_h(
+        sms <- c(
           sprintf("Dropped unused group rate%s %s",
                   ifelse(length(notused) > 1, "s:", ""),
                   character_to_string_list(notused)),
           find_closest_match(notused, required, min_dist = 3)
         )
+        if (isTRUE(capital)) {
+          for (which in notused) self$remove(which)
+          stop_h(sms)
+        }
+        warning_h(sms)
       }
 
       # find missing group rates and set as default
-      for (g in template_missing_find(required, defined)) {
-        self$add(g, by = NA_character_)
+      if (isTRUE(capital)) {
+        for (g in template_missing_find(required, defined)) {
+          self$add(g, by = NA_character_)
+        }
       }
-
-      invisible(self)
+      template_missing_stop(required, defined, "group rates")
     },
 
     #' @description

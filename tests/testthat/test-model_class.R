@@ -129,7 +129,7 @@ test_that("Missing function arguments raise errors", {
   hhmodel$add_augmented(name = "gamma", func = "gamma")
   expect_warning(
     hhmodel$add_augmented(name = "proba", expr = ~exp(-gamma)),
-    "Overwriting existing"
+    regexp = "Overwriting"
   )
   expect_error(hhmodel$loglikelihood(), regexp = "Impossible to associate")
 
@@ -184,27 +184,29 @@ test_that("Augmented aliasing works as expected", {
     ..dummy = ~x @D
   )
   expect_equal(hhmodel$loglikelihood(), ll)
-  
+
   # check normalization of binomial with augmented example
   hhmodel <- new_housepi_model("augmented_example")
   hhmodel$data_wide <- data.frame(
-    id = seq(0, 100), house_id = "hh1", status = 1, X = seq(0, 100))
+    id = seq(0, 100), house_id = "hh1", status = 1, X = seq(0, 100)
+  )
   hhmodel$load_augmented_list(
-    pdf = list(func = "binomial", 
+    pdf = list(func = "binomial",
                func_args = c(x = ~ X@D, size = 10, prob = 0.5)),
     proba = ~exp(pdf)
   )
   expect_equal(hhmodel$loglikelihood(), 1)
-  
+
   # check that model arguments are correctly integrated
-  hhmodel <- new_housepi_model("blank") |> 
-    add_data_wide(data.frame(id = seq(1, 1000), house_id = 1, status = 1)) |> 
+  hhmodel <- new_housepi_model("blank") |>
+    add_data_wide(data.frame(id = seq(1, 1000), house_id = 1, status = 1)) |>
     load_augmented_list(
-      delay = list(model = "uniform", args = c(min = ~ day, max = ~ day + 1)),
+      hour = list(model = "uniform", args = c(min = ~ day, max = ~ day + 1)),
       day = list(model = "gamma", args = c(shape = 2, scale = 1))
     )
   simulated <- simulate(hhmodel)
-  expect_true(all(simulated$day < simulated$delay))
+  expect_true(all(simulated$day <= simulated$hour &
+                    simulated$hour <= simulated$day + 1))
 })
 
 test_that("Augmentation example on incubation from delays is coherent", {

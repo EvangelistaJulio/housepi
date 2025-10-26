@@ -67,56 +67,49 @@ HousepiModel <- R6::R6Class(
     .get_all_param = function() {
       if (private$.is_blank()) required <- private$.param$defs$name
       else required <- private$.param$require(private$.reference())
-      c(
-        required, # by the model
-        private$.group_rates$param_required, # by group rates
-        private$.augm$param_required, # by augmented
-        private$.infec_profile$param_required # by infectivity profile
-      )
+      c(required,                              # by the model
+        private$.group_rates$param_required,   # by group rates
+        private$.augm$param_required,          # by augmented
+        private$.infec_profile$param_required) # by infectivity profile
     },
 
     # @description
     # Assert if parameter definitions match required
-    .assert_param = function() {
-      private$.param$assert(private$.get_all_param())
-      invisible(self)
+    # @param capital `logical(1)` to raise error.
+    .assert_param = function(capital = TRUE) {
+      private$.param$assert(private$.get_all_param(), capital)
     },
 
     # @description
     # Augmented variables required by implementation file and other definitions.
     .get_all_augm = function() {
-      c(
-        private$.augm$require(private$.reference()), # by the model
-        private$.infec_profile$augm_required # by infectivity profile
-      )
+      c(private$.augm$require(private$.reference()), # by the model
+        private$.infec_profile$augm_required)        # by infectivity profile
     },
 
     # @description
     # Assert if augmented definitions match the required.
-    .assert_augm = function() {
-      if (!private$.is_blank()) {
-        private$.augm$assert(private$.get_all_augm(),
-                             private$.infec_status_set)
-      }
-      invisible(self)
+    # @param capital `logical(1)` to raise error.
+    .assert_augm = function(capital = TRUE) {
+      if (private$.is_blank()) return(NULL)
+      private$.augm$assert(private$.get_all_augm(),
+                           private$.infec_status_set,
+                           capital)
     },
 
     # @description
     # Group rates required by implementation file and other definitions.
-    .get_all_group_rate = function() {
-      c(
-        private$.group_rates$require(private$.reference()), # by the model
-        private$.augm$group_rate_required # by augmented
-      )
+    .get_all_group_rates = function() {
+      c(private$.group_rates$require(private$.reference()), # by the model
+        private$.augm$group_rates_required)                  # by augmented
     },
 
     # @description
     # Assert group rate definitions from the model implementation script.
-    .assert_group_rates = function() {
-      if (!private$.is_blank()) {
-        private$.group_rates$assert(private$.get_all_group_rate())
-      }
-      invisible(self)
+    # @param capital `logical(1)` to raise error.
+    .assert_group_rates = function(capital = TRUE) {
+      if (private$.is_blank()) return(NULL)
+      private$.group_rates$assert(private$.get_all_group_rates(), capital)
     },
 
     ############################################################################
@@ -340,9 +333,6 @@ HousepiModel <- R6::R6Class(
     #' A `data.frame` with individual level information.
     data_wide = function(value) {
       if (missing(value)) {
-        if (is.null(private$.rcpp)) stop_h(
-          "Impossible to export data_wide before model build."
-        )
         return(private$.refactor_data_wide(private$.rcpp$export_data_wide()))
       }
       self$add_data_wide(value)
@@ -352,9 +342,6 @@ HousepiModel <- R6::R6Class(
     #' A `data.frame` with additional data rows indexed by individual.
     data_long = function(value) {
       if (missing(value)) {
-        if (is.null(private$.rcpp)) stop_h(
-          "Impossible to export data_long before model build."
-        )
         return(private$.refactor_data_long(private$.rcpp$export_data_long()))
       }
       self$add_data_long(value)
@@ -430,7 +417,24 @@ HousepiModel <- R6::R6Class(
     #' @description
     #' Override the default printing behavior.
     print = function() {
-      cli::cli_alert_info("Household model {.pkg {self$name}}.")
+      cli::cli_alert_info(sprintf(
+        "Household model {.pkg %s}%s.%s",
+        spaced_template_choice(self$name),
+        ifelse(private$.is_template(), " (template)", ""),
+        # UPDATE: to be rationalize in the future if more options are included
+        ifelse("_HOUSEPI_DISCRETE_TIME" %in% private$.last_user_flags,
+               "\nModel is set to {.emph discrete time} mode.", "")
+      ))
+
+      if (length(private$.get_all_param()) > 0) {
+        cli_format_assertion(private$.assert_param(FALSE), "Parameters")
+      }
+      if (length(private$.get_all_augm()) > 0) {
+        cli_format_assertion(private$.assert_augm(FALSE), "Augmented")
+      }
+      if (length(private$.get_all_group_rates()) > 0) {
+        cli_format_assertion(private$.assert_group_rates(FALSE), "Group rates")
+      }
       invisible(self)
     },
 

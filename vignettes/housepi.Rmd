@@ -81,10 +81,10 @@ The most direct way to associate a data to a model is assigning it to the active
 The `housepi` package comes with a few public datasets to be used for testing.
 
 ```{r}
-# import data in wide from R6 active field
+# import data in wide format using R6 active field
 hhmodel$data_wide <- housepi::survey
 ```
-Alternatively, we can pipe such call by using the wrapper `add_data_wide()`. 
+alternatively, we can use the call `add_data_wide()`, as shown later in this walkthrough. 
 We can extract summary information about current loaded data with `summarise_cases()`:
 
 ```{r}
@@ -125,8 +125,6 @@ At any moment we can turn a parameter definition into a constant definition: it 
 
 For further information on the available options for the definition of the parameter priors and MCMC proposer rule, see the vignette [Bayesian MCMC options](bayesian_mcmc_options.html).
 
-To see how to associate group rates in heterogeneous models, see the vignette [Group rates](group_rates.html).
-
 # Perform inference
 
 After having provided all necessary definitions, we can perform inference calling `infer()`.
@@ -163,7 +161,7 @@ We can extract the sample of pointwise loglikelihood for each household and comp
 
 ```{r}
 # LOO-CV (leave-one-out cross-validation)
-get_house_loglike_draws(results) |>
+get_log_like_draws(results) |>
   posterior::as_draws_matrix() |>
   loo::loo()
 ```
@@ -205,14 +203,26 @@ hhsimul <- hhsimul |>
     
     # define 'onset_time' as the sum betwween incubation period and infection time
     onset_time = ~infec_time + incub_period
-  ) |>
-  # append parameters for incubation period
-  load_parameter_list(
-    inc_shape = 2,
-    inc_scale = 1.1,
-    append = TRUE
   )
 ```
+
+When dealing with many different nested definitions it is not usual to loose track of which definition are missing. 
+We can inspect the state of the current loaded model definitions just by printing the model:
+
+```{r}
+# print current state of definitions 
+hhsimul
+
+# append missing parameters for incubation period
+hhsimul <- hhsimul |> 
+  load_parameter_list(
+    inc_shape = 2, inc_scale = 1.1,
+    # option 'append' must be set to true to not drop previous definitions
+    append = TRUE 
+  )
+```
+To see how to associate group rates in heterogeneous models, see the vignette [Group rates](group_rates.html).
+However, by default if no group rate definition is provided all values are set to reference value 1, so we can forget about this alert for the rest of the walkthrough.
 
 We then run a simulation with the method `simulate`, using the same community structure from the survey, but dropping cases.
 In this configuration, introductions are sampled randomly. 
@@ -246,12 +256,10 @@ hhmodel <- hhsimul |>
                         args = c(shape = ~inc_shape@P, scale = ~inc_scale@P))
   )
 
-param_draws <- hhmodel |>
+results <- hhmodel |>
   add_data_wide(simulated) |>
   infer(chains = 3, steps = 10000, adapt = 2000,
-        burnin = 1000, thin = 10, progress = 20) |>
-  # extract sample to posterioir::draws_df
-  get_param_draws()
+        burnin = 1000, thin = 10, progress = 20)
 ```
 We can visualize traces vs expected values as follows
 
@@ -259,6 +267,9 @@ We can visualize traces vs expected values as follows
 #| message: false
 #| warning: false
 library(ggplot2)
+
+# extract sample to posterioir::draws_df
+param_draws <- get_param_draws(results)
 
 # select original parameters used for the simulation
 simul_parameters <- get_parameters(hhsimul) |>

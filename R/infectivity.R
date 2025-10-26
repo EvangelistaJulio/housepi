@@ -59,22 +59,22 @@ HousepiInfecProfile <- R6::R6Class(
     #' @field data_required `character()`\cr
     #' Dataset entries required by infectivity profile definition.
     data_required = function(value) {
-      if (missing(value)) return(private$.find_def_required("D"))
-      stop_h("'data_required' is read only.")
+      if (!missing(value)) stop_h("'data_required' is read only.")
+      private$.find_def_required("D")
     },
 
     #' @field param_required `character()`\cr
     #' Parameters required by infectivity profile definition.
     param_required = function(value) {
-      if (missing(value)) return(private$.find_def_required("P"))
-      stop_h("'param_required' is read only.")
+      if (!missing(value)) stop_h("'param_required' is read only.")
+      private$.find_def_required("P")
     },
 
     #' @field augm_required `character()`\cr
     #' Augmented variables required by infectivity profile definition.
     augm_required = function(value) {
-      if (missing(value)) return(private$.find_def_required("A"))
-      stop_h("'augm_required' is read only.")
+      if (!missing(value)) stop_h("'augm_required' is read only.")
+      private$.find_def_required("A")
     }
   ),
 

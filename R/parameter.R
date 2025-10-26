@@ -108,16 +108,15 @@ HousepiParameter <- R6::R6Class(
     #' @param name `character(1)`\cr
     #' Name of the parameter to remove.
     #' @param show_warnings `logical(1)`\cr
-    #' If `TRUE` show warnings if parameter not found (default).
-    #' If `FALSE` do not show warnings.
-    remove = function(name,
-                      show_warnings = TRUE) {
+    #' If `TRUE` show warnings if parameter not found.
+    #' If `FALSE` do not show warnings (default).
+    remove = function(name, show_warnings = FALSE) {
       mask <- (self$defs[["name"]] == name)
       if (any(mask)) self$defs <- self$defs[!mask, ]
       else if (isTRUE(show_warnings)) warning_h(
         sprintf("Attempt to remove unknown parameter '%s'.", name)
       )
-      return(any(mask))
+      any(mask)
     },
 
     #' @inherit add_parameter
@@ -131,12 +130,12 @@ HousepiParameter <- R6::R6Class(
                    max = NULL,
                    rule = NA_character_,
                    scale = NA_real_) {
-      if (is.na(name)) stop_h(
-        "Incomplete parameter definition: missing name."
-      )
+      # control valid name
+      assert_valid_definition_name(name, "parameter")
+
       # remove previous definition if it exists
-      if (self$remove(name, FALSE)) warning_h(
-        sprintf("Overwriting definition of parameter '%s'.", name)
+      if (self$remove(name)) warning_h(
+        sprintf("Overwriting parameter definition for '%s'.", name)
       )
 
       opts <- list(name = name,
@@ -186,9 +185,10 @@ HousepiParameter <- R6::R6Class(
                          append = FALSE) {
       # remove previous definitions if not append
       if (isFALSE(append)) self$initialize()
+      all_removed <- c()
 
       # load definition list
-      definitions <- load_definition_list(..., from = from)
+      definitions <- helper_load_definition_list(..., from = from)
 
       for (i in seq_along(definitions)){
         this_def <- as.list(definitions[[i]])
@@ -202,8 +202,15 @@ HousepiParameter <- R6::R6Class(
           )
         }
         this_def$name <- def_name
+        if (self$remove(def_name)) all_removed <- c(all_removed, def_name)
         do.call(self$add, this_def)
       }
+
+      if (length(all_removed) > 0) warning_h(sprintf(
+        "Overwriting parameter definition%s%s",
+        ifelse(length(all_removed) > 1, "s for:\n", " for "),
+        character_to_string_list(all_removed, NA)
+      ))
 
       invisible(self)
     },
@@ -258,15 +265,16 @@ HousepiParameter <- R6::R6Class(
     #' @description
     #' Assert parameter definitions match the requirement list.
     #'
-    #' @param required `character()`\cr
-    #' Vector containing required parameters.
-    assert = function(required) {
+    #' @param required `character()` containing required parameters.
+    #' @param capital `logical(1)` to raise error.
+    assert = function(required, capital) {
       defined <- self$defs[["name"]]
       # point out parameters that are not used
       template_not_used_warn(required, defined, "parameter")
       # stop if parameters are missing
-      template_missing_stop(required, defined, "parameter")
-      invisible(self)
+      sms <- template_missing_stop(required, defined, "parameter")
+      if (isTRUE(capital) && length(sms) > 0) stop_h(sms)
+      else sms
     }
   )
 )

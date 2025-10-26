@@ -1137,7 +1137,7 @@ void MCMC::Impl::move_all_augm_()
     if (!error_message.empty())
         throw std::runtime_error(error_message);
 
-    increment_full_loglike_(delta_ll);
+    increment_total_loglike_(delta_ll);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

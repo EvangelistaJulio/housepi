@@ -61,7 +61,8 @@ require_suggested_library <- function(libname) {
 #'
 #' @noRd
 character_to_string_list <- function(mylist, max_print = 4) {
-  sms <- paste(lapply(mylist[seq_len(min(max_print, length(mylist)))],
+  max_print <- min(max_print, length(mylist), na.rm = TRUE)
+  sms <- paste(lapply(mylist[seq_len(max_print)],
                       function(x) paste0("'", x, "'")),
                collapse = ", ")
   if (length(mylist) > max_print) return(paste0(sms, ", ..."))
@@ -164,7 +165,7 @@ get_val_ <- function(lst, key, default = NA) {
 #'
 #' @keywords internal
 #' @noRd
-load_definition_list <- function(..., from = NULL) {
+helper_load_definition_list <- function(..., from = NULL) {
   definitions <- list(...)
 
   if (length(definitions) == 0) {
@@ -182,10 +183,6 @@ load_definition_list <- function(..., from = NULL) {
 ############################################################################
 ############################################################################
 
-# remove punctuation from string
-format_string <- function(name) {
-  gsub("[[:punct:]]", "", name)
-}
 
 # Generate a random string
 rnd_string <- function(size = 8) {
@@ -243,7 +240,9 @@ dll_file_ext <- function(name = "") {
 
 # Templated name convention
 template_name <- function(path) {
-  paste0("housepi", format_string(basename(path)))
+  # remove punctuation from string
+  name <- gsub("[[:punct:]]", "", basename(path))
+  paste0("housepi", name)
 }
 
 # Add random string to templated name
@@ -623,6 +622,7 @@ DefEncoder <- R6::R6Class(
 #'
 #' @return `character()`
 #' @keywords internal
+#' @noRd
 walk_encoded_func <- function(input, type) {
   if (is.na(input) || is.null(input) || input == "") return(NULL)
   blocks <- extract_blocks(input)
@@ -693,6 +693,7 @@ evaluate_block <- function(block, type) {
 #'
 #' @return `data.frame()`
 #' @keywords internal
+#' @noRd
 make_def_readable <- function(defs) {
   .extract_numeric <- function(x) {
     sapply(x, function(element) {
