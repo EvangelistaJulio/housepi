@@ -340,49 +340,6 @@ HousepiExpectation <- R6::R6Class(
 
 ############################################################################
 ############################################################################
-############################################################################
-
-#' @title Combine observed and expected cases tables
-#' @description
-#' Function to combine cases table.
-#'
-#' @param obsdf A `data.frame` with observed cases.
-#' @param expdf A `data.frame` with expected cases.
-#'
-#' @return `data.frame`
-#'
-#' @keywords internal
-#' @noRd
-combine_obs_exp <- function(obsdf, expdf) {
-  # 1. curate observed dataframe
-  obsdf$distr <- "Observed"
-  rownames(obsdf) <- seq(1, 2 * nrow(obsdf), 2)
-
-  # 2. curate expected dataframe
-  expdf$house_size <- obsdf$house_size
-  expdf$distr <- "Expected"
-  rownames(expdf) <- seq(2, 2 * nrow(expdf), 2)
-
-  # 3. combine by row bind
-  combined <- rbind(obsdf, expdf)[as.character(1:(2 * nrow(obsdf))), ]
-  # reset row names
-  rownames(combined) <- NULL
-  # reorder columns
-  y <- colnames(combined)
-  aux <- c("house_size", "distr")
-  combined <- combined[, c(aux, y[!(y %in% aux)])]
-
-  # format columns to extract labels with labelizor
-  colnames(combined)[3:ncol(combined)] <- sapply(
-    colnames(combined)[3:ncol(combined)],
-    function(x) paste("cases", x, sep = "_")
-  )
-
-  combined
-}
-
-############################################################################
-############################################################################
 ############################ Expected Cases By Size ########################
 ############################################################################
 ############################################################################
@@ -461,6 +418,41 @@ ExpectedCasesBySize <- R6::R6Class(
       x <- gsub("cri_lower", sprintf("q%.0f", 100 - qtag), x)
       x <- gsub("cri_upper", sprintf("q%.0f", qtag), x)
       x
+    },
+
+    # @description
+    # Function to combine cases table.
+    #
+    # @param obsdf A `data.frame` with observed cases.
+    # @param expdf A `data.frame` with expected cases.
+    #
+    # @return `data.frame`
+    .combine_obs_exp <- function(obsdf, expdf) {
+      # 1. curate observed dataframe
+      obsdf$distr <- "Observed"
+      rownames(obsdf) <- seq(1, 2 * nrow(obsdf), 2)
+
+      # 2. curate expected dataframe
+      expdf$house_size <- obsdf$house_size
+      expdf$distr <- "Expected"
+      rownames(expdf) <- seq(2, 2 * nrow(expdf), 2)
+
+      # 3. combine by row bind
+      combined <- rbind(obsdf, expdf)[as.character(1:(2 * nrow(obsdf))), ]
+      # reset row names
+      rownames(combined) <- NULL
+      # reorder columns
+      y <- colnames(combined)
+      aux <- c("house_size", "distr")
+      combined <- combined[, c(aux, y[!(y %in% aux)])]
+
+      # format columns to extract labels with labelizor
+      colnames(combined)[3:ncol(combined)] <- sapply(
+        colnames(combined)[3:ncol(combined)],
+        function(x) paste("cases", x, sep = "_")
+      )
+
+      combined
     }
   ),
 
