@@ -8,7 +8,7 @@ Description: This is the core implementation the package housepi. Direct access 
 License: GPL-3
 Encoding: UTF-8
 Depends: methods, Rcpp (>= 1.0.0)
-LinkingTo: Rcpp
+LinkingTo: Rcpp, BH
 RcppModules: housepi_flags, housepi_function, housepi_distribution, housepi_infec_profile, housepi_model_core
 SystemRequirements: GNU make
 RoxygenNote: 7.3.3

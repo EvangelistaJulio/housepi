@@ -25,10 +25,10 @@ CXXFLAGS := -Wall -Wextra -std=gnu++14 -I../template/include/
 
 ifdef DEBUG
 CXXFLAGS += -g -O1 -Wno-unknown-pragmas -Werror -Wuninitialized
+
 else
 # standard Rcpp compilation flags
 CXXFLAGS += -g -O2 -Wno-unknown-pragmas
-
 # Change openMP flags according to OS
 ifeq ($(shell uname -s),Linux)
 CXX := g++
@@ -42,8 +42,8 @@ ifeq ($(shell brew list --versions llvm),)
 $(info LLVM is not installed via Homebrew. Falling back to default.)
 CXX := g++
 else
-CXX := $(shell brew --prefix)/opt/llvm/bin/clang++
-CXXFLAGS += -fopenmp -I$(shell brew --prefix)/opt/llvm/include
+CXX := $(shell brew --prefix llvm)/bin/clang++
+CXXFLAGS += -fopenmp -I$(shell brew --prefix llvm)/include -I$(shell brew --prefix boost)/include
 endif
 endif	
 else

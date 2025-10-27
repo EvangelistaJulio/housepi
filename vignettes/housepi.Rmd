@@ -157,11 +157,11 @@ get_param_draws(results) |>
 ```
 
 or to perform model comparison, we can call functions from [loo](https://cloud.r-project.org/web/packages/loo/).
-We can extract the sample of pointwise loglikelihood for each household and compute for example the leave-one-out cross-validation as follows
+We can extract the sample of pointwise log-likelihood for each household and compute for example the leave-one-out cross-validation as follows
 
 ```{r}
 # LOO-CV (leave-one-out cross-validation)
-get_log_like_draws(results) |>
+get_log_lik_draws(results) |>
   posterior::as_draws_matrix() |>
   loo::loo()
 ```

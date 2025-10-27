@@ -50,13 +50,13 @@ void Model::init_model_for_inference()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Compute the log-likelihood for a single household.
-double Model::compute_household_obs_loglike(Household &house)
+double Model::compute_household_obs_log_lik(Household &house)
 {
 	// fill matrix with escape probabilities
 	fill_house_escape_matrix(house);
 
 	// compute corresponding loglikelihood times house multiplicity
-	return house.multiplicity() * bax::chain_binomial_heter_loglikelihood(
+	return house.multiplicity() * bax::chain_binomial_heter_log_lik(
 									  house.n_infec_status(),
 									  house.cache_double_vector("commu-escape-proba"),
 									  house.cache_double_matrix("p2p-escape-proba"));

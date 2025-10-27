@@ -23,14 +23,14 @@
 
 /// Raise error when "blank" model.
 void Model::init_model_for_inference() { hsp::msg::warning(
-	"Computed loglikelihood with 'blank' model."); }
+	"Computed log-likelihood with 'blank' model."); }
 
 /// Raise error when "blank" model.
 void Model::init_model_for_simulation() { hsp::msg::warning(
 	"Performed simulation with 'blank' model."); }
 
 /// Unitary likelihood.
-double Model::compute_household_obs_loglike(Household &) { return 0.; }
+double Model::compute_household_obs_log_lik(Household &) { return 0.; }
 
 /// Augmented variable initialization.
 void Model::simulate_single_household(Household &house)

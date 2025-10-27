@@ -33,34 +33,34 @@ test_that("Deep clone works as expected", {
   expect_failure(expect_equal(hhmodel$data_wide, hhclone$data_wide))
 })
 
-test_that("Loglikelihood traces and pointwise traces are coherent", {
+test_that("Log-likelihood traces and pointwise traces are coherent", {
   results <- new_housepi_model("chain_binomial") |>
     load_parameter_template() |>
     add_data_wide(housepi::survey) |> 
     infer(steps = 10, thin = 1, adapt = 0, burnin = 0)
 
-  pointwise <- results$house_draws |>
+  pointwise <- results$log_lik_draws |>
     posterior::as_draws_matrix() |>
     rowSums() |>
     unname()
-  expect_equal(results$loglike_draws$loglikelihood, pointwise)
+  expect_equal(results$total_log_lik_draws$log_lik, pointwise)
 })
 
 test_that("Chain binomial models are coherent", {
-  # loglikelihood from chain binomial model
+  # log-likelihood from chain binomial model
   hhmodel1 <- new_housepi_model("chain_binomial")
 
   hhmodel1$parameters <- list(alpha = 0.15, beta = 0.22)
   hhmodel1$data_wide <- housepi::survey
-  ll1 <- hhmodel1$loglikelihood()
+  ll1 <- hhmodel1$evaluate_log_lik()
 
-  # loglikelihood from heterogeneous chain binomial model
+  # log-likelihood from heterogeneous chain binomial model
   # with homogenous rates
   hhmodel2 <- new_housepi_model("chain_binomial_heterogeneous")
 
   hhmodel2$parameters <- list(alpha = 0.15, beta = 0.22)
   hhmodel2$data_wide <- housepi::survey
-  ll2 <- hhmodel2$loglikelihood()
+  ll2 <- hhmodel2$evaluate_log_lik()
 
   expect_equal(ll1, ll2)
 })

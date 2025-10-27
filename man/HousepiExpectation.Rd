@@ -7,17 +7,6 @@
 \description{
 Class to extract expecteted measures over simulations.
 }
-\section{Active bindings}{
-\if{html}{\out{<div class="r6-active-bindings">}}
-\describe{
-\item{\code{observed}}{\code{list}\cr
-Observed values of the measure of the posterior sample.}
-
-\item{\code{posterior}}{\code{list}\cr
-Expected values of the measure of the posterior sample.}
-}
-\if{html}{\out{</div>}}
-}
 \section{Methods}{
 \subsection{Public methods}{
 \itemize{

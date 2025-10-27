@@ -79,27 +79,27 @@ public:
 	std::string str_augm_summary() const;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
-	/////////////////////////////////  Individual : loglikelihood  ////////////////////////////////
+	/////////////////////////////////  Individual : log-likelihood  ///////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	void init_augm_model_logratios(const u_dict<str_vec> &models_ordered);
-	double get_augm_model_loglike() const { return loglike_; }
-	double compute_and_set_augm_model_loglike();
+	double get_augm_model_log_lik() const { return augm_log_lik_; }
+	double compute_and_set_augm_model_log_lik();
 	double compute_and_set_augm_model_logratio(const std::string &a);
-	void recover_augm_model_loglike() { loglike_ = buffer_; };
-	void assert_loglike_not_NaN(const std::string &a = hsp::na::STRING) const
+	void recover_augm_model_log_lik() { augm_log_lik_ = buffer_; };
+	void assert_log_lik_not_NaN(const std::string &a = hsp::na::STRING) const
 	{
-		if (hsp::na::is(loglike_))
+		if (hsp::na::is(augm_log_lik_))
 			throw std::runtime_error(
-				"Augmented loglikelihood returned NaN for " + err_name() +
+				"Augmented log-likelihood returned NaN for " + err_name() +
 				(hsp::na::is(a) ? "" : " after change of " + augm_map_.find(a)->second.err_name()) + ".");
 	}
 
 private:
 	u_dict<Variable> augm_map_ = {}; /// dictionary of augmented definitions
 
-	double loglike_ = 0; // current augmented model loglikelihood
-	double buffer_ = 0;	 // buffer augmented model loglikelihood
+	double augm_log_lik_ = 0; // current augmented model log-likelihood
+	double buffer_ = 0;			// buffer augmented model log-likelihood
 
 	// container for the logratio lists according to dependencies
 	u_dict<std::vector<std::function<double()>>> model_logratios_ = {};
@@ -379,24 +379,24 @@ public:
 	const matrix<double> &cache_double_matrix(const std::string &e) const { return safe_at(cache_dbl_mtx_, e, "cached object"); }
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
-	/////////////////////////////////  Household : loglikelihood  /////////////////////////////////
+	/////////////////////////////////  Household : log-likelihood  ////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	/// Return value of the household observation loglikelihood.
-	double get_obs_loglike() const { return obs_loglike_; }
-	/// Store the loglikelihood of household observation.
-	void set_obs_loglike(double x)
+	/// Return value of the household observation log-likelihood.
+	double get_obs_log_lik() const { return obs_log_lik_; }
+	/// Store the log-likelihood of household observation.
+	void set_obs_log_lik(double x)
 	{
-		obs_buffer_ = obs_loglike_;
-		obs_loglike_ = x;
-		assert_loglike_not_NaN();
+		obs_buffer_ = obs_log_lik_;
+		obs_log_lik_ = x;
+		assert_log_lik_not_NaN();
 	}
-	/// Assert that current loglikelihood id not a NaN.
-	void assert_loglike_not_NaN() const
+	/// Assert that current log-likelihood id not a NaN.
+	void assert_log_lik_not_NaN() const
 	{
-		if (hsp::na::is(obs_loglike_))
+		if (hsp::na::is(obs_log_lik_))
 			throw std::runtime_error(
-				"Observation loglikelihood returned NaN.");
+				"Observation log-likelihood returned NaN.");
 	}
 	void recover_buffer_values(bool is_cache_depen);
 
@@ -421,13 +421,13 @@ private:
 	void set_status_(Individual &member, int new_status);
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
-	////////////////////////////  Household : loglikelihood [private]  ////////////////////////////
+	////////////////////////////  Household : log-likelihood [private]  ///////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	double obs_loglike_ = 0; // current observation loglikelihood
-	double obs_buffer_ = 0;	 // buffer observation loglikelihood
+	double obs_log_lik_ = 0; // current observation log-likelihood
+	double obs_buffer_ = 0;	 // buffer observation log-likelihood
 
-	dbl_vec smpl_loglike_ = {}; // diagnostics
+	dbl_vec smpl_log_lik_ = {}; // diagnostics
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////  Household : cache attributes [private]  //////////////////////////

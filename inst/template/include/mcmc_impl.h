@@ -58,7 +58,7 @@ public:
 
     Impl(std::function<void()> func_init_inference,
          std::function<void()> func_init_simulation,
-         std::function<double(Household &)> func_household_loglike,
+         std::function<double(Household &)> func_household_log_lik,
          std::function<void(Household &)> func_simulate_house,
          std::function<void(Household &, Individual &)> func_update_cache)
         : setup(*this), param(*this),
@@ -66,7 +66,7 @@ public:
           group_rates(*this), infec_profile(*this), augm(*this),
           callback_init_inference_(std::move(func_init_inference)),
           callback_init_simulation_(std::move(func_init_simulation)),
-          callback_house_loglike_(std::move(func_household_loglike)),
+          callback_house_log_lik_(std::move(func_household_log_lik)),
           callback_simulate_house_(std::move(func_simulate_house)),
           callback_update_cache_(std::move(func_update_cache)) {}
     ~Impl() = default;
@@ -692,7 +692,7 @@ public:
     /////////////////////////////  MCMC : Impl : Metropolis-Hastings  ///////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    double evaluate();
+    double evaluate_log_lik();
     void infer();
 
     /// Release memory.
@@ -731,7 +731,7 @@ private:
 
     std::function<void()> callback_init_inference_;
     std::function<void()> callback_init_simulation_;
-    std::function<double(Household &)> callback_house_loglike_;
+    std::function<double(Household &)> callback_house_log_lik_;
     std::function<void(Household &)> callback_simulate_house_;
     std::function<void(Household &, Individual &)> callback_update_cache_;
 
@@ -740,10 +740,10 @@ private:
     void simulate_single_household_(Household &h) { callback_simulate_house_(h); }
     void update_cache_dependecies_(Household &h, Individual &i) { callback_update_cache_(h, i); }
 
-    double compute_and_set_household_obs_loglike_(Household &h)
+    double compute_and_set_household_obs_log_lik_(Household &h)
     {
-        const double output = callback_house_loglike_(h);
-        h.set_obs_loglike(output);
+        const double output = callback_house_log_lik_(h);
+        h.set_obs_log_lik(output);
         return output;
     }
 
@@ -751,11 +751,11 @@ private:
     ////////////////////////  MCMC : Impl : Metropolis-Hastings [private]  //////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    double total_loglike_ = 0.; /// current total loglikelihood
-    double total_buffer_ = 0.;  /// buffer total loglikelihood
+    double total_log_lik_ = 0.; /// current total log-likelihood
+    double total_buffer_ = 0.;  /// buffer total log-likelihood
 
     unsigned long smpl_count_ = 0;    /// count of store samples
-    dbl_vec smpl_total_loglike_ = {}; /// vector of total loglikelihood samples
+    dbl_vec smpl_total_log_lik_ = {}; /// vector of total log-likelihood samples
 
     /// Assert data_wide is not empty.
     void assert_non_empty_data_wide_()
@@ -773,20 +773,20 @@ private:
 
     void init_monte_carlo_();
 
-    /// Set new total loglikelihood value and buffer old value.
-    void set_total_loglike_(double new_ll)
+    /// Set new total log-likelihood value and buffer old value.
+    void set_total_log_lik_(double new_ll)
     {
-        total_buffer_ = total_loglike_;
-        total_loglike_ = new_ll;
+        total_buffer_ = total_log_lik_;
+        total_log_lik_ = new_ll;
     }
 
-    /// Increment total loglikelohood by a delta, buffer old value.
-    void increment_total_loglike_(double delta) { set_total_loglike_(total_loglike_ + delta); }
+    /// Increment total log-likelohood by a delta, buffer old value.
+    void increment_total_log_lik_(double delta) { set_total_log_lik_(total_log_lik_ + delta); }
 
     void init_move_counts_();
 
-    void update_total_loglike_(bool cache_depen);
-    double update_house_loglike_(Household &house, bool is_augm_ll, bool is_cache_depen);
+    void update_total_log_lik_(bool cache_depen);
+    double update_house_log_lik_(Household &house, bool is_augm_ll, bool is_cache_depen);
 
     void run_monte_carlo_();
     void move_all_();

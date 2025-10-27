@@ -321,6 +321,51 @@ HousepiModel <- R6::R6Class(
                   file.path(outpath, "infec.csv"),
                   row.names = TRUE, col.names = FALSE, sep = ",", quote = FALSE)
       invisible(self)
+    },
+
+    # @description
+    # Estimate the model logevidence (or marginal likelihood).
+    # It uses the method of power posteriors with different available schemes.
+    #
+    # @param scheme `r rd_evi_scheme_`
+    # @param rungs `r rd_evi_rungs_`
+    # @param steps `r rd_smpl_steps_`
+    # @param burnin `r rd_smpl_burn_`
+    # @param thin `r rd_smpl_thin_`
+    # @param adapt `r rd_smpl_adapt_`
+    # @param chains `r rd_smpl_chain_`
+    # @param threads `r rd_smpl_thread_`
+    # @param seed `r rd_seed_`
+    # @param progress `r rd_progress_`
+    #
+    # @return `numeric(1)`
+    logevidence = function(scheme = "power-fractions", rungs = 40,
+                           steps = 10000, burnin = 0,
+                           thin = 1, adapt = 0,
+                           chains = 1, threads = 1,
+                           seed = NA_integer_, progress = TRUE) {
+      # UPDATE: developer warning
+      warning_h(
+        "The method to estimate logevidence is currently under development.",
+        "Its usage is deprecated."
+      )
+
+      # internal build function
+      private$.build_full(steps = steps, burnin = burnin,
+                          thin = thin, adapt = adapt,
+                          chains = chains, threads = threads,
+                          seed = seed, progress = progress)
+      # load options
+      scheme <- as.character(scheme)
+      rungs <- as.integer(rungs)
+      # evaluate marginal from the internal Rcpp object
+      output <- private$.rcpp$logevidence(scheme, rungs)
+      # reformat dataframe
+      mask <- c("inv_temper", "mean_log_lik", "var_log_lik")
+      output$detail <- as.data.frame(output[mask])
+      output[mask] <- NULL
+
+      return(output)
     }
   ),
 
@@ -716,15 +761,15 @@ HousepiModel <- R6::R6Class(
     ############################################################################
 
     #' @description
-    #' Compute the loglikelihood.
+    #' Evaluate the log-likelihood.
     #'
     #' @param seed `r rd_seed_`
     #'
     #' @return `numeric(1)`
-    loglikelihood = function(seed = NA_integer_) {
+    evaluate_log_lik = function(seed = NA_integer_) {
       # internal build function
       private$.build_full(seed = seed)
-      return(private$.rcpp$evaluate())
+      return(private$.rcpp$evaluate_log_lik())
     },
 
     #' @description
@@ -752,51 +797,6 @@ HousepiModel <- R6::R6Class(
       # infer method from cpp model object
       private$.rcpp$infer()
       return(HousepiPosteriorDraws$new(private$.name, private$.rcpp))
-    },
-
-    #' @description
-    #' Estimate the model logevidence (or marginal likelihood).
-    #' It uses the method of power posteriors with different available schemes.
-    #'
-    #' @param scheme `r rd_evi_scheme_`
-    #' @param rungs `r rd_evi_rungs_`
-    #' @param steps `r rd_smpl_steps_`
-    #' @param burnin `r rd_smpl_burn_`
-    #' @param thin `r rd_smpl_thin_`
-    #' @param adapt `r rd_smpl_adapt_`
-    #' @param chains `r rd_smpl_chain_`
-    #' @param threads `r rd_smpl_thread_`
-    #' @param seed `r rd_seed_`
-    #' @param progress `r rd_progress_`
-    #'
-    #' @return `numeric(1)`
-    logevidence = function(scheme = "power-fractions", rungs = 40,
-                           steps = 10000, burnin = 0,
-                           thin = 1, adapt = 0,
-                           chains = 1, threads = 1,
-                           seed = NA_integer_, progress = TRUE) {
-      # UPDATE: developer warning
-      warning_h(
-        "The method to estimate logevidence is currently under development.",
-        "Its usage is deprecated."
-      )
-
-      # internal build function
-      private$.build_full(steps = steps, burnin = burnin,
-                          thin = thin, adapt = adapt,
-                          chains = chains, threads = threads,
-                          seed = seed, progress = progress)
-      # load options
-      scheme <- as.character(scheme)
-      rungs <- as.integer(rungs)
-      # evaluate marginal from the internal Rcpp object
-      output <- private$.rcpp$logevidence(scheme, rungs)
-      # reformat dataframe
-      mask <- c("inv_temper", "mean_loglike", "var_loglike")
-      output$detail <- as.data.frame(output[mask])
-      output[mask] <- NULL
-
-      return(output)
     },
 
     #' @description

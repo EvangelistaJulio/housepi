@@ -25,14 +25,14 @@ reference:
   desc: >
     General purpose calls to generate a housepi model object and perform analysis. 
   contents:
+    - HousepiModel
     - new_housepi_model
     - template_household_model
-    - loglikelihood
-    - infer
-    - simulate.HousepiModel
     - summarise_cases
     - summarise_house_sizes
-    - HousepiModel
+    - evaluate_log_lik
+    - infer
+    - simulate.HousepiModel
 
 - title: "Model definitions"
   desc: >

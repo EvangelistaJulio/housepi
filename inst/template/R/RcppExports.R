@@ -55,7 +55,7 @@ NULL
 #' }
 #' @field data_wide_for_simulation\cr Dataset without status and augmented entries.
 #' @field simulate\cr Simulated status and augmented variables.
-#' @field evaluate\cr Evaluate the loglikelihood according to the current state.
+#' @field evaluate\cr Evaluate the log-likelihood according to the current state.
 #' @field logevidence\cr Evaluate the logarithm of the marginal likelihood (aka evidence).
 #' Uses the method of power posteriors. \itemize{
 #'   \item Parameter: scheme
@@ -79,7 +79,7 @@ NULL
 #' @field summarise_cases\cr Return a DataFrame with a report of the current database.
 #' @field summarise_house_sizes\cr Return a DataFrame with a report of household sizes.
 #' @field export_draws\cr Return a NumericMatrix with MCMC draws.
-#' @field export_house_loglike_draws\cr Return a NumericMatrix with household loglikelihood draws.
+#' @field export_house_log_lik_draws\cr Return a NumericMatrix with household log-likelihood draws.
 #' @field export_house_snapshot\cr Return a List with a snapshot containing full household and model details.
 NULL
 

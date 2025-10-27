@@ -20,12 +20,12 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////  MCMC::Impl : evaluate loglikelihood  /////////////////////////////
+///////////////////////////////  MCMC::Impl : evaluate log-likelihood  ////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Initialize model and compute the loglikelihood.
-double MCMC::Impl::evaluate()
+/// Initialize model and evaluate log-likelihood.
+double MCMC::Impl::evaluate_log_lik()
 {
     try
     {
@@ -36,9 +36,9 @@ double MCMC::Impl::evaluate()
         augm.init();                   // initialize individual augmented relations
         augm.user_reset();             // initialize non constant augmented
         init_model_for_inference_();   // initialize model for inference
-        update_total_loglike_(true);    // initialize cache + full loglikelihood
+        update_total_log_lik_(true);   // initialize cache + full log-likelihood
 
-        return total_loglike_;
+        return total_log_lik_;
     }
     catch (const std::exception &e)
     {
@@ -47,16 +47,16 @@ double MCMC::Impl::evaluate()
 
     return hsp::na::DOUBLE;
 }
-double MCMC::evaluate() { return pImpl_->evaluate(); }
+double MCMC::evaluate_log_lik() { return pImpl_->evaluate_log_lik(); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////  MCMC : update house loglikelihood  ///////////////////////////////
+///////////////////////////////  MCMC : update house log-likelihood  //////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Compute new loglikelihood, store old value in buffer. Same for households.
-void MCMC::Impl::update_total_loglike_(bool cache_depen)
+/// Compute new log-likelihood, store old value in buffer. Same for households.
+void MCMC::Impl::update_total_log_lik_(bool cache_depen)
 {
     const bool is_augm_ll = augm.is_any_model();
     double new_ll = 0.0;
@@ -74,14 +74,14 @@ void MCMC::Impl::update_total_loglike_(bool cache_depen)
         Household &this_house = data_wide.restricted(R);
         try
         {
-            new_ll += update_house_loglike_(this_house, is_augm_ll, cache_depen);
+            new_ll += update_house_log_lik_(this_house, is_augm_ll, cache_depen);
         }
         catch (const std::exception &e)
         {
 #pragma omp critical
             {
                 if (!has_error.exchange(true))
-                    error_message = "While computing loglikelihood for " +
+                    error_message = "While computing log-likelihood for " +
                                     this_house.err_name() + ":\n" +
                                     std::string(e.what());
             }
@@ -90,12 +90,12 @@ void MCMC::Impl::update_total_loglike_(bool cache_depen)
     if (!error_message.empty())
         throw std::runtime_error(error_message);
 
-    set_total_loglike_(new_ll);
+    set_total_log_lik_(new_ll);
 }
 
 /// Update and return contribution of given household to full logliklehood.
 /// NOTE: house multiplicity doesn't work with data augmentation
-double MCMC::Impl::update_house_loglike_(Household &house, bool is_augm_ll, bool is_cache_depen)
+double MCMC::Impl::update_house_log_lik_(Household &house, bool is_augm_ll, bool is_cache_depen)
 {
     // buffer all household cache dependencies
     if (is_cache_depen)
@@ -104,14 +104,14 @@ double MCMC::Impl::update_house_loglike_(Household &house, bool is_augm_ll, bool
         for (Individual &member : house.infected())
             update_cache_dependecies_(house, member);
     }
-    
-    // update household observation loglikelihood
-    double output = compute_and_set_household_obs_loglike_(house);
 
-    // update individual augmented loglikelihood
+    // update household observation log-likelihood
+    double output = compute_and_set_household_obs_log_lik_(house);
+
+    // update individual augmented log-likelihood
     if (is_augm_ll)
         for (Individual &member : house.infected())
-            output += member.compute_and_set_augm_model_loglike();
+            output += member.compute_and_set_augm_model_log_lik();
 
     return output;
 }
@@ -172,11 +172,11 @@ void MCMC::Impl::run_monte_carlo_()
     // run multiple MCMC chains&
     for (chain = 1; chain <= setup.n_chains; ++chain)
     {
-        setup.prog_set_text();      // update progress bar text
-        param.user_reset();         // reset parameter user definitions
-        augm.user_reset();          // reset augmented user definitions
-        update_total_loglike_(true); // init cache + full loglikelihood
-        init_move_counts_();        // init move counts for adaptive
+        setup.prog_set_text();       // update progress bar text
+        param.user_reset();          // reset parameter user definitions
+        augm.user_reset();           // reset augmented user definitions
+        update_total_log_lik_(true); // init cache + full log-likelihood
+        init_move_counts_();         // init move counts for adaptive
 
         // Finite adaptative iterations
         for (unsigned long i = 0; i < setup.n_adapt; i += setup.n_thin, setup.prog_update())
@@ -235,7 +235,7 @@ bool MCMC::Impl::move_single_parameter_(const std::string &p, bool is_cache_depe
     if (propose_valid_param_move_(p))
     {
         // if parameter is cache dependent, update cache
-        update_total_loglike_(is_cache_depen);
+        update_total_log_lik_(is_cache_depen);
 
         // perform Metropolis-Hastings to accept or not move
         if (accept_valid_param_move_(p))
@@ -297,16 +297,16 @@ void MCMC::Impl::recover_parameter_(const std::string &p, bool is_cache_depen)
     // recover buffer value of parameter
     param.at(p).recover_value();
 
-    // recover buffer value of full loglike
-    total_loglike_ = total_buffer_;
+    // recover buffer value of full log-like
+    total_log_lik_ = total_buffer_;
 
-    // recover buffered loglikelihood in households
+    // recover buffered log-likelihood in households
     for (Household &house : data_wide.restricted())
     {
         house.recover_buffer_values(is_cache_depen);
         if (augm.is_any_sample())
             for (Individual &member : house.infected())
-                member.recover_augm_model_loglike();
+                member.recover_augm_model_log_lik();
     }
 
     infec_profile.recover(is_cache_depen);
@@ -315,7 +315,7 @@ void MCMC::Impl::recover_parameter_(const std::string &p, bool is_cache_depen)
 /// Metropolis-Hastings to accept or not current parameter move.
 bool MCMC::Impl::accept_valid_param_move_(const std::string &p)
 {
-    const double D_ll = total_loglike_ - total_buffer_;
+    const double D_ll = total_log_lik_ - total_buffer_;
     const double move_logratio = param.at(p).get_move_logratio();
     return setup.unif() < std::exp(setup.inv_T * D_ll + move_logratio);
 }
@@ -385,21 +385,21 @@ void MCMC::Impl::DataWide::init_draws(unsigned long sample_size)
     }
 }
 
-/// Store current sample of loglikelihood for restricted households.
+/// Store current sample of log-likelihood for restricted households.
 void MCMC::Impl::DataWide::update_draws(unsigned long smpl_count)
 {
     // store sample for restricted households
     for (size_t R = 0; R < pImpl_.multiplicity.indexes.size(); ++R)
     {
         Household &house = house_vector_[pImpl_.multiplicity.indexes[R]];
-        double x = house.get_obs_loglike() / house.multiplicity();
+        double x = house.get_obs_log_lik() / house.multiplicity();
         for (const Individual &member : house.infected())
-            x += member.get_augm_model_loglike();
+            x += member.get_augm_model_log_lik();
         smpl_values_[R][smpl_count] = x;
     }
 }
 
-/// Deep clear posterior sample of pointwise loglikelihood.
+/// Deep clear posterior sample of pointwise log-likelihood.
 void MCMC::Impl::DataWide::clear_draws()
 {
     for (auto &vec : smpl_values_)
@@ -416,11 +416,11 @@ void MCMC::Impl::init_posterior_sample_()
 {
     unsigned long sample_size = setup.c_sample_size * setup.n_chains;
 
-    // diagnostics over full loglikelihood
+    // diagnostics over full log-likelihood
     smpl_count_ = 0;
-    smpl_total_loglike_.clear();
-    smpl_total_loglike_.reserve(sample_size);
-    smpl_total_loglike_.assign(sample_size, hsp::na::DOUBLE);
+    smpl_total_log_lik_.clear();
+    smpl_total_log_lik_.reserve(sample_size);
+    smpl_total_log_lik_.assign(sample_size, hsp::na::DOUBLE);
 
     // initialize  other diagnostic vectors
     // UPDATE: I need to store also power posterior sample
@@ -436,8 +436,8 @@ void MCMC::Impl::init_posterior_sample_()
 /// Update Bayesian posterior sample.
 void MCMC::Impl::update_posterior_sample_()
 {
-    // store sample of the full loglikelihood
-    smpl_total_loglike_[smpl_count_] = total_loglike_;
+    // store sample of the full log-likelihood
+    smpl_total_log_lik_[smpl_count_] = total_log_lik_;
 
     if (!setup.is_power_post())
     {
@@ -453,8 +453,8 @@ void MCMC::Impl::update_posterior_sample_()
 void MCMC::Impl::clear_posterior_sample_()
 {
     smpl_count_ = 0;
-    smpl_total_loglike_.clear();
-    smpl_total_loglike_.shrink_to_fit();
+    smpl_total_log_lik_.clear();
+    smpl_total_log_lik_.shrink_to_fit();
 
     data_wide.clear_draws();
     param.clear_draws();
@@ -527,8 +527,8 @@ std::vector<dbl_vec> MCMC::Impl::power_posteriors_(const std::string &scheme, un
 
     // thermodynamic ladder estimates
     dbl_vec itm = {}; // inverse temperature
-    dbl_vec avg = {}; // mean loglikelihood
-    dbl_vec var = {}; // variance loglikelihood
+    dbl_vec avg = {}; // mean log-likelihood
+    dbl_vec var = {}; // variance log-likelihood
 
     // run power posteriors
     power_post_zero_(itm, avg, var);
@@ -555,7 +555,7 @@ void MCMC::Impl::power_post_zero_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
     setup.rung = 0;
     setup.inv_T = 0.0;
     run_monte_carlo_();
-    std::pair<double, double> stats = compute_stats(smpl_total_loglike_);
+    std::pair<double, double> stats = compute_stats(smpl_total_log_lik_);
 
     itm.push_back(setup.inv_T);
     avg.push_back(stats.first);
@@ -569,7 +569,7 @@ void MCMC::Impl::power_post_adaptive_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
     setup.rung = 1;
     setup.inv_T = 1.0;
     run_monte_carlo_();
-    std::pair<double, double> stats = compute_stats(smpl_total_loglike_);
+    std::pair<double, double> stats = compute_stats(smpl_total_log_lik_);
 
     itm.push_back(setup.inv_T);
     avg.push_back(stats.first);
@@ -592,7 +592,7 @@ void MCMC::Impl::power_post_adaptive_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
         // power posterior sampling
         setup.inv_T = new_t;
         run_monte_carlo_();
-        stats = compute_stats(smpl_total_loglike_);
+        stats = compute_stats(smpl_total_log_lik_);
 
         // find larger rectangular discretization error
         is_right = (itm[k + 1] - setup.inv_T) * (avg[k + 1] - stats.first) > (new_t - itm[k]) * (stats.first - avg[k]);
@@ -616,7 +616,7 @@ void MCMC::Impl::power_post_fractions_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
         setup.inv_T = std::pow(static_cast<double>(setup.rung) / setup.n_rungs, 5);
         run_monte_carlo_();
 
-        std::pair<double, double> stats = compute_stats(smpl_total_loglike_);
+        std::pair<double, double> stats = compute_stats(smpl_total_log_lik_);
         itm.push_back(setup.inv_T);
         avg.push_back(stats.first);
         var.push_back(stats.second);
@@ -655,8 +655,8 @@ Rcpp::List MCMC::Impl::logevidence(const std::string &scheme, unsigned long n_ru
                             _["scheme"] = scheme,
                             _["n_rungs"] = setup.n_rungs,
                             _["inv_temper"] = wrap(inv_tem),
-                            _["mean_loglike"] = wrap(avg_vec),
-                            _["var_loglike"] = wrap(var_vec));
+                            _["mean_log_lik"] = wrap(avg_vec),
+                            _["var_log_lik"] = wrap(var_vec));
     }
     catch (const std::exception &e)
     {

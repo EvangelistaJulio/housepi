@@ -5,7 +5,7 @@
 \title{Simulate household data}
 \usage{
 \method{simulate}{HousepiModel}(
-  hhmodel,
+  object,
   nsim = 1,
   seed = NA_integer_,
   progress = FALSE,
@@ -14,7 +14,7 @@
 )
 }
 \arguments{
-\item{hhmodel}{\code{HousepiModel} object.}
+\item{object}{\code{HousepiModel} object.}
 
 \item{nsim}{\code{integer(1)} with the number of simulated outbreaks.}
 

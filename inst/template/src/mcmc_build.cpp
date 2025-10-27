@@ -265,10 +265,10 @@ void Household::init_contact_rates(size_t from, size_t to, const Attribute &x)
 /////////////////////////////////  Household : cache attributes  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Recover previous values of the loglikelihood and cached depedencies.
+/// Recover previous values of the log-likelihood and cached depedencies.
 void Household::recover_buffer_values(bool is_cache_depen)
 {
-    obs_loglike_ = obs_buffer_;
+    obs_log_lik_ = obs_buffer_;
     if (is_cache_depen)
     {
         // swap buffer into  cache attributes
@@ -825,7 +825,7 @@ MCMC::MCMC()
           [this]()
           { this->init_model_for_simulation(); },
           [this](Household &h) -> double
-          { return this->compute_household_obs_loglike(h); },
+          { return this->compute_household_obs_log_lik(h); },
           [this](Household &h)
           { return this->simulate_single_household(h); },
           [this](Household &h, Individual &i)

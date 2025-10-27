@@ -35,8 +35,8 @@ test_that("Model class blank calls", {
   expect_warning(hhmodel$load_parameter_template(), regexp = "blank")
   expect_warning(hhmodel$load_augmented_template(), regexp = "blank")
 
-  # zero loglikelihood
-  expect_warning(x <- hhmodel$loglikelihood(), regexp = "blank")
+  # zero log-likelihood
+  expect_warning(x <- hhmodel$evaluate_log_lik(), regexp = "blank")
   expect_equal(x, 0)
 
   # blank simulation
@@ -72,13 +72,13 @@ test_that("Nested definitions raise errors", {
       ..layer = list(expr = ~..dummy, status = c(2, 3, 4)),
       ..dummy = list(model = "uniform"),
       proba = ~..layer
-    )$loglikelihood()
+    )$evaluate_log_lik()
   )
 
   # simple nest
   expect_error(
     hhmodel$load_augmented_list(..dummy = ~proba,
-                                proba = ~..dummy)$loglikelihood(),
+                                proba = ~..dummy)$evaluate_log_lik(),
     regexp = "nested definitions"
   )
 
@@ -86,7 +86,7 @@ test_that("Nested definitions raise errors", {
   expect_error(
     hhmodel$load_augmented_list(proba = ~..layer,
                                 ..layer = ~..dummy,
-                                ..dummy = ~proba)$loglikelihood(),
+                                ..dummy = ~proba)$evaluate_log_lik(),
     regexp = "nested definitions"
   )
 
@@ -98,7 +98,7 @@ test_that("Nested definitions raise errors", {
       #> NO ..layer provided for status 3 and 4
       ..dummy = list(model = "lognormal", status = 2),
       proba = ~..layer
-    )$loglikelihood()
+    )$evaluate_log_lik()
   ))
   expect_match(err_msg, "Could not find a definition")
   expect_match(err_msg, "status 3")
@@ -111,7 +111,7 @@ test_that("Nested definitions raise errors", {
       #> NO ..dummy provided for status 3, 4
       ..dummy = list(model = "lognormal", status = c(2, 3)),
       proba = ~..layer
-    )$loglikelihood()
+    )$evaluate_log_lik()
   ))
   expect_match(err_msg, "Could not find a definition")
   expect_match(err_msg, "status 4")
@@ -124,27 +124,28 @@ test_that("Missing function arguments raise errors", {
                                   status = 1, test = c(5.5, NA, -1.5))
 
   hhmodel$add_augmented(name = "proba", func = "gamma")
-  expect_error(hhmodel$loglikelihood(), regexp = "Impossible to return value")
+  expect_error(hhmodel$evaluate_log_lik(),
+               regexp = "Impossible to return value")
 
   hhmodel$add_augmented(name = "gamma", func = "gamma")
   expect_warning(
     hhmodel$add_augmented(name = "proba", expr = ~exp(-gamma)),
     regexp = "Overwriting"
   )
-  expect_error(hhmodel$loglikelihood(), regexp = "Impossible to associate")
+  expect_error(hhmodel$evaluate_log_lik(), regexp = "Impossible to associate")
 
   # check that NaN + something causes errors
   hhmodel$load_augmented_list(noise = list(model = "normal"),
                               proba = ~exp(test@D + noise))
-  expect_error(hhmodel$loglikelihood(), regexp = "Impossible to associate")
+  expect_error(hhmodel$evaluate_log_lik(), regexp = "Impossible to associate")
 
   # check that log(NaN) = NaN
   hhmodel$load_augmented_list(proba = ~log(test@D))
   expect_error(hhmodel$infer(), regexp = "Nothing to sample")
-  expect_error(hhmodel$loglikelihood(), regexp = "Impossible to return value")
+  expect_error(hhmodel$evaluate_log_lik(), regexp = "Impossible to return value")
 })
 
-test_that("Augmented loglikelihood seeding is fine", {
+test_that("Augmented log-likelihood seeding is fine", {
   hhmodel <- new_housepi_model("augmented_example")
   hhmodel$data_wide <- data.frame(house_id = 1, id = seq(4), status = seq(4))
   hhmodel$load_augmented_list(
@@ -153,10 +154,10 @@ test_that("Augmented loglikelihood seeding is fine", {
     ..layer = list(model = "uniform")
   )
 
-  ll1 <- hhmodel$loglikelihood(seed = 1)
-  ll2 <- hhmodel$loglikelihood(seed = 2)
+  ll1 <- hhmodel$evaluate_log_lik(seed = 1)
+  ll2 <- hhmodel$evaluate_log_lik(seed = 2)
   expect_true(ll1 != ll2)
-  expect_identical(ll2, hhmodel$loglikelihood(seed = 2))
+  expect_identical(ll2, hhmodel$evaluate_log_lik(seed = 2))
   expect_identical(ll2, sum(log(hhmodel$export_augmented_data()$proba)))
 })
 
@@ -174,7 +175,7 @@ test_that("Augmented aliasing works as expected", {
   )
 
   ll <- sum(log(dgamma(hhmodel$data_wide$x, shape = 2, scale = 1)))
-  expect_equal(hhmodel$loglikelihood(), ll)
+  expect_equal(hhmodel$evaluate_log_lik(), ll)
 
   # check that order does not matter
   hhmodel$load_augmented_list(
@@ -183,7 +184,7 @@ test_that("Augmented aliasing works as expected", {
     proba = ~..gamma,
     ..dummy = ~x @D
   )
-  expect_equal(hhmodel$loglikelihood(), ll)
+  expect_equal(hhmodel$evaluate_log_lik(), ll)
 
   # check normalization of binomial with augmented example
   hhmodel <- new_housepi_model("augmented_example")
@@ -195,7 +196,7 @@ test_that("Augmented aliasing works as expected", {
                func_args = c(x = ~ X@D, size = 10, prob = 0.5)),
     proba = ~exp(pdf)
   )
-  expect_equal(hhmodel$loglikelihood(), 1)
+  expect_equal(hhmodel$evaluate_log_lik(), 1)
 
   # check that model arguments are correctly integrated
   hhmodel <- new_housepi_model("blank") |>
@@ -210,7 +211,7 @@ test_that("Augmented aliasing works as expected", {
 })
 
 test_that("Augmentation example on incubation from delays is coherent", {
-  # loglikelihood from simulated delays
+  # log-likelihood from simulated delays
   shape <- 2.0
   scale <- 1.1
   df <- data.frame(status = 1,
@@ -226,7 +227,7 @@ test_that("Augmentation example on incubation from delays is coherent", {
   # warning for no structure
   expect_warning(hhmodel$data_wide <- df,
                  regexp = "Ignored household structure")
-  expect_equal(hhmodel$loglikelihood(), exact)
+  expect_equal(hhmodel$evaluate_log_lik(), exact)
 })
 
 test_that("Nested definittions works as expected", {

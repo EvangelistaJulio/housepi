@@ -47,9 +47,8 @@ and variable defintions from a single class.
 \item \href{#method-HousepiModel-add_group_rate}{\code{HousepiModel$add_group_rate()}}
 \item \href{#method-HousepiModel-load_group_rate_list}{\code{HousepiModel$load_group_rate_list()}}
 \item \href{#method-HousepiModel-add_infec_profile}{\code{HousepiModel$add_infec_profile()}}
-\item \href{#method-HousepiModel-loglikelihood}{\code{HousepiModel$loglikelihood()}}
+\item \href{#method-HousepiModel-evaluate_log_lik}{\code{HousepiModel$evaluate_log_lik()}}
 \item \href{#method-HousepiModel-infer}{\code{HousepiModel$infer()}}
-\item \href{#method-HousepiModel-logevidence}{\code{HousepiModel$logevidence()}}
 \item \href{#method-HousepiModel-export_augmented_data}{\code{HousepiModel$export_augmented_data()}}
 \item \href{#method-HousepiModel-export_house_snapshot}{\code{HousepiModel$export_house_snapshot()}}
 \item \href{#method-HousepiModel-simulate}{\code{HousepiModel$simulate()}}
@@ -548,12 +547,12 @@ One between:\cr
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-loglikelihood"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-loglikelihood}{}}}
-\subsection{Method \code{loglikelihood()}}{
-Compute the loglikelihood.
+\if{html}{\out{<a id="method-HousepiModel-evaluate_log_lik"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiModel-evaluate_log_lik}{}}}
+\subsection{Method \code{evaluate_log_lik()}}{
+Evaluate the log-likelihood.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$loglikelihood(seed = NA_integer_)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$evaluate_log_lik(seed = NA_integer_)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -617,68 +616,6 @@ One between:\cr
 }}
 }
 \if{html}{\out{</div>}}
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-logevidence"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-logevidence}{}}}
-\subsection{Method \code{logevidence()}}{
-Estimate the model logevidence (or marginal likelihood).
-It uses the method of power posteriors with different available schemes.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$logevidence(
-  scheme = "power-fractions",
-  rungs = 40,
-  steps = 10000,
-  burnin = 0,
-  thin = 1,
-  adapt = 0,
-  chains = 1,
-  threads = 1,
-  seed = NA_integer_,
-  progress = TRUE
-)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{scheme}}{\code{character(1)} with scheme used for evidence estimation.\cr
-One between\cr
-\itemize{
-\item 'power-fractions': uses inverse temperatures \eqn{\frac{r^5}{{n_\mathrm{rungs}}^5}}{r^5 / n_rungs^5} (default).
-\item 'adaptive': uses adaptive thermodynamic ladder.
-}}
-
-\item{\code{rungs}}{\code{integer(1)} wiht number of rungs in thermodynamic ladder.}
-
-\item{\code{steps}}{\code{integer(1)}  with total number of MCMC steps per chain.}
-
-\item{\code{burnin}}{\code{integer(1)} with number of initial steps to discard.}
-
-\item{\code{thin}}{\code{integer(1)} with number of steps to skip between each saved sample.}
-
-\item{\code{adapt}}{\code{integer(1)} with number of adaptation steps before sampling.}
-
-\item{\code{chains}}{\code{integer(1)} with number of independent MCMC chains to run.}
-
-\item{\code{threads}}{\code{integer(1)} with number of threads to run in parallel.}
-
-\item{\code{seed}}{\code{integer(1)} with the seed for the random number generator.\cr
-If \code{NA} uses current R seed (default).}
-
-\item{\code{progress}}{\code{integer(1)} or \code{logical(1)} to control progress visualization.\cr
-One between:\cr
-\itemize{
-\item If \code{integer}, prints progress every \code{progress} seconds;\cr
-\item If \code{TRUE} prints progress every second (default);\cr
-\item If \code{FALSE} or \code{0}, suppresses progress display.
-}}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-\code{numeric(1)}
 }
 }
 \if{html}{\out{<hr>}}

@@ -17,6 +17,38 @@
 
 #include <cmath>
 
+// Suppress Boost warnings
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-copy"
+#endif
+
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-copy"
+#endif
+
+#include <boost/math/special_functions/beta.hpp>
+#include <boost/math/special_functions/gamma.hpp>
+
+#include <boost/math/distributions/normal.hpp>
+#include <boost/math/distributions/lognormal.hpp>
+#include <boost/math/distributions/beta.hpp>
+#include <boost/math/distributions/gamma.hpp>
+#include <boost/math/distributions/poisson.hpp>
+#include <boost/math/distributions/binomial.hpp>
+#include <boost/math/distributions/negative_binomial.hpp>
+#include <boost/math/distributions/geometric.hpp>
+
+// Restore warnings
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
+
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+
 #ifndef M_1_SQRT_2PI
 #define M_1_SQRT_2PI 0.398942280401432677939946059934 /// 1/sqrt(2pi)
 #endif
@@ -32,14 +64,12 @@
 // namespace containing numerical recipes used to compute distributions
 namespace numr
 {
-    constexpr unsigned MAX_ITER = 1000;
-    constexpr double EPSILON = 1.e-12;
-    constexpr double MIN_DBL = 1.e-30;
-
     using std::exp;
     using std::lgamma;
     using std::log;
+    using std::log1p;
     using std::pow;
+    using std::sqrt;
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////  COMBINATORICS FUNCTIONS  ////////////////////////////////////
@@ -55,52 +85,34 @@ namespace numr
     }
 
     /// Binomial coefficient of N elements in k positions
-    unsigned long binom_coeff(unsigned short N, unsigned short k);
+    inline unsigned long binom_coeff(unsigned short N, unsigned short k)
+    {
+        if (N == 0 || k == N)
+            return 1;
+        // note: use symmetry
+        if (k > N - k)
+            k = N - k;
+        unsigned long result = 1;
+        for (unsigned short i = 1; i <= k; ++i)
+            result = result * (N - k + i) / i;
+        return result;
+    }
 
     /// Logarithm of binomial coefficient.
-    double log_binom_coeff(unsigned short N, unsigned short k);
+    inline double log_binom_coeff(unsigned short N, unsigned short k)
+    {
+        if (N == 0 || k == N)
+            return 0.;
+        return lgamma(N + 1) - lgamma(k + 1) - lgamma(N - k + 1);
+    }
 
     /// Log-ratio of binomial coefficients.
-    double logratio_binom_coeff(unsigned short N, unsigned short ko, unsigned short kn);
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////  REGULARISED INCOMPLETE GAMMA FUNCTION  ////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-
-    /// UPDATE: To better reference this:
-    /// Press, Teukolsky, Vetterling, and Flannery
-    /// Numerical Recipes 3rd Edition: The Art of Scientific Computing
-    namespace gamma_p_impl
+    inline double logratio_binom_coeff(unsigned short N, unsigned short ko, unsigned short kn)
     {
-        /// Lower regulairzed incomplete gamma function using series expansion.
-        double series(double shape, double z);
-
-        /// Upper regularized incomplete gamma function using continued fraction.
-        double continued_fraction(double shape, double z);
+        if (N == 0 || ko == kn)
+            return 0;
+        return lgamma(ko + 1) + lgamma(N - ko + 1) - lgamma(kn + 1) - lgamma(N - kn + 1);
     }
-
-    /// Regularized incomplete gamma function.
-    double gamma_p(double shape, double z);
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////  REGULARISED INCOMPLETE BETA FUNCTION  ////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-
-    /// Logarithm of the beta function.
-    inline double lbeta(double a, double b)
-    {
-        return lgamma(a) + lgamma(b) - lgamma(a + b);
-    }
-
-    /// UPDATE: to better reference this
-    /// (C) Copr. 1986-92 Numerical Recipes Software Vn2-5.
-    namespace ibeta_impl
-    {
-        double continued_fraction(double a, double b, double x);
-    }
-
-    /// Regularized incomplete beta function.
-    double ibeta(double a, double b, double x);
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////  Normal Distribution : methods  /////////////////////////////////
@@ -125,6 +137,11 @@ namespace numr
         inline double logratio(double xo, double xn, double mean, double sd)
         {
             return (.5 * xo * xo + (xn - xo) * mean - .5 * xn * xn) / (sd * sd);
+        }
+        inline double quantile(double p, double mean, double sd)
+        {
+            static const boost::math::normal stdnorm(0., 1.);
+            return mean + sd * boost::math::quantile(stdnorm, p);
         }
     }
 
@@ -154,6 +171,11 @@ namespace numr
             const double lxn = log(xn);
             return .5 * ((lxo - meanlog) * lxo - (lxn - meanlog) * lxn) / (sdlog * sdlog) + lxo - lxn;
         }
+        inline double quantile(double p, double meanlog, double sdlog)
+        {
+            static const boost::math::normal stdnorm(0., 1.);
+            return exp(meanlog + sdlog * boost::math::quantile(stdnorm, p));
+        }
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -162,21 +184,27 @@ namespace numr
 
     namespace beta
     {
-        inline double pdf(double x, double shape1, double shape2)
+        inline double lbeta(double a, double b) { return lgamma(a) + lgamma(b) - lgamma(a + b); }
+
+        inline double pdf(double x, double alpha, double beta)
         {
-            return exp((shape1 - 1.) * log(x) + (shape2 - 1.) * log(1. - x) - lbeta(shape1, shape2));
+            return exp((alpha - 1.) * log(x) + (beta - 1.) * log1p(-x) - lbeta(alpha, beta));
         }
-        inline double cdf(double x, double shape1, double shape2)
+        inline double cdf(double x, double alpha, double beta)
         {
-            return ibeta(shape1, shape2, x);
+            return boost::math::ibeta(alpha, beta, x);
         }
-        inline double logpdf(double x, double shape1, double shape2)
+        inline double logpdf(double x, double alpha, double beta)
         {
-            return (shape1 - 1.) * log(x) + (shape2 - 1.) * log(1. - x) - lbeta(shape1, shape2);
+            return (alpha - 1.) * log(x) + (beta - 1.) * log1p(-x) - lbeta(alpha, beta);
         }
-        inline double logratio(double xo, double xn, double shape1, double shape2)
+        inline double logratio(double xo, double xn, double alpha, double beta)
         {
-            return (shape1 - 1.) * log(xn / xo) + (shape2 - 1.) * log((1. - xn) / (1. - xo));
+            return (alpha - 1.) * log(xn / xo) + (beta - 1.) * log((1. - xn) / (1. - xo));
+        }
+        inline double quantile(double p, double alpha, double beta)
+        {
+            return boost::math::quantile(boost::math::beta_distribution<>(alpha, beta), p);
         }
     }
 
@@ -188,11 +216,11 @@ namespace numr
     {
         inline double pdf(double x, double shape, double scale)
         {
-            return pow(x, shape - 1) * exp(-shape * log(scale) - lgamma(shape) - x / scale);
+            return pow(x, shape - 1.) * exp(-shape * log(scale) - lgamma(shape) - x / scale);
         }
         inline double cdf(double x, double shape, double scale)
         {
-            return gamma_p(shape, x / scale);
+            return boost::math::gamma_p(shape, x / scale);
         }
         inline double logpdf(double x, double shape, double scale)
         {
@@ -201,7 +229,11 @@ namespace numr
         }
         inline double logratio(double xo, double xn, double shape, double scale)
         {
-            return (shape - 1) * log(xn / xo) + (xo - xn) / scale;
+            return (shape - 1.) * log(xn / xo) + (xo - xn) / scale;
+        }
+        inline double quantile(double p, double shape, double scale)
+        {
+            return boost::math::quantile(boost::math::gamma_distribution<>(shape, scale), p);
         }
     }
 
@@ -229,6 +261,10 @@ namespace numr
         {
             return log(xn / xo) + .5 * (xo * xo - xn * xn) / (scale * scale);
         }
+        inline double quantile(double p, double sigma)
+        {
+            return sigma * sqrt(-2. * log1p(-p));
+        }
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -255,6 +291,10 @@ namespace numr
         {
             return (shape - 1.) * log(xn / xo) + pow(xo / scale, shape) - pow(xn / scale, shape);
         }
+        inline double quantile(double p, double shape, double scale)
+        {
+            return scale * pow(-log1p(-p), 1. / shape);
+        }
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -263,21 +303,11 @@ namespace numr
 
     namespace exponential
     {
-        /// @param x
-        /// @param r rate
-        inline double pdf(double x, double r)
-        {
-            return r * exp(-r * x);
-        }
-        inline double cdf(double x, double r)
-        {
-            return 1. - exp(-r * x);
-        }
-        inline double logpdf(double x, double r)
-        {
-            return log(r) - r * x;
-        }
-        inline double logratio(double xo, double xn, double r) { return r * (xo - xn); }
+        inline double pdf(double x, double rate) { return rate * exp(-rate * x); }
+        inline double cdf(double x, double rate) { return 1. - exp(-rate * x); }
+        inline double logpdf(double x, double rate) { return log(rate) - rate * x; }
+        inline double logratio(double xo, double xn, double rate) { return rate * (xo - xn); }
+        inline double quantile(double p, double rate) { return -log1p(-p) / rate; }
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -286,23 +316,25 @@ namespace numr
 
     namespace poisson
     {
-        /// @param x
-        /// @param L lambda
-        inline double pdf(double x, double L)
+        inline double pdf(double x, double lambda)
         {
-            return exp(x * log(L) - L - lgamma(x + 1.));
+            return exp(x * log(lambda) - lambda - lgamma(x + 1.));
         }
-        inline double cdf(double x, double L)
+        inline double cdf(double x, double lambda)
         {
-            return 1. - gamma_p(x + 1., L);
+            return 1. - boost::math::gamma_p(x + 1., lambda);
         }
-        inline double logpdf(double x, double L)
+        inline double logpdf(double x, double lambda)
         {
-            return x * log(L) - L - lgamma(x + 1.);
+            return x * log(lambda) - lambda - lgamma(x + 1.);
         }
-        inline double logratio(double xo, double xn, double L)
+        inline double logratio(double xo, double xn, double lambda)
         {
-            return (xn - xo) * log(L) + lgamma(xo + 1.) - lgamma(xn + 1.);
+            return (xn - xo) * log(lambda) + lgamma(xo + 1.) - lgamma(xn + 1.);
+        }
+        inline double quantile(double p, double lambda)
+        {
+            return boost::math::quantile(boost::math::poisson_distribution<>(lambda), p);
         }
     }
 
@@ -312,24 +344,27 @@ namespace numr
 
     namespace binomial
     {
-        /// @param x
-        /// @param s size
-        /// @param p probability
-        inline double pdf(double x, double s, double p)
+        inline double pdf(double x, double size, double prob)
         {
-            return exp(log_binom_coeff(s, x) + x * log(p) + (s - x) * log(1. - p));
+            return exp(log_binom_coeff(size, x) + x * log(prob) + (size - x) * log1p(-prob));
         }
-        inline double cdf(double x, double s, double p)
+        inline double cdf(double x, unsigned size, double prob)
         {
-            return ibeta(s - x, x + 1, 1. - p);
+            if (x > size)
+                return 1.;
+            return boost::math::ibeta(size - x, x + 1, 1. - prob);
         }
-        inline double logpdf(double x, double s, double p)
+        inline double logpdf(double x, double size, double prob)
         {
-            return log_binom_coeff(s, x) + x * log(p) + (s - x) * log(1. - p);
+            return log_binom_coeff(size, x) + x * log(prob) + (size - x) * log1p(-prob);
         }
-        inline double logratio(double xo, double xn, double s, double p)
+        inline double logratio(double xo, double xn, double size, double prob)
         {
-            return logratio_binom_coeff(s, xo, xn) + (xn - xo) * log(p / (1. - p));
+            return logratio_binom_coeff(size, xo, xn) + (xn - xo) * log(prob / (1. - prob));
+        }
+        inline double quantile(double p, double size, double prob)
+        {
+            return boost::math::quantile(boost::math::binomial_distribution<>(size, prob), p);
         }
     }
 
@@ -339,28 +374,29 @@ namespace numr
 
     namespace negbinomial
     {
-        /// @param x
-        /// @param s size
-        /// @param p probability
-        inline double pdf(double x, double s, double p)
+        inline double pdf(double x, double size, double prob)
         {
-            return exp(log_binom_coeff(x + s - 1., x) + x * log(1. - p) + s * log(p));
+            return exp(log_binom_coeff(x + size - 1., x) + x * log1p(-prob) + size * log(prob));
         }
-        inline double cdf(double x, double s, double p)
+        inline double cdf(double x, double size, double prob)
         {
-            return ibeta(s, x + 1., p);
+            return boost::math::ibeta(size, x + 1., prob);
         }
-        inline double logpdf(double x, double s, double p)
+        inline double logpdf(double x, double size, double prob)
         {
-            return log_binom_coeff(x + s - 1., x) + x * log(1. - p) + s * log(p);
+            return log_binom_coeff(x + size - 1., x) + x * log1p(-prob) + size * log(prob);
         }
-        inline double logratio(double xo, double xn, double s, double p)
+        inline double logratio(double xo, double xn, double size, double prob)
         {
             double output = 0.;
             // logratio of the binomial coefficients
-            for (double i = 1.; i < s; ++i)
+            for (double i = 1.; i < size; ++i)
                 output += log((i + xn) / (i + xo));
-            return output + (xn - xo) * log(1. - p);
+            return output + (xn - xo) * log1p(-prob);
+        }
+        inline double quantile(double p, double size, double prob)
+        {
+            return boost::math::quantile(boost::math::negative_binomial_distribution<>(size, prob), p);
         }
     }
 
@@ -370,23 +406,13 @@ namespace numr
 
     namespace geometric
     {
-        /// @param x
-        /// @param p probability
-        inline double pdf(double x, double p)
+        inline double pdf(double x, double prob) { return prob * pow(1. - prob, x); }
+        inline double cdf(double x, double prob) { return 1. - pow(1. - prob, x + 1); }
+        inline double logpdf(double x, double prob) { return log(prob) + x * log1p(-prob); }
+        inline double logratio(double xo, double xn, double prob) { return (xn - xo) * log1p(-prob); }
+        inline double quantile(double p, double prob)
         {
-            return p * pow(1. - p, x);
-        }
-        inline double cdf(double x, double p)
-        {
-            return 1. - pow(1. - p, x + 1);
-        }
-        inline double logpdf(double x, double p)
-        {
-            return log(p) + x * log(1. - p);
-        }
-        inline double logratio(double xo, double xn, double p)
-        {
-            return (xn - xo) * log(1. - p);
+            return boost::math::quantile(boost::math::geometric_distribution<>(prob), p);
         }
     }
 } // NUMR NAMESPACE

@@ -1,6 +1,6 @@
 library(testthat)
 
-test_that("Loglikelihood of augmented infection time model is correct", {
+test_that("Log-likelihood of augmented infection time model is correct", {
   # cumulative infectivity profile
   infec_profile_cumul <- function(x, param, discr) {
     if (discr) {
@@ -32,7 +32,7 @@ test_that("Loglikelihood of augmented infection time model is correct", {
     param$beta * (param$size_ref / dim(house)[1]) ^ param$gamma
   }
   
-  # loglikelihood contribution of susceptible members
+  # log-likelihood contribution of susceptible members
   loglike_susceptible <- function(house, param, discr) {
     member_0 <- find_introduction(house)
     
@@ -52,7 +52,7 @@ test_that("Loglikelihood of augmented infection time model is correct", {
     output
   }
   
-  # loglikelihood contribution of infectious members
+  # log-likelihood contribution of infectious members
   loglike_infectious <- function(house, param, discr) {
     member_0 <- find_introduction(house)
     i0 <- rownames(member_0)
@@ -116,7 +116,7 @@ test_that("Loglikelihood of augmented infection time model is correct", {
       add_infec_profile(name = "gamma", discr = discr,
                         args = c(shape = ~shape@P, scale = ~scale@P))
     
-    expect_equal(loglikelihood(hhmodel), house_obs_loglike(house, param, discr))
+    expect_equal(evaluate_log_lik(hhmodel), house_obs_loglike(house, param, discr))
   }
 })
 

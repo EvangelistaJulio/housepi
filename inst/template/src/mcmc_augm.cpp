@@ -76,27 +76,27 @@ void AugmentedMap::init_augm_model_logratios(const u_dict<str_vec> &models_order
     }
 }
 
-/// Value of loglikelihood associated to augmented variable models.
-/// Store the loglikelihood of individual augmented variables.
-double AugmentedMap::compute_and_set_augm_model_loglike()
+/// Value of log-likelihood associated to augmented variable models.
+/// Store the log-likelihood of individual augmented variables.
+double AugmentedMap::compute_and_set_augm_model_log_lik()
 {
-    buffer_ = loglike_; // store old value in buffer
-    loglike_ = 0.0;
+    buffer_ = augm_log_lik_; // store old value in buffer
+    augm_log_lik_ = 0.0;
     for (const auto &pair : model_logratios_)
-        loglike_ += augm_map_[pair.first].get_distr_logpdf();
-    assert_loglike_not_NaN();
-    return loglike_;
+        augm_log_lik_ += augm_map_[pair.first].get_distr_logpdf();
+    assert_log_lik_not_NaN();
+    return augm_log_lik_;
 }
 
-/// Change in loglikelihood associated to given augmented.
+/// Change in log-likelihood associated to given augmented.
 double AugmentedMap::compute_and_set_augm_model_logratio(const std::string &a)
 {
-    buffer_ = loglike_; // store old value in buffer
+    buffer_ = augm_log_lik_; // store old value in buffer
     double delta_ll = 0.;
     for (const std::function<double()> &f : model_logratios_[a])
         delta_ll += f();
-    loglike_ += delta_ll;
-    assert_loglike_not_NaN(a);
+    augm_log_lik_ += delta_ll;
+    assert_log_lik_not_NaN(a);
     return delta_ll;
 }
 
@@ -1137,7 +1137,7 @@ void MCMC::Impl::move_all_augm_()
     if (!error_message.empty())
         throw std::runtime_error(error_message);
 
-    increment_total_loglike_(delta_ll);
+    increment_total_log_lik_(delta_ll);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1171,9 +1171,9 @@ double MCMC::Impl::metropolis_augm_single_move_(Household &house, Individual &me
         update_cache_dependecies_(house, member);
 
         // Metropolis-Hastings algorithm
-        double delta_ll = -house.get_obs_loglike();
+        double delta_ll = -house.get_obs_log_lik();
         delta_ll += member.compute_and_set_augm_model_logratio(a);
-        delta_ll += compute_and_set_household_obs_loglike_(house);
+        delta_ll += compute_and_set_household_obs_log_lik_(house);
 
         if (setup.unif() < std::exp(setup.inv_T * delta_ll - xaugm.get_propose_logratio()))
             return delta_ll;
@@ -1181,7 +1181,7 @@ double MCMC::Impl::metropolis_augm_single_move_(Household &house, Individual &me
         {
             // else recover cached values
             house.recover_buffer_values(true);
-            member.recover_augm_model_loglike();
+            member.recover_augm_model_log_lik();
         }
     }
     // else recover buffered value

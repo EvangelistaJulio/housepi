@@ -427,7 +427,7 @@ ExpectedCasesBySize <- R6::R6Class(
     # @param expdf A `data.frame` with expected cases.
     #
     # @return `data.frame`
-    .combine_obs_exp <- function(obsdf, expdf) {
+    .combine_obs_exp = function(obsdf, expdf) {
       # 1. curate observed dataframe
       obsdf$distr <- "Observed"
       rownames(obsdf) <- seq(1, 2 * nrow(obsdf), 2)
@@ -497,9 +497,9 @@ ExpectedCasesBySize <- R6::R6Class(
       na_df$house_size <- cases$observed$house_size
 
       output <- list(
-        expected = combine_obs_exp(cases$observed, cases$expected),
-        cri_lower = combine_obs_exp(na_df, cases$cri_lower),
-        cri_upper = combine_obs_exp(na_df, cases$cri_upper)
+        expected = private$.combine_obs_exp(cases$observed, cases$expected),
+        cri_lower = private$.combine_obs_exp(na_df, cases$cri_lower),
+        cri_upper = private$.combine_obs_exp(na_df, cases$cri_upper)
       )
       names(output) <- private$.get_name_convention(names(output))
       output

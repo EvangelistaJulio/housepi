@@ -173,7 +173,7 @@ int main(int argc, char *argv[])
     if (is_loglikelihood) // evaluate loglikelihood
     {
         print_decorator("Loglikelihood", verbose);
-        std::cout << user_model->evaluate() << std::endl;
+        std::cout << user_model->evaluate_log_lik() << std::endl;
     }
     else if (is_infer) // perform inference
     {

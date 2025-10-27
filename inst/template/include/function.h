@@ -42,7 +42,7 @@ public:
     /// Numeric attribute.
     explicit Attribute(double x);
     /// Pointer to double attribute.
-    explicit Attribute(const Attribute *y); 
+    explicit Attribute(const Attribute *y);
     /// Function attribute.
     explicit Attribute(const std::shared_ptr<Function> f);
     /// Function attribute by registry choice.

@@ -247,6 +247,7 @@ protected:
         const double r = unif_gen(prng);
         return arg(0) * (1 - r) + arg(1) * r;
     }
+    // arg(0) * (1 - p) + arg(1) * p; // quantile
 
 private:
     /// Ensure uniform range (min, max) match argument (min, max).

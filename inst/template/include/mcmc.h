@@ -140,13 +140,13 @@ public:
 	void clear_memory();
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
-	//////////////////////////////  MCMC : evaluate loglikelihood  //////////////////////////////
+	//////////////////////////////  MCMC : evaluate log-likelihood  /////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
-	/// Compute the loglikelihood for a single household.
-	virtual double compute_household_obs_loglike(Household &) { throw std::runtime_error(
-		"Called undefined loglikelihood method.\nOverride it in your custom model implementation before proceeding."); }
-	double evaluate();
+	/// Compute the log-likelihood for a single household.
+	virtual double compute_household_obs_log_lik(Household &) { throw std::runtime_error(
+		"Called undefined log-likelihood method.\nOverride it in your custom model implementation before proceeding."); }
+	double evaluate_log_lik();
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////  MCMC : simulation  ////////////////////////////////////
@@ -200,7 +200,7 @@ public:
 	Rcpp::CharacterVector export_augm_list_discrete() const;
 	Rcpp::DataFrame export_augmented_data_wide() const;
 	Rcpp::NumericMatrix export_draws() const;
-	Rcpp::NumericMatrix export_house_loglike_draws() const;
+	Rcpp::NumericMatrix export_house_log_lik_draws() const;
 	Rcpp::List export_house_snapshot(const std::string &house_id) const;
 #else
 	/////////////////////////////////////////////////////////////////////////////////////////////

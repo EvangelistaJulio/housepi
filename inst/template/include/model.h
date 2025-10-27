@@ -33,7 +33,7 @@ class Model : public MCMC
 {
 	void init_model_for_inference() override final;
 	void init_model_for_simulation() override final;
-	double compute_household_obs_loglike(Household &) override final;
+	double compute_household_obs_log_lik(Household &) override final;
 	void simulate_single_household(Household &house) override final;
 };
 

@@ -44,7 +44,7 @@ void Model::init_model_for_inference()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Compute the log-likelihood within household.
-double Model::compute_household_obs_loglike(Household &house)
+double Model::compute_household_obs_log_lik(Household &house)
 {
 	double log_likelihood = 0.;
 

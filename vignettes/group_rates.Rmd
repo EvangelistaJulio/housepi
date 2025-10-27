@@ -137,7 +137,7 @@ bayesplot::mcmc_trace(get_param_draws(results))
 
 We use the [priorsense](https://cran.r-project.org/web/packages/priorsense/) package to assess the sensitivity of our posterior 
 estimates to prior specifications and potential prior-data conflicts.
-To do so, we need to extract draws from results complete of pointwise loglikelihood values and logpriors with `get_complete_draws`
+To do so, we need to extract draws from results complete of pointwise log-likelihood values and logpriors with `get_complete_draws`
 
 ```{r}
 get_complete_draws(results) |>

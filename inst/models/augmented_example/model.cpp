@@ -26,7 +26,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Compute the log-likelihood within household.
-double Model::compute_household_obs_loglike(Household &house)
+double Model::compute_household_obs_log_lik(Household &house)
 {
 	double output = 0.0;
 	for (const Individual &member : house.infected())

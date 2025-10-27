@@ -386,8 +386,7 @@ add_infec_profile <- function(hhmodel,
                               args = NULL, max = NULL) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
   hhmodel$clone(deep = TRUE)$add_infec_profile(
-    name = name, discr = discr,
-    args = args, max = max
+    name = name, discr = discr, args = args, max = max
   )
 }
 
@@ -395,7 +394,7 @@ add_infec_profile <- function(hhmodel,
 ############################################################################
 ############################################################################
 
-#' @title Compute loglikelihood of housepi model
+#' @title Evaluate log-likelihood of housepi model
 #' @description
 #' Compute the log-likelihood of a `HousepiModel` object.
 #'
@@ -405,9 +404,9 @@ add_infec_profile <- function(hhmodel,
 #' @return `numeric(1)`
 #'
 #' @export
-loglikelihood <- function(hhmodel, seed = NA_integer_) {
+evaluate_log_lik <- function(hhmodel, seed = NA_integer_) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  hhmodel$loglikelihood(seed = seed)
+  hhmodel$evaluate_log_lik(seed = seed)
 }
 
 #' @title Run inference on housepi model
@@ -435,12 +434,10 @@ infer <- function(hhmodel,
                   chains = 1, threads = 1,
                   id_draws = NULL, seed = NA_integer_, progress = TRUE) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  hhmodel$infer(
-    steps = steps, burnin = burnin,
-    thin = thin, adapt = adapt,
-    chains = chains, threads = threads,
-    id_draws = id_draws, seed = seed, progress = progress
-  )
+  hhmodel$infer(steps = steps, burnin = burnin,
+                thin = thin, adapt = adapt,
+                chains = chains, threads = threads,
+                id_draws = id_draws, seed = seed, progress = progress)
 }
 
 #' @title Estimate logevidence of housepi model
@@ -466,32 +463,35 @@ infer <- function(hhmodel,
 #' Stat Comput. 2014;24: 709-723. doi:10.1007/s11222-013-9397-1
 #'
 #' @return `list()`
-#'
-#' @keywords internal
-logevidence <- function(hhmodel,
-                        scheme = "power-fractions", rungs = 40,
-                        steps = 5000, burnin = 0,
-                        thin = 1, adapt = 0,
-                        chains = 1, threads = 1,
-                        seed = NA_integer_, progress = TRUE) {
-  stopifnot(inherits(hhmodel, "HousepiModel"))
-  hhmodel$logevidence(scheme = scheme, rungs = rungs,
-                      steps = steps, burnin = burnin,
-                      thin = thin, adapt = adapt,
-                      chains = chains, threads = threads,
-                      seed = seed, progress = progress)
-}
+#' @noRd
+# logevidence <- function(hhmodel,
+#                         scheme = "power-fractions", rungs = 40,
+#                         steps = 5000, burnin = 0,
+#                         thin = 1, adapt = 0,
+#                         chains = 1, threads = 1,
+#                         seed = NA_integer_, progress = TRUE) {
+#   stopifnot(inherits(hhmodel, "HousepiModel"))
+#   hhmodel$logevidence(scheme = scheme, rungs = rungs,
+#                       steps = steps, burnin = burnin,
+#                       thin = thin, adapt = adapt,
+#                       chains = chains, threads = threads,
+#                       seed = seed, progress = progress)
+# }
 
 ############################################################################
 ############################################################################
 ############################################################################
+
+#' @importFrom stats simulate
+#' @export
+stats::simulate
 
 #' @title Simulate household data
 #' @description
 #' Generate a simulated outbreak.
 #' It assumes the same community structure of the loaded data.
 #'
-#' @param hhmodel `r rd_model_in_`
+#' @param object `r rd_model_in_`
 #' @param nsim `r rd_simul_nsim_`
 #' @param seed `r rd_seed_`
 #' @param progress `r rd_progress_`
@@ -500,16 +500,14 @@ logevidence <- function(hhmodel,
 #'
 #' @return `data.frame`
 #'
-#' @importFrom stats simulate
 #' @export
-simulate.HousepiModel <- function(hhmodel,
+#' @method simulate HousepiModel
+simulate.HousepiModel <- function(object,
                                   nsim = 1, seed = NA_integer_,
                                   progress = FALSE,
                                   obs_process = NULL,
                                   ...) {
-  stopifnot(inherits(hhmodel, "HousepiModel"))
-  hhmodel$simulate(
-    nsim = nsim, seed = seed, progress = progress,
-    obs_process = obs_process
-  )
+  stopifnot(inherits(object, "HousepiModel"))
+  object$simulate(nsim = nsim, seed = seed, progress = progress,
+                  obs_process = obs_process)
 }

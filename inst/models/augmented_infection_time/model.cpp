@@ -63,7 +63,7 @@ void Model::init_model_for_simulation()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Compute the log-likelihood within household.
-double Model::compute_household_obs_loglike(Household &house)
+double Model::compute_household_obs_log_lik(Household &house)
 {
 	return loglike_healthy(house) + loglike_infectious(house);
 }

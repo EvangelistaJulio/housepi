@@ -35,14 +35,12 @@ RCPP_MODULE(housepi_flags)
     {                                                                                                  \
     private:                                                                                           \
         std::shared_ptr<Function> ptr_;                                                                \
-                                                                                                       \
     public:                                                                                            \
         WrapperName##Housepi(std::string name_, bool is_cumul, SEXP args_, SEXP range_, bool is_discr) \
         {                                                                                              \
             try                                                                                        \
             {                                                                                          \
                 ptr_ = compose_func_registries(name_, type_string, registry_list, is_cumul);           \
-                                                                                                       \
                 if (args_ != R_NilValue)                                                               \
                 {                                                                                      \
                     Rcpp::List args(args_);                                                            \
@@ -63,7 +61,6 @@ RCPP_MODULE(housepi_flags)
                             ptr_->init_attr(Rcpp::as<std::string>(range_names[i]),                     \
                                             Attribute(Rcpp::as<double>(range[i])));                    \
                 }                                                                                      \
-                                                                                                       \
                 if (is_discr)                                                                          \
                     ptr_->init_discretization();                                                       \
                 ptr_->init_truncation();                                                               \
@@ -75,7 +72,6 @@ RCPP_MODULE(housepi_flags)
             }                                                                                          \
         }                                                                                              \
         ~WrapperName##Housepi() = default;                                                             \
-                                                                                                       \
         Rcpp::NumericVector call(Rcpp::NumericVector x)                                                \
         {                                                                                              \
             try                                                                                        \
@@ -173,7 +169,7 @@ RCPP_MODULE(housepi_infec_profile)
 //' }
 //' @field data_wide_for_simulation\cr Dataset without status and augmented entries.
 //' @field simulate\cr Simulated status and augmented variables.
-//' @field evaluate\cr Evaluate the loglikelihood according to the current state.
+//' @field evaluate\cr Evaluate the log-likelihood according to the current state.
 //' @field logevidence\cr Evaluate the logarithm of the marginal likelihood (aka evidence).
 //' Uses the method of power posteriors. \itemize{
 //'   \item Parameter: scheme
@@ -197,7 +193,7 @@ RCPP_MODULE(housepi_infec_profile)
 //' @field summarise_cases\cr Return a DataFrame with a report of the current database.
 //' @field summarise_house_sizes\cr Return a DataFrame with a report of household sizes.
 //' @field export_draws\cr Return a NumericMatrix with MCMC draws.
-//' @field export_house_loglike_draws\cr Return a NumericMatrix with household loglikelihood draws.
+//' @field export_house_log_lik_draws\cr Return a NumericMatrix with household log-likelihood draws.
 //' @field export_house_snapshot\cr Return a List with a snapshot containing full household and model details.
 
 RCPP_MODULE(housepi_model_core)
@@ -209,7 +205,7 @@ RCPP_MODULE(housepi_model_core)
         .method("infer", &MCMC::infer)
         .method("data_wide_for_simulation", &MCMC::data_wide_for_simulation)
         .method("simulate", &MCMC::simulate)
-        .method("evaluate", &MCMC::evaluate)
+        .method("evaluate_log_lik", &MCMC::evaluate_log_lik)
         .method("logevidence", &MCMC::logevidence)
         .method("import_data_wide", &MCMC::import_data_wide)
         .method("import_data_long", &MCMC::import_data_long)
@@ -235,7 +231,7 @@ RCPP_MODULE(housepi_model_core)
         .method("export_augmented_data_wide", &MCMC::export_augmented_data_wide)
         .method("export_infec_profile", &MCMC::export_infec_profile)
         .method("export_draws", &MCMC::export_draws)
-        .method("export_house_loglike_draws", &MCMC::export_house_loglike_draws)
+        .method("export_house_log_lik_draws", &MCMC::export_house_log_lik_draws)
         .method("export_house_snapshot", &MCMC::export_house_snapshot);
 
     Rcpp::class_<Model>("ModelHousepi")

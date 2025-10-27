@@ -100,7 +100,7 @@ namespace bax
                                             std::vector<EscapePattern> &results);
 
     // actual chain binomial likelihood
-    double chain_binomial_heter_loglikelihood(ushort N_star,
+    double chain_binomial_heter_log_lik(ushort N_star,
                                               const dbl_vec &commu_esc_proba,
                                               const matrix<double> &p2p_esc_proba);
 }

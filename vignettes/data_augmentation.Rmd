@@ -178,7 +178,7 @@ results <- new_housepi_model("blank") |>
   infer()
 
 bayesplot::mcmc_trace(get_augm_draws(results))
-bayesplot::mcmc_trace(get_loglike_draws(results))
+bayesplot::mcmc_trace(get_total_log_lik_draws(results))
 ```
 
 ```{r}
@@ -190,7 +190,7 @@ results <- new_housepi_model("blank") |>
   infer()
 
 bayesplot::mcmc_trace(get_augm_draws(results))
-bayesplot::mcmc_trace(get_loglike_draws(results))
+bayesplot::mcmc_trace(get_total_log_lik_draws(results))
 ```
 
 ---

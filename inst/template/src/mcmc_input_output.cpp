@@ -463,7 +463,7 @@ Rcpp::NumericMatrix MCMC::Impl::rcpp_export_draws() const
     try
     {
         // UPDATE: I shall allow for export even if _is_power_post
-        if (smpl_total_loglike_.empty())
+        if (smpl_total_log_lik_.empty())
             throw std::length_error("No draws to export were found.");
 
         // define matrix headers
@@ -484,8 +484,8 @@ Rcpp::NumericMatrix MCMC::Impl::rcpp_export_draws() const
         NumericMatrix output(setup.n_chains * setup.c_sample_size, headers.size());
         
         size_t col = 0;
-        // loglikelihood
-        output(_, col++) = NumericVector(wrap(smpl_total_loglike_));
+        // log-likelihood
+        output(_, col++) = NumericVector(wrap(smpl_total_log_lik_));
         // parameter values
         for (const std::string &p : param.list_sample)
             output(_, col++) = NumericVector(wrap(param.smpl_values.at(p)));
@@ -517,10 +517,10 @@ Rcpp::NumericMatrix MCMC::Impl::rcpp_export_draws() const
 Rcpp::NumericMatrix MCMC::export_draws() const { return pImpl_->rcpp_export_draws(); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////  MCMC : Impl : export household loglikelihood matrix  //////////////////////
+//////////////////////  MCMC : Impl : export household log-likelihood matrix  /////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Export all sampled values of the loglikelihood for all household.
+/// Export all sampled values of the log-likelihood for all household.
 Rcpp::NumericMatrix MCMC::Impl::DataWide::rcpp_export_draws() const
 {
     using namespace Rcpp;
@@ -561,11 +561,11 @@ Rcpp::NumericMatrix MCMC::Impl::DataWide::rcpp_export_draws() const
     }
     catch (const std::exception &e)
     {
-        hsp::msg::error("While exporting household loglikelihood draws:\n" +
+        hsp::msg::error("While exporting household log-likelihood draws:\n" +
                         std::string(e.what()));
     }
 }
-Rcpp::NumericMatrix MCMC::export_house_loglike_draws() const { return pImpl_->data_wide.rcpp_export_draws(); }
+Rcpp::NumericMatrix MCMC::export_house_log_lik_draws() const { return pImpl_->data_wide.rcpp_export_draws(); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////  MCMC : Impl : house state snapshot //////////////////////////////
@@ -875,7 +875,7 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
             "Unable to open file: " + output_filename);
 
     // Headers
-    // header loglikelihood
+    // header log-likelihood
     ofs << "iteration" << hsp::read::DELIMITER << "log_lik";
 
     // header parameters
@@ -901,9 +901,9 @@ void MCMC::Impl::print_infer_state(const std::string &output_filename) const
             unsigned long sweep = setup.n_burnin + (k + 1) * setup.n_thin;
             ofs << sweep;
 
-            // print loglikelihood
+            // print log-likelihood
             ofs << hsp::read::DELIMITER << std::setprecision(2)
-                << std::fixed << smpl_total_loglike_[i];
+                << std::fixed << smpl_total_log_lik_[i];
 
             // print parameter values
             for (const std::string &p : param.list_sample)
