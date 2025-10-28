@@ -57,9 +57,9 @@ public:
 	void init_augm(const std::string &a,
 				   double value,
 				   bool is_const,
-				   const DefinitionParser &func_name,
+				   const hsp::parse::Definition &func_name,
 				   bool is_prim,
-				   const DefinitionParser &model_name)
+				   const hsp::parse::Definition &model_name)
 	{
 		Variable &this_augm = safe_at(augm_map_, a, "augmented variable");
 		this_augm.init(value, is_const, func_name, is_prim);
@@ -99,7 +99,7 @@ private:
 	u_dict<Variable> augm_map_ = {}; /// dictionary of augmented definitions
 
 	double augm_log_lik_ = 0; // current augmented model log-likelihood
-	double buffer_ = 0;			// buffer augmented model log-likelihood
+	double buffer_ = 0;		  // buffer augmented model log-likelihood
 
 	// container for the logratio lists according to dependencies
 	u_dict<std::vector<std::function<double()>>> model_logratios_ = {};
@@ -237,7 +237,9 @@ public:
 	class ViewIterator
 	{
 		// conditional to select the vector type if constant or not
-		using VectorType = std::conditional_t<std::is_const<T>::value, const std::vector<Individual>, std::vector<Individual>>;
+		using VectorType = std::conditional_t<std::is_const<T>::value,
+											  const std::vector<Individual>,
+											  std::vector<Individual>>;
 
 		VectorType &pVector;
 		const std::vector<size_t> &indexes;

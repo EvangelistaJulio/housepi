@@ -8,7 +8,7 @@
  *
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  *
- * numerical_recipes.cpp
+ * binomial.cpp
  *
  */
 
@@ -17,7 +17,7 @@
 #include <map>
 
 #include "tools/operators.h"
-#include "numerical_recipes.h"
+#include "tools/math_combin.h"
 #include "binomial.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -27,86 +27,27 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 namespace bax
 {
+    using std::vector;
+    using gentype = std::vector<unsigned>;
+
     /////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////  LookUp Tables  ////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     // Transmission Generations
-    std::vector<ulong> Num_Gener_LookupTable; /// n. of generations
-    matrix<ulong> Multipl_Gener_LookupTable;  /// n. of multiplicites per generation
-    matrix<gentype> Generations_LookupTable;  /// generation std::vectors
+    vector<unsigned long> Num_Gener_LookupTable;     /// n. of generations
+    matrix<unsigned long> Multipl_Gener_LookupTable; /// n. of multiplicites per generation
+    matrix<gentype> Generations_LookupTable;         /// generation vectors
 
     // Combinations
-    matrix<ulong> Num_Combin_LookupTable;            /// LUT wiht n.e number of combinations
-    matrix<matrix<ushort>> Combinations_LookupTable; /// LUT wiht combinations and complements
+    matrix<unsigned long> Num_Combin_LookupTable;      /// LUT wiht n.e number of combinations
+    matrix<matrix<unsigned>> Combinations_LookupTable; /// LUT wiht combinations and complements
+
+    class EscapePattern; // NOTE: forward declaration of EscapePattern
 
     // EscapePatterns
-    std::vector<EscapePattern> ChainBinomial_LookupTable;
+    vector<EscapePattern> ChainBinomial_LookupTable;
     matrix<EscapePattern> EscapePatterns_LookupTable;
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////  Escape Pattern : Class   ///////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-
-    /// Add a new entry for the escape matrix.
-    void EscapePattern::add_entry(ushort new_entry)
-    {
-        entries_.push_back(new_entry);
-        ++n_entries_;
-    }
-
-    /// Add a new pattern index.
-    void EscapePattern::add_pattern(ulong new_pattern_idx)
-    {
-        pattern_idxs_.push_back(new_pattern_idx);
-        ++n_patterns_;
-    }
-
-    /// Compute the likelihood starting from the current escape pattern.
-    ///	NOTE: it requires initialization of the lookup table.
-    double EscapePattern::likelihood(const dbl_vec &esc_mtx)
-    {
-        double output = 1.;
-
-        for (size_t c = 0; c < n_patterns_; ++c)
-            output -= EscapePatterns_LookupTable[N_star_][pattern_idxs_[c]].likelihood(esc_mtx);
-
-        for (size_t c = 0; c < n_entries_; ++c)
-            output *= esc_mtx[entries_[c]];
-
-        return output;
-    }
-
-    /// String with the formula of the likelihood.
-    const std::string EscapePattern::str()
-    {
-        std::ostringstream oss;
-
-        for (size_t c = 0; c < n_entries_; ++c)
-        {
-            ushort u = entries_[c];
-            if (u < N_star_)
-                oss << "B" << u + 1;
-            else
-                oss << "Q" << u / N_star_ << "_" << u % N_star_ + 1;
-
-            if (c < n_entries_ - 1)
-                oss << "*";
-        }
-
-        if (n_patterns_ > 0)
-        {
-            if (n_entries_ > 0)
-                oss << "*(";
-            oss << "1";
-            for (size_t c = 0; c < n_patterns_; ++c)
-                oss << " - " << EscapePatterns_LookupTable[N_star_][pattern_idxs_[c]].str();
-            if (n_entries_ > 0)
-                oss << ")";
-        }
-
-        return oss.str();
-    }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////  TRANSMISSION GENERATIONS  ///////////////////////////////////
@@ -116,14 +57,14 @@ namespace bax
     /// @example
     ///	n_infec = 3
     ///	return [[0, 0, 0], [0, 0, 1], [0, 1, 1], [0, 1, 2]]
-    std::vector<gentype> recursive_span_generation(ushort n)
+    vector<gentype> recursive_span_generation_(unsigned n)
     {
-        std::vector<gentype> output(1, gentype(n, 0));
+        vector<gentype> output(1, gentype(n, 0));
 
-        for (ushort root = n - 1; root > 0; --root)
-            for (gentype g : recursive_span_generation(n - root))
+        for (unsigned root = n - 1; root > 0; --root)
+            for (gentype g : recursive_span_generation_(n - root))
             {
-                for (int i = 0; i < n - root; ++i)
+                for (unsigned i = 0; i < n - root; ++i)
                     g[i] += 1;
                 output.push_back(gentype(root, 0) + g);
             }
@@ -132,7 +73,7 @@ namespace bax
     }
 
     /// Initialize the Look Up Table of count-compressed generations.
-    void init_generations_lookuptable(ushort max_N)
+    void init_generations_lookuptable(unsigned max_N)
     {
         // Assure that LUT are empty before initializing
         Num_Gener_LookupTable.clear();
@@ -152,22 +93,22 @@ namespace bax
 
         // Count-compression of all possible ranked offpsring generations.
         size_t tot_num_gen = 0;
-        std::vector<ulong> aux_num_lut;
-        std::vector<gentype> aux_gen_lut;
+        vector<unsigned long> aux_num_lut;
+        vector<gentype> aux_gen_lut;
 
-        for (int n = 1; n <= max_N; ++n)
+        for (unsigned n = 1; n <= max_N; ++n)
         {
             aux_num_lut.clear();
             aux_gen_lut.clear();
 
-            for (gentype g : recursive_span_generation(n))
+            for (gentype g : recursive_span_generation_(n))
             {
-                std::map<ushort, ushort> freq_map = {};
+                std::map<unsigned, unsigned> freq_map = {};
                 gentype counts = {};
-                ulong multiplicities = numr::factorial(n);
+                unsigned long multiplicities = numr::factorial(n);
 
                 // I take advantage of the order granted by the map
-                for (ushort val : g)
+                for (unsigned val : g)
                     if (freq_map.count(val))
                         ++freq_map[val];
                     else
@@ -192,13 +133,26 @@ namespace bax
             Multipl_Gener_LookupTable[n].resize(tot_num_gen);
             Generations_LookupTable[n].resize(tot_num_gen);
 
-            // copy from auxiliary std::vectors
+            // copy from auxiliary vectors
             for (size_t c = 0; c < tot_num_gen; ++c)
             {
                 Multipl_Gener_LookupTable[n][c] = aux_num_lut[c];
                 Generations_LookupTable[n][c] = aux_gen_lut[c];
             }
         }
+    }
+
+    unsigned get_num_generations(unsigned n_positive)
+    {
+        return Num_Gener_LookupTable[n_positive];
+    }
+    std::vector<unsigned> get_generation_vector(unsigned n_positive, unsigned i)
+    {
+        return Generations_LookupTable[n_positive][i];
+    }
+    unsigned get_generation_multipl(unsigned n_positive, unsigned i)
+    {
+        return Multipl_Gener_LookupTable[n_positive][i];
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -214,18 +168,18 @@ namespace bax
     /// ----
     /// Daniel Angel Jimenez
     /// https://www.cs.utexas.edu/users/djimenez/utsa/cs3343/lecture25.html
-    void recursive_span_combinations(ushort N, ushort k, ushort_vec &current, std::vector<ushort_vec> &results, ushort start, ushort loop)
+    void recursive_span_combinations_(unsigned N, unsigned k, vector<unsigned> &current, matrix<unsigned> &results, unsigned start, unsigned loop)
     {
-        if (loop > k - 1)
+        if (loop + 1 > k)
         {
             // complement of the combination
             // mark elements present in the list
-            std::vector<bool> missing(N, true);
-            for (ushort i = 0; i < k; ++i)
+            vector<bool> missing(N, true);
+            for (unsigned i = 0; i < k; ++i)
                 missing[current[i]] = false;
 
             // store complement
-            for (ushort i = 0; i < N; ++i)
+            for (unsigned i = 0; i < N; ++i)
                 if (missing[i])
                     current[loop++] = i;
 
@@ -233,39 +187,41 @@ namespace bax
             results.push_back(current);
         }
         else
-            for (ushort i = start; i < N; ++i)
+            for (unsigned i = start; i < N; ++i)
             {
                 current[loop] = i;
-                recursive_span_combinations(N, k, current, results, i + 1, loop + 1);
+                recursive_span_combinations_(N, k, current, results, i + 1, loop + 1);
             }
     }
 
     /// Store all combinations + complement of N elements in k positions.
-    void store_combinations(ushort N, ushort k)
+    void store_combinations_(unsigned N, unsigned k)
     {
-        // Generate combinations with the recurisve algorithm
-        std::vector<ushort_vec> results;
-        ushort_vec current(N);
-        recursive_span_combinations(N, k, current, results, 0, 0);
+        // generate combinations with the recurisve algorithm
+        matrix<unsigned> results;
+        vector<unsigned> current(N);
+        recursive_span_combinations_(N, k, current, results, 0, 0);
 
-        // Store all results inside the Lookup Table
-        ulong c = 0;
-        for (ushort_vec current : results)
+        unsigned long num_combin = numr::binom_coeff(N, k);
+        Num_Combin_LookupTable[N][k] = num_combin;
+        Combinations_LookupTable[N][k].resize(num_combin);
+
+        // store all results inside the LookUp Table
+        unsigned long c = 0;
+        for (const vector<unsigned> &res_c : results)
         {
             Combinations_LookupTable[N][k][c].resize(N);
 
-            // store current combination + complement
-            for (ushort i = 0; i < N; ++i)
-                Combinations_LookupTable[N][k][c][i] = current[i];
+            // store combination + complement
+            for (unsigned i = 0; i < N; ++i)
+                Combinations_LookupTable[N][k][c][i] = res_c[i];
             ++c;
         }
     }
 
     /// Initialize the Look Up Table of combinations and their counts.
-    void init_combinations_lookuptable(ushort max_N)
+    void init_combinations_lookuptable_(unsigned max_N)
     {
-        ulong num_combin;
-
         // Assure that LUT are empty before initializing
         Num_Combin_LookupTable.clear();
         Combinations_LookupTable.clear();
@@ -273,29 +229,103 @@ namespace bax
         Num_Combin_LookupTable.resize(max_N + 1);
         Combinations_LookupTable.resize(max_N + 1);
 
-        for (ushort N = 0; N <= max_N; ++N)
+        for (unsigned N = 0; N <= max_N; ++N)
         {
             Num_Combin_LookupTable[N].resize(max_N);
             Combinations_LookupTable[N].resize(max_N);
 
-            for (ushort k = 0; k < N; ++k)
-            {
-                num_combin = numr::binom_coeff(N, k);
-                Num_Combin_LookupTable[N][k] = num_combin;
-                Combinations_LookupTable[N][k].resize(num_combin);
-                store_combinations(N, k);
-            }
+            for (unsigned k = 0; k < N; ++k)
+                store_combinations_(N, k);
         }
     }
 
     /// Clear the Look Up Table of combinations and their counts
-    void clear_combinations_lookuptable()
+    void clear_combinations_lookuptable_()
     {
         Num_Combin_LookupTable.clear();
         Num_Combin_LookupTable.shrink_to_fit();
         Combinations_LookupTable.clear();
         Combinations_LookupTable.shrink_to_fit();
     }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////// *** EscapePattern : Class *** /////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    class EscapePattern
+    {
+    public:
+        EscapePattern(unsigned N_star)
+            : N_star_(N_star) {}
+        ~EscapePattern() {}
+
+        /// Add a new entry for the escape matrix.
+        void add_entry(unsigned new_entry)
+        {
+            entries_.push_back(new_entry);
+            ++n_entries_;
+        }
+        /// Add a new pattern index.
+        void add_pattern(unsigned long new_pattern_idx)
+        {
+            pattern_idxs_.push_back(new_pattern_idx);
+            ++n_patterns_;
+        }
+        /// Compute the likelihood starting from the current escape pattern.
+        ///	NOTE: it requires initialization of the lookup table.
+        double likelihood(const dbl_vec &esc_mtx) const
+        {
+            double output = 1.;
+
+            for (size_t c = 0; c < n_patterns_; ++c)
+                output -= EscapePatterns_LookupTable[N_star_][pattern_idxs_[c]].likelihood(esc_mtx);
+
+            for (size_t c = 0; c < n_entries_; ++c)
+                output *= esc_mtx[entries_[c]];
+
+            return output;
+        }
+        /// String with the formula of the likelihood.
+        const std::string str()
+        {
+            std::ostringstream oss;
+
+            for (size_t c = 0; c < n_entries_; ++c)
+            {
+                unsigned u = entries_[c];
+                if (u < N_star_)
+                    oss << "B" << u + 1;
+                else
+                    oss << "Q" << u / N_star_ << "_" << u % N_star_ + 1;
+
+                if (c < n_entries_ - 1)
+                    oss << "*";
+            }
+
+            if (n_patterns_ > 0)
+            {
+                if (n_entries_ > 0)
+                    oss << "*(";
+                oss << "1";
+                for (size_t c = 0; c < n_patterns_; ++c)
+                    oss << " - " << EscapePatterns_LookupTable[N_star_][pattern_idxs_[c]].str();
+                if (n_entries_ > 0)
+                    oss << ")";
+            }
+
+            return oss.str();
+        }
+
+    private:
+        const unsigned N_star_;
+        size_t n_entries_ = 0;
+        size_t n_patterns_ = 0;
+
+        vector<unsigned> entries_ = {};
+        vector<unsigned long> pattern_idxs_ = {};
+    };
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -304,22 +334,23 @@ namespace bax
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Recursive function to generate all possible escape patterns for a given number of seropositives N_star.
-    void recursive_escape_patterns_function(ushort N_star, ushort N, ushort_vec access_matrix, EscapePattern &father, std::vector<EscapePattern> &results)
+    void recursive_escape_patterns_function_(unsigned N_star, unsigned N, vector<unsigned> access_matrix, EscapePattern &father, vector<EscapePattern> &results)
     {
-        for (ushort k = 0; k < N; ++k)
-            for (ulong c = 0; c < Num_Combin_LookupTable[N][k]; ++c)
+        for (unsigned k = 0; k < N; ++k)
+            for (unsigned long c = 0; c < Num_Combin_LookupTable[N][k]; ++c)
             {
                 EscapePattern new_child(N_star);
 
                 // associate entries for this pattern
-                std::vector<ushort> &indidx = Combinations_LookupTable[N][k][c];
-                for (ushort i = k; i < N; ++i)
+                vector<unsigned> &indidx = Combinations_LookupTable[N][k][c];
+
+                for (unsigned i = k; i < N; ++i)
                 {
                     //  community
                     new_child.add_entry(access_matrix[indidx[i]]);
 
                     // person-to-person
-                    for (ushort j = 0; j < k; ++j)
+                    for (unsigned j = 0; j < k; ++j)
                         new_child.add_entry(access_matrix[indidx[i] + N * (indidx[j] + 1)]);
                 }
 
@@ -327,14 +358,14 @@ namespace bax
                 {
                     // find the submatrix of the given infectious
                     // note: always at least 1 infector (community)
-                    ushort_vec sub_access_matrix((k + 1) * k);
+                    vector<unsigned> sub_access_matrix((k + 1) * k);
 
                     // community (inf=0) always at row=0
-                    for (ushort row = 0, inf = 0; row <= k; inf = 1 + indidx[row++])
-                        for (ushort col = 0; col < k; ++col)
+                    for (unsigned row = 0, inf = 0; row <= k; inf = 1 + indidx[row++])
+                        for (unsigned col = 0; col < k; ++col)
                             sub_access_matrix[col + k * row] = access_matrix[indidx[col] + N * inf];
 
-                    recursive_escape_patterns_function(N_star, k, sub_access_matrix, new_child, results);
+                    recursive_escape_patterns_function_(N_star, k, sub_access_matrix, new_child, results);
                     sub_access_matrix.clear();
                 }
 
@@ -344,10 +375,10 @@ namespace bax
     }
 
     /// Initialize the Look Up Table of escape patterns and the access object.
-    void init_escape_patterns_lookuptable(ushort max_N, bool clean_combinations)
+    void init_escape_patterns_lookuptable(unsigned max_N, bool clean_combinations)
     {
         // lookuptable with all combinations + complements
-        init_combinations_lookuptable(max_N);
+        init_combinations_lookuptable_(max_N);
 
         // assure that LUT are empty before initializing
         ChainBinomial_LookupTable.clear();
@@ -356,27 +387,27 @@ namespace bax
         // lookuptable with escape patterns linked to chain-binomial
         // case N_star == 0, for consistency
         ChainBinomial_LookupTable.emplace_back(0);
-        EscapePatterns_LookupTable.push_back(std::vector<EscapePattern>());
+        EscapePatterns_LookupTable.push_back(vector<EscapePattern>());
 
         // case N_star > 0
-        for (ushort N_star = 1; N_star <= max_N; ++N_star)
+        for (unsigned N_star = 1; N_star <= max_N; ++N_star)
         {
-            ushort_vec access_matrix((N_star + 1) * N_star);
-            for (ushort i = 0; i < (N_star + 1) * N_star; ++i)
+            vector<unsigned> access_matrix((N_star + 1) * N_star);
+            for (unsigned i = 0; i < (N_star + 1) * N_star; ++i)
                 access_matrix[i] = i;
 
             // store to lookup table
             ChainBinomial_LookupTable.emplace_back(N_star);
-            EscapePatterns_LookupTable.push_back(std::vector<EscapePattern>());
+            EscapePatterns_LookupTable.emplace_back(vector<EscapePattern>());
 
-            recursive_escape_patterns_function(N_star, N_star, access_matrix,
-                                               ChainBinomial_LookupTable[N_star],
-                                               EscapePatterns_LookupTable[N_star]);
+            recursive_escape_patterns_function_(N_star, N_star, access_matrix,
+                                                ChainBinomial_LookupTable[N_star],
+                                                EscapePatterns_LookupTable[N_star]);
         }
 
         // deallocate memory of combinations lookup table
         if (clean_combinations)
-            clear_combinations_lookuptable();
+            clear_combinations_lookuptable_();
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -386,25 +417,22 @@ namespace bax
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Heterogeneous chain binomial log-likelihood for ordered probabilities (seropositives, seronegatives).
-    /// @param N_star n. of seropositves
-    /// @param commu_esc_proba ordered community escape probabilities
-    /// @param p2p_esc_proba ordered person-to-person escape probabilities
-    double chain_binomial_heter_log_lik(ushort N_star,
+    double chain_binomial_heter_log_lik(unsigned N_star,
                                         const dbl_vec &commu_esc_proba,
                                         const matrix<double> &p2p_esc_proba)
 
     {
-        ushort hh_size = commu_esc_proba.size();
+        unsigned hh_size = commu_esc_proba.size();
         double ll = 0.;
 
         // (-) seronegatives contribution
-        for (ushort i = N_star; i < hh_size; ++i)
+        for (unsigned i = N_star; i < hh_size; ++i)
         {
             // community : i escaped from community
             ll += std::log(commu_esc_proba[i]);
 
             // person-to-person : i escaped from k
-            for (ushort k = 0; k < N_star; ++k)
+            for (unsigned k = 0; k < N_star; ++k)
                 ll += std::log(p2p_esc_proba[k][i]);
         }
 
@@ -417,13 +445,13 @@ namespace bax
             // flatten sub-matrix with only seropositives
             dbl_vec escape_matrix((N_star + 1) * N_star, 1.);
 
-            for (ushort i = 0; i < N_star; ++i)
+            for (unsigned i = 0; i < N_star; ++i)
             {
                 // community : i escaped from community
                 escape_matrix[i] = commu_esc_proba[i];
 
                 // person-to-person : i escaped from k
-                for (ushort k = 0; k < N_star; ++k)
+                for (unsigned k = 0; k < N_star; ++k)
                     escape_matrix[N_star * (k + 1) + i] = p2p_esc_proba[k][i];
             }
 
@@ -440,10 +468,10 @@ namespace bax
 /// g++ -Wall -Wextra -std=gnu++11 -g -O2 -o auxiliary_binomial.o auxiliary_binomial.cpp ./auxiliary_binomial.o 7
 ///
 /// Auxiliary function to perform debugs
-void auxiliary_chain_binomial_debugger(ushort max_num, ushort limit)
+void auxiliary_chain_binomial_debugger(unsigned max_num, unsigned limit)
 {
     using namespace bax;
-    for (ushort N_star = 0; N_star <= max_num; ++N_star)
+    for (unsigned N_star = 0; N_star <= max_num; ++N_star)
     {
         size_t n_patterns = EscapePatterns_LookupTable[N_star].size();
         std::cerr << "\n<<" << N_star << ">>"
@@ -451,17 +479,17 @@ void auxiliary_chain_binomial_debugger(ushort max_num, ushort limit)
 
         // elements for the escape matrix //
         dbl_vec commu_esc_proba(N_star);
-        for (ushort i = 0; i < N_star; ++i)
+        for (unsigned i = 0; i < N_star; ++i)
         {
             commu_esc_proba[i] = 0.15 + 0.025 * i;
             if (N_star < limit)
                 std::cerr << "B" << i + 1 << " = " << commu_esc_proba[i] << std::endl;
         }
         matrix<double> p2p_esc_proba(N_star);
-        for (ushort row = 0; row < N_star; ++row)
+        for (unsigned row = 0; row < N_star; ++row)
         {
             p2p_esc_proba[row].resize(N_star);
-            for (ushort col = 0; col < N_star; ++col)
+            for (unsigned col = 0; col < N_star; ++col)
             {
                 p2p_esc_proba[row][col] = 0.25 + 0.0125 * col + 0.0125 * row;
                 if (N_star < limit)

@@ -72,14 +72,14 @@ namespace hsp
         // drop private strings from list
         str_vec drop_private(str_vec v);
 
-        // find the closest match
+        /// Find the closest match.
+        // NOTE: I find the options show alla available options annoying at the moment...
         std::string find_closest(const std::string &input,
                                  const str_vec &options,
                                  unsigned short min_dist = MIN_DIST,
-                                 // UPDATE: I find this annoying at the moment...
                                  bool show_avail_options = false);
 
-        // check for unused entries from a vector of options and throw exception
+        /// Check for unused entries from a vector of options and throw exception.
         void assert_no_missing_entries(const str_vec &entries,
                                        const str_vec &options,
                                        const std::string &where = "column");

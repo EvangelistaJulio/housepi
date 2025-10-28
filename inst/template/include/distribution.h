@@ -51,7 +51,7 @@ public:
 	//////////////////////////////////  Distribution : getter  //////////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
-	double rand(rnd_gen &prng);
+	double rand(rnd_gen &prng) { return (this->*rand_)(prng); }
 	/// Return value of probability density/mass function.
 	double pdf(double x) const { return eval_function_as_distr_(x); }
 	/// Return value of log-probability density/mass function.
@@ -74,8 +74,6 @@ protected:
 	////////////////////////////  Distribution : virtual [protected] ////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
-	virtual void update_args_() {}; // UPDATE
-
 	/// Raw random sampling method of the distribution.
 	/// @param prng : pseudo-random number generator.
 	virtual double raw_rand_(rnd_gen &) { throw std::invalid_argument(
@@ -93,18 +91,20 @@ protected:
 	virtual double raw_cdf_(double) const { throw std::invalid_argument(
 		"Called to undefined method 'cdf' of " + err_name() + "."); }
 
+	/// Raw quantile.
+	virtual double raw_quantile_(double) const { throw std::invalid_argument(
+		"Called to undefined method 'quantile' of " + err_name() + "."); }
+
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////  Distribution : getter [protected] /////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
-	/// Rejection sampling.
-	/// @param prng : pseudo-random number generator.
-	/// @param func : pointer to the raw random sampling method of the distribution.
-	double rejec_sample_(rnd_gen &prng, double (Distribution::*func)(rnd_gen &));
+	static double cast_center_(double x) { return static_cast<double>(std::lround(x)); }
+	static double cast_left_(double x) { return std::floor(x); }
 
 	double (Distribution::*rand_)(rnd_gen &) = &Distribution::raw_rand_;
-	double do_discr_center_rand_(rnd_gen &prng) { return static_cast<double>(std::lround(raw_rand_(prng))); }
-	double do_discr_left_rand_(rnd_gen &prng) { return std::floor(raw_rand_(prng)); }
+	double do_discr_center_rand_(rnd_gen &prng) { return cast_center_(raw_rand_(prng)); }
+	double do_discr_left_rand_(rnd_gen &prng) { return cast_left_(raw_rand_(prng)); }
 
 	double raw_function_(double x) const override final { return (this->*trunc_)(raw_pdf_(x)); }
 	double do_function_discr_center_(double x) const override final
@@ -139,6 +139,15 @@ protected:
 	//////////////////////  Distribution : functional truncation [private] //////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
+	double inverse_sampling_(rnd_gen &prng)
+	{
+		static std::uniform_real_distribution<double> unif_gen(0., 1.);
+		const double r = unif_gen(prng);
+		const double sx = range_min_.is_empty() ? 0. : (1. - r) * raw_cdf_(get_min());
+		const double dx = range_max_.is_empty() ? r : r * raw_cdf_(get_max());
+		return raw_quantile_(sx + dx);
+	}
+
 	double (Distribution::*trunc_)(double) const = &Distribution::do_trunc_dummy_;
 
 	// default case
@@ -148,7 +157,7 @@ protected:
 	double do_trunc_min_(double x) const { return x / (1. - raw_cdf_(get_min())); }
 	double do_trunc_max_(double x) const { return x / (raw_cdf_(get_max())); }
 	double do_trunc_both_sides_(double x) const { return x / (raw_cdf_(get_max()) - raw_cdf_(get_min())); }
-	double do_trunc_rand_(rnd_gen &prng) { return rejec_sample_(prng, &Distribution::raw_rand_); }
+	double do_trunc_rand_(rnd_gen &prng) { return inverse_sampling_(prng); }
 
 	// case of discrete defined
 	double do_trunc_min_discr_defined_(double x) const { return x / (1. - raw_cdf_(get_min() - 1)); }
@@ -160,13 +169,13 @@ protected:
 	double do_trunc_min_discr_center_(double x) const { return x / (1. - raw_cdf_(std::ceil(get_min()) - .5)); }
 	double do_trunc_max_discr_center_(double x) const { return x / (raw_cdf_(std::floor(get_max()) + .5)); }
 	double do_trunc_both_sides_discr_center_(double x) const { return x / (raw_cdf_(std::floor(get_max()) + .5) - raw_cdf_(std::ceil(get_min()) - .5)); }
-	double do_trunc_rand_discr_center_(rnd_gen &prng) { return rejec_sample_(prng, &Distribution::do_discr_center_rand_); }
+	double do_trunc_rand_discr_center_(rnd_gen &prng) { return cast_center_(do_trunc_rand_(prng)); }
 
 	// case of left discretization
 	double do_trunc_min_discr_left_(double x) const { return x / (1. - raw_cdf_(std::floor(get_min()))); }
 	double do_trunc_max_discr_left_(double x) const { return x / (raw_cdf_(std::ceil(get_max() + 1))); }
 	double do_trunc_both_sides_discr_left_(double x) const { return x / (raw_cdf_(std::ceil(get_max() + 1)) - raw_cdf_(std::floor(get_min()))); }
-	double do_trunc_rand_discr_left_(rnd_gen &prng) { return rejec_sample_(prng, &Distribution::do_discr_left_rand_); }
+	double do_trunc_rand_discr_left_(rnd_gen &prng) { return cast_left_(do_trunc_rand_(prng)); }
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////  Distribution : functional log-truncation [private] ////////////////////

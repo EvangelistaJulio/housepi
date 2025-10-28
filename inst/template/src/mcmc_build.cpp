@@ -767,7 +767,7 @@ void MCMC::Impl::Parameter::build_parameter_to_sample_(const u_dict<str_vec> &de
     Variable &new_param = this->at(p);
 
     // assign a prior distribution to the parameter
-    DefinitionParser parser(deftable.at("prior")[k]);
+    hsp::parse::Definition parser(deftable.at("prior")[k]);
     new_param.init_distr(parser);
     // load prior arguments
     for (const auto &child : parser.root.children)

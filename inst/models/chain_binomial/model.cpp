@@ -20,6 +20,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "model.h"
+#include "binomial.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -68,10 +69,10 @@ double Model::compute_household_obs_log_lik(Household &house)
 	{
 		// sum over all possible generations
 		double sero_positive_term = 0., tmp = 0.;
-		for (unsigned c = 0; c < bax::Num_Gener_LookupTable[n_positive]; ++c)
+		for (unsigned c = 0; c < bax::get_num_generations(n_positive); ++c)
 		{
 			// reference to the LUT
-			bax::gentype &gen_counts = bax::Generations_LookupTable[n_positive][c];
+			const auto &gen_counts = bax::get_generation_vector(n_positive, c);
 
 			// generation (0) : infected by community
 			tmp = gen_counts[0] * log_commu_infec_proba;
@@ -90,7 +91,7 @@ double Model::compute_household_obs_log_lik(Household &house)
 			}
 
 			// times n. of equivalent configurations returning the same kind of generation
-			sero_positive_term += bax::Multipl_Gener_LookupTable[n_positive][c] * std::exp(tmp);
+			sero_positive_term += bax::get_generation_multipl(n_positive, c) * std::exp(tmp);
 		}
 
 		log_likelihood += std::log(sero_positive_term);

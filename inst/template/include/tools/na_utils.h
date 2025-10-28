@@ -31,7 +31,7 @@ namespace hsp
         /// Internal check for double representing NA.
         inline bool is(double x) { return std::isnan(x); }
 
-        /// Internal check for std::string representing NA.
+        /// Internal check for string representing NA.
         inline bool is(const std::string &txt)
         {
             return txt.empty() ||

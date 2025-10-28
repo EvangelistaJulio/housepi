@@ -343,7 +343,6 @@ protected:
     /////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Internal code to define the type of range.
-    unsigned short which_valid_case_() const;
     bool init_range_min_(double min_val = 0., bool is_min_open = false);
     void init_range_helper_(bool is_min_open = false, bool is_max_open = false);
 

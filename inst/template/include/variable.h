@@ -132,7 +132,7 @@ public:
              const std::string &err_type = "variable",
              double value = hsp::na::DOUBLE,
              bool is_const = true,
-             const DefinitionParser &expr = hsp::na::STRING,
+             const hsp::parse::Definition &expr = hsp::na::STRING,
              bool is_prim = false)
         : pDistr_(std::make_shared<Distribution>()),
           pProp_(std::make_shared<Proposer>())
@@ -147,7 +147,7 @@ public:
 
     /// Helper to initialize variable.
     void init(double value, bool is_const,
-              const DefinitionParser &parser = hsp::na::STRING, bool is_prim = false);
+              const hsp::parse::Definition &parser = hsp::na::STRING, bool is_prim = false);
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////  Variable : setter  ///////////////////////////////////
@@ -165,7 +165,7 @@ public:
     void init_func_reshaping(bool discr);
 
     /// Initialize pointer to distribution.
-    void init_distr(const DefinitionParser &expr);
+    void init_distr(const hsp::parse::Definition &expr);
     /// Assign an attribute to distribution.
     void init_distr_attr(const std::string &key, const Attribute &attr);
     /// Finalize reshaping of distribution. NOTE: to be called necessarily.

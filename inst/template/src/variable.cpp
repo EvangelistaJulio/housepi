@@ -28,8 +28,7 @@
 Proposer::Proposer(std::shared_ptr<Distribution> distr,
                    double rule_scale,
                    const std::vector<unsigned short> &args_to_adapt,
-                   bool is_discrete)
-    : pDistr_(distr)
+                   bool is_discrete) : pDistr_(distr)
 {
     // default proposer name derives from distribution
     name_ = pDistr_->name();
@@ -183,7 +182,7 @@ std::shared_ptr<Proposer> proposer_switch(const std::string &rule_name = hsp::na
 
 /// Initialize variable.
 void Variable::init(double value, bool is_const,
-                    const DefinitionParser &parser, bool is_primitive)
+                    const hsp::parse::Definition &parser, bool is_primitive)
 {
     this->is_constant_ = is_const;
 
@@ -246,7 +245,7 @@ void Variable::init_func_reshaping(bool discr)
 }
 
 /// Assign distribution with constant arguments.
-void Variable::init_distr(const DefinitionParser &expr)
+void Variable::init_distr(const hsp::parse::Definition &expr)
 {
     pDistr_ = compose_distr_registries(
         expr.root.func,

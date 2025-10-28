@@ -237,13 +237,13 @@ void MCMC::Impl::InfecProfile::build(const u_dict<std::string> &deflist)
     if (!deflist.count("func"))
         throw std::invalid_argument(
             "A function name choice was missing in the infectivity profile definition.");
-    else if (DefinitionParser(deflist.at("func")).is_na())
+    else if (hsp::parse::Definition(deflist.at("func")).is_na())
         throw std::invalid_argument(
             "Provided NA as a function name in the infectivity profile definition.");
 
     // check if definition is generic or augmented
-    bool is_augm = DefinitionParser(deflist.at("func")).is_augmented_depen() ||
-                   DefinitionParser(deflist.at(hsp::params::MAX)).is_augmented_depen();
+    bool is_augm = hsp::parse::Definition(deflist.at("func")).is_augmented_depen() ||
+                   hsp::parse::Definition(deflist.at(hsp::params::MAX)).is_augmented_depen();
 
     if (is_augm)
         build_augmented_profile_(deflist);
@@ -257,7 +257,7 @@ void MCMC::Impl::InfecProfile::build_generic_profile_(const u_dict<std::string> 
     inst_ = &InfecProfile::do_inst_default_;
     cumul_ = &InfecProfile::do_cumul_default_;
 
-    DefinitionParser parser(DefinitionParser(deflist.at("func")));
+    hsp::parse::Definition parser(hsp::parse::Definition(deflist.at("func")));
     profile_ = compose_distr_registries(parser.root.func,
                                         "infectivity profile",
                                         {&InfecProfileRegistry::inst(),
@@ -301,7 +301,7 @@ void MCMC::Impl::InfecProfile::build_augmented_profile_(const u_dict<std::string
     // use generic build to check profile name at this stage
     // NOTE: this also control for discretization
     // UPDATE: not very clean, maybe refactor
-    build_generic_profile_({{"func", DefinitionParser(deflist.at("func")).root.func},
+    build_generic_profile_({{"func", hsp::parse::Definition(deflist.at("func")).root.func},
                             {"discr", deflist.at("discr")}});
 
     // drop generic definition
@@ -446,7 +446,7 @@ str_vec extract_dependents_order(const std::string &start, const u_dict<str_vec>
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Auxiliary method to read typed member values as a single attribute.
-const Attribute &MCMC::Impl::read_attribute_(const DefinitionParser::ASTNode &node,
+const Attribute &MCMC::Impl::read_attribute_(const hsp::parse::Definition::Entry &node,
                                              const Individual &member) const
 {
     storage_ = Attribute(); // reset storage to default empty
@@ -483,11 +483,11 @@ const Attribute &MCMC::Impl::read_attribute_(const DefinitionParser::ASTNode &no
 }
 const Attribute &MCMC::Impl::read_attribute_(const std::string &expr, const Individual &member) const
 {
-    return read_attribute_(DefinitionParser(expr).root, member);
+    return read_attribute_(hsp::parse::Definition(expr).root, member);
 }
 
 /// Convert a typed string into a double.
-const Attribute &MCMC::Impl::read_numeric_(const DefinitionParser::ASTNode &node, const Individual &member) const
+const Attribute &MCMC::Impl::read_numeric_(const hsp::parse::Definition::Entry &node, const Individual &member) const
 {
     const Attribute &aux_attr_ = read_attribute_(node, member);
     if (!aux_attr_.is_empty() && !aux_attr_.is_constant())
@@ -497,9 +497,9 @@ const Attribute &MCMC::Impl::read_numeric_(const DefinitionParser::ASTNode &node
 }
 const Attribute &MCMC::Impl::read_numeric_(const std::string &expr, const Individual &member) const
 {
-    return read_numeric_(DefinitionParser(expr).root, member);
+    return read_numeric_(hsp::parse::Definition(expr).root, member);
 }
-void MCMC::Impl::make_param_cache_depen_(const DefinitionParser::ASTNode &node)
+void MCMC::Impl::make_param_cache_depen_(const hsp::parse::Definition::Entry &node)
 {
     // cache dependecy if an augmented function depends on a parameter to be inferred
     if (hsp::sources::is_parameter(node.type) && !param.at(node.value).is_constant())
@@ -632,7 +632,7 @@ void MCMC::Impl::Augmented::set_definition_dependency_order_for_(const std::stri
     {
         str_vec xdepen = {};
         for (const std::string &c : str_vec({"value", "model", "func", hsp::params::MIN, hsp::params::MAX}))
-            xdepen += DefinitionParser(deftable_[c][k]).list_augmented_depen();
+            xdepen += hsp::parse::Definition(deftable_[c][k]).list_augmented_depen();
         tree[deftable_["name"][k]] = hsp::str::unique(xdepen);
         name_to_row[deftable_["name"][k]] = k;
     }
@@ -727,7 +727,7 @@ void MCMC::Impl::Augmented::set_sample_map_for_(const std::string &s, size_t k)
 void MCMC::Impl::Augmented::set_function_or_identity_for_(size_t k)
 {
     const std::string &a = deftable_["name"][k];
-    const DefinitionParser parser(deftable_["func"][k]);
+    const hsp::parse::Definition parser(deftable_["func"][k]);
 
     if (parser.is_terminal())
     {
@@ -774,7 +774,7 @@ void MCMC::Impl::Augmented::helper_build_model_status_maps_()
             const std::string &a = deftable_["name"][k];
             str_vec xdepen = {};
             for (const std::string &c : str_vec({"value", "model", "func", hsp::params::MIN, hsp::params::MAX}))
-                xdepen += DefinitionParser(deftable_[c][k]).list_augmented_depen();
+                xdepen += hsp::parse::Definition(deftable_[c][k]).list_augmented_depen();
 
             if (hsp::na::is(deftable_["model"][k]))
                 without_model.push_back(a);
@@ -932,7 +932,7 @@ void MCMC::Impl::Augmented::init_model_attributes_(Individual &member, size_t k)
 {
     Variable &xaugm = member.get_augm_variable(deftable_["name"][k]);
 
-    for (const auto &child : DefinitionParser(deftable_["model"][k]).root.children)
+    for (const auto &child : hsp::parse::Definition(deftable_["model"][k]).root.children)
         xaugm.init_distr_attr(child.key, pImpl_.read_attribute_(child, member));
 
     for (const std::string &key : {hsp::params::MIN, hsp::params::MAX})
@@ -947,7 +947,7 @@ void MCMC::Impl::Augmented::init_func_attributes_(Individual &member, size_t k)
     Variable &xaugm = member.get_augm_variable(deftable_["name"][k]);
 
     // initialize function
-    for (const auto &child : DefinitionParser(deftable_["func"][k]).root.children)
+    for (const auto &child : hsp::parse::Definition(deftable_["func"][k]).root.children)
     {
         xaugm.init_func_attr(child.key, pImpl_.read_attribute_(child, member));
         pImpl_.make_param_cache_depen_(child);

@@ -145,7 +145,7 @@ public:
         const std::string section_name_ = "setup";
         MCMC::Impl &pImpl_; // pointer to external class
 
-        progress::Bar progressbar_; // progress bar
+        hsp::progress::Bar progressbar_; // progress bar
 
         rnd_gen prng_; // Mersenne Twister 19937 generator (32 or 64 bit)
         rnd_gen &(MCMC::Impl::Setup::*get_prng_)();
@@ -719,11 +719,11 @@ private:
     /////////////////////////////////////////////////////////////////////////////////////////////
 
     mutable Attribute storage_; /// Auxiliary storage attribute used for reading.
-    const Attribute &read_numeric_(const DefinitionParser::ASTNode &node, const Individual &member = Individual()) const;
+    const Attribute &read_numeric_(const hsp::parse::Definition::Entry &node, const Individual &member = Individual()) const;
     const Attribute &read_numeric_(const std::string &expr, const Individual &member = Individual()) const;
-    const Attribute &read_attribute_(const DefinitionParser::ASTNode &node, const Individual &member = Individual()) const;
+    const Attribute &read_attribute_(const hsp::parse::Definition::Entry &node, const Individual &member = Individual()) const;
     const Attribute &read_attribute_(const std::string &expr, const Individual &member = Individual()) const;
-    void make_param_cache_depen_(const DefinitionParser::ASTNode &node);
+    void make_param_cache_depen_(const hsp::parse::Definition::Entry &node);
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////  MCMC : Impl : Callbacks Virtual Methods  ////////////////////////

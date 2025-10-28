@@ -31,9 +31,6 @@
 /// Distributions Registry base class.
 class DistributionRegistry : public FunctionRegistry
 {
-	using FactoryFunc = std::function<std::shared_ptr<Function>()>;
-	using FactoryDistr = std::function<std::shared_ptr<Distribution>()>;
-
 public:
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	/////////////////////////////  Distribution Registry : constructor  /////////////////////////
@@ -68,7 +65,7 @@ public:
 	}
 
 private:
-	std::unordered_map<std::string, FactoryDistr> factory_map_ = {};
+	std::unordered_map<std::string, std::function<std::shared_ptr<Distribution>()>> factory_map_ = {};
 };
 
 /// Register a Distribution derived class T to DistributionRegistry derived class C.

@@ -273,38 +273,31 @@ bool Function::is_constant() const
 ///////////////////////////////////  Function : set range  //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Returns the case of the range of validity.
-unsigned short Function::which_valid_case_() const
-{
-    return (!range_min_.is_empty()) + 2 * (!range_max_.is_empty());
-}
-
 /// Functional range for lower bound and no upper bound.
 bool Function::init_range_min_(double min_val, bool is_min_open)
 {
     if (get_min() < min_val)
         throw std::invalid_argument(
             "Invoked invalid min value " + hsp::str::format(range_min_.get()) + " for " + err_name() + ".");
-    if ((get_min() > min_val) || (!hsp::na::is(get_max())))
-    {
-        init_range_helper_(((is_min_open) ? (get_min() == min_val) : false), false);
-        return true;
-    }
-    return false;
+
+    if (get_min() == min_val && hsp::na::is(get_max()))
+        return false;
+
+    init_range_helper_(is_min_open ? get_min() == min_val : false, false);
+    return true;
 }
 
 /// Set the range of validity of the value, and the corresponding validation function.
 void Function::init_range_helper_(bool is_min_open, bool is_max_open)
 {
-    switch (which_valid_case_())
+    if (range_min_.is_empty() && range_max_.is_empty()) // Unbounded
     {
-    case 0: // Unbounded
         is_below_ = &Function::do_is_below_never_;
         is_above_ = &Function::do_is_above_never_;
         is_valid_ = &Function::do_is_valid_always_;
-        break;
-
-    case 1: // Lower Bound
+    }
+    else if (!range_min_.is_empty() && range_max_.is_empty()) // Lower Bound
+    {
         is_above_ = &Function::do_is_above_never_;
         if (is_min_open)
         {
@@ -316,9 +309,9 @@ void Function::init_range_helper_(bool is_min_open, bool is_max_open)
             is_below_ = &Function::do_is_below_close_min_;
             is_valid_ = &Function::do_is_valid_close_min_;
         }
-        break;
-
-    case 2: // Upper Bound
+    }
+    else if (range_min_.is_empty() && !range_max_.is_empty()) // Upper Bound
+    {
         is_below_ = &Function::do_is_below_never_;
         if (is_max_open)
         {
@@ -330,9 +323,9 @@ void Function::init_range_helper_(bool is_min_open, bool is_max_open)
             is_above_ = &Function::do_is_above_close_max_;
             is_valid_ = &Function::do_is_valid_close_max_;
         }
-        break;
-
-    case 3: // Within an Interval
+    }
+    else // Within an Interval
+    {
         if (is_min_open && is_max_open)
         {
             is_below_ = &Function::do_is_below_open_min_;
@@ -364,7 +357,6 @@ void Function::init_range_helper_(bool is_min_open, bool is_max_open)
         if (wrong_open || wrong_close)
             throw std::invalid_argument(
                 "Generated an inconsistent range " + str_range() + " for " + err_name() + ".");
-        break;
     }
 }
 
@@ -424,8 +416,8 @@ void Function::init_attr(const std::string &key, const Attribute &attr)
         // NOTE: Variable overwrites 'is_constant' method,
         // thus empty does not always imply constant
         if (attr.is_empty() && attr.is_constant())
-            return; 
-        
+            return;
+
         if (name_ == "uniform")
             find_arg_(key).transfer(attr);
         else if (key == hsp::params::MIN)
