@@ -12,6 +12,7 @@
  *
  */
 
+#include <string>
 #include <fstream>
 #include <iomanip>
 #include <sstream>
@@ -20,16 +21,14 @@
 #include <chrono>
 
 #include "tools/types.h"
-#include "tools/error.h"
 #include "tools/na_utils.h"
+#include "tools/error.h"
 #include "tools/operators.h"
 #include "tools/string.h"
 #include "tools/read.h"
-
-#include "tools/progress.h"
-
 #include "tools/params.h"
 #include "tools/sources.h"
+#include "tools/progress.h"
 #include "tools/parser.h"
 
 #ifdef _HOUSEPI_RCPP

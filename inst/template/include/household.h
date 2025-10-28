@@ -15,6 +15,8 @@
 #ifndef HOUSEPI__HOUSEHOLD__H
 #define HOUSEPI__HOUSEHOLD__H
 
+#include <functional>
+
 #include "tools/types.h"
 #include "tools/na_utils.h"
 #include "tools/operators.h"

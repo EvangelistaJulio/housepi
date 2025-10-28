@@ -20,9 +20,9 @@
 #include "tools/status.h"
 #include "tools/params.h"
 #include "tools/sources.h"
+#include "distribution_registry.h"
 #include "variable.h"
 #include "household.h"
-#include "distribution_registry.h"
 #include "mcmc_impl.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -15,6 +15,7 @@
 #ifndef HOUSEPI__TOOLS__OPERATORS__H
 #define HOUSEPI__TOOLS__OPERATORS__H
 
+#include <algorithm>
 #include "tools/types.h"
 
 /// (% overload) Check if container containes given value.
