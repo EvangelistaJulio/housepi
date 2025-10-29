@@ -89,16 +89,16 @@ namespace numr
         inline double pdf(double x, double mean, double sd)
         {
             const double z = (x - mean) / sd;
-            return static_cast<double>(M_1_SQRT_2PI) * std::exp(-.5 * z * z) / sd;
+            return M_1_SQRT_2PI * std::exp(-.5 * z * z) / sd;  
         }
         inline double cdf(double x, double mean, double sd)
         {
-            return .5 + .5 * std::erf(M_SQRT1_2 * (x - mean) / sd);
+            return .5 * std::erfc(M_SQRT1_2 * (mean - x) / sd);
         }
         inline double logpdf(double x, double mean, double sd)
         {
             const double z = (x - mean) / sd;
-            return -.5 * z * z - static_cast<double>(M_LN_SQRT_2PI) - std::log(sd);
+            return -.5 * z * z - M_LN_SQRT_2PI - std::log(sd);
         }
         inline double logratio(double xo, double xn, double mean, double sd)
         {
@@ -120,16 +120,16 @@ namespace numr
         inline double pdf(double x, double meanlog, double sdlog)
         {
             const double z = (std::log(x) - meanlog) / sdlog;
-            return std::exp(-.5 * z * z) * static_cast<double>(M_1_SQRT_2PI) / (x * sdlog);
+            return std::exp(-.5 * z * z) * M_1_SQRT_2PI / (x * sdlog);
         }
         inline double cdf(double x, double meanlog, double sdlog)
         {
-            return .5 + .5 * std::erf(static_cast<double>(M_SQRT1_2) * (std::log(x) - meanlog) / sdlog);
+            return .5 * std::erfc(M_SQRT1_2 * (meanlog - std::log(x)) / sdlog);
         }
         inline double logpdf(double x, double meanlog, double sdlog)
         {
             const double z = (std::log(x) - meanlog) / sdlog;
-            return -.5 * z * z - std::log(x * sdlog) - static_cast<double>(M_LN_SQRT_2PI);
+            return -.5 * z * z - std::log(x * sdlog) - M_LN_SQRT_2PI;
         }
         inline double logratio(double xo, double xn, double meanlog, double sdlog)
         {

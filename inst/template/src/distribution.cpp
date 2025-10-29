@@ -13,7 +13,7 @@
  */
 
 #include "tools/operators.h"
-#include "tools/discr.h"
+#include "tools/discrete.h"
 #include "tools/params.h"
 #include "tools/string.h"
 #include "tools/math_distr.h"

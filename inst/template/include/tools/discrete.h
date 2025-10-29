@@ -8,7 +8,7 @@
  *
  * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
  *
- * tools/discr.h
+ * tools/discrete.h
  *
  */
 

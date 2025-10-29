@@ -12,7 +12,7 @@
  *
  */
 
-#include "tools/discr.h"
+#include "tools/discrete.h"
 #include "tools/params.h"
 #include "tools/error.h"
 #include "tools/string.h"

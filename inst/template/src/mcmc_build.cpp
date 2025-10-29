@@ -527,8 +527,8 @@ void MCMC::Impl::DataLong::build(const u_dict<str_vec> &input)
                 id_to_index.emplace(member.id(), c++);
 
     // data-long allocation
-    if (indiv_datalist_.empty())
-        indiv_datalist_.resize(pImpl_.data_wide.report_indiv.total);
+    indiv_datalist_.clear();
+    indiv_datalist_.resize(pImpl_.data_wide.report_indiv.total);
 
     for (u_dict<dbl_vec> &xmap : indiv_datalist_)
         for (const std::string &key : headers_)
@@ -791,7 +791,7 @@ void MCMC::Impl::Parameter::make_cache_dependent(const std::string &p)
     {
         list_sample_standard = list_sample_standard - str_vec({p});
         list_adaptable_sample_standard = list_adaptable_sample_standard - str_vec({p});
-        list_non_adapt_sample_standard= list_non_adapt_sample_standard - str_vec({p});
+        list_non_adapt_sample_standard = list_non_adapt_sample_standard - str_vec({p});
     }
 
     // add the parameter as cache if not alread present
