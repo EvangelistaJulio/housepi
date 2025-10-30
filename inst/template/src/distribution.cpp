@@ -57,13 +57,13 @@ void Distribution::init_trunc_helper_()
 {
     const unsigned short discr_type = which_discrete_case_();
 
-    if (range_min_.is_empty() && range_max_.is_empty()) // No Truncation
+    if (range_lower_.is_empty() && range_upper_.is_empty()) // No Truncation
     {
         trunc_ = &Distribution::do_trunc_dummy_;
         logtrunc_ = &Distribution::do_logtrunc_dummy_;
         shift_ = &Distribution::do_shift_dummy_;
     }
-    else if (!range_min_.is_empty() && range_max_.is_empty()) // Lower Range Truncation
+    else if (!range_lower_.is_empty() && range_upper_.is_empty()) // Lower Range Truncation
     {
         switch (discr_type)
         {
@@ -92,7 +92,7 @@ void Distribution::init_trunc_helper_()
             rand_ = &Distribution::do_trunc_rand_;
         }
     }
-    else if (range_min_.is_empty() && !range_max_.is_empty()) // Upper Range Truncation
+    else if (range_lower_.is_empty() && !range_upper_.is_empty()) // Upper Range Truncation
     {
         shift_ = &Distribution::do_shift_dummy_;
         switch (discr_type)
@@ -240,16 +240,16 @@ private:
         // impose range minimum equal to argument minimum
         const Attribute &min_arg = arguments_[0];
         if (min_arg.is_function())
-            range_min_.transfer(min_arg);
+            range_lower_.transfer(min_arg);
         else
-            range_min_.transfer(min_arg);
+            range_lower_.transfer(min_arg);
 
         // impose range maximum equal to argument maximum
         const Attribute &max_arg = arguments_[1];
         if (max_arg.is_function())
-            range_max_.transfer(max_arg);
+            range_upper_.transfer(max_arg);
         else
-            range_max_.transfer(max_arg);
+            range_upper_.transfer(max_arg);
     }
 };
 
@@ -270,7 +270,7 @@ public:
 
     void init_discretization() override final
     {
-        if (range_min_.is_empty())
+        if (range_lower_.is_empty())
             init_discr_helper_(hsp::discr::CENTER);
         else
             init_discr_helper_(hsp::discr::LEFT);
@@ -333,15 +333,15 @@ public:
     }
     void init_truncation() override final
     {
-        if (get_min() < 0)
+        if (lower() < 0)
             throw std::invalid_argument(
-                "Invoked invalid min value " + hsp::str::format(range_min_.get()) + " for " + err_name() + ".");
-        else if (get_max() > 1)
+                "Invoked invalid min value " + hsp::str::format(lower()) + " for " + err_name() + ".");
+        if (upper() > 1)
             throw std::invalid_argument(
-                "Invoked invalid max value " + hsp::str::format(range_max_.get()) + " for " + err_name() + ".");
-        else if (get_min() > 0 || get_max() < 1)
+                "Invoked invalid max value " + hsp::str::format(upper()) + " for " + err_name() + ".");
+        if (lower() > 0 || upper() < 1)
         {
-            init_range_helper_(get_min() == 0, get_max() == 1);
+            init_range_helper_(lower() == 0, upper() == 1);
             init_trunc_helper_();
         }
     }
@@ -555,22 +555,22 @@ public:
                        0., false, hsp::na::DOUBLE, false)
     {
         init_discr_helper_(hsp::discr::DEFINED);
-        range_max_.init_pointer(get_ptr_to_arg(0));
+        range_upper_.init_pointer(get_arg(0).get_ptr());
         init_range_helper_(false, false);
     }
 
     void init_discretization() override final {}
     void init_truncation() override final
     {
-        if (get_min() < 0.)
+        if (lower() < 0.)
             throw std::invalid_argument(
-                "Invoked invalid min value " + hsp::str::format(range_min_.get()) +
+                "Invoked invalid min value " + hsp::str::format(range_lower_.get()) +
                 " for " + err_name() + ".");
-        else if (get_min() > 0. || get_ptr_to_arg(0) != get_ptr_to_max())
+        if (lower() > 0. || get_arg(0).get_ptr() != get_upper().get_ptr())
         {
-            if (get_max() > arg(0))
+            if (upper() > arg(0))
                 throw std::invalid_argument(
-                    "Invoked invalid max value " + hsp::str::format(range_max_.get()) +
+                    "Invoked invalid max value " + hsp::str::format(range_upper_.get()) +
                     " for " + err_name() + " with size " + std::to_string(arg(0)) + ".");
             init_range_helper_(false, false);
             init_trunc_helper_();
@@ -698,13 +698,10 @@ protected:
         if (tOST < 0) // Integrate from -incub_period to tOST
             return (i / T) * (pow(1. + exp((m - tOST * T / i) / s), -a) - pow(1. + exp((m + T) / s), -a)) / norm_cdf;
 
-        else
-        {
-            // Integrate from -incub to 0
-            const double F0 = (i / T) * (pow(1. + exp(m / s), -a) - pow(1. + exp((m + T) / s), -a));
-            // Integrate from 0 to t_ost
-            return (F0 + pow(1. + exp((m - tOST) / s), -a) - pow(1. + exp(m / s), -a)) / norm_cdf;
-        }
+        // Integrate from -incub to 0
+        const double F0 = (i / T) * (pow(1. + exp(m / s), -a) - pow(1. + exp((m + T) / s), -a));
+        // Integrate from 0 to t_ost
+        return (F0 + pow(1. + exp((m - tOST) / s), -a) - pow(1. + exp(m / s), -a)) / norm_cdf;
     }
 };
 
@@ -759,10 +756,11 @@ std::shared_ptr<Distribution> compose_distr_registries(const std::string &opt,
         return std::make_shared<Distribution>();
 
     for (auto &r : registries)
+    {
         if (r->get_options() % opt)
             return r->get_distr(opt);
-        else
-            options += r->get_options();
+        options += r->get_options();
+    }
 
     throw std::invalid_argument(
         "Unknown " + name + " '" + opt + "'." + hsp::str::find_closest(opt, options));

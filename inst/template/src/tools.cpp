@@ -143,9 +143,9 @@ namespace hsp
         {
             if (na::is(tkn))
                 return false;
-            else if (tkn == "FALSE" || tkn == "false" || tkn == "False" || tkn == "0")
+            if (tkn == "FALSE" || tkn == "false" || tkn == "False" || tkn == "0")
                 return false;
-            else if (tkn == "TRUE" || tkn == "true" || tkn == "True" || tkn == "1")
+            if (tkn == "TRUE" || tkn == "true" || tkn == "True" || tkn == "1")
                 return true;
 
             throw std::invalid_argument(
@@ -320,16 +320,15 @@ namespace hsp
             // prepare a message
             if (options.empty())
                 return "";
-            else if (dist_closest == 0)
+            if (dist_closest == 0)
                 return "";
-            else if (!closest.empty())
+            if (!closest.empty())
                 return " Did you mean '" + closest + "'?";
-            else if (!show_avail_options)
+            if (!show_avail_options)
                 return "";
-            else if (options.size() == 1)
+            if (options.size() == 1)
                 return " Available option is " + format(options, 1);
-            else
-                return "\nAvailable options are: " + format(options);
+            return "\nAvailable options are: " + format(options);
         }
 
         /// Check for missing entries given a vector of options.
@@ -350,7 +349,7 @@ namespace hsp
                 throw std::invalid_argument(
                     "Missing " + where + " " + str::format(missing, 1));
 
-            else if (!missing.empty())
+            if (!missing.empty())
                 throw std::invalid_argument(
                     "Missing " + where + "s: " + str::format(missing));
         }
@@ -370,7 +369,7 @@ namespace hsp
                     "Unknown " + where + " " + str::format(unused, 1) +
                     str::find_closest(unused[0], options));
 
-            else if (!unused.empty())
+            if (!unused.empty())
                 throw std::invalid_argument(
                     "Unknown " + where + "s: " + str::format(unused) +
                     str::find_closest(hsp::na::STRING, options, 0));
@@ -828,7 +827,7 @@ namespace hsp
             if (bar_2 == string::npos)
                 return Definition::Entry(expr_head, expr_tail);
 
-            // else it is a non-default function node
+            // otherwise it is a non-default function node
             // e. g. "func|arg_1:...:arg_n|child_1:...child_n"
             const str_vec args = split_top_(expr_tail.substr(0, bar_2));
             const str_vec children = split_top_(expr_tail.substr(bar_2 + 1));
@@ -884,9 +883,9 @@ namespace hsp
         {
             if (is_empty())
                 return "";
-            else if (is_func_default())
+            if (is_func_default())
                 return func;
-            else if (is_terminal())
+            if (is_terminal())
                 return value + "|" + type;
 
             string str_args, str_children;
@@ -920,7 +919,7 @@ namespace hsp
             {
                 if (!child.is_implicit_callable())
                     return false;
-                else if (child.key == hsp::params::X)
+                if (child.key == hsp::params::X)
                     is_x_arg = true;
             }
             return is_x_arg;

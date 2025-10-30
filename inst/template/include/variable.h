@@ -247,6 +247,11 @@ protected:
 
     /// Helper with proposer initialization of direct sample from prior/model.
     void helper_init_sample_proposer_();
+    /// Helper with Monte Carlo proposer initialization.
+    void helper_init_proposer_monte_carlo_(const std::string &rule_name, double rule_scale);
+
+    /// Helper with degenerate range.
+    void helper_degenerate_range_();
 
     /// Store the buffer and change value.
     void do_set_default_(double x) override final

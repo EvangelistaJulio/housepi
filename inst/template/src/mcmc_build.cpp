@@ -112,7 +112,7 @@ void MCMC::Impl::Setup::set_n_threads()
     if (n_threads > max_threads)
     {
         hsp::msg::warning(
-            "N. of threads reduced to " + std::to_string(max_threads) + " available processors.");
+            "N. of threads reduced to " + std::to_string(max_threads) + " available threads.");
         n_threads = max_threads;
     }
 
@@ -192,10 +192,9 @@ std::string MCMC::Impl::Setup::fmt_progtxt()
 {
     if (is_power_post())
         return "power post " + std::to_string(rung) + "/" + std::to_string(n_rungs);
-    else if (n_chains > 1)
+    if (n_chains > 1)
         return "sample " + std::to_string(chain) + "/" + std::to_string(n_chains);
-    else
-        return "sample";
+    return "sample";
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -225,7 +224,7 @@ void Household::init_member(size_t index,
 }
 
 /// Change_status of individual i to new status (without controls).
-///	NOTE : this introduces augmented variables -> it requires RJMCMC in case of inference.
+///	NOTE: this introduces augmented variables -> it requires RJMCMC in case of inference.
 void Household::set_status_(Individual &member, int new_status)
 {
     if (new_status == member.status())
@@ -520,11 +519,12 @@ void MCMC::Impl::DataLong::build(const u_dict<str_vec> &input)
     size_t c = 0;
     for (const Household &house : pImpl_.data_wide)
         for (const Individual &member : house)
+        {
             if (id_to_index.count(member.id()))
                 throw std::invalid_argument(
                     "There were multiple individuals with id equal to '" + member.id() + "'.");
-            else
-                id_to_index.emplace(member.id(), c++);
+            id_to_index.emplace(member.id(), c++);
+        }
 
     // data-long allocation
     indiv_datalist_.clear();
@@ -542,15 +542,14 @@ void MCMC::Impl::DataLong::build(const u_dict<str_vec> &input)
         if (hsp::na::is(id))
             throw std::invalid_argument(
                 "Invalid id found in row n." + std::to_string(r + 2) + ".");
-        else if (!id_to_index.count(id))
+        if (!id_to_index.count(id))
         {
             // UPDATE: these errors should be more self-explicative
             if (pImpl_.data_wide.is_empty())
                 throw std::invalid_argument(
                     "Tried to define data long format before wide format.");
-            else
-                throw std::invalid_argument(
-                    "Id '" + id + "' from data long format had no match in loaded data wide format.");
+            throw std::invalid_argument(
+                "Id '" + id + "' from data long format had no match in loaded data wide format.");
         }
 
         // append (since vector is initialized to empty)
@@ -622,14 +621,15 @@ str_vec MCMC::Impl::GroupRates::helper_assert_definitions_(const u_dict<str_vec>
     // assert the group rate names are allowed
     headers_.clear();
     for (const std::string &g : deftable.at("group_rate"))
+    {
         if (g == hsp::rates::CONTACT || g == hsp::rates::MISSING)
             throw std::invalid_argument(
                 "Tried to use the reserved group rate name '" + g + "'.\nPlease, choose a different name.");
-        else if (hsp::na::is(g))
+        if (hsp::na::is(g))
             throw std::invalid_argument(
                 "Found a missing group rate name in the definitions.");
-        else
-            headers_.push_back(g);
+        headers_.push_back(g);
+    }
     headers_ = hsp::str::unique(headers_);
 
     return data_headers;
@@ -646,11 +646,13 @@ void MCMC::Impl::GroupRates::helper_init_all_rates_(Individual &member,
         // extract non-reference parameter pointers
         std::vector<const Attribute *> vec_par_ptr = {};
         for (const std::string &p : pair.second)
+        {
             if (hsp::na::is(p) || p == hsp::rates::MISSING)
                 throw std::invalid_argument(
                     "A group rate defintion '" + g + "' was missing for " + member.err_name() + ".");
-            else if (p != hsp::rates::REFERENCE)
+            if (p != hsp::rates::REFERENCE)
                 vec_par_ptr.emplace_back(pImpl_.param.at(p).get_ptr());
+        }
 
         if (vec_par_ptr.empty()) // stick to reference
             member.init_group_rate_to_reference(g);

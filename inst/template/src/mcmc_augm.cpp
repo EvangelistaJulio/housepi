@@ -158,10 +158,10 @@ void MCMC::Impl::InfecProfile::init_lookup_()
     inst_ = &InfecProfile::do_inst_lookup_;
     cumul_ = &InfecProfile::do_cumul_lookup_;
 
-    if (hsp::na::is(profile_->get_max()))
+    if (profile_->get_upper().is_empty())
         size_lut_ = hsp::infprof::LOOKUP_SIZE;
     else
-        size_lut_ = profile_->get_max() + 1;
+        size_lut_ = profile_->upper() + 1;
 
     lookup_inst_.resize(size_lut_);
     lookup_cumul_.resize(size_lut_);
@@ -237,7 +237,7 @@ void MCMC::Impl::InfecProfile::build(const u_dict<std::string> &deflist)
     if (!deflist.count("func"))
         throw std::invalid_argument(
             "A function name choice was missing in the infectivity profile definition.");
-    else if (hsp::parse::Definition(deflist.at("func")).is_na())
+    if (hsp::parse::Definition(deflist.at("func")).is_na())
         throw std::invalid_argument(
             "Provided NA as a function name in the infectivity profile definition.");
 
@@ -355,18 +355,16 @@ double MCMC::Impl::InfecProfile::do_inst_lookup_(const Individual *, double t)
 {
     if (profile_->is_valid(t) && t < size_lut_)
         return lookup_inst_.at(static_cast<size_t>(t));
-    else
-        return 0;
+    return 0;
 }
 /// Lookup method for discrete cumulative infectivity profile.
 double MCMC::Impl::InfecProfile::do_cumul_lookup_(const Individual *, double t)
 {
     if (profile_->is_below(t))
         return 0.;
-    else if ((t >= size_lut_) || (profile_->is_above(t)))
+    if ((t >= size_lut_) || (profile_->is_above(t)))
         return lookup_cumul_.at(size_lut_ - 1);
-    else
-        return lookup_cumul_.at(static_cast<size_t>(t));
+    return lookup_cumul_.at(static_cast<size_t>(t));
 }
 
 double MCMC::infec_profile_inst(const Individual &i, double t) const { return pImpl_->infec_profile.inst(&i, t); }
@@ -551,12 +549,14 @@ void MCMC::Impl::Augmented::helper_assert_no_reserved_()
         return;
 
     for (const std::string &a : deftable_["name"])
+    {
         if (hsp::na::is(a))
             throw std::invalid_argument(
                 "Found an augmented variable with undefined name.");
-        else if (a == hsp::infprof::INSTANTANEOUS || a == hsp::infprof::CUMULATIVE)
+        if (a == hsp::infprof::INSTANTANEOUS || a == hsp::infprof::CUMULATIVE)
             throw std::invalid_argument(
                 "Tried to use the reserved augmented name '" + a + "'.\nPlease, choose a different name.");
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -682,13 +682,12 @@ std::vector<size_t> MCMC::Impl::Augmented::get_unsorted_definition_rows_by_(cons
         return allrows;
     }
 
-    else if (status_to_def_row.count(hsp::na::STRING))
+    if (status_to_def_row.count(hsp::na::STRING))
         // use generic definitions if status-specific don't exist
         return status_to_def_row.at(hsp::na::STRING);
 
-    else
-        throw std::invalid_argument(
-            "No definitions were compatible with augmented status " + s + ".");
+    throw std::invalid_argument(
+        "No definitions were compatible with augmented status " + s + ".");
 }
 
 /// Set sample map and relative usage list.
@@ -706,17 +705,17 @@ void MCMC::Impl::Augmented::set_sample_map_for_(const std::string &s, size_t k)
         throw std::invalid_argument(
             "Impossible to initialize augmented '" + a + "' for status " + s + " without a value or model.");
 
-    else if (!hsp::na::is(deftable_["rule"][k]))
+    else if (hsp::na::is(deftable_["rule"][k]))
+        throw std::runtime_error(
+            "No rule was provided for non-constant definition of augmented '" + a +
+            "' for status " + s + ".");
+    else
     {
         // read option for monte carlo proposer
         list_draws.push_back(a);
         if (!hsp::na::is(s))
             status_map_sample[hsp::str::toi(s)].push_back(a);
     }
-    else
-        throw std::runtime_error(
-            "No rule was provided for non-constant definition of augmented '" + a +
-            "' for status " + s + ".");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -877,14 +876,13 @@ std::vector<size_t> MCMC::Impl::Augmented::init_get_definition_order_(Individual
 
     if (status_to_def_row.count(s))
         return status_to_def_row[s];
-    else if (status_to_def_row.count(hsp::na::STRING))
+    if (status_to_def_row.count(hsp::na::STRING))
         return status_to_def_row[hsp::na::STRING];
-    else if (member.is_infected_status())
+    if (member.is_infected_status())
         throw std::invalid_argument(
             "No augmented definitions were found for " + member.err_name() + " with status " + s + ".");
-    else
-        throw std::invalid_argument(
-            "Generic augmented definition for non-infectious " + member.err_name() + " was missing.");
+    throw std::invalid_argument(
+        "Generic augmented definition for non-infectious " + member.err_name() + " was missing.");
 }
 
 /// Assign model arguments and range. Same for function, otherwise assign proposer.
@@ -1011,11 +1009,9 @@ void MCMC::Impl::Augmented::helper_init_id_draws_()
                     if (already_stored_id % member.id())
                         throw std::invalid_argument(
                             "Multiple individuals shared the same id '" + member.id() + "'.");
-                    else
-                    {
-                        already_stored_id.push_back(member.id());
-                        smpl_individuals.emplace_back(&member);
-                    }
+
+                    already_stored_id.push_back(member.id());
+                    smpl_individuals.emplace_back(&member);
                 }
 
         // check all user request are satisfied
@@ -1177,12 +1173,10 @@ double MCMC::Impl::metropolis_augm_single_move_(Household &house, Individual &me
 
         if (setup.unif() < std::exp(setup.inv_T * delta_ll - xaugm.get_propose_logratio()))
             return delta_ll;
-        else
-        {
-            // else recover cached values
-            house.recover_buffer_values(true);
-            member.recover_augm_model_log_lik();
-        }
+
+        // else recover cached values
+        house.recover_buffer_values(true);
+        member.recover_augm_model_log_lik();
     }
     // else recover buffered value
     xaugm.recover_value();

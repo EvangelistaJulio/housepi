@@ -71,7 +71,8 @@ void Proposer::adapt(double ratio)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-// NOTE: this is just a place holder within Variable.
+/// Propose rule is just sample from model/prior.
+/// NOTE: this is just a place holder within Variable.
 class Sample_Proposer : public Proposer
 {
 public:
@@ -160,13 +161,13 @@ std::shared_ptr<Proposer> proposer_switch(const std::string &rule_name = hsp::na
     if (hsp::na::is(rule_name))
         return std::make_shared<Proposer>(std::make_shared<Distribution>());
 
-    else if (rule_name == "uniform")
+    if (rule_name == "uniform")
         return std::make_shared<Uniform_Proposer>(rule_scale, is_discrete);
 
-    else if (rule_name == "normal")
+    if (rule_name == "normal")
         return std::make_shared<Normal_Proposer>(rule_scale, is_discrete);
 
-    else if (rule_name == "lognormal")
+    if (rule_name == "lognormal")
         return std::make_shared<Lognorm_Proposer>(rule_scale, is_discrete);
 
     throw std::invalid_argument(
@@ -223,10 +224,10 @@ void Variable::user_reset(rnd_gen &prng)
 
 /// Initialize function reshaping.
 /// Drop function if it's constant when reshaping.
+/// NOTE: discretization of model has priority
+///       e. g. user discr is FALSE, but discrete-defined model
 void Variable::init_func_reshaping(bool discr)
 {
-    // NOTE: discretization of model has priority
-    // e. g. user discr is FALSE, but discrete-defined model
     if (!pDistr_->is_empty())
         discr = pDistr_->is_discrete();
     if (discr)
@@ -274,11 +275,38 @@ void Variable::init_distr_reshaping(bool discr)
     pDistr_->init_truncation();
 
     // check that non-constant variable has non-zero dimensional range
-    if (!is_constant_ && pDistr_->get_min() == pDistr_->get_max())
-        throw std::invalid_argument(
-            "Degenerate range " + pDistr_->str_range() +
-            " defined for non constant " + err_name() + ".");
+    helper_degenerate_range_();
 }
+
+/// Helper with degenerate range.
+
+void Variable::helper_degenerate_range_()
+{
+    // skip if one of the range extremes is not provided
+    if (pDistr_->get_lower().is_empty() || pDistr_->get_upper().is_empty())
+        return;
+        
+    // skip if range is not degenerate
+    // UPDATE: hard to know in advance if not initialized Variables...
+    const double lower = pDistr_->lower();
+    const double upper =  pDistr_->upper();
+    if (hsp::na::is(lower) || hsp::na::is(upper) || lower < upper)
+        return;
+
+    // case empty interval, lower and upper are "open"
+    if (lower > upper || !pDistr_->is_valid(lower) || !pDistr_->is_valid(upper))
+        throw std::invalid_argument(
+            "Definition produced a degenerate range " + pDistr_->str_range() +
+            " for " + err_name() + ".");
+
+    // Warn user if it was not chosen as constant
+    if (!is_constant_)
+        hsp::msg::warning(
+            "Forced at least one instance of " + err_name() +
+            " to be constant as its range was degenerate.");
+
+    init_numeric(lower);
+};
 
 /// Random initialization of variable.
 void Variable::init_rand(rnd_gen &prng)
@@ -323,36 +351,12 @@ void Variable::init_proposer(const std::string &rule_name, double rule_scale)
     }
     else
     {
-        // variable to be sampled
-        is_constant_ = false;
+        is_constant_ = false; // variable to be sampled
 
         if (rule_name == "sample")
             helper_init_sample_proposer_();
-        else // other proposer rules
-        {
-            // raise a warning if "lnorm" rule when varaible can be negative
-            if (pDistr_->get_min() < 0 && rule_name == "lnorm")
-                hsp::msg::warning(
-                    "Provided a lognormal proposer rule for non-positive " + err_name() + ".");
-
-            // assign the pointer to the proposer
-            pProp_ = proposer_switch(rule_name, rule_scale, is_discrete());
-
-            if (loc_.is_empty())
-            {
-                propose_ = &Variable::do_propose_default_;
-                is_valid_move_ = &Variable::do_is_valid_move_default_;
-                get_propose_logratio_ = &Variable::do_get_propose_logratio_default_;
-                get_move_logratio_ = &Variable::do_get_move_logratio_default_;
-            }
-            else
-            {
-                propose_ = &Variable::do_propose_with_loc_;
-                is_valid_move_ = &Variable::do_is_valid_move_with_loc_;
-                get_propose_logratio_ = &Variable::do_get_propose_logratio_with_loc_;
-                get_move_logratio_ = &Variable::do_get_move_logratio_with_loc_;
-            }
-        }
+        else
+            helper_init_proposer_monte_carlo_(rule_name, rule_scale);
     }
 }
 
@@ -376,25 +380,50 @@ void Variable::helper_init_sample_proposer_()
     get_move_logratio_ = &Variable::do_move_logratio_sample_;
 }
 
+/// Helper with Monte Carlo proposer initialization.
+void Variable::helper_init_proposer_monte_carlo_(const std::string &rule_name, double rule_scale)
+{
+    // raise a warning if "lnorm" rule when varaible can be negative
+    if (pDistr_->lower() < 0 && rule_name == "lnorm")
+        hsp::msg::warning(
+            "Provided a lognormal proposer rule for non-positive " + err_name() + ".");
+
+    // assign the pointer to the proposer
+    pProp_ = proposer_switch(rule_name, rule_scale, is_discrete());
+
+    if (loc_.is_empty())
+    {
+        propose_ = &Variable::do_propose_default_;
+        is_valid_move_ = &Variable::do_is_valid_move_default_;
+        get_propose_logratio_ = &Variable::do_get_propose_logratio_default_;
+        get_move_logratio_ = &Variable::do_get_move_logratio_default_;
+    }
+    else
+    {
+        propose_ = &Variable::do_propose_with_loc_;
+        is_valid_move_ = &Variable::do_is_valid_move_with_loc_;
+        get_propose_logratio_ = &Variable::do_get_propose_logratio_with_loc_;
+        get_move_logratio_ = &Variable::do_get_move_logratio_with_loc_;
+    }
+}
+
 /// Wheter the variable is constant.
 bool Variable::is_constant() const
 {
     if (is_numeric())
         return is_constant_;
-    else if (is_pointer())
+    if (is_pointer())
         return false;
-    else if (is_function())
+    if (is_function())
         return pFunc_->is_constant();
-    else
-        return is_constant_;
+    return is_constant_;
 }
 /// Wheter the variable is discrete.
 bool Variable::is_discrete() const
 {
     if (pDistr_->is_empty())
         return Attribute::is_discrete();
-    else
-        return pDistr_->is_discrete();
+    return pDistr_->is_discrete();
 }
 
 /// Get a description about the functional status.

@@ -240,8 +240,7 @@ bool MCMC::Impl::move_single_parameter_(const std::string &p, bool is_cache_depe
         // perform Metropolis-Hastings to accept or not move
         if (accept_valid_param_move_(p))
             return true; // accepted move
-        else
-            recover_parameter_(p, is_cache_depen);
+        recover_parameter_(p, is_cache_depen);
     }
     return false; // refused move
 }

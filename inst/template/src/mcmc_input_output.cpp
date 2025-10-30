@@ -125,8 +125,8 @@ Rcpp::NumericVector rcpp_export_args(const Function &f)
 Rcpp::NumericVector rcpp_export_range(const Function &f)
 {
     using namespace Rcpp;
-    return NumericVector::create(_[hsp::params::MIN] = f.get_min(),
-                                 _[hsp::params::MAX] = f.get_max());
+    return NumericVector::create(_[hsp::params::MIN] = f.lower(),
+                                 _[hsp::params::MAX] = f.upper());
 }
 /// Export arguments of a Variable which is a function to R.
 Rcpp::NumericVector rcpp_export_func_args(const Variable &v) { return rcpp_export_args(*v.get_function()); }
@@ -482,7 +482,7 @@ Rcpp::NumericMatrix MCMC::Impl::rcpp_export_draws() const
 
         // matrix with draws
         NumericMatrix output(setup.n_chains * setup.c_sample_size, headers.size());
-        
+
         size_t col = 0;
         // log-likelihood
         output(_, col++) = NumericVector(wrap(smpl_total_log_lik_));
@@ -1019,12 +1019,12 @@ void MCMC::Impl::print_simulated_data_wide(const std::string &pathtofile)
 
         // close progress bar
         setup.prog_close();
+
         // close ofstream
-        if (ofs.is_open())
-            ofs.close();
-        else
+        if (!ofs.is_open())
             throw std::runtime_error(
                 "Output file '" + pathtofile + "' closed unexpectedly.");
+        ofs.close();
     }
     catch (const std::exception &e)
     {

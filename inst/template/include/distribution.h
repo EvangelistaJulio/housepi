@@ -143,8 +143,8 @@ protected:
 	{
 		static std::uniform_real_distribution<double> unif_gen(0., 1.);
 		const double r = unif_gen(prng);
-		const double sx = range_min_.is_empty() ? 0. : (1. - r) * raw_cdf_(get_min());
-		const double dx = range_max_.is_empty() ? r : r * raw_cdf_(get_max());
+		const double sx = range_lower_.is_empty() ? 0. : (1. - r) * raw_cdf_(lower());
+		const double dx = range_upper_.is_empty() ? r : r * raw_cdf_(upper());
 		return raw_quantile_(sx + dx);
 	}
 
@@ -154,27 +154,27 @@ protected:
 	double do_trunc_dummy_(double x) const { return x; }
 
 	// continuos case
-	double do_trunc_min_(double x) const { return x / (1. - raw_cdf_(get_min())); }
-	double do_trunc_max_(double x) const { return x / (raw_cdf_(get_max())); }
-	double do_trunc_both_sides_(double x) const { return x / (raw_cdf_(get_max()) - raw_cdf_(get_min())); }
+	double do_trunc_min_(double x) const { return x / (1. - raw_cdf_(lower())); }
+	double do_trunc_max_(double x) const { return x / (raw_cdf_(upper())); }
+	double do_trunc_both_sides_(double x) const { return x / (raw_cdf_(upper()) - raw_cdf_(lower())); }
 	double do_trunc_rand_(rnd_gen &prng) { return inverse_sampling_(prng); }
 
 	// case of discrete defined
-	double do_trunc_min_discr_defined_(double x) const { return x / (1. - raw_cdf_(get_min() - 1)); }
-	double do_trunc_max_discr_defined_(double x) const { return x / (raw_cdf_(get_max() + 1)); }
-	double do_trunc_both_sides_discr_defined_(double x) const { return x / (raw_cdf_(get_max() + 1) - raw_cdf_(get_min() - 1)); }
+	double do_trunc_min_discr_defined_(double x) const { return x / (1. - raw_cdf_(lower() - 1)); }
+	double do_trunc_max_discr_defined_(double x) const { return x / (raw_cdf_(upper() + 1)); }
+	double do_trunc_both_sides_discr_defined_(double x) const { return x / (raw_cdf_(upper() + 1) - raw_cdf_(lower() - 1)); }
 	// note : do_trunx_rand_discr_defined == do_trunc_rand_
 
 	// case of center discretization
-	double do_trunc_min_discr_center_(double x) const { return x / (1. - raw_cdf_(std::ceil(get_min()) - .5)); }
-	double do_trunc_max_discr_center_(double x) const { return x / (raw_cdf_(std::floor(get_max()) + .5)); }
-	double do_trunc_both_sides_discr_center_(double x) const { return x / (raw_cdf_(std::floor(get_max()) + .5) - raw_cdf_(std::ceil(get_min()) - .5)); }
+	double do_trunc_min_discr_center_(double x) const { return x / (1. - raw_cdf_(std::ceil(lower()) - .5)); }
+	double do_trunc_max_discr_center_(double x) const { return x / (raw_cdf_(std::floor(upper()) + .5)); }
+	double do_trunc_both_sides_discr_center_(double x) const { return x / (raw_cdf_(std::floor(upper()) + .5) - raw_cdf_(std::ceil(lower()) - .5)); }
 	double do_trunc_rand_discr_center_(rnd_gen &prng) { return cast_center_(do_trunc_rand_(prng)); }
 
 	// case of left discretization
-	double do_trunc_min_discr_left_(double x) const { return x / (1. - raw_cdf_(std::floor(get_min()))); }
-	double do_trunc_max_discr_left_(double x) const { return x / (raw_cdf_(std::ceil(get_max() + 1))); }
-	double do_trunc_both_sides_discr_left_(double x) const { return x / (raw_cdf_(std::ceil(get_max() + 1)) - raw_cdf_(std::floor(get_min()))); }
+	double do_trunc_min_discr_left_(double x) const { return x / (1. - raw_cdf_(std::floor(lower()))); }
+	double do_trunc_max_discr_left_(double x) const { return x / (raw_cdf_(std::ceil(upper() + 1))); }
+	double do_trunc_both_sides_discr_left_(double x) const { return x / (raw_cdf_(std::ceil(upper() + 1)) - raw_cdf_(std::floor(lower()))); }
 	double do_trunc_rand_discr_left_(rnd_gen &prng) { return cast_left_(do_trunc_rand_(prng)); }
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
@@ -188,24 +188,24 @@ protected:
 	double do_logtrunc_dummy_(double x) const { return x; }
 
 	// continuos case
-	double do_logtrunc_min_(double x) const { return x - std::log(1. - raw_cdf_(get_min())); }
-	double do_logtrunc_max_(double x) const { return x - std::log(raw_cdf_(get_max())); }
-	double do_logtrunc_both_sides_(double x) const { return x - std::log(raw_cdf_(get_max()) - raw_cdf_(get_min())); }
+	double do_logtrunc_min_(double x) const { return x - std::log(1. - raw_cdf_(lower())); }
+	double do_logtrunc_max_(double x) const { return x - std::log(raw_cdf_(upper())); }
+	double do_logtrunc_both_sides_(double x) const { return x - std::log(raw_cdf_(upper()) - raw_cdf_(lower())); }
 
 	// case of discrete defined
-	double do_logtrunc_min_discr_defined_(double x) const { return x - std::log(1. - raw_cdf_(get_min() - 1)); }
-	double do_logtrunc_max_discr_defined_(double x) const { return x - std::log(raw_cdf_(get_max() + 1)); }
-	double do_logtrunc_both_sides_discr_defined_(double x) const { return x - std::log(raw_cdf_(get_max() + 1) - raw_cdf_(get_min() - 1)); }
+	double do_logtrunc_min_discr_defined_(double x) const { return x - std::log(1. - raw_cdf_(lower() - 1)); }
+	double do_logtrunc_max_discr_defined_(double x) const { return x - std::log(raw_cdf_(upper() + 1)); }
+	double do_logtrunc_both_sides_discr_defined_(double x) const { return x - std::log(raw_cdf_(upper() + 1) - raw_cdf_(lower() - 1)); }
 
 	// case of center discretization
-	double do_logtrunc_min_discr_center_(double x) const { return x - std::log(1. - raw_cdf_(std::ceil(get_min()) - .5)); }
-	double do_logtrunc_max_discr_center_(double x) const { return x - std::log(raw_cdf_(std::floor(get_max()) + .5)); }
-	double do_logtrunc_both_sides_discr_center_(double x) const { return x - std::log(raw_cdf_(std::floor(get_max()) + .5) - raw_cdf_(std::ceil(get_min()) - .5)); }
+	double do_logtrunc_min_discr_center_(double x) const { return x - std::log(1. - raw_cdf_(std::ceil(lower()) - .5)); }
+	double do_logtrunc_max_discr_center_(double x) const { return x - std::log(raw_cdf_(std::floor(upper()) + .5)); }
+	double do_logtrunc_both_sides_discr_center_(double x) const { return x - std::log(raw_cdf_(std::floor(upper()) + .5) - raw_cdf_(std::ceil(lower()) - .5)); }
 
 	// case of left discretization
-	double do_logtrunc_min_discr_left_(double x) const { return x - std::log(1. - raw_cdf_(std::floor(get_min()))); }
-	double do_logtrunc_max_discr_left_(double x) const { return x - std::log(raw_cdf_(std::ceil(get_max()))); }
-	double do_logtrunc_both_sides_discr_left_(double x) const { return x - std::log(raw_cdf_(std::ceil(get_max())) - raw_cdf_(std::floor(get_min()))); }
+	double do_logtrunc_min_discr_left_(double x) const { return x - std::log(1. - raw_cdf_(std::floor(lower()))); }
+	double do_logtrunc_max_discr_left_(double x) const { return x - std::log(raw_cdf_(std::ceil(upper()))); }
+	double do_logtrunc_both_sides_discr_left_(double x) const { return x - std::log(raw_cdf_(std::ceil(upper())) - raw_cdf_(std::floor(lower()))); }
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	/////////////////////////  Distribution : functional shift [private] ////////////////////////
@@ -213,10 +213,10 @@ protected:
 
 	double (Distribution::*shift_)(double) const = &Distribution::do_shift_dummy_;
 	double do_shift_dummy_(double x) const { return x; }
-	double do_shift_min_(double x) const { return x - raw_cdf_(get_min()); }
-	double do_shift_min_discr_defined_(double x) const { return x - raw_cdf_(get_min() - 1); }
-	double do_shift_min_discr_center_(double x) const { return x - raw_cdf_(std::floor(get_min()) - .5); }
-	double do_shift_min_discr_left_(double x) const { return x - raw_cdf_(std::floor(get_min())); }
+	double do_shift_min_(double x) const { return x - raw_cdf_(lower()); }
+	double do_shift_min_discr_defined_(double x) const { return x - raw_cdf_(lower() - 1); }
+	double do_shift_min_discr_center_(double x) const { return x - raw_cdf_(std::floor(lower()) - .5); }
+	double do_shift_min_discr_left_(double x) const { return x - raw_cdf_(std::floor(lower())); }
 };
 
 #endif // HOUSEPI__DISTRIBUTION__H

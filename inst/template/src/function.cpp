@@ -91,12 +91,11 @@ bool Attribute::is_constant() const
 {
     if (is_numeric())
         return true;
-    else if (is_pointer())
+    if (is_pointer())
         return pAttr_->is_constant();
-    else if (is_function())
+    if (is_function())
         return pFunc_->is_constant();
-    else // NOTE: is_empty(), constant by convention
-        return true;
+    return true;
 }
 
 /// Wheter it's discrete.
@@ -105,12 +104,11 @@ bool Attribute::is_discrete() const
 {
     if (is_numeric())
         return value_ == std::floor(value_);
-    else if (is_pointer())
+    if (is_pointer())
         return pAttr_->is_discrete();
-    else if (is_function())
+    if (is_function())
         return pFunc_->is_discrete();
-    else
-        return true;
+    return true;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -150,7 +148,7 @@ void Attribute::init_function(const std::shared_ptr<Function> f)
     if (f == nullptr)
         throw std::invalid_argument(
             "Tried to assign empty function to " + err_name() + ".");
-    else if (f == pFunc_)
+    if (f == pFunc_)
         throw std::invalid_argument(
             "Tried to assign " + err_name() + " as its own argument.");
 
@@ -260,12 +258,12 @@ bool Function::is_constant() const
             return false;
 
     // check range
-    if (!range_min_.is_constant())
+    if (!range_lower_.is_constant())
         return false;
-    if (!range_max_.is_constant())
+    if (!range_upper_.is_constant())
         return false;
 
-    // else is constant
+    // otherwise constant
     return true;
 }
 
@@ -276,27 +274,27 @@ bool Function::is_constant() const
 /// Functional range for lower bound and no upper bound.
 bool Function::init_range_min_(double min_val, bool is_min_open)
 {
-    if (get_min() < min_val)
+    if (lower() < min_val)
         throw std::invalid_argument(
-            "Invoked invalid min value " + hsp::str::format(range_min_.get()) + " for " + err_name() + ".");
+            "Invoked invalid min value " + hsp::str::format(lower()) + " for " + err_name() + ".");
 
-    if (get_min() == min_val && hsp::na::is(get_max()))
+    if (lower() == min_val && hsp::na::is(upper()))
         return false;
 
-    init_range_helper_(is_min_open ? get_min() == min_val : false, false);
+    init_range_helper_(is_min_open ? lower() == min_val : false, false);
     return true;
 }
 
 /// Set the range of validity of the value, and the corresponding validation function.
 void Function::init_range_helper_(bool is_min_open, bool is_max_open)
 {
-    if (range_min_.is_empty() && range_max_.is_empty()) // Unbounded
+    if (range_lower_.is_empty() && range_upper_.is_empty()) // Unbounded
     {
         is_below_ = &Function::do_is_below_never_;
         is_above_ = &Function::do_is_above_never_;
         is_valid_ = &Function::do_is_valid_always_;
     }
-    else if (!range_min_.is_empty() && range_max_.is_empty()) // Lower Bound
+    else if (!range_lower_.is_empty() && range_upper_.is_empty()) // Lower Bound
     {
         is_above_ = &Function::do_is_above_never_;
         if (is_min_open)
@@ -310,7 +308,7 @@ void Function::init_range_helper_(bool is_min_open, bool is_max_open)
             is_valid_ = &Function::do_is_valid_close_min_;
         }
     }
-    else if (range_min_.is_empty() && !range_max_.is_empty()) // Upper Bound
+    else if (range_lower_.is_empty() && !range_upper_.is_empty()) // Upper Bound
     {
         is_below_ = &Function::do_is_below_never_;
         if (is_max_open)
@@ -352,8 +350,8 @@ void Function::init_range_helper_(bool is_min_open, bool is_max_open)
         }
 
         // check for consistency
-        bool wrong_open = (is_valid_ != &Function::do_is_valid_both_close_) && (range_min_.get() >= range_max_.get());
-        bool wrong_close = (is_valid_ == &Function::do_is_valid_both_close_) && (range_min_.get() > range_max_.get());
+        bool wrong_open = (is_valid_ != &Function::do_is_valid_both_close_) && (range_lower_.get() >= range_upper_.get());
+        bool wrong_close = (is_valid_ == &Function::do_is_valid_both_close_) && (range_lower_.get() > range_upper_.get());
         if (wrong_open || wrong_close)
             throw std::invalid_argument(
                 "Generated an inconsistent range " + str_range() + " for " + err_name() + ".");
@@ -363,35 +361,35 @@ void Function::init_range_helper_(bool is_min_open, bool is_max_open)
 /// Return formatted range.
 std::string Function::str_range() const
 {
-    const std::string str_min = hsp::str::format(range_min_.get());
-    const std::string str_max = hsp::str::format(range_max_.get());
+    const std::string str_min = hsp::str::format(range_lower_.get());
+    const std::string str_max = hsp::str::format(range_upper_.get());
 
     if (is_valid_ == &Function::do_is_valid_always_)
         return "(-Inf, Inf)";
 
-    else if (is_valid_ == &Function::do_is_valid_open_min_)
+    if (is_valid_ == &Function::do_is_valid_open_min_)
         return "(" + str_min + ", Inf)";
 
-    else if (is_valid_ == &Function::do_is_valid_close_min_)
+    if (is_valid_ == &Function::do_is_valid_close_min_)
         return "[" + str_min + ", Inf)";
 
-    else if (is_valid_ == &Function::do_is_valid_open_max_)
+    if (is_valid_ == &Function::do_is_valid_open_max_)
         return "(-Inf, " + str_max + ")";
 
-    else if (is_valid_ == &Function::do_is_valid_close_max_)
+    if (is_valid_ == &Function::do_is_valid_close_max_)
         return "(-Inf, " + str_max + "]";
 
-    else if (is_valid_ == &Function::do_is_valid_both_open_)
+    if (is_valid_ == &Function::do_is_valid_both_open_)
         return "(" + str_min + ", " + str_max + ")";
 
-    else if (is_valid_ == &Function::do_is_valid_open_min_close_max_)
+    if (is_valid_ == &Function::do_is_valid_open_min_close_max_)
         return "(" + str_min + ", " + str_max + "]";
 
-    else if (is_valid_ == &Function::do_is_valid_close_min_open_max_)
+    if (is_valid_ == &Function::do_is_valid_close_min_open_max_)
         return "[" + str_min + ", " + str_max + ")";
 
-    else // (is_valid_ == &Function::do_is_valid_both_close_)
-        return "[" + str_min + ", " + str_max + "]";
+    // (is_valid_ == &Function::do_is_valid_both_close_)
+    return "[" + str_min + ", " + str_max + "]";
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -421,9 +419,9 @@ void Function::init_attr(const std::string &key, const Attribute &attr)
         if (name_ == "uniform")
             find_arg_(key).transfer(attr);
         else if (key == hsp::params::MIN)
-            range_min_.transfer(attr);
+            range_lower_.transfer(attr);
         else // key == hsp::params::MAX
-            range_max_.transfer(attr);
+            range_upper_.transfer(attr);
     }
     else
         find_arg_(key).transfer(attr);
@@ -474,9 +472,9 @@ unsigned short Function::which_discrete_case_() const
 {
     if (function_ == &Function::do_function_discrete_)
         return hsp::discr::DEFINED;
-    else if (function_ == &Function::do_function_discr_center_)
+    if (function_ == &Function::do_function_discr_center_)
         return hsp::discr::CENTER;
-    else if (function_ == &Function::do_function_discr_left_)
+    if (function_ == &Function::do_function_discr_left_)
         return hsp::discr::LEFT;
     return hsp::discr::NONE;
 }
@@ -568,8 +566,7 @@ protected:
     {
         if (std::abs(arg(0) + 1.) < 1.e-10)
             return std::log(std::abs(x));
-        else
-            return std::pow(x, arg(0) + 1.) / (arg(0) + 1.);
+        return std::pow(x, arg(0) + 1.) / (arg(0) + 1.);
     }
     double raw_logratio_(double xo, double xn) const override final { return arg(0) * std::log(xn / xo); }
 };
@@ -763,10 +760,11 @@ std::shared_ptr<Function> compose_func_registries(const std::string &opt,
         return std::make_shared<Function>();
 
     for (const auto &r : registries)
+    {
         if (r->get_options() % opt)
             return r->get(opt, is_primitive);
-        else
-            options += r->get_options();
+        options += r->get_options();
+    }
 
     throw std::invalid_argument(
         "Unknown " + name + " '" + opt + "'." + hsp::str::find_closest(opt, options));
