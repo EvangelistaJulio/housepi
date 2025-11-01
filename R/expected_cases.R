@@ -623,3 +623,75 @@ expec_cases_by_house_size <- function(hhmodel, param_table,
   ExpectedCasesBySize$new(hhmodel, param_table,
                           obs_process = obs_process, progress = progress)
 }
+
+#' Format credible intervals into printable strings
+#'
+#' @description
+#' Format elementwise mean and credible-interval bounds into a single string.
+#' The function is vectorised over its arguments and will return a character
+#' vector of the same length as the inputs.
+#'
+#' @param mean `numeric()` with mean values.
+#' @param lower `numeric()` with lower bounds of the credible interval.
+#' @param upper `numeric()` with upper bounds of the credible interval.
+#' @param str_format
+#' `character(1)` sprintf-style format with 3 '%s' placeholders.
+#' Default is `"mean [lower, upper]"`.
+#' @param as_integer
+#' `logical(1)` to control wheter values are formatted as integers.
+#' Default is `FALSE`.
+#'
+#' @return Character vector with formatted credible-interval strings.
+#'
+#' @examples
+#' format_credible_intervals(c(1.23, NA), c(0.9, NA), c(1.5, NA))
+#'
+#' @export
+format_credible_intervals <- function(mean, lower, upper,
+                                      str_format = "%s [%s, %s]",
+                                      as_integer = FALSE) {
+  .fmt_vector <- function(mean, lower, upper) {
+    if (length(mean) != length(lower) ||
+          length(mean) != length(upper)) stop_h(
+      "Mean, lower and upper values must be numeric of the same length."
+    )
+
+    if (length(gregexpr("%s", str_format, fixed = TRUE)[[1]]) != 3) stop_h(
+      "Invalid choice for charachter 'str_format'.",
+      "It must contain exactly three '%s' placeholders."
+    )
+
+    .fmt_num <- function(mn, low, up) {
+      if (is.na(mn)) return(NA_character_)
+      if (isTRUE(mn < low) || isTRUE(mn > up)) warning_h(
+        "Found an inconsistent credible interval."
+      )
+
+      if (isTRUE(as_integer)) digits <- 0
+      else digits <- max(0, ceiling(-log10(abs(mn))) + 1)
+
+      mn_f <- formatC(mn, digits = digits, format = "f")
+      low_f <- ifelse(is.na(low), NA_character_,
+                      formatC(low, digits = digits, format = "f"))
+      up_f <- ifelse(is.na(up), NA_character_,
+                     formatC(up, digits = digits, format = "f"))
+
+      sprintf(str_format, mn_f, low_f, up_f)
+    }
+
+    mapply(.fmt_num, mean, lower, upper, USE.NAMES = FALSE)
+  }
+
+  if (is.data.frame(mean) || is.matrix(mean)) {
+    # check shapes
+    if (!all(dim(mean) == dim(lower), dim(mean) == dim(upper))) stop_h(
+      "Tabular inputs must have the same dimensions."
+    )
+
+    res <- as.data.frame(Map(.fmt_vector, as.data.frame(mean),
+                             as.data.frame(lower), as.data.frame(upper)))
+    names(res) <- names(mean)
+    return(res)
+  }
+  .fmt_vector(mean, lower, upper)
+}

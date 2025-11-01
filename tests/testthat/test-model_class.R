@@ -142,7 +142,8 @@ test_that("Missing function arguments raise errors", {
   # check that log(NaN) = NaN
   hhmodel$load_augmented_list(proba = ~log(test@D))
   expect_error(hhmodel$infer(), regexp = "Nothing to sample")
-  expect_error(hhmodel$evaluate_log_lik(), regexp = "Impossible to return value")
+  expect_error(hhmodel$evaluate_log_lik(),
+               regexp = "Impossible to return value")
 })
 
 test_that("Augmented log-likelihood seeding is fine", {
@@ -255,4 +256,31 @@ test_that("Nested definittions works as expected", {
   expect_equal(sd(sample_boxmul), 1, tolerance = 0.05)
   q <- setNames(stats::quantile(sample_boxmul, probs), NULL)
   expect_equal(q, qnorm(probs), tolerance = 0.05)
+})
+
+
+test_that("Known errors are unchanged", {
+  # Known infinity (values below minimum, i. e. proba 0)
+  hhmodel <- new_housepi_model("augmented_example") |> 
+    add_data_wide(housepi::survey) |> 
+    load_augmented_list(
+      value = list(model = "uniform"),
+      proba = list(func = "lognormal", 
+                   func_args = c(x = ~ value, meanlog = 1, sdlog = 1), 
+                   min = 1, max = 15, discr = TRUE)
+    ) |> 
+    evaluate_log_lik() |> 
+    expect_equal(-Inf)
+  
+  # Known NaN: qlnorm(15, meanlog = 4, sdlog = 0.01) ~= 0, impossible truncation
+  new_housepi_model("augmented_example") |> 
+    add_data_wide(housepi::survey) |> 
+    load_augmented_list(
+      value = list(model = "uniform", args = c(min = 1, max = 10), discr = TRUE),
+      proba = list(func = "lognormal", 
+                   func_args = c(x = ~ value, meanlog = 4, sdlog = 0.01), 
+                   min = 1, max = 15, discr = TRUE)
+    ) |> 
+    evaluate_log_lik() |> 
+    expect_error(regexp = "Observation log-likelihood returned NaN")
 })

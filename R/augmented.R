@@ -406,38 +406,34 @@ HousepiAugmented <- R6::R6Class(
     #' If `FALSE` drop all pre-existing definitions (default).
     load_template = function(templ_file, required = NULL, append = FALSE) {
       # check if template file exists
-      if (file.exists((templ_file))) {
-        # template augmented variable definitions
-        templ_defs <- dget(templ_file)
+      if (!file.exists((templ_file))) stop_h(
+        "Impossible to automatically initialize augmented variables.",
+        "A file with template definitions was not found."
+      )
+      # template augmented variable definitions
+      templ_defs <- dget(templ_file)
 
-        if (isTRUE(append)) {
-          # check set of required augmented variables
-          if (length(required) == 0) {
-            warning_h(
-              "Appending template augmented variable definitions failed.",
-              "Alternatively use option 'append = FALSE'."
-            )
-          } else {
-            miss <- template_missing_find(required, self$defs[["name"]])
-
-            if (length(miss) == 0) warning_h(
-              "No template augmented variable to append.",
-              "Definitions are complete."
-            )
-            else if (!all(miss %in% names(templ_defs))) stop_h(
-              "No template found for the missing augmented variables."
-            )
-            else self$load_list(from = templ_defs[miss], append = TRUE)
-          }
+      if (isTRUE(append)) {
+        # check set of required augmented variables
+        if (length(required) == 0) {
+          warning_h(
+            "Appending template augmented variable definitions failed.",
+            "Alternatively use option 'append = FALSE'."
+          )
         } else {
-          self$load_list(from = templ_defs, append = FALSE)
-        }
+          miss <- template_missing_find(required, self$defs[["name"]])
 
+          if (length(miss) == 0) warning_h(
+            "No template augmented variable to append.",
+            "Definitions are complete."
+          )
+          else if (!all(miss %in% names(templ_defs))) stop_h(
+            "No template found for the missing augmented variables."
+          )
+          else self$load_list(from = templ_defs[miss], append = TRUE)
+        }
       } else {
-        stop_h(
-          "Impossible to automatically initialize augmented variables.",
-          "A file with template definitions was not found."
-        )
+        self$load_list(from = templ_defs, append = FALSE)
       }
 
       invisible(self)

@@ -279,8 +279,7 @@ simul_parameters <- get_parameters(hhsimul) |>
 
 # use bayesplot to plot the posterior draws
 bayesplot::mcmc_trace(param_draws, facet_args = list(ncol = 1)) +
-  geom_hline(data = simul_parameters, aes(yintercept = simulated),
-             colour = "coral", linewidth = 1)
+  geom_hline(data = simul_parameters, aes(yintercept = simulated))
 ```
 
 ```{r}
@@ -304,8 +303,7 @@ Finally we wrap all together to compare to parameters used for simulation.
 ```{r}
 posterior::summarise_draws(param_draws) |>
   dplyr::reframe(parameter = variable,
-                 inferred = sprintf("%g [%g, %g]", signif(mean, 2),
-                                    signif(q5, 2), signif(q95, 2))) |>
+                 inferred = format_credible_intervals(mean, q5, q95)) |>
   dplyr::inner_join(simul_parameters, by = "parameter") |>
   flextable::flextable() |>
   flextable::separate_header() |>

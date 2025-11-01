@@ -59,6 +59,7 @@ reference:
   - starts_with("expec_")
   - HousepiExpectation
   - ExpectedCasesBySize
+  - format_credible_intervals
 
 - title: "Test internal functions"
   desc: >

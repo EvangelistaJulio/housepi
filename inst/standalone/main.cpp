@@ -91,10 +91,11 @@ int main(int argc, char *argv[])
             hsp::msg::error(
                 "No Software Manual is available, refer to the Rcpp tutorials.\nApologies for the inconvenience.");
 
-        else if (tolow(carg) == "--logevidence")
-            num_rungs = hsp::str::toul(argv[++carg_i], "number of rungs");
+        // UPDATE: under development
+        //else if (tolow(carg) == "--logevidence")
+        //    num_rungs = hsp::str::toul(argv[++carg_i], "number of rungs");
 
-        else if (tolow(carg) == "--loglikelihood")
+        else if (tolow(carg) == "--log-lik")
             is_loglikelihood = true;
 
         else if (tolow(carg) == "--infer")

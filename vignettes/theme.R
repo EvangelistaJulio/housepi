@@ -15,9 +15,11 @@ ggplot2::theme_set(
                    axis.text = my_element_text,
                    strip.text = my_element_text,
                    legend.text = my_element_text,
-                   legend.title = ggplot2::element_blank())
+                   legend.title = ggplot2::element_blank(),
+                   geom = ggplot2::element_geom(linewidth = 1, 
+                                                color = "coral",
+                                                pointsize = 3))
 )
-
 # bayesplot theme
 bayesplot::bayesplot_theme_set(ggplot2::theme_get())
 bayesplot::color_scheme_set(scheme = "brightblue")

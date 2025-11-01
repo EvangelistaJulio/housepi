@@ -229,34 +229,31 @@ HousepiParameter <- R6::R6Class(
                              required = NULL,
                              append = FALSE) {
       # check if template file exists
-      if (file.exists((templ_file))) {
-        # template parameter definitions
-        templ_defs <- dget(templ_file)
+      if (!file.exists(templ_file)) stop_h(
+        "Impossible to automatically initialize parameters.",
+        "A file with template definitionse was not found."
+      )
 
-        if (isTRUE(append)) {
-          # check the set of required parameters
-          if (length(required) == 0) {
-            warning_h("No parameter definitions required by the model.")
-          } else {
-            miss <- template_missing_find(required, self$defs[["name"]])
-            if (length(miss) == 0) warning_h(
-              "No template parameters to append.",
-              "Definitions are complete."
-            )
-            else if (!all(miss %in% names(templ_defs))) stop_h(
-              "No template found for the missing parameters."
-            )
-            else self$load_list(from = templ_defs[miss], append = TRUE)
-          }
+      # template parameter definitions
+      templ_defs <- dget(templ_file)
+
+      if (isTRUE(append)) {
+        # check the set of required parameters
+        if (length(required) == 0) {
+          warning_h("No parameter definitions required by the model.")
         } else {
-          self$load_list(from = templ_defs, append = FALSE)
+          miss <- template_missing_find(required, self$defs[["name"]])
+          if (length(miss) == 0) warning_h(
+            "No template parameters to append.",
+            "Definitions are complete."
+          )
+          else if (!all(miss %in% names(templ_defs))) stop_h(
+            "No template found for the missing parameters."
+          )
+          else self$load_list(from = templ_defs[miss], append = TRUE)
         }
-
       } else {
-        stop_h(
-          "Impossible to automatically initialize parameters.",
-          "A file with template definitionse was not found."
-        )
+        self$load_list(from = templ_defs, append = FALSE)
       }
 
       invisible(self)

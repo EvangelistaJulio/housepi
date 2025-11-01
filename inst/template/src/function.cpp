@@ -506,12 +506,14 @@ std::string Function::str_summary(bool show_x_arg) const
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+// FIXME:
+// verify if is_discrete should include Function::is_discrete() || (...)
+
 /// Minus Function.
 class Minus_Function : public Function
 {
 public:
     Minus_Function() : Function("minus") {}
-
     void init_truncation() override final {}
     bool is_discrete() const override final { return x_arg_.is_discrete(); }
 
@@ -524,10 +526,8 @@ class Subtraction_Function : public Function
 {
 public:
     Subtraction_Function() : Function("sub", {"x2"}, {0.}) {}
-
     void init_truncation() override final {}
-
-    bool is_discrete() const override final { return arguments_[0].is_discrete() && x_arg_.is_discrete(); }
+    bool is_discrete() const override final { return get_arg(0).is_discrete() && x_arg_.is_discrete(); }
 
 protected:
     double raw_function_(double x) const override final { return x - arg(0); }
@@ -538,7 +538,6 @@ class Division_Function : public Function
 {
 public:
     Division_Function() : Function("div", {"x2"}, {1}) {}
-
     void init_truncation() override final {}
 
 protected:
@@ -549,15 +548,9 @@ protected:
 class Power_Function : public Function
 {
 public:
-    Power_Function()
-        : Function("pow", {"x2"}, {1.}) {}
-
+    Power_Function() : Function("pow", {"x2"}, {1.}) {}
     void init_truncation() override final { init_range_helper_(); }
-
-    bool is_discrete() const override final
-    {
-        return Function::is_discrete() || (arguments_[0].is_discrete() && x_arg_.is_discrete());
-    }
+    bool is_discrete() const override final { return Function::is_discrete() || (get_arg(0).is_discrete() && x_arg_.is_discrete()); }
 
 protected:
     double raw_function_(double x) const override final { return std::pow(x, arg(0)); }
@@ -577,7 +570,6 @@ class SquareRoot_Function : public Function
 public:
     SquareRoot_Function() : Function("sqrt", {}, {},
                                      0., false, hsp::na::DOUBLE, false) {}
-
     void init_truncation() override final { init_range_min_(); }
 
 protected:
@@ -592,7 +584,6 @@ class Exponential_Function : public Function
 {
 public:
     Exponential_Function() : Function("exp") {}
-
     void init_truncation() override final { init_range_helper_(); }
 
 protected:
@@ -608,7 +599,6 @@ class Logarithm_Function : public Function
 public:
     Logarithm_Function() : Function("log", {}, {},
                                     0., true, hsp::na::DOUBLE, false) {}
-
     void init_truncation() override final { init_range_min_(0., true); }
 
 protected:
@@ -623,7 +613,6 @@ class Sine_Function : public Function
 {
 public:
     Sine_Function() : Function("sin") {}
-
     void init_truncation() override final { init_range_helper_(); }
 
 protected:
@@ -638,7 +627,6 @@ class Cosine_Function : public Function
 {
 public:
     Cosine_Function() : Function("cos") {}
-
     void init_truncation() override final { init_range_helper_(); }
 
 protected:
@@ -653,13 +641,36 @@ class Tangent_Function : public Function
 {
 public:
     Tangent_Function() : Function("tan") {}
-
     void init_truncation() override final { init_range_helper_(); }
 
 protected:
     double raw_function_(double x) const override final { return std::tan(x); }
     double raw_logfunc_(double x) const override final { return std::log(std::tan(x)); }
     double raw_logratio_(double xo, double xn) const override final { return std::log(std::tan(xn) / std::tan(xo)); }
+};
+
+/// Minimum Function.
+class Minimum_Function : public Function
+{
+public:
+    Minimum_Function() : Function("min", {"x2"}, {0.}) {}
+    void init_truncation() override final {}
+    bool is_discrete() const override final { return get_arg(0).is_discrete() && x_arg_.is_discrete(); }
+
+protected:
+    double raw_function_(double x) const override final { return std::min(x, arg(0)); }
+};
+
+/// Maximum Function.
+class Maximum_Function : public Function
+{
+public:
+    Maximum_Function() : Function("max", {"x2"}, {0.}) {}
+    void init_truncation() override final {}
+    bool is_discrete() const override final { return get_arg(0).is_discrete() && x_arg_.is_discrete(); }
+
+protected:
+    double raw_function_(double x) const override final { return std::max(x, arg(0)); }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -782,6 +793,8 @@ std::shared_ptr<Function> compose_func_registries(const std::string &opt,
     }
 
 IMPLEMENT_HOUSEPI_FUNCTION_REGISTRY(ArithmeticRegistry)
+REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Minimum_Function)
+REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Maximum_Function)
 REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Minus_Function)
 REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Subtraction_Function)
 REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Division_Function)

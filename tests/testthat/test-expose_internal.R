@@ -72,7 +72,7 @@ test_that("Infectivity profile behave has expected", {
   x <- seq(0, 15, 0.001)
   y <- test_infec_profile("ferretti20", x)
 
-  trapezoid <- function(x, y) { 
+  trapezoid <- function(x, y) {
     0.5 * sum(diff(x) * (y[-length(x)] + y[-1]))
   }
   z <- test_infec_profile("ferretti20", x, cumul = TRUE)

@@ -65,8 +65,8 @@ character_to_string_list <- function(mylist, max_print = 4) {
   sms <- paste(lapply(mylist[seq_len(max_print)],
                       function(x) paste0("'", x, "'")),
                collapse = ", ")
-  if (length(mylist) > max_print) return(paste0(sms, ", ..."))
-  else return(paste0(sms, "."))
+  if (length(mylist) > max_print) paste0(sms, ", ...")
+  else paste0(sms, ".")
 }
 
 #' @title
@@ -128,9 +128,8 @@ find_closest_match <- function(input, options, min_dist = 1) {
               ifelse(length(options) > 1, "s are:", " is"),
               character_to_string_list(options))
     )
-
-    return(output)
   }
+  output
 }
 
 # wrapper to file.copy with overwrite option
@@ -146,8 +145,8 @@ overwrite <- function(from, to, ...) {
 
 # Define a custom get function (like in Python dictionaries)
 get_val_ <- function(lst, key, default = NA) {
-  if (key %in% names(lst)) return(lst[[key]])
-  else return(default)
+  if (key %in% names(lst)) lst[[key]]
+  else default
 }
 
 #' @title
@@ -176,7 +175,7 @@ helper_load_definition_list <- function(..., from = NULL) {
     stop_h("Found definition(s) without name.")
   }
 
-  return(definitions)
+  definitions
 }
 
 ############################################################################
@@ -488,7 +487,7 @@ DefEncoder <- R6::R6Class(
     },
 
     # Format a call to match housepi standard typed definitions
-    .format_identity = function(func_args) {
+    .fmt_identity = function(func_args) {
       if (is.null(func_args)) NA_character_
       else private$.format_types(func_args)
     },
@@ -535,34 +534,24 @@ DefEncoder <- R6::R6Class(
         rlang::call_name(call) # default
       )
 
-      if (is.na(func_name)) private$.format_identity(func_args)
+      if (is.na(func_name)) private$.fmt_identity(func_args)
       else private$.format_call(func_name, func_args)
     },
 
-    # Extract function or identiyt call from rlang expression.
+    # Extract function or identiy call from rlang expression.
     .extract = function(expr) {
       # read input expression
-      if (is.null(expr)) {
-        return(private$.format_identity(NULL))
-      } else if (inherits(expr, "formula")) {
-        call <- rlang::f_rhs(expr)
-      } else if (rlang::is_call(expr)) {
-        call <- expr
-      } else {
-        return(private$.format_identity(c(x = expr)))
-      }
+      if (is.null(expr)) return(private$.fmt_identity(NULL))
+      else if (inherits(expr, "formula")) call <- rlang::f_rhs(expr)
+      else if (rlang::is_call(expr)) call <- expr
+      else return(private$.fmt_identity(c(x = expr)))
 
-      if (rlang::is_symbol(call)) {
-        # case of a symbol actually looking as a call
-        return(private$.format_identity(c(x = call)))
-      } else if (rlang::call_name(call) == "@") {
-        # case of a raw typed identity
-        return(private$.format_identity(c(x = call)))
-      } else {
-        # standard call
-        return(private$.helper_func_from_call(call))
-      }
-      invisible()
+      # case of a symbol actually looking as a call
+      if (rlang::is_symbol(call)) private$.fmt_identity(c(x = call))
+      # case of a raw typed identity
+      else if (rlang::call_name(call) == "@") private$.fmt_identity(c(x = call))
+      # standard call
+      else private$.helper_func_from_call(call)
     }
   ),
 

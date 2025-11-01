@@ -10,35 +10,35 @@ test_that("Log-likelihood of augmented infection time model is correct", {
       pgamma(x, shape = param$shape, scale = param$scale)
     }
   }
-  
+
   # instantaneous infectivity profile
-  infec_profile_inst <- function(x, param, discr) {  
+  infec_profile_inst <- function(x, param, discr) {
     if (discr) {
       z <- pgamma(1, shape = param$shape, scale = param$scale)
       (pgamma(x + 1, shape = param$shape, scale = param$scale) -
-          pgamma(x, shape = param$shape, scale = param$scale)) / (1 - z)
+         pgamma(x, shape = param$shape, scale = param$scale)) / (1 - z)
     } else {
       dgamma(x, shape = param$shape, scale = param$scale)
     }
   }
-  
+
   # extract individual introduction
   find_introduction <- function(house) {
     subset(subset(house, status > 0), infec_time == min(infec_time))
   }
-  
+
   # transmission rate
   transmission_rate <- function(house, param) {
     param$beta * (param$size_ref / dim(house)[1]) ^ param$gamma
   }
-  
+
   # log-likelihood contribution of susceptible members
   loglike_susceptible <- function(house, param, discr) {
     member_0 <- find_introduction(house)
-    
+
     alpha_cumul <- param$alpha * (param$study_period + member_0$incub_period)
     beta <- transmission_rate(house, param)
-    
+
     output <- 0
     for (i in which(house$status == 0)) {
       roi_cumul <- 0
@@ -51,16 +51,16 @@ test_that("Log-likelihood of augmented infection time model is correct", {
     }
     output
   }
-  
+
   # log-likelihood contribution of infectious members
   loglike_infectious <- function(house, param, discr) {
     member_0 <- find_introduction(house)
     i0 <- rownames(member_0)
     t_intro <- member_0$infec_time
-    
+
     alpha <- param$alpha
     beta <- transmission_rate(house, param)
-    
+
     output <- 0.
     for (i in which(house$status == 1)) {
       if (i != i0) {
@@ -86,14 +86,15 @@ test_that("Log-likelihood of augmented infection time model is correct", {
         }
       }
     }
-    
+
     output
   }
-  
+
   house_obs_loglike <- function(house, param, discr) {
-    loglike_susceptible(house, param, discr) + loglike_infectious(house, param, discr)
+    loglike_susceptible(house, param, discr) +
+      loglike_infectious(house, param, discr)
   }
-  
+
   # dummy dataset
   house <- data.frame(id = sprintf("hh_01_%s", seq(1, 7)),
                       house_id = "hh_01",
@@ -101,22 +102,23 @@ test_that("Log-likelihood of augmented infection time model is correct", {
                       infec_time = c(0, 3, 4, NA, NA, NA, NA),
                       incub_period = c(2, 3, 2, NA, NA, NA, NA))
   house$onset_time <- house$infec_time + house$incub_period
-  
+
   # choice for the parameters
   param <- list(alpha = 1e-04, beta = 0.07, gamma = 0.9,
                 size_ref = 4, study_period = 45, shape = 2, scale = 1.1)
-  
+
   for (discr in c(FALSE, TRUE)) {
-    hhmodel <- new_housepi_model("augmented_infection_time", discr = discr) |> 
-      add_data_wide(house) |> 
-      load_parameter_list(from = param) |> 
+    hhmodel <- new_housepi_model("augmented_infection_time", discr = discr) |>
+      add_data_wide(house) |>
+      load_parameter_list(from = param) |>
       load_augmented_list(infec_time = ~infec_time@D,
                           incub_period = ~incub_period@D,
-                          onset_time = ~onset_time@D) |> 
+                          onset_time = ~onset_time@D) |>
       add_infec_profile(name = "gamma", discr = discr,
                         args = c(shape = ~shape@P, scale = ~scale@P))
-    
-    expect_equal(evaluate_log_lik(hhmodel), house_obs_loglike(house, param, discr))
+
+    expect_equal(evaluate_log_lik(hhmodel),
+                 house_obs_loglike(house, param, discr))
   }
 })
 

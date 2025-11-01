@@ -167,14 +167,12 @@ ylabel <- sprintf("%s (Ref: %s)", rate_id,
 get_param_draws(results) |>
   posterior::summarise_draws() |>
   dplyr::filter(stringr::str_starts(variable, prefix)) |>
-  dplyr::mutate(
-    variable = stringr::str_remove(variable, paste0("^", prefix)) |>
-      stringr::str_replace_all("_", " ")
-  ) |>
+  dplyr::mutate(variable = stringr::str_remove(variable, paste0("^", prefix)) |>
+                  stringr::str_replace_all("_", " ")) |>
   ggplot(aes(x = variable, y = mean)) +
-  geom_hline(yintercept = 1) +
-  geom_point(color = "coral", size = 3) +
-  geom_errorbar(aes(ymin = q5, ymax = q95), width = 0.2, color = "coral") +
+  geom_hline(yintercept = 1, color = "gray") +
+  geom_point() +
+  geom_errorbar(aes(ymin = q5, ymax = q95), width = 0.1) +
   labs(x = "", y = ylabel)
 ```
 

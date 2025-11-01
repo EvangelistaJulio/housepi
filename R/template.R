@@ -187,35 +187,21 @@ open_model_helper_ <- function(path) {
 template_household_model <- function(name = NA_character_,
                                      path = NA_character_,
                                      replace = FALSE) {
-  if (is.na(name)) {
-    # asking for model names
-    show_model_names()
-
-  } else if (is.character(name)) {
-    # asking for description or for copying template
-
-    # if name is a template...
-    if (!is.na(get_template_dir(name))) {
-      # ... ask for template model description
-      if (is.na(path)) open_model_helper_(get_template_dir(name))
-      # ... ask for copying template to folder with model
-      else if (all(file.exists(source_files(path)), !replace)) warning_h(
-        "A model already exists in the specified folder.",
-        "If you want to replace it, run again with option 'replace = TRUE'."
-      )
-      # ... ask for copying template to empty folder
-      else copy_template_to_path(name, path)
-
-    } else {
-      stop_h(
-        sprintf("Provided model template '%s' is unknown.", name),
-        "Show available templates calling 'template_household_model'."
-      )
-    }
-
-  } else {
-    stop_h("Model name is not a character.")
-  }
+  if (is.na(name)) show_model_names()
+  else if (!is.character(name)) stop_h("Model name is not a character.")
+  else if (is.na(get_template_dir(name))) stop_h(
+    sprintf("Model '%s' was not a known template.", name),
+    "Show available templates calling 'template_household_model'."
+  )
+  # asking for template model description
+  else if (is.na(path)) open_model_helper_(get_template_dir(name))
+  # asking for copying template to folder with model
+  else if (all(file.exists(source_files(path)), !replace)) warning_h(
+    "A model already exists in the specified folder.",
+    "If you want to replace it, run again with option 'replace = TRUE'."
+  )
+  # askinf for copying template to empty folder
+  else copy_template_to_path(name, path)
 }
 
 ############################################################################
@@ -247,15 +233,13 @@ set_source_name_ <- function(x, name = NA_character_) {
 #' @noRd
 template_assert_expression <- function(refer_file, expression) {
   # check if reference file exists
-  if (file.exists(refer_file)) {
-    # read the script and extract parameters
-    script <- readChar(refer_file, file.info(refer_file)$size)
+  if (!file.exists(refer_file)) return(FALSE)
+  # read the script and extract parameters
+  script <- readChar(refer_file, file.info(refer_file)$size)
 
-    # extract all calls in .refer source file
-    matches <- stringr::str_match_all(script, expression)
-    return(length(unlist(matches)) > 0)
-  }
-  FALSE
+  # extract all calls in .refer source file
+  matches <- stringr::str_match_all(script, expression)
+  length(unlist(matches)) > 0
 }
 
 #' @title

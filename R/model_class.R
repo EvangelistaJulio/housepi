@@ -38,17 +38,16 @@ HousepiModel <- R6::R6Class(
     .augm = NULL,
     .group_rates = NULL,
     .infec_profile = NULL,
+    .crash_house = NA,
 
     # @description
     # Dataset headers required by implementation file and other definitions.
     .get_all_required_data = function() {
       required <- c()
       if (!private$.is_blank()) required <- private$.data_required()
-      c(
-        required, # by the model
+      c(required, # by the model
         private$.augm$data_required, # by augmented variable
-        private$.infec_profile$data_required # by infectivity profile
-      )
+        private$.infec_profile$data_required) # by infectivity profile
     },
 
     # @description
@@ -126,59 +125,55 @@ HousepiModel <- R6::R6Class(
       refer_file <- private$.reference()
       regexp <- ".multiplicity\\s*\\(\\s*\\)"
 
-      defs <- NULL
-      if (template_assert_expression(refer_file, regexp)) {
+      if (!template_assert_expression(refer_file, regexp)) return(NULL)
 
-        # note: this might be a modeler error
-        if (length(private$.get_all_augm()) > 0) warning_h(
-          "Model with augmentated variable called multiplicity engine."
-        )
+      # note: this might be a modeler error
+      if (length(private$.get_all_augm()) > 0) warning_h(
+        "Model with augmentated variable called multiplicity engine."
+      )
 
-        # load data_wide
-        # UPDATE: this "back & forth" of data_wide is not optimal!
-        data_wide <- self$data_wide
+      # load data_wide
+      # UPDATE: this "back & forth" of data_wide is not optimal!
+      data_wide <- self$data_wide
 
-        headers <- c(
-          # data headers required by implementation
-          private$.get_all_required_data(),
-          # data headers required by group rates
-          unlist(lapply(
-            private$.group_rates$logic_tables,
-            function(x) unlist(lapply(x, names))
-          ))
-        )
-        # remove logic tables auxiliary column names
-        headers <- setdiff(unique(headers), c("n", "param_name"))
+      headers <- c(
+        # data headers required by implementation
+        private$.get_all_required_data(),
+        # data headers required by group rates
+        unlist(lapply(
+          private$.group_rates$logic_tables,
+          function(x) unlist(lapply(x, names))
+        ))
+      )
+      # remove logic tables auxiliary column names
+      headers <- setdiff(unique(headers), c("n", "param_name"))
 
-        # list of splitted data by house_id
-        split_data <- split(data_wide[c("status", headers)], data_wide$house_id)
-        # sort individuals in each household by all columns
-        sorted_data <- lapply(split_data, function(x) {
-          x[do.call(order, x), , drop = FALSE]
-        })
-        # create hash strings from sorted rows
-        hashes <- sapply(sorted_data, function(x) {
-          paste(apply(x, 1, paste, collapse = "-"), collapse = "|")
-        })
-        # regroup households by hash
-        hash_groups <- split(names(hashes), hashes)
+      # list of splitted data by house_id
+      split_data <- split(data_wide[c("status", headers)], data_wide$house_id)
+      # sort individuals in each household by all columns
+      sorted_data <- lapply(split_data, function(x) {
+        x[do.call(order, x), , drop = FALSE]
+      })
+      # create hash strings from sorted rows
+      hashes <- sapply(sorted_data, function(x) {
+        paste(apply(x, 1, paste, collapse = "-"), collapse = "|")
+      })
+      # regroup households by hash
+      hash_groups <- split(names(hashes), hashes)
 
-        # create summary table with class_id and multiplicity
-        multi_hh_table <- data.frame(class_id = sapply(hash_groups, `[`, 1),
-                                     multiplicity = lengths(hash_groups),
-                                     stringsAsFactors = FALSE)
+      # create summary table with class_id and multiplicity
+      multi_hh_table <- data.frame(class_id = sapply(hash_groups, `[`, 1),
+                                   multiplicity = lengths(hash_groups))
 
-        # use hashes to produce multiplicity table
-        defs <- data.frame(house_id = unique(data_wide$house_id),
-                           multiplicity = 0,
-                           class_id = NA_integer_,
-                           stringsAsFactors = FALSE)
-        rownames(defs) <- defs$house_id
-        defs[multi_hh_table$class_id, "multiplicity"] <- multi_hh_table$multiplicity
+      # use hashes to produce multiplicity table
+      defs <- data.frame(house_id = unique(data_wide$house_id),
+                         multiplicity = 0,
+                         class_id = NA_integer_)
+      rownames(defs) <- defs$house_id
+      defs[multi_hh_table$class_id, "multiplicity"] <- multi_hh_table$multiplicity
 
-        for (i in seq_len(nrow(multi_hh_table))) {
-          defs[hash_groups[[i]], "class_id"] <- multi_hh_table$class_id[i]
-        }
+      for (i in seq_len(nrow(multi_hh_table))) {
+        defs[hash_groups[[i]], "class_id"] <- multi_hh_table$class_id[i]
       }
       defs
     },
@@ -191,30 +186,29 @@ HousepiModel <- R6::R6Class(
     # Pre-build to deal with group rates.
     .build_group_rates = function() {
       # proceed only if definitions exist and data loaded
-      if (length(private$.group_rates$defs) > 0) {
-        if (length(private$.cols_data_wide) > 0) {
-          # load data_wide
-          # UPDATE: this "back & forth" of data_wide is not optimal!
-          # UPDATE: count in the wrapper while storing data_wide_levels
-          data_wide <- self$data_wide
+      if (length(private$.group_rates$defs) == 0) invisible(self)
+      if (length(private$.cols_data_wide) > 0) {
+        # load data_wide
+        # UPDATE: this "back & forth" of data_wide is not optimal!
+        # UPDATE: count in the wrapper while storing data_wide_levels
+        data_wide <- self$data_wide
 
-          # implement group rates
-          private$.group_rates$implement(data_wide, private$.info_data_wide)
+        # implement group rates
+        private$.group_rates$implement(data_wide, private$.info_data_wide)
 
-          # append parameter definitions if missing
-          new_parameters <- private$.group_rates$parameters
-          # find missing parameter definitions
-          mask <- setdiff(names(new_parameters), private$.param$defs$name)
-          new_parameters <- new_parameters[mask]
-          if (length(new_parameters) > 0) {
-            private$.param$load_list(from = new_parameters, append = TRUE)
-          }
-        } else {
-          warning_h(
-            "Missing data needed for building group rates.",
-            "Ensure to provide all necessary data before proceeding."
-          )
+        # append parameter definitions if missing
+        new_parameters <- private$.group_rates$parameters
+        # find missing parameter definitions
+        mask <- setdiff(names(new_parameters), private$.param$defs$name)
+        new_parameters <- new_parameters[mask]
+        if (length(new_parameters) > 0) {
+          private$.param$load_list(from = new_parameters, append = TRUE)
         }
+      } else {
+        warning_h(
+          "Missing data needed for building group rates.",
+          "Ensure to provide all necessary data before proceeding."
+        )
       }
 
       invisible(self)
@@ -222,12 +216,12 @@ HousepiModel <- R6::R6Class(
 
     # @description
     # Get individual for blank model augmented draws.
+    # UPDATE: not robust if data has only default columns
     .get_blank_id_draws = function(id_draws) {
       # if no default columns, assume debugging mode
       if (private$.is_blank() &&
             is.null(id_draws) &&
             !is.null(private$.augm$defs)) {
-        # UPDATE: not robust if data has only default columns
         if (length(setdiff(private$.cols_data_wide,
                            c("house_id", "id", "status"))) == 0) {
           id_draws <- template_blank_data_wide_()$id[1]
@@ -243,6 +237,8 @@ HousepiModel <- R6::R6Class(
                            chains = 1, threads = 1,
                            id_draws = NULL,
                            seed = NA_integer_, progress = FALSE) {
+      # reset crash house
+      private$.crash_house <- NA
       # import setup
       private$.rcpp$import_setup(char_setup_input_(list(
         steps = as.integer(steps),
@@ -324,6 +320,22 @@ HousepiModel <- R6::R6Class(
     },
 
     # @description
+    # Sugar for log-likelihood computation errors in try-catchh.
+    .helper_log_lik_error = function(e) {
+      h <- stringr::str_extract(e$message, "(?<=household ')[^']+(?=')")
+      i <- stringr::str_extract(e$message, "(?<=individual ')[^']+(?=')")
+      if (!is.na(i)) h <- subset(self$data_wide, id == i)$house_id
+      if (!stringr::str_count(e$message, "While computing") ||
+            is.na(h)) stop_h(e$message)
+      private$.crash_house <- h
+      # store house_id somewhere
+      stop_h(
+        e$message,
+        "Use '$export_house_snapshot' to show last status of the hosuehold."
+      )
+    },
+
+    # @description
     # Estimate the model logevidence (or marginal likelihood).
     # It uses the method of power posteriors with different available schemes.
     #
@@ -364,8 +376,7 @@ HousepiModel <- R6::R6Class(
       mask <- c("inv_temper", "mean_log_lik", "var_log_lik")
       output$detail <- as.data.frame(output[mask])
       output[mask] <- NULL
-
-      return(output)
+      output
     }
   ),
 
@@ -769,7 +780,9 @@ HousepiModel <- R6::R6Class(
     evaluate_log_lik = function(seed = NA_integer_) {
       # internal build function
       private$.build_full(seed = seed)
-      return(private$.rcpp$evaluate_log_lik())
+      tryCatch(output <- private$.rcpp$evaluate_log_lik(),
+               error = function(e) private$.helper_log_lik_error(e))
+      output
     },
 
     #' @description
@@ -794,9 +807,10 @@ HousepiModel <- R6::R6Class(
                           thin = thin, adapt = adapt,
                           chains = chains, threads = threads,
                           id_draws = id_draws, seed = seed, progress = progress)
-      # infer method from cpp model object
-      private$.rcpp$infer()
-      return(HousepiPosteriorDraws$new(private$.name, private$.rcpp))
+      # infer method from cpp model object and deal with errors
+      tryCatch(private$.rcpp$infer(),
+               error = function(e) private$.helper_log_lik_error(e))
+      HousepiPosteriorDraws$new(private$.name, private$.rcpp)
     },
 
     #' @description
@@ -816,22 +830,31 @@ HousepiModel <- R6::R6Class(
     #'
     #' @param house_id
     #' A `character(1)` with the ID of the household to export.
+    #' Default is id of household that caused an error for loglikelihood.
     #'
     #' @return `list`
-    export_house_snapshot = function(house_id) {
+    export_house_snapshot = function(house_id = NA) {
+      # fetch house id
+      if (is.na(house_id)) {
+        if (is.na(private$.crash_house)) stop_h("No 'house_id' was provided.")
+        house_id <- private$.crash_house
+      }
       house_id <- as.character(house_id)
+      # export household snapshot
       output <- private$.rcpp$export_house_snapshot(house_id)
       output$data_wide <- private$.refactor_data_wide(output$data_wide)
-      output$data_long <- private$.refactor_data_long(output$data_long)
-
-      # first draft to reformat infectivity profile output
-      lst <- output$infec_profile
-      df <- data.frame(id = lst$id, discr = lst$discr, name = lst$name,
-                       stringsAsFactors = FALSE)
-      df$args <- lst$args
-      df$range <- lst$range
-      output$infec_profile <- df
-
+      if (all(dim(output$data_long) == 0)) output$data_long <- NULL
+      else output$data_long <- private$.refactor_data_long(output$data_long)
+      if (all(dim(output$group_rates) == 0)) output$group_rates <- NULL
+      if (all(dim(output$infec_profile) == 0)) {
+        output$infec_profile <- NULL
+      } else {
+        lst <- output$infec_profile
+        df <- data.frame(id = lst$id, discr = lst$discr, name = lst$name,
+                         min = lst$min, max = lst$max)
+        df$args <- lst$args
+        output$infec_profile <- df
+      }
       output
     },
 

@@ -169,30 +169,28 @@ IndividualSampler <- R6::R6Class(
       private$.enc_dict <- list()
       for (col in names(enc_dict)) {
         # accept only lists
-        if (is.list(enc_dict[[col]])) {
-          if ("breaks" %in% names(enc_dict[[col]])) {
-            # if breaks, consider also lower than min and larger than max
-            x <- enc_dict[[col]]$breaks
-            private$.num_feats[[col]] <- length(x) + 2
-            private$.enc_dict[[col]]$x <- x
-            private$.enc_dict[[col]]$type <- "breaks"
+        if (!is.list(enc_dict[[col]])) stop_h(
+          "The encoding dictionary must contains only lists."
+        )
+        if ("breaks" %in% names(enc_dict[[col]])) {
+          # if breaks, consider also lower than min and larger than max
+          x <- enc_dict[[col]]$breaks
+          private$.num_feats[[col]] <- length(x) + 2
+          private$.enc_dict[[col]]$x <- x
+          private$.enc_dict[[col]]$type <- "breaks"
 
-          } else if ("levels" %in% names(enc_dict[[col]])) {
-            # if levels, consider also unknown case
-            x <- enc_dict[[col]]$levels
-            private$.num_feats[[col]] <- length(x) + 1
-            private$.enc_dict[[col]]$x <- x
-            private$.enc_dict[[col]]$type <- "levels"
-
-          } else {
-            stop_h(
-              sprintf("Incomplete encoding for feature '%s'", col),
-              "Provide one between 'breaks' ans 'levels'."
-            )
-          }
+        } else if ("levels" %in% names(enc_dict[[col]])) {
+          # if levels, consider also unknown case
+          x <- enc_dict[[col]]$levels
+          private$.num_feats[[col]] <- length(x) + 1
+          private$.enc_dict[[col]]$x <- x
+          private$.enc_dict[[col]]$type <- "levels"
 
         } else {
-          stop_h("The encoding dictionary must contains only lists.")
+          stop_h(
+            sprintf("Incomplete encoding for feature '%s'", col),
+            "Provide one between 'breaks' ans 'levels'."
+          )
         }
       }
 

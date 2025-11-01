@@ -33,7 +33,7 @@ hhmodel <- new_housepi_model("chain_binomial") |>
 # estimate parameters
 results <- hhmodel |>
   infer(steps = 20000, burnin = 1000, thin = 8,
-        adapt = 1000, chains = 3, threads = 1)
+        adapt = 1000, chains = 3, threads = 1, progress = FALSE)
 estimates <- get_param_draws(results) |>
   posterior::summarise_draws()
 estimates
@@ -49,7 +49,7 @@ We do so by computing the expected numbers of cases per household size according
 expec <- expec_cases_by_house_size(hhmodel, results, progress = FALSE)
 ```
 
-To show both observed and expected cases by size, we can extract the formatted cases table from our output object as follows:
+To show both observed and expected cases by size, we can extract the formatted cases table from our output object as follows.
 
 ```{r}
 # for this part of the analysis we consider only house sizes up to 5
@@ -63,14 +63,12 @@ combined <- cases_df$mean
 mask_exp <- cases_df$mean$distr == "Expected"
 mask_cols <- setdiff(names(cases_df$mean), c("house_size", "distr"))
 
-# format mean with its lower and upper credibile interval bounds
-combined[mask_exp, mask_cols] <- mapply(
-  function(m, low, up) {
-    ifelse(is.na(m), NA, sprintf("%.0f [%.0f, %.0f]", m, low, up))
-  },
+# format mean with its lower and upper credible interval bounds
+combined[mask_exp, mask_cols] <- format_credible_intervals(
   cases_df$mean[mask_exp, mask_cols],
   cases_df$q5[mask_exp, mask_cols],
-  cases_df$q95[mask_exp, mask_cols]
+  cases_df$q95[mask_exp, mask_cols],
+  as_integer = TRUE
 )
 
 # avoid separate_header regular expression to split house_size
@@ -118,13 +116,13 @@ col_dict <- c(Expected = "coral", Observed = "black")
 # extract values for secondary attack rate
 ggplot(expec$formatted_sec_attack_rate, aes(x = house_size)) +
   # expected SAR
-  geom_point(aes(y = mean, color = "Expected"), size = 2) +
+  geom_point(aes(y = mean, color = "Expected")) +
   geom_errorbar(aes(y = mean, ymin = q5, ymax = q95, color = "Expected"),
-                width = 0.2) +
+                width = 0.1) +
   # observed SAR
-  geom_point(aes(y = observed, color = "Observed"), size = 2) +
+  geom_point(aes(y = observed, color = "Observed")) +
   # annotate observed counts
-  geom_text(aes(x = house_size + 0.3, y = observed,
+  geom_text(aes(x = house_size + 0.3, y = observed, 
                 label = sprintf("[%s]", counts)),
             color = col_dict["Observed"]) +
   scale_color_manual(values = col_dict) +

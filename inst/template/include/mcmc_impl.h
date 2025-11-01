@@ -358,7 +358,7 @@ public:
 #ifdef _HOUSEPI_RCPP
         void rcpp_import(SEXP input);
 
-        Rcpp::DataFrame rcpp_snapshot(const std::string &house_id) const;
+        Rcpp::DataFrame rcpp_snapshot(const Household &house) const;
         Rcpp::DataFrame rcpp_export(const str_vec &columns, bool is_status) const;
         Rcpp::DataFrame rcpp_summarise_cases() const;
         Rcpp::DataFrame rcpp_summarise_house_sizes() const;
@@ -458,7 +458,7 @@ public:
 #ifdef _HOUSEPI_RCPP
         void rcpp_import(SEXP input);
 
-        Rcpp::DataFrame rcpp_snapshot(const std::string &house_id) const;
+        Rcpp::DataFrame rcpp_snapshot(const Household &house) const;
         Rcpp::DataFrame rcpp_export() const;
 #else
         void read(const std::string &pathtofile);
@@ -497,7 +497,7 @@ public:
 
 #ifdef _HOUSEPI_RCPP
         void rcpp_import(SEXP input);
-        Rcpp::DataFrame rcpp_snapshot(const std::string &house_id) const;
+        Rcpp::DataFrame rcpp_snapshot(const Household &house) const;
 #else
         void read(const std::string &pathtofile);
 #endif
@@ -551,18 +551,10 @@ public:
         double inst(const Individual *member, double t) { return (this->*inst_)(member, t); }
         double cumul(const Individual *member, double t) { return (this->*cumul_)(member, t); }
 
-        /// Get shared pointer to profile.
-        std::shared_ptr<Distribution> get_profile() const
-        {
-            if (profile_ == nullptr)
-                throw std::invalid_argument("Infectivity profile is not defined.");
-            return profile_;
-        };
-
 #ifdef _HOUSEPI_RCPP
         void rcpp_import(SEXP input);
         Rcpp::List rcpp_export() const;
-        Rcpp::List rcpp_snapshot(const std::string &house_id) const;
+        Rcpp::List rcpp_snapshot(const Household &house) const;
 #else
         void read(const std::string &pathtofile);
 #endif
@@ -570,7 +562,7 @@ public:
     private:
         const std::string section_name_ = "infectivity profile";
         MCMC::Impl &pImpl_; // pointer to external class
-        std::shared_ptr<Distribution> profile_ = nullptr;
+        std::shared_ptr<Distribution> profile_;
 
         // lookup table
         bool is_discrete_requested_ = false;
@@ -662,7 +654,7 @@ public:
 #ifdef _HOUSEPI_RCPP
         void rcpp_import(SEXP input);
         Rcpp::DataFrame rcpp_export_data_wide() const;
-        Rcpp::DataFrame rcpp_snapshot(const std::string &house_id) const;
+        Rcpp::DataFrame rcpp_snapshot(const Household &house) const;
 #else
         void read(const std::string &pathtofile);
 #endif

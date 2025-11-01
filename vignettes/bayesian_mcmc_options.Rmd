@@ -27,6 +27,8 @@ In this vignette we present all available options for the choice of the prior an
 To perform the sampling we consider the "blank" model, i. e. a data independent template model, with log-likelihood always equal to zero.
 Here's the full list of available continuos distributions present in `housepi`:
 ```{r}
+#| warning: false
+
 # real distributions in housepi
 continuos_distri <- c("uniform", "normal", "lognormal", "gamma",
                       "weibull", "rayleigh", "beta", "exponential")
@@ -67,8 +69,6 @@ new_housepi_model("blank") |>
   geom_vline(data = data.frame(Parameter = c("below", "above", "both", "both"),
                                xintercept = c(-1, 1, -1, 1)),
              aes(xintercept = xintercept),
-             colour = "coral",
-             linewidth = 1,
              linetype = 2)
 ```
 

@@ -36,7 +36,7 @@ test_that("Deep clone works as expected", {
 test_that("Log-likelihood traces and pointwise traces are coherent", {
   results <- new_housepi_model("chain_binomial") |>
     load_parameter_template() |>
-    add_data_wide(housepi::survey) |> 
+    add_data_wide(housepi::survey) |>
     infer(steps = 10, thin = 1, adapt = 0, burnin = 0)
 
   pointwise <- results$log_lik_draws |>
