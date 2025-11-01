@@ -721,14 +721,14 @@ str_vec DistributionRegistry::get_options() const
     return keys;
 }
 
-std::shared_ptr<Distribution> DistributionRegistry::get_distr(const std::string &opt) const
+std::unique_ptr<Distribution> DistributionRegistry::get_distr(const std::string &opt) const
 {
     if (factory_map_.count(opt))
         return factory_map_.find(opt)->second();
     return nullptr;
 }
 
-std::shared_ptr<Function> DistributionRegistry::get(const std::string &opt, bool is_primitive) const
+std::unique_ptr<Function> DistributionRegistry::get(const std::string &opt, bool is_primitive) const
 {
     auto output = get_distr(opt);
     if (is_primitive)
@@ -742,7 +742,7 @@ std::shared_ptr<Function> DistributionRegistry::get(const std::string &opt, bool
 /////////////////////////////////  Distribution Registry : setter  //////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-std::shared_ptr<Distribution> compose_distr_registries(const std::string &opt,
+std::unique_ptr<Distribution> compose_distr_registries(const std::string &opt,
                                                        const std::string &name,
                                                        const std::vector<const DistributionRegistry *> &registries)
 {
@@ -753,7 +753,7 @@ std::shared_ptr<Distribution> compose_distr_registries(const std::string &opt,
             "No registries were provided for '" + name + "'.");
 
     if (hsp::na::is(opt))
-        return std::make_shared<Distribution>();
+        return std::make_unique<Distribution>();
 
     for (auto &r : registries)
     {

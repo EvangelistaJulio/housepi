@@ -44,7 +44,7 @@ public:
 
     const std::string &name() const { return name_; }
     virtual str_vec get_options() const;
-    virtual std::shared_ptr<Function> get(const std::string &opt, bool is_primitive) const;
+    virtual std::unique_ptr<Function> get(const std::string &opt, bool is_primitive) const;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////  FunctionRegistry : setter  //////////////////////////////
@@ -56,12 +56,12 @@ public:
         static_assert(std::is_base_of<Function, T>::value,
                       "T must be derived from Function");
         factory_map_[T().name()] = []()
-        { return std::make_shared<T>(); };
+        { return std::make_unique<T>(); };
     }
 
 private:
     std::string name_;
-    u_dict<std::function<std::shared_ptr<Function>()>> factory_map_ = {};
+    u_dict<std::function<std::unique_ptr<Function>()>> factory_map_ = {};
 };
 
 /// Separate functions registries.
@@ -99,7 +99,7 @@ struct StaticFunctionRegistatror
 #define REGISTER_USER_FUNCTION(T) REGISTER_HOUSEPI_FUNCTION(UserFuncRegistry, T)
 
 /// Compose registries to get a function from them.
-std::shared_ptr<Function> compose_func_registries(const std::string &opt,
+std::unique_ptr<Function> compose_func_registries(const std::string &opt,
                                                   const std::string &name,
                                                   const std::vector<const FunctionRegistry *> &registries,
                                                   bool is_primitive = false);

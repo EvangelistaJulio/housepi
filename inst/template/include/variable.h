@@ -134,8 +134,8 @@ public:
              bool is_const = true,
              const hsp::parse::Definition &expr = hsp::na::STRING,
              bool is_prim = false)
-        : pDistr_(std::make_shared<Distribution>()),
-          pProp_(std::make_shared<Proposer>())
+        : pDistr_(std::make_unique<Distribution>()),
+          pProp_(std::make_unique<Proposer>())
     {
         this->set_name(name, err_type);
         init(value, is_const, expr, is_prim);
@@ -229,6 +229,7 @@ protected:
     Attribute loc_;                       /// location parameter
     bool is_constant_ = true;             /// user flag for wheter constant or not
 
+    // NOTE: Household must be copyable for simulations -> Variable pointers must be shared
     std::shared_ptr<Distribution> pDistr_; /// prior\model distribution of the variable
     std::shared_ptr<Proposer> pProp_;      /// Monte Carlo proposer
 

@@ -562,7 +562,7 @@ public:
     private:
         const std::string section_name_ = "infectivity profile";
         MCMC::Impl &pImpl_; // pointer to external class
-        std::shared_ptr<Distribution> profile_;
+        std::unique_ptr<Distribution> profile_;
 
         // lookup table
         bool is_discrete_requested_ = false;

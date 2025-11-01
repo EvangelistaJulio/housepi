@@ -746,7 +746,7 @@ str_vec FunctionRegistry::get_options() const
     return keys;
 }
 
-std::shared_ptr<Function> FunctionRegistry::get(const std::string &opt, bool is_primitive) const
+std::unique_ptr<Function> FunctionRegistry::get(const std::string &opt, bool is_primitive) const
 {
     auto output = factory_map_.find(opt)->second();
     if (is_primitive)
@@ -756,7 +756,7 @@ std::shared_ptr<Function> FunctionRegistry::get(const std::string &opt, bool is_
     return output;
 }
 
-std::shared_ptr<Function> compose_func_registries(const std::string &opt,
+std::unique_ptr<Function> compose_func_registries(const std::string &opt,
                                                   const std::string &name,
                                                   const std::vector<const FunctionRegistry *> &registries,
                                                   bool is_primitive)
@@ -768,7 +768,7 @@ std::shared_ptr<Function> compose_func_registries(const std::string &opt,
             "No registries were provided for '" + name + "'.");
 
     if (hsp::na::is(opt))
-        return std::make_shared<Function>();
+        return std::make_unique<Function>();
 
     for (const auto &r : registries)
     {

@@ -47,9 +47,9 @@ public:
 	/// Override get_options method of generic function with distribution.
 	str_vec get_options() const override final;
 	/// Method to get a distribution.
-	virtual std::shared_ptr<Distribution> get_distr(const std::string &opt) const;
+	virtual std::unique_ptr<Distribution> get_distr(const std::string &opt) const;
 	/// Override get method of generic function with distribution.
-	std::shared_ptr<Function> get(const std::string &opt, bool is_primitive) const override final;
+	std::unique_ptr<Function> get(const std::string &opt, bool is_primitive) const override final;
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////  Distribution Registry : setter  ////////////////////////////
@@ -61,11 +61,11 @@ public:
 		static_assert(std::is_base_of<Distribution, T>::value,
 					  "T must be derived from Distribution");
 		factory_map_[T().name()] = []()
-		{ return std::make_shared<T>(); };
+		{ return std::make_unique<T>(); };
 	}
 
 private:
-	std::unordered_map<std::string, std::function<std::shared_ptr<Distribution>()>> factory_map_ = {};
+	std::unordered_map<std::string, std::function<std::unique_ptr<Distribution>()>> factory_map_ = {};
 };
 
 /// Register a Distribution derived class T to DistributionRegistry derived class C.
@@ -112,7 +112,7 @@ struct StaticDistributionRegistatror
 #define REGISTER_USER_INFEC_PROFILE(T) REGISTER_HOUSEPI_DISTRIBUTION(InfecProfileRegistry, T)
 
 /// Compose registries to get a distribution from them.
-std::shared_ptr<Distribution> compose_distr_registries(const std::string &opt,
+std::unique_ptr<Distribution> compose_distr_registries(const std::string &opt,
 													   const std::string &name,
 													   const std::vector<const DistributionRegistry *> &registries);
 

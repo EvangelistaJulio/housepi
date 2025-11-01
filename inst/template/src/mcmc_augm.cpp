@@ -303,15 +303,15 @@ void MCMC::Impl::InfecProfile::build_augmented_profile_(const u_dict<std::string
     // UPDATE: not very clean, maybe refactor
     build_generic_profile_({{"func", hsp::parse::Definition(deflist.at("func")).root.func},
                             {"discr", deflist.at("discr")}});
-
     // drop generic definition
     clear_lookup_();
     profile_ = std::make_unique<Distribution>();
+    
     inst_ = &InfecProfile::do_inst_augm_;
     cumul_ = &InfecProfile::do_cumul_augm_;
 
     // initialize for instantaneous and cumulative profiles
-    bool is_discrete = hsp::str::tobool(deflist.at("discr"));
+    const bool is_discrete = hsp::str::tobool(deflist.at("discr"));
 
     // match infectivity profile and augmented variable definition
     augm_infec_profile_deflist_ = {

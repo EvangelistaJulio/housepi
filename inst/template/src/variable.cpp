@@ -152,23 +152,23 @@ public:
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Switchboard to select the custom metropolis proposer rule.
-std::shared_ptr<Proposer> proposer_switch(const std::string &rule_name = hsp::na::STRING,
+std::unique_ptr<Proposer> proposer_switch(const std::string &rule_name = hsp::na::STRING,
                                           double rule_scale = hsp::na::DOUBLE,
                                           bool is_discrete = false)
 {
     const str_vec options = {"sample", "uniform", "normal", "lognormal"};
 
     if (hsp::na::is(rule_name))
-        return std::make_shared<Proposer>(std::make_shared<Distribution>());
+        return std::make_unique<Proposer>(std::make_unique<Distribution>());
 
     if (rule_name == "uniform")
-        return std::make_shared<Uniform_Proposer>(rule_scale, is_discrete);
+        return std::make_unique<Uniform_Proposer>(rule_scale, is_discrete);
 
     if (rule_name == "normal")
-        return std::make_shared<Normal_Proposer>(rule_scale, is_discrete);
+        return std::make_unique<Normal_Proposer>(rule_scale, is_discrete);
 
     if (rule_name == "lognormal")
-        return std::make_shared<Lognorm_Proposer>(rule_scale, is_discrete);
+        return std::make_unique<Lognorm_Proposer>(rule_scale, is_discrete);
 
     throw std::invalid_argument(
         "Unknown proposer rule '" + rule_name + "'." +
@@ -363,7 +363,7 @@ void Variable::init_proposer(const std::string &rule_name, double rule_scale)
 /// Helper with proposer initialization of direct sample from prior/model.
 void Variable::helper_init_sample_proposer_()
 {
-    pProp_ = std::make_shared<Sample_Proposer>();
+    pProp_ = std::make_unique<Sample_Proposer>();
 
     if (loc_.is_empty())
     {
