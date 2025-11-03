@@ -118,11 +118,11 @@ void MCMC::Impl::InfecProfile::init_template(u_dict<std::string> deflist)
 
     try
     {
-        if (!deflist.count("func"))
+        if (!deflist.count("name"))
             throw std::invalid_argument(
                 "A function name was missing for infectivity profile template.");
 
-        const str_vec file_headers = {"func", "discr", hsp::params::MAX};
+        const str_vec file_headers = {"name", "discr", hsp::params::MAX};
 
         for (const std::string &key : file_headers)
             if (!deflist.count(key))
@@ -228,21 +228,22 @@ void MCMC::Impl::InfecProfile::build(const u_dict<std::string> &deflist)
     if (deflist.empty())
         return;
 
-    const str_vec file_headers = {"func", "discr", hsp::params::MAX};
+    // NOTE: at the moment I am ignoring minimum
+    const str_vec file_headers = {"name", "discr", hsp::params::MIN, hsp::params::MAX};
 
     // check entries
     hsp::str::assert_no_unused_entries(hsp::read::list_headers(deflist), file_headers);
 
     // check definition list has a function
-    if (!deflist.count("func"))
+    if (!deflist.count("name"))
         throw std::invalid_argument(
             "A function name choice was missing in the infectivity profile definition.");
-    if (hsp::parse::Definition(deflist.at("func")).is_na())
+    if (hsp::parse::Definition(deflist.at("name")).is_na())
         throw std::invalid_argument(
             "Provided NA as a function name in the infectivity profile definition.");
 
     // check if definition is generic or augmented
-    bool is_augm = hsp::parse::Definition(deflist.at("func")).is_augmented_depen() ||
+    bool is_augm = hsp::parse::Definition(deflist.at("name")).is_augmented_depen() ||
                    hsp::parse::Definition(deflist.at(hsp::params::MAX)).is_augmented_depen();
 
     if (is_augm)
@@ -257,7 +258,7 @@ void MCMC::Impl::InfecProfile::build_generic_profile_(const u_dict<std::string> 
     inst_ = &InfecProfile::do_inst_default_;
     cumul_ = &InfecProfile::do_cumul_default_;
 
-    hsp::parse::Definition parser(hsp::parse::Definition(deflist.at("func")));
+    hsp::parse::Definition parser(hsp::parse::Definition(deflist.at("name")));
     profile_ = compose_distr_registries(parser.root.func,
                                         "infectivity profile",
                                         {&InfecProfileRegistry::inst(),
@@ -301,7 +302,7 @@ void MCMC::Impl::InfecProfile::build_augmented_profile_(const u_dict<std::string
     // use generic build to check profile name at this stage
     // NOTE: this also control for discretization
     // UPDATE: not very clean, maybe refactor
-    build_generic_profile_({{"func", hsp::parse::Definition(deflist.at("func")).root.func},
+    build_generic_profile_({{"name", hsp::parse::Definition(deflist.at("name")).root.func},
                             {"discr", deflist.at("discr")}});
     // drop generic definition
     clear_lookup_();
@@ -317,7 +318,7 @@ void MCMC::Impl::InfecProfile::build_augmented_profile_(const u_dict<std::string
     augm_infec_profile_deflist_ = {
         {"name", str_vec({hsp::infprof::INSTANTANEOUS, hsp::infprof::CUMULATIVE})},
         {"status", str_vec(2, hsp::na::STRING)}, // UPDATE
-        {"func", str_vec(2, deflist.at("func"))},
+        {"func", str_vec(2, deflist.at("name"))},
         {"fcumul", {"false", "true"}},
         {"value", str_vec(2, hsp::na::STRING)},
         {"const", str_vec(2, "false")},

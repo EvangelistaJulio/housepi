@@ -4,6 +4,7 @@
 \alias{get_parameters}
 \alias{get_augmented}
 \alias{get_group_rates}
+\alias{get_infec_profile}
 \title{Get definitions}
 \usage{
 get_parameters(hhmodel, ...)
@@ -11,6 +12,8 @@ get_parameters(hhmodel, ...)
 get_augmented(hhmodel, ...)
 
 get_group_rates(hhmodel, ...)
+
+get_infec_profile(hhmodel, ...)
 }
 \arguments{
 \item{hhmodel}{\code{HousepiModel} object.}

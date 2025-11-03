@@ -1,5 +1,6 @@
 # source loads
 source("R/utils.R")
+source("R/definition_encoder.R")
 source("R/template.R")
 source("R/augmented.R")
 source("R/parameter.R")

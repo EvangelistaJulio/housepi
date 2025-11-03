@@ -368,6 +368,13 @@ load_group_rate_list <- function(hhmodel, ..., from = NULL, append = FALSE) {
 ############################################################################
 ############################################################################
 
+#' @rdname get_definitions
+#' @export
+get_infec_profile <- function(hhmodel, ...) {
+  stopifnot(inherits(hhmodel, "HousepiModel"))
+  hhmodel$infec_profile
+}
+
 #' @title Add infectivity profile definition
 #' @description
 #' Add definition of infectivity profile.

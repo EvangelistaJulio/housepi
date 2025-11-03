@@ -30,13 +30,14 @@
 /// Initialize infectivity profile.
 void Model::init_advanced_setup()
 {
-	// template infectivity profile (otherwise user defined)
-	init_infec_profile_template({{"func", "gamma_meanvar|mean:var|{2|N}:{1|N}"}});
-
 #ifdef _HOUSEPI_DISCRETE_TIME
 	request_augm_discrete("infec_time");
 	request_infec_profile_discrete();
 #endif
+
+	// template infectivity profile (otherwise user defined) 
+	// UPDATE: this should become more user friendly
+	init_infec_profile_template({{"name", "gamma_meanvar|mean:var|{2|N}:{1|N}"}});
 }
 
 /// Initialize parameters and augmented variables.

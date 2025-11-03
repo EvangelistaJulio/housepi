@@ -40,7 +40,7 @@ HousepiParameter <- R6::R6Class(
 
       if (!is.null(args)) {
         # prior arguments
-        parsed <- DefEncoder$new(as.list(args))
+        parsed <- DefinitionEncoder$new(as.list(args))
         prior <- parsed$combine_to_call(prior)
       }
 
@@ -148,8 +148,8 @@ HousepiParameter <- R6::R6Class(
       if (is.na(const)) const <- is.na(prior)
 
       # parse initial value
-      if (is.na(DefEncoder$new(value)$x)) opts$value <- NA_real_
-      else opts$value <- DefEncoder$new(value)$x
+      if (is.na(DefinitionEncoder$new(value)$x)) opts$value <- NA_real_
+      else opts$value <- DefinitionEncoder$new(value)$x
 
       if (isTRUE(const)) {
         # check that a value is provided
@@ -158,8 +158,8 @@ HousepiParameter <- R6::R6Class(
         )
       } else {
         opts <- private$.helper_prior(opts, prior, args)
-        opts$min <- DefEncoder$new(min)$x
-        opts$max <- DefEncoder$new(max)$x
+        opts$min <- DefinitionEncoder$new(min)$x
+        opts$max <- DefinitionEncoder$new(max)$x
         opts <- private$.helper_proposer(opts, discr, rule, scale)
       }
 

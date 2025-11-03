@@ -128,8 +128,8 @@ For further information on the available options for the definition of the param
 # Perform inference
 
 After having provided all necessary definitions, we can perform inference calling `infer()`.
-Standard options for the Monte Carlo Markov chain can be provided at this stage, including controls on the progress bar and number of threads^[Multi-threading is implemented with *openMP* which is not supported on latest macOS distributions.
-The option `threads` is not granted on such systems.].
+Standard options for the Monte Carlo Markov chain can be provided at this stage, including controls on the progress bar and number of threads^[Multi-threading is implemented with *openMP* which is unfortunately not supported on latest macOS distributions.
+The option `threads` is disavled on such systems.].
 This will return an object wrapping [posterior](https://cran.r-project.org/web/packages/posterior/) `draws` objects that can be accessed to compute estimates.
 
 ```{r}

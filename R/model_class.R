@@ -186,7 +186,7 @@ HousepiModel <- R6::R6Class(
     # Pre-build to deal with group rates.
     .build_group_rates = function() {
       # proceed only if definitions exist and data loaded
-      if (length(private$.group_rates$defs) == 0) invisible(self)
+      if (length(private$.group_rates$defs) == 0) return(invisible(self))
       if (length(private$.cols_data_wide) > 0) {
         # load data_wide
         # UPDATE: this "back & forth" of data_wide is not optimal!
@@ -408,7 +408,7 @@ HousepiModel <- R6::R6Class(
     parameters = function(value) {
       if (missing(value)) {
         private$.build_group_rates()
-        return(make_def_readable(private$.param$defs))
+        return(DefinitionShowcaser$new(private$.param$defs)$x)
       }
       private$.param$load_list(from = value, append = FALSE)
     },
@@ -416,17 +416,33 @@ HousepiModel <- R6::R6Class(
     #' @field augmented
     #' A`data.frame` with augmented formatted definitions.
     augmented = function(value) {
-      if (missing(value)) return(make_def_readable(private$.augm$defs))
+      if (missing(value)) return(DefinitionShowcaser$new(private$.augm$defs)$x)
       private$.augm$load_list(from = value, append = FALSE)
     },
 
     #' @field infec_profile
     #' A `list` with infectivity profile definitions.
+    #' UPDATE: reformatting current rcpp_export waiting for status specific
     infec_profile = function(value) {
       if (missing(value)) {
         defs <- private$.infec_profile$defs
-        if (!is.null(defs)) return(make_def_readable(defs))
-        else return(make_def_readable(private$.rcpp$export_infec_profile()))
+        if (!is.null(defs)) {
+          output <- DefinitionShowcaser$new(defs)$x
+          # append args if not present
+          i <- which(names(output) == "name")
+          if (names(output)[i + 1] != "args") {
+            output <- append(output, list(args = NA), after = i)
+          }
+          return(output)
+        }
+        x <- private$.rcpp$export_infec_profile()
+        output <- data.frame(name = x$name,
+                             args = base::I(list(x$args)),
+                             min = x$min, max = x$max,
+                             discr = x$discr,
+                             stringsAsFactors = FALSE)
+        class(output$args) <- "list"
+        return(output)
       }
       do.call(self$add_infec_profile, value)
     },

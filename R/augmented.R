@@ -42,7 +42,7 @@ HousepiAugmented <- R6::R6Class(
 
     # parse augmented implicit function
     .helper_implicit_func = function(opts, expr) {
-      parsed <- DefEncoder$new(expr)
+      parsed <- DefinitionEncoder$new(expr)
       if (!is.na(parsed$x)) {
         if (is.na(opts$func)) opts$func <- parsed$x
         else stop_h(
@@ -64,7 +64,7 @@ HousepiAugmented <- R6::R6Class(
     # process function arguments
     .helper_function_arguments = function(opts, func_args) {
       if (!is.null(func_args)) {
-        parsed <- DefEncoder$new(as.list(func_args))
+        parsed <- DefinitionEncoder$new(as.list(func_args))
         opts$func <- parsed$combine_to_call(opts$func)
       }
       opts
@@ -78,7 +78,7 @@ HousepiAugmented <- R6::R6Class(
         stop_h(msg)
 
       } else if (!is.null(args)) {
-        parsed <- DefEncoder$new(as.list(args))
+        parsed <- DefinitionEncoder$new(as.list(args))
         opts$model <- parsed$combine_to_call(opts$model)
       }
 
@@ -87,7 +87,7 @@ HousepiAugmented <- R6::R6Class(
 
     # Process constant or random.
     .helper_const_vs_rand = function(opts, value) {
-      parsed <- DefEncoder$new(value)
+      parsed <- DefinitionEncoder$new(value)
       opts$value <- parsed$x
 
       if (isFALSE(opts$const) &&
@@ -156,26 +156,20 @@ HousepiAugmented <- R6::R6Class(
       this_def
     },
 
+    # Definitions required by augmented variable definitions
+    # according to the "at" key of the definition (A, D, P).
     # Extract value of given type from augmented definitions.
-    .extract_types = function(type) {
+    .find_def_required = function(type) {
       # columns with types amongst augmented definitions
       output <- c()
       if (length(self$defs) > 0) {
         for (typed_col in c("value", "func", "model", "min", "max")) {
           for (x in self$defs[[typed_col]]) {
-            output <- c(output, walk_encoded_func(x, type))
+            output <- c(output, DefinitionWalker$new(x, type)$x)
           }
         }
       }
-      unique(output)
-    },
-
-    # Definitions required by augmented variable definitions
-    # according to the "at" key of the definition (A, D, P).
-    .find_def_required = function(type) {
-      required <- private$.extract_types(type)
-      # add source name
-      set_source_name_(required, "augmented")
+      set_source_name_(unique(output), "augmented")
     }
   ),
 
@@ -339,8 +333,8 @@ HousepiAugmented <- R6::R6Class(
         opts <- private$.helper_const_vs_rand(opts, value)
       }
 
-      opts$min <- DefEncoder$new(min)$x
-      opts$max <- DefEncoder$new(max)$x
+      opts$min <- DefinitionEncoder$new(min)$x
+      opts$max <- DefinitionEncoder$new(max)$x
       self$defs <- rbind(self$defs, data.frame(opts))
 
       invisible(self)

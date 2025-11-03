@@ -39,13 +39,12 @@ HousepiInfecProfile <- R6::R6Class(
     .find_def_required = function(type) {
       output <- c()
       if (length(self$defs) > 0) {
-        for (typed_col in c("func", "max")) {
+        for (typed_col in c("name", "max")) {
           for (x in self$defs[[typed_col]]) {
-            output <- c(output, walk_encoded_func(x, type))
+            output <- c(output, DefinitionWalker$new(x, type)$x)
           }
         }
       }
-
       # remove duplicates and add source name
       set_source_name_(unique(output), "infectivity profile")
     }
@@ -102,15 +101,17 @@ HousepiInfecProfile <- R6::R6Class(
                    max = NULL) {
       # check infectivity profile name
       if (is.na(name)) stop_h("Incomplete definition: missing name.")
-      self$defs <- list(func = name, discr = isTRUE(discr))
-
-      # load arguments
-      if (!is.null(args)) {
-        self$defs$func <- DefEncoder$new(as.list(args))$combine_to_call(name)
-      }
-
-      # load maximum value
-      self$defs$max <- DefEncoder$new(max)$x
+      self$defs <- list(
+        # load name/arguments
+        name = ifelse(
+          is.null(args), name,
+          DefinitionEncoder$new(as.list(args))$combine_to_call(name)
+        ),
+        min = ifelse(isTRUE(discr), 1, 0),
+        # load maximum value
+        max = DefinitionEncoder$new(max)$x,
+        discr = isTRUE(discr)
+      )
 
       invisible(self)
     }

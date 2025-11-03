@@ -169,10 +169,10 @@ Rcpp::List MCMC::Impl::InfecProfile::rcpp_export() const
         return List::create();
 
     return List::create(_["name"] = profile_->name(),
-                        _["discr"] = profile_->is_discrete(),
                         _["args"] = rcpp_export_args(*profile_),
                         _["min"] = profile_->lower(),
-                        _["max"] = profile_->upper());
+                        _["max"] = profile_->upper(),
+                        _["discr"] = profile_->is_discrete());
 }
 Rcpp::List MCMC::export_infec_profile() const { return pImpl_->infec_profile.rcpp_export(); }
 
