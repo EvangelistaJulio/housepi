@@ -475,7 +475,7 @@ void auxiliary_chain_binomial_debugger(unsigned max_num, unsigned limit)
     {
         size_t n_patterns = EscapePatterns_LookupTable[N_star].size();
         std::cerr << "\n<<" << N_star << ">>"
-                    << " n.terms = " << ((n_patterns == 0) ? 0 : 1 + (n_patterns - 1) / 2) << std::endl;
+                    << " n.terms = " << (n_patterns == 0 ? 0 : 1 + (n_patterns - 1) / 2) << std::endl;
 
         // elements for the escape matrix //
         dbl_vec commu_esc_proba(N_star);

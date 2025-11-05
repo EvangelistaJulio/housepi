@@ -30,16 +30,18 @@
 /// Display a decorator for a section (if VERBOSE).
 void print_decorator(const std::string &title, bool verbose = true, const std::string &txt = hsp::na::STRING)
 {
+    if (!verbose)
+        return;
+
     const unsigned decor_left = 3;   // left size of decorator
     const unsigned decor_width = 65; // total size of decorator
     const char decor = '-';          // decorator for prints
 
-    if (verbose)
-        std::cout << std::string(decor_left, decor)
-                  << " " << title << " "
-                  << std::string(decor_width - title.size() - decor_left, decor)
-                  << (hsp::na::is(txt) ? "" : "\n" + txt)
-                  << std::endl;
+    std::cout << std::string(decor_left, decor)
+              << " " << title << " "
+              << std::string(decor_width - title.size() - decor_left, decor)
+              << (hsp::na::is(txt) ? "" : "\n" + txt)
+              << std::endl;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -85,15 +87,10 @@ int main(int argc, char *argv[])
         carg = std::string(argv[carg_i]); // update command line argument
 
         // Command line argument asking for help
+        // UPDATE : should I produce a manual for the standalone?
         if (toup(carg) == "-H" || tolow(carg) == "--help")
-            // Show the manual using man and installed manpages
-            // UPDATE : produce a manual
             hsp::msg::error(
                 "No Software Manual is available, refer to the Rcpp tutorials.\nApologies for the inconvenience.");
-
-        // UPDATE: under development
-        //else if (tolow(carg) == "--logevidence")
-        //    num_rungs = hsp::str::toul(argv[++carg_i], "number of rungs");
 
         else if (tolow(carg) == "--log-lik")
             is_loglikelihood = true;
@@ -103,6 +100,10 @@ int main(int argc, char *argv[])
 
         else if (tolow(carg) == "--simulate")
             is_simulate = true;
+
+        // UPDATE: under development
+        // else if (tolow(carg) == "--log-evidence")
+        //    num_rungs = hsp::str::toul(argv[++carg_i], "number of rungs");
 
         else if (toup(carg) == "-A" || tolow(carg) == "--augmented")
             augm_file = argv[++carg_i];
@@ -140,14 +141,14 @@ int main(int argc, char *argv[])
         carg_i++; // move to the next command line argument
     }
 
-    // check for command
-    bool is_logevidence = (num_rungs > 0); // power posterior option
+    // check for single option
+    bool is_logevidence = num_rungs > 0; // power posterior option
     int aux = is_loglikelihood + is_infer + is_simulate + is_logevidence;
+    if (aux > 1)
+        hsp::msg::error(
+            "Incompatible commands: choose one between --log-lik, --infer, --simulate or --log-evidence.");
     if (aux == 0)
         is_loglikelihood = true; // default
-    else if (aux > 1)
-        hsp::msg::error(
-            "Incompatible commands: choose one between --loglikelihood, --infer, --simulate or --logevidence.");
 
     //////////////////////////////
     //////  INITIALIZATION  //////
@@ -178,30 +179,24 @@ int main(int argc, char *argv[])
     }
     else if (is_infer) // perform inference
     {
-        if (!hsp::na::is(output_file))
-        {
-            print_decorator("Inference", verbose);
-            user_model->infer();
-            print_decorator("Inference::infer state", verbose, "# save: " + output_file);
-            user_model->print_infer_state(output_file);
-        }
-        else
+        if (hsp::na::is(output_file))
             hsp::msg::error("Missing output file for inference.");
+        print_decorator("Inference", verbose);
+        user_model->infer();
+        print_decorator("Inference::infer state", verbose, "# save: " + output_file);
+        user_model->print_infer_state(output_file);
     }
     else if (is_simulate) // simulation an outbreak
     {
-        if (!hsp::na::is(output_file))
-        {
-            print_decorator("Simulation", verbose, "# save: " + output_file);
-            user_model->print_simulated_data_wide(output_file);
-        }
-        else
+        if (hsp::na::is(output_file))
             hsp::msg::error("Missing output file for simulation.");
+        print_decorator("Simulation", verbose, "# save: " + output_file);
+        user_model->print_simulated_data_wide(output_file);
     }
-    else if (is_logevidence) // estimate logevidence
+    else if (is_logevidence) // estimate log_evidence
     {
         print_decorator("Evidence", verbose);
-        std::cout << user_model->logevidence("adaptive", num_rungs) << std::endl;
+        std::cout << user_model->log_evidence("adaptive", num_rungs) << std::endl;
     }
 
     return EXIT_SUCCESS;

@@ -154,7 +154,7 @@ void MCMC::Impl::Setup::set_prng_seed()
 
 void MCMC::Impl::Setup::assert_mcmc_setup()
 {
-    if ((inv_T < 0.) || (inv_T > 1.))
+    if (inv_T < 0. || inv_T > 1.)
         throw std::range_error(
             "Inverse temperature " + std::to_string(inv_T) + " was out of range [0, 1].");
 
@@ -312,19 +312,11 @@ void MCMC::Impl::DataWide::build(const u_dict<str_vec> &input)
 
         // read individual data
         for (const std::string &key : headers_)
-            if (key == "id")
+            if (key == "id" || key == "house_id")
             {
-                id = input.at("id")[i];
-                if (hsp::na::is(id))
+                if (hsp::na::is(input.at(key)[i]))
                     throw std::invalid_argument(
-                        "Individual in row n." + std::to_string(i + 2) + " had missing id.");
-            }
-            else if (key == "house_id")
-            {
-                house_id = input.at("house_id")[i];
-                if (hsp::na::is(house_id))
-                    throw std::invalid_argument(
-                        "Individual in row n." + std::to_string(i + 2) + " had missing house_id.");
+                        "Individual in row n." + std::to_string(i + 2) + " had missing " + key + ".");
             }
             else if (key == "status")
             {

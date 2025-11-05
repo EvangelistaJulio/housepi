@@ -114,7 +114,7 @@ public:
         // progress bar
         void prog_set_text(const std::string &text = hsp::na::STRING)
         {
-            progressbar_.set_text((text == hsp::na::STRING) ? fmt_progtxt() : text);
+            progressbar_.set_text(text == hsp::na::STRING ? fmt_progtxt() : text);
         }
         void prog_declare(const std::string &text = hsp::na::STRING)
         {
@@ -216,7 +216,7 @@ public:
         void user_reset();
 
         void init_draws(unsigned long sample_size);
-        void update_draws(unsigned long smpl_count);
+        void store_draws(unsigned long smpl_count);
         void clear_draws();
 
 #ifdef _HOUSEPI_RCPP
@@ -281,7 +281,7 @@ public:
         void init_cache_double_matrix(const std::string &e);
 
         void init_draws(unsigned long sample_size);
-        void update_draws(unsigned long smpl_count);
+        void store_draws(unsigned long smpl_count);
         void clear_draws();
 
         /////////////////////////////////////////////////////////////////////////////////////////
@@ -635,7 +635,7 @@ public:
         void user_reset(Individual &member);
 
         void init_draws(unsigned long sample_size);
-        void update_draws(unsigned long smpl_count);
+        void store_draws(unsigned long smpl_count);
         void clear_draws();
 
         /////////////////////////////////////////////////////////////////////////////////////////
@@ -693,7 +693,7 @@ public:
 #ifdef _HOUSEPI_RCPP
     Rcpp::List simulate(size_t n_rep);
     Rcpp::DataFrame simulate_repetition();
-    Rcpp::List logevidence(const std::string &scheme, unsigned long n_rungs);
+    Rcpp::List log_evidence(const std::string &scheme, unsigned long n_rungs);
 
     //----- Rcpp EXPORTS -----//
     Rcpp::NumericMatrix rcpp_export_draws() const;
@@ -702,7 +702,7 @@ public:
 #else
     void print_infer_state(const std::string &output_filename = hsp::na::STRING) const;
     void print_simulated_data_wide(const std::string &output_filename = hsp::na::STRING);
-    double logevidence(const std::string &scheme, unsigned long n_rungs);
+    double log_evidence(const std::string &scheme, unsigned long n_rungs);
 #endif
 
 private:
@@ -732,7 +732,7 @@ private:
     void simulate_single_household_(Household &h) { callback_simulate_house_(h); }
     void update_cache_dependecies_(Household &h, Individual &i) { callback_update_cache_(h, i); }
 
-    double compute_and_set_household_obs_log_lik_(Household &h)
+    double materialize_house_obs_log_lik_(Household &h)
     {
         const double output = callback_house_log_lik_(h);
         h.set_obs_log_lik(output);
@@ -785,7 +785,7 @@ private:
     void adapt_rules_of_sampled_params_(unsigned long step);
 
     void init_posterior_sample_();
-    void update_posterior_sample_();
+    void store_posterior_sample_();
     void clear_posterior_sample_();
 
     //----- Metropolis - parameter moves -----//

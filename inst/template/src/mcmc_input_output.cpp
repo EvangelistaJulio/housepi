@@ -794,7 +794,6 @@ Rcpp::List MCMC::Impl::rcpp_export_house_snapshot(const std::string &house_id) c
         hsp::msg::error("While exporting snaposhot of household '" + house_id + "':\n" +
                         std::string(e.what()));
     }
-    return List::create();
 }
 
 #else

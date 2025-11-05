@@ -30,17 +30,18 @@ RCPP_MODULE(housepi_flags)
 }
 
 // macro to define RCPP wrapper classes to export to R
-#define MAKE_HOUSEPI_RCPP_WRAPPER_CLASS(WrapperName, type_string, registry_list)                       \
+#define MAKE_HOUSEPI_RCPP_WRAPPER_CLASS(WrapperName, family, registry_list)                            \
     class WrapperName##Housepi                                                                         \
     {                                                                                                  \
     private:                                                                                           \
-        std::shared_ptr<Function> ptr_;                                                                \
+        std::unique_ptr<Function> ptr_;                                                                \
+                                                                                                       \
     public:                                                                                            \
         WrapperName##Housepi(std::string name_, bool is_cumul, SEXP args_, SEXP range_, bool is_discr) \
         {                                                                                              \
             try                                                                                        \
             {                                                                                          \
-                ptr_ = compose_func_registries(name_, type_string, registry_list, is_cumul);           \
+                ptr_ = compose_func_registries(name_, family, registry_list, is_cumul);                \
                 if (args_ != R_NilValue)                                                               \
                 {                                                                                      \
                     Rcpp::List args(args_);                                                            \
@@ -68,7 +69,7 @@ RCPP_MODULE(housepi_flags)
             catch (const std::exception &e)                                                            \
             {                                                                                          \
                 hsp::msg::error(                                                                       \
-                    "While initializing " type_string " '" + name_ + "':\n" + e.what());               \
+                    "While initializing " family " '" + name_ + "':\n" + e.what());                    \
             }                                                                                          \
         }                                                                                              \
         ~WrapperName##Housepi() = default;                                                             \
@@ -85,7 +86,7 @@ RCPP_MODULE(housepi_flags)
             catch (const std::exception &e)                                                            \
             {                                                                                          \
                 hsp::msg::error(                                                                       \
-                    "While calling " type_string " '" + ptr_->name() + "':\n" + e.what());             \
+                    "While calling " family " '" + ptr_->name() + "':\n" + e.what());                  \
             }                                                                                          \
             return Rcpp::NumericVector();                                                              \
         }                                                                                              \
@@ -170,7 +171,7 @@ RCPP_MODULE(housepi_infec_profile)
 //' @field data_wide_for_simulation\cr Dataset without status and augmented entries.
 //' @field simulate\cr Simulated status and augmented variables.
 //' @field evaluate\cr Evaluate the log-likelihood according to the current state.
-//' @field logevidence\cr Evaluate the logarithm of the marginal likelihood (aka evidence).
+//' @field log_evidence\cr Evaluate the logarithm of the marginal likelihood (aka evidence).
 //' Uses the method of power posteriors. \itemize{
 //'   \item Parameter: scheme
 //'   \item Parameter: n_rungs
@@ -206,7 +207,7 @@ RCPP_MODULE(housepi_model_core)
         .method("data_wide_for_simulation", &MCMC::data_wide_for_simulation)
         .method("simulate", &MCMC::simulate)
         .method("evaluate_log_lik", &MCMC::evaluate_log_lik)
-        .method("logevidence", &MCMC::logevidence)
+        .method("log_evidence", &MCMC::log_evidence)
         .method("import_data_wide", &MCMC::import_data_wide)
         .method("import_data_long", &MCMC::import_data_long)
         .method("import_multiplicity", &MCMC::import_multiplicity)

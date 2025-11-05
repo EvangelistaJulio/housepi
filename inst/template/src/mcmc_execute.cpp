@@ -37,15 +37,12 @@ double MCMC::Impl::evaluate_log_lik()
         augm.user_reset();             // initialize non constant augmented
         init_model_for_inference_();   // initialize model for inference
         update_total_log_lik_(true);   // initialize cache + full log-likelihood
-
         return total_log_lik_;
     }
     catch (const std::exception &e)
     {
         hsp::msg::error(e.what());
     }
-
-    return hsp::na::DOUBLE;
 }
 double MCMC::evaluate_log_lik() { return pImpl_->evaluate_log_lik(); }
 
@@ -105,13 +102,13 @@ double MCMC::Impl::update_house_log_lik_(Household &house, bool is_augm_ll, bool
             update_cache_dependecies_(house, member);
     }
 
-    // update household observation log-likelihood
-    double output = compute_and_set_household_obs_log_lik_(house);
+    // compute and set household observation log-likelihood
+    double output = materialize_house_obs_log_lik_(house);
 
-    // update individual augmented log-likelihood
+    // compute and set individual augmented log-likelihood
     if (is_augm_ll)
         for (Individual &member : house.infected())
-            output += member.compute_and_set_augm_model_log_lik();
+            output += member.materialize_augm_model_log_lik();
 
     return output;
 }
@@ -151,7 +148,7 @@ void MCMC::Impl::init_monte_carlo_()
     warn_if_all_missing_status_(); // warn if all missing status
 
     // check if there is actually something to sample
-    if (!(param.is_any_sample() || augm.is_any_sample()))
+    if (!param.is_any_sample() && !augm.is_any_sample())
         throw std::length_error(
             "Nothing to sample. Check your parameter and augmented definitions.");
 }
@@ -172,7 +169,7 @@ void MCMC::Impl::run_monte_carlo_()
     // run multiple MCMC chains&
     for (chain = 1; chain <= setup.n_chains; ++chain)
     {
-        setup.prog_set_text();       // update progress bar text
+        setup.prog_set_text();       // set progress bar text
         param.user_reset();          // reset parameter user definitions
         augm.user_reset();           // reset augmented user definitions
         update_total_log_lik_(true); // init cache + full log-likelihood
@@ -196,7 +193,7 @@ void MCMC::Impl::run_monte_carlo_()
         {
             for (unsigned long t = 1; t <= setup.n_thin; ++t)
                 move_all_();
-            update_posterior_sample_();
+            store_posterior_sample_();
         }
     }
 }
@@ -344,7 +341,7 @@ void MCMC::Impl::Parameter::init_draws(unsigned long sample_size)
 }
 
 /// Store current sample of parameters.
-void MCMC::Impl::Parameter::update_draws(unsigned long smpl_count)
+void MCMC::Impl::Parameter::store_draws(unsigned long smpl_count)
 {
     for (const std::string &p : list_sample)
     {
@@ -385,7 +382,7 @@ void MCMC::Impl::DataWide::init_draws(unsigned long sample_size)
 }
 
 /// Store current sample of log-likelihood for restricted households.
-void MCMC::Impl::DataWide::update_draws(unsigned long smpl_count)
+void MCMC::Impl::DataWide::store_draws(unsigned long smpl_count)
 {
     // store sample for restricted households
     for (size_t R = 0; R < pImpl_.multiplicity.indexes.size(); ++R)
@@ -432,17 +429,17 @@ void MCMC::Impl::init_posterior_sample_()
     }
 }
 
-/// Update Bayesian posterior sample.
-void MCMC::Impl::update_posterior_sample_()
+/// Store current Bayesian posterior sample.
+void MCMC::Impl::store_posterior_sample_()
 {
     // store sample of the full log-likelihood
     smpl_total_log_lik_[smpl_count_] = total_log_lik_;
 
     if (!setup.is_power_post())
     {
-        param.update_draws(smpl_count_);
-        data_wide.update_draws(smpl_count_);
-        augm.update_draws(smpl_count_);
+        param.store_draws(smpl_count_);
+        data_wide.store_draws(smpl_count_);
+        augm.store_draws(smpl_count_);
     }
 
     ++smpl_count_;
@@ -463,7 +460,7 @@ void MCMC::clear_memory() { pImpl_->clear_memory(); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  MCMC : Impl : estimate logevidence  /////////////////////////////
+////////////////////////////////  MCMC : Impl : estimate log_evidence  /////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -522,7 +519,7 @@ std::vector<dbl_vec> MCMC::Impl::power_posteriors_(const std::string &scheme, un
     setup.prog_declare();        // declare current progress bar
     init_model_for_inference_(); // initialize model for inference
     augm.init();                 // initialize augmented variables
-    setup.prog_open((setup.c_n_sweeps * setup.n_chains) * (setup.n_rungs + 1));
+    setup.prog_open(setup.c_n_sweeps * setup.n_chains * (setup.n_rungs + 1));
 
     // thermodynamic ladder estimates
     dbl_vec itm = {}; // inverse temperature
@@ -585,7 +582,7 @@ void MCMC::Impl::power_post_adaptive_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
         // intersection between tangents
         double new_t = (avg[k + 1] - itm[k + 1] * var[k + 1] - avg[k] + itm[k] * var[k]) / (var[k] - var[k + 1]);
         // otherwise weighted average
-        if ((new_t <= itm[k]) || (new_t >= itm[k + 1]))
+        if (new_t <= itm[k] || new_t >= itm[k + 1])
             new_t = itm[k] + var[k + 1] * (itm[k + 1] - itm[k]) / (var[k] + var[k + 1]);
 
         // power posterior sampling
@@ -623,7 +620,7 @@ void MCMC::Impl::power_post_fractions_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
 }
 
 #ifdef _HOUSEPI_RCPP
-/// Estimate logevidence according to a given scheme and number of rungs.
+/// Estimate log_evidence according to a given scheme and number of rungs.
 /// Uses trapezoidal rule to estimate logarithm of marginal likelihood (evidence).
 ///
 /// Ref.
@@ -631,7 +628,7 @@ void MCMC::Impl::power_post_fractions_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
 /// Ref: Friel, N., Hurn, M. & Wyse, J.
 /// Improving power posterior estimation of statistical evidence.
 /// Stat Comput 24, 709–723 (2014).
-Rcpp::List MCMC::Impl::logevidence(const std::string &scheme, unsigned long n_rungs)
+Rcpp::List MCMC::Impl::log_evidence(const std::string &scheme, unsigned long n_rungs)
 {
     using namespace Rcpp;
 
@@ -659,15 +656,14 @@ Rcpp::List MCMC::Impl::logevidence(const std::string &scheme, unsigned long n_ru
     }
     catch (const std::exception &e)
     {
-        hsp::msg::error("While estimating logevidence with power posteriors:\n" +
+        hsp::msg::error("While estimating log_evidence with power posteriors:\n" +
                         std::string(e.what()));
     }
-    return List();
 }
-Rcpp::List MCMC::logevidence(const std::string &scheme, unsigned long n_rungs) { return pImpl_->logevidence(scheme, n_rungs); }
+Rcpp::List MCMC::log_evidence(const std::string &scheme, unsigned long n_rungs) { return pImpl_->log_evidence(scheme, n_rungs); }
 
 #else
-/// Estimate logevidence according to a given scheme and number of rungs.
+/// Estimate log_evidence according to a given scheme and number of rungs.
 /// Uses trapezoidal rule to estimate logarithm of marginal likelihood (evidence).
 ///
 /// Ref.
@@ -675,7 +671,7 @@ Rcpp::List MCMC::logevidence(const std::string &scheme, unsigned long n_rungs) {
 /// Ref: Friel, N., Hurn, M. & Wyse, J.
 /// Improving power posterior estimation of statistical evidence.
 /// Stat Comput 24, 709–723 (2014).
-double MCMC::Impl::logevidence(const std::string &scheme, unsigned long n_rungs)
+double MCMC::Impl::log_evidence(const std::string &scheme, unsigned long n_rungs)
 {
     try
     {
@@ -696,13 +692,11 @@ double MCMC::Impl::logevidence(const std::string &scheme, unsigned long n_rungs)
     }
     catch (const std::exception &e)
     {
-        hsp::msg::error("While estimating logevidence with power posteriors:\n" +
+        hsp::msg::error("While estimating log_evidence with power posteriors:\n" +
                         std::string(e.what()));
     }
-
-    return hsp::na::DOUBLE;
 }
-double MCMC::logevidence(const std::string &scheme, unsigned long n_rungs) { return pImpl_->logevidence(scheme, n_rungs); }
+double MCMC::log_evidence(const std::string &scheme, unsigned long n_rungs) { return pImpl_->log_evidence(scheme, n_rungs); }
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -803,8 +797,6 @@ Rcpp::List MCMC::Impl::simulate(size_t n_rep)
     {
         hsp::msg::error(e.what());
     }
-
-    return List::create();
 }
 Rcpp::List MCMC::simulate(size_t n_rep) { return pImpl_->simulate(n_rep); }
 #endif

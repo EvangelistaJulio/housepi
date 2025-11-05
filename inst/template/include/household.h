@@ -86,8 +86,8 @@ public:
 
 	void init_augm_model_logratios(const u_dict<str_vec> &models_ordered);
 	double get_augm_model_log_lik() const { return augm_log_lik_; }
-	double compute_and_set_augm_model_log_lik();
-	double compute_and_set_augm_model_logratio(const std::string &a);
+	double materialize_augm_model_log_lik();
+	double materialize_augm_model_logratio(const std::string &a);
 	void recover_augm_model_log_lik() { augm_log_lik_ = buffer_; };
 	void assert_log_lik_not_NaN(const std::string &a = hsp::na::STRING) const
 	{

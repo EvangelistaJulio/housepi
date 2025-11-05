@@ -78,7 +78,7 @@ void AugmentedMap::init_augm_model_logratios(const u_dict<str_vec> &models_order
 
 /// Value of log-likelihood associated to augmented variable models.
 /// Store the log-likelihood of individual augmented variables.
-double AugmentedMap::compute_and_set_augm_model_log_lik()
+double AugmentedMap::materialize_augm_model_log_lik()
 {
     buffer_ = augm_log_lik_; // store old value in buffer
     augm_log_lik_ = 0.0;
@@ -89,7 +89,7 @@ double AugmentedMap::compute_and_set_augm_model_log_lik()
 }
 
 /// Change in log-likelihood associated to given augmented.
-double AugmentedMap::compute_and_set_augm_model_logratio(const std::string &a)
+double AugmentedMap::materialize_augm_model_logratio(const std::string &a)
 {
     buffer_ = augm_log_lik_; // store old value in buffer
     double delta_ll = 0.;
@@ -307,7 +307,7 @@ void MCMC::Impl::InfecProfile::build_augmented_profile_(const u_dict<std::string
     // drop generic definition
     clear_lookup_();
     profile_ = std::make_unique<Distribution>();
-    
+
     inst_ = &InfecProfile::do_inst_augm_;
     cumul_ = &InfecProfile::do_cumul_augm_;
 
@@ -363,7 +363,7 @@ double MCMC::Impl::InfecProfile::do_cumul_lookup_(const Individual *, double t)
 {
     if (profile_->is_below(t))
         return 0.;
-    if ((t >= size_lut_) || (profile_->is_above(t)))
+    if (t >= size_lut_ || profile_->is_above(t))
         return lookup_cumul_.at(size_lut_ - 1);
     return lookup_cumul_.at(static_cast<size_t>(t));
 }
@@ -1059,7 +1059,7 @@ void MCMC::Impl::Augmented::init_draws(unsigned long sample_size)
 }
 
 /// Store sample for individual augmented variable followup.
-void MCMC::Impl::Augmented::update_draws(unsigned long smpl_count)
+void MCMC::Impl::Augmented::store_draws(unsigned long smpl_count)
 {
     if (!is_any_draw())
         return;
@@ -1168,9 +1168,8 @@ double MCMC::Impl::metropolis_augm_single_move_(Household &house, Individual &me
         update_cache_dependecies_(house, member);
 
         // Metropolis-Hastings algorithm
-        double delta_ll = -house.get_obs_log_lik();
-        delta_ll += member.compute_and_set_augm_model_logratio(a);
-        delta_ll += compute_and_set_household_obs_log_lik_(house);
+        double delta_ll = materialize_house_obs_log_lik_(house) - house.get_obs_log_lik();
+        delta_ll += member.materialize_augm_model_logratio(a);
 
         if (setup.unif() < std::exp(setup.inv_T * delta_ll - xaugm.get_propose_logratio()))
             return delta_ll;
