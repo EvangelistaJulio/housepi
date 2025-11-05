@@ -177,7 +177,7 @@ public:
     double evaluate() const { return (this->*evaluate_)(x_arg_.get()); }
 
     /// Select call method for return value.
-    void set_eval_function() { evaluate_ = &Function::eval_function_; }
+    void set_eval_call() { evaluate_ = &Function::eval_function_; }
     /// Select primitive method for return value.
     void set_eval_primitive() { evaluate_ = &Function::eval_primitive_; }
     /// Select call as a distributin method for return value.
@@ -272,10 +272,10 @@ protected:
     ////////////////////////  Function : virtual methods [protected]  ///////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    /// Raw call method.
+    /// Raw method to call.
     virtual double raw_function_(double) const { throw std::invalid_argument(
         "Called undefined method 'function' of " + err_name() + "."); }
-    /// Raw log-call method.
+    /// Raw method to call log-function.
     virtual double raw_logfunc_(double) const { throw std::invalid_argument(
         "Called undefined method 'logfunc' of " + err_name() + "."); }
     /// Raw primitive method.

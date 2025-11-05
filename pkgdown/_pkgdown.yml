@@ -61,11 +61,11 @@ reference:
   - ExpectedCasesBySize
   - format_credible_intervals
 
-- title: "Test internal functions"
+- title: "Expsoe internal functions"
   desc: >
-    Calls to internal C++ functions for testing.
+    Expose internal Rcpp functions, distributions and infectivity profiles.
   contents:
-  - starts_with("test_")
+  - starts_with("expose_")
 
 - title: "Datasets"
   desc: >

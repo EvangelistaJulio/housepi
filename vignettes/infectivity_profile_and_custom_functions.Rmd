@@ -52,11 +52,10 @@ defs
 ```
 
 ```{r}
-infec <- dplyr::tibble(
-  gentime = seq(0, 10, 0.01),
-  inst = test_infec_profile(defs$name, gentime, args = defs$args[[1]]),
-  cumul = test_infec_profile(defs$name, gentime, args = defs$args[[1]], cumul = TRUE)
-)
+profile <- expose_infec_profile(defs$name, defs$args)
+infec <- dplyr::tibble(gentime = seq(0, 10, 0.01),
+                       inst = profile$pdf(gentime),
+                       cumul = profile$cdf(gentime))
 ```
 
 ```{r}
@@ -94,13 +93,10 @@ It's important to keep in mind that by default we truncate the infectivity profi
 The discrete profile is now a discretized gamma with the same parameters^[However, since the distribution is truncated the actual expected value will typically be different than the parameter `mean` in this case.]
 
 ```{r}
-infec <- dplyr::tibble(
-  gentime = seq(0, 10, 0.01),
-  inst = test_infec_profile(defs$name, gentime,
-                            args = defs$args[[1]], discr = TRUE),
-  cumul = test_infec_profile(defs$name, gentime,
-                             args = defs$args[[1]], discr = TRUE, cumul = TRUE)
-)
+profile <- expose_infec_profile(defs$name, defs$args, discr = TRUE)
+infec <- dplyr::tibble(gentime = seq(0, 10, 0.01),
+                       inst = profile$pdf(gentime),
+                       cumul = profile$cdf(gentime))
 rescale <- max(infec$cumul) / max(infec$inst)
 
 ggplot(infec, aes(x = gentime)) +
@@ -131,13 +127,11 @@ defs
 ```
 
 ```{r}
-infec <- dplyr::tibble(
-  gentime = seq(0, 10, 0.01),
-  inst = test_infec_profile(defs$name, gentime, min = defs$min,
-                            args = defs$args[[1]], discr = TRUE),
-  cumul = test_infec_profile(defs$name, gentime, min = defs$min,
-                             args = defs$args[[1]], discr = TRUE, cumul = TRUE)
-)
+profile <- expose_infec_profile(defs$name, defs$args, 
+                                min = defs$min, discr = TRUE)
+infec <- dplyr::tibble(gentime = seq(0, 10, 0.01),
+                       inst = profile$pdf(gentime),
+                       cumul = profile$cdf(gentime))
 rescale <- max(infec$cumul) / max(infec$inst)
 
 ggplot(infec, aes(x = gentime)) +
@@ -209,7 +203,7 @@ Once generate the new model, the function will be visible from its environment a
 #| include: true
 hhmodel <- new_housepi_model("path/to/mymodel/")
 x <- seq(0, 5, 0.5)
-test_function("my_monomial", x, args = c(a = 2, b = 3), model = hhmodel)
+test_function("my_monomial", a = 2, b = 3, model = hhmodel)$func(x)
 ```
 
 ```{r}

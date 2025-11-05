@@ -6,11 +6,16 @@
 #' @description Call housepi registered function.
 #' @field initialize\cr \itemize{
 #'   \item Parameter: name `character(1)` with function name.
-#'   \item Parameter: is_discr `logical(1)`\cr Wheter discrete (not used).
 #'   \item Parameter: args A named `numeric()` with arguments.
-#'   \item Parameter: range A named `numeric()`\cr with min and max for minimum and maximum.
+#'   \item Parameter: min `numeric(1)`\cr Minimum value of the function.
+#'   \item Parameter: max `numeric(1)`\cr Maximum value of the function.
+#'   \item Parameter: is_discr `logical(1)`\cr Wheter discretized.
 #' }
-#' @field call\cr \itemize{
+#' @field func\cr \itemize{
+#'   \item Parameter: x `numeric()`\cr Input vector.
+#' }
+#' @return `numeric()`
+#' @field prim\cr \itemize{
 #'   \item Parameter: x `numeric()`\cr Input vector.
 #' }
 #' @return `numeric()`
@@ -21,11 +26,16 @@ NULL
 #' @description Call housepi registered distribution.
 #' @field initialize\cr \itemize{
 #'   \item Parameter: name `character(1)`\cr Name of the distribution.
-#'   \item Parameter: is_discr `logical(1)`\cr Wheter discrete.
 #'   \item Parameter: args `numeric()`\cr Custom arguments.
-#'   \item Parameter: range `numeric()`\cr Minimum and maximum range of the distribution.
+#'   \item Parameter: min `numeric(1)`\cr Minimum value of the distribution.
+#'   \item Parameter: max `numeric(1)`\cr Maximum value of the distribution.
+#'   \item Parameter: is_discr `logical(1)`\cr Wheter discretized.
 #' }
-#' @field call\cr \itemize{
+#' @field pdf\cr \itemize{
+#'   \item Parameter: x `numeric()`\cr Input vector.
+#' }
+#' @return `numeric()`
+#' @field cdf\cr \itemize{
 #'   \item Parameter: x `numeric()`\cr Input vector.
 #' }
 #' @return `numeric()`
@@ -36,11 +46,16 @@ NULL
 #' @description Call housepi registered infectivity profile.
 #' @field initialize\cr \itemize{
 #'   \item Parameter: name `character(1)`\cr Name of the profile.
-#'   \item Parameter: is_discr `logical(1)`\cr Wheter discrete.
 #'   \item Parameter: args `numeric()`\cr Custom arguments.
-#'   \item Parameter: range `numeric()`\cr Minimum and maximum range of the profile.
+#'   \item Parameter: min `numeric(1)`\cr Minimum value of the profile.
+#'   \item Parameter: max `numeric(1)`\cr Maximum value of the profile.
+#'   \item Parameter: is_discr `logical(1)`\cr Wheter discretized.
 #' }
-#' @field call\cr \itemize{
+#' @field pdf\cr \itemize{
+#'   \item Parameter: x `numeric()`\cr Input vector.
+#' }
+#' @return `numeric()`
+#' @field cdf\cr \itemize{
 #'   \item Parameter: x `numeric()`\cr Input vector.
 #' }
 #' @return `numeric()`
@@ -56,7 +71,7 @@ NULL
 #' @field data_wide_for_simulation\cr Dataset without status and augmented entries.
 #' @field simulate\cr Simulated status and augmented variables.
 #' @field evaluate\cr Evaluate the log-likelihood according to the current state.
-#' @field logevidence\cr Evaluate the logarithm of the marginal likelihood (aka evidence).
+#' @field log_evidence\cr Evaluate the logarithm of the marginal likelihood (aka evidence).
 #' Uses the method of power posteriors. \itemize{
 #'   \item Parameter: scheme
 #'   \item Parameter: n_rungs

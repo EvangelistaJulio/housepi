@@ -17,6 +17,7 @@
 #include "tools/flags.h"
 #include "tools/na_utils.h"
 #include "tools/error.h"
+#include "tools/params.h"
 #include "function.h"
 #include "function_registry.h"
 #include "distribution_registry.h"
@@ -30,66 +31,72 @@ RCPP_MODULE(housepi_flags)
 }
 
 // macro to define RCPP wrapper classes to export to R
-#define MAKE_HOUSEPI_RCPP_WRAPPER_CLASS(WrapperName, family, registry_list)                            \
-    class WrapperName##Housepi                                                                         \
-    {                                                                                                  \
-    private:                                                                                           \
-        std::unique_ptr<Function> ptr_;                                                                \
-                                                                                                       \
-    public:                                                                                            \
-        WrapperName##Housepi(std::string name_, bool is_cumul, SEXP args_, SEXP range_, bool is_discr) \
-        {                                                                                              \
-            try                                                                                        \
-            {                                                                                          \
-                ptr_ = compose_func_registries(name_, family, registry_list, is_cumul);                \
-                if (args_ != R_NilValue)                                                               \
-                {                                                                                      \
-                    Rcpp::List args(args_);                                                            \
-                    const Rcpp::CharacterVector arg_names = args.names();                              \
-                    for (R_xlen_t i = 0; i < args.size(); ++i)                                         \
-                    {                                                                                  \
-                        const std::string this_arg = Rcpp::as<std::string>(arg_names[i]);              \
-                        ptr_->init_attr(this_arg, Attribute(Rcpp::as<double>(args[i])));               \
-                    }                                                                                  \
-                }                                                                                      \
-                                                                                                       \
-                if (range_ != R_NilValue)                                                              \
-                {                                                                                      \
-                    Rcpp::List range(range_);                                                          \
-                    const Rcpp::CharacterVector range_names = range.names();                           \
-                    for (R_xlen_t i = 0; i < range.size(); ++i)                                        \
-                        if (!hsp::na::is(Rcpp::as<double>(range[i])))                                  \
-                            ptr_->init_attr(Rcpp::as<std::string>(range_names[i]),                     \
-                                            Attribute(Rcpp::as<double>(range[i])));                    \
-                }                                                                                      \
-                if (is_discr)                                                                          \
-                    ptr_->init_discretization();                                                       \
-                ptr_->init_truncation();                                                               \
-            }                                                                                          \
-            catch (const std::exception &e)                                                            \
-            {                                                                                          \
-                hsp::msg::error(                                                                       \
-                    "While initializing " family " '" + name_ + "':\n" + e.what());                    \
-            }                                                                                          \
-        }                                                                                              \
-        ~WrapperName##Housepi() = default;                                                             \
-        Rcpp::NumericVector call(Rcpp::NumericVector x)                                                \
-        {                                                                                              \
-            try                                                                                        \
-            {                                                                                          \
-                const R_xlen_t n = x.size();                                                           \
-                Rcpp::NumericVector y(n);                                                              \
-                for (R_xlen_t i = 0; i < n; ++i)                                                       \
-                    y[i] = ptr_->evaluate(x[i]);                                                       \
-                return y;                                                                              \
-            }                                                                                          \
-            catch (const std::exception &e)                                                            \
-            {                                                                                          \
-                hsp::msg::error(                                                                       \
-                    "While calling " family " '" + ptr_->name() + "':\n" + e.what());                  \
-            }                                                                                          \
-            return Rcpp::NumericVector();                                                              \
-        }                                                                                              \
+#define MAKE_HOUSEPI_RCPP_WRAPPER(Wrapper, family, set_eval, pdf_call, cdf_call, ...)          \
+    class Wrapper##Housepi                                                                     \
+    {                                                                                          \
+    public:                                                                                    \
+        Wrapper##Housepi(std::string name_, SEXP args_, double min, double max, bool is_discr) \
+        {                                                                                      \
+            try                                                                                \
+            {                                                                                  \
+                ptr_ = compose_func_registries(name_, family, {__VA_ARGS__}, false);           \
+                if (args_ != R_NilValue)                                                       \
+                {                                                                              \
+                    Rcpp::List args(args_);                                                    \
+                    const Rcpp::CharacterVector arg_names = args.names();                      \
+                    for (R_xlen_t i = 0; i < args.size(); ++i)                                 \
+                    {                                                                          \
+                        const std::string this_arg = Rcpp::as<std::string>(arg_names[i]);      \
+                        ptr_->init_attr(this_arg, Attribute(Rcpp::as<double>(args[i])));       \
+                    }                                                                          \
+                }                                                                              \
+                                                                                               \
+                if (!hsp::na::is(min))                                                         \
+                    ptr_->init_attr(hsp::params::MIN, Attribute(min));                         \
+                if (!hsp::na::is(max))                                                         \
+                    ptr_->init_attr(hsp::params::MAX, Attribute(max));                         \
+                                                                                               \
+                if (is_discr)                                                                  \
+                    ptr_->init_discretization();                                               \
+                ptr_->init_truncation();                                                       \
+            }                                                                                  \
+            catch (const std::exception &e)                                                    \
+            {                                                                                  \
+                hsp::msg::error(                                                               \
+                    "While initializing " family " '" + name_ + "':\n" + e.what());            \
+            }                                                                                  \
+        }                                                                                      \
+        ~Wrapper##Housepi() = default;                                                         \
+        Rcpp::NumericVector pdf_call(Rcpp::NumericVector x) const                              \
+        {                                                                                      \
+            ptr_->set_eval##_call();                                                           \
+            return call_(x);                                                                   \
+        }                                                                                      \
+        Rcpp::NumericVector cdf_call(Rcpp::NumericVector x) const                              \
+        {                                                                                      \
+            ptr_->set_eval##_primitive();                                                      \
+            return call_(x);                                                                   \
+        }                                                                                      \
+                                                                                               \
+    private:                                                                                   \
+        std::unique_ptr<Function> ptr_;                                                        \
+                                                                                               \
+        Rcpp::NumericVector call_(Rcpp::NumericVector x) const                                 \
+        {                                                                                      \
+            try                                                                                \
+            {                                                                                  \
+                const R_xlen_t n = x.size();                                                   \
+                Rcpp::NumericVector y(n);                                                      \
+                for (R_xlen_t i = 0; i < n; ++i)                                               \
+                    y[i] = ptr_->evaluate(x[i]);                                               \
+                return y;                                                                      \
+            }                                                                                  \
+            catch (const std::exception &e)                                                    \
+            {                                                                                  \
+                hsp::msg::error(                                                               \
+                    "While calling '" family "'" + ptr_->name() + "':\n" + e.what());          \
+            }                                                                                  \
+        }                                                                                      \
     };
 
 //' @name FunctionHousepi
@@ -97,22 +104,31 @@ RCPP_MODULE(housepi_flags)
 //' @description Call housepi registered function.
 //' @field initialize\cr \itemize{
 //'   \item Parameter: name `character(1)` with function name.
-//'   \item Parameter: is_discr `logical(1)`\cr Wheter discrete (not used).
 //'   \item Parameter: args A named `numeric()` with arguments.
-//'   \item Parameter: range A named `numeric()`\cr with min and max for minimum and maximum.
+//'   \item Parameter: min `numeric(1)`\cr Minimum value of the function.
+//'   \item Parameter: max `numeric(1)`\cr Maximum value of the function.
+//'   \item Parameter: is_discr `logical(1)`\cr Wheter discretized.
 //' }
-//' @field call\cr \itemize{
+//' @field func\cr \itemize{
+//'   \item Parameter: x `numeric()`\cr Input vector.
+//' }
+//' @return `numeric()`
+//' @field prim\cr \itemize{
 //'   \item Parameter: x `numeric()`\cr Input vector.
 //' }
 //' @return `numeric()`
 RCPP_MODULE(housepi_function)
 {
-#define FUNCTION_REGISTRIES {&UserFuncRegistry::inst(), &TranscendentalRegistry::inst(), &ArithmeticRegistry::inst()}
-    MAKE_HOUSEPI_RCPP_WRAPPER_CLASS(Function, "function", FUNCTION_REGISTRIES);
+    MAKE_HOUSEPI_RCPP_WRAPPER(Function, "function",
+                              set_eval, func, prim,
+                              &UserFuncRegistry::inst(),
+                              &TranscendentalRegistry::inst(),
+                              &ArithmeticRegistry::inst());
 
     Rcpp::class_<FunctionHousepi>("FunctionHousepi")
-        .constructor<std::string, bool, SEXP, SEXP, bool>()
-        .method("call", &FunctionHousepi::call);
+        .constructor<std::string, SEXP, double, double, bool>()
+        .method("func", &FunctionHousepi::func)
+        .method("prim", &FunctionHousepi::prim);
 }
 
 //' @name DistributionHousepi
@@ -120,22 +136,30 @@ RCPP_MODULE(housepi_function)
 //' @description Call housepi registered distribution.
 //' @field initialize\cr \itemize{
 //'   \item Parameter: name `character(1)`\cr Name of the distribution.
-//'   \item Parameter: is_discr `logical(1)`\cr Wheter discrete.
 //'   \item Parameter: args `numeric()`\cr Custom arguments.
-//'   \item Parameter: range `numeric()`\cr Minimum and maximum range of the distribution.
+//'   \item Parameter: min `numeric(1)`\cr Minimum value of the distribution.
+//'   \item Parameter: max `numeric(1)`\cr Maximum value of the distribution.
+//'   \item Parameter: is_discr `logical(1)`\cr Wheter discretized.
 //' }
-//' @field call\cr \itemize{
+//' @field pdf\cr \itemize{
+//'   \item Parameter: x `numeric()`\cr Input vector.
+//' }
+//' @return `numeric()`
+//' @field cdf\cr \itemize{
 //'   \item Parameter: x `numeric()`\cr Input vector.
 //' }
 //' @return `numeric()`
 RCPP_MODULE(housepi_distribution)
 {
-#define DISTRIBUTION_REGISTRIES {&ContinuosDistrRegistry::inst(), &DiscreteDistrRegistry::inst()}
-    MAKE_HOUSEPI_RCPP_WRAPPER_CLASS(Distribution, "distribution", DISTRIBUTION_REGISTRIES);
+    MAKE_HOUSEPI_RCPP_WRAPPER(Distribution, "distribution",
+                              set_eval_as_distr, pdf, cdf,
+                              &ContinuosDistrRegistry::inst(),
+                              &DiscreteDistrRegistry::inst());
 
     Rcpp::class_<DistributionHousepi>("DistributionHousepi")
-        .constructor<std::string, bool, SEXP, SEXP, bool>()
-        .method("call", &DistributionHousepi::call);
+        .constructor<std::string, SEXP, double, double, bool>()
+        .method("pdf", &DistributionHousepi::pdf)
+        .method("cdf", &DistributionHousepi::cdf);
 }
 
 //' @name InfecProfileHousepi
@@ -143,22 +167,31 @@ RCPP_MODULE(housepi_distribution)
 //' @description Call housepi registered infectivity profile.
 //' @field initialize\cr \itemize{
 //'   \item Parameter: name `character(1)`\cr Name of the profile.
-//'   \item Parameter: is_discr `logical(1)`\cr Wheter discrete.
 //'   \item Parameter: args `numeric()`\cr Custom arguments.
-//'   \item Parameter: range `numeric()`\cr Minimum and maximum range of the profile.
+//'   \item Parameter: min `numeric(1)`\cr Minimum value of the profile.
+//'   \item Parameter: max `numeric(1)`\cr Maximum value of the profile.
+//'   \item Parameter: is_discr `logical(1)`\cr Wheter discretized.
 //' }
-//' @field call\cr \itemize{
+//' @field pdf\cr \itemize{
 //'   \item Parameter: x `numeric()`\cr Input vector.
 //' }
 //' @return `numeric()`
-#define INFEC_PROFILE_REGISTRIES {&InfecProfileRegistry::inst(), &ContinuosDistrRegistry::inst(), &DiscreteDistrRegistry::inst()}
+//' @field cdf\cr \itemize{
+//'   \item Parameter: x `numeric()`\cr Input vector.
+//' }
+//' @return `numeric()`
 RCPP_MODULE(housepi_infec_profile)
 {
-    MAKE_HOUSEPI_RCPP_WRAPPER_CLASS(InfecProfile, "infectivity profile", INFEC_PROFILE_REGISTRIES);
+    MAKE_HOUSEPI_RCPP_WRAPPER(InfecProfile, "infectivity profile",
+                              set_eval_as_distr, pdf, cdf,
+                              &InfecProfileRegistry::inst(),
+                              &ContinuosDistrRegistry::inst(),
+                              &DiscreteDistrRegistry::inst());
 
     Rcpp::class_<InfecProfileHousepi>("InfecProfileHousepi")
-        .constructor<std::string, bool, SEXP, SEXP, bool>()
-        .method("call", &InfecProfileHousepi::call);
+        .constructor<std::string, SEXP, double, double, bool>()
+        .method("pdf", &InfecProfileHousepi::pdf)
+        .method("cdf", &InfecProfileHousepi::cdf);
 }
 
 //' @name ModelHousepi

@@ -312,9 +312,17 @@ void MCMC::Impl::DataWide::build(const u_dict<str_vec> &input)
 
         // read individual data
         for (const std::string &key : headers_)
-            if (key == "id" || key == "house_id")
+            if (key == "id")
             {
-                if (hsp::na::is(input.at(key)[i]))
+                id = input.at(key)[i]; // user id 
+                if (hsp::na::is(id))
+                    throw std::invalid_argument(
+                        "Individual in row n." + std::to_string(i + 2) + " had missing " + key + ".");
+            }
+            else if (key == "house_id")
+            {
+                house_id = input.at(key)[i]; // user house_id
+                if (hsp::na::is(house_id))
                     throw std::invalid_argument(
                         "Individual in row n." + std::to_string(i + 2) + " had missing " + key + ".");
             }

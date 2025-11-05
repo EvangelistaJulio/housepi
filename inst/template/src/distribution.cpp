@@ -216,14 +216,14 @@ public:
     {
         init_uniform_range_();
         init_range_helper_(false, false);
-        // NOTE: no truncation for uniform distribution
+        // NOTE: truncation for uniform distribution is inside raw
     }
 
 protected:
     std::uniform_real_distribution<double> unif_gen;
 
-    double raw_pdf_(double) const override final { return 1.; }
-    double raw_cdf_(double x) const override final { return x; }
+    double raw_pdf_(double) const override final { return 1. / (arg(1) - arg(0)); }
+    double raw_cdf_(double x) const override final { return (x - arg(0)) / (arg(1) - arg(0)); }
     double raw_logpdf_(double) const override final { return 0.; }
     double raw_logratio_(double, double) const override final { return 0.; }
     double raw_rand_(rnd_gen &prng) override final
@@ -721,16 +721,12 @@ str_vec DistributionRegistry::get_options() const
     return keys;
 }
 
-std::unique_ptr<Distribution> DistributionRegistry::get_distr(const std::string &opt) const
+std::unique_ptr<Distribution> DistributionRegistry::get_distr(const std::string &opt, bool is_primitive) const
 {
-    if (factory_map_.count(opt))
-        return factory_map_.find(opt)->second();
-    return nullptr;
-}
+    if (!factory_map_.count(opt))
+        return nullptr;
 
-std::unique_ptr<Function> DistributionRegistry::get(const std::string &opt, bool is_primitive) const
-{
-    auto output = get_distr(opt);
+    auto output = factory_map_.find(opt)->second();
     if (is_primitive)
         output->set_eval_as_distr_primitive();
     else
@@ -744,7 +740,8 @@ std::unique_ptr<Function> DistributionRegistry::get(const std::string &opt, bool
 
 std::unique_ptr<Distribution> compose_distr_registries(const std::string &opt,
                                                        const std::string &name,
-                                                       const std::vector<const DistributionRegistry *> &registries)
+                                                       const std::vector<const DistributionRegistry *> &registries,
+                                                       bool is_cumul)
 {
     str_vec options = {};
 
@@ -758,7 +755,7 @@ std::unique_ptr<Distribution> compose_distr_registries(const std::string &opt,
     for (auto &r : registries)
     {
         if (r->get_options() % opt)
-            return r->get_distr(opt);
+            return r->get_distr(opt, is_cumul);
         options += r->get_options();
     }
 

@@ -436,30 +436,29 @@ void Function::init_attr(const std::string &key, const Attribute &attr)
 /// Select functional method for discretization.
 void Function::init_discr_helper_(unsigned short discr_type)
 {
-    switch (discr_type)
+    if (discr_type == hsp::discr::DEFINED)
     {
-    case hsp::discr::DEFINED: // discrete defined
         function_ = &Function::do_function_discrete_;
         log_func_ = &Function::do_logfunc_discrete_;
         primitive_ = &Function::do_primitive_discrete_;
         log_ratio_ = &Function::do_logratio_discrete_;
-        break;
-
-    case hsp::discr::CENTER: // centered discretization
+    }
+    else if (discr_type == hsp::discr::CENTER)
+    {
         function_ = &Function::do_function_discr_center_;
         log_func_ = &Function::do_logfunc_discr_center_;
         primitive_ = &Function::do_primitive_discr_center_;
         log_ratio_ = &Function::do_logratio_discr_center_;
-        break;
-
-    case hsp::discr::LEFT: // left discretization
+    }
+    else if (discr_type == hsp::discr::LEFT)
+    {
         function_ = &Function::do_function_discr_left_;
         log_func_ = &Function::do_logfunc_discr_left_;
         primitive_ = &Function::do_primitive_discr_left_;
         log_ratio_ = &Function::do_logratio_discr_left_;
-        break;
-
-    default: // no discretization (default)
+    }
+    else // no discretization (default)
+    {
         function_ = &Function::raw_function_;
         log_func_ = &Function::raw_logfunc_;
         primitive_ = &Function::raw_primitive_;
@@ -752,14 +751,14 @@ std::unique_ptr<Function> FunctionRegistry::get(const std::string &opt, bool is_
     if (is_primitive)
         output->set_eval_primitive();
     else
-        output->set_eval_function();
+        output->set_eval_call();
     return output;
 }
 
 std::unique_ptr<Function> compose_func_registries(const std::string &opt,
                                                   const std::string &name,
                                                   const std::vector<const FunctionRegistry *> &registries,
-                                                  bool is_primitive)
+                                                  bool is_prim)
 {
     str_vec options = {};
 
@@ -773,7 +772,7 @@ std::unique_ptr<Function> compose_func_registries(const std::string &opt,
     for (const auto &r : registries)
     {
         if (r->get_options() % opt)
-            return r->get(opt, is_primitive);
+            return r->get(opt, is_prim);
         options += r->get_options();
     }
 

@@ -33,100 +33,97 @@ get_rcpp_module_from_model <- function(module_name, model = NULL) {
   get_rcpp_module_from_dll(module_name, dll)
 }
 
-rd_test_disclaimer_ <- "Meant for testing only, not for repeated operations."
 rd_test_name_ <- "`character(1)` with the name of the %s."
 rd_test_x_ <- "`numeric()` with values."
-rd_test_prim_ <- "`logical(1)` to consider %s instead.\\cr
-Default is `FALSE`."
-rd_test_args_ <- "named `numeric()` or `list` with custom arguments."
+rd_test_args_ <- "named arguments with corresponding values of the %s"
 rd_test_discr_ <- "`logical(1)` to treat definition as discrete."
 rd_test_model_ <- "`HousepiModel` object containing the custom registred %s.\\cr
 If `NULL` (default) the built-in registry is used."
 
 #' @title
-#' Test Housepi Function
+#' New Housepi Function
 #' @description
-#' Call housepi registered function.
-#' `r rd_test_disclaimer_`
+#' Expose an object from housepi registered function.
+#' Used to access user defined functions.
 #'
 #' @param name `r sprintf(rd_test_name_, "function")`
-#' @param x `r rd_test_x_`
-#' @param prim `r sprintf(rd_test_prim_, "primitive")`
-#' @param args `r rd_test_args_`
+#' @param ... `r sprintf(rd_test_args_, "function")`
 #' @param min `r rd_var_min_`
 #' @param max `r rd_var_max_`
 #' @param discr `r rd_test_discr_`
 #' @param model `r rd_test_model_`\cr
 #'
 #' @return
-#' `numeric()`
+#' An object of class `FunctionHousepi`.
+#'
+#' profile <- expose_function("weibull", shape = 2, scale = 1)
+#' profile$pdf(seq(0, 10))
+#' profile$cdf(seq(0, 10))
 #'
 #' @export
-test_function <- function(name, x, prim = FALSE, args = NULL,
-                          min = NA_real_, max = NA_real_,
-                          discr = FALSE, model = NULL) {
-  # note: for simple function no reshaping -> discr = FALSE
-  get_rcpp_module_from_model(
-    "housepi_function", model
-  )$FunctionHousepi$new(
-    name, prim, args, c(min = min, max = max), discr
-  )$call(x)
+expose_function <- function(name, ...,
+                            min = NA_real_, max = NA_real_,
+                            discr = FALSE, model = NULL) {
+  args <- unlist(list(...))
+  m <- get_rcpp_module_from_model("housepi_function", model)
+  m$FunctionHousepi$new(name, args = args, min, max, discr)
 }
 
 #' @title
 #' Test Housepi Distribution
 #' @description
-#' Call housepi registered distribution.
-#' `r rd_test_disclaimer_`
+#' Expose an object from housepi registered distribution.
+#' Used to access user defined distributions.
 #'
 #' @param name `r sprintf(rd_test_name_, "distribution")`
-#' @param x `r rd_test_x_`
-#' @param cumul `r sprintf(rd_test_prim_, "cumulative")`
-#' @param args `r rd_test_args_`
+#' @param ... `r sprintf(rd_test_args_, "distribution")`
 #' @param min `r rd_var_min_`
 #' @param max `r rd_var_max_`
 #' @param discr `r rd_test_discr_`
 #' @param model `r rd_test_model_`\cr
 #'
 #' @return
-#' `numeric()`
+#' An object of class `DistributionHousepi`.
+#'
+#' profile <- expose_distribution("weibull", shape = 2, scale = 1)
+#' profile$pdf(seq(0, 10))
+#' profile$cdf(seq(0, 10))
 #'
 #' @export
-test_distribution <- function(name, x, cumul = FALSE, args = NULL,
-                              min = NA_real_, max = NA_real_,
-                              discr = FALSE, model = NULL) {
-  get_rcpp_module_from_model(
-    "housepi_distribution", model
-  )$DistributionHousepi$new(
-    name, cumul, args, c(min = min, max = max), discr
-  )$call(x)
+expose_distribution <- function(name, ...,
+                                min = NA_real_, max = NA_real_,
+                                discr = FALSE, model = NULL) {
+  args <- unlist(list(...))
+  m <- get_rcpp_module_from_model("housepi_distribution", model)
+  m$DistributionHousepi$new(name, args = args, min, max, discr)
 }
 
 #' @title
-#' Test Housepi Infectivity Profile
+#' Expose Housepi Infectivity Profile
 #' @description
-#' Call housepi registered infectivity profile.
-#' `r rd_test_disclaimer_`
+#' Expose an object from housepi registered infectivity profile.
+#' Used to access user defined infectivity profiles.
 #'
 #' @param name `r sprintf(rd_test_name_, "infectivity profile")`
-#' @param x `r rd_test_x_`
-#' @param cumul `r sprintf(rd_test_prim_, "cumulative")`
-#' @param args `r rd_test_args_`
+#' @param .. `r sprintf(rd_test_args_, "infectivity profile")`
 #' @param max `r rd_var_max_`
 #' @param discr `r rd_test_discr_`
 #' @param model `r rd_test_model_`\cr
 #'
 #' @return
-#' `numeric()`
+#' An object of class `InfecProfileHousepi`.
+#'
+#' @examples
+#' profile <- expose_infec_profile("gamma", shape = 2, scale = 1)
+#' profile$pdf(seq(0, 10))
+#' profile$cdf(seq(0, 10))
 #'
 #' @export
-test_infec_profile <- function(name, x, cumul = FALSE, args = NULL,
-                               min = NA_real_, max = NA_real_,
-                               discr = FALSE, model = NULL) {
+expose_infec_profile <- function(name, ...,
+                                 min = NA_real_, max = NA_real_,
+                                 discr = FALSE, model = NULL) {
+  args <- unlist(list(...))
   # UPDATE: the minimum should be imposed from within
-  get_rcpp_module_from_model(
-    "housepi_infec_profile", model
-  )$InfecProfileHousepi$new(
-    name, cumul, args, c(min = ifelse(discr, 1, 0), max = max), discr
-  )$call(x)
+  m <- get_rcpp_module_from_model("housepi_infec_profile", model)
+  m$InfecProfileHousepi$new(name, args = args, ifelse(discr, 1, 0), max, discr)
 }

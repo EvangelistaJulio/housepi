@@ -1168,8 +1168,10 @@ double MCMC::Impl::metropolis_augm_single_move_(Household &house, Individual &me
         update_cache_dependecies_(house, member);
 
         // Metropolis-Hastings algorithm
-        double delta_ll = materialize_house_obs_log_lik_(house) - house.get_obs_log_lik();
+        // NOTE: materialize calls must come after getters
+        double delta_ll = - house.get_obs_log_lik();
         delta_ll += member.materialize_augm_model_logratio(a);
+        delta_ll += materialize_house_obs_log_lik_(house);
 
         if (setup.unif() < std::exp(setup.inv_T * delta_ll - xaugm.get_propose_logratio()))
             return delta_ll;

@@ -44,7 +44,7 @@ public:
 
     const std::string &name() const { return name_; }
     virtual str_vec get_options() const;
-    virtual std::unique_ptr<Function> get(const std::string &opt, bool is_primitive) const;
+    virtual std::unique_ptr<Function> get(const std::string &opt, bool is_primitive = false) const;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////  FunctionRegistry : setter  //////////////////////////////
@@ -102,6 +102,6 @@ struct StaticFunctionRegistatror
 std::unique_ptr<Function> compose_func_registries(const std::string &opt,
                                                   const std::string &name,
                                                   const std::vector<const FunctionRegistry *> &registries,
-                                                  bool is_primitive = false);
+                                                  bool is_prim = false);
 
 #endif // HOUSEPI__FUNCTION__REGISTRY__H

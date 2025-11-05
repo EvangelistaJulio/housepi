@@ -47,9 +47,9 @@ public:
 	/// Override get_options method of generic function with distribution.
 	str_vec get_options() const override final;
 	/// Method to get a distribution.
-	virtual std::unique_ptr<Distribution> get_distr(const std::string &opt) const;
+	virtual std::unique_ptr<Distribution> get_distr(const std::string &opt, bool is_cumul = false) const;
 	/// Override get method of generic function with distribution.
-	std::unique_ptr<Function> get(const std::string &opt, bool is_primitive) const override final;
+	std::unique_ptr<Function> get(const std::string &opt, bool is_prim = false) const override final { return get_distr(opt, is_prim); };
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////  Distribution Registry : setter  ////////////////////////////
@@ -114,6 +114,7 @@ struct StaticDistributionRegistatror
 /// Compose registries to get a distribution from them.
 std::unique_ptr<Distribution> compose_distr_registries(const std::string &opt,
 													   const std::string &name,
-													   const std::vector<const DistributionRegistry *> &registries);
+													   const std::vector<const DistributionRegistry *> &registries,
+													   bool is_primitive = false);
 
 #endif // HOUSEPI__DISTRIBUTION__REGISTRY__H
