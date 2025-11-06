@@ -59,10 +59,15 @@ std::string Attribute::str_summary() const
     if (!is_function() || pFunc_->is_implicit_callable())
         sms = std::to_string(get()) + " | ";
 
-    if (is_constant())
-        sms += "constant";
+    if (is_discrete())
+        sms += "discrete";
     else
-        sms += "variable";
+        sms += "real";
+
+    if (is_constant())
+        sms += " constant";
+    else
+        sms += " variable";
 
     if (is_numeric())
         sms += " numeric";

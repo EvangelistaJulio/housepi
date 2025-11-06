@@ -28,11 +28,8 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Display a decorator for a section (if VERBOSE).
-void print_decorator(const std::string &title, bool verbose = true, const std::string &txt = hsp::na::STRING)
+void print_decorator(const std::string &title, const std::string &txt = hsp::na::STRING)
 {
-    if (!verbose)
-        return;
-
     const unsigned decor_left = 3;   // left size of decorator
     const unsigned decor_width = 65; // total size of decorator
     const char decor = '-';          // decorator for prints
@@ -59,7 +56,6 @@ int main(int argc, char *argv[])
     int carg_i = 1;   // command line iterator
     std::string carg; // command line argument
 
-    bool verbose = false;          // verbose option
     bool is_loglikelihood = false; // loglikelihood option
     bool is_infer = false;         // inference option
     bool is_simulate = false;      // simulation option
@@ -132,9 +128,6 @@ int main(int argc, char *argv[])
         else if (toup(carg) == "-S" || tolow(carg) == "--setup")
             setup_file = argv[++carg_i];
 
-        else if (toup(carg) == "-V" || tolow(carg) == "--verbose")
-            verbose = true;
-
         else
             hsp::msg::error("Unrecognized option `" + carg + "`.");
 
@@ -174,28 +167,23 @@ int main(int argc, char *argv[])
 
     if (is_loglikelihood) // evaluate loglikelihood
     {
-        print_decorator("Loglikelihood", verbose);
         std::cout << user_model->evaluate_log_lik() << std::endl;
     }
     else if (is_infer) // perform inference
     {
         if (hsp::na::is(output_file))
             hsp::msg::error("Missing output file for inference.");
-        print_decorator("Inference", verbose);
         user_model->infer();
-        print_decorator("Inference::infer state", verbose, "# save: " + output_file);
         user_model->print_infer_state(output_file);
     }
     else if (is_simulate) // simulation an outbreak
     {
         if (hsp::na::is(output_file))
             hsp::msg::error("Missing output file for simulation.");
-        print_decorator("Simulation", verbose, "# save: " + output_file);
         user_model->print_simulated_data_wide(output_file);
     }
     else if (is_logevidence) // estimate log_evidence
     {
-        print_decorator("Evidence", verbose);
         std::cout << user_model->log_evidence("adaptive", num_rungs) << std::endl;
     }
 

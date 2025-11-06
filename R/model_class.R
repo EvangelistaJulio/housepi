@@ -489,24 +489,23 @@ HousepiModel <- R6::R6Class(
     #' @description
     #' Override the default printing behavior.
     print = function() {
-      cli::cli_alert_info(sprintf(
-        "Household model {.pkg %s}%s.%s",
-        spaced_template_choice(self$name),
-        ifelse(private$.is_template(), " (template)", ""),
-        # UPDATE: to be rationalize in the future if more options are included
-        ifelse("_HOUSEPI_DISCRETE_TIME" %in% private$.last_user_flags,
-               "\nModel is set to {.emph discrete time} mode.", "")
-      ))
-
-      if (length(private$.get_all_param()) > 0) {
-        cli_format_assertion(private$.assert_param(FALSE), "Parameters")
-      }
-      if (length(private$.get_all_augm()) > 0) {
-        cli_format_assertion(private$.assert_augm(FALSE), "Augmented")
-      }
-      if (length(private$.get_all_group_rates()) > 0) {
-        cli_format_assertion(private$.assert_group_rates(FALSE), "Group rates")
-      }
+      sms <- c(i = sprintf("Household model {.pkg %s}%s.",
+                           spaced_template_choice(self$name),
+                           ifelse(private$.is_template(), " (template)", "")))
+      # UPDATE: to be rationalize in the future if more options are included
+      if ("_HOUSEPI_DISCRETE_TIME" %in% private$.last_user_flags) sms <- c(
+        sms, "Model is set to {.emph discrete time} mode."
+      )
+      if (length(private$.get_all_param()) > 0) sms <- c(
+        sms, fmt_assert_cli(private$.assert_param(FALSE), "Parameters")
+      )
+      if (length(private$.get_all_augm()) > 0) sms <- c(
+        sms, fmt_assert_cli(private$.assert_augm(FALSE), "Augmented")
+      )
+      if (length(private$.get_all_group_rates()) > 0) sms <- c(
+        sms, fmt_assert_cli(private$.assert_group_rates(FALSE), "Group rates")
+      )
+      cli::cli_inform(sms)
       invisible(self)
     },
 
@@ -790,13 +789,15 @@ HousepiModel <- R6::R6Class(
     #' @description
     #' Evaluate the log-likelihood.
     #'
+    #' @param house_id `r rd_house_id_`
+    #' If `NA` (default) it computes for the whole data.
     #' @param seed `r rd_seed_`
     #'
     #' @return `numeric(1)`
-    evaluate_log_lik = function(seed = NA_integer_) {
+    evaluate_log_lik = function(house_id = NA_character_, seed = NA_integer_) {
       # internal build function
       private$.build_full(seed = seed)
-      tryCatch(output <- private$.rcpp$evaluate_log_lik(),
+      tryCatch(output <- private$.rcpp$evaluate_log_lik(house_id),
                error = function(e) private$.helper_log_lik_error(e))
       output
     },
@@ -844,9 +845,8 @@ HousepiModel <- R6::R6Class(
     #' @description
     #' All variables associated to given household for last state.
     #'
-    #' @param house_id
-    #' A `character(1)` with the ID of the household to export.
-    #' Default is id of household that caused an error for loglikelihood.
+    #' @param house_id `r rd_house_id_`
+    #' If `NA` it calls the household which caused last error, if any.
     #'
     #' @return `list`
     export_house_snapshot = function(house_id = NA) {
@@ -859,10 +859,13 @@ HousepiModel <- R6::R6Class(
       # export household snapshot
       output <- private$.rcpp$export_house_snapshot(house_id)
       output$data_wide <- private$.refactor_data_wide(output$data_wide)
+      # > data long
       if (all(dim(output$data_long) == 0)) output$data_long <- NULL
       else output$data_long <- private$.refactor_data_long(output$data_long)
+      # > group rates
       if (all(dim(output$group_rates) == 0)) output$group_rates <- NULL
-      if (all(dim(output$infec_profile) == 0)) {
+      # > infectivity profile # UPDATE
+      if (length(output$infec_profile) == 0) {
         output$infec_profile <- NULL
       } else {
         lst <- output$infec_profile

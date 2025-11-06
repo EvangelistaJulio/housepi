@@ -78,13 +78,13 @@ clean:
 debug:
 	$(MAKE) DEBUG=1
 
+# Test log-likelihood evaluation 
+test-log-lik:
+	$(EXECUTABLE) $(STD_IN) --log-lik
+
 # Test inference 
 test-infer:
 	$(EXECUTABLE) $(STD_IN) --infer -O out.csv
-
-# Test log-likelihood evaluation 
-test-log-lik:
-	$(EXECUTABLE) $(STD_IN) --log-lik -O out.csv
 
 # Test simulation 
 test-simulate:

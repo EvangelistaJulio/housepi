@@ -406,14 +406,18 @@ add_infec_profile <- function(hhmodel,
 #' Compute the log-likelihood of a `HousepiModel` object.
 #'
 #' @param hhmodel `r rd_model_in_`
+#' @param house_id `r rd_house_id_`
+#' If `NA` (default) it computes for the whole data.
 #' @param seed `r rd_seed_`
 #'
 #' @return `numeric(1)`
 #'
 #' @export
-evaluate_log_lik <- function(hhmodel, seed = NA_integer_) {
+evaluate_log_lik <- function(hhmodel,
+                             house_id = NA_character_,
+                             seed = NA_integer_) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  hhmodel$evaluate_log_lik(seed = seed)
+  hhmodel$evaluate_log_lik(house_id = house_id, seed = seed)
 }
 
 #' @title Run inference on housepi model

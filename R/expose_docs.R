@@ -130,6 +130,7 @@ One between:\\cr
 - If `integer`, prints progress every `progress` seconds;\\cr
 - If `TRUE` prints progress every second (default);\\cr
 - If `FALSE` or `0`, suppresses progress display."
+rd_house_id_ <- "A `character(1)` with the ID of the household of interest."
 
 rd_add_data_wide_ <- "`data.frame` with the household data used for analysis in wide format."
 

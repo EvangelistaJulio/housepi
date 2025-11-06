@@ -168,7 +168,7 @@ void MCMC::Impl::InfecProfile::init_lookup_()
     lookup_buffer_inst_.resize(size_lut_);
     lookup_buffer_cumul_.resize(size_lut_);
 
-    update(true);
+    update();
 }
 
 /// Clear infectivity profile lookup table.
@@ -188,9 +188,9 @@ void MCMC::Impl::InfecProfile::clear_lookup_()
 
 /// If infectivity profile is a lookup table, store its values.
 /// UPDATE: this should not be recoverd if constant.
-void MCMC::Impl::InfecProfile::update(bool is_cache_depen)
+void MCMC::Impl::InfecProfile::update()
 {
-    if (!is_cache_depen || !is_lookup())
+    if (!is_lookup())
         return;
 
     // move current lookup table to buffer
@@ -211,9 +211,9 @@ void MCMC::Impl::InfecProfile::update(bool is_cache_depen)
 
 /// If infectivity profile is a lookup table, recover its buffered values.
 /// UPDATE: this should not be recoverd if constant.
-void MCMC::Impl::InfecProfile::recover(bool is_cache_depen)
+void MCMC::Impl::InfecProfile::recover()
 {
-    if (!is_cache_depen && !is_lookup())
+    if (!is_lookup())
         return;
 
     lookup_inst_.swap(lookup_buffer_inst_);
@@ -536,6 +536,7 @@ void MCMC::Impl::Augmented::build(const u_dict<str_vec> &deftable)
     helper_build_definition_();
     helper_build_definition_order_();
     helper_build_model_status_maps_();
+    user_list_discrete = hsp::str::unique(user_list_discrete);
 
     // allocate memory for augmented variables to each individual
     for (Household &house : pImpl_.data_wide)
@@ -1121,12 +1122,12 @@ void MCMC::Impl::move_all_augm_()
         }
         catch (const std::exception &e)
         {
+            if (!has_error.exchange(true, std::memory_order_relaxed))
 #pragma omp critical
             {
-                if (!has_error.exchange(true))
-                    error_message = "While sampling augmented variables for " +
-                                    this_house.err_name() + ":\n" +
-                                    std::string(e.what());
+                error_message = "While sampling augmented variables for " +
+                                this_house.err_name() + ":\n" +
+                                std::string(e.what());
             }
         }
     }
@@ -1169,7 +1170,7 @@ double MCMC::Impl::metropolis_augm_single_move_(Household &house, Individual &me
 
         // Metropolis-Hastings algorithm
         // NOTE: materialize calls must come after getters
-        double delta_ll = - house.get_obs_log_lik();
+        double delta_ll = -house.get_obs_log_lik();
         delta_ll += member.materialize_augm_model_logratio(a);
         delta_ll += materialize_house_obs_log_lik_(house);
 

@@ -146,7 +146,7 @@ public:
 	/// Compute the log-likelihood for a single household.
 	virtual double compute_household_obs_log_lik(Household &) { throw std::runtime_error(
 		"Called undefined log-likelihood method.\nOverride it in your custom model implementation before proceeding."); }
-	double evaluate_log_lik();
+	double evaluate_log_lik(const std::string &house_id = hsp::na::STRING);
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////  MCMC : simulation  ////////////////////////////////////

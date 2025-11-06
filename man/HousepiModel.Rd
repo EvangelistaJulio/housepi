@@ -553,12 +553,15 @@ One between:\cr
 \subsection{Method \code{evaluate_log_lik()}}{
 Evaluate the log-likelihood.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$evaluate_log_lik(seed = NA_integer_)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$evaluate_log_lik(house_id = NA_character_, seed = NA_integer_)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
+\item{\code{house_id}}{A \code{character(1)} with the ID of the household of interest.
+If \code{NA} (default) it computes for the whole data.}
+
 \item{\code{seed}}{\code{integer(1)} with the seed for the random number generator.\cr
 If \code{NA} uses current R seed (default).}
 }
@@ -644,8 +647,8 @@ All variables associated to given household for last state.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{house_id}}{A \code{character(1)} with the ID of the household to export.
-Default is id of household that caused an error for loglikelihood.}
+\item{\code{house_id}}{A \code{character(1)} with the ID of the household of interest.
+If \code{NA} it calls the household which caused last error, if any.}
 }
 \if{html}{\out{</div>}}
 }

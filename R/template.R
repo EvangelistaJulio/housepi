@@ -399,20 +399,18 @@ template_not_used_warn <- function(required, defined, family, max_print = 5) {
 }
 
 #' @title
-#' Cli format assertion Not Used Warning
+#' Format definition usage assertion with cli
 #' @description
-#' Format the output of an assert message with CLI.
+#' Format the output of an assert usage definition message with cli.
 #'
 #' @keywords internal
 #' @noRd
-cli_format_assertion <- function(sms, section) {
+fmt_assert_cli <- function(sms, section) {
   if (length(sms) > 0) {
-    sms <- c(paste0(cli::col_yellow(section), ":"), sms)
-    sms <- gsub(sms, pattern = " were ", replacement = " are ")
-    sms <- paste0(sms, collapse = "\n")
-    cli::cli_alert_danger(sms)
+    c(x = paste0(cli::col_yellow(section), ":"),
+      gsub(sms, pattern = " were ", replacement = " are "))
   } else {
-    cli::cli_alert_success(paste0(section, " definitions are complete."))
+    c(v = paste(section, "definitions are complete."))
   }
 }
 

@@ -25,7 +25,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Initialize model and evaluate log-likelihood.
-double MCMC::Impl::evaluate_log_lik()
+double MCMC::Impl::evaluate_log_lik(const std::string &house_id)
 {
     try
     {
@@ -36,7 +36,23 @@ double MCMC::Impl::evaluate_log_lik()
         augm.init();                   // initialize individual augmented relations
         augm.user_reset();             // initialize non constant augmented
         init_model_for_inference_();   // initialize model for inference
-        update_total_log_lik_(true);   // initialize cache + full log-likelihood
+
+        // mode for computing log-likelihood of specific household
+        if (!hsp::na::is(house_id))
+            try
+            {
+                Household &this_house = data_wide(house_id);
+                infec_profile.update();
+                return materialize_house_log_lik_(this_house, augm.is_any_model());
+            }
+            catch (const std::exception &e)
+            {
+                throw std::runtime_error(
+                    "While computing log-likelihood for household '" +
+                    house_id + "':\n" + std::string(e.what()));
+            }
+
+        update_total_log_lik_(); // initialize cache + full log-likelihood
         return total_log_lik_;
     }
     catch (const std::exception &e)
@@ -44,7 +60,7 @@ double MCMC::Impl::evaluate_log_lik()
         hsp::msg::error(e.what());
     }
 }
-double MCMC::evaluate_log_lik() { return pImpl_->evaluate_log_lik(); }
+double MCMC::evaluate_log_lik(const std::string &house_id) { return pImpl_->evaluate_log_lik(house_id); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -53,14 +69,15 @@ double MCMC::evaluate_log_lik() { return pImpl_->evaluate_log_lik(); }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Compute new log-likelihood, store old value in buffer. Same for households.
-void MCMC::Impl::update_total_log_lik_(bool cache_depen)
+void MCMC::Impl::update_total_log_lik_(bool is_cache_depen)
 {
     const bool is_augm_ll = augm.is_any_model();
     double new_ll = 0.0;
     std::atomic<bool> has_error(false);
 
     // buffer infectivity profile if lookup tables are active
-    infec_profile.update(cache_depen);
+    if (is_cache_depen)
+        infec_profile.update();
 
 #pragma omp parallel for reduction(+ : new_ll)
     for (size_t R = 0; R < multiplicity.indexes.size(); ++R)
@@ -71,16 +88,16 @@ void MCMC::Impl::update_total_log_lik_(bool cache_depen)
         Household &this_house = data_wide.restricted(R);
         try
         {
-            new_ll += update_house_log_lik_(this_house, is_augm_ll, cache_depen);
+            new_ll += materialize_house_log_lik_(this_house, is_augm_ll, is_cache_depen);
         }
         catch (const std::exception &e)
         {
-#pragma omp critical
+            if (!has_error.exchange(true, std::memory_order_relaxed))
             {
-                if (!has_error.exchange(true))
-                    error_message = "While computing log-likelihood for " +
-                                    this_house.err_name() + ":\n" +
-                                    std::string(e.what());
+#pragma omp critical
+                error_message = "While computing log-likelihood for " +
+                                this_house.err_name() + ":\n" +
+                                std::string(e.what());
             }
         }
     }
@@ -92,7 +109,7 @@ void MCMC::Impl::update_total_log_lik_(bool cache_depen)
 
 /// Update and return contribution of given household to full logliklehood.
 /// NOTE: house multiplicity doesn't work with data augmentation
-double MCMC::Impl::update_house_log_lik_(Household &house, bool is_augm_ll, bool is_cache_depen)
+double MCMC::Impl::materialize_house_log_lik_(Household &house, bool is_augm_ll, bool is_cache_depen)
 {
     // buffer all household cache dependencies
     if (is_cache_depen)
@@ -305,7 +322,8 @@ void MCMC::Impl::recover_parameter_(const std::string &p, bool is_cache_depen)
                 member.recover_augm_model_log_lik();
     }
 
-    infec_profile.recover(is_cache_depen);
+    if (is_cache_depen)
+        infec_profile.recover();
 }
 
 /// Metropolis-Hastings to accept or not current parameter move.
@@ -773,10 +791,10 @@ Rcpp::List MCMC::Impl::simulate(size_t n_rep)
             }
             catch (const std::exception &e)
             {
-#pragma omp critical
+                if (!has_error.exchange(true, std::memory_order_relaxed))
                 {
-                    if (!has_error.exchange(true))
-                        error_message = e.what();
+#pragma omp critical
+                    error_message = e.what();
                 }
             }
         }

@@ -536,8 +536,8 @@ public:
 
         void build(const u_dict<std::string> &deflist);
         void init_template(u_dict<std::string> input);
-        void update(bool is_cache_depen);
-        void recover(bool is_cache_depen);
+        void update();
+        void recover();
         void request_discrete() { is_discrete_requested_ = true; };
         void transfer_augm_definitions(u_dict<str_vec> &target) const;
 
@@ -684,7 +684,7 @@ public:
     /////////////////////////////  MCMC : Impl : Metropolis-Hastings  ///////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    double evaluate_log_lik();
+    double evaluate_log_lik(const std::string &house_id = hsp::na::STRING);
     void infer();
 
     /// Release memory.
@@ -777,8 +777,8 @@ private:
 
     void init_move_counts_();
 
-    void update_total_log_lik_(bool cache_depen);
-    double update_house_log_lik_(Household &house, bool is_augm_ll, bool is_cache_depen);
+    void update_total_log_lik_(bool is_cache_depen = true);
+    double materialize_house_log_lik_(Household &house, bool is_augm_ll, bool is_cache_depen = true);
 
     void run_monte_carlo_();
     void move_all_();

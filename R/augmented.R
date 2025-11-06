@@ -321,8 +321,8 @@ HousepiAugmented <- R6::R6Class(
         opts <- private$.helper_implicit_func(opts, expr)
       } else if (!is.na(opts$func)) {
         opts <- private$.helper_function_arguments(opts, func_args)
+        # FIXME: I don't think this is right, test it
         opts$const <- FALSE
-        opts$discr <- FALSE
       }
 
       # model arguments
