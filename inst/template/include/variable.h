@@ -43,13 +43,13 @@ public:
 
     /// Proposer constructor from Distribution pointer.
     Proposer(std::shared_ptr<Distribution>,
-             double rule_scale = hsp::na::DOUBLE,
+             double proposal_scale = hsp::na::DOUBLE,
              const std::vector<unsigned short> &args_to_adapt = {},
              bool is_discrete = false);
 
     /// Proposer constructor from Distribution name.
     Proposer(const std::string &distr_name,
-             double rule_scale = hsp::na::DOUBLE,
+             double proposal_scale = hsp::na::DOUBLE,
              const std::vector<unsigned short> &args_to_adapt = {},
              bool is_discrete = false);
 
@@ -65,7 +65,7 @@ public:
         "Called propose method of undefined Monte Carlo proposer."); }
     virtual double logratio(double, double) const { return 0.; }
 
-    /// Wheter proposer rule can be adapted.
+    /// Wheter proposer can be adapted.
     bool is_adaptable() const { return !args_to_adapt_.empty(); }
 
     /// Return proposer scale.
@@ -99,7 +99,7 @@ protected:
     std::string name_ = hsp::na::STRING;
     std::shared_ptr<Distribution> pDistr_;
 
-    double user_rule_scale_ = 1.;                    /// scale of the Metropolis rule
+    double user_scale_ = 1.;                         /// scale of the Metropolis proposal
     double accept_rate_ = 0.;                        /// acceptance rate
     unsigned long n_proposed_ = 0;                   /// n. of proposed moves
     std::vector<unsigned short> args_to_adapt_ = {}; /// which arguments should be adapted
@@ -178,8 +178,8 @@ public:
     void init_rand(rnd_gen &prng);
 
     /// Initialize pointer to proposer.
-    void init_proposer(const std::string &rule_name = hsp::na::STRING,
-                       double rule_scale = hsp::na::DOUBLE);
+    void init_proposer(const std::string &proposal = hsp::na::STRING,
+                       double proposal_scale = hsp::na::DOUBLE);
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////  Variable : getter  ///////////////////////////////////
@@ -209,7 +209,7 @@ public:
     double get_accept_rate() const { return pProp_->get_accept_rate(); }
     void update_accept_rate(bool is_accepted) { pProp_->update_accept_rate(is_accepted); }
     void reset_accept_rate() { pProp_->reset_accept_rate(); }
-    void adapt_rule(double ratio) { pProp_->adapt(ratio); }
+    void adapt_proposal(double ratio) { pProp_->adapt(ratio); }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////  Variable : show  ////////////////////////////////////
@@ -249,7 +249,7 @@ protected:
     /// Helper with proposer initialization of direct sample from prior/model.
     void helper_init_sample_proposer_();
     /// Helper with Monte Carlo proposer initialization.
-    void helper_init_proposer_monte_carlo_(const std::string &rule_name, double rule_scale);
+    void helper_init_proposer_monte_carlo_(const std::string &proposal, double proposal_scale);
 
     /// Helper with degenerate range.
     void helper_degenerate_range_();

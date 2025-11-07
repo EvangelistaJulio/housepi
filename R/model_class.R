@@ -601,20 +601,22 @@ HousepiModel <- R6::R6Class(
     #' @param const `r rd_var_const_`
     #' @param discr `r rd_par_discr_`
     #' @param prior `r rd_par_model_`
-    #' @param args `r rd_par_args_`
+    #' @param ... `r rd_par_args_`
     #' @param min `r rd_var_min_`
     #' @param max `r rd_var_max_`
-    #' @param rule `r rd_par_rule_`
-    #' @param scale `r rd_var_scale_`
+    #' @param proposal `r rd_par_proposal_`
+    #' @param proposal_scale `r rd_var_proposal_scale_`
     add_parameter = function(name = NA_character_, value = NULL,
                              const = NA, discr = FALSE,
-                             prior = NA_character_, args = NULL,
+                             prior = NA_character_, ...,
                              min = NULL, max = NULL,
-                             rule = NA_character_, scale = NA_real_) {
+                             proposal = NA_character_,
+                             proposal_scale = NA_real_) {
       private$.param$add(name = name, value = value, const = const,
-                         discr = discr, prior = prior, args = args,
+                         discr = discr, prior = prior, ...,
                          min = min, max = max,
-                         rule = rule, scale = scale)
+                         proposal = proposal,
+                         proposal_scale = proposal_scale)
       invisible(self)
     },
 
@@ -662,25 +664,27 @@ HousepiModel <- R6::R6Class(
     #' @param func `r rd_aug_func_`
     #' @param func_args `r rd_aug_funargs_`
     #' @param model `r rd_aug_model_`
-    #' @param args `r rd_aug_args_`
+    #' @param ... `r rd_aug_args_`
     #' @param min `r rd_aug_min_`
     #' @param max `r rd_aug_max_`
-    #' @param rule `r rd_var_rule_`
-    #' @param scale `r rd_var_scale_`
+    #' @param proposal `r rd_var_proposal_`
+    #' @param proposal_scale `r rd_var_proposal_scale_`
     #' @param expr `r rd_aug_expr_`
     add_augmented = function(name = NA_character_, status = NA_integer_,
                              value = NULL, const = NA, discr = FALSE,
                              func = NA_character_, func_args = NULL,
-                             model = NA_character_, args = NULL,
+                             model = NA_character_, ...,
                              min = NULL, max = NULL,
-                             rule = NA_character_, scale = NA_real_,
+                             proposal = NA_character_,
+                             proposal_scale = NA_real_,
                              expr = NULL) {
       private$.augm$add(name = name, status = status,
                         value = value, const = const, discr = discr,
                         func = func, func_args = func_args,
-                        model = model, args = args,
+                        model = model, ...,
                         min = min, max = max,
-                        rule = rule, scale = scale,
+                        proposal = proposal,
+                        proposal_scale = proposal_scale,
                         expr = expr)
       invisible(self)
     },
@@ -723,7 +727,8 @@ HousepiModel <- R6::R6Class(
     #' Group rates are relative to a reference class that can be specified.
     #' If no MCMC options are provided, the following configuration is assumed
     #' - `prior`: "lognormal"
-    #' - `args`: `c(meanlog = 0, sdlog = 3)`
+    #' - `meanlog`: 0
+    #' - `sdlog`: 3
     #' - `min`: 0
     #' - `max` 10
     #'
@@ -733,21 +738,23 @@ HousepiModel <- R6::R6Class(
     #' @param reference `r rd_grr_refer_`
     #' @param independent `r rd_grr_indep_`
     #' @param prior `r rd_par_model_`
-    #' @param args `r rd_par_args_`
+    #' @param ... `r rd_par_args_`
     #' @param min `r rd_var_min_`
     #' @param max `r rd_var_max_`
-    #' @param rule `r rd_var_rule_`
-    #' @param scale `r rd_var_scale_`
+    #' @param proposal `r rd_var_proposal_`
+    #' @param proposal_scale `r rd_var_proposal_scale_`
     add_group_rate = function(name, by, prefix = NA_character_,
                               reference = NULL, independent = TRUE,
-                              prior = NA_character_, args = NULL,
+                              prior = NA_character_, ...,
                               min = NULL, max = NULL,
-                              rule = NA_character_, scale = NA_real_) {
+                              proposal = NA_character_,
+                              proposal_scale = NA_real_) {
       private$.group_rates$add(name = name, by = by, prefix = prefix,
                                reference = reference, independent = independent,
-                               prior = prior, args = args,
+                               prior = prior, ...,
                                min = min, max = max,
-                               rule = rule, scale = scale)
+                               proposal = proposal,
+                               proposal_scale = proposal_scale)
       invisible(self)
     },
 
@@ -773,12 +780,12 @@ HousepiModel <- R6::R6Class(
     #'
     #' @param name `r rd_var_name_`
     #' @param discr `r rd_inf_discr_`
-    #' @param args `r rd_inf_args_`
+    #' @param ... `r rd_inf_args_`
     #' @param max `r rd_aug_max_`
     add_infec_profile = function(name, discr = FALSE,
-                                 args = NULL, max = NULL) {
+                                 ..., max = NULL) {
       private$.infec_profile$add(name = name, discr = discr,
-                                 args = args, max = max)
+                                 ..., max = max)
       invisible(self)
     },
 

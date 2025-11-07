@@ -164,11 +164,11 @@ get_parameters <- function(hhmodel, ...) {
 #' @param const `r rd_var_const_`
 #' @param discr `r rd_par_discr_`
 #' @param prior `r rd_par_model_`
-#' @param args `r rd_par_args_`
+#' @param ... `r rd_par_args_`
 #' @param min `r rd_var_min_`
 #' @param max `r rd_var_max_`
-#' @param rule `r rd_par_rule_`
-#' @param scale `r rd_var_scale_`
+#' @param proposal `r rd_par_proposal_`
+#' @param proposal_scale `r rd_var_proposal_scale_`
 #'
 #' @return `r rd_model_out_`
 #'
@@ -176,16 +176,15 @@ get_parameters <- function(hhmodel, ...) {
 add_parameter <- function(hhmodel,
                           name = NA_character_, value = NULL,
                           const = NA, discr = FALSE,
-                          prior = NA_character_, args = NULL,
+                          prior = NA_character_, ...,
                           min = NULL, max = NULL,
-                          rule = NA_character_, scale = NA_real_) {
+                          proposal = NA_character_,
+                          proposal_scale = NA_real_) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
   hhmodel$clone(deep = TRUE)$add_parameter(
-    name = name, value = value,
-    const = const, discr = discr,
-    prior = prior, args = args,
-    min = min, max = max,
-    rule = rule, scale = scale
+    name = name, value = value, const = const, discr = discr,
+    prior = prior, ..., min = min, max = max,
+    proposal = proposal, proposal_scale = proposal_scale
   )
 }
 
@@ -243,39 +242,39 @@ get_augmented <- function(hhmodel, ...) {
 #'
 #' @param hhmodel `r rd_model_in_`
 #' @param name `r rd_var_name_`
-#' @param status `r rd_aug_status_`
 #' @param value `r rd_aug_val_`
+#' @param status `r rd_aug_status_`
 #' @param const `r rd_var_const_`
 #' @param discr `r rd_aug_discr_`
 #' @param func `r rd_aug_func_`
 #' @param func_args `r rd_aug_funargs_`
 #' @param model `r rd_aug_model_`
-#' @param args `r rd_aug_args_`
+#' @param ... `r rd_aug_args_`
 #' @param min `r rd_aug_min_`
 #' @param max `r rd_aug_max_`
-#' @param rule `r rd_var_rule_`
-#' @param scale `r rd_var_scale_`
+#' @param proposal `r rd_var_proposal_`
+#' @param proposal_scale `r rd_var_proposal_scale_`
 #' @param expr `r rd_aug_expr_`
 #'
 #' @return `r rd_model_out_`
 #'
 #' @export
 add_augmented <- function(hhmodel,
-                          name = NA_character_, status = NA_integer_,
-                          value = NULL, const = NA, discr = FALSE,
+                          name = NA_character_, value = NULL,
+                          status = NA_integer_, const = NA, discr = FALSE,
                           func = NA_character_, func_args = NULL,
-                          model = NA_character_, args = NULL,
+                          model = NA_character_, ...,
                           min = NULL, max = NULL,
-                          rule = NA_character_, scale = NA_real_,
+                          proposal = NA_character_,
+                          proposal_scale = NA_real_,
                           expr = NULL) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
   hhmodel$clone(deep = TRUE)$add_augmented(
-    name = name, status = status,
-    value = value, const = const, discr = discr,
+    name = name, value = value,
+    status = status, const = const, discr = discr,
     func = func, func_args = func_args,
-    model = model, args = args,
-    min = min, max = max,
-    rule = rule, scale = scale,
+    model = model, ..., min = min, max = max,
+    proposal = proposal, proposal_scale = proposal_scale,
     expr = expr
   )
 }
@@ -314,7 +313,8 @@ get_group_rates <- function(hhmodel, ...) {
 #' Group rates are relative to a reference class that can be specified.
 #' If no MCMC options are provided, the following configuration is assumed
 #' - `prior`: "lognormal"
-#' - `args`: `c(meanlog = 0, sdlog = 3)`
+#' - `meanlog`: 0
+#' - `sdlog`: 3
 #' - `min`: 0
 #' - `max` 10
 #'
@@ -325,11 +325,11 @@ get_group_rates <- function(hhmodel, ...) {
 #' @param reference `r rd_grr_refer_`
 #' @param independent `r rd_grr_indep_`
 #' @param prior `r rd_par_model_`
-#' @param args `r rd_par_args_`
+#' @param ... `r rd_par_args_`
 #' @param min `r rd_var_min_`
 #' @param max `r rd_var_max_`
-#' @param rule `r rd_var_rule_`
-#' @param scale `r rd_var_scale_`
+#' @param proposal `r rd_var_proposal_`
+#' @param proposal_scale `r rd_var_proposal_scale_`
 #'
 #' @references
 #' Cauchemez, et al. (2009)
@@ -342,16 +342,16 @@ get_group_rates <- function(hhmodel, ...) {
 add_group_rate <-  function(hhmodel,
                             name, by, prefix = NA_character_,
                             reference = NULL, independent = TRUE,
-                            prior = NA_character_, args = NULL,
+                            prior = NA_character_, ...,
                             min = NULL, max = NULL,
-                            rule = NA_character_, scale = NA_real_) {
+                            proposal = NA_character_,
+                            proposal_scale = NA_real_) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
   hhmodel$clone(deep = TRUE)$add_group_rate(
     name = name, by = by, prefix = prefix,
     reference = reference, independent = independent,
-    prior = prior, args = args,
-    min = min, max = max,
-    rule = rule, scale = scale
+    prior = prior, ..., min = min, max = max,
+    proposal = proposal, proposal_scale = proposal_scale
   )
 }
 
@@ -382,7 +382,7 @@ get_infec_profile <- function(hhmodel, ...) {
 #' @param hhmodel `r rd_model_in_`
 #' @param name `r rd_var_name_`
 #' @param discr `r rd_inf_discr_`
-#' @param args `r rd_inf_args_`
+#' @param ... `r rd_inf_args_`
 #' @param max `r rd_aug_max_`
 #'
 #' @return `r rd_model_out_`
@@ -390,10 +390,10 @@ get_infec_profile <- function(hhmodel, ...) {
 #' @export
 add_infec_profile <- function(hhmodel,
                               name, discr = FALSE,
-                              args = NULL, max = NULL) {
+                              ..., max = NULL) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
   hhmodel$clone(deep = TRUE)$add_infec_profile(
-    name = name, discr = discr, args = args, max = max
+    name = name, discr = discr, ..., max = max
   )
 }
 

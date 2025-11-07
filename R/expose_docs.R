@@ -47,12 +47,12 @@ rd_var_discr_ <- "`logical(1)` to treat definition as discrete.\\cr
 If applicable, the %s is discretized.\\cr
 Default is `FALSE`."
 rd_var_model_ <- "`character(1)` wit the choice for the %s distribution."
-rd_var_args_ <- "named `numeric()` or `list` with custom arguments for the %s distribution."
+rd_var_args_ <- "named arguments for the %s distribution."
 
 rd_var_min_ <- "`numeric(1)` to truncate to a minimum value."
 rd_var_max_ <- "`numeric(1)` to truncate to a maximum value."
 
-rd_var_rule_ <- "`character(1)` with proposer rule used during inference.\\cr
+rd_var_proposal_ <- "`character(1)` with proposal used in the Monte Carlo.\\cr
 One between:\\cr
 - 'sample': sampled from the %s distribution;\\cr
 - 'uniform': increments drawn from uniform distribution;\\cr
@@ -60,19 +60,19 @@ One between:\\cr
 - 'lognormal': log-increments drawn from lognormal distribution (for positive values only);
 - `NA` (default): same as 'sample'.
 "
-rd_var_scale_ <- "`numeric(1)` with scale of the proposer rule.\\cr 
+rd_var_proposal_scale_ <- "`numeric(1)` with scale of the proposal.\\cr 
 Changed automatically during inference if `n_adpat`>0.\\cr
-Not applicable if rule is 'sample'. Default is `1` otherwise."
+Not applicable if proposal is 'sample'. Otherwise scale is `1` by default."
 
 rd_par_discr_ <- sprintf(rd_var_discr_, "prior")
 rd_par_model_ <- sprintf(rd_var_model_, "prior")
 rd_par_args_ <- sprintf(rd_var_args_, "prior")
-rd_par_rule_ <- sprintf(rd_var_rule_, "prior")
+rd_par_proposal_ <- sprintf(rd_var_proposal_, "prior")
 
 rd_aug_discr_ <- sprintf(rd_var_discr_, "model")
 rd_aug_model_ <- sprintf(rd_var_model_, "model")
 rd_aug_args_ <- sprintf(rd_var_args_, "model")
-rd_aug_rule_ <- sprintf(rd_var_rule_, "model")
+rd_aug_proposal_ <- sprintf(rd_var_proposal_, "model")
 
 rd_inf_discr_ <- sprintf(rd_var_discr_, "profile")
 rd_inf_args_ <- sprintf(rd_var_args_, "profile")

@@ -690,7 +690,7 @@ void MCMC::Impl::Parameter::build(const u_dict<str_vec> &deftable)
     // check entries
     const str_vec file_headers = {"name", "value", "const", "discr",
                                   "prior", hsp::params::MIN, hsp::params::MAX,
-                                  "rule", "scale"};
+                                  "proposal", "proposal_scale"};
     const str_vec headers = hsp::read::table_headers(deftable);
     hsp::str::assert_no_missing_entries(headers, file_headers);
     hsp::str::assert_no_unused_entries(headers, file_headers);
@@ -753,15 +753,15 @@ void MCMC::Impl::Parameter::build_parameter_to_sample_(const u_dict<str_vec> &de
         throw std::invalid_argument(
             "Non-constant parameter '" + p + "' had undefined prior.");
 
-    // load rule name
-    std::string rule_name = "sample";
-    if (!hsp::na::is(deftable.at("rule")[k]))
-        rule_name = deftable.at("rule")[k];
+    // load proposal name
+    std::string proposal_name = "sample";
+    if (!hsp::na::is(deftable.at("proposal")[k]))
+        proposal_name = deftable.at("proposal")[k];
 
-    // load rule scale
-    double rule_scale = 1.;
-    if (!hsp::na::is(deftable.at("scale")[k]))
-        rule_scale = hsp::str::tod(deftable.at("scale")[k]);
+    // load proposal scale
+    double proposal_scale = 1.;
+    if (!hsp::na::is(deftable.at("proposal_scale")[k]))
+        proposal_scale = hsp::str::tod(deftable.at("proposal_scale")[k]);
 
     // create a new parameter Variable
     dictionary_.emplace(
@@ -779,8 +779,8 @@ void MCMC::Impl::Parameter::build_parameter_to_sample_(const u_dict<str_vec> &de
     new_param.init_distr_attr(hsp::params::MAX, pImpl_.read_numeric_(deftable.at(hsp::params::MAX)[k]));
     new_param.init_distr_reshaping(hsp::str::tobool(deftable.at("discr")[k]));
 
-    // assign the rule for the proposer to the parameter
-    new_param.init_proposer(rule_name, rule_scale);
+    // assign the proposer to the parameter
+    new_param.init_proposer(proposal_name, proposal_scale);
     // update the lists of parameters to sample
     list_sample.push_back(p);
 }

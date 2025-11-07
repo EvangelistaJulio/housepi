@@ -199,11 +199,11 @@ If the parameter already exists, it is updated.
   const = NA,
   discr = FALSE,
   prior = NA_character_,
-  args = NULL,
+  ...,
   min = NULL,
   max = NULL,
-  rule = NA_character_,
-  scale = NA_real_
+  proposal = NA_character_,
+  proposal_scale = NA_real_
 )}\if{html}{\out{</div>}}
 }
 
@@ -225,13 +225,13 @@ Default is \code{FALSE}.}
 
 \item{\code{prior}}{\code{character(1)} wit the choice for the prior distribution.}
 
-\item{\code{args}}{named \code{numeric()} or \code{list} with custom arguments for the prior distribution.}
+\item{\code{...}}{named arguments for the prior distribution.}
 
 \item{\code{min}}{\code{numeric(1)} to truncate to a minimum value.}
 
 \item{\code{max}}{\code{numeric(1)} to truncate to a maximum value.}
 
-\item{\code{rule}}{\code{character(1)} with proposer rule used during inference.\cr
+\item{\code{proposal}}{\code{character(1)} with proposal used in the Monte Carlo.\cr
 One between:\cr
 \itemize{
 \item 'sample': sampled from the prior distribution;\cr
@@ -241,9 +241,9 @@ One between:\cr
 \item \code{NA} (default): same as 'sample'.
 }}
 
-\item{\code{scale}}{\code{numeric(1)} with scale of the proposer rule.\cr
+\item{\code{proposal_scale}}{\code{numeric(1)} with scale of the proposal.\cr
 Changed automatically during inference if \code{n_adpat}>0.\cr
-Not applicable if rule is 'sample'. Default is \code{1} otherwise.}
+Not applicable if proposal is 'sample'. Otherwise scale is \code{1} by default.}
 }
 \if{html}{\out{</div>}}
 }
@@ -304,11 +304,11 @@ If the augmented variablw already exists, it is updated.
   func = NA_character_,
   func_args = NULL,
   model = NA_character_,
-  args = NULL,
+  ...,
   min = NULL,
   max = NULL,
-  rule = NA_character_,
-  scale = NA_real_,
+  proposal = NA_character_,
+  proposal_scale = NA_real_,
   expr = NULL
 )}\if{html}{\out{</div>}}
 }
@@ -344,7 +344,7 @@ Default is \code{FALSE}.}
 
 \item{\code{model}}{\code{character(1)} wit the choice for the model distribution.}
 
-\item{\code{args}}{named \code{numeric()} or \code{list} with custom arguments for the model distribution.}
+\item{\code{...}}{named arguments for the model distribution.}
 
 \item{\code{min}}{\code{numeric(1)} to truncate to a minimum value. \cr
 One between:\cr
@@ -362,7 +362,7 @@ One between:\cr
 \item Dataset name (followed by \verb{@D}).
 }}
 
-\item{\code{rule}}{\code{character(1)} with proposer rule used during inference.\cr
+\item{\code{proposal}}{\code{character(1)} with proposal used in the Monte Carlo.\cr
 One between:\cr
 \itemize{
 \item 'sample': sampled from the \%s distribution;\cr
@@ -372,9 +372,9 @@ One between:\cr
 \item \code{NA} (default): same as 'sample'.
 }}
 
-\item{\code{scale}}{\code{numeric(1)} with scale of the proposer rule.\cr
+\item{\code{proposal_scale}}{\code{numeric(1)} with scale of the proposal.\cr
 Changed automatically during inference if \code{n_adpat}>0.\cr
-Not applicable if rule is 'sample'. Default is \code{1} otherwise.}
+Not applicable if proposal is 'sample'. Otherwise scale is \code{1} by default.}
 
 \item{\code{expr}}{Provide an expression.}
 }
@@ -431,7 +431,8 @@ Group rates are relative to a reference class that can be specified.
 If no MCMC options are provided, the following configuration is assumed
 \itemize{
 \item \code{prior}: "lognormal"
-\item \code{args}: \code{c(meanlog = 0, sdlog = 3)}
+\item \code{meanlog}: 0
+\item \code{sdlog}: 3
 \item \code{min}: 0
 \item \code{max} 10
 }
@@ -443,11 +444,11 @@ If no MCMC options are provided, the following configuration is assumed
   reference = NULL,
   independent = TRUE,
   prior = NA_character_,
-  args = NULL,
+  ...,
   min = NULL,
   max = NULL,
-  rule = NA_character_,
-  scale = NA_real_
+  proposal = NA_character_,
+  proposal_scale = NA_real_
 )}\if{html}{\out{</div>}}
 }
 
@@ -470,13 +471,13 @@ If \code{FALSE} features are combined (default).}
 
 \item{\code{prior}}{\code{character(1)} wit the choice for the prior distribution.}
 
-\item{\code{args}}{named \code{numeric()} or \code{list} with custom arguments for the prior distribution.}
+\item{\code{...}}{named arguments for the prior distribution.}
 
 \item{\code{min}}{\code{numeric(1)} to truncate to a minimum value.}
 
 \item{\code{max}}{\code{numeric(1)} to truncate to a maximum value.}
 
-\item{\code{rule}}{\code{character(1)} with proposer rule used during inference.\cr
+\item{\code{proposal}}{\code{character(1)} with proposal used in the Monte Carlo.\cr
 One between:\cr
 \itemize{
 \item 'sample': sampled from the \%s distribution;\cr
@@ -486,9 +487,9 @@ One between:\cr
 \item \code{NA} (default): same as 'sample'.
 }}
 
-\item{\code{scale}}{\code{numeric(1)} with scale of the proposer rule.\cr
+\item{\code{proposal_scale}}{\code{numeric(1)} with scale of the proposal.\cr
 Changed automatically during inference if \code{n_adpat}>0.\cr
-Not applicable if rule is 'sample'. Default is \code{1} otherwise.}
+Not applicable if proposal is 'sample'. Otherwise scale is \code{1} by default.}
 }
 \if{html}{\out{</div>}}
 }
@@ -522,7 +523,7 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 \subsection{Method \code{add_infec_profile()}}{
 Add definition of infectivity profile.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_infec_profile(name, discr = FALSE, args = NULL, max = NULL)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_infec_profile(name, discr = FALSE, ..., max = NULL)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -534,7 +535,7 @@ Add definition of infectivity profile.
 If applicable, the profile is discretized.\cr
 Default is \code{FALSE}.}
 
-\item{\code{args}}{named \code{numeric()} or \code{list} with custom arguments for the profile distribution.}
+\item{\code{...}}{named arguments for the profile distribution.}
 
 \item{\code{max}}{\code{numeric(1)} to truncate to a maximum value. \cr
 One between:\cr

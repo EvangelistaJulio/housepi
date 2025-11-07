@@ -221,18 +221,24 @@ HousepiGroupRate <- R6::R6Class(
     #
     # @keywords internal
     # @noRd
-    .get_default_mcmc_setup = function(prior, args, min, max, rule, scale) {
+    .get_default_mcmc_setup = function(prior, ...,
+                                       min, max,
+                                       proposal, proposal_scale) {
+      args <- unlist(list(...))
       # check wheter default configuration
-      is_default <- sapply(c(prior, args, min, max, rule, scale),
+      is_default <- sapply(c(prior, args, min, max, proposal, proposal_scale),
                            function(x) is.na(x) || is.null(x))
       # if all defaults, provide default choice
       if (all(is_default)) return(
-        list(value = 1, prior = "lognormal", args = c(meanlog = 0, sdlog = 3),
-             min = NA_real_, max = 10, rule = "lognormal", scale = 1)
+        list(value = 1, prior = "lognormal",
+             meanlog = 0, sdlog = 3,
+             min = NA_real_, max = 10,
+             proposal = "lognormal", proposal_scale = 1)
       )
       # else go with user choice
-      list(value = 1, prior = prior, args = args,
-           min = min, max = max, rule = rule, scale)
+      list(value = 1, prior = prior, ...,
+           min = min, max = max,
+           proposal = proposal, proposal_scale = proposal_scale)
     }
   ),
 
@@ -350,9 +356,10 @@ HousepiGroupRate <- R6::R6Class(
     #' @inherit add_group_rate
     add = function(name, by, prefix = NA_character_,
                    reference = NULL, independent = TRUE,
-                   prior = NA_character_, args = NULL,
+                   prior = NA_character_, ...,
                    min = NA_real_, max = NA_real_,
-                   rule = NA_character_, scale = NA_real_) {
+                   proposal = NA_character_,
+                   proposal_scale = NA_real_) {
       # control valid name
       assert_valid_definition_name(name, "group rate")
 
@@ -392,8 +399,8 @@ HousepiGroupRate <- R6::R6Class(
 
       # add parameter definitions
       private$.parameters[[name]] <- private$.get_default_mcmc_setup(
-        prior = prior, args = args,
-        min = min, max = max, rule = rule, scale = scale
+        prior = prior, ..., min = min, max = max,
+        proposal = proposal, proposal_scale = proposal_scale
       )
 
       # reorder

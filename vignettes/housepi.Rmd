@@ -107,23 +107,23 @@ At any moment we can export the loaded data by invoking the method `$data_wide`.
 
 ## Associate parameter definitions
 
-Here we show how to provide a single parameter definition (prior and proposer rule needed for the Bayesian Monte Carlo).
+Here we show how to provide a single parameter definition (prior and proposal needed for the Bayesian Monte Carlo).
 Different approaches are available to perform the same operation, we can call `add_parameter()` or invoke the namesake R6 method:
 
 ```{r}
 # alpha : community transmission rate
 hhmodel <- hhmodel |>
-  add_parameter(name = "alpha", # name matching the model source
-                prior = "uniform", # uniform prior
-                rule = "lognormal") # mcmc proposer rule
+  add_parameter("alpha",                # name matching the model source
+                prior = "uniform",      # uniform prior
+                proposal = "lognormal") # mcmc proposal
 
 # beta : in-household person to person transmission rate
-hhmodel$add_parameter(name = "beta", prior = "uniform", rule = "lognormal")
+hhmodel$add_parameter("beta", prior = "uniform", proposal = "lognormal")
 ```
 
 At any moment we can turn a parameter definition into a constant definition: it is sufficient to set the argument `const = TRUE` (in such case a `value` must be provided).
 
-For further information on the available options for the definition of the parameter priors and MCMC proposer rule, see the vignette [Bayesian MCMC options](bayesian_mcmc_options.html).
+For further information on the available options for the definition of the parameter priors and MCMC proposal, see the vignette [Bayesian MCMC options](bayesian_mcmc_options.html).
 
 # Perform inference
 
@@ -189,20 +189,19 @@ associated from a list by calling `load_augmented_list()`.
 ```{r}
 hhsimul <- hhsimul |>
   load_augmented_list(
-    # define default 'infec_time' so that onset of introduction case is 0
+    # define default infection times of primary cases
     # secondary infection times are taken care by the simulation
-    infec_time = list(model = "lognormal", 
-                      args = c(meanlog = 4, sdlog = 0.5),
-                      max = 365),
+    infec_time = list(model = "lognormal",
+                      meanlog = 4, sdlog = 0.5, max = 365),
     
-    # define an 'incub_period' for each individual
-    # arguments of incubation period are linked to parameters
+    # define an incubation period for each individual
+    # arguments are linked to parameters
     incub_period = list(model = "gamma",
-                        args = c(shape = ~inc_shape@P,  scale = ~inc_scale@P),
+                        shape = ~ inc_shape@P, scale = ~ inc_scale@P,
                         max = 14),
     
-    # define 'onset_time' as the sum betwween incubation period and infection time
-    onset_time = ~infec_time + incub_period
+    # define 'onset_time' as the sum of incubation period and infection time
+    onset_time = ~ infec_time + incub_period
   )
 ```
 
@@ -249,11 +248,10 @@ We can check that inference returns the parameters used for the simulation.
 hhmodel <- hhsimul |>
   # loading definitions from list drops previous by default
   load_augmented_list(
-    infec_time = ~onset_time - incub_period,
-    onset_time = list(model = "normal",
-                      args = c(mean = ~onset_date@D, sd = 1)),
+    infec_time = ~ onset_time - incub_period,
+    onset_time = list(model = "normal", mean = ~ onset_date@D, sd = 1),
     incub_period = list(model = "gamma",
-                        args = c(shape = ~inc_shape@P, scale = ~inc_scale@P))
+                        shape = ~ inc_shape@P, scale = ~ inc_scale@P)
   )
 
 results <- hhmodel |>

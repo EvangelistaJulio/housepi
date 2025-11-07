@@ -121,7 +121,7 @@ We can provide a custom infectivity profile calling `add_infec_profile()` as fol
 
 ```{r}
 hhdiscrete <- hhdiscrete |>
-  add_infec_profile(name = "gamma", args = c(shape = 4, scale = 1.3))
+  add_infec_profile("gamma", shape = 4, scale = 1.3)
 defs <- get_infec_profile(hhdiscrete)
 defs
 ```

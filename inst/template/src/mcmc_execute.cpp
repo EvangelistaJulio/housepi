@@ -197,7 +197,7 @@ void MCMC::Impl::run_monte_carlo_()
             for (unsigned long t = 1; t <= setup.n_thin; ++t)
             {
                 move_all_();
-                adapt_rules_of_sampled_params_(i + t);
+                adapt_proposal_of_sampled_params_(i + t);
             }
 
         // Burn-in iterations
@@ -259,18 +259,18 @@ bool MCMC::Impl::move_single_parameter_(const std::string &p, bool is_cache_depe
     return false; // refused move
 }
 
-/// Adpat the rules of model parameters.
-void MCMC::Impl::adapt_rules_of_sampled_params_(unsigned long step)
+/// Adpat the proposal of model parameters.
+void MCMC::Impl::adapt_proposal_of_sampled_params_(unsigned long step)
 {
     const double ratio = static_cast<double>(step) / setup.n_adapt;
 
     // adpat all standard model parameters
     for (const std::string &p : param.list_adaptable_sample_standard)
-        param.at(p).adapt_rule(ratio);
+        param.at(p).adapt_proposal(ratio);
 
     // adapt all parameters with cached dependecies
     for (const std::string &p : param.list_adaptable_sample_cached)
-        param.at(p).adapt_rule(ratio);
+        param.at(p).adapt_proposal(ratio);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

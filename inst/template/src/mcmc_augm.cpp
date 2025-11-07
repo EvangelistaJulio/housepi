@@ -326,8 +326,8 @@ void MCMC::Impl::InfecProfile::build_augmented_profile_(const u_dict<std::string
         {"model", str_vec(2, hsp::na::STRING)},
         {hsp::params::MIN, str_vec(2, (is_discrete) ? "1|N" : "0|N")},
         {hsp::params::MAX, str_vec(2, deflist.at(hsp::params::MAX))},
-        {"rule", str_vec(2, hsp::na::STRING)},
-        {"scale", str_vec(2, hsp::na::STRING)}};
+        {"proposal", str_vec(2, hsp::na::STRING)},
+        {"proposal_scale", str_vec(2, hsp::na::STRING)}};
 }
 
 // Eventually append infectivity profile definitions to augmented.
@@ -528,7 +528,7 @@ void MCMC::Impl::Augmented::build(const u_dict<str_vec> &deftable)
                                   "func", "fcumul",
                                   "value", "const", "discr",
                                   "model", hsp::params::MIN, hsp::params::MAX,
-                                  "rule", "scale"};
+                                  "proposal", "proposal_scale"};
     const str_vec headers = hsp::read::table_headers(deftable_);
     hsp::str::assert_no_missing_entries(headers, file_headers);
     hsp::str::assert_no_unused_entries(headers, file_headers);
@@ -707,9 +707,9 @@ void MCMC::Impl::Augmented::set_sample_map_for_(const std::string &s, size_t k)
         throw std::invalid_argument(
             "Impossible to initialize augmented '" + a + "' for status " + s + " without a value or model.");
 
-    else if (hsp::na::is(deftable_["rule"][k]))
+    else if (hsp::na::is(deftable_["proposal"][k]))
         throw std::runtime_error(
-            "No rule was provided for non-constant definition of augmented '" + a +
+            "No proposal was provided for non-constant definition of augmented '" + a +
             "' for status " + s + ".");
     else
     {
@@ -909,7 +909,7 @@ void MCMC::Impl::Augmented::helper_init_attributes_(Individual &member, size_t k
 
         // assign proposer if variable to be sampled
         if (!xaugm.is_constant())
-            xaugm.init_proposer(deftable_["rule"][k], hsp::str::tod(deftable_["scale"][k]));
+            xaugm.init_proposer(deftable_["proposal"][k], hsp::str::tod(deftable_["proposal_scale"][k]));
 
         // check if satisfies discrete requirement, if any
         if (!user_list_discrete.empty() && (user_list_discrete % a) && !xaugm.is_discrete())

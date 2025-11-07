@@ -16,12 +16,12 @@ assert_valid_definition_name <- function(x, family) {
     sprintf("Definition name of %s must be a non-empty character(1).", family)
   )
   else if (is.na(x)) stop_h(
-    sprintf("Incomplete definition of %s: missing name.", family)
+    sprintf("Incomplete %s definition: missing name.", family)
   )
   else if (!grepl("^[A-Za-z0-9_.]+$", x)) stop_h(
-    sprintf("Definition name '%s' of %s contains invalid characters.",
-            x, family),
-    "Only letters, numbers, underscores (_) and dots (.) are allowed."
+    sprintf("Provided %s definition name '%s' contained invalid characters.",
+            family, x),
+    "Only letters, numbers, underscores '_' and dots '.' are allowed."
   )
 }
 

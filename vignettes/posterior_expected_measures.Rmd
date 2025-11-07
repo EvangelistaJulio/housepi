@@ -27,8 +27,8 @@ We use the same chain binomial example presented in [Get started](housepi.html):
 set.seed(42)
 hhmodel <- new_housepi_model("chain_binomial") |>
   add_data_wide(housepi::survey) |>
-  load_parameter_list(alpha = list(prior = "uniform",  rule = "lognormal"),
-                      beta = list(prior = "uniform", rule = "lognormal"))
+  load_parameter_list(alpha = list(prior = "uniform", proposal = "lognormal"),
+                      beta = list(prior = "uniform", proposal = "lognormal"))
 
 # estimate parameters
 results <- hhmodel |>

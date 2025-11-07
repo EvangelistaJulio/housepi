@@ -782,7 +782,7 @@ private:
 
     void run_monte_carlo_();
     void move_all_();
-    void adapt_rules_of_sampled_params_(unsigned long step);
+    void adapt_proposal_of_sampled_params_(unsigned long step);
 
     void init_posterior_sample_();
     void store_posterior_sample_();

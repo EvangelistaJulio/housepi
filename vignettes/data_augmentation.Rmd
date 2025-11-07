@@ -22,7 +22,7 @@ set.seed(42)
 
 Let's briefly recall the concept of Bayesian data augmentation for the case of epidemiological outbreaks.
 
-Bayesian data augmentation is a computational strategy that expands the parameter space by introducing augmented variables to facilitate sampling from the posterior.
+Bayesian data augmentation is a computational strategy that expands the parameter space by introducing augmented variables (also referred to as hidden or latent variables) to facilitate sampling from the posterior.
 
 Consider a single infectious individual $i$.
 Imagine that someone reported the exact time of symptom onset ${t}^{(\mathrm{ons})}_{i}$ .
@@ -30,14 +30,14 @@ We can introduce latent infection times ${t}_{i}$, defined as the difference bet
 
 $${t}_{i} = {t}^{(\mathrm{ons})}_{i} - {\tau}^{(\mathrm{inc})}_{i},$$
 where we the incubation period drawn from a model distribution.
-Say $x$ the observed data, onset days and status, $h$ the augmented variables (also referred to as hidden or latent variables infection time and incubation period. If $\theta$ is the vector of parameters, the joint posterior reads
+Say $x$ the observed data, onset days and status, $h$ the augmented variables infection time and incubation period. If $\theta$ is the vector of parameters, the joint posterior reads
 
 $${P}({\theta}, {h}\vert{x}) \varpropto {P}({x}\vert{\theta},{h}) {P}({h}\vert{\theta}){P}({\theta}).$$
 We here explain how to associate individual augmented variables in `housepi` for minimal examples.
 
 # Build augmented variables
 
-Similarly to parameter, augmented variables require definitions for models and proposer rules needed for the Bayesian Monte Carlo.
+Similarly to parameter, augmented variables require definitions for models and proposals needed for the Bayesian Monte Carlo.
 In many applications, augmented variable definitions can also depend on the dataset or on model parameters to be inferred.
 
 ## Link arguments to their source
@@ -53,7 +53,7 @@ E. g. "visit_day\@D" will source the value at individual data "visit_day".
 | Numeric    | N      | 14, 14\@N         |
 | Parameter  | P      | mean\@P           |
 
-More in general, definition arguments `value`, `args`, `min`, `max` and `from` can be linked to external values in the following ways
+More in general, definition arguments `value`, `min`, `max` and `from` can be linked to external values in the following ways
 
 # Example: estimate incubation periods distribution
 
@@ -86,48 +86,40 @@ hhmodel <- new_housepi_model("augmented_example") |>
   load_augmented_list(
     # explicit declaration of incubation period likelihood
     proba = list(
-      func = "gamma_meanvar", # gamma distribution (by mean and variance)
-      func_args = c(
-        x = ~incub_period,   # compute from individual augmented 'incub_period'
-        mean = ~mean@P,      # use model parameter 'mean'
-        var = ~var@P         # and 'var'
-      ),
-      max = 14               # truncate to given maximum
+      func = "gamma_meanvar",           # gamma distribution by mean/variance
+      func_args = c(x = ~ incub_period, # compute from individual 'incub_period'
+                    mean = ~ mean@P,    # use model parameter 'mean'
+                    var = ~ var@P),     # and 'var'
+      max = 14 # truncate to given maximum
     ),
     
     # declare 'incub_period' as the difference
     # between augmented onset and infection times
-    incub_period = ~.onset_time - .infec_time,
+    incub_period = ~ .onset_time - .infec_time,
     
     # here we correct right censoring of maximum values
     # to allow for the event to occur during the whole day
     # add 'infec_time' time definition
     .infec_time = list(
-      value = ~exposure_min@D, # start from data value 'exposure_min'
-      model = "uniform", # uniform model within range [0, exposure_max + 0.99]
-      args = c(max = ~exposure_max@D + 0.99), # min = 0 by default
-      rule = "normal", # normal distribution for the mcmc proposer
-      scale = 0.25     # with scale 0.25 (i. e. standard deviation)
+      value = ~ exposure_min@D,      # start from data value 'exposure_min'
+      model = "uniform",             # uniform within [0, exposure_max + 0.99]
+      max = ~ exposure_max@D + 0.99, # min = 0 by default for uniform
+      proposal = "normal",           # mcmc proposal is a normal distribution
+      proposal_scale = 0.25          # with std. deviation 0.25
     ),
     
     # add 'onset_time' time definition
     .onset_time = list(
-      value = ~onset_max@D + 0.99,
-      model = "uniform",
-      args = c(min = ~onset_min@D, max = ~onset_max@D + 0.99),
-      rule = "normal",
-      scale = 0.25
+      value = ~ onset_max @ D + 0.99, model = "uniform",
+      min = ~ onset_min@D, max = ~ onset_max@D + 0.99,
+      proposal = "normal", proposal_scale = 0.25
     )
   ) |>
 
   # define the gamma distribution parameter to be inferred
   load_parameter_list(
-    mean = list(prior = "uniform",
-                args = c(min = 0.1, max = 5),
-                rule = "normal"),
-    var = list(prior = "uniform",
-               args = c(min = 0.1, max = 5),
-               rule = "normal")
+    mean = list(prior = "uniform", min = 0.1, max = 5, proposal = "normal"),
+    var = list(prior = "uniform", min = 0.1, max = 5, proposal = "normal")
   )
 ```
 
@@ -142,21 +134,21 @@ We can do so by providing the `id` of individuals whose augmented variables we w
 #| warning: false
 results <- hhmodel |>
   add_data_wide(dataset) |>
-  infer(steps = 10000, burnin = 500,
-        thin = 8, chains = 3, adapt = 3000,
-        id_draws = c("7"), # store augmented draws for individual "7"
+  infer(steps = 10000, burnin = 500, thin = 8, chains = 3, adapt = 3000,
+        id_draws = c("7", "13"), # store augmented draws of "7" and "13"
         progress = FALSE)
-
-# plot traces of augmented draws
-bayesplot::mcmc_trace(get_augm_draws(results))
 
 # pot traces of parameter draws
 bayesplot::mcmc_trace(get_param_draws(results))
 ```
+```{r}
+# plot traces of augmented draws
+bayesplot::mcmc_trace(get_augm_draws(results))
+```
 In this example we had to introduce auxiliary augmented variables `.onset_time` and `.infec_time`.
 The prefix `.` we added to the names is a convention to ensure that housepi will not store the associated draws.
 
-# Other proposer rules for the augmented variables
+# Other proposals for the augmented variables
 
 ```{r}
 #| include: false
@@ -173,8 +165,7 @@ We always recommend a visual assessment before choosing a new move.
 #| warning: false
 # with model (default sample)
 results <- new_housepi_model("blank") |>
-  add_augmented(name = "sample_from_model",
-                model = "normal", args = c(mean = 14)) |>
+  add_augmented("sample_model", model = "normal", mean = 14) |>
   infer()
 
 bayesplot::mcmc_trace(get_augm_draws(results))
@@ -186,7 +177,7 @@ bayesplot::mcmc_trace(get_total_log_lik_draws(results))
 #| warning: false
 # random walk (without model)
 results <- new_housepi_model("blank") |>
-  add_augmented(name = "random_walk", value = 14, rule = "normal") |>
+  add_augmented("random_walk", value = 14, proposal = "normal") |>
   infer()
 
 bayesplot::mcmc_trace(get_augm_draws(results))

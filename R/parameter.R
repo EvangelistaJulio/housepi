@@ -47,15 +47,15 @@ HousepiParameter <- R6::R6Class(
       utils::modifyList(opts, list(const = FALSE, prior = prior))
     },
 
-    # Helper with mcmc proposer rule.
-    .helper_proposer = function(opts, discr, rule, scale) {
+    # Helper with Monte Carlo proposal.
+    .helper_proposal = function(opts, discr, proposal, proposal_scale) {
       opts$discr <- isTRUE(discr)
 
-      # default proposer rule
-      opts$rule <- "sample"
-      if (!is.na(rule)) {
-        opts$rule <- rule
-        opts$scale <- ifelse(is.na(scale), 1, scale)
+      # default proposal
+      opts$proposal <- "sample"
+      if (!is.na(proposal)) {
+        opts$proposal <- proposal
+        opts$proposal_scale <- ifelse(is.na(proposal_scale), 1, proposal_scale)
       }
       opts
     }
@@ -125,13 +125,17 @@ HousepiParameter <- R6::R6Class(
                    discr = FALSE,
                    value = NULL,
                    prior = NA_character_,
-                   args = NULL,
+                   ...,
                    min = NULL,
                    max = NULL,
-                   rule = NA_character_,
-                   scale = NA_real_) {
+                   proposal = NA_character_,
+                   proposal_scale = NA_real_) {
       # control valid name
       assert_valid_definition_name(name, "parameter")
+      if (all(is.null(value), is.na(prior))) stop_h(
+        sprintf("Incomplete definition for parameter '%s'.", name),
+        "Provide at least one between 'value' and 'prior'."
+      )
 
       # remove previous definition if it exists
       if (self$remove(name)) warning_h(
@@ -142,7 +146,9 @@ HousepiParameter <- R6::R6Class(
                    const = TRUE, discr = FALSE,
                    value = NA_real_, prior = NA_character_,
                    min = NA_real_, max = NA_real_,
-                   rule = NA_character_, scale = NA_real_)
+                   proposal = NA_character_,
+                   proposal_scale = NA_real_)
+      args <- unlist(list(...))
 
       # assume it's a constant if a prior is not provided
       if (is.na(const)) const <- is.na(prior)
@@ -160,7 +166,7 @@ HousepiParameter <- R6::R6Class(
         opts <- private$.helper_prior(opts, prior, args)
         opts$min <- DefinitionEncoder$new(min)$x
         opts$max <- DefinitionEncoder$new(max)$x
-        opts <- private$.helper_proposer(opts, discr, rule, scale)
+        opts <- private$.helper_proposal(opts, discr, proposal, proposal_scale)
       }
 
       # append as a row

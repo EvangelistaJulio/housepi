@@ -55,7 +55,7 @@ HousepiAugmented <- R6::R6Class(
         opts$const <- FALSE
         opts$discr <- FALSE
       } else if (is.na(opts$const)) {
-        opts$const <- is.na(opts$model) && is.na(opts$rule)
+        opts$const <- is.na(opts$model) && is.na(opts$proposal)
       }
 
       opts
@@ -102,28 +102,29 @@ HousepiAugmented <- R6::R6Class(
       opts
     },
 
-    # Interpret user choice for proposer rule.
-    .helper_proposer_rule = function(opts, scale) {
-      # sampling rule but no constant parameter provided
-      if (is.na(opts$const) && !(is.na(opts$rule) && is.na(opts$model))) {
+    # Interpret user choice for Monte Carlo proposal.
+    .helper_proposal = function(opts, proposal_scale) {
+      # sampling proposal but no constant parameter provided
+      if (is.na(opts$const) && !(is.na(opts$proposal) && is.na(opts$model))) {
         opts$const <- FALSE
       }
 
       if (isFALSE(opts$const)) {
-        if (is.na(opts$rule)) {
+        if (is.na(opts$proposal)) {
           if (is.na(opts$model)) opts$const <- TRUE
-          else opts$rule <- "sample"
-        } else if (opts$rule == "sample") {
+          else opts$proposal <- "sample"
+        } else if (opts$proposal == "sample") {
           if (is.na(opts$model)) stop_h(
             sprintf("No model to sample from for augmented '%s'.", opts$name)
           )
         } else {
-          if (is.na(scale)) opts$scale <- 1
-          else if (is.numeric(scale) && (scale > 0)) opts$scale <- scale
-          else stop_h("Rule scale should be a numeric value greater than 0.")
+          if (is.na(proposal_scale)) opts$proposal_scale <- 1
+          else if (is.numeric(proposal_scale)
+                   && proposal_scale > 0) opts$proposal_scale <- proposal_scale
+          else stop_h("Proposal scale must be greater than 0.")
         }
       } else {
-        opts$rule <- NA_character_
+        opts$proposal <- NA_character_
       }
 
       opts
@@ -278,21 +279,25 @@ HousepiAugmented <- R6::R6Class(
 
     #' @inherit add_augmented
     add = function(name = NA_character_,
+                   value = NULL,
                    status = NA_integer_,
                    const = NA,
                    discr = FALSE,
                    func = NA_character_,
                    func_args = NULL,
-                   value = NULL,
                    model = NA_character_,
-                   args = NULL,
+                   ...,
                    min = NULL,
                    max = NULL,
-                   rule = NA_character_,
-                   scale = NA_real_,
+                   proposal = NA_character_,
+                   proposal_scale = NA_real_,
                    expr = NULL) {
       # control valid name
       assert_valid_definition_name(name, "augmented")
+      if (all(is.null(c(value, expr)), is.na(c(model, func)))) stop_h(
+        sprintf("Incomplete definition for augmentend '%s'.", name),
+        "Provide at least one between 'value', 'model', 'func' and 'expr."
+      )
 
       # handle (name, status) and check for existing definitions
       if (private$.helper_existing_definition(name, status)) warning_h(sprintf(
@@ -301,20 +306,19 @@ HousepiAugmented <- R6::R6Class(
       ))
 
       # auxiliary typed options for Rcpp build method
-      opts <- list(
-        name = as.character(name),
-        status = as.integer(status),
-        const = as.logical(const),
-        discr = isTRUE(discr),
-        func = as.character(func),
-        fcumul = FALSE,
-        value = NA_real_,
-        model = as.character(model),
-        min = NA_real_,
-        max = NA_real_,
-        rule = as.character(rule),
-        scale = NA_real_
-      )
+      opts <- list(name = as.character(name),
+                   value = NA_real_,
+                   status = as.integer(status),
+                   const = as.logical(const),
+                   discr = isTRUE(discr),
+                   func = as.character(func),
+                   fcumul = FALSE,
+                   model = as.character(model),
+                   min = NA_real_,
+                   max = NA_real_,
+                   proposal = as.character(proposal),
+                   proposal_scale = NA_real_)
+      args <- unlist(list(...))
 
       # augmented function
       if (!is.null(expr)) {
@@ -329,7 +333,7 @@ HousepiAugmented <- R6::R6Class(
       if (length(args) > 0) opts <- private$.helper_model_args(opts, args)
 
       if (is.na(opts$func)) {
-        opts <- private$.helper_proposer_rule(opts, scale)
+        opts <- private$.helper_proposal(opts, proposal_scale)
         opts <- private$.helper_const_vs_rand(opts, value)
       }
 

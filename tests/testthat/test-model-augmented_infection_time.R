@@ -115,7 +115,7 @@ test_that("Log-likelihood of augmented infection time model is correct", {
                           incub_period = ~incub_period@D,
                           onset_time = ~onset_time@D) |>
       add_infec_profile(name = "gamma", discr = discr,
-                        args = c(shape = ~shape@P, scale = ~scale@P))
+                        shape = ~shape@P, scale = ~scale@P)
 
     expect_equal(evaluate_log_lik(hhmodel),
                  house_obs_loglike(house, param, discr))
@@ -133,7 +133,7 @@ test_that("Simulations behave as expected", {
   # UPDATE: these dependencies should not be in template
 
   hhsimul$load_augmented_list(
-    incub_period = list(model = "gamma", args = c(shape = 2, scale = 1)),
+    incub_period = list(model = "gamma", shape = 2, scale = 1),
     infec_time = ~- incub_period,
     onset_time = ~infec_time + incub_period
   )

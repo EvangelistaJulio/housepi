@@ -20,7 +20,7 @@ library(housepi)
 set.seed(42)
 ```
 
-In this vignette we present all available options for the choice of the prior and Monte Carlo rule in `housepi`. 
+In this vignette we present all available options for the choice of the prior and Monte Carlo proposal in `housepi`. 
 
 # Continuous priors
 
@@ -46,7 +46,7 @@ new_housepi_model("blank") |>
   bayesplot::mcmc_dens()
 ```
 
-Here we associated definitions of parameters to infer with default arguments and default proposer rules (Gibbs sampling). 
+Here we associated definitions of parameters to infer with default arguments and default proposals. 
 
 ## Provide a custom range
 
@@ -110,7 +110,7 @@ new_housepi_model("blank") |>
   bayesplot::mcmc_hist(binwidth = 1)
 ```
 
-# MCMC proposer rules
+# Monte Carlo proposals
 
 ```{r}
 #| include: false
@@ -118,10 +118,10 @@ bayesplot::color_scheme_set(scheme = "brightblue")
 ```
 
 ```{r}
-# available proposer rules in housepi
-prop_rules <- c("sample", "uniform", "normal", "lognormal")
-defs <- Map(list, prior = "normal", min = 0, rule = prop_rules, scale = 100) |>
-  setNames(paste("rule", prop_rules, sep = "_"))
+# available proposals in housepi
+proposal_list <- c("sample", "uniform", "normal", "lognormal")
+defs <- Map(list, prior = "normal", min = 0, proposal = proposal_list, proposal_scale = 100) |>
+  setNames(paste("proposal", proposal_list, sep = "_"))
 
 new_housepi_model("blank") |>
   load_parameter_list(from = defs) |>
@@ -129,7 +129,7 @@ new_housepi_model("blank") |>
   get_param_draws() |>
   bayesplot::mcmc_trace()
 ```
-Note that the proposer rule "lognormal" does not fit the case of negative values.
+Note that the proposal "lognormal" does not fit the case of negative values.
 
 ## Role of finite adaptation
 

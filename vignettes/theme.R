@@ -16,7 +16,7 @@ ggplot2::theme_set(
                    strip.text = my_element_text,
                    legend.text = my_element_text,
                    legend.title = ggplot2::element_blank(),
-                   geom = ggplot2::element_geom(linewidth = 1, 
+                   geom = ggplot2::element_geom(linewidth = 1,
                                                 color = "coral",
                                                 pointsize = 3))
 )

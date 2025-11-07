@@ -200,7 +200,7 @@ DefinitionEncoder <- R6::R6Class(
 DefinitionWalker <- R6::R6Class(
   classname = "DefinitionWalker",
   private = list(
-    # Helper to extract balanced {...} blocks at the top level.
+    # Helper to extract balanced {something} blocks at the top level.
     .extract_blocks = function(s) {
       blocks <- list()
       depth <- 0
@@ -376,7 +376,7 @@ DefinitionShowcaser <-  R6::R6Class(
         if (isTRUE(any(stringr::str_count(output[[col]], "\\|") > 1))) {
           pos <- match(col, names(output))
           # format column with arguments
-          # UPDATE: this is not clean at all...
+          # UPDATE: this is not clean at all.
           col_args <- data.frame(
             args = base::I(private$.extract_args(output[[col]]))
           )

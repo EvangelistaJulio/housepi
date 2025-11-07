@@ -26,7 +26,7 @@
 
 /// Proposer constructor from Distribution pointer.
 Proposer::Proposer(std::shared_ptr<Distribution> distr,
-                   double rule_scale,
+                   double proposal_scale,
                    const std::vector<unsigned short> &args_to_adapt,
                    bool is_discrete) : pDistr_(distr)
 {
@@ -39,9 +39,9 @@ Proposer::Proposer(std::shared_ptr<Distribution> distr,
     // set range and truncation
     pDistr_->init_truncation();
 
-    // assign user rule scale
-    if (!hsp::na::is(rule_scale))
-        user_rule_scale_ = std::fabs(rule_scale);
+    // assign user proposal scale
+    if (!hsp::na::is(proposal_scale))
+        user_scale_ = std::fabs(proposal_scale);
 
     // load which are the parameter to be adapted
     args_to_adapt_ = args_to_adapt;
@@ -49,11 +49,11 @@ Proposer::Proposer(std::shared_ptr<Distribution> distr,
 
 /// Proposer constructor from Distribution name.
 Proposer::Proposer(const std::string &distr_name,
-                   double rule_scale,
+                   double proposal_scale,
                    const std::vector<unsigned short> &args_to_adapt,
                    bool is_discrete)
     : Proposer(ContinuosDistrRegistry::inst().get_distr(distr_name),
-               rule_scale, args_to_adapt, is_discrete) {}
+               proposal_scale, args_to_adapt, is_discrete) {}
 
 /// Increase spread if acceptation rate is high and viceversa.
 void Proposer::adapt(double ratio)
@@ -71,7 +71,7 @@ void Proposer::adapt(double ratio)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Propose rule is just sample from model/prior.
+/// Proposal is just sample from model/prior.
 /// NOTE: this is just a place holder within Variable.
 class Sample_Proposer : public Proposer
 {
@@ -88,13 +88,13 @@ public:
 class Uniform_Proposer : public Proposer
 {
 public:
-    Uniform_Proposer(double rule_scale = hsp::na::DOUBLE, bool is_discrete = false)
-        : Proposer("uniform", rule_scale, {0, 1}, is_discrete) { user_reset(); }
+    Uniform_Proposer(double proposal_scale = hsp::na::DOUBLE, bool is_discrete = false)
+        : Proposer("uniform", proposal_scale, {0, 1}, is_discrete) { user_reset(); }
 
     void user_reset() override final
     {
-        pDistr_->init_attr(hsp::params::MIN, Attribute(-user_rule_scale_));
-        pDistr_->init_attr(hsp::params::MAX, Attribute(user_rule_scale_));
+        pDistr_->init_attr(hsp::params::MIN, Attribute(-user_scale_));
+        pDistr_->init_attr(hsp::params::MAX, Attribute(user_scale_));
     }
 
     double propose(rnd_gen &prng, double xo) override final { return xo + pDistr_->rand(prng); }
@@ -110,13 +110,13 @@ public:
 class Normal_Proposer : public Proposer
 {
 public:
-    Normal_Proposer(double rule_scale = hsp::na::DOUBLE, bool is_discrete = false)
-        : Proposer("normal", rule_scale, {1}, is_discrete) { user_reset(); }
+    Normal_Proposer(double proposal_scale = hsp::na::DOUBLE, bool is_discrete = false)
+        : Proposer("normal", proposal_scale, {1}, is_discrete) { user_reset(); }
 
     void user_reset() override final
     {
         pDistr_->init_attr("mean", Attribute(0.));
-        pDistr_->init_attr("sd", Attribute(user_rule_scale_));
+        pDistr_->init_attr("sd", Attribute(user_scale_));
     }
 
     double propose(rnd_gen &prng, double xo) override final { return xo + pDistr_->rand(prng); }
@@ -132,13 +132,13 @@ public:
 class Lognorm_Proposer : public Proposer
 {
 public:
-    Lognorm_Proposer(double rule_scale = 1., bool is_discrete = false)
-        : Proposer("lognormal", rule_scale, {1}, is_discrete) { user_reset(); }
+    Lognorm_Proposer(double proposal_scale = 1., bool is_discrete = false)
+        : Proposer("lognormal", proposal_scale, {1}, is_discrete) { user_reset(); }
 
     void user_reset() override final
     {
         pDistr_->init_attr("meanlog", Attribute(0.));
-        pDistr_->init_attr("sdlog", Attribute(user_rule_scale_));
+        pDistr_->init_attr("sdlog", Attribute(user_scale_));
     }
 
     double propose(rnd_gen &prng, double xo) override final { return xo * pDistr_->rand(prng); }
@@ -151,28 +151,28 @@ public:
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Switchboard to select the custom metropolis proposer rule.
-std::unique_ptr<Proposer> proposer_switch(const std::string &rule_name = hsp::na::STRING,
-                                          double rule_scale = hsp::na::DOUBLE,
+/// Switchboard to select the custom metropolis proposal.
+std::unique_ptr<Proposer> proposer_switch(const std::string &proposal = hsp::na::STRING,
+                                          double proposal_scale = hsp::na::DOUBLE,
                                           bool is_discrete = false)
 {
     const str_vec options = {"sample", "uniform", "normal", "lognormal"};
 
-    if (hsp::na::is(rule_name))
+    if (hsp::na::is(proposal))
         return std::make_unique<Proposer>(std::make_unique<Distribution>());
 
-    if (rule_name == "uniform")
-        return std::make_unique<Uniform_Proposer>(rule_scale, is_discrete);
+    if (proposal == "uniform")
+        return std::make_unique<Uniform_Proposer>(proposal_scale, is_discrete);
 
-    if (rule_name == "normal")
-        return std::make_unique<Normal_Proposer>(rule_scale, is_discrete);
+    if (proposal == "normal")
+        return std::make_unique<Normal_Proposer>(proposal_scale, is_discrete);
 
-    if (rule_name == "lognormal")
-        return std::make_unique<Lognorm_Proposer>(rule_scale, is_discrete);
+    if (proposal == "lognormal")
+        return std::make_unique<Lognorm_Proposer>(proposal_scale, is_discrete);
 
     throw std::invalid_argument(
-        "Unknown proposer rule '" + rule_name + "'." +
-        hsp::str::find_closest(rule_name, options));
+        "Unknown proposal '" + proposal + "'." +
+        hsp::str::find_closest(proposal, options));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -341,11 +341,11 @@ void Variable::init_location_arg(const Attribute &x)
 
 /// Assign proposer to variable.
 /// NOTE: it must be assigned after model initialization.
-void Variable::init_proposer(const std::string &rule_name, double rule_scale)
+void Variable::init_proposer(const std::string &proposal, double proposal_scale)
 {
-    if (hsp::na::is(rule_name))
+    if (hsp::na::is(proposal))
     {
-        // if no rule is defined assume constant
+        // if no proposal is defined, assume constant
         is_constant_ = true;
         propose_ = &Variable::do_propose_error_;
     }
@@ -353,10 +353,10 @@ void Variable::init_proposer(const std::string &rule_name, double rule_scale)
     {
         is_constant_ = false; // variable to be sampled
 
-        if (rule_name == "sample")
+        if (proposal == "sample")
             helper_init_sample_proposer_();
         else
-            helper_init_proposer_monte_carlo_(rule_name, rule_scale);
+            helper_init_proposer_monte_carlo_(proposal, proposal_scale);
     }
 }
 
@@ -381,15 +381,15 @@ void Variable::helper_init_sample_proposer_()
 }
 
 /// Helper with Monte Carlo proposer initialization.
-void Variable::helper_init_proposer_monte_carlo_(const std::string &rule_name, double rule_scale)
+void Variable::helper_init_proposer_monte_carlo_(const std::string &proposal, double proposal_scale)
 {
-    // raise a warning if "lnorm" rule when varaible can be negative
-    if (pDistr_->lower() < 0 && rule_name == "lnorm")
+    // raise a warning if "lnorm" proposal when variable can be negative
+    if (pDistr_->lower() < 0 && proposal == "lnorm")
         hsp::msg::warning(
-            "Provided a lognormal proposer rule for non-positive " + err_name() + ".");
+            "Provided a lognormal proposal for non-positive " + err_name() + ".");
 
     // assign the pointer to the proposer
-    pProp_ = proposer_switch(rule_name, rule_scale, is_discrete());
+    pProp_ = proposer_switch(proposal, proposal_scale, is_discrete());
 
     if (loc_.is_empty())
     {

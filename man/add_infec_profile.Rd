@@ -4,7 +4,7 @@
 \alias{add_infec_profile}
 \title{Add infectivity profile definition}
 \usage{
-add_infec_profile(hhmodel, name, discr = FALSE, args = NULL, max = NULL)
+add_infec_profile(hhmodel, name, discr = FALSE, ..., max = NULL)
 }
 \arguments{
 \item{hhmodel}{\code{HousepiModel} object.}
@@ -15,7 +15,7 @@ add_infec_profile(hhmodel, name, discr = FALSE, args = NULL, max = NULL)
 If applicable, the profile is discretized.\cr
 Default is \code{FALSE}.}
 
-\item{args}{named \code{numeric()} or \code{list} with custom arguments for the profile distribution.}
+\item{...}{named arguments for the profile distribution.}
 
 \item{max}{\code{numeric(1)} to truncate to a maximum value. \cr
 One between:\cr

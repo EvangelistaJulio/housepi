@@ -2,7 +2,10 @@ library(testthat)
 
 test_that("Augmented definition error are recognized", {
   augm <- housepi:::HousepiAugmented$new()
-  expect_error(augm$add(name = "infec", args = c(min = 0)))
+  expect_error(augm$add(name = "infec@"),
+               regexp = "invalid characters")
+  expect_error(augm$add(name = "infec"),
+               regexp = "Incomplete definition")
 })
 
 test_that("Constant value definition are coherent", {
@@ -17,17 +20,17 @@ test_that("Constant value definition are coherent", {
 
 test_that("Undefined definitions are controoled", {
   augm <- housepi:::HousepiAugmented$new()
-  expect_error(augm$add(name = "test", rule = "sample", value = NA),
+  expect_error(augm$add(name = "test", proposal = "sample", value = NA),
                regexp = "No model")
 
-  expect_error(augm$add(name = "test", rule = "norm", value = NA),
+  expect_error(augm$add(name = "test", proposal = "norm", value = NA),
                regexp = "undefined")
 
   expect_no_error(augm$add(name = "test", value = NA))
 
   augm <- housepi:::HousepiAugmented$new()
-  augm$add(name = "test", value = 3, const = TRUE, rule = "sample")
-  expect_true(is.na(augm$defs$rule))
+  augm$add(name = "test", value = 3, const = TRUE, proposal = "sample")
+  expect_true(is.na(augm$defs$proposal))
 })
 
 test_that("Augmented variable definitions are correct", {
@@ -39,19 +42,19 @@ test_that("Augmented variable definitions are correct", {
   expect_equal(augm$defs$const, TRUE)
   expect_equal(augm$defs$discr, FALSE)
   expect_equal(augm$defs$value, "3|N")
-  expect_equal(augm$defs$rule, NA_character_)
-  expect_equal(augm$defs$scale, NA_real_)
+  expect_equal(augm$defs$proposal, NA_character_)
+  expect_equal(augm$defs$proposal_scale, NA_real_)
 
   # variable definition
   augm <- housepi:::HousepiAugmented$new()
   augm$add(name = "dummy", value = ~expo@D, model = "uniform",
-           args = c(min = ~expo_min@A, max = ~expo_max@P),
-           max = 3)
+           min = ~expo_min@A, max = ~expo_max@P)
   expect_equal(augm$defs$name, "dummy")
   expect_equal(augm$defs$status, NA_integer_)
   expect_equal(augm$defs$value, "expo|D")
-  expect_equal(augm$defs$model, "uniform|min:max|{expo_min|A}:{expo_max|P}")
-  expect_equal(augm$defs$max, "3|N")
+  expect_equal(augm$defs$model, "uniform")
+  expect_equal(augm$defs$min, "expo_min|A")
+  expect_equal(augm$defs$max, "expo_max|P")
 
   # consequent required definitions
   private <- augm$.__enclos_env__$private
@@ -66,7 +69,7 @@ test_that("Augmented sampling default is correct", {
   augm$add(name = "dummy", model = "norm")
 
   expect_equal(augm$defs$const, FALSE)
-  expect_equal(augm$defs$rule, "sample")
+  expect_equal(augm$defs$proposal, "sample")
 })
 
 test_that("Augmented function definition is correct", {

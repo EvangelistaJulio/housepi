@@ -53,9 +53,9 @@ test_that("Discretization is enabled as expected", {
   hhmodel <- new_housepi_model("blank")
   hhmodel$load_parameter_list(
     sample = list(prior = "gamma", discr = TRUE),
-    uniform = list(prior = "gamma", discr = TRUE, rule = "uniform"),
-    normal = list(prior = "gamma", discr = TRUE, rule = "normal"),
-    lognormal = list(prior = "gamma", discr = TRUE, rule = "lognormal")
+    uniform = list(prior = "gamma", discr = TRUE, proposal = "uniform"),
+    normal = list(prior = "gamma", discr = TRUE, proposal = "normal"),
+    lognormal = list(prior = "gamma", discr = TRUE, proposal = "lognormal")
   )
 
   y <- posterior::as_draws_matrix(get_param_draws(hhmodel$infer()))
@@ -203,8 +203,8 @@ test_that("Augmented aliasing works as expected", {
   hhmodel <- new_housepi_model("blank") |>
     add_data_wide(data.frame(id = seq(1, 1000), house_id = 1, status = 1)) |>
     load_augmented_list(
-      hour = list(model = "uniform", args = c(min = ~ day, max = ~ day + 1)),
-      day = list(model = "gamma", args = c(shape = 2, scale = 1))
+      hour = list(model = "uniform", min = ~ day, max = ~ day + 1),
+      day = list(model = "gamma", shape = 2, scale = 1)
     )
   simulated <- simulate(hhmodel)
   expect_true(all(simulated$day <= simulated$hour &
@@ -261,26 +261,26 @@ test_that("Nested definittions works as expected", {
 
 test_that("Known errors are unchanged", {
   # Known infinity (values below minimum, i. e. proba 0)
-  hhmodel <- new_housepi_model("augmented_example") |> 
-    add_data_wide(housepi::survey) |> 
+  hhmodel <- new_housepi_model("augmented_example") |>
+    add_data_wide(housepi::survey) |>
     load_augmented_list(
       value = list(model = "uniform"),
-      proba = list(func = "lognormal", 
-                   func_args = c(x = ~ value, meanlog = 1, sdlog = 1), 
+      proba = list(func = "lognormal",
+                   func_args = c(x = ~ value, meanlog = 1, sdlog = 1),
                    min = 1, max = 15, discr = TRUE)
-    ) |> 
-    evaluate_log_lik() |> 
+    ) |>
+    evaluate_log_lik() |>
     expect_equal(-Inf)
-  
+
   # Known NaN: qlnorm(15, meanlog = 4, sdlog = 0.01) ~= 0, impossible truncation
-  new_housepi_model("augmented_example") |> 
-    add_data_wide(housepi::survey) |> 
+  new_housepi_model("augmented_example") |>
+    add_data_wide(housepi::survey) |>
     load_augmented_list(
-      value = list(model = "uniform", args = c(min = 1, max = 10), discr = TRUE),
-      proba = list(func = "lognormal", 
-                   func_args = c(x = ~ value, meanlog = 4, sdlog = 0.01), 
+      value = list(model = "uniform", min = 1, max = 10, discr = TRUE),
+      proba = list(func = "lognormal",
+                   func_args = c(x = ~ value, meanlog = 4, sdlog = 0.01),
                    min = 1, max = 15, discr = TRUE)
-    ) |> 
-    evaluate_log_lik() |> 
+    ) |>
+    evaluate_log_lik() |>
     expect_error(regexp = "Observation log-likelihood returned NaN")
 })

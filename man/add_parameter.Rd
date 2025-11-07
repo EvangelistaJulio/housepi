@@ -11,11 +11,11 @@ add_parameter(
   const = NA,
   discr = FALSE,
   prior = NA_character_,
-  args = NULL,
+  ...,
   min = NULL,
   max = NULL,
-  rule = NA_character_,
-  scale = NA_real_
+  proposal = NA_character_,
+  proposal_scale = NA_real_
 )
 }
 \arguments{
@@ -36,13 +36,13 @@ Default is \code{FALSE}.}
 
 \item{prior}{\code{character(1)} wit the choice for the prior distribution.}
 
-\item{args}{named \code{numeric()} or \code{list} with custom arguments for the prior distribution.}
+\item{...}{named arguments for the prior distribution.}
 
 \item{min}{\code{numeric(1)} to truncate to a minimum value.}
 
 \item{max}{\code{numeric(1)} to truncate to a maximum value.}
 
-\item{rule}{\code{character(1)} with proposer rule used during inference.\cr
+\item{proposal}{\code{character(1)} with proposal used in the Monte Carlo.\cr
 One between:\cr
 \itemize{
 \item 'sample': sampled from the prior distribution;\cr
@@ -52,9 +52,9 @@ One between:\cr
 \item \code{NA} (default): same as 'sample'.
 }}
 
-\item{scale}{\code{numeric(1)} with scale of the proposer rule.\cr
+\item{proposal_scale}{\code{numeric(1)} with scale of the proposal.\cr
 Changed automatically during inference if \code{n_adpat}>0.\cr
-Not applicable if rule is 'sample'. Default is \code{1} otherwise.}
+Not applicable if proposal is 'sample'. Otherwise scale is \code{1} by default.}
 }
 \value{
 \code{HousepiModel}\cr

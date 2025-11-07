@@ -91,7 +91,7 @@ hhmodel |>
 # Analyse inference results with group rates
 
 To perform inference of the parameters associated to each group we just need to provide options for the Bayesian Monte Carlo.
-By default, group rate assumes lognormal prior (`meanlog = 0` and `sdlog = 3`) and lognormal proposer rule, following [Cauchemez et al. (2009)](https://www.nejm.org/doi/full/10.1056/NEJMoa0905498).
+By default, group rate assumes lognormal prior (`meanlog = 0` and `sdlog = 3`) and lognormal proposal, following [Cauchemez et al. (2009)](https://www.nejm.org/doi/full/10.1056/NEJMoa0905498).
 This can be customized at the moment of the definition of the group rate similarly to parameters (see documentation).
 
 ```{r}
