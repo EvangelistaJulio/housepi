@@ -1,7 +1,7 @@
 Package: housepi
 Type: Package
 Title: Household Epidemiological Modeling and Analysis
-Version: 0.8.51
+Version: 0.8.52
 Authors@R:
     person("Francesco", "Camaglia",
            email = "francesco.camaglia@pasteur.fr", 

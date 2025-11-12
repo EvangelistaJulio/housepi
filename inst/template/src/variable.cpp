@@ -45,7 +45,7 @@ Proposer::Proposer(std::shared_ptr<Distribution> distr,
 
     // load which are the parameter to be adapted
     args_to_adapt_ = args_to_adapt;
-};
+}
 
 /// Proposer constructor from Distribution name.
 Proposer::Proposer(const std::string &distr_name,
@@ -306,7 +306,7 @@ void Variable::helper_degenerate_range_()
             " to be constant as its range was degenerate.");
 
     init_numeric(lower);
-};
+}
 
 /// Random initialization of variable.
 void Variable::init_rand(rnd_gen &prng)

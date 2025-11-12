@@ -25,14 +25,23 @@ namespace hsp
         constexpr char LIST_DELIMITER = ':';           /// List conventional delimiter
         constexpr const char *CHAIN_COLUMN = ".chain"; /// Chain column name in draws.
 
+        /// Extract keys from unordered_map<string, T>.
+        template <typename T>
+        str_vec extract_keys(const u_dict<T> &input)
+        {
+            str_vec entries;
+            entries.reserve(input.size());
+            for (const auto &pair : input)
+                entries.push_back(pair.first);
+            return entries;
+        }
+
         /// Parse a list from a string.
         str_vec parse_list(const std::string &txt);
 
         // Read CSV list.
-        str_vec list_headers(const u_dict<std::string> &deflist);
         u_dict<std::string> csv_list(const std::string &pathtofile);
         // Read CSV dataframe.
-        str_vec table_headers(const u_dict<str_vec> &deftable);
         u_dict<str_vec> csv_table(const std::string &pathtofile);
     }
 }

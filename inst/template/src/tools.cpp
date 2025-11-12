@@ -449,16 +449,6 @@ namespace hsp
             return output;
         }
 
-        /// Extract headers from deflist.
-        str_vec list_headers(const u_dict<string> &deflist)
-        {
-            str_vec entries;
-            entries.reserve(deflist.size());
-            for (const auto &pair : deflist)
-                entries.push_back(pair.first);
-            return entries;
-        }
-
         /// Read csv list store in pathtofile and store it parsed in csv_parsed_list.
         u_dict<string> csv_list(const string &pathtofile)
         {
@@ -491,16 +481,6 @@ namespace hsp
             }
 
             return output;
-        }
-
-        /// Extract headers from deftable.
-        str_vec table_headers(const u_dict<str_vec> &deftable)
-        {
-            str_vec entries;
-            entries.reserve(deftable.size());
-            for (const auto &pair : deftable)
-                entries.push_back(pair.first);
-            return entries;
         }
 
         /// Read csv table in pathtofile and store it parsed in csv_parsed_table.

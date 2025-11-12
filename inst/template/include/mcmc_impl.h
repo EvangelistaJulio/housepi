@@ -29,17 +29,8 @@
 #include "household.h"
 #include "mcmc.h"
 
-#ifdef _HOUSEPI_RCPP
-#include <Rcpp.h>
-#endif
-
 #ifdef _OPENMP
 #include <omp.h>
-#endif
-
-#ifdef _HOUSEPI_RCPP
-/// Auxiliary converter to R NA real values.
-inline double hsp_to_rcpp(double x) { return hsp::na::is(x) ? NA_REAL : x; }
 #endif
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -79,7 +70,7 @@ public:
     struct Setup
     {
         Setup(MCMC::Impl &ptr)
-            : pImpl_(ptr), unif_(0., 1.) {}
+            : unif_(0., 1.) {}
         ~Setup() = default;
 
         const str_vec file_headers = {"steps", "burnin", "thin",
@@ -131,20 +122,7 @@ public:
         rnd_gen &prng() { return (this->*get_prng_)(); }
         double unif() { return unif_(prng()); }
 
-#ifdef _HOUSEPI_RCPP
-        void rcpp_import(SEXP input);
-        Rcpp::List rcpp_export() const;
-
-        Rcpp::IntegerVector draws_chain_tags() const;
-        Rcpp::CharacterVector draws_iter_names() const;
-#else
-        void read(const std::string &pathtofile);
-#endif
-
     private:
-        const std::string section_name_ = "setup";
-        MCMC::Impl &pImpl_; // pointer to external class
-
         hsp::progress::Bar progressbar_; // progress bar
 
         rnd_gen prng_; // Mersenne Twister 19937 generator (32 or 64 bit)
@@ -152,13 +130,11 @@ public:
         rnd_gen &do_prng_unique_thread_() { return prng_; }
         std::uniform_real_distribution<double> unif_; // uniform sampler
 
-#if defined(_OPENMP)
+#ifdef _OPENMP
         std::vector<rnd_gen> prng_parallel_ = {}; // parallel generators (for multi-threading)
         rnd_gen &do_prng_parallel_threads_() { return prng_parallel_[omp_get_thread_num()]; }
 #endif
     } setup;
-
-    std::string error_message = {}; // error message for the last exception
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////  MCMC : Impl : Parameter : struct  ///////////////////////////
@@ -167,7 +143,7 @@ public:
     /// Implementation of Parameters.
     struct Parameter
     {
-        /// NOTE: list_const + list+sample = all parameters in dictionary_
+        /// NOTE: list_const + list_sample = all parameters in dictionary_
         /// list of constant parameters
         str_vec list_const = {};
         /// list of parameters to sample
@@ -202,7 +178,7 @@ public:
         Variable &at(const std::string &p) { return safe_at(dictionary_, p, "parameter"); }
         const Variable &at(const std::string &p) const { return safe_at(dictionary_, p, "parameter"); }
         // get value of the parameter
-        double get(const std::string &p) const { return this->at(p).get(); }
+        double get(const std::string &p) const { return at(p).get(); }
 
         // flag to check if there are parameters to sample
         bool is_any_sample() const { return !list_sample.empty(); }
@@ -212,25 +188,32 @@ public:
         /////////////////////////////////////////////////////////////////////////////////////////
 
         void build(const u_dict<str_vec> &deftable);
+        void build_for_expec(const u_dict<dbl_vec> &deftable);
         void make_cache_dependent(const std::string &p);
-        void user_reset();
+
+        /// Randomly initialize values of the parameters to be inferred.
+        void user_reset()
+        {
+            for (const std::string &p : list_sample)
+                at(p).user_reset(pImpl_.setup.prng());
+        }
+        /// Load parameters values of the n-th posterrior sample.
+        void load_sample_values(size_t n)
+        {
+            for (const auto &pair : smpl_values)
+                at(pair.first).set(pair.second[n]);
+        }
 
         void init_draws(unsigned long sample_size);
         void store_draws(unsigned long smpl_count);
         void clear_draws();
 
-#ifdef _HOUSEPI_RCPP
-        void rcpp_import(SEXP input);
-        Rcpp::NumericVector rcpp_snapshot() const;
-#else
-        void read(const std::string &pathtofile);
-#endif
     private:
-        const std::string section_name_ = "parameter";
         MCMC::Impl &pImpl_; // pointer to external class
 
         u_dict<Variable> dictionary_ = {}; // parameters dictionary
 
+        void clear_lists_();
         void build_constant_parameter_(const u_dict<str_vec> &deftable, size_t k);
         void build_parameter_to_sample_(const u_dict<str_vec> &deftable, size_t k);
     } param;
@@ -242,8 +225,11 @@ public:
     /// Implementation of individidual data wide format.
     struct DataWide
     {
+        str_vec headers = {};
+
         // list of all infected statuses in the dataset
         int_vec all_infected_status_list = {};
+        std::vector<dbl_vec> smpl_values = {};
 
         ReportIndividual report_indiv;
         ReportHousehold report_house;
@@ -267,7 +253,6 @@ public:
         /////////////////////////////////////////////////////////////////////////////////////////
 
         bool is_empty() const { return house_vector_.empty(); }
-        const str_vec &headers() const { return headers_; }
         Household copy(size_t H) const { return house_vector_[H]; }
 
         /////////////////////////////////////////////////////////////////////////////////////////
@@ -351,32 +336,11 @@ public:
         View<const Household> restricted() const { return View<const Household>(house_vector_, pImpl_.multiplicity.indexes); }
         Household &restricted(size_t R) { return house_vector_[pImpl_.multiplicity.indexes[R]]; }
 
-        /////////////////////////////////////////////////////////////////////////////////////////
-        /////////////////////////  MCMC : Impl : DataWide : import/export  ///////////////////////
-        /////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef _HOUSEPI_RCPP
-        void rcpp_import(SEXP input);
-
-        Rcpp::DataFrame rcpp_snapshot(const Household &house) const;
-        Rcpp::DataFrame rcpp_export(const str_vec &columns, bool is_status) const;
-        Rcpp::DataFrame rcpp_summarise_cases() const;
-        Rcpp::DataFrame rcpp_summarise_house_sizes() const;
-        Rcpp::NumericMatrix rcpp_export_draws() const;
-
-#else
-        void read(const std::string &pathtofile);
-#endif
     private:
-        const std::string section_name_ = "data-wide";
         MCMC::Impl &pImpl_; // pointer to external class
-
-        str_vec headers_ = {};
 
         std::vector<Household> house_vector_ = {};
         std::unordered_map<std::string, size_t> hhid_to_index_ = {};
-
-        std::vector<dbl_vec> smpl_values_ = {};
 
         size_t house_id_to_index_(const std::string &house_id) const
         {
@@ -411,14 +375,7 @@ public:
 
         void build(const u_dict<str_vec> &deftable);
 
-#ifdef _HOUSEPI_RCPP
-        void rcpp_import(SEXP input);
-#else
-        void read(const std::string &pathtofile);
-#endif
-
     private:
-        const std::string section_name_ = "multiplicity";
         MCMC::Impl &pImpl_; // pointer to external class
 
     } multiplicity;
@@ -430,6 +387,9 @@ public:
     /// Implementation of additional individual data long format.
     struct DataLong
     {
+        str_vec headers = {};
+        std::vector<u_dict<dbl_vec>> indiv_datalist = {};
+
         /////////////////////////////////////////////////////////////////////////////////////////
         //////////////////////////  MCMC : Impl : DataLong : constructor  ///////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////
@@ -439,35 +399,13 @@ public:
         ~DataLong() = default;
 
         /////////////////////////////////////////////////////////////////////////////////////////
-        ////////////////////////////  MCMC : Impl : DataLong : getter  //////////////////////////
-        /////////////////////////////////////////////////////////////////////////////////////////
-
-        bool is_empty() const { return indiv_datalist_.empty(); }
-        const str_vec &headers() const { return headers_; }
-
-        /////////////////////////////////////////////////////////////////////////////////////////
         ////////////////////////////  MCMC : Impl : DataLong : setter  //////////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////
 
         void build(const u_dict<str_vec> &deftable);
 
-        /////////////////////////////////////////////////////////////////////////////////////////
-        /////////////////////////  MCMC : Impl : DataLong : import/export  //////////////////////
-        /////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef _HOUSEPI_RCPP
-        void rcpp_import(SEXP input);
-
-        Rcpp::DataFrame rcpp_snapshot(const Household &house) const;
-        Rcpp::DataFrame rcpp_export() const;
-#else
-        void read(const std::string &pathtofile);
-#endif
     private:
-        const std::string section_name_ = "data-long";
         MCMC::Impl &pImpl_; // pointer to external class
-        str_vec headers_ = {};
-        std::vector<u_dict<dbl_vec>> indiv_datalist_ = {};
     } data_long;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -477,6 +415,8 @@ public:
     /// Implementation of Group Rates.
     struct GroupRates
     {
+        str_vec headers;
+
         /////////////////////////////////////////////////////////////////////////////////////////
         //////////////////////////  MCMC : Impl : GroupRates : constructor  /////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////
@@ -491,23 +431,10 @@ public:
 
         void build(const u_dict<str_vec> &deftable);
 
-        /////////////////////////////////////////////////////////////////////////////////////////
-        ////////////////////////  MCMC : Impl : GroupRates : import/export  /////////////////////
-        /////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef _HOUSEPI_RCPP
-        void rcpp_import(SEXP input);
-        Rcpp::DataFrame rcpp_snapshot(const Household &house) const;
-#else
-        void read(const std::string &pathtofile);
-#endif
-
     private:
-        const std::string section_name_ = "group rates";
         MCMC::Impl &pImpl_; // pointer to external class
 
         const str_vec file_headers_ = {"group_rate", "param_name"};
-        str_vec headers_;
 
         str_vec helper_assert_definitions_(const u_dict<str_vec> &deftable);
         void helper_init_all_rates_(Individual &member, const u_dict<str_vec> &these_rates);
@@ -521,13 +448,15 @@ public:
     struct InfecProfile
     {
     public:
+        std::unique_ptr<Distribution> generic_profile;
+
         /////////////////////////////////////////////////////////////////////////////////////////
         ////////////////////////  MCMC : Impl : InfecProfile : constructor  /////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////
 
         InfecProfile(MCMC::Impl &ptr)
-            : pImpl_(ptr),
-              profile_(std::make_unique<Distribution>()) {}
+            : generic_profile(std::make_unique<Distribution>()),
+              pImpl_(ptr) {}
         ~InfecProfile() = default;
 
         /////////////////////////////////////////////////////////////////////////////////////////
@@ -551,18 +480,8 @@ public:
         double inst(const Individual *member, double t) { return (this->*inst_)(member, t); }
         double cumul(const Individual *member, double t) { return (this->*cumul_)(member, t); }
 
-#ifdef _HOUSEPI_RCPP
-        void rcpp_import(SEXP input);
-        Rcpp::List rcpp_export() const;
-        Rcpp::List rcpp_snapshot(const Household &house) const;
-#else
-        void read(const std::string &pathtofile);
-#endif
-
     private:
-        const std::string section_name_ = "infectivity profile";
         MCMC::Impl &pImpl_; // pointer to external class
-        std::unique_ptr<Distribution> profile_;
 
         // lookup table
         bool is_discrete_requested_ = false;
@@ -582,12 +501,12 @@ public:
 
         //===== Functional methods for getter methods =====//
         double (InfecProfile::*inst_)(const Individual *, double) = &InfecProfile::do_inst_default_;
-        double do_inst_default_(const Individual *, double t) { return profile_->pdf(t); }
+        double do_inst_default_(const Individual *, double t) { return generic_profile->pdf(t); }
         double do_inst_augm_(const Individual *i, double t) { return i->get_augm_variable(hsp::infprof::INSTANTANEOUS)(t); }
         double do_inst_lookup_(const Individual *, double t);
 
         double (InfecProfile::*cumul_)(const Individual *, double) = &InfecProfile::do_cumul_default_;
-        double do_cumul_default_(const Individual *, double t) { return profile_->cdf(t); }
+        double do_cumul_default_(const Individual *, double t) { return generic_profile->cdf(t); }
         double do_cumul_augm_(const Individual *i, double t) { return i->get_augm_variable(hsp::infprof::CUMULATIVE)(t); }
         double do_cumul_lookup_(const Individual *, double t);
     } infec_profile;
@@ -651,16 +570,7 @@ public:
         /// Flag if augmented draws are stored.
         bool is_any_draw() const { return !smpl_individuals.empty(); }
 
-#ifdef _HOUSEPI_RCPP
-        void rcpp_import(SEXP input);
-        Rcpp::DataFrame rcpp_export_data_wide() const;
-        Rcpp::DataFrame rcpp_snapshot(const Household &house) const;
-#else
-        void read(const std::string &pathtofile);
-#endif
-
     private:
-        const std::string section_name_ = "augmented";
         MCMC::Impl &pImpl_;             // pointer to external class
         u_dict<str_vec> deftable_ = {}; // store definition table
 
@@ -681,29 +591,74 @@ public:
     } augm;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////  MCMC : Impl : Errors  /////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
+
+    struct Errors
+    {
+    public:
+        /// Reset error of the critical scope.
+        void reset()
+        {
+            has_error_.exchange(false);
+            message_.clear();
+        }
+        // Store first error encountered (thread-safe)
+        void set_if_first(const std::string &message)
+        {
+            if (!has_error_.exchange(true, std::memory_order_relaxed))
+            {
+#pragma omp critical
+                message_ = message;
+            }
+        }
+        void set_if_first(const std::exception &e) { set_if_first(e.what()); }
+        // Wheter it should be skipped or not.
+        bool is_pending()
+        {
+            return has_error_.load(std::memory_order_relaxed);
+        }
+        /// If an error was caught in critical scope, throw an exception.
+        void throw_exception() const
+        {
+            if (has_error_)
+                throw std::runtime_error(message_);
+        }
+
+    private:
+        std::atomic<bool> has_error_{false}; /// Wheter error was raised during multi-threading
+        std::string message_ = {};           /// Error message for last exception during multi-threading
+    } atomic_error;
+
+    /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////  MCMC : Impl : Metropolis-Hastings  ///////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    double evaluate_log_lik(const std::string &house_id = hsp::na::STRING);
+    unsigned long smpl_count = 0;    /// count of store samples
+    dbl_vec smpl_total_log_lik = {}; /// vector of total log-likelihood samples
+
     void infer();
+    double evaluate_log_lik(const std::string &house_id = hsp::na::STRING);
+    std::vector<dbl_vec> power_posteriors(const std::string &scheme, unsigned long N);
 
     /// Release memory.
     void clear_memory() { clear_posterior_sample_(); }
 
-#ifdef _HOUSEPI_RCPP
-    Rcpp::List simulate(size_t n_rep);
-    Rcpp::DataFrame simulate_repetition();
-    Rcpp::List log_evidence(const std::string &scheme, unsigned long n_rungs);
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////  MCMC : Impl : Simulation  ///////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
-    //----- Rcpp EXPORTS -----//
-    Rcpp::NumericMatrix rcpp_export_draws() const;
-    Rcpp::List rcpp_export_house_snapshot(const std::string &house_id) const;
-
-#else
-    void print_infer_state(const std::string &output_filename = hsp::na::STRING) const;
-    void print_simulated_data_wide(const std::string &output_filename = hsp::na::STRING);
-    double log_evidence(const std::string &scheme, unsigned long n_rungs);
-#endif
+    /// Auxiliary method to initialize simulations.
+    // UPDATE: once I allow for multi-treading and a flag other than n_chains = 0, I can drop this.
+    void helper_init_simulation()
+    {
+        assert_non_empty_data_wide_(); // check if data is empty
+        setup.n_chains = 0;            // use 0 chains as a state variable
+        setup.n_threads = 1;           // impose no parallelization
+        setup.set_n_threads();         // change accordingly
+        init_model_for_simulation_();  // initialize model for simulation
+    }
+    void simulate_single_household_in_place(Household &h) { callback_simulate_house_(h); }
 
 private:
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -729,7 +684,6 @@ private:
 
     void init_model_for_inference_() { callback_init_inference_(); }
     void init_model_for_simulation_() { callback_init_simulation_(); }
-    void simulate_single_household_(Household &h) { callback_simulate_house_(h); }
     void update_cache_dependecies_(Household &h, Individual &i) { callback_update_cache_(h, i); }
 
     double materialize_house_obs_log_lik_(Household &h)
@@ -745,9 +699,6 @@ private:
 
     double total_log_lik_ = 0.; /// current total log-likelihood
     double total_buffer_ = 0.;  /// buffer total log-likelihood
-
-    unsigned long smpl_count_ = 0;    /// count of store samples
-    dbl_vec smpl_total_log_lik_ = {}; /// vector of total log-likelihood samples
 
     /// Assert data_wide is not empty.
     void assert_non_empty_data_wide_()
@@ -778,7 +729,7 @@ private:
     void init_move_counts_();
 
     void update_total_log_lik_(bool is_cache_depen = true);
-    double materialize_house_log_lik_(Household &house, bool is_augm_ll, bool is_cache_depen = true);
+    double atomic_materialize_house_log_lik_(Household &house, bool is_augm_ll, bool is_cache_depen = true);
 
     void run_monte_carlo_();
     void move_all_();
@@ -796,29 +747,13 @@ private:
 
     //----- Metropolis : augmented moves -----//
     void move_all_augm_();
-    double move_augm_single_house_(Household &house);
+    double atomic_move_augm_single_house_(Household &house);
     double metropolis_augm_single_move_(Household &house, Individual &member, const std::string &a);
 
     //----- Metropolis : power posteriors -----//
-    std::vector<dbl_vec> power_posteriors_(const std::string &scheme, unsigned long N);
     void power_post_zero_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var);
     void power_post_fractions_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var);
     void power_post_adaptive_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var);
-
-    ////////////////////////
-    /////// SIMULATE ///////
-    ////////////////////////
-
-    /// Auxiliary method to initialize simulations.
-    // UPDATE: once I allow for multi-treading and a flag other than n_chains = 0, I can drop this.
-    void aux_init_simulate_()
-    {
-        assert_non_empty_data_wide_(); // check if data is empty
-        setup.n_chains = 0;            // use 0 chains as a state variable
-        setup.n_threads = 1;           // impose no parallelization
-        setup.set_n_threads();         // change accordingly
-        init_model_for_simulation_();  // initialize model for simulation
-    }
 };
 
 #endif // HOUSEPI__MCMC__IMPL__H

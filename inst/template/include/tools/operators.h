@@ -53,7 +53,7 @@ std::vector<T> operator-(std::vector<T> v, const std::vector<T> &w)
                                   [&w](const T &i)
                                   { return w % i; });
     v.erase(new_end, v.end());
-    return v;
+    return std::move(v);
 }
 
 /// Safely access an element in a u_dict by key.

@@ -201,67 +201,6 @@ HousepiExpectation <- R6::R6Class(
       )
       else private$.cri_level <- value
       invisible(self)
-    },
-
-    # Extract progress choice.
-    .extract_progress = function(hhmodel, progress) {
-      # if progress not provided, import from model
-      progress <- ifelse(is.na(progress), hhmodel$setup$progress, progress)
-      # UPDATE: can't manually set the frequency here
-      if (is.numeric(progress)) progress <- TRUE
-      progress
-    },
-
-    # Extract random number seeds choice.
-    .extract_rng_seeds = function(hhmodel, n_rep) {
-      withr::with_seed(hhmodel$setup$seed,
-                       rng_seeds <- sample(1:max(.Machine$integer.max, n_rep),
-                                           n_rep, replace = FALSE))
-      rng_seeds
-    },
-
-    # Extract constant parameters from model.
-    # UPDATE: add a more extensive control on parameter consistency
-    .extract_const_params = function(hhmodel, param_table) {
-      params <- hhmodel$parameters
-      constants <- as.list(params[params$const, "value"])
-      names(constants) <- as.list(params[params$const, "name"])
-      constants <- constants[setdiff(names(constants), colnames(param_table))]
-      constants
-    },
-
-    # Run measure function on posterior simulations.
-    .run_measure = function(hhmodel, param_table, obs_process, progress) {
-      # extract constant parameters
-      constants <- private$.extract_const_params(hhmodel, param_table)
-      # deep clone model before proceeding
-      hmc <- hhmodel$clone(deep = TRUE)
-      # cleanup at end
-      withr::defer(rm(hmc))
-      # number of repetitions
-      n_rep <- dim(param_table)[1]
-      # extract seeds
-      rng_seeds <- private$.extract_rng_seeds(hhmodel, n_rep)
-
-      # define loop function working by row index
-      # UPDATE: this has to be improved with loops in C++
-      loop_func <- function(r) {
-        # associate parameters from table, plus constants
-        hmc$load_parameter_list(from = c(as.list(param_table[r, ]), constants),
-                                append = FALSE)
-        # run simulation and extract cases by house size
-        private$.apply_func(hmc$simulate(seed = rng_seeds[r],
-                                         obs_process = obs_process,
-                                         progress = FALSE))
-      }
-
-      # apply loop function
-      iterator <- seq_len(n_rep)
-      progress <- private$.extract_progress(hhmodel, progress)
-      if (isTRUE(progress)) iterator <- cli::cli_progress_along(
-        iterator, name = "simulations", type = "tasks", clear = FALSE
-      )
-      lapply(iterator, loop_func)
     }
   ),
 
@@ -286,32 +225,32 @@ HousepiExpectation <- R6::R6Class(
                           obs_process = NULL,
                           progress = NA,
                           cri_level = 0.95) {
+      # set observation process to identity if not provided
+      if (is.null(obs_process)) obs_process <- function(x) x
+      else if (!is.function(obs_process)) stop_h(
+        "Unrecognized function passed as observation process."
+      )
       # associate credible interval
       private$.set_cri_level(cri_level)
-
-      # extract parameter draws from table
-      if (inherits(param_table, "HousepiPosteriorDraws")) {
-        param_table <- posterior::as_draws_matrix(param_table$param_draws)
-      } else if (posterior::is_draws(param_table)) {
-        param_table <- posterior::as_draws_matrix(param_table)
-      }
-      tryCatch({
-        param_table <- as.data.frame(param_table)
-      }, error = function(e) {
-        stop_h("Type of param_table not supported.")
-      })
 
       # load measure functions
       measure <- list(...)
       if (is.null(measure)) stop_h("No measure was provided.")
-      # function to be applied also in the case of multiple measures
-      private$.apply_func <- function(x) lapply(measure, function(func) func(x))
+
       # initialize with results from observed data as a test
-      store_observed <- private$.apply_func(hhmodel$data_wide)
+      store_observed <- lapply(measure, function(func) func(hhmodel$data_wide))
 
       # run measures on posterior simulations
-      output <- private$.run_measure(hhmodel, param_table,
-                                     obs_process, progress)
+      # deep clone model before proceeding and acc
+      hmc <- hhmodel$clone(deep = TRUE)
+      # cleanup at end
+      withr::defer(rm(hmc))
+      # run measures
+      output <- hmc$.__enclos_env__$private$.run_measure(
+        param_table,
+        function(x) lapply(measure, function(func) func(obs_process(x))),
+        progress
+      )
       output <- lapply(names(measure), function(x) lapply(output, `[[`, x))
       store_posterior <- lapply(output, private$.extract_posterior_results)
       names(store_posterior) <- names(measure)

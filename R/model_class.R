@@ -335,6 +335,49 @@ HousepiModel <- R6::R6Class(
       )
     },
 
+    # Helper with parameter table import.
+    .helper_import_table = function(param_table) {
+      # extract parameter draws from table
+      if (inherits(param_table, "HousepiPosteriorDraws")) {
+        return(posterior::as_draws_matrix(param_table$param_draws))
+      } else if (posterior::is_draws(param_table)) {
+        return(posterior::as_draws_matrix(param_table))
+      }
+      tryCatch({
+        return(as.data.frame(param_table))
+      }, error = function(e) {
+        stop_h("Type of param_table not supported.")
+      })
+    },
+
+    # Run measure function on posterior simulations.
+    # UPDATE: this has to be improved with loops in C++
+    .run_measure = function(param_table, apply_measure, progress) {
+      # attach param_table
+      param_table <- private$.helper_import_table(param_table)
+      private$.rcpp$import_param_for_expec(param_table)
+
+      # define iterator, eventually with progress bar
+      iterator <- seq_len(dim(param_table)[1])
+      # if progress not provided, import from model
+      progress <- ifelse(is.na(progress), self$setup$progress, progress)
+      # FIXME: can't manually set the frequency here
+      if (is.numeric(progress)) progress <- TRUE
+      if (isTRUE(progress)) iterator <- cli::cli_progress_along(
+        iterator, name = "simulations", type = "tasks", clear = FALSE
+      )
+
+      # static data (not returned by simulation)
+      static_df <- private$.rcpp$data_wide_for_simulation()
+      # run simulation and apply all measures
+      # NOTE: simulate_for_expec from 0 to table_size - 1 !
+      lapply(iterator, function(r) {
+        apply_measure(private$.refactor_data_wide(
+          cbind(static_df, private$.rcpp$simulate_for_expec(r - 1)[[1]])
+        ))
+      })
+    },
+
     # @description
     # Estimate the model logevidence (or marginal likelihood).
     # It uses the method of power posteriors with different available schemes.

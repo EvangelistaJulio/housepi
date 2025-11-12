@@ -111,7 +111,7 @@ void MCMC::Impl::InfecProfile::init_template(u_dict<std::string> deflist)
 {
     // if not previous build, proceed with template
     // if no template, assume no need for an infectivity profile
-    if (!hsp::na::is(profile_->name()) ||
+    if (!hsp::na::is(generic_profile->name()) ||
         !augm_infec_profile_deflist_.empty() ||
         deflist.empty())
         return;
@@ -140,7 +140,7 @@ void MCMC::Impl::InfecProfile::init_template(u_dict<std::string> deflist)
         // forbid augmented infectivity profile for template
         if (is_augmented())
             throw std::invalid_argument(
-                "Tried to define an infectivity profile template depending on augmented variables.");
+                "Impossible to define infectivity profile template with augmented dependencies.");
 
         // UPDATE: maybe also not depending on parameters?
     }
@@ -158,10 +158,10 @@ void MCMC::Impl::InfecProfile::init_lookup_()
     inst_ = &InfecProfile::do_inst_lookup_;
     cumul_ = &InfecProfile::do_cumul_lookup_;
 
-    if (profile_->get_upper().is_empty())
+    if (generic_profile->get_upper().is_empty())
         size_lut_ = hsp::infprof::LOOKUP_SIZE;
     else
-        size_lut_ = profile_->upper() + 1;
+        size_lut_ = generic_profile->upper() + 1;
 
     lookup_inst_.resize(size_lut_);
     lookup_cumul_.resize(size_lut_);
@@ -220,7 +220,8 @@ void MCMC::Impl::InfecProfile::recover()
     lookup_cumul_.swap(lookup_buffer_cumul_);
 }
 
-/// Build infectivity profile distribution .
+/// Build infectivity profile distribution.
+/// NOTE: at the moment I am ignoring minimum
 void MCMC::Impl::InfecProfile::build(const u_dict<std::string> &deflist)
 {
     augm_infec_profile_deflist_.clear();
@@ -228,25 +229,20 @@ void MCMC::Impl::InfecProfile::build(const u_dict<std::string> &deflist)
     if (deflist.empty())
         return;
 
-    // NOTE: at the moment I am ignoring minimum
-    const str_vec file_headers = {"name", "discr", hsp::params::MIN, hsp::params::MAX};
-
     // check entries
-    hsp::str::assert_no_unused_entries(hsp::read::list_headers(deflist), file_headers);
-
+    const str_vec file_headers = {"name", "discr", hsp::params::MIN, hsp::params::MAX};
+    hsp::str::assert_no_unused_entries(hsp::read::extract_keys(deflist), file_headers);
     // check definition list has a function
     if (!deflist.count("name"))
         throw std::invalid_argument(
-            "A function name choice was missing in the infectivity profile definition.");
+            "A function name choice was missing in infectivity profile definition.");
     if (hsp::parse::Definition(deflist.at("name")).is_na())
         throw std::invalid_argument(
-            "Provided NA as a function name in the infectivity profile definition.");
+            "Provided NA as a function name in infectivity profile definition.");
 
     // check if definition is generic or augmented
-    bool is_augm = hsp::parse::Definition(deflist.at("name")).is_augmented_depen() ||
-                   hsp::parse::Definition(deflist.at(hsp::params::MAX)).is_augmented_depen();
-
-    if (is_augm)
+    if (hsp::parse::Definition(deflist.at("name")).is_augmented_depen() ||
+        hsp::parse::Definition(deflist.at(hsp::params::MAX)).is_augmented_depen())
         build_augmented_profile_(deflist);
     else
         build_generic_profile_(deflist);
@@ -259,38 +255,38 @@ void MCMC::Impl::InfecProfile::build_generic_profile_(const u_dict<std::string> 
     cumul_ = &InfecProfile::do_cumul_default_;
 
     hsp::parse::Definition parser(hsp::parse::Definition(deflist.at("name")));
-    profile_ = compose_distr_registries(parser.root.func,
-                                        "infectivity profile",
-                                        {&InfecProfileRegistry::inst(),
-                                         &ContinuosDistrRegistry::inst(),
-                                         &DiscreteDistrRegistry::inst()});
+    generic_profile = compose_distr_registries(parser.root.func,
+                                               "infectivity profile",
+                                               {&InfecProfileRegistry::inst(),
+                                                &ContinuosDistrRegistry::inst(),
+                                                &DiscreteDistrRegistry::inst()});
     for (const auto &node : parser.root.children)
     {
-        profile_->init_attr(node.key, pImpl_.read_attribute_(node));
+        generic_profile->init_attr(node.key, pImpl_.read_attribute_(node));
         pImpl_.make_param_cache_depen_(node);
     }
 
     // discretization
     if (deflist.count("discr") && hsp::str::tobool(deflist.at("discr")))
-        profile_->init_discretization();
+        generic_profile->init_discretization();
     else if (is_discrete_requested_)
         hsp::msg::error(
             "Definition of infectivity profile did not return a discrete object as requested by the model.");
 
     // range minimum
-    if (profile_->is_discrete())
-        profile_->init_attr(hsp::params::MIN, pImpl_.read_attribute_("1|N"));
+    if (generic_profile->is_discrete())
+        generic_profile->init_attr(hsp::params::MIN, pImpl_.read_attribute_("1|N"));
     else
-        profile_->init_attr(hsp::params::MIN, pImpl_.read_attribute_("0|N"));
+        generic_profile->init_attr(hsp::params::MIN, pImpl_.read_attribute_("0|N"));
 
     // range maximum
     if (deflist.count(hsp::params::MAX))
-        profile_->init_attr(hsp::params::MAX, pImpl_.read_attribute_(deflist.at(hsp::params::MAX)));
+        generic_profile->init_attr(hsp::params::MAX, pImpl_.read_attribute_(deflist.at(hsp::params::MAX)));
     // range truncation
-    profile_->init_truncation();
+    generic_profile->init_truncation();
 
     // if discrete and generic, initializes lookup table
-    if (profile_->is_discrete())
+    if (generic_profile->is_discrete())
         init_lookup_();
     else
         clear_lookup_();
@@ -306,7 +302,7 @@ void MCMC::Impl::InfecProfile::build_augmented_profile_(const u_dict<std::string
                             {"discr", deflist.at("discr")}});
     // drop generic definition
     clear_lookup_();
-    profile_ = std::make_unique<Distribution>();
+    generic_profile = std::make_unique<Distribution>();
 
     inst_ = &InfecProfile::do_inst_augm_;
     cumul_ = &InfecProfile::do_cumul_augm_;
@@ -354,16 +350,16 @@ void MCMC::request_infec_profile_discrete() { pImpl_->infec_profile.request_disc
 /// Lookup method for discrete instantaneous infectivity profile.
 double MCMC::Impl::InfecProfile::do_inst_lookup_(const Individual *, double t)
 {
-    if (profile_->is_valid(t) && t < size_lut_)
+    if (generic_profile->is_valid(t) && t < size_lut_)
         return lookup_inst_.at(static_cast<size_t>(t));
     return 0;
 }
 /// Lookup method for discrete cumulative infectivity profile.
 double MCMC::Impl::InfecProfile::do_cumul_lookup_(const Individual *, double t)
 {
-    if (profile_->is_below(t))
+    if (generic_profile->is_below(t))
         return 0.;
-    if (t >= size_lut_ || profile_->is_above(t))
+    if (t >= size_lut_ || generic_profile->is_above(t))
         return lookup_cumul_.at(size_lut_ - 1);
     return lookup_cumul_.at(static_cast<size_t>(t));
 }
@@ -529,7 +525,7 @@ void MCMC::Impl::Augmented::build(const u_dict<str_vec> &deftable)
                                   "value", "const", "discr",
                                   "model", hsp::params::MIN, hsp::params::MAX,
                                   "proposal", "proposal_scale"};
-    const str_vec headers = hsp::read::table_headers(deftable_);
+    const str_vec headers = hsp::read::extract_keys(deftable_);
     hsp::str::assert_no_missing_entries(headers, file_headers);
     hsp::str::assert_no_unused_entries(headers, file_headers);
 
@@ -858,8 +854,7 @@ void MCMC::Impl::Augmented::init_model_logratios(Individual &member)
     catch (const std::exception &e)
     {
         throw std::runtime_error(
-            "While initializing " + section_name_ + " model " +
-            " for " + member.err_name() + ":\n" +
+            "While initializing augmented model for " + member.err_name() + ":\n" +
             std::string(e.what()));
     }
 }
@@ -920,7 +915,7 @@ void MCMC::Impl::Augmented::helper_init_attributes_(Individual &member, size_t k
     catch (const std::exception &e)
     {
         throw std::runtime_error(
-            "While initializing " + section_name_ + " '" + a +
+            "While initializing augmented '" + a +
             "' for " + member.err_name() + ":\n" +
             std::string(e.what()));
     }
@@ -1107,33 +1102,18 @@ void MCMC::Impl::Augmented::clear_draws()
 void MCMC::Impl::move_all_augm_()
 {
     double delta_ll = 0.;
-    std::atomic<bool> has_error(false);
+    atomic_error.reset();
 
 #pragma omp parallel for reduction(+ : delta_ll)
     for (size_t H = 0; H < data_wide.report_house.total; ++H)
     {
-        if (has_error.load(std::memory_order_relaxed))
+        if (atomic_error.is_pending())
             continue;
 
         Household &this_house = data_wide(H);
-        try
-        {
-            delta_ll += move_augm_single_house_(this_house);
-        }
-        catch (const std::exception &e)
-        {
-            if (!has_error.exchange(true, std::memory_order_relaxed))
-#pragma omp critical
-            {
-                error_message = "While sampling augmented variables for " +
-                                this_house.err_name() + ":\n" +
-                                std::string(e.what());
-            }
-        }
+        delta_ll += atomic_move_augm_single_house_(this_house);
     }
-
-    if (!error_message.empty())
-        throw std::runtime_error(error_message);
+    atomic_error.throw_exception();
 
     increment_total_log_lik_(delta_ll);
 }
@@ -1144,14 +1124,23 @@ void MCMC::Impl::move_all_augm_()
 
 /// Move augmented variables of infectious members inside household.
 /// The move is performed one member at a time, one augmented variable at a time.
-double MCMC::Impl::move_augm_single_house_(Household &house)
+double MCMC::Impl::atomic_move_augm_single_house_(Household &house)
 {
     double delta_ll = 0.;
-    // loop over infectious residents of the househould
-    for (Individual &member_i : house.infected())
-        // loop over augmented variables of infectious
-        for (const std::string &a : augm.status_map_sample[member_i.status()])
-            delta_ll += metropolis_augm_single_move_(house, member_i, a);
+    try
+    {
+        // loop over infectious residents of the househould
+        for (Individual &member_i : house.infected())
+            // loop over augmented variables of infectious
+            for (const std::string &a : augm.status_map_sample[member_i.status()])
+                delta_ll += metropolis_augm_single_move_(house, member_i, a);
+    }
+    catch (const std::exception &e)
+    {
+        atomic_error.set_if_first("While sampling augmented variables for " +
+                                  house.err_name() + ":\n" +
+                                  std::string(e.what()));
+    }
     return delta_ll;
 }
 

@@ -39,18 +39,13 @@ double MCMC::Impl::evaluate_log_lik(const std::string &house_id)
 
         // mode for computing log-likelihood of specific household
         if (!hsp::na::is(house_id))
-            try
-            {
-                Household &this_house = data_wide(house_id);
-                infec_profile.update();
-                return materialize_house_log_lik_(this_house, augm.is_any_model());
-            }
-            catch (const std::exception &e)
-            {
-                throw std::runtime_error(
-                    "While computing log-likelihood for household '" +
-                    house_id + "':\n" + std::string(e.what()));
-            }
+        {
+            atomic_error.reset();   // reset atomic error
+            infec_profile.update(); // eventually buffer infectivity profile
+            double output = atomic_materialize_house_log_lik_(data_wide(house_id), augm.is_any_model());
+            atomic_error.throw_exception(); // catch and throw if previous failed
+            return output;
+        }
 
         update_total_log_lik_(); // initialize cache + full log-likelihood
         return total_log_lik_;
@@ -73,60 +68,52 @@ void MCMC::Impl::update_total_log_lik_(bool is_cache_depen)
 {
     const bool is_augm_ll = augm.is_any_model();
     double new_ll = 0.0;
-    std::atomic<bool> has_error(false);
 
     // buffer infectivity profile if lookup tables are active
     if (is_cache_depen)
         infec_profile.update();
 
+    atomic_error.reset();
 #pragma omp parallel for reduction(+ : new_ll)
     for (size_t R = 0; R < multiplicity.indexes.size(); ++R)
     {
-        if (has_error.load(std::memory_order_relaxed))
+        if (atomic_error.is_pending())
             continue;
 
-        Household &this_house = data_wide.restricted(R);
-        try
-        {
-            new_ll += materialize_house_log_lik_(this_house, is_augm_ll, is_cache_depen);
-        }
-        catch (const std::exception &e)
-        {
-            if (!has_error.exchange(true, std::memory_order_relaxed))
-            {
-#pragma omp critical
-                error_message = "While computing log-likelihood for " +
-                                this_house.err_name() + ":\n" +
-                                std::string(e.what());
-            }
-        }
+        new_ll += atomic_materialize_house_log_lik_(data_wide.restricted(R), is_augm_ll, is_cache_depen);
     }
-    if (!error_message.empty())
-        throw std::runtime_error(error_message);
+    atomic_error.throw_exception();
 
     set_total_log_lik_(new_ll);
 }
 
 /// Update and return contribution of given household to full logliklehood.
 /// NOTE: house multiplicity doesn't work with data augmentation
-double MCMC::Impl::materialize_house_log_lik_(Household &house, bool is_augm_ll, bool is_cache_depen)
+double MCMC::Impl::atomic_materialize_house_log_lik_(Household &house, bool is_augm_ll, bool is_cache_depen)
 {
-    // buffer all household cache dependencies
-    if (is_cache_depen)
+    double output = 0;
+    try
     {
-        house.buffer_all_cache();
-        for (Individual &member : house.infected())
-            update_cache_dependecies_(house, member);
+        // buffer all household cache dependencies
+        if (is_cache_depen)
+        {
+            house.buffer_all_cache();
+            for (Individual &member : house.infected())
+                update_cache_dependecies_(house, member);
+        }
+
+        // compute and set household observation log-likelihood
+        output = materialize_house_obs_log_lik_(house);
+        // compute and set individual augmented log-likelihood
+        if (is_augm_ll)
+            for (Individual &member : house.infected())
+                output += member.materialize_augm_model_log_lik();
     }
-
-    // compute and set household observation log-likelihood
-    double output = materialize_house_obs_log_lik_(house);
-
-    // compute and set individual augmented log-likelihood
-    if (is_augm_ll)
-        for (Individual &member : house.infected())
-            output += member.materialize_augm_model_log_lik();
-
+    catch (const std::exception &e)
+    {
+        atomic_error.set_if_first("While computing log-likelihood for " +
+                                  house.err_name() + ":\n" + std::string(e.what()));
+    }
     return output;
 }
 
@@ -340,7 +327,7 @@ bool MCMC::Impl::accept_valid_param_move_(const std::string &p)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Initialize posterior sample of parameters.
+/// Initialize posterior sample of parameters and respective priors.
 void MCMC::Impl::Parameter::init_draws(unsigned long sample_size)
 {
     smpl_values.clear();
@@ -358,7 +345,7 @@ void MCMC::Impl::Parameter::init_draws(unsigned long sample_size)
     }
 }
 
-/// Store current sample of parameters.
+/// Store current sample of parameters and respective priors.
 void MCMC::Impl::Parameter::store_draws(unsigned long smpl_count)
 {
     for (const std::string &p : list_sample)
@@ -369,7 +356,7 @@ void MCMC::Impl::Parameter::store_draws(unsigned long smpl_count)
     }
 }
 
-/// Deep clear existing posterior sample of parameters.
+/// Deep clear existing posterior sample of parameters and respective priors.
 void MCMC::Impl::Parameter::clear_draws()
 {
     for (const std::string &p : list_sample)
@@ -389,13 +376,13 @@ void MCMC::Impl::Parameter::clear_draws()
 void MCMC::Impl::DataWide::init_draws(unsigned long sample_size)
 {
     // sample over households
-    smpl_values_.clear();
-    smpl_values_.resize(pImpl_.multiplicity.indexes.size());
+    smpl_values.clear();
+    smpl_values.resize(pImpl_.multiplicity.indexes.size());
     for (size_t R = 0; R < pImpl_.multiplicity.indexes.size(); ++R)
     {
-        smpl_values_[R].clear();
-        smpl_values_[R].reserve(sample_size);
-        smpl_values_[R].assign(sample_size, hsp::na::DOUBLE);
+        smpl_values[R].clear();
+        smpl_values[R].reserve(sample_size);
+        smpl_values[R].assign(sample_size, hsp::na::DOUBLE);
     }
 }
 
@@ -409,20 +396,20 @@ void MCMC::Impl::DataWide::store_draws(unsigned long smpl_count)
         double x = house.get_obs_log_lik() / house.multiplicity();
         for (const Individual &member : house.infected())
             x += member.get_augm_model_log_lik();
-        smpl_values_[R][smpl_count] = x;
+        smpl_values[R][smpl_count] = x;
     }
 }
 
 /// Deep clear posterior sample of pointwise log-likelihood.
 void MCMC::Impl::DataWide::clear_draws()
 {
-    for (auto &vec : smpl_values_)
+    for (auto &vec : smpl_values)
     {
         vec.clear();
         vec.shrink_to_fit();
     }
-    smpl_values_.clear();
-    smpl_values_.shrink_to_fit();
+    smpl_values.clear();
+    smpl_values.shrink_to_fit();
 }
 
 /// Init posterior sampling.
@@ -431,10 +418,10 @@ void MCMC::Impl::init_posterior_sample_()
     unsigned long sample_size = setup.c_sample_size * setup.n_chains;
 
     // diagnostics over full log-likelihood
-    smpl_count_ = 0;
-    smpl_total_log_lik_.clear();
-    smpl_total_log_lik_.reserve(sample_size);
-    smpl_total_log_lik_.assign(sample_size, hsp::na::DOUBLE);
+    smpl_count = 0;
+    smpl_total_log_lik.clear();
+    smpl_total_log_lik.reserve(sample_size);
+    smpl_total_log_lik.assign(sample_size, hsp::na::DOUBLE);
 
     // initialize  other diagnostic vectors
     // UPDATE: I need to store also power posterior sample
@@ -451,24 +438,24 @@ void MCMC::Impl::init_posterior_sample_()
 void MCMC::Impl::store_posterior_sample_()
 {
     // store sample of the full log-likelihood
-    smpl_total_log_lik_[smpl_count_] = total_log_lik_;
+    smpl_total_log_lik[smpl_count] = total_log_lik_;
 
     if (!setup.is_power_post())
     {
-        param.store_draws(smpl_count_);
-        data_wide.store_draws(smpl_count_);
-        augm.store_draws(smpl_count_);
+        data_wide.store_draws(smpl_count);
+        param.store_draws(smpl_count);
+        augm.store_draws(smpl_count);
     }
 
-    ++smpl_count_;
+    ++smpl_count;
 }
 
 /// Deep clear pre-existing posterior draws.
 void MCMC::Impl::clear_posterior_sample_()
 {
-    smpl_count_ = 0;
-    smpl_total_log_lik_.clear();
-    smpl_total_log_lik_.shrink_to_fit();
+    smpl_count = 0;
+    smpl_total_log_lik.clear();
+    smpl_total_log_lik.shrink_to_fit();
 
     data_wide.clear_draws();
     param.clear_draws();
@@ -513,7 +500,7 @@ std::pair<double, double> compute_stats(const dbl_vec &data)
 /// Friel, N., Hurn, M. & Wyse, J.
 /// Improving power posterior estimation of statistical evidence.
 /// Stat Comput 24, 709–723 (2014).
-std::vector<dbl_vec> MCMC::Impl::power_posteriors_(const std::string &scheme, unsigned long n_rungs)
+std::vector<dbl_vec> MCMC::Impl::power_posteriors(const std::string &scheme, unsigned long n_rungs)
 {
     // check scheme choice
     const str_vec options = {"adaptive", "power-fractions"};
@@ -569,7 +556,7 @@ void MCMC::Impl::power_post_zero_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
     setup.rung = 0;
     setup.inv_T = 0.0;
     run_monte_carlo_();
-    std::pair<double, double> stats = compute_stats(smpl_total_log_lik_);
+    std::pair<double, double> stats = compute_stats(smpl_total_log_lik);
 
     itm.push_back(setup.inv_T);
     avg.push_back(stats.first);
@@ -583,7 +570,7 @@ void MCMC::Impl::power_post_adaptive_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
     setup.rung = 1;
     setup.inv_T = 1.0;
     run_monte_carlo_();
-    std::pair<double, double> stats = compute_stats(smpl_total_log_lik_);
+    std::pair<double, double> stats = compute_stats(smpl_total_log_lik);
 
     itm.push_back(setup.inv_T);
     avg.push_back(stats.first);
@@ -606,7 +593,7 @@ void MCMC::Impl::power_post_adaptive_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
         // power posterior sampling
         setup.inv_T = new_t;
         run_monte_carlo_();
-        stats = compute_stats(smpl_total_log_lik_);
+        stats = compute_stats(smpl_total_log_lik);
 
         // find larger rectangular discretization error
         is_right = (itm[k + 1] - setup.inv_T) * (avg[k + 1] - stats.first) > (new_t - itm[k]) * (stats.first - avg[k]);
@@ -630,191 +617,270 @@ void MCMC::Impl::power_post_fractions_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
         setup.inv_T = std::pow(static_cast<double>(setup.rung) / setup.n_rungs, 5);
         run_monte_carlo_();
 
-        std::pair<double, double> stats = compute_stats(smpl_total_log_lik_);
+        std::pair<double, double> stats = compute_stats(smpl_total_log_lik);
         itm.push_back(setup.inv_T);
         avg.push_back(stats.first);
         var.push_back(stats.second);
     }
 }
 
-#ifdef _HOUSEPI_RCPP
-/// Estimate log_evidence according to a given scheme and number of rungs.
-/// Uses trapezoidal rule to estimate logarithm of marginal likelihood (evidence).
-///
-/// Ref.
-/// -----
-/// Ref: Friel, N., Hurn, M. & Wyse, J.
-/// Improving power posterior estimation of statistical evidence.
-/// Stat Comput 24, 709–723 (2014).
-Rcpp::List MCMC::Impl::log_evidence(const std::string &scheme, unsigned long n_rungs)
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  MCMC : Impl : standalone  /////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+#ifndef _HOUSEPI_RCPP
+
+#include <fstream>
+#include <iomanip>
+#include "tools/read.h"
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  MCMC : Impl : read  ////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+#define MAKE_READ_METHOD(module, section_name, csv_object)                \
+    void MCMC::read_##module(const std::string &f)                        \
+    {                                                                     \
+        try                                                               \
+        {                                                                 \
+            pImpl_->module.build(hsp::read::csv_object(f));               \
+        }                                                                 \
+        catch (const std::exception &e)                                   \
+        {                                                                 \
+            hsp::msg::error(std::string("While reading ") +               \
+                            section_name + " definitions:\n" + e.what()); \
+        }                                                                 \
+    }
+
+MAKE_READ_METHOD(setup, "setup", csv_list)
+MAKE_READ_METHOD(infec_profile, "infectivity profile", csv_list)
+MAKE_READ_METHOD(param, "parameters", csv_table)
+MAKE_READ_METHOD(data_wide, "data-wide", csv_table)
+MAKE_READ_METHOD(multiplicity, "multiplicity", csv_table)
+MAKE_READ_METHOD(data_long, "data-long", csv_table)
+MAKE_READ_METHOD(group_rates, "group rates", csv_table)
+MAKE_READ_METHOD(augm, "augmented", csv_table)
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  MCMC : print infer state  /////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Initialize the output file with inferred parameters with column names and initial values.
+void MCMC::print_infer_state(const std::string &output_filename) const
 {
-    using namespace Rcpp;
+    if (hsp::na::is(output_filename))
+        return;
 
-    try
-    {
-        double output = 0;
-        const std::vector<dbl_vec> pp = power_posteriors_(scheme, n_rungs);
-        const dbl_vec &inv_tem = pp[0];
-        const dbl_vec &avg_vec = pp[1];
-        const dbl_vec &var_vec = pp[2];
+    const Impl::Setup &setup = pImpl_->setup;
+    const Impl::Parameter &param = pImpl_->param;
+    const Impl::Augmented &augm = pImpl_->augm;
 
-        for (unsigned long k = 0; k < setup.n_rungs; ++k)
+    std::ofstream ofs;
+    ofs.open(output_filename.c_str());
+
+    if (!ofs.is_open())
+        throw std::runtime_error(
+            "Unable to open file: " + output_filename);
+
+    // Headers
+    // header log-likelihood
+    ofs << "iteration" << hsp::read::DELIMITER << "log_lik";
+
+    // header parameters
+    for (const std::string &p : param.list_sample)
+        ofs << hsp::read::DELIMITER << p;
+
+    // header augmented variable of id trace
+    if (augm.is_any_draw())
+        for (size_t k = 0; k < augm.smpl_individuals.size(); ++k)
+            for (const std::string &a : augm.list_draws)
+                ofs << hsp::read::DELIMITER << augm.smpl_individuals[k]->id() + "_" + a;
+
+    // header chain
+    ofs << hsp::read::DELIMITER << hsp::read::CHAIN_COLUMN << std::endl;
+
+    // Values
+    for (size_t c = 0; c < setup.n_chains; ++c)
+        for (size_t k = 0; k < setup.c_sample_size; k++)
         {
-            double d_inv_tem = inv_tem[k + 1] - inv_tem[k];
-            output += (avg_vec[k + 1] + avg_vec[k]) * d_inv_tem / 2.;
-            output += (var_vec[k] - var_vec[k + 1]) * d_inv_tem * d_inv_tem / 12.;
+            size_t i = k + c * setup.c_sample_size;
+
+            // print iteration
+            unsigned long sweep = setup.n_burnin + (k + 1) * setup.n_thin;
+            ofs << sweep;
+
+            // print log-likelihood
+            ofs << hsp::read::DELIMITER << std::setprecision(2)
+                << std::fixed << pImpl_->smpl_total_log_lik[i];
+
+            // print parameter values
+            for (const std::string &p : param.list_sample)
+                ofs << hsp::read::DELIMITER << std::setprecision(5)
+                    << std::fixed << param.smpl_values.find(p)->second[i];
+
+            // print augmented variable of id trace
+            if (!augm.smpl_values.empty())
+                for (size_t k = 0; k < augm.smpl_individuals.size(); ++k)
+                    for (const std::string &a : augm.list_draws)
+                        ofs << hsp::read::DELIMITER << std::setprecision(5)
+                            << std::fixed << augm.smpl_values[k].find(a)->second[i];
+
+            // print which chain
+            ofs << hsp::read::DELIMITER << (c + 1) << std::endl;
         }
 
-        return List::create(_["estimate"] = output,
-                            _["scheme"] = scheme,
-                            _["n_rungs"] = setup.n_rungs,
-                            _["inv_temper"] = wrap(inv_tem),
-                            _["mean_log_lik"] = wrap(avg_vec),
-                            _["var_log_lik"] = wrap(var_vec));
-    }
-    catch (const std::exception &e)
-    {
-        hsp::msg::error("While estimating log_evidence with power posteriors:\n" +
-                        std::string(e.what()));
-    }
-}
-Rcpp::List MCMC::log_evidence(const std::string &scheme, unsigned long n_rungs) { return pImpl_->log_evidence(scheme, n_rungs); }
-
-#else
-/// Estimate log_evidence according to a given scheme and number of rungs.
-/// Uses trapezoidal rule to estimate logarithm of marginal likelihood (evidence).
-///
-/// Ref.
-/// -----
-/// Ref: Friel, N., Hurn, M. & Wyse, J.
-/// Improving power posterior estimation of statistical evidence.
-/// Stat Comput 24, 709–723 (2014).
-double MCMC::Impl::log_evidence(const std::string &scheme, unsigned long n_rungs)
-{
-    try
-    {
-        double output = 0;
-        const std::vector<dbl_vec> pp = power_posteriors_(scheme, n_rungs);
-        const dbl_vec &inv_tem = pp[0];
-        const dbl_vec &avg_vec = pp[1];
-        const dbl_vec &var_vec = pp[2];
-
-        for (unsigned long k = 0; k < setup.n_rungs; ++k)
-        {
-            double d_inv_tem = inv_tem[k + 1] - inv_tem[k];
-            output += (avg_vec[k + 1] + avg_vec[k]) * d_inv_tem / 2.;
-            output += (var_vec[k] - var_vec[k + 1]) * d_inv_tem * d_inv_tem / 12.;
-        }
-
-        return output;
-    }
-    catch (const std::exception &e)
-    {
-        hsp::msg::error("While estimating log_evidence with power posteriors:\n" +
-                        std::string(e.what()));
-    }
-}
-double MCMC::log_evidence(const std::string &scheme, unsigned long n_rungs) { return pImpl_->log_evidence(scheme, n_rungs); }
-#endif
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  MCMC : Impl : simulation  /////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef _HOUSEPI_RCPP
-/// Perform a unique repetition.
-Rcpp::DataFrame MCMC::Impl::simulate_repetition()
-{
-    using namespace Rcpp;
-
-    const size_t n_rows = data_wide.report_indiv.total;
-
-    IntegerVector df_status = IntegerVector(n_rows);
-
-    std::vector<NumericVector> df_augm;
-    df_augm.reserve(augm.list_export.size());
-    for (size_t c = 0; c < augm.list_export.size(); ++c)
-        df_augm.emplace_back(n_rows);
-
-    size_t r = 0;
-    for (Household house : data_wide) // NOTE: deep copy of household
-        try
-        {
-            simulate_single_household_(house); // inplace simulation
-            for (const Individual &member : house)
-            {
-                df_status[r] = member.status();
-                for (size_t c = 0; c < augm.list_export.size(); ++c)
-                    df_augm[c][r] = hsp_to_rcpp(member.augm(augm.list_export[c]));
-                ++r;
-            }
-        }
-        catch (const std::exception &e)
-        {
-            throw std::runtime_error(
-                "While simulating " + house.err_name() + ":\n" +
-                std::string(e.what()));
-        }
-
-    DataFrame output = DataFrame::create(_["status"] = df_status);
-    for (size_t c = 0; c < augm.list_export.size(); ++c)
-        output.push_back(df_augm[c], augm.list_export[c]);
-
-    return output;
+    ofs.close();
 }
 
-/// Perform simulation and return simulated data.
-Rcpp::List MCMC::Impl::simulate(size_t n_rep)
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////  MCMC::Impl : print simulation  /////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Print all augmented variables of each individual.
+std::ofstream open_ofstream_datawide(const std::string &f,
+                                     const str_vec &data_headers,
+                                     const str_vec &augm_headers)
 {
-    using namespace Rcpp;
-    std::atomic<bool> has_error(false);
+    std::ofstream ofs;
+    ofs.open(f.c_str());
+
+    if (!ofs.is_open())
+        throw std::runtime_error("Unable to open file: '" + f + "'");
+
+    // print default data headers
+    ofs << "id" << hsp::read::DELIMITER << "house_id" << hsp::read::DELIMITER << "status";
+
+    // print other data headers
+    for (const std::string &d : data_headers)
+        ofs << hsp::read::DELIMITER << d;
+
+    // print augmented variables headers
+    for (const std::string &a : augm_headers)
+        ofs << hsp::read::DELIMITER << a;
+
+    ofs << std::endl;
+
+    return ofs;
+}
+
+/// Print all augmented variables of each individual.
+void update_ofstream_datawide(std::ofstream &ofs,
+                              Household &house,
+                              const str_vec &data_headers,
+                              const str_vec &augm_headers)
+{
+    if (!ofs.is_open())
+        throw std::runtime_error("Output file closed unexpectedly.");
+
+    for (const Individual &member : house)
+    {
+        ofs << member.id()
+            << hsp::read::DELIMITER << house.house_id()
+            << hsp::read::DELIMITER << member.status();
+        for (const std::string &d : data_headers)
+            ofs << hsp::read::DELIMITER << member.data(d);
+
+        for (const std::string &a : augm_headers)
+            if (member.is_infected_status())
+                ofs << hsp::read::DELIMITER << member.augm(a);
+            else
+                ofs << hsp::read::DELIMITER << hsp::na::DOUBLE;
+
+        ofs << std::endl;
+    }
+}
+
+/// Print the simulated data to the provided file.
+void MCMC::print_simulated_data_wide(const std::string &pathtofile)
+{
+    Impl::Setup &setup = pImpl_->setup;
+    const Impl::DataWide &data_wide = pImpl_->data_wide;
+    const Impl::Augmented &augm = pImpl_->augm;
 
     try
     {
         // initialization
-        aux_init_simulate_();
-        setup.prog_open(data_wide.report_house.total * n_rep);
+        setup.prog_declare("simulate");
+        std::ofstream ofs = open_ofstream_datawide(pathtofile,
+                                                   data_wide.headers,
+                                                   augm.list_export);
+        pImpl_->helper_init_simulation();
+        // open progress bar
+        setup.prog_open(data_wide.report_house.total);
 
-        // run simulations
-        std::vector<DataFrame> results(n_rep);
-
-#pragma omp parallel for
-        for (size_t rep = 0; rep < n_rep; ++rep)
-        {
-            if (has_error.load(std::memory_order_relaxed))
-                continue;
+        for (Household house : data_wide) // NOTE: deep copy of household
             try
             {
-                results[rep] = simulate_repetition();
+                // inplace simulation
+                pImpl_->simulate_single_household_in_place(house);
+                // print the simulated data
+                update_ofstream_datawide(ofs, house,
+                                         data_wide.headers,
+                                         augm.list_export);
+                // update progress bar
+                setup.prog_update();
             }
             catch (const std::exception &e)
             {
-                if (!has_error.exchange(true, std::memory_order_relaxed))
-                {
-#pragma omp critical
-                    error_message = e.what();
-                }
+                throw std::runtime_error(
+                    "While simulating " + house.err_name() + ":\n" + e.what());
             }
-        }
-        if (!error_message.empty())
-            throw std::runtime_error(error_message);
-
-        // convert to Rcpp List
-        List output(n_rep);
-        for (size_t rep = 0; rep < n_rep; ++rep)
-            output[rep] = std::move(results[rep]);
 
         // close progress bar
         setup.prog_close();
 
-        return output;
+        // close ofstream
+        if (!ofs.is_open())
+            throw std::runtime_error(
+                "Output file '" + pathtofile + "' closed unexpectedly.");
+        ofs.close();
     }
-    catch (std::exception &e)
+    catch (const std::exception &e)
     {
+        setup.prog_crash();
         hsp::msg::error(e.what());
     }
 }
-Rcpp::List MCMC::simulate(size_t n_rep) { return pImpl_->simulate(n_rep); }
+
+/// Estimate log_evidence according to a given scheme and number of rungs.
+/// Uses trapezoidal rule to estimate logarithm of marginal likelihood (evidence).
+///
+/// Ref.
+/// -----
+/// Ref: Friel, N., Hurn, M. & Wyse, J.
+/// Improving power posterior estimation of statistical evidence.
+/// Stat Comput 24, 709–723 (2014).
+double MCMC::log_evidence(const std::string &scheme, unsigned long n_rungs)
+{
+    try
+    {
+        double output = 0;
+        const std::vector<dbl_vec> pp = pImpl_->power_posteriors(scheme, n_rungs);
+        const dbl_vec &inv_tem = pp[0];
+        const dbl_vec &avg_vec = pp[1];
+        const dbl_vec &var_vec = pp[2];
+
+        for (unsigned long k = 0; k < pImpl_->setup.n_rungs; ++k)
+        {
+            double d_inv_tem = inv_tem[k + 1] - inv_tem[k];
+            output += (avg_vec[k + 1] + avg_vec[k]) * d_inv_tem / 2.;
+            output += (var_vec[k] - var_vec[k + 1]) * d_inv_tem * d_inv_tem / 12.;
+        }
+
+        return output;
+    }
+    catch (const std::exception &e)
+    {
+        hsp::msg::error("While estimating log_evidence with power posteriors:\n" +
+                        std::string(e.what()));
+    }
+}
 #endif

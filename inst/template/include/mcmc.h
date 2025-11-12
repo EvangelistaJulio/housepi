@@ -165,7 +165,8 @@ public:
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
 	Rcpp::DataFrame data_wide_for_simulation() const;
-	Rcpp::List simulate(size_t n_rep);
+	Rcpp::List simulate(size_t n_rep) { return helper_simulate_(n_rep, false); }
+	Rcpp::List simulate_for_expec(size_t n) { return helper_simulate_(n, true); }
 	Rcpp::List log_evidence(const std::string &scheme, unsigned long n_rungs);
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
@@ -180,6 +181,7 @@ public:
 	void import_param(SEXP input);
 	void import_infec_profile(SEXP input);
 	void import_augm(SEXP input);
+	void import_param_for_expec(SEXP input);
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////  MCMC : Rcpp exports  ///////////////////////////////////
@@ -234,6 +236,19 @@ private:
 	std::string _pair_contact_rate = {};
 
 	void init_contact_rates_(Household &house);
+
+#ifdef _HOUSEPI_RCPP
+	Rcpp::DataFrame helper_export_data_wide_(const str_vec &columns, bool is_status) const;
+	Rcpp::NumericVector helper_param_rcpp_snapshot_() const;
+	Rcpp::DataFrame helper_data_wide_rcpp_snapshot_(const Household &house) const;
+	Rcpp::DataFrame helper_data_long_rcpp_snapshot_(const Household &house) const;
+	Rcpp::DataFrame helper_group_rates_rcpp_snapshot_(const Household &house) const;
+	Rcpp::List helper_infec_profile_rcpp_snapshot_(const Household &house) const;
+	Rcpp::DataFrame helper_augm_rcpp_snapshot_(const Household &house) const;
+
+	Rcpp::List helper_simulate_(size_t n, bool is_expec_measure);
+	Rcpp::DataFrame helper_simulate_single_repetition_();
+#endif
 };
 
 #endif // HOUSEPI__MCMC__H

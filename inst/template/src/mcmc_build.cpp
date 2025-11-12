@@ -52,7 +52,7 @@ void MCMC::Impl::Setup::build(const u_dict<std::string> &deflist)
     if (!deflist.empty())
     {
         // check entries
-        const str_vec &headers = hsp::read::list_headers(deflist);
+        const str_vec &headers = hsp::read::extract_keys(deflist);
         hsp::str::assert_no_unused_entries(headers, file_headers);
 
         // Random Initialization of Parameters
@@ -295,14 +295,14 @@ void MCMC::Impl::DataWide::build(const u_dict<str_vec> &input)
 
     // extract headers
     for (const auto &x : input)
-        headers_.push_back(x.first);
+        headers.push_back(x.first);
     // assess the presence of house IDs
-    if (!(headers_ % "house_id"))
+    if (!(headers % "house_id"))
         hsp::msg::warning(
             "Ignored household structure. Missing data column 'house_id'.");
 
     // safe load of households
-    report_indiv.total = input.at(headers_[0]).size();
+    report_indiv.total = input.at(headers[0]).size();
     for (size_t i = 0; i < report_indiv.total; ++i)
     {
         std::string id = std::to_string(i + 1);                          // default id
@@ -311,10 +311,10 @@ void MCMC::Impl::DataWide::build(const u_dict<str_vec> &input)
         u_dict<double> data = {};
 
         // read individual data
-        for (const std::string &key : headers_)
+        for (const std::string &key : headers)
             if (key == "id")
             {
-                id = input.at(key)[i]; // user id 
+                id = input.at(key)[i]; // user id
                 if (hsp::na::is(id))
                     throw std::invalid_argument(
                         "Individual in row n." + std::to_string(i + 2) + " had missing " + key + ".");
@@ -353,7 +353,7 @@ void MCMC::Impl::DataWide::build(const u_dict<str_vec> &input)
     }
     report_house.total = house_vector_.size();
 
-    headers_ = headers_ - str_vec({"id", "house_id", "status"});
+    headers = headers - str_vec({"id", "house_id", "status"});
 
     // update report for data
     build_helper_fill_report_data_();
@@ -362,7 +362,7 @@ void MCMC::Impl::DataWide::build(const u_dict<str_vec> &input)
 /// Use the loaded data to fill-in the respective report.
 void MCMC::Impl::DataWide::build_helper_clear_data_()
 {
-    headers_.clear();
+    headers.clear();
     house_vector_.clear();
     hhid_to_index_.clear();
     all_infected_status_list.clear();
@@ -502,16 +502,16 @@ void MCMC::Impl::DataLong::build(const u_dict<str_vec> &input)
         return;
 
     // data sequence headers
-    headers_.clear();
+    headers.clear();
     for (const auto &x : input)
-        headers_.push_back(x.first);
+        headers.push_back(x.first);
 
     // check for individual IDs
-    if (!(headers_ % "id"))
+    if (!(headers % "id"))
         throw std::invalid_argument(
             "Individual identifier column 'id' was missing.");
     // remove "id"
-    headers_ = headers_ - str_vec({"id"});
+    headers = headers - str_vec({"id"});
 
     // individual map for id -> index
     // note: this could be moved elsewhere if required
@@ -527,15 +527,15 @@ void MCMC::Impl::DataLong::build(const u_dict<str_vec> &input)
         }
 
     // data-long allocation
-    indiv_datalist_.clear();
-    indiv_datalist_.resize(pImpl_.data_wide.report_indiv.total);
+    indiv_datalist.clear();
+    indiv_datalist.resize(pImpl_.data_wide.report_indiv.total);
 
-    for (u_dict<dbl_vec> &xmap : indiv_datalist_)
-        for (const std::string &key : headers_)
+    for (u_dict<dbl_vec> &xmap : indiv_datalist)
+        for (const std::string &key : headers)
             xmap[key].clear();
 
     // load individual data list
-    const size_t n_rows = input.at(headers_[0]).size();
+    const size_t n_rows = input.at(headers[0]).size();
     for (size_t r = 0; r < n_rows; ++r)
     {
         std::string id = input.at("id")[r];
@@ -553,8 +553,8 @@ void MCMC::Impl::DataLong::build(const u_dict<str_vec> &input)
         }
 
         // append (since vector is initialized to empty)
-        u_dict<dbl_vec> &xdict = indiv_datalist_.at(id_to_index.at(id));
-        for (const std::string &key : headers_)
+        u_dict<dbl_vec> &xdict = indiv_datalist.at(id_to_index.at(id));
+        for (const std::string &key : headers)
             xdict.at(key).emplace_back(
                 hsp::str::tod(input.at(key).at(r), "data long format '" + key + "'"));
     }
@@ -563,7 +563,7 @@ void MCMC::Impl::DataLong::build(const u_dict<str_vec> &input)
     c = 0;
     for (Household &house : pImpl_.data_wide)
         for (Individual &member : house)
-            member.init_pointer_to_data_long(&indiv_datalist_.at(c++));
+            member.init_pointer_to_data_long(&indiv_datalist.at(c++));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -610,16 +610,16 @@ void MCMC::Impl::GroupRates::build(const u_dict<str_vec> &deftable)
 str_vec MCMC::Impl::GroupRates::helper_assert_definitions_(const u_dict<str_vec> &deftable)
 {
     // check that tempalte headers are present
-    str_vec data_headers = hsp::read::table_headers(deftable);
+    str_vec data_headers = hsp::read::extract_keys(deftable);
     hsp::str::assert_no_missing_entries(data_headers, file_headers_);
 
     // remove template headers to keep only data
     data_headers = data_headers - file_headers_;
     // check that required data columns are present
-    hsp::str::assert_no_unused_entries(data_headers, pImpl_.data_wide.headers());
+    hsp::str::assert_no_unused_entries(data_headers, pImpl_.data_wide.headers);
 
     // assert the group rate names are allowed
-    headers_.clear();
+    headers.clear();
     for (const std::string &g : deftable.at("group_rate"))
     {
         if (g == hsp::rates::CONTACT || g == hsp::rates::MISSING)
@@ -628,9 +628,9 @@ str_vec MCMC::Impl::GroupRates::helper_assert_definitions_(const u_dict<str_vec>
         if (hsp::na::is(g))
             throw std::invalid_argument(
                 "Found a missing group rate name in the definitions.");
-        headers_.push_back(g);
+        headers.push_back(g);
     }
-    headers_ = hsp::str::unique(headers_);
+    headers = hsp::str::unique(headers);
 
     return data_headers;
 }
@@ -691,25 +691,16 @@ void MCMC::Impl::Parameter::build(const u_dict<str_vec> &deftable)
     const str_vec file_headers = {"name", "value", "const", "discr",
                                   "prior", hsp::params::MIN, hsp::params::MAX,
                                   "proposal", "proposal_scale"};
-    const str_vec headers = hsp::read::table_headers(deftable);
+    const str_vec headers = hsp::read::extract_keys(deftable);
     hsp::str::assert_no_missing_entries(headers, file_headers);
     hsp::str::assert_no_unused_entries(headers, file_headers);
-
-    // drop current list of parameters
-    dictionary_.clear();
-    list_const.clear();
-    list_sample.clear();
-    list_sample_standard.clear();
-    list_adaptable_sample_standard.clear();
-    list_non_adapt_sample_standard.clear();
-    list_sample_cached.clear();
-    list_adaptable_sample_cached.clear();
-    list_non_adapt_sample_cached.clear();
-
     // assert that parameter is not already defined
     if (deftable.at("name").size() != hsp::str::unique(deftable.at("name")).size())
         throw std::invalid_argument(
             "Found multiple definitions for the same parameters.");
+
+    dictionary_.clear();
+    clear_lists_();
 
     // load parameters from the row with options
     for (size_t k = 0; k < deftable.at("name").size(); ++k)
@@ -721,16 +712,57 @@ void MCMC::Impl::Parameter::build(const u_dict<str_vec> &deftable)
     // initialize all parameters to standard
     list_sample_standard = list_sample;
     for (const std::string &p : list_sample_standard)
-        if (this->at(p).is_adaptable())
+        if (at(p).is_adaptable())
             list_adaptable_sample_standard.push_back(p);
         else
             list_non_adapt_sample_standard.push_back(p);
 }
 
+/// Build parameter dictionaries for expected measure on posterior sample.
+void MCMC::Impl::Parameter::build_for_expec(const u_dict<dbl_vec> &deftable)
+{
+    if (deftable.empty())
+        return;
+
+    const str_vec headers = hsp::read::extract_keys(deftable);
+    // assert that parameter is not already defined
+    if (headers.size() != hsp::str::unique(headers).size())
+        throw std::invalid_argument(
+            "Found multiple definitions for the same parameters.");
+
+    clear_draws();
+    clear_lists_();
+
+    // store values as a posterior sample
+    smpl_values = deftable;
+
+    // reset definition dictionary to all constants NAs.
+    for (const std::string &p : headers)
+        if (dictionary_.count(p))
+            at(p).transfer(Attribute(hsp::na::DOUBLE));
+        else
+            dictionary_.emplace(p, Variable(p, "parameter", hsp::na::DOUBLE));
+    // update list of constant parameters
+    list_const = hsp::read::extract_keys(dictionary_);
+}
+
+/// Drop current lists of parameters.
+void MCMC::Impl::Parameter::clear_lists_()
+{
+    list_const.clear();
+    list_sample.clear();
+    list_sample_standard.clear();
+    list_adaptable_sample_standard.clear();
+    list_non_adapt_sample_standard.clear();
+    list_sample_cached.clear();
+    list_adaptable_sample_cached.clear();
+    list_non_adapt_sample_cached.clear();
+}
+
 /// Helper to build constant parameter.
 void MCMC::Impl::Parameter::build_constant_parameter_(const u_dict<str_vec> &deftable, size_t k)
 {
-    const std::string &p = deftable.at("name")[k]; // parameter name
+    const std::string &p = deftable.at("name")[k];
 
     if (hsp::na::is(deftable.at("value")[k]))
         throw std::invalid_argument(
@@ -766,7 +798,7 @@ void MCMC::Impl::Parameter::build_parameter_to_sample_(const u_dict<str_vec> &de
     // create a new parameter Variable
     dictionary_.emplace(
         p, Variable(p, "parameter", pImpl_.read_numeric_(deftable.at("value")[k]).get(), false));
-    Variable &new_param = this->at(p);
+    Variable &new_param = at(p);
 
     // assign a prior distribution to the parameter
     hsp::parse::Definition parser(deftable.at("prior")[k]);
@@ -805,13 +837,6 @@ void MCMC::Impl::Parameter::make_cache_dependent(const std::string &p)
         else
             list_non_adapt_sample_cached.push_back(p);
     }
-}
-
-/// Randomly initialize values of the parameters to be inferred.
-void MCMC::Impl::Parameter::user_reset()
-{
-    for (const std::string &p : list_sample)
-        this->at(p).user_reset(pImpl_.setup.prng());
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
