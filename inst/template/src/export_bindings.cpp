@@ -1037,7 +1037,6 @@ Rcpp::List MCMC::export_house_snapshot(const std::string &house_id) const
 Rcpp::List MCMC::helper_simulate_(size_t n, bool is_expec_measure)
 {
     using namespace Rcpp;
-    Impl::Setup &setup = pImpl_->setup;
     Impl::Parameter &param = pImpl_->param;
 
     pImpl_->atomic_error.reset();
@@ -1055,18 +1054,16 @@ Rcpp::List MCMC::helper_simulate_(size_t n, bool is_expec_measure)
         // initialization
         pImpl_->helper_init_simulation();
         List output(n_rep);
-        setup.prog_open(n_rep);
 
         // run simulations
 #pragma omp parallel for
-        for (size_t r = 0; r < n_rep; ++r, setup.prog_update())
+        for (size_t r = 0; r < n_rep; ++r)
         {
             if (pImpl_->atomic_error.is_pending())
                 continue;
             output[r] = helper_simulate_single_repetition_();
         }
         pImpl_->atomic_error.throw_exception();
-        setup.prog_close(); // close progress bar
 
         return output;
     }

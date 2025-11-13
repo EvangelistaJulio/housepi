@@ -12,8 +12,6 @@
  *
  */
 
-#include <atomic>
-
 #include "tools/string.h"
 #include "tools/read.h"
 #include "tools/error.h"

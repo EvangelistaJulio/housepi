@@ -17,6 +17,7 @@
 
 #include <memory>
 #include <functional>
+#include <atomic>
 
 #include "tools/types.h"
 #include "tools/na_utils.h"
