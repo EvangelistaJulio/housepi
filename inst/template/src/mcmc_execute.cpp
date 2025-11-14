@@ -23,37 +23,44 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Initialize model and evaluate log-likelihood.
-double MCMC::Impl::evaluate_log_lik(const std::string &house_id)
+double MCMC::evaluate_log_lik(const std::string &house_id)
 {
     try
     {
-        setup.n_chains = 0;            // use 0 chains as a state variable
-        assert_non_empty_data_wide_(); // check if data is empty
-        warn_if_all_missing_status_(); // warn if all missing status
-        param.user_reset();            // initialize non constant parameters
-        augm.init();                   // initialize individual augmented relations
-        augm.user_reset();             // initialize non constant augmented
-        init_model_for_inference_();   // initialize model for inference
-
+        pImpl_->init_evaluate();
         // mode for computing log-likelihood of specific household
         if (!hsp::na::is(house_id))
-        {
-            atomic_error.reset();   // reset atomic error
-            infec_profile.update(); // eventually buffer infectivity profile
-            double output = atomic_materialize_house_log_lik_(data_wide(house_id), augm.is_any_model());
-            atomic_error.throw_exception(); // catch and throw if previous failed
-            return output;
-        }
-
-        update_total_log_lik_(); // initialize cache + full log-likelihood
-        return total_log_lik_;
+            return pImpl_->evaluate_single_house_log_lik(house_id);
+        // initialize cached values and then compute total log-likelihood
+        return pImpl_->update_total_log_lik();
     }
     catch (const std::exception &e)
     {
         hsp::msg::error(e.what());
     }
 }
-double MCMC::evaluate_log_lik(const std::string &house_id) { return pImpl_->evaluate_log_lik(house_id); }
+
+/// Assert setup definitions are ok to proceed with log-likelihood evaluation.
+void MCMC::Impl::init_evaluate()
+{
+    setup.n_chains = 0;            // use 0 chains as a state variable
+    assert_non_empty_data_wide_(); // check if data is empty
+    warn_if_all_missing_status_(); // warn if all missing status
+    param.user_reset();            // initialize non constant parameters
+    augm.init();                   // initialize individual augmented relations
+    augm.user_reset();             // initialize non constant augmented
+    init_model_for_inference();    // initialize model for inference
+}
+
+/// Evaluate log-likelihood for the given household.
+double MCMC::Impl::evaluate_single_house_log_lik(const std::string &house_id)
+{
+    atomic_error.reset();   // reset atomic error
+    infec_profile.update(); // eventually buffer infectivity profile
+    double output = atomic_materialize_house_log_lik_(data_wide(house_id), augm.is_any_model());
+    atomic_error.throw_exception(); // catch and throw if previous failed
+    return output;
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -62,7 +69,7 @@ double MCMC::evaluate_log_lik(const std::string &house_id) { return pImpl_->eval
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Compute new log-likelihood, store old value in buffer. Same for households.
-void MCMC::Impl::update_total_log_lik_(bool is_cache_depen)
+double MCMC::Impl::update_total_log_lik(bool is_cache_depen)
 {
     const bool is_augm_ll = augm.is_any_model();
     double new_ll = 0.0;
@@ -82,7 +89,7 @@ void MCMC::Impl::update_total_log_lik_(bool is_cache_depen)
     }
     atomic_error.throw_exception();
 
-    set_total_log_lik_(new_ll);
+    return new_ll;
 }
 
 /// Update and return contribution of given household to full logliklehood.
@@ -122,16 +129,17 @@ double MCMC::Impl::atomic_materialize_house_log_lik_(Household &house, bool is_a
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Performs the inference using Metropolis-Hastings.
-void MCMC::Impl::infer()
+void MCMC::infer()
 {
+    Impl::Setup &setup = pImpl_->setup;
     try
     {
         setup.prog_declare();                               // declare current progress bar
-        init_monte_carlo_();                                // initialize mcmc sampling
-        init_model_for_inference_();                        // user initialization model
-        augm.init();                                        // initialize augmented variables
+        pImpl_->init_monte_carlo();                         // initialize mcmc sampling
+        pImpl_->init_model_for_inference();                 // user initialization model
+        pImpl_->augm.init();                                // initialize augmented variables
         setup.prog_open(setup.c_n_sweeps * setup.n_chains); // open progress bar
-        run_monte_carlo_();                                 // run Monte Carlo
+        pImpl_->run_monte_carlo();                          // run Monte Carlo
         setup.prog_close();                                 // close progress bar
     }
     catch (std::exception &e)
@@ -140,10 +148,9 @@ void MCMC::Impl::infer()
         hsp::msg::error(e.what());
     }
 }
-void MCMC::infer() { pImpl_->infer(); }
 
 /// Assert setup definitions are ok to proceed with mcmc sampling.
-void MCMC::Impl::init_monte_carlo_()
+void MCMC::Impl::init_monte_carlo()
 {
     setup.assert_mcmc_setup();     // assert if setup is ok for mcmc
     assert_non_empty_data_wide_(); // check if data is empty
@@ -163,7 +170,7 @@ void MCMC::Impl::init_monte_carlo_()
 
 /// Markov chain core, used for inference and power posteriors.
 /// NOTE: sweep is the number of previously completed thin sweeps.
-void MCMC::Impl::run_monte_carlo_()
+void MCMC::Impl::run_monte_carlo()
 {
     unsigned long &chain = setup.chain; // current chain
     init_posterior_sample_();           // initialize diagnostics
@@ -171,11 +178,11 @@ void MCMC::Impl::run_monte_carlo_()
     // run multiple MCMC chains&
     for (chain = 1; chain <= setup.n_chains; ++chain)
     {
-        setup.prog_set_text();       // set progress bar text
-        param.user_reset();          // reset parameter user definitions
-        augm.user_reset();           // reset augmented user definitions
-        update_total_log_lik_(true); // init cache + full log-likelihood
-        init_move_counts_();         // init move counts for adaptive
+        setup.prog_set_text();                      // set progress bar text
+        param.user_reset();                         // reset parameter user definitions
+        augm.user_reset();                          // reset augmented user definitions
+        set_total_log_lik_(update_total_log_lik()); // init cached, set total log-likelihood
+        init_move_counts_();                        // init move counts for adaptive
 
         // Finite adaptative iterations
         for (unsigned long i = 0; i < setup.n_adapt; i += setup.n_thin, setup.prog_update())
@@ -234,7 +241,7 @@ bool MCMC::Impl::move_single_parameter_(const std::string &p, bool is_cache_depe
     if (propose_valid_param_move_(p))
     {
         // if parameter is cache dependent, update cache
-        update_total_log_lik_(is_cache_depen);
+        set_total_log_lik_(update_total_log_lik(is_cache_depen));
 
         // perform Metropolis-Hastings to accept or not move
         if (accept_valid_param_move_(p))
@@ -514,14 +521,14 @@ std::vector<dbl_vec> MCMC::Impl::power_posteriors(const std::string &scheme, uns
     setup.n_rungs = n_rungs; // NOTE: set before progress bar
 
     // initialize mcmc sampling
-    init_monte_carlo_();
+    init_monte_carlo();
 
     // buffer user setup
     double buffer_inv_T = setup.inv_T;
 
-    setup.prog_declare();        // declare current progress bar
-    init_model_for_inference_(); // initialize model for inference
-    augm.init();                 // initialize augmented variables
+    setup.prog_declare();       // declare current progress bar
+    init_model_for_inference(); // initialize model for inference
+    augm.init();                // initialize augmented variables
     setup.prog_open(setup.c_n_sweeps * setup.n_chains * (setup.n_rungs + 1));
 
     // thermodynamic ladder estimates
@@ -553,7 +560,7 @@ void MCMC::Impl::power_post_zero_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
 
     setup.rung = 0;
     setup.inv_T = 0.0;
-    run_monte_carlo_();
+    run_monte_carlo();
     std::pair<double, double> stats = compute_stats(smpl_total_log_lik);
 
     itm.push_back(setup.inv_T);
@@ -567,7 +574,7 @@ void MCMC::Impl::power_post_adaptive_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
     // Inverse Temperature 1
     setup.rung = 1;
     setup.inv_T = 1.0;
-    run_monte_carlo_();
+    run_monte_carlo();
     std::pair<double, double> stats = compute_stats(smpl_total_log_lik);
 
     itm.push_back(setup.inv_T);
@@ -590,7 +597,7 @@ void MCMC::Impl::power_post_adaptive_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
 
         // power posterior sampling
         setup.inv_T = new_t;
-        run_monte_carlo_();
+        run_monte_carlo();
         stats = compute_stats(smpl_total_log_lik);
 
         // find larger rectangular discretization error
@@ -613,7 +620,7 @@ void MCMC::Impl::power_post_fractions_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
     {
         // inverse tempearture = (rung / #rungs)^5
         setup.inv_T = std::pow(static_cast<double>(setup.rung) / setup.n_rungs, 5);
-        run_monte_carlo_();
+        run_monte_carlo();
 
         std::pair<double, double> stats = compute_stats(smpl_total_log_lik);
         itm.push_back(setup.inv_T);

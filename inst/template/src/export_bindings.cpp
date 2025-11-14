@@ -45,7 +45,11 @@ RCPP_MODULE(housepi_flags)
                 if (args_ != R_NilValue)                                                       \
                 {                                                                              \
                     Rcpp::List args(args_);                                                    \
-                    const Rcpp::CharacterVector arg_names = args.names();                      \
+                    Rcpp::CharacterVector arg_names;                                           \
+                    if (args.hasAttribute("names"))                                            \
+                        arg_names = args.names();                                              \
+                    else                                                                       \
+                        arg_names = Rcpp::CharacterVector(args.size());                        \
                     for (R_xlen_t i = 0; i < args.size(); ++i)                                 \
                     {                                                                          \
                         const std::string this_arg = Rcpp::as<std::string>(arg_names[i]);      \

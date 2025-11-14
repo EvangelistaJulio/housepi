@@ -197,7 +197,7 @@ namespace bax
     /// Store all combinations + complement of N elements in k positions.
     void store_combinations_(unsigned N, unsigned k)
     {
-        // generate combinations with the recurisve algorithm
+        // generate combinations with the recursive algorithm
         matrix<unsigned> results;
         vector<unsigned> current(N);
         recursive_span_combinations_(N, k, current, results, 0, 0);

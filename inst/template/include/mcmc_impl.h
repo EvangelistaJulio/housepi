@@ -261,10 +261,6 @@ public:
         /////////////////////////////////////////////////////////////////////////////////////////
 
         void build(const u_dict<str_vec> &deftable);
-        void init_cache_integer_vector(const std::string &e);
-        void init_cache_size_t_vector(const std::string &e);
-        void init_cache_double_vector(const std::string &e);
-        void init_cache_double_matrix(const std::string &e);
 
         void init_draws(unsigned long sample_size);
         void store_draws(unsigned long smpl_count);
@@ -638,9 +634,13 @@ public:
     unsigned long smpl_count = 0;    /// count of store samples
     dbl_vec smpl_total_log_lik = {}; /// vector of total log-likelihood samples
 
-    void infer();
-    double evaluate_log_lik(const std::string &house_id = hsp::na::STRING);
+    void init_monte_carlo();
+    void init_evaluate();
+    void init_model_for_inference() { callback_init_inference_(); }
+    void run_monte_carlo();
     std::vector<dbl_vec> power_posteriors(const std::string &scheme, unsigned long N);
+    double evaluate_single_house_log_lik(const std::string &house_id);
+    double update_total_log_lik(bool is_cache_depen = true);
 
     /// Release memory.
     void clear_memory() { clear_posterior_sample_(); }
@@ -683,7 +683,6 @@ private:
     std::function<void(Household &)> callback_simulate_house_;
     std::function<void(Household &, Individual &)> callback_update_cache_;
 
-    void init_model_for_inference_() { callback_init_inference_(); }
     void init_model_for_simulation_() { callback_init_simulation_(); }
     void update_cache_dependecies_(Household &h, Individual &i) { callback_update_cache_(h, i); }
 
@@ -715,8 +714,6 @@ private:
             hsp::msg::warning("All individuals in the data had missing status.");
     }
 
-    void init_monte_carlo_();
-
     /// Set new total log-likelihood value and buffer old value.
     void set_total_log_lik_(double new_ll)
     {
@@ -729,10 +726,8 @@ private:
 
     void init_move_counts_();
 
-    void update_total_log_lik_(bool is_cache_depen = true);
     double atomic_materialize_house_log_lik_(Household &house, bool is_augm_ll, bool is_cache_depen = true);
 
-    void run_monte_carlo_();
     void move_all_();
     void adapt_proposal_of_sampled_params_(unsigned long step);
 

@@ -25,28 +25,30 @@ In this vignette we present all available options for the choice of the prior an
 # Continuous priors
 
 To perform the sampling we consider the "blank" model, i. e. a data independent template model, with log-likelihood always equal to zero.
-Here's the full list of available continuos distributions present in `housepi`:
+Here's the full list of available continuous distributions present in `housepi`:
 ```{r}
 #| warning: false
-
-# real distributions in housepi
-continuos_distri <- c("uniform", "normal", "lognormal", "gamma",
-                      "weibull", "rayleigh", "beta", "exponential")
-
-# generate list with definitions
-defs <- Map(list, prior = continuos_distri) |>
-  stats::setNames(continuos_distri)
-
 # create an instance of the blank model
 new_housepi_model("blank") |>
-  load_parameter_list(from = defs) |>
+  # continuous distributions in housepi
+  load_parameter_list(
+    uniform = list(prior = "uniform", min = 0, max = 1),
+    normal = list(prior = "normal", mean = 0, sd = 1),
+    lognormal = list(prior = "lognormal", meanlog = 0, sdlog = 1),
+    gamma = list(prior = "gamma", shape = 2, scale = 1),
+    weibull = list(prior = "weibull", shape = 2, scale = 1),
+    rayleigh = list(prior = "rayleigh", scale = 1),
+    beta = list(prior = "beta", shape1 = 2, shape2 = 1),
+    exponential = list(prior = "exponential", rate = 1)
+  ) |>
   # perform the sampling with the inference command
   infer() |>
   get_param_draws() |>
   bayesplot::mcmc_dens()
 ```
 
-Here we associated definitions of parameters to infer with default arguments and default proposals. 
+Here we associated definitions of parameters with default proposals and custom arguments.
+For certain distributions, default arguments are also available according to base R.
 
 ## Provide a custom range
 
@@ -83,12 +85,13 @@ Here's the full list of available discrete distributions present in `housepi`:
 
 ```{r}
 # discrete distributions in housepi
-discrete_distri <- c("poisson", "binomial", "negative_binomial", "geometric")
-defs <- Map(list, prior = discrete_distri) |>
-  setNames(discrete_distri)
-
 new_housepi_model("blank") |>
-  load_parameter_list(from = defs) |>
+  load_parameter_list(
+    poisson = list(prior = "poisson", lambda = 2),
+    binomial = list(prior = "binomial", size = 4, prob = 0.5),
+    negative_binomial = list(prior = "negative_binomial", size = 4, prob = 0.5),
+    geometric = list(prior = "geometric", prob = 0.5)
+  ) |>
   infer() |>
   get_param_draws() |>
   bayesplot::mcmc_hist(binwidth = 1)
@@ -99,16 +102,22 @@ new_housepi_model("blank") |>
 Previous continuous priors can be chosen to be discretized simply by adding the flag `discr = TRUE`.
 
 ```{r}
-reduc_distri <- continuos_distri[continuos_distri != "beta"]
-defs <- Map(list, prior = reduc_distri, discr = TRUE) |>
-  setNames(reduc_distri)
-
 new_housepi_model("blank") |>
-  load_parameter_list(from = defs) |>
+  load_parameter_list(
+    uniform = list(prior = "uniform", discr = TRUE),
+    normal = list(prior = "normal", discr = TRUE),
+    lognormal = list(prior = "lognormal", discr = TRUE),
+    gamma = list(prior = "gamma", shape = 2, discr = TRUE),
+    weibull = list(prior = "weibull", shape = 2, discr = TRUE),
+    rayleigh = list(prior = "rayleigh", discr = TRUE),
+    exponential = list(prior = "exponential", discr = TRUE)
+  ) |>
   infer() |>
   get_param_draws() |>
   bayesplot::mcmc_hist(binwidth = 1)
 ```
+
+Note that here we dropped all arguments that allow for a default values. 
 
 # Monte Carlo proposals
 

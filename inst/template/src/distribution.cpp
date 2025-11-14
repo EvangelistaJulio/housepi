@@ -323,7 +323,7 @@ class Beta_Distribution : public Distribution
 {
 public:
     Beta_Distribution()
-        : Distribution("beta", {"shape1", "shape2"}, {1., 1.},
+        : Distribution("beta", {"shape1", "shape2"}, {hsp::na::DOUBLE, hsp::na::DOUBLE},
                        0., true, 1., true) {}
 
     void init_discretization() override final
@@ -365,7 +365,7 @@ class Gamma_Distribution : public Distribution
 {
 public:
     Gamma_Distribution()
-        : Distribution("gamma", {"shape", "scale"}, {1., 1.},
+        : Distribution("gamma", {"shape", "scale"}, {hsp::na::DOUBLE, 1.},
                        0., false, hsp::na::DOUBLE, false) {}
 
     INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
@@ -395,7 +395,7 @@ class GammaMeanVar_Distribution : public Distribution
 {
 public:
     GammaMeanVar_Distribution()
-        : Distribution("gamma_meanvar", {"mean", "var"}, {1., 1.},
+        : Distribution("gamma_meanvar", {"mean", "var"}, {hsp::na::DOUBLE, hsp::na::DOUBLE},
                        0., false, hsp::na::DOUBLE, false) {}
 
     INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
@@ -468,7 +468,7 @@ class Weibull_Distribution : public Distribution
 {
 public:
     Weibull_Distribution()
-        : Distribution("weibull", {"shape", "scale"}, {1., 1.},
+        : Distribution("weibull", {"shape", "scale"}, {hsp::na::DOUBLE, 1.},
                        0., false, hsp::na::DOUBLE, false),
           unif_gen(0., 1.) {}
 
@@ -527,7 +527,7 @@ class Poisson_Distribution : public Distribution
 {
 public:
     Poisson_Distribution()
-        : Distribution("poisson", {"lambda"}, {1.},
+        : Distribution("poisson", {"lambda"}, {hsp::na::DOUBLE},
                        0., false, hsp::na::DOUBLE, false) { init_discr_helper_(hsp::discr::DEFINED); }
 
     INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
@@ -551,7 +551,7 @@ class Binomial_Distribution : public Distribution
 {
 public:
     Binomial_Distribution()
-        : Distribution("binomial", {"size", "prob"}, {4, 0.5},
+        : Distribution("binomial", {"size", "prob"}, {hsp::na::DOUBLE, hsp::na::DOUBLE},
                        0., false, hsp::na::DOUBLE, false)
     {
         init_discr_helper_(hsp::discr::DEFINED);
@@ -596,7 +596,7 @@ class NegativeBinomial_Distribution : public Distribution
 {
 public:
     NegativeBinomial_Distribution()
-        : Distribution("negative_binomial", {"size", "prob"}, {4, .5},
+        : Distribution("negative_binomial", {"size", "prob"}, {hsp::na::DOUBLE, hsp::na::DOUBLE},
                        0., false, hsp::na::DOUBLE, false) { init_discr_helper_(hsp::discr::DEFINED); }
 
     INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
@@ -620,7 +620,7 @@ class Geometric_Distribution : public Distribution
 {
 public:
     Geometric_Distribution()
-        : Distribution("geometric", {"proba"}, {0.5},
+        : Distribution("geometric", {"prob"}, {hsp::na::DOUBLE},
                        0., false, hsp::na::DOUBLE, false) { init_discr_helper_(hsp::discr::DEFINED); }
 
     INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
