@@ -70,7 +70,7 @@ NULL
 #' }
 #' @field data_wide_for_simulation\cr Dataset without status and augmented entries.
 #' @field simulate\cr Simulated status and augmented variables.
-#' @field simulate_for_expec\cr Simulation for the computation of expected measure.
+#' @field simulate_for_prediction\cr Simulation for the computation of expected measure.
 #' @field evaluate\cr Evaluate the log-likelihood according to the current state.
 #' @field log_evidence\cr Evaluate the logarithm of the marginal likelihood (aka evidence).
 #' Uses the method of power posteriors. \itemize{
@@ -85,7 +85,7 @@ NULL
 #' @field import_param\cr Import parameter definitions from R Data.Frame.
 #' @field import_infec_profile\cr Import infectivity profile definition from R List.
 #' @field import_augm\cr Import augmented variable definitions from R Data.Frame.
-#' @field import_param_for_expec\cr Import parameter tables for expected measures estimation.
+#' @field import_param_for_prediction\cr Import parameter tables for expected measures estimation.
 #' @field build_all_rates\cr Assign all contact and group rates.
 #' @field export_setup\cr Return a List with current setup.
 #' @field export_param_list_const\cr Return a CharacterVector with constant parameters.

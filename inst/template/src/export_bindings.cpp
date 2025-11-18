@@ -299,7 +299,7 @@ MAKE_RCPP_IMPORT_METHOD(data_long, "data-long", rdataframe_to_strmap)
 MAKE_RCPP_IMPORT_METHOD(group_rates, "group rates", rdataframe_to_strmap)
 MAKE_RCPP_IMPORT_METHOD(augm, "augmented", rdataframe_to_strmap)
 
-void MCMC::import_param_for_expec(SEXP input)
+void MCMC::import_param_for_prediction(SEXP input)
 {
     try
     {
@@ -1175,7 +1175,7 @@ Rcpp::List MCMC::log_evidence(const std::string &scheme, unsigned long n_rungs)
 //' }
 //' @field data_wide_for_simulation\cr Dataset without status and augmented entries.
 //' @field simulate\cr Simulated status and augmented variables.
-//' @field simulate_for_expec\cr Simulation for the computation of expected measure.
+//' @field simulate_for_prediction\cr Simulation for the computation of expected measure.
 //' @field evaluate\cr Evaluate the log-likelihood according to the current state.
 //' @field log_evidence\cr Evaluate the logarithm of the marginal likelihood (aka evidence).
 //' Uses the method of power posteriors. \itemize{
@@ -1190,7 +1190,7 @@ Rcpp::List MCMC::log_evidence(const std::string &scheme, unsigned long n_rungs)
 //' @field import_param\cr Import parameter definitions from R Data.Frame.
 //' @field import_infec_profile\cr Import infectivity profile definition from R List.
 //' @field import_augm\cr Import augmented variable definitions from R Data.Frame.
-//' @field import_param_for_expec\cr Import parameter tables for expected measures estimation.
+//' @field import_param_for_prediction\cr Import parameter tables for expected measures estimation.
 //' @field build_all_rates\cr Assign all contact and group rates.
 //' @field export_setup\cr Return a List with current setup.
 //' @field export_param_list_const\cr Return a CharacterVector with constant parameters.
@@ -1213,7 +1213,7 @@ RCPP_MODULE(housepi_model_core)
         .method("infer", &MCMC::infer)
         .method("data_wide_for_simulation", &MCMC::data_wide_for_simulation)
         .method("simulate", &MCMC::simulate)
-        .method("simulate_for_expec", &MCMC::simulate_for_expec)
+        .method("simulate_for_prediction", &MCMC::simulate_for_prediction)
         .method("evaluate_log_lik", &MCMC::evaluate_log_lik)
         .method("log_evidence", &MCMC::log_evidence)
         .method("import_data_wide", &MCMC::import_data_wide)
@@ -1224,7 +1224,7 @@ RCPP_MODULE(housepi_model_core)
         .method("import_param", &MCMC::import_param)
         .method("import_infec_profile", &MCMC::import_infec_profile)
         .method("import_augm", &MCMC::import_augm)
-        .method("import_param_for_expec", &MCMC::import_param_for_expec)
+        .method("import_param_for_prediction", &MCMC::import_param_for_prediction)
         .method("build_all_rates", &MCMC::build_all_rates)
         .method("export_data_wide", &MCMC::export_data_wide)
         .method("export_data_long", &MCMC::export_data_long)

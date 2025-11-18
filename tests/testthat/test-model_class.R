@@ -52,10 +52,13 @@ test_that("Discretization is enabled as expected", {
   # blank household model object
   hhmodel <- new_housepi_model("blank")
   hhmodel$load_parameter_list(
-    sample = list(prior = "gamma", discr = TRUE),
-    uniform = list(prior = "gamma", discr = TRUE, proposal = "uniform"),
-    normal = list(prior = "gamma", discr = TRUE, proposal = "normal"),
-    lognormal = list(prior = "gamma", discr = TRUE, proposal = "lognormal")
+    sample = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE),
+    uniform = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE, 
+                   proposal = "uniform"),
+    normal = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE, 
+                  proposal = "normal"),
+    lognormal = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE, 
+                     proposal = "lognormal")
   )
 
   y <- posterior::as_draws_matrix(get_param_draws(hhmodel$infer()))

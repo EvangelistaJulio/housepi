@@ -75,8 +75,8 @@ namespace hsp
 #endif
         }
 
-        /// Show a message to stdout.
-        void message(const string &txt)
+        /// Print an information message to stdout.
+        void info(const string &txt)
         {
 #ifdef _HOUSEPI_RCPP
             Rcpp::Rcout << txt;
@@ -586,8 +586,8 @@ namespace hsp
             void bar_(const string &sms) const { (this->*which_bar_)(sms); }
 
             void (Impl::*which_bar_)(const string &) const = &Impl::do_bar_carriage_return_;
-            void do_bar_carriage_return_(const string &sms) const { hsp::msg::message("\r" + sms); }
-            void do_bar_new_line_(const string &sms) const { hsp::msg::message(sms + "\n"); }
+            void do_bar_carriage_return_(const string &sms) const { hsp::msg::info("\r" + sms); }
+            void do_bar_new_line_(const string &sms) const { hsp::msg::info(sms + "\n"); }
 
         public:
             /////////////////////////////////////////////////////////////////////////////////////////////
@@ -682,7 +682,7 @@ namespace hsp
                     oss << text_ << " |" << string(barwidth_, ' ') << "| 0% ";
                     if (which_bar_ == &Impl::do_bar_new_line_)
                         oss << "\n";
-                    hsp::msg::message(oss.str());
+                    hsp::msg::info(oss.str());
 
                     is_bar_print_ = true;
                 }
@@ -695,7 +695,7 @@ namespace hsp
                 Rcpp::checkUserInterrupt();
 #endif
                 if (is_bar_print_)
-                    hsp::msg::message("\n");
+                    hsp::msg::info("\n");
             }
 
             /// Close the progress bar.

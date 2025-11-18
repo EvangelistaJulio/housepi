@@ -518,10 +518,9 @@ PredictedCasesBySize <- R6::R6Class(
   )
 )
 
-#' @title Posterior predicted measure
+#' @title Predicted measures
 #' @description
-#' Extract the posterior prediction of a given measure.
-#' It performs simulations over given table of parameters.
+#' Extract the measures prediction according to given table of parameters.
 #' Typically used to perform posterior predictive checks.
 #'
 #' @param hhmodel `r rd_model_in_`
@@ -534,8 +533,8 @@ PredictedCasesBySize <- R6::R6Class(
 #' [HousepiPrediction][housepi::HousepiPrediction].
 #'
 #' @export
-post_predicted_measure <- function(hhmodel, param_table, ...,
-                                   obs_process = NULL, progress = NA) {
+predicted_measures <- function(hhmodel, param_table, ...,
+                               obs_process = NULL, progress = NA) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
   HousepiPrediction$new(hhmodel, param_table, ...,
                         obs_process = obs_process, progress = progress)
@@ -545,7 +544,6 @@ post_predicted_measure <- function(hhmodel, param_table, ...,
 #' @description
 #' Extract the predicted number of household cases per size.
 #' It can be used to estimate the secondary attack rate.
-#' Perform simulations over given table of parameters.
 #'
 #' @param hhmodel `r rd_model_in_`
 #' @param param_table `r rd_param_table_`

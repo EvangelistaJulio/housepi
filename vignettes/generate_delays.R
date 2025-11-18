@@ -6,6 +6,11 @@
 #' Simulated assuming an incubation period gamma distributed.
 #' Date are assumed shifted so that exposure period starts from day 0.
 #'
+#' @param n `integer` Number of individuals to simulate.
+#' @param mean `numeric` Mean of the incubation period distribution.
+#' @param var `numeric` Variance of the incubation period distribution.
+#' @param report_error `numeric` Probability of reporting error on symptom onset date.
+#'
 #' @return `data.frame`\cr
 #' \item{exposure_min}{Day exposure starts}
 #' \item{exposure_max}{Day exposure ends}
@@ -14,15 +19,13 @@
 #' \item{status}{Individual status }
 #'
 #' @keywords internal
-generate_delays <- function(n = 223,
-                            mean = 2.2,
-                            var = 2.5,
-                            report_error = 0.73) {
+generate_delays_report <- function(n, mean = 2.2,
+                                   var = 2.5, report_error = 0.73) {
   # time 1
   value_duration_1 <- 1:4
   proba_duration_1 <- c(0.28, 0.34, 0.26, 0.12)
 
-  shape <- mean^2 / var
+  shape <- mean * mean / var
   scale <- var / mean
   # incubation period
   delay_value <- function() rgamma(1, shape = shape, scale = scale)
@@ -43,29 +46,21 @@ generate_delays <- function(n = 223,
 
     # reporting errors on the interval of t2
     if (runif(1) > report_error) {
-      if (runif(1) < 0.5) {
-        t2_min <- t2_min - 1.
-      } else {
-        t2_max <- t2_max + 1.
-      }
+      if (runif(1) < 0.5) t2_min <- t2_min - 1.
+      else t2_max <- t2_max + 1.
     }
 
-    c(t1 = t1,
-      t2 = t2,
-      t1_min = t1_min,
-      t1_max = t1_max,
-      t2_min = t2_min,
-      t2_max = t2_max)
+    c(t1 = t1, t2 = t2,
+      t1_min = t1_min, t1_max = t1_max,
+      t2_min = t2_min, t2_max = t2_max)
   }
 
   full_dataset <- as.data.frame(t(sapply(1:n, simulate_delay_data)))
 
-  #-----------final dataset----------
-  data.frame(
-    status = 1,
-    exposure_min = full_dataset$t1_min,
-    exposure_max = full_dataset$t1_max - 1,
-    onset_min = full_dataset$t2_min,
-    onset_max = full_dataset$t2_max - 1
-  )
+  # final dataset
+  data.frame(status = 1,
+             exposure_min = full_dataset$t1_min,
+             exposure_max = full_dataset$t1_max - 1,
+             onset_min = full_dataset$t2_min,
+             onset_max = full_dataset$t2_max - 1)
 }

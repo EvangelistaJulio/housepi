@@ -71,7 +71,7 @@ used to run inference and simulation routines.
   choice = NA_character_,
   as_template = FALSE,
   force = FALSE,
-  quiet = TRUE,
+  quiet = FALSE,
   ...
 )}\if{html}{\out{</div>}}
 }
@@ -95,8 +95,8 @@ If \code{FALSE} recompile the model at every new session (default).}
 \item{\code{force}}{\code{logical(1)} to compile even if a cached model already exists.\cr
 Default is \code{FALSE}.}
 
-\item{\code{quiet}}{\code{logical(1)} to hide compilation commands and warnings.\cr
-Default is \code{TRUE}.}
+\item{\code{quiet}}{\code{logical(1)} to hide compilation commands.\cr
+Default is \code{FALSE}.}
 
 \item{\code{...}}{Named arguments with additional compilation options:\cr
 \itemize{

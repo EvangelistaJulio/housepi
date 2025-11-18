@@ -53,7 +53,7 @@ public:
          std::function<double(Household &)> func_household_log_lik,
          std::function<void(Household &)> func_simulate_house,
          std::function<void(Household &, Individual &)> func_update_cache)
-        : setup(*this), param(*this),
+        : setup(), param(*this),
           data_wide(*this), multiplicity(*this), data_long(*this),
           group_rates(*this), infec_profile(*this), augm(*this),
           callback_init_inference_(std::move(func_init_inference)),
@@ -70,8 +70,7 @@ public:
     /// Implementation of Setup.
     struct Setup
     {
-        Setup(MCMC::Impl &ptr)
-            : unif_(0., 1.) {}
+        Setup() : unif_(0., 1.) {}
         ~Setup() = default;
 
         const str_vec file_headers = {"steps", "burnin", "thin",
@@ -127,7 +126,7 @@ public:
         hsp::progress::Bar progressbar_; // progress bar
 
         rnd_gen prng_; // Mersenne Twister 19937 generator (32 or 64 bit)
-        rnd_gen &(MCMC::Impl::Setup::*get_prng_)();
+        rnd_gen &(Setup::*get_prng_)();
         rnd_gen &do_prng_unique_thread_() { return prng_; }
         std::uniform_real_distribution<double> unif_; // uniform sampler
 

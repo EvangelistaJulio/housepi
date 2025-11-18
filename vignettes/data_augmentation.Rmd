@@ -64,7 +64,7 @@ Instead we consider a simulated report documenting the days when a number of cas
 # use an example script for generate delays
 source("generate_delays.R")
 # generate delays according to a gamma distribution
-dataset <- generate_delays()
+dataset <- generate_delays_report(223, mean = 2.2, var = 2.5, report_error = 0.73)
 
 head(dataset)
 ```

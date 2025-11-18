@@ -139,8 +139,9 @@ void MCMC::infer()
         pImpl_->init_model_for_inference();                 // user initialization model
         pImpl_->augm.init();                                // initialize augmented variables
         setup.prog_open(setup.c_n_sweeps * setup.n_chains); // open progress bar
-        pImpl_->run_monte_carlo();                          // run Monte Carlo
-        setup.prog_close();                                 // close progress bar
+
+        pImpl_->run_monte_carlo(); // run Monte Carlo
+        setup.prog_close();        // close progress bar
     }
     catch (std::exception &e)
     {
@@ -178,11 +179,11 @@ void MCMC::Impl::run_monte_carlo()
     // run multiple MCMC chains&
     for (chain = 1; chain <= setup.n_chains; ++chain)
     {
-        setup.prog_set_text();                      // set progress bar text
-        param.user_reset();                         // reset parameter user definitions
-        augm.user_reset();                          // reset augmented user definitions
+        setup.prog_set_text(); // set progress bar text
+        param.user_reset();    // reset parameter user definitions
+        augm.user_reset();     // reset augmented user definitions
         set_total_log_lik_(update_total_log_lik()); // init cached, set total log-likelihood
-        init_move_counts_();                        // init move counts for adaptive
+        init_move_counts_(); // init move counts for adaptive
 
         // Finite adaptative iterations
         for (unsigned long i = 0; i < setup.n_adapt; i += setup.n_thin, setup.prog_update())

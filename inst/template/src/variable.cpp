@@ -285,11 +285,11 @@ void Variable::helper_degenerate_range_()
     // skip if one of the range extremes is not provided
     if (pDistr_->get_lower().is_empty() || pDistr_->get_upper().is_empty())
         return;
-        
+
     // skip if range is not degenerate
     // UPDATE: hard to know in advance if not initialized Variables...
     const double lower = pDistr_->lower();
-    const double upper =  pDistr_->upper();
+    const double upper = pDistr_->upper();
     if (hsp::na::is(lower) || hsp::na::is(upper) || lower < upper)
         return;
 

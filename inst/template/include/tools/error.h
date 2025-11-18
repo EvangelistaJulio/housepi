@@ -24,7 +24,7 @@ namespace hsp
         /// Throw an error message.
         [[noreturn]] void error(const std::string &txt);
         /// Show a message to stdout and flush.
-        void message(const std::string &txt);
+        void info(const std::string &txt);
         /// Display a warning message if not already displayed before.
         void warning(const std::string &txt);
     }

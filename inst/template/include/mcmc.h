@@ -166,7 +166,7 @@ public:
 
 	Rcpp::DataFrame data_wide_for_simulation() const;
 	Rcpp::List simulate(size_t n_rep) { return helper_simulate_(n_rep, false); }
-	Rcpp::List simulate_for_expec(size_t n) { return helper_simulate_(n, true); }
+	Rcpp::List simulate_for_prediction(size_t n) { return helper_simulate_(n, true); }
 	Rcpp::List log_evidence(const std::string &scheme, unsigned long n_rungs);
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
@@ -181,7 +181,7 @@ public:
 	void import_param(SEXP input);
 	void import_infec_profile(SEXP input);
 	void import_augm(SEXP input);
-	void import_param_for_expec(SEXP input);
+	void import_param_for_prediction(SEXP input);
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////  MCMC : Rcpp exports  ///////////////////////////////////

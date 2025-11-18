@@ -108,7 +108,8 @@ test_that("Log-likelihood of augmented infection time model is correct", {
                 size_ref = 4, study_period = 45, shape = 2, scale = 1.1)
 
   for (discr in c(FALSE, TRUE)) {
-    hhmodel <- new_housepi_model("augmented_infection_time", discr = discr) |>
+    hhmodel <- new_housepi_model("augmented_infection_time", 
+                                 discr = discr, quiet = TRUE) |>
       add_data_wide(house) |>
       load_parameter_list(from = param) |>
       load_augmented_list(infec_time = ~infec_time@D,

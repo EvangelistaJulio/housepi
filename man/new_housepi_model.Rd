@@ -8,7 +8,7 @@ new_housepi_model(
   choice = NA_character_,
   as_template = FALSE,
   force = FALSE,
-  quiet = TRUE,
+  quiet = FALSE,
   ...
 )
 }
@@ -29,8 +29,8 @@ If \code{FALSE} recompile the model at every new session (default).}
 \item{force}{\code{logical(1)} to compile even if a cached model already exists.\cr
 Default is \code{FALSE}.}
 
-\item{quiet}{\code{logical(1)} to hide compilation commands and warnings.\cr
-Default is \code{TRUE}.}
+\item{quiet}{\code{logical(1)} to hide compilation commands.\cr
+Default is \code{FALSE}.}
 
 \item{...}{Named arguments with additional compilation options:\cr
 \itemize{
