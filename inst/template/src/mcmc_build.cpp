@@ -416,28 +416,32 @@ void MCMC::Impl::DataWide::build_helper_fill_report_data_()
     }
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////  MCMC : cache attributes  ///////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
 /// Extra integer vectors for all households.
-void MCMC::Impl::DataWide::init_cache_integer_vector(const std::string &e)
+void MCMC::cache_house_integer_vector(const std::string &e)
 {
-    for (Household &house : restricted())
+    for (Household &house : pImpl_->data_wide.restricted())
         house.init_cache_integer_vector(e);
 }
 /// Extra size_t vectors for all households.
-void MCMC::Impl::DataWide::init_cache_size_t_vector(const std::string &e)
+void MCMC::cache_house_size_t_vector(const std::string &e)
 {
-    for (Household &house : restricted())
+    for (Household &house : pImpl_->data_wide.restricted())
         house.init_cache_size_t_vector(e);
 }
 /// Extra double vectors for all households.
-void MCMC::Impl::DataWide::init_cache_double_vector(const std::string &e)
+void MCMC::cache_house_double_vector(const std::string &e)
 {
-    for (Household &house : restricted())
+    for (Household &house : pImpl_->data_wide.restricted())
         house.init_cache_double_vector(e);
 }
 /// Extra double square matrix for all households.
-void MCMC::Impl::DataWide::init_cache_double_matrix(const std::string &e)
+void MCMC::cache_house_double_matrix(const std::string &e)
 {
-    for (Household &house : restricted())
+    for (Household &house : pImpl_->data_wide.restricted())
         house.init_cache_double_matrix(e);
 }
 
@@ -874,15 +878,6 @@ void MCMC::assert_no_missing_status() const
         hsp::msg::error(
             "Individual with missing status are incompatible with current model.");
 }
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////  MCMC : cache attributes  ///////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-void MCMC::cache_house_integer_vector(const std::string &e) { pImpl_->data_wide.init_cache_integer_vector(e); }
-void MCMC::cache_house_size_t_vector(const std::string &e) { pImpl_->data_wide.init_cache_size_t_vector(e); }
-void MCMC::cache_house_double_vector(const std::string &e) { pImpl_->data_wide.init_cache_double_vector(e); }
-void MCMC::cache_house_double_matrix(const std::string &e) { pImpl_->data_wide.init_cache_double_matrix(e); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////  MCMC : contact rates ///////////////////////////////////////

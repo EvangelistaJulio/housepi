@@ -7,7 +7,7 @@
 #
 # Copyright (C) 2025 CAMAGLIA Francesco - Institut Pasteur, Paris (France).
 #
-# expected_cases.R
+# predictive_checks.R
 #
 
 #' @title Measure SAR by household size
@@ -81,17 +81,17 @@ measure_cases_by_house_size <- function(data_wide) {
 
 ############################################################################
 ############################################################################
-########################### Housepi Posterior Expec ########################
+######################### Housepi Posterior Prediction #####################
 ############################################################################
 ############################################################################
 
-#' @title Housepi Expectation
+#' @title Housepi Prediction
 #' @description
-#' Class to extract expecteted measures over simulations.
+#' Class to extract posterior predictive checks over measures on simulations.
 #'
 #' @docType class
-HousepiExpectation <- R6::R6Class(
-  classname = "HousepiExpectation",
+HousepiPrediction <- R6::R6Class(
+  classname = "HousepiPrediction",
   cloneable = TRUE,
   lock_objects = FALSE,
 
@@ -188,7 +188,7 @@ HousepiExpectation <- R6::R6Class(
     # extract posterior quantities from cases-by-house-size table list
     .extract_posterior_results = function(x) {
       cri <- private$.cri_level
-      list(expected = private$.frame_apply_mean(x),
+      list(predicted = private$.frame_apply_mean(x),
            cri_lower = private$.frame_apply_cri(x, cri, upper = FALSE),
            cri_upper = private$.frame_apply_cri(x, cri, upper = TRUE))
     },
@@ -211,7 +211,7 @@ HousepiExpectation <- R6::R6Class(
   public = list(
     #' @description
     #' Given a model and a posterior sample of parameters,
-    #' performs simulation and compute expected values of a set of measures.
+    #' performs simulation and compute predicted values of a set of measures.
     #'
     #' @param hhmodel `r rd_model_in_`
     #' @param param_table `r rd_param_table_`
@@ -258,7 +258,7 @@ HousepiExpectation <- R6::R6Class(
       # change environment according to measures
       for (measure_name in names(measure)) self[[measure_name]] <- list(
         observed = store_observed[[measure_name]],
-        expected = store_posterior[[measure_name]]$expected,
+        predicted = store_posterior[[measure_name]]$predicted,
         cri_lower = store_posterior[[measure_name]]$cri_lower,
         cri_upper = store_posterior[[measure_name]]$cri_upper
       )
@@ -279,18 +279,19 @@ HousepiExpectation <- R6::R6Class(
 
 ############################################################################
 ############################################################################
-############################ Expected Cases By Size ########################
+############################ Predicted Cases By Size #######################
 ############################################################################
 ############################################################################
 
-#' @title Expected Cases By Size
+#' @title Predicted Cases By Size
 #' @description
-#' Output object of expected cases by household size, method of household model.
+#' Predicted cases by household size, comparing observed and predicted values.
+#' It estimates secondary attack rates and cases by size tables.
 #'
 #' @docType class
-ExpectedCasesBySize <- R6::R6Class(
-  classname = "ExpectedCasesBySize",
-  inherit = HousepiExpectation,
+PredictedCasesBySize <- R6::R6Class(
+  classname = "PredictedCasesBySize",
+  inherit = HousepiPrediction,
   cloneable = TRUE,
   lock_objects = FALSE,
 
@@ -345,7 +346,7 @@ ExpectedCasesBySize <- R6::R6Class(
       }
 
       list(observed = obsdf[mask_row, mask_col],
-           expected = self$cases_table_by_size$expected[mask_row, mask_col],
+           predicted = self$cases_table_by_size$predicted[mask_row, mask_col],
            cri_lower = self$cases_table_by_size$cri_lower[mask_row, mask_col],
            cri_upper = self$cases_table_by_size$cri_upper[mask_row, mask_col])
     },
@@ -353,7 +354,7 @@ ExpectedCasesBySize <- R6::R6Class(
     # Set naming convention of credible interval.
     .get_name_convention = function(x) {
       qtag <- 100 * round(private$.cri_level, 2)
-      x <- gsub("expected", "mean", x)
+      x <- gsub("predicted", "mean", x)
       x <- gsub("cri_lower", sprintf("q%.0f", 100 - qtag), x)
       x <- gsub("cri_upper", sprintf("q%.0f", qtag), x)
       x
@@ -363,21 +364,21 @@ ExpectedCasesBySize <- R6::R6Class(
     # Function to combine cases table.
     #
     # @param obsdf A `data.frame` with observed cases.
-    # @param expdf A `data.frame` with expected cases.
+    # @param preddf A `data.frame` with predicted cases.
     #
     # @return `data.frame`
-    .combine_obs_exp = function(obsdf, expdf) {
+    .combine_obs_pred = function(obsdf, preddf) {
       # 1. curate observed dataframe
       obsdf$distr <- "Observed"
       rownames(obsdf) <- seq(1, 2 * nrow(obsdf), 2)
 
-      # 2. curate expected dataframe
-      expdf$house_size <- obsdf$house_size
-      expdf$distr <- "Expected"
-      rownames(expdf) <- seq(2, 2 * nrow(expdf), 2)
+      # 2. curate predicted dataframe
+      preddf$house_size <- obsdf$house_size
+      preddf$distr <- "Predicted"
+      rownames(preddf) <- seq(2, 2 * nrow(preddf), 2)
 
       # 3. combine by row bind
-      combined <- rbind(obsdf, expdf)[as.character(1:(2 * nrow(obsdf))), ]
+      combined <- rbind(obsdf, preddf)[as.character(1:(2 * nrow(obsdf))), ]
       # reset row names
       rownames(combined) <- NULL
       # reorder columns
@@ -401,7 +402,7 @@ ExpectedCasesBySize <- R6::R6Class(
 
   active = list(
     #' @field formatted_sec_attack_rate
-    #' `data.frame` with observed and expected secondary attack rates by household size.
+    #' `data.frame` with observed and predicted secondary attack rates by household size.
     #' If a maximum house size is set, larger sizes are not returned.
     formatted_sec_attack_rate = function(value) {
       if (!missing(value)) stop_h("'formatted_sec_attack_rate' is read only.")
@@ -409,7 +410,7 @@ ExpectedCasesBySize <- R6::R6Class(
       output <- data.frame(
         house_size = self$sec_attack_rate$observed$house_size,
         observed = self$sec_attack_rate$observed$sar,
-        expected = self$sec_attack_rate$expected$sar,
+        predicted = self$sec_attack_rate$predicted$sar,
         cri_lower = self$sec_attack_rate$cri_lower$sar,
         cri_upper = self$sec_attack_rate$cri_upper$sar,
         counts = private$.counts$count
@@ -423,7 +424,7 @@ ExpectedCasesBySize <- R6::R6Class(
     },
 
     #' @field formatted_cases_table `data.frame`\cr
-    #' Formatted observed and expected cases by household size.
+    #' Formatted observed and predicted cases by household size.
     #' If a maximum household size is set, larger sizes are not returned.
     formatted_cases_table = function(value) {
       if (!missing(value)) stop_h("'formatted_case_table' is read only.")
@@ -436,9 +437,9 @@ ExpectedCasesBySize <- R6::R6Class(
       na_df$house_size <- cases$observed$house_size
 
       output <- list(
-        expected = private$.combine_obs_exp(cases$observed, cases$expected),
-        cri_lower = private$.combine_obs_exp(na_df, cases$cri_lower),
-        cri_upper = private$.combine_obs_exp(na_df, cases$cri_upper)
+        predicted = private$.combine_obs_pred(cases$observed, cases$predicted),
+        cri_lower = private$.combine_obs_pred(na_df, cases$cri_lower),
+        cri_upper = private$.combine_obs_pred(na_df, cases$cri_upper)
       )
       names(output) <- private$.get_name_convention(names(output))
       output
@@ -457,7 +458,7 @@ ExpectedCasesBySize <- R6::R6Class(
     #' @param cri_level `r rd_smpl_cri_level_`
     initialize = function(hhmodel, param_table, obs_process = NULL,
                           progress = NA, cri_level = 0.95) {
-      # ininitialize parent class HousepiExpectation
+      # ininitialize parent class HousepiPrediction
       super$initialize(hhmodel = hhmodel,
                        param_table = param_table,
                        cases_table_by_size = measure_cases_by_house_size,
@@ -473,7 +474,7 @@ ExpectedCasesBySize <- R6::R6Class(
     #' @description
     #' Override the default printing behavior.
     print = function() {
-      cli::cli_alert_info("Object of class `ExpectedCasesBySize`.")
+      cli::cli_alert_info("Object of class `PredictedCasesBySize`.")
       invisible(self)
     },
 
@@ -506,7 +507,7 @@ ExpectedCasesBySize <- R6::R6Class(
     #' `list`
     chisq_test = function(lower_tail = FALSE) {
       x <- private$.filtered_tables()
-      res <- (x$observed - x$expected)^2 / x$expected
+      res <- (x$observed - x$predicted)^2 / x$predicted
       chisq_value <- sum(res, na.rm = TRUE)
       ddof <- prod(dim(res)) - dim(res)[1] - sum(is.na(res))
       return(list(
@@ -517,10 +518,11 @@ ExpectedCasesBySize <- R6::R6Class(
   )
 )
 
-#' @title Expected posterior measure
+#' @title Posterior predicted measure
 #' @description
-#' Extract the posterior expectation of a given measure.
-#' Perform simulations over given table of parameters.
+#' Extract the posterior prediction of a given measure.
+#' It performs simulations over given table of parameters.
+#' Typically used to perform posterior predictive checks.
 #'
 #' @param hhmodel `r rd_model_in_`
 #' @param param_table `r rd_param_table_`
@@ -529,19 +531,19 @@ ExpectedCasesBySize <- R6::R6Class(
 #' @param progress `r rd_progress_`
 #'
 #' @return An object of class
-#' [HousepiExpectation][housepi::HousepiExpectation].
+#' [HousepiPrediction][housepi::HousepiPrediction].
 #'
 #' @export
-expec_posterior_measure <- function(hhmodel, param_table, ...,
-                                    obs_process = NULL, progress = NA) {
+post_predicted_measure <- function(hhmodel, param_table, ...,
+                                   obs_process = NULL, progress = NA) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  HousepiExpectation$new(hhmodel, param_table, ...,
-                         obs_process = obs_process, progress = progress)
+  HousepiPrediction$new(hhmodel, param_table, ...,
+                        obs_process = obs_process, progress = progress)
 }
 
-#' @title Expected cases by household size
+#' @title Predicted cases by household size
 #' @description
-#' Extract the expected number of household cases per size.
+#' Extract the predicted number of household cases per size.
 #' It can be used to estimate the secondary attack rate.
 #' Perform simulations over given table of parameters.
 #'
@@ -552,15 +554,15 @@ expec_posterior_measure <- function(hhmodel, param_table, ...,
 #'
 #' @return
 #' An object of class
-#' [ExpectedCasesBySize][housepi::ExpectedCasesBySize]
-#' containing methods to compare observed and expected cases.
+#' [PredictedCasesBySize][housepi::PredictedCasesBySize]
+#' containing methods to compare observed and predicted cases.
 #'
 #' @export
-expec_cases_by_house_size <- function(hhmodel, param_table,
-                                      obs_process = NULL, progress = NA) {
+predicted_cases_by_house_size <- function(hhmodel, param_table,
+                                          obs_process = NULL, progress = NA) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  ExpectedCasesBySize$new(hhmodel, param_table,
-                          obs_process = obs_process, progress = progress)
+  PredictedCasesBySize$new(hhmodel, param_table,
+                           obs_process = obs_process, progress = progress)
 }
 
 #' Format credible intervals into printable strings

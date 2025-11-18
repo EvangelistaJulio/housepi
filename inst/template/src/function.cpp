@@ -188,6 +188,10 @@ Function::Function(const std::string &name,
                    double domain_min, bool is_min_open,
                    double domain_max, bool is_max_open)
 {
+    // initialize default 'x' argument
+    x_arg_.set_name(hsp::params::X);
+    x_arg_.set(hsp::na::DOUBLE);
+
     // name of the function
     this->name_ = name;
 
@@ -198,22 +202,20 @@ Function::Function(const std::string &name,
             "Found " + std::to_string(arg_name.size()) + " default names but " +
             std::to_string(arg_value.size()) + " values.");
 
-    // initialize default 'x' argument
-    x_arg_.set_name(hsp::params::X);
-    x_arg_.set(hsp::na::DOUBLE);
-
     // allocate attribute for remaining arguments
     size_t n_args = arg_name.size() - (arg_name % hsp::params::X);
     arguments_ = std::vector<Attribute>(n_args);
 
-    size_t c = 0;
     for (size_t k = 0; k < arg_name.size(); ++k)
         if (arg_name[k] == hsp::params::X)
+        {
             x_arg_.set(arg_value[k]);
+            --k;
+        }
         else
         {
-            arguments_[c].set_name(arg_name[k]);
-            arguments_[c++].set(arg_value[k]);
+            arguments_[k].set_name(arg_name[k]);
+            arguments_[k].set(arg_value[k]);
         }
 
     // Assign Domain
@@ -653,30 +655,6 @@ protected:
     double raw_logratio_(double xo, double xn) const override final { return std::log(std::tan(xn) / std::tan(xo)); }
 };
 
-/// Minimum Function.
-class Minimum_Function : public Function
-{
-public:
-    Minimum_Function() : Function("min", {"x2"}, {0.}) {}
-    void init_truncation() override final {}
-    bool is_discrete() const override final { return get_arg(0).is_discrete() && x_arg_.is_discrete(); }
-
-protected:
-    double raw_function_(double x) const override final { return std::min(x, arg(0)); }
-};
-
-/// Maximum Function.
-class Maximum_Function : public Function
-{
-public:
-    Maximum_Function() : Function("max", {"x2"}, {0.}) {}
-    void init_truncation() override final {}
-    bool is_discrete() const override final { return get_arg(0).is_discrete() && x_arg_.is_discrete(); }
-
-protected:
-    double raw_function_(double x) const override final { return std::max(x, arg(0)); }
-};
-
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  Variadic_Function : class  ///////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -687,6 +665,18 @@ class Variadic_Function : public Function
 public:
     Variadic_Function(const std::string &name = hsp::na::STRING) : Function(name) {}
     virtual ~Variadic_Function() = default;
+
+    // UPDATE: this might change for future variadic functions
+    void init_truncation() override final {}
+    bool is_discrete() const override final
+    {
+        if (!x_arg_.is_discrete())
+            return false;
+        for (const Attribute &attr : arguments_)
+            if (!attr.is_discrete())
+                return false;
+        return true;
+    }
 
 protected:
     /// Variadic function version of the find argument method.
@@ -705,35 +695,43 @@ protected:
     }
 };
 
-/// VARIADIC function factory.
-#define MAKE_VARIADIC_FUNCTION(ClassName, FunctionName, Symbol) \
-    class ClassName : public Variadic_Function                  \
-    {                                                           \
-    public:                                                     \
-        ClassName() : Variadic_Function(FunctionName) {}        \
-                                                                \
-        void init_truncation() override final {}                \
-        bool is_discrete() const override final                 \
-        {                                                       \
-            if (!x_arg_.is_discrete())                          \
-                return false;                                   \
-            for (const Attribute &attr : arguments_)            \
-                if (!attr.is_discrete())                        \
-                    return false;                               \
-            return true;                                        \
-        }                                                       \
-                                                                \
-    protected:                                                  \
-        double raw_function_(double x) const override final     \
-        {                                                       \
-            for (const Attribute &attr : arguments_)            \
-                x Symbol attr.get();                            \
-            return x;                                           \
-        }                                                       \
+#define MAKE_VARIADIC_ALGEBRAIC(ClassName, FunctionName, Symbol) \
+    class ClassName : public Variadic_Function                   \
+    {                                                            \
+    public:                                                      \
+        ClassName() : Variadic_Function(FunctionName) {}         \
+                                                                 \
+    protected:                                                   \
+        double raw_function_(double x) const override final      \
+        {                                                        \
+            for (const Attribute &attr : arguments_)             \
+                x Symbol attr.get();                             \
+            return x;                                            \
+        }                                                        \
     };
+MAKE_VARIADIC_ALGEBRAIC(Summation_Function, "sum", +=)
+MAKE_VARIADIC_ALGEBRAIC(Product_Function, "prod", *=)
 
-MAKE_VARIADIC_FUNCTION(Summation_Function, "sum", +=)
-MAKE_VARIADIC_FUNCTION(Product_Function, "prod", *=)
+#define MAKE_VARIADIC_MIN_MAX(ClassName, FunctionName, Symbol) \
+    class ClassName : public Variadic_Function                 \
+    {                                                          \
+    public:                                                    \
+        ClassName() : Variadic_Function(FunctionName) {}       \
+                                                               \
+    protected:                                                 \
+        double raw_function_(double x) const override final    \
+        {                                                      \
+            for (const Attribute &attr : arguments_)           \
+            {                                                  \
+                const double new_val = attr.get();             \
+                if (new_val Symbol x)                          \
+                    x = new_val;                               \
+            }                                                  \
+            return x;                                          \
+        }                                                      \
+    };
+MAKE_VARIADIC_MIN_MAX(Minimum_Function, "min", <)
+MAKE_VARIADIC_MIN_MAX(Maximum_Function, "max", >)
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////

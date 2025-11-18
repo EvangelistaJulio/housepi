@@ -11,12 +11,12 @@ test_that("Function exported from housepi are correct", {
   expect_equal(expose_function("cos")$func(x), cos(x))
   expect_equal(expose_function("sin")$func(x), sin(x))
   expect_equal(expose_function("tan")$func(x), tan(x))
-
-  expect_equal(expose_function("min", x2 = 3)$func(2), 2)
-  expect_equal(expose_function("max", x2 = 3)$func(2), 3)
-  args <- c(a = 3.3, b = 5.5, c = 6.6)
+  
+  args <- c(3.3, 5.5, 6.6)
   expect_equal(expose_function("sum", args)$func(0), sum(args))
   expect_equal(expose_function("prod", args)$func(1), prod(args))
+  expect_equal(expose_function("min", args)$func(2), 2)
+  expect_equal(expose_function("max", args)$func(2), 6.6)
 })
 
 test_that("Numerical recipes and distributions are correct", {
@@ -105,7 +105,7 @@ test_that("Negative binomial distribution is correct", {
 
 test_that("Geometric distribution is correct", {
   x <- seq(-100, 100, 1)
-  distr <- expose_distribution("geometric", proba = 0.5)
+  distr <- expose_distribution("geometric", prob = 0.5)
   expect_equal(distr$pdf(x), stats::dgeom(x, prob = 0.5))
   expect_equal(distr$cdf(x), stats::pgeom(x, prob = 0.5))
 })

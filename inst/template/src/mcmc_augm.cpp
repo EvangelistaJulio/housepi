@@ -1155,7 +1155,7 @@ double MCMC::Impl::metropolis_augm_single_move_(Household &house, Individual &me
         house.buffer_all_cache();
         update_cache_dependecies_(house, member);
 
-        // Metropolis-Hastings algorithm
+        // Metropolis-Hastings
         // NOTE: materialize calls must come after getters
         double delta_ll = -house.get_obs_log_lik();
         delta_ll += member.materialize_augm_model_logratio(a);
