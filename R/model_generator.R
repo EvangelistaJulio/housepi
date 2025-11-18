@@ -57,7 +57,7 @@ HousepiGenerator <- R6::R6Class(
     .dll = NA_character_,
     .cache_dir = NA_character_,
     .source_dir = NA_character_,
-    .quiet = TRUE,
+    .quiet = FALSE,
     .need_compile = FALSE,
     .rcpp = NULL,
     .last_user_flags = character(),
@@ -583,7 +583,8 @@ HousepiGenerator <- R6::R6Class(
     #' @param quiet `r rd_mdl_quiet_`
     #' @param ... `r rd_mdl_flags_`
     initialize = function(choice, as_template = FALSE,
-                          force = FALSE, quiet = TRUE, ...) {
+                          force = FALSE, quiet = FALSE, ...) {
+      withr::local_preserve_seed()
       choice <- private$.initialize_helper_choice(choice)
 
       # assign quiet field

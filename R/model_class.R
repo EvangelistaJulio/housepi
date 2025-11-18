@@ -355,7 +355,7 @@ HousepiModel <- R6::R6Class(
     .run_measure = function(param_table, apply_measure, progress) {
       # attach param_table
       param_table <- private$.helper_import_table(param_table)
-      private$.rcpp$import_param_for_expec(param_table)
+      private$.rcpp$import_param_for_prediction(param_table)
 
       # define iterator, eventually with progress bar
       iterator <- seq_len(dim(param_table)[1])
@@ -373,7 +373,7 @@ HousepiModel <- R6::R6Class(
       # NOTE: simulate_for_expec from 0 to table_size - 1 !
       lapply(iterator, function(r) {
         apply_measure(private$.refactor_data_wide(
-          cbind(static_df, private$.rcpp$simulate_for_expec(r - 1)[[1]])
+          cbind(static_df, private$.rcpp$simulate_for_prediction(r - 1)[[1]])
         ))
       })
     },
@@ -517,7 +517,7 @@ HousepiModel <- R6::R6Class(
     #' @param quiet `r rd_mdl_quiet_`
     #' @param ... `r rd_mdl_flags_`
     initialize = function(choice = NA_character_, as_template = FALSE,
-                          force = FALSE, quiet = TRUE, ...) {
+                          force = FALSE, quiet = FALSE, ...) {
       # initialize internal fields
       self$drop_all()
       # generate model wrapper

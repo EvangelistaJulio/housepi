@@ -28,8 +28,10 @@ devtools::install()
 ```
 
 ## License
-GNU GENERAL PUBLIC LICENSE, Version 3.
 
 **IMPORTANT:** 
 The package has not been released.
 Sharing the package or parts of its code without consent of the authors is strictly forbidden.
+
+housepi is distributed under the terms of the GNU General Public License, Version 3 (GPLv3). 
+See the COPYING file for details.                                   #

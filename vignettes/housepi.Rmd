@@ -312,8 +312,8 @@ posterior::summarise_draws(param_draws) |>
   flextable::autofit()
 ```
 
-Due to the stochastic nature of this kind of simulation, trying to re-infer is a limiting check. 
-In [Posterior expected measures](posterior_expected_measures.html) we show how to compute common household measures according to the model posterior distribution.
+Due to the stochastic nature of this kind of simulation, limiting to re-infer parameters is a limiting check. 
+In [Posterior predictive checks](posterior_predictive_checks.html) we show how to compute common household measures according to the model posterior distribution.
 
 ---
 `r show_session_info()`
