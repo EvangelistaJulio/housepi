@@ -795,10 +795,7 @@ void update_ofstream_datawide(std::ofstream &ofs,
             ofs << hsp::read::DELIMITER << member.data(d);
 
         for (const std::string &a : augm_headers)
-            if (member.is_infected_status())
-                ofs << hsp::read::DELIMITER << member.augm(a);
-            else
-                ofs << hsp::read::DELIMITER << hsp::na::DOUBLE;
+            ofs << hsp::read::DELIMITER << member.augm(a);
 
         ofs << std::endl;
     }

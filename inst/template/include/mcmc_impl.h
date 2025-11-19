@@ -274,58 +274,51 @@ public:
         auto end() { return house_vector_.end(); }
         auto end() const { return house_vector_.end(); }
 
-        // T can be Individual or const Individual
-        template <typename T>
-        class ViewIterator
-        {
-            // conditional to select the vector type if constant or not
-            using VectorType = std::conditional_t<std::is_const<T>::value,
-                                                  const std::vector<Household>,
-                                                  std::vector<Household>>;
-
-            VectorType &pVector;
-            const std::vector<size_t> &indexes;
-            size_t pos;
-
-        public:
-            ViewIterator(VectorType &m, const std::vector<size_t> &i, size_t p)
-                : pVector(m), indexes(i), pos(p) {}
-
-            T &operator*() const { return pVector[indexes[pos]]; }
-            T *operator->() const { return &pVector[indexes[pos]]; }
-
-            ViewIterator &operator++()
-            {
-                ++pos;
-                return *this;
-            }
-            ViewIterator operator++(int)
-            {
-                ViewIterator tmp = *this;
-                ++(*this);
-                return tmp;
-            }
-
-            bool operator==(const ViewIterator &other) const { return pos == other.pos; }
-            bool operator!=(const ViewIterator &other) const { return !(*this == other); }
-        };
-
         template <typename T>
         class View
         {
             // conditional to select the vector type if constant or not
-            using VectorType = std::conditional_t<std::is_const<T>::value, const std::vector<Household>, std::vector<Household>>;
-            using iterator = ViewIterator<T>;
+            using VectorRef = std::conditional_t<std::is_const<T>::value,
+                                                 const std::vector<Household> &,
+                                                 std::vector<Household> &>;
 
         public:
-            VectorType &vec;
-            const std::vector<size_t> &indexes;
+            VectorRef vec;
+            const std::vector<size_t> &indexes; /// NOTE: no need to copy here
 
-            View(VectorType &m, const std::vector<size_t> &i)
+            View(VectorRef m, const std::vector<size_t> &i)
                 : vec(m), indexes(i) {}
 
-            iterator begin() { return iterator(vec, indexes, 0); }
-            iterator end() { return iterator(vec, indexes, indexes.size()); }
+            class iterator
+            {
+            public:
+                iterator(View *v, size_t p) : view_(v), pos_(p) {}
+
+                T &operator*() const { return view_->vec[view_->indexes[pos_]]; }
+                T *operator->() const { return &view_->vec[view_->indexes[pos_]]; }
+
+                iterator &operator++()
+                {
+                    ++pos_;
+                    return *this;
+                }
+                iterator operator++(int)
+                {
+                    iterator tmp = *this;
+                    ++(*this);
+                    return tmp;
+                }
+
+                bool operator==(const iterator &other) const { return pos_ == other.pos_; }
+                bool operator!=(const iterator &other) const { return !(*this == other); }
+
+            private:
+                View *view_;
+                size_t pos_;
+            };
+
+            iterator begin() { return iterator(this, 0); }
+            iterator end() { return iterator(this, indexes.size()); }
         };
 
         View<Household> restricted() { return View<Household>(house_vector_, pImpl_.multiplicity.indexes); }

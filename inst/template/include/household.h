@@ -213,8 +213,7 @@ public:
 	//////////////////////////////////  Household : constructor  //////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	Household(const std::string &house_id = hsp::na::STRING,
-			  size_t index = SIZE_MAX)
+	Household(const std::string &house_id = hsp::na::STRING, size_t index = SIZE_MAX)
 	{
 		house_id_ = house_id;
 		index_ = index;
@@ -235,71 +234,73 @@ public:
 
 	// T should be Individual for mutable access
 	// or const Individual for const access.
-	template <typename T>
-	class ViewIterator
-	{
-		// conditional to select the vector type if constant or not
-		using VectorType = std::conditional_t<std::is_const<T>::value,
-											  const std::vector<Individual>,
-											  std::vector<Individual>>;
-
-		VectorType &pVector;
-		const std::vector<size_t> &indexes;
-		size_t pos;
-
-	public:
-		ViewIterator(VectorType &m, const std::vector<size_t> &i, size_t p)
-			: pVector(m), indexes(i), pos(p) {}
-
-		T &operator*() const { return pVector[indexes[pos]]; }
-		T *operator->() const { return &pVector[indexes[pos]]; }
-
-		ViewIterator &operator++()
-		{
-			++pos;
-			return *this;
-		}
-		ViewIterator operator++(int)
-		{
-			ViewIterator tmp = *this;
-			++(*this);
-			return tmp;
-		}
-
-		bool operator==(const ViewIterator &other) const { return pos == other.pos; }
-		bool operator!=(const ViewIterator &other) const { return !(*this == other); }
-	};
-
+	/// NOTE: if Individual is constant, then indexes are immutable as well;
+	///		  otherwise, indexes are copied and access is safe.
 	template <typename T>
 	class View
 	{
-		// conditional to select the vector type if constant or not
-		using VectorType = std::conditional_t<std::is_const<T>::value, const std::vector<Individual>, std::vector<Individual>>;
-		using iterator = ViewIterator<T>;
+		// conditional vector reference, if constant or not
+		using VectorRef = std::conditional_t<std::is_const<T>::value,
+											 const std::vector<Individual> &,
+											 std::vector<Individual> &>;							 
+		// conditional index, reference or copy
+		using IndexRef = std::conditional_t<std::is_const<T>::value,
+											   const std::vector<size_t> &,
+											   std::vector<size_t>>;
 
 	public:
-		VectorType &vec;
-		const std::vector<size_t> &indexes;
+		VectorRef vec;
+		IndexRef indexes; 
 
-		View(VectorType &m, const std::vector<size_t> &i)
+		View(VectorRef m, const std::vector<size_t> &i)
 			: vec(m), indexes(i) {}
 
-		iterator begin() { return iterator(vec, indexes, 0); }
-		iterator end() { return iterator(vec, indexes, indexes.size()); }
+		class iterator
+		{
+		public:
+			iterator(View *v, size_t p) : view_(v), pos_(p) {}
+
+			T &operator*() const { return view_->vec[view_->indexes[pos_]]; }
+			T *operator->() const { return &view_->vec[view_->indexes[pos_]]; }
+
+			iterator &operator++()
+			{
+				++pos_;
+				return *this;
+			}
+			iterator operator++(int)
+			{
+				iterator tmp = *this;
+				++(*this);
+				return tmp;
+			}
+
+			bool operator==(const iterator &other) const { return pos_ == other.pos_; }
+			bool operator!=(const iterator &other) const { return !(*this == other); }
+
+		private:
+			View *view_;
+			size_t pos_;
+		};
+
+		iterator begin() { return iterator(this, 0); }
+		iterator end() { return iterator(this, indexes.size()); }
 	};
 
 	View<Individual> infected() { return View<Individual>(members_, infected_list_); }
 	View<Individual> healthy() { return View<Individual>(members_, healthy_list_); }
 	View<Individual> missing() { return View<Individual>(members_, missing_list_); }
-	View<Individual> select(const std::vector<size_t> lst) { return View<Individual>(members_, lst); }
 	View<const Individual> infected() const { return View<const Individual>(members_, infected_list_); }
 	View<const Individual> healthy() const { return View<const Individual>(members_, healthy_list_); }
 	View<const Individual> missing() const { return View<const Individual>(members_, missing_list_); }
-	View<const Individual> select(const std::vector<size_t> lst) const { return View<const Individual>(members_, lst); }
 
 	const std::vector<size_t> &infected_hhindexes() const { return infected_list_; }
 	const std::vector<size_t> &healthy_hhindexes() const { return healthy_list_; }
 	const std::vector<size_t> &missing_hhindexes() const { return missing_list_; }
+
+	size_t n_infec_status() const { return infected_list_.size(); }
+	size_t n_healthy_status() const { return healthy_list_.size(); }
+	size_t n_missing_status() const { return missing_list_.size(); }
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////  Household : getter  /////////////////////////////////////
@@ -317,9 +318,6 @@ public:
 	size_t house_index() const { return index_; }
 	size_t size() const { return house_size_; }
 
-	size_t n_infec_status() const { return infected_list_.size(); }
-	size_t n_healthy_status() const { return healthy_list_.size(); }
-	size_t n_missing_status() const { return missing_list_.size(); }
 
 	unsigned long multiplicity() const { return house_multiplicity_; }
 	size_t multiplicity_class_index() const { return multiplicity_class_; }
@@ -405,15 +403,13 @@ public:
 	void recover_buffer_values(bool is_cache_depen);
 
 private:
-	std::string house_id_ = hsp::na::STRING; // user house id
-	size_t index_ = -1;						 // housepi internal index
-	unsigned short house_size_ = 0;			 // n. of house members
-	unsigned long house_multiplicity_ = 1;	 // n. of equivalent houses
-	size_t multiplicity_class_ = -1;		 // index of multiplicity class
+	std::string house_id_ = hsp::na::STRING; /// User house id
+	size_t index_ = -1;						 /// Internal unique index
+	unsigned short house_size_ = 0;			 /// N. of house members
+	unsigned long house_multiplicity_ = 1;	 /// N. of equivalent houses
+	size_t multiplicity_class_ = -1;		 /// Index of multiplicity class
 
-	std::vector<Individual> members_ = {}; // members
-
-	// list of members for each status
+	std::vector<Individual> members_ = {};
 	std::vector<size_t> infected_list_ = {};
 	std::vector<size_t> healthy_list_ = {};
 	std::vector<size_t> missing_list_ = {};

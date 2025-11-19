@@ -991,12 +991,12 @@ Rcpp::DataFrame MCMC::helper_augm_rcpp_snapshot_(const Household &house) const
     std::vector<NumericVector> augm_dbl;
     augm_dbl.reserve(list_export.size());
     for (size_t c = 0; c < list_export.size(); ++c)
-        augm_dbl.emplace_back(NumericVector(n_rows, NA_REAL));
+        augm_dbl.emplace_back(NumericVector(n_rows));
 
     for (const Individual &member : house)
         df_id[member] = member.id();
 
-    for (const Individual &member : house.infected())
+    for (const Individual &member : house)
         for (size_t c = 0; c < list_export.size(); ++c)
             augm_dbl[c][member] = hsp_to_rcpp(member.augm(list_export[c]));
 
