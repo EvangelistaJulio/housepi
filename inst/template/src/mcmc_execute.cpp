@@ -179,11 +179,11 @@ void MCMC::Impl::run_monte_carlo()
     // run multiple MCMC chains&
     for (chain = 1; chain <= setup.n_chains; ++chain)
     {
-        setup.prog_set_text(); // set progress bar text
-        param.user_reset();    // reset parameter user definitions
-        augm.user_reset();     // reset augmented user definitions
+        setup.prog_set_text();                      // set progress bar text
+        param.user_reset();                         // reset parameter user definitions
+        augm.user_reset();                          // reset augmented user definitions
         set_total_log_lik_(update_total_log_lik()); // init cached, set total log-likelihood
-        init_move_counts_(); // init move counts for adaptive
+        init_move_counts_();                        // init move counts for adaptive
 
         // Finite adaptative iterations
         for (unsigned long i = 0; i < setup.n_adapt; i += setup.n_thin, setup.prog_update())
@@ -648,12 +648,12 @@ void MCMC::Impl::power_post_fractions_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define MAKE_READ_METHOD(module, section_name, csv_object)                \
+#define MAKE_READ_METHOD(module, section_name)                            \
     void MCMC::read_##module(const std::string &f)                        \
     {                                                                     \
         try                                                               \
         {                                                                 \
-            pImpl_->module.build(hsp::read::csv_object(f));               \
+            pImpl_->module.build(hsp::read::csv_table(f));                \
         }                                                                 \
         catch (const std::exception &e)                                   \
         {                                                                 \
@@ -662,14 +662,14 @@ void MCMC::Impl::power_post_fractions_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
         }                                                                 \
     }
 
-MAKE_READ_METHOD(setup, "setup", csv_list)
-MAKE_READ_METHOD(infec_profile, "infectivity profile", csv_list)
-MAKE_READ_METHOD(param, "parameters", csv_table)
-MAKE_READ_METHOD(data_wide, "data-wide", csv_table)
-MAKE_READ_METHOD(multiplicity, "multiplicity", csv_table)
-MAKE_READ_METHOD(data_long, "data-long", csv_table)
-MAKE_READ_METHOD(group_rates, "group rates", csv_table)
-MAKE_READ_METHOD(augm, "augmented", csv_table)
+MAKE_READ_METHOD(setup, "setup")
+MAKE_READ_METHOD(infec_profile, "infectivity profile")
+MAKE_READ_METHOD(param, "parameters")
+MAKE_READ_METHOD(data_wide, "data-wide")
+MAKE_READ_METHOD(multiplicity, "multiplicity")
+MAKE_READ_METHOD(data_long, "data-long")
+MAKE_READ_METHOD(group_rates, "group rates")
+MAKE_READ_METHOD(augm, "augmented")
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -449,40 +449,6 @@ namespace hsp
             return output;
         }
 
-        /// Read csv list store in pathtofile and store it parsed in csv_parsed_list.
-        u_dict<string> csv_list(const string &pathtofile)
-        {
-            if (na::is(pathtofile))
-                return {};
-
-            std::ifstream input(pathtofile.c_str());
-            if (!input.is_open())
-                throw std::runtime_error(
-                    "Unable to open file '" + pathtofile + "'.");
-
-            // Create a stringstream of the current line
-            u_dict<string> output = {};
-            for (string line; std::getline(input, line);)
-            {
-                string name, choice;
-                std::istringstream iss(line);
-
-                // name
-                if (!std::getline(iss, name, DELIMITER))
-                    throw std::runtime_error(
-                        "Unable to extract list name. Check file line '" + line + "'.");
-                // choice
-                if (!std::getline(iss, choice))
-                    throw std::runtime_error(
-                        "Unable to extract list value. Check file line '" + line + "'.");
-
-                // add the new setup
-                output.emplace(strcleaner_(name), strcleaner_(choice));
-            }
-
-            return output;
-        }
-
         /// Read csv table in pathtofile and store it parsed in csv_parsed_table.
         u_dict<str_vec> csv_table(const string &pathtofile)
         {
@@ -506,7 +472,23 @@ namespace hsp
                 this_row.clear();
             }
 
+            // ensure all columns have the same number of rows
+            const size_t n_rows = csv_n_rows(output);
+            for (const auto &x : output)
+                if (x.second.size() != n_rows)
+                    throw std::runtime_error(
+                        "Inconsistent number of rows found in column '" + x.first +
+                        "' while reading file '" + pathtofile + "'.");
+
             return output;
+        }
+
+        /// Get number of rows in CSV table.
+        size_t csv_n_rows(const u_dict<str_vec> &table)
+        {
+            if (table.empty())
+                return 0;
+            return table.begin()->second.size();
         }
     } // TOOLS::READ NAMESPACE
 

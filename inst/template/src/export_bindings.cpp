@@ -209,28 +209,6 @@ RCPP_MODULE(housepi_infec_profile)
 /// Auxiliary converter to R NA real values.
 inline double hsp_to_rcpp(double x) { return hsp::na::is(x) ? NA_REAL : x; }
 
-/// Convert R list.
-u_dict<std::string> rlist_to_strmap(SEXP input)
-{
-    using namespace Rcpp;
-
-    if (Rf_isNull(input))
-        return {};
-
-    List list(input);
-    CharacterVector rownames = list.names();
-    u_dict<std::string> output = {};
-
-    for (R_xlen_t i = 0; i < list.size(); ++i)
-    {
-        CharacterVector element = list[i];
-        std::string value = as<std::string>(wrap(element[0]));
-        output[as<std::string>(rownames[i])] = value;
-    }
-
-    return output;
-}
-
 /// Convert R dataframe map of string vectors.
 u_dict<str_vec> rdataframe_to_strmap(SEXP input)
 {
@@ -275,29 +253,28 @@ u_dict<std::vector<double>> rdataframe_to_dblmap(SEXP input)
     return output;
 }
 
-#define MAKE_RCPP_IMPORT_METHOD(module, section_name, r_to_map) \
-    void MCMC::import_##module(SEXP input)                      \
-    {                                                           \
-        try                                                     \
-        {                                                       \
-            pImpl_->module.build(r_to_map(input));              \
-        }                                                       \
-        catch (const std::exception &e)                         \
-        {                                                       \
-            hsp::msg::error(                                    \
-                std::string("While importing ") +               \
-                section_name + ":\n" + e.what());               \
-        }                                                       \
+#define MAKE_RCPP_IMPORT_METHOD(module, section_name)          \
+    void MCMC::import_##module(SEXP input)                     \
+    {                                                          \
+        try                                                    \
+        {                                                      \
+            pImpl_->module.build(rdataframe_to_strmap(input)); \
+        }                                                      \
+        catch (const std::exception &e)                        \
+        {                                                      \
+            hsp::msg::error(                                   \
+                std::string("While importing ") +              \
+                section_name + ":\n" + e.what());              \
+        }                                                      \
     }
-
-MAKE_RCPP_IMPORT_METHOD(setup, "setup", rlist_to_strmap)
-MAKE_RCPP_IMPORT_METHOD(infec_profile, "infectivity profile", rlist_to_strmap)
-MAKE_RCPP_IMPORT_METHOD(param, "parameters", rdataframe_to_strmap)
-MAKE_RCPP_IMPORT_METHOD(data_wide, "data-wide", rdataframe_to_strmap)
-MAKE_RCPP_IMPORT_METHOD(multiplicity, "multiplicity", rdataframe_to_strmap)
-MAKE_RCPP_IMPORT_METHOD(data_long, "data-long", rdataframe_to_strmap)
-MAKE_RCPP_IMPORT_METHOD(group_rates, "group rates", rdataframe_to_strmap)
-MAKE_RCPP_IMPORT_METHOD(augm, "augmented", rdataframe_to_strmap)
+MAKE_RCPP_IMPORT_METHOD(setup, "setup")
+MAKE_RCPP_IMPORT_METHOD(infec_profile, "infectivity profile")
+MAKE_RCPP_IMPORT_METHOD(param, "parameters")
+MAKE_RCPP_IMPORT_METHOD(data_wide, "data-wide")
+MAKE_RCPP_IMPORT_METHOD(multiplicity, "multiplicity")
+MAKE_RCPP_IMPORT_METHOD(data_long, "data-long")
+MAKE_RCPP_IMPORT_METHOD(group_rates, "group rates")
+MAKE_RCPP_IMPORT_METHOD(augm, "augmented")
 
 void MCMC::import_param_for_prediction(SEXP input)
 {

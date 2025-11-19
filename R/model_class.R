@@ -310,10 +310,10 @@ HousepiModel <- R6::R6Class(
       write.csv(private$.param$defs,
                 file.path(outpath, "param.csv"),
                 quote = FALSE, row.names = FALSE)
-      write.table(t(as.data.frame(char_setup_input_(self$setup))),
+      write.table(char_setup_input_(self$setup),
                   file.path(outpath, "setup.csv"),
                   row.names = TRUE, col.names = FALSE, sep = ",", quote = FALSE)
-      write.table(t(as.data.frame(private$.infec_profile$defs)),
+      write.table(private$.infec_profile$defs,
                   file.path(outpath, "infec.csv"),
                   row.names = TRUE, col.names = FALSE, sep = ",", quote = FALSE)
       invisible(self)

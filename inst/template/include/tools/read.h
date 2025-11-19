@@ -39,10 +39,10 @@ namespace hsp
         /// Parse a list from a string.
         str_vec parse_list(const std::string &txt);
 
-        // Read CSV list.
-        u_dict<std::string> csv_list(const std::string &pathtofile);
-        // Read CSV dataframe.
+        /// Read CSV dataframe.
         u_dict<str_vec> csv_table(const std::string &pathtofile);
+        /// Get number of rows in CSV table.
+        size_t csv_n_rows(const u_dict<str_vec> &table);
     }
 }
 

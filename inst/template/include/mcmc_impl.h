@@ -98,7 +98,7 @@ public:
         bool is_power_post() const { return n_rungs > 0; }
         std::string fmt_progtxt();
 
-        void build(const u_dict<std::string> &deflist);
+        void build(const u_dict<str_vec> &deftable);
         void assert_mcmc_setup();
         void set_n_threads();
 
@@ -452,8 +452,8 @@ public:
         ///////////////////////////  MCMC : Impl : InfecProfile : setter  ///////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////
 
-        void build(const u_dict<std::string> &deflist);
-        void init_template(u_dict<std::string> input);
+        void build(const u_dict<str_vec> &deftable);
+        void init_template(u_dict<str_vec> deftable);
         void update();
         void recover();
         void request_discrete() { is_discrete_requested_ = true; };
@@ -480,13 +480,13 @@ public:
         dbl_vec lookup_buffer_inst_ = {};
         dbl_vec lookup_buffer_cumul_ = {};
         // augmented function
-        u_dict<str_vec> augm_infec_profile_deflist_ = {};
+        u_dict<str_vec> augm_profile_definitions_ = {};
 
         void init_lookup_();
         void clear_lookup_();
 
-        void build_generic_profile_(const u_dict<std::string> &deflist);
-        void build_augmented_profile_(const u_dict<std::string> &deflist);
+        void build_generic_profile_(const u_dict<str_vec> &deftable);
+        void build_augmented_profile_(const u_dict<str_vec> &deftable);
 
         //===== Functional methods for getter methods =====//
         double (InfecProfile::*inst_)(const Individual *, double) = &InfecProfile::do_inst_default_;

@@ -82,8 +82,8 @@ HousepiInfecProfile <- R6::R6Class(
   ############################################################################
 
   public = list(
-    #' @field defs `list`\cr
-    #' Infectivity profile definition list.
+    #' @field defs `data.frame`\cr
+    #' Infectivity profile definition data.frame.
     defs = NULL,
 
     #' @description
@@ -95,21 +95,22 @@ HousepiInfecProfile <- R6::R6Class(
     },
 
     #' @inherit add_infec_profile
-    add = function(name, discr = FALSE, ..., max = NULL) {
+    add = function(name, status = NA, discr = FALSE, ..., max = NULL) {
       # check infectivity profile name
       if (is.na(name)) stop_h("Incomplete definition: missing name.")
       args <- unlist(list(...))
-      self$defs <- list(
+      self$defs <- rbind(self$defs, data.frame(list(
         # load name/arguments
         name = ifelse(
           is.null(args), name,
           DefinitionEncoder$new(as.list(args))$combine_to_call(name)
         ),
+        status = status,
         min = ifelse(isTRUE(discr), 1, 0),
         # load maximum value
         max = DefinitionEncoder$new(max)$x,
         discr = isTRUE(discr)
-      )
+      )))
 
       invisible(self)
     }
