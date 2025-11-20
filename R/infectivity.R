@@ -103,7 +103,8 @@ HousepiInfecProfile <- R6::R6Class(
     },
 
     #' @inherit add_infec_profile
-    add = function(name, status = NA, discr = FALSE, ..., max = NULL) {
+    add = function(name, status = NA_integer_,
+                   discr = FALSE, ..., max = NULL) {
       # check infectivity profile name
       if (is.na(name)) stop_h("Incomplete definition: missing name.")
       args <- unlist(list(...))

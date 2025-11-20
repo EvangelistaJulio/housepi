@@ -4,12 +4,23 @@
 \alias{add_infec_profile}
 \title{Add infectivity profile definition}
 \usage{
-add_infec_profile(hhmodel, name, discr = FALSE, ..., max = NULL)
+add_infec_profile(
+  hhmodel,
+  name,
+  status = NA_integer_,
+  discr = FALSE,
+  ...,
+  max = NULL
+)
 }
 \arguments{
 \item{hhmodel}{\code{HousepiModel} object.}
 
 \item{name}{\code{character(1)} name used by internal calls.}
+
+\item{status}{\code{integer(1)} with household member positive status.\cr
+It is used to specify status-specific definitions.
+If \code{NA}, associate the definition to all other infectious members (default).}
 
 \item{discr}{\code{logical(1)} to treat definition as discrete.\cr
 If applicable, the profile is discretized.\cr

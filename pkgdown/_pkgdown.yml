@@ -51,14 +51,14 @@ reference:
   - HousepiPosteriorDraws
   - ends_with("draws")
   
-- title: "Posterior expectations"
+- title: "Posterior predictions"
   desc: >
-    Posterior expectations.
+    Calls used to perform posterior predicitive checks.
   contents:
   - starts_with("measure_")
-  - starts_with("expec_")
-  - HousepiExpectation
-  - ExpectedCasesBySize
+  - starts_with("predicted_")
+  - HousepiPrediction
+  - PredictedCasesBySize
   - format_credible_intervals
 
 - title: "Expsoe internal functions"
@@ -90,9 +90,9 @@ articles:
     contents:
       - bayesian_mcmc_options
       - data_augmentation
-      - posterior_expected_measures
       - group_rates
       - infectivity_profile_and_custom_functions
+      - posterior_predictive_checks
       - sample_dataset
 
 # Navigation Bar

@@ -84,7 +84,8 @@ To move to discrete time we need to specify it at the moment of the model genera
 This model requires compilation as for all custom models.
 
 ```{r}
-hhdiscrete <- new_housepi_model("augmented infection time", discr = TRUE)
+hhdiscrete <- new_housepi_model("augmented infection time", discr = TRUE, 
+                                quiet = TRUE)
 defs <- get_infec_profile(hhdiscrete)
 defs
 ```

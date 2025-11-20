@@ -389,6 +389,7 @@ get_infec_profile <- function(hhmodel, ...) {
 #'
 #' @param hhmodel `r rd_model_in_`
 #' @param name `r rd_var_name_`
+#' @param status `r rd_aug_status_`
 #' @param discr `r rd_inf_discr_`
 #' @param ... `r rd_inf_args_`
 #' @param max `r rd_aug_max_`
@@ -397,11 +398,12 @@ get_infec_profile <- function(hhmodel, ...) {
 #'
 #' @export
 add_infec_profile <- function(hhmodel,
-                              name, discr = FALSE,
+                              name, status = NA_integer_,
+                              discr = FALSE,
                               ..., max = NULL) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
   hhmodel$clone(deep = TRUE)$add_infec_profile(
-    name = name, discr = discr, ..., max = max
+    name = name, status = status, discr = discr, ..., max = max
   )
 }
 
@@ -448,7 +450,7 @@ evaluate_log_lik <- function(hhmodel,
 #'
 #' @export
 infer <- function(hhmodel,
-                  steps = 5000, burnin = 0,
+                  steps = 1000, burnin = 0,
                   thin = 1, adapt = 0,
                   chains = 1, threads = 1,
                   id_draws = NULL, seed = NA_integer_, progress = TRUE) {

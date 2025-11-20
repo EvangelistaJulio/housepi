@@ -105,14 +105,14 @@ hhmodel <- new_housepi_model("augmented_example") |>
       model = "uniform",             # uniform within [0, exposure_max + 0.99]
       max = ~ exposure_max@D + 0.99, # min = 0 by default for uniform
       proposal = "normal",           # mcmc proposal is a normal distribution
-      proposal_scale = 0.25          # with std. deviation 0.25
+      proposal_scale = 0.5           # with std. deviation 0.5
     ),
     
     # add 'onset_time' time definition
     .onset_time = list(
-      value = ~ onset_max @ D + 0.99, model = "uniform",
+      value = ~ onset_max@D + 0.99, model = "uniform",
       min = ~ onset_min@D, max = ~ onset_max@D + 0.99,
-      proposal = "normal", proposal_scale = 0.25
+      proposal = "normal", proposal_scale = 0.5
     )
   ) |>
 
@@ -131,15 +131,21 @@ We can do so by providing the `id` of individuals whose augmented variables we w
 
 ```{r}
 #| fig.height: 3
+#| message: false
 #| warning: false
+library(ggplot2)
+
 results <- hhmodel |>
   add_data_wide(dataset) |>
-  infer(steps = 10000, burnin = 500, thin = 8, chains = 3, adapt = 3000,
+  infer(steps = 2000, thin = 5, chains = 3, adapt = 2000,
         id_draws = c("7", "13"), # store augmented draws of "7" and "13"
         progress = FALSE)
 
 # pot traces of parameter draws
-bayesplot::mcmc_trace(get_param_draws(results))
+bayesplot::mcmc_trace(get_param_draws(results)) +
+  geom_hline(data = data.frame(parameter = c("mean", "var"), 
+                               simulated = c(2.2, 2.5)),
+             aes(yintercept = simulated))
 ```
 ```{r}
 # plot traces of augmented draws

@@ -134,7 +134,7 @@ defs <- Map(list, prior = "normal", min = 0, proposal = proposal_list, proposal_
 
 new_housepi_model("blank") |>
   load_parameter_list(from = defs) |>
-  infer(steps = 5000) |>
+  infer() |>
   get_param_draws() |>
   bayesplot::mcmc_trace()
 ```
@@ -145,7 +145,7 @@ Note that the proposal "lognormal" does not fit the case of negative values.
 ```{r}
 new_housepi_model("blank") |>
   load_parameter_list(from = defs) |>
-  infer(steps = 5000, adapt = 1000) |>
+  infer(adapt = 1000) |>
   get_param_draws() |>
   bayesplot::mcmc_trace()
 ```

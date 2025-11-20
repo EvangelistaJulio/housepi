@@ -7,7 +7,7 @@ test_that("Default infectivity profile definitions are correct", {
   infec$add(name = "dummy", discr = FALSE, a = 1, b = 2, max = 10)
 
   expect_equal(infec$defs$name, "dummy|a:b|{1|N}:{2|N}")
-  expect_equal(infec$defs$status, NA)
+  expect_equal(infec$defs$status, NA_integer_)
   expect_equal(infec$defs$discr, FALSE)
   expect_equal(infec$defs$max, "10|N")
 })

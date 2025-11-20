@@ -26,9 +26,14 @@ bayesplot::color_scheme_set(scheme = "brightblue")
 
 # session info
 show_session_info <- function() {
-  knitr::asis_output(paste0(
-    paste0(cli::symbol$info, " Session info: "),
+  output <- paste0(
+    paste0(cli::symbol$warning,
+           " Here we used reduced iterations for demonstration."),
+    " Increase the number of steps in realistic use.",
+    "\n\n",
+    cli::symbol$info,
     paste0(utils::capture.output(sessionInfo())[1:3], collapse = ". "),
     "."
-  ))
+  )
+  knitr::asis_output(output)
 }

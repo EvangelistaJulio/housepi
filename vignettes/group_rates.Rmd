@@ -127,8 +127,7 @@ get_parameters(hhmodel)
 
 # perform inference
 results <- hhmodel |>
-  infer(steps = 6000, burnin = 2000, thin = 5, 
-        adapt = 1000, chains = 3, progress = 20)
+  infer(steps = 3000, thin = 5, adapt = 1000, chains = 3, progress = 10)
 
 bayesplot::mcmc_trace(get_param_draws(results))
 ```

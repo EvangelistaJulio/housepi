@@ -33,8 +33,8 @@ hhmodel <- new_housepi_model("chain_binomial") |>
 
 # estimate parameters
 results <- hhmodel |>
-  infer(steps = 20000, burnin = 1000, thin = 8,
-        adapt = 1000, chains = 3, threads = 1, progress = FALSE)
+  infer(steps = 3000, burnin = 1000, thin = 5,
+        adapt = 2000, chains = 3, threads = 1, progress = FALSE)
 estimates <- get_param_draws(results) |>
   posterior::summarise_draws()
 estimates

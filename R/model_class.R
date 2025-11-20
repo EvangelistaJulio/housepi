@@ -830,12 +830,14 @@ HousepiModel <- R6::R6Class(
     #' Add definition of infectivity profile.
     #'
     #' @param name `r rd_var_name_`
+    #' @param status `r rd_aug_status_`
     #' @param discr `r rd_inf_discr_`
     #' @param ... `r rd_inf_args_`
     #' @param max `r rd_aug_max_`
-    add_infec_profile = function(name, discr = FALSE,
+    add_infec_profile = function(name, status = NA_integer_, 
+                                 discr = FALSE,
                                  ..., max = NULL) {
-      private$.infec_profile$add(name = name, discr = discr,
+      private$.infec_profile$add(name = name, status = status, discr = discr,
                                  ..., max = max)
       invisible(self)
     },
@@ -872,7 +874,7 @@ HousepiModel <- R6::R6Class(
     #' @param id_draws `r rd_smpl_iddrw_`
     #' @param seed `r rd_seed_`
     #' @param progress `r rd_progress_`
-    infer = function(steps = 10000, burnin = 0,
+    infer = function(steps = 1000, burnin = 0,
                      thin = 1, adapt = 0,
                      chains = 1, threads = 1,
                      id_draws = NULL,

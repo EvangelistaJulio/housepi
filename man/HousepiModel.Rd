@@ -523,13 +523,23 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 \subsection{Method \code{add_infec_profile()}}{
 Add definition of infectivity profile.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_infec_profile(name, discr = FALSE, ..., max = NULL)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_infec_profile(
+  name,
+  status = NA_integer_,
+  discr = FALSE,
+  ...,
+  max = NULL
+)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
 \item{\code{name}}{\code{character(1)} name used by internal calls.}
+
+\item{\code{status}}{\code{integer(1)} with household member positive status.\cr
+It is used to specify status-specific definitions.
+If \code{NA}, associate the definition to all other infectious members (default).}
 
 \item{\code{discr}}{\code{logical(1)} to treat definition as discrete.\cr
 If applicable, the profile is discretized.\cr

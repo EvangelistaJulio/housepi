@@ -135,10 +135,10 @@ This will return an object wrapping [posterior](https://cran.r-project.org/web/p
 ```{r}
 # run the Monte Carlo specifying setup options
 results <- hhmodel |>
-  infer(steps = 20000,    # number of mcmc steps (per chain)
+  infer(steps = 3000,    # number of mcmc steps (per chain)
         burnin = 1000,    # steps to burn
-        thin = 8,         # delay between sampling steps
-        adapt = 1000,     # finite adaptation steps before sampling
+        thin = 5,         # delay between sampling steps
+        adapt = 2000,     # finite adaptation steps before sampling
         chains = 3,       # number of independent chains
         threads = 1,      # number of threads
         progress = FALSE) # disable progress bar
@@ -256,8 +256,7 @@ hhmodel <- hhsimul |>
 
 results <- hhmodel |>
   add_data_wide(simulated) |>
-  infer(chains = 3, steps = 10000, adapt = 2000,
-        burnin = 1000, thin = 10, progress = 20)
+  infer(chains = 3, steps = 3000, adapt = 1000, thin = 5, progress = 10)
 ```
 We can visualize traces vs expected values as follows
 
