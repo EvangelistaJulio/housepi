@@ -6,14 +6,21 @@
  *    /_/ /_/\____/\____/____/\___/ ____/_/
  *                               /_/
  *
- * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
+ * housepi - Epidemiological Analysis of Household Outbreaks.
+ * 
+ * Author: Francesco Camaglia
+ * Copyright © 2025 Institut Pasteur (Paris), CNRS and INSERM.
+ * See the COPYRIGHT file for details.
+ * 
+ * Distributed under the terms of the GNU General Public License (GPLv3).
+ * See the COPYING file for details.
  *
- * tools/error.h
+ * tools/messages.h
  *
  */
 
-#ifndef HOUSEPI__TOOLS__ERROR__H
-#define HOUSEPI__TOOLS__ERROR__H
+#ifndef HOUSEPI__TOOLS__MESSAGES__H
+#define HOUSEPI__TOOLS__MESSAGES__H
 
 #include <string>
 
@@ -30,4 +37,4 @@ namespace hsp
     }
 }
 
-#endif // HOUSEPI__TOOLS__ERROR__H
+#endif // HOUSEPI__TOOLS__MESSAGES__H

@@ -1,11 +1,19 @@
-#      __
-#     / /_  ____  __  __ ____ __  ____  __
-#    / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
-#   / / / / /_/ / /_/ (__  )  __/ /_/ / /
-#  /_/ /_/\____/\____/____/\___/ ____/_/
-#                             /_/
 #
-# Copyright (C) 2025 CAMAGLIA Francesco - Institut Pasteur, Paris (France).
+#        __
+#       / /_  ____  __  __ ____ __  ____  __
+#      / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
+#     / / / / /_/ / /_/ (__  )  __/ /_/ / /
+#    /_/ /_/\____/\____/____/\___/ ____/_/
+#                               /_/
+#
+# housepi - Epidemiological Analysis of Household Outbreaks.
+#
+# Author: Francesco Camaglia
+# Copyright © 2025 Institut Pasteur (Paris), CNRS and INSERM.
+# See the COPYRIGHT file for details.
+#
+# Distributed under the terms of the GNU General Public License (GPLv3).
+# See the COPYING file for details.
 #
 # expose_internal.R
 #

@@ -6,7 +6,14 @@
  *    /_/ /_/\____/\____/____/\___/ ____/_/
  *                               /_/
  *
- * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
+ * housepi - Epidemiological Analysis of Household Outbreaks.
+ * 
+ * Author: Francesco Camaglia
+ * Copyright © 2025 Institut Pasteur (Paris), CNRS and INSERM.
+ * See the COPYRIGHT file for details.
+ * 
+ * Distributed under the terms of the GNU General Public License (GPLv3).
+ * See the COPYING file for details.
  *
  * export_bindings.cpp
  *
@@ -16,7 +23,7 @@
 
 #include "tools/flags.h"
 #include "tools/na_utils.h"
-#include "tools/error.h"
+#include "tools/messages.h"
 #include "tools/read.h"
 #include "tools/params.h"
 #include "function.h"

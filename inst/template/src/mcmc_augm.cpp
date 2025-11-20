@@ -6,7 +6,14 @@
  *    /_/ /_/\____/\____/____/\___/ ____/_/
  *                               /_/
  *
- * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
+ * housepi - Epidemiological Analysis of Household Outbreaks.
+ * 
+ * Author: Francesco Camaglia
+ * Copyright © 2025 Institut Pasteur (Paris), CNRS and INSERM.
+ * See the COPYRIGHT file for details.
+ * 
+ * Distributed under the terms of the GNU General Public License (GPLv3).
+ * See the COPYING file for details.
  *
  * mcmc_augm.cpp
  *
@@ -14,7 +21,7 @@
 
 #include "tools/string.h"
 #include "tools/read.h"
-#include "tools/error.h"
+#include "tools/messages.h"
 #include "tools/status.h"
 #include "tools/params.h"
 #include "tools/sources.h"
@@ -355,7 +362,7 @@ void MCMC::Impl::InfecProfile::transfer_augm_definitions(u_dict<str_vec> &augm_d
         augm_deftable.at(pair.first) += pair.second;
 
     if (is_discrete_requested_)
-        for (const std::string &a : {hsp::infprof::INSTANTANEOUS, hsp::infprof::CUMULATIVE})
+        for (const std::string a : {hsp::infprof::INSTANTANEOUS, hsp::infprof::CUMULATIVE})
             pImpl_.augm.user_list_discrete.emplace_back(a);
 }
 
@@ -648,7 +655,7 @@ void MCMC::Impl::Augmented::set_definition_dependency_order_for_(const std::stri
     for (size_t k : get_unsorted_definition_rows_by_(s))
     {
         str_vec xdepen = {};
-        for (const std::string &c : str_vec({"value", "model", "func", hsp::params::MIN, hsp::params::MAX}))
+        for (const std::string c : {"value", "model", "func", hsp::params::MIN, hsp::params::MAX})
             xdepen += hsp::parse::Definition(deftable_[c][k]).list_augmented_depen();
         tree[deftable_["name"][k]] = hsp::str::unique(xdepen);
         name_to_row[deftable_["name"][k]] = k;
@@ -789,7 +796,7 @@ void MCMC::Impl::Augmented::helper_build_model_status_maps_()
         {
             const std::string &a = deftable_["name"][k];
             str_vec xdepen = {};
-            for (const std::string &c : str_vec({"value", "model", "func", hsp::params::MIN, hsp::params::MAX}))
+            for (const std::string c : {"value", "model", "func", hsp::params::MIN, hsp::params::MAX})
                 xdepen += hsp::parse::Definition(deftable_[c][k]).list_augmented_depen();
 
             if (hsp::na::is(deftable_["model"][k]))
@@ -949,7 +956,7 @@ void MCMC::Impl::Augmented::init_model_attributes_(Individual &member, size_t k)
     for (const auto &child : hsp::parse::Definition(deftable_["model"][k]).root.children)
         xaugm.init_distr_attr(child.key, pImpl_.read_attribute_(child, member));
 
-    for (const std::string &key : {hsp::params::MIN, hsp::params::MAX})
+    for (const std::string key : {hsp::params::MIN, hsp::params::MAX})
         xaugm.init_distr_attr(key, pImpl_.read_attribute_(deftable_[key][k], member));
 
     xaugm.init_distr_reshaping(hsp::str::tobool(deftable_["discr"][k]));
@@ -968,7 +975,7 @@ void MCMC::Impl::Augmented::init_func_attributes_(Individual &member, size_t k)
     }
 
     // initialize range
-    for (const std::string &key : {hsp::params::MIN, hsp::params::MAX})
+    for (const std::string key : {hsp::params::MIN, hsp::params::MAX})
         xaugm.init_func_attr(key, pImpl_.read_attribute_(deftable_[key][k], member));
 
     // initialize discretization and truncation
