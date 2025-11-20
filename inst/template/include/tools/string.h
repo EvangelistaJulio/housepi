@@ -17,7 +17,7 @@
 
 #include <string>
 #include <vector>
-#include <stdint.h>
+#include <cstdint>
 
 #include "tools/types.h"
 #include "tools/na_utils.h"
