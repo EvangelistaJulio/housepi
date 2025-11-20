@@ -36,21 +36,22 @@
 # @param pkgname `character(1)`\cr
 # Name of the package.
 compile_template_library <- function(pkgname) {
-  # compile the core
-  withr::with_envvar(
-    get_cpp_environment_flags(),
-    pkgbuild::compile_dll(system.file("template", package = pkgname),
-                          quiet = FALSE, debug = FALSE)
-  )
+  # UPDATE: this should be droppable
+  # # compile the core
+  # withr::with_envvar(
+  #   get_cpp_environment_flags(),
+  #   pkgbuild::compile_dll(system.file("template", package = pkgname),
+  #                         quiet = FALSE, debug = FALSE)
+  # )
 
-  # compile each template model
-  for (m in list.files(template_models_dir(), full.names = TRUE)) {
-    dll <- template_dll_file(m)
-    if (isFALSE(file.exists(dll)) || untracked_changes(m, dll)) {
-      msg <- paste0("COMPILING ", toupper(spaced_template_choice(basename(m))))
-      cat("\n")
-      cli::cat_rule(msg, col = "cyan")
-      HousepiGenerator$new(m, as_template = TRUE, quiet = FALSE)
-    }
-  }
+  # # compile each template model
+  # for (m in list.files(template_models_dir(), full.names = TRUE)) {
+  #   dll <- template_dll_file(m)
+  #   if (isFALSE(file.exists(dll)) || untracked_changes(m, dll)) {
+  #     msg <- paste0("COMPILING ", toupper(spaced_template_choice(basename(m))))
+  #     cat("\n")
+  #     cli::cat_rule(msg, col = "cyan")
+  #     HousepiGenerator$new(m, as_template = TRUE, quiet = FALSE)
+  #   }
+  # }
 }

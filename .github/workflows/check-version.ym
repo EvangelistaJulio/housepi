@@ -21,4 +21,4 @@ jobs:
           fetch-depth: 0
 
       - name: Check version format and availability
-        run: ./tools/check_version
+        run: ./inst/actions/check_version

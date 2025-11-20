@@ -267,7 +267,7 @@ get_cpp_environment_flags <- function(paths = NULL,
                                       flags = NULL,
                                       linkers = NULL) {
   # path to headers
-  template_path <- system.file("template/include", package = "housepi")
+  template_path <- system.file("include", package = "housepi")
   include_paths <- paste0("-I", c(template_path, paths), collapse = " ")
   include_flags <- paste0("-D", c("_HOUSEPI_RCPP", flags), collapse = " ")
   include_linkers <- paste0(linkers, collapse = " ")

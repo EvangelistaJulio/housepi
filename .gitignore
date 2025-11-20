@@ -8,7 +8,6 @@
 *.so
 *.tmp
 *.nfs*
-**/Makevars
 
 # Packages #
 ############
@@ -50,7 +49,6 @@ Thumbs.db
 *.RData
 *.Rproj
 *.Rproj.user/
-*.Rbuildignore
 *.Rproj.user/**
 *.Rout
 *.Rout.save
@@ -74,4 +72,5 @@ Thumbs.db
 .source
 /man/_hhmodel_*
 /inst/standalone/*.csv
-
+/inst/template/src
+/inst/template/include

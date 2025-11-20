@@ -1,6 +1,6 @@
 # Standalone Makefile
 
-SRC := ../template/src
+SRC := ../../src
 TMPL := ../models
 
 # If MODEL is not provided, set blank as default
@@ -21,7 +21,7 @@ OBJECTS := $(SOURCES:.cpp=.o)
 EXECUTABLE := $(MODEL)/model.exe
 
 # compilation flags
-CXXFLAGS := -Wall -Wextra -std=gnu++14 -I../template/include/
+CXXFLAGS := -Wall -Wextra -std=gnu++14 -I../../include/
 
 ifdef DEBUG
 CXXFLAGS += -g -O1 -Wno-unknown-pragmas -Werror -Wuninitialized

@@ -1,0 +1,16 @@
+
+^README\.Rmd$
+^.*\.Rproj$
+^\.Rproj\.user$
+^inst/src/*/.*\\.o$
+^inst/src/*/.*\\.so$
+^inst/src/*/.*\\.dll$
+^inst/models/*/.*\\.o$
+^inst/models/*/.*\\.so$
+^inst/models/*/.*\\.dll$
+^\.github$
+^docs$
+^pkgdown$
+^inst/--developer$
+^inst/--datasets$
+^inst/actions$
