@@ -15,7 +15,6 @@ Imports:
     BH,
     cli,
     dplyr,
-    methods,
     pkgbuild,
     posterior,
     R6,

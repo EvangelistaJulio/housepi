@@ -17,6 +17,9 @@
 # zzz.R
 #
 
+#' @useDynLib housepi, .registration = TRUE
+NULL
+
 #' housepi
 #'
 #' Household Epidemiological Modeling and Inference Rcpp Toolkit
