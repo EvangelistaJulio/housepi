@@ -144,10 +144,12 @@ find_closest_match <- function(input, options, min_dist = 1) {
 overwrite <- function(from, to, ...) {
   if (from != to) {
     # user permission error (tipically)
-    if (!file.copy(from, to, overwrite = TRUE, ...)) stop_h(
-      "Failed to setup necessary files.",
-      "Check your user permissions."
-    )
+    if (!file.copy(from, to, overwrite = TRUE, ...)) {
+      print(from) # FLAG
+      print(to)
+      stop_h("Failed to setup necessary files.",
+             "Check your user permissions.")
+    }
   }
 }
 
@@ -235,14 +237,18 @@ untracked_changes <- function(source_dir, dll) {
 
 # Optional helper files
 helper_files <- function(path) {
-  helper_names <- paste0("template_",
-                         c("param.R", "info.Rd", "augm.R"))
+  helper_names <- paste0("template_", c("augm.R", "param.R", "info.Rd"))
   file.path(path, helper_names)
 }
 
 # Associate dynamic library extension to name
-dll_file_ext <- function(name = "") {
-  return(paste0(name, .Platform$dynlib.ext))
+dll_file_ext <- function(name) {
+  paste0(name, .Platform$dynlib.ext)
+}
+
+# Get dynamic library of blank model.
+blank_model_dll_file <- function() {
+  file.path(system.file("libs", package = "housepi"), dll_file_ext("housepi"))
 }
 
 # Templated name convention
@@ -267,7 +273,7 @@ get_cpp_environment_flags <- function(paths = NULL,
                                       flags = NULL,
                                       linkers = NULL) {
   # path to headers
-  template_path <- system.file("include", package = "housepi")
+  template_path <- system.file("template/include", package = "housepi")
   include_paths <- paste0("-I", c(template_path, paths), collapse = " ")
   include_flags <- paste0("-D", c("_HOUSEPI_RCPP", flags), collapse = " ")
   include_linkers <- paste0(linkers, collapse = " ")
@@ -365,8 +371,7 @@ cpp_data_factorize <- function(df) {
       cls <- ifelse(is.character(x), "character",
                     ifelse(is.logical(x), "logical", "factor"))
       y <- factor(x, levels = unique(x), exclude = NULL)
-      info[[col]] <- list(class = cls,
-                          levels = levels(y))
+      info[[col]] <- list(class = cls, levels = levels(y))
       df[[col]] <- as.integer(y)
     }
   }

@@ -2,18 +2,22 @@
 \title{Augmented Example}
 \name{housepi template : Augmented Example}
 \description{
-MISSING DESCRIPTION
+MISSING.
+\if{html}{\out{<hr>}}
+}
+\section{Augmented}{
+\itemize{
+\item \code{proba} : the probability associated to each infectious individual.
+}
+\if{html}{\out{<hr>}}
+}
+\section{Parameters}{
+This model template comes with no required parameter.
 \if{html}{\out{<hr>}}
 }
 \section{Likelihood}{
 \itemize{
-\item Incubation period: \eqn{{\tau}_{i}\sim {\rm Gamma}[{\theta},{k}]}{tau_i ~ Gamma[theta, k]}
-}
-\if{html}{\out{<hr>}}
-}
-\section{Augmented Variables}{
-\itemize{
-\item \code{proba} : 
+\item MISSING.
 }
 \if{html}{\out{<hr>}}
 }

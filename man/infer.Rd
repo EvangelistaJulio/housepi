@@ -6,7 +6,7 @@
 \usage{
 infer(
   hhmodel,
-  steps = 5000,
+  steps = 1000,
   burnin = 0,
   thin = 1,
   adapt = 0,

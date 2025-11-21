@@ -589,7 +589,7 @@ If \code{NA} uses current R seed (default).}
 Run inference with Bayesian Markov Chain Monte Carlo.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$infer(
-  steps = 10000,
+  steps = 1000,
   burnin = 0,
   thin = 1,
   adapt = 0,

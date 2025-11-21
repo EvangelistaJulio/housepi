@@ -41,10 +41,10 @@ RCPP_MODULE(housepi_flags)
 
 // macro to define Rcpp wrapper classes to export to R
 #define MAKE_HOUSEPI_RCPP_WRAPPER(Wrapper, family, set_eval, pdf_call, cdf_call, ...)          \
-    class Wrapper##Housepi                                                                     \
+    class HousepiRcpp##Wrapper                                                                \
     {                                                                                          \
     public:                                                                                    \
-        Wrapper##Housepi(std::string name_, SEXP args_, double min, double max, bool is_discr) \
+        HousepiRcpp##Wrapper(std::string name_, SEXP args_, double min, double max, bool is_discr) \
         {                                                                                      \
             try                                                                                \
             {                                                                                  \
@@ -79,7 +79,7 @@ RCPP_MODULE(housepi_flags)
                     "While initializing " family " '" + name_ + "':\n" + e.what());            \
             }                                                                                  \
         }                                                                                      \
-        ~Wrapper##Housepi() = default;                                                         \
+        ~HousepiRcpp##Wrapper() = default;                                                         \
         Rcpp::NumericVector pdf_call(Rcpp::NumericVector x) const                              \
         {                                                                                      \
             ptr_->set_eval##_call();                                                           \
@@ -112,8 +112,8 @@ RCPP_MODULE(housepi_flags)
         }                                                                                      \
     };
 
-//' @name FunctionHousepi
-//' @title Function from Housepi
+//' @name HousepiRcppFunction
+//' @title Rcpp Function from Housepi
 //' @description Call housepi registered function.
 //' @field initialize\cr \itemize{
 //'   \item Parameter: name `character(1)` with function name.
@@ -130,6 +130,7 @@ RCPP_MODULE(housepi_flags)
 //'   \item Parameter: x `numeric()`\cr Input vector.
 //' }
 //' @return `numeric()`
+//' @keywords internal
 RCPP_MODULE(housepi_function)
 {
     MAKE_HOUSEPI_RCPP_WRAPPER(Function, "function",
@@ -138,14 +139,14 @@ RCPP_MODULE(housepi_function)
                               &TranscendentalRegistry::inst(),
                               &ArithmeticRegistry::inst());
 
-    Rcpp::class_<FunctionHousepi>("FunctionHousepi")
+    Rcpp::class_<HousepiRcppFunction>("HousepiRcppFunction")
         .constructor<std::string, SEXP, double, double, bool>()
-        .method("func", &FunctionHousepi::func)
-        .method("prim", &FunctionHousepi::prim);
+        .method("func", &HousepiRcppFunction::func)
+        .method("prim", &HousepiRcppFunction::prim);
 }
 
-//' @name DistributionHousepi
-//' @title Distribution from Housepi
+//' @name HousepiRcppDistribution
+//' @title Rcpp Distribution from Housepi
 //' @description Call housepi registered distribution.
 //' @field initialize\cr \itemize{
 //'   \item Parameter: name `character(1)`\cr Name of the distribution.
@@ -162,6 +163,7 @@ RCPP_MODULE(housepi_function)
 //'   \item Parameter: x `numeric()`\cr Input vector.
 //' }
 //' @return `numeric()`
+//' @keywords internal
 RCPP_MODULE(housepi_distribution)
 {
     MAKE_HOUSEPI_RCPP_WRAPPER(Distribution, "distribution",
@@ -169,14 +171,14 @@ RCPP_MODULE(housepi_distribution)
                               &ContinuosDistrRegistry::inst(),
                               &DiscreteDistrRegistry::inst());
 
-    Rcpp::class_<DistributionHousepi>("DistributionHousepi")
+    Rcpp::class_<HousepiRcppDistribution>("HousepiRcppDistribution")
         .constructor<std::string, SEXP, double, double, bool>()
-        .method("pdf", &DistributionHousepi::pdf)
-        .method("cdf", &DistributionHousepi::cdf);
+        .method("pdf", &HousepiRcppDistribution::pdf)
+        .method("cdf", &HousepiRcppDistribution::cdf);
 }
 
-//' @name InfecProfileHousepi
-//' @title Infectivity Profile from Housepi
+//' @name HousepiRcppInfecProfile
+//' @title Rcpp Infectivity Profile from Housepi
 //' @description Call housepi registered infectivity profile.
 //' @field initialize\cr \itemize{
 //'   \item Parameter: name `character(1)`\cr Name of the profile.
@@ -193,6 +195,7 @@ RCPP_MODULE(housepi_distribution)
 //'   \item Parameter: x `numeric()`\cr Input vector.
 //' }
 //' @return `numeric()`
+//' @keywords internal
 RCPP_MODULE(housepi_infec_profile)
 {
     MAKE_HOUSEPI_RCPP_WRAPPER(InfecProfile, "infectivity profile",
@@ -201,10 +204,10 @@ RCPP_MODULE(housepi_infec_profile)
                               &ContinuosDistrRegistry::inst(),
                               &DiscreteDistrRegistry::inst());
 
-    Rcpp::class_<InfecProfileHousepi>("InfecProfileHousepi")
+    Rcpp::class_<HousepiRcppInfecProfile>("HousepiRcppInfecProfile")
         .constructor<std::string, SEXP, double, double, bool>()
-        .method("pdf", &InfecProfileHousepi::pdf)
-        .method("cdf", &InfecProfileHousepi::cdf);
+        .method("pdf", &HousepiRcppInfecProfile::pdf)
+        .method("cdf", &HousepiRcppInfecProfile::cdf);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1150,8 +1153,8 @@ Rcpp::List MCMC::log_evidence(const std::string &scheme, unsigned long n_rungs)
     }
 }
 
-//' @name ModelHousepi
-//' @title Internal housepi model
+//' @name HousepiRcppModel
+//' @title Internal housepi Rcpp model
 //' @description Perform inference and simulation from the model.
 //' @field infer\cr Perform MCMC inference of the model parameters. \itemize{
 //'   \item Parameter: output_file - The file path where the output will be saved
@@ -1187,10 +1190,10 @@ Rcpp::List MCMC::log_evidence(const std::string &scheme, unsigned long n_rungs)
 //' @field export_draws\cr Return a NumericMatrix with MCMC draws.
 //' @field export_house_log_lik_draws\cr Return a NumericMatrix with household log-likelihood draws.
 //' @field export_house_snapshot\cr Return a List with a snapshot containing full household and model details.
-
+//' @keywords internal
 RCPP_MODULE(housepi_model_core)
 {
-    Rcpp::class_<MCMC>("McmcHousepi")
+    Rcpp::class_<MCMC>("HousepiRcppMcmc")
         .constructor()
         .method("init_advanced_setup", &MCMC::init_advanced_setup)
         .method("clear_memory", &MCMC::clear_memory)
@@ -1228,7 +1231,7 @@ RCPP_MODULE(housepi_model_core)
         .method("export_house_log_lik_draws", &MCMC::export_house_log_lik_draws)
         .method("export_house_snapshot", &MCMC::export_house_snapshot);
 
-    Rcpp::class_<Model>("ModelHousepi")
+    Rcpp::class_<Model>("HousepiRcppModel")
         .constructor()
-        .derives<MCMC>("McmcHousepi");
+        .derives<MCMC>("HousepiRcppMcmc");
 }

@@ -55,6 +55,7 @@ Thumbs.db
 *.Rcheck/
 *.Rcheck/**
 *RcppExports.cpp
+*RcppExports.R
 .Rproj.user
 /doc/
 /docs/
@@ -72,5 +73,5 @@ Thumbs.db
 .source
 /man/_hhmodel_*
 /inst/standalone/*.csv
-/inst/template/src
-/inst/template/include
+/inst/template/src/
+/inst/template/include/

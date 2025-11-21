@@ -6,6 +6,17 @@ MISSING DESCRIPTION.
 Missing data and asymptomatic status are not modeled.
 \if{html}{\out{<hr>}}
 }
+\section{Parameters}{
+\itemize{
+\item \code{alpha} : community transmission rate;
+\item \code{beta} : person to person transmission rate;
+\item \code{sus_woman} : susceptibility of women;
+\item \code{sus_child} : susceptibility of children;
+\item \code{inf_child} : infectivity of children;
+\item \code{child_age} (c) : children/adult age threshold.
+}
+\if{html}{\out{<hr>}}
+}
 \section{Likelihood}{
 \itemize{
 \item Hazard of infection:
@@ -25,17 +36,6 @@ lambda_ki(t) = mu_sus_i * beta * mu_inf_k
         \strong{adult} |\tab \emph{reference}     |\tab \code{sus_woman} \cr
         \strong{child} |\tab \code{sus_child}     |\tab \code{sus_child} 
 }
-}
-\if{html}{\out{<hr>}}
-}
-\section{Parameters}{
-\itemize{
-\item \code{alpha} : community transmission rate;
-\item \code{beta} : person to person transmission rate;
-\item \code{sus_woman} : susceptibility of women;
-\item \code{sus_child} : susceptibility of children;
-\item \code{inf_child} : infectivity of children;
-\item \code{child_age} (c) : children/adult age threshold.
 }
 \if{html}{\out{<hr>}}
 }

@@ -1,4 +1,4 @@
-## Custom script to build site
+## Custom script to build website
 ##
 
 ## locate template Rd files

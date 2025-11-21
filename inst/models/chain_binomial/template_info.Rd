@@ -11,17 +11,17 @@ The likelihood is the sum of the probability of each chain.
 Missing data and asymptomatic status are not modeled.
 \if{html}{\out{<hr>}}
 }
-\section{Likelihood}{
-\itemize{
-\item Community transmission probability: \eqn{1 - \exp(-{\alpha})}{1 - exp(-alpha)}
-\item Person-to-person transmission probability: \eqn{1 - \exp(-{\beta})}{1 - exp(-beta)}
-}
-\if{html}{\out{<hr>}}
-}
 \section{Parameters}{
 \itemize{
 \item \code{alpha} : community transmission rate;
 \item \code{beta} : person to person transmission rate.
+}
+\if{html}{\out{<hr>}}
+}
+\section{Likelihood}{
+\itemize{
+\item Community transmission probability: \eqn{1 - \exp(-{\alpha})}{1 - exp(-alpha)}
+\item Person-to-person transmission probability: \eqn{1 - \exp(-{\beta})}{1 - exp(-beta)}
 }
 \if{html}{\out{<hr>}}
 }

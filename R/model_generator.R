@@ -238,10 +238,9 @@ HousepiGenerator <- R6::R6Class(
     # @description
     # Initialize to "blank" model.
     .initialize_blank_model = function() {
-      private$.dll <- file.path(system.file(package = "housepi"),
-                                "template", "src",
-                                dll_file_ext("housepienvironment"))
-      private$.store_source_and_filter_flags(dirname(private$.dll))
+      private$.dll <- blank_model_dll_file()
+      private$.last_user_flags <- character()
+      private$.source_dir <- system.file("template/src", package = "housepi")
       invisible(self)
     },
 
@@ -357,7 +356,7 @@ HousepiGenerator <- R6::R6Class(
     .search_for_cached_dll = function() {
       # look for dynamic library name
       cache_dll_files <- list.files(private$.cache_dir,
-                                    pattern = dll_file_ext(),
+                                    pattern = .Platform$dynlib.ext,
                                     full.names = TRUE)
       # NOTE: multiple dlls are treated as an error
       if (length(cache_dll_files) == 1) {
@@ -397,6 +396,13 @@ HousepiGenerator <- R6::R6Class(
         overwrite(f, file.path(private$.cache_dir, "src", basename(f)))
       }
 
+      # copy blank dll file to final location
+      # FLAG
+      #overwrite(
+      #  blank_model_dll_file(),
+      #  file.path(private$.cache_dir, "src", dll_file_ext("housepienvironment"))
+      #)
+
       # copy helper files in the output directory
       for (f in helper_files(private$.source_dir)) {
         if (file.exists(f)) {
@@ -420,14 +426,14 @@ HousepiGenerator <- R6::R6Class(
       # drop previous Rcpp model object
       private$.rcpp <- NULL
 
-      # source folder within cache directory
+      # source folder in cache directory
       cache_dir_src <- file.path(private$.cache_dir, "src")
       # remove object file
       unlink(file.path(cache_dir_src, "model.o"))
 
       # touch installation files
       touch_time <- Sys.time()
-      for (f in list.files(file.path(cache_dir_src), full.names = TRUE)) {
+      for (f in list.files(cache_dir_src, full.names = TRUE)) {
         Sys.setFileTime(f, touch_time)
       }
       # touch as source model file was more recent
@@ -445,6 +451,7 @@ HousepiGenerator <- R6::R6Class(
                                   linkers = user_linkers),
         pkgbuild::compile_dll(private$.cache_dir,
                               quiet = private$.quiet,
+                              compile_attributes = FALSE,
                               debug = FALSE)
       )
       private$.need_compile <- FALSE
