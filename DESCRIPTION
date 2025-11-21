@@ -12,8 +12,10 @@ URL: https://mmmi-pasteur.gitlab.io/housepi
 License: GPL (>= 3)
 Encoding: UTF-8
 Imports:
+    BH,
     cli,
     dplyr,
+    methods,
     pkgbuild,
     posterior,
     R6,
