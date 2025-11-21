@@ -10,10 +10,9 @@
 #
 # Author: Francesco Camaglia
 # Copyright © 2025 Institut Pasteur (Paris), CNRS and INSERM.
-# See the COPYRIGHT file for details.
 #
 # Distributed under the terms of the GNU General Public License (GPLv3).
-# See the COPYING file for details.
+# See the LICENSE file for details.
 #
 # group_rates.R
 #
@@ -200,7 +199,7 @@ tidyup_group_rate_tables <- function(all_tables) {
 #'
 #' @keywords internal
 #' @noRd
-HousepiGroupRate <- R6::R6Class(
+HousepiGroupRate <- R6Class(
   classname = "HousepiGroupRate",
   cloneable = TRUE,
 

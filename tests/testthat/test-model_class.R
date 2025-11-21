@@ -8,7 +8,7 @@ test_that("Model class inconsistent calls", {
   hhmodel <- new_housepi_model("blank")
 
   # inference without definitions
-  expect_error(hhmodel$infer(), regexp = "Nothing to sample")
+  expect_error(hhmodel$run_inference(), regexp = "Nothing to sample")
 })
 
 test_that("Model class blank calls", {
@@ -42,7 +42,7 @@ test_that("Model class blank calls", {
   # blank simulation
   hhmodel <- new_housepi_model("blank")
   hhmodel$add_augmented(name = "dummy", value = 3)
-  expect_warning(out <- hhmodel$simulate(), regexp = "blank")
+  expect_warning(out <- hhmodel$run_simulation(), regexp = "blank")
   expect_true(
     all(sapply(out$dummy[out$status == 0], function(x) identical(x, NA_real_)))
   )
@@ -53,15 +53,15 @@ test_that("Discretization is enabled as expected", {
   hhmodel <- new_housepi_model("blank")
   hhmodel$load_parameter_list(
     sample = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE),
-    uniform = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE, 
+    uniform = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE,
                    proposal = "uniform"),
-    normal = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE, 
+    normal = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE,
                   proposal = "normal"),
-    lognormal = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE, 
+    lognormal = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE,
                      proposal = "lognormal")
   )
 
-  y <- posterior::as_draws_matrix(get_param_draws(hhmodel$infer()))
+  y <- posterior::as_draws_matrix(get_param_draws(hhmodel$run_inference()))
   expect_true(all(y == floor(y)))
 })
 
@@ -144,7 +144,7 @@ test_that("Missing function arguments raise errors", {
 
   # check that log(NaN) = NaN
   hhmodel$load_augmented_list(proba = ~log(test@D))
-  expect_error(hhmodel$infer(), regexp = "Nothing to sample")
+  expect_error(hhmodel$run_inference(), regexp = "Nothing to sample")
   expect_error(hhmodel$evaluate_log_lik(),
                regexp = "Impossible to return value")
 })
@@ -209,7 +209,7 @@ test_that("Augmented aliasing works as expected", {
       hour = list(model = "uniform", min = ~ day, max = ~ day + 1),
       day = list(model = "gamma", shape = 2, scale = 1)
     )
-  simulated <- simulate(hhmodel)
+  simulated <- run_simulation(hhmodel)
   expect_true(all(simulated$day <= simulated$hour &
                     simulated$hour <= simulated$day + 1))
 })
@@ -245,7 +245,7 @@ test_that("Nested definittions works as expected", {
     z0 = ~sqrt(- 2 * log(u1)) * cos(6.283185 * u2)
   )
 
-  results <- hhmodel$infer(steps = 1e5, progress = 0)
+  results <- hhmodel$run_inference(steps = 1e5, progress = 0)
   sample_norm <- results$augm_draws$hh_01_1_norm
   sample_boxmul <- results$augm_draws$hh_01_1_z0
 

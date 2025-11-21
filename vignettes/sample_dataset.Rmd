@@ -100,4 +100,6 @@ hhsampler |>
 ```
 
 ---
-`r show_session_info()`
+```{r, results='asis', echo=FALSE}
+show_session_info()
+```

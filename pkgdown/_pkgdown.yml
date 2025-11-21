@@ -3,6 +3,7 @@ template:
   light-switch: true  
   theme: breeze-light
   theme-dark: breeze-dark
+  math-rendering: katex
 
 destination: docs
 
@@ -28,11 +29,9 @@ reference:
     - HousepiModel
     - new_housepi_model
     - template_household_model
-    - summarise_cases
-    - summarise_house_sizes
+    - starts_with("summarise_")
     - evaluate_log_lik
-    - infer
-    - simulate.HousepiModel
+    - starts_with("run_")
 
 - title: "Model definitions"
   desc: >
@@ -61,7 +60,7 @@ reference:
   - PredictedCasesBySize
   - format_credible_intervals
 
-- title: "Expsoe internal functions"
+- title: "Expose internal functions"
   desc: >
     Expose internal Rcpp functions, distributions and infectivity profiles.
   contents:
@@ -115,11 +114,11 @@ navbar:
       text: "Templates"
       href: ~
       menu:
-        - text: "Chain binomial"
+        - text: "Chain Binomial"
           href: reference/_hhmodel_chain_binomial.html
-        - text: "Heterogeneous chain binomial"
+        - text: "Chain Binomial Heterogeneous"
           href: reference/_hhmodel_chain_binomial_heterogeneous.html
-        - text: "Augmented example"
-          href: reference/_hhmodel_augm_examples.html
-        - text: "Augmented infection times"
-          href: reference/_hhmodel_augm_infection_time.html
+        - text: "Augmented Example"
+          href: reference/_hhmodel_augmented_example.html
+        - text: "Augmented Infection Time"
+          href: reference/_hhmodel_augmented_infection_time.html

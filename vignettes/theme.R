@@ -25,15 +25,34 @@ bayesplot::bayesplot_theme_set(ggplot2::theme_get())
 bayesplot::color_scheme_set(scheme = "brightblue")
 
 # session info
-show_session_info <- function() {
+show_session_info <- function(sampling = TRUE) {
+  output <- ""
+
+  if (sampling) output <- paste0(
+    cli::symbol$warning,
+    " The number of steps were reduced for demonstration.",
+    " Increase them in realistic applications.<br>"
+  )
+
   output <- paste0(
-    paste0(cli::symbol$warning,
-           " Here we used reduced iterations for demonstration."),
-    " Increase the number of steps in realistic use.",
-    "\n\n",
+    output,
     cli::symbol$info,
     paste0(utils::capture.output(sessionInfo())[1:3], collapse = ". "),
     "."
   )
-  knitr::asis_output(output)
+
+  cat(sprintf(
+"<div style='
+  border:1px solid #ccc;
+  padding:0.6em 1em;
+  border-radius:6px;
+  background:#f9f9f9;
+  font-size:0.85em;
+  color:#444;
+  text-align:left;
+'>
+%s
+</div>",
+    output
+  ))
 }

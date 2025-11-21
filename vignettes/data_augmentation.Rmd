@@ -64,8 +64,8 @@ Instead we consider a simulated report documenting the days when a number of cas
 # use an example script for generate delays
 source("generate_delays.R")
 # generate delays according to a gamma distribution
-dataset <- generate_delays_report(223, mean = 2.2, var = 2.5, report_error = 0.73)
-
+dataset <- generate_delays_report(223, mean = 2.2, var = 2.5,
+                                  report_error = 0.73)
 head(dataset)
 ```
 Note that here the data has no demographic structure: we are implicitly assuming that all individuals live in distinct households.
@@ -127,19 +127,23 @@ hhmodel <- new_housepi_model("augmented_example") |>
 
 We could run the inference and extract the results as usual.
 However, sometimes we might be interested in extracting also  to check if augmented variables evolve as expected.
-We can do so by providing the `id` of individuals whose augmented variables we want to store through the argument `id_draws` of `infer()`.
+We can do so by providing the `id` of individuals whose augmented variables we want to store through the argument `id_draws` of `run_inference()`.
 
 ```{r}
 #| fig.height: 3
 #| message: false
 #| warning: false
+#| fig.alt: >
+#|  Trace plots for mean and variance parameters with three parallel chains.
+#|  Overlaying orange lines indicate the values used for the simulation.
 library(ggplot2)
 
 results <- hhmodel |>
   add_data_wide(dataset) |>
-  infer(steps = 2000, thin = 5, chains = 3, adapt = 2000,
-        id_draws = c("7", "13"), # store augmented draws of "7" and "13"
-        progress = FALSE)
+  run_inference(steps = 1000, thin = 10, chains = 3, adapt = 500,
+                # store augmented draws of "7" and "13"
+                id_draws = c("7", "13"), 
+                progress = FALSE)
 
 # pot traces of parameter draws
 bayesplot::mcmc_trace(get_param_draws(results)) +
@@ -148,6 +152,9 @@ bayesplot::mcmc_trace(get_param_draws(results)) +
              aes(yintercept = simulated))
 ```
 ```{r}
+#| fig.alt: >
+#|  Trace plots for individual augmented variables across three MCMC chains.
+#|  Incubation period and associated probability for two subjects (IDs 7 and 13).
 # plot traces of augmented draws
 bayesplot::mcmc_trace(get_augm_draws(results))
 ```
@@ -171,12 +178,18 @@ We always recommend a visual assessment before choosing a new move.
 ```{r}
 #| fig.height: 2
 #| warning: false
+
 # with model (default sample)
 results <- new_housepi_model("blank") |>
   add_augmented("sample_model", model = "normal", mean = 14) |>
-  infer()
+  run_inference()
 
+#| fig.alt: >
+#| Trace plot of a single augmented variable sampled from the model.
 bayesplot::mcmc_trace(get_augm_draws(results))
+
+#| fig.alt: >
+#| Trace plot of the corresponding model contribution to the log-likelihood.
 bayesplot::mcmc_trace(get_total_log_lik_draws(results))
 ```
 
@@ -186,11 +199,18 @@ bayesplot::mcmc_trace(get_total_log_lik_draws(results))
 # random walk (without model)
 results <- new_housepi_model("blank") |>
   add_augmented("random_walk", value = 14, proposal = "normal") |>
-  infer()
+  run_inference()
 
+#| fig.alt: >
+#| Trace plot of a single augmented variable without model, i. e. random walk.
 bayesplot::mcmc_trace(get_augm_draws(results))
+
+#| fig.alt: >
+#| The flat trace plot of the corresponding log-likelihood shows no contribution.
 bayesplot::mcmc_trace(get_total_log_lik_draws(results))
 ```
 
 ---
-`r show_session_info()`
+```{r, results='asis', echo=FALSE}
+show_session_info()
+```

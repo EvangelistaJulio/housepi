@@ -10,13 +10,16 @@
 #
 # Author: Francesco Camaglia
 # Copyright © 2025 Institut Pasteur (Paris), CNRS and INSERM.
-# See the COPYRIGHT file for details.
 #
 # Distributed under the terms of the GNU General Public License (GPLv3).
-# See the COPYING file for details.
+# See the LICENSE file for details.
 #
 # model_generator.R
 #
+
+#' @importFrom R6 R6Class
+#' @importFrom pkgbuild compile_dll
+NULL
 
 ############################################################################
 ############################################################################
@@ -30,7 +33,7 @@
 #'
 #' @keywords internal
 #' @noRd
-HousepiGenerator <- R6::R6Class(
+HousepiGenerator <- R6Class(
   classname = "HousepiGenerator",
   cloneable = TRUE,
 
@@ -206,7 +209,7 @@ HousepiGenerator <- R6::R6Class(
     # Wheter user flags are the same as existing dll.
     .wheter_same_flags_as_dll = function() {
       m <- get_rcpp_module_from_dll("housepi_flags", private$.dll)
-      m <- m$CompiledFlagsHousepi$new()
+      m <- m$HousepiRcppCompiledFlags$new()
       flags_dll <- strsplit(m$get_flags(), ":")[[1]]
       setequal(private$.last_user_flags, flags_dll)
     },
@@ -396,13 +399,6 @@ HousepiGenerator <- R6::R6Class(
         overwrite(f, file.path(private$.cache_dir, "src", basename(f)))
       }
 
-      # copy blank dll file to final location
-      # FLAG
-      #overwrite(
-      #  blank_model_dll_file(),
-      #  file.path(private$.cache_dir, "src", dll_file_ext("housepienvironment"))
-      #)
-
       # copy helper files in the output directory
       for (f in helper_files(private$.source_dir)) {
         if (file.exists(f)) {
@@ -432,7 +428,7 @@ HousepiGenerator <- R6::R6Class(
       unlink(file.path(cache_dir_src, "model.o"))
 
       # touch installation files
-      touch_time <- Sys.time()
+      touch_time <- Sys.time() - 1
       for (f in list.files(cache_dir_src, full.names = TRUE)) {
         Sys.setFileTime(f, touch_time)
       }
@@ -449,10 +445,10 @@ HousepiGenerator <- R6::R6Class(
         get_cpp_environment_flags(paths = user_paths,
                                   flags = user_flags,
                                   linkers = user_linkers),
-        pkgbuild::compile_dll(private$.cache_dir,
-                              quiet = private$.quiet,
-                              compile_attributes = FALSE,
-                              debug = FALSE)
+        compile_dll(private$.cache_dir,
+                    quiet = private$.quiet,
+                    compile_attributes = FALSE,
+                    debug = FALSE)
       )
       private$.need_compile <- FALSE
 
@@ -468,7 +464,7 @@ HousepiGenerator <- R6::R6Class(
     .new_rcpp_model = function() {
       # expose internally the module
       m <- get_rcpp_module_from_dll("housepi_model_core", private$.dll)
-      m <- m$ModelHousepi$new()
+      m <- m$HousepiRcppModel$new()
       m$init_advanced_setup()
       m
     },

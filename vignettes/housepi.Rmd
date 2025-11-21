@@ -38,7 +38,7 @@ hhmodel <- new_housepi_model("chain_binomial")
 
 At any moment we can retrieve the template model description by using the method `$help()`.
 
-## An collection of household models
+## A collection of household models
 
 To see the complete list of available template models, from within Rstudio just run
 
@@ -127,21 +127,20 @@ For further information on the available options for the definition of the param
 
 # Perform inference
 
-After having provided all necessary definitions, we can perform inference calling `infer()`.
-Standard options for the Monte Carlo Markov chain can be provided at this stage, including controls on the progress bar and number of threads^[Multi-threading is implemented with *openMP* which is unfortunately not supported on latest macOS distributions.
-The option `threads` is disavled on such systems.].
+After having provided all necessary definitions, we can perform inference calling `run_inference()`.
+Standard options for the Monte Carlo Markov chain can be provided at this stage, including controls on the number of threads^[Multi-threading is implemented with *openMP* which is unfortunately not supported on latest macOS distributions.
+The option `threads` is disabled on such systems.] and on the progress bar.
 This will return an object wrapping [posterior](https://cran.r-project.org/web/packages/posterior/) `draws` objects that can be accessed to compute estimates.
 
 ```{r}
 # run the Monte Carlo specifying setup options
 results <- hhmodel |>
-  infer(steps = 3000,    # number of mcmc steps (per chain)
-        burnin = 1000,    # steps to burn
-        thin = 5,         # delay between sampling steps
-        adapt = 2000,     # finite adaptation steps before sampling
-        chains = 3,       # number of independent chains
-        threads = 1,      # number of threads
-        progress = FALSE) # disable progress bar
+  run_inference(steps = 1000,     # number of mcmc steps (per chain)
+                thin = 10,        # delay between mcmc steps that are stored
+                adapt = 500,      # finite adaptation steps before mcmc steps
+                chains = 3,       # number of independent chains
+                threads = 1,      # number of threads
+                progress = FALSE) # disable progress bar
 
 # summarize posterior draws of parameters
 posterior::summarize_draws(get_param_draws(results))
@@ -151,6 +150,8 @@ We can proceed as usual with other popolar R packages for Bayesian analysis.
 For example, we can extract the parameters draws by calling `get_param_draws` and plot traces with [bayesplot](https://cran.r-project.org/web/packages/bayesplot/)
 
 ```{r}
+#| fig.alt: 
+#|  Trace plots for alpha and beta parameters across MCMC iterations with three parallel chains overlaid.
 # visualize the traces of the first chain with 'bayesplot'
 get_param_draws(results) |>
   bayesplot::mcmc_trace(facet_args = list(ncol = 1))
@@ -216,14 +217,14 @@ hhsimul
 hhsimul <- hhsimul |> 
   load_parameter_list(
     inc_shape = 2, inc_scale = 1.1,
-    # option 'append' must be set to true to not drop previous definitions
+    # we set option 'append' to TRUE to keep previous definitions
     append = TRUE 
   )
 ```
 To see how to associate group rates in heterogeneous models, see the vignette [Group rates](group_rates.html).
 However, by default if no group rate definition is provided all values are set to reference value 1, so we can forget about this alert for the rest of the walkthrough.
 
-We then run a simulation with the method `simulate`, using the same community structure from the survey, but dropping cases.
+We then run a simulation with the method `run_simulation`, using the same community structure from the survey, but dropping cases.
 In this configuration, introductions are sampled randomly. 
 Simulation will associated augmented incubation periods and onset times in addition to status.
 We then propose a simple observation process, where we assume onsets after 6 PM (18/24) are reported to next day. We also want to drop unobserved quantities. We can do both by assigning such a function to the argument `observation`:
@@ -231,7 +232,7 @@ We then propose a simple observation process, where we assume onsets after 6 PM 
 ```{r}
 simulated <- hhsimul |>
   add_data_wide(dplyr::mutate(housepi::survey, status = NA)) |>
-  simulate(obs_process = function(x) {
+  run_simulation(obs_process = function(x) {
     x$onset_date <- ifelse(x$status > 0, floor(x$onset_time + 0.25), NA)
     x$incub_period <- x$onset_time <- x$infec_time <- NULL
     x
@@ -256,13 +257,18 @@ hhmodel <- hhsimul |>
 
 results <- hhmodel |>
   add_data_wide(simulated) |>
-  infer(chains = 3, steps = 3000, adapt = 1000, thin = 5, progress = 10)
+  run_inference(chains = 3, steps = 1000, adapt = 500, thin = 10,
+                # update progress bar every 3 seconds
+                progress = 3)
 ```
 We can visualize traces vs expected values as follows
 
 ```{r}
 #| message: false
 #| warning: false
+#| fig.alt: >
+#|  Trace plots for alpha, beta, and gamma parameters with three chains.
+#|  Overlaying orange lines indicate the values used for the simulation.
 library(ggplot2)
 
 # extract sample to posterioir::draws_df
@@ -282,6 +288,9 @@ bayesplot::mcmc_trace(param_draws, facet_args = list(ncol = 1)) +
 ```{r}
 #| fig.width: 5
 #| fig.height: 2.5
+#| fig.alt: >
+#|  R-hat convergence diagnostics for alpha, beta, and gamma parameters with color-coded thresholds.
+#|  Color intensity represents R-hat values (≤1.05, ≤1.1, >1.1). Points near 1.0 indicate convergence.
 # compute Rhat values associate to inferred parameters
 var_names <- get_parameters(hhmodel) |>
   dplyr::filter(!const) |>
@@ -315,4 +324,6 @@ Due to the stochastic nature of this kind of simulation, limiting to re-infer pa
 In [Posterior predictive checks](posterior_predictive_checks.html) we show how to compute common household measures according to the model posterior distribution.
 
 ---
-`r show_session_info()`
+```{r, results='asis', echo=FALSE}
+show_session_info()
+```

@@ -27,13 +27,19 @@ If a maximum household size is set, larger sizes are not returned.}
 \subsection{Public methods}{
 \itemize{
 \item \href{#method-PredictedCasesBySize-new}{\code{PredictedCasesBySize$new()}}
-\item \href{#method-PredictedCasesBySize-print}{\code{PredictedCasesBySize$print()}}
 \item \href{#method-PredictedCasesBySize-set_max_house_size}{\code{PredictedCasesBySize$set_max_house_size()}}
 \item \href{#method-PredictedCasesBySize-drop_max_house_size}{\code{PredictedCasesBySize$drop_max_house_size()}}
 \item \href{#method-PredictedCasesBySize-chisq_test}{\code{PredictedCasesBySize$chisq_test()}}
 \item \href{#method-PredictedCasesBySize-clone}{\code{PredictedCasesBySize$clone()}}
 }
 }
+\if{html}{\out{
+<details open><summary>Inherited methods</summary>
+<ul>
+<li><span class="pkg-link" data-pkg="housepi" data-topic="HousepiPrediction" data-id="print"><a href='../../housepi/html/HousepiPrediction.html#method-HousepiPrediction-print'><code>housepi::HousepiPrediction$print()</code></a></span></li>
+</ul>
+</details>
+}}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-PredictedCasesBySize-new"></a>}}
 \if{latex}{\out{\hypertarget{method-PredictedCasesBySize-new}{}}}
@@ -77,16 +83,6 @@ It must be a value in (0.5, 1.0). Default is 0.95.}
 }
 \if{html}{\out{</div>}}
 }
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-PredictedCasesBySize-print"></a>}}
-\if{latex}{\out{\hypertarget{method-PredictedCasesBySize-print}{}}}
-\subsection{Method \code{print()}}{
-Override the default printing behavior.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{PredictedCasesBySize$print()}\if{html}{\out{</div>}}
-}
-
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-PredictedCasesBySize-set_max_house_size"></a>}}

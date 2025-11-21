@@ -22,7 +22,7 @@
 #include "tools/flags.h"
 
 /// Compile-time list of standard housepi flags.
-CompiledFlagsHousepi::CompiledFlagsHousepi()
+HousepiRcppCompiledFlags::HousepiRcppCompiledFlags()
 {
     flags_ = 
 #ifdef _HOUSEPI_DISCRETE_TIME

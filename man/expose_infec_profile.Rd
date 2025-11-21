@@ -16,14 +16,16 @@ expose_infec_profile(
 \arguments{
 \item{name}{\code{character(1)} with the name of the infectivity profile.}
 
+\item{...}{named arguments with corresponding values of the infectivity profile}
+
+\item{min}{\code{numeric(1)} to truncate to a minimum value.}
+
 \item{max}{\code{numeric(1)} to truncate to a maximum value.}
 
 \item{discr}{\code{logical(1)} to treat definition as discrete.}
 
 \item{model}{\code{HousepiModel} object containing the custom registred \%s.\cr
 If \code{NULL} (default) the built-in registry is used.\cr}
-
-\item{..}{named arguments with corresponding values of the infectivity profile}
 }
 \value{
 An object of class \code{InfecProfileHousepi}.

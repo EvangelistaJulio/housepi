@@ -13,11 +13,11 @@ measure_sar_by_house_size(data_wide)
 \code{data.frame}
 }
 \description{
-Function to retrieve secondary attack rates from data.frame
-with cases by household size.
+Function to retrieve secondary attack rates (SAR)
+from data.frame with cases.
 }
 \details{
 The secondary attack rate is computed for all household
 with size \eqn{n > 1} according to
-\deqn{\frac{\mathbb{E[n_{+}\vert{n}] - 1}{n - 1}}}
+\eqn{\frac{\mathbb{E}[n_{+}\vert{n}] - 1}{n - 1}}
 }

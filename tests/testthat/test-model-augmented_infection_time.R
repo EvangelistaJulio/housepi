@@ -140,7 +140,7 @@ test_that("Simulations behave as expected", {
   )
 
   # simulate just introduction cases
-  simulated <- hhsimul$simulate()
+  simulated <- hhsimul$run_simulation()
   expect_identical(
     length(unique(simulated$house_id)),
     sum(simulated$onset_time == 0, na.rm = TRUE)
@@ -148,7 +148,7 @@ test_that("Simulations behave as expected", {
 
   # simulate all infected
   expect_warning(hhsimul$add_parameter(name = "beta", value = 100))
-  simulated <- hhsimul$simulate()
+  simulated <- hhsimul$run_simulation()
   expect_true(all(simulated$status > 0))
   expect_false(any(is.na(simulated$infec_time)))
   expect_equal(

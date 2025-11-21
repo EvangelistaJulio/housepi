@@ -10,18 +10,20 @@
 #
 # Author: Francesco Camaglia
 # Copyright © 2025 Institut Pasteur (Paris), CNRS and INSERM.
-# See the COPYRIGHT file for details.
 #
 # Distributed under the terms of the GNU General Public License (GPLv3).
-# See the COPYING file for details.
+# See the LICENSE file for details.
 #
 # predictive_checks.R
 #
 
+#' @importFrom rlang .data
+NULL
+
 #' @title Measure SAR by household size
 #' @description
-#' Function to retrieve secondary attack rates from data.frame
-#' with cases by household size.
+#' Function to retrieve secondary attack rates (SAR)
+#' from data.frame with cases.
 #'
 #' @param data_wide `r rd_add_data_wide_`
 #'
@@ -30,7 +32,7 @@
 #' @details
 #' The secondary attack rate is computed for all household
 #' with size \eqn{n > 1} according to
-#' \deqn{\frac{\mathbb{E[n_{+}\vert{n}] - 1}{n - 1}}}
+#' \eqn{\frac{\mathbb{E}[n_{+}\vert{n}] - 1}{n - 1}}
 #'
 #' @export
 measure_sar_by_house_size <- function(data_wide) {
@@ -39,18 +41,17 @@ measure_sar_by_house_size <- function(data_wide) {
   else data_wide <- as.data.frame(data_wide)
 
   # cast to 0\1 values
-  y <- dplyr::mutate(
-    data_wide,
-    status = dplyr::if_else(is.na(status), 0, as.integer(status > 0))
-  )
+  y <- dplyr::mutate(data_wide,
+                     status = dplyr::if_else(is.na(.data$status), 0,
+                                             as.integer(.data$status > 0)))
   # aggregate data by house_id
-  y <- dplyr::group_by(y, house_id)
-  y <- dplyr::summarise(y, house_size =  dplyr::n(), cases = sum(status))
+  y <- dplyr::group_by(y, .data$house_id)
+  y <- dplyr::summarise(y, house_size =  dplyr::n(), cases = sum(.data$status))
   # compute sar according to definition
-  y <- dplyr::filter(y, cases > 0)
-  y <- dplyr::mutate(y, sar = (cases - 1) / (house_size - 1))
-  y <- dplyr::group_by(y, house_size)
-  y <- dplyr::summarise(y, sar = mean(sar))
+  y <- dplyr::filter(y, .data$cases > 0)
+  y <- dplyr::mutate(y, sar = (.data$cases - 1) / (.data$house_size - 1))
+  y <- dplyr::group_by(y, .data$house_size)
+  y <- dplyr::summarise(y, sar = mean(.data$sar))
   as.data.frame(y)
 }
 
@@ -68,22 +69,25 @@ measure_cases_by_house_size <- function(data_wide) {
   if (length(data_wide) == 0) stop_h("No valid data_wide was provided.")
 
   # cast to 0\1 values
-  y <- dplyr::mutate(
-    data_wide,
-    status = dplyr::if_else(is.na(status), 0, as.integer(status > 0))
-  )
+  y <- dplyr::mutate(data_wide,
+                     status = dplyr::if_else(is.na(.data$status), 0,
+                                             as.integer(.data$status > 0)))
   # aggregate data by house_id
-  y <- dplyr::group_by(y, house_id)
-  y <- dplyr::summarise(y, house_size = dplyr::n(), cases = sum(status))
-  y <- dplyr::count(y, house_size, cases)
+  y <- dplyr::group_by(y, .data$house_id)
+  y <- dplyr::summarise(y, house_size = dplyr::n(), cases = sum(.data$status))
+  y <- dplyr::count(y, .data$house_size, .data$cases)
   # create a complete grid of size and cases
   y <- tidyr::complete(
-    y, house_size = min(house_size):max(house_size), cases = 0:max(house_size)
+    y, house_size = min(.data$house_size):max(.data$house_size),
+    cases = 0:max(.data$house_size)
   )
   # merge NAs with 0
-  y <- dplyr::mutate(y, n = dplyr::if_else(is.na(n) & cases <= house_size, 0L, n))
+  y <- dplyr::mutate(
+    y, n = dplyr::if_else(is.na(.data$n) & .data$cases <= .data$house_size,
+                          0L, .data$n)
+  )
   # reshape to wide format
-  y <- tidyr::pivot_wider(y, names_from = cases, values_from = n)
+  y <- tidyr::pivot_wider(y, names_from = .data$cases, values_from = .data$n)
   as.data.frame(y)
 }
 
@@ -98,7 +102,7 @@ measure_cases_by_house_size <- function(data_wide) {
 #' Class to extract posterior predictive checks over measures on simulations.
 #'
 #' @docType class
-HousepiPrediction <- R6::R6Class(
+HousepiPrediction <- R6Class(
   classname = "HousepiPrediction",
   cloneable = TRUE,
   lock_objects = FALSE,
@@ -111,6 +115,7 @@ HousepiPrediction <- R6::R6Class(
     deep_clone = function(name, value) helper_clone(value),
     .apply_func = NULL,
     .cri_level = 0.95,
+    .stored_print = NULL,
 
     # @description
     # Apply function `func` to corresponding elements
@@ -193,8 +198,22 @@ HousepiPrediction <- R6::R6Class(
       })
     },
 
-    # extract posterior quantities from cases-by-house-size table list
-    .extract_posterior_results = function(x) {
+    # store print messages at initialization
+    .helper_print = function(model_name, is_posterior, measure_names) {
+      sms <- c(i = sprintf("%s for model {.pkg %s}.",
+                           ifelse(is_posterior, "Posterior predictions",
+                                  "Predictions"),
+                           model_name),
+               "Computed measures:")
+      for (m in measure_names) sms <- c(sms, sprintf(" - {.emph %s}", m))
+      sms <- c(sms, sprintf("Credible interval level set to %.0f%%.",
+                            100 * private$.cri_level))
+      private$.stored_print <- sms
+      invisible(self)
+    },
+
+    # extract predicted quantities from cases-by-house-size table list
+    .extract_predicted_results = function(x) {
       cri <- private$.cri_level
       list(predicted = private$.frame_apply_mean(x),
            cri_lower = private$.frame_apply_cri(x, cri, upper = FALSE),
@@ -254,24 +273,29 @@ HousepiPrediction <- R6::R6Class(
       # cleanup at end
       withr::defer(rm(hmc))
       # run measures
+      # NOTE: the only way I found is a call to a private method of HousepiModel
       output <- hmc$.__enclos_env__$private$.run_measure(
         param_table,
         function(x) lapply(measure, function(func) func(obs_process(x))),
         progress
       )
       output <- lapply(names(measure), function(x) lapply(output, `[[`, x))
-      store_posterior <- lapply(output, private$.extract_posterior_results)
-      names(store_posterior) <- names(measure)
+      predictions <- lapply(output, private$.extract_predicted_results)
+      names(predictions) <- names(measure)
 
       # change environment according to measures
       for (measure_name in names(measure)) self[[measure_name]] <- list(
         observed = store_observed[[measure_name]],
-        predicted = store_posterior[[measure_name]]$predicted,
-        cri_lower = store_posterior[[measure_name]]$cri_lower,
-        cri_upper = store_posterior[[measure_name]]$cri_upper
+        predicted = predictions[[measure_name]]$predicted,
+        cri_lower = predictions[[measure_name]]$cri_lower,
+        cri_upper = predictions[[measure_name]]$cri_upper
       )
       # restore locked environment
       lockEnvironment(self, bindings = TRUE)
+      # store print message
+      is_posterior <- inherits(param_table, "HousepiPosteriorDraws") ||
+        posterior::is_draws(param_table)
+      private$.helper_print(hhmodel$name, is_posterior, names(measure))
 
       invisible(self)
     },
@@ -279,7 +303,7 @@ HousepiPrediction <- R6::R6Class(
     #' @description
     #' Override the default printing behavior.
     print = function() {
-      cli::cli_alert_info("Object of class `HousepiPosterior`.")
+      cli::cli_inform(private$.stored_print)
       invisible(self)
     }
   )
@@ -297,7 +321,7 @@ HousepiPrediction <- R6::R6Class(
 #' It estimates secondary attack rates and cases by size tables.
 #'
 #' @docType class
-PredictedCasesBySize <- R6::R6Class(
+PredictedCasesBySize <- R6Class(
   classname = "PredictedCasesBySize",
   inherit = HousepiPrediction,
   cloneable = TRUE,
@@ -476,13 +500,6 @@ PredictedCasesBySize <- R6::R6Class(
                        cri_level = cri_level)
       private$.counts <- private$.count_non_zero_cases(hhmodel$data_wide)
 
-      invisible(self)
-    },
-
-    #' @description
-    #' Override the default printing behavior.
-    print = function() {
-      cli::cli_alert_info("Object of class `PredictedCasesBySize`.")
       invisible(self)
     },
 

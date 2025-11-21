@@ -10,10 +10,9 @@
 #
 # Author: Francesco Camaglia
 # Copyright © 2025 Institut Pasteur (Paris), CNRS and INSERM.
-# See the COPYRIGHT file for details.
 #
 # Distributed under the terms of the GNU General Public License (GPLv3).
-# See the COPYING file for details.
+# See the LICENSE file for details.
 #
 # expose_internal.R
 #
@@ -71,7 +70,7 @@ expose_function <- function(name, ...,
                             discr = FALSE, model = NULL) {
   args <- unlist(list(...))
   m <- get_rcpp_module_from_model("housepi_function", model)
-  m$FunctionHousepi$new(name, args = args, min, max, discr)
+  m$HousepiRcppFunction$new(name, args = args, min, max, discr)
 }
 
 #' @title
@@ -100,7 +99,7 @@ expose_distribution <- function(name, ...,
                                 discr = FALSE, model = NULL) {
   args <- unlist(list(...))
   m <- get_rcpp_module_from_model("housepi_distribution", model)
-  m$DistributionHousepi$new(name, args = args, min, max, discr)
+  m$HousepiRcppDistribution$new(name, args = args, min, max, discr)
 }
 
 #' @title
@@ -110,7 +109,8 @@ expose_distribution <- function(name, ...,
 #' Used to access user defined infectivity profiles.
 #'
 #' @param name `r sprintf(rd_test_name_, "infectivity profile")`
-#' @param .. `r sprintf(rd_test_args_, "infectivity profile")`
+#' @param ... `r sprintf(rd_test_args_, "infectivity profile")`
+#' @param min `r rd_var_min_`
 #' @param max `r rd_var_max_`
 #' @param discr `r rd_test_discr_`
 #' @param model `r rd_test_model_`\cr
@@ -128,7 +128,11 @@ expose_infec_profile <- function(name, ...,
                                  min = NA_real_, max = NA_real_,
                                  discr = FALSE, model = NULL) {
   args <- unlist(list(...))
-  # UPDATE: the minimum should be imposed from within
+  default_min <- ifelse(discr, 1, 0)
+  if (is.na(min)) min <- default_min
+  else if (min != default_min)  warning_h(
+    "Overwriting default 'min' for an infectivity profile."
+  )
   m <- get_rcpp_module_from_model("housepi_infec_profile", model)
-  m$InfecProfileHousepi$new(name, args = args, ifelse(discr, 1, 0), max, discr)
+  m$HousepiRcppInfecProfile$new(name, args = args, default_min, max, discr)
 }

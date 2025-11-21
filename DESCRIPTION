@@ -1,7 +1,7 @@
 Package: housepi
 Type: Package
 Title: Household Epidemiological Modeling and Analysis
-Version: 0.8.54
+Version: 0.8.55
 Authors@R:
     person("Francesco", "Camaglia",
            email = "francesco.camaglia@pasteur.fr", 
@@ -9,19 +9,16 @@ Authors@R:
            comment = c(ORCID = "0000-0003-4810-2631"))
 Description: A platform for epidemiological modeling of household surveys.
 URL: https://mmmi-pasteur.gitlab.io/housepi
-License: GPLv3
+License: GPL (>= 3)
 Encoding: UTF-8
 Imports:
-    BH,
     cli,
     dplyr,
-    methods,
     pkgbuild,
     posterior,
     R6,
     Rcpp (>= 1.0.0),
     rlang,
-    stats,
     stringr,
     tidyr,
     utils,
@@ -42,8 +39,7 @@ Suggests:
     rstudioapi,
     testthat (>= 3.0.0)
 VignetteBuilder: knitr
-SystemRequirements: GNU make, C++14
 Depends: 
-    R (>= 3.5)
+    R (> 3.5)
 LazyData: true
 Config/testthat/edition: 3

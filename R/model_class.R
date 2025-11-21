@@ -10,10 +10,9 @@
 #
 # Author: Francesco Camaglia
 # Copyright © 2025 Institut Pasteur (Paris), CNRS and INSERM.
-# See the COPYRIGHT file for details.
 #
 # Distributed under the terms of the GNU General Public License (GPLv3).
-# See the COPYING file for details.
+# See the LICENSE file for details.
 #
 # model_class.R
 #
@@ -31,7 +30,7 @@
 #' and variable defintions from a single class.
 #'
 #' @docType class
-HousepiModel <- R6::R6Class(
+HousepiModel <- R6Class(
   classname = "HousepiModel",
   inherit = HousepiGenerator,
   cloneable = TRUE,
@@ -548,13 +547,14 @@ HousepiModel <- R6::R6Class(
         sms, "Model is set to {.emph discrete time} mode."
       )
       if (length(private$.get_all_param()) > 0) sms <- c(
-        sms, fmt_assert_cli(private$.assert_param(FALSE), "Parameters")
+        sms, fmt_assert_cli("Parameters", private$.assert_param(FALSE))
       )
       if (length(private$.get_all_augm()) > 0) sms <- c(
-        sms, fmt_assert_cli(private$.assert_augm(FALSE), "Augmented")
+        sms, fmt_assert_cli("Augmented", private$.assert_augm(FALSE))
       )
       if (length(private$.get_all_group_rates()) > 0) sms <- c(
-        sms, fmt_assert_cli(private$.assert_group_rates(FALSE), "Group rates")
+        sms, fmt_assert_cli("Group rates", private$.assert_group_rates(FALSE),
+                            minor = TRUE)
       )
       cli::cli_inform(sms)
       invisible(self)
@@ -874,11 +874,12 @@ HousepiModel <- R6::R6Class(
     #' @param id_draws `r rd_smpl_iddrw_`
     #' @param seed `r rd_seed_`
     #' @param progress `r rd_progress_`
-    infer = function(steps = 1000, burnin = 0,
-                     thin = 1, adapt = 0,
-                     chains = 1, threads = 1,
-                     id_draws = NULL,
-                     seed = NA_integer_, progress = TRUE) {
+    run_inference = function(steps = 200, burnin = 0,
+                             thin = 1, adapt = 0,
+                             chains = 1, threads = 1,
+                             id_draws = NULL,
+                             seed = NA_integer_,
+                             progress = TRUE) {
       # internal build function
       private$.build_full(steps = steps, burnin = burnin,
                           thin = thin, adapt = adapt,
@@ -938,7 +939,7 @@ HousepiModel <- R6::R6Class(
     },
 
     #' @description
-    #' Generate a simulated outbreak.
+    #' Run simulation to generate a household survey.
     #' It assumes the same community structure of the loaded data.
     #'
     #' @param nsim `r rd_simul_nsim_`
@@ -947,10 +948,8 @@ HousepiModel <- R6::R6Class(
     #' @param obs_process `r rd_simul_observ_`
     #'
     #' @return `data.frame`
-    simulate = function(nsim = 1,
-                        seed = NA_integer_,
-                        progress = FALSE,
-                        obs_process = NULL) {
+    run_simulation = function(nsim = 1, seed = NA_integer_,
+                              progress = FALSE, obs_process = NULL) {
       # set observation process to identity if not provided
       if (is.null(obs_process)) obs_process <- function(x) x
       else if (!is.function(obs_process)) stop_h(

@@ -10,10 +10,9 @@
 #
 # Author: Francesco Camaglia
 # Copyright © 2025 Institut Pasteur (Paris), CNRS and INSERM.
-# See the COPYRIGHT file for details.
 #
 # Distributed under the terms of the GNU General Public License (GPLv3).
-# See the COPYING file for details.
+# See the LICENSE file for details.
 #
 # template.R
 #
@@ -80,7 +79,7 @@ find_closest_template_name <- function(x) {
   flat_options <- spaced_template_choice(options)
   sms <- find_closest_match(flat_choice, flat_options, 5)
   if (stringr::str_ends(sms, "\\?")) return(sms)
-  c("Show available templates calling 'template_household_model'.")
+  c("Show available templates calling 'template_household_model' alone.")
 }
 
 #' @title
@@ -93,11 +92,9 @@ find_closest_template_name <- function(x) {
 show_model_names <- function() {
   model_names <- list.files(template_models_dir())
   formatted_names <- tolower(gsub("-|_", " ", model_names))
-  message(sprintf(
-    "Available template models:\n%s\n",
-    paste(paste0(cli::symbol$bullet, " ", formatted_names), collapse = "\n")
-  ))
-  invisible()
+  sms <- c(i = "Available template models:")
+  for (m in formatted_names) sms <- c(sms, paste0(cli::symbol$bullet, " ", m))
+  cli::cli_inform(sms)
 }
 
 #' @title
@@ -199,7 +196,7 @@ template_household_model <- function(name = NA_character_,
   else if (!is.character(name)) stop_h("Model name is not a character.")
   else if (is.na(get_template_dir(name))) stop_h(
     sprintf("Model '%s' was not a known template.", name),
-    "Show available templates calling 'template_household_model'."
+    find_closest_template_name(name)
   )
   # asking for template model description
   else if (is.na(path)) open_model_helper_(get_template_dir(name))
@@ -411,12 +408,19 @@ template_not_used_warn <- function(required, defined, family, max_print = 5) {
 #' @description
 #' Format the output of an assert usage definition message with cli.
 #'
+#' @param section `character(1)` with the section name.
+#' @param sms `character()` with the messages to format.
+#' @param minor `logical(1)` whether to format as minor message.
+#'
 #' @keywords internal
 #' @noRd
-fmt_assert_cli <- function(sms, section) {
+fmt_assert_cli <- function(section, sms, minor = FALSE) {
   if (length(sms) > 0) {
-    c(x = paste0(cli::col_yellow(section), ":"),
-      gsub(sms, pattern = " were ", replacement = " are "))
+    sms <- gsub(sms, pattern = " were ", replacement = " are ")
+    if (minor) c(`!` = paste0(cli::col_yellow(section), ":"),
+                 gsub(sms, pattern = " are required by ",
+                      replacement = " can be specified for "))
+    else c(x = paste0(cli::col_yellow(section), ":"), sms)
   } else {
     c(v = paste(section, "definitions are complete."))
   }

@@ -4,7 +4,7 @@ test_that("Deep clone works as expected", {
   hhmodel <- new_housepi_model("chain_binomial_heterogeneous")
   hhmodel$data_wide <- housepi::survey
   hhmodel$load_parameter_template()
-  expect_no_error(out <- hhmodel$infer(steps = 2, progress = FALSE))
+  expect_no_error(out <- hhmodel$run_inference(steps = 2, progress = FALSE))
 
   # shallow clone
   hhclone <- hhmodel$clone(deep = FALSE)
@@ -37,7 +37,7 @@ test_that("Log-likelihood traces and pointwise traces are coherent", {
   results <- new_housepi_model("chain_binomial") |>
     load_parameter_template() |>
     add_data_wide(housepi::survey) |>
-    infer(steps = 10, thin = 1, adapt = 0, burnin = 0)
+    run_inference(steps = 10, thin = 1, adapt = 0, burnin = 0)
 
   pointwise <- results$log_lik_draws |>
     posterior::as_draws_matrix() |>

@@ -10,10 +10,9 @@
 #
 # Author: Francesco Camaglia
 # Copyright © 2025 Institut Pasteur (Paris), CNRS and INSERM.
-# See the COPYRIGHT file for details.
 #
 # Distributed under the terms of the GNU General Public License (GPLv3).
-# See the COPYING file for details.
+# See the LICENSE file for details.
 #
 # expose_class.R
 #
@@ -430,7 +429,7 @@ evaluate_log_lik <- function(hhmodel,
   hhmodel$evaluate_log_lik(house_id = house_id, seed = seed)
 }
 
-#' @title Run inference on housepi model
+#' @title Run inference for housepi model
 #' @description
 #' Run inference with Bayesian Markov Chain Monte Carlo.
 #'
@@ -449,16 +448,41 @@ evaluate_log_lik <- function(hhmodel,
 #' Container with posterior draws.
 #'
 #' @export
-infer <- function(hhmodel,
-                  steps = 1000, burnin = 0,
-                  thin = 1, adapt = 0,
-                  chains = 1, threads = 1,
-                  id_draws = NULL, seed = NA_integer_, progress = TRUE) {
+run_inference <- function(hhmodel,
+                          steps = 200, burnin = 0,
+                          thin = 1, adapt = 0,
+                          chains = 1, threads = 1,
+                          id_draws = NULL, seed = NA_integer_,
+                          progress = TRUE) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  hhmodel$infer(steps = steps, burnin = burnin,
-                thin = thin, adapt = adapt,
-                chains = chains, threads = threads,
-                id_draws = id_draws, seed = seed, progress = progress)
+  hhmodel$run_inference(steps = steps, burnin = burnin,
+                        thin = thin, adapt = adapt,
+                        chains = chains, threads = threads,
+                        id_draws = id_draws, seed = seed,
+                        progress = progress)
+}
+
+#' @title Run simulation for housepi model
+#' @description
+#' Run simulation to generate a household survey.
+#' It assumes the same community structure of the loaded data.
+#'
+#' @param hhmodel `r rd_model_in_`
+#' @param nsim `r rd_simul_nsim_`
+#' @param seed `r rd_seed_`
+#' @param progress `r rd_progress_`
+#' @param obs_process `r rd_simul_observ_`
+#'
+#' @return `data.frame`
+#'
+#' @export
+run_simulation <- function(hhmodel,
+                           nsim = 1, seed = NA_integer_,
+                           progress = FALSE, obs_process = NULL) {
+  stopifnot(inherits(hhmodel, "HousepiModel"))
+  hhmodel$run_simulation(nsim = nsim, seed = seed,
+                         progress = progress,
+                         obs_process = obs_process)
 }
 
 #' @title Estimate logevidence of housepi model
@@ -498,37 +522,3 @@ infer <- function(hhmodel,
 #                       chains = chains, threads = threads,
 #                       seed = seed, progress = progress)
 # }
-
-############################################################################
-############################################################################
-############################################################################
-
-#' @importFrom stats simulate
-#' @export
-stats::simulate
-
-#' @title Simulate household data
-#' @description
-#' Generate a simulated outbreak.
-#' It assumes the same community structure of the loaded data.
-#'
-#' @param object `r rd_model_in_`
-#' @param nsim `r rd_simul_nsim_`
-#' @param seed `r rd_seed_`
-#' @param progress `r rd_progress_`
-#' @param obs_process `r rd_simul_observ_`
-#' @param ... Ignored.
-#'
-#' @return `data.frame`
-#'
-#' @export
-#' @method simulate HousepiModel
-simulate.HousepiModel <- function(object,
-                                  nsim = 1, seed = NA_integer_,
-                                  progress = FALSE,
-                                  obs_process = NULL,
-                                  ...) {
-  stopifnot(inherits(object, "HousepiModel"))
-  object$simulate(nsim = nsim, seed = seed, progress = progress,
-                  obs_process = obs_process)
-}

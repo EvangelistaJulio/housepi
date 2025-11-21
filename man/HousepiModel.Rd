@@ -49,10 +49,10 @@ UPDATE: reformatting current rcpp_export waiting for status specific}
 \item \href{#method-HousepiModel-load_group_rate_list}{\code{HousepiModel$load_group_rate_list()}}
 \item \href{#method-HousepiModel-add_infec_profile}{\code{HousepiModel$add_infec_profile()}}
 \item \href{#method-HousepiModel-evaluate_log_lik}{\code{HousepiModel$evaluate_log_lik()}}
-\item \href{#method-HousepiModel-infer}{\code{HousepiModel$infer()}}
+\item \href{#method-HousepiModel-run_inference}{\code{HousepiModel$run_inference()}}
 \item \href{#method-HousepiModel-export_augmented_data}{\code{HousepiModel$export_augmented_data()}}
 \item \href{#method-HousepiModel-export_house_snapshot}{\code{HousepiModel$export_house_snapshot()}}
-\item \href{#method-HousepiModel-simulate}{\code{HousepiModel$simulate()}}
+\item \href{#method-HousepiModel-run_simulation}{\code{HousepiModel$run_simulation()}}
 \item \href{#method-HousepiModel-drop_parameters}{\code{HousepiModel$drop_parameters()}}
 \item \href{#method-HousepiModel-drop_augmented}{\code{HousepiModel$drop_augmented()}}
 \item \href{#method-HousepiModel-drop_group_rates}{\code{HousepiModel$drop_group_rates()}}
@@ -583,13 +583,13 @@ If \code{NA} uses current R seed (default).}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-infer"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-infer}{}}}
-\subsection{Method \code{infer()}}{
+\if{html}{\out{<a id="method-HousepiModel-run_inference"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiModel-run_inference}{}}}
+\subsection{Method \code{run_inference()}}{
 Run inference with Bayesian Markov Chain Monte Carlo.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$infer(
-  steps = 1000,
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$run_inference(
+  steps = 200,
   burnin = 0,
   thin = 1,
   adapt = 0,
@@ -668,13 +668,13 @@ If \code{NA} it calls the household which caused last error, if any.}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-simulate"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-simulate}{}}}
-\subsection{Method \code{simulate()}}{
-Generate a simulated outbreak.
+\if{html}{\out{<a id="method-HousepiModel-run_simulation"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiModel-run_simulation}{}}}
+\subsection{Method \code{run_simulation()}}{
+Run simulation to generate a household survey.
 It assumes the same community structure of the loaded data.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$simulate(
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$run_simulation(
   nsim = 1,
   seed = NA_integer_,
   progress = FALSE,

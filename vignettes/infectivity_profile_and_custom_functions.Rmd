@@ -59,6 +59,10 @@ infec <- dplyr::tibble(gentime = seq(0, 10, 0.01),
 ```
 
 ```{r}
+#| fig.alt: >
+#|  Instantaneous infectivity profile as a function of the generation time in black.
+#|  On a second axis in orange, the corresponding cumulative infectivity profile.
+
 # plot instantaneous and cumulative profile with ggplot2
 library(ggplot2)
 
@@ -94,6 +98,9 @@ It's important to keep in mind that by default we truncate the infectivity profi
 The discrete profile is now a discretized gamma with the same parameters^[However, since the distribution is truncated the actual expected value will typically be different than the parameter `mean` in this case.]
 
 ```{r}
+#| fig.alt: >
+#|  Discrete instantaneous infectivity profile as a function of the generation day in black.
+#|  On a second axis in orange, the corresponding cumulative infectivity profile.
 profile <- expose_infec_profile(defs$name, defs$args, discr = TRUE)
 infec <- dplyr::tibble(gentime = seq(0, 10, 0.01),
                        inst = profile$pdf(gentime),
@@ -128,6 +135,9 @@ defs
 ```
 
 ```{r}
+#| fig.alt: >
+#|  Custom discrete instantaneous infectivity profile in black.
+#|  On a second axis in orange, the corresponding cumulative infectivity profile.
 profile <- expose_infec_profile(defs$name, defs$args, 
                                 min = defs$min, discr = TRUE)
 infec <- dplyr::tibble(gentime = seq(0, 10, 0.01),
@@ -247,4 +257,6 @@ protected:
 ```
 
 ---
-`r show_session_info()`
+```{r, results='asis', echo=FALSE}
+show_session_info()
+```

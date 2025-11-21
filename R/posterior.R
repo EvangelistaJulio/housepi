@@ -10,13 +10,17 @@
 #
 # Author: Francesco Camaglia
 # Copyright © 2025 Institut Pasteur (Paris), CNRS and INSERM.
-# See the COPYRIGHT file for details.
 #
 # Distributed under the terms of the GNU General Public License (GPLv3).
-# See the COPYING file for details.
+# See the LICENSE file for details.
 #
 # posterior.R
 #
+
+#' @importFrom posterior is_draws
+#' @importFrom posterior summarize_draws
+#' @importFrom posterior subset_draws
+NULL
 
 ############################################################################
 ############################################################################
@@ -29,7 +33,7 @@
 #' Posterior draws as a results of housepi model inference.
 #'
 #' @docType class
-HousepiPosteriorDraws <- R6::R6Class(
+HousepiPosteriorDraws <- R6Class(
   classname = "HousepiPosteriorDraws",
 
   ############################################################################
@@ -62,7 +66,7 @@ HousepiPosteriorDraws <- R6::R6Class(
     # `posterior::draws_df`
     .cpp_draws_to_posterior = function(x) {
       # nothing to be done
-      if (posterior::is_draws(x)) return(x)
+      if (is_draws(x)) return(x)
 
       if (is.matrix(x) || (is.data.frame(x))) {
         list_trs <- private$.split_draws_by_chain(x)
@@ -192,14 +196,14 @@ HousepiPosteriorDraws <- R6::R6Class(
                              function(x) stringr::str_detect(vars, x)),
                       1, base::any)
         augm_vars <- vars[mask]
-        private$.augm_draws <- posterior::subset_draws(all_traces,
+        private$.augm_draws <- subset_draws(all_traces,
                                                     variable = augm_vars)
         private$.augm_draws$.iteration <- all_traces$.iteration
         vars <- setdiff(vars, augm_vars)
       }
 
       # log-likelihood draws
-      private$.total_log_lik_draws <- posterior::subset_draws(
+      private$.total_log_lik_draws <- subset_draws(
         all_traces, variable = c("log_lik")
       )
       private$.total_log_lik_draws$.iteration <- all_traces$.iteration
@@ -207,13 +211,12 @@ HousepiPosteriorDraws <- R6::R6Class(
 
       # prior parameters draws
       prior_vars <- vars[stringr::str_detect(vars, "lprior_")]
-      private$.prior_draws <- posterior::subset_draws(all_traces,
-                                                   variable = prior_vars)
+      private$.prior_draws <- subset_draws(all_traces, variable = prior_vars)
       private$.prior_draws$.iteration <- all_traces$.iteration
       vars <- setdiff(vars, prior_vars)
 
       # parameters draws
-      private$.param_draws <- posterior::subset_draws(all_traces, variable = vars)
+      private$.param_draws <- subset_draws(all_traces, variable = vars)
       private$.param_draws$.iteration <- all_traces$.iteration
 
       # household pointwise log-likelihood
@@ -252,14 +255,14 @@ HousepiPosteriorDraws <- R6::R6Class(
     #' @return `posterior::draws_df`
     summarize_all_draws = function() {
       x1 <- x2 <- x3 <- NULL
-      if (posterior::is_draws(private$.param_draws)) {
-        x1 <- posterior::summarize_draws(private$.param_draws)
+      if (is_draws(private$.param_draws)) {
+        x1 <- summarize_draws(private$.param_draws)
       }
-      if (posterior::is_draws(private$.augm_draws)) {
-        x2 <- posterior::summarize_draws(private$.augm_draws)
+      if (is_draws(private$.augm_draws)) {
+        x2 <- summarize_draws(private$.augm_draws)
       }
-      if (posterior::is_draws(private$.total_log_lik_draws)) {
-        x3 <- posterior::summarize_draws(private$.total_log_lik_draws)
+      if (is_draws(private$.total_log_lik_draws)) {
+        x3 <- summarize_draws(private$.total_log_lik_draws)
       }
       rbind(x1, x2, x3)
     }

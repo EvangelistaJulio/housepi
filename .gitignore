@@ -69,9 +69,6 @@ Thumbs.db
 
 # housepi files #
 #################
-.refer
-.source
 /man/_hhmodel_*
 /inst/standalone/*.csv
 /inst/template/src/
-/inst/template/include/

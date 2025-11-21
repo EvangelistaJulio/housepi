@@ -9,5 +9,5 @@ test_that("Model generator inconsistent calls", {
                regexp = "augmented example")
 
   # inference without definitions
-  expect_error(hhgen$infer())
+  expect_error(hhgen$run_inference())
 })

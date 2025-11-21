@@ -10,10 +10,9 @@
 #
 # Author: Francesco Camaglia
 # Copyright © 2025 Institut Pasteur (Paris), CNRS and INSERM.
-# See the COPYRIGHT file for details.
 #
 # Distributed under the terms of the GNU General Public License (GPLv3).
-# See the COPYING file for details.
+# See the LICENSE file for details.
 #
 # definition_encoder.R
 #
@@ -24,7 +23,7 @@
 #'
 #' @keywords internal
 #' @noRd
-DefinitionEncoder <- R6::R6Class(
+DefinitionEncoder <- R6Class(
   classname = "DefinitionEncoder",
 
   private = list(
@@ -205,7 +204,7 @@ DefinitionEncoder <- R6::R6Class(
 #'
 #' @keywords internal
 #' @noRd
-DefinitionWalker <- R6::R6Class(
+DefinitionWalker <- R6Class(
   classname = "DefinitionWalker",
   private = list(
     # Helper to extract balanced {something} blocks at the top level.
@@ -293,7 +292,7 @@ DefinitionWalker <- R6::R6Class(
 #'
 #' @keywords internal
 #' @noRd
-DefinitionShowcaser <-  R6::R6Class(
+DefinitionShowcaser <-  R6Class(
   classname = "DefinitionShowcaser",
 
   private = list(
