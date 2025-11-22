@@ -2,7 +2,9 @@ PKG_CPPFLAGS = -D_HOUSEPI_RCPP -I../inst/template/include
 PKG_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS)
 PKG_LIBS = $(SHLIB_OPENMP_CXXFLAGS)
 
-all: $(SHLIB)
+all: $(SHLIB) cache_template
+
+cache_template:
 	mkdir -p ../inst/template/src
 	cp *.o *.cpp ../inst/template/src/
 	cp $(SHLIB) ../inst/template/src/housepienvironment$(SHLIB_EXT)

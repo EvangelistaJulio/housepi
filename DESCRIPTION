@@ -25,7 +25,6 @@ Imports:
     utils,
     withr
 LinkingTo: Rcpp, BH
-RcppModules: user_model_module
 Roxygen: list(markdown = TRUE, r6 = TRUE)
 RoxygenNote: 7.3.3
 Suggests: 

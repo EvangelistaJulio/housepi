@@ -21,7 +21,7 @@ OBJECTS := $(SOURCES:.cpp=.o)
 EXECUTABLE := $(MODEL)/model.exe
 
 # compilation flags
-CXXFLAGS := -Wall -Wextra -std=gnu++14 -I../../inst/include/
+CXXFLAGS := -Wall -Wextra -I../../inst/template/include/
 
 ifdef DEBUG
 CXXFLAGS += -g -O1 -Wno-unknown-pragmas -Werror -Wuninitialized
@@ -57,7 +57,7 @@ all: $(EXECUTABLE)
 # For the executable
 $(EXECUTABLE): $(OBJECTS)
 	$(CXX) $(CXXFLAGS) $(OBJECTS) -o $(EXECUTABLE)
-	
+
 # For the model object
 $(MODEL)/model.o: $(MODEL)/model.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
@@ -72,7 +72,7 @@ main.o: main.cpp
 
 # To clean objects
 clean:
-	$(RM) $(EXECUTABLE) main.o $(MODEL)/*.{o,so,exe} $(SRC)/*.{o,so,exe} $(TMPL)/*/*.{o,so,exe}
+	$(RM) {$(MODEL),$(SRC),$(TMPL)}/*.{o,so,exe} ../template/src/*
 
 # Run make in debugging mode using standard housepi files
 debug:
@@ -90,4 +90,4 @@ test-infer:
 test-simulate:
 	$(EXECUTABLE) $(STD_IN) --simulate -O out.csv
 
-.PHONY: all clean debug
+.PHONY: all clean debug test-log-lik test-infer test-simulate

@@ -18,7 +18,12 @@ editor_options:
 source("theme.R")
 ```
 
-We introduce `housepi`, a package for the study of epidemiological data from household outbreaks.
+We introduce "housepi", an open source R package for the statistical analysis and modeling of epidemiological data from household outbreaks. 
+Mathematical modeling has proven to be a valuable tool for estimating key epidemiological parameters from household transmission surveys. 
+The relative ease of sampling household data makes it a readily available source of information during the early phases of an epidemic (e. g. longitudinal studies). 
+Additionally, retrospective serological surveys can provide critical insights into the history of transmission within a population (finite size studies). 
+The package aims to combine ease of use with flexibility, supporting both straightforward analyses and advanced epidemiological investigations. 
+
 In this vignette we'll walk through the process of loading a model, associating necessary definitions to perform inference and simulations.
 
 # The housepi model class
@@ -125,10 +130,11 @@ At any moment we can turn a parameter definition into a constant definition: it 
 
 For further information on the available options for the definition of the parameter priors and MCMC proposal, see the vignette [Bayesian MCMC options](bayesian_mcmc_options.html).
 
-# Perform inference
+# Run inference
 
 After having provided all necessary definitions, we can perform inference calling `run_inference()`.
-Standard options for the Monte Carlo Markov chain can be provided at this stage, including controls on the number of threads^[Multi-threading is implemented with *openMP* which is unfortunately not supported on latest macOS distributions.
+With housepi we can perform inference using Bayesian Monte Carlo Markov chain (MCMC) with the Metropolis-Hastings algorithm. 
+Standard options for the MCMC can be provided at this stage, including controls on the number of threads^[Multi-threading is implemented with *openMP* which is unfortunately not supported on latest macOS distributions.
 The option `threads` is disabled on such systems.] and on the progress bar.
 This will return an object wrapping [posterior](https://cran.r-project.org/web/packages/posterior/) `draws` objects that can be accessed to compute estimates.
 
