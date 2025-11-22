@@ -17,6 +17,7 @@
 # zzz.R
 #
 
+#' @importFrom BH BH
 #' @useDynLib housepi, .registration = TRUE
 NULL
 
