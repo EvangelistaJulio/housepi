@@ -17,24 +17,23 @@
 # expose_internal.R
 #
 
+#' @importFrom Rcpp Module
+
 # Get template name from DLL file
 get_template_from_dll <- function(dll) {
   if (is.null(dll) || is.na(dll) || !file.exists(dll)) NA_character_
   else tools::file_path_sans_ext(basename(dll))
 }
 
-# Get Rcpp module from DLL file
+# Get Rcpp module from dll
 get_rcpp_module_from_dll <- function(module_name, dll) {
   dyn.load(dll)
   Rcpp::Module(module_name, PACKAGE = get_template_from_dll(dll))
 }
 
-# Get Rcpp module from model object
-get_rcpp_module_from_model <- function(module_name, model = NULL) {
-  dll <- ifelse(is.null(model), NA_character_,
-                model$.__enclos_env__$private$.dll)
-  if (is.na(dll)) dll <- blank_model_dll_file()
-  get_rcpp_module_from_dll(module_name, dll)
+# Get Rcpp module from model
+get_rcpp_module_from_model <- function(module_name, model) {
+  get_rcpp_module_from_dll(module_name, model$.__enclos_env__$private$.dll)
 }
 
 rd_test_name_ <- "`character(1)` with the name of the %s."
@@ -69,7 +68,11 @@ expose_function <- function(name, ...,
                             min = NA_real_, max = NA_real_,
                             discr = FALSE, model = NULL) {
   args <- unlist(list(...))
-  m <- get_rcpp_module_from_model("housepi_function", model)
+  if (is.null(model)) {
+    m <- Rcpp::Module("housepi_function", PACKAGE = "housepi")
+  } else {
+    m <- get_rcpp_module_from_model("housepi_function", model)
+  }
   m$HousepiRcppFunction$new(name, args = args, min, max, discr)
 }
 
@@ -98,7 +101,11 @@ expose_distribution <- function(name, ...,
                                 min = NA_real_, max = NA_real_,
                                 discr = FALSE, model = NULL) {
   args <- unlist(list(...))
-  m <- get_rcpp_module_from_model("housepi_distribution", model)
+  if (is.null(model)) {
+    m <- Rcpp::Module("housepi_distribution", PACKAGE = "housepi")
+  } else {
+    m <- get_rcpp_module_from_model("housepi_distribution", model)
+  }
   m$HousepiRcppDistribution$new(name, args = args, min, max, discr)
 }
 
@@ -133,6 +140,10 @@ expose_infec_profile <- function(name, ...,
   else if (min != default_min)  warning_h(
     "Overwriting default 'min' for an infectivity profile."
   )
-  m <- get_rcpp_module_from_model("housepi_infec_profile", model)
-  m$HousepiRcppInfecProfile$new(name, args = args, default_min, max, discr)
+  if (is.null(model)) {
+    m <- Rcpp::Module("housepi_infec_profile", PACKAGE = "housepi")
+  } else {
+    m <- get_rcpp_module_from_model("housepi_infec_profile", model)
+  }
+  m$HousepiRcppInfecProfile$new(name, args = args, min, max, discr)
 }

@@ -1,7 +1,6 @@
 # Standalone Makefile
 
 SRC := ../../src
-TMPL := ../models
 
 # If MODEL is not provided, set blank as default
 MODEL ?= $(SRC)
@@ -72,7 +71,7 @@ main.o: main.cpp
 
 # To clean objects
 clean:
-	$(RM) {$(MODEL),$(SRC),$(TMPL)}/*.{o,so,exe} ../template/src/*
+	$(RM) {$(MODEL),$(SRC),../models/*}/*.{o,so,exe} ../template/src/*
 
 # Run make in debugging mode using standard housepi files
 debug:

@@ -208,9 +208,13 @@ HousepiGenerator <- R6Class(
     # @description
     # Wheter user flags are the same as existing dll.
     .wheter_same_flags_as_dll = function() {
-      m <- get_rcpp_module_from_dll("housepi_flags", private$.dll)
-      m <- m$HousepiRcppCompiledFlags$new()
-      flags_dll <- strsplit(m$get_flags(), ":")[[1]]
+      if (private$.is_blank()) {
+        m <- Rcpp::Module("housepi_flags", PACKAGE = "housepi")
+      } else {
+        m <- get_rcpp_module_from_dll("housepi_flags", private$.dll)
+      }
+      y <- m$HousepiRcppCompiledFlags$new()
+      flags_dll <- strsplit(y$get_flags(), ":")[[1]]
       setequal(private$.last_user_flags, flags_dll)
     },
 
@@ -463,10 +467,14 @@ HousepiGenerator <- R6Class(
     # Initialize new object of Rcpp Model.
     .new_rcpp_model = function() {
       # expose internally the module
-      m <- get_rcpp_module_from_dll("housepi_model_core", private$.dll)
-      m <- m$HousepiRcppModel$new()
-      m$init_advanced_setup()
-      m
+      if (private$.is_blank()) {
+        m <- Rcpp::Module("housepi_model_core", PACKAGE = "housepi")
+      } else {
+        m <- get_rcpp_module_from_dll("housepi_model_core", private$.dll)
+      }
+      y <- m$HousepiRcppModel$new()
+      y$init_advanced_setup()
+      y
     },
 
     ############################################################################
