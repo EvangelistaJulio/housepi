@@ -161,9 +161,37 @@ bayesplot::mcmc_trace(get_augm_draws(results))
 
 In this example we had to introduce auxiliary augmented variables `.onset_time` and `.infec_time`.
 The prefix `.` we added to the names is a convention to ensure that housepi will not store the associated draws.
-In addition, if a private definition is associated to an individual without any dependency on public variables, the private definition is dropped for such individual. 
 
-# Other proposals for the augmented variables
+# Status specific definitions
+
+In many applications, the same augmented variable has to be augmented according to different rules according to the individual. 
+This is the case for example of infection times for symptomatic and asymptomatic members.
+We can address this issue in housepi using status specific definitions, as opposed to generic definitions valid for all positive status individuals.
+Let's consider the case of a followup that reported symptoms within a followup period and tested every household member only at the end.
+We use `status = 1` to identify symptomatic individuals and `status = 2` for asymptomatic. 
+We augmented infection time of symptomatic as shown in [Get Started](hosuepi.html), i. e. informed by reported onset date.
+For asymptomatic members we draw the infection time uniformly within the period of the followup.
+
+```{r}
+hhmodel <- new_housepi_model("augmented_infection_time") |>
+  add_data_wide(data.frame(id = c("tommy", "gina"),
+                           status = c(1, 2),
+                           onset_date = c(),
+                           house_id = "house_1")) |> 
+  load_parameter_template()  |>
+  load_augmented_list(
+    # augmented infection time for symptomatic members 
+    infec_time = list(expr = ~ .onset_time - .incub_period, status = 1),
+    .onset_time = list(model = "normal", mean = ~ onset_date@D, sd = 1),
+    .incub_period = list(model = "gamma", shape = 2, scale = 1),
+    # augmented infection time for symptomatic members
+    infec_time = list(model = "uniform", status = 2)
+  )
+```
+
+In addition, if a private definition is associated to an individual without any dependency on public variables, the private definition is dropped for such individual.
+
+# More about models and proposals
 
 ```{r}
 #| include: false

@@ -297,7 +297,7 @@ str_vec Function::get_missing_argument() const
     for (const Attribute &attr : arguments_)
         if (attr.is_empty())
             undefined_args.push_back(attr.get_name());
-    return std::move(undefined_args);
+    return undefined_args;
 }
 
 /// Throw exception if not callable explicitly.

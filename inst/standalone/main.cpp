@@ -16,7 +16,7 @@
 #include <iostream>
 
 #include "tools/na_utils.h"
-#include "tools/error.h"
+#include "tools/messages.h"
 #include "tools/string.h"
 #include "mcmc.h"
 

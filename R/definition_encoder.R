@@ -76,26 +76,22 @@ DefinitionEncoder <- R6Class(
 
     # Add default types if not a call.
     .format_types = function(func_args) {
-      output <- NA_character_
-      if (!(is.null(func_args) || all(is.na(func_args)))) {
-        splitted <- strsplit(as.character(func_args), "\\@")
-        output <- sapply(splitted, function(x) {
-          ifelse(stringr::str_count(x[1], "\\|"), x[1],
-                 sprintf("%s|%s", x[1], private$.default_types(x[2], x[1])))
-        }, USE.NAMES = FALSE)
-      }
-      output
+      if (is.null(func_args) || all(is.na(func_args))) return(NA_character_)
+      splitted <- strsplit(as.character(func_args), "\\@")
+      sapply(splitted, function(x) {
+        ifelse(stringr::str_count(x[1], "\\|"), x[1],
+               sprintf("%s|%s", x[1], private$.default_types(x[2], x[1])))
+      }, USE.NAMES = FALSE)
     },
 
     # Format a call to match housepi standard typed definitions
     .fmt_identity = function(func_args) {
-      if (is.null(func_args)) NA_character_
-      else private$.format_types(func_args)
+      self$x <- private$.format_types(func_args)
     },
 
     # Format a call to match housepi standard typed definitions
     .format_call = function(func_name, func_args) {
-      paste0(c(
+      self$x <- paste0(c(
         func_name,
         paste0(names(func_args), collapse = ":"),
         paste0(sprintf("{%s}", private$.format_types(func_args)),
@@ -135,22 +131,6 @@ DefinitionEncoder <- R6Class(
 
       if (is.na(func_name)) private$.fmt_identity(func_args)
       else private$.format_call(func_name, func_args)
-    },
-
-    # Extract function or identiy call from rlang expression.
-    .extract = function(expr) {
-      # read input expression
-      if (is.null(expr)) return(private$.fmt_identity(NULL))
-      else if (inherits(expr, "formula")) call <- rlang::f_rhs(expr)
-      else if (rlang::is_call(expr)) call <- expr
-      else return(private$.fmt_identity(c(x = expr)))
-
-      # case of a symbol actually looking as a call
-      if (rlang::is_symbol(call)) private$.fmt_identity(c(x = call))
-      # case of a raw typed identity
-      else if (rlang::call_name(call) == "@") private$.fmt_identity(c(x = call))
-      # standard call
-      else private$.helper_func_from_call(call)
     }
   ),
 
@@ -185,11 +165,31 @@ DefinitionEncoder <- R6Class(
 
     #' @description
     #' New object of class
-    #' [HousepiAugmented][housepi::HousepiAugmented].
-    initialize = function(expr) {
-      if (is.list(expr)) self$x <- sapply(expr, private$.extract)
-      else self$x <- private$.extract(expr)
-      invisible()
+    #' [DefinitionEncoder][housepi::DefinitionEncoder].
+    initialize = function(expr, env = parent.frame()) {
+      # if caller passes a quosure, extract expr + env from it
+      if (rlang::is_quosure(expr)) {
+        env  <- rlang::get_env(expr)
+        expr <- rlang::get_expr(expr)
+      }
+      # rebuild a quosure from expression + environment
+      q   <- rlang::new_quosure(expr, env)
+      inj <- rlang::get_expr(q)
+
+      if (!rlang::is_formula(inj)) {
+        private$.fmt_identity(c(x = inj))
+        return(invisible(self))
+      }
+
+      inj <- rlang::f_rhs(inj)
+      # case of a symbol actually looking as a call
+      if (rlang::is_symbol(inj)) private$.fmt_identity(c(x = inj))
+      # case of a raw typed identity
+      else if (rlang::call_name(inj) == "@") private$.fmt_identity(c(x = inj))
+      # standard call
+      else private$.helper_func_from_call(inj)
+
+      invisible(self)
     }
   )
 )

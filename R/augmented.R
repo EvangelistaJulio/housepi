@@ -299,6 +299,7 @@ HousepiAugmented <- R6Class(
                    proposal = NA_character_,
                    proposal_scale = NA_real_,
                    expr = NULL) {
+      
       # control valid name
       assert_valid_definition_name(name, "augmented")
       if (all(is.null(c(value, expr)), is.na(c(model, func)))) stop_h(

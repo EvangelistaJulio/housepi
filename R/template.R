@@ -440,7 +440,7 @@ fmt_assert_cli <- function(section, sms, minor = FALSE) {
 #' @keywords internal
 #' @noRd
 template_blank_data_wide_ <- function() {
-  data.frame(id = c("hh_01_1", "hh_01_2"),
-             house_id = "hh_01",
+  data.frame(id = c("tommy", "gina"),
+             house_id = "house_1",
              status = c(1, 0))
 }
