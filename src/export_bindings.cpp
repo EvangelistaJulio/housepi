@@ -7,11 +7,11 @@
  *                               /_/
  *
  * housepi - Epidemiological Analysis of Household Outbreaks.
- * 
+ *
  * Author: Francesco Camaglia
  * Copyright © 2025 Institut Pasteur (Paris), CNRS and INSERM.
  * See the COPYRIGHT file for details.
- * 
+ *
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the COPYING file for details.
  *
@@ -40,76 +40,77 @@ RCPP_MODULE(housepi_flags)
 }
 
 // macro to define Rcpp wrapper classes to export to R
-#define MAKE_HOUSEPI_RCPP_WRAPPER(Wrapper, family, set_eval, pdf_call, cdf_call, ...)          \
-    class HousepiRcpp##Wrapper                                                                \
-    {                                                                                          \
-    public:                                                                                    \
+#define MAKE_HOUSEPI_RCPP_WRAPPER(Wrapper, family, set_eval, pdf_call, cdf_call, ...)              \
+    class HousepiRcpp##Wrapper                                                                     \
+    {                                                                                              \
+    public:                                                                                        \
         HousepiRcpp##Wrapper(std::string name_, SEXP args_, double min, double max, bool is_discr) \
-        {                                                                                      \
-            try                                                                                \
-            {                                                                                  \
-                ptr_ = compose_func_registries(name_, family, {__VA_ARGS__}, false);           \
-                if (args_ != R_NilValue)                                                       \
-                {                                                                              \
-                    Rcpp::List args(args_);                                                    \
-                    Rcpp::CharacterVector arg_names;                                           \
-                    if (args.hasAttribute("names"))                                            \
-                        arg_names = args.names();                                              \
-                    else                                                                       \
-                        arg_names = Rcpp::CharacterVector(args.size());                        \
-                    for (R_xlen_t i = 0; i < args.size(); ++i)                                 \
-                    {                                                                          \
-                        const std::string this_arg = Rcpp::as<std::string>(arg_names[i]);      \
-                        ptr_->init_attr(this_arg, Attribute(Rcpp::as<double>(args[i])));       \
-                    }                                                                          \
-                }                                                                              \
-                                                                                               \
-                if (!hsp::na::is(min))                                                         \
-                    ptr_->init_attr(hsp::params::MIN, Attribute(min));                         \
-                if (!hsp::na::is(max))                                                         \
-                    ptr_->init_attr(hsp::params::MAX, Attribute(max));                         \
-                                                                                               \
-                if (is_discr)                                                                  \
-                    ptr_->init_discretization();                                               \
-                ptr_->init_truncation();                                                       \
-            }                                                                                  \
-            catch (const std::exception &e)                                                    \
-            {                                                                                  \
-                hsp::msg::error(                                                               \
-                    "While initializing " family " '" + name_ + "':\n" + e.what());            \
-            }                                                                                  \
-        }                                                                                      \
+        {                                                                                          \
+            try                                                                                    \
+            {                                                                                      \
+                ptr_ = compose_func_registries(name_, family, {__VA_ARGS__}, false);               \
+                if (args_ != R_NilValue)                                                           \
+                {                                                                                  \
+                    Rcpp::List args(args_);                                                        \
+                    Rcpp::CharacterVector arg_names;                                               \
+                    if (args.hasAttribute("names"))                                                \
+                        arg_names = args.names();                                                  \
+                    else                                                                           \
+                        arg_names = Rcpp::CharacterVector(args.size());                            \
+                    for (R_xlen_t i = 0; i < args.size(); ++i)                                     \
+                    {                                                                              \
+                        const std::string this_arg = Rcpp::as<std::string>(arg_names[i]);          \
+                        ptr_->init_attr(this_arg, Attribute(Rcpp::as<double>(args[i])));           \
+                    }                                                                              \
+                }                                                                                  \
+                                                                                                   \
+                if (!hsp::na::is(min))                                                             \
+                    ptr_->init_attr(hsp::params::MIN, Attribute(min));                             \
+                if (!hsp::na::is(max))                                                             \
+                    ptr_->init_attr(hsp::params::MAX, Attribute(max));                             \
+                                                                                                   \
+                if (is_discr)                                                                      \
+                    ptr_->init_discretization();                                                   \
+                ptr_->init_truncation();                                                           \
+                ptr_->assert_is_callable_explicitly();                                             \
+            }                                                                                      \
+            catch (const std::exception &e)                                                        \
+            {                                                                                      \
+                hsp::msg::error(                                                                   \
+                    "While initializing " family " '" + name_ + "':\n" + e.what());                \
+            }                                                                                      \
+        }                                                                                          \
         ~HousepiRcpp##Wrapper() = default;                                                         \
-        Rcpp::NumericVector pdf_call(Rcpp::NumericVector x) const                              \
-        {                                                                                      \
-            ptr_->set_eval##_call();                                                           \
-            return call_(x);                                                                   \
-        }                                                                                      \
-        Rcpp::NumericVector cdf_call(Rcpp::NumericVector x) const                              \
-        {                                                                                      \
-            ptr_->set_eval##_primitive();                                                      \
-            return call_(x);                                                                   \
-        }                                                                                      \
-                                                                                               \
-    private:                                                                                   \
-        std::unique_ptr<Function> ptr_;                                                        \
-                                                                                               \
-        Rcpp::NumericVector call_(Rcpp::NumericVector x) const                                 \
-        {                                                                                      \
-            try                                                                                \
-            {                                                                                  \
-                const R_xlen_t n = x.size();                                                   \
-                Rcpp::NumericVector y(n);                                                      \
-                for (R_xlen_t i = 0; i < n; ++i)                                               \
-                    y[i] = ptr_->evaluate(x[i]);                                               \
-                return y;                                                                      \
-            }                                                                                  \
-            catch (const std::exception &e)                                                    \
-            {                                                                                  \
-                hsp::msg::error(                                                               \
-                    "While calling '" family "'" + ptr_->name() + "':\n" + e.what());          \
-            }                                                                                  \
-        }                                                                                      \
+        Rcpp::NumericVector pdf_call(Rcpp::NumericVector x) const                                  \
+        {                                                                                          \
+            ptr_->set_eval##_call();                                                               \
+            return call_(x);                                                                       \
+        }                                                                                          \
+        Rcpp::NumericVector cdf_call(Rcpp::NumericVector x) const                                  \
+        {                                                                                          \
+            ptr_->set_eval##_primitive();                                                          \
+            return call_(x);                                                                       \
+        }                                                                                          \
+                                                                                                   \
+    private:                                                                                       \
+        std::unique_ptr<Function> ptr_;                                                            \
+                                                                                                   \
+        Rcpp::NumericVector call_(Rcpp::NumericVector x) const                                     \
+        {                                                                                          \
+            try                                                                                    \
+            {                                                                                      \
+                const R_xlen_t n = x.size();                                                       \
+                Rcpp::NumericVector y(n);                                                          \
+                for (R_xlen_t i = 0; i < n; ++i)                                                   \
+                    y[i] = ptr_->evaluate(x[i]);                                                   \
+                return y;                                                                          \
+            }                                                                                      \
+            catch (const std::exception &e)                                                        \
+            {                                                                                      \
+                hsp::msg::error(                                                                   \
+                    "While calling '" family "'" + ptr_->name() + "':\n" + e.what());              \
+            }                                                                                      \
+        }                                                                                          \
     };
 
 //' @name HousepiRcppFunction

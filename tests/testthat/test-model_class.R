@@ -122,18 +122,30 @@ test_that("Nested definitions raise errors", {
 
 test_that("Missing function arguments raise errors", {
   hhmodel <- new_housepi_model("augmented_example")
-  # data with NA values
   hhmodel$data_wide <- data.frame(house_id = seq(3), id = seq(3),
                                   status = 1, test = c(5.5, NA, -1.5))
-
+  
+  # non default arguments
   hhmodel$add_augmented(name = "proba", func = "gamma")
-  expect_error(hhmodel$evaluate_log_lik(),
-               regexp = "Impossible to return value")
+  expect_error(hhmodel$evaluate_log_lik(), regexp = "missing non default")
+  
+  # concatenated non default arguments
+  hhmodel$load_augmented_list(
+    gamma = list(func = "gamma"),
+    proba = ~exp(-gamma)
+  )
+  expect_error(hhmodel$evaluate_log_lik(), regexp = "missing non default")
 
-  hhmodel$add_augmented(name = "gamma", func = "gamma")
-  expect_warning(
-    hhmodel$add_augmented(name = "proba", expr = ~exp(-gamma)),
-    regexp = "Overwriting"
+  # data with NA values
+  hhmodel$drop_augmented()
+  hhmodel$add_augmented(name = "proba", func = "gamma", 
+                        func_args = c(shape = 2))
+  expect_error(hhmodel$evaluate_log_lik(), regexp = "Impossible to return")
+  
+  # concatenated data with NA values
+  hhmodel$load_augmented_list(
+    gamma = list(func = "gamma",  func_args = c(shape = 2)),
+    proba =  ~exp(-gamma)
   )
   expect_error(hhmodel$evaluate_log_lik(), regexp = "Impossible to associate")
 

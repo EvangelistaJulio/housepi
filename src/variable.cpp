@@ -7,11 +7,11 @@
  *                               /_/
  *
  * housepi - Epidemiological Analysis of Household Outbreaks.
- * 
+ *
  * Author: Francesco Camaglia
  * Copyright © 2025 Institut Pasteur (Paris), CNRS and INSERM.
  * See the COPYRIGHT file for details.
- * 
+ *
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the COPYING file for details.
  *
@@ -248,8 +248,11 @@ void Variable::init_func_reshaping(bool discr)
         throw std::invalid_argument(
             "Impossible to set " + err_name() + " as constant. Check its dependencies.");
 
-    else if (!pFunc_->is_implicit_callable())
+    else if (!pFunc_->is_callable_implicitly())
+    {
+        pFunc_->assert_is_callable_explicitly();
         get_ = &Variable::do_get_error_;
+    }
 }
 
 /// Assign distribution with constant arguments.
@@ -280,6 +283,7 @@ void Variable::init_distr_reshaping(bool discr)
     if (discr)
         pDistr_->init_discretization();
     pDistr_->init_truncation();
+    pDistr_->assert_is_callable_explicitly();
 
     // check that non-constant variable has non-zero dimensional range
     helper_degenerate_range_();

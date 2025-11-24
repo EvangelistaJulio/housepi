@@ -210,8 +210,15 @@ public:
     bool is_constant() const;
     /// Wheter return value is always discrete.
     virtual bool is_discrete() const { return function_ != &Function::raw_function_; }
-    /// Wheter it can be called implicitely, i. e. if a 'x' has been linked.
-    bool is_implicit_callable() const { return !x_arg_.is_empty(); }
+    /// Wheter all arguments are not empty.
+    bool is_callable_explicitly() const;
+    /// Wheter it can be called implicitely, i. e. if also 'x' has been linked.
+    bool is_callable_implicitly() const { return !x_arg_.is_empty() && is_callable_explicitly(); }
+
+    /// Collect names of missing arguments.
+    str_vec get_missing_argument() const;
+    /// Throw exception if not callable explicitly.
+    void assert_is_callable_explicitly() const;
 
     /// Returns TRUE if value x is below range minimum.
     bool is_below(double x) const { return (this->*is_below_)(x); }

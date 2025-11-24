@@ -245,9 +245,11 @@ HousepiGenerator <- R6Class(
     # @description
     # Initialize to "blank" model.
     .initialize_blank_model = function() {
-      private$.dll <- blank_model_dll_file()
       private$.last_user_flags <- character()
       private$.source_dir <- system.file("template/src", package = "housepi")
+      # NOTE: blank model dll is never used for loading
+      private$.dll <- file.path(private$.source_dir,
+                                dll_file_ext("housepienvironment"))
       invisible(self)
     },
 

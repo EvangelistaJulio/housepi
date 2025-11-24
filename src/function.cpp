@@ -7,11 +7,11 @@
  *                               /_/
  *
  * housepi - Epidemiological Analysis of Household Outbreaks.
- * 
+ *
  * Author: Francesco Camaglia
  * Copyright © 2025 Institut Pasteur (Paris), CNRS and INSERM.
  * See the COPYRIGHT file for details.
- * 
+ *
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the COPYING file for details.
  *
@@ -63,7 +63,7 @@ Attribute::Attribute(const std::string &s, bool is_primitive)
 std::string Attribute::str_summary() const
 {
     std::string sms = "";
-    if (!is_function() || pFunc_->is_implicit_callable())
+    if (!is_function() || pFunc_->is_callable_implicitly())
         sms = std::to_string(get()) + " | ";
 
     if (is_discrete())
@@ -281,6 +281,35 @@ bool Function::is_constant() const
     return true;
 }
 
+/// Wheter all arguments are not empty.
+bool Function::is_callable_explicitly() const
+{
+    for (const Attribute &attr : arguments_)
+        if (attr.is_empty())
+            return false;
+    return true;
+}
+
+/// Collect names of missing arguments.
+str_vec Function::get_missing_argument() const
+{
+    str_vec undefined_args;
+    for (const Attribute &attr : arguments_)
+        if (attr.is_empty())
+            undefined_args.push_back(attr.get_name());
+    return std::move(undefined_args);
+}
+
+/// Throw exception if not callable explicitly.
+void Function::assert_is_callable_explicitly() const
+{
+    const str_vec undefined_args = get_missing_argument();
+    if (!undefined_args.empty())
+        throw std::invalid_argument(
+            "Impossible to initialize " + err_name() + ": missing non default argument" +
+            (undefined_args.size() > 1 ? "s " : " ") + hsp::str::format(undefined_args));
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////  Function : set range  //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -416,10 +445,20 @@ std::string Function::str_range() const
 void Function::init_attr(const std::string &key, const Attribute &attr)
 {
     // assert that function attribute are implicitely callable
-    if (attr.is_function() && !attr.get_function()->is_implicit_callable())
-        throw std::invalid_argument(
-            "Impossible to associate " + attr.err_name() + " as argument '" + key + "' of " + err_name() + ".\n" +
-            "Argument 'x' of " + attr.err_name() + " cannot be missing.");
+    if (attr.is_function())
+    {
+        const str_vec undefined_args = attr.get_function()->get_missing_argument();
+        if (!undefined_args.empty())
+            throw std::invalid_argument(
+                "Impossible to associate " + attr.err_name() + " as argument '" + key + "' of " + err_name() + ".\n" +
+                "Non default argument" + (undefined_args.size() > 1 ? "s " : " ") + hsp::str::format(undefined_args) +
+                " of " + attr.err_name() + " cannot be missing.");
+
+        if (!attr.get_function()->is_callable_implicitly())
+            throw std::invalid_argument(
+                "Impossible to associate " + attr.err_name() + " as argument '" + key + "' of " + err_name() + ".\n" +
+                "Argument 'x' of " + attr.err_name() + " cannot be missing.");
+    }
 
     // distinguish between range keys and standard keys
     if (key == hsp::params::MIN || key == hsp::params::MAX)

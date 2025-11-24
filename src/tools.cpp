@@ -878,7 +878,7 @@ namespace hsp
         }
 
         /// Wheter is implicitely callable.
-        bool Definition::Entry::is_implicit_callable() const
+        bool Definition::Entry::is_callable_implicitly() const
         {
             if (is_terminal())
                 return true;
@@ -886,7 +886,7 @@ namespace hsp
             bool is_x_arg = false;
             for (const Entry &child : children)
             {
-                if (!child.is_implicit_callable())
+                if (!child.is_callable_implicitly())
                     return false;
                 if (child.key == hsp::params::X)
                     is_x_arg = true;

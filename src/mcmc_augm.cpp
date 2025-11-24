@@ -43,7 +43,7 @@ std::string AugmentedMap::str_augm_summary() const
     for (const auto &pair : augm_map_)
     {
         output += "- " + pair.first + " : ";
-        if (pair.second.is_function() && !pair.second.get_function()->is_implicit_callable())
+        if (pair.second.is_function() && !pair.second.get_function()->is_callable_implicitly())
             output += pair.second.get_function()->str_summary();
         else
             output += pair.second.str_summary();
@@ -768,7 +768,7 @@ void MCMC::Impl::Augmented::set_function_or_identity_for_(size_t k)
         else
             list_draws.push_back(a);
     }
-    else if (parser.is_implicit_callable())
+    else if (parser.is_callable_implicitly())
         list_draws.push_back(a);
     else
         list_full.push_back(a);

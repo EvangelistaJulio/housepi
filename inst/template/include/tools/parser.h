@@ -55,7 +55,7 @@ namespace hsp
                 /// Wheter node is a terminal node. Otherwise it is a function node.
                 bool is_empty() const { return is_terminal() && hsp::na::is(value); }
                 /// Wheter is implicitely callable.
-                bool is_implicit_callable() const;
+                bool is_callable_implicitly() const;
 
                 /// List of dependencies per type contained in current and children definitions.
                 void append_augmented_depen(str_vec &stack) const;
@@ -83,7 +83,7 @@ namespace hsp
             /// Wheter terminal value is NA.
             bool is_na() const { return is_terminal() && hsp::na::is(root.value); }
             /// Wheter is implicitely callable.
-            bool is_implicit_callable() const { return root.is_implicit_callable(); }
+            bool is_callable_implicitly() const { return root.is_callable_implicitly(); }
 
             /// List of dependencies per type contained in currenet definition.
             str_vec list_augmented_depen() const;

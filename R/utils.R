@@ -245,11 +245,6 @@ dll_file_ext <- function(name) {
   paste0(name, .Platform$dynlib.ext)
 }
 
-# Get dynamic library of blank model.
-blank_model_dll_file <- function() {
-  file.path(system.file("libs", package = "housepi"), dll_file_ext("housepi"))
-}
-
 # Templated name convention
 template_name <- function(path) {
   # remove punctuation from string
