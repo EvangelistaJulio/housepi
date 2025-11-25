@@ -1,21 +1,30 @@
-image: rocker/r-base:latest
+image: rocker/r-ver:4.4.1
 
 variables:
-  GIT_SUBMODULE_STRATEGY: recursive
+  RSPM: "https://packagemanager.rstudio.com/cran/__linux__/jammy/latest"
+  REPOS: $RSPM
+  PAK_CACHE_DIR: "$CI_PROJECT_DIR/.pak-cache"
 
 stages:
   - build
   - deploy
 
+cache:
+  key: "r-pak-cache"
+  paths:
+    - .pak-cache
+    - ~/.cache/R
+    - ~/.local/share/pak
+  policy: pull-push
+
 before_script:
-  - apt-get update && apt-get install -y libgit2-dev libcurl4-openssl-dev libssl-dev pandoc
-  - R -e "install.packages(c('remotes','pkgdown'))"
-  - R -e "remotes::install_deps(dependencies = TRUE)"
+  - apt-get update && apt-get install -y libcurl4-openssl-dev libssl-dev libgit2-dev pandoc
+  - R -q -e "install.packages('pak', repos='https://r-lib.github.io/p/pak/stable')"
+  - R -q -e "pak::local_install_dev_deps(upgrade = FALSE)"
 
 build_site:
   stage: build
   script:
-    # Run your custom build script
     - Rscript pkgdown/custom_build_site.R
   artifacts:
     paths:
@@ -25,7 +34,6 @@ build_site:
 pages:
   stage: deploy
   script:
-    # If your script outputs to docs/, rename to public/
     - if [ -d docs ]; then mv docs public; fi
   artifacts:
     paths:
