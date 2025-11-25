@@ -1,0 +1,34 @@
+image: rocker/r-base:latest
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
+stages:
+  - build
+  - deploy
+
+before_script:
+  - apt-get update && apt-get install -y libgit2-dev libcurl4-openssl-dev libssl-dev pandoc
+  - R -e "install.packages(c('remotes','pkgdown'))"
+  - R -e "remotes::install_deps(dependencies = TRUE)"
+
+build_site:
+  stage: build
+  script:
+    # Run your custom build script
+    - Rscript pkgdown/custom_build_site.R
+  artifacts:
+    paths:
+      - public
+    expire_in: 1 week
+
+pages:
+  stage: deploy
+  script:
+    # If your script outputs to docs/, rename to public/
+    - if [ -d docs ]; then mv docs public; fi
+  artifacts:
+    paths:
+      - public
+  only:
+    - main
