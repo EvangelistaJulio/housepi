@@ -5,7 +5,7 @@ template:
   theme-dark: breeze-dark
   math-rendering: katex
 
-destination: docs
+destination: public
 
 url: https://mmmi-pasteur.gitlab.io/housepi
 

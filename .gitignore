@@ -57,6 +57,7 @@ Thumbs.db
 *RcppExports.cpp
 *RcppExports.R
 .Rproj.user
+/public/
 /doc/
 /docs/
 /Meta/

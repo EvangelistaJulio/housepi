@@ -33,8 +33,6 @@ build_site:
 
 pages:
   stage: deploy
-  script:
-    - if [ -d docs ]; then mv docs public; fi
   artifacts:
     paths:
       - public
