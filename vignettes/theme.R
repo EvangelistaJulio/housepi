@@ -15,11 +15,16 @@ ggplot2::theme_set(
                    axis.text = my_element_text,
                    strip.text = my_element_text,
                    legend.text = my_element_text,
-                   legend.title = ggplot2::element_blank(),
-                   geom = ggplot2::element_geom(linewidth = 1,
-                                                color = "coral",
-                                                pointsize = 3))
+                   legend.title = ggplot2::element_blank())
 )
+# mimic element_geom for older ggplot2 versions
+ggplot2::update_geom_defaults("line", list(color = "coral", size = 1))
+ggplot2::update_geom_defaults("point", list(color = "coral", size = 3))
+ggplot2::update_geom_defaults("vline", list(color = "coral", size = 1))
+ggplot2::update_geom_defaults("hline", list(color = "coral", size = 1))
+ggplot2::update_geom_defaults("abline", list(color = "coral", size = 1))
+ggplot2::update_geom_defaults("segment", list(color = "coral", size = 1))
+
 # bayesplot theme
 bayesplot::bayesplot_theme_set(ggplot2::theme_get())
 bayesplot::color_scheme_set(scheme = "brightblue")

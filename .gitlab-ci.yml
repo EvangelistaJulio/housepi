@@ -1,4 +1,4 @@
-image: rocker/r-ver:4.4.1
+image: rocker/r-ver:latest
 
 variables:
   RSPM: "https://packagemanager.rstudio.com/cran/__linux__/jammy/latest"
