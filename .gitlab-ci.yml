@@ -33,6 +33,8 @@ build_site:
 
 pages:
   stage: deploy
+  script:
+    - echo 'Deploying to GitLab Pages'
   artifacts:
     paths:
       - public
