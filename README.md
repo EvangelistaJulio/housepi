@@ -12,34 +12,35 @@ into the history of transmission within a population (finite size studies).
 The package aims to combine ease of use with flexibility, supporting both
 straightforward analyses and advanced epidemiological investigations.
 
-**IMPORTANT:** 
-The package has not been released.
-Sharing the package or parts of its code without consent of the authors is strictly forbidden.
+[!CAUTION]
+The package has not been released. Sharing the package or parts of its code without consent of the authors is strictly forbidden.
 
 ## Installation
 
-The package is currently under development as a private repository on [gitlab](https://gitlab.pasteur.fr/mmmi-pasteur/housepi).
-
 Prior to installation, check that `devtools` is installed and test that a working C++ toolchain is present by running:
-
 ``` r
-if (!requireNamespace("devtools", quietly = TRUE)) {
-  install.packages("devtools")
-}
+if (!requireNamespace("devtools", quietly = TRUE)) install.packages("devtools")
 pkgbuild::has_build_tools(debug = TRUE)
 ```
 
-To install `housepi`, open Rstudio, download and unzip the source code from the webpage to your working directory, then run the following command in your R console:
-
+[!NOTE]
+The package is currently under development as a private repository on GitLab.
+You need access permissions and a valid GitLab token to install it.
+If you have SSH access set up, just run the following
 ``` r
+install.packages("remotes")
+remotes::install_git("git@gitlab.pasteur.fr:mmmi-pasteur/housepi.git", ref = "main")
+```
+Otherwise download the source code on [GitLab](https://gitlab.pasteur.fr/mmmi-pasteur/housepi), set the main folder as your working directory and run
+```r
 devtools::install()
 ```
 
 ## License
 
-**IMPORTANT:**
-The package has not been released.
-Sharing the package or parts of its code without consent of the authors is strictly forbidden.
-
 housepi is distributed under the terms of the GNU General Public License, Version 3 (GPLv3).
 See the LICENSE file for details.
+
+[!CAUTION]
+The package has not been released. Sharing the package or parts of its code without consent of the authors is strictly forbidden.
+

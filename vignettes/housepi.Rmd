@@ -120,7 +120,7 @@ Different approaches are available to perform the same operation, we can call `a
 hhmodel <- hhmodel |>
   add_parameter("alpha",                # name matching the model source
                 prior = "uniform",      # uniform prior
-                proposal = "lognormal") # mcmc proposal
+                proposal = "lognormal") # MCMC proposal
 
 # beta : in-household person to person transmission rate
 hhmodel$add_parameter("beta", prior = "uniform", proposal = "lognormal")
@@ -141,9 +141,9 @@ This will return an object wrapping [posterior](https://cran.r-project.org/web/p
 ```{r}
 # run the Monte Carlo specifying setup options
 results <- hhmodel |>
-  run_inference(steps = 1000,     # number of mcmc steps (per chain)
-                thin = 10,        # delay between mcmc steps that are stored
-                adapt = 500,      # finite adaptation steps before mcmc steps
+  run_inference(steps = 1000,     # number of MCMC steps (per chain)
+                thin = 10,        # delay between MCMC steps that are stored
+                adapt = 500,      # finite adaptation steps before MCMC steps
                 chains = 3,       # number of independent chains
                 threads = 1,      # number of threads
                 progress = FALSE) # disable progress bar
@@ -222,7 +222,7 @@ hhsimul
 # append missing parameters for incubation period
 hhsimul <- hhsimul |> 
   load_parameter_list(
-    inc_shape = 2, inc_scale = 1.1,
+    inc_shape = 2, inc_scale = 1,
     # we set option 'append' to TRUE to keep previous definitions
     append = TRUE 
   )

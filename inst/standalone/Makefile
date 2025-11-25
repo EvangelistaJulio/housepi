@@ -20,7 +20,7 @@ OBJECTS := $(SOURCES:.cpp=.o)
 EXECUTABLE := $(MODEL)/model.exe
 
 # compilation flags
-CXXFLAGS := -Wall -Wextra -I../../inst/template/include/
+CXXFLAGS := -Wall -Wextra -I../template/include/
 
 ifdef DEBUG
 CXXFLAGS += -g -O1 -Wno-unknown-pragmas -Werror -Wuninitialized
@@ -71,7 +71,7 @@ main.o: main.cpp
 
 # To clean objects
 clean:
-	$(RM) {$(MODEL),$(SRC),../models/*}/*.{o,so,exe} ../template/src/*
+	$(RM) main.o {$(MODEL),$(SRC),../models/*}/*.{o,so,exe} ../template/src/*
 
 # Run make in debugging mode using standard housepi files
 debug:
