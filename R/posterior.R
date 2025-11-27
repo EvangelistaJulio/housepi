@@ -184,11 +184,21 @@ HousepiPosteriorDraws <- R6Class(
     #' @param name `character(1)` Model name.
     #' @param rcpp_object `Rcpp_ModelHousepi`
     initialize = function(name, rcpp_object) {
+      # inherit model name
       private$.name <- as.character(name)
+
+      # sample draws
       all_traces <- private$.cpp_draws_to_posterior(rcpp_object$export_draws())
+      # household pointwise log-likelihood
+      private$.point_log_lik_draws <- private$.cpp_draws_to_posterior(
+        rcpp_object$export_house_log_lik_draws()
+      )
+      # release memory in original object
+      rcpp_object$clear_memory()
+
       vars <- posterior::variables(all_traces)
 
-      # augmented draws
+      # IDs of augmented draws
       id_draws <- rcpp_object$export_setup()$id_draws
 
       if (length(id_draws) > 0) {
@@ -196,8 +206,7 @@ HousepiPosteriorDraws <- R6Class(
                              function(x) stringr::str_detect(vars, x)),
                       1, base::any)
         augm_vars <- vars[mask]
-        private$.augm_draws <- subset_draws(all_traces,
-                                                    variable = augm_vars)
+        private$.augm_draws <- subset_draws(all_traces, variable = augm_vars)
         private$.augm_draws$.iteration <- all_traces$.iteration
         vars <- setdiff(vars, augm_vars)
       }
@@ -219,13 +228,6 @@ HousepiPosteriorDraws <- R6Class(
       private$.param_draws <- subset_draws(all_traces, variable = vars)
       private$.param_draws$.iteration <- all_traces$.iteration
 
-      # household pointwise log-likelihood
-      private$.point_log_lik_draws <- private$.cpp_draws_to_posterior(
-        rcpp_object$export_house_log_lik_draws()
-      )
-
-      # release memory in original object
-      rcpp_object$clear_memory()
       invisible()
     },
 

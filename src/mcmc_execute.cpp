@@ -7,11 +7,11 @@
  *                               /_/
  *
  * housepi - Epidemiological Analysis of Household Outbreaks.
- * 
+ *
  * Author: Francesco Camaglia
  * Copyright © 2025 Institut Pasteur (Paris), CNRS and INSERM.
  * See the COPYRIGHT file for details.
- * 
+ *
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the COPYING file for details.
  *
@@ -141,11 +141,11 @@ void MCMC::infer()
     Impl::Setup &setup = pImpl_->setup;
     try
     {
-        setup.prog_declare();                               // declare current progress bar
-        pImpl_->init_monte_carlo();                         // initialize mcmc sampling
-        pImpl_->init_model_for_inference();                 // user initialization model
-        pImpl_->augm.init();                                // initialize augmented variables
-        setup.prog_open(setup.c_n_sweeps * setup.n_chains); // open progress bar
+        setup.prog_declare();               // declare current progress bar
+        pImpl_->init_monte_carlo();         // initialize mcmc sampling
+        pImpl_->init_model_for_inference(); // user initialization model
+        pImpl_->augm.init();                // initialize augmented variables
+        setup.prog_open_for_inference();    // open progress bar
 
         pImpl_->run_monte_carlo(); // run Monte Carlo
         setup.prog_close();        // close progress bar
@@ -160,14 +160,24 @@ void MCMC::infer()
 /// Assert setup definitions are ok to proceed with mcmc sampling.
 void MCMC::Impl::init_monte_carlo()
 {
-    setup.assert_mcmc_setup();     // assert if setup is ok for mcmc
-    assert_non_empty_data_wide_(); // check if data is empty
-    warn_if_all_missing_status_(); // warn if all missing status
+    // check if data is empty
+    assert_non_empty_data_wide_();
 
     // check if there is actually something to sample
     if (!param.is_any_sample() && !augm.is_any_sample())
         throw std::length_error(
             "Nothing to sample. Check your parameter and augmented definitions.");
+    // warn if all missing status
+    warn_if_all_missing_status_();
+
+    // assert if setup is ok for mcmc
+    setup.assert_mcmc_setup();
+
+    // Drop adaptation steps if nothing to adapt
+    // UPDATE: if adaptation applied to augmented variables, update this
+    if (param.list_adaptable_sample_cached.empty() &&
+        param.list_adaptable_sample_standard.empty())
+        setup.drop_mcmc_adapt();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -537,7 +547,7 @@ std::vector<dbl_vec> MCMC::Impl::power_posteriors(const std::string &scheme, uns
     setup.prog_declare();       // declare current progress bar
     init_model_for_inference(); // initialize model for inference
     augm.init();                // initialize augmented variables
-    setup.prog_open(setup.c_n_sweeps * setup.n_chains * (setup.n_rungs + 1));
+    setup.prog_open_for_power_post();
 
     // thermodynamic ladder estimates
     dbl_vec itm = {}; // inverse temperature
@@ -818,13 +828,10 @@ void MCMC::print_simulated_data_wide(const std::string &pathtofile)
     try
     {
         // initialization
-        setup.prog_declare("simulate");
         std::ofstream ofs = open_ofstream_datawide(pathtofile,
                                                    data_wide.headers,
                                                    augm.list_export);
         pImpl_->helper_init_simulation();
-        // open progress bar
-        setup.prog_open(data_wide.report_house.total);
 
         for (Household house : data_wide) // NOTE: deep copy of household
             try
@@ -835,17 +842,12 @@ void MCMC::print_simulated_data_wide(const std::string &pathtofile)
                 update_ofstream_datawide(ofs, house,
                                          data_wide.headers,
                                          augm.list_export);
-                // update progress bar
-                setup.prog_update();
             }
             catch (const std::exception &e)
             {
                 throw std::runtime_error(
                     "While simulating " + house.err_name() + ":\n" + e.what());
             }
-
-        // close progress bar
-        setup.prog_close();
 
         // close ofstream
         if (!ofs.is_open())
@@ -855,7 +857,6 @@ void MCMC::print_simulated_data_wide(const std::string &pathtofile)
     }
     catch (const std::exception &e)
     {
-        setup.prog_crash();
         hsp::msg::error(e.what());
     }
 }

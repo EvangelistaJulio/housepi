@@ -104,9 +104,10 @@ public:
         bool is_power_post() const { return n_rungs > 0; }
         std::string fmt_progtxt();
 
+        void set_n_threads();
         void build(const u_dict<str_vec> &deftable);
         void assert_mcmc_setup();
-        void set_n_threads();
+        void drop_mcmc_adapt();
 
         // progress bar
         void prog_set_text(const std::string &text = hsp::na::STRING)
@@ -118,7 +119,8 @@ public:
             prog_set_text(text);
             progressbar_.set_thintime(progress);
         }
-        void prog_open(unsigned long total) { progressbar_.open(total); }
+        void prog_open_for_inference() { progressbar_.open(c_n_sweeps * n_chains); }
+        void prog_open_for_power_post() { progressbar_.open(c_n_sweeps * n_chains * (n_rungs + 1)); }
         void prog_update() { progressbar_.update(); }
         void prog_close() { progressbar_.close(); }
         void prog_crash() { progressbar_.crash(); }

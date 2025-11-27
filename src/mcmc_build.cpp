@@ -7,11 +7,11 @@
  *                               /_/
  *
  * housepi - Epidemiological Analysis of Household Outbreaks.
- * 
+ *
  * Author: Francesco Camaglia
  * Copyright © 2025 Institut Pasteur (Paris), CNRS and INSERM.
  * See the COPYRIGHT file for details.
- * 
+ *
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the COPYING file for details.
  *
@@ -194,8 +194,21 @@ void MCMC::Impl::Setup::assert_mcmc_setup()
             "Choice of steps, burn-in and thin generated an empty sample.");
 
     // assign number of sweeps
+    // NOTE: because of rounding I can't put all in the same line
     c_n_sweeps = n_adapt / n_thin;
     c_n_sweeps += n_burnin / n_thin;
+    c_n_sweeps += c_sample_size;
+}
+
+// Drop adaptation steps.
+void MCMC::Impl::Setup::drop_mcmc_adapt()
+{
+    if (n_adapt > 0)
+        hsp::msg::warning("Dropped adaptation steps: no parametric MCMC proposals were found.");
+    n_adapt = 0;
+
+    // re-assign number of sweeps
+    c_n_sweeps = n_burnin / n_thin;
     c_n_sweeps += c_sample_size;
 }
 

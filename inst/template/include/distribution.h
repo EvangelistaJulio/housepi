@@ -145,9 +145,10 @@ protected:
 	//////////////////////  Distribution : functional truncation [private] //////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
+	// UPDATE: this static isn't elegant
 	double inverse_sampling_(rnd_gen &prng)
 	{
-		static std::uniform_real_distribution<double> unif_gen(0., 1.);
+		static std::uniform_real_distribution<double> unif_gen(0., 1.); 
 		const double r = unif_gen(prng);
 		const double sx = range_lower_.is_empty() ? 0. : (1. - r) * raw_cdf_(lower());
 		const double dx = range_upper_.is_empty() ? r : r * raw_cdf_(upper());

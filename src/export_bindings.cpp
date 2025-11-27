@@ -108,7 +108,7 @@ RCPP_MODULE(housepi_flags)
             catch (const std::exception &e)                                                        \
             {                                                                                      \
                 hsp::msg::error(                                                                   \
-                    "While calling '" family "'" + ptr_->name() + "':\n" + e.what());              \
+                    "While calling " family " '" + ptr_->name() + "':\n" + e.what());              \
             }                                                                                      \
         }                                                                                          \
     };
@@ -690,7 +690,9 @@ Rcpp::NumericMatrix MCMC::export_draws() const
         headers.push_back(hsp::read::CHAIN_COLUMN);
 
         // matrix with draws
-        NumericMatrix output(setup.c_sample_size * setup.n_chains, headers.size());
+        const size_t n_rows = setup.c_sample_size * setup.n_chains;
+        const size_t n_cols = headers.size();
+        NumericMatrix output(n_rows, n_cols);
 
         size_t col = 0;
         // log-likelihood
