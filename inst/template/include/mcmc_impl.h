@@ -569,10 +569,10 @@ public:
         u_dict<str_vec> deftable_ = {}; // store definition table
 
         void helper_assert_no_reserved_();
-        void helper_build_definition_();
+        void helper_build_definition_by_status_();
         void helper_build_definition_order_();
         void set_definition_dependency_order_for_(const std::string &s);
-        std::vector<size_t> get_unsorted_definition_rows_by_(const std::string &s) const;
+        std::vector<size_t> get_unsorted_definition_rows_(const std::string &s, bool is_pre_process) const;
         void set_sample_map_for_(const std::string &s, size_t k);
         void set_function_or_identity_for_(size_t k);
         void helper_build_model_status_maps_();

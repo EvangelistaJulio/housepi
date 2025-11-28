@@ -3,23 +3,17 @@ library(testthat)
 test_that("Log-likelihood of augmented infection time model is correct", {
   # cumulative infectivity profile
   infec_profile_cumul <- function(x, param, discr) {
-    if (discr) {
-      z <- pgamma(1, shape = param$shape, scale = param$scale)
-      (pgamma(x + 1, shape = param$shape, scale = param$scale) - z) / (1 - z)
-    } else {
-      pgamma(x, shape = param$shape, scale = param$scale)
-    }
+    if (!discr) return(pgamma(x, shape = param$shape, scale = param$scale))
+    z <- pgamma(1, shape = param$shape, scale = param$scale)
+    (pgamma(x + 1, shape = param$shape, scale = param$scale) - z) / (1 - z)
   }
 
   # instantaneous infectivity profile
   infec_profile_inst <- function(x, param, discr) {
-    if (discr) {
-      z <- pgamma(1, shape = param$shape, scale = param$scale)
-      (pgamma(x + 1, shape = param$shape, scale = param$scale) -
-         pgamma(x, shape = param$shape, scale = param$scale)) / (1 - z)
-    } else {
-      dgamma(x, shape = param$shape, scale = param$scale)
-    }
+    if (!discr) return(dgamma(x, shape = param$shape, scale = param$scale))
+    z <- pgamma(1, shape = param$shape, scale = param$scale)
+    (pgamma(x + 1, shape = param$shape, scale = param$scale) -
+       pgamma(x, shape = param$shape, scale = param$scale)) / (1 - z)
   }
 
   # extract individual introduction
@@ -71,9 +65,9 @@ test_that("Log-likelihood of augmented infection time model is correct", {
           t_infec_k <- house[k, "infec_time"]
           gentime <- t_infec_i - t_infec_k
           if (gentime > 0) {
-            roi_inst_i <- roi_inst_i + 
+            roi_inst_i <- roi_inst_i +
               infec_profile_inst(gentime, param, discr)
-            roi_cumul_i <- roi_cumul_i + 
+            roi_cumul_i <- roi_cumul_i +
               infec_profile_cumul(gentime - discr, param, discr)
           }
         }
@@ -135,8 +129,8 @@ test_that("Simulations behave as expected", {
 
   hhsimul$load_augmented_list(
     incub_period = list(model = "gamma", shape = 2, scale = 1),
-    infec_time = ~- incub_period,
-    onset_time = ~infec_time + incub_period
+    infec_time = ~ -incub_period,
+    onset_time = ~ infec_time + incub_period
   )
 
   # simulate just introduction cases

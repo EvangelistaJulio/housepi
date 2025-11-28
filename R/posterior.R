@@ -49,7 +49,6 @@ HousepiPosteriorDraws <- R6Class(
     .point_log_lik_draws = NULL,
     .chain_tags = NULL,
     .iter_names = NULL,
-    .all_iter_names = NULL,
 
     # Store auxiliary tags from inference setup.
     .process_setup = function(setup) {
@@ -61,7 +60,6 @@ HousepiPosteriorDraws <- R6Class(
 
       private$.chain_tags <- rep(seq_len(n_chains), each = c_sample_size)
       private$.iter_names <- n_burnin + seq_len(c_sample_size) * n_thin
-      private$.all_iter_names <- rep(private$.iter_names, times = n_chains)
       invisible(self)
     },
 
@@ -81,21 +79,21 @@ HousepiPosteriorDraws <- R6Class(
 
       # split into a list of matrix
       list_trs <- lapply(split(seq_len(nrow(x)), private$.chain_tags),
-                         function(idx) x[idx, drop = FALSE])
+                         function(idx) x[idx, , drop = FALSE])
 
       # create empty array
-      n_chain <- length(list_trs)
+      n_chains <- length(list_trs)
       par_names <- colnames(x)
-      n_iter <- length(private$.all_iter_names)
+      n_iter <- length(private$.iter_names)
       array_trs <- array(
-        NA_real_, dim = c(n_iter, n_chain, length(par_names)),
-        dimnames = list(private$.all_iter_names, seq_len(n_chain), par_names)
+        NA_real_, dim = c(n_iter, n_chains, length(par_names)),
+        dimnames = list(private$.iter_names, seq_len(n_chains), par_names)
       )
 
       # associate draws from Cpp
       for (i in seq_along(list_trs)) array_trs[, i, ] <- list_trs[[i]]
       output <- posterior::as_draws_df(array_trs)
-      output$.iteration <- private$.iter_names
+      output$.iteration <- rep(private$.iter_names, times = n_chains)
       output
     }
   ),

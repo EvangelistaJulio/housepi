@@ -432,6 +432,14 @@ void MCMC::Impl::init_posterior_sample_()
 /// Store current Bayesian posterior sample.
 void MCMC::Impl::store_posterior_sample_()
 {
+    // FLAG
+    if (smpl_count >= smpl_total_log_lik.size())
+    {
+        hsp::msg::info("> overflow smpl_count: " + std::to_string(smpl_count) + "\n");
+        hsp::msg::info("> overflow smpl_total_log_lik: " + std::to_string(smpl_total_log_lik.size()) + "\n");
+        return;
+    }
+
     // store sample of the full log-likelihood
     smpl_total_log_lik[smpl_count] = total_log_lik_;
 
@@ -690,7 +698,7 @@ void MCMC::print_infer_state(const std::string &output_filename) const
                 ofs << hsp::read::DELIMITER << augm.smpl_individuals[k]->id() + "_" + a;
 
     // header chain
-    ofs << hsp::read::DELIMITER << hsp::read::CHAIN_COLUMN << std::endl;
+    ofs << hsp::read::DELIMITER << "_chain_" << std::endl;
 
     // Values
     for (size_t c = 0; c < setup.n_chains; ++c)
@@ -785,7 +793,6 @@ void update_ofstream_datawide(std::ofstream &ofs,
 /// Print the simulated data to the provided file.
 void MCMC::print_simulated_data_wide(const std::string &pathtofile)
 {
-    Impl::Setup &setup = pImpl_->setup;
     const Impl::DataWide &data_wide = pImpl_->data_wide;
     const Impl::Augmented &augm = pImpl_->augm;
 
