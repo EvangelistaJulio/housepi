@@ -20,9 +20,7 @@ jobs:
         config:
           - {os: macos-latest,   r: 'release'}
           - {os: windows-latest, r: 'release'}
-          - {os: ubuntu-latest,   r: 'devel', http-user-agent: 'release'}
           - {os: ubuntu-latest,   r: 'release'}
-          - {os: ubuntu-latest,   r: 'oldrel-1'}
 
     # Shorter timeout to prevent mac builders hanging for 6 hours!
     timeout-minutes: 30

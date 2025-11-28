@@ -104,9 +104,10 @@ public:
         bool is_power_post() const { return n_rungs > 0; }
         std::string fmt_progtxt();
 
+        void set_n_threads();
         void build(const u_dict<str_vec> &deftable);
         void assert_mcmc_setup();
-        void set_n_threads();
+        void drop_mcmc_adapt();
 
         // progress bar
         void prog_set_text(const std::string &text = hsp::na::STRING)
@@ -118,7 +119,8 @@ public:
             prog_set_text(text);
             progressbar_.set_thintime(progress);
         }
-        void prog_open(unsigned long total) { progressbar_.open(total); }
+        void prog_open_for_inference() { progressbar_.open(c_n_sweeps * n_chains); }
+        void prog_open_for_power_post() { progressbar_.open(c_n_sweeps * n_chains * (n_rungs + 1)); }
         void prog_update() { progressbar_.update(); }
         void prog_close() { progressbar_.close(); }
         void prog_crash() { progressbar_.crash(); }
@@ -212,7 +214,6 @@ public:
 
         void init_draws(unsigned long sample_size);
         void store_draws(unsigned long smpl_count);
-        void clear_draws();
 
     private:
         MCMC::Impl &pImpl_; // pointer to external class
@@ -269,7 +270,6 @@ public:
 
         void init_draws(unsigned long sample_size);
         void store_draws(unsigned long smpl_count);
-        void clear_draws();
 
         /////////////////////////////////////////////////////////////////////////////////////////
         ///////////////////////////  MCMC : Impl : DataWide : iterators  /////////////////////////
@@ -327,9 +327,9 @@ public:
             iterator end() { return iterator(this, indexes.size()); }
         };
 
-        View<Household> restricted() { return View<Household>(house_vector_, pImpl_.multiplicity.indexes); }
-        View<const Household> restricted() const { return View<const Household>(house_vector_, pImpl_.multiplicity.indexes); }
-        Household &restricted(size_t R) { return house_vector_[pImpl_.multiplicity.indexes[R]]; }
+        View<Household> restricted() { return View<Household>(house_vector_, pImpl_.multiplicity.head_class_house_indexes); }
+        View<const Household> restricted() const { return View<const Household>(house_vector_, pImpl_.multiplicity.head_class_house_indexes); }
+        Household &restricted(size_t R) { return house_vector_[pImpl_.multiplicity.head_class_house_indexes[R]]; }
 
     private:
         MCMC::Impl &pImpl_; // pointer to external class
@@ -358,7 +358,7 @@ public:
     /// Implementation of multiplicity optimization.
     struct Multiplicity
     {
-        std::vector<size_t> indexes = {};
+        std::vector<size_t> head_class_house_indexes = {};
 
         /////////////////////////////////////////////////////////////////////////////////////////
         ///////////////////////  MCMC : Impl : Multiplicity : constructor  //////////////////////
@@ -550,7 +550,6 @@ public:
 
         void init_draws(unsigned long sample_size);
         void store_draws(unsigned long smpl_count);
-        void clear_draws();
 
         /////////////////////////////////////////////////////////////////////////////////////////
         ////////////////////////////  MCMC : Impl : Augmented : getter  /////////////////////////
@@ -570,10 +569,10 @@ public:
         u_dict<str_vec> deftable_ = {}; // store definition table
 
         void helper_assert_no_reserved_();
-        void helper_build_definition_();
+        void helper_build_definition_by_status_();
         void helper_build_definition_order_();
         void set_definition_dependency_order_for_(const std::string &s);
-        std::vector<size_t> get_unsorted_definition_rows_by_(const std::string &s) const;
+        std::vector<size_t> get_unsorted_definition_rows_(const std::string &s, bool is_pre_process) const;
         void set_sample_map_for_(const std::string &s, size_t k);
         void set_function_or_identity_for_(size_t k);
         void helper_build_model_status_maps_();
@@ -639,9 +638,6 @@ public:
     std::vector<dbl_vec> power_posteriors(const std::string &scheme, unsigned long N);
     double evaluate_single_house_log_lik(const std::string &house_id);
     double update_total_log_lik(bool is_cache_depen = true);
-
-    /// Release memory.
-    void clear_memory() { clear_posterior_sample_(); }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////  MCMC : Impl : Simulation  ///////////////////////////////

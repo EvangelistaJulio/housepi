@@ -7,11 +7,11 @@
  *                               /_/
  *
  * housepi - Epidemiological Analysis of Household Outbreaks.
- * 
+ *
  * Author: Francesco Camaglia
  * Copyright © 2025 Institut Pasteur (Paris), CNRS and INSERM.
  * See the COPYRIGHT file for details.
- * 
+ *
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the COPYING file for details.
  *
@@ -411,7 +411,7 @@ void walk_dependency_tree(const std::string &entry,
             "Could not find a definition for augmented '" + entry + "'.");
     if (recursion_stack % entry)
         throw std::invalid_argument(
-            "Found inadmissible nested definitions for augmented '" + entry + "'");
+            "Found inadmissible cyclic definitions for augmented '" + entry + "'");
     if (visited % entry)
         return;
 
@@ -555,7 +555,7 @@ void MCMC::Impl::Augmented::build(const u_dict<str_vec> &input)
     hsp::str::assert_no_missing_entries(headers, file_headers);
     hsp::str::assert_no_unused_entries(headers, file_headers);
 
-    helper_build_definition_();
+    helper_build_definition_by_status_();
     helper_build_definition_order_();
     helper_build_model_status_maps_();
     user_list_discrete = hsp::str::unique(user_list_discrete);
@@ -589,8 +589,8 @@ void MCMC::Impl::Augmented::helper_assert_no_reserved_()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Assert that augmented definitions are univocal, complete and acyclic.
-void MCMC::Impl::Augmented::helper_build_definition_()
+/// Assert that augmented status/generic definitions are non degenerate.
+void MCMC::Impl::Augmented::helper_build_definition_by_status_()
 {
     // drop previous definitions
     status_to_def_row.clear();
@@ -645,14 +645,20 @@ void MCMC::Impl::Augmented::helper_build_definition_order_()
     else
         for (int status : pImpl_.data_wide.all_infected_status_list)
             set_definition_dependency_order_for_(std::to_string(status));
+
+    // finalize augmented lists
+    list_full = hsp::str::unique(list_full + list_export + list_draws); // NOTE: must be first!
+    list_export = hsp::str::drop_private(hsp::str::unique(list_export + list_draws));
+    list_draws = hsp::str::drop_private(hsp::str::unique(list_draws));
 }
 
 /// Set dependecies ordering for ininitializiation fo given status.
+/// At the same time assert that definition are complet and acyclic.
 void MCMC::Impl::Augmented::set_definition_dependency_order_for_(const std::string &s)
 {
     u_dict<str_vec> tree;       // populate augmented dependency tree
     u_dict<size_t> name_to_row; // ... and reverse dictionary name-to-row-index
-    for (size_t k : get_unsorted_definition_rows_by_(s))
+    for (size_t k : get_unsorted_definition_rows_(s, true))
     {
         str_vec xdepen = {};
         for (const std::string c : {"value", "model", "func", hsp::params::MIN, hsp::params::MAX})
@@ -664,9 +670,13 @@ void MCMC::Impl::Augmented::set_definition_dependency_order_for_(const std::stri
     // check dependecies and translate order from name to deftable row index
     try
     {
-        status_to_def_row[s] = {}; // NOTE:recycle to provide order
+        status_to_def_row[s] = {}; // NOTE: recycle from build to provide order
+
+        // Dropping spurios private definition for no public definition depends on it
         for (const std::string &a : extract_all_dependencies_order(tree))
-            status_to_def_row[s].push_back(name_to_row[a]);
+            if (!hsp::str::is_private(a) ||
+                !hsp::str::drop_private(extract_dependents_order(a, tree)).empty())
+                status_to_def_row[s].push_back(name_to_row[a]);
     }
     catch (const std::exception &e)
     {
@@ -676,15 +686,11 @@ void MCMC::Impl::Augmented::set_definition_dependency_order_for_(const std::stri
     // define usage lists respecting definition order
     for (size_t k : status_to_def_row[s])
         set_sample_map_for_(s, k);
-
-    // finalize augmented lists
-    list_full = hsp::str::unique(list_full + list_export + list_draws); // NOTE: must be first!
-    list_export = hsp::str::drop_private(hsp::str::unique(list_export + list_draws));
-    list_draws = hsp::str::drop_private(hsp::str::unique(list_draws));
 }
 
 /// Extract status-specific definitions row indexes.
-std::vector<size_t> MCMC::Impl::Augmented::get_unsorted_definition_rows_by_(const std::string &s) const
+std::vector<size_t> MCMC::Impl::Augmented::get_unsorted_definition_rows_(const std::string &s,
+                                                                         bool is_pre_process) const
 {
     // load the list of status-specific definition rows
     if (status_to_def_row.count(s))
@@ -697,7 +703,7 @@ std::vector<size_t> MCMC::Impl::Augmented::get_unsorted_definition_rows_by_(cons
             name_to_status.push_back(deftable_.find("name")->second[k]);
 
         // add generic definitions to current list (if not generic already)
-        if (!hsp::na::is(s) && status_to_def_row.count(hsp::na::STRING))
+        if (is_pre_process && !hsp::na::is(s) && status_to_def_row.count(hsp::na::STRING))
             for (size_t k : status_to_def_row.at(hsp::na::STRING))
                 // skip generic if status-specific already exist
                 if (!(name_to_status % deftable_.find("name")->second[k]))
@@ -789,10 +795,9 @@ void MCMC::Impl::Augmented::helper_build_model_status_maps_()
 
     for (int status : pImpl_.data_wide.all_infected_status_list)
     {
-        u_dict<str_vec> tree;       // populate augmented dependency tree
-        u_dict<size_t> name_to_row; // ... and reverse dictionary name to index
-        str_vec without_model;      // list of augmented without models
-        for (const size_t k : get_unsorted_definition_rows_by_(std::to_string(status)))
+        u_dict<str_vec> tree;  // populate augmented dependency tree
+        str_vec without_model; // list of augmented without models
+        for (const size_t k : get_unsorted_definition_rows_(std::to_string(status), false))
         {
             const std::string &a = deftable_["name"][k];
             str_vec xdepen = {};
@@ -803,8 +808,6 @@ void MCMC::Impl::Augmented::helper_build_model_status_maps_()
                 without_model.push_back(a);
             else
                 tree[a] = hsp::str::unique(xdepen);
-
-            name_to_row[a] = k;
         }
 
         // prune dependency tree from augmented without model
@@ -1093,29 +1096,6 @@ void MCMC::Impl::Augmented::store_draws(unsigned long smpl_count)
         for (const std::string &a : list_draws)
             smpl_augm_value_k[a][smpl_count] = member_star->augm(a);
     }
-}
-
-/// Clears all memory allocated by the Augmented structure.
-/// Call this when the data is no longer needed to prevent memory leaks.
-void MCMC::Impl::Augmented::clear_draws()
-{
-    smpl_individuals.clear();
-    smpl_individuals.shrink_to_fit();
-
-    for (auto &entry : smpl_values)
-    {
-        // deep clean pre-existing draws
-        for (auto &pair : entry)
-        {
-            pair.second.clear();
-            pair.second.shrink_to_fit();
-        }
-        entry.clear();
-        entry.rehash(0);
-    }
-
-    smpl_values.clear();
-    smpl_values.shrink_to_fit();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

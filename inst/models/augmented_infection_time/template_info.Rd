@@ -13,7 +13,7 @@ A susceptible member can get infected at time/day \eqn{t_{i}}{t_i} according to 
 {\lambda}_{i}(t) = {\mu}^{(\rm sus)}_{i} {\beta} \left(\frac{n_{\ast}}{n}\right)^{-{\gamma}} \sum_{k\,:\,t_{k}<t_{i}} {\mu}^{(\rm inf)}_{k} f_{k}(t)
 }{
 lambda_i(t) = mu_sus_i * beta * (n_star/n)^(-gamma) sum_{k: t_k < t_i} mu_inf_k f_k(t)
-};
+}
 \item Infectivity profile: \eqn{f_{k}}{f_k}.
 }
 \if{html}{\out{<hr>}}

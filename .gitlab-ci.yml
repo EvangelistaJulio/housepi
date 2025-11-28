@@ -1,0 +1,42 @@
+image: rocker/r-ver:latest
+
+variables:
+  RSPM: "https://packagemanager.rstudio.com/cran/__linux__/jammy/latest"
+  REPOS: $RSPM
+  PAK_CACHE_DIR: "$CI_PROJECT_DIR/.pak-cache"
+
+stages:
+  - build
+  - deploy
+
+cache:
+  key: "r-pak-cache"
+  paths:
+    - .pak-cache
+    - ~/.cache/R
+    - ~/.local/share/pak
+  policy: pull-push
+
+before_script:
+  - apt-get update && apt-get install -y libcurl4-openssl-dev libssl-dev libgit2-dev pandoc
+  - R -q -e "install.packages('pak', repos='https://r-lib.github.io/p/pak/stable')"
+  - R -q -e "pak::local_install_dev_deps(upgrade = FALSE)"
+
+build_site:
+  stage: build
+  script:
+    - Rscript pkgdown/custom_build_site.R
+  artifacts:
+    paths:
+      - public
+    expire_in: 1 week
+
+pages:
+  stage: deploy
+  script:
+    - echo 'Deploying to GitLab Pages'
+  artifacts:
+    paths:
+      - public
+  only:
+    - main

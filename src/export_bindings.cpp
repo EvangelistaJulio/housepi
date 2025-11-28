@@ -108,7 +108,7 @@ RCPP_MODULE(housepi_flags)
             catch (const std::exception &e)                                                        \
             {                                                                                      \
                 hsp::msg::error(                                                                   \
-                    "While calling '" family "'" + ptr_->name() + "':\n" + e.what());              \
+                    "While calling " family " '" + ptr_->name() + "':\n" + e.what());              \
             }                                                                                      \
         }                                                                                          \
     };
@@ -636,91 +636,124 @@ Rcpp::DataFrame MCMC::summarise_house_sizes() const
 /////////////////////////////////  MCMC : Impl : export draws  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Chain tag of each trace entry.
-Rcpp::IntegerVector draws_chain_tags(unsigned long c_sample_size, unsigned long n_chains)
+// Copies src into dest. If destroy_src is true, releases src's storage after copy.
+template <typename DestNumeric>
+inline void helper_vector_flush(DestNumeric dest, std::vector<double> &src)
 {
-    using namespace Rcpp;
-
-    IntegerVector output(c_sample_size * n_chains);
-    for (size_t c = 0; c < n_chains; ++c)
-        std::fill(output.begin() + c * c_sample_size,
-                  output.begin() + (c + 1) * c_sample_size, c + 1);
-    return output;
+    std::copy(src.begin(), src.end(), dest.begin());
+    std::vector<double>().swap(src);
 }
 
-/// Iteration name of each trace entry.
-Rcpp::CharacterVector draws_iter_names(unsigned long c_sample_size, unsigned long n_chains,
-                                       unsigned long n_burnin, unsigned long n_thin)
+/// Export MCMC draws of total log-likelihood posterior samples.
+Rcpp::NumericMatrix MCMC::flush_total_log_lik_draws()
 {
     using namespace Rcpp;
-
-    std::vector<unsigned long> iteration(c_sample_size * n_chains);
-    for (size_t c = 0; c < n_chains; ++c)
-        for (size_t k = 0; k < c_sample_size; k++)
-            iteration[k + c * c_sample_size] = n_burnin + (k + 1) * n_thin;
-    return CharacterVector(wrap(std::move(iteration)));
-}
-
-/// Export MCMC draws of parameter posterior samples.
-Rcpp::NumericMatrix MCMC::export_draws() const
-{
-    using namespace Rcpp;
-    const Impl::Setup &setup = pImpl_->setup;
-    const Impl::Parameter &param = pImpl_->param;
-    const Impl::Augmented &augm = pImpl_->augm;
 
     try
     {
-        // UPDATE: I shall allow for export even if _is_power_post
-        if (pImpl_->smpl_total_log_lik.empty())
-            throw std::length_error("No draws to export were found.");
-
-        // define matrix headers
-        str_vec headers = {"log_lik"};
-        headers += param.list_sample;
-        // prior of sampled parameters
-        for (const std::string &p : param.list_sample)
-            headers.push_back("lprior_" + p);
-        // augmented variable of id trace
-        if (!augm.smpl_values.empty())
-            for (size_t k = 0; k < augm.smpl_individuals.size(); ++k)
-                for (const std::string &a : pImpl_->augm.list_draws)
-                    headers.push_back(augm.smpl_individuals[k]->id() + "_" + a);
-        // multiple chains
-        headers.push_back(hsp::read::CHAIN_COLUMN);
-
-        // matrix with draws
-        NumericMatrix output(setup.c_sample_size * setup.n_chains, headers.size());
-
-        size_t col = 0;
-        // log-likelihood
-        output(_, col++) = NumericVector(wrap(pImpl_->smpl_total_log_lik));
-        // parameter values
-        for (const std::string &p : param.list_sample)
-            output(_, col++) = NumericVector(wrap(pImpl_->param.smpl_values.at(p)));
-        // parameter values
-        for (const std::string &p : param.list_sample)
-            output(_, col++) = NumericVector(wrap(pImpl_->param.smpl_priors.at(p)));
-
-        // augmented variables
-        if (!augm.smpl_values.empty())
-            for (size_t k = 0; k < augm.smpl_values.size(); ++k)
-                for (const std::string &a : pImpl_->augm.list_draws)
-                    output(_, col++) = NumericVector(wrap(augm.smpl_values.at(k).at(a)));
-
-        // asssociate chain tag
-        output(_, col++) = draws_chain_tags(setup.c_sample_size, setup.n_chains);
-        // associate column names
-        colnames(output) = CharacterVector(wrap(headers));
-        // associate row names
-        rownames(output) = draws_iter_names(setup.c_sample_size, setup.n_chains,
-                                            setup.n_burnin, setup.n_thin);
-
+        NumericMatrix output(pImpl_->smpl_count, 1);
+        helper_vector_flush(output(_, 0), pImpl_->smpl_total_log_lik);
+        colnames(output) = CharacterVector({"log_lik"});
         return output;
     }
     catch (const std::exception &e)
     {
-        hsp::msg::error("While exporting MCMC draws:\n" +
+        hsp::msg::error("While exporting total log-likelihood draws:\n" +
+                        std::string(e.what()));
+    }
+}
+
+/// Export MCMC draws of parameter values posterior samples.
+Rcpp::NumericMatrix MCMC::flush_param_draws()
+{
+    using namespace Rcpp;
+    Impl::Parameter &param = pImpl_->param;
+
+    try
+    {
+        if (param.list_sample.empty())
+            return NumericMatrix();
+
+        const size_t n_cols = param.list_sample.size();
+        CharacterVector headers(n_cols);
+        NumericMatrix output(pImpl_->smpl_count, n_cols);
+
+        size_t col = 0;
+        for (const std::string &p : param.list_sample)
+        {
+            headers[col] = p;
+            helper_vector_flush(output(_, col++), param.smpl_values.at(p));
+        }
+        colnames(output) = std::move(headers);
+        return output;
+    }
+    catch (const std::exception &e)
+    {
+        hsp::msg::error("While exporting parameters draws:\n" +
+                        std::string(e.what()));
+    }
+}
+
+/// Export MCMC draws of parameter log-priors posterior samples.
+Rcpp::NumericMatrix MCMC::flush_param_lprior_draws()
+{
+    using namespace Rcpp;
+    Impl::Parameter &param = pImpl_->param;
+
+    try
+    {
+        if (param.list_sample.empty())
+            return NumericMatrix();
+
+        const size_t n_cols = param.list_sample.size();
+        CharacterVector headers(n_cols);
+        NumericMatrix output(pImpl_->smpl_count, n_cols);
+
+        size_t col = 0;
+        for (const std::string &p : param.list_sample)
+        {
+            headers[col] = "lprior_" + p;
+            helper_vector_flush(output(_, col++), param.smpl_priors.at(p));
+        }
+        colnames(output) = std::move(headers);
+        return output;
+    }
+    catch (const std::exception &e)
+    {
+        hsp::msg::error("While exporting parameter log-priors draws:\n" +
+                        std::string(e.what()));
+    }
+}
+
+/// Export MCMC draws of augmented posterior samples.
+Rcpp::NumericMatrix MCMC::flush_augm_draws()
+{
+    using namespace Rcpp;
+    Impl::Augmented &augm = pImpl_->augm;
+
+    try
+    {
+        if (augm.smpl_values.empty())
+            return NumericMatrix();
+
+        const size_t n_cols = augm.smpl_individuals.size() * augm.list_draws.size();
+        CharacterVector headers(n_cols);
+        NumericMatrix output(pImpl_->smpl_count, n_cols);
+
+        size_t col = 0;
+        for (size_t k = 0; k < augm.smpl_values.size(); ++k)
+            for (const std::string &a : augm.list_draws)
+            {
+                headers[col] = augm.smpl_individuals[k]->id() + "_" + a;
+                helper_vector_flush(output(_, col++), augm.smpl_values.at(k).at(a));
+            }
+        colnames(output) = std::move(headers);
+        augm.smpl_values.clear();
+        return output;
+    }
+    catch (const std::exception &e)
+    {
+        hsp::msg::error("While exporting augmented draws:\n" +
                         std::string(e.what()));
     }
 }
@@ -730,47 +763,48 @@ Rcpp::NumericMatrix MCMC::export_draws() const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Export all sampled values of the log-likelihood for all household.
-Rcpp::NumericMatrix MCMC::export_house_log_lik_draws() const
+Rcpp::NumericMatrix MCMC::flush_house_log_lik_draws()
 {
     using namespace Rcpp;
-    const Impl::Setup &setup = pImpl_->setup;
-    const Impl::DataWide &data_wide = pImpl_->data_wide;
-    const Impl::Multiplicity &multiplicity = pImpl_->multiplicity;
+    Impl::DataWide &data_wide = pImpl_->data_wide;
+    Impl::Multiplicity &multiplicity = pImpl_->multiplicity;
 
     try
     {
         if (data_wide.smpl_values.empty())
-            throw std::length_error("No draws to export were found.");
+            return NumericMatrix();
 
         // create a NumericMatrix with n_house columns
         size_t n_houses = data_wide.report_house.total;
-        const unsigned long sample_size = setup.n_chains * setup.c_sample_size;
-        NumericMatrix output(sample_size, n_houses + 1);
-        CharacterVector columns(n_houses + 1);
-        columns[n_houses] = hsp::read::CHAIN_COLUMN;
+        NumericMatrix output(pImpl_->smpl_count, n_houses);
+        CharacterVector headers(n_houses);
 
         // retrieve restricted index by general index of multiplicity head class
-        std::unordered_map<size_t, size_t> restr_idx_map = {};
-        restr_idx_map.reserve(multiplicity.indexes.size());
-        for (size_t R = 0; R < multiplicity.indexes.size(); ++R)
-            restr_idx_map.emplace(multiplicity.indexes[R], R);
+        const size_t n_classes = multiplicity.head_class_house_indexes.size();
+        std::vector<std::vector<size_t>> house_classes(n_classes);
 
-        // assign each NumericVector to a column of the matrix
+        std::unordered_map<size_t, size_t> restr_idx_map = {};
+        restr_idx_map.reserve(n_classes);
+        for (size_t R = 0; R < n_classes; ++R)
+            restr_idx_map.emplace(multiplicity.head_class_house_indexes[R], R);
+
         for (const Household &house : data_wide)
         {
-            size_t R = restr_idx_map.at(house.multiplicity_class_index());
-            size_t H = house.house_index();
-            output(_, H) = NumericVector(wrap(data_wide.smpl_values[R]));
-            columns[H] = house.house_id();
+            const size_t R = restr_idx_map.at(house.multiplicity_class_index());
+            const size_t H = house.house_index();
+            house_classes[R].push_back(H);
+            headers[H] = house.house_id();
         }
 
-        // asssociate chain tag
-        output(_, n_houses) = draws_chain_tags(setup.c_sample_size, setup.n_chains);
-        // associate column names
-        colnames(output) = columns;
-        // associate row names
-        rownames(output) = draws_iter_names(setup.c_sample_size, setup.n_chains,
-                                            setup.n_burnin, setup.n_thin);
+        for (size_t R = 0; R < n_classes; ++R)
+        {
+            std::vector<double> &src = data_wide.smpl_values[R];
+
+            for (size_t H : house_classes[R])
+                std::copy(src.begin(), src.end(), output(_, H).begin());
+            std::vector<double>().swap(src);
+        }
+        colnames(output) = std::move(headers);
 
         return output;
     }
@@ -1188,8 +1222,11 @@ Rcpp::List MCMC::log_evidence(const std::string &scheme, unsigned long n_rungs)
 //' @field export_data_wide\\cr Return a DataFrame with current database.
 //' @field summarise_cases\\cr Return a DataFrame with a report of the current database.
 //' @field summarise_house_sizes\\cr Return a DataFrame with a report of household sizes.
-//' @field export_draws\\cr Return a NumericMatrix with MCMC draws.
-//' @field export_house_log_lik_draws\\cr Return a NumericMatrix with household log-likelihood draws.
+//' @field flush_total_log_lik_draws\\cr Return a NumericMatrix with the total log-likelihood draws.
+//' @field flush_param_draws\\cr Return a NumericMatrix with parameters draws.
+//' @field flush_param_lprior_draws\\cr Return a NumericMatrix with parameter with log-priors draws.
+//' @field flush_augm_draws\\cr Return a NumericMatrix with augmented draws.
+//' @field flush_house_log_lik_draws\\cr Return a NumericMatrix with household log-likelihood draws.
 //' @field export_house_snapshot\\cr Return a List with a snapshot containing full household and model details.
 //' @keywords internal
 RCPP_MODULE(housepi_model_core)
@@ -1197,7 +1234,6 @@ RCPP_MODULE(housepi_model_core)
     Rcpp::class_<MCMC>("HousepiRcppMcmc")
         .constructor()
         .method("init_advanced_setup", &MCMC::init_advanced_setup)
-        .method("clear_memory", &MCMC::clear_memory)
         .method("infer", &MCMC::infer)
         .method("data_wide_for_simulation", &MCMC::data_wide_for_simulation)
         .method("simulate", &MCMC::simulate)
@@ -1228,8 +1264,11 @@ RCPP_MODULE(housepi_model_core)
         .method("export_augm_list_discrete", &MCMC::export_augm_list_discrete)
         .method("export_augmented_data_wide", &MCMC::export_augmented_data_wide)
         .method("export_infec_profile", &MCMC::export_infec_profile)
-        .method("export_draws", &MCMC::export_draws)
-        .method("export_house_log_lik_draws", &MCMC::export_house_log_lik_draws)
+        .method("flush_total_log_lik_draws", &MCMC::flush_total_log_lik_draws)
+        .method("flush_param_draws", &MCMC::flush_param_draws)
+        .method("flush_param_lprior_draws", &MCMC::flush_param_lprior_draws)
+        .method("flush_augm_draws", &MCMC::flush_augm_draws)
+        .method("flush_house_log_lik_draws", &MCMC::flush_house_log_lik_draws)
         .method("export_house_snapshot", &MCMC::export_house_snapshot);
 
     Rcpp::class_<Model>("HousepiRcppModel")

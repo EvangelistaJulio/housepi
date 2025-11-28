@@ -7,11 +7,11 @@
  *                               /_/
  *
  * housepi - Epidemiological Analysis of Household Outbreaks.
- * 
+ *
  * Author: Francesco Camaglia
  * Copyright © 2025 Institut Pasteur (Paris), CNRS and INSERM.
  * See the COPYRIGHT file for details.
- * 
+ *
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the COPYING file for details.
  *
@@ -87,7 +87,7 @@ double MCMC::Impl::update_total_log_lik(bool is_cache_depen)
 
     atomic_error.reset();
 #pragma omp parallel for reduction(+ : new_ll)
-    for (size_t R = 0; R < multiplicity.indexes.size(); ++R)
+    for (size_t R = 0; R < multiplicity.head_class_house_indexes.size(); ++R)
     {
         if (atomic_error.is_pending())
             continue;
@@ -141,11 +141,11 @@ void MCMC::infer()
     Impl::Setup &setup = pImpl_->setup;
     try
     {
-        setup.prog_declare();                               // declare current progress bar
-        pImpl_->init_monte_carlo();                         // initialize mcmc sampling
-        pImpl_->init_model_for_inference();                 // user initialization model
-        pImpl_->augm.init();                                // initialize augmented variables
-        setup.prog_open(setup.c_n_sweeps * setup.n_chains); // open progress bar
+        setup.prog_declare();               // declare current progress bar
+        pImpl_->init_monte_carlo();         // initialize mcmc sampling
+        pImpl_->init_model_for_inference(); // user initialization model
+        pImpl_->augm.init();                // initialize augmented variables
+        setup.prog_open_for_inference();    // open progress bar
 
         pImpl_->run_monte_carlo(); // run Monte Carlo
         setup.prog_close();        // close progress bar
@@ -160,14 +160,24 @@ void MCMC::infer()
 /// Assert setup definitions are ok to proceed with mcmc sampling.
 void MCMC::Impl::init_monte_carlo()
 {
-    setup.assert_mcmc_setup();     // assert if setup is ok for mcmc
-    assert_non_empty_data_wide_(); // check if data is empty
-    warn_if_all_missing_status_(); // warn if all missing status
+    // check if data is empty
+    assert_non_empty_data_wide_();
 
     // check if there is actually something to sample
     if (!param.is_any_sample() && !augm.is_any_sample())
         throw std::length_error(
             "Nothing to sample. Check your parameter and augmented definitions.");
+    // warn if all missing status
+    warn_if_all_missing_status_();
+
+    // assert if setup is ok for mcmc
+    setup.assert_mcmc_setup();
+
+    // Drop adaptation steps if nothing to adapt
+    // UPDATE: if adaptation applied to augmented variables, update this
+    if (param.list_adaptable_sample_cached.empty() &&
+        param.list_adaptable_sample_standard.empty())
+        setup.drop_mcmc_adapt();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -369,29 +379,13 @@ void MCMC::Impl::Parameter::store_draws(unsigned long smpl_count)
     }
 }
 
-/// Deep clear existing posterior sample of parameters and respective priors.
-void MCMC::Impl::Parameter::clear_draws()
-{
-    for (const std::string &p : list_sample)
-    {
-        smpl_values[p].clear();
-        smpl_values[p].shrink_to_fit();
-        smpl_priors[p].clear();
-        smpl_priors[p].shrink_to_fit();
-    }
-    smpl_values.clear();
-    smpl_values.rehash(0);
-    smpl_priors.clear();
-    smpl_priors.rehash(0);
-}
-
 /// Initialize posterior sample of parameters.
 void MCMC::Impl::DataWide::init_draws(unsigned long sample_size)
 {
     // sample over households
     smpl_values.clear();
-    smpl_values.resize(pImpl_.multiplicity.indexes.size());
-    for (size_t R = 0; R < pImpl_.multiplicity.indexes.size(); ++R)
+    smpl_values.resize(pImpl_.multiplicity.head_class_house_indexes.size());
+    for (size_t R = 0; R < pImpl_.multiplicity.head_class_house_indexes.size(); ++R)
     {
         smpl_values[R].clear();
         smpl_values[R].reserve(sample_size);
@@ -403,26 +397,14 @@ void MCMC::Impl::DataWide::init_draws(unsigned long sample_size)
 void MCMC::Impl::DataWide::store_draws(unsigned long smpl_count)
 {
     // store sample for restricted households
-    for (size_t R = 0; R < pImpl_.multiplicity.indexes.size(); ++R)
+    for (size_t R = 0; R < pImpl_.multiplicity.head_class_house_indexes.size(); ++R)
     {
-        Household &house = house_vector_[pImpl_.multiplicity.indexes[R]];
+        Household &house = house_vector_[pImpl_.multiplicity.head_class_house_indexes[R]];
         double x = house.get_obs_log_lik() / house.multiplicity();
         for (const Individual &member : house.infected())
             x += member.get_augm_model_log_lik();
         smpl_values[R][smpl_count] = x;
     }
-}
-
-/// Deep clear posterior sample of pointwise log-likelihood.
-void MCMC::Impl::DataWide::clear_draws()
-{
-    for (auto &vec : smpl_values)
-    {
-        vec.clear();
-        vec.shrink_to_fit();
-    }
-    smpl_values.clear();
-    smpl_values.shrink_to_fit();
 }
 
 /// Init posterior sampling.
@@ -466,15 +448,7 @@ void MCMC::Impl::store_posterior_sample_()
 /// Deep clear pre-existing posterior draws.
 void MCMC::Impl::clear_posterior_sample_()
 {
-    smpl_count = 0;
-    smpl_total_log_lik.clear();
-    smpl_total_log_lik.shrink_to_fit();
-
-    data_wide.clear_draws();
-    param.clear_draws();
-    augm.clear_draws();
 }
-void MCMC::clear_memory() { pImpl_->clear_memory(); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -537,7 +511,7 @@ std::vector<dbl_vec> MCMC::Impl::power_posteriors(const std::string &scheme, uns
     setup.prog_declare();       // declare current progress bar
     init_model_for_inference(); // initialize model for inference
     augm.init();                // initialize augmented variables
-    setup.prog_open(setup.c_n_sweeps * setup.n_chains * (setup.n_rungs + 1));
+    setup.prog_open_for_power_post();
 
     // thermodynamic ladder estimates
     dbl_vec itm = {}; // inverse temperature
@@ -716,7 +690,7 @@ void MCMC::print_infer_state(const std::string &output_filename) const
                 ofs << hsp::read::DELIMITER << augm.smpl_individuals[k]->id() + "_" + a;
 
     // header chain
-    ofs << hsp::read::DELIMITER << hsp::read::CHAIN_COLUMN << std::endl;
+    ofs << hsp::read::DELIMITER << "_chain_" << std::endl;
 
     // Values
     for (size_t c = 0; c < setup.n_chains; ++c)
@@ -811,20 +785,16 @@ void update_ofstream_datawide(std::ofstream &ofs,
 /// Print the simulated data to the provided file.
 void MCMC::print_simulated_data_wide(const std::string &pathtofile)
 {
-    Impl::Setup &setup = pImpl_->setup;
     const Impl::DataWide &data_wide = pImpl_->data_wide;
     const Impl::Augmented &augm = pImpl_->augm;
 
     try
     {
         // initialization
-        setup.prog_declare("simulate");
         std::ofstream ofs = open_ofstream_datawide(pathtofile,
                                                    data_wide.headers,
                                                    augm.list_export);
         pImpl_->helper_init_simulation();
-        // open progress bar
-        setup.prog_open(data_wide.report_house.total);
 
         for (Household house : data_wide) // NOTE: deep copy of household
             try
@@ -835,17 +805,12 @@ void MCMC::print_simulated_data_wide(const std::string &pathtofile)
                 update_ofstream_datawide(ofs, house,
                                          data_wide.headers,
                                          augm.list_export);
-                // update progress bar
-                setup.prog_update();
             }
             catch (const std::exception &e)
             {
                 throw std::runtime_error(
                     "While simulating " + house.err_name() + ":\n" + e.what());
             }
-
-        // close progress bar
-        setup.prog_close();
 
         // close ofstream
         if (!ofs.is_open())
@@ -855,7 +820,6 @@ void MCMC::print_simulated_data_wide(const std::string &pathtofile)
     }
     catch (const std::exception &e)
     {
-        setup.prog_crash();
         hsp::msg::error(e.what());
     }
 }

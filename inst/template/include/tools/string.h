@@ -74,9 +74,11 @@ namespace hsp
         /// Format a 2D matrix.
         std::string format(const matrix<double> &vec);
 
-        // make list composed of distinct entries
+        /// Wheter a name has been tagged as private.
+        bool is_private(const std::string &s);
+        /// Make list composed of distinct entries.
         str_vec unique(const str_vec &v);
-        // drop private strings from list
+        /// Drop private strings from list.
         str_vec drop_private(str_vec v);
 
         /// Find the closest match.

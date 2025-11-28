@@ -7,11 +7,11 @@
  *                               /_/
  *
  * housepi - Epidemiological Analysis of Household Outbreaks.
- * 
+ *
  * Author: Francesco Camaglia
  * Copyright © 2025 Institut Pasteur (Paris), CNRS and INSERM.
  * See the COPYRIGHT file for details.
- * 
+ *
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the COPYING file for details.
  *
@@ -246,7 +246,14 @@ namespace hsp
         ////////////////////////////////  String Vector Functions  //////////////////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////////
 
-        /// make list composed of distinct entries
+        /// Wheter a name has been tagged as private.
+        bool is_private(const string &s)
+        {
+            return s.size() >= string(HIDDEN_PREFIX).size() &&
+                   s.compare(0, string(HIDDEN_PREFIX).size(), HIDDEN_PREFIX) == 0;
+        }
+
+        /// Make list composed of distinct entries.
         str_vec unique(const str_vec &vec)
         {
             str_vec out;
@@ -257,14 +264,10 @@ namespace hsp
             return out;
         }
 
-        /// Remove private entries from list.
+        /// Drop private entries from list.
         str_vec drop_private(str_vec vec)
         {
-            auto new_end = std::remove_if(
-                vec.begin(), vec.end(),
-                [](const string &a)
-                { return a.size() >= string(HIDDEN_PREFIX).size() &&
-                         a.compare(0, string(HIDDEN_PREFIX).size(), HIDDEN_PREFIX) == 0; });
+            auto new_end = std::remove_if(vec.begin(), vec.end(), is_private);
             vec.erase(new_end, vec.end());
             return vec;
         }

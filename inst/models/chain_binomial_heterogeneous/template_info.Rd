@@ -10,9 +10,9 @@ See [Chain Binomial](chain_binomial.html) for more details.
 }
 \section{Likelihood}{
 \itemize{
-\item Community transmission probability:
+\item Community transmission probability \eqn{i}{i}:
 \eqn{1 - \exp(-{\mu}^{(\rm com)}_{i} {\alpha})}{1 - exp(-mu_com_i * alpha)}
-\item Person-to-person transmission probability:
+\item Person-to-person transmission probability \eqn{k}{k} to \eqn{i}{i}:
 \eqn{1 - \exp(-{\mu}^{(\rm sus)}_{i} {\beta} {\mu}^{(\rm inf)}_{k})}{1 - exp(-mu_sus_i * beta * mu_inf_k)}
 }
 \if{html}{\out{<hr>}}

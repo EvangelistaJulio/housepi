@@ -143,7 +143,6 @@ public:
 	/// Inference specific initialization (e. g. cache variables, lookup tables, etc).
 	virtual void init_model_for_inference() {}
 	void infer();
-	void clear_memory();
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	//////////////////////////////  MCMC : evaluate log-likelihood  /////////////////////////////
@@ -207,9 +206,13 @@ public:
 	Rcpp::CharacterVector export_augm_list_export() const;
 	Rcpp::CharacterVector export_augm_list_discrete() const;
 	Rcpp::DataFrame export_augmented_data_wide() const;
-	Rcpp::NumericMatrix export_draws() const;
-	Rcpp::NumericMatrix export_house_log_lik_draws() const;
 	Rcpp::List export_house_snapshot(const std::string &house_id) const;
+	Rcpp::NumericMatrix flush_total_log_lik_draws();
+	Rcpp::NumericMatrix flush_param_draws();
+	Rcpp::NumericMatrix flush_param_lprior_draws();
+	Rcpp::NumericMatrix flush_augm_draws();
+	Rcpp::NumericMatrix flush_house_log_lik_draws();
+
 #else
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////  MCMC : C++ standalone print  ///////////////////////////////

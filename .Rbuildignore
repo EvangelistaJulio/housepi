@@ -6,6 +6,7 @@
 \.so$
 \.dll$
 ^\.github$
+^\.gitlab-ci\.yml$
 ^docs$
 ^pkgdown$
 ^inst/--developer$
