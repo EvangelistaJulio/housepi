@@ -188,6 +188,9 @@ void MCMC::Impl::Setup::assert_mcmc_setup()
             "Thinning was not be smaller than (or equal to) n. of steps. ");
 
     c_sample_size = (n_steps - n_burnin) / n_thin;
+    // adjust steps and sample size 
+    c_sample_size += (n_steps - n_burnin) % n_thin > 0;
+    n_steps = n_burnin + c_sample_size * n_thin;
 
     if (c_sample_size == 0)
         throw std::out_of_range(

@@ -307,7 +307,6 @@ HousepiModel <- R6Class(
       write.csv(private$.rcpp$export_data_long(),
                 file.path(outpath, "data_long.csv"),
                 quote = FALSE, row.names = FALSE)
-
       write.csv(private$.group_rates$expose_to_cpp(private$.info_data_wide),
                 file.path(outpath, "group_rates.csv"),
                 quote = FALSE, row.names = FALSE)
@@ -317,12 +316,12 @@ HousepiModel <- R6Class(
       write.csv(private$.param$defs,
                 file.path(outpath, "param.csv"),
                 quote = FALSE, row.names = FALSE)
-      write.table(char_setup_input_(self$setup),
-                  file.path(outpath, "setup.csv"),
-                  row.names = TRUE, col.names = FALSE, sep = ",", quote = FALSE)
-      write.table(private$.infec_profile$defs,
-                  file.path(outpath, "infec.csv"),
-                  row.names = TRUE, col.names = FALSE, sep = ",", quote = FALSE)
+      write.csv(char_setup_input_(self$setup),
+                file.path(outpath, "setup.csv"),
+                quote = FALSE, row.names = FALSE)
+      write.csv(private$.infec_profile$defs,
+                file.path(outpath, "infec.csv"),
+                quote = FALSE, row.names = FALSE)
       invisible(self)
     },
 

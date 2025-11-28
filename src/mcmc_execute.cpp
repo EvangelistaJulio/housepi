@@ -220,6 +220,8 @@ void MCMC::Impl::run_monte_carlo()
         {
             for (unsigned long t = 1; t <= setup.n_thin; ++t)
                 move_all_();
+            // FLAG
+            hsp::msg::info(std::to_string(i) + "\n");
             store_posterior_sample_();
         }
     }
@@ -435,8 +437,7 @@ void MCMC::Impl::store_posterior_sample_()
     // FLAG
     if (smpl_count >= smpl_total_log_lik.size())
     {
-        hsp::msg::info("> overflow smpl_count: " + std::to_string(smpl_count) + "\n");
-        hsp::msg::info("> overflow smpl_total_log_lik: " + std::to_string(smpl_total_log_lik.size()) + "\n");
+        hsp::msg::info("> overflow smpl_count: " + std::to_string(smpl_count) + "/" + std::to_string(smpl_total_log_lik.size()) + "\n");
         return;
     }
 
