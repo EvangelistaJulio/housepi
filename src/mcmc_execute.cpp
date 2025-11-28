@@ -87,7 +87,7 @@ double MCMC::Impl::update_total_log_lik(bool is_cache_depen)
 
     atomic_error.reset();
 #pragma omp parallel for reduction(+ : new_ll)
-    for (size_t R = 0; R < multiplicity.indexes.size(); ++R)
+    for (size_t R = 0; R < multiplicity.head_class_house_indexes.size(); ++R)
     {
         if (atomic_error.is_pending())
             continue;
@@ -379,29 +379,13 @@ void MCMC::Impl::Parameter::store_draws(unsigned long smpl_count)
     }
 }
 
-/// Deep clear existing posterior sample of parameters and respective priors.
-void MCMC::Impl::Parameter::clear_draws()
-{
-    for (const std::string &p : list_sample)
-    {
-        smpl_values[p].clear();
-        smpl_values[p].shrink_to_fit();
-        smpl_priors[p].clear();
-        smpl_priors[p].shrink_to_fit();
-    }
-    smpl_values.clear();
-    smpl_values.rehash(0);
-    smpl_priors.clear();
-    smpl_priors.rehash(0);
-}
-
 /// Initialize posterior sample of parameters.
 void MCMC::Impl::DataWide::init_draws(unsigned long sample_size)
 {
     // sample over households
     smpl_values.clear();
-    smpl_values.resize(pImpl_.multiplicity.indexes.size());
-    for (size_t R = 0; R < pImpl_.multiplicity.indexes.size(); ++R)
+    smpl_values.resize(pImpl_.multiplicity.head_class_house_indexes.size());
+    for (size_t R = 0; R < pImpl_.multiplicity.head_class_house_indexes.size(); ++R)
     {
         smpl_values[R].clear();
         smpl_values[R].reserve(sample_size);
@@ -413,26 +397,14 @@ void MCMC::Impl::DataWide::init_draws(unsigned long sample_size)
 void MCMC::Impl::DataWide::store_draws(unsigned long smpl_count)
 {
     // store sample for restricted households
-    for (size_t R = 0; R < pImpl_.multiplicity.indexes.size(); ++R)
+    for (size_t R = 0; R < pImpl_.multiplicity.head_class_house_indexes.size(); ++R)
     {
-        Household &house = house_vector_[pImpl_.multiplicity.indexes[R]];
+        Household &house = house_vector_[pImpl_.multiplicity.head_class_house_indexes[R]];
         double x = house.get_obs_log_lik() / house.multiplicity();
         for (const Individual &member : house.infected())
             x += member.get_augm_model_log_lik();
         smpl_values[R][smpl_count] = x;
     }
-}
-
-/// Deep clear posterior sample of pointwise log-likelihood.
-void MCMC::Impl::DataWide::clear_draws()
-{
-    for (auto &vec : smpl_values)
-    {
-        vec.clear();
-        vec.shrink_to_fit();
-    }
-    smpl_values.clear();
-    smpl_values.shrink_to_fit();
 }
 
 /// Init posterior sampling.
@@ -476,15 +448,7 @@ void MCMC::Impl::store_posterior_sample_()
 /// Deep clear pre-existing posterior draws.
 void MCMC::Impl::clear_posterior_sample_()
 {
-    smpl_count = 0;
-    smpl_total_log_lik.clear();
-    smpl_total_log_lik.shrink_to_fit();
-
-    data_wide.clear_draws();
-    param.clear_draws();
-    augm.clear_draws();
 }
-void MCMC::clear_memory() { pImpl_->clear_memory(); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////

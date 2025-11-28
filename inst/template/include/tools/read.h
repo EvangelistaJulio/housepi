@@ -29,7 +29,6 @@ namespace hsp
     {
         constexpr char DELIMITER = ',';                /// CSV file delimiter.
         constexpr char LIST_DELIMITER = ':';           /// List conventional delimiter
-        constexpr const char *CHAIN_COLUMN = ".chain"; /// Chain column name in draws.
 
         /// Extract keys from unordered_map<string, T>.
         template <typename T>

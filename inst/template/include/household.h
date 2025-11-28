@@ -324,7 +324,6 @@ public:
 	size_t house_index() const { return index_; }
 	size_t size() const { return house_size_; }
 
-
 	unsigned long multiplicity() const { return house_multiplicity_; }
 	size_t multiplicity_class_index() const { return multiplicity_class_; }
 	bool is_multiplicity_head_class() const { return (index_ == multiplicity_class_); }

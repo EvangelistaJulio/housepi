@@ -214,7 +214,6 @@ public:
 
         void init_draws(unsigned long sample_size);
         void store_draws(unsigned long smpl_count);
-        void clear_draws();
 
     private:
         MCMC::Impl &pImpl_; // pointer to external class
@@ -271,7 +270,6 @@ public:
 
         void init_draws(unsigned long sample_size);
         void store_draws(unsigned long smpl_count);
-        void clear_draws();
 
         /////////////////////////////////////////////////////////////////////////////////////////
         ///////////////////////////  MCMC : Impl : DataWide : iterators  /////////////////////////
@@ -329,9 +327,9 @@ public:
             iterator end() { return iterator(this, indexes.size()); }
         };
 
-        View<Household> restricted() { return View<Household>(house_vector_, pImpl_.multiplicity.indexes); }
-        View<const Household> restricted() const { return View<const Household>(house_vector_, pImpl_.multiplicity.indexes); }
-        Household &restricted(size_t R) { return house_vector_[pImpl_.multiplicity.indexes[R]]; }
+        View<Household> restricted() { return View<Household>(house_vector_, pImpl_.multiplicity.head_class_house_indexes); }
+        View<const Household> restricted() const { return View<const Household>(house_vector_, pImpl_.multiplicity.head_class_house_indexes); }
+        Household &restricted(size_t R) { return house_vector_[pImpl_.multiplicity.head_class_house_indexes[R]]; }
 
     private:
         MCMC::Impl &pImpl_; // pointer to external class
@@ -360,7 +358,7 @@ public:
     /// Implementation of multiplicity optimization.
     struct Multiplicity
     {
-        std::vector<size_t> indexes = {};
+        std::vector<size_t> head_class_house_indexes = {};
 
         /////////////////////////////////////////////////////////////////////////////////////////
         ///////////////////////  MCMC : Impl : Multiplicity : constructor  //////////////////////
@@ -552,7 +550,6 @@ public:
 
         void init_draws(unsigned long sample_size);
         void store_draws(unsigned long smpl_count);
-        void clear_draws();
 
         /////////////////////////////////////////////////////////////////////////////////////////
         ////////////////////////////  MCMC : Impl : Augmented : getter  /////////////////////////
@@ -641,9 +638,6 @@ public:
     std::vector<dbl_vec> power_posteriors(const std::string &scheme, unsigned long N);
     double evaluate_single_house_log_lik(const std::string &house_id);
     double update_total_log_lik(bool is_cache_depen = true);
-
-    /// Release memory.
-    void clear_memory() { clear_posterior_sample_(); }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////  MCMC : Impl : Simulation  ///////////////////////////////

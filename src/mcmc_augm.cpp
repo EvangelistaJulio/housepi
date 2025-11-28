@@ -1095,29 +1095,6 @@ void MCMC::Impl::Augmented::store_draws(unsigned long smpl_count)
     }
 }
 
-/// Clears all memory allocated by the Augmented structure.
-/// Call this when the data is no longer needed to prevent memory leaks.
-void MCMC::Impl::Augmented::clear_draws()
-{
-    smpl_individuals.clear();
-    smpl_individuals.shrink_to_fit();
-
-    for (auto &entry : smpl_values)
-    {
-        // deep clean pre-existing draws
-        for (auto &pair : entry)
-        {
-            pair.second.clear();
-            pair.second.shrink_to_fit();
-        }
-        entry.clear();
-        entry.rehash(0);
-    }
-
-    smpl_values.clear();
-    smpl_values.shrink_to_fit();
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////  MCMC : move all augmented variables  /////////////////////////////

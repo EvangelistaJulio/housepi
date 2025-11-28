@@ -17,7 +17,6 @@
 # posterior.R
 #
 
-#' @importFrom posterior is_draws
 #' @importFrom posterior summarize_draws
 #' @importFrom posterior subset_draws
 NULL
@@ -48,12 +47,22 @@ HousepiPosteriorDraws <- R6Class(
     .augm_draws = NULL,
     .total_log_lik_draws = NULL,
     .point_log_lik_draws = NULL,
+    .chain_tags = NULL,
+    .iter_names = NULL,
+    .all_iter_names = NULL,
 
-    # split into a list of matrix
-    .split_draws_by_chain = function(x) {
-      if (length(x) == 0) stop_h("Traces are empty.")
-      lapply(split(seq_len(nrow(x)), x[, ".chain"]),
-             function(idx) x[idx, colnames(x) != ".chain", drop = FALSE])
+    # Store auxiliary tags from inference setup.
+    .process_setup = function(setup) {
+      n_steps <- setup[["steps"]]
+      n_burnin <- setup[["burnin"]]
+      n_thin <- setup[["thin"]]
+      n_chains <- setup[["chains"]]
+      c_sample_size <- (n_steps - n_burnin) %/% n_thin
+
+      private$.chain_tags <- rep(seq_len(n_chains), each = c_sample_size)
+      private$.iter_names <- n_burnin + seq_len(c_sample_size) * n_thin
+      private$.all_iter_names <- rep(private$.iter_names, times = n_chains)
+      invisible(self)
     },
 
     # @description
@@ -65,57 +74,29 @@ HousepiPosteriorDraws <- R6Class(
     # @return
     # `posterior::draws_df`
     .cpp_draws_to_posterior = function(x) {
-      # nothing to be done
-      if (is_draws(x)) return(x)
-
-      if (is.matrix(x) || (is.data.frame(x))) {
-        list_trs <- private$.split_draws_by_chain(x)
-
-        # create empty array
-        n_chain <- length(list_trs)
-        par_names <- colnames(list_trs[[1]])
-        n_iter <- nrow(list_trs[[1]])
-        iter_names <- rownames(list_trs[[1]])
-        array_trs <- array(
-          NA_real_, dim = c(n_iter, n_chain, length(par_names)),
-          dimnames = list(iter_names, seq_len(n_chain), par_names)
-        )
-
-        # associate draws from Cpp
-        for (i in seq_along(list_trs)) array_trs[, i, ] <- list_trs[[i]]
-        output <- posterior::as_draws_df(array_trs)
-        output$.iteration <- as.integer(rownames(x))
-        return(output)
-      }
-
-      stop_h(
-        "Unrecognized type for 'Rcpp_ModelHousepi' draws."
+      if (!is.matrix(x)) stop_h(
+        "Something went wrong while exporting posterior draws."
       )
-    },
+      if (length(x) == 0) return(NULL)
 
-    # @description
-    # Convert draws export from `Rcpp_ModelHousepi` to `coda.`
-    #
-    # @param trs
-    # Traces as exported from Rcpp `housepi` model.
-    #
-    # @return `coda::mcmc` | `coda::mcmc.list`
-    .cpp_draws_to_coda = function(x) {
-      require_suggested_library("coda")
-      if (coda::is.mcmc(x) || coda::is.mcmc.list(x)) return(x)
-      if (!is.matrix(x) && !is.data.frame(x)) stop_h(
-        "Unrecognized type for 'Rcpp_ModelHousepi' draws export."
+      # split into a list of matrix
+      list_trs <- lapply(split(seq_len(nrow(x)), private$.chain_tags),
+                         function(idx) x[idx, drop = FALSE])
+
+      # create empty array
+      n_chain <- length(list_trs)
+      par_names <- colnames(x)
+      n_iter <- length(private$.all_iter_names)
+      array_trs <- array(
+        NA_real_, dim = c(n_iter, n_chain, length(par_names)),
+        dimnames = list(private$.all_iter_names, seq_len(n_chain), par_names)
       )
-      list_trs <- split_draws_by_chain_(x)
-      sweeps <- as.integer(rownames(list_trs[[1]]))
-      list_coda_mcmc <- lapply(list_trs, function(x) {
-        coda::mcmc(data = x,
-                   start = sweeps[1],
-                   end = sweeps[length(sweeps)],
-                   thin = sweeps[2] - sweeps[1])
-      })
-      if (length(list_coda_mcmc) == 1) list_coda_mcmc[[1]]
-      else coda::as.mcmc.list(list_coda_mcmc)
+
+      # associate draws from Cpp
+      for (i in seq_along(list_trs)) array_trs[, i, ] <- list_trs[[i]]
+      output <- posterior::as_draws_df(array_trs)
+      output$.iteration <- private$.iter_names
+      output
     }
   ),
 
@@ -186,47 +167,29 @@ HousepiPosteriorDraws <- R6Class(
     initialize = function(name, rcpp_object) {
       # inherit model name
       private$.name <- as.character(name)
+      # process inference setup
+      private$.process_setup(rcpp_object$export_setup())
 
-      # sample draws
-      all_traces <- private$.cpp_draws_to_posterior(rcpp_object$export_draws())
-      # household pointwise log-likelihood
+      # store cpp draws concverted to posterior
+      private$.total_log_lik_draws <- private$.cpp_draws_to_posterior(
+        rcpp_object$flush_total_log_lik_draws()
+      )
+      private$.param_draws <- private$.cpp_draws_to_posterior(
+        rcpp_object$flush_param_draws()
+      )
+      private$.prior_draws <- private$.cpp_draws_to_posterior(
+        rcpp_object$flush_param_lprior_draws()
+      )
+      private$.augm_draws <- private$.cpp_draws_to_posterior(
+        rcpp_object$flush_augm_draws()
+      )
       private$.point_log_lik_draws <- private$.cpp_draws_to_posterior(
-        rcpp_object$export_house_log_lik_draws()
+        rcpp_object$flush_house_log_lik_draws()
       )
-      # release memory in original object
-      rcpp_object$clear_memory()
 
-      vars <- posterior::variables(all_traces)
-
-      # IDs of augmented draws
-      id_draws <- rcpp_object$export_setup()$id_draws
-
-      if (length(id_draws) > 0) {
-        mask <- apply(sapply(id_draws,
-                             function(x) stringr::str_detect(vars, x)),
-                      1, base::any)
-        augm_vars <- vars[mask]
-        private$.augm_draws <- subset_draws(all_traces, variable = augm_vars)
-        private$.augm_draws$.iteration <- all_traces$.iteration
-        vars <- setdiff(vars, augm_vars)
-      }
-
-      # log-likelihood draws
-      private$.total_log_lik_draws <- subset_draws(
-        all_traces, variable = c("log_lik")
-      )
-      private$.total_log_lik_draws$.iteration <- all_traces$.iteration
-      vars <- setdiff(vars, c("log_lik"))
-
-      # prior parameters draws
-      prior_vars <- vars[stringr::str_detect(vars, "lprior_")]
-      private$.prior_draws <- subset_draws(all_traces, variable = prior_vars)
-      private$.prior_draws$.iteration <- all_traces$.iteration
-      vars <- setdiff(vars, prior_vars)
-
-      # parameters draws
-      private$.param_draws <- subset_draws(all_traces, variable = vars)
-      private$.param_draws$.iteration <- all_traces$.iteration
+      # free auxiliary memory
+      private$.chain_tags <- NULL
+      private$.iter_names <- NULL
 
       invisible()
     },
@@ -257,13 +220,13 @@ HousepiPosteriorDraws <- R6Class(
     #' @return `posterior::draws_df`
     summarize_all_draws = function() {
       x1 <- x2 <- x3 <- NULL
-      if (is_draws(private$.param_draws)) {
+      if (posterior::is_draws(private$.param_draws)) {
         x1 <- summarize_draws(private$.param_draws)
       }
-      if (is_draws(private$.augm_draws)) {
+      if (posterior::is_draws(private$.augm_draws)) {
         x2 <- summarize_draws(private$.augm_draws)
       }
-      if (is_draws(private$.total_log_lik_draws)) {
+      if (posterior::is_draws(private$.total_log_lik_draws)) {
         x3 <- summarize_draws(private$.total_log_lik_draws)
       }
       rbind(x1, x2, x3)

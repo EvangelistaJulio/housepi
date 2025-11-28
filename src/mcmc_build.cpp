@@ -484,7 +484,7 @@ void MCMC::cache_house_double_matrix(const std::string &e)
 // UPDATE I should find a way to deal internally with multiplicity.
 void MCMC::Impl::Multiplicity::build(const u_dict<str_vec> &input)
 {
-    indexes.clear();
+    head_class_house_indexes.clear();
     size_t n_houses = pImpl_.data_wide.report_house.total;
     if (pImpl_.augm.is_any() || (input.size() == 0))
     {
@@ -494,11 +494,11 @@ void MCMC::Impl::Multiplicity::build(const u_dict<str_vec> &input)
                 "Ignored multiplicity optimization: incompatible with data augmentation.");
 
         // default choice for restricted household indexes
-        indexes.resize(n_houses);
+        head_class_house_indexes.resize(n_houses);
         for (size_t H = 0; H < n_houses; ++H)
         {
             pImpl_.data_wide(H).set_multiplicity(1, H);
-            indexes[H] = H;
+            head_class_house_indexes[H] = H;
         }
     }
     else
@@ -517,7 +517,7 @@ void MCMC::Impl::Multiplicity::build(const u_dict<str_vec> &input)
             house.set_multiplicity(m, H0);
 
             if (house.is_multiplicity_head_class())
-                indexes.emplace_back(house.house_index());
+                head_class_house_indexes.emplace_back(house.house_index());
         }
     }
 }
@@ -763,7 +763,6 @@ void MCMC::Impl::Parameter::build_for_expec(const u_dict<dbl_vec> &input)
         throw std::invalid_argument(
             "Found multiple definitions for the same parameters.");
 
-    clear_draws();
     clear_lists_();
 
     // store values as a posterior sample

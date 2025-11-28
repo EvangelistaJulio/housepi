@@ -64,9 +64,15 @@ Uses the method of power posteriors. \itemize{
 
 \item{\code{summarise_house_sizes\\cr}}{Return a DataFrame with a report of household sizes.}
 
-\item{\code{export_draws\\cr}}{Return a NumericMatrix with MCMC draws.}
+\item{\code{flush_total_log_lik_draws\\cr}}{Return a NumericMatrix with the total log-likelihood draws.}
 
-\item{\code{export_house_log_lik_draws\\cr}}{Return a NumericMatrix with household log-likelihood draws.}
+\item{\code{flush_param_draws\\cr}}{Return a NumericMatrix with parameters draws.}
+
+\item{\code{flush_param_lprior_draws\\cr}}{Return a NumericMatrix with parameter with log-priors draws.}
+
+\item{\code{flush_augm_draws\\cr}}{Return a NumericMatrix with augmented draws.}
+
+\item{\code{flush_house_log_lik_draws\\cr}}{Return a NumericMatrix with household log-likelihood draws.}
 
 \item{\code{export_house_snapshot\\cr}}{Return a List with a snapshot containing full household and model details.}
 }}
