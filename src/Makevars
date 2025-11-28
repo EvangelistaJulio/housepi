@@ -8,3 +8,5 @@ cache_template:
 	mkdir -p ../inst/template/src
 	cp *.o *.cpp ../inst/template/src/
 	cp $(SHLIB) ../inst/template/src/housepienvironment$(SHLIB_EXT)
+
+.PHONY: cache_template

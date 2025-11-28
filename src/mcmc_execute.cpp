@@ -220,8 +220,6 @@ void MCMC::Impl::run_monte_carlo()
         {
             for (unsigned long t = 1; t <= setup.n_thin; ++t)
                 move_all_();
-            // FLAG
-            hsp::msg::info(std::to_string(i) + "\n");
             store_posterior_sample_();
         }
     }
@@ -434,13 +432,6 @@ void MCMC::Impl::init_posterior_sample_()
 /// Store current Bayesian posterior sample.
 void MCMC::Impl::store_posterior_sample_()
 {
-    // FLAG
-    if (smpl_count >= smpl_total_log_lik.size())
-    {
-        hsp::msg::info("> overflow smpl_count: " + std::to_string(smpl_count) + "/" + std::to_string(smpl_total_log_lik.size()) + "\n");
-        return;
-    }
-
     // store sample of the full log-likelihood
     smpl_total_log_lik[smpl_count] = total_log_lik_;
 
