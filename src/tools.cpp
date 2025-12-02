@@ -649,6 +649,10 @@ namespace hsp
                 const steady_clock::time_point now = steady_clock::now();
                 const seconds elapsed = duration_cast<seconds>(now - start_);
                 const seconds missing = duration_cast<seconds>(elapsed * (1. / progress - 1.));
+                
+                // skip if expected to finish soon
+                if (missing.count() < 1)
+                    return;
 
                 // print update message
                 if (static_cast<unsigned long>(duration_cast<seconds>(now - lastprint_).count()) > thintime_)

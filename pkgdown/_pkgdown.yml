@@ -7,8 +7,6 @@ template:
 
 destination: public
 
-url: https://mmmi-pasteur.gitlab.pasteur.fr/housepi
-
 home:
   title: Household Epidemiological Modeling and Analysis
   desc: >
@@ -104,12 +102,13 @@ navbar:
       - hhmodels
     right:
       - search
-      - github
+      - gitlab
       - lightswitch
   components:    
     intro:
       text: "Get started"
       href: articles/housepi.html
+
     hhmodels:
       text: "Templates"
       href: ~
@@ -122,3 +121,8 @@ navbar:
           href: reference/_hhmodel_augmented_example.html
         - text: "Augmented Infection Time"
           href: reference/_hhmodel_augmented_infection_time.html
+
+    gitlab:
+      icon: fab fa-gitlab
+      href: http://mmmi-pasteur.pages.pasteur.fr/housepi
+      aria-label: "GitLab repository"

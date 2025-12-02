@@ -12,8 +12,9 @@ into the history of transmission within a population (finite size studies).
 The package aims to combine ease of use with flexibility, supporting both
 straightforward analyses and advanced epidemiological investigations.
 
-> [!CAUTION]
-> The package has not been released. Sharing the package or parts of its code without consent of the authors is strictly forbidden.
+::: caution
+The package is still under development.
+:::
 
 ## Installation
 
@@ -23,9 +24,11 @@ if (!requireNamespace("devtools", quietly = TRUE)) install.packages("devtools")
 pkgbuild::has_build_tools(debug = TRUE)
 ```
 
-> [!NOTE]
-> The package is currently under development as a private repository on GitLab.
-> You need access permissions and a valid GitLab token to install it.
+::: note
+The package is currently under development as a private repository on GitLab.
+You need access permissions and a valid GitLab token to install it.
+:::
+
 If you have SSH access set up, just run the following
 ``` r
 install.packages("remotes")
@@ -41,6 +44,6 @@ devtools::install()
 housepi is distributed under the terms of the GNU General Public License, Version 3 (GPLv3).
 See the LICENSE file for details.
 
-> [!CAUTION]
-> The package has not been released. Sharing the package or parts of its code without consent of the authors is strictly forbidden.
-
+::: warning
+The package has not been released. Sharing the package or parts of its code without consent of the authors is strictly forbidden.
+:::
