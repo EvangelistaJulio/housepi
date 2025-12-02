@@ -124,5 +124,5 @@ navbar:
 
     gitlab:
       icon: fab fa-gitlab
-      href: http://mmmi-pasteur.pages.pasteur.fr/housepi
+      href: https://gitlab.pasteur.fr/mmmi-pasteur/housepi
       aria-label: "GitLab repository"
