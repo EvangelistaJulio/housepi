@@ -87,31 +87,31 @@ hhmodel <- new_housepi_model("augmented_example") |>
     # explicit declaration of incubation period likelihood
     proba = list(
       func = "gamma_meanvar",           # gamma distribution by mean/variance
-      func_args = c(x = ~ incub_period, # compute from individual 'incub_period'
-                    mean = ~ mean@P,    # use model parameter 'mean'
-                    var = ~ var@P),     # and 'var'
+      func_args = c(x = incub_period, # compute from individual 'incub_period'
+                    mean = mean@P,    # use model parameter 'mean'
+                    var = var@P),     # and 'var'
       max = 14 # truncate to given maximum
     ),
     
     # declare 'incub_period' as the difference
     # between augmented onset and infection times
-    incub_period = ~ .onset_time - .infec_time,
+    incub_period = .onset_time - .infec_time,
     
     # here we correct right censoring of maximum values
     # to allow for the event to occur during the whole day
     # add 'infec_time' time definition
     .infec_time = list(
-      value = ~ exposure_min@D,      # start from data value 'exposure_min'
-      model = "uniform",             # uniform within [0, exposure_max + 0.99]
-      max = ~ exposure_max@D + 0.99, # min = 0 by default for uniform
-      proposal = "normal",           # mcmc proposal is a normal distribution
-      proposal_scale = 0.5           # with std. deviation 0.5
+      value = exposure_min@D,      # start from data value 'exposure_min'
+      model = "uniform",           # uniform within [0, exposure_max + 0.99]
+      max = exposure_max@D + 0.99, # min = 0 by default for uniform
+      proposal = "normal",         # mcmc proposal is a normal distribution
+      proposal_scale = 0.5         # with std. deviation 0.5
     ),
     
     # add 'onset_time' time definition
     .onset_time = list(
-      value = ~ onset_max@D + 0.99, model = "uniform",
-      min = ~ onset_min@D, max = ~ onset_max@D + 0.99,
+      value = onset_max@D + 0.99, model = "uniform",
+      min = onset_min@D, max = onset_max@D + 0.99,
       proposal = "normal", proposal_scale = 0.5
     )
   ) |>
@@ -178,28 +178,33 @@ For asymptomatic members we draw the infection time uniformly within the period 
 #| warning: false
 library(ggplot2)
 
+onset_tommy <- 5
 new_housepi_model("augmented_infection_time") |>
   add_data_wide(data.frame(id = c("tommy", "gina"),
                            status = c(1, 2),
-                           onset_date = c(0, NA),
+                           onset_date = c(onset_tommy, NA),
                            house_id = "house_1")) |> 
   load_parameter_list(alpha = 0.001, beta = 0.07, gamma = 0.9,
                       size_ref = 4, study_period = 10) |> 
   load_augmented_list(
     # augmented infection time for symptomatic members 
     # here we use a generic definition
-    infec_time = list(expr = ~ onset_time - incub_period),
-    onset_time = list(expr = ~ onset_date@D),
+    infec_time = onset_time - incub_period,
+    onset_time = onset_date@D,
     incub_period = list(model = "gamma", shape = 2, scale = 1),
     # augmented infection time for symptomatic members
     # here we use a status specific definition, with priority over generic
-    infec_time = list(status = 2, model = "uniform", max = 10)
+    infec_time = list(status = 2, model = "uniform", 
+                      min = !!onset_tommy, max = !!onset_tommy + 10)
   ) |> 
   run_inference(steps = 500, id_draws = c("tommy", "gina")) |> 
   get_augm_draws() |> 
   posterior::subset_draws(variable = "infec_time$", regex = TRUE) |> 
   bayesplot::mcmc_dens(facet_args = c(ncol = 1)) +
-  ggplot2::coord_cartesian(xlim = c(-6, 10))
+  ggplot2::geom_vline(data = data.frame(xintercept = onset_tommy),
+                      aes(xintercept = xintercept), color = "black",
+                      linetype = 2) +
+  ggplot2::coord_cartesian(xlim = onset_tommy + c(-10, 10))
   
 ```
 

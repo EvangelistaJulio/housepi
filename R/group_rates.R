@@ -84,7 +84,6 @@ group_rate_logic_table <- function(data_wide, by) {
 
   # create the final truth table and reverse it
   y <- y[multifeat_count > 0, , drop = FALSE]
-
   # add counts
   y$n <- multifeat_count[multifeat_count > 0]
 
@@ -186,6 +185,42 @@ tidyup_group_rate_tables <- function(all_tables) {
   combined_df
 }
 
+#' Default MCMC Setup
+#'
+#' @references
+#' Cauchemez, et al. (2009)
+#' Household Transmission of 2009 Pandemic Influenza A (H1N1) Virus in the United States.
+#' New England Journal of Medicine. 361: 2619-2627. doi:10.1056/NEJMoa0905498
+#'
+#' @keywords internal
+#' @noRd
+group_rates_default_mcmc_setup <- list(
+  value = 1, prior = "lognormal", meanlog = 0, sdlog = 3,
+  min = NA_real_, max = 10, proposal = "lognormal", proposal_scale = 1
+)
+
+#' @title
+#' Default MCMC Setup
+#' @description
+#' Return list with default MCMC setup if user choice is missing.
+#'
+#' @return `list`
+#'
+#' @keywords internal
+#' @noRd
+set_group_rates_mcmc_setup <- function(prior, args, min, max,
+                                       proposal, proposal_scale) {
+  # check wheter default configuration
+  is_default <- sapply(c(prior, args, min, max, proposal, proposal_scale),
+                       function(x) is.na(x) || is.null(x))
+  # if all defaults, provide default choice
+  if (all(is_default)) group_rates_default_mcmc_setup
+  # else go with user choice
+  else c(list(value = 1, prior = prior), args,
+         list(min = min, max = max,
+              proposal = proposal, proposal_scale = proposal_scale))
+}
+
 ############################################################################
 ############################################################################
 ############################# Housepi Group Rate ###########################
@@ -199,7 +234,7 @@ tidyup_group_rate_tables <- function(all_tables) {
 #'
 #' @keywords internal
 #' @noRd
-HousepiGroupRate <- R6Class(
+HousepiGroupRate <- R6::R6Class(
   classname = "HousepiGroupRate",
   cloneable = TRUE,
 
@@ -212,41 +247,7 @@ HousepiGroupRate <- R6Class(
 
     # @field parameters `list`\cr
     # List containing parameters definitions.
-    .parameters = list(),
-
-    # @title
-    # Default MCMC Setup
-    # @description
-    # Return list with default MCMC setup if user choice is missing.
-    #
-    # @return `list`
-    #
-    # @references
-    # Cauchemez, et al. (2009)
-    # Household Transmission of 2009 Pandemic Influenza A (H1N1) Virus in the United States.
-    # New England Journal of Medicine. 361: 2619-2627. doi:10.1056/NEJMoa0905498
-    #
-    # @keywords internal
-    # @noRd
-    .get_default_mcmc_setup = function(prior, ...,
-                                       min, max,
-                                       proposal, proposal_scale) {
-      args <- unlist(list(...))
-      # check wheter default configuration
-      is_default <- sapply(c(prior, args, min, max, proposal, proposal_scale),
-                           function(x) is.na(x) || is.null(x))
-      # if all defaults, provide default choice
-      if (all(is_default)) return(
-        list(value = 1, prior = "lognormal",
-             meanlog = 0, sdlog = 3,
-             min = NA_real_, max = 10,
-             proposal = "lognormal", proposal_scale = 1)
-      )
-      # else go with user choice
-      list(value = 1, prior = prior, ...,
-           min = min, max = max,
-           proposal = proposal, proposal_scale = proposal_scale)
-    }
+    .parameters = list()
   ),
 
   ############################################################################
@@ -334,46 +335,69 @@ HousepiGroupRate <- R6Class(
     #' @description
     #' Remove a given group_rate definition.
     #'
-    #' @param rate_id
-    #' A `character(1)` with the group rate definition to remove.
-    #' @param show_warnings
-    #' `logical(1)` to show warnings.
-    #' Default is `TRUE`.
-    #'
-    #' @return
-    #' `logical(1)`
-    remove = function(rate_id, show_warnings = FALSE) {
-      if (any(names(self$defs) == rate_id)) {
-        # check if old definition was just default
-        is_old_default <- all(is.na(self$defs[rate_id]$by))
+    #' @param name_lst
+    #' A `character()` with the name of group rate definitions to remove.
+    #' @param warn_removal
+    #' `logical(1)`to show warnings for failed removal.
+    #' @param warn_overwrite
+    #' `logical(1)`to show warnings in case of overwriting.
+    remove = function(name_lst, warn_removal = FALSE, warn_overwrite = FALSE) {
+      stopifnot(is.list(name_lst))
+      all_rmv <- c()
+      for (nm in name_lst) {
+        if (any(names(self$defs) == nm)) {
+          # check if old definition was just default
+          if (!all(is.na(self$defs[nm]$by))) all_rmv <- c(all_rmv, nm)
 
-        # drop previous definition
-        self$defs[rate_id] <- NULL
-        self$logic_tables[rate_id] <- NULL
-        private$.parameters[rate_id] <- NULL
-        return(!is_old_default)
+          # drop previous definition
+          self$defs[nm] <- NULL
+          self$logic_tables[nm] <- NULL
+          private$.parameters[nm] <- NULL
 
-      } else if (isTRUE(show_warnings)) {
-        warning_h(sprintf("Attempt to remove unknown group_rate '%s'.", this))
+        } else if (isTRUE(warn_removal)) {
+          warning_h(sprintf("Attempt to remove unknown group_rate '%s'.", nm))
+        }
       }
 
-      FALSE
+      # warning about overwriting.
+      if (warn_overwrite && (length(all_rmv) > 0)) warning_h(sprintf(
+        "Overwriting group rate definition%s%s",
+        ifelse(length(all_rmv) > 1, "s for:\n", " for "),
+        character_to_string_list(all_rmv, NA)
+      ))
+
+      invisible(self)
     },
 
     #' @inherit add_group_rate
-    add = function(name, by, prefix = NA_character_,
-                   reference = NULL, independent = TRUE,
-                   prior = NA_character_, ...,
-                   min = NA_real_, max = NA_real_,
-                   proposal = NA_character_,
-                   proposal_scale = NA_real_) {
+    add_quo = function(name, by, prefix = NA_character_,
+                       reference = NULL, independent = TRUE,
+                       prior = NA_character_, ...,
+                       min = NULL, max = NULL,
+                       proposal = NA_character_,
+                       proposal_scale = NA_real_) {
+      # load non-quosures
+      name <- housepi_smart_unwrap(name, "name")
+      by <- housepi_smart_unwrap(by, "by")
+      prefix <- housepi_smart_unwrap(prefix, "prefix")
+      reference <- housepi_smart_unwrap(reference, "reference")
+      prior <- housepi_smart_unwrap(prior, "prior")
+      proposal <- housepi_smart_unwrap(proposal, "proposal")
+      proposal_scale <- housepi_smart_unwrap(proposal_scale, "proposal_scale")
+      # load quosures # to be UPDATEd
+      min <- housepi_smart_unwrap(min, "min")
+      if (is.null(min)) min <- NA_real_
+      max <- housepi_smart_unwrap(max, "max")
+      if (is.null(max)) max <- NA_real_
+      dots <- list(...)
+      if (length(dots) == 1 && rlang::is_quosures(dots[[1]])) dots <- dots[[1]]
+      args <- housepi_smart_unwrap(dots)
+
       # control valid name
       assert_valid_definition_name(name, "group rate")
 
       # remove previous definition if it exists
-      if (self$remove(name)) warning_h(
-        sprintf("Overwriting group rate definition for '%s'.", name)
-      )
+      self$remove(list(name), warn_overwrite = TRUE)
 
       forbidden <- c("n", "param_name", "group_rate")
       if (!all(is.na(by))) {
@@ -399,14 +423,13 @@ HousepiGroupRate <- R6Class(
       }
 
       # add new definition
-      self$defs[[name]] <- list(
-        by = by, prefix = prefix,
-        reference = reference, independent = isTRUE(independent)
-      )
+      self$defs[[name]] <- list(by = by, prefix = prefix,
+                                reference = reference,
+                                independent = isTRUE(independent))
 
       # add parameter definitions
-      private$.parameters[[name]] <- private$.get_default_mcmc_setup(
-        prior = prior, ..., min = min, max = max,
+      private$.parameters[[name]] <- set_group_rates_mcmc_setup(
+        prior = prior, args = args, min = min, max = max,
         proposal = proposal, proposal_scale = proposal_scale
       )
 
@@ -418,44 +441,13 @@ HousepiGroupRate <- R6Class(
       invisible(self)
     },
 
-    #' @description
-    #' Load group rate definitions either as direct arguments
-    #' or from predefined list.
-    #'
-    #' @param ...
-    #' Named arguments with respective list of definition details.
-    #' @param from
-    #' A named `list` with parameter definitions.
-    #' @param append
-    #' `logical(1)` to append to current definitions.
-    #' If `FALSE` drop all pre-existing definitions (default).
-    load_list = function(..., from = NULL, append = FALSE) {
-      definitions <- helper_load_definition_list(..., from = from)
-
-      # remove previous definitions if not append
+    #' @inherit load_group_rate_list
+    load_quosures = function(xquos, append = FALSE) {
+      # UPDATE: append requires checking existing definitions.
+      # I can store old ones, compare them and then drop at the end
+      # remove previous definitions if append is false
       if (isFALSE(append)) self$initialize()
-      all_removed <- c()
-
-      for (i in seq_along(definitions)){
-        this_def <- as.list(definitions[[i]])
-        def_name <- names(definitions[i])
-        if (length(names(this_def)) == 0) {
-          if (length(this_def) == 1) names(this_def) <- "by"
-          else stop_h(
-            sprintf("Wrong definition for parameter '%s'", def_name),
-            "Provide a definition list or a scalar (if constant)."
-          )
-        }
-        this_def$name <- def_name
-        if (self$remove(def_name)) all_removed <- c(all_removed, def_name)
-        do.call(self$add, this_def)
-      }
-
-      if (length(all_removed) > 0) warning_h(sprintf(
-        "Overwriting group rate definition%s%s",
-        ifelse(length(all_removed) > 1, "s for:\n", " for "),
-        character_to_string_list(all_removed, NA)
-      ))
+      self <- housepi_load_defin_quos(self, "by", xquos)
 
       invisible(self)
     },
@@ -551,7 +543,7 @@ HousepiGroupRate <- R6Class(
 
       # find missing group rates and set as default
       if (isTRUE(capital)) for (g in template_missing_find(required, defined)) {
-        self$add(g, by = NA_character_)
+        self$add_quo(g, by = NA_character_)
       }
       template_missing_stop(required, defined, "group rates")
     },

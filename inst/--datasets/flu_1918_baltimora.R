@@ -1,5 +1,5 @@
 
-hand_copied <-"inst/--developer/datasets/flu_1918_frederick.csv"
+hand_copied <- "inst/--developer/datasets/flu_1918_frederick.csv"
 
 flu_1918_frederick <- read_csv(hand_copied) %>%
   pivot_longer(

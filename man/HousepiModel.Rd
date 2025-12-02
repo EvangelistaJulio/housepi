@@ -254,15 +254,13 @@ Not applicable if proposal is 'sample'. Otherwise scale is \code{1} by default.}
 \subsection{Method \code{load_parameter_list()}}{
 Load parameter definitions either as arguments or from predefined list.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$load_parameter_list(..., from = NULL, append = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$load_parameter_list(..., append = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
 \item{\code{...}}{Named arguments with respective list of definition details.}
-
-\item{\code{from}}{named \code{list} of definitions.}
 
 \item{\code{append}}{\code{logical(1)} to append to current definitions.\cr
 If \code{FALSE} drop all pre-existing definitions (default).}
@@ -297,19 +295,18 @@ If the augmented variablw already exists, it is updated.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_augmented(
   name = NA_character_,
-  status = NA_integer_,
   value = NULL,
+  status = NA_integer_,
   const = NA,
   discr = FALSE,
-  func = NA_character_,
+  func = NULL,
   func_args = NULL,
   model = NA_character_,
   ...,
   min = NULL,
   max = NULL,
   proposal = NA_character_,
-  proposal_scale = NA_real_,
-  expr = NULL
+  proposal_scale = NA_real_
 )}\if{html}{\out{</div>}}
 }
 
@@ -317,10 +314,6 @@ If the augmented variablw already exists, it is updated.
 \if{html}{\out{<div class="arguments">}}
 \describe{
 \item{\code{name}}{\code{character(1)} name used by internal calls.}
-
-\item{\code{status}}{\code{integer(1)} with household member positive status.\cr
-It is used to specify status-specific definitions.
-If \code{NA}, associate the definition to all other infectious members (default).}
 
 \item{\code{value}}{\code{numeric(1)} or \code{character(1)} with initial value. \cr
 One between:\cr
@@ -330,6 +323,10 @@ One between:\cr
 \item Dataset name (followed by \verb{@D}).
 }}
 
+\item{\code{status}}{\code{integer(1)} with household member positive status.\cr
+It is used to specify status-specific definitions.
+If \code{NA}, associate the definition to all other infectious members (default).}
+
 \item{\code{const}}{\code{logical(1)} to treat definition as constant.\cr
 If \code{TRUE}, additional Monte Carlo details are ignored.\cr
 Default is \code{FALSE}.}
@@ -338,7 +335,11 @@ Default is \code{FALSE}.}
 If applicable, the model is discretized.\cr
 Default is \code{FALSE}.}
 
-\item{\code{func}}{\code{character(1)} with the name of the augmented function.}
+\item{\code{func}}{One between:\cr
+\itemize{
+\item \code{character(1)} with the name of the augmented function;\cr
+\item rlang expression.
+}}
 
 \item{\code{func_args}}{named \code{list} with the arguments of the augmented function.}
 
@@ -375,8 +376,6 @@ One between:\cr
 \item{\code{proposal_scale}}{\code{numeric(1)} with scale of the proposal.\cr
 Changed automatically during inference if \code{n_adpat}>0.\cr
 Not applicable if proposal is 'sample'. Otherwise scale is \code{1} by default.}
-
-\item{\code{expr}}{Provide an expression.}
 }
 \if{html}{\out{</div>}}
 }
@@ -388,15 +387,13 @@ Not applicable if proposal is 'sample'. Otherwise scale is \code{1} by default.}
 Load augmented variable/function definitions
 either as arguments or from predefined list.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$load_augmented_list(..., from = NULL, append = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$load_augmented_list(..., append = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
 \item{\code{...}}{Named arguments with respective list of definition details.}
-
-\item{\code{from}}{named \code{list} of definitions.}
 
 \item{\code{append}}{\code{logical(1)} to append to current definitions.\cr
 If \code{FALSE} drop all pre-existing definitions (default).}
@@ -501,15 +498,13 @@ Not applicable if proposal is 'sample'. Otherwise scale is \code{1} by default.}
 Load group rate definitions either as direct arguments
 or from predefined list.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$load_group_rate_list(..., from = NULL, append = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$load_group_rate_list(..., append = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
 \item{\code{...}}{\verb{ r rd_list_args_}}
-
-\item{\code{from}}{named \code{list} of definitions.}
 
 \item{\code{append}}{\code{logical(1)} to append to current definitions.\cr
 If \code{FALSE} drop all pre-existing definitions (default).}

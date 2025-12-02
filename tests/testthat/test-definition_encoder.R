@@ -1,50 +1,53 @@
 library(testthat)
 
 test_that("Rlang standard functions work as expected", {
-  expect_error(housepi:::DefinitionEncoder$new(~log ( alpha @ B )),
+  expect_true(is.na(housepi:::housepi_extractor(NA)))
+  expect_true(is.null(housepi:::housepi_extractor(NULL)))
+
+  expect_error(housepi:::housepi_extractor(log(alpha@B)),
                regexp = "Invalid type 'B'")
-  expect_equal(housepi:::DefinitionEncoder$new(~log(alpha))$x,
+  expect_equal(housepi:::housepi_extractor(log(alpha)),
                "log|x|{alpha|A}")
-  expect_equal(housepi:::DefinitionEncoder$new(~log(alpha @ P))$x,
+  expect_equal(housepi:::housepi_extractor(log(alpha@P)),
                "log|x|{alpha|P}")
 })
 
 test_that("Rlang basic identity assignments work as expected", {
-  expect_equal(housepi:::DefinitionEncoder$new(+3)$x, "3|N")
-  expect_equal(housepi:::DefinitionEncoder$new(-1)$x, "-1|N")
+  expect_equal(housepi:::housepi_extractor(+3), "3|N")
+  expect_equal(housepi:::housepi_extractor(-1), "-1|N")
 
-  expect_equal(housepi:::DefinitionEncoder$new(~ alpha)$x, "alpha|A")
-  expect_equal(housepi:::DefinitionEncoder$new(~ alpha @ P)$x, "alpha|P")
-  expect_equal(housepi:::DefinitionEncoder$new(~ +alpha)$x, "alpha|A")
-  expect_equal(housepi:::DefinitionEncoder$new(~ +alpha@P)$x, "alpha|P")
-  expect_equal(housepi:::DefinitionEncoder$new(~ -alpha)$x, "minus|x|{alpha|A}")
-  expect_equal(housepi:::DefinitionEncoder$new(~ -alpha@D)$x, "minus|x|{alpha|D}")
+  expect_equal(housepi:::housepi_extractor(alpha), "alpha|A")
+  expect_equal(housepi:::housepi_extractor(alpha@P), "alpha|P")
+  expect_equal(housepi:::housepi_extractor(+alpha), "alpha|A")
+  expect_equal(housepi:::housepi_extractor(+alpha@P), "alpha|P")
+  expect_equal(housepi:::housepi_extractor(-alpha), "minus|x|{alpha|A}")
+  expect_equal(housepi:::housepi_extractor(-alpha@D), "minus|x|{alpha|D}")
 })
 
 test_that("Rlang arithmetic operations work as expected", {
-  expect_equal(housepi:::DefinitionEncoder$new(~ alpha + beta)$x,
+  expect_equal(housepi:::housepi_extractor(alpha + beta),
                "sum|x:x2|{alpha|A}:{beta|A}")
-  expect_equal(housepi:::DefinitionEncoder$new(~ alpha @ P+ beta)$x,
+  expect_equal(housepi:::housepi_extractor(alpha@P + beta),
                "sum|x:x2|{alpha|P}:{beta|A}")
-  expect_equal(housepi:::DefinitionEncoder$new(~ alpha + beta @ P)$x,
+  expect_equal(housepi:::housepi_extractor(alpha + beta@P),
                "sum|x:x2|{alpha|A}:{beta|P}")
-  expect_equal(housepi:::DefinitionEncoder$new(~ alpha @ P + beta @ P)$x,
+  expect_equal(housepi:::housepi_extractor(alpha@P + beta@P),
                "sum|x:x2|{alpha|P}:{beta|P}")
-  expect_equal(housepi:::DefinitionEncoder$new(~ (alpha) -(beta))$x,
+  expect_equal(housepi:::housepi_extractor((alpha) - (beta)),
                "sub|x:x2|{alpha|A}:{beta|A}")
-  expect_equal(housepi:::DefinitionEncoder$new(~ alpha * (beta))$x,
+  expect_equal(housepi:::housepi_extractor(alpha * (beta)),
                "prod|x:x2|{alpha|A}:{beta|A}")
-  expect_equal(housepi:::DefinitionEncoder$new(~ alpha * (beta @ P))$x,
+  expect_equal(housepi:::housepi_extractor(alpha * (beta@P)),
                "prod|x:x2|{alpha|A}:{beta|P}")
-  expect_equal(housepi:::DefinitionEncoder$new(~ alpha @P * beta @ P)$x,
+  expect_equal(housepi:::housepi_extractor(alpha@P * beta@P),
                "prod|x:x2|{alpha|P}:{beta|P}")
 })
 
 test_that("Rlang nested expression", {
-  expect_equal(housepi:::DefinitionEncoder$new(~a + 3 * b)$x,
+  expect_equal(housepi:::housepi_extractor(a + 3 * b),
                "sum|x:x2|{a|A}:{prod|x:x2|{3|N}:{b|A}}")
-  expect_equal(housepi:::DefinitionEncoder$new(~a + b - c)$x,
+  expect_equal(housepi:::housepi_extractor(a + b - c),
                "sub|x:x2|{sum|x:x2|{a|A}:{b|A}}:{c|A}")
-  expect_equal(housepi:::DefinitionEncoder$new(~log ( + alpha@P  ))$x,
+  expect_equal(housepi:::housepi_extractor(log(+ alpha@P)),
                "log|x|{alpha|P}")
 })

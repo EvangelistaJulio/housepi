@@ -35,15 +35,13 @@ Missing.
 New object of class
 \link[=HousepiSampler]{HousepiSampler}.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiSampler$new(..., from = NULL, ascending = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiSampler$new(..., ascending = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
 \item{\code{...}}{Named features with respective list of definition details.}
-
-\item{\code{from}}{\code{list} of \code{list}s with encoding definitions per feature.}
 
 \item{\code{ascending}}{\code{logical(1)} to set ascending hierarchy between feature numbers.\cr
 If \code{FALSE} is descending (default).}

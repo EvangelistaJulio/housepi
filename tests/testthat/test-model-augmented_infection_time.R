@@ -105,12 +105,12 @@ test_that("Log-likelihood of augmented infection time model is correct", {
     hhmodel <- new_housepi_model("augmented_infection_time", 
                                  discr = discr, quiet = TRUE) |>
       add_data_wide(house) |>
-      load_parameter_list(from = param) |>
-      load_augmented_list(infec_time = ~infec_time@D,
-                          incub_period = ~incub_period@D,
-                          onset_time = ~onset_time@D) |>
+      load_parameter_list(!!!param) |>
+      load_augmented_list(infec_time = infec_time@D,
+                          incub_period = incub_period@D,
+                          onset_time = onset_time@D) |>
       add_infec_profile(name = "gamma", discr = discr,
-                        shape = ~shape@P, scale = ~scale@P)
+                        shape = shape@P, scale = scale@P)
 
     expect_equal(evaluate_log_lik(hhmodel),
                  house_obs_loglike(house, param, discr))
@@ -129,8 +129,8 @@ test_that("Simulations behave as expected", {
 
   hhsimul$load_augmented_list(
     incub_period = list(model = "gamma", shape = 2, scale = 1),
-    infec_time = ~ -incub_period,
-    onset_time = ~ infec_time + incub_period
+    infec_time = -incub_period,
+    onset_time = infec_time + incub_period
   )
 
   # simulate just introduction cases

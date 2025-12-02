@@ -17,6 +17,32 @@
 # parameter.R
 #
 
+# Helper to associate prior definition.
+parameter_helper_prior <- function(opts, prior, args) {
+  # prior to tell if constant
+  if (is.na(prior)) stop_h(
+    sprintf("No prior provided for parameter '%s'.", opts$name)
+  )
+  opts$const <- FALSE
+  # associate prior arguments, if any
+  if (is.null(args)) opts$prior <- prior
+  else opts$prior <- housepi_combine_to_call(prior, args)
+  opts
+}
+
+# Helper with Monte Carlo proposal.
+parameter_helper_proposal <- function(opts, discr, proposal, proposal_scale) {
+  opts$discr <- isTRUE(discr)
+
+  # default proposal
+  opts$proposal <- "sample"
+  if (!is.na(proposal)) {
+    opts$proposal <- proposal
+    opts$proposal_scale <- ifelse(is.na(proposal_scale), 1, proposal_scale)
+  }
+  opts
+}
+
 ############################################################################
 ############################################################################
 ############################# Housepi Parameter ############################
@@ -29,43 +55,12 @@
 #'
 #' @keywords internal
 #' @noRd
-HousepiParameter <- R6Class(
+HousepiParameter <- R6::R6Class(
   classname = "HousepiParameter",
   cloneable = TRUE,
 
   private = list(
-    deep_clone = function(name, value) {
-      helper_clone(value)
-    },
-
-    # Helper to associate prior definition.
-    .helper_prior = function(opts, prior, args) {
-      # prior to tell if constant
-      if (is.na(prior)) stop_h(
-        sprintf("No prior provided for parameter '%s'.", opts$name)
-      )
-
-      if (!is.null(args)) {
-        # prior arguments
-        parsed <- DefinitionEncoder$new(as.list(args))
-        prior <- parsed$combine_to_call(prior)
-      }
-
-      utils::modifyList(opts, list(const = FALSE, prior = prior))
-    },
-
-    # Helper with Monte Carlo proposal.
-    .helper_proposal = function(opts, discr, proposal, proposal_scale) {
-      opts$discr <- isTRUE(discr)
-
-      # default proposal
-      opts$proposal <- "sample"
-      if (!is.na(proposal)) {
-        opts$proposal <- proposal
-        opts$proposal_scale <- ifelse(is.na(proposal_scale), 1, proposal_scale)
-      }
-      opts
-    }
+    deep_clone = function(name, value) helper_clone(value)
   ),
 
   ############################################################################
@@ -103,40 +98,66 @@ HousepiParameter <- R6Class(
         'emplace_group_rate\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
       )
       # retrieve required parameters from regular expressions
-      set_source_name_(
-        template_required_find(refer_file, regexp),
-        "model"
-      )
+      set_source_name_(template_required_find(refer_file, regexp),
+                       "model")
     },
 
     #' @description
     #' Remove a given parameter.
     #'
-    #' @param name `character(1)`\cr
-    #' Name of the parameter to remove.
-    #' @param show_warnings `logical(1)`\cr
-    #' If `TRUE` show warnings if parameter not found.
-    #' If `FALSE` do not show warnings (default).
-    remove = function(name, show_warnings = FALSE) {
-      mask <- (self$defs[["name"]] == name)
-      if (any(mask)) self$defs <- self$defs[!mask, ]
-      else if (isTRUE(show_warnings)) warning_h(
-        sprintf("Attempt to remove unknown parameter '%s'.", name)
-      )
-      any(mask)
+    #' @param name_lst
+    #' A `character()` with the name of parameter definitions to remove.
+    #' @param warn_removal
+    #' `logical(1)`to show warnings for failed removal.
+    #' @param warn_overwrite
+    #' `logical(1)`to show warnings in case of overwriting.
+    remove = function(name_lst, warn_removal = FALSE, warn_overwrite = FALSE) {
+      stopifnot(is.list(name_lst))
+      all_rmv <- c()
+      for (nm in name_lst) {
+        mask <- self$defs[["name"]] == nm
+        if (any(mask)) {
+          self$defs <- self$defs[!mask, ]
+          all_rmv <- c(all_rmv, nm)
+        } else if (isTRUE(warn_removal)) {
+          warning_h(sprintf("Attempt to remove unknown parameter '%s'.", nm))
+        }
+      }
+
+      # warning about overwriting.
+      if (warn_overwrite && (length(all_rmv) > 0)) warning_h(sprintf(
+        "Overwriting parameter definition%s%s",
+        ifelse(length(all_rmv) > 1, "s for:\n", " for "),
+        character_to_string_list(all_rmv, NA)
+      ))
+
+      invisible(self)
     },
 
     #' @inherit add_parameter
-    add = function(name,
-                   const = NA,
-                   discr = FALSE,
-                   value = NULL,
-                   prior = NA_character_,
-                   ...,
-                   min = NULL,
-                   max = NULL,
-                   proposal = NA_character_,
-                   proposal_scale = NA_real_) {
+    add_quo = function(name, value = NULL,
+                       const = NA, discr = FALSE,
+                       prior = NA_character_, ...,
+                       min = NULL, max = NULL,
+                       proposal = NA_character_,
+                       proposal_scale = NA_real_) {
+      # load non-quosures
+      name <- housepi_smart_unwrap(name, "name")
+      const <- housepi_smart_unwrap(const, "const")
+      discr <- housepi_smart_unwrap(discr, "discr")
+      prior <- housepi_smart_unwrap(prior, "prior")
+      proposal <- housepi_smart_unwrap(proposal, "proposal")
+      proposal_scale <- housepi_smart_unwrap(proposal_scale, "proposal_scale")
+      # load quosures
+      value <- housepi_extractor(!!value)
+      min <- housepi_extractor(!!min)
+      max <- housepi_extractor(!!max)
+      # load dots # UPDATE: not super elegant...
+      dots <- list(...)
+      # flatten if single quosures list (from enquos)
+      if (length(dots) == 1 && rlang::is_quosures(dots[[1]])) dots <- dots[[1]]
+      args <- housepi_extractor(!!!dots)
+
       # control valid name
       assert_valid_definition_name(name, "parameter")
       if (all(is.null(value), is.na(prior))) stop_h(
@@ -144,25 +165,22 @@ HousepiParameter <- R6Class(
         "Provide at least one between 'value' and 'prior'."
       )
 
-      # remove previous definition if it exists
-      if (self$remove(name)) warning_h(
-        sprintf("Overwriting parameter definition for '%s'.", name)
-      )
-
-      opts <- list(name = name,
+      opts <- list(name = as.character(name), value = NA_real_,
                    const = TRUE, discr = FALSE,
-                   value = NA_real_, prior = NA_character_,
+                   prior = NA_character_,
                    min = NA_real_, max = NA_real_,
                    proposal = NA_character_,
                    proposal_scale = NA_real_)
-      args <- unlist(list(...))
+
+      # drop previous definition eventually
+      self$remove(list(opts$name), warn_removal = FALSE, warn_overwrite = TRUE)
 
       # assume it's a constant if a prior is not provided
       if (is.na(const)) const <- is.na(prior)
 
       # parse initial value
-      if (is.na(DefinitionEncoder$new(value)$x)) opts$value <- NA_real_
-      else opts$value <- DefinitionEncoder$new(value)$x
+      if (is.null(value)) opts$value <- NA_real_
+      else opts$value <- value
 
       if (isTRUE(const)) {
         # check that a value is provided
@@ -170,10 +188,10 @@ HousepiParameter <- R6Class(
           sprintf("Missing value for constant parameter '%s'.", opts$name)
         )
       } else {
-        opts <- private$.helper_prior(opts, prior, args)
-        opts$min <- DefinitionEncoder$new(min)$x
-        opts$max <- DefinitionEncoder$new(max)$x
-        opts <- private$.helper_proposal(opts, discr, proposal, proposal_scale)
+        opts <- parameter_helper_prior(opts, prior, args)
+        if (!is.null(min)) opts$min <- min
+        if (!is.null(max)) opts$max <- max
+        opts <- parameter_helper_proposal(opts, discr, proposal, proposal_scale)
       }
 
       # append as a row
@@ -182,48 +200,13 @@ HousepiParameter <- R6Class(
       invisible(self)
     },
 
-    #' @description
-    #' Load parameter definitions either as direct arguments
-    #' or from predefined list.
-    #'
-    #' @param ...
-    #' Named arguments with respective list of definition details.
-    #' @param from named `list`\cr
-    #' Named list of parameter definitions.
-    #' @param append `logical(1)`\cr
-    #' If `TRUE` appends to current definitions.
-    #' If `FALSE` drop all pre-existing definitions (default).
-    load_list = function(...,
-                         from = NULL,
-                         append = FALSE) {
-      # remove previous definitions if not append
+    #' @inherit load_parameter_list
+    load_quosures = function(xquos, append = FALSE) {
+      # UPDATE: append requires checking existing definitions.
+      # I can store old ones, compare them and then drop at the end
+      # remove previous definitions if append is false
       if (isFALSE(append)) self$initialize()
-      all_removed <- c()
-
-      # load definition list
-      definitions <- helper_load_definition_list(..., from = from)
-
-      for (i in seq_along(definitions)){
-        this_def <- as.list(definitions[[i]])
-        def_name <- names(definitions[i])
-
-        if (length(names(this_def)) == 0) {
-          if (length(this_def) == 1) names(this_def) <- "value"
-          else stop_h(
-            sprintf("Invalid definition for parameter '%s'", def_name),
-            "Provide a definition list or a scalar (if constant)."
-          )
-        }
-        this_def$name <- def_name
-        if (self$remove(def_name)) all_removed <- c(all_removed, def_name)
-        do.call(self$add, this_def)
-      }
-
-      if (length(all_removed) > 0) warning_h(sprintf(
-        "Overwriting parameter definition%s%s",
-        ifelse(length(all_removed) > 1, "s for:\n", " for "),
-        character_to_string_list(all_removed, NA)
-      ))
+      self <- housepi_load_defin_quos(self, "value", xquos)
 
       invisible(self)
     },
@@ -238,37 +221,9 @@ HousepiParameter <- R6Class(
     #' @param append `logical(1)`\cr
     #' If `TRUE` append missing parameter definitions.
     #' If `FALSE` drop all pre-existing definitions (default).
-    load_template = function(templ_file,
-                             required = NULL,
-                             append = FALSE) {
-      # check if template file exists
-      if (!file.exists(templ_file)) stop_h(
-        "Impossible to automatically initialize parameters.",
-        "A file with template definitionse was not found."
-      )
-
-      # template parameter definitions
-      templ_defs <- dget(templ_file)
-
-      if (isTRUE(append)) {
-        # check the set of required parameters
-        if (length(required) == 0) {
-          warning_h("No parameter definitions required by the model.")
-        } else {
-          miss <- template_missing_find(required, self$defs[["name"]])
-          if (length(miss) == 0) warning_h(
-            "No template parameters to append.",
-            "Definitions are complete."
-          )
-          else if (!all(miss %in% names(templ_defs))) stop_h(
-            "No template found for the missing parameters."
-          )
-          else self$load_list(from = templ_defs[miss], append = TRUE)
-        }
-      } else {
-        self$load_list(from = templ_defs, append = FALSE)
-      }
-
+    load_template = function(templ_file, required = NULL, append = FALSE) {
+      self <- housepi_load_template_list(self, templ_file, "parameter",
+                                         required = required, append = append)
       invisible(self)
     },
 

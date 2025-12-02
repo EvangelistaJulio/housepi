@@ -181,13 +181,20 @@ bayesplot::color_scheme_set(scheme = "brightblue")
 #|  Four trace plots comparing MCMC proposal mechanisms: sample, uniform, normal, and lognormal.
 #|  Sampling show poor mixing for all except mechanisms except sample.
 
-# available proposals in housepi
-proposal_list <- c("sample", "uniform", "normal", "lognormal")
-defs <- Map(list, prior = "normal", min = 0, proposal = proposal_list, proposal_scale = 100) |>
-  setNames(paste("proposal", proposal_list, sep = "_"))
+prop_scale <- 100
+hhmodel <- new_housepi_model("blank") |>
+  # available proposals in housepi
+  load_parameter_list(
+    proposal_sample = list(prior = "normal", min = 0, proposal = "sample"),
+    proposal_uniform = list(prior = "normal", min = 0, proposal = "uniform",
+                           proposal_scale = prop_scale),
+    proposal_normal = list(prior = "normal", min = 0, proposal = "normal",
+                           proposal_scale = prop_scale),
+    proposal_lognormal = list(prior = "normal", min = 0, proposal = "lognormal",
+                           proposal_scale = prop_scale)
+  )
 
-new_housepi_model("blank") |>
-  load_parameter_list(from = defs) |>
+hhmodel |>
   run_inference() |>
   get_param_draws() |>
   bayesplot::mcmc_trace()
@@ -203,8 +210,7 @@ In housepi this is enabled by supplying `adapt = N` to `run_inference()`, where 
 #|  Four trace plots comparing the same MCMC proposal mechanisms as before.
 #|  Mixing for parametric mechanisms shows improvement. 
 
-new_housepi_model("blank") |>
-  load_parameter_list(from = defs) |>
+hhmodel |>
   run_inference(adapt = 500) |>
   get_param_draws() |>
   bayesplot::mcmc_trace()

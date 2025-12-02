@@ -24,6 +24,7 @@ ggplot2::update_geom_defaults("vline", list(color = "coral", size = 1))
 ggplot2::update_geom_defaults("hline", list(color = "coral", size = 1))
 ggplot2::update_geom_defaults("abline", list(color = "coral", size = 1))
 ggplot2::update_geom_defaults("segment", list(color = "coral", size = 1))
+ggplot2::update_geom_defaults("errorbar", list(color = "coral", size = 1))
 
 # bayesplot theme
 bayesplot::bayesplot_theme_set(ggplot2::theme_get())

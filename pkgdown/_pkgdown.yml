@@ -7,7 +7,7 @@ template:
 
 destination: public
 
-url: https://mmmi-pasteur.gitlab.io/housepi
+url: https://mmmi-pasteur.gitlab.pasteur.fr/housepi
 
 home:
   title: Household Epidemiological Modeling and Analysis

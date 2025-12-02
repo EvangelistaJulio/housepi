@@ -188,31 +188,36 @@ add_parameter <- function(hhmodel,
                           proposal = NA_character_,
                           proposal_scale = NA_real_) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  hhmodel$clone(deep = TRUE)$add_parameter(
-    name = name, value = value, const = const, discr = discr,
-    prior = prior, ..., min = min, max = max,
+  new_model <- hhmodel$clone(deep = TRUE)
+  new_model$.__enclos_env__$private$.param$add_quo(
+    name = name, value = rlang::enquo(value),
+    const = const, discr = discr,
+    prior = prior, rlang::enquos(...),
+    min = rlang::enquo(min), max = rlang::enquo(max),
     proposal = proposal, proposal_scale = proposal_scale
   )
+  new_model
 }
 
 #' @title Load list of definitions
 #' @description
-#' Load definitions either as arguments or from predefined list.
+#' Load definitions as named arguments.
 #'
 #' @param hhmodel `r rd_model_in_`
 #' @param ... `r rd_list_args_`
-#' @param from `r rd_list_from_`
 #' @param append `r rd_list_append_`
 #'
 #' @return `r rd_model_out_`
 #'
 #' @rdname load_definitions_list
 #' @export
-load_parameter_list <- function(hhmodel, ..., from = NULL, append = FALSE) {
+load_parameter_list <- function(hhmodel, ..., append = FALSE) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  hhmodel$clone(deep = TRUE)$load_parameter_list(
-    ..., from = from, append = append
+  new_model <- hhmodel$clone(deep = TRUE)
+  new_model$.__enclos_env__$private$.param$load_quosures(
+    rlang::enquos(...), append = append
   )
+  new_model
 }
 
 #' @title Load template definitions
@@ -261,7 +266,6 @@ get_augmented <- function(hhmodel, ...) {
 #' @param max `r rd_aug_max_`
 #' @param proposal `r rd_var_proposal_`
 #' @param proposal_scale `r rd_var_proposal_scale_`
-#' @param expr `r rd_aug_expr_`
 #'
 #' @return `r rd_model_out_`
 #'
@@ -269,30 +273,33 @@ get_augmented <- function(hhmodel, ...) {
 add_augmented <- function(hhmodel,
                           name = NA_character_, value = NULL,
                           status = NA_integer_, const = NA, discr = FALSE,
-                          func = NA_character_, func_args = NULL,
+                          func = NULL, func_args = NULL,
                           model = NA_character_, ...,
                           min = NULL, max = NULL,
                           proposal = NA_character_,
-                          proposal_scale = NA_real_,
-                          expr = NULL) {
+                          proposal_scale = NA_real_) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  hhmodel$clone(deep = TRUE)$add_augmented(
-    name = name, value = value,
+  new_model <- hhmodel$clone(deep = TRUE)
+  new_model$.__enclos_env__$private$.augm$add_quo(
+    name = name, value = rlang::enquo(value),
     status = status, const = const, discr = discr,
-    func = func, func_args = func_args,
-    model = model, ..., min = min, max = max,
-    proposal = proposal, proposal_scale = proposal_scale,
-    expr = expr
+    func = rlang::enquo(func), func_args = rlang::enquos(func_args),
+    model = model, rlang::enquos(...),
+    min = rlang::enquo(min), max = rlang::enquo(max),
+    proposal = proposal, proposal_scale = proposal_scale
   )
+  new_model
 }
 
 #' @rdname load_definitions_list
 #' @export
-load_augmented_list <- function(hhmodel, ..., from = NULL, append = FALSE) {
+load_augmented_list <- function(hhmodel, ..., append = FALSE) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  hhmodel$clone(deep = TRUE)$load_augmented_list(
-    ..., from = from, append = append
+  new_model <- hhmodel$clone(deep = TRUE)
+  new_model$.__enclos_env__$private$.augm$load_quosures(
+    rlang::enquos(...), append = append
   )
+  new_model
 }
 
 #' @rdname load_template_definitions
@@ -354,21 +361,28 @@ add_group_rate <-  function(hhmodel,
                             proposal = NA_character_,
                             proposal_scale = NA_real_) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  hhmodel$clone(deep = TRUE)$add_group_rate(
+  new_model <- hhmodel$clone(deep = TRUE)
+  new_model$.__enclos_env__$private$.group_rates$add_quo(
     name = name, by = by, prefix = prefix,
     reference = reference, independent = independent,
-    prior = prior, ..., min = min, max = max,
+    prior = prior, rlang::enquos(...),
+    min = rlang::enquo(min), max = rlang::enquo(max),
     proposal = proposal, proposal_scale = proposal_scale
   )
+  new_model
 }
 
 #' @rdname load_definitions_list
 #' @export
-load_group_rate_list <- function(hhmodel, ..., from = NULL, append = FALSE) {
+load_group_rate_list <- function(hhmodel, ..., append = FALSE) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  hhmodel$clone(deep = TRUE)$load_group_rate_list(
-    ..., from = from, append = append
+  new_model <- hhmodel$clone(deep = TRUE)
+  if (isFALSE(append)) new_model$drop_group_rates()
+  new_model <- new_model
+  new_model$.__enclos_env__$private$.group_rates$load_quosures(
+    rlang::enquos(...), append = append
   )
+  new_model
 }
 
 ############################################################################
@@ -401,9 +415,12 @@ add_infec_profile <- function(hhmodel,
                               discr = FALSE,
                               ..., max = NULL) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  hhmodel$clone(deep = TRUE)$add_infec_profile(
-    name = name, status = status, discr = discr, ..., max = max
+  new_model <- hhmodel$clone(deep = TRUE)
+  new_model$.__enclos_env__$private$.infec_profile$add_quo(
+    name = name, status = status, discr = discr,
+    rlang::enquos(...), max = rlang::enquo(max)
   )
+  new_model
 }
 
 ############################################################################

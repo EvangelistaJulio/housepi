@@ -30,7 +30,7 @@
 #' and variable defintions from a single class.
 #'
 #' @docType class
-HousepiModel <- R6Class(
+HousepiModel <- R6::R6Class(
   classname = "HousepiModel",
   inherit = HousepiGenerator,
   cloneable = TRUE,
@@ -48,13 +48,53 @@ HousepiModel <- R6Class(
     .crash_house = NA,
 
     # @description
+    # Augmented variables required by implementation file and other definitions.
+    .get_all_required_augm = function() {
+      c(private$.augm$require(private$.reference()), # by the model
+        private$.infec_profile$augm_required)        # by infec profile
+    },
+
+    # @description
     # Dataset headers required by implementation file and other definitions.
     .get_all_required_data = function() {
       required <- c()
       if (!private$.is_blank()) required <- private$.data_required()
       c(required, # by the model
-        private$.augm$data_required, # by augmented variable
-        private$.infec_profile$data_required) # by infectivity profile
+        private$.augm$data_required,          # by augmented
+        private$.infec_profile$data_required) # by infec profile
+    },
+
+    # @description
+    # Group rates required by implementation file and other definitions.
+    .get_all_required_group_rates = function() {
+      c(private$.group_rates$require(private$.reference()), # by the model
+        private$.augm$group_rates_required,                 # by augmented
+        private$.infec_profile$group_rates_required)        # by infec profile
+    },
+
+    # @description
+    # Parameters required by implementation file and other definitions.
+    .get_all_requried_param = function() {
+      if (private$.is_blank()) required <- private$.param$defs$name
+      else required <- private$.param$require(private$.reference())
+      c(required,                              # by the model
+        private$.group_rates$param_required,   # by group rates
+        private$.augm$param_required,          # by augmented
+        private$.infec_profile$param_required) # by infec profile
+    },
+
+    ############################################################################
+    ############################################################################
+    ############################################################################
+
+    # @description
+    # Assert if augmented definitions match the required.
+    # @param capital `logical(1)` to raise error.
+    .assert_augm = function(capital = TRUE) {
+      if (private$.is_blank()) return(NULL)
+      private$.augm$assert(private$.get_all_required_augm(),
+                           private$.infec_status_set,
+                           capital)
     },
 
     # @description
@@ -69,53 +109,19 @@ HousepiModel <- R6Class(
     },
 
     # @description
-    # Parameters required by implementation file and other definitions.
-    .get_all_param = function() {
-      if (private$.is_blank()) required <- private$.param$defs$name
-      else required <- private$.param$require(private$.reference())
-      c(required,                              # by the model
-        private$.group_rates$param_required,   # by group rates
-        private$.augm$param_required,          # by augmented
-        private$.infec_profile$param_required) # by infectivity profile
+    # Assert group rate definitions from the model implementation script.
+    # @param capital `logical(1)` to raise error.
+    .assert_group_rates = function(capital = TRUE) {
+      if (private$.is_blank()) return(NULL)
+      private$.group_rates$assert(private$.get_all_required_group_rates(),
+                                  capital)
     },
 
     # @description
     # Assert if parameter definitions match required
     # @param capital `logical(1)` to raise error.
     .assert_param = function(capital = TRUE) {
-      private$.param$assert(private$.get_all_param(), capital)
-    },
-
-    # @description
-    # Augmented variables required by implementation file and other definitions.
-    .get_all_augm = function() {
-      c(private$.augm$require(private$.reference()), # by the model
-        private$.infec_profile$augm_required)        # by infectivity profile
-    },
-
-    # @description
-    # Assert if augmented definitions match the required.
-    # @param capital `logical(1)` to raise error.
-    .assert_augm = function(capital = TRUE) {
-      if (private$.is_blank()) return(NULL)
-      private$.augm$assert(private$.get_all_augm(),
-                           private$.infec_status_set,
-                           capital)
-    },
-
-    # @description
-    # Group rates required by implementation file and other definitions.
-    .get_all_group_rates = function() {
-      c(private$.group_rates$require(private$.reference()), # by the model
-        private$.augm$group_rates_required)                  # by augmented
-    },
-
-    # @description
-    # Assert group rate definitions from the model implementation script.
-    # @param capital `logical(1)` to raise error.
-    .assert_group_rates = function(capital = TRUE) {
-      if (private$.is_blank()) return(NULL)
-      private$.group_rates$assert(private$.get_all_group_rates(), capital)
+      private$.param$assert(private$.get_all_requried_param(), capital)
     },
 
     ############################################################################
@@ -135,7 +141,7 @@ HousepiModel <- R6Class(
       if (!template_assert_expression(refer_file, regexp)) return(NULL)
 
       # note: this might be a modeler error
-      if (length(private$.get_all_augm()) > 0) warning_h(
+      if (length(private$.get_all_required_augm()) > 0) warning_h(
         "Model with augmentated variable called multiplicity engine."
       )
 
@@ -169,18 +175,18 @@ HousepiModel <- R6Class(
       hash_groups <- split(names(hashes), hashes)
 
       # create summary table with class_id and multiplicity
-      multi_hh_table <- data.frame(class_id = sapply(hash_groups, `[`, 1),
-                                   multiplicity = lengths(hash_groups))
+      mult_hhtable <- data.frame(class_id = sapply(hash_groups, `[`, 1),
+                                 multiplicity = lengths(hash_groups))
 
       # use hashes to produce multiplicity table
       defs <- data.frame(house_id = unique(data_wide$house_id),
                          multiplicity = 0,
                          class_id = NA_integer_)
       rownames(defs) <- defs$house_id
-      defs[multi_hh_table$class_id, "multiplicity"] <- multi_hh_table$multiplicity
+      defs[mult_hhtable$class_id, "multiplicity"] <- mult_hhtable$multiplicity
 
-      for (i in seq_len(nrow(multi_hh_table))) {
-        defs[hash_groups[[i]], "class_id"] <- multi_hh_table$class_id[i]
+      for (i in seq_len(nrow(mult_hhtable))) {
+        defs[hash_groups[[i]], "class_id"] <- mult_hhtable$class_id[i]
       }
       defs
     },
@@ -194,28 +200,29 @@ HousepiModel <- R6Class(
     .build_group_rates = function() {
       # proceed only if definitions exist and data loaded
       if (length(private$.group_rates$defs) == 0) return(invisible(self))
-      if (length(private$.cols_data_wide) > 0) {
-        # load data_wide
-        # UPDATE: this "back & forth" of data_wide is not optimal!
-        # UPDATE: count in the wrapper while storing data_wide_levels
-        data_wide <- self$data_wide
-
-        # implement group rates
-        private$.group_rates$implement(data_wide, private$.info_data_wide)
-
-        # append parameter definitions if missing
-        new_parameters <- private$.group_rates$parameters
-        # find missing parameter definitions
-        mask <- setdiff(names(new_parameters), private$.param$defs$name)
-        new_parameters <- new_parameters[mask]
-        if (length(new_parameters) > 0) {
-          private$.param$load_list(from = new_parameters, append = TRUE)
-        }
-      } else {
+      if (length(private$.cols_data_wide) == 0) {
         warning_h(
           "Missing data needed for building group rates.",
           "Ensure to provide all necessary data before proceeding."
         )
+        return(invisible(self))
+      }
+      # load data_wide
+      # UPDATE: this "back & forth" of data_wide is not optimal!
+      # UPDATE: count in the wrapper while storing data_wide_levels
+      data_wide <- self$data_wide
+
+      # implement group rates
+      private$.group_rates$implement(data_wide, private$.info_data_wide)
+
+      # append parameter definitions if missing
+      new_parameters <- private$.group_rates$parameters
+      # find missing parameter definitions
+      mask <- setdiff(names(new_parameters), private$.param$defs$name)
+      new_parameters <- new_parameters[mask]
+      if (length(new_parameters) > 0) {
+        xquos <- convert_list_to_quosures(new_parameters)
+        private$.param$load_quosures(xquos, append = TRUE)
       }
 
       invisible(self)
@@ -228,11 +235,10 @@ HousepiModel <- R6Class(
       # if no default columns, assume debugging mode
       if (private$.is_blank() &&
             is.null(id_draws) &&
-            !is.null(private$.augm$defs)) {
-        if (length(setdiff(private$.cols_data_wide,
+            !is.null(private$.augm$defs) &&
+            length(setdiff(private$.cols_data_wide,
                            c("house_id", "id", "status"))) == 0) {
-          id_draws <- template_blank_data_wide_()$id[1]
-        }
+        id_draws <- template_blank_data_wide_()$id[1]
       }
       id_draws
     },
@@ -326,7 +332,7 @@ HousepiModel <- R6Class(
     },
 
     # @description
-    # Sugar for log-likelihood computation errors in try-catchh.
+    # Sugar for log-likelihood computation errors in try-catch.
     .helper_log_lik_error = function(e) {
       h <- stringr::str_extract(e$message, "(?<=household ')[^']+(?=')")
       i <- stringr::str_extract(e$message, "(?<=individual ')[^']+(?=')")
@@ -457,16 +463,18 @@ HousepiModel <- R6Class(
     parameters = function(value) {
       if (missing(value)) {
         private$.build_group_rates()
-        return(DefinitionShowcaser$new(private$.param$defs)$x)
+        return(housepi_defin_showcaser(private$.param$defs))
       }
-      private$.param$load_list(from = value, append = FALSE)
+      xquos <- convert_list_to_quosures(value)
+      private$.param$load_quosures(xquos, append = FALSE)
     },
 
     #' @field augmented
     #' A`data.frame` with augmented formatted definitions.
     augmented = function(value) {
-      if (missing(value)) return(DefinitionShowcaser$new(private$.augm$defs)$x)
-      private$.augm$load_list(from = value, append = FALSE)
+      if (missing(value)) return(housepi_defin_showcaser(private$.augm$defs))
+      xquos <- convert_list_to_quosures(value)
+      private$.augm$load_quosures(xquos, append = FALSE)
     },
 
     #' @field infec_profile
@@ -476,7 +484,7 @@ HousepiModel <- R6Class(
       if (missing(value)) {
         defs <- private$.infec_profile$defs
         if (!is.null(defs)) {
-          output <- DefinitionShowcaser$new(defs)$x
+          output <- housepi_defin_showcaser(defs)
           # append args if not present
           i <- which(names(output) == "name")
           if (names(output)[i + 1] != "args") {
@@ -504,7 +512,9 @@ HousepiModel <- R6Class(
         private$.build_group_rates()
         return(private$.group_rates$tidy_table)
       }
-      self$load_group_rate_list(from = value, append = FALSE)
+      self$drop_group_rates()
+      xquos <- convert_list_to_quosures(value)
+      private$.group_rates$load_quosures(xquos, append = FALSE)
     }
   ),
 
@@ -545,13 +555,13 @@ HousepiModel <- R6Class(
       if ("_HOUSEPI_DISCRETE_TIME" %in% private$.last_user_flags) sms <- c(
         sms, "Model is set to {.emph discrete time} mode."
       )
-      if (length(private$.get_all_param()) > 0) sms <- c(
+      if (length(private$.get_all_requried_param()) > 0) sms <- c(
         sms, fmt_assert_cli("Parameters", private$.assert_param(FALSE))
       )
-      if (length(private$.get_all_augm()) > 0) sms <- c(
+      if (length(private$.get_all_required_augm()) > 0) sms <- c(
         sms, fmt_assert_cli("Augmented", private$.assert_augm(FALSE))
       )
-      if (length(private$.get_all_group_rates()) > 0) sms <- c(
+      if (length(private$.get_all_required_group_rates()) > 0) sms <- c(
         sms, fmt_assert_cli("Group rates", private$.assert_group_rates(FALSE),
                             minor = TRUE)
       )
@@ -662,11 +672,12 @@ HousepiModel <- R6Class(
                              min = NULL, max = NULL,
                              proposal = NA_character_,
                              proposal_scale = NA_real_) {
-      private$.param$add(name = name, value = value, const = const,
-                         discr = discr, prior = prior, ...,
-                         min = min, max = max,
-                         proposal = proposal,
-                         proposal_scale = proposal_scale)
+      private$.param$add_quo(name = name, value = rlang::enquo(value),
+                             const = const, discr = discr,
+                             prior = prior, rlang::enquos(...),
+                             min = rlang::enquo(min), max = rlang::enquo(max),
+                             proposal = proposal,
+                             proposal_scale = proposal_scale)
       invisible(self)
     },
 
@@ -674,10 +685,9 @@ HousepiModel <- R6Class(
     #' Load parameter definitions either as arguments or from predefined list.
     #'
     #' @param ... `r rd_list_args_`
-    #' @param from `r rd_list_from_`
     #' @param append `r rd_list_append_`
-    load_parameter_list = function(..., from = NULL, append = FALSE) {
-      private$.param$load_list(..., from = from, append = append)
+    load_parameter_list = function(..., append = FALSE) {
+      private$.param$load_quosures(rlang::enquos(...), append = append)
       invisible(self)
     },
 
@@ -707,8 +717,8 @@ HousepiModel <- R6Class(
     #' If the augmented variablw already exists, it is updated.
     #'
     #' @param name `r rd_var_name_`
-    #' @param status `r rd_aug_status_`
     #' @param value `r rd_aug_val_`
+    #' @param status `r rd_aug_status_`
     #' @param const `r rd_var_const_`
     #' @param discr `r rd_aug_discr_`
     #' @param func `r rd_aug_func_`
@@ -719,23 +729,21 @@ HousepiModel <- R6Class(
     #' @param max `r rd_aug_max_`
     #' @param proposal `r rd_var_proposal_`
     #' @param proposal_scale `r rd_var_proposal_scale_`
-    #' @param expr `r rd_aug_expr_`
-    add_augmented = function(name = NA_character_, status = NA_integer_,
-                             value = NULL, const = NA, discr = FALSE,
-                             func = NA_character_, func_args = NULL,
+    add_augmented = function(name = NA_character_,  value = NULL,
+                             status = NA_integer_, const = NA, discr = FALSE,
+                             func = NULL, func_args = NULL,
                              model = NA_character_, ...,
                              min = NULL, max = NULL,
                              proposal = NA_character_,
-                             proposal_scale = NA_real_,
-                             expr = NULL) {
-      private$.augm$add(name = name, status = status,
-                        value = value, const = const, discr = discr,
-                        func = func, func_args = func_args,
-                        model = model, ...,
-                        min = min, max = max,
-                        proposal = proposal,
-                        proposal_scale = proposal_scale,
-                        expr = expr)
+                             proposal_scale = NA_real_) {
+      private$.augm$add_quo(name = name, value = rlang::enquo(value),
+                            status = status, const = const, discr = discr,
+                            func = rlang::enquo(func),
+                            func_args = rlang::enquos(func_args),
+                            model = model, rlang::enquos(...),
+                            min = rlang::enquo(min), max = rlang::enquo(max),
+                            proposal = proposal,
+                            proposal_scale = proposal_scale)
       invisible(self)
     },
 
@@ -744,10 +752,9 @@ HousepiModel <- R6Class(
     #' either as arguments or from predefined list.
     #'
     #' @param ... `r rd_list_args_`
-    #' @param from `r rd_list_from_`
     #' @param append `r rd_list_append_`
-    load_augmented_list = function(..., from = NULL, append = FALSE) {
-      private$.augm$load_list(..., from = from, append = append)
+    load_augmented_list = function(..., append = FALSE) {
+      private$.augm$load_quosures(rlang::enquos(...), append = append)
       invisible(self)
     },
 
@@ -799,12 +806,14 @@ HousepiModel <- R6Class(
                               min = NULL, max = NULL,
                               proposal = NA_character_,
                               proposal_scale = NA_real_) {
-      private$.group_rates$add(name = name, by = by, prefix = prefix,
-                               reference = reference, independent = independent,
-                               prior = prior, ...,
-                               min = min, max = max,
-                               proposal = proposal,
-                               proposal_scale = proposal_scale)
+      private$.group_rates$add_quo(name = name, by = by, prefix = prefix,
+                                   reference = reference,
+                                   independent = independent,
+                                   prior = prior, rlang::enquos(...),
+                                   min = rlang::enquo(min),
+                                   max = rlang::enquo(max),
+                                   proposal = proposal,
+                                   proposal_scale = proposal_scale)
       invisible(self)
     },
 
@@ -813,11 +822,10 @@ HousepiModel <- R6Class(
     #' or from predefined list.
     #'
     #' @param ... ` r rd_list_args_`
-    #' @param from `r rd_list_from_`
     #' @param append `r rd_list_append_`
-    load_group_rate_list = function(..., from = NULL, append = FALSE) {
+    load_group_rate_list = function(..., append = FALSE) {
       if (isFALSE(append)) self$drop_group_rates()
-      private$.group_rates$load_list(..., from = from, append = append)
+      private$.group_rates$load_quosures(rlang::enquos(...), append = append)
       invisible(self)
     },
 
@@ -833,11 +841,13 @@ HousepiModel <- R6Class(
     #' @param discr `r rd_inf_discr_`
     #' @param ... `r rd_inf_args_`
     #' @param max `r rd_aug_max_`
-    add_infec_profile = function(name, status = NA_integer_, 
+    add_infec_profile = function(name, status = NA_integer_,
                                  discr = FALSE,
                                  ..., max = NULL) {
-      private$.infec_profile$add(name = name, status = status, discr = discr,
-                                 ..., max = max)
+      private$.infec_profile$add_quo(name = name,
+                                     status = status, discr = discr,
+                                     rlang::enquos(...),
+                                     max = rlang::enquo(max))
       invisible(self)
     },
 

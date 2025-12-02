@@ -241,6 +241,9 @@ void Variable::init_func_reshaping(bool discr)
         pFunc_->init_discretization();
     pFunc_->init_truncation();
 
+    // assert no missing arguments
+    pFunc_->assert_is_callable_explicitly();
+
     if (pFunc_->is_constant())
         init(pFunc_->evaluate(), true);
 
@@ -249,10 +252,7 @@ void Variable::init_func_reshaping(bool discr)
             "Impossible to set " + err_name() + " as constant. Check its dependencies.");
 
     else if (!pFunc_->is_callable_implicitly())
-    {
-        pFunc_->assert_is_callable_explicitly();
         get_ = &Variable::do_get_error_;
-    }
 }
 
 /// Assign distribution with constant arguments.

@@ -87,7 +87,6 @@ rd_inf_args_ <- sprintf(rd_var_args_, "profile")
 rd_list_args_ <- "Named arguments with respective list of definition details."
 rd_list_append_ <- "`logical(1)` to append to current definitions.\\cr
 If `FALSE` drop all pre-existing definitions (default)."
-rd_list_from_ <- "named `list` of definitions."
 
 rd_tmpl_append_ <- "`logical(1)` to append only missing definitions.\\cr
 If `FALSE` drop all pre-existing definitions (default)."
@@ -107,11 +106,12 @@ It is used to specify status-specific definitions.
 If `NA`, associate the definition to all other infectious members (default)."
 rd_aug_val_ <- paste("`numeric(1)` or `character(1)` with initial value.",
                      rd_types_)
-rd_aug_func_ <- "`character(1)` with the name of the augmented function."
+rd_aug_func_ <- "One between:\\cr
+- `character(1)` with the name of the augmented function;\\cr
+- rlang expression."
 rd_aug_funargs_ <- "named `list` with the arguments of the augmented function."
 rd_aug_min_ <- paste(rd_var_min_, rd_types_)
 rd_aug_max_ <- paste(rd_var_max_, rd_types_)
-rd_aug_expr_ <- "Provide an expression."
 
 ############################################################################
 ############################################################################
@@ -188,6 +188,5 @@ Each function should return one between `numeric()`, `list` or `data.frame`."
 ############################################################################
 
 rd_hhsampler_size_ <- "`integer(1) with the number of households to sample."
-rd_hhsampler_from_ <- "`list` of `list`s with encoding definitions per feature."
 rd_hhsampler_asc_ <- "`logical(1)` to set ascending hierarchy between feature numbers.\\cr
 If `FALSE` is descending (default)."

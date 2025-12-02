@@ -11,15 +11,14 @@ add_augmented(
   status = NA_integer_,
   const = NA,
   discr = FALSE,
-  func = NA_character_,
+  func = NULL,
   func_args = NULL,
   model = NA_character_,
   ...,
   min = NULL,
   max = NULL,
   proposal = NA_character_,
-  proposal_scale = NA_real_,
-  expr = NULL
+  proposal_scale = NA_real_
 )
 }
 \arguments{
@@ -47,7 +46,11 @@ Default is \code{FALSE}.}
 If applicable, the model is discretized.\cr
 Default is \code{FALSE}.}
 
-\item{func}{\code{character(1)} with the name of the augmented function.}
+\item{func}{One between:\cr
+\itemize{
+\item \code{character(1)} with the name of the augmented function;\cr
+\item rlang expression.
+}}
 
 \item{func_args}{named \code{list} with the arguments of the augmented function.}
 
@@ -84,8 +87,6 @@ One between:\cr
 \item{proposal_scale}{\code{numeric(1)} with scale of the proposal.\cr
 Changed automatically during inference if \code{n_adpat}>0.\cr
 Not applicable if proposal is 'sample'. Otherwise scale is \code{1} by default.}
-
-\item{expr}{Provide an expression.}
 }
 \value{
 \code{HousepiModel}\cr

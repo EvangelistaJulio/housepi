@@ -32,6 +32,16 @@ assert_valid_definition_name <- function(x, family) {
   )
 }
 
+# Assert that given status name is/are valid.
+assert_valid_status <- function(status) {
+  status <- status[!is.na(status)]
+  status_as_int <- as.integer(status)
+  if (any(status_as_int <= 0) || !all(status == status_as_int)) stop_h(
+    "Status specific definition is valid only for positive integer values."
+  )
+}
+
+# Return template name choice with spaces.
 spaced_template_choice <- function(x) {
   tolower(gsub("\\s+", " ", gsub("-|_| ", " ", x)))
 }

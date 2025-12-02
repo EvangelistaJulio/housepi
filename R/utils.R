@@ -45,14 +45,6 @@ warning_h <- function(...) {
                 call. = FALSE)
 }
 
-# check if suggested library is installed
-require_suggested_library <- function(libname) {
-  if (!requireNamespace(libname, quietly = TRUE)) stop_h(
-    sprintf("Attempt to call missing library '%s'.", libname),
-    sprintf("Install it running: install.packages('%s')", libname)
-  )
-}
-
 #' @title
 #' Character to string list
 #' @description
@@ -156,35 +148,6 @@ overwrite <- function(from, to, ...) {
 get_val_ <- function(lst, key, default = NA) {
   if (key %in% names(lst)) lst[[key]]
   else default
-}
-
-#' @title
-#' Load a List of Definitions
-#' @description
-#' Load definitions either as direct arguments or from predefined list.
-#'
-#' @param ...
-#' Named arguments with respective list of definition details.
-#' @param from
-#' A named `list` of definitions (alternative to named arguments).
-#'
-#' @return
-#' `list` of `list`
-#'
-#' @keywords internal
-#' @noRd
-helper_load_definition_list <- function(..., from = NULL) {
-  definitions <- list(...)
-
-  if (length(definitions) == 0) {
-    if (length(from) == 0) stop_h("No definition provided while loading list.")
-    else if (is.list(from)) definitions <- from
-    else stop_h("Argument 'from' should be a list.")
-  } else if (any(names(definitions) == "")) {
-    stop_h("Found definition(s) without name.")
-  }
-
-  definitions
 }
 
 ############################################################################

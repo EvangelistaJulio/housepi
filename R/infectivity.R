@@ -30,7 +30,7 @@
 #'
 #' @keywords internal
 #' @noRd
-HousepiInfecProfile <- R6Class(
+HousepiInfecProfile <- R6::R6Class(
   classname = "HousepiInfecProfile",
   cloneable = TRUE,
 
@@ -39,22 +39,7 @@ HousepiInfecProfile <- R6Class(
   ############################################################################
 
   private = list(
-    deep_clone = function(name, value) helper_clone(value),
-
-    # Definitions required by augmented variable definitions
-    # according to the "type" of the definition (A, D, P).
-    .find_def_required = function(type) {
-      output <- c()
-      if (length(self$defs) > 0) {
-        for (typed_col in c("name", "max")) {
-          for (x in self$defs[[typed_col]]) {
-            output <- c(output, DefinitionWalker$new(x, type)$x)
-          }
-        }
-      }
-      # remove duplicates and add source name
-      set_source_name_(unique(output), "infectivity profile")
-    }
+    deep_clone = function(name, value) helper_clone(value)
   ),
 
   ############################################################################
@@ -62,25 +47,32 @@ HousepiInfecProfile <- R6Class(
   ############################################################################
 
   active = list(
+    #' @field augm_required `character()`\cr
+    #' Augmented variables required by infectivity profile definition.
+    augm_required = function(value) {
+      if (!missing(value)) stop_h("'augm_required' is read only.")
+      infec_prof_find_required_def(self$defs, "A")
+    },
+
     #' @field data_required `character()`\cr
     #' Dataset entries required by infectivity profile definition.
     data_required = function(value) {
       if (!missing(value)) stop_h("'data_required' is read only.")
-      private$.find_def_required("D")
+      infec_prof_find_required_def(self$defs, "D")
+    },
+
+    #' @field group_rates_required `character()`\cr
+    #' Find group rates required by infectivity profile definition.
+    group_rates_required = function(value) {
+      if (!missing(value)) stop_h("'group_rates_required' is read only.")
+      infec_prof_find_required_def(self$defs, "G")
     },
 
     #' @field param_required `character()`\cr
     #' Parameters required by infectivity profile definition.
     param_required = function(value) {
       if (!missing(value)) stop_h("'param_required' is read only.")
-      private$.find_def_required("P")
-    },
-
-    #' @field augm_required `character()`\cr
-    #' Augmented variables required by infectivity profile definition.
-    augm_required = function(value) {
-      if (!missing(value)) stop_h("'augm_required' is read only.")
-      private$.find_def_required("A")
+      infec_prof_find_required_def(self$defs, "P")
     }
   ),
 
@@ -101,26 +93,42 @@ HousepiInfecProfile <- R6Class(
       invisible(self)
     },
 
-    #' @inherit add_infec_profile
-    add = function(name, status = NA_integer_,
-                   discr = FALSE, ..., max = NULL) {
+    #
+    add_quo = function(name, status = NA_integer_,
+                       discr = FALSE, ..., max = NULL) {
+      # load non-quosures
+      name <- housepi_smart_unwrap(name, "name")
+      status <- housepi_smart_unwrap(status, "status")
+      discr <- housepi_smart_unwrap(discr, "discr")
+      # load quosures
+      max <- housepi_extractor(!!max)
+      # load dots # UPDATE: not super elegant...
+      dots <- list(...)
+      # flatten if single quosures list (from enquos)
+      if (length(dots) == 1 && rlang::is_quosures(dots[[1]])) dots <- dots[[1]]
+      args <- housepi_extractor(!!!dots)
+
       # check infectivity profile name
       if (is.na(name)) stop_h("Incomplete definition: missing name.")
-      args <- unlist(list(...))
+      assert_valid_status(status)
+
       self$defs <- rbind(self$defs, data.frame(list(
-        # load name/arguments
-        name = ifelse(
-          is.null(args), name,
-          DefinitionEncoder$new(as.list(args))$combine_to_call(name)
-        ),
+        name = ifelse(is.null(args), name, housepi_combine_to_call(name, args)),
         status = status,
         min = ifelse(isTRUE(discr), 1, 0),
-        # load maximum value
-        max = DefinitionEncoder$new(max)$x,
+        max = ifelse(is.null(max), NA_character_, max),
         discr = isTRUE(discr)
       )))
 
       invisible(self)
+    },
+
+    #' @inherit add_infec_profile
+    add = function(name, status = NA_integer_,
+                   discr = FALSE, ..., max = NULL) {
+      self$add_quo(name = name, status = status,
+                   discr = discr, rlang::enquos(...),
+                   max = rlang::enquo(max))
     }
   )
 )

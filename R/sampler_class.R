@@ -31,7 +31,7 @@
 #' @docType class
 #' @keywords internal
 #' @noRd
-IndividualSampler <- R6Class(
+IndividualSampler <- R6::R6Class(
   classname = "IndividualSampler",
   cloneable = TRUE,
 
@@ -160,10 +160,15 @@ IndividualSampler <- R6Class(
     #'
     #' @param ...
     #' Named features with respective list of definition details.
-    #' @param from `r rd_hhsampler_from_`
-    initialize = function(..., from = NULL) {
+    initialize = function(...) {
       # assign encoding dictionary
-      enc_dict <- helper_load_definition_list(..., from = from)
+      enc_dict <- list(...)
+      if (length(enc_dict) == 0) stop_h(
+        "No definition provided while loading list."
+      )
+      if (any(names(enc_dict) == "")) stop_h(
+        "Found definition(s) without name."
+      )
 
       # assign features distributions
       private$.feats_pdf <- data.frame()
@@ -176,19 +181,21 @@ IndividualSampler <- R6Class(
       private$.enc_dict <- list()
       for (col in names(enc_dict)) {
         # accept only lists
-        if (!is.list(enc_dict[[col]])) stop_h(
-          "The encoding dictionary must contains only lists."
+        this_enc <- enc_dict[[col]]
+        if (!is.list(this_enc)) stop_h(
+          "The encoding dictionary can accept only lists.",
+          sprintf("Change definition '%s' to list.", col)
         )
-        if ("breaks" %in% names(enc_dict[[col]])) {
+        if ("breaks" %in% names(this_enc)) {
           # if breaks, consider also lower than min and larger than max
-          x <- enc_dict[[col]]$breaks
+          x <- this_enc$breaks
           private$.num_feats[[col]] <- length(x) + 2
           private$.enc_dict[[col]]$x <- x
           private$.enc_dict[[col]]$type <- "breaks"
 
-        } else if ("levels" %in% names(enc_dict[[col]])) {
+        } else if ("levels" %in% names(this_enc)) {
           # if levels, consider also unknown case
-          x <- enc_dict[[col]]$levels
+          x <- this_enc$levels
           private$.num_feats[[col]] <- length(x) + 1
           private$.enc_dict[[col]]$x <- x
           private$.enc_dict[[col]]$type <- "levels"
@@ -291,7 +298,7 @@ IndividualSampler <- R6Class(
 #'
 #' @docType class
 #' @keywords internal
-HousepiSampler <- R6Class(
+HousepiSampler <- R6::R6Class(
   classname = "HousepiSampler",
   inherit = IndividualSampler,
   cloneable = TRUE,
@@ -319,11 +326,10 @@ HousepiSampler <- R6Class(
     #'
     #' @param ...
     #' Named features with respective list of definition details.
-    #' @param from `r rd_hhsampler_from_`
     #' @param ascending `r rd_hhsampler_asc_`
-    initialize = function(..., from = NULL, ascending = FALSE) {
+    initialize = function(..., ascending = FALSE) {
       # ininitialize parent class IndividualSampler
-      super$initialize(..., from = from)
+      super$initialize(...)
 
       private$.ascending <- isTRUE(ascending)
 

@@ -1,0 +1,197 @@
+library(testthat)
+
+test_that("Nested definitions raise errors", {
+  hhmodel <- new_housepi_model("augmented_example")
+  hhmodel$data_wide <- data.frame(house_id = 1, id = seq(4), status = seq(4))
+
+  expect_no_error(
+    hhmodel$load_augmented_list(
+      ..layer = list(model = "uniform", status = 1),
+      ..layer = list(func = ..dummy, status = c(2, 3, 4)),
+      ..dummy = list(model = "uniform"),
+      proba = ..layer
+    )$evaluate_log_lik()
+  )
+
+  # simple nest
+  expect_error(
+    hhmodel$load_augmented_list(..dummy = proba,
+                                proba = ..dummy)$evaluate_log_lik(),
+    regexp = "cyclic definitions"
+  )
+
+  # triangular nest
+  expect_error(
+    hhmodel$load_augmented_list(proba = ..layer,
+                                ..layer = ..dummy,
+                                ..dummy = proba)$evaluate_log_lik(),
+    regexp = "cyclic definitions"
+  )
+
+  # first generation of definitions
+  err_msg <- as.character(expect_error(
+    hhmodel$load_augmented_list(
+      ..layer = list(model = "normal", status = 1),
+      ..layer = list(func = ..dummy, status = 2),
+      #> NO ..layer provided for status 3 and 4
+      ..dummy = list(model = "lognormal", status = 2),
+      proba = ..layer
+    )$evaluate_log_lik()
+  ))
+  expect_match(err_msg, "Could not find a definition")
+  expect_match(err_msg, "status 3")
+
+  # second generation of definitions
+  err_msg <- as.character(expect_error(
+    hhmodel$load_augmented_list(
+      ..layer = list(model = "normal", status = 1),
+      ..layer = list(func = ..dummy, status = c(2, 3, 4)),
+      #> NO ..dummy provided for status 3, 4
+      ..dummy = list(model = "lognormal", status = c(2, 3)),
+      proba = ..layer
+    )$evaluate_log_lik()
+  ))
+  expect_match(err_msg, "Could not find a definition")
+  expect_match(err_msg, "status 4")
+})
+
+test_that("Missing function arguments raise errors", {
+  hhmodel <- new_housepi_model("augmented_example")
+  hhmodel$data_wide <- data.frame(house_id = seq(3), id = seq(3),
+                                  status = 1, test = c(5.5, NA, -1.5))
+
+  # non default arguments
+  hhmodel$add_augmented(name = "proba", func = "gamma", func_args = c(x = 1))
+  expect_error(hhmodel$evaluate_log_lik(), regexp = "missing non default")
+
+  # concatenated non default arguments
+  hhmodel$load_augmented_list(
+    gamma = list(func = "weibull", func_args = c(x = 1)),
+    proba = exp(-gamma)
+  )
+  expect_error(hhmodel$evaluate_log_lik(), regexp = "missing non default")
+
+  # data with NA values
+  hhmodel$drop_augmented()
+  hhmodel$add_augmented(name = "proba", func = "gamma", 
+                        func_args = c(shape = 2))
+  expect_error(hhmodel$evaluate_log_lik(), regexp = "Impossible to return")
+
+  # concatenated data with NA values
+  hhmodel$load_augmented_list(
+    gamma = list(func = "gamma",  func_args = c(shape = 2)),
+    proba =  exp(-gamma)
+  )
+  expect_error(hhmodel$evaluate_log_lik(), regexp = "Impossible to associate")
+
+  # check that NaN + something causes errors
+  hhmodel$load_augmented_list(noise = list(model = "normal"),
+                              proba = exp(test@D + noise))
+  expect_error(hhmodel$evaluate_log_lik(), regexp = "Impossible to associate")
+
+  # check that log(NaN) = NaN
+  hhmodel$load_augmented_list(proba = log(test@D))
+  expect_error(hhmodel$run_inference(), regexp = "Nothing to sample")
+  expect_error(hhmodel$evaluate_log_lik(),
+               regexp = "Impossible to return value")
+})
+
+test_that("Augmented log-likelihood seeding is fine", {
+  hhmodel <- new_housepi_model("augmented_example")
+  hhmodel$data_wide <- data.frame(house_id = 1, id = seq(4), status = seq(4))
+  hhmodel$load_augmented_list(
+    proba = list(model = "uniform", status = 1),
+    proba = list(func = ..layer, status = c(2, 3, 4)),
+    ..layer = list(model = "uniform")
+  )
+
+  ll1 <- hhmodel$evaluate_log_lik(seed = 1)
+  ll2 <- hhmodel$evaluate_log_lik(seed = 2)
+  expect_true(ll1 != ll2)
+  expect_identical(ll2, hhmodel$evaluate_log_lik(seed = 2))
+  expect_identical(ll2, sum(log(hhmodel$export_augmented_data()$proba)))
+})
+
+test_that("Augmented aliasing works as expected", {
+  hhmodel <- new_housepi_model("augmented_example")
+  hhmodel$data_wide <- data.frame(
+    house_id = "hh1", id = seq(1, 3), x = 2 + runif(3), status = 1
+  )
+  hhmodel$add_parameter(name = "scale", value = 1)
+  hhmodel$load_augmented_list(
+    ..dummy = x@D,
+    ..gamma = list(func = "gamma",
+                   func_args = c(x = ..dummy, shape = 2, scale = scale@P)),
+    proba = ..gamma
+  )
+
+  ll <- sum(log(dgamma(hhmodel$data_wide$x, shape = 2, scale = 1)))
+  expect_equal(hhmodel$evaluate_log_lik(), ll)
+
+  # check that order does not matter
+  hhmodel$load_augmented_list(
+    ..gamma = list(func = "gamma",
+                   func_args = c(x = ..dummy, shape = 2, scale = scale@P)),
+    proba = ..gamma,
+    ..dummy = x@D
+  )
+  expect_equal(hhmodel$evaluate_log_lik(), ll)
+
+  # check normalization of binomial with augmented example
+  hhmodel <- new_housepi_model("augmented_example")
+  hhmodel$data_wide <- data.frame(
+    id = seq(0, 100), house_id = "hh1", status = 1, X = seq(0, 100)
+  )
+  hhmodel$load_augmented_list(
+    pdf = list(func = "binomial",
+               func_args = c(x = X@D, size = 10, prob = 0.5)),
+    proba = exp(pdf)
+  )
+  expect_equal(hhmodel$evaluate_log_lik(), 1)
+})
+
+test_that("Augmentation example on incubation from delays is coherent", {
+  # log-likelihood from simulated delays
+  shape <- 2.0
+  scale <- 1.1
+  df <- data.frame(status = 1,
+                   ip = rgamma(223, shape = shape, scale = scale))
+  exact <- sum(log(stats::dgamma(df$ip, shape = shape, scale = scale)))
+
+  # generate an instance of the household model class
+  hhmodel <- new_housepi_model("augmented_example")
+  hhmodel$load_augmented_list(
+    proba = list(func = "gamma",
+                 func_args = c(x = ip@D, shape = !!shape, scale = !!scale))
+  )
+  # warning for no structure
+  expect_warning(hhmodel$data_wide <- df,
+                 regexp = "Ignored household structure")
+  expect_equal(hhmodel$evaluate_log_lik(), exact)
+})
+
+test_that("Known errors are unchanged", {
+  # Known infinity (values below minimum, i. e. proba 0)
+  hhmodel <- new_housepi_model("augmented_example") |>
+    add_data_wide(housepi::survey) |>
+    load_augmented_list(
+      value = list(model = "uniform"),
+      proba = list(func = "lognormal",
+                   func_args = c(x = value, meanlog = 1, sdlog = 1),
+                   min = 1, max = 15, discr = TRUE)
+    ) |>
+    evaluate_log_lik() |>
+    expect_equal(-Inf)
+
+  # Known NaN: qlnorm(15, meanlog = 4, sdlog = 0.01) = 0, impossible truncation
+  new_housepi_model("augmented_example") |>
+    add_data_wide(housepi::survey) |>
+    load_augmented_list(
+      value = list(model = "uniform", min = 1, max = 10, discr = TRUE),
+      proba = list(func = "lognormal",
+                   func_args = c(x = value, meanlog = 4, sdlog = 0.01),
+                   min = 1, max = 15, discr = TRUE)
+    ) |>
+    evaluate_log_lik() |>
+    expect_error(regexp = "Observation log-likelihood returned NaN")
+})

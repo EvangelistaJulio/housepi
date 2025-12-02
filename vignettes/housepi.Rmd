@@ -204,11 +204,11 @@ hhsimul <- hhsimul |>
     # define an incubation period for each individual
     # arguments are linked to parameters
     incub_period = list(model = "gamma",
-                        shape = ~ inc_shape@P, scale = ~ inc_scale@P,
+                        shape = inc_shape@P, scale = inc_scale@P,
                         max = 14),
     
     # define 'onset_time' as the sum of incubation period and infection time
-    onset_time = ~ infec_time + incub_period
+    onset_time = infec_time + incub_period
   )
 ```
 
@@ -255,17 +255,17 @@ We can check that inference returns the parameters used for the simulation.
 hhmodel <- hhsimul |>
   # loading definitions from list drops previous by default
   load_augmented_list(
-    infec_time = ~ onset_time - incub_period,
-    onset_time = list(model = "normal", mean = ~ onset_date@D, sd = 1),
+    infec_time = onset_time - incub_period,
+    onset_time = list(model = "normal", mean = onset_date@D, sd = 1),
     incub_period = list(model = "gamma",
-                        shape = ~ inc_shape@P, scale = ~ inc_scale@P)
+                        shape = inc_shape@P, scale = inc_scale@P)
   )
 
 results <- hhmodel |>
   add_data_wide(simulated) |>
   run_inference(chains = 3, steps = 1000, adapt = 500, thin = 10,
                 # update progress bar every 3 seconds
-                progress = 3)
+                progress = 5)
 ```
 We can visualize traces vs expected values as follows
 

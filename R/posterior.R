@@ -32,7 +32,7 @@ NULL
 #' Posterior draws as a results of housepi model inference.
 #'
 #' @docType class
-HousepiPosteriorDraws <- R6Class(
+HousepiPosteriorDraws <- R6::R6Class(
   classname = "HousepiPosteriorDraws",
 
   ############################################################################

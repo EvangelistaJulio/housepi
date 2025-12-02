@@ -17,13 +17,87 @@
 # augmented.R
 #
 
+# Parse augmented implicit function.
+helper_augmented_function <- function(opts, func, func_args) {
+  if (is.numeric(showcaser_extract_numeric(func))) {
+    # implicit numeric definition
+    opts$value <- func
+    if (is.na(opts$const)) {
+      opts$const <- all(is.na(c(opts$model, opts$proposal)))
+    }
+  } else {
+    # distinguish purely implicit function to plain name
+    opts$func <- ifelse(
+      is.null(func_args), func,
+      housepi_combine_to_call(func, func_args)
+    )
+    # note: a priori a function is not constant
+    if (is.na(opts$const)) opts$const <- FALSE
+  }
+
+  opts
+}
+
+# process model arguments
+helper_augmented_model <- function(opts, args) {
+  if (is.na(opts$model)) stop_h(
+    sprintf("Spare arguments for augmented '%s'.%s", opts$name,
+            ifelse(is.na(opts$func), "", "Did you mean 'func_args'?"))
+  )
+  if (!is.null(args)) {
+    opts$model <- housepi_combine_to_call(opts$model, args)
+  }
+  opts
+}
+
+# Interpret user choice for Monte Carlo proposal.
+augmented_helper_proposal <- function(opts, proposal_scale) {
+  # sampling proposal but no constant parameter provided
+  if (is.na(opts$const) && !(is.na(opts$proposal) && is.na(opts$model))) {
+    opts$const <- FALSE
+  }
+
+  if (isFALSE(opts$const)) {
+    if (is.na(opts$proposal)) {
+      if (is.na(opts$model)) opts$const <- TRUE
+      else opts$proposal <- "sample"
+    } else if (opts$proposal == "sample") {
+      if (is.na(opts$model)) stop_h(
+        sprintf("No model to sample from for augmented '%s'.", opts$name)
+      )
+    } else {
+      if (is.na(proposal_scale)) opts$proposal_scale <- 1
+      else if (is.numeric(proposal_scale) &&
+                 proposal_scale > 0) opts$proposal_scale <- proposal_scale
+      else stop_h("Proposal scale must be a numeric greater than 0.")
+    }
+  } else {
+    opts$proposal <- NA_character_
+  }
+  opts
+}
+
+# Process constant or random.
+augmented_helper_const_vs_rand <- function(opts, value) {
+  if (!is.null(value)) opts$value <- value
+
+  if (isFALSE(opts$const) && all(is.na(c(opts$value, opts$model)))) stop_h(
+    sprintf("Impossible to randomly initialize undefined augmented '%s'.",
+            opts$name),
+    "Provide one between value and model."
+  )
+  else if (is.na(opts$const)) opts$const <- TRUE
+
+  opts
+}
+
 #' @title Housepi Augmented
 #' @description
 #' Help with augmented variable definitions of model Rcpp object.
 #'
 #' @keywords internal
 #' @noRd
-HousepiAugmented <- R6Class(
+HousepiAugmented <- R6::R6Class(
   classname = "HousepiAugmented",
   cloneable = TRUE,
 
@@ -32,153 +106,7 @@ HousepiAugmented <- R6Class(
   ############################################################################
 
   private = list(
-    deep_clone = function(name, value) helper_clone(value),
-
-    # handle existing definition
-    .helper_existing_definition = function(name, status) {
-      # wrong status
-      if (!is.na(status) && !is.numeric(status)) stop_h(
-        "Invalid status: must be NA or a positive integer value."
-      )
-      if (!is.na(status) && (status <= 0)) stop_h(
-        "Invalid status: must be NA or a positive integer value."
-      )
-      # remove previous definition
-      self$remove(name, status)
-    },
-
-    # parse augmented implicit function
-    .helper_implicit_func = function(opts, expr) {
-      parsed <- DefinitionEncoder$new(expr)
-      if (!is.na(parsed$x)) {
-        if (is.na(opts$func)) opts$func <- parsed$x
-        else stop_h(
-          sprintf("Mutiple function definitions for '%s'.", opts$name),
-          "Use either 'expr' or 'func' argument."
-        )
-      }
-
-      if (!is.na(opts$func)) {
-        opts$const <- FALSE
-        opts$discr <- FALSE
-      } else if (is.na(opts$const)) {
-        opts$const <- is.na(opts$model) && is.na(opts$proposal)
-      }
-
-      opts
-    },
-
-    # process function arguments
-    .helper_function_arguments = function(opts, func_args) {
-      if (!is.null(func_args)) {
-        parsed <- DefinitionEncoder$new(as.list(func_args))
-        opts$func <- parsed$combine_to_call(opts$func)
-      }
-      opts
-    },
-
-    # process model arguments
-    .helper_model_args = function(opts, args) {
-      if (is.na(opts$model))  {
-        msg <- sprintf("Spare arguments for augmented '%s'.", opts$name)
-        if (!is.na(opts$func)) msg <- c(msg, "Did you mean 'func_args'?")
-        stop_h(msg)
-
-      } else if (!is.null(args)) {
-        parsed <- DefinitionEncoder$new(as.list(args))
-        opts$model <- parsed$combine_to_call(opts$model)
-      }
-
-      opts
-    },
-
-    # Process constant or random.
-    .helper_const_vs_rand = function(opts, value) {
-      parsed <- DefinitionEncoder$new(value)
-      opts$value <- parsed$x
-
-      if (isFALSE(opts$const) &&
-            is.na(opts$value) &&
-            is.na(opts$model)) stop_h(
-        sprintf("Impossible to randomly initialize undefined augmented '%s'.",
-                opts$name),
-        "Provide one between value and model."
-      )
-      else if (is.na(opts$const)) opts$const <- TRUE
-
-      opts
-    },
-
-    # Interpret user choice for Monte Carlo proposal.
-    .helper_proposal = function(opts, proposal_scale) {
-      # sampling proposal but no constant parameter provided
-      if (is.na(opts$const) && !(is.na(opts$proposal) && is.na(opts$model))) {
-        opts$const <- FALSE
-      }
-
-      if (isFALSE(opts$const)) {
-        if (is.na(opts$proposal)) {
-          if (is.na(opts$model)) opts$const <- TRUE
-          else opts$proposal <- "sample"
-        } else if (opts$proposal == "sample") {
-          if (is.na(opts$model)) stop_h(
-            sprintf("No model to sample from for augmented '%s'.", opts$name)
-          )
-        } else {
-          if (is.na(proposal_scale)) opts$proposal_scale <- 1
-          else if (is.numeric(proposal_scale)
-                   && proposal_scale > 0) opts$proposal_scale <- proposal_scale
-          else stop_h("Proposal scale must be greater than 0.")
-        }
-      } else {
-        opts$proposal <- NA_character_
-      }
-
-      opts
-    },
-
-    .helper_load_single_def = function(definition_i) {
-      def_name <- names(definition_i)
-
-      # interpret expression
-      expr <- definition_i[[1]]
-      if (rlang::is_call(expr)) this_def <- list("expr" = expr)
-      else this_def <- as.list(expr)
-
-      # interpret raw definition
-      if (length(names(this_def)) == 0) {
-        # distinguish between constant value definition and expression
-        if (length(this_def) == 1) {
-          if (is.na(expr)) names(this_def) <- "value"
-          else if (is.numeric(expr)) names(this_def) <- "value"
-          else names(this_def) <- "expr"
-        } else {
-          stop_h(
-            sprintf("Invalid definition for augmented '%s'.", def_name),
-            "Provide scalar, expression or named list (see 'add_augmented')."
-          )
-        }
-      }
-      # associate name
-      this_def$name <- def_name
-      this_def
-    },
-
-    # Definitions required by augmented variable definitions
-    # according to the "at" key of the definition (A, D, P).
-    # Extract value of given type from augmented definitions.
-    .find_def_required = function(type) {
-      # columns with types amongst augmented definitions
-      output <- c()
-      if (length(self$defs) > 0) {
-        for (typed_col in c("value", "func", "model", "min", "max")) {
-          for (x in self$defs[[typed_col]]) {
-            output <- c(output, DefinitionWalker$new(x, type)$x)
-          }
-        }
-      }
-      set_source_name_(unique(output), "augmented")
-    }
+    deep_clone = function(name, value) helper_clone(value)
   ),
 
   ############################################################################
@@ -186,33 +114,32 @@ HousepiAugmented <- R6Class(
   ############################################################################
 
   active = list(
-
     #' @field augm_required `character()`\cr
     #' Find augmented required by augmented variable definitions.
     augm_required = function(value) {
       if (!missing(value)) stop_h("'augm_required' is read only.")
-      private$.find_def_required("A")
+      augmented_find_required_def(self$defs, "A")
     },
 
     #' @field data_required `character()`\cr
     #' Find data required by augmented variable definitions.
     data_required = function(value) {
       if (!missing(value)) stop_h("'data_required' is read only.")
-      private$.find_def_required("D")
+      augmented_find_required_def(self$defs, "D")
     },
 
     #' @field group_rates_required `character()`\cr
     #' Find group rates required by augmented variable definitions.
     group_rates_required = function(value) {
       if (!missing(value)) stop_h("'group_rates_required' is read only.")
-      private$.find_def_required("G")
+      augmented_find_required_def(self$defs, "G")
     },
 
     #' @field param_required `character()`\cr
     #' Find parameters required by augmented variable definitions.
     param_required = function(value) {
       if (!missing(value)) stop_h("'param_required' is read only.")
-      private$.find_def_required("P")
+      augmented_find_required_def(self$defs, "P")
     }
   ),
 
@@ -257,145 +184,150 @@ HousepiAugmented <- R6Class(
     #' @description
     #' Remove a given augmented variable.
     #'
-    #' @param x
-    #' A `character(1)` with the name of the augmented definition to remove.
+    #' @param name_lst
+    #' A `character()` with the name of augmented definitions to remove.
     #' @param status
-    #' An `integer(1)` with the associated status of the definition.
-    #' @param show_warnings
-    #' `logical(1)`to show warnings or not.
-    #'
-    #' @return `logical(1)`
-    remove = function(x, status, show_warnings = FALSE) {
-      mask <- self$defs[["name"]] == x
-      if (any(mask)) {
-        # check if same name and status
-        mask <- mask & sapply(self$defs[["status"]], function(x) {
-          identical(x, as.integer(status))
-        })
+    #' An `integer()` with the associated status of the definition.
+    #' @param warn_removal
+    #' `logical(1)`to show warnings for failed removal.
+    #' @param warn_overwrite
+    #' `logical(1)`to show warnings in case of overwriting.
+    remove = function(name_lst, status_lst,
+                      warn_removal = FALSE,
+                      warn_overwrite = FALSE) {
+      stopifnot(length(name_lst) == length(status_lst))
+      stopifnot(is.list(name_lst))
+      stopifnot(is.list(status_lst))
 
-        if (any(mask)) self$defs <- self$defs[!mask, ]
-        else if (isTRUE(show_warnings)) warning_h(sprintf(
-          "Unknown augmented variable '%s' for status %d to remove.",
-          x, status
-        ))
-      } else if (isTRUE(show_warnings)) {
-        warning_h(sprintf("Unknown augmented variable '%s' to remove.", x))
+      all_rmv <- c()
+      # loop over names
+      for (i in seq_along(name_lst)) {
+        nm <- name_lst[[1]]
+        st <- status_lst[[1]]
+        mask <- self$defs[["name"]] == nm
+        if (any(mask)) {
+          # check if same name and status
+          mask <- mask & sapply(self$defs[["status"]], function(x) {
+            identical(x, as.integer(st))
+          })
+
+          if (any(mask)) {
+            self$defs <- self$defs[!mask, ]
+            all_rmv <- c(all_rmv, nm)
+          } else if (isTRUE(warn_removal)) {
+            warning_h(sprintf(
+              "Attempt to remove unknown augmented '%s' for status %d.", nm, st
+            ))
+          }
+        } else if (isTRUE(warn_removal)) {
+          warning_h(sprintf("Attempt to remove unknown augmented '%s'.", nm))
+        }
       }
-      any(mask)
+
+      # warning about overwriting.
+      if (warn_overwrite && (length(all_rmv) > 0)) warning_h(sprintf(
+        "Overwriting augmented definition%s%s",
+        ifelse(length(all_rmv) > 1, "s for:\n", " for "),
+        character_to_string_list(all_rmv, NA)
+      ))
+
+      invisible(self)
     },
 
     #' @inherit add_augmented
-    add = function(name = NA_character_,
-                   value = NULL,
-                   status = NA_integer_,
-                   const = NA,
-                   discr = FALSE,
-                   func = NA_character_,
-                   func_args = NULL,
-                   model = NA_character_,
-                   ...,
-                   min = NULL,
-                   max = NULL,
-                   proposal = NA_character_,
-                   proposal_scale = NA_real_,
-                   expr = NULL) {
-      
+    add_quo = function(name = NA_character_, value = NULL,
+                       status = NA_integer_, const = NA, discr = FALSE,
+                       func = NULL, func_args = NULL,
+                       model = NA_character_, ...,
+                       min = NULL, max = NULL,
+                       proposal = NA_character_,
+                       proposal_scale = NA_real_) {
+      # load non-quosures
+      name <- housepi_smart_unwrap(name, "name")
+      status <- housepi_smart_unwrap(status, "status")
+      const <- housepi_smart_unwrap(const, "const")
+      discr <- housepi_smart_unwrap(discr, "discr")
+      model <- housepi_smart_unwrap(model, "model")
+      proposal <- housepi_smart_unwrap(proposal, "proposal")
+      proposal_scale <- housepi_smart_unwrap(proposal_scale, "proposal_scale")
+      # load quosures
+      value <- housepi_extractor(!!value)
+      func <- housepi_extractor(!!func)
+      min <- housepi_extractor(!!min)
+      max <- housepi_extractor(!!max)
+      # load dots # UPDATE: not super elegant...
+      dots <- list(...)
+      # flatten dots if single quosures list (from enquos)
+      if (length(dots) == 1 && rlang::is_quosures(dots[[1]])) dots <- dots[[1]]
+      args <- housepi_extractor(!!!dots)
+
+      # flatten function arguments if single quosures list (from enquos)
+      # NOTE: lazy fix of rlang warning...
+      if (rlang::is_quosures(func_args)) {
+        func_args <- housepi_extractor(!!!func_args)
+      } else {
+        func_args <- housepi_extractor(!!func_args)
+      }
+
       # control valid name
       assert_valid_definition_name(name, "augmented")
-      if (all(is.null(c(value, expr)), is.na(c(model, func)))) stop_h(
-        sprintf("Incomplete definition for augmentend '%s'.", name),
-        "Provide at least one between 'value', 'model', 'func' and 'expr."
+      # control valid status
+      assert_valid_status(status)
+      # control meaningful definition
+      if (all(is.null(c(value, func)), is.na(model))) stop_h(
+        sprintf("Incomplete definition for augmented '%s'.", name),
+        "Provide at least one between 'value', 'model' and 'func'."
       )
-
-      # handle (name, status) and check for existing definitions
-      if (private$.helper_existing_definition(name, status)) warning_h(sprintf(
-        "Overwriting augmented definition for '%s'%s.",
-        name, ifelse(is.na(status), "", sprintf(" (status %d).", status))
-      ))
 
       # auxiliary typed options for Rcpp build method
       opts <- list(name = as.character(name),
                    value = NA_real_,
-                   status = as.integer(status),
+                   status = status,
                    const = as.logical(const),
                    discr = isTRUE(discr),
-                   func = as.character(func),
-                   fcumul = FALSE,
+                   func = NA_character_,
+                   fcumul = FALSE, # UPDATE: can I make this an option?
                    model = as.character(model),
                    min = NA_real_,
                    max = NA_real_,
                    proposal = as.character(proposal),
                    proposal_scale = NA_real_)
-      args <- unlist(list(...))
 
-      # augmented function
-      if (!is.null(expr)) {
-        opts <- private$.helper_implicit_func(opts, expr)
-      } else if (!is.na(opts$func)) {
-        opts <- private$.helper_function_arguments(opts, func_args)
-        # FIXME: I don't think this is right, test it
-        opts$const <- FALSE
-      }
+      # drop previous definition eventually
+      self$remove(list(opts$name), list(opts$status),
+                  warn_removal = FALSE, warn_overwrite = TRUE)
 
       # model arguments
-      if (length(args) > 0) opts <- private$.helper_model_args(opts, args)
-
+      if (!is.null(args)) {
+        opts <- helper_augmented_model(opts, args)
+      }
+      # augmented function
+      if (!is.null(func)) {
+        opts <- helper_augmented_function(opts, func, func_args)
+      }
+      # augmented variable
       if (is.na(opts$func)) {
-        opts <- private$.helper_proposal(opts, proposal_scale)
-        opts <- private$.helper_const_vs_rand(opts, value)
+        opts <- augmented_helper_proposal(opts, proposal_scale)
+        opts <- augmented_helper_const_vs_rand(opts, value)
       }
 
-      opts$min <- DefinitionEncoder$new(min)$x
-      opts$max <- DefinitionEncoder$new(max)$x
+      # domain
+      if (!is.null(min)) opts$min <- min
+      if (!is.null(max)) opts$max <- max
+
+      # append definition(s)
       self$defs <- rbind(self$defs, data.frame(opts))
 
       invisible(self)
     },
 
-    #' @description
-    #' Load augmented variable definitions either as direct arguments
-    #' or from predefined list.
-    #'
-    #' @param ...
-    #' Named arguments with respective list of definition details.
-    #' @param from
-    #' A named `list` of parameter definitions.
-    #' @param append
-    #' A `logical(1)` to append to current definitions.
-    #' If `FALSE` drop all pre-existing definitions (default).
-    load_list = function(..., from = NULL, append = FALSE) {
-      definitions <- helper_load_definition_list(..., from = from)
-
+    #' @inherit load_augmented_list
+    load_quosures = function(xquos, append = FALSE) {
+      # UPDATE: append requires checking existing definitions.
+      # I can store old ones, compare them and then drop at the end
       # remove previous definitions if append is false
       if (isFALSE(append)) self$initialize()
-      all_removed <- c()
-
-      for (i in seq_along(definitions)) {
-        this_def <- private$.helper_load_single_def(definitions[i])
-
-        if (is.null(this_def$status)) {
-          # generic definition
-          if (private$.helper_existing_definition(this_def$name, NA)) {
-            all_removed <- c(all_removed, this_def$name)
-          }
-          do.call(self$add, this_def)
-
-        } else {
-          # status-specific or multi-status definitions
-          for (s in this_def$status) {
-            if (private$.helper_existing_definition(this_def$name, s)) {
-              all_removed <- c(all_removed, this_def$name)
-            }
-            do.call(self$add, utils::modifyList(this_def, list(status = s)))
-          }
-        }
-      }
-
-      if (length(all_removed) > 0) warning_h(sprintf(
-        "Overwriting augmented definition%s%s",
-        ifelse(length(all_removed) > 1, "s for:\n", " for "),
-        character_to_string_list(all_removed, NA)
-      ))
+      self <- housepi_load_defin_quos(self, "func", xquos)
 
       invisible(self)
     },
@@ -411,37 +343,8 @@ HousepiAugmented <- R6Class(
     #' `logical(1)` to append missing augmented variable definitions.
     #' If `FALSE` drop all pre-existing definitions (default).
     load_template = function(templ_file, required = NULL, append = FALSE) {
-      # check if template file exists
-      if (!file.exists((templ_file))) stop_h(
-        "Impossible to automatically initialize augmented variables.",
-        "A file with template definitions was not found."
-      )
-      # template augmented variable definitions
-      templ_defs <- dget(templ_file)
-
-      if (isTRUE(append)) {
-        # check set of required augmented variables
-        if (length(required) == 0) {
-          warning_h(
-            "Appending template augmented variable definitions failed.",
-            "Alternatively use option 'append = FALSE'."
-          )
-        } else {
-          miss <- template_missing_find(required, self$defs[["name"]])
-
-          if (length(miss) == 0) warning_h(
-            "No template augmented variable to append.",
-            "Definitions are complete."
-          )
-          else if (!all(miss %in% names(templ_defs))) stop_h(
-            "No template found for the missing augmented variables."
-          )
-          else self$load_list(from = templ_defs[miss], append = TRUE)
-        }
-      } else {
-        self$load_list(from = templ_defs, append = FALSE)
-      }
-
+      self <- housepi_load_template_list(self, templ_file, "augmented",
+                                         required = required, append = append)
       invisible(self)
     },
 

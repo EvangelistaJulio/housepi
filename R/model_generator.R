@@ -33,7 +33,7 @@ NULL
 #'
 #' @keywords internal
 #' @noRd
-HousepiGenerator <- R6Class(
+HousepiGenerator <- R6::R6Class(
   classname = "HousepiGenerator",
   cloneable = TRUE,
 
@@ -434,7 +434,7 @@ HousepiGenerator <- R6Class(
       unlink(file.path(cache_dir_src, "model.o"))
 
       # touch installation files
-      touch_time <- Sys.time() - 1
+      touch_time <- Sys.time() - 2
       for (f in list.files(cache_dir_src, full.names = TRUE)) {
         Sys.setFileTime(f, touch_time)
       }
@@ -451,10 +451,10 @@ HousepiGenerator <- R6Class(
         get_cpp_environment_flags(paths = user_paths,
                                   flags = user_flags,
                                   linkers = user_linkers),
-        compile_dll(private$.cache_dir,
-                    quiet = private$.quiet,
-                    compile_attributes = FALSE,
-                    debug = FALSE)
+        pkgbuild::compile_dll(private$.cache_dir,
+                              quiet = private$.quiet,
+                              compile_attributes = FALSE,
+                              debug = FALSE)
       )
       private$.need_compile <- FALSE
 

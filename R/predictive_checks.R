@@ -102,7 +102,7 @@ measure_cases_by_house_size <- function(data_wide) {
 #' Class to extract posterior predictive checks over measures on simulations.
 #'
 #' @docType class
-HousepiPrediction <- R6Class(
+HousepiPrediction <- R6::R6Class(
   classname = "HousepiPrediction",
   cloneable = TRUE,
   lock_objects = FALSE,
@@ -321,7 +321,7 @@ HousepiPrediction <- R6Class(
 #' It estimates secondary attack rates and cases by size tables.
 #'
 #' @docType class
-PredictedCasesBySize <- R6Class(
+PredictedCasesBySize <- R6::R6Class(
   classname = "PredictedCasesBySize",
   inherit = HousepiPrediction,
   cloneable = TRUE,

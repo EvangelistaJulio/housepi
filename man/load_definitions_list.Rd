@@ -6,18 +6,16 @@
 \alias{load_group_rate_list}
 \title{Load list of definitions}
 \usage{
-load_parameter_list(hhmodel, ..., from = NULL, append = FALSE)
+load_parameter_list(hhmodel, ..., append = FALSE)
 
-load_augmented_list(hhmodel, ..., from = NULL, append = FALSE)
+load_augmented_list(hhmodel, ..., append = FALSE)
 
-load_group_rate_list(hhmodel, ..., from = NULL, append = FALSE)
+load_group_rate_list(hhmodel, ..., append = FALSE)
 }
 \arguments{
 \item{hhmodel}{\code{HousepiModel} object.}
 
 \item{...}{Named arguments with respective list of definition details.}
-
-\item{from}{named \code{list} of definitions.}
 
 \item{append}{\code{logical(1)} to append to current definitions.\cr
 If \code{FALSE} drop all pre-existing definitions (default).}
@@ -27,5 +25,5 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 A deep clone of the input object with updated definitions.
 }
 \description{
-Load definitions either as arguments or from predefined list.
+Load definitions as named arguments.
 }
