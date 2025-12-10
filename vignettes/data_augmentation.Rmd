@@ -29,11 +29,11 @@ Imagine that someone reported the exact time of symptom onset ${t}^{(\mathrm{ons
 We can introduce latent infection times ${t}_{i}$, defined as the difference between the onset time and the augmented incubation period ${\tau}^{(\mathrm{inc})}_{i}$:
 
 $${t}_{i} = {t}^{(\mathrm{ons})}_{i} - {\tau}^{(\mathrm{inc})}_{i},$$
-where we the incubation period drawn from a model distribution.
+where the incubation period is drawn from a model distribution.
 Say $x$ the observed data, onset days and status, $h$ the augmented variables infection time and incubation period. If $\theta$ is the vector of parameters, the joint posterior reads
 
 $${P}({\theta}, {h}\vert{x}) \varpropto {P}({x}\vert{\theta},{h}) {P}({h}\vert{\theta}){P}({\theta}).$$
-We here explain how to associate individual augmented variables in `housepi` for minimal examples.
+We here explain how to associate individual augmented variables in housepi for minimal examples.
 
 # Build augmented variables
 
@@ -47,13 +47,63 @@ E. g. "visit_day\@D" will source the value at individual data "visit_day".
 
 | Source     | Symbol | Examples          |
 |------------|:------:|:-----------------:|
-| Augmented  | A      | time, time\@A     |
+| Augmented  | A      | time OR time\@A   |
 | Data       | D      | visit_day\@D      |
 | Group Rate | G      | susceptibility\@G |
-| Numeric    | N      | 14, 14\@N         |
+| Numeric    | N      | 14                |
 | Parameter  | P      | mean\@P           |
 
+Notice that a variable name without explicit source will automatically be assumed to be an augmented variable.
+Similarly, there's no need to explicitate the source of a numeric value. 
+
 More in general, definition arguments `value`, `min`, `max` and `from` can be linked to external values in the following ways
+
+# Status specific definitions
+
+In many applications, the same augmented variable has to be augmented according to different rules according to the individual. 
+This is the case for example of infection times for symptomatic and asymptomatic members.
+We can address this issue in housepi using status specific definitions, as opposed to generic definitions valid for all positive status individuals.
+Let's consider the case of a follow-up that reported symptoms within a follow-up period and tested every household member only at the end.
+We use `status = 1` to identify symptomatic individuals and `status = 2` for asymptomatic. 
+We augmented infection time of symptomatic as shown in [Get Started](hosuepi.html), i. e. informed by reported onset date.
+For asymptomatic members we draw the infection time uniformly within the period of the follow-up.
+
+```{r}
+#| fig.alt: >
+#|  Density plots of augmented infection times for two household members.
+#| warning: false
+library(ggplot2)
+
+onset_tommy <- 5
+new_housepi_model("augmented_infection_time") |>
+  add_data_wide(data.frame(id = c("tommy", "gina"),
+                           status = c(1, 2),
+                           onset_date = c(onset_tommy, NA),
+                           house_id = "house_1")) |> 
+  load_parameter_list(alpha = 0.001, beta = 0.07, gamma = 0.9,
+                      size_ref = 4, study_period = 10) |> 
+  load_augmented_list(
+    # augmented infection time for symptomatic members 
+    # here we use a generic definition
+    infec_time = onset_time - incub_period,
+    onset_time = onset_date@D,
+    incub_period = list(model = "gamma", shape = 2, scale = 1),
+    # augmented infection time for asymptomatic members
+    # here we use a status specific definition, with priority over generic
+    infec_time = list(status = 2, model = "uniform", 
+                      min = !!onset_tommy, max = !!onset_tommy + 10)
+  ) |> 
+  run_inference(steps = 500, id_draws = c("tommy", "gina")) |> 
+  get_augm_draws() |> 
+  posterior::subset_draws(variable = "infec_time$", regex = TRUE) |> 
+  bayesplot::mcmc_dens(facet_args = c(ncol = 1)) +
+  ggplot2::geom_vline(data = data.frame(xintercept = onset_tommy),
+                      aes(xintercept = xintercept), linetype = 2) +
+  ggplot2::coord_cartesian(xlim = onset_tommy + c(-10, 10))
+  
+```
+
+We see that since we assumed the infection of the asymptomatic member to happen after the onset of the index, the model logically makes it more probable to occur closer to that limit.
 
 # Example: estimate incubation periods distribution
 
@@ -86,7 +136,7 @@ hhmodel <- new_housepi_model("augmented_example") |>
   load_augmented_list(
     # explicit declaration of incubation period likelihood
     proba = list(
-      func = "gamma_meanvar",           # gamma distribution by mean/variance
+      func = "gamma_meanvar",         # gamma distribution by mean/variance
       func_args = c(x = incub_period, # compute from individual 'incub_period'
                     mean = mean@P,    # use model parameter 'mean'
                     var = var@P),     # and 'var'
@@ -104,7 +154,7 @@ hhmodel <- new_housepi_model("augmented_example") |>
       value = exposure_min@D,      # start from data value 'exposure_min'
       model = "uniform",           # uniform within [0, exposure_max + 0.99]
       max = exposure_max@D + 0.99, # min = 0 by default for uniform
-      proposal = "normal",         # mcmc proposal is a normal distribution
+      proposal = "normal",         # MCMC proposal is a normal distribution
       proposal_scale = 0.5         # with std. deviation 0.5
     ),
     
@@ -136,7 +186,6 @@ We can do so by providing the `id` of individuals whose augmented variables we w
 #| fig.alt: >
 #|  Trace plots for mean and variance parameters with three parallel chains.
 #|  Overlaying orange lines indicate the values used for the simulation.
-library(ggplot2)
 
 results <- hhmodel |>
   add_data_wide(dataset) |>
@@ -145,7 +194,7 @@ results <- hhmodel |>
                 id_draws = c("7", "13"), 
                 progress = FALSE)
 
-# pot traces of parameter draws
+# plot traces of parameter draws
 bayesplot::mcmc_trace(get_param_draws(results)) +
   geom_hline(data = data.frame(parameter = c("mean", "var"), 
                                simulated = c(2.2, 2.5)),
@@ -161,54 +210,6 @@ bayesplot::mcmc_trace(get_augm_draws(results))
 
 In this example we had to introduce auxiliary augmented variables `.onset_time` and `.infec_time`.
 The prefix `.` we added to the names is a convention to ensure that housepi will not store the associated draws.
-
-# Status specific definitions [Under Development]
-
-In many applications, the same augmented variable has to be augmented according to different rules according to the individual. 
-This is the case for example of infection times for symptomatic and asymptomatic members.
-We can address this issue in housepi using status specific definitions, as opposed to generic definitions valid for all positive status individuals.
-Let's consider the case of a followup that reported symptoms within a followup period and tested every household member only at the end.
-We use `status = 1` to identify symptomatic individuals and `status = 2` for asymptomatic. 
-We augmented infection time of symptomatic as shown in [Get Started](hosuepi.html), i. e. informed by reported onset date.
-For asymptomatic members we draw the infection time uniformly within the period of the followup.
-
-```{r}
-#| fig.alt: >
-#|  Density plots of augmented infection times for two household members.
-#| warning: false
-library(ggplot2)
-
-onset_tommy <- 5
-new_housepi_model("augmented_infection_time") |>
-  add_data_wide(data.frame(id = c("tommy", "gina"),
-                           status = c(1, 2),
-                           onset_date = c(onset_tommy, NA),
-                           house_id = "house_1")) |> 
-  load_parameter_list(alpha = 0.001, beta = 0.07, gamma = 0.9,
-                      size_ref = 4, study_period = 10) |> 
-  load_augmented_list(
-    # augmented infection time for symptomatic members 
-    # here we use a generic definition
-    infec_time = onset_time - incub_period,
-    onset_time = onset_date@D,
-    incub_period = list(model = "gamma", shape = 2, scale = 1),
-    # augmented infection time for symptomatic members
-    # here we use a status specific definition, with priority over generic
-    infec_time = list(status = 2, model = "uniform", 
-                      min = !!onset_tommy, max = !!onset_tommy + 10)
-  ) |> 
-  run_inference(steps = 500, id_draws = c("tommy", "gina")) |> 
-  get_augm_draws() |> 
-  posterior::subset_draws(variable = "infec_time$", regex = TRUE) |> 
-  bayesplot::mcmc_dens(facet_args = c(ncol = 1)) +
-  ggplot2::geom_vline(data = data.frame(xintercept = onset_tommy),
-                      aes(xintercept = xintercept), color = "black",
-                      linetype = 2) +
-  ggplot2::coord_cartesian(xlim = onset_tommy + c(-10, 10))
-  
-```
-
-We see that since we assumed the infection of the asymptomatic member to happen after the onset of the index, the model logically makes it more probable to occur closer to that limit.
 
 # More about models and proposals
 
@@ -232,11 +233,11 @@ results <- new_housepi_model("blank") |>
   run_inference()
 
 #| fig.alt: >
-#| Trace plot of a single augmented variable sampled from the model.
+#|  Trace plot of a single augmented variable sampled from the model.
 bayesplot::mcmc_trace(get_augm_draws(results))
 
 #| fig.alt: >
-#| Trace plot of the corresponding model contribution to the log-likelihood.
+#|  Trace plot of the corresponding model contribution to the log-likelihood.
 bayesplot::mcmc_trace(get_total_log_lik_draws(results))
 ```
 
@@ -249,11 +250,11 @@ results <- new_housepi_model("blank") |>
   run_inference()
 
 #| fig.alt: >
-#| Trace plot of a single augmented variable without model, i. e. random walk.
+#|  Trace plot of a single augmented variable without model, i. e. random walk.
 bayesplot::mcmc_trace(get_augm_draws(results))
 
 #| fig.alt: >
-#| The flat trace plot of the corresponding log-likelihood shows no contribution.
+#|  The flat trace plot of the corresponding log-likelihood shows no contribution.
 bayesplot::mcmc_trace(get_total_log_lik_draws(results))
 ```
 

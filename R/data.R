@@ -55,6 +55,7 @@ NULL
 #' Fraser, et al. (2011)
 #' Influenza Transmission in Households During the 1918 Pandemic.
 #' American Journal of Epidemiology 174, 505-514.
+#' [doi:10.1093/aje/kwr122](https://doi.org/10.1093/aje/kwr122)
 NULL
 
 #' Flu 1918 Baltimora
@@ -76,6 +77,7 @@ NULL
 #' Fraser, et al. (2011)
 #' Influenza Transmission in Households During the 1918 Pandemic.
 #' American Journal of Epidemiology 174, 505-514.
+#' [doi:10.1093/aje/kwr122](https://doi.org/10.1093/aje/kwr122)
 NULL
 
 #' SARS-CoV-2 2021 Israel
@@ -106,14 +108,15 @@ NULL
 #' Cortier, et al. (2025)
 #' Factors Associated With the Transmission of the Delta Severe Acute Respiratory Syndrome Coronavirus 2 Variant in Households:
 #' The Israeli COVID-19 Family Study (ICoFS)
-#' The Journal of Infectious Diseases; jiaf001, doi:10.1093/infdis/jiaf001.
+#' The Journal of Infectious Diseases; jiaf001.
+#' [doi:10.1093/infdis/jiaf001](https://doi.org/10.1093/infdis/jiaf001)
 NULL
 
 #' Flu 2014-15 Matsumoto
 #'
 #' Household survey in Matsumoto city (Japan) for parents having children in primary school.
 #' Report on influenza episodes of family members during the season 2014-15.
-#' Original oservational study from Uchida, et al. (2017).
+#' Original observational study from Uchida, et al. (2017).
 #'
 #' \describe{
 #'   \item{house_id}{Household identifier}
@@ -131,5 +134,6 @@ NULL
 #' Endo, et al. (2019)
 #' Fine-scale family structure shapes influenza transmission risk in households:
 #' Insights from primary schools in Matsumoto city, 2014/15.
-#' PLOS Computational Biology;15: e1007589. doi:10.1371/journal.pcbi.1007589
+#' PLOS Computational Biology;15: e1007589.
+#' [doi:10.1371/journal.pcbi.1007589](https://doi.org/10.1371/journal.pcbi.1007589)
 NULL

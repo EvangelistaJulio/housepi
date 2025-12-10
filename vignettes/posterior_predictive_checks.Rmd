@@ -20,7 +20,7 @@ library(housepi)
 ```
 
 In this vignette we show how to compute common household measures according to the model posterior distribution.
-This can is generally refered to as Posterior Predictive Checks (PPC).
+This is generally refered to as Posterior Predictive Checks (PPC).
 We use the same chain binomial example presented in [Get started](housepi.html):
 
 ```{r}
@@ -97,7 +97,7 @@ We can perform a Chi-Squared test on the shown distribution as follows:
 ppc$chisq_test()
 ```
 
-The $p$-value tells us that there is no significant difference between the distribution, thus we can trust our inference process.
+The $p$-value tells us that there is no significant difference between the distribution ($p > 0.05$), thus we can trust our inference process.
 
 ## Secondary attack rate
 
@@ -118,17 +118,15 @@ library(ggplot2)
 col_dict <- c(Predicted = "coral", Observed = "black")
 
 # extract values for secondary attack rate
-ggplot(ppc$formatted_sec_attack_rate, aes(x = house_size)) +
+ggplot(ppc$formatted_sec_attack_rate, 
+       aes(x = house_size, y = observed, label = sprintf("[%s]", counts))) +
   # predicted SAR
   geom_point(aes(y = mean, color = "Predicted")) +
-  geom_errorbar(aes(y = mean, ymin = q5, ymax = q95, color = "Predicted"),
-                width = 0.1) +
+  geom_errorbar(aes(y = mean, ymin = q5, ymax = q95, color = "Predicted")) +
   # observed SAR
-  geom_point(aes(y = observed, color = "Observed")) +
+  geom_point(aes(color = "Observed")) +
   # annotate observed counts
-  geom_text(aes(x = house_size + 0.3, y = observed, 
-                label = sprintf("[%s]", counts)),
-            color = col_dict["Observed"]) +
+  geom_text(nudge_x = 0.3, color = col_dict["Observed"]) +
   scale_color_manual(values = col_dict) +
   labs(x = "Household Size", y = "Secondary Attack Rate", color = "")
 ```

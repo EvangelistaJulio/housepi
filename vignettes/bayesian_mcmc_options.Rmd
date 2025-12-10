@@ -20,12 +20,12 @@ library(housepi)
 set.seed(42)
 ```
 
-In this vignette we present all available options for the choice of the prior and Monte Carlo proposal in `housepi`. 
+In this vignette we present all available options for the choice of the prior and Monte Carlo proposal in housepi. 
 
 # Continuous priors
 
 To perform the sampling we consider the "blank" model, i. e. a data independent template model, with log-likelihood always equal to zero.
-Here's the full list of available continuous distributions present in `housepi`:
+Here's the full list of available continuous distributions present in housepi:
 ```{r}
 #| warning: false
 #| fig.alt: >
@@ -55,7 +55,9 @@ For certain distributions, default arguments are also available according to bas
 
 ## Provide a custom range
 
-We then test various example MISSING
+Here we test various examples to show how to select a custom range for the variables. 
+This will automatically impose a truncation of the prior of the parameter.
+We do this with the arguments `min` (minimum) and `max` (maximum). 
 
 ```{r}
 #| warning: false
@@ -87,7 +89,7 @@ new_housepi_model("blank") |>
 bayesplot::color_scheme_set(scheme = "orange")
 ```
 
-Here's the full list of available discrete distributions present in `housepi`:
+Here's the full list of available discrete distributions present in housepi:
 
 ```{r}
 #| fig.alt: >
@@ -107,7 +109,7 @@ new_housepi_model("blank") |>
   bayesplot::mcmc_hist(binwidth = 1)
 ```
 
-## Discretize continuos priors
+## Discretize continuous priors
 
 Previous continuous priors can be chosen to be discretized simply by adding the flag `discr = TRUE`.
 
@@ -130,13 +132,15 @@ new_housepi_model("blank") |>
   bayesplot::mcmc_hist(binwidth = 1)
 ```
 
-Note that here we dropped all arguments that allow for a default values. 
+Note that here we dropped all arguments that allow for default values. 
 
 ## How discretization works in practice
 
 Depending on the distribution support, the discretization is defined as:
-- Left discretization: average probability between the closest lower and larger integer;
-- Center discretization: average probability over a symmetric interval of width 1 centered at the integer (i.e. between integer − 0.5 and integer + 0.5).
+
+* Left discretization: average probability between the closest lower and larger integer;
+* Center discretization: average probability over a symmetric interval of width 1 centered at the integer (i.e. between integer − 0.5 and integer + 0.5).
+
 With this scheme normalization is respected, however the shape of the distribution might not be the expected one.
 You can use the function `expose_distribution` to return a Distribution object from housepi and explore its methods.
 
@@ -203,7 +207,7 @@ hhmodel |>
 ## Role of finite adaptation
 
 We use finite adaptation to adjusts proposal scales of parametric mechanisms with a target of 25\% acceptance rate.
-In housepi this is enabled by supplying `adapt = N` to `run_inference()`, where `N` is the number of adaptation steps preceding the mcmc `steps`.
+In housepi this is enabled by supplying `adapt = N` to `run_inference()`, where `N` is the number of adaptation steps preceding the MCMC `steps`.
 
 ```{r}
 #| fig.alt: >

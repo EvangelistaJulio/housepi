@@ -41,7 +41,7 @@ new_housepi_model <- function(choice = NA_character_, as_template = FALSE,
 ############################################################################
 ############################################################################
 
-#' @title Add data wide
+#' @title Add household data in wide format
 #' @description
 #' Make an internal copy of the provided household data.
 #'
@@ -53,12 +53,14 @@ new_housepi_model <- function(choice = NA_character_, as_template = FALSE,
 #' @export
 add_data_wide  <- function(hhmodel, data_wide) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  hhmodel$clone(deep = TRUE)$add_data_wide(data_wide)
+  new_object <- hhmodel$clone(deep = TRUE)
+  new_object$add_data_wide(data_wide)
+  new_object
 }
 
-#' @title Add data long
+#' @title Add additional individual data in long format
 #' @description
-#' Male an internal copy of the provided data in long format.
+#' Make an internal copy of the provided data in long format.
 #'
 #' @param hhmodel `r rd_model_in_`
 #' @param data_long `r rd_add_data_long_`
@@ -68,12 +70,14 @@ add_data_wide  <- function(hhmodel, data_wide) {
 #' @export
 add_data_long <- function(hhmodel, data_long) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  hhmodel$clone(deep = TRUE)$add_data_long(data_long)
+  new_object <- hhmodel$clone(deep = TRUE)
+  new_object$add_data_long(data_long)
+  new_object
 }
 
 #' @title Summarise cases in household data
 #' @description
-#' Summarise cases as given from the statuses in the laoded household data.
+#' Summarise cases as given from the statuses in the loaded household data.
 #'
 #' @param hhmodel `r rd_model_in_`
 #' @param ... Ignored.
@@ -87,7 +91,7 @@ summarise_cases <- function(hhmodel, ...) {
 
 #' @title Summarise house sizes in household data
 #' @description
-#' Summarise number of members (size) in the laoded household data.
+#' Summarise number of members (size) in the loaded household data.
 #'
 #' @param hhmodel `r rd_model_in_`
 #' @param ... Ignored.
@@ -116,28 +120,36 @@ summarise_house_sizes <- function(hhmodel, ...) {
 #' @export
 drop_parameters <-  function(hhmodel, ...) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  hhmodel$clone(deep = TRUE)$drop_parameters(...)
+  new_object <- hhmodel$clone(deep = TRUE)
+  new_object$drop_parameters(...)
+  new_object
 }
 
 #' @rdname drop_definitions
 #' @export
 drop_augmented <-  function(hhmodel, ...) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  hhmodel$clone(deep = TRUE)$drop_augmented(...)
+  new_object <- hhmodel$clone(deep = TRUE)
+  new_object$drop_augmented(...)
+  new_object
 }
 
 #' @rdname drop_definitions
 #' @export
 drop_group_rates <-  function(hhmodel, ...) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  hhmodel$clone(deep = TRUE)$drop_group_rates(...)
+  new_object <- hhmodel$clone(deep = TRUE)
+  new_object$drop_group_rates(...)
+  new_object
 }
 
 #' @rdname drop_definitions
 #' @export
 drop_all <- function(hhmodel) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  hhmodel$clone(deep = TRUE)$drop_all()
+  new_object <- hhmodel$clone(deep = TRUE)
+  new_object$drop_all()
+  new_object
 }
 
 ############################################################################
@@ -162,7 +174,7 @@ get_parameters <- function(hhmodel, ...) {
 
 #' @title Add parameter definition
 #' @description
-#' Add a new parameter to houspepi model definitions.
+#' Add a new parameter to housepi model definitions.
 #' If the parameter already exists, it is overwritten.
 #'
 #' @param hhmodel `r rd_model_in_`
@@ -188,15 +200,15 @@ add_parameter <- function(hhmodel,
                           proposal = NA_character_,
                           proposal_scale = NA_real_) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  new_model <- hhmodel$clone(deep = TRUE)
-  new_model$.__enclos_env__$private$.param$add_quo(
+  new_object <- hhmodel$clone(deep = TRUE)
+  new_object$.__enclos_env__$private$.param$add_quo(
     name = name, value = rlang::enquo(value),
     const = const, discr = discr,
     prior = prior, rlang::enquos(...),
     min = rlang::enquo(min), max = rlang::enquo(max),
     proposal = proposal, proposal_scale = proposal_scale
   )
-  new_model
+  new_object
 }
 
 #' @title Load list of definitions
@@ -213,11 +225,11 @@ add_parameter <- function(hhmodel,
 #' @export
 load_parameter_list <- function(hhmodel, ..., append = FALSE) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  new_model <- hhmodel$clone(deep = TRUE)
-  new_model$.__enclos_env__$private$.param$load_quosures(
+  new_object <- hhmodel$clone(deep = TRUE)
+  new_object$.__enclos_env__$private$.param$load_quosures(
     rlang::enquos(...), append = append
   )
-  new_model
+  new_object
 }
 
 #' @title Load template definitions
@@ -233,7 +245,9 @@ load_parameter_list <- function(hhmodel, ..., append = FALSE) {
 #' @export
 load_parameter_template <- function(hhmodel, append = FALSE) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  hhmodel$clone(deep = TRUE)$load_parameter_template(append = append)
+  new_object <- hhmodel$clone(deep = TRUE)
+  new_object$load_parameter_template(append = append)
+  new_object
 }
 
 ############################################################################
@@ -249,8 +263,8 @@ get_augmented <- function(hhmodel, ...) {
 
 #' @title Add augmented definition
 #' @description
-#' Add a new augmented variable/function to houspepi model definitions.
-#' If the augmented variablw already exists, it is updated.
+#' Add a new augmented variable/function to housepi model definitions.
+#' If the augmented variable already exists, it is updated.
 #'
 #' @param hhmodel `r rd_model_in_`
 #' @param name `r rd_var_name_`
@@ -279,8 +293,8 @@ add_augmented <- function(hhmodel,
                           proposal = NA_character_,
                           proposal_scale = NA_real_) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  new_model <- hhmodel$clone(deep = TRUE)
-  new_model$.__enclos_env__$private$.augm$add_quo(
+  new_object <- hhmodel$clone(deep = TRUE)
+  new_object$.__enclos_env__$private$.augm$add_quo(
     name = name, value = rlang::enquo(value),
     status = status, const = const, discr = discr,
     func = rlang::enquo(func), func_args = rlang::enquos(func_args),
@@ -288,25 +302,27 @@ add_augmented <- function(hhmodel,
     min = rlang::enquo(min), max = rlang::enquo(max),
     proposal = proposal, proposal_scale = proposal_scale
   )
-  new_model
+  new_object
 }
 
 #' @rdname load_definitions_list
 #' @export
 load_augmented_list <- function(hhmodel, ..., append = FALSE) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  new_model <- hhmodel$clone(deep = TRUE)
-  new_model$.__enclos_env__$private$.augm$load_quosures(
+  new_object <- hhmodel$clone(deep = TRUE)
+  new_object$.__enclos_env__$private$.augm$load_quosures(
     rlang::enquos(...), append = append
   )
-  new_model
+  new_object
 }
 
 #' @rdname load_template_definitions
 #' @export
 load_augmented_template <- function(hhmodel, append = FALSE) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  hhmodel$clone(deep = TRUE)$load_augmented_template(append = append)
+  new_object <- hhmodel$clone(deep = TRUE)
+  new_object$load_augmented_template(append = append)
+  new_object
 }
 
 ############################################################################
@@ -347,8 +363,10 @@ get_group_rates <- function(hhmodel, ...) {
 #'
 #' @references
 #' Cauchemez, et al. (2009)
-#' Household Transmission of 2009 Pandemic Influenza A (H1N1) Virus in the United States.
-#' New England Journal of Medicine. 361: 2619-2627. doi:10.1056/NEJMoa0905498
+#' Household Transmission of 2009 Pandemic Influenza A (H1N1)
+#' Virus in the United States.
+#' New England Journal of Medicine. 361: 2619-2627.
+#' [doi:10.1056/NEJMoa0905498](https://doi.org/10.1056/NEJMoa0905498)
 #'
 #' @return `r rd_model_out_`
 #'
@@ -361,28 +379,27 @@ add_group_rate <-  function(hhmodel,
                             proposal = NA_character_,
                             proposal_scale = NA_real_) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  new_model <- hhmodel$clone(deep = TRUE)
-  new_model$.__enclos_env__$private$.group_rates$add_quo(
+  new_object <- hhmodel$clone(deep = TRUE)
+  new_object$.__enclos_env__$private$.group_rates$add_quo(
     name = name, by = by, prefix = prefix,
     reference = reference, independent = independent,
     prior = prior, rlang::enquos(...),
     min = rlang::enquo(min), max = rlang::enquo(max),
     proposal = proposal, proposal_scale = proposal_scale
   )
-  new_model
+  new_object
 }
 
 #' @rdname load_definitions_list
 #' @export
 load_group_rate_list <- function(hhmodel, ..., append = FALSE) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  new_model <- hhmodel$clone(deep = TRUE)
-  if (isFALSE(append)) new_model$drop_group_rates()
-  new_model <- new_model
-  new_model$.__enclos_env__$private$.group_rates$load_quosures(
+  new_object <- hhmodel$clone(deep = TRUE)
+  if (isFALSE(append)) new_object$drop_group_rates()
+  new_object$.__enclos_env__$private$.group_rates$load_quosures(
     rlang::enquos(...), append = append
   )
-  new_model
+  new_object
 }
 
 ############################################################################
@@ -415,12 +432,12 @@ add_infec_profile <- function(hhmodel,
                               discr = FALSE,
                               ..., max = NULL) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  new_model <- hhmodel$clone(deep = TRUE)
-  new_model$.__enclos_env__$private$.infec_profile$add_quo(
+  new_object <- hhmodel$clone(deep = TRUE)
+  new_object$.__enclos_env__$private$.infec_profile$add_quo(
     name = name, status = status, discr = discr,
     rlang::enquos(...), max = rlang::enquo(max)
   )
-  new_model
+  new_object
 }
 
 ############################################################################
@@ -522,7 +539,8 @@ run_simulation <- function(hhmodel,
 #' @references
 #' Friel N, Hurn M, Wyse J.
 #' Improving power posterior estimation of statistical evidence.
-#' Stat Comput. 2014;24: 709-723. doi:10.1007/s11222-013-9397-1
+#' Stat Comput. 2014;24: 709-723.
+#' [doi:10.1007/s11222-013-9397-1](https://doi.org/10.1007/s11222-013-9397-1)
 #'
 #' @return `list()`
 #' @noRd

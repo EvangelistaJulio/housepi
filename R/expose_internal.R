@@ -44,7 +44,7 @@ rd_test_model_ <- "`HousepiModel` object containing the custom registred %s.\\cr
 If `NULL` (default) the built-in registry is used."
 
 #' @title
-#' New Housepi Function
+#' Expose Housepi Function
 #' @description
 #' Expose an object from housepi registered function.
 #' Used to access user defined functions.
@@ -59,9 +59,9 @@ If `NULL` (default) the built-in registry is used."
 #' @return
 #' An object of class `FunctionHousepi`.
 #'
-#' profile <- expose_function("weibull", shape = 2, scale = 1)
-#' profile$pdf(seq(0, 10))
-#' profile$cdf(seq(0, 10))
+#' fnc <- expose_function("pow", x2 = 3)
+#' fnc$func(seq(0, 5))
+#' fnc$prim(seq(0, 5))
 #'
 #' @export
 expose_function <- function(name, ...,
@@ -77,7 +77,7 @@ expose_function <- function(name, ...,
 }
 
 #' @title
-#' Test Housepi Distribution
+#' Expose Housepi Distribution
 #' @description
 #' Expose an object from housepi registered distribution.
 #' Used to access user defined distributions.
@@ -92,9 +92,9 @@ expose_function <- function(name, ...,
 #' @return
 #' An object of class `DistributionHousepi`.
 #'
-#' profile <- expose_distribution("weibull", shape = 2, scale = 1)
-#' profile$pdf(seq(0, 10))
-#' profile$cdf(seq(0, 10))
+#' dst <- expose_distribution("weibull", shape = 2, scale = 1)
+#' dst$pdf(seq(0, 5))
+#' dst$cdf(seq(0, 5))
 #'
 #' @export
 expose_distribution <- function(name, ...,
@@ -126,9 +126,9 @@ expose_distribution <- function(name, ...,
 #' An object of class `InfecProfileHousepi`.
 #'
 #' @examples
-#' profile <- expose_infec_profile("gamma", shape = 2, scale = 1)
-#' profile$pdf(seq(0, 10))
-#' profile$cdf(seq(0, 10))
+#' ipf <- expose_infec_profile("gamma", shape = 2, scale = 1)
+#' ipf$pdf(seq(0, 5))
+#' ipf$cdf(seq(0, 5))
 #'
 #' @export
 expose_infec_profile <- function(name, ...,

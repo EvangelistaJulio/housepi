@@ -21,6 +21,115 @@
 #' @importFrom pkgbuild compile_dll
 NULL
 
+# @description
+# Assert source files exist.
+generator_assert_source_files <- function(source_dir) {
+  for (file_name in source_files(source_dir)) {
+    if (!file.exists(file_name)) stop_h(
+      sprintf("File '%s' was not found.", file_name),
+      "Check your model directory."
+    )
+  }
+}
+
+# @description
+# Assert cache allocations in source code match calls.
+generator_assert_cache <- function(source_dir) {
+  # use source file as a reference
+  refer_file <- file.path(source_dir, "model.cpp")
+
+  # dictionary of allocate\call functions
+  checks <- list(
+    "cache_house_integer_vector" = ".cache_integer_vector",
+    "cache_house_size_t_vector" = ".cache_size_t_vector",
+    "cache_house_double_vector" = ".cache_double_vector",
+    "cache_house_double_matrix" = ".cache_double_matrix"
+  )
+
+  required <- c()
+  defined <- c()
+  for (i in seq_along(checks)) {
+    # regular expression
+    regexp <- '%s\\s*\\(\\s*["\'](.*?)["\']'
+    # .extra_<type>("string")
+    reg_called <- sprintf(regexp, checks[[i]])
+    # allocate_extra_house_<type>("string")
+    reg_allocated <- sprintf(regexp, names(checks)[[i]])
+
+    # set of extra variables
+    required <- c(required, template_required_find(refer_file, reg_called))
+    defined <- c(defined, template_required_find(refer_file, reg_allocated))
+  }
+  required <- set_source_name_(unique(required), "model")
+  # point out unused cached variables
+  template_not_used_warn(required, defined, "cached variable")
+  # stop if cached variables are missing
+  template_missing_stop(required, defined, "cached variable")
+}
+
+# @description
+# Check whether source model contains a literal macro/token.
+generator_assert_allows_flag <- function(source_dir, flag) {
+  candidates <- c(file.path(source_dir, "src", "model.cpp"),
+                  file.path(source_dir, "model.cpp"))
+  model_cpp <- candidates[file.exists(candidates)][1]
+  if (is.na(model_cpp)) return(FALSE)
+  lines <- readLines(model_cpp, warn = FALSE)
+  patt <- paste0("\\b", gsub("([\\W])", "\\\\\\1", flag), "\\b")
+  any(grepl(patt, lines, perl = TRUE))
+}
+
+# @description
+# Process user options for compilation.
+generator_process_user_options <- function(...) {
+  user_paths <- character()
+  user_flags <- character()
+  user_linkers <- character()
+  user_options <- list(...)
+
+  # process time discrete option
+  if ("discr" %in% names(user_options) && isTRUE(user_options$discr)) {
+    user_flags <- c(user_flags, "_HOUSEPI_DISCRETE_TIME")
+  }
+
+  list("user_paths" = user_paths,
+       "user_flags" = user_flags,
+       "user_linkers" = user_linkers)
+}
+
+# @description
+# Wheter model choice is interpretable.
+generator_init_helper_choice <- function(choice) {
+  choice_ <- "blank"
+  if (is.na(choice)) warning_h(
+    "No model specified. Falling back to 'blank' model.",
+    "To show available templates, run 'template_household_model'."
+  )
+  else if (as.character(choice) %in% list(".")) stop_h(
+    sprintf("Invalid choice '%s' for housepi model.", choice),
+    "Move your implementation in a different folder."
+  )
+  else choice_ <- as.character(choice)
+
+  choice_
+}
+
+# @description Reference script.
+# @param seed `integer(1)`
+# @return `integer(1)`
+generator_adjust_seed <- function(seed) {
+  max_r_int <- .Machine$integer.max
+  if (is.na(seed)) seed <- sample.int(max_r_int, 1)
+  else seed <- abs(as.integer(seed))
+
+  # control that seed is 32bit (for custom seed)
+  if (seed > max_r_int) stop_h(
+    "Supplied seed is not supported.",
+    sprintf("Maximum value for an integer in R is %.0f.", max_r_int)
+  )
+  seed
+}
+
 ############################################################################
 ############################################################################
 ############################# Housepi Generator ############################
@@ -98,95 +207,13 @@ HousepiGenerator <- R6::R6Class(
     ############################################################################
 
     # @description
-    # Assert source files exist.
-    .assert_source_files = function() {
-      for (file_name in source_files(private$.source_dir)) {
-        if (!file.exists(file_name)) stop_h(
-          sprintf("File '%s' was not found.", file_name),
-          "Check your model directory."
-        )
-      }
-      invisible(self)
-    },
-
-    # @description
-    # Assert cache allocations in source code match calls.
-    .assert_cache = function() {
-      # use source file as a reference
-      refer_file <- file.path(private$.source_dir, "model.cpp")
-
-      # dictionary of allocate\call functions
-      checks <- list(
-        "cache_house_integer_vector" = ".cache_integer_vector",
-        "cache_house_size_t_vector" = ".cache_size_t_vector",
-        "cache_house_double_vector" = ".cache_double_vector",
-        "cache_house_double_matrix" = ".cache_double_matrix"
-      )
-
-      required <- c()
-      defined <- c()
-      for (i in seq_along(checks)) {
-        # regular expression
-        regexp <- '%s\\s*\\(\\s*["\'](.*?)["\']'
-        # .extra_<type>("string")
-        reg_called <- sprintf(regexp, checks[[i]])
-        # allocate_extra_house_<type>("string")
-        reg_allocated <- sprintf(regexp, names(checks)[[i]])
-
-        # set of extra variables
-        required <- c(required, template_required_find(refer_file, reg_called))
-        defined <- c(defined, template_required_find(refer_file, reg_allocated))
-      }
-      required <- set_source_name_(unique(required), "model")
-      # point out unused cached variables
-      template_not_used_warn(required, defined, "cached variable")
-      # stop if cached variables are missing
-      template_missing_stop(required, defined, "cached variable")
-
-      invisible(self)
-    },
-
-    # @description
-    # Process user options for compilation.
-    .process_user_options = function(...) {
-      user_paths <- character()
-      user_flags <- character()
-      user_linkers <- character()
-      user_options <- list(...)
-
-      # process time discrete option
-      if ("discr" %in% names(user_options) && isTRUE(user_options$discr)) {
-        user_flags <- c(user_flags, "_HOUSEPI_DISCRETE_TIME")
-      }
-
-      # store raw flags for later checks
-      private$.last_user_flags <- user_flags
-
-      list("user_paths" = user_paths,
-           "user_flags" = user_flags,
-           "user_linkers" = user_linkers)
-    },
-
-    # @description
-    # Check whether source model contains a literal macro/token.
-    .assert_allows_flag = function(source_dir, flag) {
-      candidates <- c(file.path(source_dir, "src", "model.cpp"),
-                      file.path(source_dir, "model.cpp"))
-      model_cpp <- candidates[file.exists(candidates)][1]
-      if (is.na(model_cpp)) return(FALSE)
-      lines <- readLines(model_cpp, warn = FALSE)
-      patt <- paste0("\\b", gsub("([\\W])", "\\\\\\1", flag), "\\b")
-      any(grepl(patt, lines, perl = TRUE))
-    },
-
-    # @description
     # Assign source directory and filter requested flags according to source.
     # If a flag is not present in model.cpp, raise a warning.
     .store_source_and_filter_flags = function(source_dir) {
       # asses if model flags actually make sense
       keep <- character()
       for (f in private$.last_user_flags) {
-        if (private$.assert_allows_flag(source_dir, f)) keep <- c(keep, f)
+        if (generator_assert_allows_flag(source_dir, f)) keep <- c(keep, f)
         else if (f == "_HOUSEPI_DISCRETE_TIME") warning_h(
           sprintf("No visible discrete time option for model '%s'.",
                   private$.name)
@@ -223,26 +250,6 @@ HousepiGenerator <- R6::R6Class(
     ############################################################################
 
     # @description
-    # Wheter model choice is interpretable.
-    .initialize_helper_choice = function(choice) {
-      choice_ <- "blank"
-      if (is.na(choice)) warning_h(
-        "No model specified. Falling back to 'blank' model.",
-        "To show available templates, run 'template_household_model'."
-      )
-      else if (as.character(choice) %in% list(".")) stop_h(
-        sprintf("Invalid choice '%s' for housepi model.", choice),
-        "Move your implementation in a different folder."
-      )
-      else choice_ <- as.character(choice)
-
-      # assign name to the model
-      private$.name <- basename(choice_)
-
-      choice_
-    },
-
-    # @description
     # Initialize to "blank" model.
     .initialize_blank_model = function() {
       private$.last_user_flags <- character()
@@ -256,6 +263,8 @@ HousepiGenerator <- R6::R6Class(
     # @description
     # Initialize custom model loading path to model source code.
     .initialize_custom_model = function(choice, as_template, force) {
+      # UPDATE: storing should happen after assert source!
+      # otherwise idiot warning...
       private$.store_source_and_filter_flags(choice)
       private$.dll <- template_dll_file(choice)
       private$.new_custom_model(as_template, force)
@@ -329,8 +338,7 @@ HousepiGenerator <- R6::R6Class(
     .new_custom_model = function(as_template, force) {
       # force re-compilation or check for changes
       private$.need_compile <- TRUE
-      if (file.exists(private$.dll) &&
-            !force &&
+      if (file.exists(private$.dll) && !force &&
             !untracked_changes(private$.source_dir, private$.dll) &&
             private$.wheter_same_flags_as_dll()) {
         private$.need_compile <- FALSE
@@ -348,9 +356,9 @@ HousepiGenerator <- R6::R6Class(
           private$.cache_dir, dll_file_ext(random_name(private$.source_dir))
         )
         # source directory must contain source files
-        private$.assert_source_files()
+        generator_assert_source_files(private$.source_dir)
         # organize cache directory to perform compilation
-        private$.assert_cache()
+        generator_assert_cache(private$.source_dir)
         private$.copy_source_code()
       }
 
@@ -521,22 +529,6 @@ HousepiGenerator <- R6::R6Class(
       output
     },
 
-    # @description Reference script.
-    # @param seed `integer(1)`
-    # @return `integer(1)`
-    .adjust_seed = function(seed) {
-      max_r_int <- .Machine$integer.max
-      if (is.na(seed)) seed <- sample.int(max_r_int, 1)
-      else seed <- abs(as.integer(seed))
-
-      # control that seed is 32bit (for custom seed)
-      if (seed > max_r_int) stop_h(
-        "Supplied seed is not supported.",
-        sprintf("Maximum value for an integer in R is %.0f.", max_r_int)
-      )
-      seed
-    },
-
     ############################################################################
     ############################################################################
     ############################################################################
@@ -606,12 +598,16 @@ HousepiGenerator <- R6::R6Class(
     initialize = function(choice, as_template = FALSE,
                           force = FALSE, quiet = FALSE, ...) {
       withr::local_preserve_seed()
-      choice <- private$.initialize_helper_choice(choice)
+      # assign name to the model
+      choice <- generator_init_helper_choice(choice)
+      private$.name <- basename(choice)
 
       # assign quiet field
       private$.quiet <- isTRUE(quiet)
       # load user options # FIXME they can change if need recompile
-      user_options <- private$.process_user_options(...)
+      user_options <- generator_process_user_options(...)
+      # store raw flags for later checks
+      private$.last_user_flags <- user_options$user_flags
 
       if (choice == "blank") private$.initialize_blank_model()
       else if (dir.exists(choice)) private$.initialize_custom_model(

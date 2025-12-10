@@ -35,8 +35,8 @@ Expose an object from housepi registered infectivity profile.
 Used to access user defined infectivity profiles.
 }
 \examples{
-profile <- expose_infec_profile("gamma", shape = 2, scale = 1)
-profile$pdf(seq(0, 10))
-profile$cdf(seq(0, 10))
+ipf <- expose_infec_profile("gamma", shape = 2, scale = 1)
+ipf$pdf(seq(0, 5))
+ipf$cdf(seq(0, 5))
 
 }

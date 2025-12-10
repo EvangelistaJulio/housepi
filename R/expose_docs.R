@@ -20,8 +20,7 @@
 # between R6 methods and wrappers
 
 rd_model_in_ <- "`HousepiModel` object."
-rd_model_out_ <- "`HousepiModel`\\cr
-A deep clone of the input object with updated definitions."
+rd_model_out_ <- "A deep clone of the input `HousepiModel` with new definitions."
 
 rd_mdl_choice_ <- "`character(1)` with the choice for the model.\\cr
 One between:\\cr
@@ -53,7 +52,7 @@ Default is `FALSE`."
 rd_var_discr_ <- "`logical(1)` to treat definition as discrete.\\cr
 If applicable, the %s is discretized.\\cr
 Default is `FALSE`."
-rd_var_model_ <- "`character(1)` wit the choice for the %s distribution."
+rd_var_model_ <- "`character(1)` with the choice for the %s distribution."
 rd_var_args_ <- "named arguments for the %s distribution."
 
 rd_var_min_ <- "`numeric(1)` to truncate to a minimum value."
@@ -148,7 +147,7 @@ If `NULL`, observation process is ignored."
 rd_smpl_data_wide_ <- paste(rd_add_data_wide_,
                             "If `NULL`, uses the previously stored data.")
 
-rd_add_data_long_ <- "`data.frame` with additional individal long format data."
+rd_add_data_long_ <- "`data.frame` with additional individual long format data."
 
 rd_smpl_steps_ <- "`integer(1)`  with total number of MCMC steps per chain."
 rd_smpl_burn_ <- "`integer(1)` with number of initial steps to discard."
@@ -178,7 +177,7 @@ rd_evi_rungs_ <- "`integer(1)` wiht number of rungs in thermodynamic ladder."
 rd_param_table_ <- "One between\\cr
 - `data.frame`;
 - `posterior::draws`;
-- `HousepiPosteriorDraws`.
+- [HousepiPosteriorDraws][housepi::HousepiPosteriorDraws].
 "
 rd_measure_dots_ <- "Named arguments with `function`s to compute the respective measure from data.\\cr
 Each function should return one between `numeric()`, `list` or `data.frame`."

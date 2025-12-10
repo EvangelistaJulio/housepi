@@ -54,7 +54,7 @@ Default is \code{FALSE}.}
 
 \item{func_args}{named \code{list} with the arguments of the augmented function.}
 
-\item{model}{\code{character(1)} wit the choice for the model distribution.}
+\item{model}{\code{character(1)} with the choice for the model distribution.}
 
 \item{...}{named arguments for the model distribution.}
 
@@ -89,10 +89,9 @@ Changed automatically during inference if \code{n_adpat}>0.\cr
 Not applicable if proposal is 'sample'. Otherwise scale is \code{1} by default.}
 }
 \value{
-\code{HousepiModel}\cr
-A deep clone of the input object with updated definitions.
+A deep clone of the input \code{HousepiModel} with new definitions.
 }
 \description{
-Add a new augmented variable/function to houspepi model definitions.
-If the augmented variablw already exists, it is updated.
+Add a new augmented variable/function to housepi model definitions.
+If the augmented variable already exists, it is updated.
 }

@@ -21,8 +21,7 @@ drop_all(hhmodel)
 \item{...}{Ignored.}
 }
 \value{
-\code{HousepiModel}\cr
-A deep clone of the input object with updated definitions.
+A deep clone of the input \code{HousepiModel} with new definitions.
 }
 \description{
 Drop current formatted definitions.

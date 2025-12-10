@@ -6,7 +6,7 @@
 \title{Housepi Model}
 \description{
 Compile household model, manage your data
-and variable defintions from a single class.
+and variable definitions from a single class.
 }
 \section{Super class}{
 \code{housepi::HousepiGenerator} -> \code{HousepiModel}
@@ -22,8 +22,7 @@ and variable defintions from a single class.
 
 \item{\code{augmented}}{A\code{data.frame} with augmented formatted definitions.}
 
-\item{\code{infec_profile}}{A \code{list} with infectivity profile definitions.
-UPDATE: reformatting current rcpp_export waiting for status specific}
+\item{\code{infec_profile}}{A \code{list} with infectivity profile definitions.}
 
 \item{\code{group_rates}}{A \code{list} with group rate definitions.}
 }
@@ -173,7 +172,7 @@ Summary house sizes in loaded data.
 \if{html}{\out{<a id="method-HousepiModel-add_data_long"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-add_data_long}{}}}
 \subsection{Method \code{add_data_long()}}{
-Maje an internal copy of the provided data_long.
+Make an internal copy of the provided data_long.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_data_long(data_long)}\if{html}{\out{</div>}}
 }
@@ -181,7 +180,7 @@ Maje an internal copy of the provided data_long.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{data_long}}{\code{data.frame} with additional individal long format data.}
+\item{\code{data_long}}{\code{data.frame} with additional individual long format data.}
 }
 \if{html}{\out{</div>}}
 }
@@ -223,7 +222,7 @@ Default is \code{FALSE}.}
 If applicable, the prior is discretized.\cr
 Default is \code{FALSE}.}
 
-\item{\code{prior}}{\code{character(1)} wit the choice for the prior distribution.}
+\item{\code{prior}}{\code{character(1)} with the choice for the prior distribution.}
 
 \item{\code{...}}{named arguments for the prior distribution.}
 
@@ -291,7 +290,7 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 \if{latex}{\out{\hypertarget{method-HousepiModel-add_augmented}{}}}
 \subsection{Method \code{add_augmented()}}{
 Add a new augmented variable/function to houspepi model definitions.
-If the augmented variablw already exists, it is updated.
+If the augmented variable already exists, it is updated.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_augmented(
   name = NA_character_,
@@ -343,7 +342,7 @@ Default is \code{FALSE}.}
 
 \item{\code{func_args}}{named \code{list} with the arguments of the augmented function.}
 
-\item{\code{model}}{\code{character(1)} wit the choice for the model distribution.}
+\item{\code{model}}{\code{character(1)} with the choice for the model distribution.}
 
 \item{\code{...}}{named arguments for the model distribution.}
 
@@ -466,7 +465,7 @@ Default is the group with the largest sample size.}
 \item{\code{independent}}{\code{logical(1)} to consider features as independent.\cr
 If \code{FALSE} features are combined (default).}
 
-\item{\code{prior}}{\code{character(1)} wit the choice for the prior distribution.}
+\item{\code{prior}}{\code{character(1)} with the choice for the prior distribution.}
 
 \item{\code{...}}{named arguments for the prior distribution.}
 

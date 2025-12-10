@@ -16,8 +16,7 @@ load_augmented_template(hhmodel, append = FALSE)
 If \code{FALSE} drop all pre-existing definitions (default).}
 }
 \value{
-\code{HousepiModel}\cr
-A deep clone of the input object with updated definitions.
+A deep clone of the input \code{HousepiModel} with new definitions.
 }
 \description{
 Load default definitions from model template.

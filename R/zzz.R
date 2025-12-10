@@ -29,7 +29,7 @@
 #' source of information during the early phases of an epidemic
 #' (e. g. longitudinal studies).
 #' Additionally, retrospective serological surveys can provide critical insights
-#' into the history of transmission within a population (finite size studies).
+#' into the history of transmission within a population (final size studies).
 #' The package aims to combine ease of use with flexibility, supporting both
 #' straightforward analyses and advanced epidemiological investigations.
 "_PACKAGE"

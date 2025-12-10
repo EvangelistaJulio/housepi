@@ -19,7 +19,7 @@ predicted_measures(
 \itemize{
 \item \code{data.frame};
 \item \code{posterior::draws};
-\item \code{HousepiPosteriorDraws}.
+\item \link[=HousepiPosteriorDraws]{HousepiPosteriorDraws}.
 }}
 
 \item{...}{Named arguments with \code{function}s to compute the respective measure from data.\cr

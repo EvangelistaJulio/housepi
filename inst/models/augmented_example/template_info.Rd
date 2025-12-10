@@ -4,7 +4,7 @@
 \description{
 Dummy model used to illustrate the usage of augmented variables in housepi.
 Each positive status individual has an associated augmented variable \code{proba} to be specified.
-This example do not model transmission dynamics.
+This example does not model transmission dynamics.
 \if{html}{\out{<hr>}}
 }
 \section{Likelihood}{

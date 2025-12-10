@@ -2,19 +2,18 @@
 % Please edit documentation in R/expose_class.R
 \name{add_data_long}
 \alias{add_data_long}
-\title{Add data long}
+\title{Add additional individual data in long format}
 \usage{
 add_data_long(hhmodel, data_long)
 }
 \arguments{
 \item{hhmodel}{\code{HousepiModel} object.}
 
-\item{data_long}{\code{data.frame} with additional individal long format data.}
+\item{data_long}{\code{data.frame} with additional individual long format data.}
 }
 \value{
-\code{HousepiModel}\cr
-A deep clone of the input object with updated definitions.
+A deep clone of the input \code{HousepiModel} with new definitions.
 }
 \description{
-Male an internal copy of the provided data in long format.
+Make an internal copy of the provided data in long format.
 }

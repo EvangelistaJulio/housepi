@@ -21,8 +21,7 @@ load_group_rate_list(hhmodel, ..., append = FALSE)
 If \code{FALSE} drop all pre-existing definitions (default).}
 }
 \value{
-\code{HousepiModel}\cr
-A deep clone of the input object with updated definitions.
+A deep clone of the input \code{HousepiModel} with new definitions.
 }
 \description{
 Load definitions as named arguments.

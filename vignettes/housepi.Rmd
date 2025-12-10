@@ -21,7 +21,7 @@ source("theme.R")
 We introduce "housepi", an open source R package for the statistical analysis and modeling of epidemiological data from household outbreaks. 
 Mathematical modeling has proven to be a valuable tool for estimating key epidemiological parameters from household transmission surveys. 
 The relative ease of sampling household data makes it a readily available source of information during the early phases of an epidemic (e. g. longitudinal studies). 
-Additionally, retrospective serological surveys can provide critical insights into the history of transmission within a population (finite size studies). 
+Additionally, retrospective serological surveys can provide critical insights into the history of transmission within a population (final size studies). 
 The package aims to combine ease of use with flexibility, supporting both straightforward analyses and advanced epidemiological investigations. 
 
 In this vignette we'll walk through the process of loading a model, associating necessary definitions to perform inference and simulations.
@@ -32,7 +32,7 @@ The central element of the package is the class `HousepiModel`, an [R6 class](ht
 We show how to generate a new instance of such a class with a template model, the chain binomial:
 
 ```{r}
-# import the library 'housepi'
+# import the library housepi
 library(housepi)
 # set general seed
 set.seed(42)
@@ -45,7 +45,7 @@ At any moment we can retrieve the template model description by using the method
 
 ## A collection of household models
 
-To see the complete list of available template models, from within Rstudio just run
+To see the complete list of available template models, from within RStudio just run
 
 ```{r}
 # present the list of template model name
@@ -53,6 +53,7 @@ template_household_model()
 ```
 
 Each template comes with its template definitions that can be used straight away or changed.
+Note that in names both underscores and spaces are accepted ("chain_binomial" is equivalent to "chain binomial").
 To know more about each model, choose a name from the previous list and run, e.
 g.
 
@@ -62,28 +63,33 @@ g.
 template_household_model("chain_binomial")
 ```
 
-This command will open the relative documentation file in the Help window of your Rstudio session.
+This command will open the relative documentation file in the Help window of your RStudio session.
 Our project aims at expanding the present collection of templates, in order to foster off-the-shelf analysis.
 
 ## Format of the data
 
 Data can be provided as a numerical data.frame in wide format, where individual information are organised by row.
-Individuals with tagged with the same `"house_id"` in the respective column are considered to belong to same household.
-Additionally, an individual identifier `"id"` can be provided within the respective column.
+To group individuals in households, a column `"house_id"` with the respective household tag needs to be present.
+Individuals with the same "house_id" will then be considered to belong to same household.
+Additionally, a column `"id"` with individual identifiers can also be provided, otherwise hosuepi will tag individuals with row numbers.
 
 To perform model inference, a `"status"` must be provided for each individual $i$.
 Status $s_{i}$ should be an integer value satisfying the following convention:
 
-| Status $s_{i}$      | Compartment | Serology     |
-|:-------------------:|-------------|--------------|
-| $\geq$ `1`          | infectious  | seropositive |
-| `0`                 | susceptible | seronegative |
-| $\leq$ `-1` or `NA` | missing     | missing      |
+| Status $s_{i}$ | Compartment | Serology     |
+|:--------------:|-------------|--------------|
+| $\geq$ `1`     | infectious  | seropositive |
+| `0`            | susceptible | seronegative |
+| `NA`           | missing     | missing      |
+
+In this way we can uses the status as a label of different infectious classes. 
+E. g. we could say that $s_{i} = 1$ refers to symptomatic individuals, and $s_{i} = 2$ for asymptomatic.
+This is used in advanced augmented definitions, see [Data augmentation](data_augmentation.html) for an example.
 
 ## Data importation
 
 The most direct way to associate a data to a model is assigning it to the active method `$data_wide`.
-The `housepi` package comes with a few public datasets to be used for testing.
+The housepi package comes with a few public datasets to be used for testing.
 
 ```{r}
 # import data in wide format using R6 active field
@@ -127,16 +133,18 @@ hhmodel$add_parameter("beta", prior = "uniform", proposal = "lognormal")
 ```
 
 At any moment we can turn a parameter definition into a constant definition: it is sufficient to set the argument `const = TRUE` (in such case a `value` must be provided).
+To inspect current definitions, simply call `get_parameters` on the model object.
 
 For further information on the available options for the definition of the parameter priors and MCMC proposal, see the vignette [Bayesian MCMC options](bayesian_mcmc_options.html).
 
 # Run inference
 
 After having provided all necessary definitions, we can perform inference calling `run_inference()`.
-With housepi we can perform inference using Bayesian Monte Carlo Markov chain (MCMC) with the Metropolis-Hastings algorithm. 
+With housepi we can perform inference using Bayesian Markov chain Monte Carlo (MCMC) with the Metropolis-Hastings algorithm. 
 Standard options for the MCMC can be provided at this stage, including controls on the number of threads^[Multi-threading is implemented with *openMP* which is unfortunately not supported on latest macOS distributions.
 The option `threads` is disabled on such systems.] and on the progress bar.
-This will return an object wrapping [posterior](https://cran.r-project.org/web/packages/posterior/) `draws` objects that can be accessed to compute estimates.
+This will return an object which collects all the relevant MCMC draws. 
+The draws come as [posterior](https://cran.r-project.org/web/packages/posterior/) `draws` that can be accessed to compute estimates.
 
 ```{r}
 # run the Monte Carlo specifying setup options
@@ -152,7 +160,9 @@ results <- hhmodel |>
 posterior::summarize_draws(get_param_draws(results))
 ```
 
-We can proceed as usual with other popolar R packages for Bayesian analysis.
+## Inference Output and Diagnostics
+
+We can proceed as usual with other popular R packages for Bayesian analysis.
 For example, we can extract the parameters draws by calling `get_param_draws` and plot traces with [bayesplot](https://cran.r-project.org/web/packages/bayesplot/)
 
 ```{r}
@@ -160,11 +170,21 @@ For example, we can extract the parameters draws by calling `get_param_draws` an
 #|  Trace plots for alpha and beta parameters across MCMC iterations with three parallel chains overlaid.
 # visualize the traces of the first chain with 'bayesplot'
 get_param_draws(results) |>
-  bayesplot::mcmc_trace(facet_args = list(ncol = 1))
+  bayesplot::mcmc_trace(facet_args = c(ncol = 1))
 ```
 
-or to perform model comparison, we can call functions from [loo](https://cloud.r-project.org/web/packages/loo/).
-We can extract the sample of pointwise log-likelihood for each household and compute for example the leave-one-out cross-validation as follows
+or of the total log-likelihood by calling `get_total_log_lik_draws`:
+
+```{r}
+#| fig.height: 2.5
+#| fig.alt: 
+#|  Trace plots for total log-likelihood across MCMC iterations with three parallel chains overlaid.
+get_total_log_lik_draws(results) |>
+  bayesplot::mcmc_trace()
+```
+
+Similarly, we can call functions from [loo](https://cloud.r-project.org/web/packages/loo/).
+We extract the sample of pointwise log-likelihood for each household and compute for example the leave-one-out cross-validation as follows
 
 ```{r}
 # LOO-CV (leave-one-out cross-validation)
@@ -173,11 +193,11 @@ get_log_lik_draws(results) |>
   loo::loo()
 ```
 
-# Augment infection times
+# Augmented infection times
 
 For models requiring augmented variables, the definition procedure is analogous.
 In [Data augmentation](data_augmentation.html) we broadly discuss data augmentation and the process of more complex augmented definitions.
-Here we present a case sttudy, using the template model "augm-infection-time" where surveys are conditioned on single introduction.
+Here we present a case study, using the template model "augmented_infection_time" where surveys are conditioned on single introduction.
 We load the parameter definitions directly from the model template.
 
 ```{r}
@@ -212,7 +232,7 @@ hhsimul <- hhsimul |>
   )
 ```
 
-When dealing with many different nested definitions it is not usual to loose track of which definition are missing. 
+When dealing with many different nested definitions it is not unusual to loose track of which definition are missing. 
 We can inspect the state of the current loaded model definitions just by printing the model:
 
 ```{r}
@@ -232,7 +252,7 @@ However, by default if no group rate definition is provided all values are set t
 
 We then run a simulation with the method `run_simulation`, using the same community structure from the survey, but dropping cases.
 In this configuration, introductions are sampled randomly. 
-Simulation will associated augmented incubation periods and onset times in addition to status.
+Simulation will associate augmented incubation periods and onset times in addition to status.
 We then propose a simple observation process, where we assume onsets after 6 PM (18/24) are reported to next day. We also want to drop unobserved quantities. We can do both by assigning such a function to the argument `observation`:
 
 ```{r}
@@ -277,7 +297,7 @@ We can visualize traces vs expected values as follows
 #|  Overlaying orange lines indicate the values used for the simulation.
 library(ggplot2)
 
-# extract sample to posterioir::draws_df
+# extract sample to posterior draws_df
 param_draws <- get_param_draws(results)
 
 # select original parameters used for the simulation
@@ -287,7 +307,7 @@ simul_parameters <- get_parameters(hhsimul) |>
   dplyr::rename(parameter = name, simulated = value)
 
 # use bayesplot to plot the posterior draws
-bayesplot::mcmc_trace(param_draws, facet_args = list(ncol = 1)) +
+bayesplot::mcmc_trace(param_draws, facet_args = c(ncol = 1)) +
   geom_hline(data = simul_parameters, aes(yintercept = simulated))
 ```
 
@@ -297,7 +317,7 @@ bayesplot::mcmc_trace(param_draws, facet_args = list(ncol = 1)) +
 #| fig.alt: >
 #|  R-hat convergence diagnostics for alpha, beta, and gamma parameters with color-coded thresholds.
 #|  Color intensity represents R-hat values (≤1.05, ≤1.1, >1.1). Points near 1.0 indicate convergence.
-# compute Rhat values associate to inferred parameters
+# compute Rhat values associated to inferred parameters
 var_names <- get_parameters(hhmodel) |>
   dplyr::filter(!const) |>
   dplyr::pull(name)

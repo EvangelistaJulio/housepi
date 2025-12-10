@@ -1,5 +1,4 @@
 library(testthat)
-library(housepi)
 
 aux_add <- function(self, name, by, prefix = NA_character_,
                     reference = NULL, independent = TRUE,
@@ -15,6 +14,11 @@ aux_add <- function(self, name, by, prefix = NA_character_,
                max = rlang::enquo(max),
                proposal = proposal,
                proposal_scale = proposal_scale)
+  invisible(self)
+}
+
+aux_load <- function(self, ..., append = FALSE) {
+  self$load_quosures(rlang::enquos(...), append = append)
   invisible(self)
 }
 
@@ -77,7 +81,7 @@ test_that("Group rates integrate with data and exposes to Cpp format", {
 })
 
 test_that("Parameter options work correctly", {
-  grp <- HousepiGroupRate$new()
+  grp <- housepi:::HousepiGroupRate$new()
   aux_add(grp, "contact", by = c("age_group", "sex"), prefix = "ct",
           prior = "uniform", min = 0, max = 10,
           independent = FALSE)
@@ -86,12 +90,23 @@ test_that("Parameter options work correctly", {
                list(value = 1, prior = "uniform", min = 0, max = 10,
                     proposal = NA_character_, proposal_scale = NA_real_))
 
-  grp <- HousepiGroupRate$new()
+  grp <- housepi:::HousepiGroupRate$new()
   aux_add(grp, "contact", by = c("age_group", "sex"), prefix = "ct",
           prior = "gamma", shape = 2, scale = 1, independent = FALSE)
   expect_silent(grp$implement(dummy_df, dummy_factor_info))
   expect_equal(grp$parameters[[1]],
-               list(value = 1, prior = "gamma", shape = 2, scale = 1,
+               list(value = 1, prior = "gamma", shape = "2|N", scale = "1|N",
                     min = NA_real_, max = NA_real_,
                     proposal = NA_character_, proposal_scale = NA_real_))
+})
+
+test_that("Load list works as expected", {
+  grp <- housepi:::HousepiGroupRate$new()
+  aux_load(grp, 
+           contact = list(by = c("age_group", "sex"), prefix = "ct",
+                          prior = "uniform", min = 0, max = 10),
+           susceptibility = list(by = c("age_group", "sex"), 
+                                 prior = "lognormal", sdlog = 3))
+  expect_silent(grp$implement(dummy_df, dummy_factor_info))
+  grp$parameters
 })

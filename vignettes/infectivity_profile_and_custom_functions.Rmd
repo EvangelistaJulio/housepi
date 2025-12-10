@@ -22,7 +22,7 @@ set.seed(42)
 
 # Infectivity profiles in housepi
 
-In `housepi` we follow the convention for infectivity profiles to be function of the generation time.
+In housepi we follow the convention for infectivity profiles to be function of the generation time.
 Generation time is defined as the time from infection to transmission.
 
 Certain profiles will then be conditioned on individuals incubation periods
@@ -34,8 +34,9 @@ Certain profiles will then be conditioned on individuals incubation periods
 | Serial Time           | &check;                | &check;                |  &cross;  |
 
 In addition, infectivity profiles in housepi can be of two kinds:
-- generic: if all individuals share the same profile;
-- augmented: if profile depends on individual covariates.
+
+* generic: if all individuals share the same profile;
+* augmented: if profile depends on individual covariates.
 
 At any time one can provide a custom choice for the infectivity profile, however all models depending on profiles have a templated definition incorporated.  
 
@@ -82,6 +83,7 @@ ggplot(infec, aes(x = gentime)) +
                      sec.axis = sec_axis(~. * rescale, name = "Cumulative")) +
   labs(x = "Generation Time")
 ```
+
 ## Case of Discrete Models
 
 To move to discrete time we need to specify it at the moment of the model generation by adding the option `discr = TRUE`.
@@ -192,6 +194,7 @@ REGISTER_USER_FUNCTION(CustomSquareFunction)
 ```
 
 ## How It Works
+
 \item Inheritance and Constructor:
 The class `MyMonomialFunction` inherits from `Function`. 
 In the constructor, we define:
@@ -207,7 +210,7 @@ The `raw_call_` method is overridden to implement the core computation.
 The `REGISTER_USER_FUNCTION` macro at the end registers the custom function. 
 This makes the "my_monomial" function available to the framework and allows you to associate directly from R.
 
-Once generate the new model, the function will be visible from its environment and you will be able to test it as follows
+Once the new model has been generated, the function will be visible from its environment and you will be able to test it as follows
 
 ```{r}
 #| eval: false

@@ -2,7 +2,7 @@
 % Please edit documentation in R/expose_class.R
 \name{add_data_wide}
 \alias{add_data_wide}
-\title{Add data wide}
+\title{Add household data in wide format}
 \usage{
 add_data_wide(hhmodel, data_wide)
 }
@@ -12,8 +12,7 @@ add_data_wide(hhmodel, data_wide)
 \item{data_wide}{\code{data.frame} with the household data used for analysis in wide format.}
 }
 \value{
-\code{HousepiModel}\cr
-A deep clone of the input object with updated definitions.
+A deep clone of the input \code{HousepiModel} with new definitions.
 }
 \description{
 Make an internal copy of the provided household data.

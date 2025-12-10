@@ -22,7 +22,7 @@ set.seed(42)
 
 We provide a simple model to generate synthetic household dataset. 
 Let's assume that each individual can be represented with a single variable $\theta$, encoding for the provided covariates.
-We declare the covariates of interests at instatiation of the `HouseholdSampler` model class.
+We declare the covariates of interests when we generate an new sampler calling `new_household_sampler`.
 
 ```{r}
 # define individual features from dataset covariates assumed not independent
@@ -54,6 +54,7 @@ hhsampler$decode(hhsampler$encode(eg_house))
 We now define a model able to extract distributions of such features within a household, with the final goal to sample from it.
 
 # Hierarchichal Model Definition
+
 In order to capture at the same time covariate marginals and a realistic generational-based structure within household,
 we propose the following assumptions on the structure of households.
 
@@ -64,12 +65,12 @@ P[\lbrace\theta\rbrace] =
 P(\theta\vert{n=1})
 $$
 
-For larger households ($n\geq{2}$),
-we assume a hierachical structure as follows:
-- two household members $\theta_{1}$, $\theta_{2}$ are considered "principal" according to the hierarchy of the features;
-- size $n$ is considered conditioned on the encodings of principal members;
-- all other members $\theta_{3}, \dots, $\theta_{n}$ are conditioned on principal members.
-Note that , but independent from other members.
+For larger households ($n\geq{2}$), we assume a hierachical structure as follows:
+
+* two household members $\theta_{1}$, $\theta_{2}$ are considered "principal" according to the hierarchy of the features;
+* size $n$ is considered conditioned on the encodings of principal members;
+* all other members $\theta_{3},\;\dots,\;\theta_{n}$ are conditioned on principal members.
+
 The probability factorizes to:
 
 $$

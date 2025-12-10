@@ -2,7 +2,7 @@
 % Please edit documentation in R/expose_internal.R
 \name{expose_function}
 \alias{expose_function}
-\title{New Housepi Function}
+\title{Expose Housepi Function}
 \usage{
 expose_function(
   name,
@@ -30,9 +30,9 @@ If \code{NULL} (default) the built-in registry is used.\cr}
 \value{
 An object of class \code{FunctionHousepi}.
 
-profile <- expose_function("weibull", shape = 2, scale = 1)
-profile$pdf(seq(0, 10))
-profile$cdf(seq(0, 10))
+fnc <- expose_function("pow", x2 = 3)
+fnc$func(seq(0, 5))
+fnc$prim(seq(0, 5))
 }
 \description{
 Expose an object from housepi registered function.

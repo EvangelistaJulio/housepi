@@ -2,7 +2,7 @@
 % Please edit documentation in R/expose_internal.R
 \name{expose_distribution}
 \alias{expose_distribution}
-\title{Test Housepi Distribution}
+\title{Expose Housepi Distribution}
 \usage{
 expose_distribution(
   name,
@@ -30,9 +30,9 @@ If \code{NULL} (default) the built-in registry is used.\cr}
 \value{
 An object of class \code{DistributionHousepi}.
 
-profile <- expose_distribution("weibull", shape = 2, scale = 1)
-profile$pdf(seq(0, 10))
-profile$cdf(seq(0, 10))
+dst <- expose_distribution("weibull", shape = 2, scale = 1)
+dst$pdf(seq(0, 5))
+dst$cdf(seq(0, 5))
 }
 \description{
 Expose an object from housepi registered distribution.

@@ -15,5 +15,5 @@ summarise_house_sizes(hhmodel, ...)
 \code{data.frame}
 }
 \description{
-Summarise number of members (size) in the laoded household data.
+Summarise number of members (size) in the loaded household data.
 }

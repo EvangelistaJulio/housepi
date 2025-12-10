@@ -63,7 +63,7 @@ If a maximum household size is set, larger sizes are not returned.}
 \itemize{
 \item \code{data.frame};
 \item \code{posterior::draws};
-\item \code{HousepiPosteriorDraws}.
+\item \link[=HousepiPosteriorDraws]{HousepiPosteriorDraws}.
 }}
 
 \item{\code{obs_process}}{A \code{function} with the observation process.\cr

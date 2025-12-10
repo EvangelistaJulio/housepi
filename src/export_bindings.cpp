@@ -545,7 +545,7 @@ Rcpp::DataFrame MCMC::summarise_cases() const
 
         CharacterVector type = wrap(str_vec(4, "individual") + str_vec(4, "household"));
         const size_t n_rows = type.size();
-        CharacterVector comment = {"total", "missing", "healthy", "infected",
+        CharacterVector comment = {"total", "missing", "not infected", "infected",
                                    "total", "no cases", "at least 1 case", "at least 2 cases"};
         IntegerVector counts(n_rows);
         NumericVector pct(n_rows);
@@ -556,11 +556,11 @@ Rcpp::DataFrame MCMC::summarise_cases() const
         counts[1] = report_indiv.missing;
         pct[1] = format_percentage(report_indiv.missing, report_indiv.total);
 
-        counts[2] = report_indiv.healthy;
-        pct[2] = format_percentage(report_indiv.healthy, report_indiv.total);
+        counts[2] = report_indiv.susceptible;
+        pct[2] = format_percentage(report_indiv.susceptible, report_indiv.total);
 
-        counts[3] = report_indiv.infected;
-        pct[3] = format_percentage(report_indiv.infected, report_indiv.total);
+        counts[3] = report_indiv.infectious;
+        pct[3] = format_percentage(report_indiv.infectious, report_indiv.total);
 
         counts[4] = report_house.total;
         pct[4] = 100.;

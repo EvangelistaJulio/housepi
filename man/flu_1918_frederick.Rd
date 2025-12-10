@@ -26,5 +26,6 @@ Reported cases of "Spanish" flu in Frederick (USA), in 1918.
 Fraser, et al. (2011)
 Influenza Transmission in Households During the 1918 Pandemic.
 American Journal of Epidemiology 174, 505-514.
+\href{https://doi.org/10.1093/aje/kwr122}{doi:10.1093/aje/kwr122}
 }
 \keyword{datasets}

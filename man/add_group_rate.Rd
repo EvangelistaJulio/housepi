@@ -36,7 +36,7 @@ Default is the group with the largest sample size.}
 \item{independent}{\code{logical(1)} to consider features as independent.\cr
 If \code{FALSE} features are combined (default).}
 
-\item{prior}{\code{character(1)} wit the choice for the prior distribution.}
+\item{prior}{\code{character(1)} with the choice for the prior distribution.}
 
 \item{...}{named arguments for the prior distribution.}
 
@@ -59,8 +59,7 @@ Changed automatically during inference if \code{n_adpat}>0.\cr
 Not applicable if proposal is 'sample'. Otherwise scale is \code{1} by default.}
 }
 \value{
-\code{HousepiModel}\cr
-A deep clone of the input object with updated definitions.
+A deep clone of the input \code{HousepiModel} with new definitions.
 }
 \description{
 Add definitions of a group rate by given data feature(s).
@@ -76,6 +75,8 @@ If no MCMC options are provided, the following configuration is assumed
 }
 \references{
 Cauchemez, et al. (2009)
-Household Transmission of 2009 Pandemic Influenza A (H1N1) Virus in the United States.
-New England Journal of Medicine. 361: 2619-2627. doi:10.1056/NEJMoa0905498
+Household Transmission of 2009 Pandemic Influenza A (H1N1)
+Virus in the United States.
+New England Journal of Medicine. 361: 2619-2627.
+\href{https://doi.org/10.1056/NEJMoa0905498}{doi:10.1056/NEJMoa0905498}
 }

@@ -31,16 +31,11 @@
 #' @noRd
 assert_data_features <- function(features, headers) {
   # assert that features are present
-  missing <- c()
-  for (this in features) {
-    if (!(this %in% headers)) missing <- c(missing, this)
-  }
+  missing <- setdiff(features, headers)
   if (length(missing) > 0) stop_h(
-    sprintf(
-      "Unknown feature%s %s",
-      ifelse(length(missing) > 1, "s:", ""),
-      character_to_string_list(missing)
-    ),
+    sprintf("Unknown feature%s %s",
+            ifelse(length(missing) > 1, "s:", ""),
+            character_to_string_list(missing)),
     "Please check your data headers."
   )
 }
@@ -189,8 +184,10 @@ tidyup_group_rate_tables <- function(all_tables) {
 #'
 #' @references
 #' Cauchemez, et al. (2009)
-#' Household Transmission of 2009 Pandemic Influenza A (H1N1) Virus in the United States.
-#' New England Journal of Medicine. 361: 2619-2627. doi:10.1056/NEJMoa0905498
+#' Household Transmission of 2009 Pandemic Influenza A (H1N1)
+#' Virus in the United States.
+#' New England Journal of Medicine. 361: 2619-2627.
+#' doi:10.1056/NEJMoa0905498
 #'
 #' @keywords internal
 #' @noRd
@@ -391,7 +388,7 @@ HousepiGroupRate <- R6::R6Class(
       if (is.null(max)) max <- NA_real_
       dots <- list(...)
       if (length(dots) == 1 && rlang::is_quosures(dots[[1]])) dots <- dots[[1]]
-      args <- housepi_smart_unwrap(dots)
+      args <- housepi_extractor(!!!dots)
 
       # control valid name
       assert_valid_definition_name(name, "group rate")

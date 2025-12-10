@@ -42,8 +42,8 @@ struct ReportIndividual
 {
 	size_t total = 0;
 	size_t missing = 0;
-	size_t healthy = 0;
-	size_t infected = 0;
+	size_t susceptible = 0;
+	size_t infectious = 0;
 };
 
 /// Report for all households in the data.

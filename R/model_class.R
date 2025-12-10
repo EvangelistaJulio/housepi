@@ -27,7 +27,7 @@
 #' Housepi Model
 #' @description
 #' Compile household model, manage your data
-#' and variable defintions from a single class.
+#' and variable definitions from a single class.
 #'
 #' @docType class
 HousepiModel <- R6::R6Class(
@@ -261,7 +261,7 @@ HousepiModel <- R6::R6Class(
         chains = as.integer(chains),
         threads = as.integer(threads),
         id_draws = private$.get_blank_id_draws(id_draws),
-        seed = private$.adjust_seed(seed),
+        seed = generator_adjust_seed(seed),
         progress = as.integer(progress)
       )))
 
@@ -479,27 +479,25 @@ HousepiModel <- R6::R6Class(
 
     #' @field infec_profile
     #' A `list` with infectivity profile definitions.
-    #' UPDATE: reformatting current rcpp_export waiting for status specific
     infec_profile = function(value) {
+      # UPDATE: reformatting current rcpp_export waiting for status specific
       if (missing(value)) {
-        defs <- private$.infec_profile$defs
-        if (!is.null(defs)) {
-          output <- housepi_defin_showcaser(defs)
-          # append args if not present
-          i <- which(names(output) == "name")
-          if (names(output)[i + 1] != "args") {
-            output <- append(output, list(args = NA), after = i)
-          }
+        # get custom definition
+        custom <- private$.infec_profile$showcase()
+        if (length(custom) > 0) return(custom)
+
+        # get template/previously implemented
+        stored <- private$.rcpp$export_infec_profile()
+        if (length(stored) > 0) {
+          output <- data.frame(name = stored$name,
+                               args = base::I(list(stored$args)),
+                               min = stored$min, max = stored$max,
+                               discr = stored$discr,
+                               stringsAsFactors = FALSE)
+          class(output$args) <- "list"
           return(output)
         }
-        x <- private$.rcpp$export_infec_profile()
-        output <- data.frame(name = x$name,
-                             args = base::I(list(x$args)),
-                             min = x$min, max = x$max,
-                             discr = x$discr,
-                             stringsAsFactors = FALSE)
-        class(output$args) <- "list"
-        return(output)
+        return(NULL)
       }
       do.call(self$add_infec_profile, value)
     },
@@ -555,16 +553,25 @@ HousepiModel <- R6::R6Class(
       if ("_HOUSEPI_DISCRETE_TIME" %in% private$.last_user_flags) sms <- c(
         sms, "Model is set to {.emph discrete time} mode."
       )
-      if (length(private$.get_all_requried_param()) > 0) sms <- c(
-        sms, fmt_assert_cli("Parameters", private$.assert_param(FALSE))
+      if (length(private$.get_all_requried_param()) > 0) sms <- c(sms,
+        fmt_assert_cli("Parameters", private$.assert_param(FALSE))
       )
-      if (length(private$.get_all_required_augm()) > 0) sms <- c(
-        sms, fmt_assert_cli("Augmented", private$.assert_augm(FALSE))
+      if (length(private$.get_all_required_augm()) > 0) sms <- c(sms,
+        fmt_assert_cli("Augmented", private$.assert_augm(FALSE))
       )
-      if (length(private$.get_all_required_group_rates()) > 0) sms <- c(
-        sms, fmt_assert_cli("Group rates", private$.assert_group_rates(FALSE),
-                            minor = TRUE)
+      if (length(private$.get_all_required_group_rates()) > 0) sms <- c(sms,
+        fmt_assert_cli("Group rates", private$.assert_group_rates(FALSE),
+                       minor = TRUE)
       )
+      if (length(private$.rcpp$export_infec_profile()) > 0) {
+        ip_sms <- NULL
+        if (length(private$.infec_profile$showcase()) == 0) {
+          ip_sms <- c("Using templated infectivity profile.",
+                      "A custom profile can be specified for model.")
+        }
+        sms <- c(sms,
+                 fmt_assert_cli("Infectivity profile", ip_sms, minor = TRUE))
+      }
       cli::cli_inform(sms)
       invisible(self)
     },
@@ -627,7 +634,7 @@ HousepiModel <- R6::R6Class(
     },
 
     #' @description
-    #' Maje an internal copy of the provided data_long.
+    #' Make an internal copy of the provided data_long.
     #'
     #' @param data_long `r rd_add_data_long_`
     add_data_long = function(data_long) {
@@ -714,7 +721,7 @@ HousepiModel <- R6::R6Class(
 
     #' @description
     #' Add a new augmented variable/function to houspepi model definitions.
-    #' If the augmented variablw already exists, it is updated.
+    #' If the augmented variable already exists, it is updated.
     #'
     #' @param name `r rd_var_name_`
     #' @param value `r rd_aug_val_`

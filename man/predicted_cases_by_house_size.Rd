@@ -18,7 +18,7 @@ predicted_cases_by_house_size(
 \itemize{
 \item \code{data.frame};
 \item \code{posterior::draws};
-\item \code{HousepiPosteriorDraws}.
+\item \link[=HousepiPosteriorDraws]{HousepiPosteriorDraws}.
 }}
 
 \item{obs_process}{A \code{function} with the observation process.\cr

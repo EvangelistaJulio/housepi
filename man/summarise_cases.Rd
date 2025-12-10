@@ -15,5 +15,5 @@ summarise_cases(hhmodel, ...)
 \code{data.frame}
 }
 \description{
-Summarise cases as given from the statuses in the laoded household data.
+Summarise cases as given from the statuses in the loaded household data.
 }

@@ -37,8 +37,7 @@ One between:\cr
 }}
 }
 \value{
-\code{HousepiModel}\cr
-A deep clone of the input object with updated definitions.
+A deep clone of the input \code{HousepiModel} with new definitions.
 }
 \description{
 Add definition of infectivity profile.

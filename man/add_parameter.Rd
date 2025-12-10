@@ -34,7 +34,7 @@ Default is \code{FALSE}.}
 If applicable, the prior is discretized.\cr
 Default is \code{FALSE}.}
 
-\item{prior}{\code{character(1)} wit the choice for the prior distribution.}
+\item{prior}{\code{character(1)} with the choice for the prior distribution.}
 
 \item{...}{named arguments for the prior distribution.}
 
@@ -57,10 +57,9 @@ Changed automatically during inference if \code{n_adpat}>0.\cr
 Not applicable if proposal is 'sample'. Otherwise scale is \code{1} by default.}
 }
 \value{
-\code{HousepiModel}\cr
-A deep clone of the input object with updated definitions.
+A deep clone of the input \code{HousepiModel} with new definitions.
 }
 \description{
-Add a new parameter to houspepi model definitions.
+Add a new parameter to housepi model definitions.
 If the parameter already exists, it is overwritten.
 }

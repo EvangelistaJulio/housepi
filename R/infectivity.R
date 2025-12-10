@@ -129,6 +129,21 @@ HousepiInfecProfile <- R6::R6Class(
       self$add_quo(name = name, status = status,
                    discr = discr, rlang::enquos(...),
                    max = rlang::enquo(max))
+    },
+
+    #' @description
+    #' Returns a readable definition object.
+    showcase = function() {
+      if (length(self$defs) > 0) {
+        output <- housepi_defin_showcaser(self$defs)
+        # append args if not present
+        i <- which(names(output) == "name")
+        if (names(output)[i + 1] != "args") {
+          output <- append(output, list(args = NA), after = i)
+        }
+        return(output)
+      }
+      NULL
     }
   )
 )

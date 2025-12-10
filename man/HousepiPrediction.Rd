@@ -41,7 +41,7 @@ performs simulation and compute predicted values of a set of measures.
 \itemize{
 \item \code{data.frame};
 \item \code{posterior::draws};
-\item \code{HousepiPosteriorDraws}.
+\item \link[=HousepiPosteriorDraws]{HousepiPosteriorDraws}.
 }}
 
 \item{\code{...}}{Named arguments with \code{function}s to compute the respective measure from data.\cr

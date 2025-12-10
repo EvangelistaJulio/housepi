@@ -97,6 +97,120 @@ measure_cases_by_house_size <- function(data_wide) {
 ############################################################################
 ############################################################################
 
+# Set level for the credible interval.
+ppc_set_cri_level <- function(value) {
+  if (is.na(value)) stop_h("Credible interval cannot be NA.")
+  else if ((value <= 0.5) || (value >= 1)) stop_h(
+    "Credible interval level must be a value between 0.5 and 1."
+  )
+  value
+}
+
+# store print messages at initialization
+ppc_helper_print <- function(model_name, is_posterior, measure_names, cri) {
+  sms <- c(i = sprintf("%s for model {.pkg %s}.",
+                       ifelse(is_posterior, "Posterior predictions",
+                              "Predictions"),
+                       model_name),
+           "Computed measures:")
+  for (m in measure_names) sms <- c(sms, sprintf(" - {.emph %s}", m))
+  c(sms, sprintf("Credible interval level set to %.0f%%.", 100 * cri))
+}
+
+#' @description
+#' Apply function `func` to corresponding elements
+#' across a list of data.frame that share the same dimensions.
+#'
+#' @param frame_list `list` of `data.frame`s with the same dimensions.
+#' @param func `function` to be applied to corresponding dataframe elements.
+#'
+#' @return A `data.frame` of the same dimensions as the input dataframes.
+#' Columns and rownames of the first data.frame in the list.
+#' @keywords internal
+#' @noRd 
+ppc_frame_apply <- function(frame_list, func) {
+  elem_n1 <- frame_list[[1]]
+
+  # perform element-wise operations
+  if (is.null(dim(elem_n1))) {
+    # on scalar/vectors
+    output <- sapply(seq_along(elem_n1), function(x) {
+      func(sapply(frame_list, "[[", x))
+    })
+    names(output) <- names(elem_n1)
+    if (is.list(elem_n1)) output <- as.list(output)
+
+  } else {
+    # on matrix/data.frames
+    output <- matrix(
+      sapply(seq_along(elem_n1), function(x) {
+        apply(sapply(frame_list, "[[", x), 1, func)
+      }),
+      nrow = nrow(elem_n1),
+      byrow = FALSE
+    )
+    colnames(output) <- colnames(elem_n1)
+    rownames(output) <- rownames(elem_n1)
+    if (is.data.frame(elem_n1)) output <- as.data.frame(output)
+  }
+
+  output
+}
+
+#' @description
+#' Compute the mean across different dataframes.
+#'
+#' @param frame_list
+#' A `list` of `data.frame`s.
+#'
+#' @return `data.frame`
+#' @keywords internal
+#' @noRd
+ppc_frame_apply_mean <- function(frame_list) {
+  ppc_frame_apply(frame_list, function(x) {
+    if (all(is.na(x))) NA_real_
+    else if (all(is.numeric(x))) mean(x, na.rm = TRUE)
+    else if (length(unique(x)) == 1) unique(x)
+    else stop_h(
+      "Undefined mean for non numeric, non unique values.",
+      "Check output of your posterioir measure function."
+    )
+  })
+}
+
+#' @description
+#' Compute the credible interval across different dataframes.
+#'
+#' @param frame_list
+#' A `list` of `data.frame`s sharing the same dimensions.
+#' @param cri_level `r rd_smpl_cri_level_`
+#' @param upper
+#' `logical(1)` to compute the upper credible interval.
+#' If `FALSE`, compute the lower interval.
+#'
+#' @return `data.frame`
+#' @keywords internal
+#' @noRd
+ppc_frame_apply_cri <- function(frame_list, cri_level = 0.95, upper = TRUE) {
+  p <- 0.5 + ifelse(isTRUE(upper), 0.5, -0.5) * cri_level
+  ppc_frame_apply(frame_list, function(x) {
+    if (all(is.na(x))) NA_real_
+    else if (all(is.numeric(x))) stats::quantile(x, probs = p, na.rm = TRUE)
+    else if (length(unique(x)) == 1) unique(x)
+    else stop_h(
+      "Undefined credible interval for non numeric, non unique values.",
+      "Check output of your posterioir measure function."
+    )
+  })
+}
+
+# extract predicted quantities from cases-by-house-size table list
+ppc_extract_predicted_results <- function(x, cri) {
+  list(predicted = ppc_frame_apply_mean(x),
+       cri_lower = ppc_frame_apply_cri(x, cri, upper = FALSE),
+       cri_upper = ppc_frame_apply_cri(x, cri, upper = TRUE))
+}
+
 #' @title Housepi Prediction
 #' @description
 #' Class to extract posterior predictive checks over measures on simulations.
@@ -115,120 +229,7 @@ HousepiPrediction <- R6::R6Class(
     deep_clone = function(name, value) helper_clone(value),
     .apply_func = NULL,
     .cri_level = 0.95,
-    .stored_print = NULL,
-
-    # @description
-    # Apply function `func` to corresponding elements
-    # across a list of data.frame that share the same dimensions.
-    #
-    # @param frame_list `list` of `data.frame`s with the same dimensions.
-    # @param func `function` to be applied to corresponding dataframe elements.
-    #
-    # @return A `data.frame` of the same dimensions as the input dataframes.
-    # Columns and rownames of the first data.frame in the list.
-    .frame_apply = function(frame_list, func) {
-      elem_n1 <- frame_list[[1]]
-
-      # perform element-wise operations
-      if (is.null(dim(elem_n1))) {
-        # on scalar/vectors
-        output <- sapply(seq_along(elem_n1), function(x) {
-          func(sapply(frame_list, "[[", x))
-        })
-        names(output) <- names(elem_n1)
-        if (is.list(elem_n1)) output <- as.list(output)
-
-      } else {
-        # on matrix/data.frames
-        output <- matrix(
-          sapply(seq_along(elem_n1), function(x) {
-            apply(sapply(frame_list, "[[", x), 1, func)
-          }),
-          nrow = nrow(elem_n1),
-          byrow = FALSE
-        )
-        colnames(output) <- colnames(elem_n1)
-        rownames(output) <- rownames(elem_n1)
-        if (is.data.frame(elem_n1)) output <- as.data.frame(output)
-      }
-
-      output
-    },
-
-    # @description
-    # Compute the mean across different dataframes.
-    #
-    # @param frame_list
-    # A `list` of `data.frame`s.
-    #
-    # @return `data.frame`
-    .frame_apply_mean = function(frame_list) {
-      private$.frame_apply(frame_list, function(x) {
-        if (all(is.na(x))) NA_real_
-        else if (all(is.numeric(x))) mean(x, na.rm = TRUE)
-        else if (length(unique(x)) == 1) unique(x)
-        else stop_h(
-          "Undefined mean for non numeric, non unique values.",
-          "Check output of your posterioir measure function."
-        )
-      })
-    },
-
-    # @description
-    # Compute the credible interval across different dataframes.
-    #
-    # @param frame_list
-    # A `list` of `data.frame`s sharing the same dimensions.
-    # @param cri_level `r rd_smpl_cri_level_`
-    # @param upper
-    # `logical(1)` to compute the upper credible interval.
-    # If `FALSE`, compute the lower interval.
-    #
-    # @return `data.frame`
-    .frame_apply_cri = function(frame_list, cri_level = 0.95, upper = TRUE) {
-      p <- 0.5 + ifelse(isTRUE(upper), 0.5, -0.5) * cri_level
-      private$.frame_apply(frame_list, function(x) {
-        if (all(is.na(x))) NA_real_
-        else if (all(is.numeric(x))) stats::quantile(x, probs = p, na.rm = TRUE)
-        else if (length(unique(x)) == 1) unique(x)
-        else stop_h(
-          "Undefined credible interval for non numeric, non unique values.",
-          "Check output of your posterioir measure function."
-        )
-      })
-    },
-
-    # store print messages at initialization
-    .helper_print = function(model_name, is_posterior, measure_names) {
-      sms <- c(i = sprintf("%s for model {.pkg %s}.",
-                           ifelse(is_posterior, "Posterior predictions",
-                                  "Predictions"),
-                           model_name),
-               "Computed measures:")
-      for (m in measure_names) sms <- c(sms, sprintf(" - {.emph %s}", m))
-      sms <- c(sms, sprintf("Credible interval level set to %.0f%%.",
-                            100 * private$.cri_level))
-      private$.stored_print <- sms
-      invisible(self)
-    },
-
-    # extract predicted quantities from cases-by-house-size table list
-    .extract_predicted_results = function(x) {
-      cri <- private$.cri_level
-      list(predicted = private$.frame_apply_mean(x),
-           cri_lower = private$.frame_apply_cri(x, cri, upper = FALSE),
-           cri_upper = private$.frame_apply_cri(x, cri, upper = TRUE))
-    },
-
-    # Set level for the credible interval.
-    .set_cri_level = function(value) {
-      if (is.na(value)) stop_h("Credible interval cannot be NA.")
-      else if ((value <= 0.5) || (value >= 1)) stop_h(
-        "Credible interval level must be a value between 0.5 and 1."
-      )
-      else private$.cri_level <- value
-      invisible(self)
-    }
+    .stored_print = NULL
   ),
 
   ############################################################################
@@ -258,7 +259,7 @@ HousepiPrediction <- R6::R6Class(
         "Unrecognized function passed as observation process."
       )
       # associate credible interval
-      private$.set_cri_level(cri_level)
+      private$.cri_level <- ppc_set_cri_level(cri_level)
 
       # load measure functions
       measure <- list(...)
@@ -280,7 +281,8 @@ HousepiPrediction <- R6::R6Class(
         progress
       )
       output <- lapply(names(measure), function(x) lapply(output, `[[`, x))
-      predictions <- lapply(output, private$.extract_predicted_results)
+      predictions <- lapply(output, ppc_extract_predicted_results,
+                            cri = private$.cri_level)
       names(predictions) <- names(measure)
 
       # change environment according to measures
@@ -293,9 +295,13 @@ HousepiPrediction <- R6::R6Class(
       # restore locked environment
       lockEnvironment(self, bindings = TRUE)
       # store print message
-      is_posterior <- inherits(param_table, "HousepiPosteriorDraws") ||
-        posterior::is_draws(param_table)
-      private$.helper_print(hhmodel$name, is_posterior, names(measure))
+      private$.stored_print <- ppc_helper_print(
+        hhmodel$name,
+        inherits(param_table, "HousepiPosteriorDraws") ||
+          posterior::is_draws(param_table),
+        names(measure),
+        private$.cri_level
+      )
 
       invisible(self)
     },
@@ -315,6 +321,97 @@ HousepiPrediction <- R6::R6Class(
 ############################################################################
 ############################################################################
 
+# @description
+# Number of household with non-zero cases per household size.
+#
+# @return `data.frame`
+helper_count_non_zero_cases <- function(data_wide) {
+  # cast to 0\1 values
+  y <- dplyr::mutate(
+    data_wide,
+    status = dplyr::if_else(is.na(status), 0, as.integer(status > 0))
+  )
+  y <- dplyr::group_by(y, house_id)
+  y <- dplyr::summarise(y, house_size = dplyr::n(), cases = sum(status))
+  y <- dplyr::filter(y, cases > 0)
+  y <- dplyr::group_by(y, house_size)
+  y <- dplyr::summarise(y, count = dplyr::n())
+  as.data.frame(y)
+}
+
+# @description
+# Return a list with all filtered case tables.
+#
+# @return `list`
+helper_filter_tables <- function(cases_table_by_size, max_house_size) {
+  # load observed table to use as a type shape template
+  obsdf <- cases_table_by_size$observed
+
+  # remove rows without counts
+  mask_row <- rowSums(obsdf[colnames(obsdf) != "house_size"], na.rm = TRUE) != 0
+
+  # remove column with zero cases if none was observed
+  mask_col <- colSums(obsdf == 0, na.rm = TRUE) != nrow(obsdf) | colnames(obsdf) != "0"
+
+  # implement max household size mask
+  if (!is.na(max_house_size)) {
+    col_max <- which(colnames(obsdf) == max_house_size)
+    row_max <- which(obsdf$house_size == max_house_size)
+
+    mask_col <- mask_col & (seq_len(ncol(obsdf)) <= col_max)
+    mask_row <- mask_row & (seq_along(mask_row) <= row_max & mask_row)
+  }
+
+  list(observed = obsdf[mask_row, mask_col],
+       predicted = cases_table_by_size$predicted[mask_row, mask_col],
+       cri_lower = cases_table_by_size$cri_lower[mask_row, mask_col],
+       cri_upper = cases_table_by_size$cri_upper[mask_row, mask_col])
+}
+
+# Set naming convention of credible interval.
+helper_get_name_convention <- function(x, cri) {
+  qtag <- 100 * round(cri, 2)
+  x <- gsub("predicted", "mean", x)
+  x <- gsub("cri_lower", sprintf("q%.0f", 100 - qtag), x)
+  x <- gsub("cri_upper", sprintf("q%.0f", qtag), x)
+  x
+}
+
+# @description
+# Function to combine cases table.
+#
+# @param obsdf A `data.frame` with observed cases.
+# @param preddf A `data.frame` with predicted cases.
+#
+# @return `data.frame`
+helper_combine_obs_pred <- function(obsdf, preddf) {
+  # 1. curate observed dataframe
+  obsdf$distr <- "Observed"
+  rownames(obsdf) <- seq(1, 2 * nrow(obsdf), 2)
+
+  # 2. curate predicted dataframe
+  preddf$house_size <- obsdf$house_size
+  preddf$distr <- "Predicted"
+  rownames(preddf) <- seq(2, 2 * nrow(preddf), 2)
+
+  # 3. combine by row bind
+  combined <- rbind(obsdf, preddf)[as.character(1:(2 * nrow(obsdf))), ]
+  # reset row names
+  rownames(combined) <- NULL
+  # reorder columns
+  y <- colnames(combined)
+  aux <- c("house_size", "distr")
+  combined <- combined[, c(aux, y[!(y %in% aux)])]
+
+  # format columns to extract labels with labelizor
+  colnames(combined)[3:ncol(combined)] <- sapply(
+    colnames(combined)[3:ncol(combined)],
+    function(x) paste("cases", x, sep = "_")
+  )
+
+  combined
+}
+
 #' @title Predicted Cases By Size
 #' @description
 #' Predicted cases by household size, comparing observed and predicted values.
@@ -333,99 +430,8 @@ PredictedCasesBySize <- R6::R6Class(
 
   private = list(
     deep_clone = function(name, value) helper_clone(value),
-    .max_house_size = NA_integer_,
-    .counts = NULL,
-
-    # @description
-    # Number of household with non-zero cases per household size.
-    #
-    # @return `data.frame`
-    .count_non_zero_cases = function(data_wide) {
-      # cast to 0\1 values
-      y <- dplyr::mutate(
-        data_wide,
-        status = dplyr::if_else(is.na(status), 0, as.integer(status > 0))
-      )
-      y <- dplyr::group_by(y, house_id)
-      y <- dplyr::summarise(y, house_size = dplyr::n(), cases = sum(status))
-      y <- dplyr::filter(y, cases > 0)
-      y <- dplyr::group_by(y, house_size)
-      y <- dplyr::summarise(y, count = dplyr::n())
-      as.data.frame(y)
-    },
-
-    # @description
-    # Return a list with all filtered case tables.
-    #
-    # @return `list`
-    .filtered_tables = function() {
-      # load observed table to use as a type shape template
-      obsdf <- self$cases_table_by_size$observed
-
-      # remove rows without counts
-      mask_row <- rowSums(obsdf[colnames(obsdf) != "house_size"], na.rm = TRUE) != 0
-
-      # remove column with zero cases if none was observed
-      mask_col <- colSums(obsdf == 0, na.rm = TRUE) != nrow(obsdf) | colnames(obsdf) != "0"
-
-      # implement max household size mask
-      if (!is.na(private$.max_house_size)) {
-        col_max <- which(colnames(obsdf) == private$.max_house_size)
-        row_max <- which(obsdf$house_size == private$.max_house_size)
-
-        mask_col <- mask_col & (seq_len(ncol(obsdf)) <= col_max)
-        mask_row <- mask_row & (seq_along(mask_row) <= row_max & mask_row)
-      }
-
-      list(observed = obsdf[mask_row, mask_col],
-           predicted = self$cases_table_by_size$predicted[mask_row, mask_col],
-           cri_lower = self$cases_table_by_size$cri_lower[mask_row, mask_col],
-           cri_upper = self$cases_table_by_size$cri_upper[mask_row, mask_col])
-    },
-
-    # Set naming convention of credible interval.
-    .get_name_convention = function(x) {
-      qtag <- 100 * round(private$.cri_level, 2)
-      x <- gsub("predicted", "mean", x)
-      x <- gsub("cri_lower", sprintf("q%.0f", 100 - qtag), x)
-      x <- gsub("cri_upper", sprintf("q%.0f", qtag), x)
-      x
-    },
-
-    # @description
-    # Function to combine cases table.
-    #
-    # @param obsdf A `data.frame` with observed cases.
-    # @param preddf A `data.frame` with predicted cases.
-    #
-    # @return `data.frame`
-    .combine_obs_pred = function(obsdf, preddf) {
-      # 1. curate observed dataframe
-      obsdf$distr <- "Observed"
-      rownames(obsdf) <- seq(1, 2 * nrow(obsdf), 2)
-
-      # 2. curate predicted dataframe
-      preddf$house_size <- obsdf$house_size
-      preddf$distr <- "Predicted"
-      rownames(preddf) <- seq(2, 2 * nrow(preddf), 2)
-
-      # 3. combine by row bind
-      combined <- rbind(obsdf, preddf)[as.character(1:(2 * nrow(obsdf))), ]
-      # reset row names
-      rownames(combined) <- NULL
-      # reorder columns
-      y <- colnames(combined)
-      aux <- c("house_size", "distr")
-      combined <- combined[, c(aux, y[!(y %in% aux)])]
-
-      # format columns to extract labels with labelizor
-      colnames(combined)[3:ncol(combined)] <- sapply(
-        colnames(combined)[3:ncol(combined)],
-        function(x) paste("cases", x, sep = "_")
-      )
-
-      combined
-    }
+    .max_hh_size = NA_integer_,
+    .counts = NULL
   ),
 
   ############################################################################
@@ -447,10 +453,11 @@ PredictedCasesBySize <- R6::R6Class(
         cri_upper = self$sec_attack_rate$cri_upper$sar,
         counts = private$.counts$count
       )
-      colnames(output) <- private$.get_name_convention(colnames(output))
+      colnames(output) <- helper_get_name_convention(colnames(output),
+                                                     private$.cri_level)
       # filter to maximum house size if applicable
-      if (!is.na(private$.max_house_size)) {
-        output <- output[output$house_size <= private$.max_house_size, ]
+      if (!is.na(private$.max_hh_size)) {
+        output <- output[output$house_size <= private$.max_hh_size, ]
       }
       output
     },
@@ -461,7 +468,8 @@ PredictedCasesBySize <- R6::R6Class(
     formatted_cases_table = function(value) {
       if (!missing(value)) stop_h("'formatted_case_table' is read only.")
       # filter according to max_house_size
-      cases <- private$.filtered_tables()
+      cases <- helper_filter_tables(self$cases_table_by_size,
+                                    private$.max_hh_size)
 
       # empty frame as a placeholder for Credible Interval
       na_df <- cases$observed
@@ -469,11 +477,12 @@ PredictedCasesBySize <- R6::R6Class(
       na_df$house_size <- cases$observed$house_size
 
       output <- list(
-        predicted = private$.combine_obs_pred(cases$observed, cases$predicted),
-        cri_lower = private$.combine_obs_pred(na_df, cases$cri_lower),
-        cri_upper = private$.combine_obs_pred(na_df, cases$cri_upper)
+        predicted = helper_combine_obs_pred(cases$observed, cases$predicted),
+        cri_lower = helper_combine_obs_pred(na_df, cases$cri_lower),
+        cri_upper = helper_combine_obs_pred(na_df, cases$cri_upper)
       )
-      names(output) <- private$.get_name_convention(names(output))
+      names(output) <- helper_get_name_convention(names(output),
+                                                  private$.cri_level)
       output
     }
   ),
@@ -498,7 +507,7 @@ PredictedCasesBySize <- R6::R6Class(
                        obs_process = obs_process,
                        progress = progress,
                        cri_level = cri_level)
-      private$.counts <- private$.count_non_zero_cases(hhmodel$data_wide)
+      private$.counts <- helper_count_non_zero_cases(hhmodel$data_wide)
 
       invisible(self)
     },
@@ -510,7 +519,7 @@ PredictedCasesBySize <- R6::R6Class(
     #' An `integer(1)` with the maximum household size to consider.
     #' If `NA`, restore observed maximum.
     set_max_house_size = function(n) {
-      private$.max_house_size <- n
+      private$.max_hh_size <- n
       invisible(self)
     },
 
@@ -531,14 +540,13 @@ PredictedCasesBySize <- R6::R6Class(
     #' @return
     #' `list`
     chisq_test = function(lower_tail = FALSE) {
-      x <- private$.filtered_tables()
-      res <- (x$observed - x$predicted)^2 / x$predicted
-      chisq_value <- sum(res, na.rm = TRUE)
+      cases <- helper_filter_tables(self$cases_table_by_size,
+                                    private$.max_hh_size)
+      res <- (cases$observed - cases$predicted)^2 / x$predicted
+      x_val <- sum(res, na.rm = TRUE)
       ddof <- prod(dim(res)) - dim(res)[1] - sum(is.na(res))
-      return(list(
-        chisq_value = chisq_value, ddof = ddof,
-        p_value = stats::pchisq(chisq_value, df = ddof, lower.tail = lower_tail)
-      ))
+      list(chisq_value = x_val, ddof = ddof,
+           p_value = stats::pchisq(x_val, df = ddof, lower.tail = lower_tail))
     }
   )
 )

@@ -53,8 +53,10 @@ std::int32_t default_setup_seed()
 
 void MCMC::Impl::Setup::build(const u_dict<str_vec> &input)
 {
-    // default seed
-    seed = default_setup_seed();
+    // reset internal states
+    seed = default_setup_seed(); // default seed
+    chain = 1;                   // current chain
+    rung = 0;                    // current thermodynamic rung
 
     if (!input.empty())
     {
@@ -103,10 +105,6 @@ void MCMC::Impl::Setup::build(const u_dict<str_vec> &input)
         if (input.count("id_draws") && !hsp::na::is(input.at("id_draws")[0]))
             id_draws = hsp::read::parse_list(input.at("id_draws")[0]);
     }
-
-    // reset internal states
-    chain = 1; // current chain
-    rung = 0;  // current thermodynamic rung
 
     set_n_threads(); // define number of threads
     set_prng_seed(); // pseudo-random number generator seeding
@@ -188,7 +186,7 @@ void MCMC::Impl::Setup::assert_mcmc_setup()
             "Thinning was not be smaller than (or equal to) n. of steps. ");
 
     c_sample_size = (n_steps - n_burnin) / n_thin;
-    // adjust steps and sample size 
+    // adjust steps and sample size
     c_sample_size += (n_steps - n_burnin) % n_thin > 0;
     n_steps = n_burnin + c_sample_size * n_thin;
 
@@ -296,9 +294,9 @@ void Household::init_contact_rates(size_t from, size_t to, const Attribute &x)
 void Household::recover_buffer_values(bool is_cache_depen)
 {
     obs_log_lik_ = obs_buffer_;
-    if (is_cache_depen)
-    {
-        // swap buffer into  cache attributes
+
+    // swap buffer into  cache attributes if cache dependent
+    if (is_cache_depen) {
         cache_int_vec_.swap(buffer_cache_int_vec_);
         cache_size_t_vec_.swap(buffer_cache_size_t_vec_);
         cache_dbl_vec_.swap(buffer_cache_dbl_vec_);
@@ -418,11 +416,11 @@ void MCMC::Impl::DataWide::build_helper_fill_report_data_()
         const unsigned short house_size = house.size();
         const unsigned short n_infec = house.n_infec_status();
         const unsigned short n_miss = house.n_missing_status();
-        const unsigned short n_heal = house.n_healthy_status();
+        const unsigned short n_susc = house.n_healthy_status();
 
-        report_indiv.infected += n_infec;
+        report_indiv.infectious += n_infec;
         report_indiv.missing += n_miss;
-        report_indiv.healthy += n_heal;
+        report_indiv.susceptible += n_susc;
 
         report_house.no_cases += (n_infec == 0);
         report_house.at_least_1_case += (n_infec > 0);

@@ -91,7 +91,7 @@ hhmodel |>
 # Analyse inference results with group rates
 
 To perform inference of the parameters associated to each group we just need to provide options for the Bayesian Monte Carlo.
-By default, group rate assumes lognormal prior (`meanlog = 0` and `sdlog = 3`) and lognormal proposal, following [Cauchemez et al. (2009)](https://www.nejm.org/doi/full/10.1056/NEJMoa0905498).
+By default, group rate assumes lognormal prior (`meanlog = 0` and `sdlog = 3`) and lognormal proposal, following [Cauchemez et al. (2009)](https://doi.org/10.1056/NEJMoa0905498).
 This can be customized at the moment of the definition of the group rate similarly to parameters (see documentation).
 
 ```{r}
@@ -164,7 +164,7 @@ prefix <- "sus_"
 tmp <- get_group_rates(hhmodel) |>
   # extract reference value and create a label
   dplyr::filter(group_rate == rate_id, param_name == ".reference") |>
-  dplyr::select(-group_rate, -param_name, -n)
+  dplyr::select(age, sex)
 ylabel <- sprintf("%s (Ref: %s)", rate_id,
                   paste(paste(names(tmp), tmp, sep = " "), collapse = " "))
 
@@ -172,12 +172,17 @@ ylabel <- sprintf("%s (Ref: %s)", rate_id,
 get_param_draws(results) |>
   posterior::summarise_draws() |>
   dplyr::filter(stringr::str_starts(variable, prefix)) |>
+  dplyr::left_join(get_group_rates(hhmodel) |> 
+                     dplyr::select(param_name, n) |> 
+                     dplyr::rename(variable = param_name),
+                   by = "variable") |> 
   dplyr::mutate(variable = stringr::str_remove(variable, paste0("^", prefix)) |>
                   stringr::str_replace_all("_", " ")) |>
-  ggplot(aes(x = variable, y = mean)) +
+  ggplot(aes(x = variable, y = mean, label = sprintf("[%s]", n))) +
   geom_hline(yintercept = 1, color = "gray") +
   geom_point() +
-  geom_errorbar(aes(ymin = q5, ymax = q95), width = 0.1) +
+  geom_text(nudge_x = 0.2, nudge_y = 0.1, color = "coral") +
+  geom_errorbar(aes(ymin = q5, ymax = q95)) +
   labs(x = "", y = ylabel)
 ```
 

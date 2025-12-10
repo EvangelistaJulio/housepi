@@ -1,4 +1,4 @@
-## General Plot Theme for 'housepi'
+## General Plot Theme for housepi
 ##
 
 # vignettes theme
@@ -8,13 +8,13 @@ knitr::opts_chunk$set(echo = TRUE, comment = "#>",
 options(knitr.kable.NA = "")
 
 # ggplot theme
-my_element_text <- ggplot2::element_text(size = 12, face = "plain")
+my_elem_text <- ggplot2::element_text(size = 12, face = "plain")
 ggplot2::theme_set(
-  ggplot2::theme_gray() +
-    ggplot2::theme(text = my_element_text,
-                   axis.text = my_element_text,
-                   strip.text = my_element_text,
-                   legend.text = my_element_text,
+  ggplot2::theme_bw() +
+    ggplot2::theme(text = my_elem_text,
+                   axis.text = my_elem_text,
+                   strip.text = my_elem_text,
+                   legend.text = my_elem_text,
                    legend.title = ggplot2::element_blank())
 )
 # mimic element_geom for older ggplot2 versions
@@ -24,7 +24,8 @@ ggplot2::update_geom_defaults("vline", list(color = "coral", size = 1))
 ggplot2::update_geom_defaults("hline", list(color = "coral", size = 1))
 ggplot2::update_geom_defaults("abline", list(color = "coral", size = 1))
 ggplot2::update_geom_defaults("segment", list(color = "coral", size = 1))
-ggplot2::update_geom_defaults("errorbar", list(color = "coral", size = 1))
+ggplot2::update_geom_defaults("errorbar", list(color = "coral", size = 1,
+                                               width = 0.1))
 
 # bayesplot theme
 bayesplot::bayesplot_theme_set(ggplot2::theme_get())
