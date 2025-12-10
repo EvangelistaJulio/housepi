@@ -127,7 +127,7 @@ ppc_helper_print <- function(model_name, is_posterior, measure_names, cri) {
 #' @return A `data.frame` of the same dimensions as the input dataframes.
 #' Columns and rownames of the first data.frame in the list.
 #' @keywords internal
-#' @noRd 
+#' @noRd
 ppc_frame_apply <- function(frame_list, func) {
   elem_n1 <- frame_list[[1]]
 
@@ -329,12 +329,13 @@ helper_count_non_zero_cases <- function(data_wide) {
   # cast to 0\1 values
   y <- dplyr::mutate(
     data_wide,
-    status = dplyr::if_else(is.na(status), 0, as.integer(status > 0))
+    status = dplyr::if_else(is.na(.data$status),
+                            0, as.integer(.data$status > 0))
   )
-  y <- dplyr::group_by(y, house_id)
-  y <- dplyr::summarise(y, house_size = dplyr::n(), cases = sum(status))
-  y <- dplyr::filter(y, cases > 0)
-  y <- dplyr::group_by(y, house_size)
+  y <- dplyr::group_by(y, .data$house_id)
+  y <- dplyr::summarise(y, house_size = dplyr::n(), cases = sum(.data$status))
+  y <- dplyr::filter(y, .data$cases > 0)
+  y <- dplyr::group_by(y, .data$house_size)
   y <- dplyr::summarise(y, count = dplyr::n())
   as.data.frame(y)
 }

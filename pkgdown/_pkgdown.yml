@@ -1,5 +1,3 @@
-url: https://mmmi-pasteur.pages.pasteur.fr/housepi
-
 template:
   bootstrap: 5  
   light-switch: true  

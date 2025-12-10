@@ -879,7 +879,7 @@ namespace hsp
                 if (child.is_braced)
                     str_children += "{" + cs + "}";
                 else
-                    str_children + cs;
+                    str_children += cs;
             }
             return func + "|" + str_args + "|" + str_children;
         }
