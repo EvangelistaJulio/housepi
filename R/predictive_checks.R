@@ -542,7 +542,7 @@ PredictedCasesBySize <- R6::R6Class(
     chisq_test = function(lower_tail = FALSE) {
       cases <- helper_filter_tables(self$cases_table_by_size,
                                     private$.max_hh_size)
-      res <- (cases$observed - cases$predicted)^2 / x$predicted
+      res <- (cases$observed - cases$predicted)^2 / cases$predicted
       x_val <- sum(res, na.rm = TRUE)
       ddof <- prod(dim(res)) - dim(res)[1] - sum(is.na(res))
       list(chisq_value = x_val, ddof = ddof,

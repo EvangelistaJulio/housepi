@@ -284,7 +284,7 @@ hhmodel <- hhsimul |>
 results <- hhmodel |>
   add_data_wide(simulated) |>
   run_inference(chains = 3, steps = 1000, adapt = 500, thin = 10,
-                # update progress bar every 3 seconds
+                # update progress bar every 5 seconds
                 progress = 5)
 ```
 We can visualize traces vs expected values as follows
