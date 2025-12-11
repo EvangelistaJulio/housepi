@@ -10,7 +10,7 @@ options(knitr.kable.NA = "")
 # ggplot theme
 my_elem_text <- ggplot2::element_text(size = 12, face = "plain")
 ggplot2::theme_set(
-  ggplot2::theme_bw() +
+  ggplot2::theme_gray() +
     ggplot2::theme(text = my_elem_text,
                    axis.text = my_elem_text,
                    strip.text = my_elem_text,
@@ -18,28 +18,37 @@ ggplot2::theme_set(
                    legend.title = ggplot2::element_blank())
 )
 # mimic element_geom for older ggplot2 versions
-ggplot2::update_geom_defaults("line", list(color = "coral", size = 1))
-ggplot2::update_geom_defaults("point", list(color = "coral", size = 3))
-ggplot2::update_geom_defaults("vline", list(color = "coral", size = 1))
-ggplot2::update_geom_defaults("hline", list(color = "coral", size = 1))
-ggplot2::update_geom_defaults("abline", list(color = "coral", size = 1))
-ggplot2::update_geom_defaults("segment", list(color = "coral", size = 1))
-ggplot2::update_geom_defaults("errorbar", list(color = "coral", size = 1,
+ggplot2::update_geom_defaults("line", list(color = "#FF7F50", size = 1))
+ggplot2::update_geom_defaults("point", list(color = "#FF7F50", size = 3))
+ggplot2::update_geom_defaults("vline", list(color = "#FF7F50", size = 1))
+ggplot2::update_geom_defaults("hline", list(color = "#FF7F50", size = 1))
+ggplot2::update_geom_defaults("abline", list(color = "#FF7F50", size = 1))
+ggplot2::update_geom_defaults("segment", list(color = "#FF7F50", size = 1))
+ggplot2::update_geom_defaults("errorbar", list(color = "#FF7F50", size = 1,
                                                width = 0.1))
-
 # bayesplot theme
 bayesplot::bayesplot_theme_set(ggplot2::theme_get())
-bayesplot::color_scheme_set(scheme = "brightblue")
+bayesplot::color_scheme_set(c("#afe8ff", "#89cbff",
+                              "#4ca5ff", "#198bff",
+                              "#0065cc", "#004c99"))
 
-# session info
+# flextable theme
+flextable::set_flextable_defaults(
+  font.family = "Roboto", font.size = 13, font.color = "#111111",
+  background.color = "white",
+  theme_fun = "theme_vanilla")
+
+#' @title Show session info
+#' @param sampling `logical(1)`
+#' @keywords internal
+#' @noRd
 show_session_info <- function(sampling = TRUE) {
-  output <- ""
-
   if (sampling) output <- paste0(
     cli::symbol$warning,
-    " The number of steps were reduced for demonstration.",
+    " Number of steps were reduced for demonstration.",
     " Increase them in realistic applications.<br>"
   )
+  else output <- ""
 
   output <- paste0(
     output,

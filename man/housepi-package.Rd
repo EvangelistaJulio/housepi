@@ -24,7 +24,7 @@ straightforward analyses and advanced epidemiological investigations.
 \seealso{
 Useful links:
 \itemize{
-  \item \url{https://mmmi-pasteur.gitlab.io/housepi}
+  \item \url{https://gitlab.pasteur.fr/mmmi-pasteur/housepi}
 }
 
 }

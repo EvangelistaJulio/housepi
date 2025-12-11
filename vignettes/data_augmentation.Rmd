@@ -69,19 +69,20 @@ We augmented infection time of symptomatic as shown in [Get Started](hosuepi.htm
 For asymptomatic members we draw the infection time uniformly within the period of the follow-up.
 
 ```{r}
+#| warning: false
 #| fig.alt: >
 #|  Density plots of augmented infection times for two household members.
-#| warning: false
 library(ggplot2)
 
 onset_tommy <- 5
-new_housepi_model("augmented_infection_time") |>
+hhmodel <- new_housepi_model("augmented_infection_time") |>
   add_data_wide(data.frame(id = c("tommy", "gina"),
                            status = c(1, 2),
                            onset_date = c(onset_tommy, NA),
                            house_id = "house_1")) |> 
   load_parameter_list(alpha = 0.001, beta = 0.07, gamma = 0.9,
                       size_ref = 4, study_period = 10) |> 
+  # associate augmented definitions
   load_augmented_list(
     # augmented infection time for symptomatic members 
     # here we use a generic definition
@@ -92,15 +93,17 @@ new_housepi_model("augmented_infection_time") |>
     # here we use a status specific definition, with priority over generic
     infec_time = list(status = 2, model = "uniform", 
                       min = !!onset_tommy, max = !!onset_tommy + 10)
-  ) |> 
+  )
+
+# run inference following traces of specific individuals
+results <- hhmodel |> 
   run_inference(steps = 500, id_draws = c("tommy", "gina")) |> 
   get_augm_draws() |> 
   posterior::subset_draws(variable = "infec_time$", regex = TRUE) |> 
   bayesplot::mcmc_dens(facet_args = c(ncol = 1)) +
-  ggplot2::geom_vline(data = data.frame(xintercept = onset_tommy),
-                      aes(xintercept = xintercept), linetype = 2) +
-  ggplot2::coord_cartesian(xlim = onset_tommy + c(-10, 10))
-  
+  geom_vline(data = data.frame(xintercept = onset_tommy),
+             aes(xintercept = xintercept), linetype = 2) +
+  coord_cartesian(xlim = onset_tommy + c(-10, 10))
 ```
 
 We see that since we assumed the infection of the asymptomatic member to happen after the onset of the index, the model logically makes it more probable to occur closer to that limit.
@@ -186,7 +189,6 @@ We can do so by providing the `id` of individuals whose augmented variables we w
 #| fig.alt: >
 #|  Trace plots for mean and variance parameters with three parallel chains.
 #|  Overlaying orange lines indicate the values used for the simulation.
-
 results <- hhmodel |>
   add_data_wide(dataset) |>
   run_inference(steps = 1000, thin = 10, chains = 3, adapt = 500,
@@ -200,6 +202,7 @@ bayesplot::mcmc_trace(get_param_draws(results)) +
                                simulated = c(2.2, 2.5)),
              aes(yintercept = simulated))
 ```
+
 ```{r}
 #| fig.alt: >
 #|  Trace plots for individual augmented variables across three MCMC chains.
@@ -224,35 +227,45 @@ As shown in [Bayesian MCMC options](bayesian_mcmc_options.html), we do the testi
 We always recommend a visual assessment before choosing a new move.
 
 ```{r}
-#| fig.height: 2
 #| warning: false
 
 # with model (default sample)
 results <- new_housepi_model("blank") |>
   add_augmented("sample_model", model = "normal", mean = 14) |>
   run_inference()
+```
 
+```{r}
+#| fig.height: 2
 #| fig.alt: >
 #|  Trace plot of a single augmented variable sampled from the model.
 bayesplot::mcmc_trace(get_augm_draws(results))
+```
 
+```{r}
+#| fig.height: 2
 #| fig.alt: >
 #|  Trace plot of the corresponding model contribution to the log-likelihood.
 bayesplot::mcmc_trace(get_total_log_lik_draws(results))
 ```
 
 ```{r}
-#| fig.height: 2
 #| warning: false
 # random walk (without model)
 results <- new_housepi_model("blank") |>
   add_augmented("random_walk", value = 14, proposal = "normal") |>
   run_inference()
+```
 
+```{r}
+#| fig.height: 2
 #| fig.alt: >
 #|  Trace plot of a single augmented variable without model, i. e. random walk.
 bayesplot::mcmc_trace(get_augm_draws(results))
+```
 
+```{r}
+#| fig.height: 2
 #| fig.alt: >
 #|  The flat trace plot of the corresponding log-likelihood shows no contribution.
 bayesplot::mcmc_trace(get_total_log_lik_draws(results))

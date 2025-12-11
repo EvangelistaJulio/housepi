@@ -5,7 +5,7 @@
 The chain binomial model assumes transmission occurs at discrete generation time units.
 The heterogeneous model assumes risk of transmission to depend on individuals features.
 The index cases are not known a priori and represent the initial generation.
-See [Chain Binomial](hhmodel_chain_binomial.html) for more details.
+See \href{_hhmodel_chain_binomial.html}{Chain Binomial} for more details.
 \if{html}{\out{<hr>}}
 }
 \section{Likelihood}{

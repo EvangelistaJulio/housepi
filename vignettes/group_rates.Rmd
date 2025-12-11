@@ -39,9 +39,13 @@ Suppose our analysis wants to explore age and/or gender-based effects within a h
 We start by creating categorical groupings to stratify individuals based on their age, sex, etc and then associate individual group rates.
 
 ```{r}
-# import survey with age as binary group child/adult
-hhmodel$data_wide <- housepi::survey |>
+# change age in survey as a binary group child/adult
+new_survey <- housepi::survey |>
   dplyr::mutate(age = dplyr::if_else(age < 16, "child", "adult"))
+  
+# import new survey 
+hhmodel <- hhmodel |> 
+  add_data_wide(new_survey)
 ```
 
 Current loaded model allows for a number of group rates, among which the individual `"susceptibility"` (use `help()` method to learn more). 
@@ -139,7 +143,7 @@ bayesplot::mcmc_trace(get_param_draws(results))
 
 We use the [priorsense](https://cran.r-project.org/web/packages/priorsense/) package to assess the sensitivity of our posterior 
 estimates to prior specifications and potential prior-data conflicts.
-To do so, we need to extract draws from results complete of pointwise log-likelihood values and logpriors with `get_complete_draws`
+To do so, we need to extract draws from results complete of pointwise log-likelihood values and log-priors with `get_complete_draws`
 
 ```{r}
 get_complete_draws(results) |>

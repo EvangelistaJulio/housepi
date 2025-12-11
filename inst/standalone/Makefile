@@ -20,31 +20,27 @@ OBJECTS := $(SOURCES:.cpp=.o)
 EXECUTABLE := $(MODEL)/model.exe
 
 # compilation flags
-CXXFLAGS := -Wall -Wextra -I../template/include/
-
+CXX := g++
+CXXFLAGS := -std=c++14 -g -Wall -Wextra -pedantic -Wno-unknown-pragmas -I../template/include/ 
 ifdef DEBUG
-CXXFLAGS += -g -O1 -Wno-unknown-pragmas -Werror -Wuninitialized
-
+CXXFLAGS += -O0 -Werror -Wuninitialized
 else
 # standard Rcpp compilation flags
-CXXFLAGS += -g -O2 -Wno-unknown-pragmas
+CXXFLAGS += -O2
 # Change openMP flags according to OS
 ifeq ($(shell uname -s),Linux)
-CXX := g++
 CXXFLAGS += -fopenmp
 else ifeq ($(shell uname -s),Darwin)
 ifeq ($(shell command -v brew),)
 $(info Homebrew is not installed. Falling back to default.)
-CXX := g++
 else
 ifeq ($(shell brew list --versions llvm),)
 $(info LLVM is not installed via Homebrew. Falling back to default.)
-CXX := g++
 else
 CXX := $(shell brew --prefix llvm)/bin/clang++
 CXXFLAGS += -fopenmp -I$(shell brew --prefix llvm)/include -I$(shell brew --prefix boost)/include
 endif
-endif	
+endif
 else
 $(error Unsupported operating system.)
 endif

@@ -88,27 +88,28 @@ This is used in advanced augmented definitions, see [Data augmentation](data_aug
 
 ## Data importation
 
-The most direct way to associate a data to a model is assigning it to the active method `$data_wide`.
-The housepi package comes with a few public datasets to be used for testing.
+To associate a data to a model we can call `add_data_wide()`.
+This will return a deep clone of the original object, which can then be used for piping^[
+If you are more comfortable with R6, the most direct way to associate data (and other definitions in general) is to use the active methods, like `$data_wide`. 
+This will assign definitions to the original object, without having to clone it under the hood.].
 
 ```{r}
 # import data in wide format using R6 active field
-hhmodel$data_wide <- housepi::survey
+hhmodel <- hhmodel |> 
+  add_data_wide(housepi::survey)
 ```
-alternatively, we can use the call `add_data_wide()`, as shown later in this walkthrough. 
+
+The housepi package comes with a few public datasets to be used for testing.
 We can extract summary information about current loaded data with `summarise_cases()`:
 
 ```{r}
 # show a summary of cases as a `flextable`
 summarise_cases(hhmodel) |>
   flextable::flextable() |>
-  flextable::theme_vanilla() |>
   flextable::set_formatter(pct = function(x) round(x, 1)) |>
   flextable::merge_v(j = ~ type) |>
   flextable::bold(j = ~ type + comment, bold = TRUE) |>
   flextable::labelizor(labels = c(type = "", comment = "", pct = "[%]")) |>
-  flextable::bg(bg = "white", part = "all") |>
-  flextable::fontsize(size = 12, part = "all") |>
   flextable::autofit()
 ```
 
@@ -119,7 +120,7 @@ At any moment we can export the loaded data by invoking the method `$data_wide`.
 ## Associate parameter definitions
 
 Here we show how to provide a single parameter definition (prior and proposal needed for the Bayesian Monte Carlo).
-Different approaches are available to perform the same operation, we can call `add_parameter()` or invoke the namesake R6 method:
+We can call `add_parameter()` as follows:
 
 ```{r}
 # alpha : community transmission rate
@@ -129,7 +130,8 @@ hhmodel <- hhmodel |>
                 proposal = "lognormal") # MCMC proposal
 
 # beta : in-household person to person transmission rate
-hhmodel$add_parameter("beta", prior = "uniform", proposal = "lognormal")
+hhmodel <- hhmodel |>
+  add_parameter("beta", prior = "uniform", proposal = "lognormal")
 ```
 
 At any moment we can turn a parameter definition into a constant definition: it is sufficient to set the argument `const = TRUE` (in such case a `value` must be provided).
@@ -166,7 +168,7 @@ We can proceed as usual with other popular R packages for Bayesian analysis.
 For example, we can extract the parameters draws by calling `get_param_draws` and plot traces with [bayesplot](https://cran.r-project.org/web/packages/bayesplot/)
 
 ```{r}
-#| fig.alt: 
+#| fig.alt: >
 #|  Trace plots for alpha and beta parameters across MCMC iterations with three parallel chains overlaid.
 # visualize the traces of the first chain with 'bayesplot'
 get_param_draws(results) |>
@@ -177,7 +179,7 @@ or of the total log-likelihood by calling `get_total_log_lik_draws`:
 
 ```{r}
 #| fig.height: 2.5
-#| fig.alt: 
+#| fig.alt: >
 #|  Trace plots for total log-likelihood across MCMC iterations with three parallel chains overlaid.
 get_total_log_lik_draws(results) |>
   bayesplot::mcmc_trace()
@@ -256,13 +258,17 @@ Simulation will associate augmented incubation periods and onset times in additi
 We then propose a simple observation process, where we assume onsets after 6 PM (18/24) are reported to next day. We also want to drop unobserved quantities. We can do both by assigning such a function to the argument `observation`:
 
 ```{r}
+# define an observation process after the outbreak simulation
+obs_process <- function(x) {
+  x$onset_date <- ifelse(x$status > 0, floor(x$onset_time + 0.25), NA)
+  x$incub_period <- x$onset_time <- x$infec_time <- NULL
+  x
+}
+
+# run simulation using as structure an existing data set
 simulated <- hhsimul |>
   add_data_wide(dplyr::mutate(housepi::survey, status = NA)) |>
-  run_simulation(obs_process = function(x) {
-    x$onset_date <- ifelse(x$status > 0, floor(x$onset_time + 0.25), NA)
-    x$incub_period <- x$onset_time <- x$infec_time <- NULL
-    x
-  })
+  run_simulation(obs_process = obs_process)
 
 head(simulated)
 ```
@@ -339,10 +345,7 @@ posterior::summarise_draws(param_draws) |>
   dplyr::inner_join(simul_parameters, by = "parameter") |>
   flextable::flextable() |>
   flextable::separate_header() |>
-  flextable::theme_vanilla() |>
   flextable::bold(j = ~ parameter, bold = TRUE) |>
-  flextable::bg(bg = "white", part = "all") |>
-  flextable::fontsize(size = 12, part = "all") |>
   flextable::autofit()
 ```
 

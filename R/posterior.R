@@ -195,19 +195,26 @@ HousepiPosteriorDraws <- R6::R6Class(
     #' @description
     #' Override the default printing behavior.
     print = function() {
+      niter <- posterior::niterations(private$.total_log_lik_draws)
+      nchains <- posterior::nchains(private$.total_log_lik_draws)
+
+      if (is.null(private$.param_draws)) nparams <- 0
+      else nparams <- posterior::nvariables(private$.param_draws)
+
+      if (is.null(private$.augm_draws)) naugm <- 0
+      else naugm <- posterior::nvariables(private$.augm_draws)
+
       cli::cli_alert_info(sprintf(
         "Posterior draws of model {.pkg %s}.\n%s",
         spaced_template_choice(private$.name),
         sprintf(
-          "%s iterations, %s chains%s%s.",
-          posterior::niterations(private$.total_log_lik_draws),
-          posterior::nchains(private$.total_log_lik_draws),
-          ifelse(is.null(private$.param_draws), "",
-                 sprintf(", %s parameters",
-                         posterior::nvariables(private$.param_draws))),
-          ifelse(is.null(private$.augm_draws), "",
-                 sprintf(", %s augmented",
-                         posterior::nvariables(private$.augm_draws)))
+          "%s iteration%s, %s chain%s%s%s.",
+          niter, ifelse(niter > 1, "s", ""),
+          nchains, ifelse(nchains > 1, "s", ""),
+          ifelse(nparams == 0, "",
+                 sprintf(", %s parameter%s",
+                         nparams, ifelse(nparams > 1, "s", ""))),
+          ifelse(naugm == 0, "", sprintf(", %s augmented", naugm))
         )
       ))
       invisible()

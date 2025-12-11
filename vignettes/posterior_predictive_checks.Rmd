@@ -78,15 +78,12 @@ names(combined)[names(combined) == "house_size"] <- "size"
 # generate cases by household size table
 flextable::flextable(combined) |>
   flextable::separate_header() |>
-  flextable::theme_vanilla() |>
   flextable::bold(j = ~ size, bold = TRUE) |>
   flextable::merge_v(j = ~ size) |>
   flextable::align(align = "center", , part = "all") |>
   flextable::labelizor(labels = c(size = "Size",
                                   distr = "Distribution",
                                   cases = "Number of Cases")) |>
-  flextable::bg(bg = "white", part = "all") |>
-  flextable::fontsize(size = 12, part = "all") |>
   flextable::autofit()
 ```
 
