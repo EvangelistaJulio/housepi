@@ -211,27 +211,6 @@ add_parameter <- function(hhmodel,
   new_object
 }
 
-#' @title Load list of definitions
-#' @description
-#' Load definitions as named arguments.
-#'
-#' @param hhmodel `r rd_model_in_`
-#' @param ... `r rd_list_args_`
-#' @param append `r rd_list_append_`
-#'
-#' @return `r rd_model_out_`
-#'
-#' @rdname load_definitions_list
-#' @export
-load_parameter_list <- function(hhmodel, ..., append = FALSE) {
-  stopifnot(inherits(hhmodel, "HousepiModel"))
-  new_object <- hhmodel$clone(deep = TRUE)
-  new_object$.__enclos_env__$private$.param$load_quosures(
-    rlang::enquos(...), append = append
-  )
-  new_object
-}
-
 #' @title Load template definitions
 #' @description
 #' Load default definitions from model template.
@@ -301,17 +280,6 @@ add_augmented <- function(hhmodel,
     model = model, rlang::enquos(...),
     min = rlang::enquo(min), max = rlang::enquo(max),
     proposal = proposal, proposal_scale = proposal_scale
-  )
-  new_object
-}
-
-#' @rdname load_definitions_list
-#' @export
-load_augmented_list <- function(hhmodel, ..., append = FALSE) {
-  stopifnot(inherits(hhmodel, "HousepiModel"))
-  new_object <- hhmodel$clone(deep = TRUE)
-  new_object$.__enclos_env__$private$.augm$load_quosures(
-    rlang::enquos(...), append = append
   )
   new_object
 }
@@ -390,18 +358,6 @@ add_group_rate <-  function(hhmodel,
   new_object
 }
 
-#' @rdname load_definitions_list
-#' @export
-load_group_rate_list <- function(hhmodel, ..., append = FALSE) {
-  stopifnot(inherits(hhmodel, "HousepiModel"))
-  new_object <- hhmodel$clone(deep = TRUE)
-  if (isFALSE(append)) new_object$drop_group_rates()
-  new_object$.__enclos_env__$private$.group_rates$load_quosures(
-    rlang::enquos(...), append = append
-  )
-  new_object
-}
-
 ############################################################################
 ############################################################################
 ############################################################################
@@ -418,7 +374,7 @@ get_infec_profile <- function(hhmodel, ...) {
 #' Add definition of infectivity profile.
 #'
 #' @param hhmodel `r rd_model_in_`
-#' @param name `r rd_var_name_`
+#' @param func `r rd_var_name_`
 #' @param status `r rd_aug_status_`
 #' @param discr `r rd_inf_discr_`
 #' @param ... `r rd_inf_args_`
@@ -428,16 +384,75 @@ get_infec_profile <- function(hhmodel, ...) {
 #'
 #' @export
 add_infec_profile <- function(hhmodel,
-                              name, status = NA_integer_,
+                              func, status = NA_integer_,
                               discr = FALSE,
                               ..., max = NULL) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
   new_object <- hhmodel$clone(deep = TRUE)
   new_object$.__enclos_env__$private$.infec_profile$add_quo(
-    name = name, status = status, discr = discr,
+    func = func, status = status, discr = discr,
     rlang::enquos(...), max = rlang::enquo(max)
   )
   new_object
+}
+
+
+############################################################################
+############################################################################
+############################################################################
+
+# Helper to load definition lists into an HousepiModel clone.
+helper_load_def_list <- function(pvt_module, hhmodel, xquos, append) {
+  stopifnot(inherits(hhmodel, "HousepiModel"))
+  new_object <- hhmodel$clone(deep = TRUE)
+  new_object$.__enclos_env__$private[[pvt_module]]$load_quosures(
+    xquos, append = append
+  )
+  new_object
+}
+
+#' @title Load list of definitions
+#' @description
+#' Load definitions as named arguments.
+#'
+#' @param hhmodel `r rd_model_in_`
+#' @param ... `r rd_list_args_`
+#' @param append `r rd_list_append_`
+#'
+#' @return `r rd_model_out_`
+#'
+#' @rdname load_definitions_list
+#' @export
+load_parameter_list <- function(hhmodel, ..., append = FALSE) {
+  helper_load_def_list(pvt_module = ".param", hhmodel = hhmodel,
+                       xquos = rlang::enquos(...), append = append)
+}
+
+#' @rdname load_definitions_list
+#' @export
+load_augmented_list <- function(hhmodel, ..., append = FALSE) {
+  helper_load_def_list(pvt_module = ".augm", hhmodel = hhmodel,
+                       xquos = rlang::enquos(...), append = append)
+}
+
+#' @rdname load_definitions_list
+#' @export
+load_group_rate_list <- function(hhmodel, ..., append = FALSE) {
+  stopifnot(inherits(hhmodel, "HousepiModel"))
+  new_object <- hhmodel$clone(deep = TRUE)
+  # NOTE: dropping group rates might cause parameter drops
+  if (isFALSE(append)) new_object$drop_group_rates()
+  new_object$.__enclos_env__$private$.group_rates$load_quosures(
+    rlang::enquos(...), append = append
+  )
+  new_object
+}
+
+#' @rdname load_definitions_list
+#' @export
+load_infec_profile_list <- function(hhmodel, ..., append = FALSE) {
+  helper_load_def_list(pvt_module = ".infec_profile", hhmodel = hhmodel,
+                       xquos = rlang::enquos(...), append = append)
 }
 
 ############################################################################

@@ -371,9 +371,9 @@ Rcpp::List MCMC::export_infec_profile() const
     if (infec_profile.generic_profile->is_empty())
         return List::create();
 
-    return List::create(_["name"] = infec_profile.generic_profile->name(),
+    return List::create(_["func"] = infec_profile.generic_profile->name(),
                         // NOTE: arguments should not be polymorphic when called here
-                        _["args"] = rcpp_export_args(*infec_profile.generic_profile),
+                        _["func_args"] = rcpp_export_args(*infec_profile.generic_profile),
                         _["min"] = infec_profile.generic_profile->lower(),
                         _["max"] = infec_profile.generic_profile->upper(),
                         _["discr"] = infec_profile.generic_profile->is_discrete());
@@ -982,17 +982,17 @@ Rcpp::List MCMC::helper_infec_profile_rcpp_snapshot_(const Household &house) con
         else
         {
             Rcpp::List generic = export_infec_profile();
-            infprof_name[member] = wrap(generic["name"]);
+            infprof_name[member] = wrap(generic["func"]);
             infprof_discr[member] = generic["discr"];
-            infprof_args[member] = generic["args"];
+            infprof_args[member] = generic["func_args"];
             infprof_min[member] = generic["min"];
             infprof_max[member] = generic["max"];
         }
 
     return List::create(_["id"] = df_id,
                         _["discr"] = infprof_discr,
-                        _["name"] = infprof_name,
-                        _["args"] = infprof_args,
+                        _["func"] = infprof_name,
+                        _["func_args"] = infprof_args,
                         _["min"] = infprof_min,
                         _["max"] = infprof_max);
 }

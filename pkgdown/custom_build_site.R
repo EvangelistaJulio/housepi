@@ -27,7 +27,7 @@ for (f in copied_files) {
 
 ## build pkgdown site
 ##
-pkgdown::build_site(install = FALSE)
+pkgdown::build_site(install = TRUE)
 
 ## cleanup
 ##

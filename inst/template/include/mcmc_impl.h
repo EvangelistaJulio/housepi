@@ -335,7 +335,7 @@ public:
         MCMC::Impl &pImpl_; // pointer to external class
 
         std::vector<Household> house_vector_ = {};
-        std::unordered_map<std::string, size_t> hhid_to_index_ = {};
+        u_dict<size_t> hhid_to_index_ = {};
 
         size_t house_id_to_index_(const std::string &house_id) const
         {

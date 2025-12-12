@@ -42,27 +42,32 @@ In many applications, augmented variable definitions can also depend on the data
 
 ## Link arguments to their source
 
-We can declare the source of argument value with the convention `<argument> \@ <source_symbol>`.
-E. g. "visit_day\@D" will source the value at individual data "visit_day".
+We can declare the source of any argument value according to the convention using the \@ symbol
+$$
+{\rm argument@source}
+$$
+which reads "argument at source". 
+E. g. "visit_day\@D" will source the value from individual data "visit_day", "beta\@P" from the current value for the parameter "beta", etc.
+
 
 <div style="display: flex; justify-content: center;">
 <div>
 
 | Source     | Symbol | Examples          |
 |------------|:------:|:-----------------:|
-| Augmented  | A      | time OR time\@A   |
+| Augmented  | A      | infection_time    |
 | Data       | D      | visit_day\@D      |
 | Group Rate | G      | susceptibility\@G |
 | Numeric    | N      | 14                |
-| Parameter  | P      | mean\@P           |
+| Parameter  | P      | beta\@P           |
 
 </div>
 </div>
 
-Notice that a variable name without explicit source will automatically be assumed to be an augmented variable.
-Similarly, there's no need to explicitate the source of a numeric value. 
+Notice that a variable name without explicit source will automatically be assumed to be an augmented variable^[However sometimes it could be necessary to disambiguate, which can be done with the source \@A.].
+Similarly, there's no need to specify the source of a numeric value. 
 
-More in general, definition arguments `value`, `min`, `max` and `from` can be linked to external values in the following ways
+More in general, definition arguments `value`, `min` and `max` can be linked to external values in the following ways
 
 # Status specific definitions
 

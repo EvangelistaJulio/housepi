@@ -4,6 +4,7 @@
 \alias{load_parameter_list}
 \alias{load_augmented_list}
 \alias{load_group_rate_list}
+\alias{load_infec_profile_list}
 \title{Load list of definitions}
 \usage{
 load_parameter_list(hhmodel, ..., append = FALSE)
@@ -11,6 +12,8 @@ load_parameter_list(hhmodel, ..., append = FALSE)
 load_augmented_list(hhmodel, ..., append = FALSE)
 
 load_group_rate_list(hhmodel, ..., append = FALSE)
+
+load_infec_profile_list(hhmodel, ..., append = FALSE)
 }
 \arguments{
 \item{hhmodel}{\code{HousepiModel} object.}

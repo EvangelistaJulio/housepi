@@ -44,7 +44,7 @@ void Model::init_advanced_setup()
 
 	// template infectivity profile (otherwise user defined) 
 	// UPDATE: this should become more user friendly
-	init_infec_profile_template({{"name", "gamma_meanvar|mean:var|{2|N}:{1|N}"}});
+	init_infec_profile_template({{"func", "gamma_meanvar|mean:var|{2|N}:{1|N}"}});
 }
 
 /// Initialize parameters and augmented variables.

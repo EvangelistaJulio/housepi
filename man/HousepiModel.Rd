@@ -47,6 +47,7 @@ and variable definitions from a single class.
 \item \href{#method-HousepiModel-add_group_rate}{\code{HousepiModel$add_group_rate()}}
 \item \href{#method-HousepiModel-load_group_rate_list}{\code{HousepiModel$load_group_rate_list()}}
 \item \href{#method-HousepiModel-add_infec_profile}{\code{HousepiModel$add_infec_profile()}}
+\item \href{#method-HousepiModel-load_infec_profile_list}{\code{HousepiModel$load_infec_profile_list()}}
 \item \href{#method-HousepiModel-evaluate_log_lik}{\code{HousepiModel$evaluate_log_lik()}}
 \item \href{#method-HousepiModel-run_inference}{\code{HousepiModel$run_inference()}}
 \item \href{#method-HousepiModel-export_augmented_data}{\code{HousepiModel$export_augmented_data()}}
@@ -251,7 +252,7 @@ Not applicable if proposal is 'sample'. Otherwise scale is \code{1} by default.}
 \if{html}{\out{<a id="method-HousepiModel-load_parameter_list"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-load_parameter_list}{}}}
 \subsection{Method \code{load_parameter_list()}}{
-Load parameter definitions either as arguments or from predefined list.
+Load parameter definitions as named arguments.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$load_parameter_list(..., append = FALSE)}\if{html}{\out{</div>}}
 }
@@ -383,8 +384,7 @@ Not applicable if proposal is 'sample'. Otherwise scale is \code{1} by default.}
 \if{html}{\out{<a id="method-HousepiModel-load_augmented_list"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-load_augmented_list}{}}}
 \subsection{Method \code{load_augmented_list()}}{
-Load augmented variable/function definitions
-either as arguments or from predefined list.
+Load augmented variable/function definitions as named arguments.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$load_augmented_list(..., append = FALSE)}\if{html}{\out{</div>}}
 }
@@ -494,8 +494,7 @@ Not applicable if proposal is 'sample'. Otherwise scale is \code{1} by default.}
 \if{html}{\out{<a id="method-HousepiModel-load_group_rate_list"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-load_group_rate_list}{}}}
 \subsection{Method \code{load_group_rate_list()}}{
-Load group rate definitions either as direct arguments
-or from predefined list.
+Load group rate definitions as direct arguments.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$load_group_rate_list(..., append = FALSE)}\if{html}{\out{</div>}}
 }
@@ -518,7 +517,7 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 Add definition of infectivity profile.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_infec_profile(
-  name,
+  func,
   status = NA_integer_,
   discr = FALSE,
   ...,
@@ -529,7 +528,7 @@ Add definition of infectivity profile.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{name}}{\code{character(1)} name used by internal calls.}
+\item{\code{func}}{\code{character(1)} name used by internal calls.}
 
 \item{\code{status}}{\code{integer(1)} with household member positive status.\cr
 It is used to specify status-specific definitions.
@@ -548,6 +547,26 @@ One between:\cr
 \item Parameter name (followed by \verb{@P});\cr
 \item Dataset name (followed by \verb{@D}).
 }}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HousepiModel-load_infec_profile_list"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiModel-load_infec_profile_list}{}}}
+\subsection{Method \code{load_infec_profile_list()}}{
+Load infectivity profile definitions as named arguments.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$load_infec_profile_list(..., append = FALSE)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{...}}{Named arguments with respective list of definition details.}
+
+\item{\code{append}}{\code{logical(1)} to append to current definitions.\cr
+If \code{FALSE} drop all pre-existing definitions (default).}
 }
 \if{html}{\out{</div>}}
 }

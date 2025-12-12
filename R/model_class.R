@@ -489,17 +489,18 @@ HousepiModel <- R6::R6Class(
         # get template/previously implemented
         stored <- private$.rcpp$export_infec_profile()
         if (length(stored) > 0) {
-          output <- data.frame(name = stored$name,
-                               args = base::I(list(stored$args)),
+          output <- data.frame(func = stored$func,
+                               func_args = base::I(list(stored$func_args)),
                                min = stored$min, max = stored$max,
                                discr = stored$discr,
                                stringsAsFactors = FALSE)
-          class(output$args) <- "list"
+          class(output$func_args) <- "list"
           return(output)
         }
         return(NULL)
       }
-      do.call(self$add_infec_profile, value)
+      xquos <- convert_list_to_quosures(value)
+      private$.infec_profile$load_quosures(xquos, append = FALSE)
     },
 
     #' @field group_rates
@@ -689,7 +690,7 @@ HousepiModel <- R6::R6Class(
     },
 
     #' @description
-    #' Load parameter definitions either as arguments or from predefined list.
+    #' Load parameter definitions as named arguments.
     #'
     #' @param ... `r rd_list_args_`
     #' @param append `r rd_list_append_`
@@ -755,8 +756,7 @@ HousepiModel <- R6::R6Class(
     },
 
     #' @description
-    #' Load augmented variable/function definitions
-    #' either as arguments or from predefined list.
+    #' Load augmented variable/function definitions as named arguments.
     #'
     #' @param ... `r rd_list_args_`
     #' @param append `r rd_list_append_`
@@ -825,8 +825,7 @@ HousepiModel <- R6::R6Class(
     },
 
     #' @description
-    #' Load group rate definitions either as direct arguments
-    #' or from predefined list.
+    #' Load group rate definitions as direct arguments.
     #'
     #' @param ... ` r rd_list_args_`
     #' @param append `r rd_list_append_`
@@ -843,18 +842,28 @@ HousepiModel <- R6::R6Class(
     #' @description
     #' Add definition of infectivity profile.
     #'
-    #' @param name `r rd_var_name_`
+    #' @param func `r rd_var_name_`
     #' @param status `r rd_aug_status_`
     #' @param discr `r rd_inf_discr_`
     #' @param ... `r rd_inf_args_`
     #' @param max `r rd_aug_max_`
-    add_infec_profile = function(name, status = NA_integer_,
+    add_infec_profile = function(func, status = NA_integer_,
                                  discr = FALSE,
                                  ..., max = NULL) {
-      private$.infec_profile$add_quo(name = name,
+      private$.infec_profile$add_quo(func = func,
                                      status = status, discr = discr,
                                      rlang::enquos(...),
                                      max = rlang::enquo(max))
+      invisible(self)
+    },
+
+    #' @description
+    #' Load infectivity profile definitions as named arguments.
+    #'
+    #' @param ... `r rd_list_args_`
+    #' @param append `r rd_list_append_`
+    load_infec_profile_list = function(..., append = FALSE) {
+      private$.infec_profile$load_quosures(rlang::enquos(...), append = append)
       invisible(self)
     },
 
@@ -946,9 +955,9 @@ HousepiModel <- R6::R6Class(
         output$infec_profile <- NULL
       } else {
         lst <- output$infec_profile
-        df <- data.frame(id = lst$id, discr = lst$discr, name = lst$name,
+        df <- data.frame(id = lst$id, discr = lst$discr, func = lst$func,
                          min = lst$min, max = lst$max)
-        df$args <- lst$args
+        df$func_args <- lst$func_args
         output$infec_profile <- df
       }
       output

@@ -140,6 +140,8 @@ housepi_combine_to_call <- function(func_name, x) {
       "Impossible to associate arguments to a sourced value."
     )
   }
+  if (length(x) == 0) return(func_name)
+
   sprintf("%s|%s|%s", func_name,
           paste(names(x), collapse = ":"),
           paste(sprintf("{%s}", x), collapse = ":"))
@@ -198,7 +200,7 @@ housepi_extractor <- function(...) {
     x_expr <- rlang::quo_get_expr(x_quo)
     # expand formula in case
     if (rlang::is_formula(x_expr)) x_expr <- rlang::f_rhs(x_expr)
-    
+
     if (is.null(x_expr)) {
       NULL
     } else if (rlang::is_call(x_expr)) {
@@ -216,7 +218,7 @@ housepi_extractor <- function(...) {
         housepi_func_from_call(x_expr)
       }
     } else if (rlang::is_syntactic_literal(x_expr) ||
-               rlang::is_symbol(x_expr)) {
+                 rlang::is_symbol(x_expr)) {
       # literals
       housepi_format_sources(c(x = x_expr))
     } else {
@@ -245,7 +247,12 @@ housepi_load_defin_quos <- function(self, implicit_name, xquos) {
     } else {
       # single implicit definition to pass to add_quo
       extra_arg <- rlang::set_names(list(def_quo), implicit_name)
-      rlang::inject(self$add_quo(name = !!nm, !!!extra_arg))
+      # associate name if provided
+      if (is.na(nm) || length(nm) == 0 || nm == "") {
+        rlang::inject(self$add_quo(!!!extra_arg))
+      } else {
+        rlang::inject(self$add_quo(name = nm, !!!extra_arg))
+      }
     }
   }
   self

@@ -6,7 +6,7 @@
 \usage{
 add_infec_profile(
   hhmodel,
-  name,
+  func,
   status = NA_integer_,
   discr = FALSE,
   ...,
@@ -16,7 +16,7 @@ add_infec_profile(
 \arguments{
 \item{hhmodel}{\code{HousepiModel} object.}
 
-\item{name}{\code{character(1)} name used by internal calls.}
+\item{func}{\code{character(1)} name used by internal calls.}
 
 \item{status}{\code{integer(1)} with household member positive status.\cr
 It is used to specify status-specific definitions.

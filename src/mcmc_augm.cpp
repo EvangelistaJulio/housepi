@@ -123,12 +123,12 @@ void MCMC::Impl::InfecProfile::init_template(u_dict<str_vec> input)
 
     try
     {
-        if (!input.count("name"))
+        if (!input.count("func"))
             throw std::invalid_argument(
                 "A function name was missing for infectivity profile template.");
 
         const size_t n_rows = hsp::read::csv_n_rows(input);
-        const str_vec file_headers = {"name", "status", "discr", hsp::params::MAX};
+        const str_vec file_headers = {"func", "status", "discr", hsp::params::MAX};
 
         for (const std::string &key : file_headers)
             if (!input.count(key))
@@ -246,21 +246,21 @@ void MCMC::Impl::InfecProfile::build(const u_dict<str_vec> &input)
         return;
 
     // check entries
-    const str_vec file_headers = {"name", "status", "discr",
+    const str_vec file_headers = {"func", "status", "discr",
                                   hsp::params::MIN, hsp::params::MAX};
     hsp::str::assert_no_unused_entries(hsp::read::extract_keys(input), file_headers);
     // check definition list has a function
-    if (!input.count("name"))
+    if (!input.count("func"))
         throw std::invalid_argument(
             "A function name choice was missing in infectivity profile definition.");
-    for (const std::string &in_name : input.at("name"))
+    for (const std::string &in_name : input.at("func"))
         if (hsp::parse::Definition(in_name).is_na())
             throw std::invalid_argument(
                 "Provided NA as a function name in infectivity profile definition.");
 
     // check if definition is generic or augmented
     if (hsp::read::csv_n_rows(input) > 1 ||
-        hsp::parse::Definition(input.at("name")[0]).is_augmented_depen() ||
+        hsp::parse::Definition(input.at("func")[0]).is_augmented_depen() ||
         hsp::parse::Definition(input.at(hsp::params::MAX)[0]).is_augmented_depen() ||
         !hsp::na::is(input.at("status")[0]))
         build_augmented_profile_(input);
@@ -275,7 +275,7 @@ void MCMC::Impl::InfecProfile::build_generic_profile_(const u_dict<str_vec> &inp
     inst_ = &InfecProfile::do_inst_default_;
     cumul_ = &InfecProfile::do_cumul_default_;
 
-    hsp::parse::Definition parser(hsp::parse::Definition(input.at("name")[0]));
+    hsp::parse::Definition parser(hsp::parse::Definition(input.at("func")[0]));
     generic_profile = compose_distr_registries(parser.root.func,
                                                "infectivity profile",
                                                {&InfecProfileRegistry::inst(),
@@ -321,7 +321,7 @@ void MCMC::Impl::InfecProfile::build_augmented_profile_(const u_dict<str_vec> &i
     // NOTE: this also control for discretization
     // UPDATE: not very clean, maybe refactor
     for (size_t r = 0; r < hsp::read::csv_n_rows(input); ++r)
-        build_generic_profile_({{"name", {hsp::parse::Definition(input.at("name")[r]).root.func}},
+        build_generic_profile_({{"func", {hsp::parse::Definition(input.at("func")[r]).root.func}},
                                 {"discr", {input.at("discr")[r]}}});
     // drop generic definition
     generic_profile = std::make_unique<Distribution>();
@@ -337,9 +337,9 @@ void MCMC::Impl::InfecProfile::build_augmented_profile_(const u_dict<str_vec> &i
         bool is_discrete = hsp::str::tobool(input.at("discr")[r]);
 
         // match infectivity profile and augmented variable definition
-        augm_profile_definitions_["name"] += {hsp::infprof::INSTANTANEOUS, hsp::infprof::CUMULATIVE};
+        augm_profile_definitions_["func"] += {hsp::infprof::INSTANTANEOUS, hsp::infprof::CUMULATIVE};
         augm_profile_definitions_["status"] += str_vec(2, input.at("status")[r]);
-        augm_profile_definitions_["func"] += str_vec(2, input.at("name")[r]);
+        augm_profile_definitions_["func"] += str_vec(2, input.at("func")[r]);
         augm_profile_definitions_["fcumul"] += {"false", "true"};
         augm_profile_definitions_["value"] += str_vec(2, hsp::na::STRING);
         augm_profile_definitions_["const"] += str_vec(2, "false");

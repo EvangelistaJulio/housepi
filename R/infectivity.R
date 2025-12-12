@@ -93,11 +93,11 @@ HousepiInfecProfile <- R6::R6Class(
       invisible(self)
     },
 
-    #
-    add_quo = function(name, status = NA_integer_,
+    #' @inherit add_infec_profile
+    add_quo = function(func, status = NA_integer_,
                        discr = FALSE, ..., max = NULL) {
       # load non-quosures
-      name <- housepi_smart_unwrap(name, "name")
+      func <- housepi_smart_unwrap(func, "func")
       status <- housepi_smart_unwrap(status, "status")
       discr <- housepi_smart_unwrap(discr, "discr")
       # load quosures
@@ -106,29 +106,44 @@ HousepiInfecProfile <- R6::R6Class(
       dots <- list(...)
       # flatten if single quosures list (from enquos)
       if (length(dots) == 1 && rlang::is_quosures(dots[[1]])) dots <- dots[[1]]
-      args <- housepi_extractor(!!!dots)
+      func_args <- housepi_extractor(!!!dots)
+      # ensure the argument name doesn't mistakenly be interpreted as argument
+      func_args <- func_args[names(func_args) != "name"]
 
-      # check infectivity profile name
-      if (is.na(name)) stop_h("Incomplete definition: missing name.")
+      # check infectivity profile function
+      if (is.na(func)) stop_h("Incomplete definition: missing function name.")
       assert_valid_status(status)
 
       self$defs <- rbind(self$defs, data.frame(list(
-        name = ifelse(is.null(args), name, housepi_combine_to_call(name, args)),
+        func = ifelse(is.null(func_args), func,
+                      housepi_combine_to_call(func, func_args)),
         status = status,
         min = ifelse(isTRUE(discr), 1, 0),
         max = ifelse(is.null(max), NA_character_, max),
         discr = isTRUE(discr)
       )))
 
+      # assert no multiple definitions have been provided
+      if (length(unique(self$defs$status)) != nrow(self$defs)) {
+        self$initialize()
+        stop_h(
+          "Found multiple infectivity profile definitions for the same status.",
+          "Falling back to template definition."
+        )
+      }
+
       invisible(self)
     },
 
-    #' @inherit add_infec_profile
-    add = function(name, status = NA_integer_,
-                   discr = FALSE, ..., max = NULL) {
-      self$add_quo(name = name, status = status,
-                   discr = discr, rlang::enquos(...),
-                   max = rlang::enquo(max))
+    #' @inherit load_infec_profile
+    load_quosures = function(xquos, append = FALSE) {
+      # UPDATE: append requires checking existing definitions.
+      # I can store old ones, compare them and then drop at the end
+      # remove previous definitions if append is false
+      if (isFALSE(append)) self$initialize()
+      self <- housepi_load_defin_quos(self, "func", xquos)
+
+      invisible(self)
     },
 
     #' @description
@@ -136,10 +151,11 @@ HousepiInfecProfile <- R6::R6Class(
     showcase = function() {
       if (length(self$defs) > 0) {
         output <- housepi_defin_showcaser(self$defs)
-        # append args if not present
-        i <- which(names(output) == "name")
-        if (names(output)[i + 1] != "args") {
-          output <- append(output, list(args = NA), after = i)
+
+        # append func_args if not present
+        i <- which(names(output) == "func")
+        if (names(output)[i + 1] != "func_args") {
+          output <- append(output, list(func_args = NA), after = i)
         }
         return(output)
       }

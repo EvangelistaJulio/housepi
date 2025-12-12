@@ -549,7 +549,7 @@ void MCMC::Impl::DataLong::build(const u_dict<str_vec> &input)
 
     // individual map for id -> index
     // note: this could be moved elsewhere if required
-    std::unordered_map<std::string, size_t> id_to_index = {};
+    u_dict<size_t> id_to_index = {};
     size_t c = 0;
     for (const Household &house : pImpl_.data_wide)
         for (const Individual &member : house)

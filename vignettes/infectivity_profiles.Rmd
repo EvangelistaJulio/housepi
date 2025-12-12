@@ -1,11 +1,11 @@
 ---
-title: "Infectivity profile and custom functions"
+title: "Infectivity profiles"
 output: 
   rmarkdown::html_vignette:
     toc: true
     toc_depth: 3
 vignette: >
-  %\VignetteIndexEntry{Infectivity profile and custom functions}
+  %\VignetteIndexEntry{Infectivity profiles}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 editor_options: 
@@ -16,27 +16,32 @@ editor_options:
 ```{r setup}
 #| include: false
 source("theme.R")
+knitr::opts_chunk$set(fig.width = 5, fig.height = 3)
 library(housepi)
 set.seed(42)
 ```
-
-# Infectivity profiles in housepi
 
 In housepi we follow the convention for infectivity profiles to be function of the generation time.
 Generation time is defined as the time from infection to transmission.
 
 Certain profiles will then be conditioned on individuals incubation periods
 
-| Delay                 | Infector Incub. Period | Infectee Incub. Period | Supported |
-|-----------------------|:----------------------:|:----------------------:|:---------:|
-| Generation Time       | &cross;                | &cross;                |  &check;  |
-| Onset to Transmission | &check;                | &cross;                |  &check;  |
-| Serial Time           | &check;                | &check;                |  &cross;  |
+<div style="display: flex; justify-content: center;">
+<div>
+
+| Delay                 | Infector | Infectee | Supported |
+|-----------------------|:--------:|:--------:|:---------:|
+| Generation Time       | &cross;  | &cross;  |  &check;  |
+| Onset to Transmission | &check;  | &cross;  |  &check;  |
+| Serial Time           | &check;  | &check;  |  &cross;  |
+
+</div>
+</div>
 
 In addition, infectivity profiles in housepi can be of two kinds:
 
-* generic: if all individuals share the same profile;
-* augmented: if profile depends on individual covariates.
+* **generic**: if all individuals share the same profile;
+* **augmented**: if profile depends on individual covariates.
 
 At any time one can provide a custom choice for the infectivity profile, however all models depending on profiles have a templated definition incorporated.  
 
@@ -53,7 +58,7 @@ defs
 ```
 
 ```{r}
-profile <- expose_infec_profile(defs$name, defs$args)
+profile <- expose_infec_profile(defs$func, defs$func_args)
 infec <- dplyr::tibble(gentime = seq(0, 10, 0.01),
                        inst = profile$pdf(gentime),
                        cumul = profile$cdf(gentime))
@@ -103,7 +108,7 @@ The discrete profile is now a discretized gamma with the same parameters^[Howeve
 #| fig.alt: >
 #|  Discrete instantaneous infectivity profile as a function of the generation day in black.
 #|  On a second axis in orange, the corresponding cumulative infectivity profile.
-profile <- expose_infec_profile(defs$name, defs$args, discr = TRUE)
+profile <- expose_infec_profile(defs$func, defs$func_args, discr = TRUE)
 infec <- dplyr::tibble(gentime = seq(0, 10, 0.01),
                        inst = profile$pdf(gentime),
                        cumul = profile$cdf(gentime))
@@ -140,7 +145,7 @@ defs
 #| fig.alt: >
 #|  Custom discrete instantaneous infectivity profile in black.
 #|  On a second axis in orange, the corresponding cumulative infectivity profile.
-profile <- expose_infec_profile(defs$name, defs$args, 
+profile <- expose_infec_profile(defs$func, defs$func_args, 
                                 min = defs$min, discr = TRUE)
 infec <- dplyr::tibble(gentime = seq(0, 10, 0.01),
                        inst = profile$pdf(gentime),
@@ -161,103 +166,9 @@ ggplot(infec, aes(x = gentime)) +
   labs(x = "Generation Day")
 ```
 
-# Other custom functions (advanced)
-
-Custom functions are added in the C++ source code by inheriting from a base class
-`Function`, and overriding one or more of their virtual methods.
-
-Once our function class is defined, we can register it using the macro `REGISTER_USER_FUNCTION`, making the new function available to the model system and to R by its register name.
-
-In our simplified example, we define a custom "monomial" function. 
-This is done by providing a constructor with the register name, its argument names and default valued, and by overriding the `raw_call_` method as follows 
-```{Rcpp, eval=FALSE}
-// inside path/to/mymodel/
-class MyMonomialFunction : public Function {
-public:
-    MyMonomialFunction()          // constructor
-        : Function("my_monomial", // function name used in registers
-                   {"a", "b"},    // names of arguments
-                   {1.0, 1.0},    // default values
-                   0.0) {}        // value of the minimum
-  
-protected:
-    // internal method called when the function is evaluated
-    double raw_call_(double x) const override final {
-        const double a = arg(0); // arguments order is by definition
-        const double b = arg(1);
-        return a * std::pow(x, b);
-    }
-};
-
-// register user function so that it can be used in the analysis
-REGISTER_USER_FUNCTION(CustomSquareFunction)
-```
-
-## How It Works
-
-\item Inheritance and Constructor:
-The class `MyMonomialFunction` inherits from `Function`. 
-In the constructor, we define:
-\item The register name of the function;
-\item A list of argument names (note that "x" is reserved);
-\item A list of default argument values;
-\item Information about minimum and maximum value.
-
-\item Overriding methods:
-The `raw_call_` method is overridden to implement the core computation. 
-
-\item Macro Registration:
-The `REGISTER_USER_FUNCTION` macro at the end registers the custom function. 
-This makes the "my_monomial" function available to the framework and allows you to associate directly from R.
-
-Once the new model has been generated, the function will be visible from its environment and you will be able to test it as follows
-
-```{r}
-#| eval: false
-#| include: true
-hhmodel <- new_housepi_model("path/to/mymodel/")
-x <- seq(0, 5, 0.5)
-test_function("my_monomial", a = 2, b = 3, model = hhmodel)$func(x)
-```
-
-```{r}
-#| eval: true
-#| include: false
-x <- seq(0, 5, 0.5)
-a <- 2
-b <- 3
-cat(a * x ^ b)
-```
-
-## Discretization, distributions
-
-Optionally, we can enable discretization by overriding `init_discretization` and providing a primitive (cumulative function) via `raw_primitive_`. 
-This is useful if your function is later integrated or used in a discretized setting.
-
-\item Providing a primitive:
-Implement `raw_primitive_` if you need a cumulative version of your function (or another primitive), for example when integrating the function over time.
-\item Initialize reshaping:
-If discretization is needed, override `init_discretization`. In our case, we call the helper `init_discr_helper_` with a flag (e. g. `HSP_DISCR_LEFT`) to tell the framework that our function should be rearranged according to a given discretization scheme (e. g. left discretization). 
-If it's not discrete defined (flag `HSP_DISCR_DEFINED`), a primitive must be provided.
-
-```{Rcpp, eval=FALSE}
-class MyCustomFunction : public Function {
-public:
-    // constructor...
-    
-    // enable left discretization
-    void init_discretization() { init_discr_helper_(HSP_DISCR_LEFT); } 
-
-protected:
-    //  raw_call_ ...
-    
-    // internal method called when the function is evaluated
-    double raw_primitive_(double x) const override final {
-        const double a = arg(0), b_plus_1 = arg(1) + 1;
-        return a * std::pow(x, b_plus_1) / (b_plus_1);
-    }
-};
-```
+If the profiles, distributions or functions currently loaded in housepi are not sufficient to deal with your case study, we provided a mechanism to define custom functions.
+Unfortunately, this requires some programming knowledge in C++.
+We show how to deal with [User functions](user_functions.html) in the namesake vignette.
 
 ---
 ```{r, results='asis', echo=FALSE}

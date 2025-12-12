@@ -102,14 +102,14 @@ test_that("Log-likelihood of augmented infection time model is correct", {
                 size_ref = 4, study_period = 45, shape = 2, scale = 1.1)
 
   for (discr in c(FALSE, TRUE)) {
-    hhmodel <- new_housepi_model("augmented_infection_time", 
+    hhmodel <- new_housepi_model("augmented_infection_time",
                                  discr = discr, quiet = TRUE) |>
       add_data_wide(house) |>
       load_parameter_list(!!!param) |>
       load_augmented_list(infec_time = infec_time@D,
                           incub_period = incub_period@D,
                           onset_time = onset_time@D) |>
-      add_infec_profile(name = "gamma", discr = discr,
+      add_infec_profile(func = "gamma", discr = discr,
                         shape = shape@P, scale = scale@P)
 
     expect_equal(evaluate_log_lik(hhmodel),

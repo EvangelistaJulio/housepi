@@ -69,9 +69,18 @@ Our project aims at expanding the present collection of templates, in order to f
 ## Format of the data
 
 Data can be provided as a numerical data.frame in wide format, where individual information are organised by row.
+A simplistic dataset would look something like
+
+```{r}
+#| echo: false
+knitr::kable(housepi:::template_blank_data_wide_())
+```
+
+A column `"id"` with individual identifiers is provided to keep track of changes and make errors more readable; otherwise housepi will automatically tag individuals with row numbers.
+
 To group individuals in households, a column `"house_id"` with the respective household tag needs to be present.
-Individuals with the same "house_id" will then be considered to belong to same household.
-Additionally, a column `"id"` with individual identifiers can also be provided, otherwise hosuepi will tag individuals with row numbers.
+Individuals with the same households id will then be considered to belong to same household.
+No household id implies that all individuals in the data are living separately. 
 
 To perform model inference, a `"status"` must be provided for each individual $i$.
 Status $s_{i}$ should be an integer value satisfying the following convention:
@@ -255,8 +264,11 @@ hhsimul <- hhsimul |>
     append = TRUE 
   )
 ```
+
 To see how to associate group rates in heterogeneous models, see the vignette [Group rates](group_rates.html).
 However, by default if no group rate definition is provided all values are set to reference value 1, so we can forget about this alert for the rest of the walkthrough.
+Similarly, we can use the infectivity profile template for the sake of demonstration.
+Provide a custom definition following the vignette [Infectivity profiles](infectivity_profiles.html).
 
 We then run a simulation with the method `run_simulation`, using the same community structure from the survey, but dropping cases.
 In this configuration, introductions are sampled randomly. 
