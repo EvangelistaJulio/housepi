@@ -27,8 +27,6 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "model.h"
-// FLAG
-#include "tools/messages.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////  Model : compute single house log-likelihood  /////////////////////////////
@@ -39,13 +37,7 @@ double Model::compute_household_obs_log_lik(Household &house)
 {
 	double output = 0.0;
 	for (const Individual &member : house.infected())
-	{
-		// FLAG
-		hsp::msg::info(member.id() + ": " +
-					   member.get_augm_variable("proba").str_summary() + "\n");
 		output += std::log(member.augm("proba"));
-	}
-
 	return output;
 }
 
