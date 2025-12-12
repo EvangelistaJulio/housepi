@@ -104,3 +104,18 @@ test_that("Non default arguments are loaded correctly", {
                      proposal = "lognormal")
   ))
 })
+
+test_that("Symbolic definitions are equivalent", {
+  param <- housepi:::HousepiParameter$new()
+  val <- 1
+  aux_load(param,
+           var1 = list(prior = "normal", mean = indiv_shape + 1),
+           var2 = list(prior = "normal", mean = indiv_shape + !!val),
+           var3 = list(prior = "normal", mean = ~ indiv_shape + 1),
+           var4 = list(prior = "normal", mean = ~ indiv_shape + !!val))
+  aux <- param$defs
+  aux$name <- NULL
+  
+  # check that all rows are identical
+  expect_equal(nrow(unique(aux)), 1)
+})

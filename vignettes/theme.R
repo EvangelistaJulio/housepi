@@ -28,9 +28,9 @@ ggplot2::update_geom_defaults("errorbar", list(color = "#FF7F50", size = 1,
                                                width = 0.1))
 # bayesplot theme
 bayesplot::bayesplot_theme_set(ggplot2::theme_get())
-bayesplot::color_scheme_set(c("#afe8ff", "#89cbff",
-                              "#4ca5ff", "#198bff",
-                              "#0065cc", "#004c99"))
+bayesplot::color_scheme_set(c("#6ec5ff", "#3db1ff", 
+                              "#0d8fff", "#0070dd", 
+                              "#0055aa", "#003d77"))
 
 # flextable theme
 flextable::set_flextable_defaults(

@@ -92,7 +92,7 @@ double Model::loglike_healthy(const Household &house) const
 		double roi_cumul = 0;
 		for (const Individual &member_k : house.infected())
 			roi_cumul += cumul_mtx[member_k][member_i] * member_k.group_rate("infectivity");
-		output -= alpha_cumul + member_i.group_rate("susceptibility") * beta * roi_cumul;
+		output -= member_i.group_rate("community") * alpha_cumul + member_i.group_rate("susceptibility") * beta * roi_cumul;
 	}
 
 	return output;
@@ -129,13 +129,13 @@ double Model::loglike_infectious(const Household &house) const
 			roi_cumul_i *= b_i;
 
 			// Risk of infection from community
-			roi_inst_i += alpha;
+			roi_inst_i += member_i.group_rate("community") * alpha;
 
 #ifdef _HOUSEPI_DISCRETE_TIME
-			roi_cumul_i += alpha * (member_i.augm("infec_time") - 1. - t_intro);
+			roi_cumul_i += member_i.group_rate("community") * alpha * (member_i.augm("infec_time") - 1. - t_intro);
 			output += std::log(1. - std::exp(-roi_inst_i)) - roi_cumul_i;
 #else
-			roi_cumul_i += alpha * (member_i.augm("infec_time") - t_intro);
+			roi_cumul_i += member_i.group_rate("community") * alpha * (member_i.augm("infec_time") - t_intro);
 			output += std::log(roi_inst_i) - roi_cumul_i;
 #endif
 		}

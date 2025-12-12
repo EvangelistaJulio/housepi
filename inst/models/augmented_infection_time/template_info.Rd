@@ -10,9 +10,9 @@ A susceptible member can get infected at time/day \eqn{t_{i}}{t_i} according to 
 \section{Likelihood}{
 \itemize{
 \item Force of infection: \deqn{
-{\lambda}_{i}(t) = {\alpha} + {\mu}^{(\rm sus)}_{i} {\beta} \left(\frac{n_{\ast}}{n}\right)^{\gamma} \sum_{k\,:\,t_{k}<t_{i}} {\mu}^{(\rm inf)}_{k} f_{k}(t)
+{\lambda}_{i}(t) = {\mu}^{(\rm com)}_{i} {\alpha} + {\mu}^{(\rm sus)}_{i} {\beta} \left(\frac{n_{\ast}}{n}\right)^{\gamma} \sum_{k\,:\,t_{k}<t_{i}} {\mu}^{(\rm inf)}_{k} f_{k}(t)
 }{
-lambda_i(t) = alpha + mu_sus_i * beta * (n_star/n)^gamma sum_{k: t_k < t_i} mu_inf_k f_k(t)
+lambda_i(t) = mu_com_i * alpha + mu_sus_i * beta * (n_star/n)^gamma sum_{k: t_k < t_i} mu_inf_k f_k(t)
 }
 \item Infectivity profile: \eqn{f_{k}}{f_k}.
 }
@@ -20,8 +20,9 @@ lambda_i(t) = alpha + mu_sus_i * beta * (n_star/n)^gamma sum_{k: t_k < t_i} mu_i
 }
 \section{Group Rates}{
 \itemize{
-\item \code{infectivity} \eqn{{\mu}^{(\rm inf)}}{mu_inf}: individual predisposition of transmission relative to reference;
-\item \code{susceptibility} \eqn{{\mu}^{(\rm sus)}}{mu_sus}: individual predisposition of infection relative to reference.
+\item \code{community} \eqn{{\mu}^{(\rm com)}}{mu_com}: individual predisposition to infection from community relative to reference;
+\item \code{susceptibility} \eqn{{\mu}^{(\rm sus)}}{mu_sus}: individual predisposition to infection relative to reference.
+\item \code{infectivity} \eqn{{\mu}^{(\rm inf)}}{mu_inf}: individual predisposition to transmission relative to reference;
 }
 \if{html}{\out{<hr>}}
 }

@@ -50,6 +50,7 @@ test_that("Model class blank calls", {
 
 test_that("Active bindings work as expected", {
   hhmodel <- new_housepi_model("blank")
+  
   # parameters
   hhmodel$parameters <- list(sample = list(prior = "uniform"),
                              uniform = list(prior = "uniform"))
@@ -58,6 +59,17 @@ test_that("Active bindings work as expected", {
                               uniform = list(prior = "uniform"))
   expect_equal(defs_a, hhmodel$parameters)
   
+  val <- 1
+  hhmodel$load_parameter_list(
+   var1 = list(prior = "normal", mean = indiv_shape + 1),
+   var2 = list(prior = "normal", mean = indiv_shape + !!val),
+   var3 = list(prior = "normal", mean = ~ indiv_shape + 1),
+   var4 = list(prior = "normal", mean = ~ indiv_shape + !!val)
+  )
+  aux <- hhmodel$parameters
+  aux$name <- NULL  
+  expect_equal(nrow(unique(aux)), 1)
+  
   # augmented
   hhmodel$augmented <- list(sample = list(model = "uniform"),
                             uniform = list(model = "uniform"))
@@ -65,6 +77,17 @@ test_that("Active bindings work as expected", {
   hhmodel$load_augmented_list(sample = list(model = "uniform"),
                               uniform = list(model = "uniform"))
   expect_equal(defs_a, hhmodel$augmented)
+  
+  val <- 3
+  hhmodel$load_augmented_list(
+   var1 = list(model = "normal", mean = indiv_shape + 3),
+   var2 = list(model = "normal", mean = indiv_shape + !!val),
+   var3 = list(model = "normal", mean = ~ indiv_shape + 3),
+   var4 = list(model = "normal", mean = ~ indiv_shape + !!val)
+  )
+  aux <- hhmodel$augmented
+  aux$name <- NULL
+  expect_equal(nrow(unique(aux)), 1)
 })
 
 test_that("Discretization is enabled as expected", {

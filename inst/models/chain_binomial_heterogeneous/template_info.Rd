@@ -5,7 +5,6 @@
 The chain binomial model assumes transmission occurs at discrete generation time units.
 The heterogeneous model assumes risk of transmission to depend on individuals features.
 The index cases are not known a priori and represent the initial generation.
-See \href{_hhmodel_chain_binomial.html}{Chain Binomial} for more details.
 \if{html}{\out{<hr>}}
 }
 \section{Likelihood}{
@@ -19,9 +18,9 @@ See \href{_hhmodel_chain_binomial.html}{Chain Binomial} for more details.
 }
 \section{Group Rates}{
 \itemize{
-\item \code{infectivity} \eqn{{\mu}^{(\rm inf)}}{mu_inf}: individual predisposition of transmission relative to reference;
-\item \code{susceptibility} \eqn{{\mu}^{(\rm sus)}}{mu_sus}: individual predisposition of infection relative to reference;
-\item \code{community} \eqn{{\mu}^{(\rm com)}}{mu_com}: individual predisposition of infection from community relative to reference;
+\item \code{community} \eqn{{\mu}^{(\rm com)}}{mu_com}: individual predisposition to infection from community relative to reference;
+\item \code{susceptibility} \eqn{{\mu}^{(\rm sus)}}{mu_sus}: individual predisposition to infection relative to reference;
+\item \code{infectivity} \eqn{{\mu}^{(\rm inf)}}{mu_inf}: individual predisposition to transmission relative to reference;
 }
 \if{html}{\out{<hr>}}
 }

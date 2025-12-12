@@ -76,11 +76,17 @@ Additionally, a column `"id"` with individual identifiers can also be provided, 
 To perform model inference, a `"status"` must be provided for each individual $i$.
 Status $s_{i}$ should be an integer value satisfying the following convention:
 
+<div style="display: flex; justify-content: center;">
+<div>
+
 | Status $s_{i}$ | Compartment | Serology     |
 |:--------------:|-------------|--------------|
 | $\geq$ `1`     | infectious  | seropositive |
 | `0`            | susceptible | seronegative |
 | `NA`           | missing     | missing      |
+
+</div>
+</div>
 
 In this way we can uses the status as a label of different infectious classes. 
 E. g. we could say that $s_{i} = 1$ refers to symptomatic individuals, and $s_{i} = 2$ for asymptomatic.

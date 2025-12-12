@@ -45,6 +45,9 @@ In many applications, augmented variable definitions can also depend on the data
 We can declare the source of argument value with the convention `<argument> \@ <source_symbol>`.
 E. g. "visit_day\@D" will source the value at individual data "visit_day".
 
+<div style="display: flex; justify-content: center;">
+<div>
+
 | Source     | Symbol | Examples          |
 |------------|:------:|:-----------------:|
 | Augmented  | A      | time OR time\@A   |
@@ -52,6 +55,9 @@ E. g. "visit_day\@D" will source the value at individual data "visit_day".
 | Group Rate | G      | susceptibility\@G |
 | Numeric    | N      | 14                |
 | Parameter  | P      | mean\@P           |
+
+</div>
+</div>
 
 Notice that a variable name without explicit source will automatically be assumed to be an augmented variable.
 Similarly, there's no need to explicitate the source of a numeric value. 
@@ -70,8 +76,6 @@ For asymptomatic members we draw the infection time uniformly within the period 
 
 ```{r}
 #| warning: false
-#| fig.alt: >
-#|  Density plots of augmented infection times for two household members.
 library(ggplot2)
 
 onset_tommy <- 5
@@ -82,6 +86,7 @@ hhmodel <- new_housepi_model("augmented_infection_time") |>
                            house_id = "house_1")) |> 
   load_parameter_list(alpha = 0.001, beta = 0.07, gamma = 0.9,
                       size_ref = 4, study_period = 10) |> 
+
   # associate augmented definitions
   load_augmented_list(
     # augmented infection time for symptomatic members 
@@ -89,14 +94,19 @@ hhmodel <- new_housepi_model("augmented_infection_time") |>
     infec_time = onset_time - incub_period,
     onset_time = onset_date@D,
     incub_period = list(model = "gamma", shape = 2, scale = 1),
+
     # augmented infection time for asymptomatic members
     # here we use a status specific definition, with priority over generic
     infec_time = list(status = 2, model = "uniform", 
                       min = !!onset_tommy, max = !!onset_tommy + 10)
   )
+```
 
+```{r}
+#| fig.alt: >
+#|  Density plots of augmented infection times for two household members.
 # run inference following traces of specific individuals
-results <- hhmodel |> 
+hhmodel |> 
   run_inference(steps = 500, id_draws = c("tommy", "gina")) |> 
   get_augm_draws() |> 
   posterior::subset_draws(variable = "infec_time$", regex = TRUE) |> 

@@ -152,3 +152,19 @@ test_that("Augmented support rlang double bang", {
                sprintf("log|x|{sum|x:x2|{infec|A}:{%s}}", str_value))
   subset(augm$defs, name == "C")
 })
+
+test_that("Symbolic definitions are equivalent", {
+  augm <- housepi:::HousepiAugmented$new()
+  val <- 1
+  aux_load(augm,
+           var1 = list(model = "normal", mean = indiv_shape + 1),
+           var2 = list(model = "normal", mean = indiv_shape + !!val),
+           var3 = list(model = "normal", mean = ~ indiv_shape + 1),
+           var4 = list(model = "normal", mean = ~ indiv_shape + !!val))
+  aux <- augm$defs
+  aux$name <- NULL
+  
+  # check that all rows are identical
+  expect_equal(nrow(unique(aux)), 1)
+})
+

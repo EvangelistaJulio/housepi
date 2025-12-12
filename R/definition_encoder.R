@@ -196,12 +196,13 @@ housepi_extractor <- function(...) {
 
   output <- unlist(lapply(x_quos, function(x_quo) {
     x_expr <- rlang::quo_get_expr(x_quo)
-    x_text <- rlang::quo_text(x_quo)
-
+    # expand formula in case
+    if (rlang::is_formula(x_expr)) x_expr <- rlang::f_rhs(x_expr)
+    
     if (is.null(x_expr)) {
       NULL
     } else if (rlang::is_call(x_expr)) {
-      # calls
+      # apply housepi format to formulas
       if (rlang::call_name(x_expr) %in% c("-", "+") &&
             length(x_expr) == 2 &&
             rlang::is_syntactic_literal(x_expr[[2]])) {
@@ -209,15 +210,13 @@ housepi_extractor <- function(...) {
         housepi_format_sources(c(x = eval(x_expr)))
       } else if (rlang::call_name(x_expr) == "@") {
         # sourced unary
-        housepi_format_sources(c(x = x_text))
+        housepi_format_sources(c(x = rlang::expr_text(x_expr)))
       } else {
         # function
         housepi_func_from_call(x_expr)
       }
-    } else if (rlang::is_symbol(x_expr)) {
-      # symbols
-      housepi_format_sources(c(x = x_text))
-    } else if (rlang::is_syntactic_literal(x_expr)) {
+    } else if (rlang::is_syntactic_literal(x_expr) ||
+               rlang::is_symbol(x_expr)) {
       # literals
       housepi_format_sources(c(x = x_expr))
     } else {
