@@ -296,3 +296,27 @@ housepi_load_template_list <- function(self, templ_file, family,
   }
   self
 }
+
+# Assert that arguments provided to model are legitimate.
+# UPDATE: to be generalized beyond distributions
+housepi_assert_args <- function(hhmodel, defs, family, max_print = 5) {
+  readable_defs <- housepi_defin_showcaser(defs)
+  for (r in seq_len(nrow(readable_defs))) {
+    dist_name <- readable_defs[r, family]
+    if (!is.na(dist_name)) {
+      col_args <- ifelse(family == "func", "func_args", "args")
+      arg_names <- names(readable_defs[r, col_args][[1]])
+      # NOTE: I am assuming `1` is a safe argument...
+      fake_args <- stats::setNames(rep(1, length(arg_names)), arg_names)
+      # trigger C++ errors
+      tryCatch(
+        expose_distribution(dist_name, fake_args, hhmodel = hhmodel),
+        error = function(e) {
+          stop_h(sprintf("Wrong definition found for '%s'.",
+                         readable_defs[r, "name"]),
+                 strsplit(e$message, "\n")[[1]][-1])
+        }
+      )
+    }
+  }
+}

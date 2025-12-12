@@ -333,6 +333,7 @@ HousepiModel <- R6::R6Class(
 
     # @description
     # Sugar for log-likelihood computation errors in try-catch.
+    # UPDATE: this doesn't work on a full pipe...
     .helper_log_lik_error = function(e) {
       h <- stringr::str_extract(e$message, "(?<=household ')[^']+(?=')")
       i <- stringr::str_extract(e$message, "(?<=individual ')[^']+(?=')")
@@ -343,7 +344,7 @@ HousepiModel <- R6::R6Class(
       # store house_id somewhere
       stop_h(
         e$message,
-        "Use '$export_house_snapshot' to show last status of the hosuehold."
+        "Use '$export_house_snapshot' to show last status of the household."
       )
     },
 
@@ -686,6 +687,7 @@ HousepiModel <- R6::R6Class(
                              min = rlang::enquo(min), max = rlang::enquo(max),
                              proposal = proposal,
                              proposal_scale = proposal_scale)
+      housepi_assert_args(self, tail(private$.param$defs, 1), "prior")
       invisible(self)
     },
 
@@ -696,6 +698,7 @@ HousepiModel <- R6::R6Class(
     #' @param append `r rd_list_append_`
     load_parameter_list = function(..., append = FALSE) {
       private$.param$load_quosures(rlang::enquos(...), append = append)
+      housepi_assert_args(self, private$.param$defs, "prior")
       invisible(self)
     },
 
@@ -752,6 +755,7 @@ HousepiModel <- R6::R6Class(
                             min = rlang::enquo(min), max = rlang::enquo(max),
                             proposal = proposal,
                             proposal_scale = proposal_scale)
+      housepi_assert_args(self, tail(private$.augm$defs, 1), "model")
       invisible(self)
     },
 
@@ -762,6 +766,7 @@ HousepiModel <- R6::R6Class(
     #' @param append `r rd_list_append_`
     load_augmented_list = function(..., append = FALSE) {
       private$.augm$load_quosures(rlang::enquos(...), append = append)
+      housepi_assert_args(self, private$.augm$defs, "model")
       invisible(self)
     },
 
@@ -821,6 +826,7 @@ HousepiModel <- R6::R6Class(
                                    max = rlang::enquo(max),
                                    proposal = proposal,
                                    proposal_scale = proposal_scale)
+      # UPDATE: I didn't find a way to assert prior arguments here
       invisible(self)
     },
 
@@ -832,6 +838,7 @@ HousepiModel <- R6::R6Class(
     load_group_rate_list = function(..., append = FALSE) {
       if (isFALSE(append)) self$drop_group_rates()
       private$.group_rates$load_quosures(rlang::enquos(...), append = append)
+      # UPDATE: I didn't find a way to assert prior arguments here
       invisible(self)
     },
 

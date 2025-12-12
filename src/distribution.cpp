@@ -7,11 +7,11 @@
  *                               /_/
  *
  * housepi - Epidemiological Analysis of Household Outbreaks.
- * 
+ *
  * Author: Francesco Camaglia
  * Copyright © 2025 Institut Pasteur (Paris), CNRS and INSERM.
  * See the COPYRIGHT file for details.
- * 
+ *
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the COPYING file for details.
  *
@@ -397,7 +397,7 @@ protected:
     const double shape = (m * m) / v; \
     const double scale = v / m;
 
-/// Gamma (Mean-Varance) Distribution derived class.
+/// Gamma (Mean-Variance) Distribution derived class.
 class GammaMeanVar_Distribution : public Distribution
 {
 public:

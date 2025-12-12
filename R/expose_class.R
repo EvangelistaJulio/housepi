@@ -208,6 +208,11 @@ add_parameter <- function(hhmodel,
     min = rlang::enquo(min), max = rlang::enquo(max),
     proposal = proposal, proposal_scale = proposal_scale
   )
+  housepi_assert_args(
+    new_object,
+    tail(new_object$.__enclos_env__$private$.param$defs, 1),
+    "prior"
+  )
   new_object
 }
 
@@ -280,6 +285,11 @@ add_augmented <- function(hhmodel,
     model = model, rlang::enquos(...),
     min = rlang::enquo(min), max = rlang::enquo(max),
     proposal = proposal, proposal_scale = proposal_scale
+  )
+  housepi_assert_args(
+    new_object,
+    tail(new_object$.__enclos_env__$private$.augm$defs, 1),
+    "model"
   )
   new_object
 }
@@ -407,6 +417,11 @@ helper_load_def_list <- function(pvt_module, hhmodel, xquos, append) {
   new_object <- hhmodel$clone(deep = TRUE)
   new_object$.__enclos_env__$private[[pvt_module]]$load_quosures(
     xquos, append = append
+  )
+  housepi_assert_args(
+    new_object,
+    new_object$.__enclos_env__$private[[pvt_module]]$defs,
+    ifelse(pvt_module == ".augm", "model", "prior")
   )
   new_object
 }

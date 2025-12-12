@@ -6,10 +6,11 @@
 #' Simulated assuming an incubation period gamma distributed.
 #' Date are assumed shifted so that exposure period starts from day 0.
 #'
-#' @param n `integer` Number of individuals to simulate.
-#' @param mean `numeric` Mean of the incubation period distribution.
-#' @param var `numeric` Variance of the incubation period distribution.
-#' @param report_error `numeric` Probability of reporting error on symptom onset date.
+#' @param size `integer(1)` Number of individuals to simulate.
+#' @param mean `numeric(1)` Mean of the incubation period distribution.
+#' @param df `numeric(1)` Std. deviation of the incubation period distribution.
+#' @param report_error `numeric(1)` Probability of reporting error on symptom onset date.
+#' @param proba_duration `numeric()` Probabilities of duration of exposure.
 #'
 #' @return `data.frame`\cr
 #' \item{exposure_min}{Day exposure starts}
@@ -19,26 +20,23 @@
 #' \item{status}{Individual status }
 #'
 #' @keywords internal
-generate_delays_report <- function(n, mean = 2.2,
-                                   var = 2.5, report_error = 0.73) {
-  # time 1
-  value_duration_1 <- 1:4
-  proba_duration_1 <- c(0.28, 0.34, 0.26, 0.12)
-
+generate_delays_report <- function(size,
+                                   mean = 2.2,
+                                   var = 1.4,
+                                   report_error = 0.73,
+                                   proba_duration = c(0.28, 0.34, 0.26, 0.12)) {
   shape <- mean * mean / var
   scale <- var / mean
-  # incubation period
-  delay_value <- function() rgamma(1, shape = shape, scale = scale)
 
   simulate_delay_data <- function(x) {
     # exposure interval
     t1_min <- 0
-    t1_max <- value_duration_1[rmultinom(1, 1, proba_duration_1)[, 1] == 1]
+    t1_max <- sample(length(proba_duration), 1, prob = proba_duration)
 
     # exact time of infection
     t1 <- runif(1, t1_min, t1_max)
-    # onset time
-    t2 <- t1 + delay_value()
+    # onset time + incubation period
+    t2 <- t1 + rgamma(1, shape = shape, scale = scale)
 
     # onset interval
     t2_min <- as.integer(t2)
@@ -50,12 +48,11 @@ generate_delays_report <- function(n, mean = 2.2,
       else t2_max <- t2_max + 1.
     }
 
-    c(t1 = t1, t2 = t2,
-      t1_min = t1_min, t1_max = t1_max,
+    c(t1_min = t1_min, t1_max = t1_max,
       t2_min = t2_min, t2_max = t2_max)
   }
 
-  full_dataset <- as.data.frame(t(sapply(1:n, simulate_delay_data)))
+  full_dataset <- as.data.frame(t(sapply(1:size, simulate_delay_data)))
 
   # final dataset
   data.frame(status = 1,

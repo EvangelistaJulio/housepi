@@ -117,6 +117,6 @@ augmented_find_required_def <- function(defs, type) {
 # according to the "type" of the definition.
 infec_prof_find_required_def <- function(defs, type) {
   find_required_definitions(
-    defs, type, c("name", "max"), "infectivity profile"
+    defs, type, c("func", "max"), "infectivity profile"
   )
 }

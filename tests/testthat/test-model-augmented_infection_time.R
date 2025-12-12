@@ -100,15 +100,17 @@ test_that("Log-likelihood of augmented infection time model is correct", {
   # choice for the parameters
   param <- list(alpha = 1e-04, beta = 0.07, gamma = 0.9,
                 size_ref = 4, study_period = 45, shape = 2, scale = 1.1)
-
+  # choice for the augmented variables
+  augm <- list(infec_time = ~ infec_time@D,
+               incub_period = ~ incub_period@D,
+               onset_time = ~ onset_time@D)
+  
   for (discr in c(FALSE, TRUE)) {
     hhmodel <- new_housepi_model("augmented_infection_time",
                                  discr = discr, quiet = TRUE) |>
       add_data_wide(house) |>
       load_parameter_list(!!!param) |>
-      load_augmented_list(infec_time = infec_time@D,
-                          incub_period = incub_period@D,
-                          onset_time = onset_time@D) |>
+      load_augmented_list(!!!augm) |>
       add_infec_profile(func = "gamma", discr = discr,
                         shape = shape@P, scale = scale@P)
 

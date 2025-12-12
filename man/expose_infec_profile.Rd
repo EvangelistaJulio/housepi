@@ -10,7 +10,7 @@ expose_infec_profile(
   min = NA_real_,
   max = NA_real_,
   discr = FALSE,
-  model = NULL
+  hhmodel = NULL
 )
 }
 \arguments{
@@ -24,8 +24,8 @@ expose_infec_profile(
 
 \item{discr}{\code{logical(1)} to treat definition as discrete.}
 
-\item{model}{\code{HousepiModel} object containing the custom registred \%s.\cr
-If \code{NULL} (default) the built-in registry is used.\cr}
+\item{hhmodel}{\code{HousepiModel} object containing the custom registred \%s.\cr
+If \code{NULL} (default) the built-in registry is used.}
 }
 \value{
 An object of class \code{InfecProfileHousepi}.

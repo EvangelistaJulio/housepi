@@ -73,7 +73,7 @@ test_that("Missing function arguments raise errors", {
 
   # data with NA values
   hhmodel$drop_augmented()
-  hhmodel$add_augmented(name = "proba", func = "gamma", 
+  hhmodel$add_augmented(name = "proba", func = "gamma",
                         func_args = c(shape = 2))
   expect_error(hhmodel$evaluate_log_lik(), regexp = "Impossible to return")
 

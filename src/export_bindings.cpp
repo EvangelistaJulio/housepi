@@ -91,6 +91,18 @@ RCPP_MODULE(housepi_flags)
             ptr_->set_eval##_primitive();                                                          \
             return call_(x);                                                                       \
         }                                                                                          \
+        Rcpp::NumericVector args() const                                                           \
+        {                                                                                          \
+            Rcpp::NumericVector output(ptr_->n_args());                                            \
+            Rcpp::CharacterVector names(ptr_->n_args());                                           \
+            for (size_t i = 0; i < ptr_->n_args(); ++i)                                            \
+            {                                                                                      \
+                output[i] = ptr_->arg(i);                                                          \
+                names[i] = ptr_->arg_name(i);                                                      \
+            }                                                                                      \
+            output.names() = std::move(names);                                                     \
+            return output;                                                                         \
+        }                                                                                          \
                                                                                                    \
     private:                                                                                       \
         std::unique_ptr<Function> ptr_;                                                            \
@@ -143,7 +155,8 @@ RCPP_MODULE(housepi_function)
     Rcpp::class_<HousepiRcppFunction>("HousepiRcppFunction")
         .constructor<std::string, SEXP, double, double, bool>()
         .method("func", &HousepiRcppFunction::func)
-        .method("prim", &HousepiRcppFunction::prim);
+        .method("prim", &HousepiRcppFunction::prim)
+        .method("args", &HousepiRcppFunction::args);
 }
 
 //' @name HousepiRcppDistribution
@@ -175,7 +188,8 @@ RCPP_MODULE(housepi_distribution)
     Rcpp::class_<HousepiRcppDistribution>("HousepiRcppDistribution")
         .constructor<std::string, SEXP, double, double, bool>()
         .method("pdf", &HousepiRcppDistribution::pdf)
-        .method("cdf", &HousepiRcppDistribution::cdf);
+        .method("cdf", &HousepiRcppDistribution::cdf)
+        .method("args", &HousepiRcppDistribution::args);
 }
 
 //' @name HousepiRcppInfecProfile
@@ -208,7 +222,8 @@ RCPP_MODULE(housepi_infec_profile)
     Rcpp::class_<HousepiRcppInfecProfile>("HousepiRcppInfecProfile")
         .constructor<std::string, SEXP, double, double, bool>()
         .method("pdf", &HousepiRcppInfecProfile::pdf)
-        .method("cdf", &HousepiRcppInfecProfile::cdf);
+        .method("cdf", &HousepiRcppInfecProfile::cdf)
+        .method("args", &HousepiRcppInfecProfile::args);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

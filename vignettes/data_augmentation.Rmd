@@ -132,7 +132,9 @@ Instead we consider a simulated report documenting the days when a number of cas
 # use an example script for generate delays
 source("generate_delays.R")
 # generate delays according to a gamma distribution
-dataset <- generate_delays_report(223, mean = 2.2, var = 2.5,
+true_mean <- 2.2
+true_var <- 1.4
+dataset <- generate_delays_report(223, mean = true_mean, var = true_var, 
                                   report_error = 0.73)
 head(dataset)
 ```
@@ -154,7 +156,7 @@ hhmodel <- new_housepi_model("augmented_example") |>
   load_augmented_list(
     # explicit declaration of incubation period likelihood
     proba = list(
-      func = "gamma_meanvar",         # gamma distribution by mean/variance
+      func = "gamma_meanvar",         # gamma distribution by mean/variamce
       func_args = c(x = incub_period, # compute from individual 'incub_period'
                     mean = mean@P,    # use model parameter 'mean'
                     var = var@P),     # and 'var'
@@ -214,7 +216,7 @@ results <- hhmodel |>
 # plot traces of parameter draws
 bayesplot::mcmc_trace(get_param_draws(results)) +
   geom_hline(data = data.frame(parameter = c("mean", "var"), 
-                               simulated = c(2.2, 2.5)),
+                               simulated = c(true_mean, true_var)),
              aes(yintercept = simulated))
 ```
 

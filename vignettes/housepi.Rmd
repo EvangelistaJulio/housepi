@@ -279,8 +279,7 @@ We then propose a simple observation process, where we assume onsets after 6 PM 
 # define an observation process after the outbreak simulation
 obs_process <- function(x) {
   x$onset_date <- ifelse(x$status > 0, floor(x$onset_time + 0.25), NA)
-  x$incub_period <- x$onset_time <- x$infec_time <- NULL
-  x
+  x[!names(x) %in% c("incub_period", "onset_time", "infec_time")]
 }
 
 # run simulation using as structure an existing data set

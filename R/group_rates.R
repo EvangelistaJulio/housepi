@@ -240,11 +240,7 @@ HousepiGroupRate <- R6::R6Class(
   ############################################################################
 
   private = list(
-    deep_clone = function(name, value) helper_clone(value),
-
-    # @field parameters `list`\cr
-    # List containing parameters definitions.
-    .parameters = list()
+    deep_clone = function(name, value) helper_clone(value)
   ),
 
   ############################################################################
@@ -260,7 +256,7 @@ HousepiGroupRate <- R6::R6Class(
       for (rate_id in names(self$logic_tables)) {
         for (this_table in self$logic_tables[[rate_id]]) {
           for (par_id in setdiff(this_table$param_name, c(".reference"))) {
-            new_params[[par_id]] <- private$.parameters[[rate_id]]
+            new_params[[par_id]] <- self$raw_params[[rate_id]]
           }
         }
       }
@@ -299,6 +295,11 @@ HousepiGroupRate <- R6::R6Class(
     #' List containing current group rate definitions.
     defs = list(),
 
+
+    #' @field raw_params `list`\cr
+    #' List containing raw parameter definitions.
+    raw_params = list(),
+
     #' @field logic_tables `list`\cr
     #' List containing table of parameters associated to each group rate.
     logic_tables = list(),
@@ -309,7 +310,7 @@ HousepiGroupRate <- R6::R6Class(
     initialize = function() {
       self$defs <- list()
       self$logic_tables <- list()
-      .parameters <- list()
+      self$raw_params <- list()
       invisible(self)
     },
 
@@ -349,7 +350,7 @@ HousepiGroupRate <- R6::R6Class(
           # drop previous definition
           self$defs[nm] <- NULL
           self$logic_tables[nm] <- NULL
-          private$.parameters[nm] <- NULL
+          self$raw_params[nm] <- NULL
 
         } else if (isTRUE(warn_removal)) {
           warning_h(sprintf("Attempt to remove unknown group_rate '%s'.", nm))
@@ -425,7 +426,7 @@ HousepiGroupRate <- R6::R6Class(
                                 independent = isTRUE(independent))
 
       # add parameter definitions
-      private$.parameters[[name]] <- set_group_rates_mcmc_setup(
+      self$raw_params[[name]] <- set_group_rates_mcmc_setup(
         prior = prior, args = args, min = min, max = max,
         proposal = proposal, proposal_scale = proposal_scale
       )
@@ -433,7 +434,7 @@ HousepiGroupRate <- R6::R6Class(
       # reorder
       y <- sort(names(self$defs))
       self$defs <- self$defs[y]
-      private$.parameters <- private$.parameters[y]
+      self$raw_params <- self$raw_params[y]
 
       invisible(self)
     },
