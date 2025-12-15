@@ -508,8 +508,7 @@ evaluate_log_lik <- function(hhmodel,
 #' @param seed `r rd_seed_`
 #' @param progress `r rd_progress_`
 #'
-#' @return `HousepiPosteriorDraws`\cr
-#' Container with posterior draws.
+#' @return An object of class `HousepiPosteriorDraws`.
 #'
 #' @export
 run_inference <- function(hhmodel,

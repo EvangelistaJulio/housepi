@@ -168,8 +168,8 @@ HousepiAugmented <- R6::R6Class(
     require = function(refer_file) {
       # vector of regular expression to use for assertion
       regexp <- c(
-        # from : .augm("string"
-        '.augm\\s*\\(\\s*["\'](.*?)["\']',
+        # from : .aug("string"
+        '.aug\\s*\\(\\s*["\'](.*?)["\']',
         # from : get_augmented("string"
         '.get_augm_variable\\s*\\(\\s*["\'](.*?)["\']',
         # from : .set_augm_value("string"

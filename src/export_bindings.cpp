@@ -413,7 +413,7 @@ Rcpp::DataFrame MCMC::export_augmented_data_wide() const
         {
             status_col[row] = member.status();
             for (size_t i = 0; i < augm.list_export.size(); ++i)
-                augm_cols[i][row] = hsp_to_rcpp(member.augm(augm.list_export[i]));
+                augm_cols[i][row] = hsp_to_rcpp(member.aug(augm.list_export[i]));
             ++row;
         }
 
@@ -1035,7 +1035,7 @@ Rcpp::DataFrame MCMC::helper_augm_rcpp_snapshot_(const Household &house) const
 
     for (const Individual &member : house)
         for (size_t c = 0; c < list_export.size(); ++c)
-            augm_dbl[c][member] = hsp_to_rcpp(member.augm(list_export[c]));
+            augm_dbl[c][member] = hsp_to_rcpp(member.aug(list_export[c]));
 
     DataFrame output = DataFrame::create(_["id"] = df_id);
     for (size_t c = 0; c < list_export.size(); ++c)
@@ -1140,7 +1140,7 @@ Rcpp::DataFrame MCMC::helper_simulate_single_repetition_()
                 {
                     df_status[r] = member.status();
                     for (size_t c = 0; c < augm_list_export.size(); ++c)
-                        df_augm[c][r] = hsp_to_rcpp(member.augm(augm_list_export[c]));
+                        df_augm[c][r] = hsp_to_rcpp(member.aug(augm_list_export[c]));
                     ++r;
                 }
             }

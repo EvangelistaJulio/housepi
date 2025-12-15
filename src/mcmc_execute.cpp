@@ -776,7 +776,7 @@ void update_ofstream_datawide(std::ofstream &ofs,
             ofs << hsp::read::DELIMITER << member.data(d);
 
         for (const std::string &a : augm_headers)
-            ofs << hsp::read::DELIMITER << member.augm(a);
+            ofs << hsp::read::DELIMITER << member.aug(a);
 
         ofs << std::endl;
     }

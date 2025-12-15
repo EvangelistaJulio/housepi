@@ -121,13 +121,13 @@ void Model::fill_house_escape_matrix(Household &house) const
 /// Risk of infection from the community.
 double Model::community_risk() const
 {
-	return param("alpha");
+	return par("alpha");
 }
 
 /// Risk of infection from another household member.
 double Model::person_to_person_risk() const
 {
-	return param("beta");
+	return par("beta");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

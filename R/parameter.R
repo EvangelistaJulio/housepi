@@ -88,8 +88,8 @@ HousepiParameter <- R6::R6Class(
     require = function(refer_file) {
       # vector of regular expression to use for assertion
       regexp <- c(
-        # from : param("string" or get_param('string'
-        'param\\s*\\(\\s*["\'](.*?)["\']',
+        # from : par("string" or get_param('string'
+        'par\\s*\\(\\s*["\'](.*?)["\']',
         # from : param_pointer("string" or param_pointer('string'
         'param_pointer\\s*\\(\\s*["\'](.*?)["\']',
         # from : emplace_contact_rate("string"

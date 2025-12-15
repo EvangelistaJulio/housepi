@@ -645,6 +645,9 @@ One between:\cr
 }
 \if{html}{\out{</div>}}
 }
+\subsection{Returns}{
+An object of class \code{HousepiPosteriorDraws}.
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HousepiModel-export_augmented_data"></a>}}

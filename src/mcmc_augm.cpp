@@ -1094,7 +1094,7 @@ void MCMC::Impl::Augmented::store_draws(unsigned long smpl_count)
         auto &smpl_augm_value_k = smpl_values[k];
         const auto member_star = smpl_individuals[k];
         for (const std::string &a : list_draws)
-            smpl_augm_value_k[a][smpl_count] = member_star->augm(a);
+            smpl_augm_value_k[a][smpl_count] = member_star->aug(a);
     }
 }
 

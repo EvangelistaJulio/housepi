@@ -47,8 +47,7 @@ One between:\cr
 }}
 }
 \value{
-\code{HousepiPosteriorDraws}\cr
-Container with posterior draws.
+An object of class \code{HousepiPosteriorDraws}.
 }
 \description{
 Run inference with Bayesian Markov Chain Monte Carlo.

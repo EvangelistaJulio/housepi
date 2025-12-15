@@ -37,7 +37,7 @@ double Model::compute_household_obs_log_lik(Household &house)
 {
 	double output = 0.0;
 	for (const Individual &member : house.infected())
-		output += std::log(member.augm("proba"));
+		output += std::log(member.aug("proba"));
 	return output;
 }
 

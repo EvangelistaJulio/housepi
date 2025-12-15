@@ -191,11 +191,11 @@ hhmodel <- new_housepi_model("blank") |>
   load_parameter_list(
     proposal_sample = list(prior = "normal", min = 0, proposal = "sample"),
     proposal_uniform = list(prior = "normal", min = 0, proposal = "uniform",
-                           proposal_scale = prop_scale),
+                            proposal_scale = prop_scale),
     proposal_normal = list(prior = "normal", min = 0, proposal = "normal",
                            proposal_scale = prop_scale),
     proposal_lognormal = list(prior = "normal", min = 0, proposal = "lognormal",
-                           proposal_scale = prop_scale)
+                              proposal_scale = prop_scale)
   )
 
 hhmodel |>

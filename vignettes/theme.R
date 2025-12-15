@@ -28,15 +28,16 @@ ggplot2::update_geom_defaults("errorbar", list(color = "#FF7F50", size = 1,
                                                width = 0.1))
 # bayesplot theme
 bayesplot::bayesplot_theme_set(ggplot2::theme_get())
-bayesplot::color_scheme_set(c("#6ec5ff", "#3db1ff", 
-                              "#0d8fff", "#0070dd", 
+bayesplot::color_scheme_set(c("#6ec5ff", "#3db1ff",
+                              "#0d8fff", "#0070dd",
                               "#0055aa", "#003d77"))
 
 # flextable theme
 flextable::set_flextable_defaults(
   font.family = "Roboto", font.size = 13, font.color = "#111111",
   background.color = "white",
-  theme_fun = "theme_vanilla")
+  theme_fun = "theme_vanilla"
+)
 
 #' @title Show session info
 #' @param sampling `logical(1)`

@@ -112,10 +112,10 @@ double Model::compute_household_obs_log_lik(Household &house)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// [CHANGE-ME] Risk of infection from the community.
-double Model::community_risk() const { return param("alpha"); }
+double Model::community_risk() const { return par("alpha"); }
 
 /// [CHANGE-ME] Risk of infection from another household member.
-double Model::person_to_person_risk() const { return param("beta"); }
+double Model::person_to_person_risk() const { return par("beta"); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////

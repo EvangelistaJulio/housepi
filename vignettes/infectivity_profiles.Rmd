@@ -40,8 +40,8 @@ Certain profiles will then be conditioned on individuals incubation periods
 
 In addition, infectivity profiles in housepi can be of two kinds:
 
-* **generic**: if all individuals share the same profile;
-* **augmented**: if profile depends on individual covariates.
+* **Generic**: if all individuals share the same profile;
+* **Augmented**: if profile depends on individual covariates.
 
 At any time one can provide a custom choice for the infectivity profile, however all models depending on profiles have a templated definition incorporated.  
 

@@ -897,7 +897,7 @@ MCMC::~MCMC() = default;
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 double MCMC::uniform() { return pImpl_->setup.unif(); }
-double MCMC::param(const std::string &p) const { return pImpl_->param.get(p); }
+double MCMC::par(const std::string &p) const { return pImpl_->param.get(p); }
 const ReportIndividual &MCMC::get_report_indiv() const { return pImpl_->data_wide.report_indiv; }
 const ReportHousehold &MCMC::get_report_house() const { return pImpl_->data_wide.report_house; }
 const ReportHouseSizes &MCMC::get_report_hh_size() const { return pImpl_->data_wide.report_hh_size; }

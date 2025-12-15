@@ -81,7 +81,7 @@ public:
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	virtual std::string err_name() const { return ""; }
-	double augm(const std::string &a) const { return safe_at(augm_map_, a, "augmented").get(); }
+	double aug(const std::string &a) const { return safe_at(augm_map_, a, "augmented").get(); }
 	Variable &get_augm_variable(const std::string &a) { return safe_at(augm_map_, a, "augmented"); }
 	const Variable &get_augm_variable(const std::string &a) const { return safe_at(augm_map_, a, "augmented"); }
 	std::string str_augm_summary() const;

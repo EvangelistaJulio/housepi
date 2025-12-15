@@ -45,7 +45,6 @@ HousepiModel <- R6::R6Class(
     .augm = NULL,
     .group_rates = NULL,
     .infec_profile = NULL,
-    .crash_house = NA,
 
     # @description
     # Augmented variables required by implementation file and other definitions.
@@ -250,8 +249,6 @@ HousepiModel <- R6::R6Class(
                            chains = 1, threads = 1,
                            id_draws = NULL,
                            seed = NA_integer_, progress = FALSE) {
-      # reset crash house
-      private$.crash_house <- NA
       # import setup
       private$.rcpp$import_setup(char_setup_input_(list(
         steps = as.integer(steps),
@@ -329,23 +326,6 @@ HousepiModel <- R6::R6Class(
                 file.path(outpath, "infec.csv"),
                 quote = FALSE, row.names = FALSE)
       invisible(self)
-    },
-
-    # @description
-    # Sugar for log-likelihood computation errors in try-catch.
-    # UPDATE: this doesn't work on a full pipe...
-    .helper_log_lik_error = function(e) {
-      h <- stringr::str_extract(e$message, "(?<=household ')[^']+(?=')")
-      i <- stringr::str_extract(e$message, "(?<=individual ')[^']+(?=')")
-      if (!is.na(i)) h <- subset(self$data_wide, id == i)$house_id
-      if (!stringr::str_count(e$message, "While computing") ||
-            is.na(h)) stop_h(e$message)
-      private$.crash_house <- h
-      # store house_id somewhere
-      stop_h(
-        e$message,
-        "Use '$export_house_snapshot' to show last status of the household."
-      )
     },
 
     # Helper with parameter table import.
@@ -887,11 +867,8 @@ HousepiModel <- R6::R6Class(
     #'
     #' @return `numeric(1)`
     evaluate_log_lik = function(house_id = NA_character_, seed = NA_integer_) {
-      # internal build function
       private$.build_full(seed = seed)
-      tryCatch(output <- private$.rcpp$evaluate_log_lik(house_id),
-               error = function(e) private$.helper_log_lik_error(e))
-      output
+      private$.rcpp$evaluate_log_lik(house_id)
     },
 
     #' @description
@@ -906,20 +883,19 @@ HousepiModel <- R6::R6Class(
     #' @param id_draws `r rd_smpl_iddrw_`
     #' @param seed `r rd_seed_`
     #' @param progress `r rd_progress_`
+    #'
+    #' @return An object of class `HousepiPosteriorDraws`.
     run_inference = function(steps = 200, burnin = 0,
                              thin = 1, adapt = 0,
                              chains = 1, threads = 1,
                              id_draws = NULL,
                              seed = NA_integer_,
                              progress = TRUE) {
-      # internal build function
       private$.build_full(steps = steps, burnin = burnin,
                           thin = thin, adapt = adapt,
                           chains = chains, threads = threads,
                           id_draws = id_draws, seed = seed, progress = progress)
-      # infer method from cpp model object and deal with errors
-      tryCatch(private$.rcpp$infer(),
-               error = function(e) private$.helper_log_lik_error(e))
+      private$.rcpp$infer()
       HousepiPosteriorDraws$new(private$.name, private$.rcpp)
     },
 
@@ -943,11 +919,6 @@ HousepiModel <- R6::R6Class(
     #'
     #' @return `list`
     export_house_snapshot = function(house_id = NA) {
-      # fetch house id
-      if (is.na(house_id)) {
-        if (is.na(private$.crash_house)) stop_h("No 'house_id' was provided.")
-        house_id <- private$.crash_house
-      }
       house_id <- as.character(house_id)
       # export household snapshot
       output <- private$.rcpp$export_house_snapshot(house_id)
