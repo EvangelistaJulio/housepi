@@ -667,7 +667,7 @@ HousepiModel <- R6::R6Class(
                              min = rlang::enquo(min), max = rlang::enquo(max),
                              proposal = proposal,
                              proposal_scale = proposal_scale)
-      housepi_assert_args(self, tail(private$.param$defs, 1), "prior")
+      housepi_assert_args(self, "parameter", last = TRUE)
       invisible(self)
     },
 
@@ -678,7 +678,7 @@ HousepiModel <- R6::R6Class(
     #' @param append `r rd_list_append_`
     load_parameter_list = function(..., append = FALSE) {
       private$.param$load_quosures(rlang::enquos(...), append = append)
-      housepi_assert_args(self, private$.param$defs, "prior")
+      housepi_assert_args(self, "parameter")
       invisible(self)
     },
 
@@ -735,7 +735,7 @@ HousepiModel <- R6::R6Class(
                             min = rlang::enquo(min), max = rlang::enquo(max),
                             proposal = proposal,
                             proposal_scale = proposal_scale)
-      housepi_assert_args(self, tail(private$.augm$defs, 1), "model")
+      housepi_assert_args(self, "augmented", last = TRUE)
       invisible(self)
     },
 
@@ -746,7 +746,7 @@ HousepiModel <- R6::R6Class(
     #' @param append `r rd_list_append_`
     load_augmented_list = function(..., append = FALSE) {
       private$.augm$load_quosures(rlang::enquos(...), append = append)
-      housepi_assert_args(self, private$.augm$defs, "model")
+      housepi_assert_args(self, "augmented")
       invisible(self)
     },
 
@@ -841,6 +841,7 @@ HousepiModel <- R6::R6Class(
                                      status = status, discr = discr,
                                      rlang::enquos(...),
                                      max = rlang::enquo(max))
+      housepi_assert_args(self, "infectivity profile", last = TRUE)
       invisible(self)
     },
 
@@ -851,6 +852,7 @@ HousepiModel <- R6::R6Class(
     #' @param append `r rd_list_append_`
     load_infec_profile_list = function(..., append = FALSE) {
       private$.infec_profile$load_quosures(rlang::enquos(...), append = append)
+      housepi_assert_args(self, "infectivity profile")
       invisible(self)
     },
 

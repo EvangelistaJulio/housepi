@@ -61,3 +61,18 @@ test_that("Status specific definition work fine", {
   expect_equal(infec$defs$func, c("gamma", "beta", "delta"))
   expect_equal(infec$defs$status, c(1, 2, NA_integer_))
 })
+
+test_that("Spurious names are dropped", {
+  external_list <- list(
+    ip1 = list(func = "gamma", status = NA,
+               discr = TRUE, shape = ~ shape, scale = ~ scale),
+    ip2 = list(func = "gamma", status = 3,
+               discr = TRUE, shape = ~ shape, scale = ~ scale)
+  )
+  
+  infec <- housepi:::HousepiInfecProfile$new()
+  expect_no_error(aux_load(infec, !!!external_list))
+  defs <- infec$defs
+  defs$status <- NULL
+  expect_equal(nrow(unique(defs)), 1)
+})

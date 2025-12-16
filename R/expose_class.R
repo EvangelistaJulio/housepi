@@ -53,9 +53,9 @@ new_housepi_model <- function(choice = NA_character_, as_template = FALSE,
 #' @export
 add_data_wide  <- function(hhmodel, data_wide) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  new_object <- hhmodel$clone(deep = TRUE)
-  new_object$add_data_wide(data_wide)
-  new_object
+  new_obj <- hhmodel$clone(deep = TRUE)
+  new_obj$add_data_wide(data_wide)
+  new_obj
 }
 
 #' @title Add additional individual data in long format
@@ -70,9 +70,9 @@ add_data_wide  <- function(hhmodel, data_wide) {
 #' @export
 add_data_long <- function(hhmodel, data_long) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  new_object <- hhmodel$clone(deep = TRUE)
-  new_object$add_data_long(data_long)
-  new_object
+  new_obj <- hhmodel$clone(deep = TRUE)
+  new_obj$add_data_long(data_long)
+  new_obj
 }
 
 #' @title Summarise cases in household data
@@ -120,36 +120,36 @@ summarise_house_sizes <- function(hhmodel, ...) {
 #' @export
 drop_parameters <-  function(hhmodel, ...) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  new_object <- hhmodel$clone(deep = TRUE)
-  new_object$drop_parameters(...)
-  new_object
+  new_obj <- hhmodel$clone(deep = TRUE)
+  new_obj$drop_parameters(...)
+  new_obj
 }
 
 #' @rdname drop_definitions
 #' @export
 drop_augmented <-  function(hhmodel, ...) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  new_object <- hhmodel$clone(deep = TRUE)
-  new_object$drop_augmented(...)
-  new_object
+  new_obj <- hhmodel$clone(deep = TRUE)
+  new_obj$drop_augmented(...)
+  new_obj
 }
 
 #' @rdname drop_definitions
 #' @export
 drop_group_rates <-  function(hhmodel, ...) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  new_object <- hhmodel$clone(deep = TRUE)
-  new_object$drop_group_rates(...)
-  new_object
+  new_obj <- hhmodel$clone(deep = TRUE)
+  new_obj$drop_group_rates(...)
+  new_obj
 }
 
 #' @rdname drop_definitions
 #' @export
 drop_all <- function(hhmodel) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  new_object <- hhmodel$clone(deep = TRUE)
-  new_object$drop_all()
-  new_object
+  new_obj <- hhmodel$clone(deep = TRUE)
+  new_obj$drop_all()
+  new_obj
 }
 
 ############################################################################
@@ -200,20 +200,16 @@ add_parameter <- function(hhmodel,
                           proposal = NA_character_,
                           proposal_scale = NA_real_) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  new_object <- hhmodel$clone(deep = TRUE)
-  new_object$.__enclos_env__$private$.param$add_quo(
+  new_obj <- hhmodel$clone(deep = TRUE)
+  new_obj$.__enclos_env__$private$.param$add_quo(
     name = name, value = rlang::enquo(value),
     const = const, discr = discr,
     prior = prior, rlang::enquos(...),
     min = rlang::enquo(min), max = rlang::enquo(max),
     proposal = proposal, proposal_scale = proposal_scale
   )
-  housepi_assert_args(
-    new_object,
-    tail(new_object$.__enclos_env__$private$.param$defs, 1),
-    "prior"
-  )
-  new_object
+  housepi_assert_args(new_obj, "parameter", last = TRUE)
+  new_obj
 }
 
 #' @title Load template definitions
@@ -229,9 +225,9 @@ add_parameter <- function(hhmodel,
 #' @export
 load_parameter_template <- function(hhmodel, append = FALSE) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  new_object <- hhmodel$clone(deep = TRUE)
-  new_object$load_parameter_template(append = append)
-  new_object
+  new_obj <- hhmodel$clone(deep = TRUE)
+  new_obj$load_parameter_template(append = append)
+  new_obj
 }
 
 ############################################################################
@@ -277,8 +273,8 @@ add_augmented <- function(hhmodel,
                           proposal = NA_character_,
                           proposal_scale = NA_real_) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  new_object <- hhmodel$clone(deep = TRUE)
-  new_object$.__enclos_env__$private$.augm$add_quo(
+  new_obj <- hhmodel$clone(deep = TRUE)
+  new_obj$.__enclos_env__$private$.augm$add_quo(
     name = name, value = rlang::enquo(value),
     status = status, const = const, discr = discr,
     func = rlang::enquo(func), func_args = rlang::enquos(func_args),
@@ -286,21 +282,17 @@ add_augmented <- function(hhmodel,
     min = rlang::enquo(min), max = rlang::enquo(max),
     proposal = proposal, proposal_scale = proposal_scale
   )
-  housepi_assert_args(
-    new_object,
-    tail(new_object$.__enclos_env__$private$.augm$defs, 1),
-    "model"
-  )
-  new_object
+  housepi_assert_args(new_obj, "augmented", last = TRUE)
+  new_obj
 }
 
 #' @rdname load_template_definitions
 #' @export
 load_augmented_template <- function(hhmodel, append = FALSE) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  new_object <- hhmodel$clone(deep = TRUE)
-  new_object$load_augmented_template(append = append)
-  new_object
+  new_obj <- hhmodel$clone(deep = TRUE)
+  new_obj$load_augmented_template(append = append)
+  new_obj
 }
 
 ############################################################################
@@ -357,15 +349,15 @@ add_group_rate <-  function(hhmodel,
                             proposal = NA_character_,
                             proposal_scale = NA_real_) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  new_object <- hhmodel$clone(deep = TRUE)
-  new_object$.__enclos_env__$private$.group_rates$add_quo(
+  new_obj <- hhmodel$clone(deep = TRUE)
+  new_obj$.__enclos_env__$private$.group_rates$add_quo(
     name = name, by = by, prefix = prefix,
     reference = reference, independent = independent,
     prior = prior, rlang::enquos(...),
     min = rlang::enquo(min), max = rlang::enquo(max),
     proposal = proposal, proposal_scale = proposal_scale
   )
-  new_object
+  new_obj
 }
 
 ############################################################################
@@ -398,12 +390,13 @@ add_infec_profile <- function(hhmodel,
                               discr = FALSE,
                               ..., max = NULL) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  new_object <- hhmodel$clone(deep = TRUE)
-  new_object$.__enclos_env__$private$.infec_profile$add_quo(
+  new_obj <- hhmodel$clone(deep = TRUE)
+  new_obj$.__enclos_env__$private$.infec_profile$add_quo(
     func = func, status = status, discr = discr,
     rlang::enquos(...), max = rlang::enquo(max)
   )
-  new_object
+  housepi_assert_args(new_obj, "infectivity profile", last = TRUE)
+  new_obj
 }
 
 
@@ -424,14 +417,14 @@ add_infec_profile <- function(hhmodel,
 #' @rdname load_definitions_list
 #' @export
 load_parameter_list <- function(hhmodel, ..., append = FALSE) {
-  helper_load_def_list(pvt_module = ".param", hhmodel = hhmodel,
+  helper_load_def_list(hhmodel, "parameter",
                        xquos = rlang::enquos(...), append = append)
 }
 
 #' @rdname load_definitions_list
 #' @export
 load_augmented_list <- function(hhmodel, ..., append = FALSE) {
-  helper_load_def_list(pvt_module = ".augm", hhmodel = hhmodel,
+  helper_load_def_list(hhmodel, "augmented",
                        xquos = rlang::enquos(...), append = append)
 }
 
@@ -439,19 +432,19 @@ load_augmented_list <- function(hhmodel, ..., append = FALSE) {
 #' @export
 load_group_rate_list <- function(hhmodel, ..., append = FALSE) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  new_object <- hhmodel$clone(deep = TRUE)
+  new_obj <- hhmodel$clone(deep = TRUE)
   # NOTE: dropping group rates might cause parameter drops
-  if (isFALSE(append)) new_object$drop_group_rates()
-  new_object$.__enclos_env__$private$.group_rates$load_quosures(
+  if (isFALSE(append)) new_obj$drop_group_rates()
+  new_obj$.__enclos_env__$private$.group_rates$load_quosures(
     rlang::enquos(...), append = append
   )
-  new_object
+  new_obj
 }
 
 #' @rdname load_definitions_list
 #' @export
 load_infec_profile_list <- function(hhmodel, ..., append = FALSE) {
-  helper_load_def_list(pvt_module = ".infec_profile", hhmodel = hhmodel,
+  helper_load_def_list(hhmodel, "infectivity profile",
                        xquos = rlang::enquos(...), append = append)
 }
 

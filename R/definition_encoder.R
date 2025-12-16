@@ -242,10 +242,10 @@ housepi_load_defin_quos <- function(self, implicit_name, xquos) {
       args_quos <- lapply(rlang::call_args(def_expr),
                           rlang::new_quosure,
                           env = rlang::quo_get_env(def_quo))
-      rlang::inject(self$add_quo(nm, !!!args_quos))
+      rlang::inject(self$add_quo(name = nm, !!!args_quos))
     } else if (is.list(def_expr)) {
       # arguments are not quosures
-      rlang::inject(self$add_quo(nm, !!!def_expr))
+      rlang::inject(self$add_quo(name = nm, !!!def_expr))
     } else {
       # single implicit definition to pass to add_quo
       extra_arg <- rlang::set_names(list(def_quo), implicit_name)
@@ -299,20 +299,54 @@ housepi_load_template_list <- function(self, templ_file, family,
   self
 }
 
+family2model_col <- function(family) {
+  if (family == "augmented") "model"
+  else if (family == "augmented function") "func"
+  else if (family == "parameter") "prior"
+  else if (family == "infectivity profile") "func"
+  else if (family == "group rates") "prior"
+  else stop_h(sprintf(
+    "[Internal] Unrecognized module family '%s'.", family
+  ))
+}
+
+family2pvt_module <- function(family) {
+  if (family == "augmented") ".augm"
+  else if (family == "augmented function") ".augm"
+  else if (family == "parameter") ".param"
+  else if (family == "infectivity profile") ".infec_profile"
+  else if (family == "group rates") ".group_rates"
+  else stop_h(sprintf(
+    "[Internal] Unrecognized module family '%s'.", family
+  ))
+}
+
 # Assert that arguments provided to model are legitimate.
-# UPDATE: to be generalized beyond distributions
-housepi_assert_args <- function(hhmodel, defs, family, max_print = 5) {
+# UPDATE: at the moment augmented functions are not testable
+# because my registries are exposed separately
+housepi_assert_args <- function(hhmodel, family, last = FALSE) {
+  # load requested faimily definitions
+  col_model <- family2model_col(family)
+  col_args <- ifelse(col_model == "func", "func_args", "args")
+  pvt_module <- family2pvt_module(family)
+  defs <- hhmodel$.__enclos_env__$private[[pvt_module]]$defs
+  if (isTRUE(last)) defs <- tail(defs, 1)
+
   readable_defs <- housepi_defin_showcaser(defs)
   for (r in seq_len(nrow(readable_defs))) {
-    dist_name <- readable_defs[r, family]
-    if (!is.na(dist_name)) {
-      col_args <- ifelse(family == "func", "func_args", "args")
+    distr_name <- readable_defs[r, col_model]
+    if (!is.na(distr_name)) {
       arg_names <- names(readable_defs[r, col_args][[1]])
       # NOTE: I am assuming `1` is a safe argument...
-      fake_args <- stats::setNames(rep(1, length(arg_names)), arg_names)
+      dummy_args <- stats::setNames(rep(1, length(arg_names)), arg_names)
       # trigger C++ errors
       tryCatch(
-        expose_distribution(dist_name, fake_args, hhmodel = hhmodel),
+        if (family == "infectivity profile") {
+          expose_infec_profile(distr_name, dummy_args, hhmodel = hhmodel)
+        } else {
+          expose_distribution(distr_name, dummy_args, hhmodel = hhmodel)
+        }
+        ,
         error = function(e) {
           stop_h(sprintf("Wrong definition found for '%s'.",
                          readable_defs[r, "name"]),
@@ -324,16 +358,15 @@ housepi_assert_args <- function(hhmodel, defs, family, max_print = 5) {
 }
 
 # Helper to load definition lists into an HousepiModel clone.
-helper_load_def_list <- function(pvt_module, hhmodel, xquos, append) {
+helper_load_def_list <- function(hhmodel, family, xquos, append) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  new_object <- hhmodel$clone(deep = TRUE)
-  new_object$.__enclos_env__$private[[pvt_module]]$load_quosures(
+  pvt_module <- family2pvt_module(family)
+
+  new_obj <- hhmodel$clone(deep = TRUE)
+  new_obj$.__enclos_env__$private[[pvt_module]]$load_quosures(
     xquos, append = append
   )
-  housepi_assert_args(
-    new_object,
-    new_object$.__enclos_env__$private[[pvt_module]]$defs,
-    ifelse(pvt_module == ".augm", "model", "prior")
-  )
-  new_object
+  # run assessment
+  housepi_assert_args(new_obj, family)
+  new_obj
 }
