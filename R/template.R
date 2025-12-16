@@ -18,18 +18,23 @@
 #
 
 # Assert that given definition name is valid.
-assert_valid_definition_name <- function(x, family) {
-  if (is.na(x) || !is.character(x) || length(x) != 1 || nchar(x) == 0) stop_h(
-    sprintf("Definition name of %s must be a non-empty character(1).", family)
-  )
-  else if (is.na(x)) stop_h(
-    sprintf("Incomplete %s definition: missing name.", family)
-  )
-  else if (!grepl("^[A-Za-z0-9_.]+$", x)) stop_h(
-    sprintf("Provided %s definition name '%s' contained invalid characters.",
-            family, x),
-    "Only letters, numbers, underscores '_' and dots '.' are allowed."
-  )
+assert_valid_definition_name <- function(x, family, is_implicit = FALSE) {
+  sms <- c()
+  if (is.na(x) || !is.character(x) || length(x) != 1 || nchar(x) == 0) {
+    sms <- c(
+      sprintf("Definition name of %s must be a non-empty character(1).", family)
+    )
+    if (isTRUE(is_implicit)) sms <- c(sms,
+      "Did you provide a list and forgot '!!!', rlang injection operator?"
+    )
+  } else if (!grepl("^[A-Za-z0-9_.]+$", x)) {
+    sms <- c(
+      sprintf("Definition %s name '%s' contained invalid characters.",
+              family, x),
+      "Only letters, numbers, underscores '_' and dots '.' are allowed."
+    )
+  }
+  if (!is.null(sms)) stop_h(sms)
 }
 
 # Assert that given status name is/are valid.

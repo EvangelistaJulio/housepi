@@ -159,7 +159,7 @@ HousepiParameter <- R6::R6Class(
       args <- housepi_extractor(!!!dots)
 
       # control valid name
-      assert_valid_definition_name(name, "parameter")
+      assert_valid_definition_name(name, "parameter", !is.na(value))
       if (all(is.null(value), is.na(prior))) stop_h(
         sprintf("Incomplete definition for parameter '%s'.", name),
         "Provide at least one between 'value' and 'prior'."

@@ -411,21 +411,6 @@ add_infec_profile <- function(hhmodel,
 ############################################################################
 ############################################################################
 
-# Helper to load definition lists into an HousepiModel clone.
-helper_load_def_list <- function(pvt_module, hhmodel, xquos, append) {
-  stopifnot(inherits(hhmodel, "HousepiModel"))
-  new_object <- hhmodel$clone(deep = TRUE)
-  new_object$.__enclos_env__$private[[pvt_module]]$load_quosures(
-    xquos, append = append
-  )
-  housepi_assert_args(
-    new_object,
-    new_object$.__enclos_env__$private[[pvt_module]]$defs,
-    ifelse(pvt_module == ".augm", "model", "prior")
-  )
-  new_object
-}
-
 #' @title Load list of definitions
 #' @description
 #' Load definitions as named arguments.

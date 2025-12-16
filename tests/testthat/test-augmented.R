@@ -167,4 +167,3 @@ test_that("Symbolic definitions are equivalent", {
   # check that all rows are identical
   expect_equal(nrow(unique(aux)), 1)
 })
-

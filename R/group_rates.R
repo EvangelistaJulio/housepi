@@ -392,7 +392,7 @@ HousepiGroupRate <- R6::R6Class(
       args <- housepi_extractor(!!!dots)
 
       # control valid name
-      assert_valid_definition_name(name, "group rate")
+      assert_valid_definition_name(name, "group rate", !is.na(by))
 
       # remove previous definition if it exists
       self$remove(list(name), warn_overwrite = TRUE)

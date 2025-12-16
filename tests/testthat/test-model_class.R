@@ -146,3 +146,16 @@ test_that("Nested definittions works as expected", {
   q <- setNames(stats::quantile(sample_boxmul, probs), NULL)
   expect_equal(q, qnorm(probs), tolerance = 0.05)
 })
+
+test_that("Load augmented list works fine for external lists", {
+  hhmodel <- new_housepi_model("blank")
+  
+  external_list <- list(z0 = ~ date@D, z1 = ~ sqrt(log(z0)))
+  # raise error for on injection
+  expect_error(hhmodel$load_augmented_list(external_list),
+               regexp = "injection operator")
+  
+  tmp <- hhmodel$load_augmented_list(!!!external_list)$augmented
+  hhmodel$load_augmented_list(z0 = date@D, z1 = sqrt(log(z0)))
+  expect_equal(tmp, hhmodel$augmented)
+})

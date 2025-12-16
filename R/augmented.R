@@ -242,6 +242,7 @@ HousepiAugmented <- R6::R6Class(
                        min = NULL, max = NULL,
                        proposal = NA_character_,
                        proposal_scale = NA_real_) {
+
       # load non-quosures
       name <- housepi_smart_unwrap(name, "name")
       status <- housepi_smart_unwrap(status, "status")
@@ -270,7 +271,7 @@ HousepiAugmented <- R6::R6Class(
       }
 
       # control valid name
-      assert_valid_definition_name(name, "augmented")
+      assert_valid_definition_name(name, "augmented", !is.na(func))
       # control valid status
       assert_valid_status(status)
       # control meaningful definition

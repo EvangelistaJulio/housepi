@@ -238,12 +238,14 @@ housepi_load_defin_quos <- function(self, implicit_name, xquos) {
     def_expr <- rlang::quo_get_expr(def_quo)
 
     if (rlang::is_call(def_expr, c("list", "c"))) {
-      # pass add_quo arguments as quosures
+      # pass arguments as quosures to add_quo
       args_quos <- lapply(rlang::call_args(def_expr),
                           rlang::new_quosure,
                           env = rlang::quo_get_env(def_quo))
-
       rlang::inject(self$add_quo(nm, !!!args_quos))
+    } else if (is.list(def_expr)) {
+      # arguments are not quosures
+      rlang::inject(self$add_quo(nm, !!!def_expr))
     } else {
       # single implicit definition to pass to add_quo
       extra_arg <- rlang::set_names(list(def_quo), implicit_name)
@@ -319,4 +321,19 @@ housepi_assert_args <- function(hhmodel, defs, family, max_print = 5) {
       )
     }
   }
+}
+
+# Helper to load definition lists into an HousepiModel clone.
+helper_load_def_list <- function(pvt_module, hhmodel, xquos, append) {
+  stopifnot(inherits(hhmodel, "HousepiModel"))
+  new_object <- hhmodel$clone(deep = TRUE)
+  new_object$.__enclos_env__$private[[pvt_module]]$load_quosures(
+    xquos, append = append
+  )
+  housepi_assert_args(
+    new_object,
+    new_object$.__enclos_env__$private[[pvt_module]]$defs,
+    ifelse(pvt_module == ".augm", "model", "prior")
+  )
+  new_object
 }
