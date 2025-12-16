@@ -334,22 +334,6 @@ HousepiAugmented <- R6::R6Class(
     },
 
     #' @description
-    #' Load augmented variables from template definitions.
-    #'
-    #' @param templ_file
-    #' Path/to/.refer template file.
-    #' @param required
-    #' A `character()` containing required parameters.
-    #' @param append
-    #' `logical(1)` to append missing augmented variable definitions.
-    #' If `FALSE` drop all pre-existing definitions (default).
-    load_template = function(templ_file, required = NULL, append = FALSE) {
-      self <- housepi_load_template_list(self, templ_file, "augmented",
-                                         required = required, append = append)
-      invisible(self)
-    },
-
-    #' @description
     #' Assert augmented definitions from the model implementation script.
     #'
     #' @param required `character()` containing required augmented

@@ -691,10 +691,9 @@ HousepiModel <- R6::R6Class(
         "No template parameters available for blank model."
       )
       # retrieve the template parameters file
-      else private$.param$load_template(
-        file.path(private$.path(), "template_param.R"),
-        private$.param$require(private$.reference()),
-        isTRUE(append)
+      else self$load_parameter_list(
+        !!!get_template_def_list(private$.path("template_param.R")),
+        append = isTRUE(append)
       )
       invisible(self)
     },
@@ -759,10 +758,9 @@ HousepiModel <- R6::R6Class(
         "No template augmented variables available for blank model."
       )
       # retrieve the template augmented file
-      else private$.augm$load_template(
-        file.path(private$.path(), "template_augm.R"),
-        private$.augm$require(private$.reference()),
-        isTRUE(append)
+      else self$load_augmented_list(
+        !!!get_template_def_list(private$.path("template_augm.R")),
+        append = isTRUE(append)
       )
       invisible(self)
     },

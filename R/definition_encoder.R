@@ -268,35 +268,14 @@ convert_list_to_quosures <- function(input_lst, env = rlang::global_env()) {
 }
 
 # Load a templated list of definitions.
-housepi_load_template_list <- function(self, templ_file, family,
-                                       required = NULL, append = FALSE) {
+get_template_def_list <- function(templ_file) {
   # check if template file exists
   if (!file.exists(templ_file)) stop_h(
     sprintf("Impossible to use templated %s definition.", family),
     "A file with template definitions was not found."
   )
   # get template definition list and convert to quosures
-  xquos <- convert_list_to_quosures(dget(templ_file))
-
-  if (isTRUE(append)) {
-    # check set of required augmented variables
-    if (length(required) == 0) {
-      warning_h(sprintf("No %s definitions required by the model.", family))
-    } else {
-      miss <- template_missing_find(required, self$defs[["name"]])
-      if (length(miss) == 0) warning_h(
-        sprintf("No template %s variable to append.", family),
-        "Definitions are complete."
-      )
-      else if (!all(miss %in% names(xquos))) stop_h(sprintf(
-        "No template found for the missing augmented definitionas.", family
-      ))
-      else self$load_quosures(xquos[miss], append = TRUE)
-    }
-  } else {
-    self$load_quosures(xquos, append = FALSE)
-  }
-  self
+  dget(templ_file)
 }
 
 family2model_col <- function(family) {

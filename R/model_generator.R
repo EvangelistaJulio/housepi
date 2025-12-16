@@ -505,8 +505,9 @@ HousepiGenerator <- R6::R6Class(
     },
 
     # @description Environment path.
+    # @param addpath `character(1)` additional path
     # @return `character(1)`
-    .path = function() {
+    .path = function(addpath = NULL) {
       # reference script
       output <- dirname(private$.dll)
       # check if reference file exists
@@ -514,7 +515,8 @@ HousepiGenerator <- R6::R6Class(
         sprintf("Impossible to find environment path: '%s'.", output),
         "Try to re-generate the model with 'force = TRUE'."
       )
-      output
+      if (is.null(addpath)) output
+      else file.path(output, addpath)
     },
 
     # @description Reference script.

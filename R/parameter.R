@@ -212,22 +212,6 @@ HousepiParameter <- R6::R6Class(
     },
 
     #' @description
-    #' Load missing parameter from template definitions.
-    #'
-    #' @param templ_file
-    #' Path/to/.refer template file.
-    #' @param required `character()`\cr
-    #' Vector containing required parameters.
-    #' @param append `logical(1)`\cr
-    #' If `TRUE` append missing parameter definitions.
-    #' If `FALSE` drop all pre-existing definitions (default).
-    load_template = function(templ_file, required = NULL, append = FALSE) {
-      self <- housepi_load_template_list(self, templ_file, "parameter",
-                                         required = required, append = append)
-      invisible(self)
-    },
-
-    #' @description
     #' Assert parameter definitions match the requirement list.
     #'
     #' @param required `character()` containing required parameters.
