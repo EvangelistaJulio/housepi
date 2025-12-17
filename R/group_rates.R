@@ -274,7 +274,7 @@ HousepiGroupRate <- R6::R6Class(
         }
       }
       output <- setdiff(unique(required), c(".reference"))
-      set_source_name_(output, "group rate")
+      set_source_name_(output, self$family)
     },
 
     #' @field tidy_table `data.frame()`\cr
@@ -291,10 +291,12 @@ HousepiGroupRate <- R6::R6Class(
   ############################################################################
 
   public = list(
-    #' @field defs `list`\cr
-    #' List containing current group rate definitions.
+    #' @field family `character(1)` with the module family.
+    family = "group rate",
+    #' @field store_warn_over `character()` with cached overwritten names.
+    store_warn_over = character(),
+    #' @field defs `list` containing current group rate definitions.
     defs = list(),
-
 
     #' @field raw_params `list`\cr
     #' List containing raw parameter definitions.
@@ -333,38 +335,27 @@ HousepiGroupRate <- R6::R6Class(
     #' @description
     #' Remove a given group_rate definition.
     #'
-    #' @param name_lst
-    #' A `character()` with the name of group rate definitions to remove.
+    #' @param name
+    #' A `character(1)` with the name of group rate definitions to remove.
     #' @param warn_removal
     #' `logical(1)`to show warnings for failed removal.
-    #' @param warn_overwrite
-    #' `logical(1)`to show warnings in case of overwriting.
-    remove = function(name_lst, warn_removal = FALSE, warn_overwrite = FALSE) {
-      stopifnot(is.list(name_lst))
-      all_rmv <- c()
-      for (nm in name_lst) {
-        if (any(names(self$defs) == nm)) {
-          # check if old definition was just default
-          if (!all(is.na(self$defs[nm]$by))) all_rmv <- c(all_rmv, nm)
+    remove = function(name, warn_removal = FALSE) {
+      if (any(names(self$defs) == name)) {
+        # check if old definition was just placeholder
+        placeholder <- FALSE
+        if (all(is.na(self$defs[[name]]$by))) placeholder <- TRUE
 
-          # drop previous definition
-          self$defs[nm] <- NULL
-          self$logic_tables[nm] <- NULL
-          self$raw_params[nm] <- NULL
+        # drop previous definition
+        self$defs[name] <- NULL
+        self$logic_tables[name] <- NULL
+        self$raw_params[name] <- NULL
+        if (!placeholder) return(name)
 
-        } else if (isTRUE(warn_removal)) {
-          warning_h(sprintf("Attempt to remove unknown group_rate '%s'.", nm))
-        }
+      } else if (isTRUE(warn_removal)) {
+        warning_h(sprintf("Attempt to remove unknown group_rate '%s'.", name))
       }
 
-      # warning about overwriting.
-      if (warn_overwrite && (length(all_rmv) > 0)) warning_h(sprintf(
-        "Overwriting group rate definition%s%s",
-        ifelse(length(all_rmv) > 1, "s for:\n", " for "),
-        character_to_string_list(all_rmv, NA)
-      ))
-
-      invisible(self)
+      c()
     },
 
     #' @inherit add_group_rate
@@ -373,7 +364,8 @@ HousepiGroupRate <- R6::R6Class(
                        prior = NA_character_, ...,
                        min = NULL, max = NULL,
                        proposal = NA_character_,
-                       proposal_scale = NA_real_) {
+                       proposal_scale = NA_real_,
+                       .warn_over = TRUE) {
       # load non-quosures
       name <- housepi_smart_unwrap(name, "name")
       by <- housepi_smart_unwrap(by, "by")
@@ -392,10 +384,13 @@ HousepiGroupRate <- R6::R6Class(
       args <- housepi_extractor(!!!dots)
 
       # control valid name
-      assert_valid_definition_name(name, "group rate", !is.na(by))
+      assert_valid_definition_name(name, self$family, !is.na(by))
 
       # remove previous definition if it exists
-      self$remove(list(name), warn_overwrite = TRUE)
+      rmv_name <- self$remove(name)
+
+      if (.warn_over) call_warn_overwrite(rmv_name, self$family)
+      else self$store_warn_over <- c(self$store_warn_over, rmv_name)
 
       forbidden <- c("n", "param_name", "group_rate")
       if (!all(is.na(by))) {
@@ -441,12 +436,8 @@ HousepiGroupRate <- R6::R6Class(
 
     #' @inherit load_group_rate_list
     load_quosures = function(xquos, append = FALSE) {
-      # UPDATE: append requires checking existing definitions.
-      # I can store old ones, compare them and then drop at the end
-      # remove previous definitions if append is false
       if (isFALSE(append)) self$initialize()
-      self <- housepi_load_defin_quos(self, "by", xquos)
-
+      housepi_load_defin_quos(self, "by", xquos)
       invisible(self)
     },
 
@@ -543,7 +534,7 @@ HousepiGroupRate <- R6::R6Class(
       if (isTRUE(capital)) for (g in template_missing_find(required, defined)) {
         self$add_quo(g, by = NA_character_)
       }
-      template_missing_stop(required, defined, "group rates")
+      template_missing_stop(required, defined, self$family)
     },
 
     #' @description

@@ -232,6 +232,7 @@ housepi_extractor <- function(...) {
 
 # Load a named list of quosures for definitions.
 housepi_load_defin_quos <- function(self, implicit_name, xquos) {
+  self$store_warn_over <- character()
   for (i in seq_along(xquos)) {
     nm <- names(xquos[i])
     def_quo <- xquos[[i]]
@@ -242,22 +243,23 @@ housepi_load_defin_quos <- function(self, implicit_name, xquos) {
       args_quos <- lapply(rlang::call_args(def_expr),
                           rlang::new_quosure,
                           env = rlang::quo_get_env(def_quo))
-      rlang::inject(self$add_quo(name = nm, !!!args_quos))
+      rlang::inject(self$add_quo(name = nm, !!!args_quos, .warn_over = FALSE))
     } else if (is.list(def_expr)) {
       # arguments are not quosures
-      rlang::inject(self$add_quo(name = nm, !!!def_expr))
+      rlang::inject(self$add_quo(name = nm, !!!def_expr, .warn_over = FALSE))
     } else {
       # single implicit definition to pass to add_quo
       extra_arg <- rlang::set_names(list(def_quo), implicit_name)
       # associate name if provided
       if (is.na(nm) || length(nm) == 0 || nm == "") {
-        rlang::inject(self$add_quo(!!!extra_arg))
+        rlang::inject(self$add_quo(!!!extra_arg, .warn_over = FALSE))
       } else {
-        rlang::inject(self$add_quo(name = nm, !!!extra_arg))
+        rlang::inject(self$add_quo(name = nm, !!!extra_arg, .warn_over = FALSE))
       }
     }
   }
-  self
+  call_warn_overwrite(self$store_warn_over, self$family)
+  self$store_warn_over <- character()
 }
 
 # Convert a definition list to a list of quosures.
@@ -268,7 +270,17 @@ convert_list_to_quosures <- function(input_lst, env = rlang::global_env()) {
 }
 
 # Load a templated list of definitions.
-get_template_def_list <- function(templ_file) {
+get_template_def_list <- function(path, family) {
+  if (family == "parameter") {
+    templ_file <- file.path(path, "template_param.R")
+  } else if (family == "augmented") {
+    templ_file <- file.path(path, "template_augm.R")
+  } else {
+    stop_h(sprintf(
+      "[Internal] Unrecognized module family '%s' for template loading.", family
+    ))
+  }
+
   # check if template file exists
   if (!file.exists(templ_file)) stop_h(
     sprintf("Impossible to use templated %s definition.", family),
@@ -283,7 +295,7 @@ family2model_col <- function(family) {
   else if (family == "augmented function") "func"
   else if (family == "parameter") "prior"
   else if (family == "infectivity profile") "func"
-  else if (family == "group rates") "prior"
+  else if (family == "group rate") "prior"
   else stop_h(sprintf(
     "[Internal] Unrecognized module family '%s'.", family
   ))
@@ -294,7 +306,7 @@ family2pvt_module <- function(family) {
   else if (family == "augmented function") ".augm"
   else if (family == "parameter") ".param"
   else if (family == "infectivity profile") ".infec_profile"
-  else if (family == "group rates") ".group_rates"
+  else if (family == "group rate") ".group_rates"
   else stop_h(sprintf(
     "[Internal] Unrecognized module family '%s'.", family
   ))
@@ -309,7 +321,7 @@ housepi_assert_args <- function(hhmodel, family, last = FALSE) {
   col_args <- ifelse(col_model == "func", "func_args", "args")
   pvt_module <- family2pvt_module(family)
   defs <- hhmodel$.__enclos_env__$private[[pvt_module]]$defs
-  if (isTRUE(last)) defs <- tail(defs, 1)
+  if (isTRUE(last)) defs <- utils::tail(defs, 1)
 
   readable_defs <- housepi_defin_showcaser(defs)
   for (r in seq_len(nrow(readable_defs))) {

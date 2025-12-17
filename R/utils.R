@@ -90,7 +90,7 @@ character_to_phrase <- function(mylist) {
     sms <- paste(mylist[1:(len_list - 1)], collapse = ", ")
     sms <- paste(sms, "and", mylist[len_list])
   }
-  paste0(sms, ".")
+  sms
 }
 
 #' @title

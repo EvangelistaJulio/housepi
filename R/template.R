@@ -355,12 +355,23 @@ template_missing_stop <- function(required, defined, family, max_print = 4) {
             family,
             ifelse(len_miss > 1, "s", ""),
             character_to_string_list(miss, max_print)),
-    sprintf("The %s definition%s required by %s",
+    sprintf("The %s%s required by %s definitions.",
             family,
             ifelse(len_miss > 1, "s were", " was"),
             character_to_phrase(sources))
   )
   output
+}
+
+# warning about overwriting.
+call_warn_overwrite <- function(all_rmv, family) {
+  n_rmv <- length(all_rmv)
+  if (n_rmv > 0) warning_h(sprintf(
+    "Overwriting %s%s definition%s%s",
+    ifelse(n_rmv > 1, paste0(n_rmv, " "), ""), family,
+    ifelse(n_rmv > 1, "s for:\n", " for "),
+    character_to_string_list(all_rmv, NA)
+  ))
 }
 
 ############################################################################

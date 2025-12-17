@@ -81,8 +81,11 @@ HousepiInfecProfile <- R6::R6Class(
   ############################################################################
 
   public = list(
-    #' @field defs `data.frame`\cr
-    #' Infectivity profile definition data.frame.
+    #' @field family `character(1)` with the module family.
+    family = "infectivity profile",
+    #' @field store_warn_over `character()` with cached overwritten names.
+    store_warn_over = character(),
+    #' @field defs `data.frame` with formatted infectivity profile definitions.
     defs = NULL,
 
     #' @description
@@ -93,9 +96,32 @@ HousepiInfecProfile <- R6::R6Class(
       invisible(self)
     },
 
+    #' @description
+    #' Remove a given infectivity profile definition.
+    #'
+    #' @param status
+    #' An `integer(1)` with the associated status of the definition.
+    #' @param warn_removal
+    #' `logical(1)`to show warnings for failed removal.
+    remove = function(status, warn_removal = FALSE) {
+      mask <- sapply(self$defs[["status"]], function(x) {
+        identical(x, as.integer(status))
+      })
+      if (any(mask)) {
+        self$defs <- self$defs[!mask, ]
+        return(status)
+      } else if (isTRUE(warn_removal)) {
+        warning_h(sprintf(
+          "Attempt to remove unknown infectivity profile for status '%s'.",
+          status
+        ))
+      }
+      c()
+    },
+
     #' @inherit add_infec_profile
     add_quo = function(func, status = NA_integer_,
-                       discr = FALSE, ..., max = NULL) {
+                       discr = FALSE, ..., max = NULL, .warn_over = TRUE) {
       # load non-quosures
       func <- housepi_smart_unwrap(func, "func")
       status <- housepi_smart_unwrap(status, "status")
@@ -114,6 +140,11 @@ HousepiInfecProfile <- R6::R6Class(
       if (is.na(func)) stop_h("Incomplete definition: missing function name.")
       assert_valid_status(status)
 
+      # drop previous definition eventually
+      rmv_name <- self$remove(status)
+      if (.warn_over) call_warn_overwrite(rmv_name, self$family)
+      else self$store_warn_over <- c(self$store_warn_over, rmv_name)
+
       self$defs <- rbind(self$defs, data.frame(list(
         func = ifelse(is.null(func_args), func,
                       housepi_combine_to_call(func, func_args)),
@@ -123,26 +154,13 @@ HousepiInfecProfile <- R6::R6Class(
         discr = isTRUE(discr)
       )))
 
-      # assert no multiple definitions have been provided
-      if (length(unique(self$defs$status)) != nrow(self$defs)) {
-        self$initialize()
-        stop_h(
-          "Found multiple infectivity profile definitions for the same status.",
-          "Falling back to template definition."
-        )
-      }
-
       invisible(self)
     },
 
     #' @inherit load_infec_profile
     load_quosures = function(xquos, append = FALSE) {
-      # UPDATE: append requires checking existing definitions.
-      # I can store old ones, compare them and then drop at the end
-      # remove previous definitions if append is false
       if (isFALSE(append)) self$initialize()
-      self <- housepi_load_defin_quos(self, "func", xquos)
-
+      housepi_load_defin_quos(self, "func", xquos)
       invisible(self)
     },
 

@@ -22,7 +22,6 @@ jobs:
           - {os: windows-latest, r: 'release'}
           - {os: ubuntu-latest,   r: 'release'}
 
-    # Shorter timeout to prevent mac builders hanging for 6 hours!
     timeout-minutes: 30
 
     env:

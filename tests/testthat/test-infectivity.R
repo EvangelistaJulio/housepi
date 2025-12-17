@@ -51,8 +51,8 @@ test_that("Status specific definition work fine", {
   add_add(infec, func = "discrete_profile", discr = TRUE,
           x = 5, max = 20)
 
-  expect_error(add_add(infec, func = "another_generic"),
-               regexp = "multiple infectivity profile definitions")
+  expect_warning(add_add(infec, func = "another_generic"),
+                 regexp = "Overwriting")
 
   aux_load(infec,
            list(func = "gamma", status = 1),

@@ -22,6 +22,9 @@ before_script:
   - R -q -e "install.packages('pak', repos='https://r-lib.github.io/p/pak/stable')"
   - R -q -e "pak::local_install_dev_deps(upgrade = FALSE)"
 
+######################
+# pkgdown site build #
+######################
 build_site:
   stage: build
   script:
@@ -31,6 +34,9 @@ build_site:
       - public
     expire_in: 1 week
 
+#######################
+# GitLab Pages deploy #
+#######################
 pages:
   stage: deploy
   script:

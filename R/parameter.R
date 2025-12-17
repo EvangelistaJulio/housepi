@@ -68,8 +68,11 @@ HousepiParameter <- R6::R6Class(
   ############################################################################
 
   public = list(
-    #' @field defs `data.frame`\cr
-    #' Parameter formatted definitions.
+    #' @field family `character(1)` with the module family.
+    family = "parameter",
+    #' @field store_warn_over `character()` with cached overwritten names.
+    store_warn_over = character(),
+    #' @field defs `data.frame` with formatted parameter definitions.
     defs = NULL,
 
     #' @description
@@ -104,34 +107,19 @@ HousepiParameter <- R6::R6Class(
 
     #' @description
     #' Remove a given parameter.
-    #'
-    #' @param name_lst
-    #' A `character()` with the name of parameter definitions to remove.
+    #' @param name
+    #' A `character(1)` with the name of parameter definitions to remove.
     #' @param warn_removal
     #' `logical(1)`to show warnings for failed removal.
-    #' @param warn_overwrite
-    #' `logical(1)`to show warnings in case of overwriting.
-    remove = function(name_lst, warn_removal = FALSE, warn_overwrite = FALSE) {
-      stopifnot(is.list(name_lst))
-      all_rmv <- c()
-      for (nm in name_lst) {
-        mask <- self$defs[["name"]] == nm
-        if (any(mask)) {
-          self$defs <- self$defs[!mask, ]
-          all_rmv <- c(all_rmv, nm)
-        } else if (isTRUE(warn_removal)) {
-          warning_h(sprintf("Attempt to remove unknown parameter '%s'.", nm))
-        }
+    remove = function(name, warn_removal = FALSE) {
+      mask <- self$defs[["name"]] == name
+      if (any(mask)) {
+        self$defs <- self$defs[!mask, ]
+        return(name)
+      } else if (isTRUE(warn_removal)) {
+        warning_h(sprintf("Attempt to remove unknown parameter '%s'.", name))
       }
-
-      # warning about overwriting.
-      if (warn_overwrite && (length(all_rmv) > 0)) warning_h(sprintf(
-        "Overwriting parameter definition%s%s",
-        ifelse(length(all_rmv) > 1, "s for:\n", " for "),
-        character_to_string_list(all_rmv, NA)
-      ))
-
-      invisible(self)
+      c()
     },
 
     #' @inherit add_parameter
@@ -140,7 +128,8 @@ HousepiParameter <- R6::R6Class(
                        prior = NA_character_, ...,
                        min = NULL, max = NULL,
                        proposal = NA_character_,
-                       proposal_scale = NA_real_) {
+                       proposal_scale = NA_real_,
+                       .warn_over = TRUE) {
       # load non-quosures
       name <- housepi_smart_unwrap(name, "name")
       const <- housepi_smart_unwrap(const, "const")
@@ -159,7 +148,7 @@ HousepiParameter <- R6::R6Class(
       args <- housepi_extractor(!!!dots)
 
       # control valid name
-      assert_valid_definition_name(name, "parameter", !is.na(value))
+      assert_valid_definition_name(name, self$family, !is.na(value))
       if (all(is.null(value), is.na(prior))) stop_h(
         sprintf("Incomplete definition for parameter '%s'.", name),
         "Provide at least one between 'value' and 'prior'."
@@ -173,7 +162,9 @@ HousepiParameter <- R6::R6Class(
                    proposal_scale = NA_real_)
 
       # drop previous definition eventually
-      self$remove(list(opts$name), warn_removal = FALSE, warn_overwrite = TRUE)
+      rmv_name <- self$remove(opts$name)
+      if (.warn_over) call_warn_overwrite(rmv_name, self$family)
+      else self$store_warn_over <- c(self$store_warn_over, rmv_name)
 
       # assume it's a constant if a prior is not provided
       if (is.na(const)) const <- is.na(prior)
@@ -202,12 +193,8 @@ HousepiParameter <- R6::R6Class(
 
     #' @inherit load_parameter_list
     load_quosures = function(xquos, append = FALSE) {
-      # UPDATE: append requires checking existing definitions.
-      # I can store old ones, compare them and then drop at the end
-      # remove previous definitions if append is false
       if (isFALSE(append)) self$initialize()
-      self <- housepi_load_defin_quos(self, "value", xquos)
-
+      housepi_load_defin_quos(self, "value", xquos)
       invisible(self)
     },
 
@@ -219,9 +206,9 @@ HousepiParameter <- R6::R6Class(
     assert = function(required, capital) {
       defined <- self$defs[["name"]]
       # point out parameters that are not used
-      template_not_used_warn(required, defined, "parameter")
+      template_not_used_warn(required, defined, self$family)
       # stop if parameters are missing
-      sms <- template_missing_stop(required, defined, "parameter")
+      sms <- template_missing_stop(required, defined, self$family)
       if (isTRUE(capital) && length(sms) > 0) stop_h(sms)
       else sms
     }

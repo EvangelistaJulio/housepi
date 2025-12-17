@@ -692,7 +692,7 @@ HousepiModel <- R6::R6Class(
       )
       # retrieve the template parameters file
       else self$load_parameter_list(
-        !!!get_template_def_list(private$.path("template_param.R")),
+        !!!get_template_def_list(private$.path(), "parameter"),
         append = isTRUE(append)
       )
       invisible(self)
@@ -759,7 +759,7 @@ HousepiModel <- R6::R6Class(
       )
       # retrieve the template augmented file
       else self$load_augmented_list(
-        !!!get_template_def_list(private$.path("template_augm.R")),
+        !!!get_template_def_list(private$.path(), "augmented"),
         append = isTRUE(append)
       )
       invisible(self)
@@ -999,7 +999,7 @@ HousepiModel <- R6::R6Class(
       # remove associated parameters
       if (!is.null(private$.group_rates)) {
         for (p in names(private$.group_rates$parameters)) {
-          private$.param$remove(p, show_warnings = FALSE)
+          private$.param$remove(p)
         }
       }
       private$.group_rates <- HousepiGroupRate$new()

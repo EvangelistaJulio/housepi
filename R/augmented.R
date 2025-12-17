@@ -148,8 +148,11 @@ HousepiAugmented <- R6::R6Class(
   ############################################################################
 
   public = list(
-    #' @field defs `data.frame`\cr
-    #' Augmented variable formatted definitions.
+    #' @field family `character(1)` with the module family.
+    family = "augmented",
+    #' @field store_warn_over `character()` with cached overwritten names.
+    store_warn_over = character(),
+    #' @field defs `data.frame` with formatted augmented definitions.
     defs = NULL,
 
     #' @description
@@ -182,56 +185,36 @@ HousepiAugmented <- R6::R6Class(
     },
 
     #' @description
-    #' Remove a given augmented variable.
+    #' Remove a given augmented definition.
     #'
-    #' @param name_lst
-    #' A `character()` with the name of augmented definitions to remove.
+    #' @param name
+    #' A `character(1)` with the name of augmented definitions to remove.
     #' @param status
-    #' An `integer()` with the associated status of the definition.
+    #' An `integer(1)` with the associated status of the definition.
     #' @param warn_removal
     #' `logical(1)`to show warnings for failed removal.
-    #' @param warn_overwrite
-    #' `logical(1)`to show warnings in case of overwriting.
-    remove = function(name_lst, status_lst,
-                      warn_removal = FALSE,
-                      warn_overwrite = FALSE) {
-      stopifnot(length(name_lst) == length(status_lst))
-      stopifnot(is.list(name_lst))
-      stopifnot(is.list(status_lst))
+    remove = function(name, status, warn_removal = FALSE) {
+      mask <- self$defs[["name"]] == name
+      if (any(mask)) {
+        # check if same name and status
+        mask <- mask & sapply(self$defs[["status"]], function(x) {
+          identical(x, as.integer(status))
+        })
 
-      all_rmv <- c()
-      # loop over names
-      for (i in seq_along(name_lst)) {
-        nm <- name_lst[[1]]
-        st <- status_lst[[1]]
-        mask <- self$defs[["name"]] == nm
         if (any(mask)) {
-          # check if same name and status
-          mask <- mask & sapply(self$defs[["status"]], function(x) {
-            identical(x, as.integer(st))
-          })
-
-          if (any(mask)) {
-            self$defs <- self$defs[!mask, ]
-            all_rmv <- c(all_rmv, nm)
-          } else if (isTRUE(warn_removal)) {
-            warning_h(sprintf(
-              "Attempt to remove unknown augmented '%s' for status %d.", nm, st
-            ))
-          }
+          self$defs <- self$defs[!mask, ]
+          return(name)
         } else if (isTRUE(warn_removal)) {
-          warning_h(sprintf("Attempt to remove unknown augmented '%s'.", nm))
+          warning_h(sprintf(
+            "Attempt to remove unknown augmented '%s' for status %d.",
+            name, status
+          ))
         }
+      } else if (isTRUE(warn_removal)) {
+        warning_h(sprintf("Attempt to remove unknown augmented '%s'.", name))
       }
 
-      # warning about overwriting.
-      if (warn_overwrite && (length(all_rmv) > 0)) warning_h(sprintf(
-        "Overwriting augmented definition%s%s",
-        ifelse(length(all_rmv) > 1, "s for:\n", " for "),
-        character_to_string_list(all_rmv, NA)
-      ))
-
-      invisible(self)
+      c()
     },
 
     #' @inherit add_augmented
@@ -241,7 +224,8 @@ HousepiAugmented <- R6::R6Class(
                        model = NA_character_, ...,
                        min = NULL, max = NULL,
                        proposal = NA_character_,
-                       proposal_scale = NA_real_) {
+                       proposal_scale = NA_real_,
+                       .warn_over = TRUE) {
 
       # load non-quosures
       name <- housepi_smart_unwrap(name, "name")
@@ -271,7 +255,7 @@ HousepiAugmented <- R6::R6Class(
       }
 
       # control valid name
-      assert_valid_definition_name(name, "augmented", !is.na(func))
+      assert_valid_definition_name(name, self$family, !is.na(func))
       # control valid status
       assert_valid_status(status)
       # control meaningful definition
@@ -295,8 +279,9 @@ HousepiAugmented <- R6::R6Class(
                    proposal_scale = NA_real_)
 
       # drop previous definition eventually
-      self$remove(list(opts$name), list(opts$status),
-                  warn_removal = FALSE, warn_overwrite = TRUE)
+      rmv_name <- self$remove(opts$name, opts$status)
+      if (.warn_over) call_warn_overwrite(rmv_name, self$family)
+      else self$store_warn_over <- c(self$store_warn_over, rmv_name)
 
       # model arguments
       if (!is.null(args)) {
@@ -324,12 +309,8 @@ HousepiAugmented <- R6::R6Class(
 
     #' @inherit load_augmented_list
     load_quosures = function(xquos, append = FALSE) {
-      # UPDATE: append requires checking existing definitions.
-      # I can store old ones, compare them and then drop at the end
-      # remove previous definitions if append is false
       if (isFALSE(append)) self$initialize()
-      self <- housepi_load_defin_quos(self, "func", xquos)
-
+      housepi_load_defin_quos(self, "func", xquos)
       invisible(self)
     },
 
@@ -343,10 +324,10 @@ HousepiAugmented <- R6::R6Class(
       status_set <- sort(status_set)
       defined <- self$defs[["name"]]
       # point out augmented variables that are not used
-      template_not_used_warn(required, defined, "augmented")
+      template_not_used_warn(required, defined, self$family)
 
       # stop if augmented variables are missing
-      sms <- template_missing_stop(required, defined, "augmented")
+      sms <- template_missing_stop(required, defined, self$family)
       if (isTRUE(capital) && length(sms) > 0) stop_h(sms)
       else sms
     }
