@@ -3,9 +3,12 @@
 \docType{class}
 \name{HousepiPosteriorDraws}
 \alias{HousepiPosteriorDraws}
-\title{Housepi Posterior Draws}
+\title{Posterior draws from housepi model inference}
 \description{
-Posterior draws as a results of housepi model inference.
+Posterior draws as a result of housepi inference on a household model.
+This class stores posterior draws of model parameters,
+priors, total and household point-wise log-likelihood.
+If requested so during inference, it also stores augmented variables.
 }
 \section{Active bindings}{
 \if{html}{\out{<div class="r6-active-bindings">}}

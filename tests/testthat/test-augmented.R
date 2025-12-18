@@ -163,7 +163,14 @@ test_that("Symbolic definitions are equivalent", {
            var4 = list(model = "normal", mean = ~ indiv_shape + !!val))
   aux <- augm$defs
   aux$name <- NULL
-
   # check that all rows are identical
   expect_equal(nrow(unique(aux)), 1)
+
+  # check injection from external
+  external <- list(
+    some_func = list(func = "gamma",
+                     func_args = c(shape = ~ shape, scale = ~ scale))
+  )
+  aux_load(augm, !!!external)
+  expect_equal(augm$defs$func, "gamma|shape:scale|{shape|A}:{scale|A}")
 })

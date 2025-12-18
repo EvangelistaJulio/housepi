@@ -5,7 +5,7 @@
 \alias{get_augmented}
 \alias{get_group_rates}
 \alias{get_infec_profile}
-\title{Get definitions}
+\title{Get current definitions}
 \usage{
 get_parameters(hhmodel, ...)
 
@@ -24,5 +24,5 @@ get_infec_profile(hhmodel, ...)
 \code{data.frame}
 }
 \description{
-Get current formatted definitions.
+Return a data frame with the current definitions by row.
 }

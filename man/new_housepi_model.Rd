@@ -2,7 +2,7 @@
 % Please edit documentation in R/expose_class.R
 \name{new_housepi_model}
 \alias{new_housepi_model}
-\title{New housepi model}
+\title{Generate a new instance of household model class}
 \usage{
 new_housepi_model(
   choice = NA_character_,

@@ -2,15 +2,18 @@
 % Please edit documentation in R/sampler_class.R
 \name{compute_household_marginals}
 \alias{compute_household_marginals}
-\title{Compute Marginals}
+\title{Compute marginals for the household sampler}
 \usage{
-compute_household_marginals(hhsampler, data_wide)
+compute_household_marginals(hhsampler, data_wide, ascending = NA)
 }
 \arguments{
 \item{hhsampler}{An instance of the \code{HousepiSampler} class.}
 
 \item{data_wide}{\code{data.frame} with the household data used for analysis in wide format.}
+
+\item{ascending}{\code{logical(1)} to set ascending hierarchy between feature numbers.\cr
+If \code{FALSE} is descending (default).}
 }
 \description{
-Computes marginal distributions for household features based on a survey dataset.
+Computes marginal distributions for household hierarchical features from a given dataset.
 }

@@ -3,7 +3,7 @@
 \docType{class}
 \name{PredictedCasesBySize}
 \alias{PredictedCasesBySize}
-\title{Predicted Cases By Size}
+\title{Predicted class with common measures of cases by size}
 \description{
 Predicted cases by household size, comparing observed and predicted values.
 It estimates secondary attack rates and cases by size tables.

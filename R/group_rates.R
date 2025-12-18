@@ -389,7 +389,7 @@ HousepiGroupRate <- R6::R6Class(
       # remove previous definition if it exists
       rmv_name <- self$remove(name)
 
-      if (.warn_over) call_warn_overwrite(rmv_name, self$family)
+      if (.warn_over) template_overwrite_warn(rmv_name, self$family)
       else self$store_warn_over <- c(self$store_warn_over, rmv_name)
 
       forbidden <- c("n", "param_name", "group_rate")

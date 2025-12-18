@@ -3,9 +3,9 @@
 \docType{class}
 \name{HousepiModel}
 \alias{HousepiModel}
-\title{Housepi Model}
+\title{R6 class with the household model}
 \description{
-Compile household model, manage your data
+Compile the household model, manage your data
 and variable definitions from a single class.
 }
 \section{Super class}{
@@ -56,6 +56,7 @@ and variable definitions from a single class.
 \item \href{#method-HousepiModel-drop_parameters}{\code{HousepiModel$drop_parameters()}}
 \item \href{#method-HousepiModel-drop_augmented}{\code{HousepiModel$drop_augmented()}}
 \item \href{#method-HousepiModel-drop_group_rates}{\code{HousepiModel$drop_group_rates()}}
+\item \href{#method-HousepiModel-drop_infectivity_profile}{\code{HousepiModel$drop_infectivity_profile()}}
 \item \href{#method-HousepiModel-drop_all}{\code{HousepiModel$drop_all()}}
 \item \href{#method-HousepiModel-clone}{\code{HousepiModel$clone()}}
 }
@@ -190,7 +191,7 @@ Make an internal copy of the provided data_long.
 \if{html}{\out{<a id="method-HousepiModel-add_parameter"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-add_parameter}{}}}
 \subsection{Method \code{add_parameter()}}{
-Add a new parameter to houspepi model definitions.
+Add a new parameter to housepi model definitions.
 If the parameter already exists, it is updated.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_parameter(
@@ -290,7 +291,7 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 \if{html}{\out{<a id="method-HousepiModel-add_augmented"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-add_augmented}{}}}
 \subsection{Method \code{add_augmented()}}{
-Add a new augmented variable/function to houspepi model definitions.
+Add a new augmented variable/function to housepi model definitions.
 If the augmented variable already exists, it is updated.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_augmented(
@@ -751,6 +752,16 @@ Drop augmented variable definitions.
 Drop group rates definitions.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$drop_group_rates()}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HousepiModel-drop_infectivity_profile"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiModel-drop_infectivity_profile}{}}}
+\subsection{Method \code{drop_infectivity_profile()}}{
+Drop infectivity profile rates definitions.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$drop_infectivity_profile()}\if{html}{\out{</div>}}
 }
 
 }

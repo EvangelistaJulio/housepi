@@ -2,7 +2,7 @@
 % Please edit documentation in R/predictive_checks.R
 \name{predicted_cases_by_house_size}
 \alias{predicted_cases_by_house_size}
-\title{Predicted cases by household size}
+\title{Common measures predicted by the model by household size}
 \usage{
 predicted_cases_by_house_size(
   hhmodel,
@@ -40,5 +40,5 @@ containing methods to compare observed and predicted cases.
 }
 \description{
 Extract the predicted number of household cases per size.
-It can be used to estimate the secondary attack rate.
+It can be used to estimate the secondary attack rate (SAR).
 }

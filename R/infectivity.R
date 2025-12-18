@@ -142,13 +142,13 @@ HousepiInfecProfile <- R6::R6Class(
 
       # drop previous definition eventually
       rmv_name <- self$remove(status)
-      if (.warn_over) call_warn_overwrite(rmv_name, self$family)
+      if (.warn_over) template_overwrite_warn(rmv_name, self$family)
       else self$store_warn_over <- c(self$store_warn_over, rmv_name)
 
       self$defs <- rbind(self$defs, data.frame(list(
         func = ifelse(is.null(func_args), func,
                       housepi_combine_to_call(func, func_args)),
-        status = status,
+        status = as.integer(status),
         min = ifelse(isTRUE(discr), 1, 0),
         max = ifelse(is.null(max), NA_character_, max),
         discr = isTRUE(discr)

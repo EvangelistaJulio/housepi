@@ -21,6 +21,9 @@ Reported cases of "Spanish" flu in Baltimora (USA), in 1918.
 \item{house_id}{Household identifier}
 \item{status}{Reported case}
 }
+
+To reproduce the data processing, see the script at:
+\code{system.file("data-raw", "make_flu_1918_baltimora_frederick.R", package = "housepi")}
 }
 \references{
 Fraser, et al. (2011)

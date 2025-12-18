@@ -4,14 +4,17 @@
 \alias{drop_parameters}
 \alias{drop_augmented}
 \alias{drop_group_rates}
+\alias{drop_infectivity_profile}
 \alias{drop_all}
-\title{Drop definitions}
+\title{Drop current definitions}
 \usage{
 drop_parameters(hhmodel, ...)
 
 drop_augmented(hhmodel, ...)
 
 drop_group_rates(hhmodel, ...)
+
+drop_infectivity_profile(hhmodel, ...)
 
 drop_all(hhmodel)
 }
@@ -24,5 +27,5 @@ drop_all(hhmodel)
 A deep clone of the input \code{HousepiModel} with new definitions.
 }
 \description{
-Drop current formatted definitions.
+Remove current definitions from the housepi model.
 }

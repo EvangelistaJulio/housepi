@@ -13,9 +13,11 @@ editor_options:
     wrap: sentence
 ---
 
-```{r setup}
+```{r child = "_setup.Rmd"}
+```
+
+```{r library}
 #| include: false
-source("theme.R")
 knitr::opts_chunk$set(fig.width = 5, fig.height = 3)
 library(housepi)
 set.seed(42)
@@ -123,7 +125,5 @@ protected:
 };
 ```
 
----
-```{r, results='asis', echo=FALSE}
-show_session_info()
+```{r child = "_footer.Rmd"}
 ```

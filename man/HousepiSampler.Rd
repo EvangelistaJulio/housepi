@@ -3,9 +3,10 @@
 \docType{class}
 \name{HousepiSampler}
 \alias{HousepiSampler}
-\title{Household Sampler}
+\title{Household sampler}
 \description{
-Missing.
+This class allows to define a household demographic structure
+from a hierarchical model of covariates, computed from an existing dataset.
 }
 \keyword{internal}
 \section{Super class}{
@@ -15,8 +16,8 @@ Missing.
 \subsection{Public methods}{
 \itemize{
 \item \href{#method-HousepiSampler-new}{\code{HousepiSampler$new()}}
-\item \href{#method-HousepiSampler-compute_marginals}{\code{HousepiSampler$compute_marginals()}}
-\item \href{#method-HousepiSampler-sample}{\code{HousepiSampler$sample()}}
+\item \href{#method-HousepiSampler-compute_household_marginals}{\code{HousepiSampler$compute_household_marginals()}}
+\item \href{#method-HousepiSampler-sample_households}{\code{HousepiSampler$sample_households()}}
 \item \href{#method-HousepiSampler-clone}{\code{HousepiSampler$clone()}}
 }
 }
@@ -50,12 +51,12 @@ If \code{FALSE} is descending (default).}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiSampler-compute_marginals"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiSampler-compute_marginals}{}}}
-\subsection{Method \code{compute_marginals()}}{
-Compute household marginal distributions according to hierarchical model.
+\if{html}{\out{<a id="method-HousepiSampler-compute_household_marginals"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiSampler-compute_household_marginals}{}}}
+\subsection{Method \code{compute_household_marginals()}}{
+Computes marginal distributions for household hierarchical features from a given dataset.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiSampler$compute_marginals(data_wide, ascending = NA)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiSampler$compute_household_marginals(data_wide, ascending = NA)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -70,12 +71,12 @@ If \code{FALSE} is descending (default).}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiSampler-sample"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiSampler-sample}{}}}
-\subsection{Method \code{sample()}}{
-Sample households according to feature distribution.
+\if{html}{\out{<a id="method-HousepiSampler-sample_households"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiSampler-sample_households}{}}}
+\subsection{Method \code{sample_households()}}{
+Sample households based on the marginals of the hierarchical model.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiSampler$sample(size = 1)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiSampler$sample_households(size = 1)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{

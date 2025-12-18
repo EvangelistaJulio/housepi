@@ -13,10 +13,14 @@ editor_options:
     wrap: sentence
 ---
 
-```{r setup}
+```{r child = "_setup.Rmd"}
+```
+
+```{r library}
 #| include: false
-source("theme.R")
+options(housepi.footer.sample = TRUE)
 library(housepi)
+housepi_theme_set()
 set.seed(42)
 ```
 
@@ -266,6 +270,8 @@ bayesplot::mcmc_trace(get_augm_draws(results))
 bayesplot::mcmc_trace(get_total_log_lik_draws(results))
 ```
 
+What happens if we don't provide a model for an augmented variable? This is still allowed if a proposal rule has been defined:
+
 ```{r}
 #| warning: false
 # random walk (without model)
@@ -288,7 +294,7 @@ bayesplot::mcmc_trace(get_augm_draws(results))
 bayesplot::mcmc_trace(get_total_log_lik_draws(results))
 ```
 
----
-```{r, results='asis', echo=FALSE}
-show_session_info()
+In this case the variable has no contribution to the likelihood!
+
+```{r child = "_footer.Rmd"}
 ```

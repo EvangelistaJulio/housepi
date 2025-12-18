@@ -9,6 +9,13 @@ template:
 
 destination: public
 
+footer:
+  structure:
+    left: developed_by
+    right: built_with
+  components:
+    developed_by: "Developed by Francesco Camaglia."
+
 home:
   title: Household Epidemiological Modeling and Analysis
   desc: >
@@ -32,10 +39,11 @@ reference:
     - starts_with("summarise_")
     - evaluate_log_lik
     - starts_with("run_")
+    - housepi_theme_set
 
 - title: "Model definitions"
   desc: >
-    Functions used to customize your model definitions.
+    Calls used to customize your model definitions.
   contents:
   - starts_with("add_")
   - starts_with("load_")
@@ -72,7 +80,7 @@ reference:
   contents:
   - survey
   - starts_with("flu")
-  - sarscov2_2021_israel
+  - sarscov2_2021_icofs
 
 - title: "Sample household structure"
   desc: >

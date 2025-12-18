@@ -373,3 +373,49 @@ cpp_data_refactor <- function(data, info, headers) {
   # re-order data and append eventual extra columns
   data[c(headers, setdiff(colnames(data), headers))]
 }
+
+#' @title Set the theme for housepi visualizations
+#' @description
+#' If suggested packages are installad, sets the theme used
+#' in housepi vignettes for `ggplot2`, `bayesplot` and `flextable`.
+#' @export
+housepi_theme_set <- function() {
+  # ggplot theme
+  if (requireNamespace("ggplot2", quietly = TRUE)) {
+    my_elem_text <- ggplot2::element_text(size = 12, face = "plain")
+    ggplot2::theme_set(
+      ggplot2::theme_gray() +
+        ggplot2::theme(text = my_elem_text,
+                       axis.text = my_elem_text,
+                       strip.text = my_elem_text,
+                       legend.text = my_elem_text,
+                       legend.title = ggplot2::element_blank())
+    )
+    # mimic element_geom for older ggplot2 versions
+    ggplot2::update_geom_defaults("line", list(color = "#FF7F50", size = 1))
+    ggplot2::update_geom_defaults("point", list(color = "#FF7F50", size = 3))
+    ggplot2::update_geom_defaults("vline", list(color = "#FF7F50", size = 1))
+    ggplot2::update_geom_defaults("hline", list(color = "#FF7F50", size = 1))
+    ggplot2::update_geom_defaults("abline", list(color = "#FF7F50", size = 1))
+    ggplot2::update_geom_defaults("segment", list(color = "#FF7F50", size = 1))
+    ggplot2::update_geom_defaults("errorbar", list(color = "#FF7F50", size = 1,
+                                                   width = 0.1))
+
+    # bayesplot theme
+    if (requireNamespace("bayesplot", quietly = TRUE)) {
+      bayesplot::bayesplot_theme_set(ggplot2::theme_get())
+      bayesplot::color_scheme_set(c("#6ec5ff", "#3db1ff",
+                                    "#0d8fff", "#0070dd",
+                                    "#0055aa", "#003d77"))
+    }
+  }
+
+  # flextable theme
+  if (requireNamespace("flextable", quietly = TRUE)) {
+    flextable::set_flextable_defaults(
+      font.size = 12, font.color = "#111111",
+      background.color = "white",
+      theme_fun = "theme_vanilla"
+    )
+  }
+}

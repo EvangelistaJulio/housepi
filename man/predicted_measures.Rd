@@ -2,7 +2,7 @@
 % Please edit documentation in R/predictive_checks.R
 \name{predicted_measures}
 \alias{predicted_measures}
-\title{Predicted measures}
+\title{Measures predicted by the model}
 \usage{
 predicted_measures(
   hhmodel,

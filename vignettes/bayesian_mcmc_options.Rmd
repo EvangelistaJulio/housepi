@@ -13,10 +13,14 @@ editor_options:
     wrap: sentence
 ---
 
-```{r setup}
+```{r child = "_setup.Rmd"}
+```
+
+```{r library}
 #| include: false
-source("theme.R")
+options(housepi.footer.sample = TRUE)
 library(housepi)
+housepi_theme_set()
 set.seed(42)
 ```
 
@@ -111,7 +115,7 @@ new_housepi_model("blank") |>
 
 ## Discretize continuous priors
 
-Previous continuous priors can be chosen to be discretized simply by adding the flag `discr = TRUE`.
+Previous continuous priors can be chosen to be discretized using the argument `discr`.
 
 ```{r}
 #| fig.alt: >
@@ -169,11 +173,13 @@ ggplot(dplyr::tibble(x = seq(0, 9, 1), y = gamma_discr$pdf(x),
 
 MCMC proposals determine how candidate parameter values are drawn at each step. 
 We provides a small set of common mechanisms:
-— sample: direct resampling from the prior;
-— uniform: draws uniformly around the current value inside a window;
-— normal: Gaussian perturbations of the current value;
-— lognormal: multiplicative log-normal proposals (not appropriate for negative values).
-Parametric proposals (uniform, normal, lognormal) require a `proposal_scale` (default is `1`). 
+
+* **sample**: direct sampling from the prior^[Or from model if an augmented variable.];
+* **uniform**: draws uniformly around the current value inside a window;
+* **normal**: Gaussian perturbations of the current value;
+* **lognormal**: multiplicative log-normal proposals (not appropriate for negative values).
+
+Parametric proposals (all except sample) require a `proposal_scale` (default is `1`). 
 
 ```{r}
 #| include: false
@@ -207,7 +213,7 @@ hhmodel |>
 ## Role of finite adaptation
 
 We use finite adaptation to adjusts proposal scales of parametric mechanisms with a target of 25\% acceptance rate.
-In housepi this is enabled by supplying `adapt = N` to `run_inference()`, where `N` is the number of adaptation steps preceding the MCMC `steps`.
+In housepi this is enabled by supplying `adapt = N` to `run_inference()`, where `N` is the number of finite adaptation steps preceding the MCMC `steps`.
 
 ```{r}
 #| fig.alt: >
@@ -220,7 +226,7 @@ hhmodel |>
   bayesplot::mcmc_trace()
 ```
 
----
-```{r, results='asis', echo=FALSE}
-show_session_info()
+We can say that we obtained a better mixing, but at the cost of additional MCMC steps.
+
+```{r child = "_footer.Rmd"}
 ```

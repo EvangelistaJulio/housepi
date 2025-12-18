@@ -163,7 +163,7 @@ HousepiParameter <- R6::R6Class(
 
       # drop previous definition eventually
       rmv_name <- self$remove(opts$name)
-      if (.warn_over) call_warn_overwrite(rmv_name, self$family)
+      if (.warn_over) template_overwrite_warn(rmv_name, self$family)
       else self$store_warn_over <- c(self$store_warn_over, rmv_name)
 
       # assume it's a constant if a prior is not provided

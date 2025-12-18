@@ -13,10 +13,14 @@ editor_options:
     wrap: sentence
 ---
 
-```{r setup}
+```{r child = "_setup.Rmd"}
+```
+
+```{r library}
 #| include: false
-source("theme.R")
+options(housepi.footer.sample = TRUE)
 library(housepi)
+housepi_theme_set()
 set.seed(42)
 ```
 
@@ -49,10 +53,9 @@ hhmodel <- hhmodel |>
 ```
 
 Current loaded model allows for a number of group rates, among which the individual `"susceptibility"` (use `help()` method to learn more). 
-We can define it with calling `add_group_rate()`. 
+We can define it calling `add_group_rate()`. 
 By default, all group rates without a definition will be treated as associated to the reference (i. e. `1`). Definitions will add a new parameter for each group, except for the reference group.
 By the default, definition assumes the reference group to be the one with the largest number of counts.
-To manually provide a `reference`, the corresponding argument should be set equal to the corresponding group value.
 
 ```{r}
 hhmodel |>
@@ -68,7 +71,8 @@ To drop all previous definitions, call `drop_group_rates()`.
 ## Dependencies between covariates
 
 In the previous example we associated group rates to a single covariate in the data.
-In this example we show how to provide more covariates and a custom reference:
+In this example we show how to provide more covariates and a custom reference.
+Manually set a `reference` by providing the corresponding group factor values:
 
 ```{r}
 hhmodel |>
@@ -190,7 +194,5 @@ get_param_draws(results) |>
   labs(x = "", y = ylabel)
 ```
 
----
-```{r, results='asis', echo=FALSE}
-show_session_info()
+```{r child = "_footer.Rmd"}
 ```

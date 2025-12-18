@@ -1,4 +1,4 @@
-# housepi <img src="man/figures/logo.png" align="right" alt="" width="120" />
+# housepi <img src="man/figures/logo.svg" align="right" alt="" width="120" />
 
 We introduce "housepi", an open source R package for the statistical analysis
 and modeling of epidemiological data from household outbreaks.
@@ -19,7 +19,9 @@ straightforward analyses and advanced epidemiological investigations.
 
 Prior to installation, check that `devtools` is installed and test that a working C++ toolchain is present by running:
 ``` r
-if (!requireNamespace("devtools", quietly = TRUE)) install.packages("devtools")
+if (!requireNamespace("devtools", quietly = TRUE)) {
+	install.packages("devtools")
+}
 pkgbuild::has_build_tools(debug = TRUE)
 ```
 

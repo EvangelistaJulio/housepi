@@ -2,7 +2,7 @@
 % Please edit documentation in R/sampler_class.R
 \name{new_household_sampler}
 \alias{new_household_sampler}
-\title{Household Sampler}
+\title{Generate a new instance of household sampler class}
 \usage{
 new_household_sampler(...)
 }

@@ -6,11 +6,12 @@
 ^\.gitlab-ci\.yml$
 ^.*\.Rproj$
 ^\.Rproj\.user$
+^data-raw$
 ^docs$
 ^pkgdown$
+^public$
 ^README\.Rmd$
 ^LICENSE\.md$
 ^inst/--developer$
-^inst/--datasets$
 ^inst/actions$
 ^inst/standalone$

@@ -17,7 +17,7 @@
 # expose_class.R
 #
 
-#' @title New housepi model
+#' @title Generate a new instance of household model class
 #' @description
 #' Create a new object of class 'HousepiModel'
 #' used to run inference and simulation routines.
@@ -107,9 +107,9 @@ summarise_house_sizes <- function(hhmodel, ...) {
 ############################################################################
 ############################################################################
 
-#' @title Drop definitions
+#' @title Drop current definitions
 #' @description
-#' Drop current formatted definitions.
+#' Remove current definitions from the housepi model.
 #'
 #' @param hhmodel `r rd_model_in_`
 #' @param ... Ignored.
@@ -145,6 +145,15 @@ drop_group_rates <-  function(hhmodel, ...) {
 
 #' @rdname drop_definitions
 #' @export
+drop_infectivity_profile <-  function(hhmodel, ...) {
+  stopifnot(inherits(hhmodel, "HousepiModel"))
+  new_obj <- hhmodel$clone(deep = TRUE)
+  new_obj$drop_infectivity_profile(...)
+  new_obj
+}
+
+#' @rdname drop_definitions
+#' @export
 drop_all <- function(hhmodel) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
   new_obj <- hhmodel$clone(deep = TRUE)
@@ -156,9 +165,9 @@ drop_all <- function(hhmodel) {
 ############################################################################
 ############################################################################
 
-#' @title Get definitions
+#' @title Get current definitions
 #' @description
-#' Get current formatted definitions.
+#' Return a data frame with the current definitions by row.
 #'
 #' @param hhmodel `r rd_model_in_`
 #' @param ... Ignored.

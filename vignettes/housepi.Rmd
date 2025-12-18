@@ -13,9 +13,12 @@ editor_options:
     wrap: sentence
 ---
 
-```{r setup}
+```{r child = "_setup.Rmd"}
+```
+
+```{r library}
 #| include: false
-source("theme.R")
+options(housepi.footer.sample = TRUE)
 ```
 
 We introduce "housepi", an open source R package for the statistical analysis and modeling of epidemiological data from household outbreaks. 
@@ -24,11 +27,11 @@ The relative ease of sampling household data makes it a readily available source
 Additionally, retrospective serological surveys can provide critical insights into the history of transmission within a population (final size studies). 
 The package aims to combine ease of use with flexibility, supporting both straightforward analyses and advanced epidemiological investigations. 
 
-In this vignette we'll walk through the process of loading a model, associating necessary definitions to perform inference and simulations.
+In this vignette we will walk through the process of loading a model, associating necessary definitions to perform inference and simulations.
 
 # The housepi model class
 
-The central element of the package is the class `HousepiModel`, an [R6 class](https://r6.r-lib.org/articles/Introduction.html), used to wrap an Rcpp environment.
+The central element of the package is the [R6 class](https://r6.r-lib.org/articles/Introduction.html) class `HousepiModel`.
 We show how to generate a new instance of such a class with a template model, the chain binomial:
 
 ```{r}
@@ -36,6 +39,8 @@ We show how to generate a new instance of such a class with a template model, th
 library(housepi)
 # set general seed
 set.seed(42)
+# set the theme for visualizations
+housepi_theme_set()
 
 # generate an instance of the chain binomial model
 hhmodel <- new_housepi_model("chain_binomial")
@@ -52,8 +57,7 @@ To see the complete list of available template models, from within RStudio just 
 template_household_model()
 ```
 
-Each template comes with its template definitions that can be used straight away or changed.
-Note that in names both underscores and spaces are accepted ("chain_binomial" is equivalent to "chain binomial").
+Each template comes with its template definitions that can be used straight away or changed^[Note that in names both underscores and spaces are accepted, i. e. "chain_binomial" is equivalent to "chain binomial".].
 To know more about each model, choose a name from the previous list and run, e.
 g.
 
@@ -64,17 +68,24 @@ template_household_model("chain_binomial")
 ```
 
 This command will open the relative documentation file in the Help window of your RStudio session.
-Our project aims at expanding the present collection of templates, in order to foster off-the-shelf analysis.
+Our project aims at expanding the present collection of templates, in order to improve off-the-shelf analysis.
 
 ## Format of the data
 
 Data can be provided as a numerical data.frame in wide format, where individual information are organised by row.
-A simplistic dataset would look something like
+A simplistic dataset would look something like^[
+Note that this dataset comes automatically with the model "blank", used for testing mode.]
+
+<div style="display: flex; justify-content: center;">
+<div>
 
 ```{r}
 #| echo: false
 knitr::kable(housepi:::template_blank_data_wide_())
 ```
+
+</div>
+</div>
 
 A column `"id"` with individual identifiers is provided to keep track of changes and make errors more readable; otherwise housepi will automatically tag individuals with row numbers.
 
@@ -105,7 +116,7 @@ This is used in advanced augmented definitions, see [Data augmentation](data_aug
 
 To associate a data to a model we can call `add_data_wide()`.
 This will return a deep clone of the original object, which can then be used for piping^[
-If you are more comfortable with R6, the most direct way to associate data (and other definitions in general) is to use the active methods, like `$data_wide`. 
+If you are more comfortable with R6, the most direct way to associate data (and other definitions in general) is to use active methods, like `$data_wide`. 
 This will assign definitions to the original object, without having to clone it under the hood.].
 
 ```{r}
@@ -128,9 +139,9 @@ summarise_cases(hhmodel) |>
   flextable::autofit()
 ```
 
-To learn more about `flextable` objects and how to export or format them, see [flextable](https://cloud.r-project.org/web/packages/flextable/).
+Here we manipulated the housepi table with  [flextable](https://cloud.r-project.org/web/packages/flextable/).
 
-At any moment we can export the loaded data by invoking the method `$data_wide`.
+At any moment we can re-export the loaded data by invoking the method `$data_wide`.
 
 ## Associate parameter definitions
 
@@ -161,7 +172,7 @@ With housepi we can perform inference using Bayesian Markov chain Monte Carlo (M
 Standard options for the MCMC can be provided at this stage, including controls on the number of threads^[Multi-threading is implemented with *openMP* which is unfortunately not supported on latest macOS distributions.
 The option `threads` is disabled on such systems.] and on the progress bar.
 This will return an object which collects all the relevant MCMC draws. 
-The draws come as [posterior](https://cran.r-project.org/web/packages/posterior/) `draws` that can be accessed to compute estimates.
+The draws come as [posterior](https://cran.r-project.org/web/packages/posterior/) objects that can be accessed to compute estimates.
 
 ```{r}
 # run the Monte Carlo specifying setup options
@@ -258,11 +269,9 @@ hhsimul
 
 # append missing parameters for incubation period
 hhsimul <- hhsimul |> 
-  load_parameter_list(
-    inc_shape = 2, inc_scale = 1,
-    # we set option 'append' to TRUE to keep previous definitions
-    append = TRUE 
-  )
+  load_parameter_list(inc_shape = 2, inc_scale = 1,
+                      # set 'append' to TRUE to keep previous definitions 
+                      append = TRUE)
 ```
 
 To see how to associate group rates in heterogeneous models, see the vignette [Group rates](group_rates.html).
@@ -273,7 +282,7 @@ Provide a custom definition following the vignette [Infectivity profiles](infect
 We then run a simulation with the method `run_simulation`, using the same community structure from the survey, but dropping cases.
 In this configuration, introductions are sampled randomly. 
 Simulation will associate augmented incubation periods and onset times in addition to status.
-We then propose a simple observation process, where we assume onsets after 6 PM (18/24) are reported to next day. We also want to drop unobserved quantities. We can do both by assigning such a function to the argument `observation`:
+We then propose a simple observation process, where we assume onsets after 6 PM (18/24) are reported to next day. We also want to drop unobserved quantities. We can do both by assigning such a function to the argument `obs_process`:
 
 ```{r}
 # define an observation process after the outbreak simulation
@@ -351,9 +360,9 @@ bayesplot::mcmc_rhat(rhat_values) +
   bayesplot::yaxis_text(hjust = 1)
 ```
 
-Here we performed R-hat diagnostics computing the values of $\hat{R}$ with [posterior](https://cran.r-project.org/web/packages/posterior/).
+Here we performed R-hat diagnostics using [posterior](https://cran.r-project.org/web/packages/posterior/) to compute the values of $\hat{R}$.
 
-Finally we wrap all together to compare to parameters used for simulation.
+Finally we wrap all together to compare to the parameters used for simulation.
 
 ```{r}
 posterior::summarise_draws(param_draws) |>
@@ -369,7 +378,5 @@ posterior::summarise_draws(param_draws) |>
 Due to the stochastic nature of this kind of simulation, limiting to re-infer parameters is a limiting check. 
 In [Posterior predictive checks](posterior_predictive_checks.html) we show how to compute common household measures according to the model posterior distribution.
 
----
-```{r, results='asis', echo=FALSE}
-show_session_info()
+```{r child = "_footer.Rmd"}
 ```

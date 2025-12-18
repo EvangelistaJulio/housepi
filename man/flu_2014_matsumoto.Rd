@@ -24,6 +24,9 @@ Original observational study from Uchida, et al. (2017).
 \item{member}{Family member}
 \item{status}{Symptoms reported}
 }
+
+To reproduce the data processing, see the script at:
+\code{system.file("data-raw", "make_flu_2014_matsumoto.R", package = "housepi")}
 }
 \references{
 Endo, et al. (2019)

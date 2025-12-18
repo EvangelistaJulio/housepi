@@ -1,0 +1,22 @@
+---
+
+<div style="border:1px solid #ccc; padding:0.6em 1em; border-radius:6px; background:#f9f9f9; font-size:0.8em; color:#444;">
+<div>
+
+`r if (isTRUE(getOption("housepi.footer.sample"))) paste0(
+  cli::symbol$warning,
+  " ",
+  "Number of steps were reduced for demonstration.",
+  " ",
+  "Increase them in realistic applications."
+)`
+
+`r paste0(
+  cli::symbol$info,
+  " ",
+  paste(utils::capture.output(sessionInfo())[1:3], collapse = ". "),
+  "."
+)`
+
+</div>
+</div>

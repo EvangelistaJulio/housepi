@@ -2,7 +2,7 @@
 % Please edit documentation in R/sampler_class.R
 \name{sample_households}
 \alias{sample_households}
-\title{Sample Households}
+\title{Sample households}
 \usage{
 sample_households(hhsampler, size)
 }
@@ -15,5 +15,5 @@ sample_households(hhsampler, size)
 \code{data.frame}
 }
 \description{
-Samples synthetic households based on the marginal distributions computed by the \code{HousepiSampler}.
+Sample households based on the marginals of the hierarchical model.
 }

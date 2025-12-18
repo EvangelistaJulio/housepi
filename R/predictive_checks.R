@@ -211,7 +211,7 @@ ppc_extract_predicted_results <- function(x, cri) {
        cri_upper = ppc_frame_apply_cri(x, cri, upper = TRUE))
 }
 
-#' @title Housepi Prediction
+#' @title Prediction class
 #' @description
 #' Class to extract posterior predictive checks over measures on simulations.
 #'
@@ -413,7 +413,7 @@ helper_combine_obs_pred <- function(obsdf, preddf) {
   combined
 }
 
-#' @title Predicted Cases By Size
+#' @title Predicted class with common measures of cases by size
 #' @description
 #' Predicted cases by household size, comparing observed and predicted values.
 #' It estimates secondary attack rates and cases by size tables.
@@ -552,7 +552,7 @@ PredictedCasesBySize <- R6::R6Class(
   )
 )
 
-#' @title Predicted measures
+#' @title Measures predicted by the model
 #' @description
 #' Extract the measures prediction according to given table of parameters.
 #' Typically used to perform posterior predictive checks.
@@ -574,10 +574,10 @@ predicted_measures <- function(hhmodel, param_table, ...,
                         obs_process = obs_process, progress = progress)
 }
 
-#' @title Predicted cases by household size
+#' @title Common measures predicted by the model by household size
 #' @description
 #' Extract the predicted number of household cases per size.
-#' It can be used to estimate the secondary attack rate.
+#' It can be used to estimate the secondary attack rate (SAR).
 #'
 #' @param hhmodel `r rd_model_in_`
 #' @param param_table `r rd_param_table_`

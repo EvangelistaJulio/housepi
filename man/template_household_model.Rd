@@ -2,7 +2,7 @@
 % Please edit documentation in R/template.R
 \name{template_household_model}
 \alias{template_household_model}
-\title{Template Household Model}
+\title{Navigate through household model templates}
 \usage{
 template_household_model(
   name = NA_character_,
@@ -12,13 +12,14 @@ template_household_model(
 }
 \arguments{
 \item{name}{A \code{character(1)} with the name of template model.
-If \code{NA} returns list of available templates.}
+If \code{NA} print the list of available templates (default).}
 
 \item{path}{A \code{character(1)} with the path to where to copy the template scripts.
-If \code{NA} and name is not, shows template description in RStudio Help window.}
+If \code{NA} and name is not, print template description in RStudio Help window.}
 
 \item{replace}{\code{logical(1)} to replace previous content of the path.}
 }
 \description{
-Navigate through housepi templates of household models.
+Print the list of available templates,
+get their descriptions or copy source code to custom path.
 }

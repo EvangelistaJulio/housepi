@@ -3,7 +3,7 @@
 \docType{data}
 \name{survey}
 \alias{survey}
-\title{Household Survey}
+\title{Household Testing Survey}
 \format{
 A data frame with 2,249 rows and 6 columns
 }
@@ -12,6 +12,7 @@ data(survey)
 }
 \description{
 Household data with a simulated outbreak to be used for housepi vignettes.
+Note: this will be dropped in future versions of the package.
 }
 \details{
 \describe{

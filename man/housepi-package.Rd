@@ -24,11 +24,17 @@ straightforward analyses and advanced epidemiological investigations.
 \seealso{
 Useful links:
 \itemize{
+  \item \url{http://mmmi-pasteur.pages.pasteur.fr/housepi}
   \item \url{https://gitlab.pasteur.fr/mmmi-pasteur/housepi}
 }
 
 }
 \author{
 \strong{Maintainer}: Francesco Camaglia \email{francesco.camaglia@pasteur.fr} (\href{https://orcid.org/0000-0003-4810-2631}{ORCID})
+
+Authors:
+\itemize{
+  \item Simon Cauchemez (\href{https://orcid.org/0000-0001-9186-4549}{ORCID})
+}
 
 }

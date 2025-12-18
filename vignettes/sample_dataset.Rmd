@@ -13,10 +13,14 @@ editor_options:
     wrap: sentence
 ---
 
-```{r setup}
+```{r child = "_setup.Rmd"}
+```
+
+```{r library}
 #| include: false
-source("theme.R")
+options(housepi.footer.sample = TRUE)
 library(housepi)
+housepi_theme_set()
 set.seed(42)
 ```
 
@@ -100,7 +104,5 @@ hhsampler |>
   sample_households(5)
 ```
 
----
-```{r, results='asis', echo=FALSE}
-show_session_info()
+```{r child = "_footer.Rmd"}
 ```

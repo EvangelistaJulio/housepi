@@ -24,9 +24,9 @@
 ############################################################################
 
 #' @title
-#' Housepi Model
+#' R6 class with the household model
 #' @description
-#' Compile household model, manage your data
+#' Compile the household model, manage your data
 #' and variable definitions from a single class.
 #'
 #' @docType class
@@ -547,10 +547,10 @@ HousepiModel <- R6::R6Class(
       )
       if (length(private$.rcpp$export_infec_profile()) > 0) {
         ip_sms <- NULL
-        if (length(private$.infec_profile$showcase()) == 0) {
-          ip_sms <- c("Using templated infectivity profile.",
-                      "A custom profile can be specified for model.")
-        }
+        if (length(private$.infec_profile$showcase()) == 0) ip_sms <- c(
+          "Using templated infectivity profile.",
+          "It can be specified for model definitions."
+        )
         sms <- c(sms,
                  fmt_assert_cli("Infectivity profile", ip_sms, minor = TRUE))
       }
@@ -642,7 +642,7 @@ HousepiModel <- R6::R6Class(
     ############################################################################
 
     #' @description
-    #' Add a new parameter to houspepi model definitions.
+    #' Add a new parameter to housepi model definitions.
     #' If the parameter already exists, it is updated.
     #'
     #' @param name `r rd_var_name_`
@@ -703,7 +703,7 @@ HousepiModel <- R6::R6Class(
     ############################################################################
 
     #' @description
-    #' Add a new augmented variable/function to houspepi model definitions.
+    #' Add a new augmented variable/function to housepi model definitions.
     #' If the augmented variable already exists, it is updated.
     #'
     #' @param name `r rd_var_name_`
@@ -1007,12 +1007,19 @@ HousepiModel <- R6::R6Class(
     },
 
     #' @description
+    #' Drop infectivity profile rates definitions.
+    drop_infectivity_profile = function() {
+      private$.infec_profile <- HousepiInfecProfile$new()
+      invisible(self)
+    },
+
+    #' @description
     #' Drop all definitions.
     drop_all = function() {
       self$drop_parameters()
       self$drop_augmented()
       self$drop_group_rates()
-      private$.infec_profile <- HousepiInfecProfile$new()
+      self$drop_infectivity_profile()
       invisible(self)
     }
   )

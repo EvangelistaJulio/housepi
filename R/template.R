@@ -20,12 +20,12 @@
 # Assert that given definition name is valid.
 assert_valid_definition_name <- function(x, family, is_implicit = FALSE) {
   sms <- c()
-  if (is.na(x) || !is.character(x) || length(x) != 1 || nchar(x) == 0) {
+  if (length(x) != 1 || is.na(x) || !is.character(x) || nchar(x) == 0) {
     sms <- c(
       sprintf("Definition name of %s must be a non-empty character(1).", family)
     )
     if (isTRUE(is_implicit)) sms <- c(sms,
-      "Did you provide a list and forgot '!!!', rlang injection operator?"
+      "Did you provide a list and forgot rlang injection operator `!!!`?"
     )
   } else if (!grepl("^[A-Za-z0-9_.]+$", x)) {
     sms <- c(
@@ -107,7 +107,8 @@ find_closest_template_name <- function(x) {
 show_model_names <- function() {
   model_names <- list.files(template_models_dir())
   formatted_names <- tolower(gsub("-|_", " ", model_names))
-  sms <- c(i = "Available template models:")
+  sms <- c(i = "Available template models:",
+           paste0(cli::symbol$bullet, " blank"))
   for (m in formatted_names) sms <- c(sms, paste0(cli::symbol$bullet, " ", m))
   cli::cli_inform(sms)
 }
@@ -189,17 +190,17 @@ open_model_helper_ <- function(path) {
   invisible()
 }
 
-#' @title
-#' Template Household Model
+#' @title Navigate through household model templates
 #' @description
-#' Navigate through housepi templates of household models.
+#' Print the list of available templates,
+#' get their descriptions or copy source code to custom path.
 #'
 #' @param name
 #' A `character(1)` with the name of template model.
-#' If `NA` returns list of available templates.
+#' If `NA` print the list of available templates (default).
 #' @param path
 #' A `character(1)` with the path to where to copy the template scripts.
-#' If `NA` and name is not, shows template description in RStudio Help window.
+#' If `NA` and name is not, print template description in RStudio Help window.
 #' @param replace
 #' `logical(1)` to replace previous content of the path.
 #'
@@ -209,6 +210,13 @@ template_household_model <- function(name = NA_character_,
                                      replace = FALSE) {
   if (is.na(name)) show_model_names()
   else if (!is.character(name)) stop_h("Model name is not a character.")
+  else if (name == "blank" && is.na(path)) warning_h(
+    "The 'blank' model has no description available.",
+    "It comes without any predefined structure and it is used only for tests."
+  )
+  else if (name == "blank" && !is.na(path)) stop_h(
+    "The 'blank' model template is not copyable."
+  )
   else if (is.na(get_template_dir(name))) stop_h(
     sprintf("Model '%s' was not a known template.", name),
     find_closest_template_name(name)
@@ -329,15 +337,12 @@ template_missing_find <- function(required, defined) {
 #' Template Missing Stop
 #' @description
 #' Stop if missing definitions are found
-#'
 #' @param required `character()` with required definitions.
 #' @param defined `character()` with current definitions.
 #' @param family `character(1)` with the name of the definition family.
 #' @param max_print `integer(1)` with the maximum number of elements to print.
-#'
 #' @return
 #' `character()`
-#'
 #' @keywords internal
 #' @noRd
 template_missing_stop <- function(required, defined, family, max_print = 4) {
@@ -355,22 +360,29 @@ template_missing_stop <- function(required, defined, family, max_print = 4) {
             family,
             ifelse(len_miss > 1, "s", ""),
             character_to_string_list(miss, max_print)),
-    sprintf("The %s%s required by %s definitions.",
-            family,
-            ifelse(len_miss > 1, "s were", " was"),
+    sprintf("%s required by %s definitions.",
+            ifelse(len_miss > 1, "They were", "It was"),
             character_to_phrase(sources))
   )
   output
 }
 
-# warning about overwriting.
-call_warn_overwrite <- function(all_rmv, family) {
-  n_rmv <- length(all_rmv)
-  if (n_rmv > 0) warning_h(sprintf(
-    "Overwriting %s%s definition%s%s",
-    ifelse(n_rmv > 1, paste0(n_rmv, " "), ""), family,
-    ifelse(n_rmv > 1, "s for:\n", " for "),
-    character_to_string_list(all_rmv, NA)
+#' @title Template Overwrite Warning
+#' @description Warn about overwritten definitions.if missing definitions are found
+#' @param all_rmv `character()` with removed definitions.
+#' @param family `character(1)` with the name of the module family.
+#' @param max_print `integer(1)` with the maximum number of elements to print.
+#' @keywords internal
+#' @noRd
+template_overwrite_warn <- function(all_rmv, family, max_print = 5) {
+  len_rmv <- length(all_rmv)
+  if (len_rmv > 0) warning_h(sprintf(
+    "Overwriting %s %s definition%s%s",
+    ifelse(len_rmv > max_print,
+           paste0("more than ", max_print), len_rmv),
+    family,
+    ifelse(len_rmv > 1, "s for:\n", " for "),
+    character_to_string_list(all_rmv, max_print)
   ))
 }
 

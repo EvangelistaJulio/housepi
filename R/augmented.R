@@ -200,7 +200,6 @@ HousepiAugmented <- R6::R6Class(
         mask <- mask & sapply(self$defs[["status"]], function(x) {
           identical(x, as.integer(status))
         })
-
         if (any(mask)) {
           self$defs <- self$defs[!mask, ]
           return(name)
@@ -246,12 +245,11 @@ HousepiAugmented <- R6::R6Class(
       if (length(dots) == 1 && rlang::is_quosures(dots[[1]])) dots <- dots[[1]]
       args <- housepi_extractor(!!!dots)
 
-      # flatten function arguments if single quosures list (from enquos)
-      # NOTE: lazy fix of rlang warning...
-      if (rlang::is_quosures(func_args)) {
-        func_args <- housepi_extractor(!!!func_args)
-      } else {
+      # flatten function arguments if quosures
+      if (rlang::is_quosure(func_args)) {
         func_args <- housepi_extractor(!!func_args)
+      } else {
+        func_args <- housepi_extractor(!!!func_args)
       }
 
       # control valid name
@@ -267,7 +265,7 @@ HousepiAugmented <- R6::R6Class(
       # auxiliary typed options for Rcpp build method
       opts <- list(name = as.character(name),
                    value = NA_real_,
-                   status = status,
+                   status = as.integer(status),
                    const = as.logical(const),
                    discr = isTRUE(discr),
                    func = NA_character_,
@@ -280,7 +278,7 @@ HousepiAugmented <- R6::R6Class(
 
       # drop previous definition eventually
       rmv_name <- self$remove(opts$name, opts$status)
-      if (.warn_over) call_warn_overwrite(rmv_name, self$family)
+      if (.warn_over) template_overwrite_warn(rmv_name, self$family)
       else self$store_warn_over <- c(self$store_warn_over, rmv_name)
 
       # model arguments
