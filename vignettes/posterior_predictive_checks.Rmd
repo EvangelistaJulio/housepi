@@ -13,7 +13,7 @@ editor_options:
     wrap: sentence
 ---
 
-```{r child = "_setup.Rmd"}
+```{r child = "helpers/_setup.Rmd"}
 ```
 
 ```{r library}
@@ -44,7 +44,7 @@ estimates <- get_param_draws(results) |>
 estimates
 ```
 
-## Predicted cases by size 
+# Predicted cases by size 
 
 We can use the simulation process to challenge the validity of the inferred model on top of the original dataset.
 We do so by computing the predicted numbers of cases per household size according to our posterior distribution (i. e. by producing simulations according to posterior values).
@@ -100,7 +100,7 @@ ppc$chisq_test()
 
 The $p$-value tells us that there is no significant difference between the distribution ($p > 0.05$), thus we can trust our inference process.
 
-## Secondary attack rate
+# Secondary attack rate
 
 We can have a quick look at secondary attack rates of observed vs predicted cases using the fields `$sar`:
 
@@ -135,5 +135,5 @@ ggplot(ppc$formatted_sec_attack_rate,
 # Other custom posterior measures (advanced)
 Vignette under development.
 
-```{r child = "_footer.Rmd"}
+```{r child = "helpers/_footer.Rmd"}
 ```

@@ -1,0 +1,5 @@
+#!/bin/sh
+rm -f inst/standalone/main.o
+rm -f inst/template/src/*
+rm -f inst/models/*.{o,so,exe}
+rm -f src/*.{o,so,exe}

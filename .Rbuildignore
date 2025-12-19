@@ -6,6 +6,8 @@
 ^\.gitlab-ci\.yml$
 ^.*\.Rproj$
 ^\.Rproj\.user$
+^cleanup$
+^cleanup.win$
 ^data-raw$
 ^docs$
 ^pkgdown$
@@ -13,5 +15,4 @@
 ^README\.Rmd$
 ^LICENSE\.md$
 ^inst/--developer$
-^inst/actions$
 ^inst/standalone$

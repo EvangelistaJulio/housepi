@@ -13,7 +13,7 @@ editor_options:
     wrap: sentence
 ---
 
-```{r child = "_setup.Rmd"}
+```{r child = "helpers/_setup.Rmd"}
 ```
 
 ```{r library}
@@ -94,7 +94,7 @@ $$
 
 where $p_1$ is the probability of finding a household with a single member in our dataset.
 
-## Compute Marginals and Generate Datasets
+# Compute Marginals and Generate Datasets
 
 ```{r}
 hhsampler |>
@@ -104,5 +104,5 @@ hhsampler |>
   sample_households(5)
 ```
 
-```{r child = "_footer.Rmd"}
+```{r child = "helpers/_footer.Rmd"}
 ```

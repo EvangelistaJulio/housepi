@@ -13,7 +13,7 @@ editor_options:
     wrap: sentence
 ---
 
-```{r child = "_setup.Rmd"}
+```{r child = "helpers/_setup.Rmd"}
 ```
 
 ```{r library}
@@ -68,7 +68,7 @@ hhmodel |>
 To return a group rate to its default, overwrite its definition with argument `by` set to `NA`. 
 To drop all previous definitions, call `drop_group_rates()`.
 
-## Dependencies between covariates
+# Dependencies between covariates
 
 In the previous example we associated group rates to a single covariate in the data.
 In this example we show how to provide more covariates and a custom reference.
@@ -194,5 +194,5 @@ get_param_draws(results) |>
   labs(x = "", y = ylabel)
 ```
 
-```{r child = "_footer.Rmd"}
+```{r child = "helpers/_footer.Rmd"}
 ```

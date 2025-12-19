@@ -13,7 +13,7 @@ editor_options:
     wrap: sentence
 ---
 
-```{r child = "_setup.Rmd"}
+```{r child = "helpers/_setup.Rmd"}
 ```
 
 ```{r library}
@@ -57,7 +57,7 @@ new_housepi_model("blank") |>
 Here we associated definitions of parameters with default proposals and custom arguments.
 For certain distributions, default arguments are also available according to base R.
 
-## Provide a custom range
+# Provide a custom range
 
 Here we test various examples to show how to select a custom range for the variables. 
 This will automatically impose a truncation of the prior of the parameter.
@@ -113,7 +113,7 @@ new_housepi_model("blank") |>
   bayesplot::mcmc_hist(binwidth = 1)
 ```
 
-## Discretize continuous priors
+# Discretize continuous priors
 
 Previous continuous priors can be chosen to be discretized using the argument `discr`.
 
@@ -138,7 +138,7 @@ new_housepi_model("blank") |>
 
 Note that here we dropped all arguments that allow for default values. 
 
-## How discretization works in practice
+# How discretization works in practice
 
 Depending on the distribution support, the discretization is defined as:
 
@@ -210,7 +210,7 @@ hhmodel |>
   bayesplot::mcmc_trace()
 ```
 
-## Role of finite adaptation
+# Role of finite adaptation
 
 We use finite adaptation to adjusts proposal scales of parametric mechanisms with a target of 25\% acceptance rate.
 In housepi this is enabled by supplying `adapt = N` to `run_inference()`, where `N` is the number of finite adaptation steps preceding the MCMC `steps`.
@@ -228,5 +228,5 @@ hhmodel |>
 
 We can say that we obtained a better mixing, but at the cost of additional MCMC steps.
 
-```{r child = "_footer.Rmd"}
+```{r child = "helpers/_footer.Rmd"}
 ```

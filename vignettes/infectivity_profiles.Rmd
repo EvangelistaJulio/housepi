@@ -13,7 +13,7 @@ editor_options:
     wrap: sentence
 ---
 
-```{r child = "_setup.Rmd"}
+```{r child = "helpers/_setup.Rmd"}
 ```
 
 ```{r library}
@@ -92,7 +92,7 @@ ggplot(infec, aes(x = gentime)) +
   labs(x = "Generation Time")
 ```
 
-## Case of Discrete Models
+# Case of Discrete Models
 
 To move to discrete time we need to specify it at the moment of the model generation by adding the option `discr = TRUE`.
 This model requires compilation as for all custom models.
@@ -131,7 +131,7 @@ ggplot(infec, aes(x = gentime)) +
   labs(x = "Generation Day")
 ```
 
-## Custom Infectivity Profiles
+# Custom Infectivity Profiles
 
 Imagine we would like to associate a gamma distribution as infectivity profile.
 In this simple hypothesis all individuals will share the same profile which depends only on the generation time.
@@ -173,5 +173,5 @@ If the profiles, distributions or functions currently loaded in housepi are not 
 Unfortunately, this requires some programming knowledge in C++.
 We show how to deal with [User functions](user_functions.html) in the namesake vignette.
 
-```{r child = "_footer.Rmd"}
+```{r child = "helpers/_footer.Rmd"}
 ```

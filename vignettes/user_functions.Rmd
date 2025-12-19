@@ -13,7 +13,7 @@ editor_options:
     wrap: sentence
 ---
 
-```{r child = "_setup.Rmd"}
+```{r child = "helpers/_setup.Rmd"}
 ```
 
 ```{r library}
@@ -59,7 +59,7 @@ protected:
 REGISTER_USER_FUNCTION(CustomSquareFunction)
 ```
 
-## How It Works
+# How It Works
 
 1. Inheritance and Constructor:
 The class `MyMonomialFunction` inherits from `Function`. 
@@ -95,7 +95,7 @@ b <- 3
 cat(a * x ^ b)
 ```
 
-## Discretization, distributions
+# Discretization, distributions
 
 Optionally, we can enable discretization by overriding `init_discretization` and providing a primitive (cumulative function) via `raw_primitive_`. 
 This is useful if your function is later integrated or used in a discretized setting.
@@ -125,5 +125,5 @@ protected:
 };
 ```
 
-```{r child = "_footer.Rmd"}
+```{r child = "helpers/_footer.Rmd"}
 ```

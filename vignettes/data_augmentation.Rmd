@@ -13,7 +13,7 @@ editor_options:
     wrap: sentence
 ---
 
-```{r child = "_setup.Rmd"}
+```{r child = "helpers/_setup.Rmd"}
 ```
 
 ```{r library}
@@ -44,7 +44,7 @@ We here explain how to associate individual augmented variables in housepi for m
 Similarly to parameter, augmented variables require definitions for models and proposals needed for the Bayesian Monte Carlo.
 In many applications, augmented variable definitions can also depend on the dataset or on model parameters to be inferred.
 
-## Link arguments to their source
+# Link arguments to their source
 
 We can declare the source of any argument value according to the convention using the \@ symbol
 $$
@@ -296,5 +296,5 @@ bayesplot::mcmc_trace(get_total_log_lik_draws(results))
 
 In this case the variable has no contribution to the likelihood!
 
-```{r child = "_footer.Rmd"}
+```{r child = "helpers/_footer.Rmd"}
 ```

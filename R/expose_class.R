@@ -80,12 +80,11 @@ add_data_long <- function(hhmodel, data_long) {
 #' Summarise cases as given from the statuses in the loaded household data.
 #'
 #' @param hhmodel `r rd_model_in_`
-#' @param ... Ignored.
 #'
 #' @return `data.frame`
 #'
 #' @export
-summarise_cases <- function(hhmodel, ...) {
+summarise_cases <- function(hhmodel) {
   hhmodel$summarise_cases()
 }
 
@@ -94,12 +93,11 @@ summarise_cases <- function(hhmodel, ...) {
 #' Summarise number of members (size) in the loaded household data.
 #'
 #' @param hhmodel `r rd_model_in_`
-#' @param ... Ignored.
 #'
 #' @return `data.frame`
 #'
 #' @export
-summarise_house_sizes <- function(hhmodel, ...) {
+summarise_house_sizes <- function(hhmodel) {
   hhmodel$summarise_house_sizes()
 }
 
@@ -112,43 +110,42 @@ summarise_house_sizes <- function(hhmodel, ...) {
 #' Remove current definitions from the housepi model.
 #'
 #' @param hhmodel `r rd_model_in_`
-#' @param ... Ignored.
 #'
 #' @return `r rd_model_out_`
 #'
 #' @rdname drop_definitions
 #' @export
-drop_parameters <-  function(hhmodel, ...) {
+drop_parameters <-  function(hhmodel) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
   new_obj <- hhmodel$clone(deep = TRUE)
-  new_obj$drop_parameters(...)
+  new_obj$drop_parameters()
   new_obj
 }
 
 #' @rdname drop_definitions
 #' @export
-drop_augmented <-  function(hhmodel, ...) {
+drop_augmented <-  function(hhmodel) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
   new_obj <- hhmodel$clone(deep = TRUE)
-  new_obj$drop_augmented(...)
+  new_obj$drop_augmented()
   new_obj
 }
 
 #' @rdname drop_definitions
 #' @export
-drop_group_rates <-  function(hhmodel, ...) {
+drop_group_rates <-  function(hhmodel) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
   new_obj <- hhmodel$clone(deep = TRUE)
-  new_obj$drop_group_rates(...)
+  new_obj$drop_group_rates()
   new_obj
 }
 
 #' @rdname drop_definitions
 #' @export
-drop_infectivity_profile <-  function(hhmodel, ...) {
+drop_infectivity_profile <-  function(hhmodel) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
   new_obj <- hhmodel$clone(deep = TRUE)
-  new_obj$drop_infectivity_profile(...)
+  new_obj$drop_infectivity_profile()
   new_obj
 }
 
@@ -167,19 +164,58 @@ drop_all <- function(hhmodel) {
 
 #' @title Get current definitions
 #' @description
-#' Return a data frame with the current definitions by row.
+#' Return the definitions currently stored in the housepi model.
 #'
 #' @param hhmodel `r rd_model_in_`
-#' @param ... Ignored.
 #'
 #' @return `data.frame`
 #'
 #' @rdname get_definitions
 #' @export
-get_parameters <- function(hhmodel, ...) {
+get_data_wide <- function(hhmodel) {
+  stopifnot(inherits(hhmodel, "HousepiModel"))
+  hhmodel$data_wide
+}
+
+#' @rdname get_definitions
+#' @export
+get_data_long <- function(hhmodel) {
+  stopifnot(inherits(hhmodel, "HousepiModel"))
+  hhmodel$data_long
+}
+
+#' @rdname get_definitions
+#' @export
+get_parameters <- function(hhmodel) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
   hhmodel$parameters
 }
+
+#' @rdname get_definitions
+#' @export
+get_augmented <- function(hhmodel) {
+  stopifnot(inherits(hhmodel, "HousepiModel"))
+  hhmodel$augmented
+}
+
+#' @rdname get_definitions
+#' @export
+get_group_rates <- function(hhmodel) {
+  stopifnot(inherits(hhmodel, "HousepiModel"))
+  # internal build requires deep clone to avoid inplace
+  hhmodel$clone(deep = TRUE)$group_rates
+}
+
+#' @rdname get_definitions
+#' @export
+get_infec_profile <- function(hhmodel) {
+  stopifnot(inherits(hhmodel, "HousepiModel"))
+  hhmodel$infec_profile
+}
+
+############################################################################
+############################################################################
+############################################################################
 
 #' @title Add parameter definition
 #' @description
@@ -243,13 +279,6 @@ load_parameter_template <- function(hhmodel, append = FALSE) {
 ############################################################################
 ############################################################################
 
-#' @rdname get_definitions
-#' @export
-get_augmented <- function(hhmodel, ...) {
-  stopifnot(inherits(hhmodel, "HousepiModel"))
-  hhmodel$augmented
-}
-
 #' @title Add augmented definition
 #' @description
 #' Add a new augmented variable/function to housepi model definitions.
@@ -308,14 +337,6 @@ load_augmented_template <- function(hhmodel, append = FALSE) {
 ############################################################################
 ############################################################################
 
-#' @rdname get_definitions
-#' @export
-get_group_rates <- function(hhmodel, ...) {
-  stopifnot(inherits(hhmodel, "HousepiModel"))
-  # internal build requires deep clone to avoid inplace
-  hhmodel$clone(deep = TRUE)$group_rates
-}
-
 #' @title Add group rate definition
 #' @description
 #' Add definitions of a group rate by given data feature(s).
@@ -372,13 +393,6 @@ add_group_rate <-  function(hhmodel,
 ############################################################################
 ############################################################################
 ############################################################################
-
-#' @rdname get_definitions
-#' @export
-get_infec_profile <- function(hhmodel, ...) {
-  stopifnot(inherits(hhmodel, "HousepiModel"))
-  hhmodel$infec_profile
-}
 
 #' @title Add infectivity profile definition
 #' @description

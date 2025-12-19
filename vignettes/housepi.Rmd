@@ -13,7 +13,7 @@ editor_options:
     wrap: sentence
 ---
 
-```{r child = "_setup.Rmd"}
+```{r child = "helpers/_setup.Rmd"}
 ```
 
 ```{r library}
@@ -21,17 +21,12 @@ editor_options:
 options(housepi.footer.sample = TRUE)
 ```
 
-We introduce "housepi", an open source R package for the statistical analysis and modeling of epidemiological data from household outbreaks. 
-Mathematical modeling has proven to be a valuable tool for estimating key epidemiological parameters from household transmission surveys. 
-The relative ease of sampling household data makes it a readily available source of information during the early phases of an epidemic (e. g. longitudinal studies). 
-Additionally, retrospective serological surveys can provide critical insights into the history of transmission within a population (final size studies). 
-The package aims to combine ease of use with flexibility, supporting both straightforward analyses and advanced epidemiological investigations. 
-
-In this vignette we will walk through the process of loading a model, associating necessary definitions to perform inference and simulations.
+In this vignette we will walk through the process of loading a housepi model template.
+Then we will explain how to associate necessary definitions in order to perform inference and simulations.
 
 # The housepi model class
 
-The central element of the package is the [R6 class](https://r6.r-lib.org/articles/Introduction.html) class `HousepiModel`.
+The central element of the package is the [R6 class](https://r6.r-lib.org/articles/Introduction.html) `HousepiModel`.
 We show how to generate a new instance of such a class with a template model, the chain binomial:
 
 ```{r}
@@ -48,7 +43,7 @@ hhmodel <- new_housepi_model("chain_binomial")
 
 At any moment we can retrieve the template model description by using the method `$help()`.
 
-## A collection of household models
+# A collection of household models
 
 To see the complete list of available template models, from within RStudio just run
 
@@ -70,7 +65,7 @@ template_household_model("chain_binomial")
 This command will open the relative documentation file in the Help window of your RStudio session.
 Our project aims at expanding the present collection of templates, in order to improve off-the-shelf analysis.
 
-## Format of the data
+# Format of the data
 
 Data can be provided as a numerical data.frame in wide format, where individual information are organised by row.
 A simplistic dataset would look something like^[
@@ -112,7 +107,7 @@ In this way we can uses the status as a label of different infectious classes.
 E. g. we could say that $s_{i} = 1$ refers to symptomatic individuals, and $s_{i} = 2$ for asymptomatic.
 This is used in advanced augmented definitions, see [Data augmentation](data_augmentation.html) for an example.
 
-## Data importation
+# Data importation
 
 To associate a data to a model we can call `add_data_wide()`.
 This will return a deep clone of the original object, which can then be used for piping^[
@@ -141,9 +136,9 @@ summarise_cases(hhmodel) |>
 
 Here we manipulated the housepi table with  [flextable](https://cloud.r-project.org/web/packages/flextable/).
 
-At any moment we can re-export the loaded data by invoking the method `$data_wide`.
+At any moment we can re-export the loaded data by caliing `get_data_wide`.
 
-## Associate parameter definitions
+# Associate parameter definitions
 
 Here we show how to provide a single parameter definition (prior and proposal needed for the Bayesian Monte Carlo).
 We can call `add_parameter()` as follows:
@@ -188,7 +183,7 @@ results <- hhmodel |>
 posterior::summarize_draws(get_param_draws(results))
 ```
 
-## Inference Output and Diagnostics
+# Inference Output and Diagnostics
 
 We can proceed as usual with other popular R packages for Bayesian analysis.
 For example, we can extract the parameters draws by calling `get_param_draws` and plot traces with [bayesplot](https://cran.r-project.org/web/packages/bayesplot/)
@@ -236,7 +231,7 @@ hhsimul <- new_housepi_model("augmented_infection_time") |>
 get_parameters(hhsimul)
 ```
 
-## Simulate an outbreak
+# Simulate an outbreak
 
 We propose the following definitions for the augmented variables, 
 associated from a list by calling `load_augmented_list()`.
@@ -299,7 +294,7 @@ simulated <- hhsimul |>
 head(simulated)
 ```
 
-## Validate the approach with a simulation study
+# Validate the approach with a simulation study
 
 We can check that inference returns the parameters used for the simulation.
 
@@ -378,5 +373,5 @@ posterior::summarise_draws(param_draws) |>
 Due to the stochastic nature of this kind of simulation, limiting to re-infer parameters is a limiting check. 
 In [Posterior predictive checks](posterior_predictive_checks.html) we show how to compute common household measures according to the model posterior distribution.
 
-```{r child = "_footer.Rmd"}
+```{r child = "helpers/_footer.Rmd"}
 ```

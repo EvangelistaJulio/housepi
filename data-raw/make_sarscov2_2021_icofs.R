@@ -14,5 +14,5 @@ read.table(url) |>
          asymptomatic = as.logical(asymptomatic)) |>
   ungroup() |>
   select(indid, hhid, status, test_date, vaccination_cat,
-         age, isolation, sex, asymptomatic) |>
+         age, isolation, sex, asymptomatic, recovered) |>
   rename(id = "indid", house_id = "hhid", vacc_status = "vaccination_cat")
