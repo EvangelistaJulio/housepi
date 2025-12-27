@@ -460,9 +460,7 @@ HousepiSampler <- R6::R6Class(
     #' @param size `r rd_hhsampler_size_`
     sample_households = function(size = 1) {
 
-      if (size < 1) stop_h(
-        "Sample size must be greater than 0."
-      )
+      if (size < 1) stop_h("Sample size must be greater than 0.")
 
       #----- single individual (size 1) households -----#
 

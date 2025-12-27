@@ -103,7 +103,7 @@ Status $s_{i}$ should be an integer value satisfying the following convention:
 </div>
 </div>
 
-In this way we can uses the status as a label of different infectious classes. 
+In this way we can use the status as a label for different classes of infectious household members. 
 E. g. we could say that $s_{i} = 1$ refers to symptomatic individuals, and $s_{i} = 2$ for asymptomatic.
 This is used in advanced augmented definitions, see [Data augmentation](data_augmentation.html) for an example.
 
@@ -136,7 +136,7 @@ summarise_cases(hhmodel) |>
 
 Here we manipulated the housepi table with  [flextable](https://cloud.r-project.org/web/packages/flextable/).
 
-At any moment we can re-export the loaded data by caliing `get_data_wide`.
+At any moment we can re-export the loaded data by calling `get_data_wide`.
 
 # Associate parameter definitions
 
@@ -193,7 +193,7 @@ For example, we can extract the parameters draws by calling `get_param_draws` an
 #|  Trace plots for alpha and beta parameters across MCMC iterations with three parallel chains overlaid.
 # visualize the traces of the first chain with 'bayesplot'
 get_param_draws(results) |>
-  bayesplot::mcmc_trace(facet_args = c(ncol = 1))
+  bayesplot::mcmc_trace(facet_args = list(ncol = 1))
 ```
 
 or of the total log-likelihood by calling `get_total_log_lik_draws`:
@@ -334,7 +334,7 @@ simul_parameters <- get_parameters(hhsimul) |>
   dplyr::rename(parameter = name, simulated = value)
 
 # use bayesplot to plot the posterior draws
-bayesplot::mcmc_trace(param_draws, facet_args = c(ncol = 1)) +
+bayesplot::mcmc_trace(param_draws, facet_args = list(ncol = 1)) +
   geom_hline(data = simul_parameters, aes(yintercept = simulated))
 ```
 

@@ -119,7 +119,7 @@ hhmodel |>
   run_inference(steps = 500, id_draws = c("tommy", "gina")) |> 
   get_augm_draws() |> 
   posterior::subset_draws(variable = "infec_time$", regex = TRUE) |> 
-  bayesplot::mcmc_dens(facet_args = c(ncol = 1)) +
+  bayesplot::mcmc_dens(facet_args = list(ncol = 1)) +
   geom_vline(data = data.frame(xintercept = onset_tommy),
              aes(xintercept = xintercept), linetype = 2) +
   coord_cartesian(xlim = onset_tommy + c(-10, 10))

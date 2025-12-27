@@ -412,10 +412,8 @@ housepi_theme_set <- function() {
 
   # flextable theme
   if (requireNamespace("flextable", quietly = TRUE)) {
-    flextable::set_flextable_defaults(
-      font.size = 12, font.color = "#111111",
-      background.color = "white",
-      theme_fun = "theme_vanilla"
-    )
+    flextable::set_flextable_defaults(font.color = "#111111",
+                                      background.color = "white",
+                                      theme_fun = "theme_vanilla")
   }
 }

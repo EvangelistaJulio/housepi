@@ -8,20 +8,18 @@
 \alias{drop_all}
 \title{Drop current definitions}
 \usage{
-drop_parameters(hhmodel, ...)
+drop_parameters(hhmodel)
 
-drop_augmented(hhmodel, ...)
+drop_augmented(hhmodel)
 
-drop_group_rates(hhmodel, ...)
+drop_group_rates(hhmodel)
 
-drop_infectivity_profile(hhmodel, ...)
+drop_infectivity_profile(hhmodel)
 
 drop_all(hhmodel)
 }
 \arguments{
 \item{hhmodel}{\code{HousepiModel} object.}
-
-\item{...}{Ignored.}
 }
 \value{
 A deep clone of the input \code{HousepiModel} with new definitions.

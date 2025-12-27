@@ -1,5 +1,5 @@
 #!/bin/sh
-rm -f inst/standalone/main.o
-rm -f inst/template/src/*
-rm -f inst/models/*.{o,so,exe}
-rm -f src/*.{o,so,exe}
+rm -f src/*.o src/*.so src/*.exe
+rm -f -r inst/template/src/
+rm -f inst/models/*/*.o inst/models/*/*.so inst/models/*/*.exe
+rm -f inst/standalone/*.o inst/standalone/*.exe

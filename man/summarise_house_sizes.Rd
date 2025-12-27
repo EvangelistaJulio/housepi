@@ -4,12 +4,10 @@
 \alias{summarise_house_sizes}
 \title{Summarise house sizes in household data}
 \usage{
-summarise_house_sizes(hhmodel, ...)
+summarise_house_sizes(hhmodel)
 }
 \arguments{
 \item{hhmodel}{\code{HousepiModel} object.}
-
-\item{...}{Ignored.}
 }
 \value{
 \code{data.frame}
