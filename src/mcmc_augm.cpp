@@ -9,7 +9,7 @@
  * housepi - Epidemiological Analysis of Household Outbreaks.
  *
  * Author: Francesco Camaglia
- * Copyright © 2025 Institut Pasteur (Paris), CNRS and INSERM.
+ * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
  * See the COPYRIGHT file for details.
  *
  * Distributed under the terms of the GNU General Public License (GPLv3).
@@ -22,8 +22,7 @@
 #include "tools/string.h"
 #include "tools/read.h"
 #include "tools/messages.h"
-#include "tools/status.h"
-#include "tools/params.h"
+#include "tools/global.h"
 #include "tools/sources.h"
 #include "distribution_registry.h"
 #include "variable.h"
@@ -55,15 +54,10 @@ std::string AugmentedMap::str_augm_summary() const
 /// Associate functional methods for augmented model pdfs.
 void AugmentedMap::init_augm_model_logratios(const u_dict<str_vec> &models_ordered)
 {
-    // >> clean pre-existing
+    // clean pre-existing
     for (auto &pair : model_logratios_)
-    {
         pair.second.clear();
-        pair.second.shrink_to_fit();
-    }
     model_logratios_.clear();
-    model_logratios_.rehash(0);
-    // <<
 
     // associate models if applicable
     for (const auto &pair : models_ordered)
@@ -193,13 +187,9 @@ void MCMC::Impl::InfecProfile::clear_lookup_()
     size_lut_ = 0;
 
     lookup_inst_.clear();
-    lookup_inst_.shrink_to_fit();
     lookup_cumul_.clear();
-    lookup_cumul_.shrink_to_fit();
     lookup_buffer_inst_.clear();
-    lookup_buffer_inst_.shrink_to_fit();
     lookup_buffer_cumul_.clear();
-    lookup_buffer_cumul_.shrink_to_fit();
 }
 
 /// If infectivity profile is a lookup table, store its values.
@@ -295,15 +285,17 @@ void MCMC::Impl::InfecProfile::build_generic_profile_(const u_dict<str_vec> &inp
             "Definition of infectivity profile did not return a discrete object as requested by the model.");
 
     // range minimum
-    if (generic_profile->is_discrete())
-        generic_profile->init_attr(hsp::params::MIN, pImpl_.read_attribute_("1|N"));
+    if (input.count(hsp::params::MIN))
+        generic_profile->init_attr(hsp::params::MIN, pImpl_.read_attribute_(input.at(hsp::params::MIN)[0]));
     else
-        generic_profile->init_attr(hsp::params::MIN, pImpl_.read_attribute_("0|N"));
+    {
+        const std::string default_min_expr = generic_profile->is_discrete() ? "1|N" : "0|N";
+        generic_profile->init_attr(hsp::params::MIN, pImpl_.read_attribute_(default_min_expr));
+    }
 
     // range maximum
     if (input.count(hsp::params::MAX))
-        generic_profile->init_attr(hsp::params::MAX,
-                                   pImpl_.read_attribute_(input.at(hsp::params::MAX)[0]));
+        generic_profile->init_attr(hsp::params::MAX, pImpl_.read_attribute_(input.at(hsp::params::MAX)[0]));
     // range truncation
     generic_profile->init_truncation();
 
@@ -337,7 +329,7 @@ void MCMC::Impl::InfecProfile::build_augmented_profile_(const u_dict<str_vec> &i
         bool is_discrete = hsp::str::tobool(input.at("discr")[r]);
 
         // match infectivity profile and augmented variable definition
-        augm_profile_definitions_["func"] += {hsp::infprof::INSTANTANEOUS, hsp::infprof::CUMULATIVE};
+        augm_profile_definitions_["func"] += {hsp::infprof::INSTANT, hsp::infprof::CUMUL};
         augm_profile_definitions_["status"] += str_vec(2, input.at("status")[r]);
         augm_profile_definitions_["func"] += str_vec(2, input.at("func")[r]);
         augm_profile_definitions_["fcumul"] += {"false", "true"};
@@ -362,7 +354,7 @@ void MCMC::Impl::InfecProfile::transfer_augm_definitions(u_dict<str_vec> &augm_d
         augm_deftable.at(pair.first) += pair.second;
 
     if (is_discrete_requested_)
-        for (const std::string a : {hsp::infprof::INSTANTANEOUS, hsp::infprof::CUMULATIVE})
+        for (const std::string a : {hsp::infprof::INSTANT, hsp::infprof::CUMUL})
             pImpl_.augm.user_list_discrete.emplace_back(a);
 }
 
@@ -577,7 +569,7 @@ void MCMC::Impl::Augmented::helper_assert_no_reserved_()
         if (hsp::na::is(a))
             throw std::invalid_argument(
                 "Found an augmented variable with undefined name.");
-        if (a == hsp::infprof::INSTANTANEOUS || a == hsp::infprof::CUMULATIVE)
+        if (a == hsp::infprof::INSTANT || a == hsp::infprof::CUMUL)
             throw std::invalid_argument(
                 "Tried to use the reserved augmented name '" + a + "'.\nPlease, choose a different name.");
     }

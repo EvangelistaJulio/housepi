@@ -9,7 +9,7 @@
  * housepi - Epidemiological Analysis of Household Outbreaks.
  *
  * Author: Francesco Camaglia
- * Copyright © 2025 Institut Pasteur (Paris), CNRS and INSERM.
+ * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
  *
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the LICENSE file for details.
@@ -26,8 +26,7 @@
 #include "tools/types.h"
 #include "tools/na_utils.h"
 #include "tools/operators.h"
-#include "tools/status.h"
-#include "tools/rates.h"
+#include "tools/global.h"
 #include "function.h"
 #include "variable.h"
 
@@ -159,7 +158,7 @@ public:
 	std::string err_name() const override final { return "individual '" + id_ + "'"; }
 	int status() const { return status_; }
 	bool is_infected_status() const { return hsp::status::is_infected(status_); }
-	bool is_healthy_status() const { return hsp::status::is_healthy(status_); }
+	bool is_healthy_status() const { return hsp::status::is_susceptible(status_); }
 	bool is_missing_status() const { return hsp::status::is_missing(status_); }
 	double data(const std::string &d) const { return safe_at(data_map_, d, "data"); }
 	const dbl_vec &data_long(const std::string &d) const
@@ -339,7 +338,7 @@ public:
 		multiplicity_class_ = class_idx;
 	}
 	void init_member(size_t index, const std::string &id, int status, const u_dict<double> &data);
-	void set_healthy_status(Individual &member) { set_status_(member, hsp::status::HEALTHY); }
+	void set_healthy_status(Individual &member) { set_status_(member, hsp::status::SUSCEPTIBLE); }
 	void set_infected_status(Individual &member, int new_status = hsp::status::INFECTED)
 	{
 		if (!hsp::status::is_infected(new_status))

@@ -9,7 +9,7 @@
  * housepi - Epidemiological Analysis of Household Outbreaks.
  *
  * Author: Francesco Camaglia
- * Copyright © 2025 Institut Pasteur (Paris), CNRS and INSERM.
+ * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
  * See the COPYRIGHT file for details.
  *
  * Distributed under the terms of the GNU General Public License (GPLv3).
@@ -25,7 +25,7 @@
 #include "tools/na_utils.h"
 #include "tools/messages.h"
 #include "tools/read.h"
-#include "tools/params.h"
+#include "tools/global.h"
 #include "function.h"
 #include "function_registry.h"
 #include "distribution_registry.h"
@@ -987,7 +987,7 @@ Rcpp::List MCMC::helper_infec_profile_rcpp_snapshot_(const Household &house) con
     for (const Individual &member : house.infected())
         if (infec_profile.is_augmented())
         {
-            const Variable &var = member.get_augm_variable(hsp::infprof::INSTANTANEOUS);
+            const Variable &var = member.get_augm_variable(hsp::infprof::INSTANT);
             infprof_name[member] = var.func_name();
             infprof_discr[member] = var.is_discrete();
             infprof_args[member] = rcpp_export_func_args(var);

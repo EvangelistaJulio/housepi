@@ -9,7 +9,7 @@
  * housepi - Epidemiological Analysis of Household Outbreaks.
  *
  * Author: Francesco Camaglia
- * Copyright © 2025 Institut Pasteur (Paris), CNRS and INSERM.
+ * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
  * See the COPYRIGHT file for details.
  *
  * Distributed under the terms of the GNU General Public License (GPLv3).
@@ -20,19 +20,19 @@
  */
 
 #include "tools/messages.h"
-#include "tools/params.h"
+#include "tools/global.h"
 #include "tools/string.h"
 #include "distribution_registry.h"
 #include "variable.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  Proposer : constructor  //////////////////////////////////////
+///////////////////////////////////  Proposal : constructor  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Proposer constructor from Distribution pointer.
-Proposer::Proposer(std::shared_ptr<Distribution> distr,
+/// Proposal constructor from Distribution pointer.
+Proposal::Proposal(std::shared_ptr<Distribution> distr,
                    double proposal_scale,
                    const std::vector<unsigned short> &args_to_adapt,
                    bool is_discrete) : pDistr_(distr)
@@ -54,16 +54,16 @@ Proposer::Proposer(std::shared_ptr<Distribution> distr,
     args_to_adapt_ = args_to_adapt;
 }
 
-/// Proposer constructor from Distribution name.
-Proposer::Proposer(const std::string &distr_name,
+/// Proposal constructor from Distribution name.
+Proposal::Proposal(const std::string &distr_name,
                    double proposal_scale,
                    const std::vector<unsigned short> &args_to_adapt,
                    bool is_discrete)
-    : Proposer(ContinuosDistrRegistry::inst().get_distr(distr_name),
+    : Proposal(ContinuosDistrRegistry::inst().get_distr(distr_name),
                proposal_scale, args_to_adapt, is_discrete) {}
 
 /// Increase spread if acceptation rate is high and viceversa.
-void Proposer::adapt(double ratio)
+void Proposal::adapt(double ratio)
 {
     // target accept rate set to 1/4.
     const double factor = 1. + (1. - ratio) * (get_accept_rate() - 0.25);
@@ -74,29 +74,29 @@ void Proposer::adapt(double ratio)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////// *** Sample_Proposer : class *** /////////////////////////////////
+///////////////////////////////// *** Sample_Proposal : class *** /////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Proposal is just sample from model/prior.
 /// NOTE: this is just a place holder within Variable.
-class Sample_Proposer : public Proposer
+class Sample_Proposal : public Proposal
 {
 public:
-    Sample_Proposer() { name_ = "sample"; }
+    Sample_Proposal() { name_ = "sample"; }
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////// *** Uniform_Proposer : class *** /////////////////////////////////
+//////////////////////////////// *** Uniform_Proposal : class *** /////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-class Uniform_Proposer : public Proposer
+class Uniform_Proposal : public Proposal
 {
 public:
-    Uniform_Proposer(double proposal_scale = hsp::na::DOUBLE, bool is_discrete = false)
-        : Proposer("uniform", proposal_scale, {0, 1}, is_discrete) { user_reset(); }
+    Uniform_Proposal(double proposal_scale = hsp::na::DOUBLE, bool is_discrete = false)
+        : Proposal("uniform", proposal_scale, {0, 1}, is_discrete) { user_reset(); }
 
     void user_reset() override final
     {
@@ -110,15 +110,15 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////// *** Normal_Proposer : class *** //////////////////////////////////
+//////////////////////////////// *** Normal_Proposal : class *** //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-class Normal_Proposer : public Proposer
+class Normal_Proposal : public Proposal
 {
 public:
-    Normal_Proposer(double proposal_scale = hsp::na::DOUBLE, bool is_discrete = false)
-        : Proposer("normal", proposal_scale, {1}, is_discrete) { user_reset(); }
+    Normal_Proposal(double proposal_scale = hsp::na::DOUBLE, bool is_discrete = false)
+        : Proposal("normal", proposal_scale, {1}, is_discrete) { user_reset(); }
 
     void user_reset() override final
     {
@@ -132,15 +132,15 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////// *** Lognorm_Proposer : class *** /////////////////////////////////
+//////////////////////////////// *** Lognorm_Proposal : class *** /////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-class Lognorm_Proposer : public Proposer
+class Lognorm_Proposal : public Proposal
 {
 public:
-    Lognorm_Proposer(double proposal_scale = 1., bool is_discrete = false)
-        : Proposer("lognormal", proposal_scale, {1}, is_discrete) { user_reset(); }
+    Lognorm_Proposal(double proposal_scale = 1., bool is_discrete = false)
+        : Proposal("lognormal", proposal_scale, {1}, is_discrete) { user_reset(); }
 
     void user_reset() override final
     {
@@ -148,8 +148,43 @@ public:
         pDistr_->init_attr("sdlog", Attribute(user_scale_));
     }
 
-    double propose(rnd_gen &prng, double xo) override final { return xo * pDistr_->rand(prng); }
-    double logratio(double xo, double xn) const override final { return std::log(xo / xn); }
+    void associate_location(const Attribute &other) override final
+    {
+        pAttr_loc_ = other.get_ptr();
+
+        if (pAttr_loc_ == nullptr)
+        {
+            propose_ = &Lognorm_Proposal::do_propose_;
+            logratio_ = &Lognorm_Proposal::do_logratio_;
+        }
+        else
+        {
+            propose_ = &Lognorm_Proposal::do_propose_loc_;
+            logratio_ = &Lognorm_Proposal::do_logratio_loc_;
+        }
+    };
+
+    double propose(rnd_gen &prng, double xo) override final { return (this->*propose_)(prng, xo); }
+    double logratio(double xo, double xn) const override final { return (this->*logratio_)(xo, xn); }
+
+private:
+    const Attribute *pAttr_loc_ = nullptr; /// pointer to attribute location
+
+    double (Lognorm_Proposal::*propose_)(rnd_gen &, double) = &Lognorm_Proposal::do_propose_;
+    double do_propose_(rnd_gen &prng, double xo) { return xo * pDistr_->rand(prng); }
+    double do_propose_loc_(rnd_gen &prng, double xo)
+    {
+        const double loc = pAttr_loc_->get();
+        return loc + (xo - loc) * pDistr_->rand(prng);
+    }
+
+    double (Lognorm_Proposal::*logratio_)(double, double) const = &Lognorm_Proposal::do_logratio_;
+    double do_logratio_(double xo, double xn) const { return std::log(xo / xn); }
+    double do_logratio_loc_(double xo, double xn) const
+    {
+        const double loc = pAttr_loc_->get();
+        return std::log((xo - loc) / (xn - loc));
+    }
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -159,27 +194,26 @@ public:
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Switchboard to select the custom metropolis proposal.
-std::unique_ptr<Proposer> proposer_switch(const std::string &proposal = hsp::na::STRING,
+std::unique_ptr<Proposal> proposer_switch(const std::string &proposal = hsp::na::STRING,
                                           double proposal_scale = hsp::na::DOUBLE,
                                           bool is_discrete = false)
 {
     const str_vec options = {"sample", "uniform", "normal", "lognormal"};
 
     if (hsp::na::is(proposal))
-        return std::make_unique<Proposer>(std::make_unique<Distribution>());
+        return std::make_unique<Proposal>(std::make_unique<Distribution>());
 
     if (proposal == "uniform")
-        return std::make_unique<Uniform_Proposer>(proposal_scale, is_discrete);
+        return std::make_unique<Uniform_Proposal>(proposal_scale, is_discrete);
 
     if (proposal == "normal")
-        return std::make_unique<Normal_Proposer>(proposal_scale, is_discrete);
+        return std::make_unique<Normal_Proposal>(proposal_scale, is_discrete);
 
     if (proposal == "lognormal")
-        return std::make_unique<Lognorm_Proposer>(proposal_scale, is_discrete);
+        return std::make_unique<Lognorm_Proposal>(proposal_scale, is_discrete);
 
     throw std::invalid_argument(
-        "Unknown proposal '" + proposal + "'." +
-        hsp::str::find_closest(proposal, options));
+        "Unknown proposal '" + proposal + "'." + hsp::str::find_closest(proposal, options));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -268,10 +302,9 @@ void Variable::init_distr(const hsp::parse::Definition &expr)
 /// Assign an attribute to distribution.
 void Variable::init_distr_attr(const std::string &key, const Attribute &attr)
 {
-    if (key == hsp::params::LOCATION)
-        init_location_arg(attr);
-    else
-        pDistr_->init_attr(key, attr);
+    pDistr_->init_attr(key, attr);
+    if (key == hsp::params::LOC)
+        pProp_->associate_location(pDistr_->get_loc());
 }
 
 /// Initialize distribution reshaping.
@@ -319,36 +352,9 @@ void Variable::helper_degenerate_range_()
     init_numeric(lower);
 }
 
-/// Random initialization of variable.
-void Variable::init_rand(rnd_gen &prng)
-{
-    if (loc_.is_empty())
-        set(do_propose_sample_(prng));
-    else
-        set(do_propose_sample_with_loc_(prng));
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  Variable : Setter (Proposer)  //////////////////////////////////
+/////////////////////////////////  Variable : Setter (Proposal)  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Initialize location parameter.
-void Variable::init_location_arg(const Attribute &x)
-{
-    this->loc_ = x;
-
-    // assign location parameter
-    if (loc_.is_empty())
-    {
-        distr_logpdf_ = &Variable::do_distr_logpdf_default_;
-        distr_logratio_ = &Variable::do_distr_logratio_default_;
-    }
-    else
-    {
-        distr_logpdf_ = &Variable::do_distr_logpdf_with_loc_;
-        distr_logratio_ = &Variable::do_distr_logratio_with_loc_;
-    }
-}
 
 /// Assign proposer to variable.
 /// NOTE: it must be assigned after model initialization.
@@ -374,19 +380,10 @@ void Variable::init_proposer(const std::string &proposal, double proposal_scale)
 /// Helper with proposer initialization of direct sample from prior/model.
 void Variable::helper_init_sample_proposer_()
 {
-    pProp_ = std::make_unique<Sample_Proposer>();
+    pProp_ = std::make_unique<Sample_Proposal>();
 
-    if (loc_.is_empty())
-    {
-        propose_ = &Variable::do_propose_sample_;
-        get_propose_logratio_ = &Variable::do_get_propose_logratio_sample_;
-    }
-    else
-    {
-        propose_ = &Variable::do_propose_sample_with_loc_;
-        get_propose_logratio_ = &Variable::do_get_propose_logratio_sample_with_loc_;
-    }
-
+    propose_ = &Variable::do_propose_sample_;
+    get_propose_logratio_ = &Variable::do_get_propose_logratio_sample_;
     is_valid_move_ = &Variable::do_is_valid_move_sample_;
     get_move_logratio_ = &Variable::do_move_logratio_sample_;
 }
@@ -401,21 +398,10 @@ void Variable::helper_init_proposer_monte_carlo_(const std::string &proposal, do
 
     // assign the pointer to the proposer
     pProp_ = proposer_switch(proposal, proposal_scale, is_discrete());
-
-    if (loc_.is_empty())
-    {
-        propose_ = &Variable::do_propose_default_;
-        is_valid_move_ = &Variable::do_is_valid_move_default_;
-        get_propose_logratio_ = &Variable::do_get_propose_logratio_default_;
-        get_move_logratio_ = &Variable::do_get_move_logratio_default_;
-    }
-    else
-    {
-        propose_ = &Variable::do_propose_with_loc_;
-        is_valid_move_ = &Variable::do_is_valid_move_with_loc_;
-        get_propose_logratio_ = &Variable::do_get_propose_logratio_with_loc_;
-        get_move_logratio_ = &Variable::do_get_move_logratio_with_loc_;
-    }
+    is_valid_move_ = &Variable::do_is_valid_move_default_;
+    propose_ = &Variable::do_propose_default_;
+    get_propose_logratio_ = &Variable::do_get_propose_logratio_default_;
+    get_move_logratio_ = &Variable::do_get_move_logratio_default_;
 }
 
 /// Wheter the variable is constant.

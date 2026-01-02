@@ -9,7 +9,7 @@
  * housepi - Epidemiological Analysis of Household Outbreaks.
  *
  * Author: Francesco Camaglia
- * Copyright © 2025 Institut Pasteur (Paris), CNRS and INSERM.
+ * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
  * See the COPYRIGHT file for details.
  *
  * Distributed under the terms of the GNU General Public License (GPLv3).
@@ -20,8 +20,7 @@
  */
 
 #include "tools/operators.h"
-#include "tools/discrete.h"
-#include "tools/params.h"
+#include "tools/global.h"
 #include "tools/string.h"
 #include "tools/math_distr.h"
 
@@ -46,16 +45,26 @@ void Distribution::init_discr_helper_(unsigned short discr_type)
 {
     Function::init_discr_helper_(discr_type);
 
-    switch (discr_type)
+    if (discr_type == hsp::discr::CENTER) // centered discretization
     {
-    case hsp::discr::CENTER: // centered discretization
-        rand_ = &Distribution::do_discr_center_rand_;
-        break;
-    case hsp::discr::LEFT: // left discretization
-        rand_ = &Distribution::do_discr_left_rand_;
-        break;
-    default: // discrete defined or no discretization
-        rand_ = &Distribution::raw_rand_;
+        if (loc_arg_.is_empty())
+            rand_ = &Distribution::do_discr_center_rand_;
+        else
+            rand_ = &Distribution::do_discr_center_rand_loc_;
+    }
+    else if (discr_type == hsp::discr::LEFT) // left discretization
+    {
+        if (loc_arg_.is_empty())
+            rand_ = &Distribution::do_discr_left_rand_;
+        else
+            rand_ = &Distribution::do_discr_left_rand_loc_;
+    }
+    else // discrete defined or no discretization
+    {
+        if (loc_arg_.is_empty())
+            rand_ = &Distribution::raw_rand_;
+        else
+            rand_ = &Distribution::do_rand_loc_;
     }
 }
 
@@ -64,13 +73,13 @@ void Distribution::init_trunc_helper_()
 {
     const unsigned short discr_type = which_discrete_case_();
 
-    if (range_lower_.is_empty() && range_upper_.is_empty()) // No Truncation
+    if (lower_arg_.is_empty() && upper_arg_.is_empty()) // No Truncation
     {
         trunc_ = &Distribution::do_trunc_dummy_;
         logtrunc_ = &Distribution::do_logtrunc_dummy_;
         shift_ = &Distribution::do_shift_dummy_;
     }
-    else if (!range_lower_.is_empty() && range_upper_.is_empty()) // Lower Range Truncation
+    else if (!lower_arg_.is_empty() && upper_arg_.is_empty()) // Lower Range Truncation
     {
         switch (discr_type)
         {
@@ -99,7 +108,7 @@ void Distribution::init_trunc_helper_()
             rand_ = &Distribution::do_trunc_rand_;
         }
     }
-    else if (range_lower_.is_empty() && !range_upper_.is_empty()) // Upper Range Truncation
+    else if (lower_arg_.is_empty() && !upper_arg_.is_empty()) // Upper Range Truncation
     {
         shift_ = &Distribution::do_shift_dummy_;
         switch (discr_type)
@@ -247,16 +256,16 @@ private:
         // impose range minimum equal to argument minimum
         const Attribute &min_arg = arguments_[0];
         if (min_arg.is_function())
-            range_lower_.transfer(min_arg);
+            lower_arg_.transfer(min_arg);
         else
-            range_lower_.transfer(min_arg);
+            lower_arg_.transfer(min_arg);
 
         // impose range maximum equal to argument maximum
         const Attribute &max_arg = arguments_[1];
         if (max_arg.is_function())
-            range_upper_.transfer(max_arg);
+            upper_arg_.transfer(max_arg);
         else
-            range_upper_.transfer(max_arg);
+            upper_arg_.transfer(max_arg);
     }
 };
 
@@ -277,7 +286,7 @@ public:
 
     void init_discretization() override final
     {
-        if (range_lower_.is_empty())
+        if (lower_arg_.is_empty())
             init_discr_helper_(hsp::discr::CENTER);
         else
             init_discr_helper_(hsp::discr::LEFT);
@@ -562,7 +571,7 @@ public:
                        0., false, hsp::na::DOUBLE, false)
     {
         init_discr_helper_(hsp::discr::DEFINED);
-        range_upper_.init_pointer(get_arg(0).get_ptr());
+        upper_arg_.init_pointer(get_arg(0).get_ptr());
         init_range_helper_(false, false);
     }
 
@@ -571,13 +580,13 @@ public:
     {
         if (lower() < 0.)
             throw std::invalid_argument(
-                "Invoked invalid min value " + hsp::str::format(range_lower_.get()) +
+                "Invoked invalid min value " + hsp::str::format(lower_arg_.get()) +
                 " for " + err_name() + ".");
         if (lower() > 0. || get_arg(0).get_ptr() != get_upper().get_ptr())
         {
             if (upper() > arg(0))
                 throw std::invalid_argument(
-                    "Invoked invalid max value " + hsp::str::format(range_upper_.get()) +
+                    "Invoked invalid max value " + hsp::str::format(upper_arg_.get()) +
                     " for " + err_name() + " with size " + std::to_string(arg(0)) + ".");
             init_range_helper_(false, false);
             init_trunc_helper_();

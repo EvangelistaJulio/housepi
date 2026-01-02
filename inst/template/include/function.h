@@ -9,7 +9,7 @@
  * housepi - Epidemiological Analysis of Household Outbreaks.
  *
  * Author: Francesco Camaglia
- * Copyright © 2025 Institut Pasteur (Paris), CNRS and INSERM.
+ * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
  *
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the LICENSE file for details.
@@ -197,12 +197,13 @@ public:
 
     size_t n_args() const { return arguments_.size(); }
     double arg(unsigned short i) const { return arguments_[i].get(); }
-    double lower() const { return range_lower_.get(); }
-    double upper() const { return range_upper_.get(); }
+    double lower() const { return lower_arg_.get(); }
+    double upper() const { return upper_arg_.get(); }
 
     const Attribute &get_arg(unsigned short i) const { return arguments_[i]; }
-    const Attribute &get_lower() const { return range_lower_; }
-    const Attribute &get_upper() const { return range_upper_; }
+    const Attribute &get_loc() const { return loc_arg_; }
+    const Attribute &get_lower() const { return lower_arg_; }
+    const Attribute &get_upper() const { return upper_arg_; }
 
     /// Wheter it is empty.
     bool is_empty() const { return hsp::na::is(name()); }
@@ -221,11 +222,11 @@ public:
     void assert_is_callable_explicitly() const;
 
     /// Returns TRUE if value x is below range minimum.
-    bool is_below(double x) const { return (this->*is_below_)(x); }
+    bool is_below(double x) const { return (this->*is_below_)((this->*delocate_)(x)); }
     /// Returns TRUE if value x is above range maximum.
-    bool is_above(double x) const { return (this->*is_above_)(x); }
+    bool is_above(double x) const { return (this->*is_above_)((this->*delocate_)(x)); }
     /// Returns TRUE if value x is within range.
-    bool is_valid(double x) const { return (this->*is_valid_)(x); }
+    bool is_valid(double x) const { return (this->*is_valid_)((this->*delocate_)(x)); }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////  Function : setter  /////////////////////////////////////
@@ -265,21 +266,37 @@ protected:
     std::string name_ = hsp::na::STRING;                                     /// function name
     std::vector<Attribute> arguments_ = {};                                  /// array with arguments
     Attribute x_arg_ = Attribute();                                          /// 'x' argument
-    Attribute range_lower_ = Attribute();                                      /// lower bound
-    Attribute range_upper_ = Attribute();                                      /// upper bound
+    Attribute loc_arg_ = Attribute();                                        /// 'loc' argument
+    Attribute lower_arg_ = Attribute();                                      /// lower bound
+    Attribute upper_arg_ = Attribute();                                      /// upper bound
     double (Function::*evaluate_)(double) const = &Function::eval_function_; /// return value method
 
     /// Find attribute and return. If doesn't exists, return an empty attribute.
     virtual Attribute &find_arg_(const std::string &arg_name);
 
     /// Return value of call.
-    double eval_function_(double x) const { return (this->*function_)(x); }
+    double eval_function_(double x) const { return (this->*function_)((this->*delocate_)(x)); }
+
     /// Return value as for a probability density/mass function.
-    double eval_function_as_distr_(double x) const { return is_valid(x) ? eval_function_(x) : 0.; }
+    double eval_function_as_distr_(double x) const
+    {
+        if (is_valid(x))
+            return eval_function_(x);
+        return 0.;
+    }
+
     /// Return value of primitive.
-    double eval_primitive_(double x) const { return (this->*primitive_)(x); }
+    double eval_primitive_(double x) const { return (this->*primitive_)((this->*delocate_)(x)); }
+
     /// Return value as for a cumulative distribution function.
-    double eval_primitive_as_distr_(double x) const { return is_valid(x) ? eval_primitive_(x) : (is_above(x) ? eval_primitive_(upper()) : 0.); }
+    double eval_primitive_as_distr_(double x) const
+    {
+        if (is_valid(x))
+            return eval_primitive_(x);
+        if (is_above(x))
+            return eval_primitive_((this->*delocate_)(upper()));
+        return 0;
+    }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////  Function : virtual methods [protected]  ///////////////////////////
@@ -352,11 +369,16 @@ protected:
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////  Function : range [protected]  ////////////////////////////////
+    ////////////////////////////  Function : lcoation [protected]  //////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    /// Helper with degenerate range.
-    void helper_degenerate_range_();
+    double (Function::*delocate_)(double) const = &Function::do_delocate_none_;
+    double do_delocate_none_(double x) const { return x; }
+    double do_delocate_(double x) const { return x - loc_arg_.get(); }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////  Function : range [protected]  ////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Internal code to define the type of range.
     bool init_range_min_(double min_val = 0., bool is_min_open = false);
@@ -373,22 +395,22 @@ protected:
     bool do_is_valid_always_(double) const { return true; }
 
     //----- range : minimum -----//
-    bool do_is_below_open_min_(double x) const { return (x <= range_lower_.get()); }
-    bool do_is_below_close_min_(double x) const { return (x < range_lower_.get()); }
-    bool do_is_valid_open_min_(double x) const { return (x > range_lower_.get()); }
-    bool do_is_valid_close_min_(double x) const { return (x >= range_lower_.get()); }
+    bool do_is_below_open_min_(double x) const { return (x <= lower_arg_.get()); }
+    bool do_is_below_close_min_(double x) const { return (x < lower_arg_.get()); }
+    bool do_is_valid_open_min_(double x) const { return (x > lower_arg_.get()); }
+    bool do_is_valid_close_min_(double x) const { return (x >= lower_arg_.get()); }
 
     //----- range : maximum -----//
-    bool do_is_above_open_max_(double x) const { return (x >= range_upper_.get()); }
-    bool do_is_above_close_max_(double x) const { return (x > range_upper_.get()); }
-    bool do_is_valid_open_max_(double x) const { return (x < range_upper_.get()); }
-    bool do_is_valid_close_max_(double x) const { return (x <= range_upper_.get()); }
+    bool do_is_above_open_max_(double x) const { return (x >= upper_arg_.get()); }
+    bool do_is_above_close_max_(double x) const { return (x > upper_arg_.get()); }
+    bool do_is_valid_open_max_(double x) const { return (x < upper_arg_.get()); }
+    bool do_is_valid_close_max_(double x) const { return (x <= upper_arg_.get()); }
 
     //----- range : both -----//
-    bool do_is_valid_both_open_(double x) const { return (x > range_lower_.get()) && (x < range_upper_.get()); }
-    bool do_is_valid_open_min_close_max_(double x) const { return (x > range_lower_.get()) && (x <= range_upper_.get()); }
-    bool do_is_valid_close_min_open_max_(double x) const { return (x >= range_lower_.get()) && (x < range_upper_.get()); }
-    bool do_is_valid_both_close_(double x) const { return (x >= range_lower_.get()) && (x <= range_upper_.get()); }
+    bool do_is_valid_both_open_(double x) const { return (x > lower_arg_.get()) && (x < upper_arg_.get()); }
+    bool do_is_valid_open_min_close_max_(double x) const { return (x > lower_arg_.get()) && (x <= upper_arg_.get()); }
+    bool do_is_valid_close_min_open_max_(double x) const { return (x >= lower_arg_.get()) && (x < upper_arg_.get()); }
+    bool do_is_valid_both_close_(double x) const { return (x >= lower_arg_.get()) && (x <= upper_arg_.get()); }
 };
 
 #endif // HOUSEPI__FUNCTION__H

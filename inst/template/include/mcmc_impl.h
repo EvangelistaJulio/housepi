@@ -9,7 +9,7 @@
  * housepi - Epidemiological Analysis of Household Outbreaks.
  *
  * Author: Francesco Camaglia
- * Copyright © 2025 Institut Pasteur (Paris), CNRS and INSERM.
+ * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
  *
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the LICENSE file for details.
@@ -29,7 +29,7 @@
 #include "tools/na_utils.h"
 #include "tools/messages.h"
 #include "tools/progress.h"
-#include "tools/infprof.h"
+#include "tools/global.h"
 #include "function.h"
 #include "distribution.h"
 #include "variable.h"
@@ -497,12 +497,12 @@ public:
         //===== Functional methods for getter methods =====//
         double (InfecProfile::*inst_)(const Individual *, double) = &InfecProfile::do_inst_default_;
         double do_inst_default_(const Individual *, double t) { return generic_profile->pdf(t); }
-        double do_inst_augm_(const Individual *i, double t) { return i->get_augm_variable(hsp::infprof::INSTANTANEOUS)(t); }
+        double do_inst_augm_(const Individual *i, double t) { return i->get_augm_variable(hsp::infprof::INSTANT)(t); }
         double do_inst_lookup_(const Individual *, double t);
 
         double (InfecProfile::*cumul_)(const Individual *, double) = &InfecProfile::do_cumul_default_;
         double do_cumul_default_(const Individual *, double t) { return generic_profile->cdf(t); }
-        double do_cumul_augm_(const Individual *i, double t) { return i->get_augm_variable(hsp::infprof::CUMULATIVE)(t); }
+        double do_cumul_augm_(const Individual *i, double t) { return i->get_augm_variable(hsp::infprof::CUMUL)(t); }
         double do_cumul_lookup_(const Individual *, double t);
     } infec_profile;
 

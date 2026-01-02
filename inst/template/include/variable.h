@@ -9,7 +9,7 @@
  * housepi - Epidemiological Analysis of Household Outbreaks.
  *
  * Author: Francesco Camaglia
- * Copyright © 2025 Institut Pasteur (Paris), CNRS and INSERM.
+ * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
  *
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the LICENSE file for details.
@@ -32,37 +32,37 @@
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////// *** Proposer : class *** ////////////////////////////////////
+/////////////////////////////////// *** Proposal : class *** ////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Base class for Metropolis proposers.
-class Proposer
+class Proposal
 {
 public:
     /////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////  Proposer : constructor  /////////////////////////////////
+    //////////////////////////////////  Proposal : constructor  /////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Empty proposer.
-    Proposer() {};
+    Proposal() {};
 
-    /// Proposer constructor from Distribution pointer.
-    Proposer(std::shared_ptr<Distribution>,
+    /// Proposal constructor from Distribution pointer.
+    Proposal(std::shared_ptr<Distribution>,
              double proposal_scale = hsp::na::DOUBLE,
              const std::vector<unsigned short> &args_to_adapt = {},
              bool is_discrete = false);
 
-    /// Proposer constructor from Distribution name.
-    Proposer(const std::string &distr_name,
+    /// Proposal constructor from Distribution name.
+    Proposal(const std::string &distr_name,
              double proposal_scale = hsp::na::DOUBLE,
              const std::vector<unsigned short> &args_to_adapt = {},
              bool is_discrete = false);
 
-    virtual ~Proposer() {};
+    virtual ~Proposal() {};
 
     /////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////  Proposer : getter  ///////////////////////////////////
+    /////////////////////////////////////  Proposal : getter  ///////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
     std::string name() const { return this->name_; }
@@ -78,13 +78,14 @@ public:
     double scale() const { return is_adaptable() ? std::fabs((pDistr_->arg)(args_to_adapt_[0])) : hsp::na::DOUBLE; }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////  Proposer : setter  ///////////////////////////////////
+    /////////////////////////////////////  Proposal : setter  ///////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
     virtual void user_reset() {}
+    virtual void associate_location(const Attribute &) {}
 
     /////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////  Proposer : adaptation  /////////////////////////////////
+    ///////////////////////////////////  Proposal : adaptation  /////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
     double get_accept_rate() const { return accept_rate_; }
@@ -102,8 +103,8 @@ public:
     void adapt(double ratio);
 
 protected:
-    std::string name_ = hsp::na::STRING;
-    std::shared_ptr<Distribution> pDistr_;
+    std::string name_ = hsp::na::STRING;   /// name of the proposal
+    std::shared_ptr<Distribution> pDistr_; /// distribution associated to proposal
 
     double user_scale_ = 1.;                         /// scale of the Metropolis proposal
     double accept_rate_ = 0.;                        /// acceptance rate
@@ -141,7 +142,7 @@ public:
              const hsp::parse::Definition &expr = hsp::na::STRING,
              bool is_prim = false)
         : pDistr_(std::make_unique<Distribution>()),
-          pProp_(std::make_unique<Proposer>())
+          pProp_(std::make_unique<Proposal>())
     {
         this->set_name(name, err_type);
         init(value, is_const, expr, is_prim);
@@ -177,11 +178,8 @@ public:
     /// Finalize reshaping of distribution. NOTE: to be called necessarily.
     void init_distr_reshaping(bool discr);
 
-    /// Initialize location parameter.
-    void init_location_arg(const Attribute &x);
-
     /// Random initialization of variable.
-    void init_rand(rnd_gen &prng);
+    void init_rand(rnd_gen &prng) { set(do_propose_sample_(prng)); }
 
     /// Initialize pointer to proposer.
     void init_proposer(const std::string &proposal = hsp::na::STRING,
@@ -206,8 +204,8 @@ public:
     void propose(rnd_gen &prng) { set((this->*propose_)(prng)); }
     bool is_valid_move() const { return (this->*is_valid_move_)(); }
 
-    double get_distr_logpdf() const { return (this->*distr_logpdf_)(); }
-    double get_distr_logratio() const { return (this->*distr_logratio_)(); }
+    double get_distr_logpdf() const { return pDistr_->logpdf(value_); }
+    double get_distr_logratio() const { return pDistr_->logratio(buffer_, value_); }
     double get_propose_logratio() const { return (this->*get_propose_logratio_)(); }
     double get_move_logratio() const { return (this->*get_move_logratio_)(); }
 
@@ -232,12 +230,11 @@ public:
 protected:
     double buffer_ = hsp::na::DOUBLE;     /// buffered value
     double user_value_ = hsp::na::DOUBLE; /// initial user defined value
-    Attribute loc_;                       /// location parameter
     bool is_constant_ = true;             /// user flag for wheter constant or not
 
     // NOTE: Household must be copyable for simulations -> Variable pointers must be shared
     std::shared_ptr<Distribution> pDistr_; /// prior\model distribution of the variable
-    std::shared_ptr<Proposer> pProp_;      /// Monte Carlo proposer
+    std::shared_ptr<Proposal> pProp_;      /// Monte Carlo proposer
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////  Variable : getter [private]  //////////////////////////////
@@ -276,53 +273,21 @@ protected:
     double do_propose_error_(rnd_gen &) { throw std::invalid_argument(
         "Called to unknown proposer for " + err_name() + "."); }
     double do_propose_default_(rnd_gen &prng) { return pProp_->propose(prng, value_); }
-    double do_propose_with_loc_(rnd_gen &prng) { return loc_.get() + pProp_->propose(prng, value_ - loc_.get()); }
     double do_propose_sample_(rnd_gen &prng) { return pDistr_->rand(prng); }
-    double do_propose_sample_with_loc_(rnd_gen &prng) { return loc_.get() + do_propose_sample_(prng); }
 
     //----- Valid move : functional methods -----//
     bool (Variable::*is_valid_move_)() const = &Variable::do_is_valid_move_default_;
     bool do_is_valid_move_default_() const { return pDistr_->is_valid(value_); }
-    bool do_is_valid_move_with_loc_() const { return pDistr_->is_valid(value_ - loc_.get()); }
     bool do_is_valid_move_sample_() const { return true; }
-
-    ///  Distribution logpdf - function methods
-    double (Variable::*distr_logpdf_)() const = &Variable::do_distr_logpdf_default_;
-    double do_distr_logpdf_default_() const { return pDistr_->logpdf(value_); }
-    double do_distr_logpdf_with_loc_() const { return pDistr_->logpdf(value_ - loc_.get()); }
-
-    ///  Distribution logpdf - function methods
-    double (Variable::*distr_logratio_)() const = &Variable::do_distr_logratio_default_;
-    double do_distr_logratio_default_() const { return pDistr_->logratio(buffer_, value_); }
-    double do_distr_logratio_with_loc_() const
-    {
-        const double loc_val = loc_.get();
-        return pDistr_->logratio(buffer_ - loc_val, value_ - loc_val);
-    }
 
     /// Propose logratio - functional methods
     double (Variable::*get_propose_logratio_)() const = &Variable::do_get_propose_logratio_default_;
     double do_get_propose_logratio_default_() const { return pProp_->logratio(buffer_, value_); }
-    double do_get_propose_logratio_with_loc_() const
-    {
-        const double loc_val = loc_.get();
-        return pProp_->logratio(buffer_ - loc_val, value_ - loc_val);
-    }
-    double do_get_propose_logratio_sample_() const { return do_distr_logratio_default_(); }
-    double do_get_propose_logratio_sample_with_loc_() const { return do_distr_logratio_with_loc_(); }
+    double do_get_propose_logratio_sample_() const { return get_distr_logratio(); }
 
     //----- Move logratio : functional methods -----//
     double (Variable::*get_move_logratio_)() const = &Variable::do_get_move_logratio_default_;
-    double do_get_move_logratio_default_() const
-    {
-        return pDistr_->logratio(buffer_, value_) - pProp_->logratio(buffer_, value_);
-    }
-    double do_get_move_logratio_with_loc_() const
-    {
-        const double loc_val = loc_.get();
-        const double xo = buffer_ - loc_val, xn = value_ - loc_val;
-        return pDistr_->logratio(xo, xn) - pProp_->logratio(xo, xn);
-    }
+    double do_get_move_logratio_default_() const { return get_distr_logratio() - (this->*get_propose_logratio_)(); }
     double do_move_logratio_sample_() const { return 0.; }
 };
 

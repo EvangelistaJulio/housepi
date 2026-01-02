@@ -13,16 +13,13 @@
 #' @param proba_duration `numeric()` Probabilities of duration of exposure.
 #'
 #' @return `data.frame`\cr
-#' \item{exposure_min}{Day exposure starts}
 #' \item{exposure_max}{Day exposure ends}
 #' \item{onset_min}{Day symptom onset starts}
 #' \item{onset_max}{Day symptom onset ends}
 #' \item{status}{Individual status }
 #'
 #' @keywords internal
-generate_delays_report <- function(size,
-                                   mean = 2.2,
-                                   var = 1.4,
+generate_delays_report <- function(size, mean = 2.2, var = 1.4,
                                    report_error = 0.73,
                                    proba_duration = c(0.28, 0.34, 0.26, 0.12)) {
   shape <- mean * mean / var
@@ -30,11 +27,10 @@ generate_delays_report <- function(size,
 
   simulate_delay_data <- function(x) {
     # exposure interval
-    t1_min <- 0
     t1_max <- sample(length(proba_duration), 1, prob = proba_duration)
 
     # exact time of infection
-    t1 <- runif(1, t1_min, t1_max)
+    t1 <- runif(1, min = 0, max = t1_max)
     # onset time + incubation period
     t2 <- t1 + rgamma(1, shape = shape, scale = scale)
 
@@ -48,15 +44,13 @@ generate_delays_report <- function(size,
       else t2_max <- t2_max + 1.
     }
 
-    c(t1_min = t1_min, t1_max = t1_max,
-      t2_min = t2_min, t2_max = t2_max)
+    c(t1_max = t1_max, t2_min = t2_min, t2_max = t2_max)
   }
 
   full_dataset <- as.data.frame(t(sapply(1:size, simulate_delay_data)))
 
   # final dataset
   data.frame(status = 1,
-             exposure_min = full_dataset$t1_min,
              exposure_max = full_dataset$t1_max - 1,
              onset_min = full_dataset$t2_min,
              onset_max = full_dataset$t2_max - 1)

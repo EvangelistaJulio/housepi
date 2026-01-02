@@ -9,7 +9,7 @@
  * housepi - Epidemiological Analysis of Household Outbreaks.
  *
  * Author: Francesco Camaglia
- * Copyright © 2025 Institut Pasteur (Paris), CNRS and INSERM.
+ * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
  * See the COPYRIGHT file for details.
  *
  * Distributed under the terms of the GNU General Public License (GPLv3).
@@ -19,8 +19,7 @@
  *
  */
 
-#include "tools/discrete.h"
-#include "tools/params.h"
+#include "tools/global.h"
 #include "tools/messages.h"
 #include "tools/string.h"
 #include "tools/operators.h"
@@ -216,8 +215,11 @@ Function::Function(const std::string &name,
     for (size_t k = 0; k < arg_name.size(); ++k)
         if (arg_name[k] == hsp::params::X)
         {
-            x_arg_.set(arg_value[k]);
-            --k;
+            x_arg_.set(arg_value[k--]);
+        }
+        else if (arg_name[k] == hsp::params::LOC)
+        {
+            loc_arg_.set(arg_value[k--]);
         }
         else
         {
@@ -244,13 +246,15 @@ Attribute &Function::find_arg_(const std::string &arg_name)
 {
     if (arg_name == hsp::params::X)
         return x_arg_;
+    if (arg_name == hsp::params::LOC)
+        return loc_arg_;
 
     for (Attribute &attr : arguments_)
         if (attr.get_name() == arg_name)
             return attr;
 
     // else format the error showing options
-    str_vec options = {hsp::params::X};
+    str_vec options = {hsp::params::X, hsp::params::LOC};
     for (const Attribute &attr : arguments_)
         options.push_back(attr.get_name());
     throw std::invalid_argument(
@@ -272,9 +276,9 @@ bool Function::is_constant() const
             return false;
 
     // check range
-    if (!range_lower_.is_constant())
+    if (!lower_arg_.is_constant())
         return false;
-    if (!range_upper_.is_constant())
+    if (!upper_arg_.is_constant())
         return false;
 
     // otherwise constant
@@ -331,13 +335,13 @@ bool Function::init_range_min_(double min_val, bool is_min_open)
 /// Set the range of validity of the value, and the corresponding validation function.
 void Function::init_range_helper_(bool is_min_open, bool is_max_open)
 {
-    if (range_lower_.is_empty() && range_upper_.is_empty()) // Unbounded
+    if (lower_arg_.is_empty() && upper_arg_.is_empty()) // Unbounded
     {
         is_below_ = &Function::do_is_below_never_;
         is_above_ = &Function::do_is_above_never_;
         is_valid_ = &Function::do_is_valid_always_;
     }
-    else if (!range_lower_.is_empty() && range_upper_.is_empty()) // Lower Bound
+    else if (!lower_arg_.is_empty() && upper_arg_.is_empty()) // Lower Bound
     {
         is_above_ = &Function::do_is_above_never_;
         if (is_min_open)
@@ -351,7 +355,7 @@ void Function::init_range_helper_(bool is_min_open, bool is_max_open)
             is_valid_ = &Function::do_is_valid_close_min_;
         }
     }
-    else if (range_lower_.is_empty() && !range_upper_.is_empty()) // Upper Bound
+    else if (lower_arg_.is_empty() && !upper_arg_.is_empty()) // Upper Bound
     {
         is_below_ = &Function::do_is_below_never_;
         if (is_max_open)
@@ -393,8 +397,8 @@ void Function::init_range_helper_(bool is_min_open, bool is_max_open)
         }
 
         // check for consistency
-        bool wrong_open = (is_valid_ != &Function::do_is_valid_both_close_) && (range_lower_.get() >= range_upper_.get());
-        bool wrong_close = (is_valid_ == &Function::do_is_valid_both_close_) && (range_lower_.get() > range_upper_.get());
+        bool wrong_open = (is_valid_ != &Function::do_is_valid_both_close_) && (lower_arg_.get() >= upper_arg_.get());
+        bool wrong_close = (is_valid_ == &Function::do_is_valid_both_close_) && (lower_arg_.get() > upper_arg_.get());
         if (wrong_open || wrong_close)
             throw std::invalid_argument(
                 "Generated an inconsistent range " + str_range() + " for " + err_name() + ".");
@@ -404,8 +408,8 @@ void Function::init_range_helper_(bool is_min_open, bool is_max_open)
 /// Return formatted range.
 std::string Function::str_range() const
 {
-    const std::string str_min = hsp::str::format(range_lower_.get());
-    const std::string str_max = hsp::str::format(range_upper_.get());
+    const std::string str_min = hsp::str::format(lower_arg_.get());
+    const std::string str_max = hsp::str::format(upper_arg_.get());
 
     if (is_valid_ == &Function::do_is_valid_always_)
         return "(-Inf, Inf)";
@@ -472,12 +476,16 @@ void Function::init_attr(const std::string &key, const Attribute &attr)
         if (name_ == "uniform")
             find_arg_(key).transfer(attr);
         else if (key == hsp::params::MIN)
-            range_lower_.transfer(attr);
+            lower_arg_.transfer(attr);
         else // key == hsp::params::MAX
-            range_upper_.transfer(attr);
+            upper_arg_.transfer(attr);
     }
     else
         find_arg_(key).transfer(attr);
+
+    // Apply location argument shift.
+    if (key == hsp::params::LOC)
+        delocate_ = &Function::do_delocate_;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////

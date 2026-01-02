@@ -6,7 +6,7 @@
  *  /_/ /_/\____/\____/____/\___/ ____/_/
  *                             /_/
  *
- * Copyright (C) 2025 Francesco Camaglia, Institut Pasteur
+ * Copyright (C) 2026 Francesco Camaglia, Institut Pasteur
  *
  * main.cpp
  *

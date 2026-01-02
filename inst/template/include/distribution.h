@@ -9,7 +9,7 @@
  * housepi - Epidemiological Analysis of Household Outbreaks.
  *
  * Author: Francesco Camaglia
- * Copyright © 2025 Institut Pasteur (Paris), CNRS and INSERM.
+ * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
  *
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the LICENSE file for details.
@@ -61,11 +61,11 @@ public:
 	/// Return value of probability density/mass function.
 	double pdf(double x) const { return eval_function_as_distr_(x); }
 	/// Return value of log-probability density/mass function.
-	double logpdf(double x) const { return (this->*log_func_)(x); }
+	double logpdf(double x) const { return (this->*log_func_)((this->*delocate_)(x)); }
 	/// Return value of cumulative distribution.
 	double cdf(double x) const { return eval_primitive_as_distr_(x); }
 	/// Return value of log-ratio of probability density/mass functions.
-	double logratio(double xo, double xn) const { return (this->*log_ratio_)(xo, xn); }
+	double logratio(double xo, double xn) const { return (this->*log_ratio_)((this->*delocate_)(xo), (this->*delocate_)(xn)); }
 
 protected:
 	/////////////////////////////////////////////////////////////////////////////////////////////
@@ -111,6 +111,9 @@ protected:
 	double (Distribution::*rand_)(rnd_gen &) = &Distribution::raw_rand_;
 	double do_discr_center_rand_(rnd_gen &prng) { return cast_center_(raw_rand_(prng)); }
 	double do_discr_left_rand_(rnd_gen &prng) { return cast_left_(raw_rand_(prng)); }
+	double do_rand_loc_(rnd_gen &prng) { return loc_arg_.get() + raw_rand_(prng); }
+	double do_discr_center_rand_loc_(rnd_gen &prng) { return loc_arg_.get() + cast_center_(raw_rand_(prng)); }
+	double do_discr_left_rand_loc_(rnd_gen &prng) { return loc_arg_.get() + cast_left_(raw_rand_(prng)); }
 
 	double raw_function_(double x) const override final { return (this->*trunc_)(raw_pdf_(x)); }
 	double do_function_discr_center_(double x) const override final
@@ -150,8 +153,8 @@ protected:
 	{
 		static std::uniform_real_distribution<double> unif_gen(0., 1.); 
 		const double r = unif_gen(prng);
-		const double sx = range_lower_.is_empty() ? 0. : (1. - r) * raw_cdf_(lower());
-		const double dx = range_upper_.is_empty() ? r : r * raw_cdf_(upper());
+		const double sx = lower_arg_.is_empty() ? 0. : (1. - r) * raw_cdf_(lower());
+		const double dx = upper_arg_.is_empty() ? r : r * raw_cdf_(upper());
 		return raw_quantile_(sx + dx);
 	}
 

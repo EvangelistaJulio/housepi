@@ -9,7 +9,7 @@
  * housepi - Epidemiological Analysis of Household Outbreaks.
  *
  * Author: Francesco Camaglia
- * Copyright © 2025 Institut Pasteur (Paris), CNRS and INSERM.
+ * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
  * See the COPYRIGHT file for details.
  *
  * Distributed under the terms of the GNU General Public License (GPLv3).
@@ -26,9 +26,7 @@
 #include "tools/string.h"
 #include "tools/read.h"
 #include "tools/messages.h"
-#include "tools/status.h"
-#include "tools/params.h"
-#include "tools/rates.h"
+#include "tools/global.h"
 #include "function.h"
 #include "function_registry.h"
 #include "variable.h"

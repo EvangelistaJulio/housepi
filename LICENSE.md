@@ -3,7 +3,7 @@ GNU General Public License
 
 _housepi - Epidemiological Analysis of Household Outbreaks._
 
-_Copyright © 2025 Institut Pasteur (Paris), CNRS and INSERM._
+_Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM._
 
 Everyone is permitted to copy and distribute verbatim copies of this license
 document, but changing it is not allowed.
