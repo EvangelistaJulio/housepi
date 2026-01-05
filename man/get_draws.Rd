@@ -7,7 +7,7 @@
 \alias{get_total_log_lik_draws}
 \alias{get_prior_draws}
 \alias{get_complete_draws}
-\title{Get respective posterior draws}
+\title{Get posterior draws of respective variables}
 \usage{
 get_param_draws(hhdraws)
 

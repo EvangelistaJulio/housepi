@@ -29,7 +29,7 @@ Let's briefly recall the concept of Bayesian data augmentation for the case of e
 Bayesian data augmentation is a computational strategy that expands the parameter space by introducing augmented variables (also referred to as hidden or latent variables) to facilitate sampling from the posterior.
 
 Consider a single infectious individual $i$.
-Imagine that someone reported the exact time of symptom onset ${t}^{(\mathrm{ons})}_{i}$ .
+Imagine that someone reported the exact time of symptom onset ${t}^{(\mathrm{ons})}_{i}$.
 We can introduce latent infection times ${t}_{i}$, defined as the difference between the onset time and the augmented incubation period ${\tau}^{(\mathrm{inc})}_{i}$:
 
 $${t}_{i} = {t}^{(\mathrm{ons})}_{i} - {\tau}^{(\mathrm{inc})}_{i},$$
@@ -44,7 +44,7 @@ We here explain how to associate individual augmented variables in housepi for m
 Similarly to parameter, augmented variables require definitions for models and proposals needed for the Bayesian Monte Carlo.
 In many applications, augmented variable definitions can also depend on the dataset or on model parameters to be inferred.
 
-# Link arguments to their source
+# Link arguments to source
 
 We can declare the source of any argument value according to the convention using the \@ symbol
 $$
@@ -78,9 +78,9 @@ More in general, definition arguments `value`, `min` and `max` can be linked to 
 In many applications, the same augmented variable has to be augmented according to different rules according to the individual. 
 This is the case for example of infection times for symptomatic and asymptomatic members.
 We can address this issue in housepi using status specific definitions, as opposed to generic definitions valid for all positive status individuals.
-Let's consider the case of a follow-up that reported symptoms within a follow-up period and tested every household member only at the end.
-We use `status = 1` to identify symptomatic individuals and `status = 2` for asymptomatic. 
-We augmented infection time of symptomatic as shown in [Get Started](hosuepi.html), i. e. informed by reported onset date.
+Let's consider the case of a survey that reported symptoms within a follow-up period and tested every household member only when a first individual showed symptoms and after 10 days.
+Let's use `status = 1` to tag symptomatic individuals and `status = 2` to tag asymptomatic. 
+We decide to augment infection times of symptomatic members as shown in [Get Started](housepi.html), i. e. informed by reported onset date.
 For asymptomatic members we draw the infection time uniformly within the period of the follow-up.
 
 ```{r}
@@ -127,7 +127,7 @@ hhmodel |>
 
 We see that since we assumed the infection of the asymptomatic member to happen after the onset of the index, the model logically makes it more probable to occur closer to that limit.
 
-# Example: estimate incubation periods distribution
+# Example: estimate incubation period distribution
 
 For simplicity, we start testing data augmentation on a dataset which is not a household survey.
 Instead we consider a simulated report documenting the days when a number of cases were exposed to infection and the days of symptom onset.
@@ -175,7 +175,7 @@ hhmodel <- new_housepi_model("augmented_example") |>
     # to allow for the event to occur during the whole day
     # add 'infec_time' time definition
     .infec_time = list(
-      value = exposure_min@D,      # start from data value 'exposure_min'
+      value = 0,                   # initial value set to 0
       model = "uniform",           # uniform within [0, exposure_max + 0.99]
       max = exposure_max@D + 0.99, # min = 0 by default for uniform
       proposal = "normal",         # MCMC proposal is a normal distribution

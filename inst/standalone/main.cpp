@@ -1,15 +1,8 @@
-/*
- *      __
- *     / /_  ____  __  __ ____ __  ____  __
- *    / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
- *   / / / / /_/ / /_/ (__  )  __/ /_/ / /
- *  /_/ /_/\____/\____/____/\___/ ____/_/
- *                             /_/
+/* housepi - Epidemiological Analysis of Household Outbreaks.
  *
- * Copyright (C) 2026 Francesco Camaglia, Institut Pasteur
- *
- * main.cpp
- *
+ * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+ * Distributed under the terms of the GNU General Public License (GPLv3).
+ * See the LICENSE file for details.
  */
 
 #include <string>

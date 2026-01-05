@@ -10,7 +10,8 @@ new_household_sampler(...)
 \item{...}{Named features with respective list of definition details.}
 }
 \description{
-The \code{HousepiSampler} class allows to define and sample synthetic household datasets
-based on hierarchical models of covariates. It supports encoding and decoding of features,
+The \code{HousepiSampler} class allows to define and sample
+synthetic household datasets based on hierarchical models of covariates.
+It supports encoding and decoding of features,
 computation of marginal distributions, and sampling of households.
 }

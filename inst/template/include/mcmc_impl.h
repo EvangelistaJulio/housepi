@@ -1,21 +1,8 @@
-/*
- *        __
- *       / /_  ____  __  __ ____ __  ____  __
- *      / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
- *     / / / / /_/ / /_/ (__  )  __/ /_/ / /
- *    /_/ /_/\____/\____/____/\___/ ____/_/
- *                               /_/
+/* housepi - Epidemiological Analysis of Household Outbreaks.
  *
- * housepi - Epidemiological Analysis of Household Outbreaks.
- *
- * Author: Francesco Camaglia
  * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
- *
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the LICENSE file for details.
- *
- * mcmc_impl.h
- *
  */
 
 #ifndef HOUSEPI__MCMC__IMPL__H
@@ -727,7 +714,6 @@ private:
 
     void init_posterior_sample_();
     void store_posterior_sample_();
-    void clear_posterior_sample_();
 
     //----- Metropolis - parameter moves -----//
     bool move_single_parameter_(const std::string &p, bool is_cache_depen);

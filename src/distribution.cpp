@@ -1,22 +1,8 @@
-/*
- *        __
- *       / /_  ____  __  __ ____ __  ____  __
- *      / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
- *     / / / / /_/ / /_/ (__  )  __/ /_/ / /
- *    /_/ /_/\____/\____/____/\___/ ____/_/
- *                               /_/
+/* housepi - Epidemiological Analysis of Household Outbreaks.
  *
- * housepi - Epidemiological Analysis of Household Outbreaks.
- *
- * Author: Francesco Camaglia
  * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
- * See the COPYRIGHT file for details.
- *
  * Distributed under the terms of the GNU General Public License (GPLv3).
- * See the COPYING file for details.
- *
- * distribution.cpp
- *
+ * See the LICENSE file for details.
  */
 
 #include "tools/operators.h"
@@ -219,7 +205,8 @@ class Uniform_Distribution : public Distribution
 {
 public:
     Uniform_Distribution()
-        : Distribution("uniform", {hsp::params::MIN, hsp::params::MAX}, {0., 1.},
+        : Distribution("uniform",
+                       {{hsp::params::MIN, 0.}, {hsp::params::MAX, 1.}},
                        hsp::na::DOUBLE, false, hsp::na::DOUBLE, false),
           unif_gen(arg(0), arg(1)) { init_uniform_range_(); }
 
@@ -280,7 +267,8 @@ class Normal_Distribution : public Distribution
 {
 public:
     Normal_Distribution()
-        : Distribution("normal", {"mean", "sd"}, {0., 1.},
+        : Distribution("normal",
+                       {{"mean", 0.}, {"sd", 1.}},
                        hsp::na::DOUBLE, false, hsp::na::DOUBLE, false),
           norm_gen(0., 1.) {}
 
@@ -315,7 +303,8 @@ class Lognormal_Distribution : public Distribution
 {
 public:
     Lognormal_Distribution()
-        : Distribution("lognormal", {"meanlog", "sdlog"}, {0., 1.},
+        : Distribution("lognormal",
+                       {{"meanlog", 0.}, {"sdlog", 1.}},
                        0., true, hsp::na::DOUBLE, false),
           norm_gen(0., 1.) {}
 
@@ -339,7 +328,8 @@ class Beta_Distribution : public Distribution
 {
 public:
     Beta_Distribution()
-        : Distribution("beta", {"shape1", "shape2"}, {hsp::na::DOUBLE, hsp::na::DOUBLE},
+        : Distribution("beta",
+                       {{"shape1", hsp::na::DOUBLE}, {"shape2", hsp::na::DOUBLE}},
                        0., true, 1., true) {}
 
     void init_discretization() override final
@@ -381,7 +371,8 @@ class Gamma_Distribution : public Distribution
 {
 public:
     Gamma_Distribution()
-        : Distribution("gamma", {"shape", "scale"}, {hsp::na::DOUBLE, 1.},
+        : Distribution("gamma",
+                       {{"shape", hsp::na::DOUBLE}, {"scale", 1.}},
                        0., false, hsp::na::DOUBLE, false) {}
 
     INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
@@ -411,7 +402,8 @@ class GammaMeanVar_Distribution : public Distribution
 {
 public:
     GammaMeanVar_Distribution()
-        : Distribution("gamma_meanvar", {"mean", "var"}, {hsp::na::DOUBLE, hsp::na::DOUBLE},
+        : Distribution("gamma_meanvar",
+                       {{"mean", hsp::na::DOUBLE}, {"var", hsp::na::DOUBLE}},
                        0., false, hsp::na::DOUBLE, false) {}
 
     INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
@@ -460,7 +452,8 @@ class Rayleigh_Distribution : public Distribution
 {
 public:
     Rayleigh_Distribution()
-        : Distribution("rayleigh", {"scale"}, {1.},
+        : Distribution("rayleigh",
+                       {{"scale", 1.}},
                        0., false, hsp::na::DOUBLE, false),
           unif_gen(0., 1.) {}
 
@@ -484,7 +477,8 @@ class Weibull_Distribution : public Distribution
 {
 public:
     Weibull_Distribution()
-        : Distribution("weibull", {"shape", "scale"}, {hsp::na::DOUBLE, 1.},
+        : Distribution("weibull",
+                       {{"shape", hsp::na::DOUBLE}, {"scale", 1.}},
                        0., false, hsp::na::DOUBLE, false),
           unif_gen(0., 1.) {}
 
@@ -511,7 +505,8 @@ class Exponential_Distribution : public Distribution
 {
 public:
     Exponential_Distribution()
-        : Distribution("exponential", {"rate"}, {1.},
+        : Distribution("exponential",
+                       {{"rate", 1.}},
                        0., false, hsp::na::DOUBLE, false),
           unif_gen(0., 1.) {}
 
@@ -543,7 +538,8 @@ class Poisson_Distribution : public Distribution
 {
 public:
     Poisson_Distribution()
-        : Distribution("poisson", {"lambda"}, {hsp::na::DOUBLE},
+        : Distribution("poisson",
+                       {{"lambda", hsp::na::DOUBLE}},
                        0., false, hsp::na::DOUBLE, false) { init_discr_helper_(hsp::discr::DEFINED); }
 
     INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
@@ -567,7 +563,8 @@ class Binomial_Distribution : public Distribution
 {
 public:
     Binomial_Distribution()
-        : Distribution("binomial", {"size", "prob"}, {hsp::na::DOUBLE, hsp::na::DOUBLE},
+        : Distribution("binomial",
+                       {{"size", hsp::na::DOUBLE}, {"prob", hsp::na::DOUBLE}},
                        0., false, hsp::na::DOUBLE, false)
     {
         init_discr_helper_(hsp::discr::DEFINED);
@@ -612,7 +609,8 @@ class NegativeBinomial_Distribution : public Distribution
 {
 public:
     NegativeBinomial_Distribution()
-        : Distribution("negative_binomial", {"size", "prob"}, {hsp::na::DOUBLE, hsp::na::DOUBLE},
+        : Distribution("negative_binomial",
+                       {{"size", hsp::na::DOUBLE}, {"prob", hsp::na::DOUBLE}},
                        0., false, hsp::na::DOUBLE, false) { init_discr_helper_(hsp::discr::DEFINED); }
 
     INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
@@ -636,7 +634,8 @@ class Geometric_Distribution : public Distribution
 {
 public:
     Geometric_Distribution()
-        : Distribution("geometric", {"prob"}, {hsp::na::DOUBLE},
+        : Distribution("geometric",
+                       {{"prob", hsp::na::DOUBLE}},
                        0., false, hsp::na::DOUBLE, false) { init_discr_helper_(hsp::discr::DEFINED); }
 
     INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
@@ -659,8 +658,8 @@ protected:
 /// where the pre-symptomatic values are rescaled as a function of the incubation time 'incub'.
 /// The arguments to provide are :
 ///   0) "shape";
-///   1) "loc";
-///   2) "scale";
+///   1) "scale";
+///   2) "c_loc" (custom location);
 ///   3) "mean_incub" (mean incubation period);
 ///   4) "incub_period" (individual incubation period);
 /// Note: symtoms can occur after infection (pre-symptomatic transmission),
@@ -676,8 +675,7 @@ class InfecProfile_Ferretti20 : public Distribution
 public:
     InfecProfile_Ferretti20()
         : Distribution("ferretti20",
-                       {"shape", "loc", "scale", "mean_incub", "incub_period"},
-                       {5.85, -4.0, 1.85, 5.8, 5.8},
+                       {{"shape", 5.85}, {"scale", 1.85}, {"c_loc", -4.0}, {"mean_incub", 5.42}, {"incub_period", 5.42}},
                        0., false, hsp::na::DOUBLE, false) {}
 
     INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
@@ -686,8 +684,8 @@ protected:
     double raw_pdf_(double x) const override final
     {
         const double a = arg(0); // 'shape'
-        const double m = arg(1); // 'loc'
-        const double s = arg(2); // 'scale'
+        const double s = arg(1); // 'scale'
+        const double m = arg(2); // 'c_loc'
         const double T = arg(3); // 'mean_incub'
         const double i = arg(4); // 'incub_period'
         double tOST = x - i;     // time from onset to transmission
@@ -703,8 +701,8 @@ protected:
     double raw_cdf_(double x) const override final
     {
         const double a = arg(0);   // 'shape'
-        const double m = arg(1);   // 'loc'
-        const double s = arg(2);   // 'scale'
+        const double s = arg(1);   // 'scale'
+        const double m = arg(2);   // 'c_loc'
         const double T = arg(3);   // 'mean_incub'
         const double i = arg(4);   // 'incub_period'
         const double tOST = x - i; // time from onset to transmission

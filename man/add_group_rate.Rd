@@ -78,5 +78,5 @@ Cauchemez, et al. (2009)
 Household Transmission of 2009 Pandemic Influenza A (H1N1)
 Virus in the United States.
 New England Journal of Medicine. 361: 2619-2627.
-\href{https://doi.org/10.1056/NEJMoa0905498}{doi:10.1056/NEJMoa0905498}
+\doi{10.1056/NEJMoa0905498}
 }

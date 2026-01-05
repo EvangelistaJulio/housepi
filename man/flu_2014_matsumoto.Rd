@@ -33,6 +33,6 @@ Endo, et al. (2019)
 Fine-scale family structure shapes influenza transmission risk in households:
 Insights from primary schools in Matsumoto city, 2014/15.
 PLOS Computational Biology;15: e1007589.
-\href{https://doi.org/10.1371/journal.pcbi.1007589}{doi:10.1371/journal.pcbi.1007589}
+\doi{10.1371/journal.pcbi.1007589}
 }
 \keyword{datasets}

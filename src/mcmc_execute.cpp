@@ -1,22 +1,8 @@
-/*
- *        __
- *       / /_  ____  __  __ ____ __  ____  __
- *      / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
- *     / / / / /_/ / /_/ (__  )  __/ /_/ / /
- *    /_/ /_/\____/\____/____/\___/ ____/_/
- *                               /_/
+/* housepi - Epidemiological Analysis of Household Outbreaks.
  *
- * housepi - Epidemiological Analysis of Household Outbreaks.
- *
- * Author: Francesco Camaglia
  * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
- * See the COPYRIGHT file for details.
- *
  * Distributed under the terms of the GNU General Public License (GPLv3).
- * See the COPYING file for details.
- *
- * mcmc_execute.cpp
- *
+ * See the LICENSE file for details.
  */
 
 #include "tools/string.h"
@@ -443,11 +429,6 @@ void MCMC::Impl::store_posterior_sample_()
     }
 
     ++smpl_count;
-}
-
-/// Deep clear pre-existing posterior draws.
-void MCMC::Impl::clear_posterior_sample_()
-{
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

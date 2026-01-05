@@ -49,6 +49,6 @@ Cortier, et al. (2025)
 Factors Associated With the Transmission of the Delta Severe Acute Respiratory Syndrome Coronavirus 2 Variant in Households:
 The Israeli COVID-19 Family Study (ICoFS)
 The Journal of Infectious Diseases; jiaf001.
-\href{https://doi.org/10.1093/infdis/jiaf001}{doi:10.1093/infdis/jiaf001}
+\doi{10.1093/infdis/jiaf001}
 }
 \keyword{datasets}

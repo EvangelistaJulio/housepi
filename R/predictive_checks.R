@@ -1,21 +1,9 @@
-#
-#        __
-#       / /_  ____  __  __ ____ __  ____  __
-#      / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
-#     / / / / /_/ / /_/ (__  )  __/ /_/ / /
-#    /_/ /_/\____/\____/____/\___/ ____/_/
-#                               /_/
-#
-# housepi - Epidemiological Analysis of Household Outbreaks.
-#
-# Author: Francesco Camaglia
-# Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
-#
-# Distributed under the terms of the GNU General Public License (GPLv3).
-# See the LICENSE file for details.
-#
-# predictive_checks.R
-#
+## housepi - Epidemiological Analysis of Household Outbreaks.
+##
+## Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+## Distributed under the terms of the GNU General Public License (GPLv3).
+## See the LICENSE file for details.
+##
 
 #' @importFrom rlang .data
 NULL
@@ -441,7 +429,8 @@ PredictedCasesBySize <- R6::R6Class(
 
   active = list(
     #' @field formatted_sec_attack_rate
-    #' `data.frame` with observed and predicted secondary attack rates by household size.
+    #' A `data.frame` with observed and predicted
+    #' secondary attack rates by household size.
     #' If a maximum house size is set, larger sizes are not returned.
     formatted_sec_attack_rate = function(value) {
       if (!missing(value)) stop_h("'formatted_sec_attack_rate' is read only.")

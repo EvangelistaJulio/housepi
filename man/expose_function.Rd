@@ -2,7 +2,7 @@
 % Please edit documentation in R/expose_internal.R
 \name{expose_function}
 \alias{expose_function}
-\title{Expose Housepi Function}
+\title{Expose housepi function}
 \usage{
 expose_function(
   name,
@@ -25,16 +25,18 @@ expose_function(
 \item{discr}{\code{logical(1)} to treat definition as discrete.}
 
 \item{hhmodel}{\code{HousepiModel} object containing the custom registred \%s.\cr
-If \code{NULL} (default) the built-in registry is used.}
+If \code{NULL} the built-in registry is used (default).}
 }
 \value{
 An object of class \code{FunctionHousepi}.
-
-fnc <- expose_function("pow", x2 = 3)
-fnc$func(seq(0, 5))
-fnc$prim(seq(0, 5))
 }
 \description{
 Expose an object from housepi registered function.
 Used to access user defined functions.
+}
+\examples{
+fnc <- expose_function("pow", x2 = 3)
+fnc$func(seq(0, 5))
+fnc$prim(seq(0, 5))
+
 }

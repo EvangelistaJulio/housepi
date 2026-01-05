@@ -1,21 +1,9 @@
-#
-#        __
-#       / /_  ____  __  __ ____ __  ____  __
-#      / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
-#     / / / / /_/ / /_/ (__  )  __/ /_/ / /
-#    /_/ /_/\____/\____/____/\___/ ____/_/
-#                               /_/
-#
-# housepi - Epidemiological Analysis of Household Outbreaks.
-#
-# Author: Francesco Camaglia
-# Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
-#
-# Distributed under the terms of the GNU General Public License (GPLv3).
-# See the LICENSE file for details.
-#
-# group_rates.R
-#
+## housepi - Epidemiological Analysis of Household Outbreaks.
+##
+## Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+## Distributed under the terms of the GNU General Public License (GPLv3).
+## See the LICENSE file for details.
+##
 
 #' @title
 #' Assert data features
@@ -187,7 +175,7 @@ tidyup_group_rate_tables <- function(all_tables) {
 #' Household Transmission of 2009 Pandemic Influenza A (H1N1)
 #' Virus in the United States.
 #' New England Journal of Medicine. 361: 2619-2627.
-#' doi:10.1056/NEJMoa0905498
+#' \doi{10.1056/NEJMoa0905498}
 #'
 #' @keywords internal
 #' @noRd

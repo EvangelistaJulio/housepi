@@ -14,7 +14,8 @@ It estimates secondary attack rates and cases by size tables.
 \section{Active bindings}{
 \if{html}{\out{<div class="r6-active-bindings">}}
 \describe{
-\item{\code{formatted_sec_attack_rate}}{\code{data.frame} with observed and predicted secondary attack rates by household size.
+\item{\code{formatted_sec_attack_rate}}{A \code{data.frame} with observed and predicted
+secondary attack rates by household size.
 If a maximum house size is set, larger sizes are not returned.}
 
 \item{\code{formatted_cases_table}}{\code{data.frame}\cr

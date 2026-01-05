@@ -138,7 +138,7 @@ new_housepi_model("blank") |>
 
 Note that here we dropped all arguments that allow for default values. 
 
-# How discretization works in practice
+# Discretization in practice
 
 Depending on the distribution support, the discretization is defined as:
 

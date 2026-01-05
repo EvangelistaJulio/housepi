@@ -1,21 +1,9 @@
-#
-#        __
-#       / /_  ____  __  __ ____ __  ____  __
-#      / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
-#     / / / / /_/ / /_/ (__  )  __/ /_/ / /
-#    /_/ /_/\____/\____/____/\___/ ____/_/
-#                               /_/
-#
-# housepi - Epidemiological Analysis of Household Outbreaks.
-#
-# Author: Francesco Camaglia
-# Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
-#
-# Distributed under the terms of the GNU General Public License (GPLv3).
-# See the LICENSE file for details.
-#
-# expose_class.R
-#
+## housepi - Epidemiological Analysis of Household Outbreaks.
+##
+## Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+## Distributed under the terms of the GNU General Public License (GPLv3).
+## See the LICENSE file for details.
+##
 
 #' @title Generate a new instance of household model class
 #' @description
@@ -29,6 +17,10 @@
 #' @param ... `r rd_mdl_flags_`
 #'
 #' @return `r rd_model_in_`
+#'
+#' @examples
+#' hhmodel <- new_housepi_model("blank")
+#' print(hhmodel)
 #'
 #' @export
 new_housepi_model <- function(choice = NA_character_, as_template = FALSE,
@@ -366,7 +358,7 @@ load_augmented_template <- function(hhmodel, append = FALSE) {
 #' Household Transmission of 2009 Pandemic Influenza A (H1N1)
 #' Virus in the United States.
 #' New England Journal of Medicine. 361: 2619-2627.
-#' [doi:10.1056/NEJMoa0905498](https://doi.org/10.1056/NEJMoa0905498)
+#' \doi{10.1056/NEJMoa0905498}
 #'
 #' @return `r rd_model_out_`
 #'
@@ -570,7 +562,7 @@ run_simulation <- function(hhmodel,
 #' Friel N, Hurn M, Wyse J.
 #' Improving power posterior estimation of statistical evidence.
 #' Stat Comput. 2014;24: 709-723.
-#' [doi:10.1007/s11222-013-9397-1](https://doi.org/10.1007/s11222-013-9397-1)
+#' \doi{10.1007/s11222-013-9397-1}
 #'
 #' @return `list()`
 #' @noRd

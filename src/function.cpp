@@ -1,22 +1,8 @@
-/*
- *        __
- *       / /_  ____  __  __ ____ __  ____  __
- *      / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
- *     / / / / /_/ / /_/ (__  )  __/ /_/ / /
- *    /_/ /_/\____/\____/____/\___/ ____/_/
- *                               /_/
+/* housepi - Epidemiological Analysis of Household Outbreaks.
  *
- * housepi - Epidemiological Analysis of Household Outbreaks.
- *
- * Author: Francesco Camaglia
  * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
- * See the COPYRIGHT file for details.
- *
  * Distributed under the terms of the GNU General Public License (GPLv3).
- * See the COPYING file for details.
- *
- * function.cpp
- *
+ * See the LICENSE file for details.
  */
 
 #include "tools/global.h"
@@ -189,42 +175,43 @@ void Attribute::transfer(const Attribute &other)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Initial defaults for function.
+/// NOTE: to access arguments by index, I must provide separate name/value.
+/// UPDATE: define an accessary ordered type like vector<pair<string, double>>
 Function::Function(const std::string &name,
-                   const str_vec &arg_name, const dbl_vec &arg_value,
+                   const named_args &args,
                    double domain_min, bool is_min_open,
                    double domain_max, bool is_max_open)
 {
-    // initialize default 'x' argument
+    // initialize default arguments
+    const str_vec default_args = {hsp::params::X, hsp::params::LOC};
     x_arg_.set_name(hsp::params::X);
     x_arg_.set(hsp::na::DOUBLE);
+    loc_arg_.set_name(hsp::params::LOC);
+    loc_arg_.set(hsp::na::DOUBLE);
 
     // name of the function
     this->name_ = name;
 
-    // number of arguments
-    if (arg_name.size() != arg_value.size())
-        hsp::msg::error(
-            "Inconsistent arguments for " + err_name() + "." +
-            "Found " + std::to_string(arg_name.size()) + " default names but " +
-            std::to_string(arg_value.size()) + " values.");
-
     // allocate attribute for remaining arguments
-    size_t n_args = arg_name.size() - (arg_name % hsp::params::X);
+    size_t n_args = args.size();
+    for (const auto &pair : args)
+        n_args -= default_args % pair.first;
     arguments_ = std::vector<Attribute>(n_args);
 
-    for (size_t k = 0; k < arg_name.size(); ++k)
-        if (arg_name[k] == hsp::params::X)
+    size_t counter = 0;
+    for (const auto &pair : args)
+        if (pair.first == hsp::params::X)
         {
-            x_arg_.set(arg_value[k--]);
+            x_arg_.set(pair.second);
         }
-        else if (arg_name[k] == hsp::params::LOC)
+        else if (pair.first == hsp::params::LOC)
         {
-            loc_arg_.set(arg_value[k--]);
+            loc_arg_.set(pair.second);
         }
         else
         {
-            arguments_[k].set_name(arg_name[k]);
-            arguments_[k].set(arg_value[k]);
+            arguments_[counter].set_name(pair.first);
+            arguments_[counter++].set(pair.second);
         }
 
     // Assign Domain
@@ -585,7 +572,7 @@ protected:
 class Subtraction_Function : public Function
 {
 public:
-    Subtraction_Function() : Function("sub", {"x2"}, {0.}) {}
+    Subtraction_Function() : Function("sub", {{"x2", 0.}}) {}
     void init_truncation() override final {}
     bool is_discrete() const override final { return get_arg(0).is_discrete() && x_arg_.is_discrete(); }
 
@@ -597,7 +584,7 @@ protected:
 class Division_Function : public Function
 {
 public:
-    Division_Function() : Function("div", {"x2"}, {1}) {}
+    Division_Function() : Function("div", {{"x2", 1}}) {}
     void init_truncation() override final {}
 
 protected:
@@ -608,7 +595,7 @@ protected:
 class Power_Function : public Function
 {
 public:
-    Power_Function() : Function("pow", {"x2"}, {1.}) {}
+    Power_Function() : Function("pow", {{"x2", 1.}}) {}
     void init_truncation() override final { init_range_helper_(); }
     bool is_discrete() const override final { return Function::is_discrete() || (get_arg(0).is_discrete() && x_arg_.is_discrete()); }
 
@@ -628,7 +615,7 @@ protected:
 class SquareRoot_Function : public Function
 {
 public:
-    SquareRoot_Function() : Function("sqrt", {}, {},
+    SquareRoot_Function() : Function("sqrt", {},
                                      0., false, hsp::na::DOUBLE, false) {}
     void init_truncation() override final { init_range_min_(); }
 
@@ -657,7 +644,7 @@ protected:
 class Logarithm_Function : public Function
 {
 public:
-    Logarithm_Function() : Function("log", {}, {},
+    Logarithm_Function() : Function("log", {},
                                     0., true, hsp::na::DOUBLE, false) {}
     void init_truncation() override final { init_range_min_(0., true); }
 

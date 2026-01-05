@@ -54,7 +54,8 @@ If \code{FALSE} is descending (default).}
 \if{html}{\out{<a id="method-HousepiSampler-compute_household_marginals"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiSampler-compute_household_marginals}{}}}
 \subsection{Method \code{compute_household_marginals()}}{
-Computes marginal distributions for household hierarchical features from a given dataset.
+Computes marginal distributions for household hierarchical features
+from a given dataset.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiSampler$compute_household_marginals(data_wide, ascending = NA)}\if{html}{\out{</div>}}
 }

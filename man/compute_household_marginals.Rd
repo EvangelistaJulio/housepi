@@ -15,5 +15,6 @@ compute_household_marginals(hhsampler, data_wide, ascending = NA)
 If \code{FALSE} is descending (default).}
 }
 \description{
-Computes marginal distributions for household hierarchical features from a given dataset.
+Computes marginal distributions for household hierarchical features
+from a given dataset.
 }

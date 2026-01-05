@@ -1,21 +1,9 @@
-#
-#        __
-#       / /_  ____  __  __ ____ __  ____  __
-#      / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
-#     / / / / /_/ / /_/ (__  )  __/ /_/ / /
-#    /_/ /_/\____/\____/____/\___/ ____/_/
-#                               /_/
-#
-# housepi - Epidemiological Analysis of Household Outbreaks.
-#
-# Author: Francesco Camaglia
-# Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
-#
-# Distributed under the terms of the GNU General Public License (GPLv3).
-# See the LICENSE file for details.
-#
-# infectivity.R
-#
+## housepi - Epidemiological Analysis of Household Outbreaks.
+##
+## Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+## Distributed under the terms of the GNU General Public License (GPLv3).
+## See the LICENSE file for details.
+##
 
 ############################################################################
 ############################################################################
@@ -121,12 +109,14 @@ HousepiInfecProfile <- R6::R6Class(
 
     #' @inherit add_infec_profile
     add_quo = function(func, status = NA_integer_,
-                       discr = FALSE, ..., max = NULL, .warn_over = TRUE) {
+                       discr = FALSE, ...,
+                       min = NULL, max = NULL, .warn_over = TRUE) {
       # load non-quosures
       func <- housepi_smart_unwrap(func, "func")
       status <- housepi_smart_unwrap(status, "status")
       discr <- housepi_smart_unwrap(discr, "discr")
       # load quosures
+      min <- housepi_extractor(!!min)
       max <- housepi_extractor(!!max)
       # load dots # UPDATE: not super elegant...
       dots <- list(...)
@@ -149,7 +139,7 @@ HousepiInfecProfile <- R6::R6Class(
         func = ifelse(is.null(func_args), func,
                       housepi_combine_to_call(func, func_args)),
         status = as.integer(status),
-        min = ifelse(isTRUE(discr), 1, 0),
+        min = ifelse(is.null(min), ifelse(isTRUE(discr), "1|N", "0|N"), min),
         max = ifelse(is.null(max), NA_character_, max),
         discr = isTRUE(discr)
       )))

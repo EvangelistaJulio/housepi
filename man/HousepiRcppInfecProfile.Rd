@@ -22,11 +22,11 @@ Call housepi registered infectivity profile.
 \item Parameter: is_discr \code{logical(1)}\\cr Wheter discretized.
 }}
 
-\item{\code{pdf\\cr}}{\itemize{
+\item{\code{inst\\cr}}{\itemize{
 \item Parameter: x \code{numeric()}\\cr Input vector.
 }}
 
-\item{\code{cdf\\cr}}{\itemize{
+\item{\code{cumul\\cr}}{\itemize{
 \item Parameter: x \code{numeric()}\\cr Input vector.
 }}
 }}

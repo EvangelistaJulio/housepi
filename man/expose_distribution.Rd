@@ -2,7 +2,7 @@
 % Please edit documentation in R/expose_internal.R
 \name{expose_distribution}
 \alias{expose_distribution}
-\title{Expose Housepi Distribution}
+\title{Expose housepi distribution}
 \usage{
 expose_distribution(
   name,
@@ -25,16 +25,18 @@ expose_distribution(
 \item{discr}{\code{logical(1)} to treat definition as discrete.}
 
 \item{hhmodel}{\code{HousepiModel} object containing the custom registred \%s.\cr
-If \code{NULL} (default) the built-in registry is used.}
+If \code{NULL} the built-in registry is used (default).}
 }
 \value{
 An object of class \code{DistributionHousepi}.
-
-dst <- expose_distribution("weibull", shape = 2, scale = 1)
-dst$pdf(seq(0, 5))
-dst$cdf(seq(0, 5))
 }
 \description{
 Expose an object from housepi registered distribution.
 Used to access user defined distributions.
+}
+\examples{
+dst <- expose_distribution("weibull", shape = 2, scale = 1)
+dst$pdf(seq(0, 5))
+dst$cdf(seq(0, 5))
+
 }

@@ -1,22 +1,8 @@
-/*
- *        __
- *       / /_  ____  __  __ ____ __  ____  __
- *      / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
- *     / / / / /_/ / /_/ (__  )  __/ /_/ / /
- *    /_/ /_/\____/\____/____/\___/ ____/_/
- *                               /_/
+/* housepi - Epidemiological Analysis of Household Outbreaks.
  *
- * housepi - Epidemiological Analysis of Household Outbreaks.
- *
- * Author: Francesco Camaglia
  * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
- * See the COPYRIGHT file for details.
- *
  * Distributed under the terms of the GNU General Public License (GPLv3).
- * See the COPYING file for details.
- *
- * export_bindings.cpp
- *
+ * See the LICENSE file for details.
  */
 
 #include <Rcpp.h>
@@ -202,11 +188,11 @@ RCPP_MODULE(housepi_distribution)
 //'   \item Parameter: max `numeric(1)`\\cr Maximum value of the profile.
 //'   \item Parameter: is_discr `logical(1)`\\cr Wheter discretized.
 //' }
-//' @field pdf\\cr \itemize{
+//' @field inst\\cr \itemize{
 //'   \item Parameter: x `numeric()`\\cr Input vector.
 //' }
 //' @return `numeric()`
-//' @field cdf\\cr \itemize{
+//' @field cumul\\cr \itemize{
 //'   \item Parameter: x `numeric()`\\cr Input vector.
 //' }
 //' @return `numeric()`
@@ -214,15 +200,15 @@ RCPP_MODULE(housepi_distribution)
 RCPP_MODULE(housepi_infec_profile)
 {
     MAKE_HOUSEPI_RCPP_WRAPPER(InfecProfile, "infectivity profile",
-                              set_eval_as_distr, pdf, cdf,
+                              set_eval_as_distr, inst, cumul,
                               &InfecProfileRegistry::inst(),
                               &ContinuosDistrRegistry::inst(),
                               &DiscreteDistrRegistry::inst());
 
     Rcpp::class_<HousepiRcppInfecProfile>("HousepiRcppInfecProfile")
         .constructor<std::string, SEXP, double, double, bool>()
-        .method("pdf", &HousepiRcppInfecProfile::pdf)
-        .method("cdf", &HousepiRcppInfecProfile::cdf)
+        .method("inst", &HousepiRcppInfecProfile::inst)
+        .method("cumul", &HousepiRcppInfecProfile::cumul)
         .method("args", &HousepiRcppInfecProfile::args);
 }
 

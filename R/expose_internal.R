@@ -1,21 +1,9 @@
-#
-#        __
-#       / /_  ____  __  __ ____ __  ____  __
-#      / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
-#     / / / / /_/ / /_/ (__  )  __/ /_/ / /
-#    /_/ /_/\____/\____/____/\___/ ____/_/
-#                               /_/
-#
-# housepi - Epidemiological Analysis of Household Outbreaks.
-#
-# Author: Francesco Camaglia
-# Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
-#
-# Distributed under the terms of the GNU General Public License (GPLv3).
-# See the LICENSE file for details.
-#
-# expose_internal.R
-#
+## housepi - Epidemiological Analysis of Household Outbreaks.
+##
+## Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+## Distributed under the terms of the GNU General Public License (GPLv3).
+## See the LICENSE file for details.
+##
 
 #' @importFrom Rcpp Module
 
@@ -45,10 +33,10 @@ rd_test_x_ <- "`numeric()` with values."
 rd_test_args_ <- "named arguments with corresponding values of the %s"
 rd_test_discr_ <- "`logical(1)` to treat definition as discrete."
 rd_test_model_ <- "`HousepiModel` object containing the custom registred %s.\\cr
-If `NULL` (default) the built-in registry is used."
+If `NULL` the built-in registry is used (default)."
 
 #' @title
-#' Expose Housepi Function
+#' Expose housepi function
 #' @description
 #' Expose an object from housepi registered function.
 #' Used to access user defined functions.
@@ -63,6 +51,7 @@ If `NULL` (default) the built-in registry is used."
 #' @return
 #' An object of class `FunctionHousepi`.
 #'
+#' @examples
 #' fnc <- expose_function("pow", x2 = 3)
 #' fnc$func(seq(0, 5))
 #' fnc$prim(seq(0, 5))
@@ -77,7 +66,7 @@ expose_function <- function(name, ...,
 }
 
 #' @title
-#' Expose Housepi Distribution
+#' Expose housepi distribution
 #' @description
 #' Expose an object from housepi registered distribution.
 #' Used to access user defined distributions.
@@ -92,6 +81,7 @@ expose_function <- function(name, ...,
 #' @return
 #' An object of class `DistributionHousepi`.
 #'
+#' @examples
 #' dst <- expose_distribution("weibull", shape = 2, scale = 1)
 #' dst$pdf(seq(0, 5))
 #' dst$cdf(seq(0, 5))
@@ -106,7 +96,7 @@ expose_distribution <- function(name, ...,
 }
 
 #' @title
-#' Expose Housepi Infectivity Profile
+#' Expose housepi infectivity profile
 #' @description
 #' Expose an object from housepi registered infectivity profile.
 #' Used to access user defined infectivity profiles.
@@ -123,18 +113,14 @@ expose_distribution <- function(name, ...,
 #'
 #' @examples
 #' ipf <- expose_infec_profile("gamma", shape = 2, scale = 1)
-#' ipf$pdf(seq(0, 5))
-#' ipf$cdf(seq(0, 5))
+#' ipf$inst(seq(0, 5))
+#' ipf$cumul(seq(0, 5))
 #'
 #' @export
 expose_infec_profile <- function(name, ...,
                                  min = NA_real_, max = NA_real_,
                                  discr = FALSE, hhmodel = NULL) {
-  default_min <- ifelse(discr, 1, 0)
-  if (is.na(min)) min <- default_min
-  else if (min != default_min) warning_h(
-    "Overwriting default 'min' for an infectivity profile."
-  )
+  if (is.na(min)) min <- ifelse(discr, 1, 0)
   m <- get_rcpp_module_from_model("housepi_infec_profile", hhmodel)
   m$HousepiRcppInfecProfile$new(name, args = unlist(list(...)),
                                 min = min, max = max, discr = discr)

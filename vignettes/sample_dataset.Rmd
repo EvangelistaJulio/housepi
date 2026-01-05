@@ -57,7 +57,7 @@ hhsampler$decode(hhsampler$encode(eg_house))
 
 We now define a model able to extract distributions of such features within a household, with the final goal to sample from it.
 
-# Hierarchichal Model Definition
+# Hierarchichal model definition
 
 In order to capture at the same time covariate marginals and a realistic generational-based structure within household,
 we propose the following assumptions on the structure of households.
@@ -94,7 +94,7 @@ $$
 
 where $p_1$ is the probability of finding a household with a single member in our dataset.
 
-# Compute Marginals and Generate Datasets
+# Compute marginals and generate datasets
 
 ```{r}
 hhsampler |>

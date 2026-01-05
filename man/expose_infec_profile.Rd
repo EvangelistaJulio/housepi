@@ -2,7 +2,7 @@
 % Please edit documentation in R/expose_internal.R
 \name{expose_infec_profile}
 \alias{expose_infec_profile}
-\title{Expose Housepi Infectivity Profile}
+\title{Expose housepi infectivity profile}
 \usage{
 expose_infec_profile(
   name,
@@ -25,7 +25,7 @@ expose_infec_profile(
 \item{discr}{\code{logical(1)} to treat definition as discrete.}
 
 \item{hhmodel}{\code{HousepiModel} object containing the custom registred \%s.\cr
-If \code{NULL} (default) the built-in registry is used.}
+If \code{NULL} the built-in registry is used (default).}
 }
 \value{
 An object of class \code{InfecProfileHousepi}.
@@ -36,7 +36,7 @@ Used to access user defined infectivity profiles.
 }
 \examples{
 ipf <- expose_infec_profile("gamma", shape = 2, scale = 1)
-ipf$pdf(seq(0, 5))
-ipf$cdf(seq(0, 5))
+ipf$inst(seq(0, 5))
+ipf$cumul(seq(0, 5))
 
 }

@@ -125,12 +125,12 @@ test_that("Ferretti20 infectivity profile behave has expected", {
     0.5 * sum(diff(x) * (y[-length(x)] + y[-1]))
   }
   expect_equal(
-    trapezoid(x, profile$pdf(x)),
-    profile$cdf(x)[length(x)]
+    trapezoid(x, profile$inst(x)),
+    profile$cumul(x)[length(x)]
   )
 
   # left discretization works as expected
   x <- seq(1.0, 1.9, 0.1)
   profile <- expose_infec_profile("ferretti20", discr = TRUE)
-  expect_true(all(profile$pdf(x) == profile$cdf(1)))
+  expect_true(all(profile$inst(x) == profile$cumul(1)))
 })

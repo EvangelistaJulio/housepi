@@ -1,21 +1,8 @@
-/*
- *        __
- *       / /_  ____  __  __ ____ __  ____  __
- *      / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
- *     / / / / /_/ / /_/ (__  )  __/ /_/ / /
- *    /_/ /_/\____/\____/____/\___/ ____/_/
- *                               /_/
+/* housepi - Epidemiological Analysis of Household Outbreaks.
  *
- * housepi - Epidemiological Analysis of Household Outbreaks.
- *
- * Author: Francesco Camaglia
  * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
- *
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the LICENSE file for details.
- *
- * distribution.h
- *
  */
 
 #ifndef HOUSEPI__DISTRIBUTION__H
@@ -41,10 +28,10 @@ public:
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
 	Distribution(const std::string &name = hsp::na::STRING,
-				 const str_vec &arg_name = {}, const dbl_vec &arg_value = {},
+				 const named_args &args = {}, 
 				 double domain_min = hsp::na::DOUBLE, bool is_min_open = true,
 				 double domain_max = hsp::na::DOUBLE, bool is_max_open = true)
-		: Function(name, arg_name, arg_value,
+		: Function(name, args,
 				   domain_min, is_min_open,
 				   domain_max, is_max_open)
 	{

@@ -1,21 +1,9 @@
-#
-#        __
-#       / /_  ____  __  __ ____ __  ____  __
-#      / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
-#     / / / / /_/ / /_/ (__  )  __/ /_/ / /
-#    /_/ /_/\____/\____/____/\___/ ____/_/
-#                               /_/
-#
-# housepi - Epidemiological Analysis of Household Outbreaks.
-#
-# Author: Francesco Camaglia
-# Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
-#
-# Distributed under the terms of the GNU General Public License (GPLv3).
-# See the LICENSE file for details.
-#
-# sampler_class.R
-#
+## housepi - Epidemiological Analysis of Household Outbreaks.
+##
+## Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+## Distributed under the terms of the GNU General Public License (GPLv3).
+## See the LICENSE file for details.
+##
 
 ############################################################################
 ############################################################################
@@ -343,7 +331,8 @@ HousepiSampler <- R6::R6Class(
     },
 
     #' @description
-    #' Computes marginal distributions for household hierarchical features from a given dataset.
+    #' Computes marginal distributions for household hierarchical features
+    #' from a given dataset.
     #'
     #' @param data_wide `r rd_add_data_wide_`
     #' @param ascending `r rd_hhsampler_asc_`
@@ -550,8 +539,9 @@ HousepiSampler <- R6::R6Class(
 
 #' @title Generate a new instance of household sampler class
 #' @description
-#' The `HousepiSampler` class allows to define and sample synthetic household datasets
-#' based on hierarchical models of covariates. It supports encoding and decoding of features,
+#' The `HousepiSampler` class allows to define and sample
+#' synthetic household datasets based on hierarchical models of covariates.
+#' It supports encoding and decoding of features,
 #' computation of marginal distributions, and sampling of households.
 #'
 #' @param ...
@@ -563,7 +553,8 @@ new_household_sampler <- function(...) {
 }
 #' @title Compute marginals for the household sampler
 #' @description
-#' Computes marginal distributions for household hierarchical features from a given dataset.
+#' Computes marginal distributions for household hierarchical features
+#' from a given dataset.
 #'
 #' @param hhsampler An instance of the `HousepiSampler` class.
 #' @param data_wide `r rd_add_data_wide_`

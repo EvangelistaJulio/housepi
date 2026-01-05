@@ -59,7 +59,7 @@ protected:
 REGISTER_USER_FUNCTION(CustomSquareFunction)
 ```
 
-# How It Works
+# How it works
 
 1. Inheritance and Constructor:
 The class `MyMonomialFunction` inherits from `Function`. 

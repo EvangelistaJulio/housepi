@@ -1,23 +1,11 @@
-#
-#        __
-#       / /_  ____  __  __ ____ __  ____  __
-#      / __ \/ __ \/ / / / ___/ _ \/ __ \/ /
-#     / / / / /_/ / /_/ (__  )  __/ /_/ / /
-#    /_/ /_/\____/\____/____/\___/ ____/_/
-#                               /_/
-#
-# housepi - Epidemiological Analysis of Household Outbreaks.
-#
-# Author: Francesco Camaglia
-# Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
-#
-# Distributed under the terms of the GNU General Public License (GPLv3).
-# See the LICENSE file for details.
-#
-# data.R
-#
+## housepi - Epidemiological Analysis of Household Outbreaks.
+##
+## Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+## Distributed under the terms of the GNU General Public License (GPLv3).
+## See the LICENSE file for details.
+##
 
-#' Household Testing Survey
+#' Household testing survey
 #'
 #' Household data with a simulated outbreak to be used for housepi vignettes.
 #' Note: this will be dropped in future versions of the package.
@@ -61,7 +49,7 @@ NULL
 #' Fraser, et al. (2011)
 #' Influenza Transmission in Households During the 1918 Pandemic.
 #' American Journal of Epidemiology 174, 505-514.
-#' [doi:10.1093/aje/kwr122](https://doi.org/10.1093/aje/kwr122)
+#' \doi{10.1093/aje/kwr122}
 NULL
 
 #' Flu 1918 Baltimora
@@ -88,7 +76,7 @@ NULL
 #' Fraser, et al. (2011)
 #' Influenza Transmission in Households During the 1918 Pandemic.
 #' American Journal of Epidemiology 174, 505-514.
-#' [doi:10.1093/aje/kwr122](https://doi.org/10.1093/aje/kwr122)
+#' \doi{10.1093/aje/kwr122}
 NULL
 
 #' SARS-CoV-2 2021 Israeli Covid-19 Family Study
@@ -135,7 +123,7 @@ NULL
 #' Factors Associated With the Transmission of the Delta Severe Acute Respiratory Syndrome Coronavirus 2 Variant in Households:
 #' The Israeli COVID-19 Family Study (ICoFS)
 #' The Journal of Infectious Diseases; jiaf001.
-#' [doi:10.1093/infdis/jiaf001](https://doi.org/10.1093/infdis/jiaf001)
+#' \doi{10.1093/infdis/jiaf001}
 NULL
 
 #' Flu 2014-15 Matsumoto
@@ -166,5 +154,5 @@ NULL
 #' Fine-scale family structure shapes influenza transmission risk in households:
 #' Insights from primary schools in Matsumoto city, 2014/15.
 #' PLOS Computational Biology;15: e1007589.
-#' [doi:10.1371/journal.pcbi.1007589](https://doi.org/10.1371/journal.pcbi.1007589)
+#' \doi{10.1371/journal.pcbi.1007589}
 NULL

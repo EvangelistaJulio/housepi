@@ -24,111 +24,109 @@ housepi_theme_set()
 set.seed(42)
 ```
 
-In housepi we follow the convention for infectivity profiles to be function of the generation time.
-Generation time is defined as the time from infection to transmission.
+Time dependent transmission models require a choice for the infectivity profile $f$, defined as the instantaneous risk of secondary infection associated to a reference infector.
+An infectivity profile is thus a function of the time from infection $t_{i}$ to transmission at time $t$, the "generation time" $t - t_{i}$. Eventually, the profile coul depend on other infector covariates.
 
-Certain profiles will then be conditioned on individuals incubation periods
+In certain applications a profile has to be expressed as a function of the time from the symptoms onset $t_{i}^{(\rm ons)}$ to transmission. In such cases, the profile will be a function of the generation time and of the  incubation period $\tau_{i}^{(\rm inc)}$ of the infector, remembering that $t_{i} + \tau_{i}^{(\rm inc)} = t_{i}^{(\rm ons)}$.
+
+Note that for technical reasons, infectivity profiles in housepi can only depend on covariates of the infector, and not of the infectee. This prevents from using directly quantities as the "serial time" (the time between symptom onsets of infector and infectee) and workarounds need to be implemented manually.
+
+In short, assuming $i$ the infector and $k$ the infectee, the time intervals supported by the infectivity profiles in housepi are
 
 <div style="display: flex; justify-content: center;">
 <div>
 
-| Delay                 | Infector | Infectee | Supported |
-|-----------------------|:--------:|:--------:|:---------:|
-| Generation Time       | &cross;  | &cross;  |  &check;  |
-| Onset to Transmission | &check;  | &cross;  |  &check;  |
-| Serial Time           | &check;  | &check;  |  &cross;  |
+| Time Interval |  | Profile | Support |
+|---------------|--|---------|:-------:|
+| Generation | $t_{k} - t_{i}$ | $f(t_{k} - t_{i})$ | <span style="color: green;">&check;</span> |
+| Onset to Transmission | $t_{k} - t_{i}^{(\rm ons)}$ | $f(t_{k} - t_{i}\vert \tau_{i}^{(\rm inc)})$ | <span style="color: green;">&check;</span> |
+| Serial | $t_{k}^{(\rm ons)} - t_{i}^{(\rm ons)}$ | $f(t_{k} - t_{i}\vert \tau_{i}^{(\rm inc)}, \tau_{k}^{(\rm inc)})$ | <span style="color: red;">&cross;</span> |
 
 </div>
 </div>
 
-In addition, infectivity profiles in housepi can be of two kinds:
+According to this scheme, infectivity profile definitions can be of two kinds:
 
-* **Generic**: if all individuals share the same profile;
+* **Generic**: if all individuals in the study share the same profile;
 * **Augmented**: if profile depends on individual covariates.
 
-At any time one can provide a custom choice for the infectivity profile, however all models depending on profiles have a templated definition incorporated.  
-
-To inspect definitions of templated profile definitions, we can proceed as follows.
-We consider the model "augmented infection time" introduced in [Get started](housepi.html).
-The model template comes in continuous time and with a templated infectivity profile which is chosen to be a gamma distribution parametrized with `mean = 2` and `var = 1`.
-This can be accessed by calling `get_infec_profile`
+At any time one can provide a custom choice for the profile, however all models requiring on profiles will have a templated infectivity definition incorporated.  
+For example, consider the model "augmented infection time" introduced in [Get started](housepi.html).
+The model template comes in continuous time and with a templated generic profile which is chosen to be a gamma distribution parametrized with `mean` and `var`:
 
 ```{r}
 hhcontinuos <- new_housepi_model("augmented infection time")
 # extract current loaded profile definitions
 defs <- get_infec_profile(hhcontinuos)
+# display definitions
 defs
+# display function arguments
+defs$func_args
 ```
 
-```{r}
-profile <- expose_infec_profile(defs$func, defs$func_args)
-infec <- dplyr::tibble(gentime = seq(0, 10, 0.01),
-                       inst = profile$pdf(gentime),
-                       cumul = profile$cdf(gentime))
-```
+Here we accessed the definition associated to the model by calling `get_infec_profile`. We can "expose" the behavior of housepi functions by calling `expose_infec_profile`. This will generate an object holding the infectivity profile definitions to be used to compute instantaneous and cumulative values of the profile
 
 ```{r}
 #| fig.alt: >
 #|  Instantaneous infectivity profile as a function of the generation time in black.
 #|  On a second axis in orange, the corresponding cumulative infectivity profile.
+profile <- expose_infec_profile(defs$func, defs$func_args)
 
-# plot instantaneous and cumulative profile with ggplot2
 library(ggplot2)
 
-# coefficient to rescale cumulative
-rescale <- max(infec$cumul) / max(infec$inst)
+# function to plot a demonstration of both instantaneous and cumulative profiles
+plot_profile_demo <- function(profile, 
+                              color_inst = "black", 
+                              color_cumul = "coral") {
+  infec <- dplyr::tibble(gentime = seq(0, 100, 0.05),
+                         inst = profile$inst(gentime),
+                         cumul = profile$cumul(gentime))
+  # coefficient to re-scale the cumulative
+  rescale <- max(infec$cumul) / max(infec$inst)
+  
+  ggplot(infec, aes(x = gentime)) +
+    # plot cumulative profile
+    theme(axis.ticks.y.right = element_line(color_cumul),
+          axis.text.y.right = element_text(color_cumul),
+          axis.title.y.right = element_text(color_cumul)) +
+    geom_line(aes(y = cumul / rescale), color_cumul) +
+    # plot instantaneous
+    geom_line(aes(y = inst), color = color_inst) +
+    # apply rescaling
+    scale_y_continuous(
+      name = "Instantaneous",
+      sec.axis = sec_axis(~. * rescale, name = "Cumulative")
+    ) +
+    labs(x = "Generation Time") + 
+    coord_cartesian(xlim = c(0, 10))
+}
 
-ggplot(infec, aes(x = gentime)) +
-  # plot cumulative profile
-  theme(axis.ticks.y.right = element_line(color = "coral"),
-        axis.text.y.right = element_text(color = "coral"),
-        axis.title.y.right = element_text(color = "coral")) +
-  geom_line(aes(y = cumul / rescale), color = "coral") +
-  # plot instantaneous
-  geom_line(aes(y = inst), color = "black") +
-  # apply rescaling
-  scale_y_continuous(name = "Instantaneous",
-                     sec.axis = sec_axis(~. * rescale, name = "Cumulative")) +
-  labs(x = "Generation Time")
+# plot instantaneous and cumulative profile
+plot_profile_demo(profile)
 ```
 
-# Case of Discrete Models
+# Discrete Time Models
 
 To move to discrete time we need to specify it at the moment of the model generation by adding the option `discr = TRUE`.
 This model requires compilation as for all custom models.
 
 ```{r}
-hhdiscrete <- new_housepi_model("augmented infection time", discr = TRUE, 
-                                quiet = TRUE)
+hhdiscrete <- new_housepi_model("augmented infection time",
+                                discr = TRUE, quiet = TRUE)
 defs <- get_infec_profile(hhdiscrete)
 defs
 ```
 
-It's important to keep in mind that by default we truncate the infectivity profile to avoid transmission to occur on day 0 of infection. 
-The discrete profile is now a discretized gamma with the same parameters^[However, since the distribution is truncated the actual expected value will typically be different than the parameter `mean` in this case.]
+Keep in mind that for discrete time infectivity profiles, we truncate by default by setting `min = 1`. 
+This is done to avoid transmission to occur on day 0 of infection.
+The discrete profile is now a discretized gamma with the same parameters^[Since the distribution is truncated the actual mean value will typically be different than the parameter `mean`.].
 
 ```{r}
 #| fig.alt: >
 #|  Discrete instantaneous infectivity profile as a function of the generation day in black.
 #|  On a second axis in orange, the corresponding cumulative infectivity profile.
 profile <- expose_infec_profile(defs$func, defs$func_args, discr = TRUE)
-infec <- dplyr::tibble(gentime = seq(0, 10, 0.01),
-                       inst = profile$pdf(gentime),
-                       cumul = profile$cdf(gentime))
-rescale <- max(infec$cumul) / max(infec$inst)
-
-ggplot(infec, aes(x = gentime)) +
-  # plot cumulative profile
-  theme(axis.ticks.y.right = element_line(color = "coral"),
-        axis.text.y.right = element_text(color = "coral"),
-        axis.title.y.right = element_text(color = "coral")) +
-  geom_line(aes(y = cumul / rescale), color = "coral") +
-  # plot instantaneous
-  geom_line(aes(y = inst), color = "black") +
-  # apply rescaling
-  scale_y_continuous(name = "Daily",
-                     sec.axis = sec_axis(~. * rescale, name = "Cumulative")) +
-  labs(x = "Generation Day")
+plot_profile_demo(profile)
 ```
 
 # Custom Infectivity Profiles
@@ -148,30 +146,12 @@ defs
 #| fig.alt: >
 #|  Custom discrete instantaneous infectivity profile in black.
 #|  On a second axis in orange, the corresponding cumulative infectivity profile.
-profile <- expose_infec_profile(defs$func, defs$func_args, 
-                                min = defs$min, discr = TRUE)
-infec <- dplyr::tibble(gentime = seq(0, 10, 0.01),
-                       inst = profile$pdf(gentime),
-                       cumul = profile$cdf(gentime))
-rescale <- max(infec$cumul) / max(infec$inst)
-
-ggplot(infec, aes(x = gentime)) +
-  # plot cumulative profile
-  theme(axis.ticks.y.right = element_line(color = "coral"),
-        axis.text.y.right = element_text(color = "coral"),
-        axis.title.y.right = element_text(color = "coral")) +
-  geom_line(aes(y = cumul / rescale), color = "coral") +
-  # plot instantaneous
-  geom_line(aes(y = inst), color = "black") +
-  # apply rescaling
-  scale_y_continuous(name = "Daily",
-                     sec.axis = sec_axis(~. * rescale, name = "Cumulative")) +
-  labs(x = "Generation Day")
+profile <- expose_infec_profile(defs$func, defs$func_args, discr = TRUE)
+plot_profile_demo(profile)
 ```
 
-If the profiles, distributions or functions currently loaded in housepi are not sufficient to deal with your case study, we provided a mechanism to define custom functions.
-Unfortunately, this requires some programming knowledge in C++.
-We show how to deal with [User functions](user_functions.html) in the namesake vignette.
+If the profiles, distributions or functions currently loaded in housepi are not sufficient to deal with your case study, we provided a mechanism to define custom user functions^[Unfortunately, this requires some programming knowledge in C++.].
+We show how to deal with [user functions](user_functions.html) in the namesake vignette.
 
 ```{r child = "helpers/_footer.Rmd"}
 ```

@@ -6,6 +6,7 @@ variables:
   PAK_CACHE_DIR: "$CI_PROJECT_DIR/.pak-cache"
 
 stages:
+  - check
   - build
   - deploy
 
@@ -18,25 +19,32 @@ cache:
   policy: pull-push
 
 before_script:
-  - apt-get update && apt-get install -y libcurl4-openssl-dev libssl-dev libgit2-dev pandoc
+  - apt-get update && apt-get install -y libcurl4-openssl-dev libssl-dev libgit2-dev pandoc qpdf
   - R -q -e "install.packages('pak', repos='https://r-lib.github.io/p/pak/stable')"
   - R -q -e "pak::local_install_dev_deps(upgrade = FALSE)"
 
-######################
-# pkgdown site build #
-######################
+r-cmd-check:
+  stage: check
+  script:
+    - R -q -e "pak::pkg_install('rcmdcheck')"
+    - R -q -e "rcmdcheck::rcmdcheck(args = c('--no-manual', '--as-cran'), error_on = 'warning')"
+  artifacts:
+    when: always
+    paths:
+      - "*.Rcheck/"
+    expire_in: 1 week
+
 build_site:
   stage: build
+  needs: ["r-cmd-check"]
   script:
+    - R -q -e "pak::local_install()" 
     - Rscript pkgdown/custom_build_site.R
   artifacts:
     paths:
       - public
     expire_in: 1 week
 
-#######################
-# GitLab Pages deploy #
-#######################
 pages:
   stage: deploy
   script:
