@@ -213,22 +213,19 @@ template_dll_file <- function(path) {
   file.path(path, dll_file_ext(template_name(path)))
 }
 
-# flags used to set the compilation environment
-get_cpp_environment_flags <- function(paths = NULL,
-                                      flags = NULL,
-                                      linkers = NULL) {
-  # path to headers
+# Get C++ Rcpp and OpenMP flags used for environment compilation.
+get_cpp_envvar_flags <- function(paths = NULL, flags = NULL, linkers = NULL) {
   template_path <- system.file("template/include", package = "housepi")
-  include_paths <- paste0("-I", c(template_path, paths), collapse = " ")
-  include_flags <- paste0("-D", c("_HOUSEPI_RCPP", flags), collapse = " ")
-  include_linkers <- paste0(linkers, collapse = " ")
+  include_paths <- c(template_path, paths)
+  include_flags <- c("_HOUSEPI_RCPP", flags)
 
-  # C++ flags for housepi Rcpp and OpenMP
-  # + linker flags for OpenMP
-  c(PKG_CXXFLAGS = sprintf("$(SHLIB_OPENMP_CXXFLAGS) %s %s",
-                           include_flags, include_paths),
-    PKG_LIBS = sprintf("$(SHLIB_OPENMP_CXXFLAGS) %s",
-                       include_linkers))
+  c(PKG_CXXFLAGS = paste0(c("$(SHLIB_OPENMP_CXXFLAGS)",
+                            paste0("-D", include_flags),
+                            paste0("-I", include_paths)),
+                          collapse = " "),
+    PKG_LIBS = paste0(c("$(SHLIB_OPENMP_CXXFLAGS)",
+                        linkers),
+                      collapse = " "))
 }
 
 # helper function to deep clone R6 objects

@@ -11,7 +11,7 @@ test_that("Function exported from housepi are correct", {
   expect_equal(expose_function("cos")$func(x), cos(x))
   expect_equal(expose_function("sin")$func(x), sin(x))
   expect_equal(expose_function("tan")$func(x), tan(x))
-  
+
   args <- c(3.3, 5.5, 6.6)
   expect_equal(expose_function("sum", args)$func(0), sum(args))
   expect_equal(expose_function("prod", args)$func(1), prod(args))
@@ -62,16 +62,25 @@ test_that("Lognormal distribution is correct", {
 
 test_that("Beta distribution is correct", {
   x <- seq(-100, 100, 1)
-  distr <- expose_distribution("beta", shape1 = 2, shape2 = 5)
-  expect_equal(distr$pdf(x), stats::dbeta(x, shape1 = 2, shape2 = 5))
-  expect_equal(distr$cdf(x), stats::pbeta(x, shape1 = 2, shape2 = 5))
+  distr <- expose_distribution("beta", shape1 = 2, shape2 = 1.5)
+  expect_equal(distr$pdf(x), stats::dbeta(x, shape1 = 2, shape2 = 1.5))
+  expect_equal(distr$cdf(x), stats::pbeta(x, shape1 = 2, shape2 = 1.5))
 })
 
 test_that("Gamma distribution is correct", {
   x <- seq(-100, 100, 1)
-  distr <- expose_distribution("gamma", shape = 2, scale = 2)
-  expect_equal(distr$pdf(x), stats::dgamma(x, shape = 2, scale = 2))
-  expect_equal(distr$cdf(x), stats::pgamma(x, shape = 2, scale = 2))
+  distr <- expose_distribution("gamma", shape = 2, scale = 1.2)
+  expect_equal(distr$pdf(x), stats::dgamma(x, shape = 2, scale = 1.2))
+  expect_equal(distr$cdf(x), stats::pgamma(x, shape = 2, scale = 1.2))
+})
+
+test_that("Gamma (mean/var) distribution is correct", {
+  x <- seq(-100, 100, 1)
+  distr <- expose_distribution("gamma_meanvar", mean = 2, var = 1.1)
+  shape <- (2^2) / 1.1
+  scale <- 1.1 / 2
+  expect_equal(distr$pdf(x), stats::dgamma(x, shape = shape, scale = scale))
+  expect_equal(distr$cdf(x), stats::pgamma(x, shape = shape, scale = scale))
 })
 
 test_that("Exponential distribution is correct", {

@@ -86,10 +86,10 @@ plot_profile_demo <- function(profile,
   
   ggplot(infec, aes(x = gentime)) +
     # plot cumulative profile
-    theme(axis.ticks.y.right = element_line(color_cumul),
-          axis.text.y.right = element_text(color_cumul),
-          axis.title.y.right = element_text(color_cumul)) +
-    geom_line(aes(y = cumul / rescale), color_cumul) +
+    theme(axis.ticks.y.right = element_line(color = color_cumul),
+          axis.text.y.right = element_text(color = color_cumul),
+          axis.title.y.right = element_text(color = color_cumul)) +
+    geom_line(aes(y = cumul / rescale), color = color_cumul) +
     # plot instantaneous
     geom_line(aes(y = inst), color = color_inst) +
     # apply rescaling

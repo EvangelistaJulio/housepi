@@ -25,5 +25,5 @@ for (f in copied_files) {
 # build pkgdown site
 pkgdown::build_site(install = TRUE)
 
-# cleanup
-file.remove(copied_files)
+# cleanup copied files
+h <- file.remove(copied_files)

@@ -5,20 +5,28 @@
  * See the LICENSE file for details.
  */
 
-#include "tools/operators.h"
-#include "tools/global.h"
-#include "tools/string.h"
-#include "tools/math_distr.h"
+#include <cmath>
 
-#include "distribution.h"
-#include "distribution_registry.h"
+#include <boost/math/special_functions/beta.hpp>
+#include <boost/math/special_functions/gamma.hpp>
+
+#include <boost/math/distributions/normal.hpp>
+#include <boost/math/distributions/lognormal.hpp>
+#include <boost/math/distributions/beta.hpp>
+#include <boost/math/distributions/gamma.hpp>
+#include <boost/math/distributions/poisson.hpp>
+#include <boost/math/distributions/binomial.hpp>
+#include <boost/math/distributions/negative_binomial.hpp>
+#include <boost/math/distributions/geometric.hpp>
 
 #include <boost/random/beta_distribution.hpp>
 
-using std::exp;
-using std::log;
-using std::pow;
-using std::sqrt;
+#include "tools/operators.h"
+#include "tools/global.h"
+#include "tools/string.h"
+
+#include "distribution.h"
+#include "distribution_registry.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -153,574 +161,6 @@ void Distribution::init_trunc_helper_()
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////  MACROS  ///////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-// Macro for left discretization when min = 0 (close).
-#define INIT_DISCR_LEFT_MIN_ZERO_CLOSE()      \
-    void init_discretization() override final \
-    {                                         \
-        init_discr_helper_(hsp::discr::LEFT); \
-    }                                         \
-    void init_truncation() override final     \
-    {                                         \
-        if (init_range_min_(0., false))       \
-            init_trunc_helper_();             \
-    }
-
-#define GET_ARGS_1 arg(0)
-#define GET_ARGS_2 arg(0), arg(1)
-
-#define MAKE_RAW_NUMR_IMPORT_FOR_DISTR(distr_, n_args)              \
-    double raw_pdf_(double x) const override final                  \
-    {                                                               \
-        return numr::distr_::pdf(x, GET_ARGS_##n_args);             \
-    }                                                               \
-    double raw_cdf_(double x) const override final                  \
-    {                                                               \
-        return numr::distr_::cdf(x, GET_ARGS_##n_args);             \
-    }                                                               \
-    double raw_logpdf_(double x) const override final               \
-    {                                                               \
-        return numr::distr_::logpdf(x, GET_ARGS_##n_args);          \
-    }                                                               \
-    double raw_logratio_(double xo, double xn) const override final \
-    {                                                               \
-        return numr::distr_::logratio(xo, xn, GET_ARGS_##n_args);   \
-    }                                                               \
-    double raw_quantile_(double p) const override final             \
-    {                                                               \
-        return numr::distr_::quantile(p, GET_ARGS_##n_args);        \
-    }
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////  Uniform Distribution : class  //////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Uniform Distribution derived class.
-class Uniform_Distribution : public Distribution
-{
-public:
-    Uniform_Distribution()
-        : Distribution("uniform",
-                       {{hsp::params::MIN, 0.}, {hsp::params::MAX, 1.}},
-                       hsp::na::DOUBLE, false, hsp::na::DOUBLE, false),
-          unif_gen(arg(0), arg(1)) { init_uniform_range_(); }
-
-    void init_discretization() override final
-    {
-        // UPDATE: should understand when discrete defined...
-        init_discr_helper_(hsp::discr::CENTER);
-    }
-    void init_truncation() override final
-    {
-        init_uniform_range_();
-        init_range_helper_(false, false);
-        // NOTE: truncation for uniform distribution is inside raw
-    }
-
-protected:
-    std::uniform_real_distribution<double> unif_gen;
-
-    double raw_pdf_(double) const override final { return 1. / (arg(1) - arg(0)); }
-    double raw_cdf_(double x) const override final { return (x - arg(0)) / (arg(1) - arg(0)); }
-    double raw_logpdf_(double) const override final { return 0.; }
-    double raw_logratio_(double, double) const override final { return 0.; }
-    double raw_rand_(rnd_gen &prng) override final
-    {
-        const double r = unif_gen(prng);
-        return arg(0) * (1. - r) + arg(1) * r;
-    }
-    double raw_quantile_(double p) const override final { return arg(0) * (1. - p) + arg(1) * p; }
-
-private:
-    /// Ensure uniform range (min, max) match argument (min, max).
-    void init_uniform_range_()
-    {
-        // impose range minimum equal to argument minimum
-        const Attribute &min_arg = arguments_[0];
-        if (min_arg.is_function())
-            lower_arg_.transfer(min_arg);
-        else
-            lower_arg_.transfer(min_arg);
-
-        // impose range maximum equal to argument maximum
-        const Attribute &max_arg = arguments_[1];
-        if (max_arg.is_function())
-            upper_arg_.transfer(max_arg);
-        else
-            upper_arg_.transfer(max_arg);
-    }
-};
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  Normal Distribution : class  //////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Normal Distribution derived class.
-class Normal_Distribution : public Distribution
-{
-public:
-    Normal_Distribution()
-        : Distribution("normal",
-                       {{"mean", 0.}, {"sd", 1.}},
-                       hsp::na::DOUBLE, false, hsp::na::DOUBLE, false),
-          norm_gen(0., 1.) {}
-
-    void init_discretization() override final
-    {
-        if (lower_arg_.is_empty())
-            init_discr_helper_(hsp::discr::CENTER);
-        else
-            init_discr_helper_(hsp::discr::LEFT);
-    }
-    void init_truncation() override final
-    {
-        init_range_helper_(false, false);
-        init_trunc_helper_();
-    }
-
-protected:
-    std::normal_distribution<double> norm_gen;
-
-    MAKE_RAW_NUMR_IMPORT_FOR_DISTR(normal, 2)
-    double raw_rand_(rnd_gen &prng) override final { return arg(0) + arg(1) * norm_gen(prng); }
-};
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////  Lognormal Distribution : class  /////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Lognormal Distribution derived class.
-class Lognormal_Distribution : public Distribution
-{
-public:
-    Lognormal_Distribution()
-        : Distribution("lognormal",
-                       {{"meanlog", 0.}, {"sdlog", 1.}},
-                       0., true, hsp::na::DOUBLE, false),
-          norm_gen(0., 1.) {}
-
-    INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
-
-protected:
-    std::normal_distribution<double> norm_gen;
-
-    MAKE_RAW_NUMR_IMPORT_FOR_DISTR(lognormal, 2)
-    double raw_rand_(rnd_gen &prng) override final { return exp(arg(0) + arg(1) * norm_gen(prng)); }
-};
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  Beta Distribution : class  //////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Beta Distribution derived class.
-class Beta_Distribution : public Distribution
-{
-public:
-    Beta_Distribution()
-        : Distribution("beta",
-                       {{"shape1", hsp::na::DOUBLE}, {"shape2", hsp::na::DOUBLE}},
-                       0., true, 1., true) {}
-
-    void init_discretization() override final
-    {
-        throw std::invalid_argument(
-            "Invoked invalid option discrete for " + err_name() + ".");
-    }
-    void init_truncation() override final
-    {
-        if (lower() < 0)
-            throw std::invalid_argument(
-                "Invoked invalid min value " + hsp::str::format(lower()) + " for " + err_name() + ".");
-        if (upper() > 1)
-            throw std::invalid_argument(
-                "Invoked invalid max value " + hsp::str::format(upper()) + " for " + err_name() + ".");
-        if (lower() > 0 || upper() < 1)
-        {
-            init_range_helper_(lower() == 0, upper() == 1);
-            init_trunc_helper_();
-        }
-    }
-
-protected:
-    MAKE_RAW_NUMR_IMPORT_FOR_DISTR(beta, 2)
-    double raw_rand_(rnd_gen &prng) override final
-    {
-        return boost::random::beta_distribution<double>(arg(0), arg(1))(prng);
-    }
-};
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  Gamma Distribution : class  /////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Gamma Distribution derived class.
-class Gamma_Distribution : public Distribution
-{
-public:
-    Gamma_Distribution()
-        : Distribution("gamma",
-                       {{"shape", hsp::na::DOUBLE}, {"scale", 1.}},
-                       0., false, hsp::na::DOUBLE, false) {}
-
-    INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
-
-protected:
-    MAKE_RAW_NUMR_IMPORT_FOR_DISTR(gamma, 2)
-    double raw_rand_(rnd_gen &prng) override final
-    {
-        return std::gamma_distribution<double>(arg(0), arg(1))(prng);
-    }
-};
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////  Gamma (Mean-Varance) Distribution : class  /////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-#define GAMMA_MEANVAR_CONVERTER()     \
-    const double m = arg(0);          \
-    const double v = arg(1);          \
-    const double shape = (m * m) / v; \
-    const double scale = v / m;
-
-/// Gamma (Mean-Variance) Distribution derived class.
-class GammaMeanVar_Distribution : public Distribution
-{
-public:
-    GammaMeanVar_Distribution()
-        : Distribution("gamma_meanvar",
-                       {{"mean", hsp::na::DOUBLE}, {"var", hsp::na::DOUBLE}},
-                       0., false, hsp::na::DOUBLE, false) {}
-
-    INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
-
-protected:
-    double raw_pdf_(double x) const override final
-    {
-        GAMMA_MEANVAR_CONVERTER()
-        return numr::gamma::pdf(x, shape, scale);
-    }
-    double raw_cdf_(double x) const override final
-    {
-        GAMMA_MEANVAR_CONVERTER()
-        return numr::gamma::cdf(x, shape, scale);
-    }
-    double raw_logpdf_(double x) const override final
-    {
-        GAMMA_MEANVAR_CONVERTER()
-        return numr::gamma::logpdf(x, shape, scale);
-    }
-    double raw_logratio_(double xo, double xn) const override final
-    {
-        GAMMA_MEANVAR_CONVERTER()
-        return numr::gamma::logratio(xo, xn, shape, scale);
-    }
-    double raw_quantile_(double p) const override final
-    {
-        GAMMA_MEANVAR_CONVERTER()
-        return numr::gamma::quantile(p, shape, scale);
-    }
-    double raw_rand_(rnd_gen &prng) override final
-    {
-        GAMMA_MEANVAR_CONVERTER()
-        return std::gamma_distribution<double>(shape, scale)(prng);
-    }
-};
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  Rayleigh Distribution : class  ////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Rayleigh Distribution derived class.
-class Rayleigh_Distribution : public Distribution
-{
-public:
-    Rayleigh_Distribution()
-        : Distribution("rayleigh",
-                       {{"scale", 1.}},
-                       0., false, hsp::na::DOUBLE, false),
-          unif_gen(0., 1.) {}
-
-    INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
-
-protected:
-    std::uniform_real_distribution<double> unif_gen;
-
-    MAKE_RAW_NUMR_IMPORT_FOR_DISTR(rayleigh, 1)
-    double raw_rand_(rnd_gen &prng) override final { return arg(0) * sqrt(-2 * log(unif_gen(prng))); }
-};
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  Weibull Distribution : class  /////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Weibull Distribution derived class.
-class Weibull_Distribution : public Distribution
-{
-public:
-    Weibull_Distribution()
-        : Distribution("weibull",
-                       {{"shape", hsp::na::DOUBLE}, {"scale", 1.}},
-                       0., false, hsp::na::DOUBLE, false),
-          unif_gen(0., 1.) {}
-
-    INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
-
-protected:
-    std::uniform_real_distribution<double> unif_gen;
-
-    MAKE_RAW_NUMR_IMPORT_FOR_DISTR(weibull, 2)
-    double raw_rand_(rnd_gen &prng) override final
-    {
-        return arg(1) * pow(-log(unif_gen(prng)), 1.0 / arg(0));
-    }
-};
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////  Exponential  Distribution : class  //////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Exponential  Distribution derived class.
-class Exponential_Distribution : public Distribution
-{
-public:
-    Exponential_Distribution()
-        : Distribution("exponential",
-                       {{"rate", 1.}},
-                       0., false, hsp::na::DOUBLE, false),
-          unif_gen(0., 1.) {}
-
-    INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
-
-protected:
-    std::uniform_real_distribution<double> unif_gen;
-
-    MAKE_RAW_NUMR_IMPORT_FOR_DISTR(exponential, 1)
-    double raw_rand_(rnd_gen &prng) override final { return -log(unif_gen(prng)) / arg(0); }
-};
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  Poisson Distribution : class  ////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-#define INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()      \
-    void init_discretization() override final {} \
-    void init_truncation() override final        \
-    {                                            \
-        if (init_range_min_(0., false))          \
-            init_trunc_helper_();                \
-    }
-
-/// Poisson Distribution derived class.
-class Poisson_Distribution : public Distribution
-{
-public:
-    Poisson_Distribution()
-        : Distribution("poisson",
-                       {{"lambda", hsp::na::DOUBLE}},
-                       0., false, hsp::na::DOUBLE, false) { init_discr_helper_(hsp::discr::DEFINED); }
-
-    INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
-
-protected:
-    MAKE_RAW_NUMR_IMPORT_FOR_DISTR(poisson, 1)
-    double raw_rand_(rnd_gen &prng) override final
-    {
-        return std::poisson_distribution<unsigned>(arg(0))(prng);
-    }
-};
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  Binomial Distribution : class  ///////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Binomial Distribution derived class.
-class Binomial_Distribution : public Distribution
-{
-public:
-    Binomial_Distribution()
-        : Distribution("binomial",
-                       {{"size", hsp::na::DOUBLE}, {"prob", hsp::na::DOUBLE}},
-                       0., false, hsp::na::DOUBLE, false)
-    {
-        init_discr_helper_(hsp::discr::DEFINED);
-        upper_arg_.init_pointer(get_arg(0).get_ptr());
-        init_range_helper_(false, false);
-    }
-
-    void init_discretization() override final {}
-    void init_truncation() override final
-    {
-        if (lower() < 0.)
-            throw std::invalid_argument(
-                "Invoked invalid min value " + hsp::str::format(lower_arg_.get()) +
-                " for " + err_name() + ".");
-        if (lower() > 0. || get_arg(0).get_ptr() != get_upper().get_ptr())
-        {
-            if (upper() > arg(0))
-                throw std::invalid_argument(
-                    "Invoked invalid max value " + hsp::str::format(upper_arg_.get()) +
-                    " for " + err_name() + " with size " + std::to_string(arg(0)) + ".");
-            init_range_helper_(false, false);
-            init_trunc_helper_();
-        }
-    }
-
-protected:
-    MAKE_RAW_NUMR_IMPORT_FOR_DISTR(binomial, 2)
-    double raw_rand_(rnd_gen &prng) override final
-    {
-        return std::binomial_distribution<unsigned>(arg(0), arg(1))(prng);
-    }
-};
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////  NegativeBinomial Distribution : class  ///////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// NegativeBinomial Distribution derived class.
-class NegativeBinomial_Distribution : public Distribution
-{
-public:
-    NegativeBinomial_Distribution()
-        : Distribution("negative_binomial",
-                       {{"size", hsp::na::DOUBLE}, {"prob", hsp::na::DOUBLE}},
-                       0., false, hsp::na::DOUBLE, false) { init_discr_helper_(hsp::discr::DEFINED); }
-
-    INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
-
-protected:
-    MAKE_RAW_NUMR_IMPORT_FOR_DISTR(negbinomial, 2)
-    double raw_rand_(rnd_gen &prng) override final
-    {
-        return std::negative_binomial_distribution<unsigned>(arg(0), arg(1))(prng);
-    }
-};
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  Geometric Distribution : class  ///////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Geometric Distribution derived class.
-class Geometric_Distribution : public Distribution
-{
-public:
-    Geometric_Distribution()
-        : Distribution("geometric",
-                       {{"prob", hsp::na::DOUBLE}},
-                       0., false, hsp::na::DOUBLE, false) { init_discr_helper_(hsp::discr::DEFINED); }
-
-    INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
-
-protected:
-    MAKE_RAW_NUMR_IMPORT_FOR_DISTR(geometric, 1)
-    double raw_rand_(rnd_gen &prng) override final { return std::geometric_distribution<unsigned>(arg(0))(prng); }
-};
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  InfecProfile_Ferretti20 : class  ///////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// The infectivity profile is considered equal to the distribution
-/// of the Time from Onset of Symptoms to Transmission 't_ost':
-/// >	t_ost = <time infection infectee> - <time onset infector>
-/// Its distribution is modeled as a skew-logistic distribution (generalized logistic type I),
-/// where the pre-symptomatic values are rescaled as a function of the incubation time 'incub'.
-/// The arguments to provide are :
-///   0) "shape";
-///   1) "scale";
-///   2) "c_loc" (custom location);
-///   3) "mean_incub" (mean incubation period);
-///   4) "incub_period" (individual incubation period);
-/// Note: symtoms can occur after infection (pre-symptomatic transmission),
-/// i. e. 't_ost' can be negative.
-///
-/// Ref:
-/// ----
-/// Ferretti L, Ledda A, Wymant C, Zhao L, Ledda V, Abeler-Dorner L, et al.
-/// The timing of COVID-19 transmission.
-/// medRxiv; 2020. p. 2020.09.04.20188516. doi:10.1101/2020.09.04.20188516
-class InfecProfile_Ferretti20 : public Distribution
-{
-public:
-    InfecProfile_Ferretti20()
-        : Distribution("ferretti20",
-                       {{"shape", 5.85}, {"scale", 1.85}, {"c_loc", -4.0}, {"mean_incub", 5.42}, {"incub_period", 5.42}},
-                       0., false, hsp::na::DOUBLE, false) {}
-
-    INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
-
-protected:
-    double raw_pdf_(double x) const override final
-    {
-        const double a = arg(0); // 'shape'
-        const double s = arg(1); // 'scale'
-        const double m = arg(2); // 'c_loc'
-        const double T = arg(3); // 'mean_incub'
-        const double i = arg(4); // 'incub_period'
-        double tOST = x - i;     // time from onset to transmission
-
-        const double norm_pdf = (s / a) * (1. + (i / T - 1.) * pow(1 + exp(m / s), -a) - (i / T) * pow(1. + exp((m + T) / s), -a));
-
-        if (tOST < 0)
-            tOST *= (T / i);
-
-        return exp((m - tOST) / s) * pow(1. + exp((m - tOST) / s), -a - 1.) / norm_pdf;
-    }
-
-    double raw_cdf_(double x) const override final
-    {
-        const double a = arg(0);   // 'shape'
-        const double s = arg(1);   // 'scale'
-        const double m = arg(2);   // 'c_loc'
-        const double T = arg(3);   // 'mean_incub'
-        const double i = arg(4);   // 'incub_period'
-        const double tOST = x - i; // time from onset to transmission
-
-        const double norm_cdf = (1. + (i / T - 1.) * pow(1 + exp(m / s), -a) - (i / T) * (pow(1. + exp((m + T) / s), -a)));
-
-        if (tOST < 0) // Integrate from -incub_period to tOST
-            return (i / T) * (pow(1. + exp((m - tOST * T / i) / s), -a) - pow(1. + exp((m + T) / s), -a)) / norm_cdf;
-
-        // Integrate from -incub to 0
-        const double F0 = (i / T) * (pow(1. + exp(m / s), -a) - pow(1. + exp((m + T) / s), -a));
-        // Integrate from 0 to t_ost
-        return (F0 + pow(1. + exp((m - tOST) / s), -a) - pow(1. + exp(m / s), -a)) / norm_cdf;
-    }
-};
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  Distribution Registry : getter  //////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -775,6 +215,839 @@ std::unique_ptr<Distribution> compose_distr_registries(const std::string &opt,
 
     throw std::invalid_argument(
         "Unknown " + name + " '" + opt + "'." + hsp::str::find_closest(opt, options));
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////  *** Distribution : implementations ***  //////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace
+{
+    using std::exp;
+    using std::log;
+    using std::pow;
+    using std::sqrt;
+
+#ifndef M_1_SQRT_2PI
+    constexpr double M_1_SQRT_2PI = 0.398942280401432677939946059934; /// 1/sqrt(2pi
+#endif
+
+#ifndef M_SQRT1_2
+    constexpr double M_SQRT1_2 = 0.707106781186547524400844362105; /// 1/sqrt(2)
+#endif
+
+#ifndef M_LN_SQRT_2PI
+    constexpr double M_LN_SQRT_2PI = 0.918938533204672741780329736406; /// log(sqrt(2pi))
+#endif
+
+    /// Logarithm of binomial coefficient.
+    double log_binom_coeff(unsigned N, unsigned k)
+    {
+        if (N == 0 || k == N)
+            return 0.;
+        return std::lgamma(N + 1) - std::lgamma(k + 1) - std::lgamma(N - k + 1);
+    }
+
+    /// Log-ratio of binomial coefficients.
+    double logratio_binom_coeff(unsigned N, unsigned ko, unsigned kn)
+    {
+        if (N == 0 || ko == kn)
+            return 0;
+        return std::lgamma(ko + 1) + std::lgamma(N - ko + 1) - std::lgamma(kn + 1) - std::lgamma(N - kn + 1);
+    }
+
+    /// Logarithm of beta function.
+    double lbeta(double a, double b)
+    {
+        return std::lgamma(a) + std::lgamma(b) - std::lgamma(a + b);
+    }
+
+// Macro for left discretization when min = 0 (close).
+#define INIT_DISCR_LEFT_MIN_ZERO_CLOSE()      \
+    void init_discretization() override final \
+    {                                         \
+        init_discr_helper_(hsp::discr::LEFT); \
+    }                                         \
+    void init_truncation() override final     \
+    {                                         \
+        if (init_range_min_(0., false))       \
+            init_trunc_helper_();             \
+    }
+
+// Macro for discrete defined when min = 0 (close).
+#define INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()      \
+    void init_discretization() override final {} \
+    void init_truncation() override final        \
+    {                                            \
+        if (init_range_min_(0., false))          \
+            init_trunc_helper_();                \
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////  *** Uniform Distribution : class ***  //////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    class Uniform_Distribution : public Distribution
+    {
+    public:
+        Uniform_Distribution()
+            : Distribution("uniform",
+                           {{hsp::params::MIN, 0.}, {hsp::params::MAX, 1.}},
+                           hsp::na::DOUBLE, false, hsp::na::DOUBLE, false),
+              unif_gen(arg(0), arg(1)) { init_uniform_range_(); }
+
+        void init_discretization() override final
+        {
+            // UPDATE: should understand when discrete defined...
+            init_discr_helper_(hsp::discr::CENTER);
+        }
+        void init_truncation() override final
+        {
+            init_uniform_range_();
+            init_range_helper_(false, false);
+            // NOTE: truncation for uniform distribution is inside raw
+        }
+
+    protected:
+        std::uniform_real_distribution<double> unif_gen;
+
+        double raw_pdf_(double) const override final { return 1. / (arg(1) - arg(0)); }
+        double raw_cdf_(double x) const override final { return (x - arg(0)) / (arg(1) - arg(0)); }
+        double raw_logpdf_(double) const override final { return 0.; }
+        double raw_logratio_(double, double) const override final { return 0.; }
+        double raw_rand_(rnd_gen &prng) override final
+        {
+            const double r = unif_gen(prng);
+            return arg(0) * (1. - r) + arg(1) * r;
+        }
+        double raw_quantile_(double p) const override final { return arg(0) * (1. - p) + arg(1) * p; }
+
+    private:
+        /// Ensure uniform range (min, max) match argument (min, max).
+        void init_uniform_range_()
+        {
+            // impose range minimum equal to argument minimum
+            const Attribute &min_arg = arguments_[0];
+            if (min_arg.is_function())
+                lower_arg_.transfer(min_arg);
+            else
+                lower_arg_.transfer(min_arg);
+
+            // impose range maximum equal to argument maximum
+            const Attribute &max_arg = arguments_[1];
+            if (max_arg.is_function())
+                upper_arg_.transfer(max_arg);
+            else
+                upper_arg_.transfer(max_arg);
+        }
+    };
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////  *** Normal Distribution : class ***  //////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    class Normal_Distribution : public Distribution
+    {
+    public:
+        Normal_Distribution()
+            : Distribution("normal",
+                           {{"mean", 0.}, {"sd", 1.}},
+                           hsp::na::DOUBLE, false, hsp::na::DOUBLE, false),
+              norm_gen(0., 1.) {}
+
+        void init_discretization() override final
+        {
+            if (lower_arg_.is_empty())
+                init_discr_helper_(hsp::discr::CENTER);
+            else
+                init_discr_helper_(hsp::discr::LEFT);
+        }
+        void init_truncation() override final
+        {
+            init_range_helper_(false, false);
+            init_trunc_helper_();
+        }
+
+    protected:
+        std::normal_distribution<double> norm_gen;
+
+        double raw_pdf_(double x) const override final
+        {
+            const double sd = arg(1);
+            const double z = (x - arg(0)) / sd;
+            return M_1_SQRT_2PI * exp(-0.5 * z * z) / sd;
+        }
+        double raw_cdf_(double x) const override final
+        {
+            return 0.5 * std::erfc(M_SQRT1_2 * (arg(0) - x) / arg(1));
+        }
+        double raw_logpdf_(double x) const override final
+        {
+            const double sd = arg(1);
+            const double z = (x - arg(0)) / sd;
+            return -0.5 * z * z - M_LN_SQRT_2PI - log(sd);
+        }
+        double raw_logratio_(double xo, double xn) const override final
+        {
+            const double sd = arg(1);
+            return (0.5 * xo * xo + (xn - xo) * arg(0) - 0.5 * xn * xn) / (sd * sd);
+        }
+        double raw_quantile_(double p) const override final
+        {
+            static const boost::math::normal stdnorm(0., 1.);
+            return arg(0) + arg(1) * boost::math::quantile(stdnorm, p);
+        }
+        double raw_rand_(rnd_gen &prng) override final
+        {
+            return arg(0) + arg(1) * norm_gen(prng);
+        }
+    };
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////  *** Lognormal Distribution : class ***  /////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// Lognormal Distribution derived class.
+    class Lognormal_Distribution : public Distribution
+    {
+    public:
+        Lognormal_Distribution()
+            : Distribution("lognormal",
+                           {{"meanlog", 0.}, {"sdlog", 1.}},
+                           0., true, hsp::na::DOUBLE, false),
+              norm_gen(0., 1.) {}
+
+        INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
+
+    protected:
+        std::normal_distribution<double> norm_gen;
+
+        double raw_pdf_(double x) const override final
+        {
+            const double sdlog = arg(1);
+            const double z = (log(x) - arg(0)) / sdlog;
+            return exp(-0.5 * z * z) * M_1_SQRT_2PI / (x * sdlog);
+        }
+        double raw_cdf_(double x) const override final
+        {
+            return 0.5 * std::erfc(M_SQRT1_2 * (arg(0) - log(x)) / arg(1));
+        }
+        double raw_logpdf_(double x) const override final
+        {
+            const double sdlog = arg(1);
+            const double z = (log(x) - arg(0)) / sdlog;
+            return -0.5 * z * z - log(x * sdlog) - M_LN_SQRT_2PI;
+        }
+        double raw_logratio_(double xo, double xn) const override final
+        {
+            const double lxo = log(xo);
+            const double lxn = log(xn);
+            const double meanlog = arg(0);
+            const double sdlog = arg(1);
+            return 0.5 * ((lxo - meanlog) * lxo - (lxn - meanlog) * lxn) / (sdlog * sdlog) + lxo - lxn;
+        }
+        double raw_quantile_(double p) const override final
+        {
+            static const boost::math::normal stdnorm(0., 1.);
+            return exp(arg(0) + arg(1) * boost::math::quantile(stdnorm, p));
+        }
+        double raw_rand_(rnd_gen &prng) override final
+        {
+            return exp(arg(0) + arg(1) * norm_gen(prng));
+        }
+    };
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  *** Beta Distribution : class ***  //////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    class Beta_Distribution : public Distribution
+    {
+    public:
+        Beta_Distribution()
+            : Distribution("beta",
+                           {{"shape1", hsp::na::DOUBLE}, {"shape2", hsp::na::DOUBLE}},
+                           0., true, 1., true) {}
+
+        void init_discretization() override final
+        {
+            throw std::invalid_argument(
+                "Invoked invalid option discrete for " + err_name() + ".");
+        }
+        void init_truncation() override final
+        {
+            if (lower() < 0)
+                throw std::invalid_argument(
+                    "Invoked invalid min value " + hsp::str::format(lower()) + " for " + err_name() + ".");
+            if (upper() > 1)
+                throw std::invalid_argument(
+                    "Invoked invalid max value " + hsp::str::format(upper()) + " for " + err_name() + ".");
+            if (lower() > 0 || upper() < 1)
+            {
+                init_range_helper_(lower() == 0, upper() == 1);
+                init_trunc_helper_();
+            }
+        }
+
+    protected:
+        double raw_pdf_(double x) const override final
+        {
+            const double alpha = arg(0);
+            const double beta = arg(1);
+            return exp((alpha - 1.) * log(x) + (beta - 1.) * log1p(-x) - lbeta(alpha, beta));
+        }
+        double raw_cdf_(double x) const override final
+        {
+            return boost::math::ibeta(arg(0), arg(1), x);
+        }
+        double raw_logpdf_(double x) const override final
+        {
+            const double alpha = arg(0);
+            const double beta = arg(1);
+            return (alpha - 1.) * log(x) + (beta - 1.) * log1p(-x) - lbeta(alpha, beta);
+        }
+        double raw_logratio_(double xo, double xn) const override final
+        {
+            return (arg(0) - 1.) * log(xn / xo) + (arg(1) - 1.) * log((1. - xn) / (1. - xo));
+        }
+        double raw_quantile_(double p) const override final
+        {
+            return boost::math::quantile(boost::math::beta_distribution<>(arg(0), arg(1)), p);
+        }
+        double raw_rand_(rnd_gen &prng) override final
+        {
+            return boost::random::beta_distribution<double>(arg(0), arg(1))(prng);
+        }
+    };
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  *** Gamma Distribution : class ***  /////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    class Gamma_Distribution : public Distribution
+    {
+    public:
+        Gamma_Distribution()
+            : Distribution("gamma",
+                           {{"shape", hsp::na::DOUBLE}, {"scale", 1.}},
+                           0., false, hsp::na::DOUBLE, false) {}
+
+        INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
+
+    protected:
+        double raw_pdf_(double x) const override final
+        {
+            const double shape = arg(0);
+            const double scale = arg(1);
+            return pow(x, shape - 1.) * exp(-shape * log(scale) - std::lgamma(shape) - x / scale);
+        }
+        double raw_cdf_(double x) const override final
+        {
+            return boost::math::gamma_p(arg(0), x / arg(1));
+        }
+        double raw_logpdf_(double x) const override final
+        {
+            const double shape = arg(0);
+            const double t = x / arg(1);
+            return shape * log(t) - log(x) - std::lgamma(shape) - t;
+        }
+        double raw_logratio_(double xo, double xn) const override final
+        {
+            return (arg(0) - 1.) * log(xn / xo) + (xo - xn) / arg(1);
+        }
+        double raw_quantile_(double p) const override final
+        {
+            return boost::math::quantile(boost::math::gamma_distribution<>(arg(0), arg(1)), p);
+        }
+        double raw_rand_(rnd_gen &prng) override final
+        {
+            return std::gamma_distribution<double>(arg(0), arg(1))(prng);
+        }
+    };
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////  *** Gamma (Mean-Varance) Distribution : class ***  /////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// Gamma (Mean-Variance) Distribution.
+    /// UPDATE: this should be collapsed with the previous
+    class GammaMeanVar_Distribution : public Distribution
+    {
+    public:
+        GammaMeanVar_Distribution()
+            : Distribution("gamma_meanvar",
+                           {{"mean", hsp::na::DOUBLE}, {"var", hsp::na::DOUBLE}},
+                           0., false, hsp::na::DOUBLE, false) {}
+
+        INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
+
+    protected:
+        double raw_pdf_(double x) const override final
+        {
+            const double m = arg(0);
+            const double v = arg(1);
+            const double shape = m * m / v;
+            const double scale = v / m;
+            return pow(x, shape - 1.) * exp(-shape * log(scale) - std::lgamma(shape) - x / scale);
+        }
+        double raw_cdf_(double x) const override final
+        {
+            const double m = arg(0);
+            const double v = arg(1);
+            return boost::math::gamma_p(m * m / v, x * m / v);
+        }
+        double raw_logpdf_(double x) const override final
+        {
+            const double m = arg(0);
+            const double v = arg(1);
+            const double shape = m * m / v;
+            const double t = x * m / v;
+            return shape * log(t) - log(x) - std::lgamma(shape) - t;
+        }
+        double raw_logratio_(double xo, double xn) const override final
+        {
+            const double m = arg(0);
+            const double v = arg(1);
+            return (m * m / v - 1.) * log(xn / xo) + (xo - xn) * m / v;
+        }
+        double raw_quantile_(double p) const override final
+        {
+            const double m = arg(0);
+            const double v = arg(1);
+            return boost::math::quantile(boost::math::gamma_distribution<>(m * m / v, v / m), p);
+        }
+        double raw_rand_(rnd_gen &prng) override final
+        {
+            const double m = arg(0);
+            const double v = arg(1);
+            return std::gamma_distribution<double>(m * m / v, v / m)(prng);
+        }
+    };
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////  *** Rayleigh Distribution : class ***  ////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    class Rayleigh_Distribution : public Distribution
+    {
+    public:
+        Rayleigh_Distribution()
+            : Distribution("rayleigh",
+                           {{"scale", 1.}},
+                           0., false, hsp::na::DOUBLE, false),
+              unif_gen(0., 1.) {}
+
+        INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
+
+    protected:
+        std::uniform_real_distribution<double> unif_gen;
+
+        double raw_pdf_(double x) const override final
+        {
+            const double scale = arg(0);
+            const double scale2 = scale * scale;
+            return x * exp(-.5 * x * x / scale2) / scale2;
+        }
+        double raw_cdf_(double x) const override final
+        {
+            const double scale = arg(0);
+            return 1. - exp(-.5 * x * x / (scale * scale));
+        }
+        double raw_logpdf_(double x) const override final
+        {
+            const double scale = arg(0);
+            const double scale2 = scale * scale;
+            return log(x / scale2) - .5 * x * x / scale2;
+        }
+        double raw_logratio_(double xo, double xn) const override final
+        {
+            const double scale = arg(0);
+            return log(xn / xo) + .5 * (xo * xo - xn * xn) / (scale * scale);
+        }
+        double raw_quantile_(double p) const override final
+        {
+            return arg(0) * sqrt(-2. * log1p(-p));
+        }
+        double raw_rand_(rnd_gen &prng) override final
+        {
+            return arg(0) * sqrt(-2 * log(unif_gen(prng)));
+        }
+    };
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////  *** Weibull Distribution : class ***  /////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    class Weibull_Distribution : public Distribution
+    {
+    public:
+        Weibull_Distribution()
+            : Distribution("weibull",
+                           {{"shape", hsp::na::DOUBLE}, {"scale", 1.}},
+                           0., false, hsp::na::DOUBLE, false),
+              unif_gen(0., 1.) {}
+
+        INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
+
+    protected:
+        std::uniform_real_distribution<double> unif_gen;
+
+        double raw_pdf_(double x) const override final
+        {
+            const double shape = arg(0);
+            const double scale = arg(1);
+            const double z = x / scale;
+            return (shape / scale) * pow(z, shape - 1.) * exp(-pow(z, shape));
+        }
+        double raw_cdf_(double x) const override final
+        {
+            return 1. - exp(-pow(x / arg(1), arg(0)));
+        }
+        double raw_logpdf_(double x) const override final
+        {
+            const double shape = arg(0);
+            const double scale = arg(1);
+            const double z = x / scale;
+            return log(shape / scale) + (shape - 1.) * log(z) - pow(z, shape);
+        }
+        double raw_logratio_(double xo, double xn) const override final
+        {
+            const double shape = arg(0);
+            const double scale = arg(1);
+            return (shape - 1.) * log(xn / xo) + pow(xo / scale, shape) - pow(xn / scale, shape);
+        }
+        double raw_quantile_(double p) const override final
+        {
+            return arg(1) * pow(-log1p(-p), 1. / arg(0));
+        }
+        double raw_rand_(rnd_gen &prng) override final
+        {
+            return arg(1) * pow(-log(unif_gen(prng)), 1.0 / arg(0));
+        }
+    };
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////  *** Exponential Distribution : class ***  //////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    class Exponential_Distribution : public Distribution
+    {
+    public:
+        Exponential_Distribution()
+            : Distribution("exponential",
+                           {{"rate", 1.}},
+                           0., false, hsp::na::DOUBLE, false),
+              unif_gen(0., 1.) {}
+
+        INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
+
+    protected:
+        std::uniform_real_distribution<double> unif_gen;
+
+        double raw_pdf_(double x) const override final
+        {
+            const double rate = arg(0);
+            return rate * exp(-rate * x);
+        }
+        double raw_cdf_(double x) const override final
+        {
+            return 1. - exp(-arg(0) * x);
+        }
+        double raw_logpdf_(double x) const override final
+        {
+            const double rate = arg(0);
+            return log(rate) - rate * x;
+        }
+        double raw_logratio_(double xo, double xn) const override final
+        {
+            return arg(0) * (xo - xn);
+        }
+        double raw_quantile_(double p) const override final
+        {
+            return -log1p(-p) / arg(0);
+        }
+        double raw_rand_(rnd_gen &prng) override final
+        {
+            return -log(unif_gen(prng)) / arg(0);
+        }
+    };
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////  *** Poisson Distribution : class ***  ////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    class Poisson_Distribution : public Distribution
+    {
+    public:
+        Poisson_Distribution()
+            : Distribution("poisson",
+                           {{"lambda", hsp::na::DOUBLE}},
+                           0., false, hsp::na::DOUBLE, false) { init_discr_helper_(hsp::discr::DEFINED); }
+
+        INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
+
+    protected:
+        double raw_pdf_(double x) const override final
+        {
+            const double lambda = arg(0);
+            return exp(x * log(lambda) - lambda - std::lgamma(x + 1.));
+        }
+        double raw_cdf_(double x) const override final
+        {
+            return 1. - boost::math::gamma_p(x + 1., arg(0));
+        }
+        double raw_logpdf_(double x) const override final
+        {
+            const double lambda = arg(0);
+            return x * log(lambda) - lambda - std::lgamma(x + 1.);
+        }
+        double raw_logratio_(double xo, double xn) const override final
+        {
+            return (xn - xo) * log(arg(0)) + std::lgamma(xo + 1.) - std::lgamma(xn + 1.);
+        }
+        double raw_quantile_(double p) const override final
+        {
+            return boost::math::quantile(boost::math::poisson_distribution<>(arg(0)), p);
+        }
+        double raw_rand_(rnd_gen &prng) override final
+        {
+            return std::poisson_distribution<unsigned>(arg(0))(prng);
+        }
+    };
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////  *** Binomial Distribution : class ***  ///////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    class Binomial_Distribution : public Distribution
+    {
+    public:
+        Binomial_Distribution()
+            : Distribution("binomial",
+                           {{"size", hsp::na::DOUBLE}, {"prob", hsp::na::DOUBLE}},
+                           0., false, hsp::na::DOUBLE, false)
+        {
+            init_discr_helper_(hsp::discr::DEFINED);
+            upper_arg_.init_pointer(get_arg(0).get_ptr());
+            init_range_helper_(false, false);
+        }
+
+        void init_discretization() override final {}
+        void init_truncation() override final
+        {
+            if (lower() < 0.)
+                throw std::invalid_argument(
+                    "Invoked invalid min value " + hsp::str::format(lower_arg_.get()) +
+                    " for " + err_name() + ".");
+            if (lower() > 0. || get_arg(0).get_ptr() != get_upper().get_ptr())
+            {
+                if (upper() > arg(0))
+                    throw std::invalid_argument(
+                        "Invoked invalid max value " + hsp::str::format(upper_arg_.get()) +
+                        " for " + err_name() + " with size " + std::to_string(arg(0)) + ".");
+                init_range_helper_(false, false);
+                init_trunc_helper_();
+            }
+        }
+
+    protected:
+        double raw_pdf_(double x) const override final
+        {
+            const double size = arg(0);
+            const double prob = arg(1);
+            return exp(log_binom_coeff(size, x) + x * log(prob) + (size - x) * log1p(-prob));
+        }
+        double raw_cdf_(double x) const override final
+        {
+            const double size = arg(0);
+            if (x > size)
+                return 1.;
+            return boost::math::ibeta(size - x, x + 1, 1. - arg(1));
+        }
+        double raw_logpdf_(double x) const override final
+        {
+            const double size = arg(0);
+            const double prob = arg(1);
+            return log_binom_coeff(size, x) + x * log(prob) + (size - x) * log1p(-prob);
+        }
+        double raw_logratio_(double xo, double xn) const override final
+        {
+            const double prob = arg(1);
+            return logratio_binom_coeff(arg(0), xo, xn) + (xn - xo) * log(prob / (1. - prob));
+        }
+        double raw_quantile_(double p) const override final
+        {
+            return boost::math::quantile(boost::math::binomial_distribution<>(arg(0), arg(1)), p);
+        }
+        double raw_rand_(rnd_gen &prng) override final
+        {
+            return std::binomial_distribution<unsigned>(arg(0), arg(1))(prng);
+        }
+    };
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////  *** NegativeBinomial Distribution : class ***  ///////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    class NegativeBinomial_Distribution : public Distribution
+    {
+    public:
+        NegativeBinomial_Distribution()
+            : Distribution("negative_binomial",
+                           {{"size", hsp::na::DOUBLE}, {"prob", hsp::na::DOUBLE}},
+                           0., false, hsp::na::DOUBLE, false) { init_discr_helper_(hsp::discr::DEFINED); }
+
+        INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
+
+    protected:
+        double raw_pdf_(double x) const override final
+        {
+            const double size = arg(0);
+            const double prob = arg(1);
+            return exp(log_binom_coeff(x + size - 1., x) + x * log1p(-prob) + size * log(prob));
+        }
+        double raw_cdf_(double x) const override final
+        {
+            return boost::math::ibeta(arg(0), x + 1., arg(1));
+        }
+        double raw_logpdf_(double x) const override final
+        {
+            const double size = arg(0);
+            const double prob = arg(1);
+            return log_binom_coeff(x + size - 1., x) + x * log1p(-prob) + size * log(prob);
+        }
+        double raw_logratio_(double xo, double xn) const override final
+        {
+            const double size = arg(0);
+            const double prob = arg(1);
+            return logratio_binom_coeff(size, xo, xn) + (xn - xo) * log1p(-prob);
+        }
+        double raw_quantile_(double p) const override final
+        {
+            return boost::math::quantile(boost::math::negative_binomial_distribution<>(arg(0), arg(1)), p);
+        }
+        double raw_rand_(rnd_gen &prng) override final
+        {
+            return std::negative_binomial_distribution<unsigned>(arg(0), arg(1))(prng);
+        }
+    };
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////  *** Geometric Distribution : class ***  ///////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    class Geometric_Distribution : public Distribution
+    {
+    public:
+        Geometric_Distribution()
+            : Distribution("geometric",
+                           {{"prob", hsp::na::DOUBLE}},
+                           0., false, hsp::na::DOUBLE, false) { init_discr_helper_(hsp::discr::DEFINED); }
+
+        INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
+
+    protected:
+        double raw_pdf_(double x) const override final
+        {
+            const double prob = arg(0);
+            return prob * pow(1. - prob, x);
+        }
+        double raw_cdf_(double x) const override final
+        {
+            return 1. - pow(1. - arg(0), x + 1);
+        }
+        double raw_logpdf_(double x) const override final
+        {
+            const double prob = arg(0);
+            return log(prob) + x * log1p(-prob);
+        }
+        double raw_logratio_(double xo, double xn) const override final
+        {
+            return (xn - xo) * log1p(-arg(0));
+        }
+        double raw_quantile_(double p) const override final
+        {
+            return boost::math::quantile(boost::math::geometric_distribution<>(arg(0)), p);
+        }
+        double raw_rand_(rnd_gen &prng) override final
+        {
+            return std::geometric_distribution<unsigned>(arg(0))(prng);
+        }
+    };
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////  *** InfecProfile_Ferretti20 : class ***  ///////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// The infectivity profile is considered equal to the distribution
+    /// of the Time from Onset of Symptoms to Transmission 't_ost':
+    /// >	t_ost = <time infection infectee> - <time onset infector>
+    /// Its distribution is modeled as a skew-logistic distribution (generalized logistic type I),
+    /// where the pre-symptomatic values are rescaled as a function of the incubation time 'incub'.
+    /// The arguments to provide are :
+    ///   0) "shape";
+    ///   1) "scale";
+    ///   2) "c_loc" (custom location);
+    ///   3) "mean_incub" (mean incubation period);
+    ///   4) "incub_period" (individual incubation period);
+    /// Note: symtoms can occur after infection (pre-symptomatic transmission),
+    /// i. e. 't_ost' can be negative.
+    ///
+    /// Ref:
+    /// ----
+    /// Ferretti L, Ledda A, Wymant C, Zhao L, Ledda V, Abeler-Dorner L, et al.
+    /// The timing of COVID-19 transmission.
+    /// medRxiv; 2020. p. 2020.09.04.20188516. doi:10.1101/2020.09.04.20188516
+    class InfecProfile_Ferretti20 : public Distribution
+    {
+    public:
+        InfecProfile_Ferretti20()
+            : Distribution("ferretti20",
+                           {{"shape", 5.85}, {"scale", 1.85}, {"c_loc", -4.0}, {"mean_incub", 5.42}, {"incub_period", 5.42}},
+                           0., false, hsp::na::DOUBLE, false) {}
+
+        INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
+
+    protected:
+        double raw_pdf_(double x) const override final
+        {
+            const double a = arg(0); // 'shape'
+            const double s = arg(1); // 'scale'
+            const double m = arg(2); // 'c_loc'
+            const double T = arg(3); // 'mean_incub'
+            const double i = arg(4); // 'incub_period'
+            double tOST = x - i;     // time from onset to transmission
+
+            const double norm_pdf = (s / a) * (1. + (i / T - 1.) * pow(1 + exp(m / s), -a) - (i / T) * pow(1. + exp((m + T) / s), -a));
+
+            if (tOST < 0)
+                tOST *= (T / i);
+
+            return exp((m - tOST) / s) * pow(1. + exp((m - tOST) / s), -a - 1.) / norm_pdf;
+        }
+
+        double raw_cdf_(double x) const override final
+        {
+            const double a = arg(0);   // 'shape'
+            const double s = arg(1);   // 'scale'
+            const double m = arg(2);   // 'c_loc'
+            const double T = arg(3);   // 'mean_incub'
+            const double i = arg(4);   // 'incub_period'
+            const double tOST = x - i; // time from onset to transmission
+
+            const double norm_cdf = (1. + (i / T - 1.) * pow(1 + exp(m / s), -a) - (i / T) * (pow(1. + exp((m + T) / s), -a)));
+
+            if (tOST < 0) // Integrate from -incub_period to tOST
+                return (i / T) * (pow(1. + exp((m - tOST * T / i) / s), -a) - pow(1. + exp((m + T) / s), -a)) / norm_cdf;
+
+            // Integrate from -incub to 0
+            const double F0 = (i / T) * (pow(1. + exp(m / s), -a) - pow(1. + exp((m + T) / s), -a));
+            // Integrate from 0 to t_ost
+            return (F0 + pow(1. + exp((m - tOST) / s), -a) - pow(1. + exp(m / s), -a)) / norm_cdf;
+        }
+    };
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

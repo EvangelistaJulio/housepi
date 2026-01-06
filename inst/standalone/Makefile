@@ -67,7 +67,8 @@ main.o: main.cpp
 
 # To clean objects
 clean:
-	$(RM) main.o {$(MODEL),$(SRC),../models/*}/*.{o,so,exe} ../template/src/*
+	$(RM) main.o {$(MODEL),$(SRC),../models/*}/*.{o,so,exe}
+	$(RM) -r ../template/src/
 
 # Run make in debugging mode using standard housepi files
 debug:

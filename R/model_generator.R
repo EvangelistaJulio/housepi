@@ -444,9 +444,9 @@ HousepiGenerator <- R6::R6Class(
 
       # compile the dynamic library
       withr::with_envvar(
-        get_cpp_environment_flags(paths = user_paths,
-                                  flags = user_flags,
-                                  linkers = user_linkers),
+        get_cpp_envvar_flags(paths = user_paths,
+                             flags = user_flags,
+                             linkers = user_linkers),
         pkgbuild::compile_dll(private$.cache_dir,
                               quiet = private$.quiet,
                               compile_attributes = FALSE,
@@ -563,7 +563,7 @@ HousepiGenerator <- R6::R6Class(
     },
 
     #' @field setup
-    #' A `list` wiht last setup used by the build process.
+    #' A `list` with the last setup used by the build process.
     setup = function(value) {
       if (!missing(value)) stop_h("'setup' is read only.")
       private$.rcpp$export_setup()
@@ -597,15 +597,16 @@ HousepiGenerator <- R6::R6Class(
       # store raw flags for later checks
       private$.last_user_flags <- user_options$user_flags
 
-      if (choice == "blank") private$.initialize_blank_model()
-      else if (dir.exists(choice)) private$.initialize_custom_model(
-        choice, as_template, force
-      )
-      else if (is.na(get_template_dir(choice))) stop_h(
-        sprintf("'%s' is not a folder nor a template name.", choice),
-        find_closest_template_name(choice)
-      )
-      else private$.initialize_template_model(choice, force)
+      if (choice == "blank") {
+        private$.initialize_blank_model()
+      } else if (dir.exists(choice)) {
+        private$.initialize_custom_model(choice, as_template, force)
+      } else if (!is.na(get_template_dir(choice))) {
+        private$.initialize_template_model(choice, force)
+      } else {
+        stop_h(sprintf("'%s' is not a folder nor a template name.", choice),
+               find_closest_template_name(choice))
+      }
 
       # finally recompile only the model script, if necessary.
       if (private$.need_compile) do.call(private$.compile, user_options)

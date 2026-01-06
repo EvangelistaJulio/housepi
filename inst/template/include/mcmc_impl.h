@@ -27,6 +27,229 @@
 #include <omp.h>
 #endif
 
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////  Setup : struct  ////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+struct Setup
+{
+    Setup() : unif_(0., 1.) {}
+    ~Setup() = default;
+
+    const str_vec file_headers = {"steps", "burnin", "thin",
+                                  "adapt", "chains", "threads",
+                                  "id_draws", "seed", "progress"};
+
+    unsigned long n_steps = 1;  /// n. iterations
+    unsigned long n_burnin = 0; /// n. burnin iterations
+    unsigned long n_thin = 1;   /// n. thinning iterations
+    unsigned long n_adapt = 0;  /// n. (finite) adaptive steps
+    unsigned long n_chains = 1; /// n. chains
+    unsigned n_threads = 1;     /// n. of OMP threads
+    std::int32_t seed;          /// random generator seed
+    unsigned long progress = 1; /// thinning seconds for progress bar
+    unsigned long n_rungs = 0;  /// n. of rungs
+
+    unsigned long c_sample_size = 0; /// single chain sample size
+    unsigned long c_n_sweeps = 0;    /// single chain n. of sweeps
+    double inv_T = 1.;               /// inverse temperature
+    str_vec id_draws = {};           /// augmented trace to save
+
+    unsigned long chain = 1; /// current MCMC chain
+    unsigned long rung = 0;  /// current MCMC thermodynamic rung
+
+    bool is_power_post() const { return n_rungs > 0; }
+    std::string fmt_progtxt();
+
+    void set_n_threads();
+    void build(const u_dict<str_vec> &deftable);
+    void assert_mcmc_setup();
+    void drop_mcmc_adapt();
+
+    // progress bar
+    void prog_set_text(const std::string &text = hsp::na::STRING)
+    {
+        progressbar_.set_text(text == hsp::na::STRING ? fmt_progtxt() : text);
+    }
+    void prog_declare(const std::string &text = hsp::na::STRING)
+    {
+        prog_set_text(text);
+        progressbar_.set_thintime(progress);
+    }
+    void prog_open_for_inference() { progressbar_.open(c_n_sweeps * n_chains); }
+    void prog_open_for_power_post() { progressbar_.open(c_n_sweeps * n_chains * (n_rungs + 1)); }
+    void prog_update() { progressbar_.update(); }
+    void prog_close() { progressbar_.close(); }
+    void prog_crash() { progressbar_.crash(); }
+
+    // Pseudo Random Number Geenerator
+    void set_prng_seed();
+    rnd_gen &prng() { return (this->*get_prng_)(); }
+    double unif() { return unif_(prng()); }
+
+private:
+    hsp::progress::Bar progressbar_; // progress bar
+
+    rnd_gen prng_; // Mersenne Twister 19937 generator (32 or 64 bit)
+    rnd_gen &(Setup::*get_prng_)();
+    rnd_gen &do_prng_unique_thread_() { return prng_; }
+    std::uniform_real_distribution<double> unif_; // uniform sampler
+
+#ifdef _OPENMP
+    std::vector<rnd_gen> prng_parallel_ = {}; // parallel generators (for multi-threading)
+    rnd_gen &do_prng_parallel_threads_() { return prng_parallel_[omp_get_thread_num()]; }
+#endif
+};
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  DataWide : struct  ///////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+struct DataWide
+{
+    str_vec headers = {};
+
+    // list of all infected statuses in the dataset
+    int_vec all_infected_status_list = {};
+    std::vector<dbl_vec> smpl_values = {};
+    std::vector<size_t> head_class_house_indexes = {};
+
+    ReportIndividual report_indiv;
+    ReportHousehold report_house;
+    ReportHouseSizes report_hh_size;
+
+    /////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////  DataWide : constructor  ///////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////
+
+    DataWide() {}
+    ~DataWide() = default;
+
+    Household &operator()(size_t H) { return house_vector_[H]; }
+    const Household &operator()(size_t H) const { return house_vector_.at(H); }
+    Household &operator()(const std::string &house_id) { return (*this)(house_id_to_index_(house_id)); }
+    const Household &operator()(const std::string &house_id) const { return (*this)(house_id_to_index_(house_id)); }
+
+    /////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////  DataWide : getter  //////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////
+
+    bool is_empty() const { return house_vector_.empty(); }
+    Household copy(size_t H) const { return house_vector_[H]; }
+
+    /////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////  DataWide : setter  //////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////
+
+    void build(const u_dict<str_vec> &deftable);
+    void multiplicity_build(const u_dict<str_vec> &deftable, bool is_any_augm = false);
+
+    void init_draws(unsigned long sample_size);
+    void store_draws(unsigned long smpl_count);
+
+    /////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////  DataWide : iterators  ///////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////
+
+    auto begin() { return house_vector_.begin(); }
+    auto begin() const { return house_vector_.begin(); }
+    auto end() { return house_vector_.end(); }
+    auto end() const { return house_vector_.end(); }
+
+    template <typename T>
+    class View
+    {
+        // conditional to select the vector type if constant or not
+        using VectorRef = std::conditional_t<std::is_const<T>::value,
+                                             const std::vector<Household> &,
+                                             std::vector<Household> &>;
+
+    public:
+        VectorRef vec;
+        const std::vector<size_t> &indexes; /// NOTE: no need to copy here
+
+        View(VectorRef m, const std::vector<size_t> &i)
+            : vec(m), indexes(i) {}
+
+        class iterator
+        {
+        public:
+            iterator(View *v, size_t p) : view_(v), pos_(p) {}
+
+            T &operator*() const { return view_->vec[view_->indexes[pos_]]; }
+            T *operator->() const { return &view_->vec[view_->indexes[pos_]]; }
+
+            iterator &operator++()
+            {
+                ++pos_;
+                return *this;
+            }
+            iterator operator++(int)
+            {
+                iterator tmp = *this;
+                ++(*this);
+                return tmp;
+            }
+
+            bool operator==(const iterator &other) const { return pos_ == other.pos_; }
+            bool operator!=(const iterator &other) const { return !(*this == other); }
+
+        private:
+            View *view_;
+            size_t pos_;
+        };
+
+        iterator begin() { return iterator(this, 0); }
+        iterator end() { return iterator(this, indexes.size()); }
+    };
+
+    View<Household> restricted() { return View<Household>(house_vector_, head_class_house_indexes); }
+    View<const Household> restricted() const { return View<const Household>(house_vector_, head_class_house_indexes); }
+    Household &restricted(size_t R) { return house_vector_[head_class_house_indexes[R]]; }
+
+private:
+    std::vector<Household> house_vector_ = {};
+    u_dict<size_t> hhid_to_index_ = {};
+
+    size_t house_id_to_index_(const std::string &house_id) const
+    {
+        if (hhid_to_index_.count(house_id))
+            return hhid_to_index_.at(house_id);
+        throw std::invalid_argument(
+            "Index '" + house_id + "' did not match any household in the data.");
+    }
+
+    /// Clear data report.
+    void build_helper_clear_data_();
+    /// Use the loaded data to fill-in the respective report.
+    void build_helper_fill_report_data_();
+};
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////  DataLong : struct  ///////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+struct DataLong
+{
+    str_vec headers = {};
+    std::vector<u_dict<dbl_vec>> indiv_datalist = {};
+
+    DataLong(DataWide &ptr)
+        : pDataWide_(ptr) {}
+    ~DataLong() = default;
+
+    void build(const u_dict<str_vec> &deftable);
+
+private:
+    DataWide &pDataWide_; // pointer to external struct
+};
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  MCMC : Impl : class  ////////////////////////////////////
@@ -46,9 +269,8 @@ public:
          std::function<double(Household &)> func_household_log_lik,
          std::function<void(Household &)> func_simulate_house,
          std::function<void(Household &, Individual &)> func_update_cache)
-        : setup(), param(*this),
-          data_wide(*this), multiplicity(*this), data_long(*this),
-          group_rates(*this), infec_profile(*this), augm(*this),
+        : setup(), data_wide(), data_long(data_wide),
+          param(*this), group_rates(*this), infec_profile(*this), augm(*this),
           callback_init_inference_(std::move(func_init_inference)),
           callback_init_simulation_(std::move(func_init_simulation)),
           callback_house_log_lik_(std::move(func_household_log_lik)),
@@ -56,80 +278,9 @@ public:
           callback_update_cache_(std::move(func_update_cache)) {}
     ~Impl() = default;
 
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////  MCMC : Impl : Setup : struct  /////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
-
-    /// Implementation of Setup.
-    struct Setup
-    {
-        Setup() : unif_(0., 1.) {}
-        ~Setup() = default;
-
-        const str_vec file_headers = {"steps", "burnin", "thin",
-                                      "adapt", "chains", "threads",
-                                      "id_draws", "seed", "progress"};
-
-        unsigned long n_steps = 1;  /// n. iterations
-        unsigned long n_burnin = 0; /// n. burnin iterations
-        unsigned long n_thin = 1;   /// n. thinning iterations
-        unsigned long n_adapt = 0;  /// n. (finite) adaptive steps
-        unsigned long n_chains = 1; /// n. chains
-        unsigned n_threads = 1;     /// n. of OMP threads
-        std::int32_t seed;          /// random generator seed
-        unsigned long progress = 1; /// thinning seconds for progress bar
-        unsigned long n_rungs = 0;  /// n. of rungs
-
-        unsigned long c_sample_size = 0; /// single chain sample size
-        unsigned long c_n_sweeps = 0;    /// single chain n. of sweeps
-        double inv_T = 1.;               /// inverse temperature
-        str_vec id_draws = {};           /// augmented trace to save
-
-        unsigned long chain = 1; /// current MCMC chain
-        unsigned long rung = 0;  /// current MCMC thermodynamic rung
-
-        bool is_power_post() const { return n_rungs > 0; }
-        std::string fmt_progtxt();
-
-        void set_n_threads();
-        void build(const u_dict<str_vec> &deftable);
-        void assert_mcmc_setup();
-        void drop_mcmc_adapt();
-
-        // progress bar
-        void prog_set_text(const std::string &text = hsp::na::STRING)
-        {
-            progressbar_.set_text(text == hsp::na::STRING ? fmt_progtxt() : text);
-        }
-        void prog_declare(const std::string &text = hsp::na::STRING)
-        {
-            prog_set_text(text);
-            progressbar_.set_thintime(progress);
-        }
-        void prog_open_for_inference() { progressbar_.open(c_n_sweeps * n_chains); }
-        void prog_open_for_power_post() { progressbar_.open(c_n_sweeps * n_chains * (n_rungs + 1)); }
-        void prog_update() { progressbar_.update(); }
-        void prog_close() { progressbar_.close(); }
-        void prog_crash() { progressbar_.crash(); }
-
-        // Pseudo Random Number Geenerator
-        void set_prng_seed();
-        rnd_gen &prng() { return (this->*get_prng_)(); }
-        double unif() { return unif_(prng()); }
-
-    private:
-        hsp::progress::Bar progressbar_; // progress bar
-
-        rnd_gen prng_; // Mersenne Twister 19937 generator (32 or 64 bit)
-        rnd_gen &(Setup::*get_prng_)();
-        rnd_gen &do_prng_unique_thread_() { return prng_; }
-        std::uniform_real_distribution<double> unif_; // uniform sampler
-
-#ifdef _OPENMP
-        std::vector<rnd_gen> prng_parallel_ = {}; // parallel generators (for multi-threading)
-        rnd_gen &do_prng_parallel_threads_() { return prng_parallel_[omp_get_thread_num()]; }
-#endif
-    } setup;
+    Setup setup;
+    DataWide data_wide;
+    DataLong data_long;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////  MCMC : Impl : Parameter : struct  ///////////////////////////
@@ -211,184 +362,6 @@ public:
         void build_constant_parameter_(const u_dict<str_vec> &deftable, size_t k);
         void build_parameter_to_sample_(const u_dict<str_vec> &deftable, size_t k);
     } param;
-
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////  MCMC : Impl : DataWide : struct  ////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
-
-    /// Implementation of individidual data wide format.
-    struct DataWide
-    {
-        str_vec headers = {};
-
-        // list of all infected statuses in the dataset
-        int_vec all_infected_status_list = {};
-        std::vector<dbl_vec> smpl_values = {};
-
-        ReportIndividual report_indiv;
-        ReportHousehold report_house;
-        ReportHouseSizes report_hh_size;
-
-        /////////////////////////////////////////////////////////////////////////////////////////
-        /////////////////////////  MCMC : Impl : DataSet : constructor  /////////////////////////
-        /////////////////////////////////////////////////////////////////////////////////////////
-
-        DataWide(MCMC::Impl &ptr)
-            : pImpl_(ptr) {}
-        ~DataWide() = default;
-
-        Household &operator()(size_t H) { return house_vector_[H]; }
-        const Household &operator()(size_t H) const { return house_vector_.at(H); }
-        Household &operator()(const std::string &house_id) { return (*this)(house_id_to_index_(house_id)); }
-        const Household &operator()(const std::string &house_id) const { return (*this)(house_id_to_index_(house_id)); }
-
-        /////////////////////////////////////////////////////////////////////////////////////////
-        ////////////////////////////  MCMC : Impl : DataWide : getter  ///////////////////////////
-        /////////////////////////////////////////////////////////////////////////////////////////
-
-        bool is_empty() const { return house_vector_.empty(); }
-        Household copy(size_t H) const { return house_vector_[H]; }
-
-        /////////////////////////////////////////////////////////////////////////////////////////
-        ////////////////////////////  MCMC : Impl : DataWide : setter  ///////////////////////////
-        /////////////////////////////////////////////////////////////////////////////////////////
-
-        void build(const u_dict<str_vec> &deftable);
-
-        void init_draws(unsigned long sample_size);
-        void store_draws(unsigned long smpl_count);
-
-        /////////////////////////////////////////////////////////////////////////////////////////
-        ///////////////////////////  MCMC : Impl : DataWide : iterators  /////////////////////////
-        /////////////////////////////////////////////////////////////////////////////////////////
-
-        auto begin() { return house_vector_.begin(); }
-        auto begin() const { return house_vector_.begin(); }
-        auto end() { return house_vector_.end(); }
-        auto end() const { return house_vector_.end(); }
-
-        template <typename T>
-        class View
-        {
-            // conditional to select the vector type if constant or not
-            using VectorRef = std::conditional_t<std::is_const<T>::value,
-                                                 const std::vector<Household> &,
-                                                 std::vector<Household> &>;
-
-        public:
-            VectorRef vec;
-            const std::vector<size_t> &indexes; /// NOTE: no need to copy here
-
-            View(VectorRef m, const std::vector<size_t> &i)
-                : vec(m), indexes(i) {}
-
-            class iterator
-            {
-            public:
-                iterator(View *v, size_t p) : view_(v), pos_(p) {}
-
-                T &operator*() const { return view_->vec[view_->indexes[pos_]]; }
-                T *operator->() const { return &view_->vec[view_->indexes[pos_]]; }
-
-                iterator &operator++()
-                {
-                    ++pos_;
-                    return *this;
-                }
-                iterator operator++(int)
-                {
-                    iterator tmp = *this;
-                    ++(*this);
-                    return tmp;
-                }
-
-                bool operator==(const iterator &other) const { return pos_ == other.pos_; }
-                bool operator!=(const iterator &other) const { return !(*this == other); }
-
-            private:
-                View *view_;
-                size_t pos_;
-            };
-
-            iterator begin() { return iterator(this, 0); }
-            iterator end() { return iterator(this, indexes.size()); }
-        };
-
-        View<Household> restricted() { return View<Household>(house_vector_, pImpl_.multiplicity.head_class_house_indexes); }
-        View<const Household> restricted() const { return View<const Household>(house_vector_, pImpl_.multiplicity.head_class_house_indexes); }
-        Household &restricted(size_t R) { return house_vector_[pImpl_.multiplicity.head_class_house_indexes[R]]; }
-
-    private:
-        MCMC::Impl &pImpl_; // pointer to external class
-
-        std::vector<Household> house_vector_ = {};
-        u_dict<size_t> hhid_to_index_ = {};
-
-        size_t house_id_to_index_(const std::string &house_id) const
-        {
-            if (hhid_to_index_.count(house_id))
-                return hhid_to_index_.at(house_id);
-            throw std::invalid_argument(
-                "Index '" + house_id + "' did not match any household in the data.");
-        }
-
-        /// Clear data report.
-        void build_helper_clear_data_();
-        /// Use the loaded data to fill-in the respective report.
-        void build_helper_fill_report_data_();
-    } data_wide;
-
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////  MCMC : Impl : Multiplicity : struct  /////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
-
-    /// Implementation of multiplicity optimization.
-    struct Multiplicity
-    {
-        std::vector<size_t> head_class_house_indexes = {};
-
-        /////////////////////////////////////////////////////////////////////////////////////////
-        ///////////////////////  MCMC : Impl : Multiplicity : constructor  //////////////////////
-        /////////////////////////////////////////////////////////////////////////////////////////
-
-        Multiplicity(MCMC::Impl &ptr)
-            : pImpl_(ptr) {}
-        ~Multiplicity() = default;
-
-        void build(const u_dict<str_vec> &deftable);
-
-    private:
-        MCMC::Impl &pImpl_; // pointer to external class
-
-    } multiplicity;
-
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////  MCMC : Impl : DataLong : struct  ///////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
-
-    /// Implementation of additional individual data long format.
-    struct DataLong
-    {
-        str_vec headers = {};
-        std::vector<u_dict<dbl_vec>> indiv_datalist = {};
-
-        /////////////////////////////////////////////////////////////////////////////////////////
-        //////////////////////////  MCMC : Impl : DataLong : constructor  ///////////////////////
-        /////////////////////////////////////////////////////////////////////////////////////////
-
-        DataLong(MCMC::Impl &ptr)
-            : pImpl_(ptr) {}
-        ~DataLong() = default;
-
-        /////////////////////////////////////////////////////////////////////////////////////////
-        ////////////////////////////  MCMC : Impl : DataLong : setter  //////////////////////////
-        /////////////////////////////////////////////////////////////////////////////////////////
-
-        void build(const u_dict<str_vec> &deftable);
-
-    private:
-        MCMC::Impl &pImpl_; // pointer to external class
-    } data_long;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////  MCMC : Impl : GroupRates : class  ///////////////////////////
@@ -478,8 +451,9 @@ public:
         void init_lookup_();
         void clear_lookup_();
 
-        void build_generic_profile_(const u_dict<str_vec> &deftable);
-        void build_augmented_profile_(const u_dict<str_vec> &deftable);
+        void build_generic_profile_(const u_dict<str_vec> &input);
+        void build_augmented_profile_(const u_dict<str_vec> &input);
+        std::unique_ptr<Distribution> helper_build_profile_(const u_dict<std::string> &input);
 
         //===== Functional methods for getter methods =====//
         double (InfecProfile::*inst_)(const Individual *, double) = &InfecProfile::do_inst_default_;

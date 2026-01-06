@@ -7,9 +7,6 @@
 \format{
 A data frame with 28,977 rows and 2 columns
 }
-\source{
-\url{https://academic.oup.com/aje/article/174/5/505/117666}
-}
 \usage{
 data(flu_1918_baltimora)
 }

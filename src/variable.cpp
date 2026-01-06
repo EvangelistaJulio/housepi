@@ -60,146 +60,145 @@ void Proposal::adapt(double ratio)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////// *** Sample_Proposal : class *** /////////////////////////////////
+////////////////////////////////  *** Proposal : implementations ***  /////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Proposal is just sample from model/prior.
-/// NOTE: this is just a place holder within Variable.
-class Sample_Proposal : public Proposal
+namespace
 {
-public:
-    Sample_Proposal() { name_ = "sample"; }
-};
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////  *** Sample_Proposal : class ***  ////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////// *** Uniform_Proposal : class *** /////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-class Uniform_Proposal : public Proposal
-{
-public:
-    Uniform_Proposal(double proposal_scale = hsp::na::DOUBLE, bool is_discrete = false)
-        : Proposal("uniform", proposal_scale, {0, 1}, is_discrete) { user_reset(); }
-
-    void user_reset() override final
+    /// Proposal is just sample from model/prior.
+    /// NOTE: this is just a place holder within Variable.
+    class Sample_Proposal : public Proposal
     {
-        pDistr_->init_attr(hsp::params::MIN, Attribute(-user_scale_));
-        pDistr_->init_attr(hsp::params::MAX, Attribute(user_scale_));
-    }
+    public:
+        Sample_Proposal() { name_ = "sample"; }
+    };
 
-    double propose(rnd_gen &prng, double xo) override final { return xo + pDistr_->rand(prng); }
-    double logratio(double, double) const override final { return 0.; }
-};
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////  *** Uniform_Proposal : class ***  ////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////// *** Normal_Proposal : class *** //////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-class Normal_Proposal : public Proposal
-{
-public:
-    Normal_Proposal(double proposal_scale = hsp::na::DOUBLE, bool is_discrete = false)
-        : Proposal("normal", proposal_scale, {1}, is_discrete) { user_reset(); }
-
-    void user_reset() override final
+    class Uniform_Proposal : public Proposal
     {
-        pDistr_->init_attr("mean", Attribute(0.));
-        pDistr_->init_attr("sd", Attribute(user_scale_));
-    }
+    public:
+        Uniform_Proposal(double proposal_scale = hsp::na::DOUBLE, bool is_discrete = false)
+            : Proposal("uniform", proposal_scale, {0, 1}, is_discrete) { user_reset(); }
 
-    double propose(rnd_gen &prng, double xo) override final { return xo + pDistr_->rand(prng); }
-    double logratio(double, double) const override final { return 0.; }
-};
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////// *** Lognorm_Proposal : class *** /////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-class Lognorm_Proposal : public Proposal
-{
-public:
-    Lognorm_Proposal(double proposal_scale = 1., bool is_discrete = false)
-        : Proposal("lognormal", proposal_scale, {1}, is_discrete) { user_reset(); }
-
-    void user_reset() override final
-    {
-        pDistr_->init_attr("meanlog", Attribute(0.));
-        pDistr_->init_attr("sdlog", Attribute(user_scale_));
-    }
-
-    void associate_location(const Attribute &other) override final
-    {
-        pAttr_loc_ = other.get_ptr();
-
-        if (pAttr_loc_ == nullptr)
+        void user_reset() override final
         {
-            propose_ = &Lognorm_Proposal::do_propose_;
-            logratio_ = &Lognorm_Proposal::do_logratio_;
+            pDistr_->init_attr(hsp::params::MIN, Attribute(-user_scale_));
+            pDistr_->init_attr(hsp::params::MAX, Attribute(user_scale_));
         }
-        else
+
+        double propose(rnd_gen &prng, double xo) override final { return xo + pDistr_->rand(prng); }
+        double logratio(double, double) const override final { return 0.; }
+    };
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////  *** Normal_Proposal : class ***  /////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+    class Normal_Proposal : public Proposal
+    {
+    public:
+        Normal_Proposal(double proposal_scale = hsp::na::DOUBLE, bool is_discrete = false)
+            : Proposal("normal", proposal_scale, {1}, is_discrete) { user_reset(); }
+
+        void user_reset() override final
         {
-            propose_ = &Lognorm_Proposal::do_propose_loc_;
-            logratio_ = &Lognorm_Proposal::do_logratio_loc_;
+            pDistr_->init_attr("mean", Attribute(0.));
+            pDistr_->init_attr("sd", Attribute(user_scale_));
+        }
+
+        double propose(rnd_gen &prng, double xo) override final { return xo + pDistr_->rand(prng); }
+        double logratio(double, double) const override final { return 0.; }
+    };
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////  *** Lognorm_Proposal : class ***  ////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+    class Lognorm_Proposal : public Proposal
+    {
+    public:
+        Lognorm_Proposal(double proposal_scale = 1., bool is_discrete = false)
+            : Proposal("lognormal", proposal_scale, {1}, is_discrete) { user_reset(); }
+
+        void user_reset() override final
+        {
+            pDistr_->init_attr("meanlog", Attribute(0.));
+            pDistr_->init_attr("sdlog", Attribute(user_scale_));
+        }
+
+        void associate_location(const Attribute &other) override final
+        {
+            pAttr_loc_ = other.get_ptr();
+
+            if (pAttr_loc_ == nullptr)
+            {
+                propose_ = &Lognorm_Proposal::do_propose_;
+                logratio_ = &Lognorm_Proposal::do_logratio_;
+            }
+            else
+            {
+                propose_ = &Lognorm_Proposal::do_propose_loc_;
+                logratio_ = &Lognorm_Proposal::do_logratio_loc_;
+            }
+        };
+
+        double propose(rnd_gen &prng, double xo) override final { return (this->*propose_)(prng, xo); }
+        double logratio(double xo, double xn) const override final { return (this->*logratio_)(xo, xn); }
+
+    private:
+        const Attribute *pAttr_loc_ = nullptr; /// pointer to attribute location
+
+        double (Lognorm_Proposal::*propose_)(rnd_gen &, double) = &Lognorm_Proposal::do_propose_;
+        double do_propose_(rnd_gen &prng, double xo) { return xo * pDistr_->rand(prng); }
+        double do_propose_loc_(rnd_gen &prng, double xo)
+        {
+            const double loc = pAttr_loc_->get();
+            return loc + (xo - loc) * pDistr_->rand(prng);
+        }
+
+        double (Lognorm_Proposal::*logratio_)(double, double) const = &Lognorm_Proposal::do_logratio_;
+        double do_logratio_(double xo, double xn) const { return std::log(xo / xn); }
+        double do_logratio_loc_(double xo, double xn) const
+        {
+            const double loc = pAttr_loc_->get();
+            return std::log((xo - loc) / (xn - loc));
         }
     };
 
-    double propose(rnd_gen &prng, double xo) override final { return (this->*propose_)(prng, xo); }
-    double logratio(double xo, double xn) const override final { return (this->*logratio_)(xo, xn); }
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////  proposer switch  //////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-private:
-    const Attribute *pAttr_loc_ = nullptr; /// pointer to attribute location
-
-    double (Lognorm_Proposal::*propose_)(rnd_gen &, double) = &Lognorm_Proposal::do_propose_;
-    double do_propose_(rnd_gen &prng, double xo) { return xo * pDistr_->rand(prng); }
-    double do_propose_loc_(rnd_gen &prng, double xo)
+    /// Switchboard to select the custom metropolis proposal.
+    std::unique_ptr<Proposal> proposer_switch(const std::string &proposal = hsp::na::STRING,
+                                              double proposal_scale = hsp::na::DOUBLE,
+                                              bool is_discrete = false)
     {
-        const double loc = pAttr_loc_->get();
-        return loc + (xo - loc) * pDistr_->rand(prng);
+        const str_vec options = {"sample", "uniform", "normal", "lognormal"};
+
+        if (hsp::na::is(proposal))
+            return std::make_unique<Proposal>(std::make_unique<Distribution>());
+
+        if (proposal == "uniform")
+            return std::make_unique<Uniform_Proposal>(proposal_scale, is_discrete);
+
+        if (proposal == "normal")
+            return std::make_unique<Normal_Proposal>(proposal_scale, is_discrete);
+
+        if (proposal == "lognormal")
+            return std::make_unique<Lognorm_Proposal>(proposal_scale, is_discrete);
+
+        throw std::invalid_argument(
+            "Unknown proposal '" + proposal + "'." + hsp::str::find_closest(proposal, options));
     }
-
-    double (Lognorm_Proposal::*logratio_)(double, double) const = &Lognorm_Proposal::do_logratio_;
-    double do_logratio_(double xo, double xn) const { return std::log(xo / xn); }
-    double do_logratio_loc_(double xo, double xn) const
-    {
-        const double loc = pAttr_loc_->get();
-        return std::log((xo - loc) / (xn - loc));
-    }
-};
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  proposer switch  //////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Switchboard to select the custom metropolis proposal.
-std::unique_ptr<Proposal> proposer_switch(const std::string &proposal = hsp::na::STRING,
-                                          double proposal_scale = hsp::na::DOUBLE,
-                                          bool is_discrete = false)
-{
-    const str_vec options = {"sample", "uniform", "normal", "lognormal"};
-
-    if (hsp::na::is(proposal))
-        return std::make_unique<Proposal>(std::make_unique<Distribution>());
-
-    if (proposal == "uniform")
-        return std::make_unique<Uniform_Proposal>(proposal_scale, is_discrete);
-
-    if (proposal == "normal")
-        return std::make_unique<Normal_Proposal>(proposal_scale, is_discrete);
-
-    if (proposal == "lognormal")
-        return std::make_unique<Lognorm_Proposal>(proposal_scale, is_discrete);
-
-    throw std::invalid_argument(
-        "Unknown proposal '" + proposal + "'." + hsp::str::find_closest(proposal, options));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -309,7 +308,6 @@ void Variable::init_distr_reshaping(bool discr)
 }
 
 /// Helper with degenerate range.
-
 void Variable::helper_degenerate_range_()
 {
     // skip if one of the range extremes is not provided

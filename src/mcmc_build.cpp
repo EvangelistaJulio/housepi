@@ -20,27 +20,25 @@
 #include "mcmc_impl.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  MCMC : Impl : Setup : build  //////////////////////////////////
+/////////////////////////////////////////  Setup : build  /////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Default seed for pseudo random number generator.
-std::int32_t default_setup_seed()
+void Setup::build(const u_dict<str_vec> &input)
 {
     const auto time_raw = std::chrono::steady_clock::now().time_since_epoch().count();
     // ensure time_now is 64bit
     const std::uint64_t time_now = static_cast<std::uint64_t>(time_raw);
     // xor between upper and lower part of time stamp
     const std::uint64_t mixed = time_now ^ (time_now >> 32);
+    
+    // default seed for pseudo random number generator
     // note: constrain to 32bit for compatibility with R (mask sign bit)
-    return static_cast<std::int32_t>(mixed & 0x7FFFFFFF);
-}
+    seed = static_cast<std::int32_t>(mixed & 0x7FFFFFFF);
 
-void MCMC::Impl::Setup::build(const u_dict<str_vec> &input)
-{
-    // reset internal states
-    seed = default_setup_seed(); // default seed
-    chain = 1;                   // current chain
-    rung = 0;                    // current thermodynamic rung
+    // current chain
+    chain = 1;
+    // current thermodynamic rung
+    rung = 0;
 
     if (!input.empty())
     {
@@ -95,7 +93,7 @@ void MCMC::Impl::Setup::build(const u_dict<str_vec> &input)
 }
 
 /// Set the number of threads for parrell computations (default is 1).
-void MCMC::Impl::Setup::set_n_threads()
+void Setup::set_n_threads()
 {
     if (n_threads == 0)
         throw std::invalid_argument("N. of threads was not greater than 0.");
@@ -123,11 +121,11 @@ void MCMC::Impl::Setup::set_n_threads()
 }
 
 /// Assign seed for random generators.
-void MCMC::Impl::Setup::set_prng_seed()
+void Setup::set_prng_seed()
 {
     // seed for the unique thread rand num generator
     prng_.seed(seed);
-    get_prng_ = &Impl::Setup::do_prng_unique_thread_;
+    get_prng_ = &Setup::do_prng_unique_thread_;
 
 #ifdef OPENMP
     // seeds for the case of parallelization
@@ -135,7 +133,7 @@ void MCMC::Impl::Setup::set_prng_seed()
     {
         // create different generators for different parallel threads
         // note: they are used only to parallelize data augmentantion
-        get_prng_ = &Impl::Setup::do_prng_parallel_threads_;
+        get_prng_ = &Setup::do_prng_parallel_threads_;
 
         std::uniform_int_distribution<unsigned long> seed_generator(0, 0XFFFFFFFF);
 
@@ -146,7 +144,7 @@ void MCMC::Impl::Setup::set_prng_seed()
 #endif
 }
 
-void MCMC::Impl::Setup::assert_mcmc_setup()
+void Setup::assert_mcmc_setup()
 {
     if (inv_T < 0. || inv_T > 1.)
         throw std::range_error(
@@ -186,7 +184,7 @@ void MCMC::Impl::Setup::assert_mcmc_setup()
 }
 
 // Drop adaptation steps.
-void MCMC::Impl::Setup::drop_mcmc_adapt()
+void Setup::drop_mcmc_adapt()
 {
     if (n_adapt > 0)
         hsp::msg::warning("Dropped adaptation steps: no parametric MCMC proposals were found.");
@@ -198,7 +196,7 @@ void MCMC::Impl::Setup::drop_mcmc_adapt()
 }
 
 /// The text to print in the Markov chian progress bar.
-std::string MCMC::Impl::Setup::fmt_progtxt()
+std::string Setup::fmt_progtxt()
 {
     if (is_power_post())
         return "power post " + std::to_string(rung) + "/" + std::to_string(n_rungs);
@@ -280,7 +278,8 @@ void Household::recover_buffer_values(bool is_cache_depen)
     obs_log_lik_ = obs_buffer_;
 
     // swap buffer into  cache attributes if cache dependent
-    if (is_cache_depen) {
+    if (is_cache_depen)
+    {
         cache_int_vec_.swap(buffer_cache_int_vec_);
         cache_size_t_vec_.swap(buffer_cache_size_t_vec_);
         cache_dbl_vec_.swap(buffer_cache_dbl_vec_);
@@ -290,12 +289,12 @@ void Household::recover_buffer_values(bool is_cache_depen)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  MCMC::Impl : build data  ////////////////////////////////////
+/////////////////////////////////////  DataWide : build data  /////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Assign data after pre-processing.
-void MCMC::Impl::DataWide::build(const u_dict<str_vec> &input)
+void DataWide::build(const u_dict<str_vec> &input)
 {
     if (input.empty())
         return;
@@ -374,7 +373,7 @@ void MCMC::Impl::DataWide::build(const u_dict<str_vec> &input)
 }
 
 /// Use the loaded data to fill-in the respective report.
-void MCMC::Impl::DataWide::build_helper_clear_data_()
+void DataWide::build_helper_clear_data_()
 {
     headers.clear();
     house_vector_.clear();
@@ -386,7 +385,7 @@ void MCMC::Impl::DataWide::build_helper_clear_data_()
 }
 
 /// Use the loaded data to fill-in the respective report.
-void MCMC::Impl::DataWide::build_helper_fill_report_data_()
+void DataWide::build_helper_fill_report_data_()
 {
     // set report counts
     for (const Household &house : house_vector_)
@@ -430,6 +429,48 @@ void MCMC::Impl::DataWide::build_helper_fill_report_data_()
     }
 }
 
+/// Build multiplicities.
+/// UPDATE: I should find a way to deal internally with multiplicity.
+void DataWide::multiplicity_build(const u_dict<str_vec> &input, bool is_any_augm)
+{
+    head_class_house_indexes.clear();
+    size_t n_houses = report_house.total;
+    if (is_any_augm || (input.size() == 0))
+    {
+        // note: multiplicities are not compatible with data augmentation
+        if (!input.empty())
+            hsp::msg::warning(
+                "Ignored multiplicity optimization: incompatible with data augmentation.");
+
+        // default choice for restricted household indexes
+        head_class_house_indexes.resize(n_houses);
+        for (size_t H = 0; H < n_houses; ++H)
+        {
+            house_vector_[H].set_multiplicity(1, H);
+            head_class_house_indexes[H] = H;
+        }
+    }
+    else
+    {
+        // UPDATE: this error is purely internal
+        if (input.at("house_id").size() != n_houses)
+            throw std::out_of_range(
+                "Multiplicity definitions had different dimensions than data.");
+
+        for (size_t r = 0; r < n_houses; ++r)
+        {
+            Household &house = (*this)(input.at("house_id")[r]);
+            size_t H0 = (*this)(input.at("class_id")[r]).house_index();
+            unsigned long m = hsp::str::toul(input.at("multiplicity")[r]);
+
+            house.set_multiplicity(m, H0);
+
+            if (house.is_multiplicity_head_class())
+                head_class_house_indexes.emplace_back(house.house_index());
+        }
+    }
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////  MCMC : cache attributes  ///////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -461,60 +502,12 @@ void MCMC::cache_house_double_matrix(const std::string &e)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  MCMC : build multiplicities  //////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Build multiplicities.
-// UPDATE I should find a way to deal internally with multiplicity.
-void MCMC::Impl::Multiplicity::build(const u_dict<str_vec> &input)
-{
-    head_class_house_indexes.clear();
-    size_t n_houses = pImpl_.data_wide.report_house.total;
-    if (pImpl_.augm.is_any() || (input.size() == 0))
-    {
-        // note: multiplicities are not compatible with data augmentation
-        if (!input.empty())
-            hsp::msg::warning(
-                "Ignored multiplicity optimization: incompatible with data augmentation.");
-
-        // default choice for restricted household indexes
-        head_class_house_indexes.resize(n_houses);
-        for (size_t H = 0; H < n_houses; ++H)
-        {
-            pImpl_.data_wide(H).set_multiplicity(1, H);
-            head_class_house_indexes[H] = H;
-        }
-    }
-    else
-    {
-        // UPDATE: this error is purely internal
-        if (input.at("house_id").size() != n_houses)
-            throw std::out_of_range(
-                "Multiplicity definitions had different dimensions than data.");
-
-        for (size_t r = 0; r < n_houses; ++r)
-        {
-            Household &house = pImpl_.data_wide(input.at("house_id")[r]);
-            size_t H0 = pImpl_.data_wide(input.at("class_id")[r]).house_index();
-            unsigned long m = hsp::str::toul(input.at("multiplicity")[r]);
-
-            house.set_multiplicity(m, H0);
-
-            if (house.is_multiplicity_head_class())
-                head_class_house_indexes.emplace_back(house.house_index());
-        }
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  MCMC : Impl : DataLong : build  ////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Assign data after pre-processing.
-void MCMC::Impl::DataLong::build(const u_dict<str_vec> &input)
+void DataLong::build(const u_dict<str_vec> &input)
 {
     if (input.empty())
         return;
@@ -535,7 +528,7 @@ void MCMC::Impl::DataLong::build(const u_dict<str_vec> &input)
     // note: this could be moved elsewhere if required
     u_dict<size_t> id_to_index = {};
     size_t c = 0;
-    for (const Household &house : pImpl_.data_wide)
+    for (const Household &house : pDataWide_)
         for (const Individual &member : house)
         {
             if (id_to_index.count(member.id()))
@@ -546,7 +539,7 @@ void MCMC::Impl::DataLong::build(const u_dict<str_vec> &input)
 
     // data-long allocation
     indiv_datalist.clear();
-    indiv_datalist.resize(pImpl_.data_wide.report_indiv.total);
+    indiv_datalist.resize(pDataWide_.report_indiv.total);
 
     for (u_dict<dbl_vec> &xmap : indiv_datalist)
         for (const std::string &key : headers)
@@ -563,7 +556,7 @@ void MCMC::Impl::DataLong::build(const u_dict<str_vec> &input)
         if (!id_to_index.count(id))
         {
             // UPDATE: these errors should be more self-explicative
-            if (pImpl_.data_wide.is_empty())
+            if (pDataWide_.is_empty())
                 throw std::invalid_argument(
                     "Tried to define data long format before wide format.");
             throw std::invalid_argument(
@@ -579,7 +572,7 @@ void MCMC::Impl::DataLong::build(const u_dict<str_vec> &input)
 
     // assign pointers to relative data-long to all individuals
     c = 0;
-    for (Household &house : pImpl_.data_wide)
+    for (Household &house : pDataWide_)
         for (Individual &member : house)
             member.init_pointer_to_data_long(&indiv_datalist.at(c++));
 }

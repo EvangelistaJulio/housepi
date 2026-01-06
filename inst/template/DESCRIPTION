@@ -2,8 +2,7 @@ Package: housepienvironment
 Type: Package
 Title: Household Model Environment
 Version: 0.0.1
-Author: person("Francesco", "Camaglia", email = "francesco.camaglia@pasteur.fr", role = c("aut", "cre"))
-Maintainer: <francesco.camaglia@pasteur.fr>
+Authors@R: person("Francesco", "Camaglia", email = "francesco.camaglia@pasteur.fr", role = c("aut", "cre"))
 Description: This is the core implementation the package housepi. Direct access is deprecated.
 License: GPL (>= 3)
 Encoding: UTF-8

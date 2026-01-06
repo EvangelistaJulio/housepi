@@ -104,7 +104,7 @@ test_that("Log-likelihood of augmented infection time model is correct", {
   augm <- list(infec_time = ~ infec_time@D,
                incub_period = ~ incub_period@D,
                onset_time = ~ onset_time@D)
-  
+
   for (discr in c(FALSE, TRUE)) {
     hhmodel <- new_housepi_model("augmented_infection_time",
                                  discr = discr, quiet = TRUE) |>

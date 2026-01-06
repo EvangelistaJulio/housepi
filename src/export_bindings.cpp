@@ -218,51 +218,85 @@ RCPP_MODULE(housepi_infec_profile)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Auxiliary converter to R NA real values.
-inline double hsp_to_rcpp(double x) { return hsp::na::is(x) ? NA_REAL : x; }
-
-/// Convert R dataframe map of string vectors.
-u_dict<str_vec> rdataframe_to_strmap(SEXP input)
+namespace
 {
-    using namespace Rcpp;
+    /// Auxiliary converter to R NA real values.
+    double hsp_to_rcpp(double x) { return hsp::na::is(x) ? NA_REAL : x; }
 
-    if (Rf_isNull(input))
-        return {};
-
-    DataFrame df(input);
-    CharacterVector colnames = df.names();
-    u_dict<str_vec> output;
-
-    for (R_xlen_t i = 0; i < df.size(); ++i)
+    /// Convert R dataframe map of string vectors.
+    u_dict<str_vec> rdataframe_to_strmap(SEXP input)
     {
-        CharacterVector col = df[i];
-        str_vec col_data(col.begin(), col.end());
-        output[as<std::string>(colnames[i])] = std::move(col_data);
+        using namespace Rcpp;
+
+        if (Rf_isNull(input))
+            return {};
+
+        DataFrame df(input);
+        CharacterVector colnames = df.names();
+        u_dict<str_vec> output;
+
+        for (R_xlen_t i = 0; i < df.size(); ++i)
+        {
+            CharacterVector col = df[i];
+            str_vec col_data(col.begin(), col.end());
+            output[as<std::string>(colnames[i])] = std::move(col_data);
+        }
+
+        return output;
     }
 
-    return output;
-}
-
-/// Convert R dataframe map of double vectors.
-u_dict<std::vector<double>> rdataframe_to_dblmap(SEXP input)
-{
-    using namespace Rcpp;
-
-    if (Rf_isNull(input))
-        return {};
-
-    DataFrame df(input);
-    CharacterVector colnames = df.names();
-    u_dict<std::vector<double>> output;
-
-    for (R_xlen_t i = 0; i < df.size(); ++i)
+    /// Convert R dataframe map of double vectors.
+    u_dict<std::vector<double>> rdataframe_to_dblmap(SEXP input)
     {
-        NumericVector col = df[i];
-        std::vector<double> col_data(col.begin(), col.end());
-        output[as<std::string>(colnames[i])] = std::move(col_data);
+        using namespace Rcpp;
+
+        if (Rf_isNull(input))
+            return {};
+
+        DataFrame df(input);
+        CharacterVector colnames = df.names();
+        u_dict<std::vector<double>> output;
+
+        for (R_xlen_t i = 0; i < df.size(); ++i)
+        {
+            NumericVector col = df[i];
+            std::vector<double> col_data(col.begin(), col.end());
+            output[as<std::string>(colnames[i])] = std::move(col_data);
+        }
+
+        return output;
     }
 
-    return output;
+    /// Export Function argument list to R.
+    Rcpp::NumericVector rcpp_export_args(const Function &f)
+    {
+        using namespace Rcpp;
+
+        size_t n_args = f.n_args();
+        NumericVector vals(n_args);
+        CharacterVector keys(n_args);
+        for (size_t k = 0; k < n_args; ++k)
+        {
+            vals[k] = f.arg(k);
+            keys[k] = f.arg_name(k);
+        }
+        vals.names() = std::move(keys);
+        return vals;
+    }
+
+    /// Export arguments of a Variable which is a function to R.
+    Rcpp::NumericVector rcpp_export_func_args(const Variable &v) { return rcpp_export_args(*v.get_function()); }
+
+    /// Standaridized percentage formatting.
+    double format_percentage(double value, double total) { return std::round(10000. * value / total) / 100.; }
+
+    // Copies src into dest. If destroy_src is true, releases src's storage after copy.
+    template <typename DestNumeric>
+    void helper_vector_flush(DestNumeric dest, std::vector<double> &src)
+    {
+        std::copy(src.begin(), src.end(), dest.begin());
+        std::vector<double>().swap(src);
+    }
 }
 
 #define MAKE_RCPP_IMPORT_METHOD(module, section_name)          \
@@ -283,10 +317,22 @@ MAKE_RCPP_IMPORT_METHOD(setup, "setup")
 MAKE_RCPP_IMPORT_METHOD(infec_profile, "infectivity profile")
 MAKE_RCPP_IMPORT_METHOD(param, "parameters")
 MAKE_RCPP_IMPORT_METHOD(data_wide, "data-wide")
-MAKE_RCPP_IMPORT_METHOD(multiplicity, "multiplicity")
 MAKE_RCPP_IMPORT_METHOD(data_long, "data-long")
 MAKE_RCPP_IMPORT_METHOD(group_rates, "group rates")
 MAKE_RCPP_IMPORT_METHOD(augm, "augmented")
+
+// UPDATE: this will be removed once automatized in C++ reflection
+void MCMC::import_multiplicity(SEXP input)
+{
+    try
+    {
+        pImpl_->data_wide.multiplicity_build(rdataframe_to_strmap(input), pImpl_->augm.is_any());
+    }
+    catch (const std::exception &e)
+    {
+        hsp::msg::error(std::string("While importing ") + "multiplicity" + ":\n" + e.what());
+    }
+}
 
 void MCMC::import_param_for_prediction(SEXP input)
 {
@@ -308,31 +354,6 @@ void MCMC::import_param_for_prediction(SEXP input)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Export Function argument list to R.
-Rcpp::NumericVector rcpp_export_args(const Function &f)
-{
-    using namespace Rcpp;
-
-    size_t n_args = f.n_args();
-    NumericVector vals(n_args);
-    CharacterVector keys(n_args);
-    for (size_t k = 0; k < n_args; ++k)
-    {
-        vals[k] = f.arg(k);
-        keys[k] = f.arg_name(k);
-    }
-    vals.names() = std::move(keys);
-    return vals;
-}
-/// Export arguments of a Variable which is a function to R.
-Rcpp::NumericVector rcpp_export_func_args(const Variable &v) { return rcpp_export_args(*v.get_function()); }
-/// Export arguments of a Variable model to R.
-Rcpp::NumericVector rcpp_export_distr_args(const Variable &v) { return rcpp_export_args(*v.get_distribution()); }
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  MCMC : exports to Rcpp ////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 Rcpp::CharacterVector MCMC::export_param_list_const() const { return Rcpp::wrap(pImpl_->param.list_const); }
 Rcpp::CharacterVector MCMC::export_param_list_sample_standard() const { return Rcpp::wrap(pImpl_->param.list_sample_standard); }
 Rcpp::CharacterVector MCMC::export_param_list_sample_cache() const { return Rcpp::wrap(pImpl_->param.list_sample_cached); }
@@ -345,7 +366,7 @@ Rcpp::CharacterVector MCMC::export_augm_list_discrete() const { return Rcpp::wra
 Rcpp::List MCMC::export_setup() const
 {
     using namespace Rcpp;
-    const Impl::Setup &setup = pImpl_->setup;
+    const Setup &setup = pImpl_->setup;
 
     return List::create(_["steps"] = setup.n_steps,
                         _["burnin"] = setup.n_burnin,
@@ -417,7 +438,7 @@ Rcpp::DataFrame MCMC::export_augmented_data_wide() const
 Rcpp::DataFrame MCMC::helper_export_data_wide_(const str_vec &columns, bool is_status) const
 {
     using namespace Rcpp;
-    const Impl::DataWide &data_wide = pImpl_->data_wide;
+    const DataWide &data_wide = pImpl_->data_wide;
 
     try
     {
@@ -480,7 +501,7 @@ Rcpp::DataFrame MCMC::data_wide_for_simulation() const
 Rcpp::DataFrame MCMC::export_data_long() const
 {
     using namespace Rcpp;
-    const Impl::DataLong &data_long = pImpl_->data_long;
+    const DataLong &data_long = pImpl_->data_long;
 
     try
     {
@@ -529,13 +550,11 @@ Rcpp::DataFrame MCMC::export_data_long() const
 /////////////////////////////////  MCMC : Impl : report exports  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-inline double format_percentage(double value, double total) { return std::round(10000. * value / total) / 100.; }
-
 /// Export current data configurations to R DataFrame.
 Rcpp::DataFrame MCMC::summarise_cases() const
 {
     using namespace Rcpp;
-    const Impl::DataWide &data_wide = pImpl_->data_wide;
+    const DataWide &data_wide = pImpl_->data_wide;
     const ReportIndividual &report_indiv = data_wide.report_indiv;
     const ReportHousehold &report_house = data_wide.report_house;
 
@@ -594,9 +613,8 @@ Rcpp::DataFrame MCMC::summarise_cases() const
 Rcpp::DataFrame MCMC::summarise_house_sizes() const
 {
     using namespace Rcpp;
-    const Impl::DataWide &data_wide = pImpl_->data_wide;
-    const ReportIndividual &report_indiv = data_wide.report_indiv;
-    const ReportHouseSizes &report_hh_size = data_wide.report_hh_size;
+    const ReportIndividual &report_indiv = pImpl_->data_wide.report_indiv;
+    const ReportHouseSizes &report_hh_size = pImpl_->data_wide.report_hh_size;
 
     try
     {
@@ -636,14 +654,6 @@ Rcpp::DataFrame MCMC::summarise_house_sizes() const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  MCMC : Impl : export draws  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-// Copies src into dest. If destroy_src is true, releases src's storage after copy.
-template <typename DestNumeric>
-inline void helper_vector_flush(DestNumeric dest, std::vector<double> &src)
-{
-    std::copy(src.begin(), src.end(), dest.begin());
-    std::vector<double>().swap(src);
-}
 
 /// Export MCMC draws of total log-likelihood posterior samples.
 Rcpp::NumericMatrix MCMC::flush_total_log_lik_draws()
@@ -767,8 +777,7 @@ Rcpp::NumericMatrix MCMC::flush_augm_draws()
 Rcpp::NumericMatrix MCMC::flush_house_log_lik_draws()
 {
     using namespace Rcpp;
-    Impl::DataWide &data_wide = pImpl_->data_wide;
-    Impl::Multiplicity &multiplicity = pImpl_->multiplicity;
+    DataWide &data_wide = pImpl_->data_wide;
 
     try
     {
@@ -781,13 +790,13 @@ Rcpp::NumericMatrix MCMC::flush_house_log_lik_draws()
         CharacterVector headers(n_houses);
 
         // retrieve restricted index by general index of multiplicity head class
-        const size_t n_classes = multiplicity.head_class_house_indexes.size();
+        const size_t n_classes = data_wide.head_class_house_indexes.size();
         std::vector<std::vector<size_t>> house_classes(n_classes);
 
         std::unordered_map<size_t, size_t> restr_idx_map = {};
         restr_idx_map.reserve(n_classes);
         for (size_t R = 0; R < n_classes; ++R)
-            restr_idx_map.emplace(multiplicity.head_class_house_indexes[R], R);
+            restr_idx_map.emplace(data_wide.head_class_house_indexes[R], R);
 
         for (const Household &house : data_wide)
         {
@@ -844,7 +853,7 @@ Rcpp::NumericVector MCMC::helper_param_rcpp_snapshot_() const
 Rcpp::DataFrame MCMC::helper_data_wide_rcpp_snapshot_(const Household &house) const
 {
     using namespace Rcpp;
-    const Impl::DataWide &data_wide = pImpl_->data_wide;
+    const DataWide &data_wide = pImpl_->data_wide;
     const str_vec &headers = data_wide.headers;
 
     const size_t n_rows = house.size();
@@ -880,7 +889,7 @@ Rcpp::DataFrame MCMC::helper_data_wide_rcpp_snapshot_(const Household &house) co
 Rcpp::DataFrame MCMC::helper_data_long_rcpp_snapshot_(const Household &house) const
 {
     using namespace Rcpp;
-    const Impl::DataLong &data_long = pImpl_->data_long;
+    const DataLong &data_long = pImpl_->data_long;
     const str_vec &headers = data_long.headers;
 
     if (data_long.indiv_datalist.empty())

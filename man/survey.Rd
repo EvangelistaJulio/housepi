@@ -3,7 +3,7 @@
 \docType{data}
 \name{survey}
 \alias{survey}
-\title{Household Testing Survey}
+\title{Household testing survey}
 \format{
 A data frame with 2,249 rows and 6 columns
 }

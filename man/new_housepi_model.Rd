@@ -46,6 +46,6 @@ used to run inference and simulation routines.
 }
 \examples{
 hhmodel <- new_housepi_model("blank")
-hhmodel
+print(hhmodel)
 
 }

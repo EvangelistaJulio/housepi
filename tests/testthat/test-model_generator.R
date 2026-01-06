@@ -1,5 +1,9 @@
 library(testthat)
 
+test_that("Compilation flags are ok", {
+  expect_false(system.file("include", package = "BH") == "")
+})
+
 test_that("Model generator inconsistent calls", {
   # blank household model object
   hhgen <- housepi:::HousepiGenerator$new("blank")

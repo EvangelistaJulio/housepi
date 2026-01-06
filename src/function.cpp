@@ -549,233 +549,6 @@ std::string Function::str_summary(bool show_x_arg) const
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  FunctionRegistry : entries  //////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-// FIXME:
-// verify if is_discrete should include Function::is_discrete() || (...)
-
-/// Minus Function.
-class Minus_Function : public Function
-{
-public:
-    Minus_Function() : Function("minus") {}
-    void init_truncation() override final {}
-    bool is_discrete() const override final { return x_arg_.is_discrete(); }
-
-protected:
-    double raw_function_(double x) const override final { return -x; }
-};
-
-/// Subtraction function.
-class Subtraction_Function : public Function
-{
-public:
-    Subtraction_Function() : Function("sub", {{"x2", 0.}}) {}
-    void init_truncation() override final {}
-    bool is_discrete() const override final { return get_arg(0).is_discrete() && x_arg_.is_discrete(); }
-
-protected:
-    double raw_function_(double x) const override final { return x - arg(0); }
-};
-
-/// Division Function.
-class Division_Function : public Function
-{
-public:
-    Division_Function() : Function("div", {{"x2", 1}}) {}
-    void init_truncation() override final {}
-
-protected:
-    double raw_function_(double x) const override final { return x / arg(0); }
-};
-
-/// Power Function.
-class Power_Function : public Function
-{
-public:
-    Power_Function() : Function("pow", {{"x2", 1.}}) {}
-    void init_truncation() override final { init_range_helper_(); }
-    bool is_discrete() const override final { return Function::is_discrete() || (get_arg(0).is_discrete() && x_arg_.is_discrete()); }
-
-protected:
-    double raw_function_(double x) const override final { return std::pow(x, arg(0)); }
-    double raw_logfunc_(double x) const override final { return arg(0) * std::log(x); }
-    double raw_primitive_(double x) const override final
-    {
-        if (std::abs(arg(0) + 1.) < 1.e-10)
-            return std::log(std::abs(x));
-        return std::pow(x, arg(0) + 1.) / (arg(0) + 1.);
-    }
-    double raw_logratio_(double xo, double xn) const override final { return arg(0) * std::log(xn / xo); }
-};
-
-/// SquareRoot Function.
-class SquareRoot_Function : public Function
-{
-public:
-    SquareRoot_Function() : Function("sqrt", {},
-                                     0., false, hsp::na::DOUBLE, false) {}
-    void init_truncation() override final { init_range_min_(); }
-
-protected:
-    double raw_function_(double x) const override final { return std::sqrt(x); }
-    double raw_logfunc_(double x) const override final { return 0.5 * std::log(x); }
-    double raw_primitive_(double x) const override final { return std::pow(x, 1.5) / 1.5; }
-    double raw_logratio_(double xo, double xn) const override final { return 0.5 * std::log(xn / xo); }
-};
-
-/// Exponential Function.
-class Exponential_Function : public Function
-{
-public:
-    Exponential_Function() : Function("exp") {}
-    void init_truncation() override final { init_range_helper_(); }
-
-protected:
-    double raw_function_(double x) const override final { return std::exp(x); }
-    double raw_logfunc_(double x) const override final { return x; }
-    double raw_primitive_(double x) const override final { return std::exp(x); }
-    double raw_logratio_(double xo, double xn) const override final { return xn - xo; }
-};
-
-/// Logarithm Function.
-class Logarithm_Function : public Function
-{
-public:
-    Logarithm_Function() : Function("log", {},
-                                    0., true, hsp::na::DOUBLE, false) {}
-    void init_truncation() override final { init_range_min_(0., true); }
-
-protected:
-    double raw_function_(double x) const override final { return std::log(x); }
-    double raw_logfunc_(double x) const override final { return std::log(std::log(x)); }
-    double raw_primitive_(double x) const override final { return x * std::log(x) - x; }
-    double raw_logratio_(double xo, double xn) const override final { return std::log(std::log(xn) / std::log(xo)); }
-};
-
-/// Sine Function.
-class Sine_Function : public Function
-{
-public:
-    Sine_Function() : Function("sin") {}
-    void init_truncation() override final { init_range_helper_(); }
-
-protected:
-    double raw_function_(double x) const override final { return std::sin(x); }
-    double raw_logfunc_(double x) const override final { return std::log(std::sin(x)); }
-    double raw_primitive_(double x) const override final { return -std::cos(x); }
-    double raw_logratio_(double xo, double xn) const override final { return std::log(std::sin(xn) / std::sin(xo)); }
-};
-
-/// Cosine Function.
-class Cosine_Function : public Function
-{
-public:
-    Cosine_Function() : Function("cos") {}
-    void init_truncation() override final { init_range_helper_(); }
-
-protected:
-    double raw_function_(double x) const override final { return std::cos(x); }
-    double raw_logfunc_(double x) const override final { return std::log(std::cos(x)); }
-    double raw_primitive_(double x) const override final { return std::sin(x); }
-    double raw_logratio_(double xo, double xn) const override final { return std::log(std::cos(xn) / std::cos(xo)); }
-};
-
-/// Tangent Function.
-class Tangent_Function : public Function
-{
-public:
-    Tangent_Function() : Function("tan") {}
-    void init_truncation() override final { init_range_helper_(); }
-
-protected:
-    double raw_function_(double x) const override final { return std::tan(x); }
-    double raw_logfunc_(double x) const override final { return std::log(std::tan(x)); }
-    double raw_logratio_(double xo, double xn) const override final { return std::log(std::tan(xn) / std::tan(xo)); }
-};
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  Variadic_Function : class  ///////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Auxialiary class to deal with variadic functions.
-class Variadic_Function : public Function
-{
-public:
-    Variadic_Function(const std::string &name = hsp::na::STRING) : Function(name) {}
-    virtual ~Variadic_Function() = default;
-
-    // UPDATE: this might change for future variadic functions
-    void init_truncation() override final {}
-    bool is_discrete() const override final
-    {
-        if (!x_arg_.is_discrete())
-            return false;
-        for (const Attribute &attr : arguments_)
-            if (!attr.is_discrete())
-                return false;
-        return true;
-    }
-
-protected:
-    /// Variadic function version of the find argument method.
-    Attribute &find_arg_(const std::string &arg_name) override final
-    {
-        if (arg_name == hsp::params::X)
-            return x_arg_;
-
-        for (Attribute &attr : arguments_)
-            if (attr.get_name() == arg_name)
-                return attr;
-
-        // if attribute doesn't exist at initialization, create it
-        arguments_.emplace_back();
-        return arguments_.back();
-    }
-};
-
-#define MAKE_VARIADIC_ALGEBRAIC(ClassName, FunctionName, Symbol) \
-    class ClassName : public Variadic_Function                   \
-    {                                                            \
-    public:                                                      \
-        ClassName() : Variadic_Function(FunctionName) {}         \
-                                                                 \
-    protected:                                                   \
-        double raw_function_(double x) const override final      \
-        {                                                        \
-            for (const Attribute &attr : arguments_)             \
-                x Symbol attr.get();                             \
-            return x;                                            \
-        }                                                        \
-    };
-MAKE_VARIADIC_ALGEBRAIC(Summation_Function, "sum", +=)
-MAKE_VARIADIC_ALGEBRAIC(Product_Function, "prod", *=)
-
-#define MAKE_VARIADIC_MIN_MAX(ClassName, FunctionName, Symbol) \
-    class ClassName : public Variadic_Function                 \
-    {                                                          \
-    public:                                                    \
-        ClassName() : Variadic_Function(FunctionName) {}       \
-                                                               \
-    protected:                                                 \
-        double raw_function_(double x) const override final    \
-        {                                                      \
-            for (const Attribute &attr : arguments_)           \
-            {                                                  \
-                const double new_val = attr.get();             \
-                if (new_val Symbol x)                          \
-                    x = new_val;                               \
-            }                                                  \
-            return x;                                          \
-        }                                                      \
-    };
-MAKE_VARIADIC_MIN_MAX(Minimum_Function, "min", <)
-MAKE_VARIADIC_MIN_MAX(Maximum_Function, "max", >)
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  FunctionRegistry : getter  //////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -822,6 +595,236 @@ std::unique_ptr<Function> compose_func_registries(const std::string &opt,
 
     throw std::invalid_argument(
         "Unknown " + name + " '" + opt + "'." + hsp::str::find_closest(opt, options));
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////  *** Function : implementations ***  /////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace
+{
+    // FIXME:
+    // verify if is_discrete should include Function::is_discrete() || (...)
+
+    /// Minus Function.
+    class Minus_Function : public Function
+    {
+    public:
+        Minus_Function() : Function("minus") {}
+        void init_truncation() override final {}
+        bool is_discrete() const override final { return x_arg_.is_discrete(); }
+
+    protected:
+        double raw_function_(double x) const override final { return -x; }
+    };
+
+    /// Subtraction function.
+    class Subtraction_Function : public Function
+    {
+    public:
+        Subtraction_Function() : Function("sub", {{"x2", 0.}}) {}
+        void init_truncation() override final {}
+        bool is_discrete() const override final { return get_arg(0).is_discrete() && x_arg_.is_discrete(); }
+
+    protected:
+        double raw_function_(double x) const override final { return x - arg(0); }
+    };
+
+    /// Division Function.
+    class Division_Function : public Function
+    {
+    public:
+        Division_Function() : Function("div", {{"x2", 1}}) {}
+        void init_truncation() override final {}
+
+    protected:
+        double raw_function_(double x) const override final { return x / arg(0); }
+    };
+
+    /// Power Function.
+    class Power_Function : public Function
+    {
+    public:
+        Power_Function() : Function("pow", {{"x2", 1.}}) {}
+        void init_truncation() override final { init_range_helper_(); }
+        bool is_discrete() const override final { return Function::is_discrete() || (get_arg(0).is_discrete() && x_arg_.is_discrete()); }
+
+    protected:
+        double raw_function_(double x) const override final { return std::pow(x, arg(0)); }
+        double raw_logfunc_(double x) const override final { return arg(0) * std::log(x); }
+        double raw_primitive_(double x) const override final
+        {
+            if (std::abs(arg(0) + 1.) < 1.e-10)
+                return std::log(std::abs(x));
+            return std::pow(x, arg(0) + 1.) / (arg(0) + 1.);
+        }
+        double raw_logratio_(double xo, double xn) const override final { return arg(0) * std::log(xn / xo); }
+    };
+
+    /// SquareRoot Function.
+    class SquareRoot_Function : public Function
+    {
+    public:
+        SquareRoot_Function() : Function("sqrt", {},
+                                         0., false, hsp::na::DOUBLE, false) {}
+        void init_truncation() override final { init_range_min_(); }
+
+    protected:
+        double raw_function_(double x) const override final { return std::sqrt(x); }
+        double raw_logfunc_(double x) const override final { return 0.5 * std::log(x); }
+        double raw_primitive_(double x) const override final { return std::pow(x, 1.5) / 1.5; }
+        double raw_logratio_(double xo, double xn) const override final { return 0.5 * std::log(xn / xo); }
+    };
+
+    /// Exponential Function.
+    class Exponential_Function : public Function
+    {
+    public:
+        Exponential_Function() : Function("exp") {}
+        void init_truncation() override final { init_range_helper_(); }
+
+    protected:
+        double raw_function_(double x) const override final { return std::exp(x); }
+        double raw_logfunc_(double x) const override final { return x; }
+        double raw_primitive_(double x) const override final { return std::exp(x); }
+        double raw_logratio_(double xo, double xn) const override final { return xn - xo; }
+    };
+
+    /// Logarithm Function.
+    class Logarithm_Function : public Function
+    {
+    public:
+        Logarithm_Function() : Function("log", {},
+                                        0., true, hsp::na::DOUBLE, false) {}
+        void init_truncation() override final { init_range_min_(0., true); }
+
+    protected:
+        double raw_function_(double x) const override final { return std::log(x); }
+        double raw_logfunc_(double x) const override final { return std::log(std::log(x)); }
+        double raw_primitive_(double x) const override final { return x * std::log(x) - x; }
+        double raw_logratio_(double xo, double xn) const override final { return std::log(std::log(xn) / std::log(xo)); }
+    };
+
+    /// Sine Function.
+    class Sine_Function : public Function
+    {
+    public:
+        Sine_Function() : Function("sin") {}
+        void init_truncation() override final { init_range_helper_(); }
+
+    protected:
+        double raw_function_(double x) const override final { return std::sin(x); }
+        double raw_logfunc_(double x) const override final { return std::log(std::sin(x)); }
+        double raw_primitive_(double x) const override final { return -std::cos(x); }
+        double raw_logratio_(double xo, double xn) const override final { return std::log(std::sin(xn) / std::sin(xo)); }
+    };
+
+    /// Cosine Function.
+    class Cosine_Function : public Function
+    {
+    public:
+        Cosine_Function() : Function("cos") {}
+        void init_truncation() override final { init_range_helper_(); }
+
+    protected:
+        double raw_function_(double x) const override final { return std::cos(x); }
+        double raw_logfunc_(double x) const override final { return std::log(std::cos(x)); }
+        double raw_primitive_(double x) const override final { return std::sin(x); }
+        double raw_logratio_(double xo, double xn) const override final { return std::log(std::cos(xn) / std::cos(xo)); }
+    };
+
+    /// Tangent Function.
+    class Tangent_Function : public Function
+    {
+    public:
+        Tangent_Function() : Function("tan") {}
+        void init_truncation() override final { init_range_helper_(); }
+
+    protected:
+        double raw_function_(double x) const override final { return std::tan(x); }
+        double raw_logfunc_(double x) const override final { return std::log(std::tan(x)); }
+        double raw_logratio_(double xo, double xn) const override final { return std::log(std::tan(xn) / std::tan(xo)); }
+    };
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////  Variadic_Function : class  ///////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// Auxialiary class to deal with variadic functions.
+    class Variadic_Function : public Function
+    {
+    public:
+        Variadic_Function(const std::string &name = hsp::na::STRING) : Function(name) {}
+        virtual ~Variadic_Function() = default;
+
+        // UPDATE: this might change for future variadic functions
+        void init_truncation() override final {}
+        bool is_discrete() const override final
+        {
+            if (!x_arg_.is_discrete())
+                return false;
+            for (const Attribute &attr : arguments_)
+                if (!attr.is_discrete())
+                    return false;
+            return true;
+        }
+
+    protected:
+        /// Variadic function version of the find argument method.
+        Attribute &find_arg_(const std::string &arg_name) override final
+        {
+            if (arg_name == hsp::params::X)
+                return x_arg_;
+
+            for (Attribute &attr : arguments_)
+                if (attr.get_name() == arg_name)
+                    return attr;
+
+            // if attribute doesn't exist at initialization, create it
+            arguments_.emplace_back();
+            return arguments_.back();
+        }
+    };
+
+#define MAKE_VARIADIC_ALGEBRAIC(ClassName, FunctionName, Symbol) \
+    class ClassName : public Variadic_Function                   \
+    {                                                            \
+    public:                                                      \
+        ClassName() : Variadic_Function(FunctionName) {}         \
+                                                                 \
+    protected:                                                   \
+        double raw_function_(double x) const override final      \
+        {                                                        \
+            for (const Attribute &attr : arguments_)             \
+                x Symbol attr.get();                             \
+            return x;                                            \
+        }                                                        \
+    };
+    MAKE_VARIADIC_ALGEBRAIC(Summation_Function, "sum", +=)
+    MAKE_VARIADIC_ALGEBRAIC(Product_Function, "prod", *=)
+
+#define MAKE_VARIADIC_MIN_MAX(ClassName, FunctionName, Symbol) \
+    class ClassName : public Variadic_Function                 \
+    {                                                          \
+    public:                                                    \
+        ClassName() : Variadic_Function(FunctionName) {}       \
+                                                               \
+    protected:                                                 \
+        double raw_function_(double x) const override final    \
+        {                                                      \
+            for (const Attribute &attr : arguments_)           \
+            {                                                  \
+                const double new_val = attr.get();             \
+                if (new_val Symbol x)                          \
+                    x = new_val;                               \
+            }                                                  \
+            return x;                                          \
+        }                                                      \
+    };
+    MAKE_VARIADIC_MIN_MAX(Minimum_Function, "min", <)
+    MAKE_VARIADIC_MIN_MAX(Maximum_Function, "max", >)
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////

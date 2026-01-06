@@ -17,9 +17,105 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////  dependency tree helpers  //////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace
+{
+    /// Helper to build augmented definition order and assert for acyclic.
+    void walk_dependency_tree(const std::string &entry,
+                              const u_dict<str_vec> &tree,
+                              str_vec &visited,
+                              str_vec &recursion_stack,
+                              str_vec &ordered)
+    {
+        if (!tree.count(entry))
+            throw std::invalid_argument(
+                "Could not find a definition for augmented '" + entry + "'.");
+        if (recursion_stack % entry)
+            throw std::invalid_argument(
+                "Found inadmissible cyclic definitions for augmented '" + entry + "'");
+        if (visited % entry)
+            return;
+
+        recursion_stack.push_back(entry);
+        for (auto &dep : tree.at(entry))
+            walk_dependency_tree(dep, tree, visited, recursion_stack, ordered);
+
+        recursion_stack = recursion_stack - str_vec({entry});
+        visited.push_back(entry);
+        ordered.push_back(entry);
+    }
+
+    /// Get topological order of definitions dependencies.
+    str_vec extract_all_dependencies_order(const u_dict<str_vec> &graph)
+    {
+        // inspect dependency tree for cycles and missing entries
+        str_vec visited, recursion_stack, ordered;
+        for (const auto &entry : graph)
+            if (!(visited % entry.first))
+                walk_dependency_tree(entry.first, graph, visited, recursion_stack, ordered);
+        return ordered;
+    }
+
+    /// Get topological order of definitions depending on 'start' (start included).
+    str_vec extract_dependents_order(const std::string &start, const u_dict<str_vec> &graph)
+    {
+        // construct a reversed graph for dependents
+        u_dict<str_vec> reverse_graph;
+        for (auto &kv : graph)
+        {
+            const std::string &node = kv.first;
+            for (const std::string &dep : kv.second)
+                reverse_graph[dep].push_back(node);
+
+            // ensure isolated nodes are present
+            if (!reverse_graph.count(node))
+                reverse_graph[node] = {};
+        }
+
+        // walk dependents of start
+        str_vec visited, recursion_stack, ordered;
+        for (const std::string &dep : reverse_graph.at(start))
+            walk_dependency_tree(dep, reverse_graph, visited, recursion_stack, ordered);
+
+        std::reverse(ordered.begin(), ordered.end());
+        return str_vec({start}) + ordered;
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////  AugmentedMap : setter  ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Clear augmented definition (also used for allocation).
+void AugmentedMap::clear_augm(const std::string &a)
+{
+    augm_map_[a] = Variable();
+    augm_map_[a].set_name(a, "augmented");
+}
+
+/// Assign definitions for the augmented variable model.
+/// NOTE: a Variable must already be allocated with clear_augm.
+void AugmentedMap::init_augm(const std::string &a,
+                             double value,
+                             bool is_const,
+                             const hsp::parse::Definition &func_name,
+                             bool is_prim,
+                             const hsp::parse::Definition &model_name)
+{
+    Variable &this_augm = safe_at(augm_map_, a, "augmented variable");
+    this_augm.init(value, is_const, func_name, is_prim);
+    this_augm.init_distr(model_name);
+}
+
+void AugmentedMap::set_augm_value(const std::string &a, double x)
+{
+    safe_at(augm_map_, a, "augmented").set(x);
+}
 
 /// A string containing a summary of the augmented map.
 std::string AugmentedMap::str_augm_summary() const
@@ -49,15 +145,13 @@ void AugmentedMap::init_augm_model_logratios(const u_dict<str_vec> &models_order
     for (const auto &pair : models_ordered)
     {
         const std::string &a = pair.first;
-        model_logratios_[a] = {};
+        auto &vec = model_logratios_[a];
+        vec.clear();
+        vec.reserve(pair.second.size());
 
         // repeat for all dependent models
         for (const std::string &b : pair.second)
-        {
-            const Variable &xaugm = augm_map_[b];
-            model_logratios_[a].emplace_back([&xaugm]()
-                                             { return xaugm.get_distr_logratio(); });
-        }
+            vec.emplace_back(&augm_map_[b]);
     }
 }
 
@@ -78,8 +172,8 @@ double AugmentedMap::materialize_augm_model_logratio(const std::string &a)
 {
     buffer_ = augm_log_lik_; // store old value in buffer
     double delta_ll = 0.;
-    for (const std::function<double()> &f : model_logratios_[a])
-        delta_ll += f();
+    for (const Variable *xaugm : model_logratios_[a])
+        delta_ll += xaugm->get_distr_logratio();
     augm_log_lik_ += delta_ll;
     assert_log_lik_not_NaN(a);
     return delta_ll;
@@ -251,24 +345,8 @@ void MCMC::Impl::InfecProfile::build_generic_profile_(const u_dict<str_vec> &inp
     inst_ = &InfecProfile::do_inst_default_;
     cumul_ = &InfecProfile::do_cumul_default_;
 
-    hsp::parse::Definition parser(hsp::parse::Definition(input.at("func")[0]));
-    generic_profile = compose_distr_registries(parser.root.func,
-                                               "infectivity profile",
-                                               {&InfecProfileRegistry::inst(),
-                                                &ContinuosDistrRegistry::inst(),
-                                                &DiscreteDistrRegistry::inst()});
-    for (const auto &node : parser.root.children)
-    {
-        generic_profile->init_attr(node.key, pImpl_.read_attribute_(node));
-        pImpl_.make_param_cache_depen_(node);
-    }
-
-    // discretization
-    if (input.count("discr") && hsp::str::tobool(input.at("discr")[0]))
-        generic_profile->init_discretization();
-    else if (is_discrete_requested_)
-        hsp::msg::error(
-            "Definition of infectivity profile did not return a discrete object as requested by the model.");
+    generic_profile = helper_build_profile_({{"func", input.at("func")[0]},
+                                             {"discr", input.count("discr") ? input.at("discr")[0] : "false"}});
 
     // range minimum
     if (input.count(hsp::params::MIN))
@@ -295,12 +373,10 @@ void MCMC::Impl::InfecProfile::build_generic_profile_(const u_dict<str_vec> &inp
 /// Build for individual augmented function infectivity profile.
 void MCMC::Impl::InfecProfile::build_augmented_profile_(const u_dict<str_vec> &input)
 {
-    // use generic build to check profile name at this stage
-    // NOTE: this also control for discretization
-    // UPDATE: not very clean, maybe refactor
+    // use helper to check profile name and discretization
     for (size_t r = 0; r < hsp::read::csv_n_rows(input); ++r)
-        build_generic_profile_({{"func", {hsp::parse::Definition(input.at("func")[r]).root.func}},
-                                {"discr", {input.at("discr")[r]}}});
+        helper_build_profile_({{"func", hsp::parse::Definition(input.at("func")[r]).root.func},
+                               {"discr", input.at("discr")[r]}});
     // drop generic definition
     generic_profile = std::make_unique<Distribution>();
     clear_lookup_();
@@ -328,6 +404,29 @@ void MCMC::Impl::InfecProfile::build_augmented_profile_(const u_dict<str_vec> &i
         augm_profile_definitions_["proposal"] += str_vec(2, hsp::na::STRING);
         augm_profile_definitions_["proposal_scale"] += str_vec(2, hsp::na::STRING);
     }
+}
+
+std::unique_ptr<Distribution> MCMC::Impl::InfecProfile::helper_build_profile_(const u_dict<std::string> &input)
+{
+    hsp::parse::Definition parser(hsp::parse::Definition(input.at("func")));
+    auto placeholder = compose_distr_registries(parser.root.func,
+                                                "infectivity profile",
+                                                {&InfecProfileRegistry::inst(),
+                                                 &ContinuosDistrRegistry::inst(),
+                                                 &DiscreteDistrRegistry::inst()});
+    for (const auto &node : parser.root.children)
+    {
+        placeholder->init_attr(node.key, pImpl_.read_attribute_(node));
+        pImpl_.make_param_cache_depen_(node);
+    }
+
+    // discretization
+    if (input.count("discr") && hsp::str::tobool(input.at("discr")))
+        placeholder->init_discretization();
+    else if (is_discrete_requested_)
+        hsp::msg::error(
+            "Definition of infectivity profile did not return a discrete object as requested by the model.");
+    return placeholder;
 }
 
 // Eventually append infectivity profile definitions to augmented.
@@ -370,73 +469,6 @@ double MCMC::Impl::InfecProfile::do_cumul_lookup_(const Individual *, double t)
 
 double MCMC::infec_profile_inst(const Individual &i, double t) const { return pImpl_->infec_profile.inst(&i, t); }
 double MCMC::infec_profile_cumul(const Individual &i, double t) const { return pImpl_->infec_profile.cumul(&i, t); }
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  dependency tree helpers  //////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Helper to build augmented definition order and assert for acyclic.
-void walk_dependency_tree(const std::string &entry,
-                          const u_dict<str_vec> &tree,
-                          str_vec &visited,
-                          str_vec &recursion_stack,
-                          str_vec &ordered)
-{
-    if (!tree.count(entry))
-        throw std::invalid_argument(
-            "Could not find a definition for augmented '" + entry + "'.");
-    if (recursion_stack % entry)
-        throw std::invalid_argument(
-            "Found inadmissible cyclic definitions for augmented '" + entry + "'");
-    if (visited % entry)
-        return;
-
-    recursion_stack.push_back(entry);
-    for (auto &dep : tree.at(entry))
-        walk_dependency_tree(dep, tree, visited, recursion_stack, ordered);
-
-    recursion_stack = recursion_stack - str_vec({entry});
-    visited.push_back(entry);
-    ordered.push_back(entry);
-}
-
-/// Get topological order of definitions dependencies.
-str_vec extract_all_dependencies_order(const u_dict<str_vec> &graph)
-{
-    // inspect dependency tree for cycles and missing entries
-    str_vec visited, recursion_stack, ordered;
-    for (const auto &entry : graph)
-        if (!(visited % entry.first))
-            walk_dependency_tree(entry.first, graph, visited, recursion_stack, ordered);
-    return ordered;
-}
-
-/// Get topological order of definitions depending on 'start' (start included).
-str_vec extract_dependents_order(const std::string &start, const u_dict<str_vec> &graph)
-{
-    // construct a reversed graph for dependents
-    u_dict<str_vec> reverse_graph;
-    for (auto &kv : graph)
-    {
-        const std::string &node = kv.first;
-        for (const std::string &dep : kv.second)
-            reverse_graph[dep].push_back(node);
-
-        // ensure isolated nodes are present
-        if (!reverse_graph.count(node))
-            reverse_graph[node] = {};
-    }
-
-    // walk dependents of start
-    str_vec visited, recursion_stack, ordered;
-    for (const std::string &dep : reverse_graph.at(start))
-        walk_dependency_tree(dep, reverse_graph, visited, recursion_stack, ordered);
-
-    std::reverse(ordered.begin(), ordered.end());
-    return str_vec({start}) + ordered;
-}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////

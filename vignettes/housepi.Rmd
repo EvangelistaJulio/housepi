@@ -134,7 +134,7 @@ summarise_cases(hhmodel) |>
   flextable::autofit()
 ```
 
-Here we manipulated the housepi table with  [flextable](https://cloud.r-project.org/web/packages/flextable/).
+Here we manipulated the housepi table with  [flextable](https://CRAN.R-project.org/package=flextable).
 
 At any moment we can re-export the loaded data by calling `get_data_wide`.
 

@@ -39,7 +39,6 @@ NULL
 #' @name flu_1918_frederick
 #' @usage data(flu_1918_frederick)
 #' @format A data frame with 2,207 rows and 2 columns
-#' @source <https://academic.oup.com/aje/article/174/5/505/117666>
 #'
 #' @details
 #' To reproduce the data processing, see the script at:
@@ -66,7 +65,6 @@ NULL
 #' @name flu_1918_baltimora
 #' @usage data(flu_1918_baltimora)
 #' @format A data frame with 28,977 rows and 2 columns
-#' @source <https://academic.oup.com/aje/article/174/5/505/117666>
 #'
 #' @details
 #' To reproduce the data processing, see the script at:
