@@ -10,256 +10,45 @@
 
 #include <memory>
 #include <functional>
-#include <atomic>
 
 #include "tools/types.h"
 #include "tools/na_utils.h"
 #include "tools/messages.h"
-#include "tools/progress.h"
-#include "tools/global.h"
-#include "function.h"
-#include "distribution.h"
+#include "tools/atomic.h"
+
+#include "attribute.h"
 #include "variable.h"
-#include "household.h"
 #include "mcmc.h"
 
-#ifdef _OPENMP
-#include <omp.h>
-#endif
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  *** MCMC : Impl : class ***  ////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////  Setup : struct  ////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-
-struct Setup
+namespace hsp
 {
-    Setup() : unif_(0., 1.) {}
-    ~Setup() = default;
-
-    const str_vec file_headers = {"steps", "burnin", "thin",
-                                  "adapt", "chains", "threads",
-                                  "id_draws", "seed", "progress"};
-
-    unsigned long n_steps = 1;  /// n. iterations
-    unsigned long n_burnin = 0; /// n. burnin iterations
-    unsigned long n_thin = 1;   /// n. thinning iterations
-    unsigned long n_adapt = 0;  /// n. (finite) adaptive steps
-    unsigned long n_chains = 1; /// n. chains
-    unsigned n_threads = 1;     /// n. of OMP threads
-    std::int32_t seed;          /// random generator seed
-    unsigned long progress = 1; /// thinning seconds for progress bar
-    unsigned long n_rungs = 0;  /// n. of rungs
-
-    unsigned long c_sample_size = 0; /// single chain sample size
-    unsigned long c_n_sweeps = 0;    /// single chain n. of sweeps
-    double inv_T = 1.;               /// inverse temperature
-    str_vec id_draws = {};           /// augmented trace to save
-
-    unsigned long chain = 1; /// current MCMC chain
-    unsigned long rung = 0;  /// current MCMC thermodynamic rung
-
-    bool is_power_post() const { return n_rungs > 0; }
-    std::string fmt_progtxt();
-
-    void set_n_threads();
-    void build(const u_dict<str_vec> &deftable);
-    void assert_mcmc_setup();
-    void drop_mcmc_adapt();
-
-    // progress bar
-    void prog_set_text(const std::string &text = hsp::na::STRING)
+    namespace atomic
     {
-        progressbar_.set_text(text == hsp::na::STRING ? fmt_progtxt() : text);
+        struct Error;
     }
-    void prog_declare(const std::string &text = hsp::na::STRING)
-    {
-        prog_set_text(text);
-        progressbar_.set_thintime(progress);
-    }
-    void prog_open_for_inference() { progressbar_.open(c_n_sweeps * n_chains); }
-    void prog_open_for_power_post() { progressbar_.open(c_n_sweeps * n_chains * (n_rungs + 1)); }
-    void prog_update() { progressbar_.update(); }
-    void prog_close() { progressbar_.close(); }
-    void prog_crash() { progressbar_.crash(); }
+}
 
-    // Pseudo Random Number Geenerator
-    void set_prng_seed();
-    rnd_gen &prng() { return (this->*get_prng_)(); }
-    double unif() { return unif_(prng()); }
+class Individual;
+class Household;
+struct Setup;
+struct DataWide;
+struct DataLong;
+class Distribution;
 
-private:
-    hsp::progress::Bar progressbar_; // progress bar
-
-    rnd_gen prng_; // Mersenne Twister 19937 generator (32 or 64 bit)
-    rnd_gen &(Setup::*get_prng_)();
-    rnd_gen &do_prng_unique_thread_() { return prng_; }
-    std::uniform_real_distribution<double> unif_; // uniform sampler
-
-#ifdef _OPENMP
-    std::vector<rnd_gen> prng_parallel_ = {}; // parallel generators (for multi-threading)
-    rnd_gen &do_prng_parallel_threads_() { return prng_parallel_[omp_get_thread_num()]; }
-#endif
-};
-
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  DataWide : struct  ///////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-
-struct DataWide
-{
-    str_vec headers = {};
-
-    // list of all infected statuses in the dataset
-    int_vec all_infected_status_list = {};
-    std::vector<dbl_vec> smpl_values = {};
-    std::vector<size_t> head_class_house_indexes = {};
-
-    ReportIndividual report_indiv;
-    ReportHousehold report_house;
-    ReportHouseSizes report_hh_size;
-
-    /////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////  DataWide : constructor  ///////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////
-
-    DataWide() {}
-    ~DataWide() = default;
-
-    Household &operator()(size_t H) { return house_vector_[H]; }
-    const Household &operator()(size_t H) const { return house_vector_.at(H); }
-    Household &operator()(const std::string &house_id) { return (*this)(house_id_to_index_(house_id)); }
-    const Household &operator()(const std::string &house_id) const { return (*this)(house_id_to_index_(house_id)); }
-
-    /////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////  DataWide : getter  //////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////
-
-    bool is_empty() const { return house_vector_.empty(); }
-    Household copy(size_t H) const { return house_vector_[H]; }
-
-    /////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////  DataWide : setter  //////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////
-
-    void build(const u_dict<str_vec> &deftable);
-    void multiplicity_build(const u_dict<str_vec> &deftable, bool is_any_augm = false);
-
-    void init_draws(unsigned long sample_size);
-    void store_draws(unsigned long smpl_count);
-
-    /////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////  DataWide : iterators  ///////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////
-
-    auto begin() { return house_vector_.begin(); }
-    auto begin() const { return house_vector_.begin(); }
-    auto end() { return house_vector_.end(); }
-    auto end() const { return house_vector_.end(); }
-
-    template <typename T>
-    class View
-    {
-        // conditional to select the vector type if constant or not
-        using VectorRef = std::conditional_t<std::is_const<T>::value,
-                                             const std::vector<Household> &,
-                                             std::vector<Household> &>;
-
-    public:
-        VectorRef vec;
-        const std::vector<size_t> &indexes; /// NOTE: no need to copy here
-
-        View(VectorRef m, const std::vector<size_t> &i)
-            : vec(m), indexes(i) {}
-
-        class iterator
-        {
-        public:
-            iterator(View *v, size_t p) : view_(v), pos_(p) {}
-
-            T &operator*() const { return view_->vec[view_->indexes[pos_]]; }
-            T *operator->() const { return &view_->vec[view_->indexes[pos_]]; }
-
-            iterator &operator++()
-            {
-                ++pos_;
-                return *this;
-            }
-            iterator operator++(int)
-            {
-                iterator tmp = *this;
-                ++(*this);
-                return tmp;
-            }
-
-            bool operator==(const iterator &other) const { return pos_ == other.pos_; }
-            bool operator!=(const iterator &other) const { return !(*this == other); }
-
-        private:
-            View *view_;
-            size_t pos_;
-        };
-
-        iterator begin() { return iterator(this, 0); }
-        iterator end() { return iterator(this, indexes.size()); }
-    };
-
-    View<Household> restricted() { return View<Household>(house_vector_, head_class_house_indexes); }
-    View<const Household> restricted() const { return View<const Household>(house_vector_, head_class_house_indexes); }
-    Household &restricted(size_t R) { return house_vector_[head_class_house_indexes[R]]; }
-
-private:
-    std::vector<Household> house_vector_ = {};
-    u_dict<size_t> hhid_to_index_ = {};
-
-    size_t house_id_to_index_(const std::string &house_id) const
-    {
-        if (hhid_to_index_.count(house_id))
-            return hhid_to_index_.at(house_id);
-        throw std::invalid_argument(
-            "Index '" + house_id + "' did not match any household in the data.");
-    }
-
-    /// Clear data report.
-    void build_helper_clear_data_();
-    /// Use the loaded data to fill-in the respective report.
-    void build_helper_fill_report_data_();
-};
-
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  DataLong : struct  ///////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-
-struct DataLong
-{
-    str_vec headers = {};
-    std::vector<u_dict<dbl_vec>> indiv_datalist = {};
-
-    DataLong(DataWide &ptr)
-        : pDataWide_(ptr) {}
-    ~DataLong() = default;
-
-    void build(const u_dict<str_vec> &deftable);
-
-private:
-    DataWide &pDataWide_; // pointer to external struct
-};
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  MCMC : Impl : class  ////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Monte Carlo Markov Chain implementation class.
 class MCMC::Impl
 {
 public:
+    std::unique_ptr<hsp::atomic::Error> atomic_error;
+    std::shared_ptr<Setup> setup;
+    std::shared_ptr<DataWide> data_wide;
+    std::shared_ptr<DataLong> data_long;
+
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////  MCMC : Impl : constructor  ///////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -268,19 +57,8 @@ public:
          std::function<void()> func_init_simulation,
          std::function<double(Household &)> func_household_log_lik,
          std::function<void(Household &)> func_simulate_house,
-         std::function<void(Household &, Individual &)> func_update_cache)
-        : setup(), data_wide(), data_long(data_wide),
-          param(*this), group_rates(*this), infec_profile(*this), augm(*this),
-          callback_init_inference_(std::move(func_init_inference)),
-          callback_init_simulation_(std::move(func_init_simulation)),
-          callback_house_log_lik_(std::move(func_household_log_lik)),
-          callback_simulate_house_(std::move(func_simulate_house)),
-          callback_update_cache_(std::move(func_update_cache)) {}
-    ~Impl() = default;
-
-    Setup setup;
-    DataWide data_wide;
-    DataLong data_long;
+         std::function<void(Household &, Individual &)> func_update_cache);
+    ~Impl();
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////  MCMC : Impl : Parameter : struct  ///////////////////////////
@@ -338,17 +116,9 @@ public:
         void make_cache_dependent(const std::string &p);
 
         /// Randomly initialize values of the parameters to be inferred.
-        void user_reset()
-        {
-            for (const std::string &p : list_sample)
-                at(p).user_reset(pImpl_.setup.prng());
-        }
+        void user_reset();
         /// Load parameters values of the n-th posterrior sample.
-        void load_sample_values(size_t n)
-        {
-            for (const auto &pair : smpl_values)
-                at(pair.first).set(pair.second[n]);
-        }
+        void load_sample_values(size_t n);
 
         void init_draws(unsigned long sample_size);
         void store_draws(unsigned long smpl_count);
@@ -409,10 +179,8 @@ public:
         ////////////////////////  MCMC : Impl : InfecProfile : constructor  /////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////
 
-        InfecProfile(MCMC::Impl &ptr)
-            : generic_profile(std::make_unique<Distribution>()),
-              pImpl_(ptr) {}
-        ~InfecProfile() = default;
+        InfecProfile(MCMC::Impl &ptr);
+        ~InfecProfile();
 
         /////////////////////////////////////////////////////////////////////////////////////////
         ///////////////////////////  MCMC : Impl : InfecProfile : setter  ///////////////////////
@@ -457,21 +225,21 @@ public:
 
         //===== Functional methods for getter methods =====//
         double (InfecProfile::*inst_)(const Individual *, double) = &InfecProfile::do_inst_default_;
-        double do_inst_default_(const Individual *, double t) { return generic_profile->pdf(t); }
-        double do_inst_augm_(const Individual *i, double t) { return i->get_augm_variable(hsp::infprof::INSTANT)(t); }
+        double do_inst_default_(const Individual *, double t);
         double do_inst_lookup_(const Individual *, double t);
+        double do_inst_augm_(const Individual *i, double t);
 
         double (InfecProfile::*cumul_)(const Individual *, double) = &InfecProfile::do_cumul_default_;
-        double do_cumul_default_(const Individual *, double t) { return generic_profile->cdf(t); }
-        double do_cumul_augm_(const Individual *i, double t) { return i->get_augm_variable(hsp::infprof::CUMUL)(t); }
+        double do_cumul_default_(const Individual *, double t);
         double do_cumul_lookup_(const Individual *, double t);
+        double do_cumul_augm_(const Individual *i, double t);
     } infec_profile;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////  MCMC : Impl : Augmented : class  ///////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    /// Implementation of Augmented Variables.
+    /// Implementation of Augmented variables and functions.
     struct Augmented
     {
         str_vec list_draws = {};
@@ -546,46 +314,6 @@ public:
     } augm;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////  MCMC : Impl : Errors  /////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
-
-    struct Errors
-    {
-    public:
-        /// Reset error of the critical scope.
-        void reset()
-        {
-            has_error_.exchange(false);
-            message_.clear();
-        }
-        // Store first error encountered (thread-safe)
-        void set_if_first(const std::string &message)
-        {
-            if (!has_error_.exchange(true, std::memory_order_relaxed))
-            {
-#pragma omp critical
-                message_ = message;
-            }
-        }
-        void set_if_first(const std::exception &e) { set_if_first(e.what()); }
-        // Wheter it should be skipped or not.
-        bool is_pending()
-        {
-            return has_error_.load(std::memory_order_relaxed);
-        }
-        /// If an error was caught in critical scope, throw an exception.
-        void throw_exception() const
-        {
-            if (has_error_)
-                throw std::runtime_error(message_);
-        }
-
-    private:
-        std::atomic<bool> has_error_{false}; /// Wheter error was raised during multi-threading
-        std::string message_ = {};           /// Error message for last exception during multi-threading
-    } atomic_error;
-
-    /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////  MCMC : Impl : Metropolis-Hastings  ///////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -605,15 +333,8 @@ public:
     /////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Auxiliary method to initialize simulations.
-    // UPDATE: once I allow for multi-treading and a flag other than n_chains = 0, I can drop this.
-    void helper_init_simulation()
-    {
-        assert_non_empty_data_wide_(); // check if data is empty
-        setup.n_chains = 0;            // use 0 chains as a state variable
-        setup.n_threads = 1;           // impose no parallelization
-        setup.set_n_threads();         // change accordingly
-        init_model_for_simulation_();  // initialize model for simulation
-    }
+    /// UPDATE: once I allow for multi-treading and a flag other than n_chains = 0, I can drop this.
+    void helper_init_simulation();
     void simulate_single_household_in_place(Household &h) { callback_simulate_house_(h); }
 
 private:
@@ -640,13 +361,7 @@ private:
 
     void init_model_for_simulation_() { callback_init_simulation_(); }
     void update_cache_dependecies_(Household &h, Individual &i) { callback_update_cache_(h, i); }
-
-    double materialize_house_obs_log_lik_(Household &h)
-    {
-        const double output = callback_house_log_lik_(h);
-        h.set_obs_log_lik(output);
-        return output;
-    }
+    double materialize_house_obs_log_lik_(Household &h);
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////  MCMC : Impl : Metropolis-Hastings [private]  //////////////////////
@@ -654,20 +369,6 @@ private:
 
     double total_log_lik_ = 0.; /// current total log-likelihood
     double total_buffer_ = 0.;  /// buffer total log-likelihood
-
-    /// Assert data_wide is not empty.
-    void assert_non_empty_data_wide_()
-    {
-        if (data_wide.report_house.total == 0)
-            throw std::length_error("Unable to proceed: no data was found.");
-    }
-
-    /// Warn if all individuals have missing status.
-    void warn_if_all_missing_status_()
-    {
-        if (data_wide.report_indiv.total == data_wide.report_indiv.missing)
-            hsp::msg::warning("All individuals in the data had missing status.");
-    }
 
     /// Set new total log-likelihood value and buffer old value.
     void set_total_log_lik_(double new_ll)
@@ -697,7 +398,7 @@ private:
 
     //----- Metropolis : augmented moves -----//
     void move_all_augm_();
-    double atomic_move_augm_single_house_(Household &house);
+    double atomic_move_augm_single_house_(size_t H);
     double metropolis_augm_single_move_(Household &house, Individual &member, const std::string &a);
 
     //----- Metropolis : power posteriors -----//

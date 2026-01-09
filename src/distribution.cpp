@@ -175,17 +175,22 @@ str_vec DistributionRegistry::get_options() const
     return keys;
 }
 
-std::unique_ptr<Distribution> DistributionRegistry::get_distr(const std::string &opt, bool is_primitive) const
+std::unique_ptr<Distribution> DistributionRegistry::get_distr(const std::string &opt, bool is_cumul) const
 {
     if (!factory_map_.count(opt))
         return nullptr;
 
     auto output = factory_map_.find(opt)->second();
-    if (is_primitive)
+    if (is_cumul)
         output->set_eval_as_distr_primitive();
     else
         output->set_eval_as_distr_call();
     return output;
+}
+
+std::unique_ptr<Function> DistributionRegistry::get(const std::string &opt, bool is_prim) const
+{
+    return get_distr(opt, is_prim);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////

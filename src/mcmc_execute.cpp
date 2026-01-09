@@ -7,6 +7,10 @@
 
 #include "tools/string.h"
 #include "tools/messages.h"
+#include "tools/openmp.h"
+#include "tools/atomic.h"
+
+#include "data.h"
 #include "mcmc_impl.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -36,22 +40,22 @@ double MCMC::evaluate_log_lik(const std::string &house_id)
 /// Assert setup definitions are ok to proceed with log-likelihood evaluation.
 void MCMC::Impl::init_evaluate()
 {
-    setup.n_chains = 0;            // use 0 chains as a state variable
-    assert_non_empty_data_wide_(); // check if data is empty
-    warn_if_all_missing_status_(); // warn if all missing status
-    param.user_reset();            // initialize non constant parameters
-    augm.init();                   // initialize individual augmented relations
-    augm.user_reset();             // initialize non constant augmented
-    init_model_for_inference();    // initialize model for inference
+    setup->n_chains = 0;                  // use 0 chains as a state variable
+    data_wide->assert_non_empty();        // check if data is empty
+    data_wide->warn_all_missing_status(); // warn if all missing status
+    param.user_reset();                   // initialize non constant parameters
+    augm.init();                          // initialize individual augmented relations
+    augm.user_reset();                    // initialize non constant augmented
+    init_model_for_inference();           // initialize model for inference
 }
 
 /// Evaluate log-likelihood for the given household.
 double MCMC::Impl::evaluate_single_house_log_lik(const std::string &house_id)
 {
-    atomic_error.reset();   // reset atomic error
-    infec_profile.update(); // eventually buffer infectivity profile
-    double output = atomic_materialize_house_log_lik_(data_wide(house_id), augm.is_any_model());
-    atomic_error.throw_exception(); // catch and throw if previous failed
+    atomic_error->restore(); // reset atomic error
+    infec_profile.update();  // eventually buffer infectivity profile
+    double output = atomic_materialize_house_log_lik_((*data_wide)(house_id), augm.is_any_model());
+    atomic_error->throw_exception(); // catch and throw if previous failed
     return output;
 }
 
@@ -71,16 +75,16 @@ double MCMC::Impl::update_total_log_lik(bool is_cache_depen)
     if (is_cache_depen)
         infec_profile.update();
 
-    atomic_error.reset();
+    atomic_error->restore();
 #pragma omp parallel for reduction(+ : new_ll)
-    for (size_t R = 0; R < data_wide.head_class_house_indexes.size(); ++R)
+    for (size_t R = 0; R < data_wide->head_class_house_indexes.size(); ++R)
     {
-        if (atomic_error.is_pending())
+        if (atomic_error->is_pending())
             continue;
 
-        new_ll += atomic_materialize_house_log_lik_(data_wide.restricted(R), is_augm_ll, is_cache_depen);
+        new_ll += atomic_materialize_house_log_lik_(data_wide->restricted(R), is_augm_ll, is_cache_depen);
     }
-    atomic_error.throw_exception();
+    atomic_error->throw_exception();
 
     return new_ll;
 }
@@ -109,8 +113,8 @@ double MCMC::Impl::atomic_materialize_house_log_lik_(Household &house, bool is_a
     }
     catch (const std::exception &e)
     {
-        atomic_error.set_if_first("While computing log-likelihood for " +
-                                  house.err_name() + ":\n" + std::string(e.what()));
+        atomic_error->set_if_first("While computing log-likelihood for " +
+                                   house.err_name() + ":\n" + std::string(e.what()));
     }
     return output;
 }
@@ -126,18 +130,18 @@ void MCMC::infer()
 {
     try
     {
-        pImpl_->setup.prog_declare();            // declare current progress bar
-        pImpl_->init_monte_carlo();              // initialize mcmc sampling
-        pImpl_->init_model_for_inference();      // user initialization model
-        pImpl_->augm.init();                     // initialize augmented variables
-        pImpl_->setup.prog_open_for_inference(); // open progress bar
+        pImpl_->setup->prog_declare();            // declare current progress bar
+        pImpl_->init_monte_carlo();               // initialize mcmc sampling
+        pImpl_->init_model_for_inference();       // user initialization model
+        pImpl_->augm.init();                      // initialize augmented variables
+        pImpl_->setup->prog_open_for_inference(); // open progress bar
 
-        pImpl_->run_monte_carlo();  // run Monte Carlo
-        pImpl_->setup.prog_close(); // close progress bar
+        pImpl_->run_monte_carlo();   // run Monte Carlo
+        pImpl_->setup->prog_close(); // close progress bar
     }
     catch (std::exception &e)
     {
-        pImpl_->setup.prog_crash();
+        pImpl_->setup->prog_crash();
         hsp::msg::error(e.what());
     }
 }
@@ -146,23 +150,23 @@ void MCMC::infer()
 void MCMC::Impl::init_monte_carlo()
 {
     // check if data is empty
-    assert_non_empty_data_wide_();
+    data_wide->assert_non_empty();
 
     // check if there is actually something to sample
     if (!param.is_any_sample() && !augm.is_any_sample())
         throw std::length_error(
             "Nothing to sample. Check your parameter and augmented definitions.");
     // warn if all missing status
-    warn_if_all_missing_status_();
+    data_wide->warn_all_missing_status();
 
     // assert if setup is ok for mcmc
-    setup.assert_mcmc_setup();
+    setup->assert_mcmc_setup();
 
     // Drop adaptation steps if nothing to adapt
     // UPDATE: if adaptation applied to augmented variables, update this
     if (param.list_adaptable_sample_cached.empty() &&
         param.list_adaptable_sample_standard.empty())
-        setup.drop_mcmc_adapt();
+        setup->drop_mcmc_adapt();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -175,35 +179,35 @@ void MCMC::Impl::init_monte_carlo()
 /// NOTE: sweep is the number of previously completed thin sweeps.
 void MCMC::Impl::run_monte_carlo()
 {
-    unsigned long &chain = setup.chain; // current chain
-    init_posterior_sample_();           // initialize diagnostics
+    unsigned long &chain = setup->chain; // current chain
+    init_posterior_sample_();            // initialize diagnostics
 
     // run multiple MCMC chains&
-    for (chain = 1; chain <= setup.n_chains; ++chain)
+    for (chain = 1; chain <= setup->n_chains; ++chain)
     {
-        setup.prog_set_text();                      // set progress bar text
+        setup->prog_set_text();                     // set progress bar text
         param.user_reset();                         // reset parameter user definitions
         augm.user_reset();                          // reset augmented user definitions
         set_total_log_lik_(update_total_log_lik()); // init cached, set total log-likelihood
         init_move_counts_();                        // init move counts for adaptive
 
         // Finite adaptative iterations
-        for (unsigned long i = 0; i < setup.n_adapt; i += setup.n_thin, setup.prog_update())
-            for (unsigned long t = 1; t <= setup.n_thin; ++t)
+        for (unsigned long i = 0; i < setup->n_adapt; i += setup->n_thin, setup->prog_update())
+            for (unsigned long t = 1; t <= setup->n_thin; ++t)
             {
                 move_all_();
                 adapt_proposal_of_sampled_params_(i + t);
             }
 
         // Burn-in iterations
-        for (unsigned long i = 0; i < setup.n_burnin; i += setup.n_thin, setup.prog_update())
-            for (unsigned long t = 1; t <= setup.n_thin; ++t)
+        for (unsigned long i = 0; i < setup->n_burnin; i += setup->n_thin, setup->prog_update())
+            for (unsigned long t = 1; t <= setup->n_thin; ++t)
                 move_all_();
 
         // Posterior sampling
-        for (unsigned long i = setup.n_burnin; i < setup.n_steps; i += setup.n_thin, setup.prog_update())
+        for (unsigned long i = setup->n_burnin; i < setup->n_steps; i += setup->n_thin, setup->prog_update())
         {
-            for (unsigned long t = 1; t <= setup.n_thin; ++t)
+            for (unsigned long t = 1; t <= setup->n_thin; ++t)
                 move_all_();
             store_posterior_sample_();
         }
@@ -257,7 +261,7 @@ bool MCMC::Impl::move_single_parameter_(const std::string &p, bool is_cache_depe
 /// Adpat the proposal of model parameters.
 void MCMC::Impl::adapt_proposal_of_sampled_params_(unsigned long step)
 {
-    const double ratio = static_cast<double>(step) / setup.n_adapt;
+    const double ratio = static_cast<double>(step) / setup->n_adapt;
 
     // adpat all standard model parameters
     for (const std::string &p : param.list_adaptable_sample_standard)
@@ -274,6 +278,13 @@ void MCMC::Impl::adapt_proposal_of_sampled_params_(unsigned long step)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+double MCMC::Impl::materialize_house_obs_log_lik_(Household &h)
+{
+    const double output = callback_house_log_lik_(h);
+    h.set_obs_log_lik(output);
+    return output;
+}
+
 /// Set accept rates to zero.
 void MCMC::Impl::init_move_counts_()
 {
@@ -287,7 +298,7 @@ bool MCMC::Impl::propose_valid_param_move_(const std::string &p)
     Variable &this_par = param.at(p);
 
     // set new value of the parameter and store the old to buffer
-    this_par.propose(setup.prng());
+    this_par.propose(setup->prng());
 
     // recover buffer if not valid move
     if (!this_par.is_valid_move())
@@ -309,7 +320,7 @@ void MCMC::Impl::recover_parameter_(const std::string &p, bool is_cache_depen)
     total_log_lik_ = total_buffer_;
 
     // recover buffered log-likelihood in households
-    for (Household &house : data_wide.restricted())
+    for (Household &house : data_wide->restricted())
     {
         house.recover_buffer_values(is_cache_depen);
         if (augm.is_any_sample())
@@ -326,7 +337,7 @@ bool MCMC::Impl::accept_valid_param_move_(const std::string &p)
 {
     const double D_ll = total_log_lik_ - total_buffer_;
     const double move_logratio = param.at(p).get_move_logratio();
-    return setup.unif() < std::exp(setup.inv_T * D_ll + move_logratio);
+    return setup->unif() < std::exp(setup->inv_T * D_ll + move_logratio);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -363,6 +374,20 @@ void DataWide::store_draws(unsigned long smpl_count)
     }
 }
 
+/// Randomly initialize values of the parameters to be inferred.
+void MCMC::Impl::Parameter::user_reset()
+{
+    for (const std::string &p : list_sample)
+        at(p).user_reset(pImpl_.setup->prng());
+}
+
+/// Load parameters values of the n-th posterrior sample.
+void MCMC::Impl::Parameter::load_sample_values(size_t n)
+{
+    for (const auto &pair : smpl_values)
+        at(pair.first).set(pair.second[n]);
+}
+
 /// Initialize posterior sample of parameters and respective priors.
 void MCMC::Impl::Parameter::init_draws(unsigned long sample_size)
 {
@@ -395,7 +420,7 @@ void MCMC::Impl::Parameter::store_draws(unsigned long smpl_count)
 /// Init posterior sampling.
 void MCMC::Impl::init_posterior_sample_()
 {
-    unsigned long sample_size = setup.c_sample_size * setup.n_chains;
+    unsigned long sample_size = setup->c_sample_size * setup->n_chains;
 
     // diagnostics over full log-likelihood
     smpl_count = 0;
@@ -406,9 +431,9 @@ void MCMC::Impl::init_posterior_sample_()
     // initialize  other diagnostic vectors
     // UPDATE: I need to store also power posterior sample
     // NOTE: it will depend on chosen rungs in that case
-    if (!setup.is_power_post())
+    if (!setup->is_power_post())
     {
-        data_wide.init_draws(sample_size);
+        data_wide->init_draws(sample_size);
         param.init_draws(sample_size);
         augm.init_draws(sample_size);
     }
@@ -420,9 +445,9 @@ void MCMC::Impl::store_posterior_sample_()
     // store sample of the full log-likelihood
     smpl_total_log_lik[smpl_count] = total_log_lik_;
 
-    if (!setup.is_power_post())
+    if (!setup->is_power_post())
     {
-        data_wide.store_draws(smpl_count);
+        data_wide->store_draws(smpl_count);
         param.store_draws(smpl_count);
         augm.store_draws(smpl_count);
     }
@@ -480,18 +505,18 @@ std::vector<dbl_vec> MCMC::Impl::power_posteriors(const std::string &scheme, uns
     if (n_rungs < 2)
         throw std::invalid_argument(
             "N. of rungs was not greater than 1.");
-    setup.n_rungs = n_rungs; // NOTE: set before progress bar
+    setup->n_rungs = n_rungs; // NOTE: set before progress bar
 
     // initialize mcmc sampling
     init_monte_carlo();
 
     // buffer user setup
-    double buffer_inv_T = setup.inv_T;
+    double buffer_inv_T = setup->inv_T;
 
-    setup.prog_declare();       // declare current progress bar
+    setup->prog_declare();      // declare current progress bar
     init_model_for_inference(); // initialize model for inference
     augm.init();                // initialize augmented variables
-    setup.prog_open_for_power_post();
+    setup->prog_open_for_power_post();
 
     // thermodynamic ladder estimates
     dbl_vec itm = {}; // inverse temperature
@@ -506,10 +531,10 @@ std::vector<dbl_vec> MCMC::Impl::power_posteriors(const std::string &scheme, uns
         power_post_fractions_(itm, avg, var);
 
     // close progress bar
-    setup.prog_close();
+    setup->prog_close();
 
     // restore user setup
-    setup.inv_T = buffer_inv_T;
+    setup->inv_T = buffer_inv_T;
 
     return {itm, avg, var};
 }
@@ -520,12 +545,12 @@ void MCMC::Impl::power_post_zero_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
     // UPDATE: should I use previous inference for itm = 1 if available?
     // UPDATE: always under-estimate time if starting from itm = 0
 
-    setup.rung = 0;
-    setup.inv_T = 0.0;
+    setup->rung = 0;
+    setup->inv_T = 0.0;
     run_monte_carlo();
     std::pair<double, double> stats = compute_stats(smpl_total_log_lik);
 
-    itm.push_back(setup.inv_T);
+    itm.push_back(setup->inv_T);
     avg.push_back(stats.first);
     var.push_back(stats.second);
 }
@@ -534,21 +559,21 @@ void MCMC::Impl::power_post_zero_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
 void MCMC::Impl::power_post_adaptive_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
 {
     // Inverse Temperature 1
-    setup.rung = 1;
-    setup.inv_T = 1.0;
+    setup->rung = 1;
+    setup->inv_T = 1.0;
     run_monte_carlo();
     std::pair<double, double> stats = compute_stats(smpl_total_log_lik);
 
-    itm.push_back(setup.inv_T);
+    itm.push_back(setup->inv_T);
     avg.push_back(stats.first);
     var.push_back(stats.second);
 
     // Inverse Temperatures (0, 1)
     size_t k = 0; // index to interval lower bound
     bool is_right = false;
-    while (setup.rung < setup.n_rungs)
+    while (setup->rung < setup->n_rungs)
     {
-        ++setup.rung;
+        ++setup->rung;
 
         // adaptive choice of inverse temperature
         // intersection between tangents
@@ -558,15 +583,15 @@ void MCMC::Impl::power_post_adaptive_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
             new_t = itm[k] + var[k + 1] * (itm[k + 1] - itm[k]) / (var[k] + var[k + 1]);
 
         // power posterior sampling
-        setup.inv_T = new_t;
+        setup->inv_T = new_t;
         run_monte_carlo();
         stats = compute_stats(smpl_total_log_lik);
 
         // find larger rectangular discretization error
-        is_right = (itm[k + 1] - setup.inv_T) * (avg[k + 1] - stats.first) > (new_t - itm[k]) * (stats.first - avg[k]);
+        is_right = (itm[k + 1] - setup->inv_T) * (avg[k + 1] - stats.first) > (new_t - itm[k]) * (stats.first - avg[k]);
 
         // insert in-between for all lists
-        itm.insert(itm.begin() + k + 1, setup.inv_T);
+        itm.insert(itm.begin() + k + 1, setup->inv_T);
         avg.insert(avg.begin() + k + 1, stats.first);
         var.insert(var.begin() + k + 1, stats.second);
 
@@ -578,15 +603,26 @@ void MCMC::Impl::power_post_adaptive_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
 /// Power posteriors with power fractions scheme for the thermodynamic ladder.
 void MCMC::Impl::power_post_fractions_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
 {
-    for (setup.rung = 1; setup.rung <= setup.n_rungs; ++setup.rung)
+    for (setup->rung = 1; setup->rung <= setup->n_rungs; ++setup->rung)
     {
         // inverse tempearture = (rung / #rungs)^5
-        setup.inv_T = std::pow(static_cast<double>(setup.rung) / setup.n_rungs, 5);
+        setup->inv_T = std::pow(static_cast<double>(setup->rung) / setup->n_rungs, 5);
         run_monte_carlo();
 
         std::pair<double, double> stats = compute_stats(smpl_total_log_lik);
-        itm.push_back(setup.inv_T);
+        itm.push_back(setup->inv_T);
         avg.push_back(stats.first);
         var.push_back(stats.second);
     }
+}
+
+/// Auxiliary method to initialize simulations.
+/// UPDATE: once I allow for multi-treading and a flag other than n_chains = 0, I can drop this.
+void MCMC::Impl::helper_init_simulation()
+{
+    data_wide->assert_non_empty(); // check if data is empty
+    setup->n_chains = 0;           // use 0 chains as a state variable
+    setup->n_threads = 1;          // impose no parallelization
+    setup->set_n_threads();        // change accordingly
+    init_model_for_simulation_();  // initialize model for simulation
 }

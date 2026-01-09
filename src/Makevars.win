@@ -1,12 +1,62 @@
-PKG_CPPFLAGS = -D_HOUSEPI_RCPP -I../inst/template/include
-PKG_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS)
+PKG_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS) -D_HOUSEPI_RCPP -I../inst/template/include
 PKG_LIBS = $(SHLIB_OPENMP_CXXFLAGS)
 
-all: $(SHLIB) cache_template
+COMMON_SOURCES = \
+	RcppExports.cpp \
+	binomial.cpp \
+	data.cpp \
+	distribution.cpp \
+	export_bindings.cpp \
+	flags.cpp \
+	function.cpp \
+	mcmc_augm.cpp \
+	mcmc_build.cpp \
+	mcmc_execute.cpp \
+	tools.cpp \
+	variable.cpp
 
-cache_template:
-	mkdir -p ../inst/template/src
-	cp *.o *.cpp ../inst/template/src/
-	cp $(SHLIB) ../inst/template/src/housepienvironment$(SHLIB_EXT)
+COMMON_OBJECTS = $(COMMON_SOURCES:.cpp=.o)
 
-.PHONY: cache_template
+MODEL1_NAME = augmented_example
+MODEL1_DLL = ../inst/models/$(MODEL1_NAME)/housepi$(subst _,,$(MODEL1_NAME))$(DLL_EXT)
+
+MODEL2_NAME = augmented_infection_time
+MODEL2_DLL = ../inst/models/$(MODEL2_NAME)/housepi$(subst _,,$(MODEL2_NAME))$(DLL_EXT)
+
+MODEL3_NAME = chain_binomial
+MODEL3_DLL = ../inst/models/$(MODEL3_NAME)/housepi$(subst _,,$(MODEL3_NAME))$(DLL_EXT)
+
+MODEL4_NAME = chain_binomial_heterogeneous
+MODEL4_DLL = ../inst/models/$(MODEL4_NAME)/housepi$(subst _,,$(MODEL4_NAME))$(DLL_EXT)
+
+all: $(SHLIB) cache_template $(MODEL1_DLL) $(MODEL2_DLL) $(MODEL3_DLL) $(MODEL4_DLL)
+
+cache_template: $(SHLIB)
+	@echo ** caching templates
+	@if not exist ..\\inst\\template\\src mkdir ..\\inst\\template\\src
+	copy $(COMMON_SOURCES) ..\\inst\\template\\src\\
+	copy model.cpp ..\\inst\\template\\src\\
+	copy $(COMMON_OBJECTS) ..\\inst\\template\\src\\
+	copy $(SHLIB) ..\\inst\\template\\src\\housepienvironment$(DLL_EXT)
+
+../inst/models/%/model.o: ../inst/models/%/model.cpp
+	@echo ** building template: '$*'
+	$(CXX) $(ALL_CPPFLAGS) $(ALL_CXXFLAGS) -I../inst/models/$* -c $< -o $@
+
+$(MODEL1_DLL): ../inst/models/$(MODEL1_NAME)/model.o $(COMMON_OBJECTS)
+	$(SHLIB_LINK) -o $(MODEL1_DLL) $^ $(PKG_LIBS) $(ALL_LIBS)
+	$(RM) ../inst/models/$(MODEL1_NAME)/model.o
+
+$(MODEL2_DLL): ../inst/models/$(MODEL2_NAME)/model.o $(COMMON_OBJECTS)
+	$(SHLIB_LINK) -o $(MODEL2_DLL) $^ $(PKG_LIBS) $(ALL_LIBS)
+	$(RM) ../inst/models/$(MODEL2_NAME)/model.o
+
+$(MODEL3_DLL): ../inst/models/$(MODEL3_NAME)/model.o $(COMMON_OBJECTS)
+	$(SHLIB_LINK) -o $(MODEL3_DLL) $^ $(PKG_LIBS) $(ALL_LIBS)
+	$(RM) ../inst/models/$(MODEL3_NAME)/model.o
+
+$(MODEL4_DLL): ../inst/models/$(MODEL4_NAME)/model.o $(COMMON_OBJECTS)
+	$(SHLIB_LINK) -o $(MODEL4_DLL) $^ $(PKG_LIBS) $(ALL_LIBS)
+	$(RM) ../inst/models/$(MODEL4_NAME)/model.o
+
+.PHONY: all cache_template

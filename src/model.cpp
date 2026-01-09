@@ -12,6 +12,9 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "tools/messages.h"
+#include "individual.h"
+#include "household.h"
+
 #include "model.h"
 
 /// Raise error when "blank" model.

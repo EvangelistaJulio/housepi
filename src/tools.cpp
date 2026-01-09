@@ -13,16 +13,16 @@
 #include <unordered_set>
 #include <chrono>
 
-#include "tools/types.h"
-#include "tools/na_utils.h"
-#include "tools/messages.h"
-#include "tools/operators.h"
-#include "tools/string.h"
-#include "tools/read.h"
 #include "tools/global.h"
-#include "tools/sources.h"
-#include "tools/progress.h"
+#include "tools/messages.h"
+#include "tools/na_utils.h"
+#include "tools/operators.h"
 #include "tools/parser.h"
+#include "tools/progress.h"
+#include "tools/read.h"
+#include "tools/sources.h"
+#include "tools/string.h"
+#include "tools/types.h"
 
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>

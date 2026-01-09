@@ -8,7 +8,10 @@
 #include "tools/messages.h"
 #include "tools/global.h"
 #include "tools/string.h"
+
+#include "distribution.h"
 #include "distribution_registry.h"
+#include "proposal.h"
 #include "variable.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -16,6 +19,9 @@
 ///////////////////////////////////  Proposal : constructor  //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Empty proposer.
+Proposal::Proposal() = default;
 
 /// Proposal constructor from Distribution pointer.
 Proposal::Proposal(std::shared_ptr<Distribution> distr,
@@ -48,6 +54,12 @@ Proposal::Proposal(const std::string &distr_name,
     : Proposal(ContinuosDistrRegistry::inst().get_distr(distr_name),
                proposal_scale, args_to_adapt, is_discrete) {}
 
+/// Proposal deconstructor.
+Proposal::~Proposal() = default;
+
+/// Return proposer scale.
+double Proposal::scale() const { return is_adaptable() ? std::fabs((pDistr_->arg)(args_to_adapt_[0])) : hsp::na::DOUBLE; }
+
 /// Increase spread if acceptation rate is high and viceversa.
 void Proposal::adapt(double ratio)
 {
@@ -57,6 +69,15 @@ void Proposal::adapt(double ratio)
     for (unsigned short i : args_to_adapt_)
         (pDistr_->set_arg)(i, factor * (pDistr_->arg)(i));
 }
+
+//===== propose : functional methods =====//
+double Proposal::do_propose_sum_to_previous_(rnd_gen &prng, double xo) { return xo + pDistr_->rand(prng); }
+double Proposal::do_propose_times_previous_(rnd_gen &prng, double xo) { return xo * pDistr_->rand(prng); }
+double Proposal::do_propose_sample_rand_(rnd_gen &prng, double) { return pDistr_->rand(prng); }
+
+//===== logratio : functional methods =====//
+double Proposal::do_logratio_pdf_(double xold, double xnew) const { return pDistr_->logratio(xold, xnew); }
+double Proposal::do_logratio_lognorm_symm_(double xold, double xnew) const { return std::log(xold / xnew); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -207,6 +228,20 @@ namespace
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+Variable::Variable(const std::string &name,
+                   const std::string &err_type,
+                   double value,
+                   bool is_const,
+                   const hsp::parse::Definition &expr,
+                   bool is_prim)
+    : pDistr_(std::make_unique<Distribution>()),
+      pProp_(std::make_unique<Proposal>())
+{
+    this->set_name(name, err_type);
+    init(value, is_const, expr, is_prim);
+}
+Variable::~Variable() = default;
+
 /// Initialize variable.
 void Variable::init(double value, bool is_const,
                     const hsp::parse::Definition &parser, bool is_primitive)
@@ -247,6 +282,9 @@ void Variable::user_reset(rnd_gen &prng)
 
     pProp_->user_reset();
 }
+
+/// Assign an attribute to function.
+void Variable::init_func_attr(const std::string &key, const Attribute &attr) { pFunc_->init_attr(key, attr); }
 
 /// Initialize function reshaping.
 /// Drop function if it's constant when reshaping.
@@ -361,6 +399,8 @@ void Variable::init_proposer(const std::string &proposal, double proposal_scale)
     }
 }
 
+double Variable::do_eval_func_(double x) const { return pFunc_->evaluate(x); }
+
 /// Helper with proposer initialization of direct sample from prior/model.
 void Variable::helper_init_sample_proposer_()
 {
@@ -406,6 +446,18 @@ bool Variable::is_discrete() const
         return Attribute::is_discrete();
     return pDistr_->is_discrete();
 }
+/// Wheter the variable has a prior or a model associated.
+bool Variable::is_model() const { return !pDistr_->is_empty(); }
+/// Wheter the variable has an adaptable parametric proposal rule.
+bool Variable::is_adaptable() const { return pProp_->is_adaptable(); }
+
+double Variable::get_distr_logpdf() const { return pDistr_->logpdf(value_); }
+double Variable::get_distr_logratio() const { return pDistr_->logratio(buffer_, value_); }
+
+double Variable::get_accept_rate() const { return pProp_->get_accept_rate(); }
+void Variable::update_accept_rate(bool is_accepted) { pProp_->update_accept_rate(is_accepted); }
+void Variable::reset_accept_rate() { pProp_->reset_accept_rate(); }
+void Variable::adapt_proposal(double ratio) { pProp_->adapt(ratio); }
 
 /// Get a description about the functional status.
 std::string Variable::str_summary() const
@@ -415,3 +467,15 @@ std::string Variable::str_summary() const
         output += " | ~" + pDistr_->str_summary(false);
     return output;
 }
+
+std::string Variable::distr_name() const { return pDistr_->name(); }
+std::string Variable::str_range() const { return pDistr_->str_range(); }
+std::string Variable::func_name() const { return pFunc_->name(); }
+std::string Variable::prop_name() const { return pProp_->name(); }
+
+double Variable::do_propose_default_(rnd_gen &prng) { return pProp_->propose(prng, value_); }
+double Variable::do_propose_sample_(rnd_gen &prng) { return pDistr_->rand(prng); }
+
+bool Variable::do_is_valid_move_default_() const { return pDistr_->is_valid(value_); }
+
+double Variable::do_get_propose_logratio_default_() const { return pProp_->logratio(buffer_, value_); }

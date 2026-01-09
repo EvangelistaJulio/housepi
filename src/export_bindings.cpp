@@ -12,10 +12,18 @@
 #include "tools/messages.h"
 #include "tools/read.h"
 #include "tools/global.h"
+
+#include "tools/openmp.h"
+#include "tools/atomic.h"
+
 #include "function.h"
 #include "function_registry.h"
+#include "distribution.h"
 #include "distribution_registry.h"
+#include "data.h"
+#include "data_reports.h"
 #include "mcmc_impl.h"
+
 #include "model.h"
 
 RCPP_MODULE(housepi_flags)
@@ -299,34 +307,35 @@ namespace
     }
 }
 
-#define MAKE_RCPP_IMPORT_METHOD(module, section_name)          \
-    void MCMC::import_##module(SEXP input)                     \
-    {                                                          \
-        try                                                    \
-        {                                                      \
-            pImpl_->module.build(rdataframe_to_strmap(input)); \
-        }                                                      \
-        catch (const std::exception &e)                        \
-        {                                                      \
-            hsp::msg::error(                                   \
-                std::string("While importing ") +              \
-                section_name + ":\n" + e.what());              \
-        }                                                      \
+#define MAKE_RCPP_IMPORT_METHOD(module, section_name, Symbol)         \
+    void MCMC::import_##module(SEXP input)                            \
+    {                                                                 \
+        try                                                           \
+        {                                                             \
+            pImpl_->module Symbol build(rdataframe_to_strmap(input)); \
+        }                                                             \
+        catch (const std::exception &e)                               \
+        {                                                             \
+            hsp::msg::error(                                          \
+                std::string("While importing ") +                     \
+                section_name + ":\n" + e.what());                     \
+        }                                                             \
     }
-MAKE_RCPP_IMPORT_METHOD(setup, "setup")
-MAKE_RCPP_IMPORT_METHOD(infec_profile, "infectivity profile")
-MAKE_RCPP_IMPORT_METHOD(param, "parameters")
-MAKE_RCPP_IMPORT_METHOD(data_wide, "data-wide")
-MAKE_RCPP_IMPORT_METHOD(data_long, "data-long")
-MAKE_RCPP_IMPORT_METHOD(group_rates, "group rates")
-MAKE_RCPP_IMPORT_METHOD(augm, "augmented")
+MAKE_RCPP_IMPORT_METHOD(setup, "setup", ->)
+MAKE_RCPP_IMPORT_METHOD(data_wide, "data-wide", ->)
+MAKE_RCPP_IMPORT_METHOD(data_long, "data-long", ->)
+
+MAKE_RCPP_IMPORT_METHOD(param, "parameters", .)
+MAKE_RCPP_IMPORT_METHOD(group_rates, "group rates", .)
+MAKE_RCPP_IMPORT_METHOD(infec_profile, "infectivity profile", .)
+MAKE_RCPP_IMPORT_METHOD(augm, "augmented", .)
 
 // UPDATE: this will be removed once automatized in C++ reflection
 void MCMC::import_multiplicity(SEXP input)
 {
     try
     {
-        pImpl_->data_wide.multiplicity_build(rdataframe_to_strmap(input), pImpl_->augm.is_any());
+        pImpl_->data_wide->multiplicity_build(rdataframe_to_strmap(input), pImpl_->augm.is_any());
     }
     catch (const std::exception &e)
     {
@@ -366,7 +375,7 @@ Rcpp::CharacterVector MCMC::export_augm_list_discrete() const { return Rcpp::wra
 Rcpp::List MCMC::export_setup() const
 {
     using namespace Rcpp;
-    const Setup &setup = pImpl_->setup;
+    const Setup &setup = *pImpl_->setup;
 
     return List::create(_["steps"] = setup.n_steps,
                         _["burnin"] = setup.n_burnin,
@@ -407,7 +416,7 @@ Rcpp::DataFrame MCMC::export_augmented_data_wide() const
     using namespace Rcpp;
     const Impl::Augmented &augm = pImpl_->augm;
 
-    const size_t n_cols = pImpl_->data_wide.report_indiv.total;
+    const size_t n_cols = pImpl_->data_wide->report_indiv->total;
 
     int_vec status_col(n_cols);
     std::vector<dbl_vec> augm_cols(augm.list_export.size());
@@ -415,7 +424,7 @@ Rcpp::DataFrame MCMC::export_augmented_data_wide() const
         augm_cols[i] = dbl_vec(n_cols);
 
     size_t row = 0;
-    for (Household &house : pImpl_->data_wide)
+    for (Household &house : *pImpl_->data_wide)
         for (const Individual &member : house)
         {
             status_col[row] = member.status();
@@ -438,14 +447,14 @@ Rcpp::DataFrame MCMC::export_augmented_data_wide() const
 Rcpp::DataFrame MCMC::helper_export_data_wide_(const str_vec &columns, bool is_status) const
 {
     using namespace Rcpp;
-    const DataWide &data_wide = pImpl_->data_wide;
+    const DataWide &data_wide = *pImpl_->data_wide;
 
     try
     {
         if (data_wide.is_empty())
             return DataFrame();
 
-        const size_t n_rows = data_wide.report_indiv.total;
+        const size_t n_rows = data_wide.report_indiv->total;
         CharacterVector df_id = CharacterVector(n_rows);
         CharacterVector df_house_id = CharacterVector(n_rows);
         IntegerVector df_status = IntegerVector(n_rows);
@@ -457,7 +466,7 @@ Rcpp::DataFrame MCMC::helper_export_data_wide_(const str_vec &columns, bool is_s
             df_double.emplace_back(n_rows);
 
         size_t r = 0;
-        for (const Household &house : pImpl_->data_wide)
+        for (const Household &house : *pImpl_->data_wide)
             for (const Individual &member : house)
             {
                 df_id[r] = member.id();
@@ -486,11 +495,11 @@ Rcpp::DataFrame MCMC::helper_export_data_wide_(const str_vec &columns, bool is_s
 }
 Rcpp::DataFrame MCMC::export_data_wide() const
 {
-    return helper_export_data_wide_(pImpl_->data_wide.headers, true);
+    return helper_export_data_wide_(pImpl_->data_wide->headers, true);
 }
 Rcpp::DataFrame MCMC::data_wide_for_simulation() const
 {
-    return helper_export_data_wide_(pImpl_->data_wide.headers - pImpl_->augm.list_export, false);
+    return helper_export_data_wide_(pImpl_->data_wide->headers - pImpl_->augm.list_export, false);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -501,7 +510,7 @@ Rcpp::DataFrame MCMC::data_wide_for_simulation() const
 Rcpp::DataFrame MCMC::export_data_long() const
 {
     using namespace Rcpp;
-    const DataLong &data_long = pImpl_->data_long;
+    const DataLong &data_long = *pImpl_->data_long;
 
     try
     {
@@ -523,7 +532,7 @@ Rcpp::DataFrame MCMC::export_data_long() const
             datalist_dbl.emplace_back(n_rows);
 
         size_t r = 0;
-        for (const Household &house : pImpl_->data_wide)
+        for (const Household &house : *pImpl_->data_wide)
             for (const Individual &member : house)
                 for (size_t k = 0; k < member.data_long(headers[0]).size(); ++k, ++r)
                 {
@@ -554,13 +563,12 @@ Rcpp::DataFrame MCMC::export_data_long() const
 Rcpp::DataFrame MCMC::summarise_cases() const
 {
     using namespace Rcpp;
-    const DataWide &data_wide = pImpl_->data_wide;
-    const ReportIndividual &report_indiv = data_wide.report_indiv;
-    const ReportHousehold &report_house = data_wide.report_house;
+    const ReportIndividual &report_indiv = *pImpl_->data_wide->report_indiv;
+    const ReportHousehold &report_house = *pImpl_->data_wide->report_house;
 
     try
     {
-        if (data_wide.is_empty())
+        if (pImpl_->data_wide->is_empty())
             hsp::msg::warning("Called 'summarise_cases' on empty data.");
 
         CharacterVector type = wrap(str_vec(4, "individual") + str_vec(4, "household"));
@@ -613,8 +621,8 @@ Rcpp::DataFrame MCMC::summarise_cases() const
 Rcpp::DataFrame MCMC::summarise_house_sizes() const
 {
     using namespace Rcpp;
-    const ReportIndividual &report_indiv = pImpl_->data_wide.report_indiv;
-    const ReportHouseSizes &report_hh_size = pImpl_->data_wide.report_hh_size;
+    const ReportIndividual &report_indiv = *pImpl_->data_wide->report_indiv;
+    const ReportHouseSizes &report_hh_size = *pImpl_->data_wide->report_hh_size;
 
     try
     {
@@ -777,7 +785,7 @@ Rcpp::NumericMatrix MCMC::flush_augm_draws()
 Rcpp::NumericMatrix MCMC::flush_house_log_lik_draws()
 {
     using namespace Rcpp;
-    DataWide &data_wide = pImpl_->data_wide;
+    DataWide &data_wide = *pImpl_->data_wide;
 
     try
     {
@@ -785,7 +793,7 @@ Rcpp::NumericMatrix MCMC::flush_house_log_lik_draws()
             return NumericMatrix();
 
         // create a NumericMatrix with n_house columns
-        size_t n_houses = data_wide.report_house.total;
+        size_t n_houses = data_wide.report_house->total;
         NumericMatrix output(pImpl_->smpl_count, n_houses);
         CharacterVector headers(n_houses);
 
@@ -853,7 +861,7 @@ Rcpp::NumericVector MCMC::helper_param_rcpp_snapshot_() const
 Rcpp::DataFrame MCMC::helper_data_wide_rcpp_snapshot_(const Household &house) const
 {
     using namespace Rcpp;
-    const DataWide &data_wide = pImpl_->data_wide;
+    const DataWide &data_wide = *pImpl_->data_wide;
     const str_vec &headers = data_wide.headers;
 
     const size_t n_rows = house.size();
@@ -889,7 +897,7 @@ Rcpp::DataFrame MCMC::helper_data_wide_rcpp_snapshot_(const Household &house) co
 Rcpp::DataFrame MCMC::helper_data_long_rcpp_snapshot_(const Household &house) const
 {
     using namespace Rcpp;
-    const DataLong &data_long = pImpl_->data_long;
+    const DataLong &data_long = *pImpl_->data_long;
     const str_vec &headers = data_long.headers;
 
     if (data_long.indiv_datalist.empty())
@@ -1046,10 +1054,10 @@ Rcpp::List MCMC::export_house_snapshot(const std::string &house_id) const
 
     try
     {
-        if (pImpl_->data_wide.is_empty())
+        if (pImpl_->data_wide->is_empty())
             return List::create();
 
-        const Household &house = pImpl_->data_wide(house_id);
+        const Household &house = (*pImpl_->data_wide)(house_id);
 
         return List::create(_["param"] = helper_param_rcpp_snapshot_(),
                             _["data_wide"] = helper_data_wide_rcpp_snapshot_(house),
@@ -1075,7 +1083,7 @@ Rcpp::List MCMC::helper_simulate_(size_t n, bool is_expec_measure)
     using namespace Rcpp;
     Impl::Parameter &param = pImpl_->param;
 
-    pImpl_->atomic_error.reset();
+    pImpl_->atomic_error->restore();
 
     try
     {
@@ -1095,11 +1103,11 @@ Rcpp::List MCMC::helper_simulate_(size_t n, bool is_expec_measure)
 #pragma omp parallel for
         for (size_t r = 0; r < n_rep; ++r)
         {
-            if (pImpl_->atomic_error.is_pending())
+            if (pImpl_->atomic_error->is_pending())
                 continue;
             output[r] = helper_simulate_single_repetition_();
         }
-        pImpl_->atomic_error.throw_exception();
+        pImpl_->atomic_error->throw_exception();
 
         return output;
     }
@@ -1117,7 +1125,7 @@ Rcpp::DataFrame MCMC::helper_simulate_single_repetition_()
     try
     {
         const str_vec &augm_list_export = pImpl_->augm.list_export;
-        const size_t n_rows = pImpl_->data_wide.report_indiv.total;
+        const size_t n_rows = pImpl_->data_wide->report_indiv->total;
 
         IntegerVector df_status = IntegerVector(n_rows);
 
@@ -1127,7 +1135,7 @@ Rcpp::DataFrame MCMC::helper_simulate_single_repetition_()
             df_augm.emplace_back(n_rows);
 
         size_t r = 0;
-        for (Household house : pImpl_->data_wide) // NOTE: deep copy of households
+        for (Household house : *pImpl_->data_wide) // NOTE: deep copy of households
             try
             {
                 pImpl_->simulate_single_household_in_place(house);
@@ -1152,7 +1160,7 @@ Rcpp::DataFrame MCMC::helper_simulate_single_repetition_()
     }
     catch (const std::exception &e)
     {
-        pImpl_->atomic_error.set_if_first(e);
+        pImpl_->atomic_error->set_if_first(e);
     }
     return output;
 }
@@ -1177,7 +1185,7 @@ Rcpp::List MCMC::log_evidence(const std::string &scheme, unsigned long n_rungs)
         const dbl_vec &avg_vec = pp[1];
         const dbl_vec &var_vec = pp[2];
 
-        for (unsigned long k = 0; k < pImpl_->setup.n_rungs; ++k)
+        for (unsigned long k = 0; k < pImpl_->setup->n_rungs; ++k)
         {
             double d_inv_tem = inv_tem[k + 1] - inv_tem[k];
             output += (avg_vec[k + 1] + avg_vec[k]) * d_inv_tem / 2.;
@@ -1186,7 +1194,7 @@ Rcpp::List MCMC::log_evidence(const std::string &scheme, unsigned long n_rungs)
 
         return List::create(_["estimate"] = output,
                             _["scheme"] = scheme,
-                            _["n_rungs"] = pImpl_->setup.n_rungs,
+                            _["n_rungs"] = pImpl_->setup->c_sample_size,
                             _["inv_temper"] = wrap(inv_tem),
                             _["mean_log_lik"] = wrap(avg_vec),
                             _["var_log_lik"] = wrap(var_vec));

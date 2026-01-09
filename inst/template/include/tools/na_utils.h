@@ -29,7 +29,7 @@ namespace hsp
         {
             return txt.empty() ||
                    txt == "<NA>" ||
-                   txt == "NA" ||
+                   txt == STRING ||
                    txt == "NaN" ||
                    txt == "NAN" ||
                    txt == "nan";

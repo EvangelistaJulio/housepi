@@ -1,4 +1,4 @@
-image: rocker/tidyverse:latest
+image: rocker/r-ver:latest
 
 variables:
   RSPM: "https://packagemanager.rstudio.com/cran/__linux__/jammy/latest"
@@ -7,7 +7,6 @@ variables:
 
 stages:
   - check
-  - build
   - deploy
 
 cache:
@@ -22,11 +21,12 @@ before_script:
   - apt-get update && apt-get install -y libcurl4-openssl-dev libssl-dev libgit2-dev pandoc qpdf
   - R -q -e "install.packages('pak', repos='https://r-lib.github.io/p/pak/stable')"
   - R -q -e "pak::local_install_dev_deps(upgrade = FALSE)"
-  - R -q -e "Rcpp::compileAttributes()"
+  - R -q -e "pak::local_install_dev_deps(upgrade = FALSE)"
 
 r-cmd-check:
   stage: check
   script:
+    - R -q -e "pak::pkg_install('rcmdcheck')"
     - R -q -e "rcmdcheck::rcmdcheck(args = c('--no-manual', '--as-cran'), error_on = 'warning')"
   artifacts:
     when: always
@@ -40,6 +40,7 @@ pages:
   stage: deploy
   needs: ["r-cmd-check"]
   script:    
+    - R -q -e "pak::pkg_install('pkgdown', 'rmarkdown')"
     - R -q -e "pak::local_install()" 
     - Rscript pkgdown/custom_build_site.R
   artifacts:

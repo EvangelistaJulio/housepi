@@ -10,9 +10,15 @@
 #include "tools/messages.h"
 #include "tools/global.h"
 #include "tools/sources.h"
+#include "tools/openmp.h"
+#include "tools/atomic.h"
+
+#include "distribution.h"
 #include "distribution_registry.h"
 #include "variable.h"
 #include "household.h"
+#include "data.h"
+#include "data_reports.h"
 #include "mcmc_impl.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -181,9 +187,16 @@ double AugmentedMap::materialize_augm_model_logratio(const std::string &a)
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////  MCMC : Impl : InfecProfile : assign template  ///////////////////////
+///////////////////////////  *** MCMC : Impl : InfecProfile : struct ***  ///////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Infectivity profile constructor.
+MCMC::Impl::InfecProfile::InfecProfile(MCMC::Impl &ptr)
+    : generic_profile(std::make_unique<Distribution>()),
+      pImpl_(ptr) {}
+/// Infectivity profile destructor.
+MCMC::Impl::InfecProfile::~InfecProfile() = default;
 
 /// Set model template while constructiing model.
 void MCMC::Impl::InfecProfile::init_template(u_dict<str_vec> input)
@@ -450,12 +463,27 @@ void MCMC::request_infec_profile_discrete() { pImpl_->infec_profile.request_disc
 ///////////////////////////  MCMC : Impl : InfecProfile : getter methods  ///////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+/// Default method for instantaneous infectivity profile.
+double MCMC::Impl::InfecProfile::do_inst_default_(const Individual *, double t)
+{
+    return generic_profile->pdf(t);
+}
 /// Lookup method for discrete instantaneous infectivity profile.
 double MCMC::Impl::InfecProfile::do_inst_lookup_(const Individual *, double t)
 {
     if (generic_profile->is_valid(t) && t < size_lut_)
         return lookup_inst_.at(static_cast<size_t>(t));
     return 0;
+}
+/// Augmented method for instantaneous infectivity profile.
+double MCMC::Impl::InfecProfile::do_inst_augm_(const Individual *i, double t)
+{
+    return i->get_augm_variable(hsp::infprof::INSTANT)(t);
+}
+/// Default method for cumulative infectivity profile.
+double MCMC::Impl::InfecProfile::do_cumul_default_(const Individual *, double t)
+{
+    return generic_profile->cdf(t);
 }
 /// Lookup method for discrete cumulative infectivity profile.
 double MCMC::Impl::InfecProfile::do_cumul_lookup_(const Individual *, double t)
@@ -465,6 +493,11 @@ double MCMC::Impl::InfecProfile::do_cumul_lookup_(const Individual *, double t)
     if (t >= size_lut_ || generic_profile->is_above(t))
         return lookup_cumul_.at(size_lut_ - 1);
     return lookup_cumul_.at(static_cast<size_t>(t));
+}
+/// Augmented method for cumulative infectivity profile.
+double MCMC::Impl::InfecProfile::do_cumul_augm_(const Individual *i, double t)
+{
+    return i->get_augm_variable(hsp::infprof::CUMUL)(t);
 }
 
 double MCMC::infec_profile_inst(const Individual &i, double t) const { return pImpl_->infec_profile.inst(&i, t); }
@@ -571,7 +604,7 @@ void MCMC::Impl::Augmented::build(const u_dict<str_vec> &input)
     user_list_discrete = hsp::str::unique(user_list_discrete);
 
     // allocate memory for augmented variables to each individual
-    for (Household &house : pImpl_.data_wide)
+    for (Household &house : *pImpl_.data_wide)
         for (Individual &member : house)
             clear_all(member);
 }
@@ -650,10 +683,10 @@ void MCMC::Impl::Augmented::helper_build_definition_order_()
     list_draws.clear();
 
     // NOTE: NA (i. e. generic) does not necessarily need checking.
-    if (pImpl_.data_wide.all_infected_status_list.empty())
+    if (pImpl_.data_wide->all_infected_status_list.empty())
         set_definition_dependency_order_for_(hsp::na::STRING);
     else
-        for (int status : pImpl_.data_wide.all_infected_status_list)
+        for (int status : pImpl_.data_wide->all_infected_status_list)
             set_definition_dependency_order_for_(std::to_string(status));
 
     // finalize augmented lists
@@ -803,7 +836,7 @@ void MCMC::Impl::Augmented::helper_build_model_status_maps_()
     // drop previous definitions
     status_map_model.clear();
 
-    for (int status : pImpl_.data_wide.all_infected_status_list)
+    for (int status : pImpl_.data_wide->all_infected_status_list)
     {
         u_dict<str_vec> tree;  // populate augmented dependency tree
         str_vec without_model; // list of augmented without models
@@ -853,7 +886,7 @@ void MCMC::Impl::Augmented::init()
     if (!is_any())
         return;
 
-    for (Household &house : pImpl_.data_wide)
+    for (Household &house : *pImpl_.data_wide)
         for (Individual &member : house.infected())
         {
             init_all(member);
@@ -904,10 +937,10 @@ std::vector<size_t> MCMC::Impl::Augmented::init_get_definition_order_(Individual
     const std::string s = std::to_string(member.status());
 
     // NOTE: if status hasn't been observed in data, build on demand
-    if (member.is_infected_status() && !(pImpl_.data_wide.all_infected_status_list % member.status()))
+    if (member.is_infected_status() && !(pImpl_.data_wide->all_infected_status_list % member.status()))
     {
         set_definition_dependency_order_for_(s);
-        pImpl_.data_wide.all_infected_status_list.push_back(member.status());
+        pImpl_.data_wide->all_infected_status_list.push_back(member.status());
     }
 
     if (status_to_def_row.count(s))
@@ -1003,7 +1036,7 @@ void MCMC::Impl::Augmented::init_func_attributes_(Individual &member, size_t k)
 void MCMC::Impl::Augmented::user_reset(Individual &member)
 {
     for (const std::string &a : status_map_sample[member.status()])
-        member.get_augm_variable(a).user_reset(pImpl_.setup.prng());
+        member.get_augm_variable(a).user_reset(pImpl_.setup->prng());
 }
 
 /// Initialize augmented initial values for all individuals.
@@ -1012,7 +1045,7 @@ void MCMC::Impl::Augmented::user_reset()
     if (!is_any())
         return;
 
-    for (Household &house : pImpl_.data_wide)
+    for (Household &house : *pImpl_.data_wide)
         for (Individual &member : house.infected())
             user_reset(member);
 }
@@ -1026,7 +1059,7 @@ void MCMC::Impl::Augmented::user_reset()
 /// Set individual id for augmented draws follow-up.
 void MCMC::Impl::Augmented::helper_init_id_draws_()
 {
-    str_vec &id_draws = pImpl_.setup.id_draws;
+    str_vec &id_draws = pImpl_.setup->id_draws;
     smpl_individuals.clear();
 
     if (id_draws.empty())
@@ -1038,7 +1071,7 @@ void MCMC::Impl::Augmented::helper_init_id_draws_()
 
         // check id across all individuals
         str_vec already_stored_id = {};
-        for (const Household &house : pImpl_.data_wide)
+        for (const Household &house : *pImpl_.data_wide)
             for (const Individual &member : house)
                 if (id_draws % member.id())
                 {
@@ -1118,18 +1151,17 @@ void MCMC::Impl::Augmented::store_draws(unsigned long smpl_count)
 void MCMC::Impl::move_all_augm_()
 {
     double delta_ll = 0.;
-    atomic_error.reset();
+    atomic_error->restore();
 
 #pragma omp parallel for reduction(+ : delta_ll)
-    for (size_t H = 0; H < data_wide.report_house.total; ++H)
+    for (size_t H = 0; H < data_wide->report_house->total; ++H)
     {
-        if (atomic_error.is_pending())
+        if (atomic_error->is_pending())
             continue;
 
-        Household &this_house = data_wide(H);
-        delta_ll += atomic_move_augm_single_house_(this_house);
+        delta_ll += atomic_move_augm_single_house_(H);
     }
-    atomic_error.throw_exception();
+    atomic_error->throw_exception();
 
     increment_total_log_lik_(delta_ll);
 }
@@ -1140,9 +1172,11 @@ void MCMC::Impl::move_all_augm_()
 
 /// Move augmented variables of infectious members inside household.
 /// The move is performed one member at a time, one augmented variable at a time.
-double MCMC::Impl::atomic_move_augm_single_house_(Household &house)
+double MCMC::Impl::atomic_move_augm_single_house_(size_t H)
 {
+    Household &house = (*data_wide)(H);
     double delta_ll = 0.;
+
     try
     {
         // loop over infectious residents of the househould
@@ -1153,9 +1187,9 @@ double MCMC::Impl::atomic_move_augm_single_house_(Household &house)
     }
     catch (const std::exception &e)
     {
-        atomic_error.set_if_first("While sampling augmented variables for " +
-                                  house.err_name() + ":\n" +
-                                  std::string(e.what()));
+        atomic_error->set_if_first("While sampling augmented variables for " +
+                                   house.err_name() + ":\n" +
+                                   std::string(e.what()));
     }
     return delta_ll;
 }
@@ -1164,7 +1198,7 @@ double MCMC::Impl::atomic_move_augm_single_house_(Household &house)
 double MCMC::Impl::metropolis_augm_single_move_(Household &house, Individual &member, const std::string &a)
 {
     Variable &xaugm = member.get_augm_variable(a);
-    xaugm.propose(setup.prng()); // propose new value and buffer old
+    xaugm.propose(setup->prng()); // propose new value and buffer old
 
     // proceed only if the new value is consistent
     if (xaugm.is_valid_move())
@@ -1179,7 +1213,7 @@ double MCMC::Impl::metropolis_augm_single_move_(Household &house, Individual &me
         delta_ll += member.materialize_augm_model_logratio(a);
         delta_ll += materialize_house_obs_log_lik_(house);
 
-        if (setup.unif() < std::exp(setup.inv_T * delta_ll - xaugm.get_propose_logratio()))
+        if (setup->unif() < std::exp(setup->inv_T * delta_ll - xaugm.get_propose_logratio()))
             return delta_ll;
 
         // else recover cached values
