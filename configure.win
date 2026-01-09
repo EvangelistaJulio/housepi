@@ -1,5 +1,0 @@
-@echo off
-del src\*.o src\*.so src\*.exe
-del /s inst\template\src\
-del inst\models\*\*.o inst\models\*\*.so inst\models\*\*.exe
-del inst\standalone\*.o inst\standalone\*.exe
