@@ -81,9 +81,9 @@ struct Setup
     double unif() { return unif_(prng()); }
 
 private:
-    std::unique_ptr<hsp::progress::Bar> progressbar_; // progress bar
-    std::uniform_real_distribution<double> unif_;     // uniform sampler
     std::vector<rnd_gen> prng_parallel_ = {};         // pseudo-random number generators
+    std::uniform_real_distribution<double> unif_;     // uniform sampler
+    std::unique_ptr<hsp::progress::Bar> progressbar_; // progress bar
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////
