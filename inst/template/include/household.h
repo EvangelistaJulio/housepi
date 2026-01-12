@@ -8,11 +8,9 @@
 #ifndef HOUSEPI__HOUSEHOLD__H
 #define HOUSEPI__HOUSEHOLD__H
 
-#include "tools/types.h"
-#include "tools/na_utils.h"
-#include "tools/operators.h"
 #include "tools/global.h"
-
+#include "tools/operators.h"
+#include "tools/types.h"
 #include "attribute.h"
 #include "individual.h"
 

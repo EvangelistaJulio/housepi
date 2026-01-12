@@ -10,7 +10,6 @@
 #include <map>
 
 #include "tools/operators.h"
-#include "tools/math_combin.h"
 #include "binomial.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -18,10 +17,34 @@
 ////////////////////////////// *** BINOMIAL AUXILIARY NAMESPACE *** /////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
+
 namespace bax
 {
     using std::vector;
     using gentype = std::vector<unsigned>;
+
+    /// Standard definition for the factorial.
+    inline unsigned long factorial(unsigned long n)
+    {
+        unsigned long result = 1;
+        for (unsigned long i = 2; i <= n; ++i)
+            result *= i;
+        return result;
+    }
+
+    /// Binomial coefficient of N elements in k positions
+    inline unsigned long binom_coeff(unsigned N, unsigned k)
+    {
+        if (N == 0 || k == N)
+            return 1;
+        // note: use symmetry
+        if (k > N - k)
+            k = N - k;
+        unsigned long result = 1;
+        for (unsigned i = 1; i <= k; ++i)
+            result = result * (N - k + i) / i;
+        return result;
+    }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////  LookUp Tables  ////////////////////////////////////////
@@ -98,7 +121,7 @@ namespace bax
             {
                 std::map<unsigned, unsigned> freq_map = {};
                 gentype counts = {};
-                unsigned long multiplicities = numr::factorial(n);
+                unsigned long multiplicities = factorial(n);
 
                 // I take advantage of the order granted by the map
                 for (unsigned val : g)
@@ -111,7 +134,7 @@ namespace bax
                 for (const auto &x : freq_map)
                 {
                     counts.push_back(x.second);
-                    multiplicities /= numr::factorial(x.second);
+                    multiplicities /= factorial(x.second);
                 }
 
                 // add to the list
@@ -195,7 +218,7 @@ namespace bax
         vector<unsigned> current(N);
         recursive_span_combinations_(N, k, current, results, 0, 0);
 
-        unsigned long num_combin = numr::binom_coeff(N, k);
+        unsigned long num_combin = binom_coeff(N, k);
         Num_Combin_LookupTable[N][k] = num_combin;
         Combinations_LookupTable[N][k].resize(num_combin);
 

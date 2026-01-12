@@ -8,6 +8,8 @@
 #ifndef HOUSEPI__TOOLS__INFPROF__H
 #define HOUSEPI__TOOLS__INFPROF__H
 
+#include <string>
+
 namespace hsp
 {
     namespace discr
@@ -44,17 +46,31 @@ namespace hsp
         constexpr double VALUE_REFERENCE = 1.0;          /// Alias for reference value.
     }
 
+    namespace sources
+    {
+        /// Wheter definitions is 'augmented'.
+        inline bool is_augmented(const std::string &s) { return s == "A"; }
+        /// Wheter definitions is 'data'.
+        inline bool is_data(const std::string &s) { return s == "D"; }
+        /// Wheter definitions is 'group rate'.
+        inline bool is_group_rate(const std::string &s) { return s == "G"; }
+        /// Wheter definitions is 'numeric'.
+        inline bool is_numeric(const std::string &s) { return s == "N"; }
+        /// Wheter definitions is 'parameter'.
+        inline bool is_parameter(const std::string &s) { return s == "P"; }
+    }
+
     namespace status
     {
         constexpr int INFECTED = 1;    /// Infected status (>=)
         constexpr int SUSCEPTIBLE = 0; /// Susceptible status (==)
         constexpr int MISSING = -1;    /// Missing status (<=)
 
-        /// Wheter individual status is infected. 
+        /// Wheter individual status is infected.
         inline bool is_infected(int s) { return s >= INFECTED; }
-        /// Wheter individual status is susceptible. 
+        /// Wheter individual status is susceptible.
         inline bool is_susceptible(int s) { return s == SUSCEPTIBLE; }
-        /// Wheter individual status is missing. 
+        /// Wheter individual status is missing.
         inline bool is_missing(int s) { return s <= MISSING; }
     }
 }

@@ -7,14 +7,13 @@
 
 #include <Rcpp.h>
 
-#include "tools/flags.h"
-#include "tools/na_utils.h"
-#include "tools/messages.h"
-#include "tools/read.h"
-#include "tools/global.h"
-
-#include "tools/openmp.h"
 #include "tools/atomic.h"
+#include "tools/flags.h"
+#include "tools/global.h"
+#include "tools/messages.h"
+#include "tools/openmp.h"
+#include "tools/read.h"
+#include "tools/types.h"
 
 #include "function.h"
 #include "function_registry.h"
@@ -22,6 +21,10 @@
 #include "distribution_registry.h"
 #include "data.h"
 #include "data_reports.h"
+#include "parameter.h"
+#include "group_rate.h"
+#include "infec_profile.h"
+#include "augmented.h"
 #include "mcmc_impl.h"
 
 #include "model.h"
@@ -307,35 +310,33 @@ namespace
     }
 }
 
-#define MAKE_RCPP_IMPORT_METHOD(module, section_name, Symbol)         \
-    void MCMC::import_##module(SEXP input)                            \
-    {                                                                 \
-        try                                                           \
-        {                                                             \
-            pImpl_->module Symbol build(rdataframe_to_strmap(input)); \
-        }                                                             \
-        catch (const std::exception &e)                               \
-        {                                                             \
-            hsp::msg::error(                                          \
-                std::string("While importing ") +                     \
-                section_name + ":\n" + e.what());                     \
-        }                                                             \
+#define MAKE_RCPP_IMPORT_METHOD(module, section_name)           \
+    void MCMC::import_##module(SEXP input)                      \
+    {                                                           \
+        try                                                     \
+        {                                                       \
+            pImpl_->module->build(rdataframe_to_strmap(input)); \
+        }                                                       \
+        catch (const std::exception &e)                         \
+        {                                                       \
+            hsp::msg::error(std::string("While importing ") +   \
+                            section_name + ":\n" + e.what());   \
+        }                                                       \
     }
-MAKE_RCPP_IMPORT_METHOD(setup, "setup", ->)
-MAKE_RCPP_IMPORT_METHOD(data_wide, "data-wide", ->)
-MAKE_RCPP_IMPORT_METHOD(data_long, "data-long", ->)
-
-MAKE_RCPP_IMPORT_METHOD(param, "parameters", .)
-MAKE_RCPP_IMPORT_METHOD(group_rates, "group rates", .)
-MAKE_RCPP_IMPORT_METHOD(infec_profile, "infectivity profile", .)
-MAKE_RCPP_IMPORT_METHOD(augm, "augmented", .)
+MAKE_RCPP_IMPORT_METHOD(setup, "setup")
+MAKE_RCPP_IMPORT_METHOD(data_wide, "data-wide")
+MAKE_RCPP_IMPORT_METHOD(data_long, "data-long")
+MAKE_RCPP_IMPORT_METHOD(param, "parameters")
+MAKE_RCPP_IMPORT_METHOD(group_rates, "group rates")
+MAKE_RCPP_IMPORT_METHOD(infec_profile, "infectivity profile")
+MAKE_RCPP_IMPORT_METHOD(augm, "augmented")
 
 // UPDATE: this will be removed once automatized in C++ reflection
 void MCMC::import_multiplicity(SEXP input)
 {
     try
     {
-        pImpl_->data_wide->multiplicity_build(rdataframe_to_strmap(input), pImpl_->augm.is_any());
+        pImpl_->data_wide->multiplicity_build(rdataframe_to_strmap(input), pImpl_->augm->is_any());
     }
     catch (const std::exception &e)
     {
@@ -347,13 +348,12 @@ void MCMC::import_param_for_prediction(SEXP input)
 {
     try
     {
-        pImpl_->param.build_for_expec(rdataframe_to_dblmap(input));
+        pImpl_->param->build_for_expec(rdataframe_to_dblmap(input));
     }
     catch (const std::exception &e)
     {
-        hsp::msg::error(
-            "While importanting parameter table:\n" +
-            std::string(e.what()));
+        hsp::msg::error("While importanting parameter table:\n" +
+                        std::string(e.what()));
     }
 }
 
@@ -363,13 +363,13 @@ void MCMC::import_param_for_prediction(SEXP input)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Rcpp::CharacterVector MCMC::export_param_list_const() const { return Rcpp::wrap(pImpl_->param.list_const); }
-Rcpp::CharacterVector MCMC::export_param_list_sample_standard() const { return Rcpp::wrap(pImpl_->param.list_sample_standard); }
-Rcpp::CharacterVector MCMC::export_param_list_sample_cache() const { return Rcpp::wrap(pImpl_->param.list_sample_cached); }
-Rcpp::CharacterVector MCMC::export_augm_list_draws() const { return Rcpp::wrap(pImpl_->augm.list_draws); }
-Rcpp::CharacterVector MCMC::export_augm_list_full() const { return Rcpp::wrap(pImpl_->augm.list_full); }
-Rcpp::CharacterVector MCMC::export_augm_list_export() const { return Rcpp::wrap(pImpl_->augm.list_export); }
-Rcpp::CharacterVector MCMC::export_augm_list_discrete() const { return Rcpp::wrap(pImpl_->augm.user_list_discrete); }
+Rcpp::CharacterVector MCMC::export_param_list_const() const { return Rcpp::wrap(pImpl_->param->list_const); }
+Rcpp::CharacterVector MCMC::export_param_list_sample_standard() const { return Rcpp::wrap(pImpl_->param->list_sample_standard); }
+Rcpp::CharacterVector MCMC::export_param_list_sample_cache() const { return Rcpp::wrap(pImpl_->param->list_sample_cached); }
+Rcpp::CharacterVector MCMC::export_augm_list_draws() const { return Rcpp::wrap(pImpl_->augm->list_draws); }
+Rcpp::CharacterVector MCMC::export_augm_list_full() const { return Rcpp::wrap(pImpl_->augm->list_full); }
+Rcpp::CharacterVector MCMC::export_augm_list_export() const { return Rcpp::wrap(pImpl_->augm->list_export); }
+Rcpp::CharacterVector MCMC::export_augm_list_discrete() const { return Rcpp::wrap(pImpl_->augm->user_list_discrete); }
 
 /// Export current setup configurations to R List.
 Rcpp::List MCMC::export_setup() const
@@ -393,7 +393,7 @@ Rcpp::List MCMC::export_setup() const
 Rcpp::List MCMC::export_infec_profile() const
 {
     using namespace Rcpp;
-    const Impl::InfecProfile &infec_profile = pImpl_->infec_profile;
+    const InfecProfile &infec_profile = *pImpl_->infec_profile;
 
     if (infec_profile.is_augmented())
         hsp::msg::error(
@@ -414,7 +414,7 @@ Rcpp::List MCMC::export_infec_profile() const
 Rcpp::DataFrame MCMC::export_augmented_data_wide() const
 {
     using namespace Rcpp;
-    const Impl::Augmented &augm = pImpl_->augm;
+    const Augmented &augm = *pImpl_->augm;
 
     const size_t n_cols = pImpl_->data_wide->report_indiv->total;
 
@@ -499,7 +499,7 @@ Rcpp::DataFrame MCMC::export_data_wide() const
 }
 Rcpp::DataFrame MCMC::data_wide_for_simulation() const
 {
-    return helper_export_data_wide_(pImpl_->data_wide->headers - pImpl_->augm.list_export, false);
+    return helper_export_data_wide_(pImpl_->data_wide->headers - pImpl_->augm->list_export, false);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -686,7 +686,7 @@ Rcpp::NumericMatrix MCMC::flush_total_log_lik_draws()
 Rcpp::NumericMatrix MCMC::flush_param_draws()
 {
     using namespace Rcpp;
-    Impl::Parameter &param = pImpl_->param;
+    Parameter &param = *pImpl_->param;
 
     try
     {
@@ -717,7 +717,7 @@ Rcpp::NumericMatrix MCMC::flush_param_draws()
 Rcpp::NumericMatrix MCMC::flush_param_lprior_draws()
 {
     using namespace Rcpp;
-    Impl::Parameter &param = pImpl_->param;
+    Parameter &param = *pImpl_->param;
 
     try
     {
@@ -748,7 +748,7 @@ Rcpp::NumericMatrix MCMC::flush_param_lprior_draws()
 Rcpp::NumericMatrix MCMC::flush_augm_draws()
 {
     using namespace Rcpp;
-    Impl::Augmented &augm = pImpl_->augm;
+    Augmented &augm = *pImpl_->augm;
 
     try
     {
@@ -843,7 +843,7 @@ Rcpp::NumericMatrix MCMC::flush_house_log_lik_draws()
 Rcpp::NumericVector MCMC::helper_param_rcpp_snapshot_() const
 {
     using namespace Rcpp;
-    const Impl::Parameter &param = pImpl_->param;
+    const Parameter &param = *pImpl_->param;
     const str_vec list_full = param.list_sample + param.list_const;
 
     if (list_full.empty())
@@ -938,7 +938,7 @@ Rcpp::DataFrame MCMC::helper_group_rates_rcpp_snapshot_(const Household &house) 
 {
     using namespace Rcpp;
 
-    const str_vec &headers = pImpl_->group_rates.headers;
+    const str_vec &headers = pImpl_->group_rates->headers;
 
     if (headers.empty())
         return DataFrame::create();
@@ -970,7 +970,7 @@ Rcpp::DataFrame MCMC::helper_group_rates_rcpp_snapshot_(const Household &house) 
 Rcpp::List MCMC::helper_infec_profile_rcpp_snapshot_(const Household &house) const
 {
     using namespace Rcpp;
-    const Impl::InfecProfile &infec_profile = pImpl_->infec_profile;
+    const InfecProfile &infec_profile = *pImpl_->infec_profile;
 
     if (!infec_profile.is_augmented() && infec_profile.generic_profile->is_empty())
         return List::create();
@@ -1019,8 +1019,7 @@ Rcpp::List MCMC::helper_infec_profile_rcpp_snapshot_(const Household &house) con
 Rcpp::DataFrame MCMC::helper_augm_rcpp_snapshot_(const Household &house) const
 {
     using namespace Rcpp;
-    const Impl::Augmented &augm = pImpl_->augm;
-    const str_vec &list_export = augm.list_export;
+    const str_vec &list_export = pImpl_->augm->list_export;
 
     if (list_export.empty())
         return DataFrame::create();
@@ -1081,7 +1080,7 @@ Rcpp::List MCMC::export_house_snapshot(const std::string &house_id) const
 Rcpp::List MCMC::helper_simulate_(size_t n, bool is_expec_measure)
 {
     using namespace Rcpp;
-    Impl::Parameter &param = pImpl_->param;
+    Parameter &param = *pImpl_->param;
 
     pImpl_->atomic_error->restore();
 
@@ -1124,7 +1123,7 @@ Rcpp::DataFrame MCMC::helper_simulate_single_repetition_()
     DataFrame output;
     try
     {
-        const str_vec &augm_list_export = pImpl_->augm.list_export;
+        const str_vec &augm_list_export = pImpl_->augm->list_export;
         const size_t n_rows = pImpl_->data_wide->report_indiv->total;
 
         IntegerVector df_status = IntegerVector(n_rows);

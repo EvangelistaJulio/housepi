@@ -9,7 +9,6 @@
 #define HOUSEPI__FUNCTION__H
 
 #include "tools/types.h"
-#include "tools/na_utils.h"
 #include "attribute.h"
 
 using named_args = std::vector<std::pair<std::string, double>>;

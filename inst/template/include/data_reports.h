@@ -8,7 +8,8 @@
 #ifndef HOUSEPI__DATA_REPORTS__H
 #define HOUSEPI__DATA_REPORTS__H
 
-#include "tools/types.h"
+#include <vector>
+#include <utility>
 
 /// Report for all individuals in the data.
 struct ReportIndividual

@@ -9,7 +9,6 @@
 
 #include "tools/global.h"
 #include "tools/messages.h"
-#include "tools/na_utils.h"
 #include "tools/openmp.h"
 #include "tools/progress.h"
 #include "tools/read.h"
@@ -17,7 +16,6 @@
 #include "tools/types.h"
 
 #include "attribute.h"
-#include "variable.h"
 #include "data.h"
 #include "data_reports.h"
 
@@ -505,6 +503,34 @@ void DataWide::multiplicity_build(const u_dict<str_vec> &input, bool is_any_augm
             if (house.is_multiplicity_head_class())
                 head_class_house_indexes.emplace_back(house.house_index());
         }
+    }
+}
+
+/// Initialize posterior sample of parameters.
+void DataWide::init_draws(unsigned long sample_size)
+{
+    // sample over households
+    smpl_values.clear();
+    smpl_values.resize(head_class_house_indexes.size());
+    for (size_t R = 0; R < head_class_house_indexes.size(); ++R)
+    {
+        smpl_values[R].clear();
+        smpl_values[R].reserve(sample_size);
+        smpl_values[R].assign(sample_size, hsp::na::DOUBLE);
+    }
+}
+
+/// Store current sample of log-likelihood for restricted households.
+void DataWide::store_draws(unsigned long smpl_count)
+{
+    // store sample for restricted households
+    for (size_t R = 0; R < head_class_house_indexes.size(); ++R)
+    {
+        Household &house = house_vector_[head_class_house_indexes[R]];
+        double x = house.get_obs_log_lik() / house.multiplicity();
+        for (const Individual &member : house.infected())
+            x += member.get_augm_model_log_lik();
+        smpl_values[R][smpl_count] = x;
     }
 }
 

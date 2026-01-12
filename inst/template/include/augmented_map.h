@@ -5,13 +5,12 @@
  * See the LICENSE file for details.
  */
 
-#ifndef HOUSEPI__AUGMENTED_MAP__H
-#define HOUSEPI__AUGMENTED_MAP__H
+#ifndef HOUSEPI__AUGMENTED__MAP__H
+#define HOUSEPI__AUGMENTED__MAP__H
 
-#include "tools/types.h"
-#include "tools/na_utils.h"
 #include "tools/operators.h"
 #include "tools/parser.h"
+#include "tools/types.h"
 #include "variable.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -37,7 +36,11 @@ public:
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	/// Clear augmented definition (also used for allocation).
-	void clear_augm(const std::string &a);
+	void clear_augm(const std::string &a)
+	{
+		augm_map_[a] = Variable();
+		augm_map_[a].set_name(a, "augmented");
+	}
 
 	/// Assign definitions for the augmented variable model.
 	/// NOTE: a Variable must already be allocated with clear_augm.
@@ -46,9 +49,15 @@ public:
 				   bool is_const,
 				   const hsp::parse::Definition &func_name,
 				   bool is_prim,
-				   const hsp::parse::Definition &model_name);
+				   const hsp::parse::Definition &model_name)
+	{
+		Variable &this_augm = safe_at(augm_map_, a, "augmented variable");
+		this_augm.init(value, is_const, func_name, is_prim);
+		this_augm.init_distr(model_name);
+	}
 
-	void set_augm_value(const std::string &a, double x);
+	/// Set numeric value of augmented variable. If not allowed, throw exception.
+	void set_augm_value(const std::string &a, double x) { safe_at(augm_map_, a, "augmented").set(x); }
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////  AugmentedMap : getter  ///////////////////////////////////
@@ -87,4 +96,4 @@ private:
 	u_dict<std::vector<const Variable *>> model_logratios_ = {};
 };
 
-#endif // HOUSEPI__AUGMENTED_MAP__H
+#endif // HOUSEPI__AUGMENTED__MAP__H

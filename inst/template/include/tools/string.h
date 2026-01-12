@@ -13,7 +13,6 @@
 #include <cstdint>
 
 #include "tools/types.h"
-#include "tools/na_utils.h"
 
 namespace hsp
 {

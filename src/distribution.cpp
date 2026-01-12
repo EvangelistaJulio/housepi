@@ -9,7 +9,6 @@
 
 #include <boost/math/special_functions/beta.hpp>
 #include <boost/math/special_functions/gamma.hpp>
-
 #include <boost/math/distributions/normal.hpp>
 #include <boost/math/distributions/lognormal.hpp>
 #include <boost/math/distributions/beta.hpp>
@@ -18,7 +17,6 @@
 #include <boost/math/distributions/binomial.hpp>
 #include <boost/math/distributions/negative_binomial.hpp>
 #include <boost/math/distributions/geometric.hpp>
-
 #include <boost/random/beta_distribution.hpp>
 
 #include "tools/operators.h"

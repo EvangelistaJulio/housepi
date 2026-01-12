@@ -9,7 +9,6 @@
 #define HOUSEPI__DISTRIBUTION__H
 
 #include "tools/types.h"
-#include "tools/na_utils.h"
 #include "tools/random.h"
 #include "function.h"
 

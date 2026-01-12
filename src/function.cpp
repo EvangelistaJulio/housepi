@@ -7,8 +7,9 @@
 
 #include "tools/global.h"
 #include "tools/messages.h"
-#include "tools/string.h"
 #include "tools/operators.h"
+#include "tools/string.h"
+
 #include "function.h"
 #include "function_registry.h"
 

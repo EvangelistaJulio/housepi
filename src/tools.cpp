@@ -12,15 +12,14 @@
 #include <algorithm>
 #include <unordered_set>
 #include <chrono>
+#include <cmath>
 
 #include "tools/global.h"
 #include "tools/messages.h"
-#include "tools/na_utils.h"
 #include "tools/operators.h"
 #include "tools/parser.h"
 #include "tools/progress.h"
 #include "tools/read.h"
-#include "tools/sources.h"
 #include "tools/string.h"
 #include "tools/types.h"
 
@@ -97,6 +96,35 @@ namespace hsp
 #endif
                 housepi_issued_warnings_set.insert(txt);
             }
+        }
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////  Not Available Recognition Functions  //////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    namespace na
+    {
+        /// Wheter double represents NA.
+        bool is(double x) { return std::isnan(x); }
+        /// Wheter string represents NA.
+        bool is(const std::string &txt)
+        {
+            return txt.empty() ||
+                   txt == "<NA>" ||
+                   txt == STRING ||
+                   txt == "NaN" ||
+                   txt == "NAN" ||
+                   txt == "nan";
+        }
+        /// Wheter character represents NA.
+        bool is(const char *txt)
+        {
+            if (!txt)
+                return true;
+            return is(std::string(txt));
         }
     }
 
@@ -635,7 +663,7 @@ namespace hsp
                 const steady_clock::time_point now = steady_clock::now();
                 const seconds elapsed = duration_cast<seconds>(now - start_);
                 const seconds missing = duration_cast<seconds>(elapsed * (1. / progress - 1.));
-                
+
                 // skip if expected to finish soon
                 if (missing.count() < 1)
                     return;
@@ -766,17 +794,17 @@ namespace hsp
         }
 
         /// Parse a single expression into an AST node.
-        Definition::Entry parse_expression_(const string &expr)
+        Entry parse_expression_(const string &expr)
         {
             // empty node
             if (hsp::na::is(expr))
-                return Definition::Entry();
+                return Entry();
 
             // pure function node
             const size_t bar_1 = expr.find('|');
             if (bar_1 == string::npos)
             {
-                Definition::Entry node;
+                Entry node;
                 node.func = expr;
                 return node;
             }
@@ -787,7 +815,7 @@ namespace hsp
             // if not found, then it's a terminal node {value|type}
             const size_t bar_2 = expr_tail.find('|');
             if (bar_2 == string::npos)
-                return Definition::Entry(expr_head, expr_tail);
+                return Entry(expr_head, expr_tail);
 
             // otherwise it is a non-default function node
             // e. g. "func|arg_1:...:arg_n|child_1:...child_n"
@@ -799,7 +827,7 @@ namespace hsp
                     "Mismatch in the number of keys and arguments of definition '" + expr + "'.");
 
             // populate the parent node with children nodes
-            Definition::Entry node;
+            Entry node;
             node.func = expr_head;
             for (size_t i = 0; i < children.size(); ++i)
             {
@@ -809,7 +837,7 @@ namespace hsp
                 {
                     // Function Child Node
                     // parse inner expression and keep braced flag
-                    Definition::Entry child = parse_expression_(c.substr(1, c.size() - 2));
+                    Entry child = parse_expression_(c.substr(1, c.size() - 2));
                     child.is_braced = true;
                     child.key = args[i];
                     node.children.push_back(std::move(child));
@@ -821,7 +849,7 @@ namespace hsp
                     if (barc == string::npos)
                         throw std::runtime_error(
                             "Missing terminal '|' in definition '" + expr + "'.");
-                    Definition::Entry child(c.substr(0, barc), c.substr(barc + 1));
+                    Entry child(c.substr(0, barc), c.substr(barc + 1));
                     child.key = args[i];
                     node.children.push_back(std::move(child));
                 }
@@ -830,18 +858,15 @@ namespace hsp
             return node;
         }
 
-        /// Construct and parse expression into AST (and flattens it).
-        Definition::Definition(const string &expr) { root = parse_expression_(expr); }
-
         /// Definition Entry constructor.
-        Definition::Entry::Entry(const string &value_, const string &type_)
+        Entry::Entry(const string &value_, const string &type_)
         {
             value = value_;
             type = hsp::str::toup(type_);
         }
 
         /// Rebuild string from node using recursion.
-        string Definition::Entry::str() const
+        string Entry::str() const
         {
             if (is_empty())
                 return "";
@@ -871,7 +896,7 @@ namespace hsp
         }
 
         /// Wheter is implicitely callable.
-        bool Definition::Entry::is_callable_implicitly() const
+        bool Entry::is_callable_implicitly() const
         {
             if (is_terminal())
                 return true;
@@ -887,15 +912,18 @@ namespace hsp
             return is_x_arg;
         }
 
+        /// Construct and parse expression into AST (and flattens it).
+        Definition::Definition(const string &expr) { root = parse_expression_(expr); }
+        
 /// Append dependencies of chosen type to stack.
-#define MAKE_NODE_LIST_TYPE_DEPEN(type_flag)                                 \
-    void Definition::Entry::append_##type_flag##_depen(str_vec &stack) const \
-    {                                                                        \
-        if (is_terminal() && hsp::sources::is_##type_flag(type))             \
-            stack.push_back(value);                                          \
-        else                                                                 \
-            for (const Entry &child : children)                              \
-                child.append_##type_flag##_depen(stack);                     \
+#define MAKE_NODE_LIST_TYPE_DEPEN(type_flag)                     \
+    void Entry::append_##type_flag##_depen(str_vec &stack) const \
+    {                                                            \
+        if (is_terminal() && hsp::sources::is_##type_flag(type)) \
+            stack.push_back(value);                              \
+        else                                                     \
+            for (const Entry &child : children)                  \
+                child.append_##type_flag##_depen(stack);         \
     }
 
         MAKE_NODE_LIST_TYPE_DEPEN(augmented)

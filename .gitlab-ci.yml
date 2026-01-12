@@ -4,26 +4,22 @@ variables:
   RSPM: "https://packagemanager.rstudio.com/cran/__linux__/jammy/latest"
   REPOS: $RSPM
   PAK_CACHE_DIR: "$CI_PROJECT_DIR/.pak-cache"
-  R_USER_CACHE_DIR: "$CI_PROJECT_DIR/.cache/R"
-  R_LIBS_USER: "$CI_PROJECT_DIR/R/library"
 
 stages:
   - check
   - deploy
 
 cache:
-  key: "r-pak-cache-$CI_COMMIT_REF_SLUG"
+  key: "r-pak-cache"
   paths:
     - .pak-cache
     - .cache/R
-    - R/library
+    - /.local/share/pak
   policy: pull-push
 
 before_script:
   - apt-get update && apt-get install -y libcurl4-openssl-dev libssl-dev libgit2-dev pandoc qpdf
-  - mkdir -p .pak-cache .cache/R R/library
   - R -q -e "install.packages('pak', repos='https://r-lib.github.io/p/pak/stable')"
-  - R -q -e "pak::local_install_dev_deps(upgrade = FALSE)"
   - R -q -e "pak::local_install_dev_deps(upgrade = FALSE)"
 
 r-cmd-check:

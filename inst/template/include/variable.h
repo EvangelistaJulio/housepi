@@ -10,10 +10,9 @@
 
 #include <memory>
 
-#include "tools/types.h"
-#include "tools/na_utils.h"
-#include "tools/random.h"
 #include "tools/parser.h"
+#include "tools/random.h"
+#include "tools/types.h"
 #include "attribute.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////

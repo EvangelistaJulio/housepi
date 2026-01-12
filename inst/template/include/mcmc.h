@@ -11,7 +11,6 @@
 #include <memory>
 
 #include "tools/types.h"
-#include "tools/na_utils.h"
 
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
@@ -25,6 +24,7 @@
 
 class Individual;
 class Household;
+class MCMCImpl;
 
 class MCMC
 {
@@ -197,8 +197,7 @@ public:
 #endif
 
 private:
-	class Impl; /// pointer to Implementation
-	std::unique_ptr<Impl> pImpl_;
+	std::unique_ptr<MCMCImpl> pImpl_;
 
 	/// Contact Rateas
 	/// UPDATE: this should be dropped in favour of table definitions

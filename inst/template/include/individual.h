@@ -9,10 +9,8 @@
 #define HOUSEPI__INDIVIDUAL__H
 
 #include "tools/types.h"
-#include "tools/na_utils.h"
 #include "tools/operators.h"
 #include "tools/global.h"
-
 #include "attribute.h"
 #include "augmented_map.h"
 

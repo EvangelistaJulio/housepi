@@ -10,11 +10,14 @@
 #include <iostream>
 #include <iomanip>
 
-#include "tools/na_utils.h"
 #include "tools/messages.h"
-#include "tools/string.h"
 #include "tools/read.h"
+#include "tools/string.h"
 #include "data.h"
+#include "parameter.h"
+#include "group_rate.h"
+#include "infec_profile.h"
+#include "augmented.h"
 #include "mcmc_impl.h"
 #include "mcmc.h"
 
@@ -45,12 +48,12 @@ void print_decorator(const std::string &title, const std::string &txt = hsp::na:
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define MAKE_READ_METHOD(module, section_name, Symbol)                    \
+#define MAKE_READ_METHOD(module, section_name)                            \
     void MCMC::read_##module(const std::string &f)                        \
     {                                                                     \
         try                                                               \
         {                                                                 \
-            pImpl_->module Symbol build(hsp::read::csv_table(f));         \
+            pImpl_->module->build(hsp::read::csv_table(f));               \
         }                                                                 \
         catch (const std::exception &e)                                   \
         {                                                                 \
@@ -59,21 +62,20 @@ void print_decorator(const std::string &title, const std::string &txt = hsp::na:
         }                                                                 \
     }
 
-MAKE_READ_METHOD(setup, "setup", ->)
-MAKE_READ_METHOD(data_wide, "data-wide", ->)
-MAKE_READ_METHOD(data_long, "data-long", ->)
-
-MAKE_READ_METHOD(infec_profile, "infectivity profile", .)
-MAKE_READ_METHOD(param, "parameters", .)
-MAKE_READ_METHOD(group_rates, "group rates", .)
-MAKE_READ_METHOD(augm, "augmented", .)
+MAKE_READ_METHOD(setup, "setup")
+MAKE_READ_METHOD(data_wide, "data-wide")
+MAKE_READ_METHOD(data_long, "data-long")
+MAKE_READ_METHOD(param, "parameters")
+MAKE_READ_METHOD(group_rates, "group rates")
+MAKE_READ_METHOD(infec_profile, "infectivity profile")
+MAKE_READ_METHOD(augm, "augmented")
 
 // UPDATE: this will be removed once automatized in C++ reflection
 void MCMC::read_multiplicity(const std::string &f)
 {
     try
     {
-        pImpl_->data_wide->multiplicity_build(hsp::read::csv_table(f), pImpl_->augm.is_any());
+        pImpl_->data_wide->multiplicity_build(hsp::read::csv_table(f), pImpl_->augm->is_any());
     }
     catch (const std::exception &e)
     {
@@ -94,8 +96,8 @@ void MCMC::print_infer_state(const std::string &output_filename) const
         return;
 
     const Setup &setup = *pImpl_->setup;
-    const Impl::Parameter &param = pImpl_->param;
-    const Impl::Augmented &augm = pImpl_->augm;
+    const Parameter &param = *pImpl_->param;
+    const Augmented &augm = *pImpl_->augm;
 
     std::ofstream ofs;
     ofs.open(output_filename.c_str());
@@ -215,7 +217,7 @@ void update_ofstream_datawide(std::ofstream &ofs,
 void MCMC::print_simulated_data_wide(const std::string &pathtofile)
 {
     const DataWide &data_wide = *pImpl_->data_wide;
-    const Impl::Augmented &augm = pImpl_->augm;
+    const Augmented &augm = *pImpl_->augm;
 
     try
     {
