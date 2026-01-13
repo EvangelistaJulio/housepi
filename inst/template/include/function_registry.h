@@ -60,7 +60,7 @@ DECLARE_HOUSEPI_FUNCTION_REGISTRY(ArithmeticRegistry, "arithmetic function")
 DECLARE_HOUSEPI_FUNCTION_REGISTRY(TranscendentalRegistry, "transcendental function")
 DECLARE_HOUSEPI_FUNCTION_REGISTRY(UserFuncRegistry, "user function")
 
-/// Register a Function derived class T to FungRegistry derived class R.
+/// Register a Function derived class T to FungRegistry R.
 template <typename R, typename T>
 struct StaticFunctionRegistatror
 {

@@ -5,13 +5,17 @@
  * See the LICENSE file for details.
  */
 
-#include "tools/messages.h"
 #include "tools/global.h"
+#include "tools/messages.h"
 #include "tools/operators.h"
+#include "tools/parser.h"
+#include "tools/random.h"
 #include "tools/read.h"
 #include "tools/string.h"
+#include "tools/types.h"
 
 #include "variable.h"
+#include "individual.h"
 #include "household.h"
 #include "data.h"
 #include "parameter.h"

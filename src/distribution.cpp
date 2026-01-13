@@ -7,8 +7,6 @@
 
 #include <cmath>
 
-#include <boost/math/special_functions/beta.hpp>
-#include <boost/math/special_functions/gamma.hpp>
 #include <boost/math/distributions/normal.hpp>
 #include <boost/math/distributions/lognormal.hpp>
 #include <boost/math/distributions/beta.hpp>

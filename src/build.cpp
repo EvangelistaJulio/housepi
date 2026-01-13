@@ -8,6 +8,7 @@
 #include "tools/global.h"
 #include "tools/messages.h"
 #include "tools/operators.h"
+#include "tools/parser.h"
 #include "tools/random.h"
 #include "tools/read.h"
 #include "tools/string.h"
