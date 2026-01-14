@@ -9,8 +9,9 @@
 #define HOUSEPI__PROPOSAL__H
 
 #include <memory>
+#include <string>
+#include <vector>
 
-#include "tools/types.h"
 #include "tools/random.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -33,13 +34,13 @@ public:
     /// Empty proposal constructor.
     Proposal();
     /// Proposal constructor from Distribution pointer.
-    Proposal(std::shared_ptr<Distribution>,
-             double proposal_scale = hsp::na::DOUBLE,
+    Proposal(std::shared_ptr<Distribution> distr,
+             double proposal_scale,
              const std::vector<unsigned short> &args_to_adapt = {},
              bool is_discrete = false);
     /// Proposal constructor from Distribution name.
     Proposal(const std::string &distr_name,
-             double proposal_scale = hsp::na::DOUBLE,
+             double proposal_scale,
              const std::vector<unsigned short> &args_to_adapt = {},
              bool is_discrete = false);
     /// Proposal deconstructor.
@@ -50,8 +51,7 @@ public:
     /////////////////////////////////////////////////////////////////////////////////////////////
 
     std::string name() const { return this->name_; }
-    virtual double propose(rnd_gen &, double) { throw std::invalid_argument(
-        "Called propose method of undefined Monte Carlo proposer."); }
+    virtual double propose(hsp::rnd_gen &, double) = 0;
     virtual double logratio(double, double) const { return 0.; }
 
     /// Wheter proposer can be adapted.
@@ -86,7 +86,7 @@ public:
     void adapt(double ratio);
 
 protected:
-    std::string name_ = hsp::na::STRING;   /// name of the proposal
+    std::string name_ = "";                /// name of the proposal
     std::shared_ptr<Distribution> pDistr_; /// distribution associated to proposal
 
     double user_scale_ = 1.;                         /// scale of the Metropolis proposal
@@ -95,9 +95,9 @@ protected:
     std::vector<unsigned short> args_to_adapt_ = {}; /// which arguments should be adapted
 
     //===== propose : functional methods =====//
-    double do_propose_sum_to_previous_(rnd_gen &prng, double xo);
-    double do_propose_times_previous_(rnd_gen &prng, double xo);
-    double do_propose_sample_rand_(rnd_gen &prng, double);
+    double do_propose_sum_to_previous_(hsp::rnd_gen &prng, double xo);
+    double do_propose_times_previous_(hsp::rnd_gen &prng, double xo);
+    double do_propose_sample_rand_(hsp::rnd_gen &prng, double);
 
     //===== logratio : functional methods =====//
     double do_logratio_pdf_(double xold, double xnew) const;

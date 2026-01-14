@@ -23,7 +23,7 @@ for (f in copied_files) {
 }
 
 # build pkgdown site
-pkgdown::build_site(install = TRUE)
+pkgdown::build_site(install = FALSE)
 
 # cleanup copied files
 h <- file.remove(copied_files)

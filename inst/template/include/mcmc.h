@@ -9,8 +9,9 @@
 #define HOUSEPI__MCMC__H
 
 #include <memory>
-
-#include "tools/types.h"
+#include <stdexcept>
+#include <string>
+#include <vector>
 
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
@@ -91,7 +92,7 @@ public:
 	///////////////////////////////  MCMC : infectivity profile  ////////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
-	void init_infec_profile_template(u_dict<std::string> x);
+	void init_infec_profile_template(hsp::dict<std::string> x);
 	double infec_profile_inst(const Individual &member, double t) const;
 	double infec_profile_cumul(const Individual &member, double t) const;
 	void request_infec_profile_discrete();
@@ -111,7 +112,7 @@ public:
 	/// Compute the log-likelihood for a single household.
 	virtual double compute_household_obs_log_lik(Household &) { throw std::runtime_error(
 		"Called undefined log-likelihood method.\nOverride it in your custom model implementation before proceeding."); }
-	double evaluate_log_lik(const std::string &house_id = hsp::na::STRING);
+	double evaluate_log_lik(const std::string &house_id = "");
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////  MCMC : simulation  ////////////////////////////////////
@@ -142,7 +143,7 @@ public:
 	void import_data_wide(SEXP input);
 	void import_data_long(SEXP input);
 	void import_multiplicity(SEXP input);
-	void import_group_rates(SEXP input);
+	void import_group_rate(SEXP input);
 	void import_param(SEXP input);
 	void import_infec_profile(SEXP input);
 	void import_augm(SEXP input);
@@ -178,22 +179,22 @@ public:
 	///////////////////////////////  MCMC : C++ standalone print  ///////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
-	void print_infer_state(const std::string &output_filename = hsp::na::STRING) const;
-	void print_simulated_data_wide(const std::string &output_filename = hsp::na::STRING);
+	void print_infer_state(const std::string &output_filename = "") const;
+	void print_simulated_data_wide(const std::string &output_filename = "");
 	double log_evidence(const std::string &scheme, unsigned long n_rungs);
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////  MCMC : C++ standalone read  ///////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
-	void read_setup(const std::string &pathtofile = hsp::na::STRING);
-	void read_data_wide(const std::string &pathtofile = hsp::na::STRING);
-	void read_data_long(const std::string &pathtofile = hsp::na::STRING);
-	void read_multiplicity(const std::string &pathtofile = hsp::na::STRING);
-	void read_group_rates(const std::string &pathtofile = hsp::na::STRING);
-	void read_param(const std::string &pathtofile = hsp::na::STRING);
-	void read_infec_profile(const std::string &pathtofile = hsp::na::STRING);
-	void read_augm(const std::string &pathtofile = hsp::na::STRING);
+	void read_setup(const std::string &pathtofile = "");
+	void read_data_wide(const std::string &pathtofile = "");
+	void read_data_long(const std::string &pathtofile = "");
+	void read_multiplicity(const std::string &pathtofile = "");
+	void read_group_rate(const std::string &pathtofile = "");
+	void read_param(const std::string &pathtofile = "");
+	void read_infec_profile(const std::string &pathtofile = "");
+	void read_augm(const std::string &pathtofile = "");
 #endif
 
 private:
@@ -206,7 +207,7 @@ private:
 	void init_contact_rates_(Household &house);
 
 #ifdef _HOUSEPI_RCPP
-	Rcpp::DataFrame helper_export_data_wide_(const str_vec &columns, bool is_status) const;
+	Rcpp::DataFrame helper_export_data_wide_(const std::vector<std::string> &columns, bool is_status) const;
 	Rcpp::NumericVector helper_param_rcpp_snapshot_() const;
 	Rcpp::DataFrame helper_data_wide_rcpp_snapshot_(const Household &house) const;
 	Rcpp::DataFrame helper_data_long_rcpp_snapshot_(const Household &house) const;

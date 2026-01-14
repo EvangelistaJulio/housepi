@@ -9,8 +9,8 @@
 #define HOUSEPI__ATTRIBUTE__H
 
 #include <memory>
-
-#include "tools/types.h"
+#include <string>
+#include <vector>
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -37,6 +37,8 @@ public:
     explicit Attribute(const Attribute *y);
     /// Function attribute.
     explicit Attribute(const std::shared_ptr<Function> f);
+    /// Productory of pointed attributes values.
+    explicit Attribute(const std::vector<const Attribute *> other_ptrs);
     /// Function attribute by registry choice.
     explicit Attribute(const std::string &s, bool is_primitive = false);
     /// Attribute deconstructor.
@@ -49,12 +51,7 @@ public:
     /// Set attribute value.
     void set(double x) { (this->*do_set_)(x); }
     /// Set attribute name. Eventually also err type.
-    void set_name(const std::string &name, const std::string &err_type = hsp::na::STRING)
-    {
-        this->name_ = name;
-        if (!hsp::na::is(err_type))
-            this->err_type_ = err_type;
-    }
+    void set_name(const std::string &name, const std::string &err_type = "");
 
     /// Initialize attribute as numeric.
     void init_numeric(double x);
@@ -84,7 +81,7 @@ public:
     virtual bool is_discrete() const;
 
     /// Wheter it's a number.
-    bool is_numeric() const { return !hsp::na::is(value_); }
+    bool is_numeric() const;
     /// Wheter it's a pointer.
     bool is_pointer() const { return pAttr_ != nullptr; }
     /// Wheter it's a function.
@@ -101,8 +98,8 @@ public:
 
 protected:
     std::string err_type_ = "attribute";        // type name displayed in errors
-    std::string name_ = hsp::na::STRING;        /// name of argument
-    double value_ = hsp::na::DOUBLE;            /// internal value
+    std::string name_ = "";                     /// name of argument
+    double value_;                              /// internal value
     const Attribute *pAttr_ = nullptr;          /// pointer to attribute
     std::shared_ptr<Function> pFunc_ = nullptr; /// pointer to function
 

@@ -9,6 +9,7 @@ COMMON_SOURCES = \
 	data.cpp \
 	distribution.cpp \
 	export_bindings.cpp \
+	export_wrappers.cpp \
 	flags.cpp \
 	function.cpp \
 	mcmc.cpp \

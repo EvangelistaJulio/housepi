@@ -8,34 +8,23 @@
 #ifndef HOUSEPI__TOOLS__READ__H
 #define HOUSEPI__TOOLS__READ__H
 
+#include <string>
+#include <vector>
+
 #include "tools/types.h"
 
-namespace hsp
+namespace hsp::read
 {
-    namespace read
-    {
-        constexpr char DELIMITER = ',';                /// CSV file delimiter.
-        constexpr char LIST_DELIMITER = ':';           /// List conventional delimiter
+    constexpr char DELIMITER = ',';      /// CSV file delimiter.
+    constexpr char LIST_DELIMITER = ':'; /// List conventional delimiter
 
-        /// Extract keys from unordered_map<string, T>.
-        template <typename T>
-        str_vec extract_keys(const u_dict<T> &input)
-        {
-            str_vec entries;
-            entries.reserve(input.size());
-            for (const auto &pair : input)
-                entries.push_back(pair.first);
-            return entries;
-        }
+    /// Parse a list from a string.
+    std::vector<std::string> parse_list(const std::string &txt);
 
-        /// Parse a list from a string.
-        str_vec parse_list(const std::string &txt);
-
-        /// Read CSV dataframe.
-        u_dict<str_vec> csv_table(const std::string &pathtofile);
-        /// Get number of rows in CSV table.
-        size_t csv_n_rows(const u_dict<str_vec> &table);
-    }
+    /// Get number of rows in CSV table.
+    size_t csv_n_rows(const str_table &table);
+    /// Read CSV dataframe.
+    str_table csv_table(const std::string &pathtofile);
 }
 
 #endif // HOUSEPI__TOOLS__READ__H

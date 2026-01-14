@@ -5,8 +5,8 @@
  * See the LICENSE file for details.
  */
 
-#include <string>
-#include <sstream>
+// #include <string>
+// #include <sstream>
 #include <map>
 
 #include "tools/operators.h"
@@ -21,7 +21,10 @@
 namespace bax
 {
     using std::vector;
-    using gentype = std::vector<unsigned>;
+    using gentype = vector<unsigned>;
+
+    template <typename T>
+    using matrix = vector<vector<T>>;
 
     /// Standard definition for the factorial.
     inline unsigned long factorial(unsigned long n)
@@ -78,7 +81,7 @@ namespace bax
         vector<gentype> output(1, gentype(n, 0));
 
         for (unsigned root = n - 1; root > 0; --root)
-            for (gentype g : recursive_span_generation_(n - root))
+            for (auto g : recursive_span_generation_(n - root))
             {
                 for (unsigned i = 0; i < n - root; ++i)
                     g[i] += 1;
@@ -131,10 +134,10 @@ namespace bax
                         freq_map.emplace(val, 1);
 
                 // assign counts
-                for (const auto &x : freq_map)
+                for (const auto &[val, c] : freq_map)
                 {
-                    counts.push_back(x.second);
-                    multiplicities /= factorial(x.second);
+                    counts.push_back(c);
+                    multiplicities /= factorial(c);
                 }
 
                 // add to the list
@@ -224,7 +227,7 @@ namespace bax
 
         // store all results inside the LookUp Table
         unsigned long c = 0;
-        for (const vector<unsigned> &res_c : results)
+        for (const auto &res_c : results)
         {
             Combinations_LookupTable[N][k][c].resize(N);
 
@@ -291,7 +294,7 @@ namespace bax
         }
         /// Compute the likelihood starting from the current escape pattern.
         ///	NOTE: it requires initialization of the lookup table.
-        double likelihood(const dbl_vec &esc_mtx) const
+        double likelihood(const vector<double> &esc_mtx) const
         {
             double output = 1.;
 
@@ -303,6 +306,8 @@ namespace bax
 
             return output;
         }
+
+        /*
         /// String with the formula of the likelihood.
         const std::string str()
         {
@@ -333,6 +338,7 @@ namespace bax
 
             return oss.str();
         }
+        */
 
     private:
         const unsigned N_star_;
@@ -358,7 +364,7 @@ namespace bax
                 EscapePattern new_child(N_star);
 
                 // associate entries for this pattern
-                vector<unsigned> &indidx = Combinations_LookupTable[N][k][c];
+                auto &indidx = Combinations_LookupTable[N][k][c];
 
                 for (unsigned i = k; i < N; ++i)
                 {
@@ -434,8 +440,8 @@ namespace bax
 
     /// Heterogeneous chain binomial log-likelihood for ordered probabilities (seropositives, seronegatives).
     double chain_binomial_heter_log_lik(unsigned N_star,
-                                        const dbl_vec &commu_esc_proba,
-                                        const matrix<double> &p2p_esc_proba)
+                                        const vector<double> &commu_esc_proba,
+                                        const std::vector<std::vector<double>> &p2p_esc_proba)
 
     {
         unsigned hh_size = commu_esc_proba.size();
@@ -459,7 +465,7 @@ namespace bax
         else if (N_star > 1) // multiple cases
         {
             // flatten sub-matrix with only seropositives
-            dbl_vec escape_matrix((N_star + 1) * N_star, 1.);
+            vector<double> escape_matrix((N_star + 1) * N_star, 1.);
 
             for (unsigned i = 0; i < N_star; ++i)
             {
@@ -476,53 +482,53 @@ namespace bax
 
         return ll;
     }
-}
 
-/*
-/// Debug mode, to check values of the likelihood and print formulation.
-///
-/// g++ -Wall -Wextra -std=gnu++11 -g -O2 -o auxiliary_binomial.o auxiliary_binomial.cpp ./auxiliary_binomial.o 7
-///
-/// Auxiliary function to perform debugs
-void auxiliary_chain_binomial_debugger(unsigned max_num, unsigned limit)
-{
-    using namespace bax;
-    for (unsigned N_star = 0; N_star <= max_num; ++N_star)
+    /*
+    /// Debug mode, to check values of the likelihood and print formulation.
+    ///
+    /// g++ -Wall -Wextra -std=gnu++11 -g -O2 -o auxiliary_binomial.o auxiliary_binomial.cpp ./auxiliary_binomial.o 7
+    ///
+    /// Auxiliary function to perform debugs
+    void auxiliary_chain_binomial_debugger(unsigned max_num, unsigned limit)
     {
-        size_t n_patterns = EscapePatterns_LookupTable[N_star].size();
-        std::cerr << "\n<<" << N_star << ">>"
-                    << " n.terms = " << (n_patterns == 0 ? 0 : 1 + (n_patterns - 1) / 2) << std::endl;
+        using namespace bax;
+        for (unsigned N_star = 0; N_star <= max_num; ++N_star)
+        {
+            size_t n_patterns = EscapePatterns_LookupTable[N_star].size();
+            std::cerr << "\n<<" << N_star << ">>"
+                        << " n.terms = " << (n_patterns == 0 ? 0 : 1 + (n_patterns - 1) / 2) << std::endl;
 
-        // elements for the escape matrix //
-        dbl_vec commu_esc_proba(N_star);
-        for (unsigned i = 0; i < N_star; ++i)
-        {
-            commu_esc_proba[i] = 0.15 + 0.025 * i;
-            if (N_star < limit)
-                std::cerr << "B" << i + 1 << " = " << commu_esc_proba[i] << std::endl;
-        }
-        matrix<double> p2p_esc_proba(N_star);
-        for (unsigned row = 0; row < N_star; ++row)
-        {
-            p2p_esc_proba[row].resize(N_star);
-            for (unsigned col = 0; col < N_star; ++col)
+            // elements for the escape matrix //
+            dbl_vec commu_esc_proba(N_star);
+            for (unsigned i = 0; i < N_star; ++i)
             {
-                p2p_esc_proba[row][col] = 0.25 + 0.0125 * col + 0.0125 * row;
+                commu_esc_proba[i] = 0.15 + 0.025 * i;
                 if (N_star < limit)
-                    std::cerr << "Q" << row + 1 << "_" << col + 1 << " = " << p2p_esc_proba[row][col] << std::endl;
+                    std::cerr << "B" << i + 1 << " = " << commu_esc_proba[i] << std::endl;
             }
+            matrix<double> p2p_esc_proba(N_star);
+            for (unsigned row = 0; row < N_star; ++row)
+            {
+                p2p_esc_proba[row].resize(N_star);
+                for (unsigned col = 0; col < N_star; ++col)
+                {
+                    p2p_esc_proba[row][col] = 0.25 + 0.0125 * col + 0.0125 * row;
+                    if (N_star < limit)
+                        std::cerr << "Q" << row + 1 << "_" << col + 1 << " = " << p2p_esc_proba[row][col] << std::endl;
+                }
+            }
+
+            if (N_star < limit)
+                std::cerr << ChainBinomial_LookupTable[N_star].str() << std::endl;
+
+            auto start = std::chrono::high_resolution_clock::now();
+            std::cerr << "likelihood: " << std::exp(chain_binomial_heter_log_lik(N_star, commu_esc_proba, p2p_esc_proba));
+            auto end = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double> elapsed = end - start;
+            std::cerr << " | time: " << elapsed.count() << " seconds" << std::endl;
         }
 
-        if (N_star < limit)
-            std::cerr << ChainBinomial_LookupTable[N_star].str() << std::endl;
-
-        auto start = std::chrono::high_resolution_clock::now();
-        std::cerr << "likelihood: " << std::exp(chain_binomial_heter_log_lik(N_star, commu_esc_proba, p2p_esc_proba));
-        auto end = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> elapsed = end - start;
-        std::cerr << " | time: " << elapsed.count() << " seconds" << std::endl;
+        std::cerr << std::endl;
     }
-
-    std::cerr << std::endl;
+    */
 }
-*/

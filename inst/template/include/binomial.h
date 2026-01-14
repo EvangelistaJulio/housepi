@@ -8,7 +8,7 @@
 #ifndef HOUSEPI__BINOMIAL__H
 #define HOUSEPI__BINOMIAL__H
 
-#include "tools/types.h"
+#include <vector>
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -33,8 +33,8 @@ namespace bax
     /// @param commu_esc_proba ordered community escape probabilities
     /// @param p2p_esc_proba ordered person-to-person escape probabilities
     double chain_binomial_heter_log_lik(unsigned N_star,
-                                        const dbl_vec &commu_esc_proba,
-                                        const matrix<double> &p2p_esc_proba);
+                                        const std::vector<double> &commu_esc_proba,
+                                        const std::vector<std::vector<double>> &p2p_esc_proba);
 }
 
 #endif // HOUSEPI__BINOMIAL__H

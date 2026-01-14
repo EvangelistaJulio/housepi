@@ -10,12 +10,15 @@
 
 #include <random>
 
+namespace hsp
+{
 #if __x86_64__ || __ppc64__ || __aarch64__ || _WIN64
-/// Mersenne Twister 19937 pseudo-random number generator for 64bit architecture.
-using rnd_gen = std::mt19937_64;
+    /// Mersenne Twister 19937 pseudo-random number generator for 64bit architecture.
+    using rnd_gen = std::mt19937_64;
 #else
-/// Mersenne Twister 19937 pseudo-random number generator for 32bit architecture.
-using rnd_gen = std::mt19937;
+    /// Mersenne Twister 19937 pseudo-random number generator for 32bit architecture.
+    using rnd_gen = std::mt19937;
 #endif
+}
 
 #endif // HOUSEPI__TOOLS__RANDOM__H

@@ -23,7 +23,7 @@
 double Model::compute_household_obs_log_lik(Household &house)
 {
 	double output = 0.0;
-	for (const Individual &member : house.infected())
+	for (const auto &member : house.infected())
 		output += std::log(member.aug("proba"));
 	return output;
 }
@@ -31,6 +31,6 @@ double Model::compute_household_obs_log_lik(Household &house)
 /// Augmented variable initialization.
 void Model::simulate_single_household(Household &house)
 {
-	for (Individual &member : house.infected())
+	for (auto &member : house.infected())
 		init_missing_augm(member);
 }

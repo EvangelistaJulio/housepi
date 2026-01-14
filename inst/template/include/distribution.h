@@ -8,8 +8,12 @@
 #ifndef HOUSEPI__DISTRIBUTION__H
 #define HOUSEPI__DISTRIBUTION__H
 
-#include "tools/types.h"
+#include <string>
+
+#include "tools/nan.h"
 #include "tools/random.h"
+#include "tools/types.h"
+
 #include "function.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -26,8 +30,8 @@ public:
 	///////////////////////////////  Distribution : constructor  ////////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
-	Distribution(const std::string &name = hsp::na::STRING,
-				 const named_args &args = {}, 
+	Distribution(const std::string &name,
+				 const hsp::named_args &args = {},
 				 double domain_min = hsp::na::DOUBLE, bool is_min_open = true,
 				 double domain_max = hsp::na::DOUBLE, bool is_max_open = true)
 		: Function(name, args,
@@ -43,7 +47,7 @@ public:
 	//////////////////////////////////  Distribution : getter  //////////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
-	double rand(rnd_gen &prng) { return (this->*rand_)(prng); }
+	double rand(hsp::rnd_gen &prng) { return (this->*rand_)(prng); }
 	/// Return value of probability density/mass function.
 	double pdf(double x) const { return eval_function_as_distr_(x); }
 	/// Return value of log-probability density/mass function.
@@ -68,20 +72,18 @@ protected:
 
 	/// Raw random sampling method of the distribution.
 	/// @param prng : pseudo-random number generator.
-	virtual double raw_rand_(rnd_gen &) { throw std::invalid_argument(
+	virtual double raw_rand_(hsp::rnd_gen &) { throw std::invalid_argument(
 		"Called undefined method 'rand' of " + err_name() + "."); }
 
 	/// Raw probability density/mass function of the distribution.
-	virtual double raw_pdf_(double) const { throw std::invalid_argument(
-		"Called to undefined method 'pdf' of " + err_name() + "."); }
+	virtual double raw_pdf_(double) const = 0;
 
 	/// Raw log-probability density/mass function of the distribution.
 	virtual double raw_logpdf_(double) const { throw std::invalid_argument(
 		"Called to undefined method 'logpdf' of " + err_name() + "."); }
 
 	/// Raw cumulative distribution function.
-	virtual double raw_cdf_(double) const { throw std::invalid_argument(
-		"Called to undefined method 'cdf' of " + err_name() + "."); }
+	virtual double raw_cdf_(double) const = 0;
 
 	/// Raw quantile.
 	virtual double raw_quantile_(double) const { throw std::invalid_argument(
@@ -94,12 +96,12 @@ protected:
 	static double cast_center_(double x) { return static_cast<double>(std::lround(x)); }
 	static double cast_left_(double x) { return std::floor(x); }
 
-	double (Distribution::*rand_)(rnd_gen &) = &Distribution::raw_rand_;
-	double do_discr_center_rand_(rnd_gen &prng) { return cast_center_(raw_rand_(prng)); }
-	double do_discr_left_rand_(rnd_gen &prng) { return cast_left_(raw_rand_(prng)); }
-	double do_rand_loc_(rnd_gen &prng) { return loc_arg_.get() + raw_rand_(prng); }
-	double do_discr_center_rand_loc_(rnd_gen &prng) { return loc_arg_.get() + cast_center_(raw_rand_(prng)); }
-	double do_discr_left_rand_loc_(rnd_gen &prng) { return loc_arg_.get() + cast_left_(raw_rand_(prng)); }
+	double (Distribution::*rand_)(hsp::rnd_gen &) = &Distribution::raw_rand_;
+	double do_discr_center_rand_(hsp::rnd_gen &prng) { return cast_center_(raw_rand_(prng)); }
+	double do_discr_left_rand_(hsp::rnd_gen &prng) { return cast_left_(raw_rand_(prng)); }
+	double do_rand_loc_(hsp::rnd_gen &prng) { return loc_arg_.get() + raw_rand_(prng); }
+	double do_discr_center_rand_loc_(hsp::rnd_gen &prng) { return loc_arg_.get() + cast_center_(raw_rand_(prng)); }
+	double do_discr_left_rand_loc_(hsp::rnd_gen &prng) { return loc_arg_.get() + cast_left_(raw_rand_(prng)); }
 
 	double raw_function_(double x) const override final { return (this->*trunc_)(raw_pdf_(x)); }
 	double do_function_discr_center_(double x) const override final
@@ -135,9 +137,9 @@ protected:
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
 	// UPDATE: this static isn't elegant
-	double inverse_sampling_(rnd_gen &prng)
+	double inverse_sampling_(hsp::rnd_gen &prng)
 	{
-		static std::uniform_real_distribution<double> unif_gen(0., 1.); 
+		static std::uniform_real_distribution<double> unif_gen(0., 1.);
 		const double r = unif_gen(prng);
 		const double sx = lower_arg_.is_empty() ? 0. : (1. - r) * raw_cdf_(lower());
 		const double dx = upper_arg_.is_empty() ? r : r * raw_cdf_(upper());
@@ -153,7 +155,7 @@ protected:
 	double do_trunc_min_(double x) const { return x / (1. - raw_cdf_(lower())); }
 	double do_trunc_max_(double x) const { return x / (raw_cdf_(upper())); }
 	double do_trunc_both_sides_(double x) const { return x / (raw_cdf_(upper()) - raw_cdf_(lower())); }
-	double do_trunc_rand_(rnd_gen &prng) { return inverse_sampling_(prng); }
+	double do_trunc_rand_(hsp::rnd_gen &prng) { return inverse_sampling_(prng); }
 
 	// case of discrete defined
 	double do_trunc_min_discr_defined_(double x) const { return x / (1. - raw_cdf_(lower() - 1)); }
@@ -165,13 +167,13 @@ protected:
 	double do_trunc_min_discr_center_(double x) const { return x / (1. - raw_cdf_(std::ceil(lower()) - .5)); }
 	double do_trunc_max_discr_center_(double x) const { return x / (raw_cdf_(std::floor(upper()) + .5)); }
 	double do_trunc_both_sides_discr_center_(double x) const { return x / (raw_cdf_(std::floor(upper()) + .5) - raw_cdf_(std::ceil(lower()) - .5)); }
-	double do_trunc_rand_discr_center_(rnd_gen &prng) { return cast_center_(do_trunc_rand_(prng)); }
+	double do_trunc_rand_discr_center_(hsp::rnd_gen &prng) { return cast_center_(do_trunc_rand_(prng)); }
 
 	// case of left discretization
 	double do_trunc_min_discr_left_(double x) const { return x / (1. - raw_cdf_(std::floor(lower()))); }
 	double do_trunc_max_discr_left_(double x) const { return x / (raw_cdf_(std::ceil(upper() + 1))); }
 	double do_trunc_both_sides_discr_left_(double x) const { return x / (raw_cdf_(std::ceil(upper() + 1)) - raw_cdf_(std::floor(lower()))); }
-	double do_trunc_rand_discr_left_(rnd_gen &prng) { return cast_left_(do_trunc_rand_(prng)); }
+	double do_trunc_rand_discr_left_(hsp::rnd_gen &prng) { return cast_left_(do_trunc_rand_(prng)); }
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////  Distribution : functional log-truncation [private] ////////////////////

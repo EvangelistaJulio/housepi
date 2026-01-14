@@ -8,10 +8,14 @@
 #ifndef HOUSEPI__PARAMETER__H
 #define HOUSEPI__PARAMETER__H
 
+#include <string>
+#include <vector>
+
 #include "tools/operators.h"
 #include "tools/parser.h"
 #include "tools/random.h"
 #include "tools/types.h"
+
 #include "attribute.h"
 #include "variable.h"
 
@@ -31,19 +35,19 @@ struct Parameter
     /// NOTE: list_adaptable_sample_standard + list_non_adapt_sample_standard = list_sample_standard
     /// NOTE: list_adaptable_sample_cached + list_non_adapt_sample_cached = list_sample_cached
 
-    str_vec list_const = {};  /// list of constant parameters
-    str_vec list_sample = {}; /// list of parameters to sample
+    std::vector<std::string> list_const = {};  /// list of constant parameters
+    std::vector<std::string> list_sample = {}; /// list of parameters to sample
 
-    str_vec list_sample_standard = {};
-    str_vec list_sample_cached = {};
+    std::vector<std::string> list_sample_standard = {};
+    std::vector<std::string> list_sample_cached = {};
 
-    str_vec list_adaptable_sample_standard = {};
-    str_vec list_non_adapt_sample_standard = {};
-    str_vec list_adaptable_sample_cached = {};
-    str_vec list_non_adapt_sample_cached = {};
+    std::vector<std::string> list_adaptable_sample_standard = {};
+    std::vector<std::string> list_non_adapt_sample_standard = {};
+    std::vector<std::string> list_adaptable_sample_cached = {};
+    std::vector<std::string> list_non_adapt_sample_cached = {};
 
-    u_dict<dbl_vec> smpl_values = {}; /// values of the sample
-    u_dict<dbl_vec> smpl_priors = {}; /// prior values of the sample
+    hsp::dbl_table smpl_values = {}; /// values of the sample
+    hsp::dbl_table smpl_priors = {}; /// prior values of the sample
 
     /////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////  Parameter : constructor  //////////////////////////////
@@ -56,8 +60,8 @@ struct Parameter
     //////////////////////////////////  Parameter : getter  /////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////
 
-    Variable &at(const std::string &p) { return safe_at(dictionary_, p, "parameter"); }
-    const Variable &at(const std::string &p) const { return safe_at(dictionary_, p, "parameter"); }
+    Variable &at(const std::string &p) { return hsp::safe_at(dictionary_, p, "parameter"); }
+    const Variable &at(const std::string &p) const { return hsp::safe_at(dictionary_, p, "parameter"); }
     // get value of the parameter
     double get(const std::string &p) const { return at(p).get(); }
 
@@ -68,13 +72,13 @@ struct Parameter
     //////////////////////////////////  Parameter : setter  /////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////
 
-    void build(const u_dict<str_vec> &deftable);
-    void build_for_expec(const u_dict<dbl_vec> &deftable);
+    void build(const hsp::str_table &deftable);
+    void build_for_expec(const hsp::dbl_table &deftable);
     void make_cache_dependent(const std::string &p);
     void make_cache_dependent(const hsp::parse::Entry &node);
 
     /// Randomly initialize values of the parameters to be inferred.
-    void user_reset(rnd_gen &prng);
+    void user_reset(hsp::rnd_gen &prng);
     /// Load parameters values of the n-th posterrior sample.
     void load_sample_values(size_t n);
 
@@ -104,12 +108,12 @@ struct Parameter
     }
 
 private:
-    u_dict<Variable> dictionary_ = {}; /// parameters dictionary
-    mutable Attribute storage_;        /// Auxiliary storage attribute used for reading.
+    hsp::dict<Variable> dictionary_ = {}; /// parameters dictionary
+    mutable Attribute storage_;                                 /// Auxiliary storage attribute used for reading.
 
     void clear_lists_();
-    void build_constant_parameter_(const u_dict<str_vec> &deftable, size_t k);
-    void build_parameter_to_sample_(const u_dict<str_vec> &deftable, size_t k);
+    void build_constant_parameter_(const hsp::str_table &deftable, size_t k);
+    void build_parameter_to_sample_(const hsp::str_table &deftable, size_t k);
 };
 
 #endif // HOUSEPI__PARAMETER__H

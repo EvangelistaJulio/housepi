@@ -9,6 +9,8 @@
 #define HOUSEPI__DATA__H
 
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "tools/types.h"
 #include "household.h"
@@ -19,12 +21,9 @@
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace hsp
+namespace hsp::progress
 {
-    namespace progress
-    {
-        class Bar;
-    }
+    class Bar;
 }
 
 struct Setup
@@ -32,9 +31,9 @@ struct Setup
     Setup();
     ~Setup();
 
-    const str_vec file_headers = {"steps", "burnin", "thin",
-                                  "adapt", "chains", "threads",
-                                  "id_draws", "seed", "progress"};
+    const std::vector<std::string> file_headers = {"steps", "burnin", "thin",
+                                                   "adapt", "chains", "threads",
+                                                   "id_draws", "seed", "progress"};
 
     unsigned long n_steps = 1;  /// n. iterations
     unsigned long n_burnin = 0; /// n. burnin iterations
@@ -46,10 +45,10 @@ struct Setup
     unsigned long progress = 1; /// thinning seconds for progress bar
     unsigned long n_rungs = 0;  /// n. of rungs
 
-    unsigned long c_sample_size = 0; /// single chain sample size
-    unsigned long c_n_sweeps = 0;    /// single chain n. of sweeps
-    double inv_T = 1.;               /// inverse temperature
-    str_vec id_draws = {};           /// augmented trace to save
+    unsigned long c_sample_size = 0;        /// single chain sample size
+    unsigned long c_n_sweeps = 0;           /// single chain n. of sweeps
+    double inv_T = 1.;                      /// inverse temperature
+    std::vector<std::string> id_draws = {}; /// augmented trace to save
 
     unsigned long chain = 1; /// current MCMC chain
     unsigned long rung = 0;  /// current MCMC thermodynamic rung
@@ -58,13 +57,13 @@ struct Setup
     std::string fmt_progtxt();
 
     void set_n_threads();
-    void build(const u_dict<str_vec> &deftable);
+    void build(const hsp::str_table &input);
     void assert_mcmc_setup();
     void drop_mcmc_adapt();
 
     // progress bar
-    void prog_declare(const std::string &text = hsp::na::STRING);
-    void prog_set_text(const std::string &text = hsp::na::STRING);
+    void prog_declare(const std::string &text = "");
+    void prog_set_text(const std::string &text = "");
     void prog_open_for_inference();
     void prog_open_for_power_post();
     void prog_update();
@@ -74,12 +73,12 @@ struct Setup
     /// Set seed for pseudo random number generator.
     void set_prng_seed();
     /// Return pseudo random number generator.
-    rnd_gen &prng();
+    hsp::rnd_gen &prng();
     /// Sample a uniform distributed variable between 0 and 1.
     double unif() { return unif_(prng()); }
 
 private:
-    std::vector<rnd_gen> prng_parallel_ = {};         // pseudo-random number generators
+    std::vector<hsp::rnd_gen> prng_parallel_ = {};    // pseudo-random number generators
     std::uniform_real_distribution<double> unif_;     // uniform sampler
     std::unique_ptr<hsp::progress::Bar> progressbar_; // progress bar
 };
@@ -96,11 +95,11 @@ struct ReportHouseSizes;
 
 struct DataWide
 {
-    str_vec headers = {};
+    std::vector<std::string> headers = {}; /// Headers of input data
 
     // list of all infected statuses in the dataset
-    int_vec all_infected_status_list = {};
-    std::vector<dbl_vec> smpl_values = {};
+    std::vector<int> all_infected_status_list = {};
+    std::vector<std::vector<double>> smpl_values = {};
     std::vector<size_t> head_class_house_indexes = {};
 
     std::unique_ptr<ReportIndividual> report_indiv;
@@ -124,7 +123,6 @@ struct DataWide
     /////////////////////////////////////////////////////////////////////////////////////////
 
     bool is_empty() const { return house_vector_.empty(); }
-    Household copy(size_t H) const { return house_vector_[H]; }
 
     /////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////  DataWide : flags  ///////////////////////////////////
@@ -139,8 +137,8 @@ struct DataWide
     //////////////////////////////////  DataWide : setter  //////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////
 
-    void build(const u_dict<str_vec> &deftable);
-    void multiplicity_build(const u_dict<str_vec> &deftable, bool is_any_augm = false);
+    void build(const hsp::str_table &input);
+    void multiplicity_build(const hsp::str_table &input, bool is_any_augm = false);
 
     void init_draws(unsigned long sample_size);
     void store_draws(unsigned long smpl_count);
@@ -207,7 +205,7 @@ struct DataWide
 
 private:
     std::vector<Household> house_vector_ = {};
-    u_dict<size_t> hhid_to_index_ = {};
+    hsp::dict<size_t> hhid_to_index_ = {};
 
     size_t house_id_to_index_(const std::string &house_id) const
     {
@@ -231,14 +229,14 @@ private:
 
 struct DataLong
 {
-    str_vec headers = {};
-    std::vector<u_dict<dbl_vec>> indiv_datalist = {};
+    std::vector<std::string> headers = {};
+    std::vector<hsp::dbl_table> indiv_datalist = {};
 
     DataLong(std::shared_ptr<DataWide> ptr)
         : pDataWide_(ptr) {}
     ~DataLong() = default;
 
-    void build(const u_dict<str_vec> &deftable);
+    void build(const hsp::str_table &input);
 
 private:
     std::shared_ptr<DataWide> pDataWide_; // pointer to external DataWide struct

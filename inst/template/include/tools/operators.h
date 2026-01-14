@@ -8,8 +8,11 @@
 #ifndef HOUSEPI__TOOLS__OPERATORS__H
 #define HOUSEPI__TOOLS__OPERATORS__H
 
-#include <algorithm>
 #include <stdexcept>
+#include <string>
+#include <vector>
+#include <algorithm>
+
 #include "tools/types.h"
 
 /// (% overload) Check if container containes given value.
@@ -50,23 +53,38 @@ std::vector<T> operator-(std::vector<T> v, const std::vector<T> &w)
     return std::move(v);
 }
 
-/// Safely access an element in a u_dict by key.
-/// If the key does not exist, an exception is thrown with the key name.
-template <typename T>
-inline T &safe_at(u_dict<T> &m, const std::string &k, const char *what = "key")
+namespace hsp
 {
-    const auto it = m.find(k);
-    if (it != m.end())
-        return it->second;
-    throw std::out_of_range(std::string("Unknown ") + what + " '" + k + "'.");
-}
-template <typename T>
-inline const T &safe_at(const u_dict<T> &m, const std::string &k, const char *what = "key")
-{
-    const auto it = m.find(k);
-    if (it != m.end())
-        return it->second;
-    throw std::out_of_range(std::string("Unknown ") + what + " '" + k + "'.");
+    /// Safely access an element in a u_dict by key.
+    /// If the key does not exist, an exception is thrown with the key name.
+    /// UPDATE: implement heterogeneous lookup to get rid of temporary string (C++20)
+    template <typename T>
+    inline T &safe_at(dict<T> &m, const std::string &k, const char *what = "key")
+    {
+        const auto it = m.find(k);
+        if (it != m.end())
+            return it->second;
+        throw std::out_of_range(std::string("Unknown ") + what + " '" + k + "'.");
+    }
+    template <typename T>
+    inline const T &safe_at(const dict<T> &m, const std::string &k, const char *what = "key")
+    {
+        const auto it = m.find(k);
+        if (it != m.end())
+            return it->second;
+        throw std::out_of_range(std::string("Unknown ") + what + " '" + k + "'.");
+    }
+
+    /// Extract keys from dictionary.
+    template <typename T>
+    std::vector<std::string> extract_keys(const dict<T> &input)
+    {
+        std::vector<std::string> entries;
+        entries.reserve(input.size());
+        for (const auto &[key, val] : input)
+            entries.push_back(key);
+        return entries;
+    }
 }
 
 #endif // HOUSEPI__TOOLS__OPERATORS__H

@@ -9,10 +9,14 @@
 #define HOUSEPI__VARIABLE__H
 
 #include <memory>
+#include <stdexcept>
+#include <string>
+#include <vector>
 
+#include "tools/nan.h"
 #include "tools/parser.h"
 #include "tools/random.h"
-#include "tools/types.h"
+
 #include "attribute.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -31,12 +35,16 @@ public:
     //////////////////////////////////  Variable : constructor  /////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    Variable(const std::string &name = hsp::na::STRING,
+    Variable(const std::string &name = "",
              const std::string &err_type = "variable",
              double value = hsp::na::DOUBLE,
              bool is_const = true,
-             const hsp::parse::Definition &expr = hsp::na::STRING,
-             bool is_prim = false);
+             const hsp::parse::Definition &expr = "",
+             bool is_prim = false)
+    {
+        this->set_name(name, err_type);
+        init(value, is_const, expr, is_prim);
+    }
     ~Variable();
 
     /// Sugar to call variable as a function if applicable, otherwise raise error.
@@ -44,7 +52,7 @@ public:
 
     /// Helper to initialize variable.
     void init(double value, bool is_const,
-              const hsp::parse::Definition &parser = hsp::na::STRING, bool is_prim = false);
+              const hsp::parse::Definition &parser = "", bool is_prim = false);
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////  Variable : setter  ///////////////////////////////////
@@ -54,7 +62,7 @@ public:
     void recover_value() { value_ = buffer_; }
 
     /// Restore user defined variable initialization.
-    void user_reset(rnd_gen &prng);
+    void user_reset(hsp::rnd_gen &prng);
 
     /// Assign an attribute to function.
     void init_func_attr(const std::string &key, const Attribute &attr);
@@ -69,10 +77,10 @@ public:
     void init_distr_reshaping(bool discr);
 
     /// Random initialization of variable.
-    void init_rand(rnd_gen &prng) { set(do_propose_sample_(prng)); }
+    void init_rand(hsp::rnd_gen &prng);
 
     /// Initialize pointer to proposer.
-    void init_proposer(const std::string &proposal = hsp::na::STRING,
+    void init_proposer(const std::string &proposal = "",
                        double proposal_scale = hsp::na::DOUBLE);
 
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -91,7 +99,7 @@ public:
     ///////////////////////////////  Variable : Metropolis-Hastings  ////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    void propose(rnd_gen &prng) { set((this->*propose_)(prng)); }
+    void propose(hsp::rnd_gen &prng) { set((this->*propose_)(prng)); }
     bool is_valid_move() const { return (this->*is_valid_move_)(); }
 
     double get_distr_logpdf() const;
@@ -111,11 +119,6 @@ public:
 
     /// Get a description about the functional status.
     std::string str_summary() const override final;
-
-    std::string distr_name() const;
-    std::string str_range() const;
-    std::string func_name() const;
-    std::string prop_name() const;
 
 protected:
     double buffer_ = hsp::na::DOUBLE;     /// buffered value
@@ -159,16 +162,16 @@ protected:
     /////////////////////////////////////////////////////////////////////////////////////////////
 
     //----- Propose : functional methods -----//
-    double (Variable::*propose_)(rnd_gen &) = &Variable::do_propose_error_;
-    double do_propose_error_(rnd_gen &) { throw std::invalid_argument(
+    double (Variable::*propose_)(hsp::rnd_gen &) = &Variable::do_propose_error_;
+    double do_propose_error_(hsp::rnd_gen &) { throw std::invalid_argument(
         "Called to unknown proposer for " + err_name() + "."); }
-    double do_propose_default_(rnd_gen &prng);
-    double do_propose_sample_(rnd_gen &prng);
+    double do_propose_default_(hsp::rnd_gen &prng);
+    double do_propose_sample_(hsp::rnd_gen &prng);
 
     //----- Valid move : functional methods -----//
     bool (Variable::*is_valid_move_)() const = &Variable::do_is_valid_move_default_;
     bool do_is_valid_move_default_() const;
-    bool do_is_valid_move_sample_() const { return true; }
+    bool do_is_valid_move_always_() const { return true; }
 
     /// Propose logratio - functional methods
     double (Variable::*get_propose_logratio_)() const = &Variable::do_get_propose_logratio_default_;

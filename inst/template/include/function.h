@@ -8,10 +8,12 @@
 #ifndef HOUSEPI__FUNCTION__H
 #define HOUSEPI__FUNCTION__H
 
+#include <string>
+#include <vector>
+
+#include "tools/nan.h"
 #include "tools/types.h"
 #include "attribute.h"
-
-using named_args = std::vector<std::pair<std::string, double>>;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -27,8 +29,8 @@ public:
     ////////////////////////////////  Function : constructor  ///////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    Function(const std::string &name = hsp::na::STRING,
-             const named_args &args = {},
+    Function(const std::string &name,
+             const hsp::named_args &args = {},
              double domain_min = hsp::na::DOUBLE, bool is_min_open = false,
              double domain_max = hsp::na::DOUBLE, bool is_max_open = false);
     virtual ~Function() = default;
@@ -69,7 +71,7 @@ public:
     const Attribute &get_upper() const { return upper_arg_; }
 
     /// Wheter it is empty.
-    bool is_empty() const { return hsp::na::is(name()); }
+    bool is_empty() const;
     /// Wheter return value is always constant.
     bool is_constant() const;
     /// Wheter return value is always discrete.
@@ -80,7 +82,7 @@ public:
     bool is_callable_implicitly() const { return !x_arg_.is_empty() && is_callable_explicitly(); }
 
     /// Collect names of missing arguments.
-    str_vec get_missing_argument() const;
+    std::vector<std::string> get_missing_argument() const;
     /// Throw exception if not callable explicitly.
     void assert_is_callable_explicitly() const;
 
@@ -126,7 +128,7 @@ public:
 
 protected:
     std::string err_type_ = "function";                                      // type name displayed in errors
-    std::string name_ = hsp::na::STRING;                                     /// function name
+    std::string name_;                                                       /// function name
     std::vector<Attribute> arguments_ = {};                                  /// array with arguments
     Attribute x_arg_ = Attribute();                                          /// 'x' argument
     Attribute loc_arg_ = Attribute();                                        /// 'loc' argument
@@ -166,8 +168,7 @@ protected:
     /////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Raw method to call.
-    virtual double raw_function_(double) const { throw std::invalid_argument(
-        "Called undefined method 'function' of " + err_name() + "."); }
+    virtual double raw_function_(double) const = 0;
     /// Raw method to call log-function.
     virtual double raw_logfunc_(double) const { throw std::invalid_argument(
         "Called undefined method 'logfunc' of " + err_name() + "."); }

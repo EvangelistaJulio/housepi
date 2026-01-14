@@ -264,7 +264,7 @@ HousepiModel <- R6::R6Class(
       private$.rcpp$import_param(private$.param$defs)
 
       # import group rates
-      private$.rcpp$import_group_rates(
+      private$.rcpp$import_group_rate(
         private$.group_rates$expose_to_cpp(private$.info_data_wide)
       )
 

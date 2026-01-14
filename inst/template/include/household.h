@@ -8,9 +8,12 @@
 #ifndef HOUSEPI__HOUSEHOLD__H
 #define HOUSEPI__HOUSEHOLD__H
 
-#include "tools/global.h"
+#include <string>
+#include <vector>
+
 #include "tools/operators.h"
 #include "tools/types.h"
+
 #include "attribute.h"
 #include "individual.h"
 
@@ -28,7 +31,7 @@ public:
 	//////////////////////////////////  Household : constructor  //////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	Household(const std::string &house_id = hsp::na::STRING, size_t index = SIZE_MAX)
+	Household(const std::string &house_id = "", size_t index = SIZE_MAX)
 	{
 		house_id_ = house_id;
 		index_ = index;
@@ -55,19 +58,19 @@ public:
 	class View
 	{
 		// conditional vector reference, if constant or not
-		using VectorRef = std::conditional_t<std::is_const<T>::value,
-											 const std::vector<Individual> &,
-											 std::vector<Individual> &>;							 
+		using vector_ref = std::conditional_t<std::is_const<T>::value,
+											  const std::vector<Individual> &,
+											  std::vector<Individual> &>;
 		// conditional index, reference or copy
-		using IndexRef = std::conditional_t<std::is_const<T>::value,
-											   const std::vector<size_t> &,
-											   std::vector<size_t>>;
+		using index_ref = std::conditional_t<std::is_const<T>::value,
+											 const std::vector<size_t> &,
+											 std::vector<size_t>>;
 
 	public:
-		VectorRef vec;
-		IndexRef indexes; 
+		vector_ref vec;
+		index_ref indexes;
 
-		View(VectorRef m, const std::vector<size_t> &i)
+		View(vector_ref m, const std::vector<size_t> &i)
 			: vec(m), indexes(i) {}
 
 		class iterator
@@ -147,16 +150,11 @@ public:
 		house_multiplicity_ = m;
 		multiplicity_class_ = class_idx;
 	}
-	void init_member(size_t index, const std::string &id, int status, const u_dict<double> &data);
-	void set_healthy_status(Individual &member) { set_status_(member, hsp::status::SUSCEPTIBLE); }
-	void set_infected_status(Individual &member, int new_status = hsp::status::INFECTED)
-	{
-		if (!hsp::status::is_infected(new_status))
-			throw std::invalid_argument(
-				"Tried to set as infected status " + std::to_string(new_status) +
-				" to " + err_name() + ".\nInfected status must be an integer greater than 0.");
-		set_status_(member, new_status);
-	}
+	void init_member(size_t index, const std::string &id,
+					 int status, const hsp::dict<double> &data);
+	void set_susceptible_status(Individual &member);
+	void set_infected_status(Individual &member);
+	void set_infected_status(Individual &member, int new_status);
 	void init_contact_rates(size_t from, size_t to, const Attribute &x);
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
@@ -175,24 +173,25 @@ public:
 	}
 
 	// Cache integer vector
-	void init_cache_integer_vector(const std::string &e) { cache_int_vec_[e] = int_vec(size(), 0); }
-	int_vec &cache_integer_vector(const std::string &e) { return safe_at(cache_int_vec_, e, "cached object"); }
-	const int_vec &cache_integer_vector(const std::string &e) const { return safe_at(cache_int_vec_, e, "cached object"); }
+	void init_cache_integer_vector(const std::string &e) { cache_int_vec_[e] = std::vector<int>(size(), 0); }
+	std::vector<int> &cache_integer_vector(const std::string &e) { return hsp::safe_at(cache_int_vec_, e, "cached object"); }
+	const std::vector<int> &cache_integer_vector(const std::string &e) const { return hsp::safe_at(cache_int_vec_, e, "cached object"); }
 
 	// Cache size_t vector
 	void init_cache_size_t_vector(const std::string &e) { cache_size_t_vec_[e] = std::vector<size_t>(size(), 0); }
-	std::vector<size_t> &cache_size_t_vector(const std::string &e) { return safe_at(cache_size_t_vec_, e, "cached object"); }
-	const std::vector<size_t> &cache_size_t_vector(const std::string &e) const { return safe_at(cache_size_t_vec_, e, "cached object"); }
+	std::vector<size_t> &cache_size_t_vector(const std::string &e) { return hsp::safe_at(cache_size_t_vec_, e, "cached object"); }
+	const std::vector<size_t> &cache_size_t_vector(const std::string &e) const { return hsp::safe_at(cache_size_t_vec_, e, "cached object"); }
 
 	// Cached double vector
-	void init_cache_double_vector(const std::string &e) { cache_dbl_vec_[e] = dbl_vec(size(), 0.); }
-	dbl_vec &cache_double_vector(const std::string &e) { return safe_at(cache_dbl_vec_, e, "cached object"); }
-	const dbl_vec &cache_double_vector(const std::string &e) const { return safe_at(cache_dbl_vec_, e, "cached object"); }
+	void init_cache_double_vector(const std::string &e) { cache_dbl_vec_[e] = std::vector<double>(size(), 0.); }
+	std::vector<double> &cache_double_vector(const std::string &e) { return hsp::safe_at(cache_dbl_vec_, e, "cached object"); }
+	const std::vector<double> &cache_double_vector(const std::string &e) const { return hsp::safe_at(cache_dbl_vec_, e, "cached object"); }
 
 	// Cache double matrix
-	void init_cache_double_matrix(const std::string &e) { cache_dbl_mtx_[e] = matrix<double>(size(), dbl_vec(size(), 0.)); }
-	matrix<double> &cache_double_matrix(const std::string &e) { return safe_at(cache_dbl_mtx_, e, "cached object"); }
-	const matrix<double> &cache_double_matrix(const std::string &e) const { return safe_at(cache_dbl_mtx_, e, "cached object"); }
+	using dbl_matrix = std::vector<std::vector<double>>;
+	void init_cache_double_matrix(const std::string &e) { cache_dbl_mtx_[e] = dbl_matrix(size(), std::vector<double>(size(), 0.)); }
+	dbl_matrix &cache_double_matrix(const std::string &e) { return hsp::safe_at(cache_dbl_mtx_, e, "cached object"); }
+	const dbl_matrix &cache_double_matrix(const std::string &e) const { return hsp::safe_at(cache_dbl_mtx_, e, "cached object"); }
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	/////////////////////////////////  Household : log-likelihood  ////////////////////////////////
@@ -208,20 +207,15 @@ public:
 		assert_log_lik_not_NaN();
 	}
 	/// Assert that current log-likelihood id not a NaN.
-	void assert_log_lik_not_NaN() const
-	{
-		if (hsp::na::is(obs_log_lik_))
-			throw std::runtime_error(
-				"Observation log-likelihood returned NaN.");
-	}
+	void assert_log_lik_not_NaN() const;
 	void recover_buffer_values(bool is_cache_depen);
 
 private:
-	std::string house_id_ = hsp::na::STRING; /// User house id
-	size_t index_ = -1;						 /// Internal unique index
-	unsigned short house_size_ = 0;			 /// N. of house members
-	unsigned long house_multiplicity_ = 1;	 /// N. of equivalent houses
-	size_t multiplicity_class_ = -1;		 /// Index of multiplicity class
+	std::string house_id_ = "";			   /// User house id
+	size_t index_ = -1;					   /// Internal unique index
+	unsigned short house_size_ = 0;		   /// N. of house members
+	unsigned long house_multiplicity_ = 1; /// N. of equivalent houses
+	size_t multiplicity_class_ = -1;	   /// Index of multiplicity class
 
 	std::vector<Individual> members_ = {};
 	std::vector<size_t> infected_list_ = {};
@@ -229,7 +223,7 @@ private:
 	std::vector<size_t> missing_list_ = {};
 
 	// contact rate pointers
-	matrix<Attribute> contact_rates_;
+	std::vector<std::vector<Attribute>> contact_rates_;
 
 	/// Change_status of individual i to new status (without controls).
 	void set_status_(Individual &member, int new_status);
@@ -241,21 +235,21 @@ private:
 	double obs_log_lik_ = 0; // current observation log-likelihood
 	double obs_buffer_ = 0;	 // buffer observation log-likelihood
 
-	dbl_vec smpl_log_lik_ = {}; // diagnostics
+	std::vector<double> smpl_log_lik_ = {}; // diagnostics
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////  Household : cache attributes [private]  //////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	u_dict<int_vec> cache_int_vec_ = {};
-	u_dict<std::vector<size_t>> cache_size_t_vec_ = {};
-	u_dict<dbl_vec> cache_dbl_vec_ = {};
-	u_dict<matrix<double>> cache_dbl_mtx_ = {};
+	hsp::dict<std::vector<int>> cache_int_vec_ = {};
+	hsp::dict<std::vector<size_t>> cache_size_t_vec_ = {};
+	hsp::dict<std::vector<double>> cache_dbl_vec_ = {};
+	hsp::dict<dbl_matrix> cache_dbl_mtx_ = {};
 
-	u_dict<int_vec> buffer_cache_int_vec_ = {};
-	u_dict<std::vector<size_t>> buffer_cache_size_t_vec_ = {};
-	u_dict<dbl_vec> buffer_cache_dbl_vec_ = {};
-	u_dict<matrix<double>> buffer_cache_dbl_mtx_ = {};
+	hsp::dict<std::vector<int>> buffer_cache_int_vec_ = {};
+	hsp::dict<std::vector<size_t>> buffer_cache_size_t_vec_ = {};
+	hsp::dict<std::vector<double>> buffer_cache_dbl_vec_ = {};
+	hsp::dict<dbl_matrix> buffer_cache_dbl_mtx_ = {};
 };
 
 #endif // HOUSEPI__HOUSEHOLD__H

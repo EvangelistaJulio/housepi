@@ -80,7 +80,7 @@ void Model::fill_house_escape_matrix(Household &house) const
 	// fill matrix according to order
 	for (size_t i = 0; i < house.size(); ++i)
 	{
-		const Individual &member_i = house.get_member(order[i]);
+		const auto &member_i = house.get_member(order[i]);
 		double inf_i = member_i.group_rate("infectivity");
 		double sus_i = member_i.group_rate("susceptibility");
 
@@ -92,7 +92,7 @@ void Model::fill_house_escape_matrix(Household &house) const
 		// person-to-person
 		for (size_t k = 0; k < i; ++k)
 		{
-			const Individual &member_k = house.get_member(order[k]);
+			const auto &member_k = house.get_member(order[k]);
 			// [i] : infector -> [r] : infectee
 			p2p_mtx[i][k] = std::exp(-inf_i * p2p_rate * member_k.group_rate("susceptibility"));
 			// [r] : infector -> [i] : infectee
@@ -135,9 +135,9 @@ void Model::simulate_single_household(Household &house)
 
 	std::vector<Individual *> new_gen_set = {};
 
-	for (Individual &member : house)
+	for (auto &member : house)
 		if (uniform() < exp(-commu_rate * member.group_rate("community")))
-			house.set_healthy_status(member);
+			house.set_susceptible_status(member);
 		else
 		{
 			house.set_infected_status(member);
@@ -155,12 +155,12 @@ void Model::simulate_single_household(Household &house)
 		std::swap(old_gen_set, new_gen_set);
 		new_gen_set.clear();
 
-		for (Individual &member_i : house.healthy())
+		for (auto &member_i : house.healthy())
 		{
 			double sus_i = member_i.group_rate("susceptibility");
 
 			double r = 0.;
-			for (Individual *member_k : old_gen_set)
+			for (auto *member_k : old_gen_set)
 				r += member_k->group_rate("infectivity");
 
 			if (uniform() >= exp(-r * p2p_rate * sus_i))

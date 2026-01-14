@@ -6,6 +6,9 @@
  */
 
 #include <chrono>
+#include <stdexcept>
+#include <string>
+#include <vector>
 
 #include "tools/global.h"
 #include "tools/messages.h"
@@ -19,6 +22,12 @@
 #include "data.h"
 #include "data_reports.h"
 
+namespace
+{
+    using std::string;
+    using std::vector;
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////  *** Setup : struct ***  ////////////////////////////////
@@ -29,11 +38,11 @@ Setup::Setup() : unif_(0., 1.),
                  progressbar_(std::make_unique<hsp::progress::Bar>()) {}
 Setup::~Setup() = default;
 
-void Setup::build(const u_dict<str_vec> &input)
+void Setup::build(const hsp::str_table &input)
 {
     const auto time_raw = std::chrono::steady_clock::now().time_since_epoch().count();
     // ensure time_now is 64bit
-    const std::uint64_t time_now = static_cast<std::uint64_t>(time_raw);
+    const auto time_now = static_cast<std::uint64_t>(time_raw);
     // xor between upper and lower part of time stamp
     const std::uint64_t mixed = time_now ^ (time_now >> 32);
 
@@ -54,7 +63,7 @@ void Setup::build(const u_dict<str_vec> &input)
                 "Internal error: multiple entries found in MCMC setup definition.");
 
         // check entries
-        const str_vec &headers = hsp::read::extract_keys(input);
+        const auto &headers = hsp::extract_keys(input);
         hsp::str::assert_no_unused_entries(headers, file_headers);
 
         // Random Initialization of Parameters
@@ -130,7 +139,7 @@ void Setup::set_n_threads()
 /// Concomitantely create different generators for different parallel threads
 void Setup::set_prng_seed()
 {
-    rnd_gen aux_prng;
+    hsp::rnd_gen aux_prng;
     aux_prng.seed(seed);
     std::uniform_int_distribution<unsigned long> seed_generator(0, 0XFFFFFFFF);
 
@@ -140,7 +149,7 @@ void Setup::set_prng_seed()
 }
 
 /// Return pseudo random number generator.
-rnd_gen &Setup::prng()
+hsp::rnd_gen &Setup::prng()
 {
 #ifdef _OPENMP
     return prng_parallel_[omp_get_thread_num()];
@@ -201,7 +210,7 @@ void Setup::drop_mcmc_adapt()
 }
 
 /// The text to print in the Markov chian progress bar.
-std::string Setup::fmt_progtxt()
+string Setup::fmt_progtxt()
 {
     if (is_power_post())
         return "power post " + std::to_string(rung) + "/" + std::to_string(n_rungs);
@@ -210,12 +219,12 @@ std::string Setup::fmt_progtxt()
     return "sample";
 }
 
-void Setup::prog_declare(const std::string &text)
+void Setup::prog_declare(const string &text)
 {
     prog_set_text(text);
     progressbar_->set_thintime(progress);
 }
-void Setup::prog_set_text(const std::string &text) { progressbar_->set_text(hsp::na::is(text) ? fmt_progtxt() : text); }
+void Setup::prog_set_text(const string &text) { progressbar_->set_text(hsp::na::is(text) ? fmt_progtxt() : text); }
 void Setup::prog_open_for_inference() { progressbar_->open(c_n_sweeps * n_chains); }
 void Setup::prog_open_for_power_post() { progressbar_->open(c_n_sweeps * n_chains * (n_rungs + 1)); }
 void Setup::prog_update() { progressbar_->update(); }
@@ -224,15 +233,47 @@ void Setup::prog_crash() { progressbar_->crash(); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  Household : setter  ///////////////////////////////////////
+///////////////////////////////////  *** Individual : class ***  //////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+Individual::Individual()
+{
+    id_ = "";
+    index_ = 0;
+    hhindex_ = 0;
+    status_ = hsp::status::MISSING;
+    data_map_ = {};
+}
+
+bool Individual::is_infected_status() const { return hsp::status::is_infected(status_); }
+bool Individual::is_healthy_status() const { return hsp::status::is_susceptible(status_); }
+bool Individual::is_missing_status() const { return hsp::status::is_missing(status_); }
+
+/// Initialize group rate according to given attribute.
+void Individual::init_group_rate(const std::string &g, const Attribute &attr)
+{
+    group_rate_map_[g].transfer(attr);
+    group_rate_map_[g].set_name(g, "group rate");
+}
+/// Initialize group rate to reference.
+void Individual::init_group_rate_to_reference(const std::string &g)
+{
+    group_rate_map_[g].transfer(Attribute(hsp::rates::VALUE_REFERENCE));
+    group_rate_map_[g].set_name(g, "group rate");
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////  *** Household : class ***  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Link an individual to the household.
 void Household::init_member(size_t index,
-                            const std::string &id,
+                            const string &id,
                             int status,
-                            const u_dict<double> &data)
+                            const hsp::dict<double> &data)
 {
     // emplace new individual
     members_.emplace_back(index, house_size_, id, status, data);
@@ -246,6 +287,17 @@ void Household::init_member(size_t index,
         missing_list_.push_back(house_size_);
 
     ++house_size_;
+}
+
+void Household::set_susceptible_status(Individual &member) { set_status_(member, hsp::status::SUSCEPTIBLE); }
+void Household::set_infected_status(Individual &member) { set_status_(member, hsp::status::INFECTED); }
+void Household::set_infected_status(Individual &member, int new_status)
+{
+    if (!hsp::status::is_infected(new_status))
+        throw std::invalid_argument(
+            "Tried to set as infected status " + std::to_string(new_status) +
+            " to " + err_name() + ".\nInfected status must be an integer greater than 0.");
+    set_status_(member, new_status);
 }
 
 /// Change_status of individual i to new status (without controls).
@@ -280,10 +332,17 @@ void Household::init_contact_rates(size_t from, size_t to, const Attribute &x)
     if (contact_rates_.empty())
         contact_rates_.resize(
             house_size_,
-            std::vector<Attribute>(house_size_, Attribute(hsp::rates::VALUE_REFERENCE)));
+            vector<Attribute>(house_size_, Attribute(hsp::rates::VALUE_REFERENCE)));
 
     contact_rates_[from][to] = x;
 }
+
+	/// Assert that current log-likelihood id not a NaN.
+	void Household::assert_log_lik_not_NaN() const
+	{
+		if (hsp::na::is(obs_log_lik_))
+			throw std::runtime_error("Observation log-likelihood returned NaN.");
+	}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  Household : cache attributes  //////////////////////////////////
@@ -294,7 +353,6 @@ void Household::recover_buffer_values(bool is_cache_depen)
 {
     obs_log_lik_ = obs_buffer_;
 
-    // swap buffer into  cache attributes if cache dependent
     if (is_cache_depen)
     {
         cache_int_vec_.swap(buffer_cache_int_vec_);
@@ -329,7 +387,7 @@ void DataWide::warn_all_missing_status()
 }
 
 /// Assign data after pre-processing.
-void DataWide::build(const u_dict<str_vec> &input)
+void DataWide::build(const hsp::str_table &input)
 {
     if (input.empty())
         return;
@@ -338,8 +396,8 @@ void DataWide::build(const u_dict<str_vec> &input)
     build_helper_clear_data_();
 
     // extract headers
-    for (const auto &x : input)
-        headers.push_back(x.first);
+    for (const auto &[col, vec] : input)
+        headers.push_back(col);
     // assess the presence of house IDs
     if (!(headers % "house_id"))
         hsp::msg::warning(
@@ -353,13 +411,13 @@ void DataWide::build(const u_dict<str_vec> &input)
     report_indiv->total = input.at(headers[0]).size();
     for (size_t i = 0; i < report_indiv->total; ++i)
     {
-        std::string id = std::to_string(i + 1);                          // default id
-        std::string house_id = std::to_string(house_vector_.size() + 1); // default house_id
+        string id = std::to_string(i + 1);                          // default id
+        string house_id = std::to_string(house_vector_.size() + 1); // default house_id
         int status = hsp::status::MISSING;
-        u_dict<double> data = {};
+        hsp::dict<double> data = {};
 
         // read individual data
-        for (const std::string &key : headers)
+        for (const auto &key : headers)
             if (key == "id")
             {
                 id = input.at(key)[i]; // user id
@@ -394,14 +452,14 @@ void DataWide::build(const u_dict<str_vec> &input)
             house_vector_.emplace_back(house_id, house_vector_.size());
         }
         // extract the household reference
-        Household &house = house_vector_.at(hhid_to_index_.at(house_id));
+        auto &house = house_vector_.at(hhid_to_index_.at(house_id));
 
         // assign the individual the respective household
         house.init_member(i, id, status, data);
     }
     report_house->total = house_vector_.size();
 
-    headers = headers - str_vec({"id", "house_id", "status"});
+    headers = headers - vector<string>({"id", "house_id", "status"});
 
     // update report for data
     build_helper_fill_report_data_();
@@ -423,10 +481,10 @@ void DataWide::build_helper_clear_data_()
 void DataWide::build_helper_fill_report_data_()
 {
     // set report counts
-    for (const Household &house : house_vector_)
+    for (const auto &house : house_vector_)
     {
         // list of unique infected statuses
-        for (const Individual &member : house.infected())
+        for (const auto &member : house.infected())
             if (!(all_infected_status_list % member.status()))
                 all_infected_status_list.push_back(member.status());
 
@@ -466,10 +524,10 @@ void DataWide::build_helper_fill_report_data_()
 
 /// Build multiplicities.
 /// UPDATE: I should find a way to deal internally with multiplicity.
-void DataWide::multiplicity_build(const u_dict<str_vec> &input, bool is_any_augm)
+void DataWide::multiplicity_build(const hsp::str_table &input, bool is_any_augm)
 {
     head_class_house_indexes.clear();
-    size_t n_houses = report_house->total;
+    auto n_houses = report_house->total;
     if (is_any_augm || (input.size() == 0))
     {
         // note: multiplicities are not compatible with data augmentation
@@ -494,9 +552,9 @@ void DataWide::multiplicity_build(const u_dict<str_vec> &input, bool is_any_augm
 
         for (size_t r = 0; r < n_houses; ++r)
         {
-            Household &house = (*this)(input.at("house_id")[r]);
-            size_t H0 = (*this)(input.at("class_id")[r]).house_index();
-            unsigned long m = hsp::str::toul(input.at("multiplicity")[r]);
+            auto &house = (*this)(input.at("house_id")[r]);
+            auto H0 = (*this)(input.at("class_id")[r]).house_index();
+            auto m = hsp::str::toul(input.at("multiplicity")[r]);
 
             house.set_multiplicity(m, H0);
 
@@ -526,9 +584,9 @@ void DataWide::store_draws(unsigned long smpl_count)
     // store sample for restricted households
     for (size_t R = 0; R < head_class_house_indexes.size(); ++R)
     {
-        Household &house = house_vector_[head_class_house_indexes[R]];
+        auto &house = house_vector_[head_class_house_indexes[R]];
         double x = house.get_obs_log_lik() / house.multiplicity();
-        for (const Individual &member : house.infected())
+        for (const auto &member : house.infected())
             x += member.get_augm_model_log_lik();
         smpl_values[R][smpl_count] = x;
     }
@@ -541,7 +599,7 @@ void DataWide::store_draws(unsigned long smpl_count)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Assign data after pre-processing.
-void DataLong::build(const u_dict<str_vec> &input)
+void DataLong::build(const hsp::str_table &input)
 {
     if (input.empty())
         return;
@@ -556,14 +614,14 @@ void DataLong::build(const u_dict<str_vec> &input)
         throw std::invalid_argument(
             "Individual identifier column 'id' was missing.");
     // remove "id"
-    headers = headers - str_vec({"id"});
+    headers = headers - vector<string>({"id"});
 
     // individual map for id -> index
     // note: this could be moved elsewhere if required
-    u_dict<size_t> id_to_index = {};
+    hsp::dict<size_t> id_to_index = {};
     size_t c = 0;
-    for (const Household &house : *pDataWide_)
-        for (const Individual &member : house)
+    for (const auto &house : *pDataWide_)
+        for (const auto &member : house)
         {
             if (id_to_index.count(member.id()))
                 throw std::invalid_argument(
@@ -575,15 +633,15 @@ void DataLong::build(const u_dict<str_vec> &input)
     indiv_datalist.clear();
     indiv_datalist.resize(pDataWide_->report_indiv->total);
 
-    for (u_dict<dbl_vec> &xmap : indiv_datalist)
-        for (const std::string &key : headers)
+    for (auto &xmap : indiv_datalist)
+        for (const auto &key : headers)
             xmap[key].clear();
 
     // load individual data list
-    const size_t n_rows = input.at(headers[0]).size();
+    const auto n_rows = input.at(headers[0]).size();
     for (size_t r = 0; r < n_rows; ++r)
     {
-        std::string id = input.at("id")[r];
+        const auto &id = input.at("id")[r];
         if (hsp::na::is(id))
             throw std::invalid_argument(
                 "Invalid id found in row n." + std::to_string(r + 2) + ".");
@@ -598,15 +656,15 @@ void DataLong::build(const u_dict<str_vec> &input)
         }
 
         // append (since vector is initialized to empty)
-        u_dict<dbl_vec> &xdict = indiv_datalist.at(id_to_index.at(id));
-        for (const std::string &key : headers)
+        auto &xdict = indiv_datalist.at(id_to_index.at(id));
+        for (const auto &key : headers)
             xdict.at(key).emplace_back(
                 hsp::str::tod(input.at(key).at(r), "data long format '" + key + "'"));
     }
 
     // assign pointers to relative data-long to all individuals
     c = 0;
-    for (Household &house : *pDataWide_)
-        for (Individual &member : house)
+    for (auto &house : *pDataWide_)
+        for (auto &member : house)
             member.init_pointer_to_data_long(&indiv_datalist.at(c++));
 }

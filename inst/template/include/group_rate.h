@@ -8,6 +8,10 @@
 #ifndef HOUSEPI__GROUP__RATE__H
 #define HOUSEPI__GROUP__RATE__H
 
+#include <string>
+#include <unordered_map>
+#include <vector>
+
 #include "tools/types.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -22,21 +26,21 @@ class Individual;
 
 struct GroupRate
 {
-    str_vec headers;
+    std::vector<std::string> headers;
 
     GroupRate(std::shared_ptr<DataWide> dataptr,
               std::shared_ptr<Parameter> paramptr);
     ~GroupRate();
 
-    void build(const u_dict<str_vec> &deftable);
+    void build(const hsp::str_table &deftable);
 
 private:
-    const str_vec file_headers_ = {"group_rate", "param_name"};
+    const std::vector<std::string> file_headers_ = {"group_rate", "param_name"};
     std::shared_ptr<DataWide> pDataWide_;   /// pointer to external DataWide struct
     std::shared_ptr<Parameter> pParameter_; /// pointer to external Parameter struct
 
-    str_vec helper_assert_definitions_(const u_dict<str_vec> &deftable);
-    void helper_init_all_rates_(Individual &member, const u_dict<str_vec> &these_rates);
+    std::vector<std::string> helper_assert_definitions_(const hsp::str_table &input);
+    void helper_init_all_rates_(Individual &member, const hsp::str_table &these_rates);
 };
 
 #endif // HOUSEPI__GROUP__RATE__H

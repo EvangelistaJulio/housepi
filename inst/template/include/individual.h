@@ -8,9 +8,12 @@
 #ifndef HOUSEPI__INDIVIDUAL__H
 #define HOUSEPI__INDIVIDUAL__H
 
-#include "tools/types.h"
+#include <string>
+#include <vector>
+
 #include "tools/operators.h"
-#include "tools/global.h"
+#include "tools/types.h"
+
 #include "attribute.h"
 #include "augmented_map.h"
 
@@ -31,12 +34,9 @@ public:
 	//////////////////////////////////  Individual : constructor  /////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	Individual() {}
-	Individual(size_t index,
-			   size_t hhindex,
-			   const std::string &id,
-			   int status,
-			   const u_dict<double> &data)
+	Individual();
+	Individual(size_t index, size_t hhindex, const std::string &id,
+			   int status, const hsp::dict<double> &data)
 	{
 		index_ = index;
 		hhindex_ = hhindex;
@@ -44,6 +44,7 @@ public:
 		status_ = status;
 		data_map_ = data;
 	}
+	~Individual() = default;
 
 	/// Sugar to tell if the corresponding members are the same.
 	bool operator==(const Individual &other) const { return this->index_ == other.index_; }
@@ -56,52 +57,55 @@ public:
 	////////////////////////////////////  Individual : getter  ////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
+	/// Individidaul unique identifier as in data.
 	const std::string &id() const { return id_; }
 	std::string err_name() const override final { return "individual '" + id_ + "'"; }
 	int status() const { return status_; }
-	bool is_infected_status() const { return hsp::status::is_infected(status_); }
-	bool is_healthy_status() const { return hsp::status::is_susceptible(status_); }
-	bool is_missing_status() const { return hsp::status::is_missing(status_); }
-	double data(const std::string &d) const { return safe_at(data_map_, d, "data"); }
-	const dbl_vec &data_long(const std::string &d) const
+	double data(const std::string &d) const { return hsp::safe_at(data_map_, d, "data"); }
+
+	/// Return associated data long format.
+	/// NOTE: return a reference to a static empty vector when no datalong is attached
+	const std::vector<double> &data_long(const std::string &d) const
 	{
-		// return a reference to a stable empty vector when no datalong is attached
-		static const dbl_vec EMPTY_DBL_VEC = dbl_vec();
-		return (pdatalong_ == nullptr) ? EMPTY_DBL_VEC : pdatalong_->at(d);
+		if (pdatalong_ != nullptr)
+			return pdatalong_->at(d);
+
+		static const std::vector<double> EMPTY_DBL_VEC = std::vector<double>();
+		return EMPTY_DBL_VEC;
 	}
-	double group_rate(const std::string &g) const { return safe_at(group_rate_map_, g, "group rate").get(); }
-	const Attribute &get_group_rate_attribute(const std::string &g) const { return safe_at(group_rate_map_, g, "group rate"); }
+	double group_rate(const std::string &g) const { return hsp::safe_at(group_rate_map_, g, "group rate").get(); }
+	const Attribute &get_group_rate_attribute(const std::string &g) const { return hsp::safe_at(group_rate_map_, g, "group rate"); }
+
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////  Individual : flags  /////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////
+
+	bool is_infected_status() const;
+	bool is_healthy_status() const;
+	bool is_missing_status() const;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////  Individual : setter  ////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	/// Initialize pointer to data long format.
-	void init_pointer_to_data_long(u_dict<dbl_vec> *y) { pdatalong_ = y; }
+	void init_pointer_to_data_long(hsp::dict<std::vector<double>> *y) { pdatalong_ = y; }
 	/// Initialize group rate according to given attribute.
-	void init_group_rate(const std::string &g, const Attribute &attr)
-	{
-		group_rate_map_[g].transfer(attr);
-		group_rate_map_[g].set_name(g, "group rate");
-	}
+	void init_group_rate(const std::string &g, const Attribute &attr);
 	/// Initialize group rate to reference.
-	void init_group_rate_to_reference(const std::string &g)
-	{
-		group_rate_map_[g].transfer(Attribute(hsp::rates::VALUE_REFERENCE));
-		group_rate_map_[g].set_name(g, "group rate");
-	}
+	void init_group_rate_to_reference(const std::string &g);
 
 private:
-	std::string id_ = hsp::na::STRING;	// user id
-	size_t index_ = 0;					// housepi internal index
-	size_t hhindex_ = 0;				// household relative index
-	int status_ = hsp::status::MISSING; // status of the individual
+	std::string id_; // user id
+	size_t index_;	 // housepi internal index
+	size_t hhindex_; // household relative index
+	int status_;	 // status of the individual
 
 	// NOTE: allowd data variables are numerical only
-	u_dict<double> data_map_ = {};			// data
-	u_dict<Attribute> group_rate_map_ = {}; // group rates
+	hsp::dict<double> data_map_ = {};			 // data
+	hsp::dict<Attribute> group_rate_map_ = {}; // group rates
 
-	u_dict<dbl_vec> *pdatalong_ = nullptr; // data long format associated
+	hsp::dict<std::vector<double>> *pdatalong_ = nullptr; // data long format associated
 
 	friend class Household;
 };

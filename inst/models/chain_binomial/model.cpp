@@ -47,7 +47,7 @@ double Model::compute_household_obs_log_lik(Household &house)
 	double log_commu_infec_proba = log(1. - exp(log_commu_esc_proba));
 	double log_p2p_esc_proba = -person_to_person_risk();
 
-	size_t n_positive = house.n_infec_status();
+	auto n_positive = house.n_infec_status();
 
 	///////////////////////////////////////////
 	/////////  Sero-Negatives Members  ////////
@@ -120,9 +120,9 @@ void Model::simulate_single_household(Household &house)
 	/////////////  Generation 0 : infection by community  ////////////
 	//////////////////////////////////////////////////////////////////
 
-	for (Individual &member : house)
+	for (auto &member : house)
 		if (uniform() < commu_esc_proba)
-			house.set_healthy_status(member);
+			house.set_susceptible_status(member);
 		else
 			house.set_infected_status(member);
 
@@ -138,7 +138,7 @@ void Model::simulate_single_household(Household &house)
 		n_old_gen = n_new_gen;
 		n_new_gen = 0;
 
-		for (Individual &member : house.healthy())
+		for (auto &member : house.healthy())
 			if (uniform() >= exp(n_old_gen * log_p2p_esc_proba))
 			{
 				house.set_infected_status(member);

@@ -8,10 +8,10 @@
 #ifndef HOUSEPI__MCMC__IMPL__H
 #define HOUSEPI__MCMC__IMPL__H
 
-#include <memory>
 #include <functional>
-
-#include "tools/types.h"
+#include <memory>
+#include <string>
+#include <vector>
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -19,12 +19,9 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace hsp
+namespace hsp::atomic
 {
-    namespace atomic
-    {
-        struct Error;
-    }
+    struct Error;
 }
 
 class Individual;
@@ -45,7 +42,7 @@ public:
     std::shared_ptr<DataWide> data_wide;
     std::shared_ptr<DataLong> data_long;
     std::shared_ptr<Parameter> param;
-    std::shared_ptr<GroupRate> group_rates;
+    std::shared_ptr<GroupRate> group_rate;
     std::shared_ptr<InfecProfile> infec_profile;
     std::shared_ptr<Augmented> augm;
 
@@ -54,10 +51,10 @@ public:
     /////////////////////////////////////////////////////////////////////////////////////////////
 
     MCMCImpl(std::function<void()> func_init_inference,
-         std::function<void()> func_init_simulation,
-         std::function<double(Household &)> func_household_log_lik,
-         std::function<void(Household &)> func_simulate_house,
-         std::function<void(Household &, Individual &)> func_update_cache);
+             std::function<void()> func_init_simulation,
+             std::function<double(Household &)> func_household_log_lik,
+             std::function<void(Household &)> func_simulate_house,
+             std::function<void(Household &, Individual &)> func_update_cache);
     ~MCMCImpl();
 
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -65,13 +62,13 @@ public:
     /////////////////////////////////////////////////////////////////////////////////////////////
 
     unsigned long smpl_count = 0;    /// count of store samples
-    dbl_vec smpl_total_log_lik = {}; /// vector of total log-likelihood samples
+    std::vector<double> smpl_total_log_lik = {}; /// vector of total log-likelihood samples
 
     void init_monte_carlo();
     void init_evaluate();
     void init_model_for_inference() { callback_init_inference_(); }
     void run_monte_carlo();
-    std::vector<dbl_vec> power_posteriors(const std::string &scheme, unsigned long N);
+    std::vector<std::vector<double>> power_posteriors(const std::string &scheme, unsigned long N);
     double evaluate_single_house_log_lik(const std::string &house_id);
     double update_total_log_lik(bool is_cache_depen = true);
 
@@ -138,9 +135,9 @@ private:
     double metropolis_augm_single_move_(Household &house, Individual &member, const std::string &a);
 
     //----- Metropolis : power posteriors -----//
-    void power_post_zero_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var);
-    void power_post_fractions_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var);
-    void power_post_adaptive_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var);
+    void power_post_zero_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var);
+    void power_post_fractions_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var);
+    void power_post_adaptive_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var);
 };
 
 #endif // HOUSEPI__MCMC__IMPL__H

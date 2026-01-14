@@ -8,6 +8,10 @@
 #ifndef HOUSEPI__INFEC_PROFILE__H
 #define HOUSEPI__INFEC_PROFILE__H
 
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "tools/types.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -23,7 +27,7 @@ class Distribution;
 struct InfecProfile
 {
 public:
-    std::unique_ptr<Distribution> generic_profile;
+    std::shared_ptr<Distribution> generic_profile;
 
     /////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////  InfecProfile : constructor  ////////////////////////////
@@ -36,12 +40,12 @@ public:
     //////////////////////////////////  InfecProfile : setter  //////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////
 
-    void build(const u_dict<str_vec> &deftable);
-    void init_template(u_dict<str_vec> deftable);
+    void build(const hsp::str_table &input);
+    void init_template(hsp::str_table input);
     void update();
     void recover();
     void request_discrete() { is_discrete_requested_ = true; };
-    void transfer_augm_definitions(u_dict<str_vec> &target) const;
+    void transfer_augm_definitions(hsp::str_table &target) const;
 
     /////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////  InfecProfile : getter  //////////////////////////////
@@ -55,21 +59,21 @@ public:
     double cumul(const Individual *member_ptr, double t) { return (this->*cumul_)(member_ptr, t); }
 
 private:
-    std::shared_ptr<Parameter> pParameter_;         /// pointer to external Parameter struct
-    bool is_discrete_requested_ = false;            /// wheter is requested as discrete
-    size_t size_lut_ = 0;                           /// size of the LookUp Table table
-    dbl_vec lookup_inst_ = {};                      /// instantaneous LookUp Table
-    dbl_vec lookup_cumul_ = {};                     /// cumulative LookUp Table
-    dbl_vec lookup_buffer_inst_ = {};               /// instantaneous LookUp Table (buffer)
-    dbl_vec lookup_buffer_cumul_ = {};              /// cumulative LookUp Table (buffer)
-    u_dict<str_vec> augm_profile_definitions_ = {}; /// augmented profile definitions
+    std::shared_ptr<Parameter> pParameter_;        /// pointer to external Parameter struct
+    bool is_discrete_requested_ = false;           /// wheter is requested as discrete
+    size_t size_lut_ = 0;                          /// size of the LookUp Table table
+    std::vector<double> lookup_inst_ = {};         /// instantaneous LookUp Table
+    std::vector<double> lookup_cumul_ = {};        /// cumulative LookUp Table
+    std::vector<double> lookup_buffer_inst_ = {};  /// instantaneous LookUp Table (buffer)
+    std::vector<double> lookup_buffer_cumul_ = {}; /// cumulative LookUp Table (buffer)
+    hsp::str_table augm_profile_definitions_ = {}; /// augmented profile definitions
 
     void init_lookup_();
     void clear_lookup_();
 
-    void build_generic_profile_(const u_dict<str_vec> &input);
-    void build_augmented_profile_(const u_dict<str_vec> &input);
-    std::unique_ptr<Distribution> helper_build_profile_(const u_dict<std::string> &input);
+    void build_generic_profile_(const hsp::str_table &input);
+    void build_augmented_profile_(const hsp::str_table &input);
+    std::unique_ptr<Distribution> helper_build_profile_(const hsp::str_table &input);
 
     //===== Functional methods for getter methods =====//
     double (InfecProfile::*inst_)(const Individual *, double) = &InfecProfile::do_inst_default_;

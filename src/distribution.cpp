@@ -5,6 +5,10 @@
  * See the LICENSE file for details.
  */
 
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <vector>
 #include <cmath>
 
 #include <boost/math/distributions/normal.hpp>
@@ -22,7 +26,13 @@
 #include "tools/string.h"
 
 #include "distribution.h"
-#include "distribution_registry.h"
+#include "registry.h"
+
+namespace
+{
+    using std::string;
+    using std::vector;
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -163,15 +173,16 @@ void Distribution::init_trunc_helper_()
 
 /// Override get_options method of generic function with distribution.
 /// note: this differ in the choice of factory_map_ member.
-str_vec DistributionRegistry::get_options() const
+vector<string> DistributionRegistry::get_options() const
 {
-    str_vec keys(factory_map_.size());
-    for (const auto &pair : factory_map_)
-        keys.push_back(pair.first);
-    return keys;
+    vector<string> list_of_options;
+    list_of_options.reserve(factory_map_.size());
+    for (const auto &[key, val] : factory_map_)
+        list_of_options.push_back(key);
+    return list_of_options;
 }
 
-std::unique_ptr<Distribution> DistributionRegistry::get_distr(const std::string &opt, bool is_cumul) const
+std::unique_ptr<Distribution> DistributionRegistry::get_distr(const string &opt, bool is_cumul) const
 {
     if (!factory_map_.count(opt))
         return nullptr;
@@ -184,7 +195,7 @@ std::unique_ptr<Distribution> DistributionRegistry::get_distr(const std::string 
     return output;
 }
 
-std::unique_ptr<Function> DistributionRegistry::get(const std::string &opt, bool is_prim) const
+std::unique_ptr<Function> DistributionRegistry::get(const string &opt, bool is_prim) const
 {
     return get_distr(opt, is_prim);
 }
@@ -193,19 +204,19 @@ std::unique_ptr<Function> DistributionRegistry::get(const std::string &opt, bool
 /////////////////////////////////  Distribution Registry : setter  //////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-std::unique_ptr<Distribution> compose_distr_registries(const std::string &opt,
-                                                       const std::string &name,
-                                                       const std::vector<const DistributionRegistry *> &registries,
+std::unique_ptr<Distribution> compose_distr_registries(const string &opt,
+                                                       const string &name,
+                                                       const vector<const DistributionRegistry *> &registries,
                                                        bool is_cumul)
 {
-    str_vec options = {};
+    vector<string> options = {};
 
     if (registries.empty())
         throw std::invalid_argument(
             "No registries were provided for '" + name + "'.");
 
     if (hsp::na::is(opt))
-        return std::make_unique<Distribution>();
+        return nullptr;
 
     for (auto &r : registries)
     {
@@ -227,6 +238,7 @@ std::unique_ptr<Distribution> compose_distr_registries(const std::string &opt,
 namespace
 {
     using std::exp;
+    using std::lgamma;
     using std::log;
     using std::pow;
     using std::sqrt;
@@ -248,7 +260,7 @@ namespace
     {
         if (N == 0 || k == N)
             return 0.;
-        return std::lgamma(N + 1) - std::lgamma(k + 1) - std::lgamma(N - k + 1);
+        return lgamma(N + 1) - lgamma(k + 1) - lgamma(N - k + 1);
     }
 
     /// Log-ratio of binomial coefficients.
@@ -256,13 +268,13 @@ namespace
     {
         if (N == 0 || ko == kn)
             return 0;
-        return std::lgamma(ko + 1) + std::lgamma(N - ko + 1) - std::lgamma(kn + 1) - std::lgamma(N - kn + 1);
+        return lgamma(ko + 1) + lgamma(N - ko + 1) - lgamma(kn + 1) - lgamma(N - kn + 1);
     }
 
     /// Logarithm of beta function.
     double lbeta(double a, double b)
     {
-        return std::lgamma(a) + std::lgamma(b) - std::lgamma(a + b);
+        return lgamma(a) + lgamma(b) - lgamma(a + b);
     }
 
 // Macro for left discretization when min = 0 (close).
@@ -318,7 +330,7 @@ namespace
         double raw_cdf_(double x) const override final { return (x - arg(0)) / (arg(1) - arg(0)); }
         double raw_logpdf_(double) const override final { return 0.; }
         double raw_logratio_(double, double) const override final { return 0.; }
-        double raw_rand_(rnd_gen &prng) override final
+        double raw_rand_(hsp::rnd_gen &prng) override final
         {
             const double r = unif_gen(prng);
             return arg(0) * (1. - r) + arg(1) * r;
@@ -330,14 +342,14 @@ namespace
         void init_uniform_range_()
         {
             // impose range minimum equal to argument minimum
-            const Attribute &min_arg = arguments_[0];
+            const auto &min_arg = arguments_[0];
             if (min_arg.is_function())
                 lower_arg_.transfer(min_arg);
             else
                 lower_arg_.transfer(min_arg);
 
             // impose range maximum equal to argument maximum
-            const Attribute &max_arg = arguments_[1];
+            const auto &max_arg = arguments_[1];
             if (max_arg.is_function())
                 upper_arg_.transfer(max_arg);
             else
@@ -400,7 +412,7 @@ namespace
             static const boost::math::normal stdnorm(0., 1.);
             return arg(0) + arg(1) * boost::math::quantile(stdnorm, p);
         }
-        double raw_rand_(rnd_gen &prng) override final
+        double raw_rand_(hsp::rnd_gen &prng) override final
         {
             return arg(0) + arg(1) * norm_gen(prng);
         }
@@ -454,7 +466,7 @@ namespace
             static const boost::math::normal stdnorm(0., 1.);
             return exp(arg(0) + arg(1) * boost::math::quantile(stdnorm, p));
         }
-        double raw_rand_(rnd_gen &prng) override final
+        double raw_rand_(hsp::rnd_gen &prng) override final
         {
             return exp(arg(0) + arg(1) * norm_gen(prng));
         }
@@ -517,7 +529,7 @@ namespace
         {
             return boost::math::quantile(boost::math::beta_distribution<>(arg(0), arg(1)), p);
         }
-        double raw_rand_(rnd_gen &prng) override final
+        double raw_rand_(hsp::rnd_gen &prng) override final
         {
             return boost::random::beta_distribution<double>(arg(0), arg(1))(prng);
         }
@@ -542,7 +554,7 @@ namespace
         {
             const double shape = arg(0);
             const double scale = arg(1);
-            return pow(x, shape - 1.) * exp(-shape * log(scale) - std::lgamma(shape) - x / scale);
+            return pow(x, shape - 1.) * exp(-shape * log(scale) - lgamma(shape) - x / scale);
         }
         double raw_cdf_(double x) const override final
         {
@@ -552,7 +564,7 @@ namespace
         {
             const double shape = arg(0);
             const double t = x / arg(1);
-            return shape * log(t) - log(x) - std::lgamma(shape) - t;
+            return shape * log(t) - log(x) - lgamma(shape) - t;
         }
         double raw_logratio_(double xo, double xn) const override final
         {
@@ -562,7 +574,7 @@ namespace
         {
             return boost::math::quantile(boost::math::gamma_distribution<>(arg(0), arg(1)), p);
         }
-        double raw_rand_(rnd_gen &prng) override final
+        double raw_rand_(hsp::rnd_gen &prng) override final
         {
             return std::gamma_distribution<double>(arg(0), arg(1))(prng);
         }
@@ -591,7 +603,7 @@ namespace
             const double v = arg(1);
             const double shape = m * m / v;
             const double scale = v / m;
-            return pow(x, shape - 1.) * exp(-shape * log(scale) - std::lgamma(shape) - x / scale);
+            return pow(x, shape - 1.) * exp(-shape * log(scale) - lgamma(shape) - x / scale);
         }
         double raw_cdf_(double x) const override final
         {
@@ -605,7 +617,7 @@ namespace
             const double v = arg(1);
             const double shape = m * m / v;
             const double t = x * m / v;
-            return shape * log(t) - log(x) - std::lgamma(shape) - t;
+            return shape * log(t) - log(x) - lgamma(shape) - t;
         }
         double raw_logratio_(double xo, double xn) const override final
         {
@@ -619,7 +631,7 @@ namespace
             const double v = arg(1);
             return boost::math::quantile(boost::math::gamma_distribution<>(m * m / v, v / m), p);
         }
-        double raw_rand_(rnd_gen &prng) override final
+        double raw_rand_(hsp::rnd_gen &prng) override final
         {
             const double m = arg(0);
             const double v = arg(1);
@@ -671,7 +683,7 @@ namespace
         {
             return arg(0) * sqrt(-2. * log1p(-p));
         }
-        double raw_rand_(rnd_gen &prng) override final
+        double raw_rand_(hsp::rnd_gen &prng) override final
         {
             return arg(0) * sqrt(-2 * log(unif_gen(prng)));
         }
@@ -723,7 +735,7 @@ namespace
         {
             return arg(1) * pow(-log1p(-p), 1. / arg(0));
         }
-        double raw_rand_(rnd_gen &prng) override final
+        double raw_rand_(hsp::rnd_gen &prng) override final
         {
             return arg(1) * pow(-log(unif_gen(prng)), 1.0 / arg(0));
         }
@@ -769,7 +781,7 @@ namespace
         {
             return -log1p(-p) / arg(0);
         }
-        double raw_rand_(rnd_gen &prng) override final
+        double raw_rand_(hsp::rnd_gen &prng) override final
         {
             return -log(unif_gen(prng)) / arg(0);
         }
@@ -793,7 +805,7 @@ namespace
         double raw_pdf_(double x) const override final
         {
             const double lambda = arg(0);
-            return exp(x * log(lambda) - lambda - std::lgamma(x + 1.));
+            return exp(x * log(lambda) - lambda - lgamma(x + 1.));
         }
         double raw_cdf_(double x) const override final
         {
@@ -802,17 +814,17 @@ namespace
         double raw_logpdf_(double x) const override final
         {
             const double lambda = arg(0);
-            return x * log(lambda) - lambda - std::lgamma(x + 1.);
+            return x * log(lambda) - lambda - lgamma(x + 1.);
         }
         double raw_logratio_(double xo, double xn) const override final
         {
-            return (xn - xo) * log(arg(0)) + std::lgamma(xo + 1.) - std::lgamma(xn + 1.);
+            return (xn - xo) * log(arg(0)) + lgamma(xo + 1.) - lgamma(xn + 1.);
         }
         double raw_quantile_(double p) const override final
         {
             return boost::math::quantile(boost::math::poisson_distribution<>(arg(0)), p);
         }
-        double raw_rand_(rnd_gen &prng) override final
+        double raw_rand_(hsp::rnd_gen &prng) override final
         {
             return std::poisson_distribution<unsigned>(arg(0))(prng);
         }
@@ -882,7 +894,7 @@ namespace
         {
             return boost::math::quantile(boost::math::binomial_distribution<>(arg(0), arg(1)), p);
         }
-        double raw_rand_(rnd_gen &prng) override final
+        double raw_rand_(hsp::rnd_gen &prng) override final
         {
             return std::binomial_distribution<unsigned>(arg(0), arg(1))(prng);
         }
@@ -929,7 +941,7 @@ namespace
         {
             return boost::math::quantile(boost::math::negative_binomial_distribution<>(arg(0), arg(1)), p);
         }
-        double raw_rand_(rnd_gen &prng) override final
+        double raw_rand_(hsp::rnd_gen &prng) override final
         {
             return std::negative_binomial_distribution<unsigned>(arg(0), arg(1))(prng);
         }
@@ -972,7 +984,7 @@ namespace
         {
             return boost::math::quantile(boost::math::geometric_distribution<>(arg(0)), p);
         }
-        double raw_rand_(rnd_gen &prng) override final
+        double raw_rand_(hsp::rnd_gen &prng) override final
         {
             return std::geometric_distribution<unsigned>(arg(0))(prng);
         }
@@ -1085,23 +1097,3 @@ REGISTER_HOUSEPI_DISTRIBUTION(DiscreteDistrRegistry, Geometric_Distribution)
 
 IMPLEMENT_HOUSEPI_DISTRIBUTION_REGISTRY(InfecProfileRegistry)
 REGISTER_HOUSEPI_DISTRIBUTION(InfecProfileRegistry, InfecProfile_Ferretti20)
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  Attribute : init function from name  ////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Initialize attribute as function given the function name.
-void Attribute::init_function(const std::string &s, bool is_primitive)
-{
-    init_function(compose_func_registries(
-        s, "function",
-        {&UserFuncRegistry::inst(),
-         &TranscendentalRegistry::inst(),
-         &ArithmeticRegistry::inst(),
-         &ContinuosDistrRegistry::inst(),
-         &DiscreteDistrRegistry::inst(),
-         &InfecProfileRegistry::inst()},
-        is_primitive));
-}

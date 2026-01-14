@@ -9,6 +9,9 @@
 #define HOUSEPI__AUGMENTED__H
 
 #include <memory>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 #include "tools/random.h"
 #include "tools/types.h"
@@ -26,18 +29,18 @@ class Individual;
 
 struct Augmented
 {
-    str_vec list_draws = {};
-    str_vec list_full = {};
-    str_vec list_export = {};
-    str_vec user_list_discrete = {};
+    std::vector<std::string> list_draws = {};
+    std::vector<std::string> list_full = {};
+    std::vector<std::string> list_export = {};
+    std::vector<std::string> user_list_discrete = {};
 
-    u_dict<std::vector<size_t>> status_to_def_row = {}; /// definition rows by status
-    std::unordered_map<int, u_dict<str_vec>> status_map_model = {};
-    std::unordered_map<int, str_vec> status_map_sample = {};
+    hsp::dict<std::vector<size_t>> status_to_def_row = {}; /// definition rows by status
+    std::unordered_map<int, hsp::str_table> status_map_model = {};
+    std::unordered_map<int, std::vector<std::string>> status_map_sample = {};
 
     // optional augmented posterior sample
     std::vector<const Individual *> smpl_individuals = {};
-    std::vector<u_dict<dbl_vec>> smpl_values = {};
+    std::vector<hsp::dbl_table> smpl_values = {};
 
     /////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////  Augmented : constructor  /////////////////////////////
@@ -52,12 +55,12 @@ struct Augmented
     ///////////////////////////////////  Augmented : setter  ////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////
 
-    void build(const u_dict<str_vec> &deftable);
+    void build(const hsp::str_table &input);
     void init();
-    void init_individual_sample(str_vec &id_draws);
+    void init_individual_sample(std::vector<std::string> &id_draws);
 
-    void user_reset(rnd_gen &prng);
-    void user_reset(rnd_gen &prng, Individual &member);
+    void user_reset(hsp::rnd_gen &prng);
+    void user_reset(hsp::rnd_gen &prng, Individual &member);
 
     void clear_all(Individual &member);
     void init_all(Individual &member);
@@ -84,7 +87,7 @@ private:
     std::shared_ptr<DataWide> pDataWide_;         /// pointer to external DataWide struct
     std::shared_ptr<Parameter> pParameter_;       /// pointer to external Parameter struct
     std::shared_ptr<InfecProfile> pInfecProfile_; /// pointer to external InfecProfile struct
-    u_dict<str_vec> deftable_ = {};               /// store definition table
+    hsp::str_table deftable_ = {};                /// store definition table
 
     void helper_assert_no_reserved_();
     void helper_build_definition_by_status_();

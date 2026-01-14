@@ -6,13 +6,16 @@
  */
 
 #include <string>
+#include <vector>
 #include <fstream>
 #include <iostream>
 #include <iomanip>
 
 #include "tools/messages.h"
+#include "tools/nan.h"
 #include "tools/read.h"
 #include "tools/string.h"
+
 #include "data.h"
 #include "parameter.h"
 #include "group_rate.h"
@@ -21,23 +24,25 @@
 #include "mcmc_impl.h"
 #include "mcmc.h"
 
-// Header to the user defined model provided by the Make command
-#include "model.h"
+#include "model.h" // header to the user defined model provided by the Make command
+
+using std::string;
+using std::vector;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////  standalone print decorator  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Display a decorator for a section (if VERBOSE).
-void print_decorator(const std::string &title, const std::string &txt = hsp::na::STRING)
+void print_decorator(const string &title, const string &txt = "")
 {
     const unsigned decor_left = 3;   // left size of decorator
     const unsigned decor_width = 65; // total size of decorator
     const char decor = '-';          // decorator for prints
 
-    std::cout << std::string(decor_left, decor)
+    std::cout << string(decor_left, decor)
               << " " << title << " "
-              << std::string(decor_width - title.size() - decor_left, decor)
+              << string(decor_width - title.size() - decor_left, decor)
               << (hsp::na::is(txt) ? "" : "\n" + txt)
               << std::endl;
 }
@@ -49,7 +54,7 @@ void print_decorator(const std::string &title, const std::string &txt = hsp::na:
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #define MAKE_READ_METHOD(module, section_name)                            \
-    void MCMC::read_##module(const std::string &f)                        \
+    void MCMC::read_##module(const string &f)                             \
     {                                                                     \
         try                                                               \
         {                                                                 \
@@ -57,7 +62,7 @@ void print_decorator(const std::string &title, const std::string &txt = hsp::na:
         }                                                                 \
         catch (const std::exception &e)                                   \
         {                                                                 \
-            hsp::msg::error(std::string("While reading ") +               \
+            hsp::msg::error(string("While reading ") +                    \
                             section_name + " definitions:\n" + e.what()); \
         }                                                                 \
     }
@@ -66,12 +71,12 @@ MAKE_READ_METHOD(setup, "setup")
 MAKE_READ_METHOD(data_wide, "data-wide")
 MAKE_READ_METHOD(data_long, "data-long")
 MAKE_READ_METHOD(param, "parameters")
-MAKE_READ_METHOD(group_rates, "group rates")
+MAKE_READ_METHOD(group_rate, "group rates")
 MAKE_READ_METHOD(infec_profile, "infectivity profile")
 MAKE_READ_METHOD(augm, "augmented")
 
 // UPDATE: this will be removed once automatized in C++ reflection
-void MCMC::read_multiplicity(const std::string &f)
+void MCMC::read_multiplicity(const string &f)
 {
     try
     {
@@ -79,7 +84,7 @@ void MCMC::read_multiplicity(const std::string &f)
     }
     catch (const std::exception &e)
     {
-        hsp::msg::error(std::string("While reading ") + "multiplicity" + " definitions:\n" + e.what());
+        hsp::msg::error(string("While reading ") + "multiplicity" + " definitions:\n" + e.what());
     }
 }
 
@@ -90,14 +95,14 @@ void MCMC::read_multiplicity(const std::string &f)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Initialize the output file with inferred parameters with column names and initial values.
-void MCMC::print_infer_state(const std::string &output_filename) const
+void MCMC::print_infer_state(const string &output_filename) const
 {
     if (hsp::na::is(output_filename))
         return;
 
-    const Setup &setup = *pImpl_->setup;
-    const Parameter &param = *pImpl_->param;
-    const Augmented &augm = *pImpl_->augm;
+    const auto &setup = *pImpl_->setup;
+    const auto &param = *pImpl_->param;
+    const auto &augm = *pImpl_->augm;
 
     std::ofstream ofs;
     ofs.open(output_filename.c_str());
@@ -111,13 +116,13 @@ void MCMC::print_infer_state(const std::string &output_filename) const
     ofs << "iteration" << hsp::read::DELIMITER << "log_lik";
 
     // header parameters
-    for (const std::string &p : param.list_sample)
+    for (const auto &p : param.list_sample)
         ofs << hsp::read::DELIMITER << p;
 
     // header augmented variable of id trace
     if (augm.is_any_draw())
         for (size_t k = 0; k < augm.smpl_individuals.size(); ++k)
-            for (const std::string &a : augm.list_draws)
+            for (const auto &a : augm.list_draws)
                 ofs << hsp::read::DELIMITER << augm.smpl_individuals[k]->id() + "_" + a;
 
     // header chain
@@ -138,14 +143,14 @@ void MCMC::print_infer_state(const std::string &output_filename) const
                 << std::fixed << pImpl_->smpl_total_log_lik[i];
 
             // print parameter values
-            for (const std::string &p : param.list_sample)
+            for (const auto &p : param.list_sample)
                 ofs << hsp::read::DELIMITER << std::setprecision(5)
                     << std::fixed << param.smpl_values.find(p)->second[i];
 
             // print augmented variable of id trace
             if (!augm.smpl_values.empty())
                 for (size_t k = 0; k < augm.smpl_individuals.size(); ++k)
-                    for (const std::string &a : augm.list_draws)
+                    for (const auto &a : augm.list_draws)
                         ofs << hsp::read::DELIMITER << std::setprecision(5)
                             << std::fixed << augm.smpl_values[k].find(a)->second[i];
 
@@ -163,9 +168,9 @@ void MCMC::print_infer_state(const std::string &output_filename) const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Print all augmented variables of each individual.
-std::ofstream open_ofstream_datawide(const std::string &f,
-                                     const str_vec &data_headers,
-                                     const str_vec &augm_headers)
+std::ofstream open_ofstream_datawide(const string &f,
+                                     const vector<string> &data_headers,
+                                     const vector<string> &augm_headers)
 {
     std::ofstream ofs;
     ofs.open(f.c_str());
@@ -177,11 +182,11 @@ std::ofstream open_ofstream_datawide(const std::string &f,
     ofs << "id" << hsp::read::DELIMITER << "house_id" << hsp::read::DELIMITER << "status";
 
     // print other data headers
-    for (const std::string &d : data_headers)
+    for (const auto &d : data_headers)
         ofs << hsp::read::DELIMITER << d;
 
     // print augmented variables headers
-    for (const std::string &a : augm_headers)
+    for (const auto &a : augm_headers)
         ofs << hsp::read::DELIMITER << a;
 
     ofs << std::endl;
@@ -192,21 +197,21 @@ std::ofstream open_ofstream_datawide(const std::string &f,
 /// Print all augmented variables of each individual.
 void update_ofstream_datawide(std::ofstream &ofs,
                               Household &house,
-                              const str_vec &data_headers,
-                              const str_vec &augm_headers)
+                              const vector<string> &data_headers,
+                              const vector<string> &augm_headers)
 {
     if (!ofs.is_open())
         throw std::runtime_error("Output file closed unexpectedly.");
 
-    for (const Individual &member : house)
+    for (const auto &member : house)
     {
         ofs << member.id()
             << hsp::read::DELIMITER << house.house_id()
             << hsp::read::DELIMITER << member.status();
-        for (const std::string &d : data_headers)
+        for (const auto &d : data_headers)
             ofs << hsp::read::DELIMITER << member.data(d);
 
-        for (const std::string &a : augm_headers)
+        for (const auto &a : augm_headers)
             ofs << hsp::read::DELIMITER << member.aug(a);
 
         ofs << std::endl;
@@ -214,10 +219,10 @@ void update_ofstream_datawide(std::ofstream &ofs,
 }
 
 /// Print the simulated data to the provided file.
-void MCMC::print_simulated_data_wide(const std::string &pathtofile)
+void MCMC::print_simulated_data_wide(const string &pathtofile)
 {
-    const DataWide &data_wide = *pImpl_->data_wide;
-    const Augmented &augm = *pImpl_->augm;
+    const auto &data_wide = *pImpl_->data_wide;
+    const auto &augm = *pImpl_->augm;
 
     try
     {
@@ -263,15 +268,15 @@ void MCMC::print_simulated_data_wide(const std::string &pathtofile)
 /// Ref: Friel, N., Hurn, M. & Wyse, J.
 /// Improving power posterior estimation of statistical evidence.
 /// Stat Comput 24, 709–723 (2014).
-double MCMC::log_evidence(const std::string &scheme, unsigned long n_rungs)
+double MCMC::log_evidence(const string &scheme, unsigned long n_rungs)
 {
     try
     {
         double output = 0;
-        const std::vector<dbl_vec> pp = pImpl_->power_posteriors(scheme, n_rungs);
-        const dbl_vec &inv_tem = pp[0];
-        const dbl_vec &avg_vec = pp[1];
-        const dbl_vec &var_vec = pp[2];
+        const auto pp = pImpl_->power_posteriors(scheme, n_rungs);
+        const auto &inv_tem = pp[0];
+        const auto &avg_vec = pp[1];
+        const auto &var_vec = pp[2];
 
         for (unsigned long k = 0; k < pImpl_->setup->n_rungs; ++k)
         {
@@ -285,7 +290,7 @@ double MCMC::log_evidence(const std::string &scheme, unsigned long n_rungs)
     catch (const std::exception &e)
     {
         hsp::msg::error("While estimating log_evidence with power posteriors:\n" +
-                        std::string(e.what()));
+                        string(e.what()));
     }
 }
 
@@ -301,8 +306,8 @@ int main(int argc, char *argv[])
     using hsp::str::tolow;
     using hsp::str::toup;
 
-    int carg_i = 1;   // command line iterator
-    std::string carg; // command line argument
+    int carg_i = 1; // command line iterator
+    string carg;    // command line argument
 
     bool is_loglikelihood = false; // loglikelihood option
     bool is_infer = false;         // inference option
@@ -310,25 +315,25 @@ int main(int argc, char *argv[])
     unsigned long num_rungs = 0;   // n. rungs power posteriors
 
     // paths/to/files for import
-    std::string augm_file = hsp::na::STRING;
-    std::string data_wide_file = hsp::na::STRING;
-    std::string data_long_file = hsp::na::STRING;
-    std::string group_rates_file = hsp::na::STRING;
-    std::string infec_profile_file = hsp::na::STRING;
-    std::string multiplicity_file = hsp::na::STRING;
-    std::string output_file = hsp::na::STRING;
-    std::string param_file = hsp::na::STRING;
-    std::string setup_file = hsp::na::STRING;
+    string augm_file = "";
+    string data_wide_file = "";
+    string data_long_file = "";
+    string group_rates_file = "";
+    string infec_profile_file = "";
+    string multiplicity_file = "";
+    string output_file = "";
+    string param_file = "";
+    string setup_file = "";
 
     // check any command was supplied
     if (argc < 2)
         hsp::msg::error("No argument or command found. Check the usage through:\n" +
-                        std::string(argv[0]) + " -h");
+                        string(argv[0]) + " -h");
 
     // parse commands and options
     while (carg_i < argc)
     {
-        carg = std::string(argv[carg_i]); // update command line argument
+        carg = string(argv[carg_i]); // update command line argument
 
         // Command line argument asking for help
         // UPDATE : should I produce a manual for the standalone?
@@ -396,15 +401,15 @@ int main(int argc, char *argv[])
     //////////////////////////////
 
     // initialize the user model object
-    std::unique_ptr<Model> user_model = std::make_unique<Model>();
-    user_model->init_advanced_setup();
+    auto user_model = std::make_unique<Model>();
+    user_model->init_advanced_setup(); 
 
     user_model->read_data_wide(data_wide_file);         // 1) Load Data Wide
     user_model->read_data_long(data_long_file);         // ... and Data Long
     user_model->read_setup(setup_file);                 // 2) Load Setup
     user_model->read_param(param_file);                 // 3) Load Parameters
     user_model->read_infec_profile(infec_profile_file); // 4) Load Infectivity Profile
-    user_model->read_group_rates(group_rates_file);     // 5) Load Group Rates
+    user_model->read_group_rate(group_rates_file);      // 5) Load Group Rates
     user_model->build_all_rates();                      // ... and Contact Rates (temporary)
     user_model->read_augm(augm_file);                   // 6) Load Augmented Variables
     user_model->read_multiplicity(multiplicity_file);   // 7) Load Multiplicities

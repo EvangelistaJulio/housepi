@@ -5,8 +5,14 @@
  * See the LICENSE file for details.
  */
 
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
 #include "tools/global.h"
 #include "tools/messages.h"
+#include "tools/nan.h"
 #include "tools/operators.h"
 #include "tools/parser.h"
 #include "tools/random.h"
@@ -30,12 +36,15 @@
 
 namespace
 {
+    using std::string;
+    using std::vector;
+
     /// Helper to build augmented definition order and assert for acyclic.
-    void walk_dependency_tree(const std::string &entry,
-                              const u_dict<str_vec> &tree,
-                              str_vec &visited,
-                              str_vec &recursion_stack,
-                              str_vec &ordered)
+    void walk_dependency_tree(const string &entry,
+                              const hsp::str_table &tree,
+                              vector<string> &visited,
+                              vector<string> &recursion_stack,
+                              vector<string> &ordered)
     {
         if (!tree.count(entry))
             throw std::invalid_argument(
@@ -50,31 +59,30 @@ namespace
         for (auto &dep : tree.at(entry))
             walk_dependency_tree(dep, tree, visited, recursion_stack, ordered);
 
-        recursion_stack = recursion_stack - str_vec({entry});
+        recursion_stack = recursion_stack - vector<string>({entry});
         visited.push_back(entry);
         ordered.push_back(entry);
     }
 
     /// Get topological order of definitions dependencies.
-    str_vec extract_all_dependencies_order(const u_dict<str_vec> &graph)
+    vector<string> extract_all_dependencies_order(const hsp::str_table &graph)
     {
         // inspect dependency tree for cycles and missing entries
-        str_vec visited, recursion_stack, ordered;
-        for (const auto &entry : graph)
-            if (!(visited % entry.first))
-                walk_dependency_tree(entry.first, graph, visited, recursion_stack, ordered);
+        vector<string> visited, recursion_stack, ordered;
+        for (const auto &[a, vec] : graph)
+            if (!(visited % a))
+                walk_dependency_tree(a, graph, visited, recursion_stack, ordered);
         return ordered;
     }
 
     /// Get topological order of definitions depending on 'start' (start included).
-    str_vec extract_dependents_order(const std::string &start, const u_dict<str_vec> &graph)
+    vector<string> extract_dependents_order(const string &start, const hsp::str_table &graph)
     {
         // construct a reversed graph for dependents
-        u_dict<str_vec> reverse_graph;
-        for (auto &kv : graph)
+        hsp::str_table reverse_graph;
+        for (const auto &[node, dependents] : graph)
         {
-            const std::string &node = kv.first;
-            for (const std::string &dep : kv.second)
+            for (const auto &dep : dependents)
                 reverse_graph[dep].push_back(node);
 
             // ensure isolated nodes are present
@@ -83,12 +91,12 @@ namespace
         }
 
         // walk dependents of start
-        str_vec visited, recursion_stack, ordered;
-        for (const std::string &dep : reverse_graph.at(start))
+        vector<string> visited, recursion_stack, ordered;
+        for (const auto &dep : reverse_graph.at(start))
             walk_dependency_tree(dep, reverse_graph, visited, recursion_stack, ordered);
 
         std::reverse(ordered.begin(), ordered.end());
-        return str_vec({start}) + ordered;
+        return vector<string>({start}) + ordered;
     }
 }
 
@@ -107,7 +115,7 @@ Augmented::Augmented(std::shared_ptr<DataWide> dataptr,
 Augmented::~Augmented() = default;
 
 /// Assign augmented variables to all individuals.
-void Augmented::build(const u_dict<str_vec> &input)
+void Augmented::build(const hsp::str_table &input)
 {
     this->deftable_ = input;
     helper_assert_no_reserved_();
@@ -121,16 +129,16 @@ void Augmented::build(const u_dict<str_vec> &input)
 
     // append discrete infectivity profile definitions if any
     if (pInfecProfile_->is_augmented() && pInfecProfile_->is_discrete_requested())
-        for (const std::string a : {hsp::infprof::INSTANT, hsp::infprof::CUMUL})
+        for (const auto a : {hsp::infprof::INSTANT, hsp::infprof::CUMUL})
             user_list_discrete.emplace_back(a);
 
     // check entries
-    const str_vec file_headers = {"name", "status",
-                                  "func", "fcumul",
-                                  "value", "const", "discr",
-                                  "model", hsp::params::MIN, hsp::params::MAX,
-                                  "proposal", "proposal_scale"};
-    const str_vec headers = hsp::read::extract_keys(deftable_);
+    const vector<string> file_headers = {"name", "status",
+                                         "func", "fcumul",
+                                         "value", "const", "discr",
+                                         "model", hsp::params::MIN, hsp::params::MAX,
+                                         "proposal", "proposal_scale"};
+    const auto headers = hsp::extract_keys(deftable_);
     hsp::str::assert_no_missing_entries(headers, file_headers);
     hsp::str::assert_no_unused_entries(headers, file_headers);
 
@@ -140,8 +148,8 @@ void Augmented::build(const u_dict<str_vec> &input)
     user_list_discrete = hsp::str::unique(user_list_discrete);
 
     // allocate memory for augmented variables to each individual
-    for (Household &house : *pDataWide_)
-        for (Individual &member : house)
+    for (auto &house : *pDataWide_)
+        for (auto &member : house)
             clear_all(member);
 }
 
@@ -151,7 +159,7 @@ void Augmented::helper_assert_no_reserved_()
     if (deftable_.empty() || !deftable_.count("name"))
         return;
 
-    for (const std::string &a : deftable_["name"])
+    for (const auto &a : deftable_["name"])
     {
         if (hsp::na::is(a))
             throw std::invalid_argument(
@@ -169,36 +177,35 @@ void Augmented::helper_assert_no_reserved_()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Assert that augmented status/generic definitions are non degenerate.
+/// Also, assert that status-specific definitions are for infected status only.
 void Augmented::helper_build_definition_by_status_()
 {
-    // drop previous definitions
-    status_to_def_row.clear();
+    status_to_def_row.clear(); // drop previous definitions
 
-    // check that status-specific definition is for infected status
     for (size_t k = 0; k < deftable_["name"].size(); ++k)
     {
-        std::string s = deftable_["status"][k];
+        string s = deftable_["status"][k];
         if (hsp::na::is(s))
-            s = hsp::na::STRING; // enforce internal NA convention
+            s = ""; // enforce internal NA convention
 
         else if (!hsp::status::is_infected(hsp::str::toi(s, "augmented status")))
-            throw std::invalid_argument(
-                "Impossible to associate augmented '" + deftable_["name"][k] + "' for non infectious status " + s + ".");
+            throw std::invalid_argument("Impossible to associate augmented '" + deftable_["name"][k] +
+                                        "' for non infectious status " + s + ".");
 
-        // store status to definition row index
-        status_to_def_row[s].push_back(k);
+        status_to_def_row[s].push_back(k); // store status to definition row index
     }
 
     // assert that name and status are univocal
-    for (const auto &pair : status_to_def_row)
+    for (const auto &[s, idxs] : status_to_def_row)
     {
-        str_vec name_to_status = {};
-        for (size_t k : pair.second)
+        vector<string> name_to_status = {};
+        for (size_t k : idxs)
             name_to_status.push_back(deftable_["name"][k]);
 
-        if (name_to_status.size() != hsp::str::unique(name_to_status).size())
+        auto degenerate = name_to_status - hsp::str::unique(name_to_status);
+        if (!degenerate.empty())
             throw std::invalid_argument(
-                "Incompatible definitions found for augmented '" + pair.first + "'.");
+                "Incompatible definitions found for augmented " + hsp::str::format(degenerate));
     }
 }
 
@@ -220,7 +227,7 @@ void Augmented::helper_build_definition_order_()
 
     // NOTE: NA (i. e. generic) does not necessarily need checking.
     if (pDataWide_->all_infected_status_list.empty())
-        set_definition_dependency_order_for_(hsp::na::STRING);
+        set_definition_dependency_order_for_("");
     else
         for (int status : pDataWide_->all_infected_status_list)
             set_definition_dependency_order_for_(std::to_string(status));
@@ -233,14 +240,14 @@ void Augmented::helper_build_definition_order_()
 
 /// Set dependecies ordering for ininitializiation fo given status.
 /// At the same time assert that definition are complet and acyclic.
-void Augmented::set_definition_dependency_order_for_(const std::string &s)
+void Augmented::set_definition_dependency_order_for_(const string &s)
 {
-    u_dict<str_vec> tree;       // populate augmented dependency tree
-    u_dict<size_t> name_to_row; // ... and reverse dictionary name-to-row-index
+    hsp::str_table tree;           // populate augmented dependency tree
+    hsp::dict<size_t> name_to_row; // ... and reverse dictionary name-to-row-index
     for (size_t k : get_unsorted_definition_rows_(s, true))
     {
-        str_vec xdepen = {};
-        for (const std::string c : {"value", "model", "func", hsp::params::MIN, hsp::params::MAX})
+        vector<string> xdepen = {};
+        for (const string c : {"value", "model", "func", hsp::params::MIN, hsp::params::MAX})
             xdepen += hsp::parse::Definition(deftable_[c][k]).list_augmented_depen();
         tree[deftable_["name"][k]] = hsp::str::unique(xdepen);
         name_to_row[deftable_["name"][k]] = k;
@@ -252,14 +259,14 @@ void Augmented::set_definition_dependency_order_for_(const std::string &s)
         status_to_def_row[s] = {}; // NOTE: recycle from build to provide order
 
         // Dropping spurios private definition for no public definition depends on it
-        for (const std::string &a : extract_all_dependencies_order(tree))
+        for (const auto &a : extract_all_dependencies_order(tree))
             if (!hsp::str::is_private(a) ||
                 !hsp::str::drop_private(extract_dependents_order(a, tree)).empty())
                 status_to_def_row[s].push_back(name_to_row[a]);
     }
     catch (const std::exception &e)
     {
-        throw std::invalid_argument(std::string(e.what()) + " for status " + s + ".");
+        throw std::invalid_argument(string(e.what()) + " for status " + s + ".");
     }
 
     // define usage lists respecting definition order
@@ -268,22 +275,22 @@ void Augmented::set_definition_dependency_order_for_(const std::string &s)
 }
 
 /// Extract status-specific definitions row indexes.
-std::vector<size_t> Augmented::get_unsorted_definition_rows_(const std::string &s,
-                                                             bool is_pre_process) const
+vector<size_t> Augmented::get_unsorted_definition_rows_(const string &s,
+                                                        bool is_pre_process) const
 {
     // load the list of status-specific definition rows
     if (status_to_def_row.count(s))
     {
-        std::vector<size_t> allrows = status_to_def_row.at(s);
+        vector<size_t> allrows = status_to_def_row.at(s);
 
         // extract names
-        str_vec name_to_status = {};
+        vector<string> name_to_status = {};
         for (size_t k : allrows)
             name_to_status.push_back(deftable_.find("name")->second[k]);
 
         // add generic definitions to current list (if not generic already)
-        if (is_pre_process && !hsp::na::is(s) && status_to_def_row.count(hsp::na::STRING))
-            for (size_t k : status_to_def_row.at(hsp::na::STRING))
+        if (is_pre_process && !hsp::na::is(s) && status_to_def_row.count(""))
+            for (size_t k : status_to_def_row.at(""))
                 // skip generic if status-specific already exist
                 if (!(name_to_status % deftable_.find("name")->second[k]))
                     allrows.push_back(k);
@@ -291,18 +298,18 @@ std::vector<size_t> Augmented::get_unsorted_definition_rows_(const std::string &
         return allrows;
     }
 
-    if (status_to_def_row.count(hsp::na::STRING))
+    if (status_to_def_row.count(""))
         // use generic definitions if status-specific don't exist
-        return status_to_def_row.at(hsp::na::STRING);
+        return status_to_def_row.at("");
 
     throw std::invalid_argument(
         "No definitions were compatible with augmented status " + s + ".");
 }
 
 /// Set sample map and relative usage list.
-void Augmented::set_sample_map_for_(const std::string &s, size_t k)
+void Augmented::set_sample_map_for_(const string &s, size_t k)
 {
-    const std::string &a = deftable_["name"][k];
+    const auto &a = deftable_["name"][k];
 
     if (hsp::str::tobool(deftable_["const"][k]))
         list_export.push_back(a);
@@ -334,7 +341,7 @@ void Augmented::set_sample_map_for_(const std::string &s, size_t k)
 /// Build augmented function and inspect for constant.
 void Augmented::set_function_or_identity_for_(size_t k)
 {
-    const std::string &a = deftable_["name"][k];
+    const auto &a = deftable_["name"][k];
     const hsp::parse::Definition parser(deftable_["func"][k]);
 
     if (parser.is_terminal())
@@ -374,13 +381,13 @@ void Augmented::helper_build_model_status_maps_()
 
     for (int status : pDataWide_->all_infected_status_list)
     {
-        u_dict<str_vec> tree;  // populate augmented dependency tree
-        str_vec without_model; // list of augmented without models
+        hsp::str_table tree;          // populate augmented dependency tree
+        vector<string> without_model; // list of augmented without models
         for (const size_t k : get_unsorted_definition_rows_(std::to_string(status), false))
         {
-            const std::string &a = deftable_["name"][k];
-            str_vec xdepen = {};
-            for (const std::string c : {"value", "model", "func", hsp::params::MIN, hsp::params::MAX})
+            const auto &a = deftable_["name"][k];
+            vector<string> xdepen = {};
+            for (const auto c : {"value", "model", "func", hsp::params::MIN, hsp::params::MAX})
                 xdepen += hsp::parse::Definition(deftable_[c][k]).list_augmented_depen();
 
             if (hsp::na::is(deftable_["model"][k]))
@@ -390,12 +397,12 @@ void Augmented::helper_build_model_status_maps_()
         }
 
         // prune dependency tree from augmented without model
-        for (auto &pair : tree)
-            pair.second = pair.second - without_model;
+        for (auto &[key, vec] : tree)
+            vec = vec - without_model;
 
         // assign order of dependents for augmented model computation
-        for (const auto &pair : tree)
-            status_map_model[status].emplace(pair.first, extract_dependents_order(pair.first, tree));
+        for (const auto &[key, vec] : tree)
+            status_map_model[status].emplace(key, extract_dependents_order(key, tree));
     }
 }
 
@@ -408,7 +415,7 @@ void Augmented::helper_build_model_status_maps_()
 /// Clear all augmented definition of individual.
 void Augmented::clear_all(Individual &member)
 {
-    for (const std::string &a : list_full)
+    for (const auto &a : list_full)
         member.clear_augm(a);
 }
 
@@ -419,8 +426,8 @@ void Augmented::init()
     if (!is_any())
         return;
 
-    for (Household &house : *pDataWide_)
-        for (Individual &member : house.infected())
+    for (auto &house : *pDataWide_)
+        for (auto &member : house.infected())
         {
             init_all(member);
             init_model_logratios(member);
@@ -455,14 +462,14 @@ void Augmented::init_model_logratios(Individual &member)
     {
         throw std::runtime_error(
             "While initializing augmented model for " + member.err_name() + ":\n" +
-            std::string(e.what()));
+            string(e.what()));
     }
 }
 
 /// Get the definition order for current member according to its status.
-std::vector<size_t> Augmented::init_get_definition_order_(Individual &member)
+vector<size_t> Augmented::init_get_definition_order_(Individual &member)
 {
-    const std::string s = std::to_string(member.status());
+    const string s = std::to_string(member.status());
 
     // NOTE: if status hasn't been observed in data, build on demand
     if (member.is_infected_status() && !(pDataWide_->all_infected_status_list % member.status()))
@@ -473,8 +480,8 @@ std::vector<size_t> Augmented::init_get_definition_order_(Individual &member)
 
     if (status_to_def_row.count(s))
         return status_to_def_row[s];
-    if (status_to_def_row.count(hsp::na::STRING))
-        return status_to_def_row[hsp::na::STRING];
+    if (status_to_def_row.count(""))
+        return status_to_def_row[""];
     if (member.is_infected_status())
         throw std::invalid_argument(
             "No augmented definitions were found for " + member.err_name() + " with status " + s + ".");
@@ -485,7 +492,7 @@ std::vector<size_t> Augmented::init_get_definition_order_(Individual &member)
 /// Assign model arguments and range. Same for function, otherwise assign proposer.
 void Augmented::helper_init_attributes_(Individual &member, size_t k)
 {
-    const std::string &a = deftable_["name"][k];
+    const auto &a = deftable_["name"][k];
 
     try
     {
@@ -493,18 +500,18 @@ void Augmented::helper_init_attributes_(Individual &member, size_t k)
                          hsp::str::tobool(deftable_["const"][k]),
                          deftable_["func"][k], hsp::str::tobool(deftable_["fcumul"][k]),
                          deftable_["model"][k]);
-        Variable &xaugm = member.get_augm_variable(a);
+        auto &xaugm = member.get_augm_variable(a);
 
-        // assign arguments to model and associate discretization
-        init_model_attributes_(member, k);
-        if (xaugm.is_function()) // function
-            init_func_attributes_(member, k);
-        else if (xaugm.is_pointer()) // pointer (case of identity function)
+        init_model_attributes_(member, k); // initialize model
+        init_func_attributes_(member, k);  // initialize function
+
+        if (xaugm.is_pointer()) // pointer (case of identity function)
             xaugm.transfer(pParameter_->read_attribute(deftable_["func"][k], &member));
 
         // assign proposer if variable to be sampled
         if (!xaugm.is_constant())
-            xaugm.init_proposer(deftable_["proposal"][k], hsp::str::tod(deftable_["proposal_scale"][k]));
+            xaugm.init_proposer(deftable_["proposal"][k],
+                                hsp::str::tod(deftable_["proposal_scale"][k]));
 
         // check if satisfies discrete requirement, if any
         if (!user_list_discrete.empty() && (user_list_discrete % a) && !xaugm.is_discrete())
@@ -514,22 +521,24 @@ void Augmented::helper_init_attributes_(Individual &member, size_t k)
     }
     catch (const std::exception &e)
     {
-        throw std::runtime_error(
-            "While initializing augmented '" + a +
-            "' for " + member.err_name() + ":\n" +
-            std::string(e.what()));
+        throw std::runtime_error("While initializing augmented '" + a +
+                                 "' for " + member.err_name() + ":\n" +
+                                 string(e.what()));
     }
 }
 
 /// Auxiliary method to assign attributes to augmented model.
 void Augmented::init_model_attributes_(Individual &member, size_t k)
 {
-    Variable &xaugm = member.get_augm_variable(deftable_["name"][k]);
+    auto &xaugm = member.get_augm_variable(deftable_["name"][k]);
+
+    if (!xaugm.is_model())
+        return;
 
     for (const auto &child : hsp::parse::Definition(deftable_["model"][k]).root.children)
         xaugm.init_distr_attr(child.key, pParameter_->read_attribute(child, &member));
 
-    for (const std::string key : {hsp::params::MIN, hsp::params::MAX})
+    for (const auto key : {hsp::params::MIN, hsp::params::MAX})
         xaugm.init_distr_attr(key, pParameter_->read_attribute(deftable_[key][k], &member));
 
     xaugm.init_distr_reshaping(hsp::str::tobool(deftable_["discr"][k]));
@@ -538,7 +547,10 @@ void Augmented::init_model_attributes_(Individual &member, size_t k)
 /// Auxiliary method to assign attributes to augmented function.
 void Augmented::init_func_attributes_(Individual &member, size_t k)
 {
-    Variable &xaugm = member.get_augm_variable(deftable_["name"][k]);
+    auto &xaugm = member.get_augm_variable(deftable_["name"][k]);
+
+    if (!xaugm.is_function())
+        return;
 
     // initialize function
     for (const auto &child : hsp::parse::Definition(deftable_["func"][k]).root.children)
@@ -548,7 +560,7 @@ void Augmented::init_func_attributes_(Individual &member, size_t k)
     }
 
     // initialize range
-    for (const std::string key : {hsp::params::MIN, hsp::params::MAX})
+    for (const auto key : {hsp::params::MIN, hsp::params::MAX})
         xaugm.init_func_attr(key, pParameter_->read_attribute(deftable_[key][k], &member));
 
     // initialize discretization and truncation
@@ -560,20 +572,20 @@ void Augmented::init_func_attributes_(Individual &member, size_t k)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Reset augmented initial values for given individual.
-void Augmented::user_reset(rnd_gen &prng, Individual &member)
+void Augmented::user_reset(hsp::rnd_gen &prng, Individual &member)
 {
-    for (const std::string &a : status_map_sample[member.status()])
+    for (const auto &a : status_map_sample[member.status()])
         member.get_augm_variable(a).user_reset(prng);
 }
 
 /// Initialize augmented initial values for all individuals.
-void Augmented::user_reset(rnd_gen &prng)
+void Augmented::user_reset(hsp::rnd_gen &prng)
 {
     if (!is_any())
         return;
 
-    for (Household &house : *pDataWide_)
-        for (Individual &member : house.infected())
+    for (auto &house : *pDataWide_)
+        for (auto &member : house.infected())
             user_reset(prng, member);
 }
 
@@ -584,7 +596,7 @@ void Augmented::user_reset(rnd_gen &prng)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Set individual id for augmented draws follow-up.
-void Augmented::init_individual_sample(str_vec &id_draws)
+void Augmented::init_individual_sample(vector<string> &id_draws)
 {
     smpl_individuals.clear();
 
@@ -600,9 +612,9 @@ void Augmented::init_individual_sample(str_vec &id_draws)
     }
 
     smpl_individuals.reserve(id_draws.size());
-    str_vec already_stored_id = {};
-    for (const Household &house : *pDataWide_)
-        for (const Individual &member : house)
+    vector<string> already_stored_id = {};
+    for (const auto &house : *pDataWide_)
+        for (const auto &member : house)
             if (id_draws % member.id())
             {
                 // check id across all individuals
@@ -635,7 +647,7 @@ void Augmented::init_draws(unsigned long sample_size)
     {
         smpl_values[k].clear();
         smpl_values[k].reserve(list_draws.size());
-        for (const std::string &a : list_draws)
+        for (const auto &a : list_draws)
             smpl_values[k][a].assign(sample_size, hsp::na::DOUBLE);
     }
 }
@@ -650,7 +662,7 @@ void Augmented::store_draws(unsigned long smpl_count)
     {
         auto &smpl_augm_value_k = smpl_values[k];
         const auto member_star = smpl_individuals[k];
-        for (const std::string &a : list_draws)
+        for (const auto &a : list_draws)
             smpl_augm_value_k[a][smpl_count] = member_star->aug(a);
     }
 }

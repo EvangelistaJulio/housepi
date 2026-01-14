@@ -6,9 +6,11 @@
  */
 
 #include "tools/atomic.h"
+#include "tools/global.h"
 #include "tools/messages.h"
 #include "tools/openmp.h"
 #include "tools/string.h"
+#include "tools/types.h"
 
 #include "data.h"
 #include "data_reports.h"
@@ -18,6 +20,12 @@
 #include "augmented.h"
 #include "mcmc_impl.h"
 #include "mcmc.h"
+
+namespace
+{
+    using std::string;
+    using std::vector;
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -35,7 +43,7 @@ MCMCImpl::MCMCImpl(std::function<void()> func_init_inference,
       data_wide(std::make_shared<DataWide>()),
       data_long(std::make_shared<DataLong>(data_wide)),
       param(std::make_shared<Parameter>()),
-      group_rates(std::make_shared<GroupRate>(data_wide, param)),
+      group_rate(std::make_shared<GroupRate>(data_wide, param)),
       infec_profile(std::make_shared<InfecProfile>(param)),
       augm(std::make_shared<Augmented>(data_wide, param, infec_profile)),
       callback_init_inference_(std::move(func_init_inference)),
@@ -64,7 +72,7 @@ void MCMCImpl::init_evaluate()
 }
 
 /// Evaluate log-likelihood for the given household.
-double MCMCImpl::evaluate_single_house_log_lik(const std::string &house_id)
+double MCMCImpl::evaluate_single_house_log_lik(const string &house_id)
 {
     atomic_error->restore(); // reset atomic error
     infec_profile->update(); // eventually buffer infectivity profile
@@ -114,7 +122,7 @@ double MCMCImpl::atomic_materialize_house_log_lik_(Household &house, bool is_aug
         if (is_cache_depen)
         {
             house.buffer_all_cache();
-            for (Individual &member : house.infected())
+            for (auto &member : house.infected())
                 update_cache_dependecies_(house, member);
         }
 
@@ -122,13 +130,13 @@ double MCMCImpl::atomic_materialize_house_log_lik_(Household &house, bool is_aug
         output = materialize_house_obs_log_lik_(house);
         // compute and set individual augmented log-likelihood
         if (is_augm_ll)
-            for (Individual &member : house.infected())
+            for (auto &member : house.infected())
                 output += member.materialize_augm_model_log_lik();
     }
     catch (const std::exception &e)
     {
         atomic_error->set_if_first("While computing log-likelihood for " +
-                                   house.err_name() + ":\n" + std::string(e.what()));
+                                   house.err_name() + ":\n" + string(e.what()));
     }
     return output;
 }
@@ -224,20 +232,20 @@ void MCMCImpl::move_all_()
         move_all_augm_();
 
     // move all standard model parameters
-    for (const std::string &p : param->list_adaptable_sample_standard)
+    for (const auto &p : param->list_adaptable_sample_standard)
         param->at(p).update_accept_rate(move_single_parameter_(p, false));
-    for (const std::string &p : param->list_non_adapt_sample_standard)
+    for (const auto &p : param->list_non_adapt_sample_standard)
         move_single_parameter_(p, false);
 
     // move parameters with cached dependecies
-    for (const std::string &p : param->list_adaptable_sample_cached)
+    for (const auto &p : param->list_adaptable_sample_cached)
         param->at(p).update_accept_rate(move_single_parameter_(p, true));
-    for (const std::string &p : param->list_non_adapt_sample_cached)
+    for (const auto &p : param->list_non_adapt_sample_cached)
         move_single_parameter_(p, true);
 }
 
 /// Attempt to move a single parameter for the given inverse temperature.
-bool MCMCImpl::move_single_parameter_(const std::string &p, bool is_cache_depen)
+bool MCMCImpl::move_single_parameter_(const string &p, bool is_cache_depen)
 {
     // proceed only if the new value is consistent
     // otherwise automatically refuse move
@@ -260,11 +268,11 @@ void MCMCImpl::adapt_proposal_of_sampled_params_(unsigned long step)
     const double ratio = static_cast<double>(step) / setup->n_adapt;
 
     // adpat all standard model parameters
-    for (const std::string &p : param->list_adaptable_sample_standard)
+    for (const auto &p : param->list_adaptable_sample_standard)
         param->at(p).adapt_proposal(ratio);
 
     // adapt all parameters with cached dependecies
-    for (const std::string &p : param->list_adaptable_sample_cached)
+    for (const auto &p : param->list_adaptable_sample_cached)
         param->at(p).adapt_proposal(ratio);
 }
 
@@ -284,14 +292,14 @@ double MCMCImpl::materialize_house_obs_log_lik_(Household &h)
 /// Set accept rates to zero.
 void MCMCImpl::init_move_counts_()
 {
-    for (const std::string &p : param->list_sample)
+    for (const auto &p : param->list_sample)
         param->at(p).reset_accept_rate();
 }
 
 /// propose a valid move (return true), otherwise update refusal (return false).
-bool MCMCImpl::propose_valid_param_move_(const std::string &p)
+bool MCMCImpl::propose_valid_param_move_(const string &p)
 {
-    Variable &this_par = param->at(p);
+    auto &this_par = param->at(p);
 
     // set new value of the parameter and store the old to buffer
     this_par.propose(setup->prng());
@@ -307,7 +315,7 @@ bool MCMCImpl::propose_valid_param_move_(const std::string &p)
 }
 
 /// Restore the parameter value in the buffer.
-void MCMCImpl::recover_parameter_(const std::string &p, bool is_cache_depen)
+void MCMCImpl::recover_parameter_(const string &p, bool is_cache_depen)
 {
     // recover buffer value of parameter
     param->at(p).recover_value();
@@ -316,11 +324,11 @@ void MCMCImpl::recover_parameter_(const std::string &p, bool is_cache_depen)
     total_log_lik_ = total_buffer_;
 
     // recover buffered log-likelihood in households
-    for (Household &house : data_wide->restricted())
+    for (auto &house : data_wide->restricted())
     {
         house.recover_buffer_values(is_cache_depen);
         if (augm->is_any_sample())
-            for (Individual &member : house.infected())
+            for (auto &member : house.infected())
                 member.recover_augm_model_log_lik();
     }
 
@@ -329,7 +337,7 @@ void MCMCImpl::recover_parameter_(const std::string &p, bool is_cache_depen)
 }
 
 /// Metropolis-Hastings to accept or not current parameter move.
-bool MCMCImpl::accept_valid_param_move_(const std::string &p)
+bool MCMCImpl::accept_valid_param_move_(const string &p)
 {
     const double D_ll = total_log_lik_ - total_buffer_;
     const double move_logratio = param->at(p).get_move_logratio();
@@ -369,30 +377,32 @@ void MCMCImpl::move_all_augm_()
 /// The move is performed one member at a time, one augmented variable at a time.
 double MCMCImpl::atomic_move_augm_single_house_(size_t H)
 {
-    Household &house = (*data_wide)(H);
+    auto &house = (*data_wide)(H);
     double delta_ll = 0.;
 
     try
     {
         // loop over infectious residents of the househould
-        for (Individual &member_i : house.infected())
+        for (auto &member_i : house.infected())
             // loop over augmented variables of infectious
-            for (const std::string &a : augm->status_map_sample[member_i.status()])
+            for (const auto &a : augm->status_map_sample[member_i.status()])
                 delta_ll += metropolis_augm_single_move_(house, member_i, a);
     }
     catch (const std::exception &e)
     {
         atomic_error->set_if_first("While sampling augmented variables for " +
                                    house.err_name() + ":\n" +
-                                   std::string(e.what()));
+                                   string(e.what()));
     }
+
     return delta_ll;
 }
 
 /// Take care of a a single augmented Metropolis move.
-double MCMCImpl::metropolis_augm_single_move_(Household &house, Individual &member, const std::string &a)
+double MCMCImpl::metropolis_augm_single_move_(Household &house, Individual &member, const string &a)
 {
-    Variable &xaugm = member.get_augm_variable(a);
+
+    auto &xaugm = member.get_augm_variable(a);
     xaugm.propose(setup->prng()); // propose new value and buffer old
 
     // proceed only if the new value is consistent
@@ -477,7 +487,7 @@ namespace
     /// Ref :
     /// ----
     /// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
-    std::pair<double, double> compute_stats(const dbl_vec &data)
+    std::pair<double, double> compute_stats(const vector<double> &data)
     {
         size_t i = 0;
         size_t N = data.size();
@@ -505,10 +515,10 @@ namespace
 /// Friel, N., Hurn, M. & Wyse, J.
 /// Improving power posterior estimation of statistical evidence.
 /// Stat Comput 24, 709–723 (2014).
-std::vector<dbl_vec> MCMCImpl::power_posteriors(const std::string &scheme, unsigned long n_rungs)
+vector<vector<double>> MCMCImpl::power_posteriors(const string &scheme, unsigned long n_rungs)
 {
     // check scheme choice
-    const str_vec options = {"adaptive", "power-fractions"};
+    const vector<string> options = {"adaptive", "power-fractions"};
     if (!(options % scheme))
         throw std::invalid_argument(
             "Invoked invalid power posterior scheme '" + scheme + "'." +
@@ -527,9 +537,9 @@ std::vector<dbl_vec> MCMCImpl::power_posteriors(const std::string &scheme, unsig
     setup->prog_open_for_power_post();  // print progress bar
 
     // thermodynamic ladder estimates
-    dbl_vec itm = {}; // inverse temperature
-    dbl_vec avg = {}; // mean log-likelihood
-    dbl_vec var = {}; // variance log-likelihood
+    vector<double> itm = {}; // inverse temperature
+    vector<double> avg = {}; // mean log-likelihood
+    vector<double> var = {}; // variance log-likelihood
 
     // run power posteriors
     power_post_zero_(itm, avg, var);
@@ -545,7 +555,7 @@ std::vector<dbl_vec> MCMCImpl::power_posteriors(const std::string &scheme, unsig
 }
 
 /// Power posteriors at 0 inverse temperature.
-void MCMCImpl::power_post_zero_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
+void MCMCImpl::power_post_zero_(vector<double> &itm, vector<double> &avg, vector<double> &var)
 {
     // UPDATE: should I use previous inference for itm = 1 if available?
     // UPDATE: always under-estimate time if starting from itm = 0
@@ -553,25 +563,27 @@ void MCMCImpl::power_post_zero_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
     setup->rung = 0;
     setup->inv_T = 0.0;
     run_monte_carlo();
-    std::pair<double, double> stats = compute_stats(smpl_total_log_lik);
+    const auto [stats_avg, stats_var] = compute_stats(smpl_total_log_lik);
 
     itm.push_back(setup->inv_T);
-    avg.push_back(stats.first);
-    var.push_back(stats.second);
+    avg.push_back(stats_avg);
+    var.push_back(stats_var);
 }
 
 /// Power posteriors with adaptive scheme for the thermodynamic ladder.
-void MCMCImpl::power_post_adaptive_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
+void MCMCImpl::power_post_adaptive_(vector<double> &itm, vector<double> &avg, vector<double> &var)
 {
     // Inverse Temperature 1
-    setup->rung = 1;
-    setup->inv_T = 1.0;
-    run_monte_carlo();
-    std::pair<double, double> stats = compute_stats(smpl_total_log_lik);
+    {
+        setup->rung = 1;
+        setup->inv_T = 1.0;
+        run_monte_carlo();
+        const auto [stats_avg, stats_var] = compute_stats(smpl_total_log_lik);
 
-    itm.push_back(setup->inv_T);
-    avg.push_back(stats.first);
-    var.push_back(stats.second);
+        itm.push_back(setup->inv_T);
+        avg.push_back(stats_avg);
+        var.push_back(stats_var);
+    }
 
     // Inverse Temperatures (0, 1)
     size_t k = 0; // index to interval lower bound
@@ -590,15 +602,15 @@ void MCMCImpl::power_post_adaptive_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
         // power posterior sampling
         setup->inv_T = new_t;
         run_monte_carlo();
-        stats = compute_stats(smpl_total_log_lik);
+        const auto [stats_avg, stats_var] = compute_stats(smpl_total_log_lik);
 
         // find larger rectangular discretization error
-        is_right = (itm[k + 1] - setup->inv_T) * (avg[k + 1] - stats.first) > (new_t - itm[k]) * (stats.first - avg[k]);
+        is_right = (itm[k + 1] - setup->inv_T) * (avg[k + 1] - stats_avg) > (new_t - itm[k]) * (stats_avg - avg[k]);
 
         // insert in-between for all lists
         itm.insert(itm.begin() + k + 1, setup->inv_T);
-        avg.insert(avg.begin() + k + 1, stats.first);
-        var.insert(var.begin() + k + 1, stats.second);
+        avg.insert(avg.begin() + k + 1, stats_avg);
+        var.insert(var.begin() + k + 1, stats_var);
 
         // if right interval is chosen, index points to inserted as lower bound
         k += (is_right);
@@ -606,7 +618,7 @@ void MCMCImpl::power_post_adaptive_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
 }
 
 /// Power posteriors with power fractions scheme for the thermodynamic ladder.
-void MCMCImpl::power_post_fractions_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
+void MCMCImpl::power_post_fractions_(vector<double> &itm, vector<double> &avg, vector<double> &var)
 {
     for (setup->rung = 1; setup->rung <= setup->n_rungs; ++setup->rung)
     {
@@ -614,10 +626,10 @@ void MCMCImpl::power_post_fractions_(dbl_vec &itm, dbl_vec &avg, dbl_vec &var)
         setup->inv_T = std::pow(static_cast<double>(setup->rung) / setup->n_rungs, 5);
         run_monte_carlo();
 
-        std::pair<double, double> stats = compute_stats(smpl_total_log_lik);
+        const auto [stats_avg, stats_var] = compute_stats(smpl_total_log_lik);
         itm.push_back(setup->inv_T);
-        avg.push_back(stats.first);
-        var.push_back(stats.second);
+        avg.push_back(stats_avg);
+        var.push_back(stats_var);
     }
 }
 
@@ -657,7 +669,7 @@ MCMC::~MCMC() = default;
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 double MCMC::uniform() { return pImpl_->setup->unif(); }
-double MCMC::par(const std::string &p) const { return pImpl_->param->get(p); }
+double MCMC::par(const string &p) const { return pImpl_->param->get(p); }
 
 size_t MCMC::get_max_hh_cases() const { return pImpl_->data_wide->report_hh_size->max_cases.first; }
 void MCMC::assert_no_missing_status() const
@@ -676,13 +688,13 @@ void MCMC::build_all_rates()
 {
     try
     {
-        for (Household &house : *pImpl_->data_wide)
+        for (auto &house : *pImpl_->data_wide)
             init_contact_rates_(house);
     }
     catch (const std::exception &e)
     {
         hsp::msg::error("While initializing contact rates:\n" +
-                        std::string(e.what()));
+                        string(e.what()));
     }
 }
 
@@ -690,11 +702,11 @@ void MCMC::build_all_rates()
 void MCMC::init_contact_rates_(Household &house)
 {
     // loop over all couples
-    for (const Individual &member_k : house)     // from : member_k
-        for (const Individual &member_i : house) // -> to : member_i
+    for (const auto &member_k : house)     // from : member_k
+        for (const auto &member_i : house) // -> to : member_i
             if (member_k != member_i)
             {
-                _pair_contact_rate = hsp::na::STRING;
+                _pair_contact_rate = "";
                 init_household_contact_rates(house, member_k, member_i);
 
                 if (!hsp::na::is(_pair_contact_rate))
@@ -721,35 +733,35 @@ void MCMC::init_contact_rates_(Household &house)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Extra integer vectors for all households.
-void MCMC::cache_house_integer_vector(const std::string &e)
+void MCMC::cache_house_integer_vector(const string &e)
 {
-    for (Household &house : pImpl_->data_wide->restricted())
+    for (auto &house : pImpl_->data_wide->restricted())
         house.init_cache_integer_vector(e);
 }
 /// Extra size_t vectors for all households.
-void MCMC::cache_house_size_t_vector(const std::string &e)
+void MCMC::cache_house_size_t_vector(const string &e)
 {
-    for (Household &house : pImpl_->data_wide->restricted())
+    for (auto &house : pImpl_->data_wide->restricted())
         house.init_cache_size_t_vector(e);
 }
 /// Extra double vectors for all households.
-void MCMC::cache_house_double_vector(const std::string &e)
+void MCMC::cache_house_double_vector(const string &e)
 {
-    for (Household &house : pImpl_->data_wide->restricted())
+    for (auto &house : pImpl_->data_wide->restricted())
         house.init_cache_double_vector(e);
 }
 /// Extra double square matrix for all households.
-void MCMC::cache_house_double_matrix(const std::string &e)
+void MCMC::cache_house_double_matrix(const string &e)
 {
-    for (Household &house : pImpl_->data_wide->restricted())
+    for (auto &house : pImpl_->data_wide->restricted())
         house.init_cache_double_matrix(e);
 }
 
-void MCMC::init_infec_profile_template(u_dict<std::string> x)
+void MCMC::init_infec_profile_template(hsp::dict<std::string> x)
 {
-    u_dict<str_vec> input;
-    for (const auto &pair : x)
-        input[pair.first] = {pair.second};
+    hsp::str_table input = {};
+    for (const auto &[key, val] : x)
+        input[key] = {val};
     pImpl_->infec_profile->init_template(std::move(input));
 }
 /// Request discrete infectivity profile.
@@ -769,10 +781,10 @@ void MCMC::init_missing_augm(Individual &member)
     pImpl_->augm->init_missing(member);
     pImpl_->augm->user_reset(pImpl_->setup->prng(), member);
 }
-void MCMC::request_augm_discrete(const std::string &x) { pImpl_->augm->user_list_discrete.emplace_back(x); }
+void MCMC::request_augm_discrete(const string &x) { pImpl_->augm->user_list_discrete.emplace_back(x); }
 
 /// Initialize model and evaluate log-likelihood.
-double MCMC::evaluate_log_lik(const std::string &house_id)
+double MCMC::evaluate_log_lik(const string &house_id)
 {
     try
     {

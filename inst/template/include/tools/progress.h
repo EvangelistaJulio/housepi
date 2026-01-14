@@ -11,28 +11,26 @@
 #include <string>
 #include <memory>
 
-namespace hsp
+namespace hsp::progress
 {
-    namespace progress
+    /// Class for custom progress bar.
+    class Bar
     {
-        /// Class for custom progress bar.
-        class Bar
-        {
-        public:
-            Bar();
-            ~Bar();
-            void set_text(const std::string &text);
-            void set_thintime(unsigned long thintime);
-            void open(unsigned long total);
-            void update();
-            void crash() const;
-            void close();
+    public:
+        Bar();
+        ~Bar();
 
-        private:
-            class Impl; // Pointer to Implementation
-            std::unique_ptr<Impl> pImpl_;
-        };
-    }
+        void set_text(const std::string &text);
+        void set_thintime(unsigned long thintime);
+        void open(unsigned long total);
+        void update();
+        void crash() const;
+        void close();
+
+    private:
+        class Impl; // Pointer to Implementation
+        std::unique_ptr<Impl> pImpl_;
+    };
 }
 
 #endif // HOUSEPI__TOOLS__PROGRESS__H
