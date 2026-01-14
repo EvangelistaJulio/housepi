@@ -51,7 +51,7 @@ public:
     /////////////////////////////////////////////////////////////////////////////////////////////
 
     std::string name() const { return this->name_; }
-    virtual double propose(hsp::rnd_gen &, double) = 0;
+    virtual double propose(hsp::rnd_gen &, double) const = 0;
     virtual double logratio(double, double) const { return 0.; }
 
     /// Wheter proposer can be adapted.
@@ -93,16 +93,6 @@ protected:
     double accept_rate_ = 0.;                        /// acceptance rate
     unsigned long n_proposed_ = 0;                   /// n. of proposed moves
     std::vector<unsigned short> args_to_adapt_ = {}; /// which arguments should be adapted
-
-    //===== propose : functional methods =====//
-    double do_propose_sum_to_previous_(hsp::rnd_gen &prng, double xo);
-    double do_propose_times_previous_(hsp::rnd_gen &prng, double xo);
-    double do_propose_sample_rand_(hsp::rnd_gen &prng, double);
-
-    //===== logratio : functional methods =====//
-    double do_logratio_pdf_(double xold, double xnew) const;
-    double do_logratio_symm_(double, double) const { return 0.; }
-    double do_logratio_lognorm_symm_(double xold, double xnew) const;
 };
 
 #endif // HOUSEPI__PROPOSAL__H

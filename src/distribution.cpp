@@ -324,13 +324,13 @@ namespace
         }
 
     protected:
-        std::uniform_real_distribution<double> unif_gen;
+        mutable std::uniform_real_distribution<double> unif_gen;
 
         double raw_pdf_(double) const override final { return 1. / (arg(1) - arg(0)); }
         double raw_cdf_(double x) const override final { return (x - arg(0)) / (arg(1) - arg(0)); }
         double raw_logpdf_(double) const override final { return 0.; }
         double raw_logratio_(double, double) const override final { return 0.; }
-        double raw_rand_(hsp::rnd_gen &prng) override final
+        double raw_rand_(hsp::rnd_gen &prng) const override final
         {
             const double r = unif_gen(prng);
             return arg(0) * (1. - r) + arg(1) * r;
@@ -384,7 +384,7 @@ namespace
         }
 
     protected:
-        std::normal_distribution<double> norm_gen;
+        mutable std::normal_distribution<double> norm_gen;
 
         double raw_pdf_(double x) const override final
         {
@@ -412,7 +412,7 @@ namespace
             static const boost::math::normal stdnorm(0., 1.);
             return arg(0) + arg(1) * boost::math::quantile(stdnorm, p);
         }
-        double raw_rand_(hsp::rnd_gen &prng) override final
+        double raw_rand_(hsp::rnd_gen &prng) const override final
         {
             return arg(0) + arg(1) * norm_gen(prng);
         }
@@ -435,7 +435,7 @@ namespace
         INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
     protected:
-        std::normal_distribution<double> norm_gen;
+        mutable std::normal_distribution<double> norm_gen;
 
         double raw_pdf_(double x) const override final
         {
@@ -466,7 +466,7 @@ namespace
             static const boost::math::normal stdnorm(0., 1.);
             return exp(arg(0) + arg(1) * boost::math::quantile(stdnorm, p));
         }
-        double raw_rand_(hsp::rnd_gen &prng) override final
+        double raw_rand_(hsp::rnd_gen &prng) const override final
         {
             return exp(arg(0) + arg(1) * norm_gen(prng));
         }
@@ -529,7 +529,7 @@ namespace
         {
             return boost::math::quantile(boost::math::beta_distribution<>(arg(0), arg(1)), p);
         }
-        double raw_rand_(hsp::rnd_gen &prng) override final
+        double raw_rand_(hsp::rnd_gen &prng) const override final
         {
             return boost::random::beta_distribution<double>(arg(0), arg(1))(prng);
         }
@@ -574,7 +574,7 @@ namespace
         {
             return boost::math::quantile(boost::math::gamma_distribution<>(arg(0), arg(1)), p);
         }
-        double raw_rand_(hsp::rnd_gen &prng) override final
+        double raw_rand_(hsp::rnd_gen &prng) const override final
         {
             return std::gamma_distribution<double>(arg(0), arg(1))(prng);
         }
@@ -631,7 +631,7 @@ namespace
             const double v = arg(1);
             return boost::math::quantile(boost::math::gamma_distribution<>(m * m / v, v / m), p);
         }
-        double raw_rand_(hsp::rnd_gen &prng) override final
+        double raw_rand_(hsp::rnd_gen &prng) const override final
         {
             const double m = arg(0);
             const double v = arg(1);
@@ -655,7 +655,7 @@ namespace
         INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
     protected:
-        std::uniform_real_distribution<double> unif_gen;
+        mutable std::uniform_real_distribution<double> unif_gen;
 
         double raw_pdf_(double x) const override final
         {
@@ -683,7 +683,7 @@ namespace
         {
             return arg(0) * sqrt(-2. * log1p(-p));
         }
-        double raw_rand_(hsp::rnd_gen &prng) override final
+        double raw_rand_(hsp::rnd_gen &prng) const override final
         {
             return arg(0) * sqrt(-2 * log(unif_gen(prng)));
         }
@@ -705,7 +705,7 @@ namespace
         INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
     protected:
-        std::uniform_real_distribution<double> unif_gen;
+        mutable std::uniform_real_distribution<double> unif_gen;
 
         double raw_pdf_(double x) const override final
         {
@@ -735,7 +735,7 @@ namespace
         {
             return arg(1) * pow(-log1p(-p), 1. / arg(0));
         }
-        double raw_rand_(hsp::rnd_gen &prng) override final
+        double raw_rand_(hsp::rnd_gen &prng) const override final
         {
             return arg(1) * pow(-log(unif_gen(prng)), 1.0 / arg(0));
         }
@@ -757,7 +757,7 @@ namespace
         INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
     protected:
-        std::uniform_real_distribution<double> unif_gen;
+        mutable std::uniform_real_distribution<double> unif_gen;
 
         double raw_pdf_(double x) const override final
         {
@@ -781,7 +781,7 @@ namespace
         {
             return -log1p(-p) / arg(0);
         }
-        double raw_rand_(hsp::rnd_gen &prng) override final
+        double raw_rand_(hsp::rnd_gen &prng) const override final
         {
             return -log(unif_gen(prng)) / arg(0);
         }
@@ -824,7 +824,7 @@ namespace
         {
             return boost::math::quantile(boost::math::poisson_distribution<>(arg(0)), p);
         }
-        double raw_rand_(hsp::rnd_gen &prng) override final
+        double raw_rand_(hsp::rnd_gen &prng) const override final
         {
             return std::poisson_distribution<unsigned>(arg(0))(prng);
         }
@@ -894,7 +894,7 @@ namespace
         {
             return boost::math::quantile(boost::math::binomial_distribution<>(arg(0), arg(1)), p);
         }
-        double raw_rand_(hsp::rnd_gen &prng) override final
+        double raw_rand_(hsp::rnd_gen &prng) const override final
         {
             return std::binomial_distribution<unsigned>(arg(0), arg(1))(prng);
         }
@@ -941,7 +941,7 @@ namespace
         {
             return boost::math::quantile(boost::math::negative_binomial_distribution<>(arg(0), arg(1)), p);
         }
-        double raw_rand_(hsp::rnd_gen &prng) override final
+        double raw_rand_(hsp::rnd_gen &prng) const override final
         {
             return std::negative_binomial_distribution<unsigned>(arg(0), arg(1))(prng);
         }
@@ -984,7 +984,7 @@ namespace
         {
             return boost::math::quantile(boost::math::geometric_distribution<>(arg(0)), p);
         }
-        double raw_rand_(hsp::rnd_gen &prng) override final
+        double raw_rand_(hsp::rnd_gen &prng) const override final
         {
             return std::geometric_distribution<unsigned>(arg(0))(prng);
         }

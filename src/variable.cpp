@@ -77,15 +77,6 @@ void Proposal::adapt(double ratio)
         (pDistr_->set_arg)(i, factor * (pDistr_->arg)(i));
 }
 
-//===== propose : functional methods =====//
-double Proposal::do_propose_sum_to_previous_(hsp::rnd_gen &prng, double xo) { return xo + pDistr_->rand(prng); }
-double Proposal::do_propose_times_previous_(hsp::rnd_gen &prng, double xo) { return xo * pDistr_->rand(prng); }
-double Proposal::do_propose_sample_rand_(hsp::rnd_gen &prng, double) { return pDistr_->rand(prng); }
-
-//===== logratio : functional methods =====//
-double Proposal::do_logratio_pdf_(double xold, double xnew) const { return pDistr_->logratio(xold, xnew); }
-double Proposal::do_logratio_lognorm_symm_(double xold, double xnew) const { return std::log(xold / xnew); }
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////  *** Proposal : implementations ***  /////////////////////////////
@@ -98,13 +89,14 @@ namespace
     ////////////////////////////////  *** Sample_Proposal : class ***  ////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /// Proposal is just sample from model/prior.
-    /// NOTE: this is just a place holder within Variable.
     class Sample_Proposal : public Proposal
     {
     public:
-        Sample_Proposal() { name_ = "sample"; }
-        double propose(hsp::rnd_gen &, double) override final { return hsp::na::DOUBLE; }
+        Sample_Proposal(std::shared_ptr<Distribution> distr)
+            : Proposal(distr, hsp::na::DOUBLE) { name_ = "sample"; }
+
+        double propose(hsp::rnd_gen &prng, double) const override final { return pDistr_->rand(prng); }
+        double logratio(double xo, double xn) const override final { return pDistr_->logratio(xo, xn); }
     };
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -123,7 +115,7 @@ namespace
             pDistr_->init_attr(hsp::params::MAX, Attribute(user_scale_));
         }
 
-        double propose(hsp::rnd_gen &prng, double xo) override final { return xo + pDistr_->rand(prng); }
+        double propose(hsp::rnd_gen &prng, double xo) const override final { return xo + pDistr_->rand(prng); }
         double logratio(double, double) const override final { return 0.; }
     };
 
@@ -143,7 +135,7 @@ namespace
             pDistr_->init_attr("sd", Attribute(user_scale_));
         }
 
-        double propose(hsp::rnd_gen &prng, double xo) override final { return xo + pDistr_->rand(prng); }
+        double propose(hsp::rnd_gen &prng, double xo) const override final { return xo + pDistr_->rand(prng); }
         double logratio(double, double) const override final { return 0.; }
     };
 
@@ -179,15 +171,15 @@ namespace
             }
         };
 
-        double propose(hsp::rnd_gen &prng, double xo) override final { return (this->*propose_)(prng, xo); }
+        double propose(hsp::rnd_gen &prng, double xo) const override final { return (this->*propose_)(prng, xo); }
         double logratio(double xo, double xn) const override final { return (this->*logratio_)(xo, xn); }
 
     private:
         const Attribute *pAttr_loc_ = nullptr; /// pointer to attribute location
 
-        double (Lognorm_Proposal::*propose_)(hsp::rnd_gen &, double) = &Lognorm_Proposal::do_propose_;
-        double do_propose_(hsp::rnd_gen &prng, double xo) { return xo * pDistr_->rand(prng); }
-        double do_propose_loc_(hsp::rnd_gen &prng, double xo)
+        double (Lognorm_Proposal::*propose_)(hsp::rnd_gen &, double) const = &Lognorm_Proposal::do_propose_;
+        double do_propose_(hsp::rnd_gen &prng, double xo) const { return xo * pDistr_->rand(prng); }
+        double do_propose_loc_(hsp::rnd_gen &prng, double xo) const
         {
             const double loc = pAttr_loc_->get();
             return loc + (xo - loc) * pDistr_->rand(prng);
@@ -382,15 +374,11 @@ void Variable::init_rand(hsp::rnd_gen &prng) { set(pDistr_->rand(prng)); }
 /// NOTE: it must be assigned after model initialization.
 void Variable::init_proposer(const string &proposal, double proposal_scale)
 {
-    if (hsp::na::is(proposal))
+    is_constant_ = true; // if no proposal is defined, assume constant
+
+    if (!hsp::na::is(proposal))
     {
-        // if no proposal is defined, assume constant
-        is_constant_ = true;
-        propose_ = &Variable::do_propose_error_;
-    }
-    else
-    {
-        is_constant_ = false; // variable to be sampled
+        is_constant_ = false; // else variable to be sampled
 
         if (proposal == "sample")
             helper_init_sample_proposer_();
@@ -404,10 +392,10 @@ double Variable::do_eval_func_(double x) const { return pFunc_->evaluate(x); }
 /// Helper with proposer initialization of direct sample from prior/model.
 void Variable::helper_init_sample_proposer_()
 {
-    pProp_ = std::make_unique<Sample_Proposal>();
+    // assign the pointer to the proposer
+    pProp_ = std::make_unique<Sample_Proposal>(pDistr_);
 
-    propose_ = &Variable::do_propose_sample_;
-    get_propose_logratio_ = &Variable::do_get_propose_logratio_sample_;
+    // setup sample proposal functional methods
     get_move_logratio_ = &Variable::do_move_logratio_sample_;
     is_valid_move_ = &Variable::do_is_valid_move_always_;
 }
@@ -420,10 +408,10 @@ void Variable::helper_init_proposer_monte_carlo_(const string &proposal, double 
         hsp::msg::warning(
             "Provided a lognormal proposal for non-positive " + err_name() + ".");
 
-    // assign the pointer to the proposer
+    // select proposer
     pProp_ = proposer_switch(proposal, proposal_scale, is_discrete());
-    propose_ = &Variable::do_propose_default_;
-    get_propose_logratio_ = &Variable::do_get_propose_logratio_default_;
+
+    // setup parameteric proposal functional methods
     get_move_logratio_ = &Variable::do_get_move_logratio_default_;
     if (pDistr_ == nullptr)
         is_valid_move_ = &Variable::do_is_valid_move_always_;
@@ -454,8 +442,12 @@ bool Variable::is_model() const { return pDistr_ != nullptr && !pDistr_->is_empt
 /// Wheter the variable has an adaptable parametric proposal rule.
 bool Variable::is_adaptable() const { return pProp_ != nullptr && pProp_->is_adaptable(); }
 
+/// Set new proposal internally and store a buffer of old value.
+void Variable::propose(hsp::rnd_gen &prng) { set(pProp_->propose(prng, value_)); }
+
 double Variable::get_distr_logpdf() const { return pDistr_->logpdf(value_); }
 double Variable::get_distr_logratio() const { return pDistr_->logratio(buffer_, value_); }
+double Variable::get_propose_logratio() const { return pProp_->logratio(buffer_, value_); }
 
 double Variable::get_accept_rate() const { return pProp_->get_accept_rate(); }
 void Variable::update_accept_rate(bool is_accepted) { pProp_->update_accept_rate(is_accepted); }
@@ -471,7 +463,4 @@ string Variable::str_summary() const
     return output;
 }
 
-double Variable::do_propose_default_(hsp::rnd_gen &prng) { return pProp_->propose(prng, value_); }
-double Variable::do_propose_sample_(hsp::rnd_gen &prng) { return pDistr_->rand(prng); }
-double Variable::do_get_propose_logratio_default_() const { return pProp_->logratio(buffer_, value_); }
 bool Variable::do_is_valid_move_default_() const { return pDistr_->is_valid(value_); }

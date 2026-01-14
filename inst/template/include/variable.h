@@ -99,12 +99,13 @@ public:
     ///////////////////////////////  Variable : Metropolis-Hastings  ////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    void propose(hsp::rnd_gen &prng) { set((this->*propose_)(prng)); }
+    /// Set new proposal internally and store a buffer of old value.
+    void propose(hsp::rnd_gen &prng);
     bool is_valid_move() const { return (this->*is_valid_move_)(); }
 
     double get_distr_logpdf() const;
     double get_distr_logratio() const;
-    double get_propose_logratio() const { return (this->*get_propose_logratio_)(); }
+    double get_propose_logratio() const;
     double get_move_logratio() const { return (this->*get_move_logratio_)(); }
 
     //----- prop_ptr : adaptive methods -----//
@@ -161,26 +162,14 @@ protected:
     //////////////////////////  Variable : Metropolis-Hastings [private]  ///////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    //----- Propose : functional methods -----//
-    double (Variable::*propose_)(hsp::rnd_gen &) = &Variable::do_propose_error_;
-    double do_propose_error_(hsp::rnd_gen &) { throw std::invalid_argument(
-        "Called to unknown proposer for " + err_name() + "."); }
-    double do_propose_default_(hsp::rnd_gen &prng);
-    double do_propose_sample_(hsp::rnd_gen &prng);
-
     //----- Valid move : functional methods -----//
     bool (Variable::*is_valid_move_)() const = &Variable::do_is_valid_move_default_;
     bool do_is_valid_move_default_() const;
     bool do_is_valid_move_always_() const { return true; }
 
-    /// Propose logratio - functional methods
-    double (Variable::*get_propose_logratio_)() const = &Variable::do_get_propose_logratio_default_;
-    double do_get_propose_logratio_default_() const;
-    double do_get_propose_logratio_sample_() const { return get_distr_logratio(); }
-
     //----- Move logratio : functional methods -----//
     double (Variable::*get_move_logratio_)() const = &Variable::do_get_move_logratio_default_;
-    double do_get_move_logratio_default_() const { return get_distr_logratio() - (this->*get_propose_logratio_)(); }
+    double do_get_move_logratio_default_() const { return get_distr_logratio() - get_propose_logratio(); }
     double do_move_logratio_sample_() const { return 0.; }
 };
 
