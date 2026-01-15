@@ -195,20 +195,30 @@ std::unique_ptr<Distribution> DistributionRegistry::create_distr(const string &o
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 std::unique_ptr<Distribution> compose_distr_registries(const string &opt,
-                                                       const string &name,
-                                                       const vector<const DistributionRegistry *> &registries,
+                                                       const string &err_type,
+                                                       const vector<std::string> &registries,
                                                        bool is_cumul)
 {
-    vector<string> options = {};
-
     if (registries.empty())
         throw std::invalid_argument(
-            "No registries were provided for '" + name + "'.");
+            "No registries were provided for '" + err_type + "'.");
 
     if (hsp::na::is(opt))
         return nullptr;
 
-    for (auto &r : registries)
+    vector<const DistributionRegistry *> registry_ptrs = {};
+    for (const auto &r : registries)
+        if (r == "continuos")
+            registry_ptrs.push_back(&ContinuosDistrRegistry::instance());
+        else if (r == "discrete")
+            registry_ptrs.push_back(&DiscreteDistrRegistry::instance());
+        else if (r == "infecprofile")
+            registry_ptrs.push_back(&InfecProfileRegistry::instance());
+        else
+            throw std::invalid_argument("Unknown " + err_type + " registry '" + r + "'.");
+
+    vector<string> options = {};
+    for (auto &r : registry_ptrs)
     {
         if (r->get_options() % opt)
             return r->create_distr(opt, is_cumul);
@@ -216,7 +226,7 @@ std::unique_ptr<Distribution> compose_distr_registries(const string &opt,
     }
 
     throw std::invalid_argument(
-        "Unknown " + name + " '" + opt + "'." + hsp::str::find_closest(opt, options));
+        "Unknown " + err_type + " '" + opt + "'." + hsp::str::find_closest(opt, options));
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////

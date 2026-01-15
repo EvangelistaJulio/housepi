@@ -11,7 +11,6 @@
 #include "tools/random.h"
 
 #include "distribution.h"
-#include "registry.h"
 #include "proposal.h"
 #include "variable.h"
 
@@ -35,7 +34,7 @@ Proposal::Proposal(const string &distr_name,
                    double proposal_scale,
                    const vector<unsigned short> &args_to_adapt,
                    bool is_discrete)
-    : pDistr_(compose_distr_registries(distr_name, "proposal", {&ContinuosDistrRegistry::instance()}))
+    : pDistr_(compose_distr_registries(distr_name, "proposal", {"continuos"}))
 {
     // set to discrete
     if (is_discrete)
@@ -294,10 +293,7 @@ void Variable::init_func_reshaping(bool discr)
 void Variable::init_distr(const hsp::parse::Definition &expr)
 {
     pDistr_ = compose_distr_registries(
-        expr.root.func,
-        "distribution",
-        {&ContinuosDistrRegistry::instance(),
-         &DiscreteDistrRegistry::instance()});
+        expr.root.func, "distribution", {"continuos", "discrete"});
 }
 
 /// Assign an attribute to distribution.

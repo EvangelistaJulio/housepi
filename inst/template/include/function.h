@@ -277,4 +277,10 @@ protected:
     bool do_is_valid_both_close_(double x) const { return (x >= lower_arg_.get()) && (x <= upper_arg_.get()); }
 };
 
+/// Compose registries to get a function from them.
+std::unique_ptr<Function> compose_func_registries(const std::string &opt,
+                                                  const std::string &err_type,
+                                                  const std::vector<std::string> &registries,
+                                                  bool is_prim = false);
+
 #endif // HOUSEPI__FUNCTION__H

@@ -16,7 +16,6 @@
 
 #include "function.h"
 #include "distribution.h"
-#include "registry.h"
 #include "mcmc.h"
 #include "model.h"
 
@@ -138,9 +137,7 @@ RCPP_MODULE(housepi_function)
 {
     MAKE_HOUSEPI_RCPP_WRAPPER(Function, "function",
                               set_eval, func, prim,
-                              &UserFuncRegistry::instance(),
-                              &TranscendentalRegistry::instance(),
-                              &ArithmeticRegistry::instance());
+                              "user", "transcendental", "arithmetic");
 
     Rcpp::class_<HousepiRcppFunction>("HousepiRcppFunction")
         .constructor<std::string, SEXP, double, double, bool>()
@@ -172,8 +169,7 @@ RCPP_MODULE(housepi_distribution)
 {
     MAKE_HOUSEPI_RCPP_WRAPPER(Distribution, "distribution",
                               set_eval_as_distr, pdf, cdf,
-                              &ContinuosDistrRegistry::instance(),
-                              &DiscreteDistrRegistry::instance());
+                              "continuos", "discrete");
 
     Rcpp::class_<HousepiRcppDistribution>("HousepiRcppDistribution")
         .constructor<std::string, SEXP, double, double, bool>()
@@ -205,9 +201,7 @@ RCPP_MODULE(housepi_infec_profile)
 {
     MAKE_HOUSEPI_RCPP_WRAPPER(InfecProfile, "infectivity profile",
                               set_eval_as_distr, inst, cumul,
-                              &InfecProfileRegistry::instance(),
-                              &ContinuosDistrRegistry::instance(),
-                              &DiscreteDistrRegistry::instance());
+                              "infecprofile", "continuos", "discrete");
 
     Rcpp::class_<HousepiRcppInfecProfile>("HousepiRcppInfecProfile")
         .constructor<std::string, SEXP, double, double, bool>()

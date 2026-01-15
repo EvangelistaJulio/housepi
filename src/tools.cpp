@@ -935,7 +935,6 @@ namespace hsp
             for (const auto &child : children)                          \
                 child.append_##type_flag##_depen(stack);                \
     }
-
         MAKE_NODE_LIST_TYPE_DEPEN(augmented)
         MAKE_NODE_LIST_TYPE_DEPEN(data)
         MAKE_NODE_LIST_TYPE_DEPEN(parameter)
@@ -954,7 +953,6 @@ namespace hsp
         root.append_##type_flag##_depen(stack);                 \
         return hsp::str::unique(stack);                         \
     }
-
         MAKE_PARSER_LIST_TYPE_DEPEN(augmented)
         MAKE_PARSER_LIST_TYPE_DEPEN(data)
         MAKE_PARSER_LIST_TYPE_DEPEN(parameter)

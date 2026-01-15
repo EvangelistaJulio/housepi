@@ -100,16 +100,4 @@ struct StaticRegistatror
             housepi_register_##T##_to_##R; \
     }
 
-/// Compose registries to get a function from them.
-std::unique_ptr<Function> compose_func_registries(const std::string &opt,
-                                                  const std::string &err_type,
-                                                  const std::vector<const FunctionRegistry *> &registries,
-                                                  bool is_prim = false);
-
-/// Compose registries to get a distribution from them.
-std::unique_ptr<Distribution> compose_distr_registries(const std::string &opt,
-                                                       const std::string &err_type,
-                                                       const std::vector<const DistributionRegistry *> &registries,
-                                                       bool is_cumul = false);
-
 #endif // HOUSEPI__REGISTRY__H

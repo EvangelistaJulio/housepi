@@ -217,4 +217,10 @@ protected:
 	double do_shift_min_discr_left_(double x) const { return x - raw_cdf_(std::floor(lower())); }
 };
 
+/// Compose registries to get a distribution from them.
+std::unique_ptr<Distribution> compose_distr_registries(const std::string &opt,
+													   const std::string &err_type,
+													   const std::vector<std::string> &registries,
+													   bool is_cumul = false);
+
 #endif // HOUSEPI__DISTRIBUTION__H

@@ -12,14 +12,14 @@
 #include "tools/string.h"
 #include "tools/types.h"
 
+#include "augmented.h"
 #include "data.h"
 #include "data_reports.h"
-#include "parameter.h"
 #include "group_rate.h"
 #include "infec_profile.h"
-#include "augmented.h"
 #include "mcmc_impl.h"
 #include "mcmc.h"
+#include "parameter.h"
 
 namespace
 {

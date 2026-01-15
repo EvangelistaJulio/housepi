@@ -44,3 +44,8 @@ Default is \code{FALSE}.}
 Create a new object of class 'HousepiModel'
 used to run inference and simulation routines.
 }
+\examples{
+hhmodel <- new_housepi_model("blank")
+print(hhmodel)
+
+}

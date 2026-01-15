@@ -23,6 +23,88 @@ namespace
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////  Function : show  ///////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Return formatted function summary.
+string Function::str_summary(bool show_x_arg) const
+{
+    string output = name_ + "(";
+    if (show_x_arg)
+        output += x_arg_.name() + "=" + hsp::str::format(x_arg_.get());
+    for (size_t c = 0; c < arguments_.size(); ++c)
+    {
+        if (c > 0 || show_x_arg)
+            output += ", ";
+        output += arguments_[c].name() + "=" + hsp::str::format(arguments_[c].get());
+    }
+    return output + ") : " + str_range();
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////// *** FunctionRegistry : class *** //////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+std::unique_ptr<Function> FunctionRegistry::create(const string &opt, bool is_primitive) const
+{
+    auto it = factory_map_.find(opt);
+    if (it == factory_map_.end())
+        return nullptr;
+
+    auto output = it->second();
+    if (is_primitive)
+        output->set_eval_primitive();
+    else
+        output->set_eval_call();
+    return output;
+}
+
+std::unique_ptr<Function> compose_func_registries(const string &opt,
+                                                  const string &err_type,
+                                                  const vector<string> &registries,
+                                                  bool is_prim)
+{
+    if (registries.empty())
+        throw std::invalid_argument(
+            "No registries were provided for '" + err_type + "'.");
+
+    if (hsp::na::is(opt))
+        return nullptr;
+
+    vector<const FunctionRegistry *> registry_ptrs = {};
+    for (const auto &r : registries)
+        if (r == "user")
+            registry_ptrs.push_back(&UserFuncRegistry::instance());
+        else if (r == "transcendental")
+            registry_ptrs.push_back(&TranscendentalRegistry::instance());
+        else if (r == "arithmetic")
+            registry_ptrs.push_back(&ArithmeticRegistry::instance());
+        else if (r == "continuos")
+            registry_ptrs.push_back(&ContinuosDistrRegistry::instance());
+        else if (r == "discrete")
+            registry_ptrs.push_back(&DiscreteDistrRegistry::instance());
+        else if (r == "infecprofile")
+            registry_ptrs.push_back(&InfecProfileRegistry::instance());
+        else
+            throw std::invalid_argument("Unknown " + err_type + " registry '" + r + "'.");
+
+    vector<string> options = {};
+    for (const auto &ptr : registry_ptrs)
+    {
+        if (ptr->get_options() % opt)
+            return ptr->create(opt, is_prim);
+        options += ptr->get_options();
+    }
+
+    throw std::invalid_argument(
+        "Unknown " + err_type + " '" + opt + "'." + hsp::str::find_closest(opt, options));
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////  Attribute : constructor ///////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -183,12 +265,8 @@ void Attribute::init_function(const string &s, bool is_primitive)
 {
     init_function(compose_func_registries(
         s, "function",
-        {&UserFuncRegistry::instance(),
-         &TranscendentalRegistry::instance(),
-         &ArithmeticRegistry::instance(),
-         &ContinuosDistrRegistry::instance(),
-         &DiscreteDistrRegistry::instance(),
-         &InfecProfileRegistry::instance()},
+        {"user", "transcendental", "arithmetic",
+         "continuos", "discrete", "infecprofile"},
         is_primitive));
 }
 
@@ -565,72 +643,6 @@ unsigned short Function::which_discrete_case_() const
     if (function_ == &Function::do_function_discr_left_)
         return hsp::discr::LEFT;
     return hsp::discr::NONE;
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////  Function : show  ///////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Return formatted function summary.
-string Function::str_summary(bool show_x_arg) const
-{
-    string output = name_ + "(";
-    if (show_x_arg)
-        output += x_arg_.name() + "=" + hsp::str::format(x_arg_.get());
-    for (size_t c = 0; c < arguments_.size(); ++c)
-    {
-        if (c > 0 || show_x_arg)
-            output += ", ";
-        output += arguments_[c].name() + "=" + hsp::str::format(arguments_[c].get());
-    }
-    return output + ") : " + str_range();
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////// *** FunctionRegistry : class *** //////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-std::unique_ptr<Function> FunctionRegistry::create(const string &opt, bool is_primitive) const
-{
-    auto it = factory_map_.find(opt);
-    if (it == factory_map_.end())
-        return nullptr;
-
-    auto output = it->second();
-    if (is_primitive)
-        output->set_eval_primitive();
-    else
-        output->set_eval_call();
-    return output;
-}
-
-std::unique_ptr<Function> compose_func_registries(const string &opt,
-                                                  const string &err_type,
-                                                  const vector<const FunctionRegistry *> &registries,
-                                                  bool is_prim)
-{
-    vector<string> options = {};
-
-    if (registries.empty())
-        throw std::invalid_argument(
-            "No registries were provided for '" + err_type + "'.");
-
-    if (hsp::na::is(opt))
-        return nullptr;
-
-    for (const auto &r : registries)
-    {
-        if (r->get_options() % opt)
-            return r->create(opt, is_prim);
-        options += r->get_options();
-    }
-
-    throw std::invalid_argument(
-        "Unknown " + err_type + " '" + opt + "'." + hsp::str::find_closest(opt, options));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

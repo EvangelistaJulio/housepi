@@ -20,15 +20,14 @@
 #include "tools/types.h"
 
 #include "attribute.h"
-#include "function.h"
-#include "distribution.h"
-#include "registry.h"
-#include "variable.h"
 #include "augmented_map.h"
 #include "data.h"
-#include "parameter.h"
+#include "distribution.h"
+#include "function.h"
 #include "group_rate.h"
 #include "infec_profile.h"
+#include "parameter.h"
+#include "variable.h"
 
 namespace
 {
@@ -714,9 +713,7 @@ std::unique_ptr<Distribution> InfecProfile::helper_build_profile_(const hsp::str
     hsp::parse::Definition parser(hsp::parse::Definition(input.at("func")[0]));
     auto placeholder = compose_distr_registries(parser.root.func,
                                                 "infectivity profile",
-                                                {&InfecProfileRegistry::instance(),
-                                                 &ContinuosDistrRegistry::instance(),
-                                                 &DiscreteDistrRegistry::instance()});
+                                                {"infecprofile", "continuos", "discrete"});
     for (const auto &node : parser.root.children)
     {
         placeholder->init_attr(node.key, pParameter_->read_attribute(node));
