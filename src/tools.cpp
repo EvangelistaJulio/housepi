@@ -585,14 +585,13 @@ namespace hsp
         class Bar::Impl
         {
         private:
-            const string symbol_ = u8"\u25A0"; // bar decorator
-            unsigned barwidth_ = 35;           // bar total size
-            bool verbose_ = true;              // wheter to show bar
-            bool is_bar_print_ = false;        // wheter bar is printing
-
-            unsigned long state_ = 0; // current iteration
-            unsigned long total_ = 0; // total number of iterations
-            string text_ = "";        // current text to show
+            const string symbol_ = "\u25A0"; /// bar decorator
+            unsigned barwidth_ = 35;         /// bar total size
+            bool verbose_ = true;            /// wheter to show bar
+            bool is_bar_print_ = false;      /// wheter bar is printing
+            unsigned long state_ = 0;        /// current iteration
+            unsigned long total_ = 0;        /// total number of iterations
+            string text_ = "";               /// current text to show
 
             steady_clock::time_point start_;
             steady_clock::time_point lastprint_;

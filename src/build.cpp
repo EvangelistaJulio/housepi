@@ -136,6 +136,7 @@ void Parameter::build(const hsp::str_table &input)
             "Found multiple definitions for the same parameters.");
 
     dictionary_.clear();
+    dictionary_.reserve(hsp::read::csv_n_rows(input));
     clear_lists_();
 
     // load parameters from the row with options

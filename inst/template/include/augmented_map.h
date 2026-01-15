@@ -43,6 +43,9 @@ public:
 	///////////////////////////////////  AugmentedMap : setter  ///////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
+	/// Reserve memory for augmented variables.
+	void reserve_augm(size_t n) { augm_map_.reserve(n); }
+	
 	/// Clear augmented definition (also used for allocation).
 	void clear_augm(const std::string &a)
 	{

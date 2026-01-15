@@ -413,8 +413,10 @@ void Augmented::helper_build_model_status_maps_()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Clear all augmented definition of individual.
+/// UDPATE: don't reserve also for augmented defintions not associated.
 void Augmented::clear_all(Individual &member)
 {
+    member.reserve_augm(list_full.size());
     for (const auto &a : list_full)
         member.clear_augm(a);
 }
