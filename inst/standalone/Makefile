@@ -22,6 +22,7 @@ EXECUTABLE := $(MODEL)/model.exe
 # compilation flags
 CXX := g++
 CXXFLAGS := -std=c++17 -g -Wall -Wextra -pedantic -Wno-unknown-pragmas -I../template/include/ 
+LDFLAGS :=
 ifdef DEBUG
 CXXFLAGS += -O0 -Werror -Wuninitialized
 else
@@ -39,6 +40,7 @@ $(info LLVM is not installed via Homebrew. Falling back to default.)
 else
 CXX := $(shell brew --prefix llvm)/bin/clang++
 CXXFLAGS += -fopenmp -I$(shell brew --prefix llvm)/include -I$(shell brew --prefix boost)/include
+LDFLAGS += -L$(shell brew --prefix llvm)/lib/c++ -Wl,-rpath,$(shell brew --prefix llvm)/lib/c++
 endif
 endif
 else
@@ -51,7 +53,7 @@ all: $(EXECUTABLE)
 
 # For the executable
 $(EXECUTABLE): $(OBJECTS)
-	$(CXX) $(CXXFLAGS) $(OBJECTS) -o $(EXECUTABLE)
+	$(CXX) $(CXXFLAGS) $(OBJECTS) $(LDFLAGS) -o $(EXECUTABLE)
 
 # For the model object
 $(MODEL)/model.o: $(MODEL)/model.cpp
