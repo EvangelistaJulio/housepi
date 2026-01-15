@@ -714,9 +714,9 @@ std::unique_ptr<Distribution> InfecProfile::helper_build_profile_(const hsp::str
     hsp::parse::Definition parser(hsp::parse::Definition(input.at("func")[0]));
     auto placeholder = compose_distr_registries(parser.root.func,
                                                 "infectivity profile",
-                                                {&InfecProfileRegistry::inst(),
-                                                 &ContinuosDistrRegistry::inst(),
-                                                 &DiscreteDistrRegistry::inst()});
+                                                {&InfecProfileRegistry::instance(),
+                                                 &ContinuosDistrRegistry::instance(),
+                                                 &DiscreteDistrRegistry::instance()});
     for (const auto &node : parser.root.children)
     {
         placeholder->init_attr(node.key, pParameter_->read_attribute(node));

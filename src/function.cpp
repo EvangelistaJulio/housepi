@@ -178,6 +178,19 @@ void Attribute::init_function(const std::shared_ptr<Function> f)
     pAttr_ = nullptr;
     pFunc_ = f;
 }
+/// Initialize attribute as function given the function name.
+void Attribute::init_function(const string &s, bool is_primitive)
+{
+    init_function(compose_func_registries(
+        s, "function",
+        {&UserFuncRegistry::instance(),
+         &TranscendentalRegistry::instance(),
+         &ArithmeticRegistry::instance(),
+         &ContinuosDistrRegistry::instance(),
+         &DiscreteDistrRegistry::instance(),
+         &InfecProfileRegistry::instance()},
+        is_primitive));
+}
 
 /// Transfer from other Attribute.
 void Attribute::transfer(const Attribute &other)
@@ -262,13 +275,13 @@ Attribute &Function::find_arg_(const string &arg_name)
         return loc_arg_;
 
     for (auto &attr : arguments_)
-        if (attr.get_name() == arg_name)
+        if (attr.name() == arg_name)
             return attr;
 
     // else format the error showing options
     vector<string> options = {hsp::params::X, hsp::params::LOC};
     for (const auto &attr : arguments_)
-        options.push_back(attr.get_name());
+        options.push_back(attr.name());
     throw std::invalid_argument(
         "Unknown argument '" + arg_name + "' for " + err_name() + "." +
         hsp::str::find_closest(arg_name, options));
@@ -315,7 +328,7 @@ vector<string> Function::get_missing_argument() const
     vector<string> undefined_args;
     for (const auto &attr : arguments_)
         if (attr.is_empty())
-            undefined_args.push_back(attr.get_name());
+            undefined_args.push_back(attr.name());
     return undefined_args;
 }
 
@@ -565,12 +578,12 @@ string Function::str_summary(bool show_x_arg) const
 {
     string output = name_ + "(";
     if (show_x_arg)
-        output += x_arg_.get_name() + "=" + hsp::str::format(x_arg_.get());
+        output += x_arg_.name() + "=" + hsp::str::format(x_arg_.get());
     for (size_t c = 0; c < arguments_.size(); ++c)
     {
         if (c > 0 || show_x_arg)
             output += ", ";
-        output += arguments_[c].get_name() + "=" + hsp::str::format(arguments_[c].get());
+        output += arguments_[c].name() + "=" + hsp::str::format(arguments_[c].get());
     }
     return output + ") : " + str_range();
 }
@@ -581,22 +594,13 @@ string Function::str_summary(bool show_x_arg) const
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-FunctionRegistry::FunctionRegistry(const string &name)
-    : name_(name) {}
-FunctionRegistry::~FunctionRegistry() = default;
-
-vector<string> FunctionRegistry::get_options() const
+std::unique_ptr<Function> FunctionRegistry::create(const string &opt, bool is_primitive) const
 {
-    vector<string> list_of_options;
-    list_of_options.reserve(factory_map_.size());
-    for (const auto &[key, val] : factory_map_)
-        list_of_options.push_back(key);
-    return list_of_options;
-}
+    auto it = factory_map_.find(opt);
+    if (it == factory_map_.end())
+        return nullptr;
 
-std::unique_ptr<Function> FunctionRegistry::get(const string &opt, bool is_primitive) const
-{
-    auto output = factory_map_.find(opt)->second();
+    auto output = it->second();
     if (is_primitive)
         output->set_eval_primitive();
     else
@@ -605,7 +609,7 @@ std::unique_ptr<Function> FunctionRegistry::get(const string &opt, bool is_primi
 }
 
 std::unique_ptr<Function> compose_func_registries(const string &opt,
-                                                  const string &name,
+                                                  const string &err_type,
                                                   const vector<const FunctionRegistry *> &registries,
                                                   bool is_prim)
 {
@@ -613,7 +617,7 @@ std::unique_ptr<Function> compose_func_registries(const string &opt,
 
     if (registries.empty())
         throw std::invalid_argument(
-            "No registries were provided for '" + name + "'.");
+            "No registries were provided for '" + err_type + "'.");
 
     if (hsp::na::is(opt))
         return nullptr;
@@ -621,12 +625,12 @@ std::unique_ptr<Function> compose_func_registries(const string &opt,
     for (const auto &r : registries)
     {
         if (r->get_options() % opt)
-            return r->get(opt, is_prim);
+            return r->create(opt, is_prim);
         options += r->get_options();
     }
 
     throw std::invalid_argument(
-        "Unknown " + name + " '" + opt + "'." + hsp::str::find_closest(opt, options));
+        "Unknown " + err_type + " '" + opt + "'." + hsp::str::find_closest(opt, options));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -643,10 +647,10 @@ namespace
     // verify if is_discrete should include Function::is_discrete() || (...)
 
     /// Minus Function.
-    class Minus_Function : public Function
+    class Minus_ : public Function
     {
     public:
-        Minus_Function() : Function("minus") {}
+        Minus_() : Function("minus") {}
         void init_truncation() override final {}
         bool is_discrete() const override final { return x_arg_.is_discrete(); }
 
@@ -655,10 +659,10 @@ namespace
     };
 
     /// Subtraction function.
-    class Subtraction_Function : public Function
+    class Subtraction_ : public Function
     {
     public:
-        Subtraction_Function() : Function("sub", {{"x2", 0.}}) {}
+        Subtraction_() : Function("sub", {{"x2", 0.}}) {}
         void init_truncation() override final {}
         bool is_discrete() const override final { return get_arg(0).is_discrete() && x_arg_.is_discrete(); }
 
@@ -667,10 +671,10 @@ namespace
     };
 
     /// Division Function.
-    class Division_Function : public Function
+    class Division_ : public Function
     {
     public:
-        Division_Function() : Function("div", {{"x2", 1}}) {}
+        Division_() : Function("div", {{"x2", 1}}) {}
         void init_truncation() override final {}
 
     protected:
@@ -678,10 +682,10 @@ namespace
     };
 
     /// Power Function.
-    class Power_Function : public Function
+    class Power_ : public Function
     {
     public:
-        Power_Function() : Function("pow", {{"x2", 1.}}) {}
+        Power_() : Function("pow", {{"x2", 1.}}) {}
         void init_truncation() override final { init_range_helper_(); }
         bool is_discrete() const override final { return Function::is_discrete() || (get_arg(0).is_discrete() && x_arg_.is_discrete()); }
 
@@ -698,11 +702,11 @@ namespace
     };
 
     /// SquareRoot Function.
-    class SquareRoot_Function : public Function
+    class SquareRoot_ : public Function
     {
     public:
-        SquareRoot_Function() : Function("sqrt", {},
-                                         0., false, hsp::na::DOUBLE, false) {}
+        SquareRoot_() : Function("sqrt", {},
+                                 0., false, hsp::na::DOUBLE, false) {}
         void init_truncation() override final { init_range_min_(); }
 
     protected:
@@ -713,10 +717,10 @@ namespace
     };
 
     /// Exponential Function.
-    class Exponential_Function : public Function
+    class Exponential_ : public Function
     {
     public:
-        Exponential_Function() : Function("exp") {}
+        Exponential_() : Function("exp") {}
         void init_truncation() override final { init_range_helper_(); }
 
     protected:
@@ -727,11 +731,11 @@ namespace
     };
 
     /// Logarithm Function.
-    class Logarithm_Function : public Function
+    class Logarithm_ : public Function
     {
     public:
-        Logarithm_Function() : Function("log", {},
-                                        0., true, hsp::na::DOUBLE, false) {}
+        Logarithm_() : Function("log", {},
+                                0., true, hsp::na::DOUBLE, false) {}
         void init_truncation() override final { init_range_min_(0., true); }
 
     protected:
@@ -742,10 +746,10 @@ namespace
     };
 
     /// Sine Function.
-    class Sine_Function : public Function
+    class Sine_ : public Function
     {
     public:
-        Sine_Function() : Function("sin") {}
+        Sine_() : Function("sin") {}
         void init_truncation() override final { init_range_helper_(); }
 
     protected:
@@ -756,10 +760,10 @@ namespace
     };
 
     /// Cosine Function.
-    class Cosine_Function : public Function
+    class Cosine_ : public Function
     {
     public:
-        Cosine_Function() : Function("cos") {}
+        Cosine_() : Function("cos") {}
         void init_truncation() override final { init_range_helper_(); }
 
     protected:
@@ -770,10 +774,10 @@ namespace
     };
 
     /// Tangent Function.
-    class Tangent_Function : public Function
+    class Tangent_ : public Function
     {
     public:
-        Tangent_Function() : Function("tan") {}
+        Tangent_() : Function("tan") {}
         void init_truncation() override final { init_range_helper_(); }
 
     protected:
@@ -783,15 +787,15 @@ namespace
     };
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////  Variadic_Function : class  ///////////////////////////////////
+    //////////////////////////////////  VariadicFunction : class  ///////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Auxialiary class to deal with variadic functions.
-    class Variadic_Function : public Function
+    class VariadicFunction : public Function
     {
     public:
-        Variadic_Function(const string &name = "") : Function(name) {}
-        virtual ~Variadic_Function() = default;
+        VariadicFunction(const string &name = "") : Function(name) {}
+        virtual ~VariadicFunction() = default;
 
         // UPDATE: this might change for future variadic functions
         void init_truncation() override final {}
@@ -815,7 +819,7 @@ namespace
             if (arg_name == hsp::params::LOC)
                 return loc_arg_;
             for (auto &attr : arguments_)
-                if (!hsp::na::is(attr.get_name()) && (attr.get_name() == arg_name))
+                if (!hsp::na::is(attr.name()) && (attr.name() == arg_name))
                     return attr;
 
             arguments_.emplace_back();
@@ -824,10 +828,10 @@ namespace
     };
 
 #define MAKE_VARIADIC_ALGEBRAIC(ClassName, FunctionName, Symbol) \
-    class ClassName : public Variadic_Function                   \
+    class ClassName : public VariadicFunction                    \
     {                                                            \
     public:                                                      \
-        ClassName() : Variadic_Function(FunctionName) {}         \
+        ClassName() : VariadicFunction(FunctionName) {}          \
                                                                  \
     protected:                                                   \
         double raw_function_(double x) const override final      \
@@ -837,14 +841,14 @@ namespace
             return x;                                            \
         }                                                        \
     };
-    MAKE_VARIADIC_ALGEBRAIC(Summation_Function, "sum", +=)
-    MAKE_VARIADIC_ALGEBRAIC(Product_Function, "prod", *=)
+    MAKE_VARIADIC_ALGEBRAIC(Summation_, "sum", +=)
+    MAKE_VARIADIC_ALGEBRAIC(Product_, "prod", *=)
 
 #define MAKE_VARIADIC_MIN_MAX(ClassName, FunctionName, Symbol) \
-    class ClassName : public Variadic_Function                 \
+    class ClassName : public VariadicFunction                  \
     {                                                          \
     public:                                                    \
-        ClassName() : Variadic_Function(FunctionName) {}       \
+        ClassName() : VariadicFunction(FunctionName) {}        \
                                                                \
     protected:                                                 \
         double raw_function_(double x) const override final    \
@@ -858,60 +862,35 @@ namespace
             return x;                                          \
         }                                                      \
     };
-    MAKE_VARIADIC_MIN_MAX(Minimum_Function, "min", <)
-    MAKE_VARIADIC_MIN_MAX(Maximum_Function, "max", >)
+    MAKE_VARIADIC_MIN_MAX(Minimum_, "min", <)
+    MAKE_VARIADIC_MIN_MAX(Maximum_, "max", >)
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////  Register functions  //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define IMPLEMENT_HOUSEPI_FUNCTION_REGISTRY(ClassName) \
-    ClassName &ClassName::inst()                       \
-    {                                                  \
-        static ClassName _inst;                        \
-        return _inst;                                  \
-    }
+REGISTER_HOUSEPI_CLASS(Minimum_, ArithmeticRegistry)
+REGISTER_HOUSEPI_CLASS(Maximum_, ArithmeticRegistry)
+REGISTER_HOUSEPI_CLASS(Minus_, ArithmeticRegistry)
+REGISTER_HOUSEPI_CLASS(Subtraction_, ArithmeticRegistry)
+REGISTER_HOUSEPI_CLASS(Division_, ArithmeticRegistry)
+REGISTER_HOUSEPI_CLASS(Summation_, ArithmeticRegistry)
+REGISTER_HOUSEPI_CLASS(Product_, ArithmeticRegistry)
 
-IMPLEMENT_HOUSEPI_FUNCTION_REGISTRY(ArithmeticRegistry)
-REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Minimum_Function)
-REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Maximum_Function)
-REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Minus_Function)
-REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Subtraction_Function)
-REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Division_Function)
-REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Summation_Function)
-REGISTER_HOUSEPI_FUNCTION(ArithmeticRegistry, Product_Function)
-
-IMPLEMENT_HOUSEPI_FUNCTION_REGISTRY(TranscendentalRegistry)
-REGISTER_HOUSEPI_FUNCTION(TranscendentalRegistry, Power_Function)
-REGISTER_HOUSEPI_FUNCTION(TranscendentalRegistry, SquareRoot_Function)
-REGISTER_HOUSEPI_FUNCTION(TranscendentalRegistry, Exponential_Function)
-REGISTER_HOUSEPI_FUNCTION(TranscendentalRegistry, Logarithm_Function)
-REGISTER_HOUSEPI_FUNCTION(TranscendentalRegistry, Sine_Function)
-REGISTER_HOUSEPI_FUNCTION(TranscendentalRegistry, Cosine_Function)
-REGISTER_HOUSEPI_FUNCTION(TranscendentalRegistry, Tangent_Function)
-
-IMPLEMENT_HOUSEPI_FUNCTION_REGISTRY(UserFuncRegistry)
+REGISTER_HOUSEPI_CLASS(Power_, TranscendentalRegistry)
+REGISTER_HOUSEPI_CLASS(SquareRoot_, TranscendentalRegistry)
+REGISTER_HOUSEPI_CLASS(Exponential_, TranscendentalRegistry)
+REGISTER_HOUSEPI_CLASS(Logarithm_, TranscendentalRegistry)
+REGISTER_HOUSEPI_CLASS(Sine_, TranscendentalRegistry)
+REGISTER_HOUSEPI_CLASS(Cosine_, TranscendentalRegistry)
+REGISTER_HOUSEPI_CLASS(Tangent_, TranscendentalRegistry)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////  Attribute : extras  /////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Initialize attribute as function given the function name.
-void Attribute::init_function(const string &s, bool is_primitive)
-{
-    init_function(compose_func_registries(
-        s, "function",
-        {&UserFuncRegistry::inst(),
-         &TranscendentalRegistry::inst(),
-         &ArithmeticRegistry::inst(),
-         &ContinuosDistrRegistry::inst(),
-         &DiscreteDistrRegistry::inst(),
-         &InfecProfileRegistry::inst()},
-        is_primitive));
-}
 
 /// Productory of pointed attributes values.
 Attribute::Attribute(const std::vector<const Attribute *> other_ptrs)
@@ -922,7 +901,7 @@ Attribute::Attribute(const std::vector<const Attribute *> other_ptrs)
         return;
     }
 
-    auto fun = std::make_shared<Product_Function>();
+    auto fun = std::make_shared<Product_>();
     // initialize attributes to pointers
     fun->init_attr(hsp::params::X, Attribute(other_ptrs[0]));
     for (size_t i = 1; i < other_ptrs.size(); ++i)

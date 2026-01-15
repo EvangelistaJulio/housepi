@@ -33,11 +33,6 @@ public:
 
     /// Empty proposal constructor.
     Proposal();
-    /// Proposal constructor from Distribution pointer.
-    Proposal(std::shared_ptr<Distribution> distr,
-             double proposal_scale,
-             const std::vector<unsigned short> &args_to_adapt = {},
-             bool is_discrete = false);
     /// Proposal constructor from Distribution name.
     Proposal(const std::string &distr_name,
              double proposal_scale,
@@ -50,7 +45,7 @@ public:
     /////////////////////////////////////  Proposal : getter  ///////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    std::string name() const { return this->name_; }
+    std::string name() const { return name_; }
     virtual double propose(hsp::rnd_gen &, double) const = 0;
     virtual double logratio(double, double) const { return 0.; }
 
@@ -86,9 +81,8 @@ public:
     void adapt(double ratio);
 
 protected:
-    std::string name_ = "";                /// name of the proposal
-    std::shared_ptr<Distribution> pDistr_; /// distribution associated to proposal
-
+    std::string name_ = "";                          /// name of the proposal
+    std::shared_ptr<Distribution> pDistr_;           /// distribution associated to proposal
     double user_scale_ = 1.;                         /// scale of the Metropolis proposal
     double accept_rate_ = 0.;                        /// acceptance rate
     unsigned long n_proposed_ = 0;                   /// n. of proposed moves

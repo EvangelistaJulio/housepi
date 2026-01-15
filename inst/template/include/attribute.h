@@ -90,7 +90,7 @@ public:
     bool is_empty() const { return !is_numeric() && !is_pointer() && !is_function(); }
 
     /// Get attribute name.
-    std::string get_name() const { return name_; }
+    std::string name() const { return name_; }
     /// Get attribute name to display in errors.
     std::string err_name() const { return err_type_ + " '" + name_ + "'"; }
     /// Get a description about the functional status.

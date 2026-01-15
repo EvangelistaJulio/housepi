@@ -119,7 +119,7 @@ public:
     /// Get function name.
     std::string name() const { return name_; }
     /// Get argument name.
-    std::string arg_name(unsigned short i) const { return arguments_[i].get_name(); }
+    std::string arg_name(unsigned short i) const { return arguments_[i].name(); }
     /// Get function name complete with type to display in errors.
     std::string err_name() const { return err_type_ + " '" + name_ + "'"; }
 

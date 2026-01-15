@@ -171,33 +171,23 @@ void Distribution::init_trunc_helper_()
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Override get_options method of generic function with distribution.
-/// note: this differ in the choice of factory_map_ member.
-vector<string> DistributionRegistry::get_options() const
+std::unique_ptr<Function> DistributionRegistry::create(const std::string &opt, bool is_prim) const
 {
-    vector<string> list_of_options;
-    list_of_options.reserve(factory_map_.size());
-    for (const auto &[key, val] : factory_map_)
-        list_of_options.push_back(key);
-    return list_of_options;
+    return create_distr(opt, is_prim);
 }
 
-std::unique_ptr<Distribution> DistributionRegistry::get_distr(const string &opt, bool is_cumul) const
+std::unique_ptr<Distribution> DistributionRegistry::create_distr(const string &opt, bool is_cumul) const
 {
-    if (!factory_map_.count(opt))
+    auto it = factory_map_.find(opt);
+    if (it == factory_map_.end())
         return nullptr;
 
-    auto output = factory_map_.find(opt)->second();
+    auto output = it->second();
     if (is_cumul)
         output->set_eval_as_distr_primitive();
     else
         output->set_eval_as_distr_call();
     return output;
-}
-
-std::unique_ptr<Function> DistributionRegistry::get(const string &opt, bool is_prim) const
-{
-    return get_distr(opt, is_prim);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -221,7 +211,7 @@ std::unique_ptr<Distribution> compose_distr_registries(const string &opt,
     for (auto &r : registries)
     {
         if (r->get_options() % opt)
-            return r->get_distr(opt, is_cumul);
+            return r->create_distr(opt, is_cumul);
         options += r->get_options();
     }
 
@@ -302,10 +292,10 @@ namespace
     ///////////////////////////  *** Uniform Distribution : class ***  //////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    class Uniform_Distribution : public Distribution
+    class Uniform_ : public Distribution
     {
     public:
-        Uniform_Distribution()
+        Uniform_()
             : Distribution("uniform",
                            {{hsp::params::MIN, 0.}, {hsp::params::MAX, 1.}},
                            hsp::na::DOUBLE, false, hsp::na::DOUBLE, false),
@@ -361,10 +351,10 @@ namespace
     ////////////////////////////  *** Normal Distribution : class ***  //////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    class Normal_Distribution : public Distribution
+    class Normal_ : public Distribution
     {
     public:
-        Normal_Distribution()
+        Normal_()
             : Distribution("normal",
                            {{"mean", 0.}, {"sd", 1.}},
                            hsp::na::DOUBLE, false, hsp::na::DOUBLE, false),
@@ -423,10 +413,10 @@ namespace
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Lognormal Distribution derived class.
-    class Lognormal_Distribution : public Distribution
+    class Lognormal_ : public Distribution
     {
     public:
-        Lognormal_Distribution()
+        Lognormal_()
             : Distribution("lognormal",
                            {{"meanlog", 0.}, {"sdlog", 1.}},
                            0., true, hsp::na::DOUBLE, false),
@@ -476,10 +466,10 @@ namespace
     //////////////////////////////  *** Beta Distribution : class ***  //////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    class Beta_Distribution : public Distribution
+    class Beta_ : public Distribution
     {
     public:
-        Beta_Distribution()
+        Beta_()
             : Distribution("beta",
                            {{"shape1", hsp::na::DOUBLE}, {"shape2", hsp::na::DOUBLE}},
                            0., true, 1., true) {}
@@ -539,10 +529,10 @@ namespace
     //////////////////////////////  *** Gamma Distribution : class ***  /////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    class Gamma_Distribution : public Distribution
+    class Gamma_ : public Distribution
     {
     public:
-        Gamma_Distribution()
+        Gamma_()
             : Distribution("gamma",
                            {{"shape", hsp::na::DOUBLE}, {"scale", 1.}},
                            0., false, hsp::na::DOUBLE, false) {}
@@ -586,10 +576,10 @@ namespace
 
     /// Gamma (Mean-Variance) Distribution.
     /// UPDATE: this should be collapsed with the previous
-    class GammaMeanVar_Distribution : public Distribution
+    class GammaMeanVar_ : public Distribution
     {
     public:
-        GammaMeanVar_Distribution()
+        GammaMeanVar_()
             : Distribution("gamma_meanvar",
                            {{"mean", hsp::na::DOUBLE}, {"var", hsp::na::DOUBLE}},
                            0., false, hsp::na::DOUBLE, false) {}
@@ -643,10 +633,10 @@ namespace
     ////////////////////////////  *** Rayleigh Distribution : class ***  ////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    class Rayleigh_Distribution : public Distribution
+    class Rayleigh_ : public Distribution
     {
     public:
-        Rayleigh_Distribution()
+        Rayleigh_()
             : Distribution("rayleigh",
                            {{"scale", 1.}},
                            0., false, hsp::na::DOUBLE, false),
@@ -693,10 +683,10 @@ namespace
     ////////////////////////////  *** Weibull Distribution : class ***  /////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    class Weibull_Distribution : public Distribution
+    class Weibull_ : public Distribution
     {
     public:
-        Weibull_Distribution()
+        Weibull_()
             : Distribution("weibull",
                            {{"shape", hsp::na::DOUBLE}, {"scale", 1.}},
                            0., false, hsp::na::DOUBLE, false),
@@ -745,10 +735,10 @@ namespace
     ///////////////////////////  *** Exponential Distribution : class ***  //////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    class Exponential_Distribution : public Distribution
+    class Exponential_ : public Distribution
     {
     public:
-        Exponential_Distribution()
+        Exponential_()
             : Distribution("exponential",
                            {{"rate", 1.}},
                            0., false, hsp::na::DOUBLE, false),
@@ -791,10 +781,10 @@ namespace
     /////////////////////////////  *** Poisson Distribution : class ***  ////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    class Poisson_Distribution : public Distribution
+    class Poisson_ : public Distribution
     {
     public:
-        Poisson_Distribution()
+        Poisson_()
             : Distribution("poisson",
                            {{"lambda", hsp::na::DOUBLE}},
                            0., false, hsp::na::DOUBLE, false) { init_discr_helper_(hsp::discr::DEFINED); }
@@ -834,10 +824,10 @@ namespace
     /////////////////////////////  *** Binomial Distribution : class ***  ///////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    class Binomial_Distribution : public Distribution
+    class Binomial_ : public Distribution
     {
     public:
-        Binomial_Distribution()
+        Binomial_()
             : Distribution("binomial",
                            {{"size", hsp::na::DOUBLE}, {"prob", hsp::na::DOUBLE}},
                            0., false, hsp::na::DOUBLE, false)
@@ -904,10 +894,10 @@ namespace
     /////////////////////////  *** NegativeBinomial Distribution : class ***  ///////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    class NegativeBinomial_Distribution : public Distribution
+    class NegativeBinomial_ : public Distribution
     {
     public:
-        NegativeBinomial_Distribution()
+        NegativeBinomial_()
             : Distribution("negative_binomial",
                            {{"size", hsp::na::DOUBLE}, {"prob", hsp::na::DOUBLE}},
                            0., false, hsp::na::DOUBLE, false) { init_discr_helper_(hsp::discr::DEFINED); }
@@ -951,10 +941,10 @@ namespace
     ////////////////////////////  *** Geometric Distribution : class ***  ///////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    class Geometric_Distribution : public Distribution
+    class Geometric_ : public Distribution
     {
     public:
-        Geometric_Distribution()
+        Geometric_()
             : Distribution("geometric",
                            {{"prob", hsp::na::DOUBLE}},
                            0., false, hsp::na::DOUBLE, false) { init_discr_helper_(hsp::discr::DEFINED); }
@@ -1067,33 +1057,19 @@ namespace
 //////////////////////////////////////  Register Distributions  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define IMPLEMENT_HOUSEPI_DISTRIBUTION_REGISTRY(ClassName) \
-    ClassName &ClassName::inst()                           \
-    {                                                      \
-        static ClassName _inst;                            \
-        return _inst;                                      \
-    }
+REGISTER_HOUSEPI_CLASS(Uniform_, ContinuosDistrRegistry)
+REGISTER_HOUSEPI_CLASS(Normal_, ContinuosDistrRegistry)
+REGISTER_HOUSEPI_CLASS(Lognormal_, ContinuosDistrRegistry)
+REGISTER_HOUSEPI_CLASS(Beta_, ContinuosDistrRegistry)
+REGISTER_HOUSEPI_CLASS(Gamma_, ContinuosDistrRegistry)
+REGISTER_HOUSEPI_CLASS(GammaMeanVar_, ContinuosDistrRegistry)
+REGISTER_HOUSEPI_CLASS(Rayleigh_, ContinuosDistrRegistry)
+REGISTER_HOUSEPI_CLASS(Weibull_, ContinuosDistrRegistry)
+REGISTER_HOUSEPI_CLASS(Exponential_, ContinuosDistrRegistry)
 
-IMPLEMENT_HOUSEPI_DISTRIBUTION_REGISTRY(ContinuosDistrRegistry)
-REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, Uniform_Distribution)
-REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, Normal_Distribution)
-REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, Lognormal_Distribution)
-REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, Beta_Distribution)
-REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, Gamma_Distribution)
-REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, GammaMeanVar_Distribution)
-REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, Rayleigh_Distribution)
-REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, Weibull_Distribution)
-REGISTER_HOUSEPI_DISTRIBUTION(ContinuosDistrRegistry, Exponential_Distribution)
+REGISTER_HOUSEPI_CLASS(Poisson_, DiscreteDistrRegistry)
+REGISTER_HOUSEPI_CLASS(Binomial_, DiscreteDistrRegistry)
+REGISTER_HOUSEPI_CLASS(NegativeBinomial_, DiscreteDistrRegistry)
+REGISTER_HOUSEPI_CLASS(Geometric_, DiscreteDistrRegistry)
 
-IMPLEMENT_HOUSEPI_DISTRIBUTION_REGISTRY(DiscreteDistrRegistry)
-REGISTER_HOUSEPI_DISTRIBUTION(DiscreteDistrRegistry, Poisson_Distribution)
-REGISTER_HOUSEPI_DISTRIBUTION(DiscreteDistrRegistry, Binomial_Distribution)
-REGISTER_HOUSEPI_DISTRIBUTION(DiscreteDistrRegistry, NegativeBinomial_Distribution)
-REGISTER_HOUSEPI_DISTRIBUTION(DiscreteDistrRegistry, Geometric_Distribution)
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  Register Infectivity Profiles  ////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-IMPLEMENT_HOUSEPI_DISTRIBUTION_REGISTRY(InfecProfileRegistry)
-REGISTER_HOUSEPI_DISTRIBUTION(InfecProfileRegistry, InfecProfile_Ferretti20)
+REGISTER_HOUSEPI_CLASS(InfecProfile_Ferretti20, InfecProfileRegistry)

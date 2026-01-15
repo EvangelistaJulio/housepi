@@ -30,15 +30,13 @@ namespace
 /// Empty proposer.
 Proposal::Proposal() = default;
 
-/// Proposal constructor from Distribution pointer.
-Proposal::Proposal(std::shared_ptr<Distribution> distr,
+/// Proposal constructor from Distribution name.
+Proposal::Proposal(const string &distr_name,
                    double proposal_scale,
                    const vector<unsigned short> &args_to_adapt,
-                   bool is_discrete) : pDistr_(distr)
+                   bool is_discrete)
+    : pDistr_(compose_distr_registries(distr_name, "proposal", {&ContinuosDistrRegistry::instance()}))
 {
-    // default proposer name derives from distribution
-    name_ = pDistr_->name();
-
     // set to discrete
     if (is_discrete)
         pDistr_->init_discretization();
@@ -52,14 +50,6 @@ Proposal::Proposal(std::shared_ptr<Distribution> distr,
     // load which are the parameter to be adapted
     args_to_adapt_ = args_to_adapt;
 }
-
-/// Proposal constructor from Distribution name.
-Proposal::Proposal(const string &distr_name,
-                   double proposal_scale,
-                   const vector<unsigned short> &args_to_adapt,
-                   bool is_discrete)
-    : Proposal(ContinuosDistrRegistry::inst().get_distr(distr_name),
-               proposal_scale, args_to_adapt, is_discrete) {}
 
 /// Proposal deconstructor.
 Proposal::~Proposal() = default;
@@ -92,8 +82,7 @@ namespace
     class Sample_Proposal : public Proposal
     {
     public:
-        Sample_Proposal(std::shared_ptr<Distribution> distr)
-            : Proposal(distr, hsp::na::DOUBLE) { name_ = "sample"; }
+        Sample_Proposal(std::shared_ptr<Distribution> distr) { pDistr_ = distr; }
 
         double propose(hsp::rnd_gen &prng, double) const override final { return pDistr_->rand(prng); }
         double logratio(double xo, double xn) const override final { return pDistr_->logratio(xo, xn); }
@@ -307,8 +296,8 @@ void Variable::init_distr(const hsp::parse::Definition &expr)
     pDistr_ = compose_distr_registries(
         expr.root.func,
         "distribution",
-        {&ContinuosDistrRegistry::inst(),
-         &DiscreteDistrRegistry::inst()});
+        {&ContinuosDistrRegistry::instance(),
+         &DiscreteDistrRegistry::instance()});
 }
 
 /// Assign an attribute to distribution.

@@ -493,7 +493,7 @@ vector<size_t> Augmented::init_get_definition_order_(Individual &member)
 void Augmented::helper_init_attributes_(Individual &member, size_t k)
 {
     const auto &a = deftable_["name"][k];
-
+    
     try
     {
         member.init_augm(a, pParameter_->read_numeric(deftable_["value"][k], &member).get(),
