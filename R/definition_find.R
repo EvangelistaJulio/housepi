@@ -49,16 +49,10 @@ helper_evaluate_defin_block <- function(block, type) {
   output
 }
 
-#' @title Definition Walker
-#' @description
 #' Helper with type extraction from definitions.
-#' @param input
-#' A `character(1)` with encoded function string.
-#' @param type
-#' A `character(1)` with the type to extract.
-#'
+#' @param input `character(1)`. Encoded function string.
+#' @param type `character(1)`. Type to extract.
 #' @return `character()`
-#'
 #' @keywords internal
 #' @noRd
 housepi_walk_definition <- function(input, type) {

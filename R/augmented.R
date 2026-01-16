@@ -82,7 +82,6 @@ augmented_helper_const_vs_rand <- function(opts, value) {
 #' @title Housepi Augmented
 #' @description
 #' Help with augmented variable definitions of model Rcpp object.
-#'
 #' @keywords internal
 #' @noRd
 HousepiAugmented <- R6::R6Class(
@@ -102,28 +101,28 @@ HousepiAugmented <- R6::R6Class(
   ############################################################################
 
   active = list(
-    #' @field augm_required `character()`\cr
+    #' @field augm_required `character()`.
     #' Find augmented required by augmented variable definitions.
     augm_required = function(value) {
       if (!missing(value)) stop_h("'augm_required' is read only.")
       augmented_find_required_def(self$defs, "A")
     },
 
-    #' @field data_required `character()`\cr
+    #' @field data_required `character()`.
     #' Find data required by augmented variable definitions.
     data_required = function(value) {
       if (!missing(value)) stop_h("'data_required' is read only.")
       augmented_find_required_def(self$defs, "D")
     },
 
-    #' @field group_rates_required `character()`\cr
+    #' @field group_rates_required `character()`.
     #' Find group rates required by augmented variable definitions.
     group_rates_required = function(value) {
       if (!missing(value)) stop_h("'group_rates_required' is read only.")
       augmented_find_required_def(self$defs, "G")
     },
 
-    #' @field param_required `character()`\cr
+    #' @field param_required `character()`.
     #' Find parameters required by augmented variable definitions.
     param_required = function(value) {
       if (!missing(value)) stop_h("'param_required' is read only.")
@@ -136,11 +135,13 @@ HousepiAugmented <- R6::R6Class(
   ############################################################################
 
   public = list(
-    #' @field family `character(1)` with the module family.
+    #' @field family `character(1)`. Module family.
     family = "augmented",
-    #' @field store_warn_over `character()` with cached overwritten names.
+
+    #' @field store_warn_over `character()`. Cached overwritten names.
     store_warn_over = character(),
-    #' @field defs `data.frame` with formatted augmented definitions.
+
+    #' @field defs `data.frame`. Formatted augmented definitions.
     defs = NULL,
 
     #' @description
@@ -151,11 +152,8 @@ HousepiAugmented <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description
-    #' Find augmented variables required by the model.
-    #'
-    #' @param refer_file
-    #' Path/to/.refer source file.
+    #' @description Find augmented variables required by model.
+    #' @param refer_file Path to reference file.
     require = function(refer_file) {
       # vector of regular expression to use for assertion
       regexp <- c(
@@ -172,15 +170,10 @@ HousepiAugmented <- R6::R6Class(
       c(set_source_name_(output, "model"), self$augm_required)
     },
 
-    #' @description
-    #' Remove a given augmented definition.
-    #'
-    #' @param name
-    #' A `character(1)` with the name of augmented definitions to remove.
-    #' @param status
-    #' An `integer(1)` with the associated status of the definition.
-    #' @param warn_removal
-    #' `logical(1)`to show warnings for failed removal.
+    #' @description Remove a given augmented definition.
+    #' @param name `character(1)`. Augmented definitions to remove.
+    #' @param status `integer(1)`. Associated status of definition.
+    #' @param warn_removal `logical(1)`. Show warnings for failed removal.
     remove = function(name, status, warn_removal = FALSE) {
       mask <- self$defs[["name"]] == name
       if (any(mask)) {
@@ -302,10 +295,9 @@ HousepiAugmented <- R6::R6Class(
 
     #' @description
     #' Assert augmented definitions from the model implementation script.
-    #'
-    #' @param required `character()` containing required augmented
-    #' @param status_set `integer()` with all known statuses in data.
-    #' @param capital `logical(1)` to raise error.
+    #' @param required `character()`. Required definitions.
+    #' @param status_set `integer()`. All known statuses in data.
+    #' @param capital `logical(1)`. Whether to raise error.
     assert = function(required, status_set, capital) {
       status_set <- sort(status_set)
       defined <- self$defs[["name"]]

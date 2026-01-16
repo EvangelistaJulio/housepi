@@ -5,14 +5,9 @@
 ## See the LICENSE file for details.
 ##
 
-#' @title
-#' Assert data features
-#' @description
 #' Assert that features are present in data.
-#' @param features
-#' Features as list of data column names.
-#' @param headers
-#' All column names of the data.
+#' @param features Features as list of data column names.
+#' @param headers All column names of the data.
 #' @keywords internal
 #' @noRd
 assert_data_features <- function(features, headers) {
@@ -26,16 +21,10 @@ assert_data_features <- function(features, headers) {
   )
 }
 
-#' @title
-#' Group rate logic table
-#' @description
 #' Return logic table of group rates
-#' @param data_wide
-#' Data from which to extract group rates
-#' @param by
-#' Features as list of data column names.
-#' @return
-#' data.frame with logic table
+#' @param data_wide Data from which to extract group rates
+#' @param by Features as list of data column names.
+#' @return data.frame with logic table
 #' @keywords internal
 #' @noRd
 group_rate_logic_table <- function(data_wide, by) {
@@ -68,9 +57,6 @@ group_rate_logic_table <- function(data_wide, by) {
   y
 }
 
-#' @title
-#' Associate parameter names
-#' @description
 #' Associate parameter name to group rate logic table.
 #' @param this_table
 #' Data.frame containing conditions for the group rate.
@@ -118,14 +104,9 @@ associate_param_names <- function(this_table, prefix, reference) {
   this_table
 }
 
-#' @title
-#' Tidy-up Group Rate Tables
-#' @description
 #' Combine list with group rate definition into a single dataframe
-#' @param all_tables
-#' A `list` containing definitions for each group rate.
-#' @return
-#' `data.frame`
+#' @param all_tables `list`. Definitions for each group rate.
+#' @return `data.frame`
 #' @keywords internal
 #' @noRd
 tidyup_group_rate_tables <- function(all_tables) {
@@ -158,7 +139,6 @@ tidyup_group_rate_tables <- function(all_tables) {
 }
 
 #' Default MCMC Setup
-#'
 #' @references
 #' Cauchemez, et al. (2009)
 #' Household Transmission of 2009 Pandemic Influenza A (H1N1)
@@ -172,9 +152,6 @@ group_rates_default_mcmc_setup <- list(
   min = NA_real_, max = 10, proposal = "lognormal", proposal_scale = 1
 )
 
-#' @title
-#' Default MCMC Setup
-#' @description
 #' Return list with default MCMC setup if user choice is missing.
 #' @return `list`
 #' @keywords internal
@@ -198,10 +175,8 @@ set_group_rates_mcmc_setup <- function(prior, args, min, max,
 ############################################################################
 ############################################################################
 
-#' @title
-#' Housepi Group Rate
-#' @description
-#' Help with group rate definitions of model Rcpp object.
+#' @title Housepi Group Rate
+#' @description Help with group rate definitions of model Rcpp object.
 #' @keywords internal
 #' @noRd
 HousepiGroupRate <- R6::R6Class(
@@ -209,7 +184,7 @@ HousepiGroupRate <- R6::R6Class(
   cloneable = TRUE,
 
   ############################################################################
-  ################################## PRIVATE ##################################
+  ################################## PRIVATE #################################
   ############################################################################
 
   private = list(
@@ -289,7 +264,7 @@ HousepiGroupRate <- R6::R6Class(
 
     #' @description
     #' Find group rates required by the model.
-    #' @param refer_file Path/to/.refer source file.
+    #' @param refer_file Path to reference file.
     require = function(refer_file) {
       output <- template_extract_keys(refer_file, "GroupRateKey")
       set_source_name_(output, "model")

@@ -24,7 +24,7 @@ rd_mdl_force_ <- "`logical(1)`. Compile even if cached model already exists.\\cr
 Default is `FALSE`."
 rd_mdl_quiet_ <- "`logical(1)`. To hide compilation commands.\\cr
 Default is `FALSE`."
-rd_mdl_flags_ <- "Named arguments with additional compilation options:\\cr
+rd_mdl_flags_ <- "Named arguments. Additional compilation options:\\cr
 - If `discr = TRUE`, uses the model in discrete time, if applicable."
 
 ############################################################################
@@ -72,7 +72,7 @@ rd_aug_proposal_ <- sprintf(rd_var_proposal_, "model")
 rd_inf_discr_ <- sprintf(rd_var_discr_, "profile")
 rd_inf_args_ <- sprintf(rd_var_args_, "profile")
 
-rd_list_args_ <- "Named arguments with respective list of definition details."
+rd_list_args_ <- "Named arguments. Respective list of definition details."
 rd_list_append_ <- "`logical(1)`. Append to current definitions.\\cr
 If `FALSE` drop all pre-existing definitions (default)."
 

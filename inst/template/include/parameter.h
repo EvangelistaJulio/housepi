@@ -11,6 +11,8 @@
 #include <string>
 #include <vector>
 
+#include "tools/keys.h"
+#include "tools/keys_helper.h"
 #include "tools/operators.h"
 #include "tools/parser.h"
 #include "tools/random.h"
@@ -30,42 +32,37 @@ class Individual;
 /// Implementation of Parameters.
 struct Parameter
 {
-    /// NOTE: list_const + list_sample = all parameters in dictionary_
+    /// NOTE: list_const + list_sample = all parameters in param_vec_
     /// NOTE: list_sample_standard + list_sample_cached = list_sample
     /// NOTE: list_adaptable_sample_standard + list_non_adapt_sample_standard = list_sample_standard
     /// NOTE: list_adaptable_sample_cached + list_non_adapt_sample_cached = list_sample_cached
 
-    std::vector<std::string> list_const = {};  /// list of constant parameters
-    std::vector<std::string> list_sample = {}; /// list of parameters to sample
+    std::vector<ParamKey> list_const = {};  /// list of constant parameters
+    std::vector<ParamKey> list_sample = {}; /// list of parameters to sample
 
-    std::vector<std::string> list_sample_standard = {};
-    std::vector<std::string> list_sample_cached = {};
+    std::vector<ParamKey> list_sample_standard = {};
+    std::vector<ParamKey> list_sample_cached = {};
 
-    std::vector<std::string> list_adaptable_sample_standard = {};
-    std::vector<std::string> list_non_adapt_sample_standard = {};
-    std::vector<std::string> list_adaptable_sample_cached = {};
-    std::vector<std::string> list_non_adapt_sample_cached = {};
+    std::vector<ParamKey> list_adaptable_sample_standard = {};
+    std::vector<ParamKey> list_non_adapt_sample_standard = {};
+    std::vector<ParamKey> list_adaptable_sample_cached = {};
+    std::vector<ParamKey> list_non_adapt_sample_cached = {};
 
-    hsp::dbl_table smpl_values = {}; /// values of the sample
-    hsp::dbl_table smpl_priors = {}; /// prior values of the sample
-
-    /////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////  Parameter : constructor  //////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////
-
-    Parameter() {}
-    ~Parameter() = default;
+    std::vector<std::vector<double>> smpl_values = {}; /// values of the sample
+    std::vector<std::vector<double>> smpl_priors = {}; /// prior values of the sample
 
     /////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////  Parameter : getter  /////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////
 
-    Variable &at(const std::string &p) { return hsp::safe_at(dictionary_, p, "parameter"); }
-    const Variable &at(const std::string &p) const { return hsp::safe_at(dictionary_, p, "parameter"); }
-    // get value of the parameter
-    double get(const std::string &p) const { return at(p).get(); }
+    /// Get reference to parameter Variable class.
+    Variable &at(ParamKey p) { return param_vec_[static_cast<size_t>(p)]; }
+    /// Get reference to parameter constant Variable class.
+    const Variable &at(ParamKey p) const { return param_vec_[static_cast<size_t>(p)]; }
+    /// Get value of the parameter.
+    double get(ParamKey p) const { return at(p).get(); }
 
-    // flag to check if there are parameters to sample
+    /// Flag to check if there are parameters to sample.
     bool is_any_sample() const { return !list_sample.empty(); }
 
     /////////////////////////////////////////////////////////////////////////////////////////
@@ -108,8 +105,8 @@ struct Parameter
     }
 
 private:
-    hsp::dict<Variable> dictionary_ = {}; /// parameters dictionary
-    mutable Attribute storage_;                                 /// Auxiliary storage attribute used for reading.
+    std::vector<Variable> param_vec_ = {}; /// parameters vector
+    mutable Attribute storage_;            /// auxiliary storage attribute used for reading.
 
     void clear_lists_();
     void build_constant_parameter_(const hsp::str_table &deftable, size_t k);

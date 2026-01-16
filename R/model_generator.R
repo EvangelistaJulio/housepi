@@ -127,7 +127,6 @@ generator_adjust_seed <- function(seed) {
 #' @title Housepi Generator
 #' @description
 #' Help with generating Rcpp model object.
-#'
 #' @keywords internal
 #' @noRd
 HousepiGenerator <- R6::R6Class(
@@ -315,13 +314,11 @@ HousepiGenerator <- R6::R6Class(
       invisible(self)
     },
 
-    # @description
-    # Initialize a new custom model.
-    #
-    # @param as_template `logical(1)`\cr
+    # @description Initialize a new custom model.
+    # @param as_template `logical(1)`.
     # If `TRUE` store the dynamic library as a local template.
     # If `FALSE` recompile the model at every new session.
-    # @param force `logical(1)`\cr
+    # @param force `logical(1)`.
     # If `TRUE` compile even if a cached model already exists.
     .new_custom_model = function(as_template, force) {
       # force re-compilation or check for changes
@@ -355,8 +352,7 @@ HousepiGenerator <- R6::R6Class(
 
     # @description
     # Check for previous cached dll files and tell if to be recompiled.
-    #
-    # @return `logical(1)`\cr
+    # @return `logical(1)`.
     # Wheter nothing is cached or changes are untracked.
     .search_for_cached_dll = function() {
       # look for dynamic library name
@@ -461,8 +457,7 @@ HousepiGenerator <- R6::R6Class(
       invisible(self)
     },
 
-    # @description
-    # Initialize new object of Rcpp Model.
+    # @description Initialize new object of Rcpp Model.
     .new_rcpp_model = function() {
       # expose internally the module
       if (private$.is_blank()) {
@@ -521,8 +516,7 @@ HousepiGenerator <- R6::R6Class(
     ############################################################################
     ############################################################################
 
-    # @description
-    # Dataset headers required by the model.
+    # @description Dataset headers required by the model.
     # @return `character()`
     .data_required = function() {
       # vector of regular expression to use for assertion
@@ -554,16 +548,14 @@ HousepiGenerator <- R6::R6Class(
   ############################################################################
 
   active = list(
-    #' @field name
-    #' A `character(1)` with model name.
-    #' To change it, just assign a new `character(1)`.
+    #' @field name `character(1)`. Model name.
+    #' Assign a new `character(1)` to change model name.
     name = function(value) {
       if (missing(value)) return(private$.name)
       private$.name <- as.character(value)
     },
 
-    #' @field setup
-    #' A `list` with the last setup used by the build process.
+    #' @field setup `list`. Last setup used by the build process.
     setup = function(value) {
       if (!missing(value)) stop_h("'setup' is read only.")
       private$.rcpp$export_setup()
@@ -577,7 +569,6 @@ HousepiGenerator <- R6::R6Class(
   public = list(
     #' @description
     #' Initialize model generator defining name of dynamic library.
-    #'
     #' @param choice `r rd_mdl_choice_`
     #' @param as_template `r rd_mdl_astmpl_`
     #' @param force `r rd_mdl_force_`

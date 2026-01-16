@@ -9,19 +9,15 @@
 #' @description
 #' Create a new object of class 'HousepiModel'
 #' used to run inference and simulation routines.
-#'
 #' @param choice `r rd_mdl_choice_`
 #' @param as_template `r rd_mdl_astmpl_`
 #' @param force `r rd_mdl_force_`
 #' @param quiet `r rd_mdl_quiet_`
 #' @param ... `r rd_mdl_flags_`
-#'
 #' @return `r rd_model_in_`
-#'
 #' @examples
 #' hhmodel <- new_housepi_model("blank")
 #' print(hhmodel)
-#'
 #' @export
 new_housepi_model <- function(choice = NA_character_, as_template = FALSE,
                               force = FALSE, quiet = FALSE, ...) {
@@ -36,12 +32,9 @@ new_housepi_model <- function(choice = NA_character_, as_template = FALSE,
 #' @title Add household data in wide format
 #' @description
 #' Make an internal copy of the provided household data.
-#'
 #' @param hhmodel `r rd_model_in_`
 #' @param data_wide `r rd_add_data_wide_`
-#'
 #' @return `r rd_model_out_`
-#'
 #' @export
 add_data_wide  <- function(hhmodel, data_wide) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
@@ -53,12 +46,9 @@ add_data_wide  <- function(hhmodel, data_wide) {
 #' @title Add additional individual data in long format
 #' @description
 #' Make an internal copy of the provided data in long format.
-#'
 #' @param hhmodel `r rd_model_in_`
 #' @param data_long `r rd_add_data_long_`
-#'
 #' @return `r rd_model_out_`
-#'
 #' @export
 add_data_long <- function(hhmodel, data_long) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
@@ -70,11 +60,8 @@ add_data_long <- function(hhmodel, data_long) {
 #' @title Summarise cases in household data
 #' @description
 #' Summarise cases as given from the statuses in the loaded household data.
-#'
 #' @param hhmodel `r rd_model_in_`
-#'
 #' @return `data.frame`
-#'
 #' @export
 summarise_cases <- function(hhmodel) {
   hhmodel$summarise_cases()
@@ -83,11 +70,8 @@ summarise_cases <- function(hhmodel) {
 #' @title Summarise house sizes in household data
 #' @description
 #' Summarise number of members (size) in the loaded household data.
-#'
 #' @param hhmodel `r rd_model_in_`
-#'
 #' @return `data.frame`
-#'
 #' @export
 summarise_house_sizes <- function(hhmodel) {
   hhmodel$summarise_house_sizes()
@@ -98,13 +82,9 @@ summarise_house_sizes <- function(hhmodel) {
 ############################################################################
 
 #' @title Drop current definitions
-#' @description
-#' Remove current definitions from the housepi model.
-#'
+#' @description Remove current definitions from the housepi model.
 #' @param hhmodel `r rd_model_in_`
-#'
 #' @return `r rd_model_out_`
-#'
 #' @rdname drop_definitions
 #' @export
 drop_parameters <-  function(hhmodel) {
@@ -157,11 +137,8 @@ drop_all <- function(hhmodel) {
 #' @title Get current definitions
 #' @description
 #' Return the definitions currently stored in the housepi model.
-#'
 #' @param hhmodel `r rd_model_in_`
-#'
 #' @return `data.frame`
-#'
 #' @rdname get_definitions
 #' @export
 get_data_wide <- function(hhmodel) {
@@ -213,7 +190,6 @@ get_infec_profile <- function(hhmodel) {
 #' @description
 #' Add a new parameter to housepi model definitions.
 #' If the parameter already exists, it is overwritten.
-#'
 #' @param hhmodel `r rd_model_in_`
 #' @param name `r rd_var_name_`
 #' @param value `r rd_var_value_`
@@ -225,9 +201,7 @@ get_infec_profile <- function(hhmodel) {
 #' @param max `r rd_var_max_`
 #' @param proposal `r rd_par_proposal_`
 #' @param proposal_scale `r rd_var_proposal_scale_`
-#'
 #' @return `r rd_model_out_`
-#'
 #' @export
 add_parameter <- function(hhmodel,
                           name = NA_character_, value = NULL,
@@ -252,12 +226,9 @@ add_parameter <- function(hhmodel,
 #' @title Load template definitions
 #' @description
 #' Load default definitions from model template.
-#'
 #' @param hhmodel `r rd_model_in_`
 #' @param append `r rd_tmpl_append_`
-#'
 #' @return `r rd_model_out_`
-#'
 #' @rdname load_template_definitions
 #' @export
 load_parameter_template <- function(hhmodel, append = FALSE) {
@@ -275,7 +246,6 @@ load_parameter_template <- function(hhmodel, append = FALSE) {
 #' @description
 #' Add a new augmented variable/function to housepi model definitions.
 #' If the augmented variable already exists, it is updated.
-#'
 #' @param hhmodel `r rd_model_in_`
 #' @param name `r rd_var_name_`
 #' @param value `r rd_aug_val_`
@@ -290,9 +260,7 @@ load_parameter_template <- function(hhmodel, append = FALSE) {
 #' @param max `r rd_aug_max_`
 #' @param proposal `r rd_var_proposal_`
 #' @param proposal_scale `r rd_var_proposal_scale_`
-#'
 #' @return `r rd_model_out_`
-#'
 #' @export
 add_augmented <- function(hhmodel,
                           name = NA_character_, value = NULL,
@@ -333,13 +301,9 @@ load_augmented_template <- function(hhmodel, append = FALSE) {
 #' @description
 #' Add definitions of a group rate by given data feature(s).
 #' Group rates are relative to a reference class that can be specified.
-#' If no MCMC options are provided, the following configuration is assumed
-#' - `prior`: "lognormal"
-#' - `meanlog`: 0
-#' - `sdlog`: 3
-#' - `min`: 0
-#' - `max` 10
-#'
+#' If no MCMC options are provided, the prior is assumed to be a
+#' \\eqn{\\mathrm{lognormal}[\\mu=0, \\sigma=3]}
+#' with support \\eqn{[0, 10]}.
 #' @param hhmodel `r rd_model_in_`
 #' @param name `r rd_var_name_`
 #' @param by `r rd_grr_by_`
@@ -352,16 +316,13 @@ load_augmented_template <- function(hhmodel, append = FALSE) {
 #' @param max `r rd_var_max_`
 #' @param proposal `r rd_var_proposal_`
 #' @param proposal_scale `r rd_var_proposal_scale_`
-#'
 #' @references
 #' Cauchemez, et al. (2009)
 #' Household Transmission of 2009 Pandemic Influenza A (H1N1)
 #' Virus in the United States.
 #' New England Journal of Medicine. 361: 2619-2627.
 #' \doi{10.1056/NEJMoa0905498}
-#'
 #' @return `r rd_model_out_`
-#'
 #' @export
 add_group_rate <-  function(hhmodel,
                             name, by, prefix = NA_character_,
@@ -389,16 +350,13 @@ add_group_rate <-  function(hhmodel,
 #' @title Add infectivity profile definition
 #' @description
 #' Add definition of infectivity profile.
-#'
 #' @param hhmodel `r rd_model_in_`
 #' @param func `r rd_var_name_`
 #' @param status `r rd_aug_status_`
 #' @param discr `r rd_inf_discr_`
 #' @param ... `r rd_inf_args_`
 #' @param max `r rd_aug_max_`
-#'
 #' @return `r rd_model_out_`
-#'
 #' @export
 add_infec_profile <- function(hhmodel,
                               func, status = NA_integer_,
@@ -422,13 +380,10 @@ add_infec_profile <- function(hhmodel,
 #' @title Load list of definitions
 #' @description
 #' Load definitions as named arguments.
-#'
 #' @param hhmodel `r rd_model_in_`
 #' @param ... `r rd_list_args_`
 #' @param append `r rd_list_append_`
-#'
 #' @return `r rd_model_out_`
-#'
 #' @rdname load_definitions_list
 #' @export
 load_parameter_list <- function(hhmodel, ..., append = FALSE) {
@@ -470,14 +425,11 @@ load_infec_profile_list <- function(hhmodel, ..., append = FALSE) {
 #' @title Evaluate log-likelihood of housepi model
 #' @description
 #' Compute the log-likelihood of a `HousepiModel` object.
-#'
 #' @param hhmodel `r rd_model_in_`
 #' @param house_id `r rd_house_id_`
 #' If `NA` (default) it computes for the whole data.
 #' @param seed `r rd_seed_`
-#'
 #' @return `numeric(1)`
-#'
 #' @export
 evaluate_log_lik <- function(hhmodel,
                              house_id = NA_character_,
@@ -489,7 +441,6 @@ evaluate_log_lik <- function(hhmodel,
 #' @title Run inference for housepi model
 #' @description
 #' Run inference with Bayesian Markov Chain Monte Carlo.
-#'
 #' @param hhmodel `r rd_model_in_`
 #' @param steps `r rd_smpl_steps_`
 #' @param burnin `r rd_smpl_burn_`
@@ -500,9 +451,7 @@ evaluate_log_lik <- function(hhmodel,
 #' @param id_draws `r rd_smpl_iddrw_`
 #' @param seed `r rd_seed_`
 #' @param progress `r rd_progress_`
-#'
 #' @return An object of class `HousepiPosteriorDraws`.
-#'
 #' @export
 run_inference <- function(hhmodel,
                           steps = 200, burnin = 0,
@@ -522,15 +471,12 @@ run_inference <- function(hhmodel,
 #' @description
 #' Run simulation to generate a household survey.
 #' It assumes the same community structure of the loaded data.
-#'
 #' @param hhmodel `r rd_model_in_`
 #' @param nsim `r rd_simul_nsim_`
 #' @param seed `r rd_seed_`
 #' @param progress `r rd_progress_`
 #' @param obs_process `r rd_simul_observ_`
-#'
 #' @return `data.frame`
-#'
 #' @export
 run_simulation <- function(hhmodel,
                            nsim = 1, seed = NA_integer_,
@@ -545,7 +491,6 @@ run_simulation <- function(hhmodel,
 #' @description
 #' Estimate the logarithm of the marginal likelihood (aka evidence).
 #' It uses the method of power posteriors with different available schemes.
-#'
 #' @param hhmodel `r rd_model_in_`
 #' @param scheme `r rd_evi_scheme_`
 #' @param rungs `r rd_evi_rungs_`
@@ -557,13 +502,11 @@ run_simulation <- function(hhmodel,
 #' @param threads `r rd_smpl_thread_`
 #' @param seed `r rd_seed_`
 #' @param progress `r rd_progress_`
-#'
 #' @references
 #' Friel N, Hurn M, Wyse J.
 #' Improving power posterior estimation of statistical evidence.
 #' Stat Comput. 2014;24: 709-723.
 #' \doi{10.1007/s11222-013-9397-1}
-#'
 #' @return `list()`
 #' @noRd
 # logevidence <- function(hhmodel,

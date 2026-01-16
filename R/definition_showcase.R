@@ -78,14 +78,9 @@ showcase_extract_args <- function(x) {
   })
 }
 
-#' @title Definition Showcaser
-#' @description
 #' Convert encoded definition strings into a more human-readable format.
-#'
-#' @param defs
-#' A `data.frame()` with encoded definition strings.
-#'
-#' @return `data.frame()` with readable definitions.
+#' @param defs `data.frame()`. Encoded definition strings.
+#' @return `data.frame()`. Readable definitions.
 #' @keywords internal
 #' @noRd
 housepi_defin_showcaser <- function(defs) {

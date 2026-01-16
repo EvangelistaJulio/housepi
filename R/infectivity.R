@@ -11,11 +11,8 @@
 ############################################################################
 ############################################################################
 
-#' @title
-#' Housepi Infectivity Profile
-#' @description
-#' Auxiliary class to deal with infectivity profile.
-#'
+#' @title Housepi Infectivity Profile
+#' @description Auxiliary class to deal with infectivity profile.
 #' @keywords internal
 #' @noRd
 HousepiInfecProfile <- R6::R6Class(
@@ -35,28 +32,28 @@ HousepiInfecProfile <- R6::R6Class(
   ############################################################################
 
   active = list(
-    #' @field augm_required `character()`\cr
+    #' @field augm_required `character()`.
     #' Augmented variables required by infectivity profile definition.
     augm_required = function(value) {
       if (!missing(value)) stop_h("'augm_required' is read only.")
       infec_prof_find_required_def(self$defs, "A")
     },
 
-    #' @field data_required `character()`\cr
+    #' @field data_required `character()`.
     #' Dataset entries required by infectivity profile definition.
     data_required = function(value) {
       if (!missing(value)) stop_h("'data_required' is read only.")
       infec_prof_find_required_def(self$defs, "D")
     },
 
-    #' @field group_rates_required `character()`\cr
+    #' @field group_rates_required `character()`.
     #' Find group rates required by infectivity profile definition.
     group_rates_required = function(value) {
       if (!missing(value)) stop_h("'group_rates_required' is read only.")
       infec_prof_find_required_def(self$defs, "G")
     },
 
-    #' @field param_required `character()`\cr
+    #' @field param_required `character()`.
     #' Parameters required by infectivity profile definition.
     param_required = function(value) {
       if (!missing(value)) stop_h("'param_required' is read only.")
@@ -69,11 +66,11 @@ HousepiInfecProfile <- R6::R6Class(
   ############################################################################
 
   public = list(
-    #' @field family `character(1)` with the module family.
+    #' @field family `character(1)`. Module family.
     family = "infectivity profile",
-    #' @field store_warn_over `character()` with cached overwritten names.
+    #' @field store_warn_over `character()`. Cached overwritten names.
     store_warn_over = character(),
-    #' @field defs `data.frame` with formatted infectivity profile definitions.
+    #' @field defs `data.frame`. Formatted infectivity profile definitions.
     defs = NULL,
 
     #' @description
@@ -84,13 +81,9 @@ HousepiInfecProfile <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description
-    #' Remove a given infectivity profile definition.
-    #'
-    #' @param status
-    #' An `integer(1)` with the associated status of the definition.
-    #' @param warn_removal
-    #' `logical(1)`to show warnings for failed removal.
+    #' @description Remove a given infectivity profile definition.
+    #' @param status `integer(1)`. Associated status of the definition.
+    #' @param warn_removal `logical(1)`. Show warnings for failed removal.
     remove = function(status, warn_removal = FALSE) {
       mask <- sapply(self$defs[["status"]], function(x) {
         identical(x, as.integer(status))

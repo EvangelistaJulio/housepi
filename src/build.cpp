@@ -138,8 +138,8 @@ void Parameter::build(const hsp::str_table &input)
         throw std::invalid_argument(
             "Found multiple definitions for the same parameters.");
 
-    dictionary_.clear();
-    dictionary_.reserve(hsp::read::csv_n_rows(input));
+    param_vec_.clear();
+    param_vec_.reserve(hsp::read::csv_n_rows(input));
     clear_lists_();
 
     // load parameters from the row with options
@@ -177,12 +177,12 @@ void Parameter::build_for_expec(const hsp::dbl_table &input)
 
     // reset definition dictionary to all constants NAs.
     for (const auto &p : headers)
-        if (dictionary_.count(p))
+        if (param_vec_.count(p))
             at(p).transfer(Attribute(hsp::na::DOUBLE));
         else
-            dictionary_.emplace(p, Variable(p, "parameter", hsp::na::DOUBLE));
+            param_vec_.emplace(p, Variable(p, "parameter", hsp::na::DOUBLE));
     // update list of constant parameters
-    list_const = hsp::extract_keys(dictionary_);
+    list_const = hsp::extract_keys(param_vec_);
 }
 
 /// Drop current lists of parameters.
@@ -209,7 +209,7 @@ void Parameter::build_constant_parameter_(const hsp::str_table &input, size_t k)
 
     // assign constant parameter to the set of variables
     double value = read_numeric(input.at("value")[k]).get();
-    dictionary_.emplace(p, Variable(p, "parameter", value));
+    param_vec_.emplace(p, Variable(p, "parameter", value));
     // update the lists of constant parameters
     list_const.push_back(p);
 }
@@ -235,7 +235,7 @@ void Parameter::build_parameter_to_sample_(const hsp::str_table &input, size_t k
         proposal_scale = hsp::str::tod(input.at("proposal_scale")[k]);
 
     // create a new parameter Variable
-    dictionary_.emplace(
+    param_vec_.emplace(
         p, Variable(p, "parameter", read_numeric(input.at("value")[k]).get(), false));
     auto &new_param = at(p);
 
@@ -308,12 +308,12 @@ void Parameter::init_draws(unsigned long sample_size)
     smpl_priors.reserve(list_sample.size());
     for (const auto &p : list_sample)
     {
-        smpl_values[p].clear();
-        smpl_values[p].reserve(sample_size);
-        smpl_values[p].assign(sample_size, hsp::na::DOUBLE);
-        smpl_priors[p].clear();
-        smpl_priors[p].reserve(sample_size);
-        smpl_priors[p].assign(sample_size, hsp::na::DOUBLE);
+        smpl_values[static_cast<size_t>(p)].clear();
+        smpl_values[static_cast<size_t>(p)].reserve(sample_size);
+        smpl_values[static_cast<size_t>(p)].assign(sample_size, hsp::na::DOUBLE);
+        smpl_priors[static_cast<size_t>(p)].clear();
+        smpl_priors[static_cast<size_t>(p)].reserve(sample_size);
+        smpl_priors[static_cast<size_t>(p)].assign(sample_size, hsp::na::DOUBLE);
     }
 }
 
@@ -323,8 +323,8 @@ void Parameter::store_draws(unsigned long smpl_count)
     for (const auto &p : list_sample)
     {
         const auto &this_par = this->at(p);
-        smpl_values[p][smpl_count] = this_par.get();
-        smpl_priors[p][smpl_count] = this_par.get_distr_logpdf();
+        smpl_values[static_cast<size_t>(p)][smpl_count] = this_par.get();
+        smpl_priors[static_cast<size_t>(p)][smpl_count] = this_par.get_distr_logpdf();
     }
 }
 
@@ -346,7 +346,7 @@ const Attribute &Parameter::read_attribute(const hsp::parse::Entry &node, const 
     }
     else if (hsp::sources::is_parameter(node.type)) // terminal parameter node
     {
-        return at(node.value);
+        return at(hsp::key::Registry<ParamKey>::instance().from_string(node.value));
     }
     else if (!node.is_empty())
     {

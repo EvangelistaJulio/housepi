@@ -40,7 +40,6 @@ parameter_helper_proposal <- function(opts, discr, proposal, proposal_scale) {
 #' @title Housepi Parameter
 #' @description
 #' Help with parameter definitions of model Rcpp object.
-#'
 #' @keywords internal
 #' @noRd
 HousepiParameter <- R6::R6Class(
@@ -56,11 +55,13 @@ HousepiParameter <- R6::R6Class(
   ############################################################################
 
   public = list(
-    #' @field family `character(1)` with the module family.
+    #' @field family `character(1)`. Module family.
     family = "parameter",
-    #' @field store_warn_over `character()` with cached overwritten names.
+
+    #' @field store_warn_over `character()`. Cached overwritten names.
     store_warn_over = character(),
-    #' @field defs `data.frame` with formatted parameter definitions.
+
+    #' @field defs `data.frame`. Formatted parameter definitions.
     defs = NULL,
 
     #' @description
@@ -71,34 +72,16 @@ HousepiParameter <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description
-    #' Find parameters required by the model.
-    #'
-    #' @param refer_file
-    #' Path/to/.refer source file.
+    #' @description Find parameters required by model.
+    #' @param refer_file Path to reference file.
     require = function(refer_file) {
-      # vector of regular expression to use for assertion
-      regexp <- c(
-        # from : par("string" or get_param('string'
-        'par\\s*\\(\\s*["\'](.*?)["\']',
-        # from : param_pointer("string" or param_pointer('string'
-        'param_pointer\\s*\\(\\s*["\'](.*?)["\']',
-        # from : emplace_contact_rate("string"
-        'emplace_contact_rate\\s*\\(\\s*["\'](.*?)["\']',
-        # from : emplace_group_rate(..., "string"
-        'emplace_group_rate\\s*\\(\\s*[^,]*\\s*,\\s*["\'](.*?)["\']'
-      )
-      # retrieve required parameters from regular expressions
-      set_source_name_(template_required_find(refer_file, regexp),
+      set_source_name_(template_extract_keys(refer_file, "ParamKey"),
                        "model")
     },
 
-    #' @description
-    #' Remove a given parameter.
-    #' @param name
-    #' A `character(1)` with the name of parameter definitions to remove.
-    #' @param warn_removal
-    #' `logical(1)`to show warnings for failed removal.
+    #' @description Remove a given parameter.
+    #' @param name `character(1)`. Parameter definition to remove.
+    #' @param warn_removal `logical(1)`. Show warnings for failed removal.
     remove = function(name, warn_removal = FALSE) {
       mask <- self$defs[["name"]] == name
       if (any(mask)) {
@@ -188,9 +171,8 @@ HousepiParameter <- R6::R6Class(
 
     #' @description
     #' Assert parameter definitions match the requirement list.
-    #'
-    #' @param required `character()` containing required parameters.
-    #' @param capital `logical(1)` to raise error.
+    #' @param required `character()`. Required definitions.
+    #' @param capital `logical(1)`. Whether to raise error.
     assert = function(required, capital) {
       defined <- self$defs[["name"]]
       # point out parameters that are not used

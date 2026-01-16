@@ -408,8 +408,7 @@ HousepiModel <- R6::R6Class(
   ############################################################################
 
   active = list(
-    #' @field data_wide
-    #' `data.frame`. Individual level data (wide format).
+    #' @field data_wide `data.frame`. Individual level data (wide format).
     data_wide = function(value) {
       if (missing(value)) {
         return(private$.refactor_data_wide(private$.rcpp$export_data_wide()))
@@ -426,8 +425,7 @@ HousepiModel <- R6::R6Class(
       self$add_data_long(value)
     },
 
-    #' @field parameters
-    #' `data.frame`. Parameter definitions.
+    #' @field parameters `data.frame`. Parameter definitions.
     parameters = function(value) {
       if (missing(value)) {
         private$.build_group_rates()
@@ -437,16 +435,14 @@ HousepiModel <- R6::R6Class(
       private$.param$load_quosures(xquos, append = FALSE)
     },
 
-    #' @field augmented
-    #' `data.frame`. Augmented definitions.
+    #' @field augmented `data.frame`. Augmented definitions.
     augmented = function(value) {
       if (missing(value)) return(housepi_defin_showcaser(private$.augm$defs))
       xquos <- convert_list_to_quosures(value)
       private$.augm$load_quosures(xquos, append = FALSE)
     },
 
-    #' @field infec_profile
-    #' `data.frame`. Infectivity profile definitions.
+    #' @field infec_profile `data.frame`. Infectivity profile definitions.
     infec_profile = function(value) {
       # UPDATE: reformatting current rcpp_export waiting for status specific
       if (missing(value)) {
@@ -471,8 +467,7 @@ HousepiModel <- R6::R6Class(
       private$.infec_profile$load_quosures(xquos, append = FALSE)
     },
 
-    #' @field group_rates
-    #' `data.frame`. Group rate definitions.
+    #' @field group_rates `data.frame`. Group rate definitions.
     group_rates = function(value) {
       if (missing(value)) {
         private$.assert_group_rates()
@@ -745,12 +740,9 @@ HousepiModel <- R6::R6Class(
     #' @description
     #' Add definitions of a group rate by given data feature(s).
     #' Group rates are relative to a reference class that can be specified.
-    #' If no MCMC options are provided, the following configuration is assumed
-    #' - `prior`: "lognormal"
-    #' - `meanlog`: 0
-    #' - `sdlog`: 3
-    #' - `min`: 0
-    #' - `max` 10
+    #' If no MCMC options are provided, the prior is assumed to be a
+    #' \\eqn{\\mathrm{lognormal}[\\mu=0, \\sigma=3]}
+    #' with support \\eqn{[0, 10]}.
     #' @param name `r rd_var_name_`
     #' @param by `r rd_grr_by_`
     #' @param prefix `r rd_grr_prefix_`

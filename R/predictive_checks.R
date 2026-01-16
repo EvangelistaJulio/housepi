@@ -10,18 +10,13 @@ NULL
 
 #' @title Measure SAR by household size
 #' @description
-#' Function to retrieve secondary attack rates (SAR)
-#' from data.frame with cases.
-#'
+#' Retrieve secondary attack rates (SAR) from household data.
 #' @param data_wide `r rd_add_data_wide_`
-#'
 #' @return `data.frame`
-#'
 #' @details
 #' The secondary attack rate is computed for all household
 #' with size \eqn{n > 1} according to
 #' \eqn{\frac{\mathbb{E}[n_{+}\vert{n}] - 1}{n - 1}}
-#'
 #' @export
 measure_sar_by_house_size <- function(data_wide) {
   # check that data_wide is consistent
@@ -45,12 +40,9 @@ measure_sar_by_house_size <- function(data_wide) {
 
 #' @title Measure household cases by size
 #' @description
-#' Function to retrieve cases by household size from a given data.frame.
-#'
+#' Retrieve cases by household size from household data.
 #' @param data_wide `r rd_add_data_wide_`
-#'
 #' @return `data.frame`
-#'
 #' @export
 measure_cases_by_house_size <- function(data_wide) {
   # check that data_wide is consistent
@@ -105,13 +97,10 @@ ppc_helper_print <- function(model_name, is_posterior, measure_names, cri) {
   c(sms, sprintf("Credible interval level set to %.0f%%.", 100 * cri))
 }
 
-#' @description
 #' Apply function `func` to corresponding elements
 #' across a list of data.frame that share the same dimensions.
-#'
-#' @param frame_list `list` of `data.frame`s with the same dimensions.
-#' @param func `function` to be applied to corresponding dataframe elements.
-#'
+#' @param frame_list `list` of `data.frame`s. Homogeneous dataframes.
+#' @param func `function`. To be applied to corresponding data elements.
 #' @return A `data.frame` of the same dimensions as the input dataframes.
 #' Columns and rownames of the first data.frame in the list.
 #' @keywords internal
@@ -145,12 +134,8 @@ ppc_frame_apply <- function(frame_list, func) {
   output
 }
 
-#' @description
 #' Compute the mean across different dataframes.
-#'
-#' @param frame_list
-#' A `list` of `data.frame`s.
-#'
+#' @param frame_list `list` of `data.frame`s.
 #' @return `data.frame`
 #' @keywords internal
 #' @noRd
@@ -166,16 +151,11 @@ ppc_frame_apply_mean <- function(frame_list) {
   })
 }
 
-#' @description
 #' Compute the credible interval across different dataframes.
-#'
-#' @param frame_list
-#' A `list` of `data.frame`s sharing the same dimensions.
+#' @param frame_list `list` of `data.frame`s. Homogeneous dataframes.
 #' @param cri_level `r rd_smpl_cri_level_`
-#' @param upper
-#' `logical(1)` to compute the upper credible interval.
-#' If `FALSE`, compute the lower interval.
-#'
+#' @param upper `logical(1)`. Compute the upper credible interval.
+#' If `FALSE`, compute the lower.
 #' @return `data.frame`
 #' @keywords internal
 #' @noRd
@@ -202,7 +182,6 @@ ppc_extract_predicted_results <- function(x, cri) {
 #' @title Prediction class
 #' @description
 #' Class to extract posterior predictive checks over measures on simulations.
-#'
 #' @docType class
 HousepiPrediction <- R6::R6Class(
   classname = "HousepiPrediction",
@@ -228,7 +207,6 @@ HousepiPrediction <- R6::R6Class(
     #' @description
     #' Given a model and a posterior sample of parameters,
     #' performs simulation and compute predicted values of a set of measures.
-    #'
     #' @param hhmodel `r rd_model_in_`
     #' @param param_table `r rd_param_table_`
     #' @param ... `r rd_measure_dots_`
@@ -405,7 +383,6 @@ helper_combine_obs_pred <- function(obsdf, preddf) {
 #' @description
 #' Predicted cases by household size, comparing observed and predicted values.
 #' It estimates secondary attack rates and cases by size tables.
-#'
 #' @docType class
 PredictedCasesBySize <- R6::R6Class(
   classname = "PredictedCasesBySize",
@@ -428,9 +405,8 @@ PredictedCasesBySize <- R6::R6Class(
   ############################################################################
 
   active = list(
-    #' @field formatted_sec_attack_rate
-    #' A `data.frame` with observed and predicted
-    #' secondary attack rates by household size.
+    #' @field formatted_sec_attack_rate `data.frame`.
+    #' Observed and predicted secondary attack rates by household size.
     #' If a maximum house size is set, larger sizes are not returned.
     formatted_sec_attack_rate = function(value) {
       if (!missing(value)) stop_h("'formatted_sec_attack_rate' is read only.")
@@ -452,7 +428,7 @@ PredictedCasesBySize <- R6::R6Class(
       output
     },
 
-    #' @field formatted_cases_table `data.frame`\cr
+    #' @field formatted_cases_table `data.frame`.
     #' Formatted observed and predicted cases by household size.
     #' If a maximum household size is set, larger sizes are not returned.
     formatted_cases_table = function(value) {
@@ -502,33 +478,25 @@ PredictedCasesBySize <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description
-    #' Set maximum household size to consider in result outputs.
-    #'
-    #' @param n
-    #' An `integer(1)` with the maximum household size to consider.
+    #' @description Set maximum household size to consider in result outputs.
+    #' @param n `integer(1)`. Maximum household size to consider.
     #' If `NA`, restore observed maximum.
     set_max_house_size = function(n) {
       private$.max_hh_size <- n
       invisible(self)
     },
 
-    #' @description
-    #' Restore maximum household size to observed maximum.
+    #' @description Restore maximum household size to observed maximum.
     drop_max_house_size = function() {
       self$set_max_house_size(NA_integer_)
       invisible(self)
     },
 
-    #' @description
-    #' Perform Chi-squared test and return list with results.
-    #'
+    #' @description Perform Chi-squared test and return list with results.
     #' @param lower_tail
-    #' `logical(1)` to consider lower tail probabilities `P[X<=x]` (default).
+    #' `logical(1)`. Consider lower tail probabilities `P[X<=x]` (default).
     #' If `FALSE`, consider upper tail `P[X>x]`.
-    #'
-    #' @return
-    #' `list`
+    #' @return `list`
     chisq_test = function(lower_tail = FALSE) {
       cases <- helper_filter_tables(self$cases_table_by_size,
                                     private$.max_hh_size)
@@ -545,16 +513,13 @@ PredictedCasesBySize <- R6::R6Class(
 #' @description
 #' Extract the measures prediction according to given table of parameters.
 #' Typically used to perform posterior predictive checks.
-#'
 #' @param hhmodel `r rd_model_in_`
 #' @param param_table `r rd_param_table_`
 #' @param ... `r rd_measure_dots_`
 #' @param obs_process `r rd_simul_observ_`
 #' @param progress `r rd_progress_`
-#'
 #' @return An object of class
 #' [HousepiPrediction][housepi::HousepiPrediction].
-#'
 #' @export
 predicted_measures <- function(hhmodel, param_table, ...,
                                obs_process = NULL, progress = NA) {
@@ -567,17 +532,14 @@ predicted_measures <- function(hhmodel, param_table, ...,
 #' @description
 #' Extract the predicted number of household cases per size.
 #' It can be used to estimate the secondary attack rate (SAR).
-#'
 #' @param hhmodel `r rd_model_in_`
 #' @param param_table `r rd_param_table_`
 #' @param obs_process `r rd_simul_observ_`
 #' @param progress `r rd_progress_`
-#'
 #' @return
 #' An object of class
 #' [PredictedCasesBySize][housepi::PredictedCasesBySize]
 #' containing methods to compare observed and predicted cases.
-#'
 #' @export
 predicted_cases_by_house_size <- function(hhmodel, param_table,
                                           obs_process = NULL, progress = NA) {
@@ -592,22 +554,17 @@ predicted_cases_by_house_size <- function(hhmodel, param_table,
 #' Format elementwise mean and credible-interval bounds into a single string.
 #' The function is vectorised over its arguments and will return a character
 #' vector of the same length as the inputs.
-#'
-#' @param mean `numeric()` with mean values.
-#' @param lower `numeric()` with lower bounds of the credible interval.
-#' @param upper `numeric()` with upper bounds of the credible interval.
-#' @param str_format
-#' `character(1)` sprintf-style format with 3 '%s' placeholders.
+#' @param mean `numeric()`. Mean values.
+#' @param lower `numeric()`. Lower bounds of the credible interval.
+#' @param upper `numeric()`. Upper bounds of the credible interval.
+#' @param str_format `character(1)`.
+#' Sprintf-style format with 3 '%s' placeholders.
 #' Default is `"mean [lower, upper]"`.
-#' @param as_integer
-#' `logical(1)` to control wheter values are formatted as integers.
+#' @param as_integer `logical(1)`. Wheter values are formatted as integers.
 #' Default is `FALSE`.
-#'
-#' @return Character vector with formatted credible-interval strings.
-#'
+#' @return `character()`
 #' @examples
 #' format_credible_intervals(c(1.23, NA), c(0.9, NA), c(1.5, NA))
-#'
 #' @export
 format_credible_intervals <- function(mean, lower, upper,
                                       str_format = "%s [%s, %s]",
