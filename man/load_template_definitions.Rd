@@ -12,11 +12,11 @@ load_augmented_template(hhmodel, append = FALSE)
 \arguments{
 \item{hhmodel}{\code{HousepiModel} object.}
 
-\item{append}{\code{logical(1)} to append only missing definitions.\cr
+\item{append}{\code{logical(1)}. Append only missing definitions.\cr
 If \code{FALSE} drop all pre-existing definitions (default).}
 }
 \value{
-A deep clone of the input \code{HousepiModel} with new definitions.
+\code{HousepiModel} object. Deep clone of input with new definitions.
 }
 \description{
 Load default definitions from model template.

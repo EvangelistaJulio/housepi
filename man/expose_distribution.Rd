@@ -14,17 +14,17 @@ expose_distribution(
 )
 }
 \arguments{
-\item{name}{\code{character(1)} with the name of the distribution.}
+\item{name}{\code{character(1)}. Name of the distribution.}
 
-\item{...}{named arguments with corresponding values of the distribution}
+\item{...}{named arguments. User argument values for the distribution}
 
-\item{min}{\code{numeric(1)} to truncate to a minimum value.}
+\item{min}{\code{numeric(1)}. Truncate to a minimum value.}
 
-\item{max}{\code{numeric(1)} to truncate to a maximum value.}
+\item{max}{\code{numeric(1)}. Truncate to a maximum value.}
 
-\item{discr}{\code{logical(1)} to treat definition as discrete.}
+\item{discr}{\code{logical(1)}. Treat definition as discrete.}
 
-\item{hhmodel}{\code{HousepiModel} object containing the custom registred \%s.\cr
+\item{hhmodel}{\code{HousepiModel} object. Where \%s has been registered.\cr
 If \code{NULL} the built-in registry is used (default).}
 }
 \value{

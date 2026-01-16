@@ -9,7 +9,7 @@ sample_households(hhsampler, size)
 \arguments{
 \item{hhsampler}{An instance of the \code{HousepiSampler} class.}
 
-\item{size}{`integer(1) with the number of households to sample.}
+\item{size}{\code{integer(1)}. Number of households to sample.}
 }
 \value{
 \code{data.frame}

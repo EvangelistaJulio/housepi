@@ -16,7 +16,6 @@
 #' @description
 #' Compile the household model, manage your data
 #' and variable definitions from a single class.
-#'
 #' @docType class
 HousepiModel <- R6::R6Class(
   classname = "HousepiModel",
@@ -410,7 +409,7 @@ HousepiModel <- R6::R6Class(
 
   active = list(
     #' @field data_wide
-    #' A `data.frame` with individual level information.
+    #' `data.frame`. Individual level data (wide format).
     data_wide = function(value) {
       if (missing(value)) {
         return(private$.refactor_data_wide(private$.rcpp$export_data_wide()))
@@ -419,7 +418,7 @@ HousepiModel <- R6::R6Class(
     },
 
     #' @field data_long
-    #' A `data.frame` with additional data rows indexed by individual.
+    #' `data.frame`. Additional data rows indexed by individual (long format).
     data_long = function(value) {
       if (missing(value)) {
         return(private$.refactor_data_long(private$.rcpp$export_data_long()))
@@ -428,7 +427,7 @@ HousepiModel <- R6::R6Class(
     },
 
     #' @field parameters
-    #' A `data.frame` with parameter formatted definitions.
+    #' `data.frame`. Parameter definitions.
     parameters = function(value) {
       if (missing(value)) {
         private$.build_group_rates()
@@ -439,7 +438,7 @@ HousepiModel <- R6::R6Class(
     },
 
     #' @field augmented
-    #' A`data.frame` with augmented formatted definitions.
+    #' `data.frame`. Augmented definitions.
     augmented = function(value) {
       if (missing(value)) return(housepi_defin_showcaser(private$.augm$defs))
       xquos <- convert_list_to_quosures(value)
@@ -447,7 +446,7 @@ HousepiModel <- R6::R6Class(
     },
 
     #' @field infec_profile
-    #' A `list` with infectivity profile definitions.
+    #' `data.frame`. Infectivity profile definitions.
     infec_profile = function(value) {
       # UPDATE: reformatting current rcpp_export waiting for status specific
       if (missing(value)) {
@@ -473,7 +472,7 @@ HousepiModel <- R6::R6Class(
     },
 
     #' @field group_rates
-    #' A `list` with group rate definitions.
+    #' `data.frame`. Group rate definitions.
     group_rates = function(value) {
       if (missing(value)) {
         private$.assert_group_rates()
@@ -494,7 +493,6 @@ HousepiModel <- R6::R6Class(
     #' @description
     #' Create a new object of class 'HousepiModel'
     #' used to run inference and simulation routines.
-    #'
     #' @param choice `r rd_mdl_choice_`
     #' @param as_template `r rd_mdl_astmpl_`
     #' @param force `r rd_mdl_force_`
@@ -557,9 +555,7 @@ HousepiModel <- R6::R6Class(
     ############################################################################
     ############################################################################
 
-    #' @description
-    #' Make an internal copy of the provided household data_wide.
-    #'
+    #' @description Store a copy of provided household data.
     #' @param data_wide `r rd_add_data_wide_`
     add_data_wide = function(data_wide) {
       if (length(data_wide) > 0) {
@@ -603,9 +599,7 @@ HousepiModel <- R6::R6Class(
       private$.rcpp$summarise_house_sizes()
     },
 
-    #' @description
-    #' Make an internal copy of the provided data_long.
-    #'
+    #' @description Store a copy of provided individual data.
     #' @param data_long `r rd_add_data_long_`
     add_data_long = function(data_long) {
       if (!is.data.frame(data_long)) stop_h(
@@ -632,7 +626,6 @@ HousepiModel <- R6::R6Class(
     #' @description
     #' Add a new parameter to housepi model definitions.
     #' If the parameter already exists, it is updated.
-    #'
     #' @param name `r rd_var_name_`
     #' @param value `r rd_var_value_`
     #' @param const `r rd_var_const_`
@@ -642,7 +635,7 @@ HousepiModel <- R6::R6Class(
     #' @param min `r rd_var_min_`
     #' @param max `r rd_var_max_`
     #' @param proposal `r rd_par_proposal_`
-    #' @param proposal_scale `r rd_var_proposal_scale_`
+    #' @param proposal_scale `r rd_proposal_scale_`
     add_parameter = function(name = NA_character_, value = NULL,
                              const = NA, discr = FALSE,
                              prior = NA_character_, ...,
@@ -661,7 +654,6 @@ HousepiModel <- R6::R6Class(
 
     #' @description
     #' Load parameter definitions as named arguments.
-    #'
     #' @param ... `r rd_list_args_`
     #' @param append `r rd_list_append_`
     load_parameter_list = function(..., append = FALSE) {
@@ -670,9 +662,7 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description
-    #' Load parameter definitions from model template.
-    #'
+    #' @description Load parameter definitions from template.
     #' @param append `r rd_tmpl_append_`
     load_parameter_template = function(append = FALSE) {
       if (private$.is_blank()) warning_h(
@@ -693,7 +683,6 @@ HousepiModel <- R6::R6Class(
     #' @description
     #' Add a new augmented variable/function to housepi model definitions.
     #' If the augmented variable already exists, it is updated.
-    #'
     #' @param name `r rd_var_name_`
     #' @param value `r rd_aug_val_`
     #' @param status `r rd_aug_status_`
@@ -706,7 +695,7 @@ HousepiModel <- R6::R6Class(
     #' @param min `r rd_aug_min_`
     #' @param max `r rd_aug_max_`
     #' @param proposal `r rd_var_proposal_`
-    #' @param proposal_scale `r rd_var_proposal_scale_`
+    #' @param proposal_scale `r rd_proposal_scale_`
     add_augmented = function(name = NA_character_,  value = NULL,
                              status = NA_integer_, const = NA, discr = FALSE,
                              func = NULL, func_args = NULL,
@@ -726,9 +715,7 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description
-    #' Load augmented variable/function definitions as named arguments.
-    #'
+    #' @description Load augmented definitions as named arguments.
     #' @param ... `r rd_list_args_`
     #' @param append `r rd_list_append_`
     load_augmented_list = function(..., append = FALSE) {
@@ -737,9 +724,7 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description
-    #' Load augmented variable/function definitions from template.
-    #'
+    #' @description Load augmented definitions from template.
     #' @param append `r rd_tmpl_append_`
     load_augmented_template = function(append = FALSE) {
       if (private$.is_blank()) warning_h(
@@ -766,7 +751,6 @@ HousepiModel <- R6::R6Class(
     #' - `sdlog`: 3
     #' - `min`: 0
     #' - `max` 10
-    #'
     #' @param name `r rd_var_name_`
     #' @param by `r rd_grr_by_`
     #' @param prefix `r rd_grr_prefix_`
@@ -777,7 +761,7 @@ HousepiModel <- R6::R6Class(
     #' @param min `r rd_var_min_`
     #' @param max `r rd_var_max_`
     #' @param proposal `r rd_var_proposal_`
-    #' @param proposal_scale `r rd_var_proposal_scale_`
+    #' @param proposal_scale `r rd_proposal_scale_`
     add_group_rate = function(name, by, prefix = NA_character_,
                               reference = NULL, independent = TRUE,
                               prior = NA_character_, ...,
@@ -798,7 +782,6 @@ HousepiModel <- R6::R6Class(
 
     #' @description
     #' Load group rate definitions as direct arguments.
-    #'
     #' @param ... ` r rd_list_args_`
     #' @param append `r rd_list_append_`
     load_group_rate_list = function(..., append = FALSE) {
@@ -812,9 +795,7 @@ HousepiModel <- R6::R6Class(
     ############################################################################
     ############################################################################
 
-    #' @description
-    #' Add definition of infectivity profile.
-    #'
+    #' @description Add definition of infectivity profile.
     #' @param func `r rd_var_name_`
     #' @param status `r rd_aug_status_`
     #' @param discr `r rd_inf_discr_`
@@ -831,9 +812,7 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description
-    #' Load infectivity profile definitions as named arguments.
-    #'
+    #' @description Load infectivity profile definitions as named arguments.
     #' @param ... `r rd_list_args_`
     #' @param append `r rd_list_append_`
     load_infec_profile_list = function(..., append = FALSE) {
@@ -846,22 +825,17 @@ HousepiModel <- R6::R6Class(
     ############################################################################
     ############################################################################
 
-    #' @description
-    #' Evaluate the log-likelihood.
-    #'
+    #' @description Evaluate the log-likelihood.
     #' @param house_id `r rd_house_id_`
     #' If `NA` (default) it computes for the whole data.
     #' @param seed `r rd_seed_`
-    #'
     #' @return `numeric(1)`
     evaluate_log_lik = function(house_id = NA_character_, seed = NA_integer_) {
       private$.build_full(seed = seed)
       private$.rcpp$evaluate_log_lik(house_id)
     },
 
-    #' @description
-    #' Run inference with Bayesian Markov Chain Monte Carlo.
-    #'
+    #' @description Run inference with Bayesian Markov chain Monte Carlo.
     #' @param steps `r rd_smpl_steps_`
     #' @param burnin `r rd_smpl_burn_`
     #' @param thin `r rd_smpl_thin_`
@@ -871,7 +845,6 @@ HousepiModel <- R6::R6Class(
     #' @param id_draws `r rd_smpl_iddrw_`
     #' @param seed `r rd_seed_`
     #' @param progress `r rd_progress_`
-    #'
     #' @return An object of class `HousepiPosteriorDraws`.
     run_inference = function(steps = 200, burnin = 0,
                              thin = 1, adapt = 0,
@@ -889,9 +862,7 @@ HousepiModel <- R6::R6Class(
 
     #' @description
     #' Dataset with associated augmented variables for last state.
-    #'
-    #' @return
-    #' `data.frame`
+    #' @return `data.frame`
     export_augmented_data = function() {
       private$.refactor_data_wide(
         cbind(private$.rcpp$data_wide_for_simulation(),
@@ -901,10 +872,8 @@ HousepiModel <- R6::R6Class(
 
     #' @description
     #' All variables associated to given household for last state.
-    #'
     #' @param house_id `r rd_house_id_`
     #' If `NA` it calls the household which caused last error, if any.
-    #'
     #' @return `list`
     export_house_snapshot = function(house_id = NA) {
       house_id <- as.character(house_id)
@@ -932,12 +901,10 @@ HousepiModel <- R6::R6Class(
     #' @description
     #' Run simulation to generate a household survey.
     #' It assumes the same community structure of the loaded data.
-    #'
     #' @param nsim `r rd_simul_nsim_`
     #' @param seed `r rd_seed_`
     #' @param progress `r rd_progress_`
     #' @param obs_process `r rd_simul_observ_`
-    #'
     #' @return `data.frame`
     run_simulation = function(nsim = 1, seed = NA_integer_,
                               progress = FALSE, obs_process = NULL) {
@@ -967,22 +934,19 @@ HousepiModel <- R6::R6Class(
     ############################################################################
     ############################################################################
 
-    #' @description
-    #' Drop parameter definitions.
+    #' @description Drop parameter definitions.
     drop_parameters = function() {
       private$.param <- HousepiParameter$new()
       invisible(self)
     },
 
-    #' @description
-    #' Drop augmented variable definitions.
+    #' @description Drop augmented variable definitions.
     drop_augmented = function() {
       private$.augm <- HousepiAugmented$new()
       invisible(self)
     },
 
-    #' @description
-    #' Drop group rates definitions.
+    #' @description Drop group rates definitions.
     drop_group_rates = function() {
       # remove associated parameters
       if (!is.null(private$.group_rates)) {
@@ -994,15 +958,13 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description
-    #' Drop infectivity profile rates definitions.
+    #' @description Drop infectivity profile rates definitions.
     drop_infectivity_profile = function() {
       private$.infec_profile <- HousepiInfecProfile$new()
       invisible(self)
     },
 
-    #' @description
-    #' Drop all definitions.
+    #' @description Drop all definitions.
     drop_all = function() {
       self$drop_parameters()
       self$drop_augmented()

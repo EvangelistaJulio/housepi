@@ -258,19 +258,24 @@ template_assert_expression <- function(refer_file, expression) {
   length(unlist(matches)) > 0
 }
 
-#' @title
-#' Template find requirement
-#' @description
+#' Extract arguments following a key family in REGISTER_HOUSEPI_KEYS.
+#' @param refer_file `character(1)`. Path to reference file.
+#' @param key_family `character(1)`. Key family name to search for.
+#' @return `character()`
+#' @keywords internal
+#' @noRd
+template_extract_keys <- function(refer_file, key_family) {
+  script <- paste(readLines(refer_file), collapse = " ")
+  reg <- sprintf("REGISTER_HOUSEPI_KEYS\\(%s,\\s*([^)]+)\\)", key_family)
+  args <- stringr::str_match(script, reg)[1, 2]
+  args <- stringr::str_trim(stringr::str_split(args, ",")[[1]])
+  args[nzchar(args)]
+}
+
 #' Find the vector of definition names required by the model according.
-#'
-#' @param refer_file
-#' A `character(1)` with the path/to/.refer containing the model source.
-#' @param regular_expr
-#' A `character()` of regular expressions.
-#'
-#' @return
-#' `character()`
-#'
+#' @param refer_file `character(1)`. Path to reference file.
+#' @param regular_expr `character()` . Regular expressions.
+#' @return `character()`
 #' @keywords internal
 #' @noRd
 template_required_find <- function(refer_file, regular_expr) {
@@ -300,19 +305,10 @@ template_required_find <- function(refer_file, regular_expr) {
   required
 }
 
-#' @title
-#' Template find missing
-#' @description
 #' Compared required definitions to current definitions and find missing ones.
-#'
-#' @param required
-#' A `character()` with required definitions.
-#' @param defined
-#' A `character()` with current definitions.
-#'
-#' @return
-#' `character()`)
-#'
+#' @param required `character()`. Required definitions.
+#' @param defined `character()`. Current definitions.
+#' @return `character()`
 #' @keywords internal
 #' @noRd
 template_missing_find <- function(required, defined) {
@@ -321,16 +317,12 @@ template_missing_find <- function(required, defined) {
   else sort(setdiff(unlist(required), unlist(defined)))
 }
 
-#' @title
-#' Template Missing Stop
-#' @description
 #' Stop if missing definitions are found
-#' @param required `character()` with required definitions.
-#' @param defined `character()` with current definitions.
-#' @param family `character(1)` with the name of the definition family.
-#' @param max_print `integer(1)` with the maximum number of elements to print.
-#' @return
-#' `character()`
+#' @param required `character()`. Required definitions.
+#' @param defined `character()`. Current definitions.
+#' @param family `character(1)`. Name of the definition family.
+#' @param max_print `integer(1)`. Maximum number of elements to print.
+#' @return `character()`
 #' @keywords internal
 #' @noRd
 template_missing_stop <- function(required, defined, family, max_print = 4) {
@@ -355,11 +347,10 @@ template_missing_stop <- function(required, defined, family, max_print = 4) {
   output
 }
 
-#' @title Template Overwrite Warning
-#' @description Warn about overwritten definitions.if missing definitions are found
-#' @param all_rmv `character()` with removed definitions.
-#' @param family `character(1)` with the name of the module family.
-#' @param max_print `integer(1)` with the maximum number of elements to print.
+#' Warn about overwritten definitions.if missing definitions are found
+#' @param all_rmv `character()`. Removed definitions.
+#' @param family `character(1)`. Name of the module family.
+#' @param max_print `integer(1)`. Maximum number of elements to print.
 #' @keywords internal
 #' @noRd
 template_overwrite_warn <- function(all_rmv, family, max_print = 5) {
@@ -378,19 +369,10 @@ template_overwrite_warn <- function(all_rmv, family, max_print = 5) {
 ############################################################################
 ############################################################################
 
-#' @title
-#' Template Find Not Used
-#' @description
 #' Compared required definitions to current definitions and find unused ones.
-#'
-#' @param required
-#' A `character()` with required definitions.
-#' @param defined
-#' A `character()` with current definitions.
-#'
-#' @return
-#' `character()`
-#'
+#' @param required `character()`. Required definitions.
+#' @param defined `character()`. Current definitions.
+#' @return `character()`
 #' @keywords internal
 #' @noRd
 template_not_used_find <- function(required, defined) {
@@ -399,18 +381,11 @@ template_not_used_find <- function(required, defined) {
   else sort(setdiff(unlist(defined), unlist(required)))
 }
 
-#' @title
-#' Template Not Used Warning
-#' @description
 #' Raise a warning if unused definitions are found
-#'
-#' @param required A `character()` with required definitions.
-#' @param defined A `character()` with current definitions.
-#' @param max_print `integer(1)` with the maximum number of elements to print.
-#'
-#' @return
-#' `character()`
-#'
+#' @param required `character()`. Required definitions.
+#' @param defined `character()`. Current definitions.
+#' @param max_print `integer(1)`. Maximum number of elements to print.
+#' @return `character()`
 #' @keywords internal
 #' @noRd
 template_not_used_warn <- function(required, defined, family, max_print = 5) {
@@ -429,15 +404,10 @@ template_not_used_warn <- function(required, defined, family, max_print = 5) {
   invisible()
 }
 
-#' @title
-#' Format definition usage assertion with cli
-#' @description
 #' Format the output of an assert usage definition message with cli.
-#'
-#' @param section `character(1)` with the section name.
-#' @param sms `character()` with the messages to format.
-#' @param minor `logical(1)` whether to format as minor message.
-#'
+#' @param section `character(1)`. Section name.
+#' @param sms `character()`. Messages to format.
+#' @param minor `logical(1)`. Whether to format as minor message.
 #' @keywords internal
 #' @noRd
 fmt_assert_cli <- function(section, sms, minor = FALSE) {
@@ -456,13 +426,8 @@ fmt_assert_cli <- function(section, sms, minor = FALSE) {
 ############################################################################
 ############################################################################
 
-#' @title
-#' Template Blank Dataset
-#' @description
 #' Template data_wide associated to 'blank' model.
-#'
 #' @return `data.frame`
-#'
 #' @keywords internal
 #' @noRd
 template_blank_data_wide_ <- function() {

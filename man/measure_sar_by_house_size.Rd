@@ -7,7 +7,7 @@
 measure_sar_by_house_size(data_wide)
 }
 \arguments{
-\item{data_wide}{\code{data.frame} with the household data used for analysis in wide format.}
+\item{data_wide}{\code{data.frame}. Household data used for analysis (wide format).}
 }
 \value{
 \code{data.frame}

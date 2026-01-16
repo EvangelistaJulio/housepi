@@ -9,12 +9,10 @@
 #' Assert data features
 #' @description
 #' Assert that features are present in data.
-#'
 #' @param features
 #' Features as list of data column names.
 #' @param headers
 #' All column names of the data.
-#'
 #' @keywords internal
 #' @noRd
 assert_data_features <- function(features, headers) {
@@ -32,15 +30,12 @@ assert_data_features <- function(features, headers) {
 #' Group rate logic table
 #' @description
 #' Return logic table of group rates
-#'
 #' @param data_wide
 #' Data from which to extract group rates
 #' @param by
 #' Features as list of data column names.
-#'
 #' @return
 #' data.frame with logic table
-#'
 #' @keywords internal
 #' @noRd
 group_rate_logic_table <- function(data_wide, by) {
@@ -77,7 +72,6 @@ group_rate_logic_table <- function(data_wide, by) {
 #' Associate parameter names
 #' @description
 #' Associate parameter name to group rate logic table.
-#'
 #' @param this_table
 #' Data.frame containing conditions for the group rate.
 #' @param prefix
@@ -85,10 +79,8 @@ group_rate_logic_table <- function(data_wide, by) {
 #' @param reference
 #' Choose reference providing corresponding features.
 #' Default is the group with the largest sample size.
-#'
 #' @return
 #' input data.frame with logic table with parameter names.
-#'
 #' @keywords internal
 #' @noRd
 associate_param_names <- function(this_table, prefix, reference) {
@@ -130,13 +122,10 @@ associate_param_names <- function(this_table, prefix, reference) {
 #' Tidy-up Group Rate Tables
 #' @description
 #' Combine list with group rate definition into a single dataframe
-#'
 #' @param all_tables
 #' A `list` containing definitions for each group rate.
-#'
 #' @return
 #' `data.frame`
-#'
 #' @keywords internal
 #' @noRd
 tidyup_group_rate_tables <- function(all_tables) {
@@ -176,7 +165,6 @@ tidyup_group_rate_tables <- function(all_tables) {
 #' Virus in the United States.
 #' New England Journal of Medicine. 361: 2619-2627.
 #' \doi{10.1056/NEJMoa0905498}
-#'
 #' @keywords internal
 #' @noRd
 group_rates_default_mcmc_setup <- list(
@@ -188,9 +176,7 @@ group_rates_default_mcmc_setup <- list(
 #' Default MCMC Setup
 #' @description
 #' Return list with default MCMC setup if user choice is missing.
-#'
 #' @return `list`
-#'
 #' @keywords internal
 #' @noRd
 set_group_rates_mcmc_setup <- function(prior, args, min, max,
@@ -216,7 +202,6 @@ set_group_rates_mcmc_setup <- function(prior, args, min, max,
 #' Housepi Group Rate
 #' @description
 #' Help with group rate definitions of model Rcpp object.
-#'
 #' @keywords internal
 #' @noRd
 HousepiGroupRate <- R6::R6Class(
@@ -236,8 +221,8 @@ HousepiGroupRate <- R6::R6Class(
   ############################################################################
 
   active = list(
-    #' @field parameters `list`\cr
-    #' List containing parameter definitions associated to group rates.
+    #' @field parameters `list`.
+    #' Parameter definitions associated to group rates.
     parameters = function(value) {
       if (!missing(value)) stop_h("'parameters' is read only.")
       new_params <- list()
@@ -251,8 +236,7 @@ HousepiGroupRate <- R6::R6Class(
       new_params
     },
 
-    #' @field param_required `character()`\cr
-    #' List of parameter required by group rates.
+    #' @field param_required `character()`. Parameters required by group rates.
     param_required = function(value) {
       if (!missing(value)) stop_h("'param_required' is read only.")
       required <- c()
@@ -265,9 +249,8 @@ HousepiGroupRate <- R6::R6Class(
       set_source_name_(output, self$family)
     },
 
-    #' @field tidy_table `data.frame()`\cr
-    #' Data.Frame containg the combined list
-    #' with group rate and parameter definitions.
+    #' @field tidy_table `data.frame()`.
+    #' Combined list with group rate and parameter definitions.
     tidy_table = function(value) {
       if (!missing(value)) stop_h("'tidy_table' is read only.")
       tidyup_group_rate_tables(self$logic_tables)
@@ -279,24 +262,24 @@ HousepiGroupRate <- R6::R6Class(
   ############################################################################
 
   public = list(
-    #' @field family `character(1)` with the module family.
+    #' @field family `character(1)`. Module family.
     family = "group rate",
-    #' @field store_warn_over `character()` with cached overwritten names.
+
+    #' @field store_warn_over `character()`. Cached overwritten names.
     store_warn_over = character(),
-    #' @field defs `list` containing current group rate definitions.
+
+    #' @field defs `list`. Current group rate definitions.
     defs = list(),
 
-    #' @field raw_params `list`\cr
-    #' List containing raw parameter definitions.
+    #' @field raw_params `list`. Raw parameter definitions.
     raw_params = list(),
 
-    #' @field logic_tables `list`\cr
-    #' List containing table of parameters associated to each group rate.
+    #' @field logic_tables `list`.
+    #' Table of parameters associated to each group rate.
     logic_tables = list(),
 
     #' @description
-    #' New object of class
-    #' [HousepiGroupRate][housepi::HousepiGroupRate].
+    #' New object of class [HousepiGroupRate][housepi::HousepiGroupRate].
     initialize = function() {
       self$defs <- list()
       self$logic_tables <- list()
@@ -306,27 +289,16 @@ HousepiGroupRate <- R6::R6Class(
 
     #' @description
     #' Find group rates required by the model.
-    #'
-    #' @param refer_file
-    #' Path/to/.refer source file.
+    #' @param refer_file Path/to/.refer source file.
     require = function(refer_file) {
-      # vector of regular expression to use for assertion
-      regexp <- c(
-        # group rate from : .group_rate("string"
-        '\\.group_rate\\s*\\(\\s*["\'](.*?)["\']'
-      )
-      # find required group rates from regular expressions
-      output <- template_required_find(refer_file, regexp)
+      output <- template_extract_keys(refer_file, "GroupRateKey")
       set_source_name_(output, "model")
     },
 
     #' @description
     #' Remove a given group_rate definition.
-    #'
-    #' @param name
-    #' A `character(1)` with the name of group rate definitions to remove.
-    #' @param warn_removal
-    #' `logical(1)`to show warnings for failed removal.
+    #' @param name `character(1)`. Name of group rate definition to remove.
+    #' @param warn_removal `logical(1)`. Show warnings for failed removal.
     remove = function(name, warn_removal = FALSE) {
       if (any(names(self$defs) == name)) {
         # check if old definition was just placeholder
@@ -431,7 +403,6 @@ HousepiGroupRate <- R6::R6Class(
 
     #' @description
     #' Implement group rate definition according to data.
-    #'
     #' @param data_wide
     #' A `data.frame` with the dataset to be considered.
     #' @param factor_info
@@ -493,9 +464,8 @@ HousepiGroupRate <- R6::R6Class(
 
     #' @description
     #' Assert that group rate definitions match the requirements.
-    #'
-    #' @param required `character()` containing the required group rates.
-    #' @param capital `logical(1)` to raise error.
+    #' @param required `character()`. Required group rates.
+    #' @param capital `logical(1)`. Whether to raise error.
     assert = function(required, capital) {
       # load definitions
       defined <- names(self$defs)
@@ -527,10 +497,8 @@ HousepiGroupRate <- R6::R6Class(
 
     #' @description
     #' Tidy table of group rates definition to be passed to Cpp.
-    #'
     #' @param info
-    #' A `list` of `list`s with info about class and levels of data columns.
-    #'
+    #' `list` of `list`s. Info about class and levels of data columns.
     expose_to_cpp = function(info) {
       defs <- self$tidy_table
       defs$n <- NULL

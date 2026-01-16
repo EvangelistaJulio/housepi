@@ -22,7 +22,7 @@ drop_all(hhmodel)
 \item{hhmodel}{\code{HousepiModel} object.}
 }
 \value{
-A deep clone of the input \code{HousepiModel} with new definitions.
+\code{HousepiModel} object. Deep clone of input with new definitions.
 }
 \description{
 Remove current definitions from the housepi model.

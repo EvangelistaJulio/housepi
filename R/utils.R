@@ -5,47 +5,26 @@
 ## See the LICENSE file for details.
 ##
 
-#' @title
-#' Housepi stop utility
-#' @description
-#' Utility functions for error messages.
-#'
-#' @param ...
-#' Lists of messages printed in sequence on different lines.
-#'
+#' Utility function for error messages.
+#' @param ... Messages printed in sequence on different lines.
 #' @noRd
 stop_h <- function(...) {
   base::stop(paste(unlist(list(...)), collapse = "\n"),
              call. = FALSE)
 }
 
-#' @title
-#' Housepi warning utility
-#' @description
-#' Utility functions for warning messages.
-#'
-#' @param ...
-#' Lists of messages printed in sequence on different lines.
-#'
+#' Utility function for warning messages.
+#' @param ... Messages printed in sequence on different lines.
 #' @noRd
 warning_h <- function(...) {
   base::warning(paste(unlist(list(...)), collapse = "\n"),
                 call. = FALSE)
 }
 
-#' @title
-#' Character to string list
-#' @description
 #' Collapse a character vector into string of quoted words.
-#'
-#' @param mylist
-#' A `character()` vector to be print.
-#' @param max_print
-#' An `integer(1)` with the maximum number of elements to print.
-#'
-#' @return
-#' String formatted as a list of quoted words.
-#'
+#' @param mylist `character()`. List to be printed.
+#' @param max_print `integer(1)`. Maximum number of elements to print.
+#' @return `character(1)`
 #' @noRd
 character_to_string_list <- function(mylist, max_print = 4) {
   max_print <- min(max_print, length(mylist), na.rm = TRUE)
@@ -56,17 +35,9 @@ character_to_string_list <- function(mylist, max_print = 4) {
   else paste0(sms, ".")
 }
 
-#' @title
-#' Character to phrase
-#' @description
 #' Collapse a character vector into a phrase.
-#'
-#' @param mylist
-#' A `character()` vector.
-#'
-#' @return
-#' String formatted as a phrase.
-#'
+#' @param mylist `character()`. vector.
+#' @return `character(1)`
 #' @noRd
 character_to_phrase <- function(mylist) {
   len_list <- length(mylist)
@@ -81,21 +52,12 @@ character_to_phrase <- function(mylist) {
   sms
 }
 
-#' @title
-#' Find closest match
-#' @description
-#' Find the closest match among a list of options.
-#'
-#' @param input
-#' A `character(1)` with the string to be inspected.
-#' @param options
-#' A `character()` with the options.
-#' @param min_dist
-#' An `integer(1)` with the threshold for minimal distance.
-#'
-#' @return `character()`\cr
-#' String with helpful comments
-#'
+#' Find closest match across list of options.
+#' Return a string with helpful comments.
+#' @param input `character(1)`. String to be inspected.
+#' @param options `character()`. Options.
+#' @param min_dist `integer(1)`. Threshold for minimal distance.
+#' @return `character()`
 #' @keywords internal
 #' @noRd
 find_closest_match <- function(input, options, min_dist = 1) {
@@ -142,7 +104,6 @@ get_val_ <- function(lst, key, default = NA) {
 ############################################################################
 ############################################################################
 
-
 # Generate a random string
 rnd_string <- function(size = 8) {
   paste0(sample(c(letters, LETTERS, 0:9), size, replace = TRUE),
@@ -159,19 +120,12 @@ trunc_mtime <- function(path) {
   max(trunc(file.info(path)$mtime))
 }
 
-#' @title
-#' Untracjed Changes
+#' @title Untracked Changes
 #' @description
-#' Tell if source files was modified or if a more recent installation exists.
-#'
-#' @param source_dir
-#' A `character(1)` with the path to source directory.
-#' @param dll
-#' A `character(1)` with the expected dynamic library file name.
-#'
-#' @return
-#' `bool`
-#'
+#' Wheter source files have been modified or a more recent installation exists.
+#' @param source_dir `character(1)`. Path to source directory.
+#' @param dll `character(1)`. Expected dynamic library file name.
+#' @return `bool`
 #' @keywords internal
 #' @noRd
 untracked_changes <- function(source_dir, dll) {
@@ -240,16 +194,9 @@ helper_clone <- function(x) {
 ############################################################################
 ############################################################################
 
-#' @title
-#' Character Setup Input
-#' @description
 #' Format elements of a list to pass to import_setup Rcpp method.
-#'
-#' @param defs
-#' A `list` of setup command
-#'
+#' @param defs `list`. Setup options.
 #' @return `character()`
-#'
 #' @keywords internal
 #' @noRd
 char_setup_input_ <- function(defs) {
@@ -264,16 +211,9 @@ char_setup_input_ <- function(defs) {
   data.frame(lapply(defs, as.character))
 }
 
-#' @title
-#' Character Data Input
-#' @description
 #' Format elements of data (wide or long) to pass to import Rcpp method.
-#'
-#' @param df
-#' A `data.frame` with definition table or list.
-#'
+#' @param df `data.frame`. Definition table or list.
 #' @return `character()`
-#'
 #' @keywords internal
 #' @noRd
 char_data_input_ <- function(df) {
@@ -281,16 +221,9 @@ char_data_input_ <- function(df) {
   else data.frame(lapply(df, as.character))
 }
 
-#' @title
-#' Cpp Data Factorize
-#' @description
 #' Factorize dates and non numerical quanties from data to pass Cpp.
-#'
-#' @param df
-#' A `data.frame` with dataset.
-#'
+#' @param df `data.frame`. Dataset.
 #' @return `list`
-#'
 #' @keywords internal
 #' @noRd
 cpp_data_factorize <- function(df) {
@@ -321,20 +254,11 @@ cpp_data_factorize <- function(df) {
   list(data = char_data_input_(df), info = info, cols = cols, status = status)
 }
 
-#' @title
-#' Cpp Data Refactor
-#' @description
 #' Restore factored quanties on data return from Cpp implementation.
-#'
-#' @param data
-#' A `data.frame` as output from the Rcpp model object.
-#' @param info
-#' A `list` of `list`s with info about class and levels of data columns.
-#' @param headers
-#' A `character()` with the column headers.
-#'
+#' @param data `data.frame`. Output of the Rcpp model object.
+#' @param info `list` of `list`s. Info about class and levels of data columns.
+#' @param headers `character()`. Header columns.
 #' @return `data.frame`
-#'
 #' @keywords internal
 #' @noRd
 cpp_data_refactor <- function(data, info, headers) {

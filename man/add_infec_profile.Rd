@@ -16,19 +16,19 @@ add_infec_profile(
 \arguments{
 \item{hhmodel}{\code{HousepiModel} object.}
 
-\item{func}{\code{character(1)} name used by internal calls.}
+\item{func}{\code{character(1)}. Name used by internal calls.}
 
-\item{status}{\code{integer(1)} with household member positive status.\cr
-It is used to specify status-specific definitions.
-If \code{NA}, associate the definition to all other infectious members (default).}
+\item{status}{\code{integer(1)}. Individual positive status.\cr
+Used to specify status-specific definitions.
+If \code{NA}, associate definition to all infectious individuals (default).}
 
-\item{discr}{\code{logical(1)} to treat definition as discrete.\cr
+\item{discr}{\code{logical(1)}. Treat definition as discrete.\cr
 If applicable, the profile is discretized.\cr
 Default is \code{FALSE}.}
 
 \item{...}{named arguments for the profile distribution.}
 
-\item{max}{\code{numeric(1)} to truncate to a maximum value. \cr
+\item{max}{\code{numeric(1)}. Truncate to a maximum value. \cr
 One between:\cr
 \itemize{
 \item Scalar value;\cr
@@ -37,7 +37,7 @@ One between:\cr
 }}
 }
 \value{
-A deep clone of the input \code{HousepiModel} with new definitions.
+\code{HousepiModel} object. Deep clone of input with new definitions.
 }
 \description{
 Add definition of infectivity profile.

@@ -9,10 +9,10 @@ add_data_long(hhmodel, data_long)
 \arguments{
 \item{hhmodel}{\code{HousepiModel} object.}
 
-\item{data_long}{\code{data.frame} with additional individual long format data.}
+\item{data_long}{\code{data.frame}. Additional individual long format data.}
 }
 \value{
-A deep clone of the input \code{HousepiModel} with new definitions.
+\code{HousepiModel} object. Deep clone of input with new definitions.
 }
 \description{
 Make an internal copy of the provided data in long format.

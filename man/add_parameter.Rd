@@ -21,28 +21,28 @@ add_parameter(
 \arguments{
 \item{hhmodel}{\code{HousepiModel} object.}
 
-\item{name}{\code{character(1)} name used by internal calls.}
+\item{name}{\code{character(1)}. Name used by internal calls.}
 
-\item{value}{\code{numeric(1)} with initial value.\cr
+\item{value}{\code{numeric(1)}. Initial value.\cr
 Required only if constant or random initialization has been disabled.}
 
-\item{const}{\code{logical(1)} to treat definition as constant.\cr
+\item{const}{\code{logical(1)}. Treat definition as constant.\cr
 If \code{TRUE}, additional Monte Carlo details are ignored.\cr
 Default is \code{FALSE}.}
 
-\item{discr}{\code{logical(1)} to treat definition as discrete.\cr
+\item{discr}{\code{logical(1)}. Treat definition as discrete.\cr
 If applicable, the prior is discretized.\cr
 Default is \code{FALSE}.}
 
-\item{prior}{\code{character(1)} with the choice for the prior distribution.}
+\item{prior}{\code{character(1)}. Choice for the prior distribution.}
 
 \item{...}{named arguments for the prior distribution.}
 
-\item{min}{\code{numeric(1)} to truncate to a minimum value.}
+\item{min}{\code{numeric(1)}. Truncate to a minimum value.}
 
-\item{max}{\code{numeric(1)} to truncate to a maximum value.}
+\item{max}{\code{numeric(1)}. Truncate to a maximum value.}
 
-\item{proposal}{\code{character(1)} with proposal used in the Monte Carlo.\cr
+\item{proposal}{\code{character(1)}. Proposal used in the Monte Carlo.\cr
 One between:\cr
 \itemize{
 \item 'sample': sampled from the prior distribution;\cr
@@ -52,12 +52,13 @@ One between:\cr
 \item \code{NA} (default): same as 'sample'.
 }}
 
-\item{proposal_scale}{\code{numeric(1)} with scale of the proposal.\cr
-Changed automatically during inference if \code{n_adpat}>0.\cr
-Not applicable if proposal is 'sample'. Otherwise scale is \code{1} by default.}
+\item{proposal_scale}{\code{numeric(1)}. Scale of the proposal.\cr
+Default scale is \code{1}.\cr
+Changed automatically during inference if \code{n_adapt}>0.\cr
+Ignored if proposal is 'sample'.}
 }
 \value{
-A deep clone of the input \code{HousepiModel} with new definitions.
+\code{HousepiModel} object. Deep clone of input with new definitions.
 }
 \description{
 Add a new parameter to housepi model definitions.

@@ -44,7 +44,7 @@ New object of class
 \describe{
 \item{\code{...}}{Named features with respective list of definition details.}
 
-\item{\code{ascending}}{\code{logical(1)} to set ascending hierarchy between feature numbers.\cr
+\item{\code{ascending}}{\code{logical(1)}. Set ascending hierarchy between feature numbers.\cr
 If \code{FALSE} is descending (default).}
 }
 \if{html}{\out{</div>}}
@@ -63,9 +63,9 @@ from a given dataset.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{data_wide}}{\code{data.frame} with the household data used for analysis in wide format.}
+\item{\code{data_wide}}{\code{data.frame}. Household data used for analysis (wide format).}
 
-\item{\code{ascending}}{\code{logical(1)} to set ascending hierarchy between feature numbers.\cr
+\item{\code{ascending}}{\code{logical(1)}. Set ascending hierarchy between feature numbers.\cr
 If \code{FALSE} is descending (default).}
 }
 \if{html}{\out{</div>}}
@@ -83,7 +83,7 @@ Sample households based on the marginals of the hierarchical model.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{size}}{`integer(1) with the number of households to sample.}
+\item{\code{size}}{\code{integer(1)}. Number of households to sample.}
 }
 \if{html}{\out{</div>}}
 }

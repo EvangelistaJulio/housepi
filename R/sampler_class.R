@@ -283,7 +283,6 @@ IndividualSampler <- R6::R6Class(
 #' @description
 #' This class allows to define a household demographic structure
 #' from a hierarchical model of covariates, computed from an existing dataset.
-#'
 #' @docType class
 #' @keywords internal
 HousepiSampler <- R6::R6Class(
@@ -311,7 +310,6 @@ HousepiSampler <- R6::R6Class(
     #' @description
     #' New object of class
     #' [HousepiSampler][housepi::HousepiSampler].
-    #'
     #' @param ...
     #' Named features with respective list of definition details.
     #' @param ascending `r rd_hhsampler_asc_`
@@ -333,7 +331,6 @@ HousepiSampler <- R6::R6Class(
     #' @description
     #' Computes marginal distributions for household hierarchical features
     #' from a given dataset.
-    #'
     #' @param data_wide `r rd_add_data_wide_`
     #' @param ascending `r rd_hhsampler_asc_`
     compute_household_marginals = function(data_wide, ascending = NA) {
@@ -445,7 +442,6 @@ HousepiSampler <- R6::R6Class(
 
     #' @description
     #' Sample households based on the marginals of the hierarchical model.
-    #'
     #' @param size `r rd_hhsampler_size_`
     sample_households = function(size = 1) {
 
@@ -543,10 +539,7 @@ HousepiSampler <- R6::R6Class(
 #' synthetic household datasets based on hierarchical models of covariates.
 #' It supports encoding and decoding of features,
 #' computation of marginal distributions, and sampling of households.
-#'
-#' @param ...
-#' Named features with respective list of definition details.
-#'
+#' @param ...Named features. Respective list of definition details.
 #' @export
 new_household_sampler <- function(...) {
   HousepiSampler$new(...)
@@ -555,11 +548,9 @@ new_household_sampler <- function(...) {
 #' @description
 #' Computes marginal distributions for household hierarchical features
 #' from a given dataset.
-#'
-#' @param hhsampler An instance of the `HousepiSampler` class.
+#' @param hhsampler `HousepiSampler` object.
 #' @param data_wide `r rd_add_data_wide_`
 #' @param ascending `r rd_hhsampler_asc_`
-#'
 #' @export
 compute_household_marginals <- function(hhsampler, data_wide, ascending = NA) {
   stopifnot(inherits(hhsampler, "HousepiSampler"))
@@ -571,12 +562,9 @@ compute_household_marginals <- function(hhsampler, data_wide, ascending = NA) {
 #' @title Sample households
 #' @description
 #' Sample households based on the marginals of the hierarchical model.
-#'
-#' @param hhsampler An instance of the `HousepiSampler` class.
+#' @param hhsampler `HousepiSampler` object.
 #' @param size `r rd_hhsampler_size_`
-#'
 #' @return `data.frame`
-#'
 #' @export
 sample_households <- function(hhsampler, size) {
   stopifnot(inherits(hhsampler, "HousepiSampler"))

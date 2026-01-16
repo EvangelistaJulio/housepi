@@ -28,12 +28,25 @@ namespace hsp::key
 
         size_t size() const { return string_keys_.size(); }
         const std::vector<std::string_view> &get_all_keys() const { return string_keys_; }
-        std::string_view get_key_name(T key) const { return get_key_name(static_cast<size_t>(key)); }
-        std::string_view get_key_name(size_t index) const
+        std::string_view to_string(T key) const { return to_string(static_cast<size_t>(key)); }
+        std::string_view to_string(size_t index) const
         {
             if (index < string_keys_.size())
                 return string_keys_[index];
             throw std::out_of_range("Key index out of range.");
+        }
+        // Convert from string_view to enum. Throw exception if not found.
+        T from_string(std::string_view name) const
+        {
+            auto it = std::find(string_keys_.begin(), string_keys_.end(), name);
+            if (it != string_keys_.end())
+                return static_cast<T>(std::distance(string_keys_.begin(), it));
+            throw std::out_of_range("Key name not found: " + std::string(name));
+        }
+        // Check if a key name exists.
+        bool contains(std::string_view name) const
+        {
+            return std::find(string_keys_.begin(), string_keys_.end(), name) != string_keys_.end();
         }
 
     private:

@@ -28,12 +28,12 @@ get_rcpp_module_from_model <- function(module_name, hhmodel) {
   }
 }
 
-rd_test_name_ <- "`character(1)` with the name of the %s."
-rd_test_x_ <- "`numeric()` with values."
-rd_test_args_ <- "named arguments with corresponding values of the %s"
-rd_test_discr_ <- "`logical(1)` to treat definition as discrete."
-rd_test_model_ <- "`HousepiModel` object containing the custom registred %s.\\cr
-If `NULL` the built-in registry is used (default)."
+rd_test_name_ <- "`character(1)`. Name of the %s."
+rd_test_x_ <- "`numeric()`. Points where to evaluate."
+rd_test_args_ <- "named arguments. User argument values for the %s"
+rd_test_discr_ <- "`logical(1)`. Treat definition as discrete."
+rd_test_model_ <- paste(rd_model_in_, "Where %s has been registered.\\cr
+If `NULL` the built-in registry is used (default).")
 
 #' @title
 #' Expose housepi function

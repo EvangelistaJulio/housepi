@@ -153,9 +153,17 @@ public:
 	}
 	void init_member(size_t index, const std::string &id,
 					 int status, const hsp::dict<double> &data);
-	void set_susceptible_status(Individual &member);
-	void set_infected_status(Individual &member);
-	void set_infected_status(Individual &member, int new_status);
+
+	void set_susceptible_status(Individual &member) { set_status_(member, hsp::status::SUSCEPTIBLE); }
+	void set_infected_status(Individual &member) { set_status_(member, hsp::status::INFECTED); }
+	void set_infected_status(Individual &member, int new_status)
+	{
+		if (!hsp::status::is_infected(new_status))
+			throw std::invalid_argument(
+				"Tried to set as infected status " + std::to_string(new_status) +
+				" to " + err_name() + ".\nInfected status must be an integer greater than 0.");
+		set_status_(member, new_status);
+	}
 	void init_contact_rates(size_t from, size_t to, const Attribute &x);
 
 	///////////////////////////////////////////////////////////////////////////////////////////////

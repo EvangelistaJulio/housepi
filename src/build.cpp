@@ -19,6 +19,9 @@
 #include "tools/string.h"
 #include "tools/types.h"
 
+#include "tools/keys.h"
+#include "tools/keys_helper.h"
+
 #include "attribute.h"
 #include "augmented_map.h"
 #include "data.h"
@@ -363,7 +366,7 @@ const Attribute &Parameter::read_attribute(const hsp::parse::Entry &node, const 
         }
         else if (hsp::sources::is_group_rate(node.type)) // group rate terminal node
         {
-            return member.get_group_rate_attribute(node.value);
+            return member.get_group_rate_attribute(hsp::key::Registry<GroupRateKey>::instance().from_string(node.value));
         }
         else
             throw std::invalid_argument(
@@ -459,8 +462,12 @@ vector<string> GroupRate::helper_assert_definitions_(const hsp::str_table &input
 }
 
 /// Convert to a dictionary of parameter pointers and pass the pointers to the individual.
+/// UPDATE: I can move the full check on missing rates here!
 void GroupRate::helper_init_all_rates_(Individual &member, const hsp::str_table &these_rates)
 {
+    auto reg = hsp::key::Registry<GroupRateKey>::instance();
+    member.group_rate_vec_.resize(reg.size());
+
     for (const auto &[g, vec] : these_rates)
     {
         // extract non-reference parameter pointers
@@ -474,11 +481,13 @@ void GroupRate::helper_init_all_rates_(Individual &member, const hsp::str_table 
                 param_pointers.emplace_back(pParameter_->at(p).get_ptr());
         }
 
-        if (param_pointers.empty()) // stick to reference
-            member.init_group_rate_to_reference(g);
+        // initialize group rate to reference or the param pointers
+        auto attr = Attribute(hsp::rates::VALUE_REFERENCE);
+        if (!param_pointers.empty())
+            attr = Attribute(param_pointers);
 
-        else // use variadic product
-            member.init_group_rate(g, Attribute(param_pointers));
+        member.group_rate_vec_[static_cast<size_t>(reg.from_string(g))].transfer(attr);
+        member.group_rate_vec_[static_cast<size_t>(reg.from_string(g))].set_name(g, "group rate");
     }
 }
 

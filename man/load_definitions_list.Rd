@@ -20,11 +20,11 @@ load_infec_profile_list(hhmodel, ..., append = FALSE)
 
 \item{...}{Named arguments with respective list of definition details.}
 
-\item{append}{\code{logical(1)} to append to current definitions.\cr
+\item{append}{\code{logical(1)}. Append to current definitions.\cr
 If \code{FALSE} drop all pre-existing definitions (default).}
 }
 \value{
-A deep clone of the input \code{HousepiModel} with new definitions.
+\code{HousepiModel} object. Deep clone of input with new definitions.
 }
 \description{
 Load definitions as named arguments.

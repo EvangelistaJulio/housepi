@@ -8,7 +8,7 @@
 #ifndef HOUSEPI__TOOLS__GLOBAL__H
 #define HOUSEPI__TOOLS__GLOBAL__H
 
-#include <string>
+#include <string_view>
 
 namespace hsp
 {
@@ -49,29 +49,15 @@ namespace hsp
     namespace sources
     {
         /// Wheter definitions is 'augmented'.
-        inline bool is_augmented(const std::string &s) { return s == "A"; }
+        inline bool is_augmented(std::string_view s) { return s == "A"; }
         /// Wheter definitions is 'data'.
-        inline bool is_data(const std::string &s) { return s == "D"; }
+        inline bool is_data(std::string_view s) { return s == "D"; }
         /// Wheter definitions is 'group rate'.
-        inline bool is_group_rate(const std::string &s) { return s == "G"; }
+        inline bool is_group_rate(std::string_view s) { return s == "G"; }
         /// Wheter definitions is 'numeric'.
-        inline bool is_numeric(const std::string &s) { return s == "N"; }
+        inline bool is_numeric(std::string_view s) { return s == "N"; }
         /// Wheter definitions is 'parameter'.
-        inline bool is_parameter(const std::string &s) { return s == "P"; }
-    }
-
-    namespace status
-    {
-        constexpr int INFECTED = 1;    /// Infected status (>=)
-        constexpr int SUSCEPTIBLE = 0; /// Susceptible status (==)
-        constexpr int MISSING = -1;    /// Missing status (<=)
-
-        /// Wheter individual status is infected.
-        inline bool is_infected(int s) { return s >= INFECTED; }
-        /// Wheter individual status is susceptible.
-        inline bool is_susceptible(int s) { return s == SUSCEPTIBLE; }
-        /// Wheter individual status is missing.
-        inline bool is_missing(int s) { return s <= MISSING; }
+        inline bool is_parameter(std::string_view s) { return s == "P"; }
     }
 }
 

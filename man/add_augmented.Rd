@@ -24,9 +24,9 @@ add_augmented(
 \arguments{
 \item{hhmodel}{\code{HousepiModel} object.}
 
-\item{name}{\code{character(1)} name used by internal calls.}
+\item{name}{\code{character(1)}. Name used by internal calls.}
 
-\item{value}{\code{numeric(1)} or \code{character(1)} with initial value. \cr
+\item{value}{\code{numeric(1)} or \code{character(1)}. Initial value. \cr
 One between:\cr
 \itemize{
 \item Scalar value;\cr
@@ -34,31 +34,31 @@ One between:\cr
 \item Dataset name (followed by \verb{@D}).
 }}
 
-\item{status}{\code{integer(1)} with household member positive status.\cr
-It is used to specify status-specific definitions.
-If \code{NA}, associate the definition to all other infectious members (default).}
+\item{status}{\code{integer(1)}. Individual positive status.\cr
+Used to specify status-specific definitions.
+If \code{NA}, associate definition to all infectious individuals (default).}
 
-\item{const}{\code{logical(1)} to treat definition as constant.\cr
+\item{const}{\code{logical(1)}. Treat definition as constant.\cr
 If \code{TRUE}, additional Monte Carlo details are ignored.\cr
 Default is \code{FALSE}.}
 
-\item{discr}{\code{logical(1)} to treat definition as discrete.\cr
+\item{discr}{\code{logical(1)}. Treat definition as discrete.\cr
 If applicable, the model is discretized.\cr
 Default is \code{FALSE}.}
 
 \item{func}{One between:\cr
 \itemize{
-\item \code{character(1)} with the name of the augmented function;\cr
+\item \code{character(1)}. Name of augmented function;\cr
 \item rlang expression.
 }}
 
-\item{func_args}{named \code{list} with the arguments of the augmented function.}
+\item{func_args}{named \code{list}. Arguments of the augmented function.}
 
-\item{model}{\code{character(1)} with the choice for the model distribution.}
+\item{model}{\code{character(1)}. Choice for the model distribution.}
 
 \item{...}{named arguments for the model distribution.}
 
-\item{min}{\code{numeric(1)} to truncate to a minimum value. \cr
+\item{min}{\code{numeric(1)}. Truncate to a minimum value. \cr
 One between:\cr
 \itemize{
 \item Scalar value;\cr
@@ -66,7 +66,7 @@ One between:\cr
 \item Dataset name (followed by \verb{@D}).
 }}
 
-\item{max}{\code{numeric(1)} to truncate to a maximum value. \cr
+\item{max}{\code{numeric(1)}. Truncate to a maximum value. \cr
 One between:\cr
 \itemize{
 \item Scalar value;\cr
@@ -74,7 +74,7 @@ One between:\cr
 \item Dataset name (followed by \verb{@D}).
 }}
 
-\item{proposal}{\code{character(1)} with proposal used in the Monte Carlo.\cr
+\item{proposal}{\code{character(1)}. Proposal used in the Monte Carlo.\cr
 One between:\cr
 \itemize{
 \item 'sample': sampled from the \%s distribution;\cr
@@ -84,12 +84,13 @@ One between:\cr
 \item \code{NA} (default): same as 'sample'.
 }}
 
-\item{proposal_scale}{\code{numeric(1)} with scale of the proposal.\cr
-Changed automatically during inference if \code{n_adpat}>0.\cr
-Not applicable if proposal is 'sample'. Otherwise scale is \code{1} by default.}
+\item{proposal_scale}{\code{numeric(1)}. Scale of the proposal.\cr
+Default scale is \code{1}.\cr
+Changed automatically during inference if \code{n_adapt}>0.\cr
+Ignored if proposal is 'sample'.}
 }
 \value{
-A deep clone of the input \code{HousepiModel} with new definitions.
+\code{HousepiModel} object. Deep clone of input with new definitions.
 }
 \description{
 Add a new augmented variable/function to housepi model definitions.

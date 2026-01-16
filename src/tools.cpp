@@ -153,7 +153,7 @@ namespace hsp
         /// Wheter double represents NA.
         bool is(double x) { return std::isnan(x); }
         /// Wheter string represents NA.
-        bool is(const string &txt)
+        bool is(std::string_view txt)
         {
             return txt.empty() ||
                    txt == "<NA>" ||
@@ -162,13 +162,6 @@ namespace hsp
                    txt == "NaN" ||
                    txt == "NAN" ||
                    txt == "nan";
-        }
-        /// Wheter character represents NA.
-        bool is(const char *txt)
-        {
-            if (!txt)
-                return true;
-            return is(string(txt));
         }
     }
 

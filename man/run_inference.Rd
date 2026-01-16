@@ -20,25 +20,25 @@ run_inference(
 \arguments{
 \item{hhmodel}{\code{HousepiModel} object.}
 
-\item{steps}{\code{integer(1)}  with total number of MCMC steps per chain.}
+\item{steps}{\code{integer(1)}. Total number of MCMC steps per chain.}
 
-\item{burnin}{\code{integer(1)} with number of initial steps to discard.}
+\item{burnin}{\code{integer(1)}. Number of initial steps to discard.}
 
-\item{thin}{\code{integer(1)} with number of steps to skip between each saved sample.}
+\item{thin}{\code{integer(1)}. Number of steps to skip between samples.}
 
-\item{adapt}{\code{integer(1)} with number of adaptation steps before sampling.}
+\item{adapt}{\code{integer(1)}. Number of adaptation steps before sampling.}
 
-\item{chains}{\code{integer(1)} with number of independent MCMC chains to run.}
+\item{chains}{\code{integer(1)}. Number of independent MCMC chains to run.}
 
-\item{threads}{\code{integer(1)} with number of threads to run in parallel.}
+\item{threads}{\code{integer(1)}. Number of threads to run in parallel.}
 
-\item{id_draws}{\code{character()} with individuals identifiers.\cr
+\item{id_draws}{\code{character()}. Individuals identifiers.\cr
 Store draws of public augmented variables for the chosen individuals.}
 
-\item{seed}{\code{integer(1)} with the seed for the random number generator.\cr
+\item{seed}{\code{integer(1)}. Seed for the random number generator.\cr
 If \code{NA} uses current R seed (default).}
 
-\item{progress}{\code{integer(1)} or \code{logical(1)} to control progress visualization.\cr
+\item{progress}{\code{integer(1)} or \code{logical(1)}. Control progressbar visualization.\cr
 One between:\cr
 \itemize{
 \item If \code{integer}, prints progress every \code{progress} seconds;\cr

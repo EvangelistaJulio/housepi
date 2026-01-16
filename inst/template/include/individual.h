@@ -11,11 +11,26 @@
 #include <string>
 #include <vector>
 
+#include "tools/keys.h"
 #include "tools/operators.h"
 #include "tools/types.h"
 
 #include "attribute.h"
 #include "augmented_map.h"
+
+namespace hsp::status
+{
+	constexpr int INFECTED = 1;	   /// Infected status (>=)
+	constexpr int SUSCEPTIBLE = 0; /// Susceptible status (==)
+	constexpr int MISSING = -1;	   /// Missing status (<=)
+
+	/// Wheter individual status is infected.
+	inline bool is_infected(int s) { return s >= INFECTED; }
+	/// Wheter individual status is susceptible.
+	inline bool is_susceptible(int s) { return s == SUSCEPTIBLE; }
+	/// Wheter individual status is missing.
+	inline bool is_missing(int s) { return s <= MISSING; }
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -23,18 +38,27 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Forward declaration.
-class Household;
-
 /// Class for individual household study member.
 class Individual : public AugmentedMap
 {
+	friend class Household;
+	friend struct GroupRate;
+
 public:
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////  Individual : constructor  /////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	Individual();
+	Individual()
+	{
+		id_ = "";
+		index_ = 0;
+		hhindex_ = 0;
+		status_ = hsp::status::MISSING;
+		data_map_ = {};
+	}
+	
+	// NOTE: allowed data variables are numerical only
 	Individual(size_t index, size_t hhindex, const std::string &id,
 			   int status, const hsp::dict<double> &data)
 	{
@@ -73,41 +97,28 @@ public:
 		static const std::vector<double> EMPTY_DBL_VEC = std::vector<double>();
 		return EMPTY_DBL_VEC;
 	}
-	double group_rate(const std::string &g) const { return hsp::safe_at(group_rate_map_, g, "group rate").get(); }
-	const Attribute &get_group_rate_attribute(const std::string &g) const { return hsp::safe_at(group_rate_map_, g, "group rate"); }
+	double group_rate(GroupRateKey g) const { return get_group_rate_attribute(g).get(); }
+	const Attribute &get_group_rate_attribute(GroupRateKey g) const { return group_rate_vec_[static_cast<size_t>(g)]; }
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////  Individual : flags  /////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	bool is_infected_status() const;
-	bool is_healthy_status() const;
-	bool is_missing_status() const;
-
-	///////////////////////////////////////////////////////////////////////////////////////////////
-	////////////////////////////////////  Individual : setter  ////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////
+	bool is_infected_status() const { return hsp::status::is_infected(status_); }
+	bool is_healthy_status() const { return hsp::status::is_susceptible(status_); }
+	bool is_missing_status() const { return hsp::status::is_missing(status_); }
 
 	/// Initialize pointer to data long format.
 	void init_pointer_to_data_long(hsp::dict<std::vector<double>> *y) { pdatalong_ = y; }
-	/// Initialize group rate according to given attribute.
-	void init_group_rate(const std::string &g, const Attribute &attr);
-	/// Initialize group rate to reference.
-	void init_group_rate_to_reference(const std::string &g);
 
 private:
-	std::string id_; // user id
-	size_t index_;	 // housepi internal index
-	size_t hhindex_; // household relative index
-	int status_;	 // status of the individual
-
-	// NOTE: allowd data variables are numerical only
-	hsp::dict<double> data_map_ = {};			 // data
-	hsp::dict<Attribute> group_rate_map_ = {}; // group rates
-
-	hsp::dict<std::vector<double>> *pdatalong_ = nullptr; // data long format associated
-
-	friend class Household;
+	std::string id_;									  /// user id
+	size_t index_;										  /// housepi internal index
+	size_t hhindex_;									  /// household relative index
+	int status_;										  /// status of the individual
+	hsp::dict<double> data_map_ = {};					  /// data
+	std::vector<Attribute> group_rate_vec_ = {};		  /// group rates
+	hsp::dict<std::vector<double>> *pdatalong_ = nullptr; /// data long format associated
 };
 
 #endif // HOUSEPI__INDIVIDUAL__H

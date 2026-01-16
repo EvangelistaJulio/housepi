@@ -21,9 +21,7 @@ namespace hsp::na
     /// Wheter double represents NA.
     bool is(double x);
     /// Wheter string represents NA.
-    bool is(const std::string &txt);
-    /// Wheter character represents NA.
-    bool is(const char *txt);
+    bool is(std::string_view txt);
 }
 
 #endif // HOUSEPI__TOOLS__NAN__H

@@ -87,11 +87,11 @@ void Model::fill_house_escape_matrix(Household &house) const
 	for (size_t i = 0; i < house.size(); ++i)
 	{
 		const auto &member_i = house.get_member(order[i]);
-		double inf_i = member_i.group_rate("infectivity");
-		double sus_i = member_i.group_rate("susceptibility");
+		double inf_i = member_i.group_rate(GroupRateKey::infectivity);
+		double sus_i = member_i.group_rate(GroupRateKey::susceptibility);
 
 		// community
-		commu_mtx[i] = std::exp(-commu_rate * member_i.group_rate("community"));
+		commu_mtx[i] = std::exp(-commu_rate * member_i.group_rate(GroupRateKey::community));
 		// infector always "escapes" himself (check if actually relevant)
 		p2p_mtx[i][i] = 1.0;
 
@@ -100,9 +100,9 @@ void Model::fill_house_escape_matrix(Household &house) const
 		{
 			const auto &member_k = house.get_member(order[k]);
 			// [i] : infector -> [r] : infectee
-			p2p_mtx[i][k] = std::exp(-inf_i * p2p_rate * member_k.group_rate("susceptibility"));
+			p2p_mtx[i][k] = std::exp(-inf_i * p2p_rate * member_k.group_rate(GroupRateKey::susceptibility));
 			// [r] : infector -> [i] : infectee
-			p2p_mtx[k][i] = std::exp(-member_k.group_rate("infectivity") * p2p_rate * sus_i);
+			p2p_mtx[k][i] = std::exp(-member_k.group_rate(GroupRateKey::infectivity) * p2p_rate * sus_i);
 		}
 	}
 }
@@ -142,7 +142,7 @@ void Model::simulate_single_house(Household &house)
 	std::vector<Individual *> new_gen_set = {};
 
 	for (auto &member : house)
-		if (uniform() < exp(-commu_rate * member.group_rate("community")))
+		if (uniform() < exp(-commu_rate * member.group_rate(GroupRateKey::community)))
 			house.set_susceptible_status(member);
 		else
 		{
@@ -163,11 +163,11 @@ void Model::simulate_single_house(Household &house)
 
 		for (auto &member_i : house.healthy())
 		{
-			double sus_i = member_i.group_rate("susceptibility");
+			double sus_i = member_i.group_rate(GroupRateKey::susceptibility);
 
 			double r = 0.;
 			for (auto *member_k : old_gen_set)
-				r += member_k->group_rate("infectivity");
+				r += member_k->group_rate(GroupRateKey::infectivity);
 
 			if (uniform() >= exp(-r * p2p_rate * sus_i))
 			{

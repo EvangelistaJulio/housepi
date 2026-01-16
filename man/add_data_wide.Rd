@@ -9,10 +9,10 @@ add_data_wide(hhmodel, data_wide)
 \arguments{
 \item{hhmodel}{\code{HousepiModel} object.}
 
-\item{data_wide}{\code{data.frame} with the household data used for analysis in wide format.}
+\item{data_wide}{\code{data.frame}. Household data used for analysis (wide format).}
 }
 \value{
-A deep clone of the input \code{HousepiModel} with new definitions.
+\code{HousepiModel} object. Deep clone of input with new definitions.
 }
 \description{
 Make an internal copy of the provided household data.

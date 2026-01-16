@@ -18,6 +18,9 @@
 #include "tools/read.h"
 #include "tools/types.h"
 
+#include "tools/keys.h"
+#include "tools/keys_helper.h"
+
 #include "function.h"
 #include "distribution.h"
 #include "data.h"
@@ -764,7 +767,8 @@ Rcpp::DataFrame MCMC::helper_group_rates_rcpp_snapshot_(const Household &house) 
         df_id[member] = member.id();
 
         for (size_t c = 0; c < headers.size(); ++c)
-            group_rate_dbl[c][member] = hsp_to_rcpp(member.group_rate(headers[c]));
+            group_rate_dbl[c][member] = hsp_to_rcpp(member.group_rate(
+                hsp::key::Registry<GroupRateKey>::instance().from_string(headers[c])));
     }
 
     auto output = DataFrame::create(_["id"] = df_id);

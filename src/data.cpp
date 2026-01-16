@@ -236,38 +236,6 @@ void Setup::prog_crash() { progressbar_->crash(); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  *** Individual : class ***  //////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-Individual::Individual()
-{
-    id_ = "";
-    index_ = 0;
-    hhindex_ = 0;
-    status_ = hsp::status::MISSING;
-    data_map_ = {};
-}
-
-bool Individual::is_infected_status() const { return hsp::status::is_infected(status_); }
-bool Individual::is_healthy_status() const { return hsp::status::is_susceptible(status_); }
-bool Individual::is_missing_status() const { return hsp::status::is_missing(status_); }
-
-/// Initialize group rate according to given attribute.
-void Individual::init_group_rate(const std::string &g, const Attribute &attr)
-{
-    group_rate_map_[g].transfer(attr);
-    group_rate_map_[g].set_name(g, "group rate");
-}
-/// Initialize group rate to reference.
-void Individual::init_group_rate_to_reference(const std::string &g)
-{
-    group_rate_map_[g].transfer(Attribute(hsp::rates::VALUE_REFERENCE));
-    group_rate_map_[g].set_name(g, "group rate");
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////  *** Household : class ***  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -290,17 +258,6 @@ void Household::init_member(size_t index,
         missing_list_.push_back(house_size_);
 
     ++house_size_;
-}
-
-void Household::set_susceptible_status(Individual &member) { set_status_(member, hsp::status::SUSCEPTIBLE); }
-void Household::set_infected_status(Individual &member) { set_status_(member, hsp::status::INFECTED); }
-void Household::set_infected_status(Individual &member, int new_status)
-{
-    if (!hsp::status::is_infected(new_status))
-        throw std::invalid_argument(
-            "Tried to set as infected status " + std::to_string(new_status) +
-            " to " + err_name() + ".\nInfected status must be an integer greater than 0.");
-    set_status_(member, new_status);
 }
 
 /// Change_status of individual i to new status (without controls).

@@ -9,9 +9,9 @@ compute_household_marginals(hhsampler, data_wide, ascending = NA)
 \arguments{
 \item{hhsampler}{An instance of the \code{HousepiSampler} class.}
 
-\item{data_wide}{\code{data.frame} with the household data used for analysis in wide format.}
+\item{data_wide}{\code{data.frame}. Household data used for analysis (wide format).}
 
-\item{ascending}{\code{logical(1)} to set ascending hierarchy between feature numbers.\cr
+\item{ascending}{\code{logical(1)}. Set ascending hierarchy between feature numbers.\cr
 If \code{FALSE} is descending (default).}
 }
 \description{
