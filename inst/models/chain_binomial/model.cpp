@@ -11,10 +11,21 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+#include "tools/keys.h"
+#include "tools/keys_helper.h"
+
 #include "binomial.h"
 #include "individual.h"
 #include "household.h"
 #include "model.h"
+
+REGISTER_HOUSEPI_KEYS(AugmKey, )
+REGISTER_HOUSEPI_KEYS(DataKey, )
+REGISTER_HOUSEPI_KEYS(GroupRateKey, )
+REGISTER_HOUSEPI_KEYS(HHsize_tKey, )
+REGISTER_HOUSEPI_KEYS(HHdoubleKey, )
+REGISTER_HOUSEPI_KEYS(HHmatrixKey, )
+REGISTER_HOUSEPI_KEYS(ParamKey, alpha, beta)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -39,7 +50,7 @@ void Model::init_model_for_inference()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Compute the log-likelihood within household.
-double Model::compute_household_obs_log_lik(Household &house)
+double Model::compute_house_obs_log_lik(Household &house)
 {
 	double log_likelihood = 0.;
 
@@ -111,7 +122,7 @@ double Model::person_to_person_risk() const { return par("beta"); }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Simulate the infection within a household.
-void Model::simulate_single_household(Household &house)
+void Model::simulate_single_house(Household &house)
 {
 	double commu_esc_proba = exp(-community_risk());
 	double log_p2p_esc_proba = -person_to_person_risk();

@@ -13,6 +13,7 @@
 
 #include "tools/operators.h"
 #include "tools/types.h"
+#include "tools/keys.h"
 
 #include "attribute.h"
 #include "individual.h"
@@ -158,42 +159,6 @@ public:
 	void init_contact_rates(size_t from, size_t to, const Attribute &x);
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////  Household : cache attributes  ////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////
-
-	/// Check if any cache quantity is associated to the household.
-	bool is_any_cache() { return !(cache_int_vec_.empty() && cache_dbl_vec_.empty() && cache_dbl_mtx_.empty()); }
-	/// Deep copies of cache attributes in the buffer
-	void buffer_all_cache()
-	{
-		buffer_cache_int_vec_ = cache_int_vec_;
-		buffer_cache_size_t_vec_ = cache_size_t_vec_;
-		buffer_cache_dbl_vec_ = cache_dbl_vec_;
-		buffer_cache_dbl_mtx_ = cache_dbl_mtx_;
-	}
-
-	// Cache integer vector
-	void init_cache_integer_vector(const std::string &e) { cache_int_vec_[e] = std::vector<int>(size(), 0); }
-	std::vector<int> &cache_integer_vector(const std::string &e) { return hsp::safe_at(cache_int_vec_, e, "cached object"); }
-	const std::vector<int> &cache_integer_vector(const std::string &e) const { return hsp::safe_at(cache_int_vec_, e, "cached object"); }
-
-	// Cache size_t vector
-	void init_cache_size_t_vector(const std::string &e) { cache_size_t_vec_[e] = std::vector<size_t>(size(), 0); }
-	std::vector<size_t> &cache_size_t_vector(const std::string &e) { return hsp::safe_at(cache_size_t_vec_, e, "cached object"); }
-	const std::vector<size_t> &cache_size_t_vector(const std::string &e) const { return hsp::safe_at(cache_size_t_vec_, e, "cached object"); }
-
-	// Cached double vector
-	void init_cache_double_vector(const std::string &e) { cache_dbl_vec_[e] = std::vector<double>(size(), 0.); }
-	std::vector<double> &cache_double_vector(const std::string &e) { return hsp::safe_at(cache_dbl_vec_, e, "cached object"); }
-	const std::vector<double> &cache_double_vector(const std::string &e) const { return hsp::safe_at(cache_dbl_vec_, e, "cached object"); }
-
-	// Cache double matrix
-	using dbl_matrix = std::vector<std::vector<double>>;
-	void init_cache_double_matrix(const std::string &e) { cache_dbl_mtx_[e] = dbl_matrix(size(), std::vector<double>(size(), 0.)); }
-	dbl_matrix &cache_double_matrix(const std::string &e) { return hsp::safe_at(cache_dbl_mtx_, e, "cached object"); }
-	const dbl_matrix &cache_double_matrix(const std::string &e) const { return hsp::safe_at(cache_dbl_mtx_, e, "cached object"); }
-
-	///////////////////////////////////////////////////////////////////////////////////////////////
 	/////////////////////////////////  Household : log-likelihood  ////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -208,7 +173,46 @@ public:
 	}
 	/// Assert that current log-likelihood id not a NaN.
 	void assert_log_lik_not_NaN() const;
-	void recover_buffer_values(bool is_cache_depen);
+
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////  Household : cache attributes  ////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////
+
+	/// Initialize cached structeres according to household size.
+	void init_cache();
+
+	/// Deep copies of cache attributes in the buffer
+	void buffer_all_cache()
+	{
+		buffer_size_t_vec_ = cache_size_t_vec_;
+		buffer_dbl_vec_ = cache_dbl_vec_;
+		buffer_dbl_mtx_ = cache_dbl_mtx_;
+	}
+
+	/// Recover previous values of the log-likelihood and cached depedencies.
+	void recover_buffer_values(bool is_cache_depen)
+	{
+		obs_log_lik_ = obs_buffer_;
+
+		if (is_cache_depen)
+		{
+			cache_size_t_vec_.swap(buffer_size_t_vec_);
+			cache_dbl_vec_.swap(buffer_dbl_vec_);
+			cache_dbl_mtx_.swap(buffer_dbl_mtx_);
+		}
+	}
+
+	// Cache size_t vector
+	std::vector<size_t> &cache_size_t_vector(HHsize_tKey e) { return cache_size_t_vec_[static_cast<size_t>(e)]; }
+	const std::vector<size_t> &cache_size_t_vector(HHsize_tKey e) const { return cache_size_t_vec_[static_cast<size_t>(e)]; }
+
+	// Cached double vector
+	std::vector<double> &cache_double_vector(HHdoubleKey e) { return cache_dbl_vec_[static_cast<size_t>(e)]; }
+	const std::vector<double> &cache_double_vector(HHdoubleKey e) const { return cache_dbl_vec_[static_cast<size_t>(e)]; }
+
+	// Cache double matrix
+	std::vector<std::vector<double>> &cache_double_matrix(HHmatrixKey e) { return cache_dbl_mtx_[static_cast<size_t>(e)]; }
+	const std::vector<std::vector<double>> &cache_double_matrix(HHmatrixKey e) const { return cache_dbl_mtx_[static_cast<size_t>(e)]; }
 
 private:
 	std::string house_id_ = "";			   /// User house id
@@ -241,15 +245,13 @@ private:
 	///////////////////////////  Household : cache attributes [private]  //////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	hsp::dict<std::vector<int>> cache_int_vec_ = {};
-	hsp::dict<std::vector<size_t>> cache_size_t_vec_ = {};
-	hsp::dict<std::vector<double>> cache_dbl_vec_ = {};
-	hsp::dict<dbl_matrix> cache_dbl_mtx_ = {};
+	std::vector<std::vector<size_t>> cache_size_t_vec_ = {};
+	std::vector<std::vector<double>> cache_dbl_vec_ = {};
+	std::vector<std::vector<std::vector<double>>> cache_dbl_mtx_ = {};
 
-	hsp::dict<std::vector<int>> buffer_cache_int_vec_ = {};
-	hsp::dict<std::vector<size_t>> buffer_cache_size_t_vec_ = {};
-	hsp::dict<std::vector<double>> buffer_cache_dbl_vec_ = {};
-	hsp::dict<dbl_matrix> buffer_cache_dbl_mtx_ = {};
+	std::vector<std::vector<size_t>> buffer_size_t_vec_ = {};
+	std::vector<std::vector<double>> buffer_dbl_vec_ = {};
+	std::vector<std::vector<std::vector<double>>> buffer_dbl_mtx_ = {};
 };
 
 #endif // HOUSEPI__HOUSEHOLD__H

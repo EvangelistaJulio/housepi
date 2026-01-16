@@ -52,7 +52,7 @@ public:
 
     MCMCImpl(std::function<void()> func_init_inference,
              std::function<void()> func_init_simulation,
-             std::function<double(Household &)> func_household_log_lik,
+             std::function<double(Household &)> func_house_log_lik,
              std::function<void(Household &)> func_simulate_house,
              std::function<void(Household &, Individual &)> func_update_cache);
     ~MCMCImpl();
@@ -61,12 +61,12 @@ public:
     ///////////////////////////////  MCMCImpl : Metropolis-Hastings  ////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    unsigned long smpl_count = 0;    /// count of store samples
+    unsigned long smpl_count = 0;                /// count of store samples
     std::vector<double> smpl_total_log_lik = {}; /// vector of total log-likelihood samples
 
     void init_monte_carlo();
     void init_evaluate();
-    void init_model_for_inference() { callback_init_inference_(); }
+    void init_model_for_inference();
     void run_monte_carlo();
     std::vector<std::vector<double>> power_posteriors(const std::string &scheme, unsigned long N);
     double evaluate_single_house_log_lik(const std::string &house_id);
@@ -79,7 +79,9 @@ public:
     /// Auxiliary method to initialize simulations.
     /// UPDATE: once I allow for multi-treading and a flag other than n_chains = 0, I can drop this.
     void helper_init_simulation();
-    void simulate_single_household_in_place(Household &h) { callback_simulate_house_(h); }
+
+    /// Simulate a single household outbreak in place.
+    void simulate_single_house_in_place(Household &house);
 
 private:
     /////////////////////////////////////////////////////////////////////////////////////////////

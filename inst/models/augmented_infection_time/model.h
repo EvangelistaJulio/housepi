@@ -30,17 +30,13 @@ public:
 
 	double loglike_healthy(const Household &house) const;
 	double loglike_infectious(const Household &house) const;
-	double roi_inst_simulation(Household &house,
-							   Individual &member_i,
-							   double t_infec_i) const;
+	double roi_inst_simulation(Household &house, Individual &member_i, double t_infec_i) const;
 
 	// override general MCMC methods
 	void init_advanced_setup() override final;
-	void init_model_for_inference() override final;
-	void init_model_for_simulation() override final;
 	void update_cache_dependecies(Household &house, Individual &member_i) override final;
-	double compute_household_obs_log_lik(Household &house) override final;
-	void simulate_single_household(Household &house) override final;
+	double compute_house_obs_log_lik(Household &house) override final;
+	void simulate_single_house(Household &house) override final;
 };
 
 #endif // HOUSEPI__MODEL__H

@@ -42,7 +42,7 @@ REGISTER_USER_FUNCTION(MyMonomialFunction)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Compute the log-likelihood within household.
-double Model::compute_household_obs_log_lik(Household &house)
+double Model::compute_house_obs_log_lik(Household &house)
 {
     double output = 0.0;
     for (const Individual &member : house.infected())
@@ -51,7 +51,7 @@ double Model::compute_household_obs_log_lik(Household &house)
 }
 
 /// Augmented variable initialization.
-void Model::simulate_single_household(Household &house)
+void Model::simulate_single_house(Household &house)
 {
     for (Individual &member : house.infected())
         init_missing_augm(member);

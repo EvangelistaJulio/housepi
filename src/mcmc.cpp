@@ -55,6 +55,15 @@ MCMCImpl::MCMCImpl(std::function<void()> func_init_inference,
       callback_update_cache_(std::move(func_update_cache)) {}
 MCMCImpl::~MCMCImpl() = default;
 
+void MCMCImpl::init_model_for_inference()
+{
+    callback_init_inference_();
+
+    // init cache dependencies for all households and individuals
+    for (auto &house : data_wide->restricted())
+        house.init_cache();
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////  MCMC::Impl : evaluate log-likelihood  ////////////////////////////
@@ -646,6 +655,13 @@ void MCMCImpl::helper_init_simulation()
     init_model_for_simulation_();  // initialize model for simulation
 }
 
+/// Simulate a single household outbreak in place.
+void MCMCImpl::simulate_single_house_in_place(Household &house)
+{
+    house.init_cache();
+    callback_simulate_house_(house);
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////  MCMC : constructor  /////////////////////////////////////////
@@ -659,9 +675,9 @@ MCMC::MCMC()
           [this]()
           { this->init_model_for_simulation(); },
           [this](Household &h) -> double
-          { return this->compute_household_obs_log_lik(h); },
+          { return this->compute_house_obs_log_lik(h); },
           [this](Household &h)
-          { return this->simulate_single_household(h); },
+          { return this->simulate_single_house(h); },
           [this](Household &h, Individual &i)
           { this->update_cache_dependecies(h, i); })) {}
 MCMC::~MCMC() = default;
@@ -709,7 +725,7 @@ void MCMC::init_contact_rates_(Household &house)
             if (member_k != member_i)
             {
                 _pair_contact_rate = "";
-                init_household_contact_rates(house, member_k, member_i);
+                init_house_contact_rates(house, member_k, member_i);
 
                 if (!hsp::na::is(_pair_contact_rate))
                 {
@@ -733,31 +749,6 @@ void MCMC::init_contact_rates_(Household &house)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////  MCMC : cache attributes  ///////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Extra integer vectors for all households.
-void MCMC::cache_house_integer_vector(const string &e)
-{
-    for (auto &house : pImpl_->data_wide->restricted())
-        house.init_cache_integer_vector(e);
-}
-/// Extra size_t vectors for all households.
-void MCMC::cache_house_size_t_vector(const string &e)
-{
-    for (auto &house : pImpl_->data_wide->restricted())
-        house.init_cache_size_t_vector(e);
-}
-/// Extra double vectors for all households.
-void MCMC::cache_house_double_vector(const string &e)
-{
-    for (auto &house : pImpl_->data_wide->restricted())
-        house.init_cache_double_vector(e);
-}
-/// Extra double square matrix for all households.
-void MCMC::cache_house_double_matrix(const string &e)
-{
-    for (auto &house : pImpl_->data_wide->restricted())
-        house.init_cache_double_matrix(e);
-}
 
 void MCMC::init_infec_profile_template(hsp::dict<std::string> x)
 {

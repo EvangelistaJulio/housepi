@@ -236,7 +236,7 @@ void MCMC::print_simulated_data_wide(const string &pathtofile)
             try
             {
                 // inplace simulation
-                pImpl_->simulate_single_household_in_place(house);
+                pImpl_->simulate_single_house_in_place(house);
                 // print the simulated data
                 update_ofstream_datawide(ofs, house,
                                          data_wide.headers,

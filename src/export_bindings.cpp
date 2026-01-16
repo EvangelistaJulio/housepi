@@ -946,7 +946,7 @@ Rcpp::DataFrame MCMC::helper_simulate_single_repetition_()
         for (auto house : *pImpl_->data_wide) // NOTE: deep copy of households
             try
             {
-                pImpl_->simulate_single_household_in_place(house);
+                pImpl_->simulate_single_house_in_place(house);
                 for (const auto &member : house)
                 {
                     df_status[r] = member.status();

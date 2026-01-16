@@ -17,6 +17,8 @@
 #include <Rcpp.h>
 #endif
 
+#include "tools/keys.h"
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////  *** MCMC : class ***  ////////////////////////////////////
@@ -59,7 +61,7 @@ public:
 	/// Auxiliary wrapper to emplace_back */
 	void emplace_contact_rate(std::string p) { _pair_contact_rate = p; }
 	/// Assign the contact patterns between a couple of individuals.
-	virtual void init_household_contact_rates(Household &, const Individual &, const Individual &) {}
+	virtual void init_house_contact_rates(Household &, const Individual &, const Individual &) {}
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////  MCMC : parameters  ////////////////////////////////////
@@ -75,19 +77,6 @@ public:
 	void init_missing_augm(Individual &member);
 	void clear_all_augm(Individual &member);
 	void request_augm_discrete(const std::string &x);
-
-	/////////////////////////////////////////////////////////////////////////////////////////////
-	////////////////////////////////  MCMC : cache attributes  //////////////////////////////////
-	/////////////////////////////////////////////////////////////////////////////////////////////
-
-	/// Update cahced augmeted dependecies.
-	virtual void update_cache_dependecies(Household &, Individual &) {}
-
-	void cache_house_integer_vector(const std::string &e);
-	void cache_house_size_t_vector(const std::string &e);
-	void cache_house_double_vector(const std::string &e);
-	void cache_house_double_matrix(const std::string &e);
-
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////  MCMC : infectivity profile  ////////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
@@ -109,8 +98,10 @@ public:
 	//////////////////////////////  MCMC : evaluate log-likelihood  /////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
+	/// Update cahced augmeted dependecies.
+	virtual void update_cache_dependecies(Household &, Individual &) {}
 	/// Compute the log-likelihood for a single household.
-	virtual double compute_household_obs_log_lik(Household &) { throw std::runtime_error(
+	virtual double compute_house_obs_log_lik(Household &) { throw std::runtime_error(
 		"Called undefined log-likelihood method.\nOverride it in your custom model implementation before proceeding."); }
 	double evaluate_log_lik(const std::string &house_id = "");
 
@@ -122,7 +113,7 @@ public:
 	virtual void init_model_for_simulation() {}
 
 	/// Simulation for a single household.
-	virtual void simulate_single_household(Household &) { throw std::runtime_error(
+	virtual void simulate_single_house(Household &) { throw std::runtime_error(
 		"Called undefined simulation method.\nOverride it in your custom model implementation before proceeding."); }
 
 #ifdef _HOUSEPI_RCPP

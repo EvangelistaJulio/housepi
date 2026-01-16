@@ -11,10 +11,21 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+#include "tools/keys.h"
+#include "tools/keys_helper.h"
+
 #include "individual.h"
 #include "household.h"
 #include "binomial.h"
 #include "model.h"
+
+REGISTER_HOUSEPI_KEYS(AugmKey, )
+REGISTER_HOUSEPI_KEYS(DataKey, )
+REGISTER_HOUSEPI_KEYS(GroupRateKey, community, susceptibility, infectivity)
+REGISTER_HOUSEPI_KEYS(HHsize_tKey, order)
+REGISTER_HOUSEPI_KEYS(HHdoubleKey, commu_escape_proba)
+REGISTER_HOUSEPI_KEYS(HHmatrixKey, p2p_escape_proba)
+REGISTER_HOUSEPI_KEYS(ParamKey, alpha, beta, gamma, size_ref, study_period)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -30,11 +41,6 @@ void Model::init_model_for_inference()
 
 	// initialize look-up-table to largest possible value
 	bax::init_escape_patterns_lookuptable(get_max_hh_cases());
-
-	// allocate memory for the escape matrix
-	cache_house_size_t_vector("order");
-	cache_house_double_vector("commu-escape-proba");
-	cache_house_double_matrix("p2p-escape-proba");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -44,7 +50,7 @@ void Model::init_model_for_inference()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Compute the log-likelihood for a single household.
-double Model::compute_household_obs_log_lik(Household &house)
+double Model::compute_house_obs_log_lik(Household &house)
 {
 	// fill matrix with escape probabilities
 	fill_house_escape_matrix(house);
@@ -52,8 +58,8 @@ double Model::compute_household_obs_log_lik(Household &house)
 	// compute corresponding loglikelihood times house multiplicity
 	return house.multiplicity() * bax::chain_binomial_heter_log_lik(
 									  house.n_infec_status(),
-									  house.cache_double_vector("commu-escape-proba"),
-									  house.cache_double_matrix("p2p-escape-proba"));
+									  house.cache_double_vector(HHdoubleKey::commu_escape_proba),
+									  house.cache_double_matrix(HHmatrixKey::p2p_escape_proba));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -68,14 +74,14 @@ void Model::fill_house_escape_matrix(Household &house) const
 	const double p2p_rate = person_to_person_risk();
 
 	// ordered members group rates : 1) infectious, 2) susceptibles
-	auto &order = house.cache_size_t_vector("order");
+	auto &order = house.cache_size_t_vector(HHsize_tKey::order);
 	// note 1: this works only if size = n_infec_status + n_healthy_status
 	// note 2: this is not changing throughout inference w\o status change
 	order = house.infected_hhindexes() + house.healthy_hhindexes();
 
-	// assign values to escpae matrix
-	auto &commu_mtx = house.cache_double_vector("commu-escape-proba");
-	auto &p2p_mtx = house.cache_double_matrix("p2p-escape-proba");
+	// assign values to escape matrix
+	auto &commu_mtx = house.cache_double_vector(HHdoubleKey::commu_escape_proba);
+	auto &p2p_mtx = house.cache_double_matrix(HHmatrixKey::p2p_escape_proba);
 
 	// fill matrix according to order
 	for (size_t i = 0; i < house.size(); ++i)
@@ -124,7 +130,7 @@ double Model::person_to_person_risk() const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Simulate the infection within a household.
-void Model::simulate_single_household(Household &house)
+void Model::simulate_single_house(Household &house)
 {
 	const double commu_rate = community_risk();
 	const double p2p_rate = person_to_person_risk();

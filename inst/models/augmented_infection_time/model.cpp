@@ -11,15 +11,20 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+#include "tools/keys.h"
+#include "tools/keys_helper.h"
+
 #include "individual.h"
 #include "household.h"
 #include "model.h"
 
-#include "tools/keys.h"
-
-REGISTER_HOUSEPI_KEYS(DataKeys, temperature, pressure, velocity, density)
-REGISTER_HOUSEPI_KEYS(ParamKeys, max_iterations, tolerance, timestep)
-REGISTER_HOUSEPI_KEYS(AugmKeys, enable_logging, output_path)
+REGISTER_HOUSEPI_KEYS(AugmKey, infec_time, incub_period, onset_time)
+REGISTER_HOUSEPI_KEYS(DataKey, )
+REGISTER_HOUSEPI_KEYS(GroupRateKey, community, susceptibility, infectivity)
+REGISTER_HOUSEPI_KEYS(HHsize_tKey, intro_case)
+REGISTER_HOUSEPI_KEYS(HHdoubleKey, )
+REGISTER_HOUSEPI_KEYS(HHmatrixKey, inst, cumul)
+REGISTER_HOUSEPI_KEYS(ParamKey, alpha, beta, gamma, size_ref, study_period)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -40,23 +45,6 @@ void Model::init_advanced_setup()
 	init_infec_profile_template({{"func", "gamma_meanvar|mean:var|{2|N}:{1|N}"}});
 }
 
-/// Initialize parameters and augmented variables.
-void Model::init_model_for_inference()
-{
-	// integer for index of introduction case
-	cache_house_integer_vector("intro_case");
-	// matrices for instantaneous infectivity profiles
-	cache_house_double_matrix("inst");
-	// matrices for cumulative infectivity profiles
-	cache_house_double_matrix("cumul");
-}
-
-/// Initialize parameters and augmented variables.
-void Model::init_model_for_simulation()
-{
-	init_model_for_inference();
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////  Model : compute single house log-likelihood  /////////////////////////////
@@ -64,7 +52,7 @@ void Model::init_model_for_simulation()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Compute the log-likelihood within household.
-double Model::compute_household_obs_log_lik(Household &house)
+double Model::compute_house_obs_log_lik(Household &house)
 {
 	return loglike_healthy(house) + loglike_infectious(house);
 }
@@ -72,12 +60,12 @@ double Model::compute_household_obs_log_lik(Household &house)
 /// Cumulative Risk of Infection for susceptible individual i.
 double Model::loglike_healthy(const Household &house) const
 {
-	const auto &member_0 = house.get_member(house.cache_integer_vector("intro_case")[0]);
+	const auto &member_0 = house.get_member(house.cache_size_t_vector(HHsize_tKey::intro_case)[0]);
 	const double alpha_cumul = par("alpha") * (par("study_period") + member_0.aug("incub_period"));
 	const double beta = transmission_rate(house);
 
 	// load pre-computed cumulative infectivity profiles
-	const auto &cumul_mtx = house.cache_double_matrix("cumul");
+	const auto &cumul_mtx = house.cache_double_matrix(HHmatrixKey::cumul);
 
 	double output = 0.;
 	for (const auto &member_i : house.healthy())
@@ -95,11 +83,11 @@ double Model::loglike_healthy(const Household &house) const
 double Model::loglike_infectious(const Household &house) const
 {
 	double output = 0.;
-	const auto &member_0 = house.get_member(house.cache_integer_vector("intro_case")[0]);
+	const auto &member_0 = house.get_member(house.cache_size_t_vector(HHsize_tKey::intro_case)[0]);
 	const double t_intro = member_0.aug("infec_time");
 
-	const auto &inst_mtx = house.cache_double_matrix("inst");
-	const auto &cumul_mtx = house.cache_double_matrix("cumul");
+	const auto &inst_mtx = house.cache_double_matrix(HHmatrixKey::inst);
+	const auto &cumul_mtx = house.cache_double_matrix(HHmatrixKey::cumul);
 
 	const double alpha = par("alpha");
 	const double beta = transmission_rate(house);
@@ -157,8 +145,8 @@ void Model::update_cache_dependecies(Household &house, Individual &member_i)
 {
 	const double t_infec_i = member_i.aug("infec_time");
 
-	auto &inst_mtx = house.cache_double_matrix("inst");
-	auto &cumul_mtx = house.cache_double_matrix("cumul");
+	auto &inst_mtx = house.cache_double_matrix(HHmatrixKey::inst);
+	auto &cumul_mtx = house.cache_double_matrix(HHmatrixKey::cumul);
 
 	double new_t0 = t_infec_i; // init time introduction to current case
 	size_t i0 = member_i;	   // set index to current member
@@ -208,7 +196,7 @@ void Model::update_cache_dependecies(Household &house, Individual &member_i)
 		}
 
 	// store intro case
-	house.cache_integer_vector("intro_case")[0] = i0;
+	house.cache_size_t_vector(HHsize_tKey::intro_case)[0] = i0;
 
 	///////////////////////////////////
 	//////  Susceptible Members  //////
@@ -229,7 +217,7 @@ void Model::update_cache_dependecies(Household &house, Individual &member_i)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Poisson point process to simulate outbreak in a single household.
-void Model::simulate_single_household(Household &house)
+void Model::simulate_single_house(Household &house)
 {
 #ifdef _HOUSEPI_DISCRETE_TIME
 	const double Dt = 1;

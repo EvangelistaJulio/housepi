@@ -18,6 +18,9 @@
 #include "tools/string.h"
 #include "tools/types.h"
 
+#include "tools/keys.h"
+#include "tools/keys_helper.h"
+
 #include "attribute.h"
 #include "data.h"
 #include "data_reports.h"
@@ -337,29 +340,40 @@ void Household::init_contact_rates(size_t from, size_t to, const Attribute &x)
     contact_rates_[from][to] = x;
 }
 
-	/// Assert that current log-likelihood id not a NaN.
-	void Household::assert_log_lik_not_NaN() const
-	{
-		if (hsp::na::is(obs_log_lik_))
-			throw std::runtime_error("Observation log-likelihood returned NaN.");
-	}
+/// Assert that current log-likelihood id not a NaN.
+void Household::assert_log_lik_not_NaN() const
+{
+    if (hsp::na::is(obs_log_lik_))
+        throw std::runtime_error("Observation log-likelihood returned NaN.");
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  Household : cache attributes  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Recover previous values of the log-likelihood and cached depedencies.
-void Household::recover_buffer_values(bool is_cache_depen)
+/// Initialize cached structeres according to household size.
+void Household::init_cache()
 {
-    obs_log_lik_ = obs_buffer_;
+    const size_t hh_size = size();
 
-    if (is_cache_depen)
-    {
-        cache_int_vec_.swap(buffer_cache_int_vec_);
-        cache_size_t_vec_.swap(buffer_cache_size_t_vec_);
-        cache_dbl_vec_.swap(buffer_cache_dbl_vec_);
-        cache_dbl_mtx_.swap(buffer_cache_dbl_mtx_);
-    }
+    // size_t
+    cache_size_t_vec_.resize(hsp::key::Registry<HHsize_tKey>::instance().size());
+    for (auto &v : cache_size_t_vec_)
+        v.assign(hh_size, 0);
+    buffer_size_t_vec_ = cache_size_t_vec_;
+
+    // FLAG
+    // double
+    cache_dbl_vec_.resize(hsp::key::Registry<HHdoubleKey>::instance().size());
+    for (auto &v : cache_dbl_vec_)
+        v.assign(hh_size, 0.);
+    buffer_dbl_vec_ = cache_dbl_vec_;
+
+    // matrix
+    cache_dbl_mtx_.resize(hsp::key::Registry<HHmatrixKey>::instance().size());
+    for (auto &v : cache_dbl_mtx_)
+        v.assign(hh_size, std::vector<double>(hh_size, 0.));
+    buffer_dbl_mtx_ = cache_dbl_mtx_;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

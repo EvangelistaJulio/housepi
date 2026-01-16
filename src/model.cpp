@@ -26,10 +26,10 @@ void Model::init_model_for_simulation() { hsp::msg::warning(
 	"Performed simulation with 'blank' model."); }
 
 /// Unitary likelihood.
-double Model::compute_household_obs_log_lik(Household &) { return 0.; }
+double Model::compute_house_obs_log_lik(Household &) { return 0.; }
 
 /// Augmented variable initialization.
-void Model::simulate_single_household(Household &house)
+void Model::simulate_single_house(Household &house)
 {
 	for (Individual &member : house.infected())
 		init_missing_augm(member);
