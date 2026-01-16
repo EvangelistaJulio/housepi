@@ -84,20 +84,17 @@ DECLARE_HOUSEPI_REGISTRY(ContinuosDistrRegistry, DistributionRegistry)
 DECLARE_HOUSEPI_REGISTRY(DiscreteDistrRegistry, DistributionRegistry)
 DECLARE_HOUSEPI_REGISTRY(InfecProfileRegistry, DistributionRegistry)
 
-/// Register a Function derived class T to FungRegistry R.
-template <typename T, typename R>
-struct StaticRegistatror
-{
-    StaticRegistatror()
-    {
-        R::instance().template register_member<T>();
-    }
-};
-#define REGISTER_HOUSEPI_CLASS(T, R)       \
-    namespace                              \
-    {                                      \
-        static StaticRegistatror<T, R>     \
-            housepi_register_##T##_to_##R; \
+#define REGISTER_HOUSEPI_FUNCTION(T, R)                                \
+    namespace                                                          \
+    {                                                                  \
+        struct T##_##R##_AutoRegister                                  \
+        {                                                              \
+            T##_##R##_AutoRegister()                                   \
+            {                                                          \
+                R::instance().template register_member<T>();           \
+            }                                                          \
+        };                                                             \
+        static T##_##R##_AutoRegister T##_##R##_housepi_auto_register; \
     }
 
 #endif // HOUSEPI__REGISTRY__H

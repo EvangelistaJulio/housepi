@@ -12,6 +12,8 @@
 #include "tools/string.h"
 #include "tools/types.h"
 
+#include "tools/keys.h" // FLAG
+
 #include "augmented.h"
 #include "data.h"
 #include "data_reports.h"

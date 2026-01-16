@@ -15,6 +15,12 @@
 #include "household.h"
 #include "model.h"
 
+#include "tools/keys.h"
+
+REGISTER_HOUSEPI_KEYS(DataKeys, temperature, pressure, velocity, density)
+REGISTER_HOUSEPI_KEYS(ParamKeys, max_iterations, tolerance, timestep)
+REGISTER_HOUSEPI_KEYS(AugmKeys, enable_logging, output_path)
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////  Model : initialization  //////////////////////////////////
@@ -29,7 +35,7 @@ void Model::init_advanced_setup()
 	request_infec_profile_discrete();
 #endif
 
-	// template infectivity profile (otherwise user defined) 
+	// template infectivity profile (otherwise user defined)
 	// UPDATE: this should become more user friendly
 	init_infec_profile_template({{"func", "gamma_meanvar|mean:var|{2|N}:{1|N}"}});
 }

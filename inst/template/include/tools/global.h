@@ -5,8 +5,8 @@
  * See the LICENSE file for details.
  */
 
-#ifndef HOUSEPI__TOOLS__INFPROF__H
-#define HOUSEPI__TOOLS__INFPROF__H
+#ifndef HOUSEPI__TOOLS__GLOBAL__H
+#define HOUSEPI__TOOLS__GLOBAL__H
 
 #include <string>
 
@@ -75,4 +75,4 @@ namespace hsp
     }
 }
 
-#endif // HOUSEPI__TOOLS__INFPROF__H
+#endif // HOUSEPI__TOOLS__GLOBAL__H

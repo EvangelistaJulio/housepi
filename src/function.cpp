@@ -882,21 +882,21 @@ namespace
 /////////////////////////////////////  Register functions  //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-REGISTER_HOUSEPI_CLASS(Minimum_, ArithmeticRegistry)
-REGISTER_HOUSEPI_CLASS(Maximum_, ArithmeticRegistry)
-REGISTER_HOUSEPI_CLASS(Minus_, ArithmeticRegistry)
-REGISTER_HOUSEPI_CLASS(Subtraction_, ArithmeticRegistry)
-REGISTER_HOUSEPI_CLASS(Division_, ArithmeticRegistry)
-REGISTER_HOUSEPI_CLASS(Summation_, ArithmeticRegistry)
-REGISTER_HOUSEPI_CLASS(Product_, ArithmeticRegistry)
+REGISTER_HOUSEPI_FUNCTION(Minimum_, ArithmeticRegistry)
+REGISTER_HOUSEPI_FUNCTION(Maximum_, ArithmeticRegistry)
+REGISTER_HOUSEPI_FUNCTION(Minus_, ArithmeticRegistry)
+REGISTER_HOUSEPI_FUNCTION(Subtraction_, ArithmeticRegistry)
+REGISTER_HOUSEPI_FUNCTION(Division_, ArithmeticRegistry)
+REGISTER_HOUSEPI_FUNCTION(Summation_, ArithmeticRegistry)
+REGISTER_HOUSEPI_FUNCTION(Product_, ArithmeticRegistry)
 
-REGISTER_HOUSEPI_CLASS(Power_, TranscendentalRegistry)
-REGISTER_HOUSEPI_CLASS(SquareRoot_, TranscendentalRegistry)
-REGISTER_HOUSEPI_CLASS(Exponential_, TranscendentalRegistry)
-REGISTER_HOUSEPI_CLASS(Logarithm_, TranscendentalRegistry)
-REGISTER_HOUSEPI_CLASS(Sine_, TranscendentalRegistry)
-REGISTER_HOUSEPI_CLASS(Cosine_, TranscendentalRegistry)
-REGISTER_HOUSEPI_CLASS(Tangent_, TranscendentalRegistry)
+REGISTER_HOUSEPI_FUNCTION(Power_, TranscendentalRegistry)
+REGISTER_HOUSEPI_FUNCTION(SquareRoot_, TranscendentalRegistry)
+REGISTER_HOUSEPI_FUNCTION(Exponential_, TranscendentalRegistry)
+REGISTER_HOUSEPI_FUNCTION(Logarithm_, TranscendentalRegistry)
+REGISTER_HOUSEPI_FUNCTION(Sine_, TranscendentalRegistry)
+REGISTER_HOUSEPI_FUNCTION(Cosine_, TranscendentalRegistry)
+REGISTER_HOUSEPI_FUNCTION(Tangent_, TranscendentalRegistry)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////

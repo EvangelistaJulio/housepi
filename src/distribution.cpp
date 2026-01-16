@@ -1067,19 +1067,19 @@ namespace
 //////////////////////////////////////  Register Distributions  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-REGISTER_HOUSEPI_CLASS(Uniform_, ContinuosDistrRegistry)
-REGISTER_HOUSEPI_CLASS(Normal_, ContinuosDistrRegistry)
-REGISTER_HOUSEPI_CLASS(Lognormal_, ContinuosDistrRegistry)
-REGISTER_HOUSEPI_CLASS(Beta_, ContinuosDistrRegistry)
-REGISTER_HOUSEPI_CLASS(Gamma_, ContinuosDistrRegistry)
-REGISTER_HOUSEPI_CLASS(GammaMeanVar_, ContinuosDistrRegistry)
-REGISTER_HOUSEPI_CLASS(Rayleigh_, ContinuosDistrRegistry)
-REGISTER_HOUSEPI_CLASS(Weibull_, ContinuosDistrRegistry)
-REGISTER_HOUSEPI_CLASS(Exponential_, ContinuosDistrRegistry)
+REGISTER_HOUSEPI_FUNCTION(Uniform_, ContinuosDistrRegistry)
+REGISTER_HOUSEPI_FUNCTION(Normal_, ContinuosDistrRegistry)
+REGISTER_HOUSEPI_FUNCTION(Lognormal_, ContinuosDistrRegistry)
+REGISTER_HOUSEPI_FUNCTION(Beta_, ContinuosDistrRegistry)
+REGISTER_HOUSEPI_FUNCTION(Gamma_, ContinuosDistrRegistry)
+REGISTER_HOUSEPI_FUNCTION(GammaMeanVar_, ContinuosDistrRegistry)
+REGISTER_HOUSEPI_FUNCTION(Rayleigh_, ContinuosDistrRegistry)
+REGISTER_HOUSEPI_FUNCTION(Weibull_, ContinuosDistrRegistry)
+REGISTER_HOUSEPI_FUNCTION(Exponential_, ContinuosDistrRegistry)
 
-REGISTER_HOUSEPI_CLASS(Poisson_, DiscreteDistrRegistry)
-REGISTER_HOUSEPI_CLASS(Binomial_, DiscreteDistrRegistry)
-REGISTER_HOUSEPI_CLASS(NegativeBinomial_, DiscreteDistrRegistry)
-REGISTER_HOUSEPI_CLASS(Geometric_, DiscreteDistrRegistry)
+REGISTER_HOUSEPI_FUNCTION(Poisson_, DiscreteDistrRegistry)
+REGISTER_HOUSEPI_FUNCTION(Binomial_, DiscreteDistrRegistry)
+REGISTER_HOUSEPI_FUNCTION(NegativeBinomial_, DiscreteDistrRegistry)
+REGISTER_HOUSEPI_FUNCTION(Geometric_, DiscreteDistrRegistry)
 
-REGISTER_HOUSEPI_CLASS(InfecProfile_Ferretti20, InfecProfileRegistry)
+REGISTER_HOUSEPI_FUNCTION(InfecProfile_Ferretti20, InfecProfileRegistry)

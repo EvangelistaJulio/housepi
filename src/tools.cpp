@@ -99,6 +99,51 @@ namespace hsp
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////  Housepi Model Keys  ///////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    namespace key
+    {
+        /// Parse comma-separated enum names from stringified VA_ARGS.
+        std::vector<std::string_view> helper_parse_names(std::string_view input)
+        {
+            std::vector<std::string_view> result;
+            size_t start = 0;
+
+            while (start < input.size())
+            {
+                // skip whitespace
+                while (start < input.size() &&
+                       std::isspace(static_cast<unsigned char>(input[start])))
+                    ++start;
+
+                if (start >= input.size())
+                    break;
+
+                // find end of identifier (alphanumeric + underscore)
+                size_t end = start;
+                while (end < input.size() &&
+                       (std::isalnum(static_cast<unsigned char>(input[end])) || input[end] == '_'))
+                    ++end;
+
+                // add the identifier if found
+                if (end > start)
+                    result.push_back(input.substr(start, end - start));
+
+                // skip to next comma or assignment
+                while (end < input.size() && input[end] != ',')
+                    ++end;
+
+                start = end + 1;
+            }
+
+            return result;
+        }
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////  Not Available Recognition Functions  //////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////

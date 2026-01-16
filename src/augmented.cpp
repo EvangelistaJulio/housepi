@@ -111,7 +111,8 @@ Augmented::Augmented(std::shared_ptr<DataWide> dataptr,
                      std::shared_ptr<InfecProfile> infprofptr)
     : pDataWide_(dataptr),
       pParameter_(paramptr),
-      pInfecProfile_(infprofptr) {}
+      pInfecProfile_(infprofptr)
+{}
 Augmented::~Augmented() = default;
 
 /// Assign augmented variables to all individuals.
@@ -495,7 +496,7 @@ vector<size_t> Augmented::init_get_definition_order_(Individual &member)
 void Augmented::helper_init_attributes_(Individual &member, size_t k)
 {
     const auto &a = deftable_["name"][k];
-    
+
     try
     {
         member.init_augm(a, pParameter_->read_numeric(deftable_["value"][k], &member).get(),
