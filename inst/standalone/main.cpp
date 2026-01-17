@@ -11,6 +11,8 @@
 #include <iostream>
 #include <iomanip>
 
+#include "tools/keys.h"
+#include "tools/keys_helper.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/read.h"
@@ -117,7 +119,7 @@ void MCMC::print_infer_state(const string &output_filename) const
 
     // header parameters
     for (const auto &p : param.list_sample)
-        ofs << hsp::read::DELIMITER << p;
+        ofs << hsp::read::DELIMITER << hsp::key::Registry<ParamKey>::instance().to_string(p);
 
     // header augmented variable of id trace
     if (augm.is_any_draw())
@@ -145,7 +147,7 @@ void MCMC::print_infer_state(const string &output_filename) const
             // print parameter values
             for (const auto &p : param.list_sample)
                 ofs << hsp::read::DELIMITER << std::setprecision(5)
-                    << std::fixed << param.smpl_values.find(p)->second[i];
+                    << std::fixed << param.smpl_values[static_cast<size_t>(p)][i];
 
             // print augmented variable of id trace
             if (!augm.smpl_values.empty())

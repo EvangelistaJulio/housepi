@@ -122,9 +122,9 @@ public:
     std::string str_summary() const override final;
 
 protected:
-    double buffer_ = hsp::na::DOUBLE;     /// buffered value
-    double user_value_ = hsp::na::DOUBLE; /// initial user defined value
-    bool is_constant_ = true;             /// user flag for wheter constant or not
+    double buffer_;           /// buffered value
+    double user_value_;       /// initial user defined value
+    bool is_constant_ = true; /// user flag for wheter constant or not
 
     // NOTE: Household must be copyable for simulations -> Variable pointers must be shared
     std::shared_ptr<Distribution> pDistr_; /// prior\model distribution of the variable

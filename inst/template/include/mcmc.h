@@ -59,7 +59,7 @@ public:
 	/// UPDATE: also contact rates should just be imported
 	void build_all_rates();
 	/// Auxiliary wrapper to emplace_back */
-	void emplace_contact_rate(std::string p) { _pair_contact_rate = p; }
+	void emplace_contact_rate(std::string p) { pair_contact_rate_ = p; }
 	/// Assign the contact patterns between a couple of individuals.
 	virtual void init_house_contact_rates(Household &, const Individual &, const Individual &) {}
 
@@ -194,7 +194,7 @@ private:
 
 	/// Contact Rateas
 	/// UPDATE: this should be dropped in favour of table definitions
-	std::string _pair_contact_rate = {};
+	std::string pair_contact_rate_;
 
 	void init_contact_rates_(Household &house);
 

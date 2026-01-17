@@ -12,8 +12,6 @@
 #include <vector>
 
 #include "tools/keys.h"
-#include "tools/keys_helper.h"
-#include "tools/operators.h"
 #include "tools/parser.h"
 #include "tools/random.h"
 #include "tools/types.h"
@@ -37,16 +35,16 @@ struct Parameter
     /// NOTE: list_adaptable_sample_standard + list_non_adapt_sample_standard = list_sample_standard
     /// NOTE: list_adaptable_sample_cached + list_non_adapt_sample_cached = list_sample_cached
 
-    std::vector<ParamKey> list_const = {};  /// list of constant parameters
-    std::vector<ParamKey> list_sample = {}; /// list of parameters to sample
+    std::vector<size_t> list_const = {};  /// list of constant parameters
+    std::vector<size_t> list_sample = {}; /// list of parameters to sample
 
-    std::vector<ParamKey> list_sample_standard = {};
-    std::vector<ParamKey> list_sample_cached = {};
+    std::vector<size_t> list_sample_standard = {};
+    std::vector<size_t> list_sample_cached = {};
 
-    std::vector<ParamKey> list_adaptable_sample_standard = {};
-    std::vector<ParamKey> list_non_adapt_sample_standard = {};
-    std::vector<ParamKey> list_adaptable_sample_cached = {};
-    std::vector<ParamKey> list_non_adapt_sample_cached = {};
+    std::vector<size_t> list_adaptable_sample_standard = {};
+    std::vector<size_t> list_non_adapt_sample_standard = {};
+    std::vector<size_t> list_adaptable_sample_cached = {};
+    std::vector<size_t> list_non_adapt_sample_cached = {};
 
     std::vector<std::vector<double>> smpl_values = {}; /// values of the sample
     std::vector<std::vector<double>> smpl_priors = {}; /// prior values of the sample
@@ -56,11 +54,9 @@ struct Parameter
     /////////////////////////////////////////////////////////////////////////////////////////
 
     /// Get reference to parameter Variable class.
-    Variable &at(ParamKey p) { return param_vec_[static_cast<size_t>(p)]; }
+    Variable &at(size_t p) { return param_vec_[p]; }
     /// Get reference to parameter constant Variable class.
-    const Variable &at(ParamKey p) const { return param_vec_[static_cast<size_t>(p)]; }
-    /// Get value of the parameter.
-    double get(ParamKey p) const { return at(p).get(); }
+    const Variable &at(size_t p) const { return param_vec_[p]; }
 
     /// Flag to check if there are parameters to sample.
     bool is_any_sample() const { return !list_sample.empty(); }
@@ -71,7 +67,7 @@ struct Parameter
 
     void build(const hsp::str_table &deftable);
     void build_for_expec(const hsp::dbl_table &deftable);
-    void make_cache_dependent(const std::string &p);
+    void make_cache_dependent(size_t p);
     void make_cache_dependent(const hsp::parse::Entry &node);
 
     /// Randomly initialize values of the parameters to be inferred.
@@ -109,8 +105,8 @@ private:
     mutable Attribute storage_;            /// auxiliary storage attribute used for reading.
 
     void clear_lists_();
-    void build_constant_parameter_(const hsp::str_table &deftable, size_t k);
-    void build_parameter_to_sample_(const hsp::str_table &deftable, size_t k);
+    void helper_build_constant_(const hsp::str_table &deftable, size_t k);
+    void helper_build_to_sample_(const hsp::str_table &deftable, size_t k);
 };
 
 #endif // HOUSEPI__PARAMETER__H

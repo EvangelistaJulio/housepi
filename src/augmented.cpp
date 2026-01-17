@@ -11,6 +11,8 @@
 #include <vector>
 
 #include "tools/global.h"
+#include "tools/keys.h"
+#include "tools/keys_helper.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/operators.h"
@@ -112,7 +114,8 @@ Augmented::Augmented(std::shared_ptr<DataWide> dataptr,
     : pDataWide_(dataptr),
       pParameter_(paramptr),
       pInfecProfile_(infprofptr)
-{}
+{
+}
 Augmented::~Augmented() = default;
 
 /// Assign augmented variables to all individuals.
@@ -351,7 +354,7 @@ void Augmented::set_function_or_identity_for_(size_t k)
 
         // check the type of requested equality
         if (hsp::sources::is_parameter(parser.root.type))
-            is_identity_const = pParameter_->at(parser.root.value).is_constant();
+            is_identity_const = pParameter_->at(static_cast<size_t>(hsp::key::Registry<ParamKey>::instance().from_string(parser.root.value))).is_constant();
 
         else if (hsp::sources::is_augmented(parser.root.type))
             is_identity_const = false; // UPDATE: use an augmented dependecies tree to see if constant

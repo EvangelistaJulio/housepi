@@ -106,9 +106,9 @@ namespace hsp
     namespace key
     {
         /// Parse comma-separated enum names from stringified VA_ARGS.
-        std::vector<std::string_view> helper_parse_names(std::string_view input)
+        std::vector<std::string> helper_parse_names(std::string input)
         {
-            std::vector<std::string_view> result;
+            std::vector<std::string> result;
             size_t start = 0;
 
             while (start < input.size())

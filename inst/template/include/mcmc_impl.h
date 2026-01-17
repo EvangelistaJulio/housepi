@@ -128,10 +128,10 @@ private:
     void store_posterior_sample_();
 
     //----- Metropolis - parameter moves -----//
-    bool move_single_parameter_(ParamKey p, bool is_cache_depen);
-    bool propose_valid_param_move_(ParamKey p);
-    bool accept_valid_param_move_(ParamKey p);
-    void recover_parameter_(ParamKey p, bool is_cache_depen);
+    bool move_single_parameter_(size_t p, bool is_cache_depen);
+    bool propose_valid_param_move_(size_t p);
+    bool accept_valid_param_move_(size_t p);
+    void recover_parameter_(size_t p, bool is_cache_depen);
 
     //----- Metropolis : augmented moves -----//
     void move_all_augm_();

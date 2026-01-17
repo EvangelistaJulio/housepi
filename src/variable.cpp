@@ -223,7 +223,7 @@ void Variable::init(double value, bool is_const,
                     const hsp::parse::Definition &parser, bool is_primitive)
 {
     this->is_constant_ = is_const;
-
+    buffer_ = hsp::na::DOUBLE;
     user_value_ = hsp::na::DOUBLE;
     evaluate_ = &Variable::do_eval_error_;
 

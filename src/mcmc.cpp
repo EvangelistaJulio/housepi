@@ -256,7 +256,7 @@ void MCMCImpl::move_all_()
 }
 
 /// Attempt to move a single parameter for the given inverse temperature.
-bool MCMCImpl::move_single_parameter_(ParamKey p, bool is_cache_depen)
+bool MCMCImpl::move_single_parameter_(size_t p, bool is_cache_depen)
 {
     // proceed only if the new value is consistent
     // otherwise automatically refuse move
@@ -308,7 +308,7 @@ void MCMCImpl::init_move_counts_()
 }
 
 /// propose a valid move (return true), otherwise update refusal (return false).
-bool MCMCImpl::propose_valid_param_move_(ParamKey p)
+bool MCMCImpl::propose_valid_param_move_(size_t p)
 {
     auto &this_par = param->at(p);
 
@@ -326,7 +326,7 @@ bool MCMCImpl::propose_valid_param_move_(ParamKey p)
 }
 
 /// Restore the parameter value in the buffer.
-void MCMCImpl::recover_parameter_(ParamKey p, bool is_cache_depen)
+void MCMCImpl::recover_parameter_(size_t p, bool is_cache_depen)
 {
     // recover buffer value of parameter
     param->at(p).recover_value();
@@ -348,7 +348,7 @@ void MCMCImpl::recover_parameter_(ParamKey p, bool is_cache_depen)
 }
 
 /// Metropolis-Hastings to accept or not current parameter move.
-bool MCMCImpl::accept_valid_param_move_(ParamKey p)
+bool MCMCImpl::accept_valid_param_move_(size_t p)
 {
     const double D_ll = total_log_lik_ - total_buffer_;
     const double move_logratio = param->at(p).get_move_logratio();
@@ -683,7 +683,7 @@ MCMC::~MCMC() = default;
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 double MCMC::uniform() { return pImpl_->setup->unif(); }
-double MCMC::par(ParamKey p) const { return pImpl_->param->get(p); }
+double MCMC::par(ParamKey p) const { return pImpl_->param->at(static_cast<size_t>(p)).get(); }
 
 size_t MCMC::get_max_hh_cases() const { return pImpl_->data_wide->report_hh_size->max_cases.first; }
 void MCMC::assert_no_missing_status() const
@@ -720,22 +720,23 @@ void MCMC::init_contact_rates_(Household &house)
         for (const auto &member_i : house) // -> to : member_i
             if (member_k != member_i)
             {
-                _pair_contact_rate = "";
+                pair_contact_rate_ = "";
                 init_house_contact_rates(house, member_k, member_i);
 
-                if (!hsp::na::is(_pair_contact_rate))
+                if (!hsp::na::is(pair_contact_rate_))
                 {
                     // default reference rate
                     Attribute y(hsp::rates::VALUE_REFERENCE);
 
-                    if (_pair_contact_rate == hsp::rates::MISSING)
+                    if (pair_contact_rate_ == hsp::rates::MISSING)
                         throw std::invalid_argument(
                             "Missing contact rate for individuals '" +
                             member_k.id() + "' and '" + member_i.id() +
                             "' (" + house.err_name() + ").");
 
-                    else if (_pair_contact_rate != hsp::rates::REFERENCE) // parameter rate
-                        y = pImpl_->param->at(hsp::key::Registry<ParamKey>::instance().from_string(_pair_contact_rate));
+                    else if (pair_contact_rate_ != hsp::rates::REFERENCE) // parameter rate
+                        y = pImpl_->param->at(
+                            static_cast<size_t>(hsp::key::Registry<ParamKey>::instance().from_string(pair_contact_rate_)));
 
                     house.init_contact_rates(static_cast<size_t>(member_k), static_cast<size_t>(member_i), y);
                 }
