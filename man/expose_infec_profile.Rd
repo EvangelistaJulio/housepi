@@ -14,21 +14,21 @@ expose_infec_profile(
 )
 }
 \arguments{
-\item{name}{\code{character(1)}. Name of the infectivity profile.}
+\item{name}{\code{character(1)} Name of the infectivity profile.}
 
 \item{...}{named arguments. User argument values for the infectivity profile}
 
-\item{min}{\code{numeric(1)}. Truncate to a minimum value.}
+\item{min}{\code{numeric(1)} Truncate to a minimum value.}
 
-\item{max}{\code{numeric(1)}. Truncate to a maximum value.}
+\item{max}{\code{numeric(1)} Truncate to a maximum value.}
 
-\item{discr}{\code{logical(1)}. Treat definition as discrete.}
+\item{discr}{\code{logical(1)} Treat definition as discrete.}
 
 \item{hhmodel}{\code{HousepiModel} object. Where \%s has been registered.\cr
 If \code{NULL} the built-in registry is used (default).}
 }
 \value{
-An object of class \code{InfecProfileHousepi}.
+\code{InfecProfileHousepi} object.
 }
 \description{
 Expose an object from housepi registered infectivity profile.
@@ -38,5 +38,4 @@ Used to access user defined infectivity profiles.
 ipf <- expose_infec_profile("gamma", shape = 2, scale = 1)
 ipf$inst(seq(0, 5))
 ipf$cumul(seq(0, 5))
-
 }

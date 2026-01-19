@@ -14,21 +14,21 @@ expose_distribution(
 )
 }
 \arguments{
-\item{name}{\code{character(1)}. Name of the distribution.}
+\item{name}{\code{character(1)} Name of the distribution.}
 
 \item{...}{named arguments. User argument values for the distribution}
 
-\item{min}{\code{numeric(1)}. Truncate to a minimum value.}
+\item{min}{\code{numeric(1)} Truncate to a minimum value.}
 
-\item{max}{\code{numeric(1)}. Truncate to a maximum value.}
+\item{max}{\code{numeric(1)} Truncate to a maximum value.}
 
-\item{discr}{\code{logical(1)}. Treat definition as discrete.}
+\item{discr}{\code{logical(1)} Treat definition as discrete.}
 
 \item{hhmodel}{\code{HousepiModel} object. Where \%s has been registered.\cr
 If \code{NULL} the built-in registry is used (default).}
 }
 \value{
-An object of class \code{DistributionHousepi}.
+\code{DistributionHousepi} object.
 }
 \description{
 Expose an object from housepi registered distribution.
@@ -38,5 +38,4 @@ Used to access user defined distributions.
 dst <- expose_distribution("weibull", shape = 2, scale = 1)
 dst$pdf(seq(0, 5))
 dst$cdf(seq(0, 5))
-
 }

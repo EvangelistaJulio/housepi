@@ -18,9 +18,9 @@ load_infec_profile_list(hhmodel, ..., append = FALSE)
 \arguments{
 \item{hhmodel}{\code{HousepiModel} object.}
 
-\item{...}{Named arguments with respective list of definition details.}
+\item{...}{Named arguments. Respective list of definition details.}
 
-\item{append}{\code{logical(1)}. Append to current definitions.\cr
+\item{append}{\code{logical(1)} Append to current definitions.\cr
 If \code{FALSE} drop all pre-existing definitions (default).}
 }
 \value{

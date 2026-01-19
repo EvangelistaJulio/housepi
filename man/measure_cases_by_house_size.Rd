@@ -7,11 +7,11 @@
 measure_cases_by_house_size(data_wide)
 }
 \arguments{
-\item{data_wide}{\code{data.frame}. Household data used for analysis (wide format).}
+\item{data_wide}{\code{data.frame} Household data used for analysis (wide format).}
 }
 \value{
 \code{data.frame}
 }
 \description{
-Function to retrieve cases by household size from a given data.frame.
+Retrieve cases by household size from household data.
 }

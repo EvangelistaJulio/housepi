@@ -137,14 +137,24 @@ void Parameter::build(const hsp::str_table &input)
     if (input.at("name").size() != hsp::str::unique(input.at("name")).size())
         throw std::invalid_argument(
             "Found multiple definitions for the same parameters.");
-    
+
     clear_lists_();
     // load parameters from the row with options
     for (size_t k = 0; k < input.at("name").size(); ++k)
+    {
+        const auto &paramstr = input.at("name")[k]; // parameter name
+
+        if (!(hsp::key::get_all_keys<ParamKey>() % paramstr))
+        {
+            hsp::key::Registry<ParamKey>::instance().add_key(paramstr);
+            param_vec_.emplace_back(Variable(paramstr, "parameter", hsp::na::DOUBLE));
+        }
+
         if (hsp::str::tobool(input.at("const")[k]))
             helper_build_constant_(input, k);
         else
             helper_build_to_sample_(input, k);
+    }
 
     // initialize all parameters to standard
     list_sample_standard = list_sample;
@@ -158,8 +168,6 @@ void Parameter::build(const hsp::str_table &input)
 /// Build parameter dictionaries for expected measure on posterior sample.
 void Parameter::build_for_expec(const hsp::dbl_table &input)
 {
-    const auto reg = hsp::key::Registry<ParamKey>::instance();
-
     if (input.empty())
         return;
 
@@ -171,14 +179,14 @@ void Parameter::build_for_expec(const hsp::dbl_table &input)
 
     clear_lists_();
     // store as sample values
-    smpl_values.reserve(reg.size());
+    smpl_values.reserve(hsp::key::size<ParamKey>());
     // update list of constant parameters to all parameters
-    list_const.reserve(reg.size());
+    list_const.reserve(hsp::key::size<ParamKey>());
 
     // reset definition dictionary to all constants NAs.
-    for (const auto &paramstr : reg.get_all_keys())
+    for (const auto &paramstr : hsp::key::get_all_keys<ParamKey>())
     {
-        const auto p = static_cast<size_t>(reg.from_string(paramstr));
+        const auto p = hsp::key::from_string<ParamKey>(paramstr);
         list_const.push_back(p);
 
         smpl_values[p] = {};
@@ -190,14 +198,12 @@ void Parameter::build_for_expec(const hsp::dbl_table &input)
 /// Drop current lists of parameters.
 void Parameter::clear_lists_()
 {
-    const auto reg = hsp::key::Registry<ParamKey>::instance();
-
     // UPDATE: to be improved by changing Variable constructor...
     param_vec_.clear();
-    param_vec_.reserve(reg.size());
-    param_vec_.assign(reg.size(), Variable());
-    for (auto p : reg.get_all_keys())
-        param_vec_[static_cast<size_t>(reg.from_string(p))] = Variable(p, "parameter", hsp::na::DOUBLE);
+    param_vec_.reserve(hsp::key::size<ParamKey>());
+    param_vec_.assign(hsp::key::size<ParamKey>(), Variable());
+    for (auto paramstr : hsp::key::get_all_keys<ParamKey>())
+        param_vec_[hsp::key::from_string<ParamKey>(paramstr)] = Variable(paramstr, "parameter", hsp::na::DOUBLE);
 
     list_const.clear();
     list_sample.clear();
@@ -222,7 +228,7 @@ void Parameter::helper_build_constant_(const hsp::str_table &input, size_t k)
             "Constant parameter '" + paramstr + "' had undefined value.");
 
     // assign constant parameter to the set of variables
-    const auto p = static_cast<size_t>(hsp::key::Registry<ParamKey>::instance().from_string(paramstr));
+    const auto p = hsp::key::from_string<ParamKey>(paramstr);
     param_vec_[p].transfer(read_numeric(input.at("value")[k]));
     // update the lists of constant parameters
     list_const.push_back(p);
@@ -239,7 +245,7 @@ void Parameter::helper_build_to_sample_(const hsp::str_table &input, size_t k)
             "Non-constant parameter '" + paramstr + "' had undefined prior.");
 
     // create a new parameter Variable
-    const auto p = static_cast<size_t>(hsp::key::Registry<ParamKey>::instance().from_string(paramstr));
+    const auto p = hsp::key::from_string<ParamKey>(paramstr);
     param_vec_[p].transfer(read_numeric(input.at("value")[k]));
     auto &new_param = at(p);
 
@@ -298,11 +304,9 @@ void Parameter::make_cache_dependent(size_t p)
 /// Load parameters values of the n-th posterrior sample.
 void Parameter::load_sample_values(size_t n)
 {
-    const auto reg = hsp::key::Registry<ParamKey>::instance();
-
-    for (const auto &paramstr : reg.get_all_keys())
+    for (const auto &paramstr : hsp::key::get_all_keys<ParamKey>())
     {
-        const auto p = static_cast<size_t>(reg.from_string(paramstr));
+        const auto p = hsp::key::from_string<ParamKey>(paramstr);
         const auto &vec = smpl_values[p];
         if (!vec.empty())
             at(p).set(vec[n]);
@@ -314,7 +318,7 @@ void Parameter::make_cache_dependent(const hsp::parse::Entry &node)
     // cache dependecy if an augmented function depends on a parameter to be inferred
     if (hsp::sources::is_parameter(node.type))
     {
-        const auto p = static_cast<size_t>(hsp::key::Registry<ParamKey>::instance().from_string(node.value));
+        const auto p = hsp::key::from_string<ParamKey>(node.value);
         if (!at(p).is_constant())
             make_cache_dependent(p);
     }
@@ -336,12 +340,12 @@ void Parameter::init_draws(unsigned long sample_size)
     smpl_priors.reserve(list_sample.size());
     for (const auto &p : list_sample)
     {
-        smpl_values[static_cast<size_t>(p)].clear();
-        smpl_values[static_cast<size_t>(p)].reserve(sample_size);
-        smpl_values[static_cast<size_t>(p)].assign(sample_size, hsp::na::DOUBLE);
-        smpl_priors[static_cast<size_t>(p)].clear();
-        smpl_priors[static_cast<size_t>(p)].reserve(sample_size);
-        smpl_priors[static_cast<size_t>(p)].assign(sample_size, hsp::na::DOUBLE);
+        smpl_values[p].clear();
+        smpl_values[p].reserve(sample_size);
+        smpl_values[p].assign(sample_size, hsp::na::DOUBLE);
+        smpl_priors[p].clear();
+        smpl_priors[p].reserve(sample_size);
+        smpl_priors[p].assign(sample_size, hsp::na::DOUBLE);
     }
 }
 
@@ -351,8 +355,8 @@ void Parameter::store_draws(unsigned long smpl_count)
     for (const auto &p : list_sample)
     {
         const auto &this_par = this->at(p);
-        smpl_values[static_cast<size_t>(p)][smpl_count] = this_par.get();
-        smpl_priors[static_cast<size_t>(p)][smpl_count] = this_par.get_distr_logpdf();
+        smpl_values[p][smpl_count] = this_par.get();
+        smpl_priors[p][smpl_count] = this_par.get_distr_logpdf();
     }
 }
 
@@ -374,7 +378,7 @@ const Attribute &Parameter::read_attribute(const hsp::parse::Entry &node, const 
     }
     else if (hsp::sources::is_parameter(node.type)) // terminal parameter node
     {
-        return at(static_cast<size_t>(hsp::key::Registry<ParamKey>::instance().from_string(node.value)));
+        return at(hsp::key::from_string<ParamKey>(node.value));
     }
     else if (!node.is_empty())
     {
@@ -394,7 +398,7 @@ const Attribute &Parameter::read_attribute(const hsp::parse::Entry &node, const 
         }
         else if (hsp::sources::is_group_rate(node.type)) // group rate terminal node
         {
-            return member.get_group_rate_attribute(hsp::key::Registry<GroupRateKey>::instance().from_string(node.value));
+            return member.get_group_rate_attribute(hsp::key::from_string<GroupRateKey>(node.value));
         }
         else
             throw std::invalid_argument(
@@ -493,8 +497,7 @@ vector<string> GroupRate::helper_assert_definitions_(const hsp::str_table &input
 /// UPDATE: I can move the full check on missing rates here!
 void GroupRate::helper_init_all_rates_(Individual &member, const hsp::str_table &these_rates)
 {
-    auto reg = hsp::key::Registry<GroupRateKey>::instance();
-    member.group_rate_vec_.resize(reg.size());
+    member.group_rate_vec_.resize(hsp::key::size<GroupRateKey>());
 
     for (const auto &[g, vec] : these_rates)
     {
@@ -507,7 +510,7 @@ void GroupRate::helper_init_all_rates_(Individual &member, const hsp::str_table 
                                             "' was missing for " + member.err_name() + ".");
             if (paramstr != hsp::rates::REFERENCE)
                 param_pointers.emplace_back(
-                    pParameter_->at(static_cast<size_t>(hsp::key::Registry<ParamKey>::instance().from_string(paramstr))).get_ptr());
+                    pParameter_->at(hsp::key::from_string<ParamKey>(paramstr)).get_ptr());
         }
 
         // initialize group rate to reference or the param pointers
@@ -515,8 +518,8 @@ void GroupRate::helper_init_all_rates_(Individual &member, const hsp::str_table 
         if (!param_pointers.empty())
             attr = Attribute(param_pointers);
 
-        member.group_rate_vec_[static_cast<size_t>(reg.from_string(g))].transfer(attr);
-        member.group_rate_vec_[static_cast<size_t>(reg.from_string(g))].set_name(g, "group rate");
+        member.group_rate_vec_[hsp::key::from_string<GroupRateKey>(g)].transfer(attr);
+        member.group_rate_vec_[hsp::key::from_string<GroupRateKey>(g)].set_name(g, "group rate");
     }
 }
 

@@ -11,11 +11,22 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+#include "tools/keys.h"
+#include "tools/keys_helper.h"
+
 #include "tools/messages.h"
 #include "individual.h"
 #include "household.h"
 
 #include "model.h"
+
+REGISTER_HOUSEPI_KEYS(AugmKey, )
+REGISTER_HOUSEPI_KEYS(DataKey, )
+REGISTER_HOUSEPI_KEYS(GroupRateKey, )
+REGISTER_HOUSEPI_KEYS(HHsize_tKey, )
+REGISTER_HOUSEPI_KEYS(HHdoubleKey, )
+REGISTER_HOUSEPI_KEYS(HHmatrixKey, )
+REGISTER_HOUSEPI_KEYS(ParamKey, )
 
 /// Raise error when "blank" model.
 void Model::init_model_for_inference() { hsp::msg::warning(

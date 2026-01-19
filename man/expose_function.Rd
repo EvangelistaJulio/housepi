@@ -14,21 +14,21 @@ expose_function(
 )
 }
 \arguments{
-\item{name}{\code{character(1)}. Name of the function.}
+\item{name}{\code{character(1)} Name of the function.}
 
 \item{...}{named arguments. User argument values for the function}
 
-\item{min}{\code{numeric(1)}. Truncate to a minimum value.}
+\item{min}{\code{numeric(1)} Truncate to a minimum value.}
 
-\item{max}{\code{numeric(1)}. Truncate to a maximum value.}
+\item{max}{\code{numeric(1)} Truncate to a maximum value.}
 
-\item{discr}{\code{logical(1)}. Treat definition as discrete.}
+\item{discr}{\code{logical(1)} Treat definition as discrete.}
 
 \item{hhmodel}{\code{HousepiModel} object. Where \%s has been registered.\cr
 If \code{NULL} the built-in registry is used (default).}
 }
 \value{
-An object of class \code{FunctionHousepi}.
+\code{FunctionHousepi} object.
 }
 \description{
 Expose an object from housepi registered function.
@@ -38,5 +38,4 @@ Used to access user defined functions.
 fnc <- expose_function("pow", x2 = 3)
 fnc$func(seq(0, 5))
 fnc$prim(seq(0, 5))
-
 }

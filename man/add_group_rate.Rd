@@ -22,29 +22,29 @@ add_group_rate(
 \arguments{
 \item{hhmodel}{\code{HousepiModel} object.}
 
-\item{name}{\code{character(1)}. Name used by internal calls.}
+\item{name}{\code{character(1)} Name used by internal calls.}
 
-\item{by}{\code{list}. Features associated to group rate as data headers.\cr
+\item{by}{\code{list} Features associated to group rate as data headers.\cr
 Corresponding data columns have to be categorical.}
 
-\item{prefix}{\code{character(1)}. Prefix to parameter names associated to group rate.\cr
+\item{prefix}{\code{character(1)} Prefix to parameter names associated to group rate.\cr
 If \code{NA} uses the first 3 letters of rate name (default).}
 
-\item{reference}{named \code{list}. Features associated to reference group.\cr
+\item{reference}{named \code{list} Features associated to reference group.\cr
 Default is the group with the largest sample size.}
 
-\item{independent}{\code{logical(1)}. Consider features as independent.\cr
+\item{independent}{\code{logical(1)} Consider features as independent.\cr
 If \code{FALSE} features are combined (default).}
 
-\item{prior}{\code{character(1)}. Choice for the prior distribution.}
+\item{prior}{\code{character(1)} Choice for the prior distribution.}
 
 \item{...}{named arguments for the prior distribution.}
 
-\item{min}{\code{numeric(1)}. Truncate to a minimum value.}
+\item{min}{\code{numeric(1)} Truncate to a minimum value.}
 
-\item{max}{\code{numeric(1)}. Truncate to a maximum value.}
+\item{max}{\code{numeric(1)} Truncate to a maximum value.}
 
-\item{proposal}{\code{character(1)}. Proposal used in the Monte Carlo.\cr
+\item{proposal}{\code{character(1)} Proposal used in the Monte Carlo.\cr
 One between:\cr
 \itemize{
 \item 'sample': sampled from the \%s distribution;\cr
@@ -54,8 +54,7 @@ One between:\cr
 \item \code{NA} (default): same as 'sample'.
 }}
 
-\item{proposal_scale}{\code{numeric(1)}. Scale of the proposal.\cr
-Default scale is \code{1}.\cr
+\item{proposal_scale}{\code{numeric(1)} Scale of the proposal (default is \code{1}).\cr
 Changed automatically during inference if \code{n_adapt}>0.\cr
 Ignored if proposal is 'sample'.}
 }
@@ -65,14 +64,9 @@ Ignored if proposal is 'sample'.}
 \description{
 Add definitions of a group rate by given data feature(s).
 Group rates are relative to a reference class that can be specified.
-If no MCMC options are provided, the following configuration is assumed
-\itemize{
-\item \code{prior}: "lognormal"
-\item \code{meanlog}: 0
-\item \code{sdlog}: 3
-\item \code{min}: 0
-\item \code{max} 10
-}
+If no MCMC options are provided, the prior is assumed to be a
+\\eqn{\\mathrm{lognormal}[\\mu=0, \\sigma=3]}
+with support \\eqn{[0, 10]}.
 }
 \references{
 Cauchemez, et al. (2009)

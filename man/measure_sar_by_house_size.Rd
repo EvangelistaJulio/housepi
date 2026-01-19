@@ -7,14 +7,13 @@
 measure_sar_by_house_size(data_wide)
 }
 \arguments{
-\item{data_wide}{\code{data.frame}. Household data used for analysis (wide format).}
+\item{data_wide}{\code{data.frame} Household data used for analysis (wide format).}
 }
 \value{
 \code{data.frame}
 }
 \description{
-Function to retrieve secondary attack rates (SAR)
-from data.frame with cases.
+Retrieve secondary attack rates (SAR) from household data.
 }
 \details{
 The secondary attack rate is computed for all household

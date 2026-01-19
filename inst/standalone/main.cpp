@@ -119,7 +119,7 @@ void MCMC::print_infer_state(const string &output_filename) const
 
     // header parameters
     for (const auto &p : param.list_sample)
-        ofs << hsp::read::DELIMITER << hsp::key::Registry<ParamKey>::instance().to_string(p);
+        ofs << hsp::read::DELIMITER << hsp::key::Registry<ParamKey>::instance().as_string(p);
 
     // header augmented variable of id trace
     if (augm.is_any_draw())

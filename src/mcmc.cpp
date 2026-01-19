@@ -52,7 +52,16 @@ MCMCImpl::MCMCImpl(std::function<void()> func_init_inference,
       callback_init_simulation_(std::move(func_init_simulation)),
       callback_house_log_lik_(std::move(func_household_log_lik)),
       callback_simulate_house_(std::move(func_simulate_house)),
-      callback_update_cache_(std::move(func_update_cache)) {}
+      callback_update_cache_(std::move(func_update_cache))
+{
+    hsp::key::clear<AugmKey>();
+    hsp::key::clear<DataKey>();
+    hsp::key::clear<GroupRateKey>();
+    hsp::key::clear<HHsize_tKey>();
+    hsp::key::clear<HHdoubleKey>();
+    hsp::key::clear<HHmatrixKey>();
+    hsp::key::clear<ParamKey>();
+}
 MCMCImpl::~MCMCImpl() = default;
 
 void MCMCImpl::init_model_for_inference()
@@ -675,7 +684,9 @@ MCMC::MCMC()
           [this](Household &h)
           { return this->simulate_single_house(h); },
           [this](Household &h, Individual &i)
-          { this->update_cache_dependecies(h, i); })) {}
+          { this->update_cache_dependecies(h, i); }))
+{
+}
 MCMC::~MCMC() = default;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

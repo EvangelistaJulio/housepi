@@ -117,8 +117,8 @@ public:
 	const std::vector<size_t> &healthy_hhindexes() const { return healthy_list_; }
 	const std::vector<size_t> &missing_hhindexes() const { return missing_list_; }
 
-	size_t n_infec_status() const { return infected_list_.size(); }
-	size_t n_healthy_status() const { return healthy_list_.size(); }
+	size_t n_infected_status() const { return infected_list_.size(); }
+	size_t n_susceptible_status() const { return healthy_list_.size(); }
 	size_t n_missing_status() const { return missing_list_.size(); }
 
 	///////////////////////////////////////////////////////////////////////////////////////////////

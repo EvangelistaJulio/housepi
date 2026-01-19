@@ -28,10 +28,10 @@ get_rcpp_module_from_model <- function(module_name, hhmodel) {
   }
 }
 
-rd_test_name_ <- "`character(1)`. Name of the %s."
-rd_test_x_ <- "`numeric()`. Points where to evaluate."
+rd_test_name_ <- "`character(1)` Name of the %s."
+rd_test_x_ <- "`numeric()` Points where to evaluate."
 rd_test_args_ <- "named arguments. User argument values for the %s"
-rd_test_discr_ <- "`logical(1)`. Treat definition as discrete."
+rd_test_discr_ <- "`logical(1)` Treat definition as discrete."
 rd_test_model_ <- paste(rd_model_in_, "Where %s has been registered.\\cr
 If `NULL` the built-in registry is used (default).")
 

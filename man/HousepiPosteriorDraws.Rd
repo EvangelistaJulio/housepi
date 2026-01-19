@@ -13,24 +13,23 @@ If requested so during inference, it also stores augmented variables.
 \section{Active bindings}{
 \if{html}{\out{<div class="r6-active-bindings">}}
 \describe{
-\item{\code{param_draws}}{\code{posterior::draws_df}
-Posterior draws data.frame of parameters.}
+\item{\code{param_draws}}{\code{posterior::draws_df}.
+Draws of parameters.}
 
-\item{\code{prior_draws}}{\code{posterior::draws_df}
-Posterior draws data.frame of values of parameter priors.}
+\item{\code{prior_draws}}{\code{posterior::draws_df}.
+Draws of parameter priors.}
 
-\item{\code{augm_draws}}{\code{posterior::draws_df}
-Posterior draws data.frame of selected individuals augmented variables.}
+\item{\code{augm_draws}}{\code{posterior::draws_df}.
+Draws selected individuals augmented variables.}
 
-\item{\code{log_lik_draws}}{\code{posterior::draws_df}
-Posterior draws data.frame of households pointwise log-likelihood.}
+\item{\code{log_lik_draws}}{\code{posterior::draws_df}.
+Draws of households pointwise log-likelihood.}
 
-\item{\code{total_log_lik_draws}}{\code{posterior::draws_df}
-Posterior draws data.frame of the total log-likelihood.}
+\item{\code{total_log_lik_draws}}{\code{posterior::draws_df}.
+Draws of the total log-likelihood.}
 
-\item{\code{complete_draws}}{\code{posterior::draws_df}
-Parameters draws complete of pointwise log-likelihood and priors.
-store posterior::draws_df internally}
+\item{\code{complete_draws}}{\code{posterior::draws_df}.
+Draws of parameters, priors and pointwise log-likelihood values.}
 }
 \if{html}{\out{</div>}}
 }
@@ -47,6 +46,7 @@ store posterior::draws_df internally}
 \if{html}{\out{<a id="method-HousepiPosteriorDraws-new"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiPosteriorDraws-new}{}}}
 \subsection{Method \code{new()}}{
+Store posterior::draws_df internally.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiPosteriorDraws$new(name, rcpp_object)}\if{html}{\out{</div>}}
 }
@@ -54,7 +54,7 @@ store posterior::draws_df internally}
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{name}}{\code{character(1)} Model name.}
+\item{\code{name}}{\code{character(1)}. Model name.}
 
 \item{\code{rcpp_object}}{\code{Rcpp_ModelHousepi}}
 }

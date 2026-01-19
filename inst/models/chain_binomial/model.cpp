@@ -58,7 +58,7 @@ double Model::compute_house_obs_log_lik(Household &house)
 	double log_commu_infec_proba = log(1. - exp(log_commu_esc_proba));
 	double log_p2p_esc_proba = -person_to_person_risk();
 
-	auto n_positive = house.n_infec_status();
+	auto n_positive = house.n_infected_status();
 
 	///////////////////////////////////////////
 	/////////  Sero-Negatives Members  ////////
@@ -142,9 +142,9 @@ void Model::simulate_single_house(Household &house)
 	//////////////////////////////////////////////////////////////////
 
 	size_t n_old_gen = 0;
-	size_t n_new_gen = house.n_infec_status();
+	size_t n_new_gen = house.n_infected_status();
 
-	while ((house.n_infec_status() > 0) && (n_new_gen > 0))
+	while ((house.n_infected_status() > 0) && (n_new_gen > 0))
 	{
 		n_old_gen = n_new_gen;
 		n_new_gen = 0;

@@ -510,10 +510,10 @@ Rcpp::NumericMatrix MCMC::flush_param_draws()
         NumericMatrix output(pImpl_->smpl_count, n_cols);
 
         size_t col = 0;
-        for (const string &p : param.list_sample)
+        for (const auto p : param.list_sample)
         {
-            headers[col] = p;
-            helper_vector_flush(output(_, col++), param.smpl_values.at(p));
+            headers[col] = hsp::key::as_string<ParamKey>(p);
+            helper_vector_flush(output(_, col++), param.smpl_values[p]);
         }
         colnames(output) = std::move(headers);
         return output;
@@ -541,10 +541,10 @@ Rcpp::NumericMatrix MCMC::flush_param_lprior_draws()
         NumericMatrix output(pImpl_->smpl_count, n_cols);
 
         size_t col = 0;
-        for (const string &p : param.list_sample)
+        for (const auto p : param.list_sample)
         {
-            headers[col] = "lprior_" + p;
-            helper_vector_flush(output(_, col++), param.smpl_priors.at(p));
+            headers[col] = "lprior_" + hsp::key::as_string<ParamKey>(p);
+            helper_vector_flush(output(_, col++), param.smpl_priors[p]);
         }
         colnames(output) = std::move(headers);
         return output;
@@ -661,8 +661,8 @@ Rcpp::NumericVector MCMC::helper_param_rcpp_snapshot_() const
 
     NumericVector output(list_full.size());
     size_t c = 0;
-    for (const string &p : list_full)
-        output[c++] = param.get(p);
+    for (const auto p : list_full)
+        output[c++] = param.at(p).get();
     output.names() = CharacterVector(wrap(list_full));
 
     return output;
@@ -767,8 +767,8 @@ Rcpp::DataFrame MCMC::helper_group_rates_rcpp_snapshot_(const Household &house) 
         df_id[member] = member.id();
 
         for (size_t c = 0; c < headers.size(); ++c)
-            group_rate_dbl[c][member] = hsp_to_rcpp(member.group_rate(
-                hsp::key::Registry<GroupRateKey>::instance().from_string(headers[c])));
+            group_rate_dbl[c][member] = hsp_to_rcpp(member.get_group_rate_attribute(
+                hsp::key::from_string<GroupRateKey>(headers[c])).get());
     }
 
     auto output = DataFrame::create(_["id"] = df_id);

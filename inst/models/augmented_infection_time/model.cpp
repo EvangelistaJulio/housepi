@@ -60,6 +60,9 @@ double Model::compute_house_obs_log_lik(Household &house)
 /// Cumulative Risk of Infection for susceptible individual i.
 double Model::loglike_healthy(const Household &house) const
 {
+	if (house.n_susceptible_status() == 0)
+		return 0.;
+
 	const auto &member_0 = house.get_member(house.cache_size_t_vector(HHsize_tKey::intro_case)[0]);
 	const double alpha_cumul = par(ParamKey::alpha) * (par(ParamKey::study_period) + member_0.aug("incub_period"));
 	const double beta = transmission_rate(house);
@@ -82,7 +85,9 @@ double Model::loglike_healthy(const Household &house) const
 /// Cumulative Risk of Infection for infectious individual i.
 double Model::loglike_infectious(const Household &house) const
 {
-	double output = 0.;
+	if (house.n_infected_status() < 2)
+		return 0.;
+
 	const auto &member_0 = house.get_member(house.cache_size_t_vector(HHsize_tKey::intro_case)[0]);
 	const double t_intro = member_0.aug("infec_time");
 
@@ -92,6 +97,7 @@ double Model::loglike_infectious(const Household &house) const
 	const double alpha = par(ParamKey::alpha);
 	const double beta = transmission_rate(house);
 
+	double output = 0.;
 	for (const auto &member_i : house.infected())
 		if (member_i != member_0)
 		{
@@ -231,9 +237,9 @@ void Model::simulate_single_house(Household &house)
 
 	// pick single introduction
 	size_t i0;
-	if (house.n_infec_status() > 0)
+	if (house.n_infected_status() > 0)
 		// amongst pre-existing infectious as in data
-		i0 = house.infected_hhindexes().at(uniform() * house.n_infec_status());
+		i0 = house.infected_hhindexes().at(uniform() * house.n_infected_status());
 	else
 		// amongst all members
 		i0 = uniform() * house.size();
@@ -254,7 +260,7 @@ void Model::simulate_single_house(Household &house)
 	const double tf = member_0.aug("onset_time") + par(ParamKey::study_period);
 
 	// infection of secondary cases following the first case
-	for (double t = t0 + Dt; t <= tf && house.n_healthy_status() > 0; t += Dt)
+	for (double t = t0 + Dt; t <= tf && house.n_susceptible_status() > 0; t += Dt)
 		for (auto &member_i : house.healthy())
 			if (uniform() >= exp(-roi_inst_simulation(house, member_i, t) * Dt))
 			{

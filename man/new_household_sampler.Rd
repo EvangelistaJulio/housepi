@@ -7,7 +7,7 @@
 new_household_sampler(...)
 }
 \arguments{
-\item{...}{Named features with respective list of definition details.}
+\item{...Named}{features. Respective list of definition details.}
 }
 \description{
 The \code{HousepiSampler} class allows to define and sample

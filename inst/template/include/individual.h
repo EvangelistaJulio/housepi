@@ -97,8 +97,8 @@ public:
 		static const std::vector<double> EMPTY_DBL_VEC = std::vector<double>();
 		return EMPTY_DBL_VEC;
 	}
-	double group_rate(GroupRateKey g) const { return get_group_rate_attribute(g).get(); }
-	const Attribute &get_group_rate_attribute(GroupRateKey g) const { return group_rate_vec_[static_cast<size_t>(g)]; }
+	double group_rate(GroupRateKey g) const { return group_rate_vec_[static_cast<size_t>(g)].get(); }
+	const Attribute &get_group_rate_attribute(size_t g) const { return group_rate_vec_[g]; }
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////  Individual : flags  /////////////////////////////////////

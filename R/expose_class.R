@@ -200,7 +200,7 @@ get_infec_profile <- function(hhmodel) {
 #' @param min `r rd_var_min_`
 #' @param max `r rd_var_max_`
 #' @param proposal `r rd_par_proposal_`
-#' @param proposal_scale `r rd_var_proposal_scale_`
+#' @param proposal_scale `r rd_proposal_scale_`
 #' @return `r rd_model_out_`
 #' @export
 add_parameter <- function(hhmodel,
@@ -259,7 +259,7 @@ load_parameter_template <- function(hhmodel, append = FALSE) {
 #' @param min `r rd_aug_min_`
 #' @param max `r rd_aug_max_`
 #' @param proposal `r rd_var_proposal_`
-#' @param proposal_scale `r rd_var_proposal_scale_`
+#' @param proposal_scale `r rd_proposal_scale_`
 #' @return `r rd_model_out_`
 #' @export
 add_augmented <- function(hhmodel,
@@ -315,7 +315,7 @@ load_augmented_template <- function(hhmodel, append = FALSE) {
 #' @param min `r rd_var_min_`
 #' @param max `r rd_var_max_`
 #' @param proposal `r rd_var_proposal_`
-#' @param proposal_scale `r rd_var_proposal_scale_`
+#' @param proposal_scale `r rd_proposal_scale_`
 #' @references
 #' Cauchemez, et al. (2009)
 #' Household Transmission of 2009 Pandemic Influenza A (H1N1)

@@ -13,7 +13,7 @@ new_housepi_model(
 )
 }
 \arguments{
-\item{choice}{\code{character(1)}. Choice for the model.\cr
+\item{choice}{\code{character(1)} Choice for the model.\cr
 One between:\cr
 \itemize{
 \item template name;\cr
@@ -23,16 +23,16 @@ One between:\cr
 \item \code{NA}: fall back to 'blank' (default).
 }}
 
-\item{as_template}{\code{logical(1)}. Store dynamic library as a local template.\cr
+\item{as_template}{\code{logical(1)} Store dynamic library as a local template.\cr
 If \code{FALSE} recompile the model at every new session (default).}
 
-\item{force}{\code{logical(1)}. Compile even if cached model already exists.\cr
+\item{force}{\code{logical(1)} Compile even if cached model already exists.\cr
 Default is \code{FALSE}.}
 
-\item{quiet}{\code{logical(1)}. To hide compilation commands.\cr
+\item{quiet}{\code{logical(1)} To hide compilation commands.\cr
 Default is \code{FALSE}.}
 
-\item{...}{Named arguments with additional compilation options:\cr
+\item{...}{Named arguments. Additional compilation options:\cr
 \itemize{
 \item If \code{discr = TRUE}, uses the model in discrete time, if applicable.
 }}
@@ -47,5 +47,4 @@ used to run inference and simulation routines.
 \examples{
 hhmodel <- new_housepi_model("blank")
 print(hhmodel)
-
 }

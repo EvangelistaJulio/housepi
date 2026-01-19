@@ -461,9 +461,9 @@ void DataWide::build_helper_fill_report_data_()
 
         // observed quantities in-house
         const unsigned short house_size = house.size();
-        const unsigned short n_infec = house.n_infec_status();
+        const unsigned short n_infec = house.n_infected_status();
         const unsigned short n_miss = house.n_missing_status();
-        const unsigned short n_susc = house.n_healthy_status();
+        const unsigned short n_susc = house.n_susceptible_status();
 
         report_indiv->infectious += n_infec;
         report_indiv->missing += n_miss;

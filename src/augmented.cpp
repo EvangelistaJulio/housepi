@@ -354,7 +354,7 @@ void Augmented::set_function_or_identity_for_(size_t k)
 
         // check the type of requested equality
         if (hsp::sources::is_parameter(parser.root.type))
-            is_identity_const = pParameter_->at(static_cast<size_t>(hsp::key::Registry<ParamKey>::instance().from_string(parser.root.value))).is_constant();
+            is_identity_const = pParameter_->at(hsp::key::from_string<ParamKey>(parser.root.value)).is_constant();
 
         else if (hsp::sources::is_augmented(parser.root.type))
             is_identity_const = false; // UPDATE: use an augmented dependecies tree to see if constant

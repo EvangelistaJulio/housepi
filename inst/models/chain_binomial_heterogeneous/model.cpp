@@ -25,7 +25,7 @@ REGISTER_HOUSEPI_KEYS(GroupRateKey, community, susceptibility, infectivity)
 REGISTER_HOUSEPI_KEYS(HHsize_tKey, order)
 REGISTER_HOUSEPI_KEYS(HHdoubleKey, commu_escape_proba)
 REGISTER_HOUSEPI_KEYS(HHmatrixKey, p2p_escape_proba)
-REGISTER_HOUSEPI_KEYS(ParamKey, alpha, beta, gamma, size_ref, study_period)
+REGISTER_HOUSEPI_KEYS(ParamKey, alpha, beta)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -57,7 +57,7 @@ double Model::compute_house_obs_log_lik(Household &house)
 
 	// compute corresponding loglikelihood times house multiplicity
 	return house.multiplicity() * bax::chain_binomial_heter_log_lik(
-									  house.n_infec_status(),
+									  house.n_infected_status(),
 									  house.cache_double_vector(HHdoubleKey::commu_escape_proba),
 									  house.cache_double_matrix(HHmatrixKey::p2p_escape_proba));
 }
@@ -75,7 +75,7 @@ void Model::fill_house_escape_matrix(Household &house) const
 
 	// ordered members group rates : 1) infectious, 2) susceptibles
 	auto &order = house.cache_size_t_vector(HHsize_tKey::order);
-	// note 1: this works only if size = n_infec_status + n_healthy_status
+	// note 1: this works only if size = n_infected_status + n_susceptible_status
 	// note 2: this is not changing throughout inference w\o status change
 	order = house.infected_hhindexes() + house.healthy_hhindexes();
 
@@ -156,7 +156,7 @@ void Model::simulate_single_house(Household &house)
 
 	std::vector<Individual *> old_gen_set = {};
 
-	while ((house.n_healthy_status() > 0) && (!new_gen_set.empty()))
+	while ((house.n_susceptible_status() > 0) && (!new_gen_set.empty()))
 	{
 		std::swap(old_gen_set, new_gen_set);
 		new_gen_set.clear();

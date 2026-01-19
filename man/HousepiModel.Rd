@@ -14,17 +14,17 @@ and variable definitions from a single class.
 \section{Active bindings}{
 \if{html}{\out{<div class="r6-active-bindings">}}
 \describe{
-\item{\code{data_wide}}{A \code{data.frame} with individual level information.}
+\item{\code{data_wide}}{\code{data.frame}. Individual level data (wide format).}
 
-\item{\code{data_long}}{A \code{data.frame} with additional data rows indexed by individual.}
+\item{\code{data_long}}{\code{data.frame}. Additional data rows indexed by individual (long format).}
 
-\item{\code{parameters}}{A \code{data.frame} with parameter formatted definitions.}
+\item{\code{parameters}}{\code{data.frame}. Parameter definitions.}
 
-\item{\code{augmented}}{A\code{data.frame} with augmented formatted definitions.}
+\item{\code{augmented}}{\code{data.frame}. Augmented definitions.}
 
-\item{\code{infec_profile}}{A \code{list} with infectivity profile definitions.}
+\item{\code{infec_profile}}{\code{data.frame}. Infectivity profile definitions.}
 
-\item{\code{group_rates}}{A \code{list} with group rate definitions.}
+\item{\code{group_rates}}{\code{data.frame}. Group rate definitions.}
 }
 \if{html}{\out{</div>}}
 }
@@ -80,7 +80,7 @@ used to run inference and simulation routines.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{choice}}{\code{character(1)}. Choice for the model.\cr
+\item{\code{choice}}{\code{character(1)} Choice for the model.\cr
 One between:\cr
 \itemize{
 \item template name;\cr
@@ -90,16 +90,16 @@ One between:\cr
 \item \code{NA}: fall back to 'blank' (default).
 }}
 
-\item{\code{as_template}}{\code{logical(1)}. Store dynamic library as a local template.\cr
+\item{\code{as_template}}{\code{logical(1)} Store dynamic library as a local template.\cr
 If \code{FALSE} recompile the model at every new session (default).}
 
-\item{\code{force}}{\code{logical(1)}. Compile even if cached model already exists.\cr
+\item{\code{force}}{\code{logical(1)} Compile even if cached model already exists.\cr
 Default is \code{FALSE}.}
 
-\item{\code{quiet}}{\code{logical(1)}. To hide compilation commands.\cr
+\item{\code{quiet}}{\code{logical(1)} To hide compilation commands.\cr
 Default is \code{FALSE}.}
 
-\item{\code{...}}{Named arguments with additional compilation options:\cr
+\item{\code{...}}{Named arguments. Additional compilation options:\cr
 \itemize{
 \item If \code{discr = TRUE}, uses the model in discrete time, if applicable.
 }}
@@ -131,7 +131,7 @@ Show model description in RStudio Help window.
 \if{html}{\out{<a id="method-HousepiModel-add_data_wide"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-add_data_wide}{}}}
 \subsection{Method \code{add_data_wide()}}{
-Make an internal copy of the provided household data_wide.
+Store a copy of provided household data.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_data_wide(data_wide)}\if{html}{\out{</div>}}
 }
@@ -139,7 +139,7 @@ Make an internal copy of the provided household data_wide.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{data_wide}}{\code{data.frame}. Household data used for analysis (wide format).}
+\item{\code{data_wide}}{\code{data.frame} Household data used for analysis (wide format).}
 }
 \if{html}{\out{</div>}}
 }
@@ -174,7 +174,7 @@ Summary house sizes in loaded data.
 \if{html}{\out{<a id="method-HousepiModel-add_data_long"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-add_data_long}{}}}
 \subsection{Method \code{add_data_long()}}{
-Make an internal copy of the provided data_long.
+Store a copy of provided individual data.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_data_long(data_long)}\if{html}{\out{</div>}}
 }
@@ -182,7 +182,7 @@ Make an internal copy of the provided data_long.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{data_long}}{\code{data.frame}. Additional individual long format data.}
+\item{\code{data_long}}{\code{data.frame} Additional individual long format data.}
 }
 \if{html}{\out{</div>}}
 }
@@ -211,28 +211,28 @@ If the parameter already exists, it is updated.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{name}}{\code{character(1)}. Name used by internal calls.}
+\item{\code{name}}{\code{character(1)} Name used by internal calls.}
 
-\item{\code{value}}{\code{numeric(1)}. Initial value.\cr
+\item{\code{value}}{\code{numeric(1)} Initial value.\cr
 Required only if constant or random initialization has been disabled.}
 
-\item{\code{const}}{\code{logical(1)}. Treat definition as constant.\cr
+\item{\code{const}}{\code{logical(1)} Treat definition as constant.\cr
 If \code{TRUE}, additional Monte Carlo details are ignored.\cr
 Default is \code{FALSE}.}
 
-\item{\code{discr}}{\code{logical(1)}. Treat definition as discrete.\cr
+\item{\code{discr}}{\code{logical(1)} Treat definition as discrete.\cr
 If applicable, the prior is discretized.\cr
 Default is \code{FALSE}.}
 
-\item{\code{prior}}{\code{character(1)}. Choice for the prior distribution.}
+\item{\code{prior}}{\code{character(1)} Choice for the prior distribution.}
 
 \item{\code{...}}{named arguments for the prior distribution.}
 
-\item{\code{min}}{\code{numeric(1)}. Truncate to a minimum value.}
+\item{\code{min}}{\code{numeric(1)} Truncate to a minimum value.}
 
-\item{\code{max}}{\code{numeric(1)}. Truncate to a maximum value.}
+\item{\code{max}}{\code{numeric(1)} Truncate to a maximum value.}
 
-\item{\code{proposal}}{\code{character(1)}. Proposal used in the Monte Carlo.\cr
+\item{\code{proposal}}{\code{character(1)} Proposal used in the Monte Carlo.\cr
 One between:\cr
 \itemize{
 \item 'sample': sampled from the prior distribution;\cr
@@ -242,8 +242,7 @@ One between:\cr
 \item \code{NA} (default): same as 'sample'.
 }}
 
-\item{\code{proposal_scale}}{\code{numeric(1)}. Scale of the proposal.\cr
-Default scale is \code{1}.\cr
+\item{\code{proposal_scale}}{\code{numeric(1)} Scale of the proposal (default is \code{1}).\cr
 Changed automatically during inference if \code{n_adapt}>0.\cr
 Ignored if proposal is 'sample'.}
 }
@@ -262,9 +261,9 @@ Load parameter definitions as named arguments.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{...}}{Named arguments with respective list of definition details.}
+\item{\code{...}}{Named arguments. Respective list of definition details.}
 
-\item{\code{append}}{\code{logical(1)}. Append to current definitions.\cr
+\item{\code{append}}{\code{logical(1)} Append to current definitions.\cr
 If \code{FALSE} drop all pre-existing definitions (default).}
 }
 \if{html}{\out{</div>}}
@@ -274,7 +273,7 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 \if{html}{\out{<a id="method-HousepiModel-load_parameter_template"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-load_parameter_template}{}}}
 \subsection{Method \code{load_parameter_template()}}{
-Load parameter definitions from model template.
+Load parameter definitions from template.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$load_parameter_template(append = FALSE)}\if{html}{\out{</div>}}
 }
@@ -282,7 +281,7 @@ Load parameter definitions from model template.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{append}}{\code{logical(1)}. Append only missing definitions.\cr
+\item{\code{append}}{\code{logical(1)} Append only missing definitions.\cr
 If \code{FALSE} drop all pre-existing definitions (default).}
 }
 \if{html}{\out{</div>}}
@@ -315,9 +314,9 @@ If the augmented variable already exists, it is updated.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{name}}{\code{character(1)}. Name used by internal calls.}
+\item{\code{name}}{\code{character(1)} Name used by internal calls.}
 
-\item{\code{value}}{\code{numeric(1)} or \code{character(1)}. Initial value. \cr
+\item{\code{value}}{\code{numeric(1)} | \code{character(1)}. Initial value. \cr
 One between:\cr
 \itemize{
 \item Scalar value;\cr
@@ -325,31 +324,31 @@ One between:\cr
 \item Dataset name (followed by \verb{@D}).
 }}
 
-\item{\code{status}}{\code{integer(1)}. Individual positive status.\cr
+\item{\code{status}}{\code{integer(1)} Individual positive status.\cr
 Used to specify status-specific definitions.
 If \code{NA}, associate definition to all infectious individuals (default).}
 
-\item{\code{const}}{\code{logical(1)}. Treat definition as constant.\cr
+\item{\code{const}}{\code{logical(1)} Treat definition as constant.\cr
 If \code{TRUE}, additional Monte Carlo details are ignored.\cr
 Default is \code{FALSE}.}
 
-\item{\code{discr}}{\code{logical(1)}. Treat definition as discrete.\cr
+\item{\code{discr}}{\code{logical(1)} Treat definition as discrete.\cr
 If applicable, the model is discretized.\cr
 Default is \code{FALSE}.}
 
 \item{\code{func}}{One between:\cr
 \itemize{
-\item \code{character(1)}. Name of augmented function;\cr
+\item \code{character(1)} Name of augmented function;\cr
 \item rlang expression.
 }}
 
-\item{\code{func_args}}{named \code{list}. Arguments of the augmented function.}
+\item{\code{func_args}}{named \code{list} Arguments of the augmented function.}
 
-\item{\code{model}}{\code{character(1)}. Choice for the model distribution.}
+\item{\code{model}}{\code{character(1)} Choice for the model distribution.}
 
 \item{\code{...}}{named arguments for the model distribution.}
 
-\item{\code{min}}{\code{numeric(1)}. Truncate to a minimum value. \cr
+\item{\code{min}}{\code{numeric(1)} Truncate to a minimum value. \cr
 One between:\cr
 \itemize{
 \item Scalar value;\cr
@@ -357,7 +356,7 @@ One between:\cr
 \item Dataset name (followed by \verb{@D}).
 }}
 
-\item{\code{max}}{\code{numeric(1)}. Truncate to a maximum value. \cr
+\item{\code{max}}{\code{numeric(1)} Truncate to a maximum value. \cr
 One between:\cr
 \itemize{
 \item Scalar value;\cr
@@ -365,7 +364,7 @@ One between:\cr
 \item Dataset name (followed by \verb{@D}).
 }}
 
-\item{\code{proposal}}{\code{character(1)}. Proposal used in the Monte Carlo.\cr
+\item{\code{proposal}}{\code{character(1)} Proposal used in the Monte Carlo.\cr
 One between:\cr
 \itemize{
 \item 'sample': sampled from the \%s distribution;\cr
@@ -375,8 +374,7 @@ One between:\cr
 \item \code{NA} (default): same as 'sample'.
 }}
 
-\item{\code{proposal_scale}}{\code{numeric(1)}. Scale of the proposal.\cr
-Default scale is \code{1}.\cr
+\item{\code{proposal_scale}}{\code{numeric(1)} Scale of the proposal (default is \code{1}).\cr
 Changed automatically during inference if \code{n_adapt}>0.\cr
 Ignored if proposal is 'sample'.}
 }
@@ -387,7 +385,7 @@ Ignored if proposal is 'sample'.}
 \if{html}{\out{<a id="method-HousepiModel-load_augmented_list"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-load_augmented_list}{}}}
 \subsection{Method \code{load_augmented_list()}}{
-Load augmented variable/function definitions as named arguments.
+Load augmented definitions as named arguments.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$load_augmented_list(..., append = FALSE)}\if{html}{\out{</div>}}
 }
@@ -395,9 +393,9 @@ Load augmented variable/function definitions as named arguments.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{...}}{Named arguments with respective list of definition details.}
+\item{\code{...}}{Named arguments. Respective list of definition details.}
 
-\item{\code{append}}{\code{logical(1)}. Append to current definitions.\cr
+\item{\code{append}}{\code{logical(1)} Append to current definitions.\cr
 If \code{FALSE} drop all pre-existing definitions (default).}
 }
 \if{html}{\out{</div>}}
@@ -407,7 +405,7 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 \if{html}{\out{<a id="method-HousepiModel-load_augmented_template"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-load_augmented_template}{}}}
 \subsection{Method \code{load_augmented_template()}}{
-Load augmented variable/function definitions from template.
+Load augmented definitions from template.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$load_augmented_template(append = FALSE)}\if{html}{\out{</div>}}
 }
@@ -415,7 +413,7 @@ Load augmented variable/function definitions from template.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{append}}{\code{logical(1)}. Append only missing definitions.\cr
+\item{\code{append}}{\code{logical(1)} Append only missing definitions.\cr
 If \code{FALSE} drop all pre-existing definitions (default).}
 }
 \if{html}{\out{</div>}}
@@ -427,14 +425,9 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 \subsection{Method \code{add_group_rate()}}{
 Add definitions of a group rate by given data feature(s).
 Group rates are relative to a reference class that can be specified.
-If no MCMC options are provided, the following configuration is assumed
-\itemize{
-\item \code{prior}: "lognormal"
-\item \code{meanlog}: 0
-\item \code{sdlog}: 3
-\item \code{min}: 0
-\item \code{max} 10
-}
+If no MCMC options are provided, the prior is assumed to be a
+\\eqn{\\mathrm{lognormal}[\\mu=0, \\sigma=3]}
+with support \\eqn{[0, 10]}.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_group_rate(
   name,
@@ -454,29 +447,29 @@ If no MCMC options are provided, the following configuration is assumed
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{name}}{\code{character(1)}. Name used by internal calls.}
+\item{\code{name}}{\code{character(1)} Name used by internal calls.}
 
-\item{\code{by}}{\code{list}. Features associated to group rate as data headers.\cr
+\item{\code{by}}{\code{list} Features associated to group rate as data headers.\cr
 Corresponding data columns have to be categorical.}
 
-\item{\code{prefix}}{\code{character(1)}. Prefix to parameter names associated to group rate.\cr
+\item{\code{prefix}}{\code{character(1)} Prefix to parameter names associated to group rate.\cr
 If \code{NA} uses the first 3 letters of rate name (default).}
 
-\item{\code{reference}}{named \code{list}. Features associated to reference group.\cr
+\item{\code{reference}}{named \code{list} Features associated to reference group.\cr
 Default is the group with the largest sample size.}
 
-\item{\code{independent}}{\code{logical(1)}. Consider features as independent.\cr
+\item{\code{independent}}{\code{logical(1)} Consider features as independent.\cr
 If \code{FALSE} features are combined (default).}
 
-\item{\code{prior}}{\code{character(1)}. Choice for the prior distribution.}
+\item{\code{prior}}{\code{character(1)} Choice for the prior distribution.}
 
 \item{\code{...}}{named arguments for the prior distribution.}
 
-\item{\code{min}}{\code{numeric(1)}. Truncate to a minimum value.}
+\item{\code{min}}{\code{numeric(1)} Truncate to a minimum value.}
 
-\item{\code{max}}{\code{numeric(1)}. Truncate to a maximum value.}
+\item{\code{max}}{\code{numeric(1)} Truncate to a maximum value.}
 
-\item{\code{proposal}}{\code{character(1)}. Proposal used in the Monte Carlo.\cr
+\item{\code{proposal}}{\code{character(1)} Proposal used in the Monte Carlo.\cr
 One between:\cr
 \itemize{
 \item 'sample': sampled from the \%s distribution;\cr
@@ -486,8 +479,7 @@ One between:\cr
 \item \code{NA} (default): same as 'sample'.
 }}
 
-\item{\code{proposal_scale}}{\code{numeric(1)}. Scale of the proposal.\cr
-Default scale is \code{1}.\cr
+\item{\code{proposal_scale}}{\code{numeric(1)} Scale of the proposal (default is \code{1}).\cr
 Changed automatically during inference if \code{n_adapt}>0.\cr
 Ignored if proposal is 'sample'.}
 }
@@ -508,7 +500,7 @@ Load group rate definitions as direct arguments.
 \describe{
 \item{\code{...}}{\verb{ r rd_list_args_}}
 
-\item{\code{append}}{\code{logical(1)}. Append to current definitions.\cr
+\item{\code{append}}{\code{logical(1)} Append to current definitions.\cr
 If \code{FALSE} drop all pre-existing definitions (default).}
 }
 \if{html}{\out{</div>}}
@@ -532,19 +524,19 @@ Add definition of infectivity profile.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{func}}{\code{character(1)}. Name used by internal calls.}
+\item{\code{func}}{\code{character(1)} Name used by internal calls.}
 
-\item{\code{status}}{\code{integer(1)}. Individual positive status.\cr
+\item{\code{status}}{\code{integer(1)} Individual positive status.\cr
 Used to specify status-specific definitions.
 If \code{NA}, associate definition to all infectious individuals (default).}
 
-\item{\code{discr}}{\code{logical(1)}. Treat definition as discrete.\cr
+\item{\code{discr}}{\code{logical(1)} Treat definition as discrete.\cr
 If applicable, the profile is discretized.\cr
 Default is \code{FALSE}.}
 
 \item{\code{...}}{named arguments for the profile distribution.}
 
-\item{\code{max}}{\code{numeric(1)}. Truncate to a maximum value. \cr
+\item{\code{max}}{\code{numeric(1)} Truncate to a maximum value. \cr
 One between:\cr
 \itemize{
 \item Scalar value;\cr
@@ -567,9 +559,9 @@ Load infectivity profile definitions as named arguments.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{...}}{Named arguments with respective list of definition details.}
+\item{\code{...}}{Named arguments. Respective list of definition details.}
 
-\item{\code{append}}{\code{logical(1)}. Append to current definitions.\cr
+\item{\code{append}}{\code{logical(1)} Append to current definitions.\cr
 If \code{FALSE} drop all pre-existing definitions (default).}
 }
 \if{html}{\out{</div>}}
@@ -587,10 +579,10 @@ Evaluate the log-likelihood.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{house_id}}{\code{character(1)}. ID of the household of interest.
+\item{\code{house_id}}{\code{character(1)} ID of the household of interest.
 If \code{NA} (default) it computes for the whole data.}
 
-\item{\code{seed}}{\code{integer(1)}. Seed for the random number generator.\cr
+\item{\code{seed}}{\code{integer(1)} Seed for the random number generator.\cr
 If \code{NA} uses current R seed (default).}
 }
 \if{html}{\out{</div>}}
@@ -603,7 +595,7 @@ If \code{NA} uses current R seed (default).}
 \if{html}{\out{<a id="method-HousepiModel-run_inference"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-run_inference}{}}}
 \subsection{Method \code{run_inference()}}{
-Run inference with Bayesian Markov Chain Monte Carlo.
+Run inference with Bayesian Markov chain Monte Carlo.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$run_inference(
   steps = 200,
@@ -621,25 +613,25 @@ Run inference with Bayesian Markov Chain Monte Carlo.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{steps}}{\code{integer(1)}. Total number of MCMC steps per chain.}
+\item{\code{steps}}{\code{integer(1)} Total number of MCMC steps per chain.}
 
-\item{\code{burnin}}{\code{integer(1)}. Number of initial steps to discard.}
+\item{\code{burnin}}{\code{integer(1)} Number of initial steps to discard.}
 
-\item{\code{thin}}{\code{integer(1)}. Number of steps to skip between samples.}
+\item{\code{thin}}{\code{integer(1)} Number of steps to skip between samples.}
 
-\item{\code{adapt}}{\code{integer(1)}. Number of adaptation steps before sampling.}
+\item{\code{adapt}}{\code{integer(1)} Number of adaptation steps before sampling.}
 
-\item{\code{chains}}{\code{integer(1)}. Number of independent MCMC chains to run.}
+\item{\code{chains}}{\code{integer(1)} Number of independent MCMC chains to run.}
 
-\item{\code{threads}}{\code{integer(1)}. Number of threads to run in parallel.}
+\item{\code{threads}}{\code{integer(1)} Number of threads to run in parallel.}
 
-\item{\code{id_draws}}{\code{character()}. Individuals identifiers.\cr
+\item{\code{id_draws}}{\code{character()} Individuals identifiers.\cr
 Store draws of public augmented variables for the chosen individuals.}
 
-\item{\code{seed}}{\code{integer(1)}. Seed for the random number generator.\cr
+\item{\code{seed}}{\code{integer(1)} Seed for the random number generator.\cr
 If \code{NA} uses current R seed (default).}
 
-\item{\code{progress}}{\code{integer(1)} or \code{logical(1)}. Control progressbar visualization.\cr
+\item{\code{progress}}{\code{integer(1)} | \code{logical(1)} Control progressbar visualization.\cr
 One between:\cr
 \itemize{
 \item If \code{integer}, prints progress every \code{progress} seconds;\cr
@@ -678,7 +670,7 @@ All variables associated to given household for last state.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{house_id}}{\code{character(1)}. ID of the household of interest.
+\item{\code{house_id}}{\code{character(1)} ID of the household of interest.
 If \code{NA} it calls the household which caused last error, if any.}
 }
 \if{html}{\out{</div>}}
@@ -705,12 +697,12 @@ It assumes the same community structure of the loaded data.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{nsim}}{\code{integer(1)}. Number of simulated outbreaks.}
+\item{\code{nsim}}{\code{integer(1)} Number of simulated outbreaks.}
 
-\item{\code{seed}}{\code{integer(1)}. Seed for the random number generator.\cr
+\item{\code{seed}}{\code{integer(1)} Seed for the random number generator.\cr
 If \code{NA} uses current R seed (default).}
 
-\item{\code{progress}}{\code{integer(1)} or \code{logical(1)}. Control progressbar visualization.\cr
+\item{\code{progress}}{\code{integer(1)} | \code{logical(1)} Control progressbar visualization.\cr
 One between:\cr
 \itemize{
 \item If \code{integer}, prints progress every \code{progress} seconds;\cr
@@ -718,7 +710,7 @@ One between:\cr
 \item If \code{FALSE} or \code{0}, suppresses progress display.
 }}
 
-\item{\code{obs_process}}{\code{function}. Observation process.\cr
+\item{\code{obs_process}}{\code{function} Observation process.\cr
 Function expects as input the \code{data.frame} generated by simulation.\cr
 If \code{NULL}, observation process is ignored.}
 }

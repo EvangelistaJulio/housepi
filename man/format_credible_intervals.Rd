@@ -13,20 +13,21 @@ format_credible_intervals(
 )
 }
 \arguments{
-\item{mean}{\code{numeric()} with mean values.}
+\item{mean}{\code{numeric()}. Mean values.}
 
-\item{lower}{\code{numeric()} with lower bounds of the credible interval.}
+\item{lower}{\code{numeric()}. Lower bounds of the credible interval.}
 
-\item{upper}{\code{numeric()} with upper bounds of the credible interval.}
+\item{upper}{\code{numeric()}. Upper bounds of the credible interval.}
 
-\item{str_format}{\code{character(1)} sprintf-style format with 3 '\%s' placeholders.
+\item{str_format}{\code{character(1)}.
+Sprintf-style format with 3 '\%s' placeholders.
 Default is \code{"mean [lower, upper]"}.}
 
-\item{as_integer}{\code{logical(1)} to control wheter values are formatted as integers.
+\item{as_integer}{\code{logical(1)}. Wheter values are formatted as integers.
 Default is \code{FALSE}.}
 }
 \value{
-Character vector with formatted credible-interval strings.
+\code{character()}
 }
 \description{
 Format elementwise mean and credible-interval bounds into a single string.
@@ -35,5 +36,4 @@ vector of the same length as the inputs.
 }
 \examples{
 format_credible_intervals(c(1.23, NA), c(0.9, NA), c(1.5, NA))
-
 }
