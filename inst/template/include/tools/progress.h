@@ -5,8 +5,7 @@
  * See the LICENSE file for details.
  */
 
-#ifndef HOUSEPI__TOOLS__PROGRESS__H
-#define HOUSEPI__TOOLS__PROGRESS__H
+#pragma once
 
 #include <string>
 #include <memory>
@@ -32,5 +31,3 @@ namespace hsp::progress
         std::unique_ptr<Impl> pImpl_;
     };
 }
-
-#endif // HOUSEPI__TOOLS__PROGRESS__H

@@ -9,72 +9,66 @@ Perform inference and simulation from the model.
 \section{Fields}{
 
 \describe{
-\item{\code{infer\\cr}}{Perform MCMC inference of the model parameters. \itemize{
+\item{\code{infer}}{Perform MCMC inference of the model parameters. \itemize{
 \item Parameter: output_file - The file path where the output will be saved
 \item Parameter: progbar - Display the progress bar
 }}
 
-\item{\code{data_wide_for_simulation\\cr}}{Dataset without status and augmented entries.}
+\item{\code{data_wide_for_simulation}}{Dataset without status and augmented entries.}
 
-\item{\code{simulate\\cr}}{Simulated status and augmented variables.}
+\item{\code{simulate}}{Simulated status and augmented variables.}
 
-\item{\code{simulate_for_prediction\\cr}}{Simulation for the computation of expected measure.}
+\item{\code{simulate_for_prediction}}{Simulation for the computation of expected measure.}
 
-\item{\code{evaluate\\cr}}{Evaluate the log-likelihood according to the current state.}
+\item{\code{evaluate}}{Evaluate the log-likelihood according to the current state.}
 
-\item{\code{log_evidence\\cr}}{Evaluate the logarithm of the marginal likelihood (aka evidence).
+\item{\code{log_evidence}}{Evaluate the logarithm of the marginal likelihood (aka evidence).
 Uses the method of power posteriors. \itemize{
 \item Parameter: scheme
 \item Parameter: n_rungs
 }}
 
-\item{\code{import_setup\\cr}}{Import setup from R List.}
+\item{\code{import_setup}}{Import setup from R List.}
 
-\item{\code{import_data_wide\\cr}}{Import house indexed data in wide format from R Data.Frame.}
+\item{\code{import_data_wide}}{Import house indexed data in wide format from R Data.Frame.}
 
-\item{\code{import_data_long\\cr}}{Import individual indexed in long format from R Data.Frame.}
+\item{\code{import_data_long}}{Import individual indexed in long format from R Data.Frame.}
 
-\item{\code{import_multiplicity\\cr}}{Imoprt multiplicity definitions from R Data.Frame.}
+\item{\code{import_multiplicity}}{Imoprt multiplicity definitions from R Data.Frame.}
 
-\item{\code{import_group_rates\\cr}}{Imoprt group rates definitions from R Data.Frame.}
+\item{\code{import_group_rates}}{Imoprt group rates definitions from R Data.Frame.}
 
-\item{\code{import_param\\cr}}{Import parameter definitions from R Data.Frame.}
+\item{\code{import_param}}{Import parameter definitions from R Data.Frame.}
 
-\item{\code{import_infec_profile\\cr}}{Import infectivity profile definition from R List.}
+\item{\code{import_infec_profile}}{Import infectivity profile definition from R List.}
 
-\item{\code{import_augm\\cr}}{Import augmented variable definitions from R Data.Frame.}
+\item{\code{import_augm}}{Import augmented variable definitions from R Data.Frame.}
 
-\item{\code{import_param_for_prediction\\cr}}{Import parameter tables for expected measures estimation.}
+\item{\code{import_param_for_prediction}}{Import parameter tables for expected measures estimation.}
 
-\item{\code{build_all_rates\\cr}}{Assign all contact and group rates.}
+\item{\code{build_all_rates}}{Assign all contact and group rates.}
 
-\item{\code{export_setup\\cr}}{Return a List with current setup.}
+\item{\code{export_setup}}{Return a List with current setup.}
 
-\item{\code{export_param_list_const\\cr}}{Return a CharacterVector with constant parameters.}
+\item{\code{export_infec_profile}}{Return a List with infectivity profile.}
 
-\item{\code{export_param_list_sample_standard\\cr}}{Return a CharacterVector with parameters to sample.}
+\item{\code{export_data_wide}}{Return a DataFrame with current database.}
 
-\item{\code{export_param_list_sample_cache\\cr}}{Return a CharacterVector with parameters to sample with cached dependecies.}
+\item{\code{summarise_cases}}{Return a DataFrame with a report of the current database.}
 
-\item{\code{export_infec_profile\\cr}}{Return a List with infectivity profile.}
+\item{\code{summarise_house_sizes}}{Return a DataFrame with a report of household sizes.}
 
-\item{\code{export_data_wide\\cr}}{Return a DataFrame with current database.}
+\item{\code{flush_total_log_lik_draws}}{Return a NumericMatrix with the total log-likelihood draws.}
 
-\item{\code{summarise_cases\\cr}}{Return a DataFrame with a report of the current database.}
+\item{\code{flush_param_draws}}{Return a NumericMatrix with parameters draws.}
 
-\item{\code{summarise_house_sizes\\cr}}{Return a DataFrame with a report of household sizes.}
+\item{\code{flush_param_lprior_draws}}{Return a NumericMatrix with parameter with log-priors draws.}
 
-\item{\code{flush_total_log_lik_draws\\cr}}{Return a NumericMatrix with the total log-likelihood draws.}
+\item{\code{flush_augm_draws}}{Return a NumericMatrix with augmented draws.}
 
-\item{\code{flush_param_draws\\cr}}{Return a NumericMatrix with parameters draws.}
+\item{\code{flush_house_log_lik_draws}}{Return a NumericMatrix with household log-likelihood draws.}
 
-\item{\code{flush_param_lprior_draws\\cr}}{Return a NumericMatrix with parameter with log-priors draws.}
-
-\item{\code{flush_augm_draws\\cr}}{Return a NumericMatrix with augmented draws.}
-
-\item{\code{flush_house_log_lik_draws\\cr}}{Return a NumericMatrix with household log-likelihood draws.}
-
-\item{\code{export_house_snapshot\\cr}}{Return a List with a snapshot containing full household and model details.}
+\item{\code{export_house_snapshot}}{Return a List with a snapshot containing full household and model details.}
 }}
 
 \keyword{internal}

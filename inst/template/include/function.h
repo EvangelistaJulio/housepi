@@ -5,14 +5,14 @@
  * See the LICENSE file for details.
  */
 
-#ifndef HOUSEPI__FUNCTION__H
-#define HOUSEPI__FUNCTION__H
+#pragma once
 
+#include <memory>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
-
 #include "tools/nan.h"
-#include "tools/types.h"
 #include "attribute.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -30,7 +30,7 @@ public:
     /////////////////////////////////////////////////////////////////////////////////////////////
 
     Function(const std::string &name,
-             const hsp::named_args &args = {},
+             const std::vector<std::pair<std::string, double>> &args = {},
              double domain_min = hsp::na::DOUBLE, bool is_min_open = false,
              double domain_max = hsp::na::DOUBLE, bool is_max_open = false);
     virtual ~Function() = default;
@@ -52,13 +52,33 @@ public:
     /// Select primitive method for return value.
     void set_eval_primitive() { evaluate_ = &Function::eval_primitive_; }
     /// Select call as a distributin method for return value.
-    void set_eval_as_distr_call() { evaluate_ = &Function::eval_function_as_distr_; }
+    void set_eval_as_distr_call() { evaluate_ = &Function::pdf; }
     /// Select primitive as a distributin method for return value.
-    void set_eval_as_distr_primitive() { evaluate_ = &Function::eval_primitive_as_distr_; }
+    void set_eval_as_distr_primitive() { evaluate_ = &Function::cdf; }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////  Function : getter  /////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// Return value as for a probability density/mass function.
+    /// Return value of probability density/mass function.
+    double pdf(double x) const
+    {
+        if (is_valid(x))
+            return eval_function_(x);
+        return 0.;
+    }
+
+    /// Return value as for a cumulative distribution function.
+    /// Return value of cumulative distribution.
+    double cdf(double x) const
+    {
+        if (is_valid(x))
+            return eval_primitive_(x);
+        if (is_above(x))
+            return eval_primitive_((this->*delocate_)(upper()));
+        return 0;
+    }
 
     size_t n_args() const { return arguments_.size(); }
     double arg(unsigned short i) const { return arguments_[i].get(); }
@@ -71,15 +91,15 @@ public:
     const Attribute &get_upper() const { return upper_arg_; }
 
     /// Wheter it is empty.
-    bool is_empty() const;
+    bool is_empty() const noexcept;
     /// Wheter return value is always constant.
-    bool is_constant() const;
+    bool is_constant() const noexcept;
     /// Wheter return value is always discrete.
-    virtual bool is_discrete() const { return function_ != &Function::raw_function_; }
+    virtual bool is_discrete() const noexcept { return function_ != &Function::raw_function_; }
     /// Wheter all arguments are not empty.
-    bool is_callable_explicitly() const;
+    bool is_callable_explicitly() const noexcept;
     /// Wheter it can be called implicitely, i. e. if also 'x' has been linked.
-    bool is_callable_implicitly() const { return !x_arg_.is_empty() && is_callable_explicitly(); }
+    bool is_callable_implicitly() const noexcept { return !x_arg_.is_empty() && is_callable_explicitly(); }
 
     /// Collect names of missing arguments.
     std::vector<std::string> get_missing_argument() const;
@@ -98,7 +118,7 @@ public:
     /////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Initialize given function attribute.
-    void init_attr(const std::string &key, const Attribute &attr);
+    void init_attr(std::string_view key, const Attribute &attr);
 
     /// Set argument value.
     void set_arg(unsigned short i, double x) { arguments_[i].set(x); }
@@ -117,9 +137,9 @@ public:
     /////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Get function name.
-    std::string name() const { return name_; }
+    std::string_view name() const { return name_; }
     /// Get argument name.
-    std::string arg_name(unsigned short i) const { return arguments_[i].name(); }
+    std::string_view arg_name(unsigned short i) const { return arguments_[i].name(); }
     /// Get function name complete with type to display in errors.
     std::string err_name() const { return err_type_ + " '" + name_ + "'"; }
 
@@ -137,31 +157,13 @@ protected:
     double (Function::*evaluate_)(double) const = &Function::eval_function_; /// return value method
 
     /// Find attribute and return. If doesn't exists, return an empty attribute.
-    virtual Attribute &find_arg_(const std::string &arg_name);
+    virtual Attribute &find_arg_(std::string_view arg_name);
 
     /// Return value of call.
     double eval_function_(double x) const { return (this->*function_)((this->*delocate_)(x)); }
 
-    /// Return value as for a probability density/mass function.
-    double eval_function_as_distr_(double x) const
-    {
-        if (is_valid(x))
-            return eval_function_(x);
-        return 0.;
-    }
-
     /// Return value of primitive.
     double eval_primitive_(double x) const { return (this->*primitive_)((this->*delocate_)(x)); }
-
-    /// Return value as for a cumulative distribution function.
-    double eval_primitive_as_distr_(double x) const
-    {
-        if (is_valid(x))
-            return eval_primitive_(x);
-        if (is_above(x))
-            return eval_primitive_((this->*delocate_)(upper()));
-        return 0;
-    }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////  Function : virtual methods [protected]  ///////////////////////////
@@ -278,9 +280,7 @@ protected:
 };
 
 /// Compose registries to get a function from them.
-std::unique_ptr<Function> compose_func_registries(const std::string &opt,
+std::unique_ptr<Function> compose_func_registries(std::string_view opt,
                                                   const std::string &err_type,
                                                   const std::vector<std::string> &registries,
                                                   bool is_prim = false);
-
-#endif // HOUSEPI__FUNCTION__H

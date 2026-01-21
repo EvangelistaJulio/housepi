@@ -5,13 +5,13 @@
  * See the LICENSE file for details.
  */
 
-#ifndef HOUSEPI__DATA__H
-#define HOUSEPI__DATA__H
+#pragma once
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
-
+#include <unordered_set>
 #include "tools/types.h"
 #include "household.h"
 
@@ -98,7 +98,7 @@ struct DataWide
     std::vector<std::string> headers = {}; /// Headers of input data
 
     // list of all infected statuses in the dataset
-    std::vector<int> all_infected_status_list = {};
+    std::unordered_set<int> all_infected_statuses = {};
     std::vector<std::vector<double>> smpl_values = {};
     std::vector<size_t> head_class_house_indexes = {};
 
@@ -113,10 +113,10 @@ struct DataWide
     DataWide();
     ~DataWide();
 
-    Household &operator()(size_t H) { return house_vector_[H]; }
-    const Household &operator()(size_t H) const { return house_vector_.at(H); }
-    Household &operator()(const std::string &house_id) { return (*this)(house_id_to_index_(house_id)); }
-    const Household &operator()(const std::string &house_id) const { return (*this)(house_id_to_index_(house_id)); }
+    Household &at(size_t H) { return house_vector_[H]; }
+    const Household &at(size_t H) const { return house_vector_.at(H); }
+    Household &at(std::string_view house_id) { return at(house_id_to_index_(house_id)); }
+    const Household &at(std::string_view house_id) const { return at(house_id_to_index_(house_id)); }
 
     /////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////  DataWide : getter  //////////////////////////////////
@@ -138,7 +138,7 @@ struct DataWide
     /////////////////////////////////////////////////////////////////////////////////////////
 
     void build(const hsp::str_table &input);
-    void multiplicity_build(const hsp::str_table &input, bool is_any_augm = false);
+    void multiplicity_build(const hsp::str_table &input);
 
     void init_draws(unsigned long sample_size);
     void store_draws(unsigned long smpl_count);
@@ -207,12 +207,13 @@ private:
     std::vector<Household> house_vector_ = {};
     hsp::dict<size_t> hhid_to_index_ = {};
 
-    size_t house_id_to_index_(const std::string &house_id) const
+    size_t house_id_to_index_(std::string_view house_id) const
     {
-        if (hhid_to_index_.count(house_id))
-            return hhid_to_index_.at(house_id);
+        auto it = hhid_to_index_.find(house_id);
+        if (it != hhid_to_index_.end())
+            return it->second;
         throw std::invalid_argument(
-            "Index '" + house_id + "' did not match any household in the data.");
+            "Index '" + std::string(house_id) + "' did not match any household in the data.");
     }
 
     /// Clear data report.
@@ -241,5 +242,3 @@ struct DataLong
 private:
     std::shared_ptr<DataWide> pDataWide_; // pointer to external DataWide struct
 };
-
-#endif // HOUSEPI__DATA__H

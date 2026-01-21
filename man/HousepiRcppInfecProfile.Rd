@@ -14,20 +14,20 @@ Call housepi registered infectivity profile.
 \section{Fields}{
 
 \describe{
-\item{\code{initialize\\cr}}{\itemize{
-\item Parameter: name \code{character(1)}\\cr Name of the profile.
-\item Parameter: args \code{numeric()}\\cr Custom arguments.
-\item Parameter: min \code{numeric(1)}\\cr Minimum value of the profile.
-\item Parameter: max \code{numeric(1)}\\cr Maximum value of the profile.
-\item Parameter: is_discr \code{logical(1)}\\cr Wheter discretized.
+\item{\code{initialize}}{\itemize{
+\item Parameter: name \code{character(1)} Name of the profile.
+\item Parameter: args \code{numeric()} Custom arguments.
+\item Parameter: min \code{numeric(1)} Minimum value of the profile.
+\item Parameter: max \code{numeric(1)} Maximum value of the profile.
+\item Parameter: is_discr \code{logical(1)} Wheter discretized.
 }}
 
-\item{\code{inst\\cr}}{\itemize{
-\item Parameter: x \code{numeric()}\\cr Input vector.
+\item{\code{inst}}{\itemize{
+\item Parameter: x \code{numeric()} Input vector.
 }}
 
-\item{\code{cumul\\cr}}{\itemize{
-\item Parameter: x \code{numeric()}\\cr Input vector.
+\item{\code{cumul}}{\itemize{
+\item Parameter: x \code{numeric()} Input vector.
 }}
 }}
 

@@ -5,8 +5,7 @@
  * See the LICENSE file for details.
  */
 
-#ifndef HOUSEPI__TOOLS__RANDOM__H
-#define HOUSEPI__TOOLS__RANDOM__H
+#pragma once
 
 #include <random>
 
@@ -20,5 +19,3 @@ namespace hsp
     using rnd_gen = std::mt19937;
 #endif
 }
-
-#endif // HOUSEPI__TOOLS__RANDOM__H

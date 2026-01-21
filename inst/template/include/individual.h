@@ -5,16 +5,12 @@
  * See the LICENSE file for details.
  */
 
-#ifndef HOUSEPI__INDIVIDUAL__H
-#define HOUSEPI__INDIVIDUAL__H
+#pragma once
 
 #include <string>
 #include <vector>
-
 #include "tools/keys.h"
-#include "tools/operators.h"
 #include "tools/types.h"
-
 #include "attribute.h"
 #include "augmented_map.h"
 
@@ -39,7 +35,7 @@ namespace hsp::status
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Class for individual household study member.
-class Individual : public AugmentedMap
+class Individual : public AugmentedContainer
 {
 	friend class Household;
 	friend struct GroupRate;
@@ -57,7 +53,7 @@ public:
 		status_ = hsp::status::MISSING;
 		data_map_ = {};
 	}
-	
+
 	// NOTE: allowed data variables are numerical only
 	Individual(size_t index, size_t hhindex, const std::string &id,
 			   int status, const hsp::dict<double> &data)
@@ -85,7 +81,7 @@ public:
 	const std::string &id() const { return id_; }
 	std::string err_name() const override final { return "individual '" + id_ + "'"; }
 	int status() const { return status_; }
-	double data(const std::string &d) const { return hsp::safe_at(data_map_, d, "data"); }
+	double data(const std::string &d) const { return safe_at_(data_map_, d); }
 
 	/// Return associated data long format.
 	/// NOTE: return a reference to a static empty vector when no datalong is attached
@@ -94,8 +90,8 @@ public:
 		if (pdatalong_ != nullptr)
 			return pdatalong_->at(d);
 
-		static const std::vector<double> EMPTY_DBL_VEC = std::vector<double>();
-		return EMPTY_DBL_VEC;
+		static const std::vector<double> EMPTY_DATA_LONG_VEC = std::vector<double>();
+		return EMPTY_DATA_LONG_VEC;
 	}
 	double group_rate(GroupRateKey g) const { return group_rate_vec_[static_cast<size_t>(g)].get(); }
 	const Attribute &get_group_rate_attribute(size_t g) const { return group_rate_vec_[g]; }
@@ -119,6 +115,13 @@ private:
 	hsp::dict<double> data_map_ = {};					  /// data
 	std::vector<Attribute> group_rate_vec_ = {};		  /// group rates
 	hsp::dict<std::vector<double>> *pdatalong_ = nullptr; /// data long format associated
-};
 
-#endif // HOUSEPI__INDIVIDUAL__H
+	// UPDATE: temporary waiting for restructuring of data.
+	double safe_at_(const hsp::dict<double> &m, const std::string &k) const
+	{
+		const auto it = m.find(k);
+		if (it != m.end())
+			return it->second;
+		throw std::out_of_range("Unknown data  '" + k + "'.");
+	}
+};

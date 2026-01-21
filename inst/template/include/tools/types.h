@@ -5,23 +5,19 @@
  * See the LICENSE file for details.
  */
 
-#ifndef HOUSEPI__TOOLS__TYPES__H
-#define HOUSEPI__TOOLS__TYPES__H
+#pragma once
 
 /// DEVELOPER: flag used to develop Rcpp chunks
 //#define _HOUSEPI_RCPP
 
 #include <string>
 #include <vector>
-#include <unordered_map>
+#include <map>
 
 namespace hsp
 {
-    using named_args = std::vector<std::pair<std::string, double>>;
     template <typename T>
-    using dict = std::unordered_map<std::string, T>;
+    using dict = std::map<std::string, T, std::less<>>;
     using str_table = dict<std::vector<std::string>>;
     using dbl_table = dict<std::vector<double>>;
 }
-
-#endif // HOUSEPI__TOOLS__TYPES__H

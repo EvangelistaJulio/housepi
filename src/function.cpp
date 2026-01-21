@@ -32,12 +32,18 @@ string Function::str_summary(bool show_x_arg) const
 {
     string output = name_ + "(";
     if (show_x_arg)
-        output += x_arg_.name() + "=" + hsp::str::format(x_arg_.get());
+    {
+        output += std::string(x_arg_.name());
+        output += "=";
+        output += hsp::str::format(x_arg_.get());
+    }
     for (size_t c = 0; c < arguments_.size(); ++c)
     {
         if (c > 0 || show_x_arg)
             output += ", ";
-        output += arguments_[c].name() + "=" + hsp::str::format(arguments_[c].get());
+        output += std::string(arguments_[c].name());
+        output += "=";
+        output += hsp::str::format(arguments_[c].get());
     }
     return output + ") : " + str_range();
 }
@@ -48,7 +54,16 @@ string Function::str_summary(bool show_x_arg) const
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-std::unique_ptr<Function> FunctionRegistry::create(const string &opt, bool is_primitive) const
+std::vector<std::string> FunctionRegistry::get_options() const
+{
+    std::vector<std::string> entries;
+    entries.reserve(factory_map_.size());
+    for (const auto &[key, val] : factory_map_)
+        entries.push_back(key);
+    return entries;
+}
+
+std::unique_ptr<Function> FunctionRegistry::create(std::string_view opt, bool is_primitive) const
 {
     auto it = factory_map_.find(opt);
     if (it == factory_map_.end())
@@ -62,7 +77,7 @@ std::unique_ptr<Function> FunctionRegistry::create(const string &opt, bool is_pr
     return output;
 }
 
-std::unique_ptr<Function> compose_func_registries(const string &opt,
+std::unique_ptr<Function> compose_func_registries(std::string_view opt,
                                                   const string &err_type,
                                                   const vector<string> &registries,
                                                   bool is_prim)
@@ -94,13 +109,14 @@ std::unique_ptr<Function> compose_func_registries(const string &opt,
     vector<string> options = {};
     for (const auto &ptr : registry_ptrs)
     {
-        if (ptr->get_options() % opt)
+        auto registry_options = ptr->get_options();
+        if (ptr->count(opt))
             return ptr->create(opt, is_prim);
         options += ptr->get_options();
     }
 
     throw std::invalid_argument(
-        "Unknown " + err_type + " '" + opt + "'." + hsp::str::find_closest(opt, options));
+        "Unknown " + err_type + " '" + string(opt) + "'." + hsp::str::find_closest(opt, options));
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -128,18 +144,18 @@ Attribute::Attribute(const Attribute *y)
 Attribute::Attribute(const std::shared_ptr<Function> f)
 {
     init_function(f);
-    set_name(f->name(), "function");
+    set_name(std::string(f->name()), "function");
 }
-Attribute::Attribute(const string &s, bool is_primitive)
+Attribute::Attribute(std::string_view s, bool is_primitive)
 {
     init_function(s, is_primitive);
-    set_name(s, "function");
+    set_name(std::string(pFunc_->name()), "function");
 }
 /// Attribute deconstructor.
 Attribute::~Attribute() = default;
 
 /// Wheter it's a number.
-bool Attribute::is_numeric() const { return !hsp::na::is(value_); }
+bool Attribute::is_numeric() const noexcept { return !hsp::na::is(value_); }
 
 string Attribute::str_summary() const
 {
@@ -180,7 +196,7 @@ double Attribute::do_get_error_() const { throw std::runtime_error(
 /// Wheter it's constant.
 /// NOTE: by construction convention, a pointer to constant must be initialized to numeric instead.
 /// NOTE: if empty, then it's constant by convention.
-bool Attribute::is_constant() const
+bool Attribute::is_constant() const noexcept
 {
     if (is_numeric())
         return true;
@@ -193,7 +209,7 @@ bool Attribute::is_constant() const
 
 /// Wheter it's discrete.
 /// NOTE: if empty, then it's discrete by convention.
-bool Attribute::is_discrete() const
+bool Attribute::is_discrete() const noexcept
 {
     if (is_numeric())
         return value_ == std::floor(value_);
@@ -261,7 +277,7 @@ void Attribute::init_function(const std::shared_ptr<Function> f)
     pFunc_ = f;
 }
 /// Initialize attribute as function given the function name.
-void Attribute::init_function(const string &s, bool is_primitive)
+void Attribute::init_function(std::string_view s, bool is_primitive)
 {
     init_function(compose_func_registries(
         s, "function",
@@ -290,12 +306,11 @@ void Attribute::transfer(const Attribute &other)
 /// Initial defaults for function.
 /// NOTE: to access arguments by index, I must provide separate name/value.
 Function::Function(const string &name,
-                   const named_args &args,
+                   const std::vector<std::pair<std::string, double>> &args,
                    double domain_min, bool is_min_open,
                    double domain_max, bool is_max_open)
 {
     // initialize default arguments
-    const auto default_args = {hsp::params::X, hsp::params::LOC};
     x_arg_.set_name(hsp::params::X);
     x_arg_.set(hsp::na::DOUBLE);
     loc_arg_.set_name(hsp::params::LOC);
@@ -307,7 +322,8 @@ Function::Function(const string &name,
     // allocate attribute for remaining arguments
     auto n_args = args.size();
     for (const auto &[key, val] : args)
-        n_args -= default_args % key;
+        if (key == hsp::params::X || key == hsp::params::LOC)
+            --n_args;
     arguments_ = vector<Attribute>(n_args);
 
     size_t counter = 0;
@@ -341,7 +357,7 @@ Function::Function(const string &name,
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Assert argument exists at assignment. Returns it's index.
-Attribute &Function::find_arg_(const string &arg_name)
+Attribute &Function::find_arg_(std::string_view arg_name)
 {
     if (hsp::na::is(arg_name))
         throw std::invalid_argument(
@@ -359,17 +375,17 @@ Attribute &Function::find_arg_(const string &arg_name)
     // else format the error showing options
     vector<string> options = {hsp::params::X, hsp::params::LOC};
     for (const auto &attr : arguments_)
-        options.push_back(attr.name());
+        options.emplace_back(attr.name());
     throw std::invalid_argument(
-        "Unknown argument '" + arg_name + "' for " + err_name() + "." +
+        "Unknown argument '" + std::string(arg_name) + "' for " + err_name() + "." +
         hsp::str::find_closest(arg_name, options));
 }
 
 /// Wheter it is empty.
-bool Function::is_empty() const { return hsp::na::is(name()); }
+bool Function::is_empty() const noexcept { return hsp::na::is(name()); }
 
 /// Wheter return value is always constant.
-bool Function::is_constant() const
+bool Function::is_constant() const noexcept
 {
     // check X value
     // NOTE: a function with undefined 'x' is not constant
@@ -392,7 +408,7 @@ bool Function::is_constant() const
 }
 
 /// Wheter all arguments are not empty.
-bool Function::is_callable_explicitly() const
+bool Function::is_callable_explicitly() const noexcept
 {
     for (const auto &attr : arguments_)
         if (attr.is_empty())
@@ -406,7 +422,7 @@ vector<string> Function::get_missing_argument() const
     vector<string> undefined_args;
     for (const auto &attr : arguments_)
         if (attr.is_empty())
-            undefined_args.push_back(attr.name());
+            undefined_args.emplace_back(attr.name());
     return undefined_args;
 }
 
@@ -552,7 +568,7 @@ string Function::str_range() const
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Assign attribute to function.
-void Function::init_attr(const string &key, const Attribute &attr)
+void Function::init_attr(std::string_view key, const Attribute &attr)
 {
     // assert that function attribute are implicitely callable
     if (attr.is_function())
@@ -560,13 +576,13 @@ void Function::init_attr(const string &key, const Attribute &attr)
         const auto undefined_args = attr.get_function()->get_missing_argument();
         if (!undefined_args.empty())
             throw std::invalid_argument(
-                "Impossible to associate " + attr.err_name() + " as argument '" + key + "' of " + err_name() + ".\n" +
+                "Impossible to associate " + attr.err_name() + " as argument '" + string(key) + "' of " + err_name() + ".\n" +
                 "Non default argument" + (undefined_args.size() > 1 ? "s " : " ") + hsp::str::format(undefined_args) +
                 " of " + attr.err_name() + " cannot be missing.");
 
         if (!attr.get_function()->is_callable_implicitly())
             throw std::invalid_argument(
-                "Impossible to associate " + attr.err_name() + " as argument '" + key + "' of " + err_name() + ".\n" +
+                "Impossible to associate " + attr.err_name() + " as argument '" + string(key) + "' of " + err_name() + ".\n" +
                 "Argument 'x' of " + attr.err_name() + " cannot be missing.");
     }
 
@@ -579,7 +595,7 @@ void Function::init_attr(const string &key, const Attribute &attr)
         if (attr.is_empty() && attr.is_constant())
             return;
 
-        if (name_ == "uniform")
+        if (name() == "uniform")
             find_arg_(key).transfer(attr);
         else if (key == hsp::params::MIN)
             lower_arg_.transfer(attr);
@@ -664,7 +680,7 @@ namespace
     public:
         Minus_() : Function("minus") {}
         void init_truncation() override final {}
-        bool is_discrete() const override final { return x_arg_.is_discrete(); }
+        bool is_discrete() const noexcept override final { return x_arg_.is_discrete(); }
 
     protected:
         double raw_function_(double x) const override final { return -x; }
@@ -676,7 +692,7 @@ namespace
     public:
         Subtraction_() : Function("sub", {{"x2", 0.}}) {}
         void init_truncation() override final {}
-        bool is_discrete() const override final { return get_arg(0).is_discrete() && x_arg_.is_discrete(); }
+        bool is_discrete() const noexcept override final { return get_arg(0).is_discrete() && x_arg_.is_discrete(); }
 
     protected:
         double raw_function_(double x) const override final { return x - arg(0); }
@@ -699,7 +715,7 @@ namespace
     public:
         Power_() : Function("pow", {{"x2", 1.}}) {}
         void init_truncation() override final { init_range_helper_(); }
-        bool is_discrete() const override final { return Function::is_discrete() || (get_arg(0).is_discrete() && x_arg_.is_discrete()); }
+        bool is_discrete() const noexcept override final { return Function::is_discrete() || (get_arg(0).is_discrete() && x_arg_.is_discrete()); }
 
     protected:
         double raw_function_(double x) const override final { return std::pow(x, arg(0)); }
@@ -811,7 +827,7 @@ namespace
 
         // UPDATE: this might change for future variadic functions
         void init_truncation() override final {}
-        bool is_discrete() const override final
+        bool is_discrete() const noexcept override final
         {
             if (!x_arg_.is_discrete())
                 return false;
@@ -824,14 +840,14 @@ namespace
     protected:
         /// Override the find argument method at assigment.
         /// If attribute doesn't exist at initialization, create it.
-        Attribute &find_arg_(const string &arg_name) override final
+        Attribute &find_arg_(std::string_view arg_name) override final
         {
             if (arg_name == hsp::params::X)
                 return x_arg_;
             if (arg_name == hsp::params::LOC)
                 return loc_arg_;
             for (auto &attr : arguments_)
-                if (!hsp::na::is(attr.name()) && (attr.name() == arg_name))
+                if (!hsp::na::is(attr.name()) && attr.name() == arg_name)
                     return attr;
 
             arguments_.emplace_back();

@@ -87,7 +87,7 @@ RCPP_MODULE(housepi_flags)
             for (size_t i = 0; i < ptr_->n_args(); ++i)                                            \
             {                                                                                      \
                 output[i] = ptr_->arg(i);                                                          \
-                names[i] = ptr_->arg_name(i);                                                      \
+                names[i] = std::string(ptr_->arg_name(i));                                         \
             }                                                                                      \
             output.names() = std::move(names);                                                     \
             return output;                                                                         \
@@ -109,7 +109,7 @@ RCPP_MODULE(housepi_flags)
             catch (const std::exception &e)                                                        \
             {                                                                                      \
                 hsp::msg::error(                                                                   \
-                    "While calling " family " '" + ptr_->name() + "':\n" + e.what());              \
+                    "While calling " family " '" + std::string(ptr_->name()) + "':\n" + e.what()); \
             }                                                                                      \
         }                                                                                          \
     };
@@ -117,19 +117,19 @@ RCPP_MODULE(housepi_flags)
 //' @name HousepiRcppFunction
 //' @title Rcpp Function from Housepi
 //' @description Call housepi registered function.
-//' @field initialize\\cr \itemize{
+//' @field initialize \itemize{
 //'   \item Parameter: name `character(1)` with function name.
 //'   \item Parameter: args A named `numeric()` with arguments.
-//'   \item Parameter: min `numeric(1)`\\cr Minimum value of the function.
-//'   \item Parameter: max `numeric(1)`\\cr Maximum value of the function.
-//'   \item Parameter: is_discr `logical(1)`\\cr Wheter discretized.
+//'   \item Parameter: min `numeric(1)` Minimum value of the function.
+//'   \item Parameter: max `numeric(1)` Maximum value of the function.
+//'   \item Parameter: is_discr `logical(1)` Wheter discretized.
 //' }
-//' @field func\\cr \itemize{
-//'   \item Parameter: x `numeric()`\\cr Input vector.
+//' @field func \itemize{
+//'   \item Parameter: x `numeric()` Input vector.
 //' }
 //' @return `numeric()`
-//' @field prim\\cr \itemize{
-//'   \item Parameter: x `numeric()`\\cr Input vector.
+//' @field prim \itemize{
+//'   \item Parameter: x `numeric()` Input vector.
 //' }
 //' @return `numeric()`
 //' @keywords internal
@@ -149,19 +149,19 @@ RCPP_MODULE(housepi_function)
 //' @name HousepiRcppDistribution
 //' @title Rcpp Distribution from Housepi
 //' @description Call housepi registered distribution.
-//' @field initialize\\cr \itemize{
-//'   \item Parameter: name `character(1)`\\cr Name of the distribution.
-//'   \item Parameter: args `numeric()`\\cr Custom arguments.
-//'   \item Parameter: min `numeric(1)`\\cr Minimum value of the distribution.
-//'   \item Parameter: max `numeric(1)`\\cr Maximum value of the distribution.
-//'   \item Parameter: is_discr `logical(1)`\\cr Wheter discretized.
+//' @field initialize \itemize{
+//'   \item Parameter: name `character(1)` Name of the distribution.
+//'   \item Parameter: args `numeric()` Custom arguments.
+//'   \item Parameter: min `numeric(1)` Minimum value of the distribution.
+//'   \item Parameter: max `numeric(1)` Maximum value of the distribution.
+//'   \item Parameter: is_discr `logical(1)` Wheter discretized.
 //' }
-//' @field pdf\\cr \itemize{
-//'   \item Parameter: x `numeric()`\\cr Input vector.
+//' @field pdf \itemize{
+//'   \item Parameter: x `numeric()` Input vector.
 //' }
 //' @return `numeric()`
-//' @field cdf\\cr \itemize{
-//'   \item Parameter: x `numeric()`\\cr Input vector.
+//' @field cdf \itemize{
+//'   \item Parameter: x `numeric()` Input vector.
 //' }
 //' @return `numeric()`
 //' @keywords internal
@@ -181,19 +181,19 @@ RCPP_MODULE(housepi_distribution)
 //' @name HousepiRcppInfecProfile
 //' @title Rcpp Infectivity Profile from Housepi
 //' @description Call housepi registered infectivity profile.
-//' @field initialize\\cr \itemize{
-//'   \item Parameter: name `character(1)`\\cr Name of the profile.
-//'   \item Parameter: args `numeric()`\\cr Custom arguments.
-//'   \item Parameter: min `numeric(1)`\\cr Minimum value of the profile.
-//'   \item Parameter: max `numeric(1)`\\cr Maximum value of the profile.
-//'   \item Parameter: is_discr `logical(1)`\\cr Wheter discretized.
+//' @field initialize \itemize{
+//'   \item Parameter: name `character(1)` Name of the profile.
+//'   \item Parameter: args `numeric()` Custom arguments.
+//'   \item Parameter: min `numeric(1)` Minimum value of the profile.
+//'   \item Parameter: max `numeric(1)` Maximum value of the profile.
+//'   \item Parameter: is_discr `logical(1)` Wheter discretized.
 //' }
-//' @field inst\\cr \itemize{
-//'   \item Parameter: x `numeric()`\\cr Input vector.
+//' @field inst \itemize{
+//'   \item Parameter: x `numeric()` Input vector.
 //' }
 //' @return `numeric()`
-//' @field cumul\\cr \itemize{
-//'   \item Parameter: x `numeric()`\\cr Input vector.
+//' @field cumul \itemize{
+//'   \item Parameter: x `numeric()` Input vector.
 //' }
 //' @return `numeric()`
 //' @keywords internal
@@ -213,43 +213,40 @@ RCPP_MODULE(housepi_infec_profile)
 //' @name HousepiRcppModel
 //' @title Internal housepi Rcpp model
 //' @description Perform inference and simulation from the model.
-//' @field infer\\cr Perform MCMC inference of the model parameters. \itemize{
+//' @field infer Perform MCMC inference of the model parameters. \itemize{
 //'   \item Parameter: output_file - The file path where the output will be saved
 //'   \item Parameter: progbar - Display the progress bar
 //' }
-//' @field data_wide_for_simulation\\cr Dataset without status and augmented entries.
-//' @field simulate\\cr Simulated status and augmented variables.
-//' @field simulate_for_prediction\\cr Simulation for the computation of expected measure.
-//' @field evaluate\\cr Evaluate the log-likelihood according to the current state.
-//' @field log_evidence\\cr Evaluate the logarithm of the marginal likelihood (aka evidence).
+//' @field data_wide_for_simulation Dataset without status and augmented entries.
+//' @field simulate Simulated status and augmented variables.
+//' @field simulate_for_prediction Simulation for the computation of expected measure.
+//' @field evaluate Evaluate the log-likelihood according to the current state.
+//' @field log_evidence Evaluate the logarithm of the marginal likelihood (aka evidence).
 //' Uses the method of power posteriors. \itemize{
 //'   \item Parameter: scheme
 //'   \item Parameter: n_rungs
 //' }
-//' @field import_setup\\cr Import setup from R List.
-//' @field import_data_wide\\cr Import house indexed data in wide format from R Data.Frame.
-//' @field import_data_long\\cr Import individual indexed in long format from R Data.Frame.
-//' @field import_multiplicity\\cr Imoprt multiplicity definitions from R Data.Frame.
-//' @field import_group_rates\\cr Imoprt group rates definitions from R Data.Frame.
-//' @field import_param\\cr Import parameter definitions from R Data.Frame.
-//' @field import_infec_profile\\cr Import infectivity profile definition from R List.
-//' @field import_augm\\cr Import augmented variable definitions from R Data.Frame.
-//' @field import_param_for_prediction\\cr Import parameter tables for expected measures estimation.
-//' @field build_all_rates\\cr Assign all contact and group rates.
-//' @field export_setup\\cr Return a List with current setup.
-//' @field export_param_list_const\\cr Return a CharacterVector with constant parameters.
-//' @field export_param_list_sample_standard\\cr Return a CharacterVector with parameters to sample.
-//' @field export_param_list_sample_cache\\cr Return a CharacterVector with parameters to sample with cached dependecies.
-//' @field export_infec_profile\\cr Return a List with infectivity profile.
-//' @field export_data_wide\\cr Return a DataFrame with current database.
-//' @field summarise_cases\\cr Return a DataFrame with a report of the current database.
-//' @field summarise_house_sizes\\cr Return a DataFrame with a report of household sizes.
-//' @field flush_total_log_lik_draws\\cr Return a NumericMatrix with the total log-likelihood draws.
-//' @field flush_param_draws\\cr Return a NumericMatrix with parameters draws.
-//' @field flush_param_lprior_draws\\cr Return a NumericMatrix with parameter with log-priors draws.
-//' @field flush_augm_draws\\cr Return a NumericMatrix with augmented draws.
-//' @field flush_house_log_lik_draws\\cr Return a NumericMatrix with household log-likelihood draws.
-//' @field export_house_snapshot\\cr Return a List with a snapshot containing full household and model details.
+//' @field import_setup Import setup from R List.
+//' @field import_data_wide Import house indexed data in wide format from R Data.Frame.
+//' @field import_data_long Import individual indexed in long format from R Data.Frame.
+//' @field import_multiplicity Imoprt multiplicity definitions from R Data.Frame.
+//' @field import_group_rates Imoprt group rates definitions from R Data.Frame.
+//' @field import_param Import parameter definitions from R Data.Frame.
+//' @field import_infec_profile Import infectivity profile definition from R List.
+//' @field import_augm Import augmented variable definitions from R Data.Frame.
+//' @field import_param_for_prediction Import parameter tables for expected measures estimation.
+//' @field build_all_rates Assign all contact and group rates.
+//' @field export_setup Return a List with current setup.
+//' @field export_infec_profile Return a List with infectivity profile.
+//' @field export_data_wide Return a DataFrame with current database.
+//' @field summarise_cases Return a DataFrame with a report of the current database.
+//' @field summarise_house_sizes Return a DataFrame with a report of household sizes.
+//' @field flush_total_log_lik_draws Return a NumericMatrix with the total log-likelihood draws.
+//' @field flush_param_draws Return a NumericMatrix with parameters draws.
+//' @field flush_param_lprior_draws Return a NumericMatrix with parameter with log-priors draws.
+//' @field flush_augm_draws Return a NumericMatrix with augmented draws.
+//' @field flush_house_log_lik_draws Return a NumericMatrix with household log-likelihood draws.
+//' @field export_house_snapshot Return a List with a snapshot containing full household and model details.
 //' @keywords internal
 RCPP_MODULE(housepi_model_core)
 {
@@ -277,13 +274,6 @@ RCPP_MODULE(housepi_model_core)
         .method("summarise_cases", &MCMC::summarise_cases)
         .method("summarise_house_sizes", &MCMC::summarise_house_sizes)
         .method("export_setup", &MCMC::export_setup)
-        .method("export_param_list_const", &MCMC::export_param_list_const)
-        .method("export_param_list_sample_standard", &MCMC::export_param_list_sample_standard)
-        .method("export_param_list_sample_cache", &MCMC::export_param_list_sample_cache)
-        .method("export_augm_list_draws", &MCMC::export_augm_list_draws)
-        .method("export_augm_list_full", &MCMC::export_augm_list_full)
-        .method("export_augm_list_export", &MCMC::export_augm_list_export)
-        .method("export_augm_list_discrete", &MCMC::export_augm_list_discrete)
         .method("export_augmented_data_wide", &MCMC::export_augmented_data_wide)
         .method("export_infec_profile", &MCMC::export_infec_profile)
         .method("flush_total_log_lik_draws", &MCMC::flush_total_log_lik_draws)

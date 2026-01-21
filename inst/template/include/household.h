@@ -5,16 +5,13 @@
  * See the LICENSE file for details.
  */
 
-#ifndef HOUSEPI__HOUSEHOLD__H
-#define HOUSEPI__HOUSEHOLD__H
+#pragma once
 
 #include <string>
+#include <string_view>
 #include <vector>
-
-#include "tools/operators.h"
 #include "tools/types.h"
 #include "tools/keys.h"
-
 #include "attribute.h"
 #include "individual.h"
 
@@ -55,6 +52,7 @@ public:
 	// or const Individual for const access.
 	/// NOTE: if Individual is constant, then indexes are immutable as well;
 	///		  otherwise, indexes are copied and access is safe.
+	/// UPDATE: this is hiding too many operations under the carpet and should be removed...
 	template <typename T>
 	class View
 	{
@@ -261,5 +259,3 @@ private:
 	std::vector<std::vector<double>> buffer_dbl_vec_ = {};
 	std::vector<std::vector<std::vector<double>>> buffer_dbl_mtx_ = {};
 };
-
-#endif // HOUSEPI__HOUSEHOLD__H

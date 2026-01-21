@@ -7,6 +7,7 @@
 
 #include <string>
 #include <vector>
+#include <unordered_set>
 #include <fstream>
 #include <iostream>
 #include <iomanip>
@@ -82,7 +83,7 @@ void MCMC::read_multiplicity(const string &f)
 {
     try
     {
-        pImpl_->data_wide->multiplicity_build(hsp::read::csv_table(f), pImpl_->augm->is_any());
+        pImpl_->data_wide->multiplicity_build(hsp::read::csv_table(f));
     }
     catch (const std::exception &e)
     {
@@ -107,7 +108,7 @@ void MCMC::print_infer_state(const string &output_filename) const
     const auto &augm = *pImpl_->augm;
 
     std::ofstream ofs;
-    ofs.open(output_filename.c_str());
+    ofs.open(output_filename);
 
     if (!ofs.is_open())
         throw std::runtime_error(
@@ -119,13 +120,13 @@ void MCMC::print_infer_state(const string &output_filename) const
 
     // header parameters
     for (const auto &p : param.list_sample)
-        ofs << hsp::read::DELIMITER << hsp::key::Registry<ParamKey>::instance().as_string(p);
+        ofs << hsp::read::DELIMITER << hsp::key::as_string<ParamKey>(p);
 
     // header augmented variable of id trace
     if (augm.is_any_draw())
         for (size_t k = 0; k < augm.smpl_individuals.size(); ++k)
             for (const auto &a : augm.list_draws)
-                ofs << hsp::read::DELIMITER << augm.smpl_individuals[k]->id() + "_" + a;
+                ofs << hsp::read::DELIMITER << augm.smpl_individuals[k]->id() << "_" << hsp::key::as_string<AugmKey>(a);
 
     // header chain
     ofs << hsp::read::DELIMITER << "_chain_" << std::endl;
@@ -154,7 +155,7 @@ void MCMC::print_infer_state(const string &output_filename) const
                 for (size_t k = 0; k < augm.smpl_individuals.size(); ++k)
                     for (const auto &a : augm.list_draws)
                         ofs << hsp::read::DELIMITER << std::setprecision(5)
-                            << std::fixed << augm.smpl_values[k].find(a)->second[i];
+                            << std::fixed << augm.smpl_values[k][static_cast<size_t>(a)][i];
 
             // print which chain
             ofs << hsp::read::DELIMITER << (c + 1) << std::endl;
@@ -172,10 +173,10 @@ void MCMC::print_infer_state(const string &output_filename) const
 /// Print all augmented variables of each individual.
 std::ofstream open_ofstream_datawide(const string &f,
                                      const vector<string> &data_headers,
-                                     const vector<string> &augm_headers)
+                                     const std::unordered_set<size_t> &augm_headers)
 {
     std::ofstream ofs;
-    ofs.open(f.c_str());
+    ofs.open(f);
 
     if (!ofs.is_open())
         throw std::runtime_error("Unable to open file: '" + f + "'");
@@ -200,7 +201,7 @@ std::ofstream open_ofstream_datawide(const string &f,
 void update_ofstream_datawide(std::ofstream &ofs,
                               Household &house,
                               const vector<string> &data_headers,
-                              const vector<string> &augm_headers)
+                              const std::unordered_set<size_t> &augm_headers)
 {
     if (!ofs.is_open())
         throw std::runtime_error("Output file closed unexpectedly.");
@@ -214,7 +215,7 @@ void update_ofstream_datawide(std::ofstream &ofs,
             ofs << hsp::read::DELIMITER << member.data(d);
 
         for (const auto &a : augm_headers)
-            ofs << hsp::read::DELIMITER << member.aug(a);
+            ofs << hsp::read::DELIMITER << member.get_augm_variable(a).get();
 
         ofs << std::endl;
     }
@@ -270,7 +271,7 @@ void MCMC::print_simulated_data_wide(const string &pathtofile)
 /// Ref: Friel, N., Hurn, M. & Wyse, J.
 /// Improving power posterior estimation of statistical evidence.
 /// Stat Comput 24, 709–723 (2014).
-double MCMC::log_evidence(const string &scheme, unsigned long n_rungs)
+double MCMC::log_evidence(std::string_view scheme, unsigned long n_rungs)
 {
     try
     {

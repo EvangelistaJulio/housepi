@@ -40,17 +40,17 @@ namespace
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  *** AugmentedMap : class ***  ////////////////////////////////
+///////////////////////////////////  *** AugmentedContainer : class ***  ////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// A string containing a summary of the augmented map.
-string AugmentedMap::str_augm_summary() const
+string AugmentedContainer::str_augm_summary() const
 {
     string output;
-    for (const auto &[key, var] : augm_map_)
+    for (const auto &var : augm_vec_)
     {
-        output += "- " + key + " : ";
+        output += "- " + string(var.name()) + " : ";
         if (var.is_function() && !var.get_function()->is_callable_implicitly())
             output += var.get_function()->str_summary();
         else
@@ -58,59 +58,6 @@ string AugmentedMap::str_augm_summary() const
         output += "\n";
     }
     return output;
-}
-
-/// Associate functional methods for augmented model pdfs.
-void AugmentedMap::init_augm_model_logratios(const hsp::str_table &models_ordered)
-{
-    // clean pre-existing
-    for (auto &[key, vec] : model_logratios_)
-        vec.clear();
-    model_logratios_.clear();
-
-    // associate models if applicable
-    for (const auto &[a, others] : models_ordered)
-    {
-        auto &vec = model_logratios_[a];
-        vec.clear();
-        vec.reserve(others.size());
-
-        // repeat for all dependent models
-        for (const auto &b : others)
-            vec.emplace_back(&augm_map_[b]);
-    }
-}
-
-/// Value of log-likelihood associated to augmented variable models.
-/// Store the log-likelihood of individual augmented variables.
-double AugmentedMap::materialize_augm_model_log_lik()
-{
-    buffer_ = augm_log_lik_; // store old value in buffer
-    augm_log_lik_ = 0.0;
-    for (const auto &[a, vec] : model_logratios_)
-        augm_log_lik_ += augm_map_[a].get_distr_logpdf();
-    assert_log_lik_not_NaN();
-    return augm_log_lik_;
-}
-
-/// Change in log-likelihood associated to given augmented.
-double AugmentedMap::materialize_augm_model_logratio(const string &a)
-{
-    buffer_ = augm_log_lik_; // store old value in buffer
-    double delta_ll = 0.;
-    for (const auto *xaugm : model_logratios_[a])
-        delta_ll += xaugm->get_distr_logratio();
-    augm_log_lik_ += delta_ll;
-    assert_log_lik_not_NaN(a);
-    return delta_ll;
-}
-
-void AugmentedMap::assert_log_lik_not_NaN(const std::string &a) const
-{
-    if (hsp::na::is(augm_log_lik_))
-        throw std::runtime_error(
-            "Augmented log-likelihood returned NaN for " + err_name() +
-            (hsp::na::is(a) ? "" : " after change of " + augm_map_.find(a)->second.err_name()) + ".");
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -129,7 +76,7 @@ void Parameter::build(const hsp::str_table &input)
     const vector<string> file_headers = {"name", "value", "const", "discr",
                                          "prior", hsp::params::MIN, hsp::params::MAX,
                                          "proposal", "proposal_scale"};
-    const auto headers = hsp::extract_keys(input);
+    const auto headers = hsp::read::extract_keys(input);
     hsp::str::assert_no_missing_entries(headers, file_headers);
     hsp::str::assert_no_unused_entries(headers, file_headers);
 
@@ -144,10 +91,11 @@ void Parameter::build(const hsp::str_table &input)
     {
         const auto &paramstr = input.at("name")[k]; // parameter name
 
-        if (!(hsp::key::get_all_keys<ParamKey>() % paramstr))
+        if (!hsp::key::count<ParamKey>(paramstr))
         {
             hsp::key::Registry<ParamKey>::instance().add_key(paramstr);
-            param_vec_.emplace_back(Variable(paramstr, "parameter", hsp::na::DOUBLE));
+            param_vec_.emplace_back();
+            param_vec_.back().set_name(paramstr, "parameter");
         }
 
         if (hsp::str::tobool(input.at("const")[k]))
@@ -171,7 +119,7 @@ void Parameter::build_for_expec(const hsp::dbl_table &input)
     if (input.empty())
         return;
 
-    const auto headers = hsp::extract_keys(input);
+    const auto headers = hsp::read::extract_keys(input);
     // assert that parameter is not already defined
     if (headers.size() != hsp::str::unique(headers).size())
         throw std::invalid_argument(
@@ -190,20 +138,20 @@ void Parameter::build_for_expec(const hsp::dbl_table &input)
         list_const.push_back(p);
 
         smpl_values[p] = {};
-        if (headers % paramstr)
-            smpl_values[p] = input.at(paramstr);
+        if (std::find(headers.begin(), headers.end(), paramstr) != headers.end())
+            smpl_values[p] = input.at(string(paramstr));
     }
 }
 
 /// Drop current lists of parameters.
 void Parameter::clear_lists_()
 {
-    // UPDATE: to be improved by changing Variable constructor...
+    size_t n = hsp::key::size<ParamKey>();
     param_vec_.clear();
-    param_vec_.reserve(hsp::key::size<ParamKey>());
-    param_vec_.assign(hsp::key::size<ParamKey>(), Variable());
-    for (auto paramstr : hsp::key::get_all_keys<ParamKey>())
-        param_vec_[hsp::key::from_string<ParamKey>(paramstr)] = Variable(paramstr, "parameter", hsp::na::DOUBLE);
+    param_vec_.reserve(n);
+    param_vec_.assign(n, Variable("parameter"));
+    for (size_t p = 0; p < n; ++p)
+        param_vec_[p].set_name(hsp::key::as_string<ParamKey>(p));
 
     list_const.clear();
     list_sample.clear();
@@ -230,6 +178,11 @@ void Parameter::helper_build_constant_(const hsp::str_table &input, size_t k)
     // assign constant parameter to the set of variables
     const auto p = hsp::key::from_string<ParamKey>(paramstr);
     param_vec_[p].transfer(read_numeric(input.at("value")[k]));
+    // check if discrete as requested
+    if (user_discrete_set.count(p) && !param_vec_[p].is_discrete())
+        throw std::invalid_argument("Definition of " + param_vec_[p].err_name() +
+                                    " did not return a discrete object as requested by model.");
+
     // update the lists of constant parameters
     list_const.push_back(p);
 }
@@ -251,7 +204,7 @@ void Parameter::helper_build_to_sample_(const hsp::str_table &input, size_t k)
 
     // assign a prior distribution to the parameter
     hsp::parse::Definition parser(input.at("prior")[k]);
-    new_param.init_distr(parser);
+    new_param.init_distr(parser.root.func);
 
     // load prior arguments
     for (const auto &child : parser.root.children)
@@ -274,6 +227,11 @@ void Parameter::helper_build_to_sample_(const hsp::str_table &input, size_t k)
 
     // assign the proposer to the parameter
     new_param.init_proposer(proposal_name, proposal_scale);
+    // check if discrete as requested
+    if (user_discrete_set.count(p) && !new_param.is_discrete())
+        throw std::invalid_argument("Definition of " + new_param.err_name() +
+                                    " did not return a discrete object as requested by model.");
+
     // update the lists of parameters to sample
     list_sample.push_back(p);
 }
@@ -282,7 +240,7 @@ void Parameter::helper_build_to_sample_(const hsp::str_table &input, size_t k)
 void Parameter::make_cache_dependent(size_t p)
 {
     // remove a parameter from standard if it was defined as such
-    if (list_sample_standard % p)
+    if (std::find(list_sample_standard.begin(), list_sample_standard.end(), p) != list_sample_standard.end())
     {
         const auto vec = vector<size_t>({p});
         list_sample_standard = list_sample_standard - vec;
@@ -290,8 +248,8 @@ void Parameter::make_cache_dependent(size_t p)
         list_non_adapt_sample_standard = list_non_adapt_sample_standard - vec;
     }
 
-    // add the parameter as cache if not alread present
-    if (!(list_sample_cached % p))
+    // add the parameter as cache if not already present
+    if (std::find(list_sample_cached.begin(), list_sample_cached.end(), p) == list_sample_cached.end())
     {
         list_sample_cached.push_back(p);
         if (at(p).is_adaptable())
@@ -316,7 +274,7 @@ void Parameter::load_sample_values(size_t n)
 void Parameter::make_cache_dependent(const hsp::parse::Entry &node)
 {
     // cache dependecy if an augmented function depends on a parameter to be inferred
-    if (hsp::sources::is_parameter(node.type))
+    if (hsp::parse::is_parameter(node.type))
     {
         const auto p = hsp::key::from_string<ParamKey>(node.value);
         if (!at(p).is_constant())
@@ -372,11 +330,11 @@ const Attribute &Parameter::read_attribute(const hsp::parse::Entry &node, const 
             temporary.get_function()->init_attr(child.key, read_attribute(child, member_ptr));
         storage_ = std::move(temporary);
     }
-    else if (hsp::sources::is_numeric(node.type)) // terminal numeric node
+    else if (hsp::parse::is_numeric(node.type)) // terminal numeric node
     {
         storage_ = Attribute(hsp::str::tod(node.value, "argument with numeric type"));
     }
-    else if (hsp::sources::is_parameter(node.type)) // terminal parameter node
+    else if (hsp::parse::is_parameter(node.type)) // terminal parameter node
     {
         return at(hsp::key::from_string<ParamKey>(node.value));
     }
@@ -387,16 +345,16 @@ const Attribute &Parameter::read_attribute(const hsp::parse::Entry &node, const 
                 "Not supported individidual specific definition found while parsing '" + node.str() + "'.");
 
         const auto &member = *member_ptr;
-        if (hsp::sources::is_data(node.type)) // terminal data node
+        if (hsp::parse::is_data(node.type)) // terminal data node
         {
             storage_ = Attribute(member.data(node.value));
             storage_.set_name(node.value, "data");
         }
-        else if (hsp::sources::is_augmented(node.type)) // augmented terminal node
+        else if (hsp::parse::is_augmented(node.type)) // augmented terminal node
         {
-            return member.get_augm_variable(node.value);
+            return member.get_augm_variable(hsp::key::from_string<AugmKey>(node.value));
         }
-        else if (hsp::sources::is_group_rate(node.type)) // group rate terminal node
+        else if (hsp::parse::is_group_rate(node.type)) // group rate terminal node
         {
             return member.get_group_rate_attribute(hsp::key::from_string<GroupRateKey>(node.value));
         }
@@ -468,7 +426,7 @@ void GroupRate::build(const hsp::str_table &input)
 vector<string> GroupRate::helper_assert_definitions_(const hsp::str_table &input)
 {
     // check that tempalte headers are present
-    vector<string> data_headers = hsp::extract_keys(input);
+    vector<string> data_headers = hsp::read::extract_keys(input);
     hsp::str::assert_no_missing_entries(data_headers, file_headers_);
 
     // remove template headers to keep only data
@@ -660,7 +618,7 @@ void InfecProfile::build(const hsp::str_table &input)
 
     // check all entries are legitimiate
     hsp::str::assert_no_unused_entries(
-        hsp::extract_keys(input),
+        hsp::read::extract_keys(input),
         {"func", "status", "discr", hsp::params::MIN, hsp::params::MAX});
 
     // check definition list has a function
@@ -735,18 +693,18 @@ void InfecProfile::build_augmented_profile_(const hsp::str_table &input)
         bool is_discrete = hsp::str::tobool(input.at("discr")[r]);
 
         // match infectivity profile and augmented variable definition
-        augm_profile_definitions_["func"] += {hsp::infprof::INSTANT, hsp::infprof::CUMUL};
-        augm_profile_definitions_["status"] += vector<string>(2, input.at("status")[r]);
-        augm_profile_definitions_["func"] += vector<string>(2, input.at("func")[r]);
-        augm_profile_definitions_["fcumul"] += {"false", "true"};
-        augm_profile_definitions_["value"] += vector<string>(2, "");
-        augm_profile_definitions_["const"] += vector<string>(2, "false");
-        augm_profile_definitions_["discr"] += vector<string>(2, hsp::str::format(is_discrete));
-        augm_profile_definitions_["model"] += vector<string>(2, "");
-        augm_profile_definitions_[hsp::params::MIN] += vector<string>(2, (is_discrete) ? "1|N" : "0|N");
-        augm_profile_definitions_[hsp::params::MAX] += vector<string>(2, input.at(hsp::params::MAX)[r]);
-        augm_profile_definitions_["proposal"] += vector<string>(2, "");
-        augm_profile_definitions_["proposal_scale"] += vector<string>(2, "");
+        augm_profile_definitions_["func"].push_back(hsp::infprof::INSTANT);
+        augm_profile_definitions_["status"].push_back(input.at("status")[r]);
+        augm_profile_definitions_["func"].push_back(input.at("func")[r]);
+        augm_profile_definitions_["fcumul"].push_back("false");
+        augm_profile_definitions_["value"].push_back("");
+        augm_profile_definitions_["const"].push_back("false");
+        augm_profile_definitions_["discr"].push_back(hsp::str::format(is_discrete));
+        augm_profile_definitions_["model"].push_back("");
+        augm_profile_definitions_[hsp::params::MIN].push_back(is_discrete ? "1|N" : "0|N");
+        augm_profile_definitions_[hsp::params::MAX].push_back(input.at(hsp::params::MAX)[r]);
+        augm_profile_definitions_["proposal"].push_back("");
+        augm_profile_definitions_["proposal_scale"].push_back("");
     }
 }
 
@@ -771,16 +729,6 @@ std::unique_ptr<Distribution> InfecProfile::helper_build_profile_(const hsp::str
     return placeholder;
 }
 
-// Eventually append infectivity profile definitions to augmented.
-void InfecProfile::transfer_augm_definitions(hsp::str_table &augm_deftable) const
-{
-    if (!is_augmented())
-        return;
-
-    for (const auto &[key, vec] : augm_profile_definitions_)
-        augm_deftable.at(key) += vec;
-}
-
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////  MCMC : Impl : InfecProfile : getter methods  ///////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -798,9 +746,9 @@ double InfecProfile::do_inst_lookup_(const Individual *, double t)
     return 0;
 }
 /// Augmented method for instantaneous infectivity profile.
-double InfecProfile::do_inst_augm_(const Individual *i, double t)
+double InfecProfile::do_inst_augm_(const Individual *member, double t)
 {
-    return i->get_augm_variable(hsp::infprof::INSTANT)(t);
+    return member->get_augm_variable(augm_infecprof_key_).get_function()->pdf(t);
 }
 
 /// Default method for cumulative infectivity profile.
@@ -818,7 +766,7 @@ double InfecProfile::do_cumul_lookup_(const Individual *, double t)
     return lookup_cumul_.at(static_cast<size_t>(t));
 }
 /// Augmented method for cumulative infectivity profile.
-double InfecProfile::do_cumul_augm_(const Individual *i, double t)
+double InfecProfile::do_cumul_augm_(const Individual *member, double t)
 {
-    return i->get_augm_variable(hsp::infprof::CUMUL)(t);
+    return member->get_augm_variable(augm_infecprof_key_).get_function()->cdf(t);
 }

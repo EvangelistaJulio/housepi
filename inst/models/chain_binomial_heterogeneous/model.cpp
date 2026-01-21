@@ -11,11 +11,10 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "tools/keys.h"
-#include "tools/keys_helper.h"
+#include <algorithm>
+#include <iterator>
 
-#include "individual.h"
-#include "household.h"
+#include "housepi_model_setup.h"
 #include "binomial.h"
 #include "model.h"
 
@@ -73,11 +72,13 @@ void Model::fill_house_escape_matrix(Household &house) const
 	const double commu_rate = community_risk();
 	const double p2p_rate = person_to_person_risk();
 
-	// ordered members group rates : 1) infectious, 2) susceptibles
+	/// ordered members group rates : 1) infectious, 2) susceptibles
+	/// NOTE: this works only if size = n_infected_status + n_susceptible_status
+	/// UPDATE: this is not changing throughout inference w\o status change!
 	auto &order = house.cache_size_t_vector(HHsize_tKey::order);
-	// note 1: this works only if size = n_infected_status + n_susceptible_status
-	// note 2: this is not changing throughout inference w\o status change
-	order = house.infected_hhindexes() + house.healthy_hhindexes();
+	order.reserve(house.size());
+	order.insert(order.end(), house.infected_hhindexes().begin(), house.infected_hhindexes().end());
+	order.insert(order.end(), house.healthy_hhindexes().begin(), house.healthy_hhindexes().end());
 
 	// assign values to escape matrix
 	auto &commu_mtx = house.cache_double_vector(HHdoubleKey::commu_escape_proba);
@@ -112,16 +113,10 @@ void Model::fill_house_escape_matrix(Household &house) const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Risk of infection from the community.
-double Model::community_risk() const
-{
-	return par(ParamKey::alpha);
-}
+double Model::community_risk() const { return par(ParamKey::alpha); }
 
 /// Risk of infection from another household member.
-double Model::person_to_person_risk() const
-{
-	return par(ParamKey::beta);
-}
+double Model::person_to_person_risk() const { return par(ParamKey::beta); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -156,7 +151,7 @@ void Model::simulate_single_house(Household &house)
 
 	std::vector<Individual *> old_gen_set = {};
 
-	while ((house.n_susceptible_status() > 0) && (!new_gen_set.empty()))
+	while (house.n_susceptible_status() > 0 && !new_gen_set.empty())
 	{
 		std::swap(old_gen_set, new_gen_set);
 		new_gen_set.clear();

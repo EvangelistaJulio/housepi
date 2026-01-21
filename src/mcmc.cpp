@@ -10,6 +10,7 @@
 #include "tools/keys.h"
 #include "tools/keys_helper.h"
 #include "tools/messages.h"
+#include "tools/nan.h"
 #include "tools/openmp.h"
 #include "tools/string.h"
 #include "tools/types.h"
@@ -92,11 +93,11 @@ void MCMCImpl::init_evaluate()
 }
 
 /// Evaluate log-likelihood for the given household.
-double MCMCImpl::evaluate_single_house_log_lik(const string &house_id)
+double MCMCImpl::evaluate_single_house_log_lik(std::string_view house_id)
 {
     atomic_error->restore(); // reset atomic error
     infec_profile->update(); // eventually buffer infectivity profile
-    double output = atomic_materialize_house_log_lik_((*data_wide)(house_id), augm->is_any_model());
+    double output = atomic_materialize_house_log_lik_(data_wide->at(house_id));
     atomic_error->throw_exception(); // catch and throw if previous failed
     return output;
 }
@@ -110,7 +111,6 @@ double MCMCImpl::evaluate_single_house_log_lik(const string &house_id)
 /// Compute new log-likelihood, store old value in buffer. Same for households.
 double MCMCImpl::update_total_log_lik(bool is_cache_depen)
 {
-    const bool is_augm_ll = augm->is_any_model();
     double new_ll = 0.0;
 
     // buffer infectivity profile if lookup tables are active
@@ -124,7 +124,7 @@ double MCMCImpl::update_total_log_lik(bool is_cache_depen)
         if (atomic_error->is_pending())
             continue;
 
-        new_ll += atomic_materialize_house_log_lik_(data_wide->restricted(R), is_augm_ll, is_cache_depen);
+        new_ll += atomic_materialize_house_log_lik_(data_wide->restricted(R), is_cache_depen);
     }
     atomic_error->throw_exception();
 
@@ -133,7 +133,7 @@ double MCMCImpl::update_total_log_lik(bool is_cache_depen)
 
 /// Update and return contribution of given household to full logliklehood.
 /// NOTE: house multiplicity doesn't work with data augmentation
-double MCMCImpl::atomic_materialize_house_log_lik_(Household &house, bool is_augm_ll, bool is_cache_depen)
+double MCMCImpl::atomic_materialize_house_log_lik_(Household &house, bool is_cache_depen)
 {
     double output = 0;
     try
@@ -149,9 +149,9 @@ double MCMCImpl::atomic_materialize_house_log_lik_(Household &house, bool is_aug
         // compute and set household observation log-likelihood
         output = materialize_house_obs_log_lik_(house);
         // compute and set individual augmented log-likelihood
-        if (is_augm_ll)
+        if (augm->is_any_model())
             for (auto &member : house.infected())
-                output += member.materialize_augm_model_log_lik();
+                output += augm->materialize_augm_model_log_lik(member);
     }
     catch (const std::exception &e)
     {
@@ -393,7 +393,7 @@ void MCMCImpl::move_all_augm_()
 /// The move is performed one member at a time, one augmented variable at a time.
 double MCMCImpl::atomic_move_augm_single_house_(size_t H)
 {
-    auto &house = (*data_wide)(H);
+    auto &house = data_wide->at(H);
     double delta_ll = 0.;
 
     try
@@ -401,21 +401,20 @@ double MCMCImpl::atomic_move_augm_single_house_(size_t H)
         // loop over infectious residents of the househould
         for (auto &member_i : house.infected())
             // loop over augmented variables of infectious
-            for (const auto &a : augm->status_map_sample[member_i.status()])
+            for (auto a : augm->status_to_sample[member_i.status()])
                 delta_ll += metropolis_augm_single_move_(house, member_i, a);
     }
     catch (const std::exception &e)
     {
         atomic_error->set_if_first("While sampling augmented variables for " +
-                                   house.err_name() + ":\n" +
-                                   string(e.what()));
+                                   house.err_name() + ":\n" + string(e.what()));
     }
 
     return delta_ll;
 }
 
 /// Take care of a a single augmented Metropolis move.
-double MCMCImpl::metropolis_augm_single_move_(Household &house, Individual &member, const string &a)
+double MCMCImpl::metropolis_augm_single_move_(Household &house, Individual &member, size_t a)
 {
 
     auto &xaugm = member.get_augm_variable(a);
@@ -431,7 +430,7 @@ double MCMCImpl::metropolis_augm_single_move_(Household &house, Individual &memb
         // Metropolis-Hastings
         // NOTE: materialize calls must come after getters
         double delta_ll = -house.get_obs_log_lik();
-        delta_ll += member.materialize_augm_model_logratio(a);
+        delta_ll += augm->materialize_augm_model_logratio(member, a);
         delta_ll += materialize_house_obs_log_lik_(house);
 
         if (setup->unif() < std::exp(setup->inv_T * delta_ll - xaugm.get_propose_logratio()))
@@ -531,13 +530,13 @@ namespace
 /// Friel, N., Hurn, M. & Wyse, J.
 /// Improving power posterior estimation of statistical evidence.
 /// Stat Comput 24, 709–723 (2014).
-vector<vector<double>> MCMCImpl::power_posteriors(const string &scheme, unsigned long n_rungs)
+vector<vector<double>> MCMCImpl::power_posteriors(std::string_view scheme, unsigned long n_rungs)
 {
     // check scheme choice
     const vector<string> options = {"adaptive", "power-fractions"};
-    if (!(options % scheme))
+    if (std::find(options.begin(), options.end(), scheme) == options.end())
         throw std::invalid_argument(
-            "Invoked invalid power posterior scheme '" + scheme + "'." +
+            "Invoked invalid power posterior scheme '" + string(scheme) + "'." +
             hsp::str::find_closest(scheme, options));
 
     // check number of rungs for the thermodynamic ladder
@@ -747,7 +746,7 @@ void MCMC::init_contact_rates_(Household &house)
 
                     else if (pair_contact_rate_ != hsp::rates::REFERENCE) // parameter rate
                         y = pImpl_->param->at(
-                            static_cast<size_t>(hsp::key::Registry<ParamKey>::instance().from_string(pair_contact_rate_)));
+                            static_cast<size_t>(hsp::key::from_string<ParamKey>(pair_contact_rate_)));
 
                     house.init_contact_rates(static_cast<size_t>(member_k), static_cast<size_t>(member_i), y);
                 }
@@ -758,7 +757,7 @@ void MCMC::init_contact_rates_(Household &house)
 ///////////////////////////////////////  MCMC : cache attributes  ///////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-void MCMC::init_infec_profile_template(hsp::dict<std::string> x)
+void MCMC::init_infec_profile_template(std::vector<std::pair<std::string, std::string>> x)
 {
     hsp::str_table input = {};
     for (const auto &[key, val] : x)
@@ -782,10 +781,12 @@ void MCMC::init_missing_augm(Individual &member)
     pImpl_->augm->init_missing(member);
     pImpl_->augm->user_reset(pImpl_->setup->prng(), member);
 }
-void MCMC::request_augm_discrete(const string &x) { pImpl_->augm->user_list_discrete.emplace_back(x); }
+
+void MCMC::request_discrete(AugmKey a) { pImpl_->augm->user_discrete_set.emplace(static_cast<size_t>(a)); }
+void MCMC::request_discrete(ParamKey p) { pImpl_->param->user_discrete_set.emplace(static_cast<size_t>(p)); }
 
 /// Initialize model and evaluate log-likelihood.
-double MCMC::evaluate_log_lik(const string &house_id)
+double MCMC::evaluate_log_lik(std::string_view house_id)
 {
     try
     {

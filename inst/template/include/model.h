@@ -11,8 +11,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#ifndef HOUSEPI__MODEL__H
-#define HOUSEPI__MODEL__H
+#pragma once
 
 #include "mcmc.h"
 
@@ -29,5 +28,3 @@ class Model : public MCMC
 	double compute_house_obs_log_lik(Household &) override final;
 	void simulate_single_house(Household &house) override final;
 };
-
-#endif // HOUSEPI__MODEL__H

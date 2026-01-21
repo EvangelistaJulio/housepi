@@ -5,19 +5,19 @@
  * See the LICENSE file for details.
  */
 
-#ifndef HOUSEPI__MCMC__H
-#define HOUSEPI__MCMC__H
+#pragma once
 
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
+#include "tools/keys.h"
 
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
 #endif
-
-#include "tools/keys.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -76,13 +76,14 @@ public:
 
 	void init_missing_augm(Individual &member);
 	void clear_all_augm(Individual &member);
-	void request_augm_discrete(const std::string &x);
+	void request_discrete(AugmKey a);
+	void request_discrete(ParamKey p);
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////  MCMC : infectivity profile  ////////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
-	void init_infec_profile_template(hsp::dict<std::string> x);
+	void init_infec_profile_template(std::vector<std::pair<std::string, std::string>> x);
 	double infec_profile_inst(const Individual &member, double t) const;
 	double infec_profile_cumul(const Individual &member, double t) const;
 	void request_infec_profile_discrete();
@@ -104,7 +105,7 @@ public:
 	/// Compute the log-likelihood for a single household.
 	virtual double compute_house_obs_log_lik(Household &) { throw std::runtime_error(
 		"Called undefined log-likelihood method.\nOverride it in your custom model implementation before proceeding."); }
-	double evaluate_log_lik(const std::string &house_id = "");
+	double evaluate_log_lik(std::string_view house_id = "");
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////  MCMC : simulation  ////////////////////////////////////
@@ -150,14 +151,7 @@ public:
 	Rcpp::DataFrame summarise_cases() const;
 	Rcpp::DataFrame summarise_house_sizes() const;
 	Rcpp::List export_setup() const;
-	Rcpp::CharacterVector export_param_list_const() const;
-	Rcpp::CharacterVector export_param_list_sample_standard() const;
-	Rcpp::CharacterVector export_param_list_sample_cache() const;
 	Rcpp::List export_infec_profile() const;
-	Rcpp::CharacterVector export_augm_list_draws() const;
-	Rcpp::CharacterVector export_augm_list_full() const;
-	Rcpp::CharacterVector export_augm_list_export() const;
-	Rcpp::CharacterVector export_augm_list_discrete() const;
 	Rcpp::DataFrame export_augmented_data_wide() const;
 	Rcpp::List export_house_snapshot(const std::string &house_id) const;
 	Rcpp::NumericMatrix flush_total_log_lik_draws();
@@ -173,7 +167,7 @@ public:
 
 	void print_infer_state(const std::string &output_filename = "") const;
 	void print_simulated_data_wide(const std::string &output_filename = "");
-	double log_evidence(const std::string &scheme, unsigned long n_rungs);
+	double log_evidence(std::string_view scheme, unsigned long n_rungs);
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////  MCMC : C++ standalone read  ///////////////////////////////
@@ -211,5 +205,3 @@ private:
 	Rcpp::DataFrame helper_simulate_single_repetition_();
 #endif
 };
-
-#endif // HOUSEPI__MCMC__H

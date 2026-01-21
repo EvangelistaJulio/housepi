@@ -5,13 +5,11 @@
  * See the LICENSE file for details.
  */
 
-#ifndef HOUSEPI__PROPOSAL__H
-#define HOUSEPI__PROPOSAL__H
+#pragma once
 
 #include <memory>
 #include <string>
 #include <vector>
-
 #include "tools/random.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -88,5 +86,3 @@ protected:
     unsigned long n_proposed_ = 0;                   /// n. of proposed moves
     std::vector<unsigned short> args_to_adapt_ = {}; /// which arguments should be adapted
 };
-
-#endif // HOUSEPI__PROPOSAL__H

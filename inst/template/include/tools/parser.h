@@ -5,14 +5,25 @@
  * See the LICENSE file for details.
  */
 
-#ifndef HOUSEPI__TOOLS__PARSER__H
-#define HOUSEPI__TOOLS__PARSER__H
+#pragma once
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace hsp::parse
 {
+    /// Wheter definitions is 'augmented'.
+    inline bool is_augmented(std::string_view s) { return s == "A"; }
+    /// Wheter definitions is 'data'.
+    inline bool is_data(std::string_view s) { return s == "D"; }
+    /// Wheter definitions is 'group rate'.
+    inline bool is_group_rate(std::string_view s) { return s == "G"; }
+    /// Wheter definitions is 'numeric'.
+    inline bool is_numeric(std::string_view s) { return s == "N"; }
+    /// Wheter definitions is 'parameter'.
+    inline bool is_parameter(std::string_view s) { return s == "P"; }
+
     /// Definition entry as an AST node.
     struct Entry
     {
@@ -51,8 +62,7 @@ namespace hsp::parse
         Entry root; // parsed Entry root
 
         /// Construct and parse expression into AST (and flattens it).
-        Definition(const std::string &expr);
-        Definition(const char *expr) : Definition(std::string(expr)) {}
+        Definition(std::string_view expr);
         ~Definition() {}
 
         /// Wheter root node is a terminal node. Otherwise it is a function node.
@@ -73,5 +83,3 @@ namespace hsp::parse
         bool is_parameter_depen() const { return !list_parameter_depen().empty(); }
     };
 }
-
-#endif // HOUSEPI__TOOLS__PARSER__H

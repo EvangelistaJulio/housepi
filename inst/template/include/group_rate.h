@@ -5,13 +5,11 @@
  * See the LICENSE file for details.
  */
 
-#ifndef HOUSEPI__GROUP__RATE__H
-#define HOUSEPI__GROUP__RATE__H
+#pragma once
 
+#include <memory>
 #include <string>
-#include <unordered_map>
 #include <vector>
-
 #include "tools/types.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -42,5 +40,3 @@ private:
     std::vector<std::string> helper_assert_definitions_(const hsp::str_table &input);
     void helper_init_all_rates_(Individual &member, const hsp::str_table &these_rates);
 };
-
-#endif // HOUSEPI__GROUP__RATE__H

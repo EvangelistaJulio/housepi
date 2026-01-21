@@ -15,6 +15,7 @@
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/openmp.h"
+#include "tools/operators.h"
 #include "tools/read.h"
 #include "tools/types.h"
 
@@ -103,7 +104,7 @@ namespace
         for (size_t k = 0; k < n_args; ++k)
         {
             vals[k] = f->arg(k);
-            keys[k] = f->arg_name(k);
+            keys[k] = string(f->arg_name(k));
         }
         vals.names() = std::move(keys);
         return vals;
@@ -147,7 +148,7 @@ void MCMC::import_multiplicity(SEXP input)
 {
     try
     {
-        pImpl_->data_wide->multiplicity_build(rdataframe_to_strmap(input), pImpl_->augm->is_any());
+        pImpl_->data_wide->multiplicity_build(rdataframe_to_strmap(input));
     }
     catch (const std::exception &e)
     {
@@ -173,14 +174,6 @@ void MCMC::import_param_for_prediction(SEXP input)
 ////////////////////////////////////  MCMC : exports to Rcpp //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-Rcpp::CharacterVector MCMC::export_param_list_const() const { return Rcpp::wrap(pImpl_->param->list_const); }
-Rcpp::CharacterVector MCMC::export_param_list_sample_standard() const { return Rcpp::wrap(pImpl_->param->list_sample_standard); }
-Rcpp::CharacterVector MCMC::export_param_list_sample_cache() const { return Rcpp::wrap(pImpl_->param->list_sample_cached); }
-Rcpp::CharacterVector MCMC::export_augm_list_draws() const { return Rcpp::wrap(pImpl_->augm->list_draws); }
-Rcpp::CharacterVector MCMC::export_augm_list_full() const { return Rcpp::wrap(pImpl_->augm->list_full); }
-Rcpp::CharacterVector MCMC::export_augm_list_export() const { return Rcpp::wrap(pImpl_->augm->list_export); }
-Rcpp::CharacterVector MCMC::export_augm_list_discrete() const { return Rcpp::wrap(pImpl_->augm->user_list_discrete); }
 
 /// Export current setup configurations to R List.
 Rcpp::List MCMC::export_setup() const
@@ -228,27 +221,30 @@ Rcpp::DataFrame MCMC::export_augmented_data_wide() const
     using namespace Rcpp;
     const auto &augm = *pImpl_->augm;
 
-    const size_t n_cols = pImpl_->data_wide->report_indiv->total;
+    const size_t n_cols = augm.list_export.size();
+    const size_t n_rows = pImpl_->data_wide->report_indiv->total;
 
-    vector<int> status_col(n_cols);
-    vector<vector<double>> augm_cols(augm.list_export.size());
-    for (size_t i = 0; i < augm.list_export.size(); ++i)
-        augm_cols[i] = vector<double>(n_cols);
+    IntegerVector status_col(n_rows);
+    vector<NumericVector> augm_cols(n_cols);
+    for (size_t i = 0; i < n_cols; ++i)
+        augm_cols[i] = NumericVector(n_rows);
 
     size_t row = 0;
     for (auto &house : *pImpl_->data_wide)
         for (const auto &member : house)
         {
             status_col[row] = member.status();
-            for (size_t i = 0; i < augm.list_export.size(); ++i)
-                augm_cols[i][row] = hsp_to_rcpp(member.aug(augm.list_export[i]));
+            size_t i = 0;
+            for (auto a : augm.list_export)
+                augm_cols[i++][row] = hsp_to_rcpp(member.get_augm_variable(a).get());
             ++row;
         }
 
     // create the ouput List
-    List output = List::create(_["status"] = IntegerVector(wrap(std::move(status_col))));
-    for (size_t i = 0; i < augm.list_export.size(); ++i)
-        output[augm.list_export[i]] = NumericVector(wrap(std::move(augm_cols[i])));
+    List output = List::create(_["status"] = status_col);
+    size_t i = 0;
+    for (auto a : augm.list_export)
+        output[hsp::key::as_string<AugmKey>(a)] = augm_cols[i++];
     return DataFrame(output);
 }
 
@@ -311,7 +307,13 @@ Rcpp::DataFrame MCMC::export_data_wide() const
 }
 Rcpp::DataFrame MCMC::data_wide_for_simulation() const
 {
-    return helper_export_data_wide_(pImpl_->data_wide->headers - pImpl_->augm->list_export, false);
+    const auto &list_export = pImpl_->augm->list_export;
+    std::vector<std::string> export_names(list_export.size());
+    size_t i = 0;
+    for (auto a : list_export)
+        export_names[i++] = hsp::key::as_string<AugmKey>(a);
+
+    return helper_export_data_wide_(pImpl_->data_wide->headers - export_names, false);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -572,13 +574,20 @@ Rcpp::NumericMatrix MCMC::flush_augm_draws()
         NumericMatrix output(pImpl_->smpl_count, n_cols);
 
         size_t col = 0;
-        for (size_t k = 0; k < augm.smpl_values.size(); ++k)
-            for (const string &a : augm.list_draws)
+        for (size_t i = 0; i < augm.smpl_values.size(); ++i)
+        {
+            const auto member_ptr = augm.smpl_individuals[i];
+            auto &member_matrix = augm.smpl_values[i];
+
+            size_t j = 0;
+            for (const auto a : augm.list_draws)
             {
-                headers[col] = augm.smpl_individuals[k]->id() + "_" + a;
-                helper_vector_flush(output(_, col++), augm.smpl_values.at(k).at(a));
+                headers[col] = member_ptr->id() + "_" + hsp::key::as_string<AugmKey>(a);
+                helper_vector_flush(output(_, col++), member_matrix[j++]);
             }
-        colnames(output) = std::move(headers);
+        }
+
+        colnames(output) = headers;
         augm.smpl_values.clear();
         return output;
     }
@@ -768,7 +777,8 @@ Rcpp::DataFrame MCMC::helper_group_rates_rcpp_snapshot_(const Household &house) 
 
         for (size_t c = 0; c < headers.size(); ++c)
             group_rate_dbl[c][member] = hsp_to_rcpp(member.get_group_rate_attribute(
-                hsp::key::from_string<GroupRateKey>(headers[c])).get());
+                                                              hsp::key::from_string<GroupRateKey>(headers[c]))
+                                                        .get());
     }
 
     auto output = DataFrame::create(_["id"] = df_id);
@@ -802,9 +812,9 @@ Rcpp::List MCMC::helper_infec_profile_rcpp_snapshot_(const Household &house) con
     for (const auto &member : house.infected())
         if (infec_profile.is_augmented())
         {
-            const auto &f = member.get_augm_variable(hsp::infprof::INSTANT).get_function();
+            const auto &f = member.get_augm_variable(hsp::key::from_string<AugmKey>(hsp::infprof::INSTANT)).get_function();
 
-            infprof_name[member] = f->name();
+            infprof_name[member] = std::string(f->name());
             infprof_discr[member] = f->is_discrete();
             infprof_args[member] = rcpp_export_args(f);
             infprof_min[member] = f->lower();
@@ -837,24 +847,29 @@ Rcpp::DataFrame MCMC::helper_augm_rcpp_snapshot_(const Household &house) const
     if (list_export.empty())
         return DataFrame::create();
 
+    const auto n_cols = list_export.size();
     const auto n_rows = house.size();
     CharacterVector df_id(n_rows);
 
     vector<NumericVector> augm_dbl;
-    augm_dbl.reserve(list_export.size());
-    for (size_t c = 0; c < list_export.size(); ++c)
+    augm_dbl.reserve(n_cols);
+    for (size_t c = 0; c < n_cols; ++c)
         augm_dbl.emplace_back(NumericVector(n_rows));
 
     for (const auto &member : house)
         df_id[member] = member.id();
 
     for (const auto &member : house)
-        for (size_t c = 0; c < list_export.size(); ++c)
-            augm_dbl[c][member] = hsp_to_rcpp(member.aug(list_export[c]));
+    {
+        size_t i = 0;
+        for (auto a : list_export)
+            augm_dbl[i++][member] = hsp_to_rcpp(member.get_augm_variable(a).get());
+    }
 
     auto output = DataFrame::create(_["id"] = df_id);
-    for (size_t c = 0; c < list_export.size(); ++c)
-        output.push_back(augm_dbl[c], list_export[c]);
+    size_t i = 0;
+    for (auto a : list_export)
+        output.push_back(augm_dbl[i++], hsp::key::as_string<AugmKey>(a));
 
     return output;
 }
@@ -869,7 +884,7 @@ Rcpp::List MCMC::export_house_snapshot(const string &house_id) const
         if (pImpl_->data_wide->is_empty())
             return List::create();
 
-        const auto &house = (*pImpl_->data_wide)(house_id);
+        const auto &house = pImpl_->data_wide->at(house_id);
 
         return List::create(_["param"] = helper_param_rcpp_snapshot_(),
                             _["data_wide"] = helper_data_wide_rcpp_snapshot_(house),
@@ -936,14 +951,15 @@ Rcpp::DataFrame MCMC::helper_simulate_single_repetition_()
     DataFrame output;
     try
     {
-        const auto &augm_list_export = pImpl_->augm->list_export;
+        const auto &list_export = pImpl_->augm->list_export;
+        const auto n_cols = list_export.size();
         const auto n_rows = pImpl_->data_wide->report_indiv->total;
 
         IntegerVector df_status(n_rows);
 
         vector<NumericVector> df_augm;
-        df_augm.reserve(augm_list_export.size());
-        for (size_t c = 0; c < augm_list_export.size(); ++c)
+        df_augm.reserve(n_cols);
+        for (size_t c = 0; c < n_cols; ++c)
             df_augm.emplace_back(n_rows);
 
         size_t r = 0;
@@ -954,8 +970,9 @@ Rcpp::DataFrame MCMC::helper_simulate_single_repetition_()
                 for (const auto &member : house)
                 {
                     df_status[r] = member.status();
-                    for (size_t c = 0; c < augm_list_export.size(); ++c)
-                        df_augm[c][r] = hsp_to_rcpp(member.aug(augm_list_export[c]));
+                    size_t c = 0;
+                    for (auto a : list_export)
+                        df_augm[c++][r] = hsp_to_rcpp(member.get_augm_variable(a).get());
                     ++r;
                 }
             }
@@ -966,8 +983,9 @@ Rcpp::DataFrame MCMC::helper_simulate_single_repetition_()
             }
 
         output = DataFrame::create(_["status"] = df_status);
-        for (size_t c = 0; c < augm_list_export.size(); ++c)
-            output.push_back(df_augm[c], augm_list_export[c]);
+        size_t c = 0;
+        for (auto a : list_export)
+            output.push_back(df_augm[c++], hsp::key::as_string<AugmKey>(a));
     }
     catch (const std::exception &e)
     {

@@ -5,8 +5,7 @@
  * See the LICENSE file for details.
  */
 
-#ifndef HOUSEPI__TOOLS__FLAGS__H
-#define HOUSEPI__TOOLS__FLAGS__H
+#pragma once
 
 #include <string>
 
@@ -22,5 +21,3 @@ public:
 private:
     std::string flags_;
 };
-
-#endif // HOUSEPI__TOOLS__FLAGS__H

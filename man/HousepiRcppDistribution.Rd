@@ -14,20 +14,20 @@ Call housepi registered distribution.
 \section{Fields}{
 
 \describe{
-\item{\code{initialize\\cr}}{\itemize{
-\item Parameter: name \code{character(1)}\\cr Name of the distribution.
-\item Parameter: args \code{numeric()}\\cr Custom arguments.
-\item Parameter: min \code{numeric(1)}\\cr Minimum value of the distribution.
-\item Parameter: max \code{numeric(1)}\\cr Maximum value of the distribution.
-\item Parameter: is_discr \code{logical(1)}\\cr Wheter discretized.
+\item{\code{initialize}}{\itemize{
+\item Parameter: name \code{character(1)} Name of the distribution.
+\item Parameter: args \code{numeric()} Custom arguments.
+\item Parameter: min \code{numeric(1)} Minimum value of the distribution.
+\item Parameter: max \code{numeric(1)} Maximum value of the distribution.
+\item Parameter: is_discr \code{logical(1)} Wheter discretized.
 }}
 
-\item{\code{pdf\\cr}}{\itemize{
-\item Parameter: x \code{numeric()}\\cr Input vector.
+\item{\code{pdf}}{\itemize{
+\item Parameter: x \code{numeric()} Input vector.
 }}
 
-\item{\code{cdf\\cr}}{\itemize{
-\item Parameter: x \code{numeric()}\\cr Input vector.
+\item{\code{cdf}}{\itemize{
+\item Parameter: x \code{numeric()} Input vector.
 }}
 }}
 

@@ -5,8 +5,7 @@
  * See the LICENSE file for details.
  */
 
-#ifndef HOUSEPI__DATA_REPORTS__H
-#define HOUSEPI__DATA_REPORTS__H
+#pragma once
 
 #include <utility>
 #include <vector>
@@ -35,5 +34,3 @@ struct ReportHouseSizes
 	std::pair<unsigned short, size_t> min_size = {1000, 0};
 	std::pair<unsigned short, size_t> max_size = {0, 0};
 };
-
-#endif // HOUSEPI__DATA_REPORTS__H

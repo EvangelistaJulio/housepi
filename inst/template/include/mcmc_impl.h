@@ -5,15 +5,13 @@
  * See the LICENSE file for details.
  */
 
-#ifndef HOUSEPI__MCMC__IMPL__H
-#define HOUSEPI__MCMC__IMPL__H
+#pragma once
 
 #include <functional>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
-
-#include "tools/keys.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -70,8 +68,8 @@ public:
     void init_evaluate();
     void init_model_for_inference();
     void run_monte_carlo();
-    std::vector<std::vector<double>> power_posteriors(const std::string &scheme, unsigned long N);
-    double evaluate_single_house_log_lik(const std::string &house_id);
+    std::vector<std::vector<double>> power_posteriors(std::string_view scheme, unsigned long N);
+    double evaluate_single_house_log_lik(std::string_view house_id);
     double update_total_log_lik(bool is_cache_depen = true);
 
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -119,7 +117,7 @@ private:
 
     void init_move_counts_();
 
-    double atomic_materialize_house_log_lik_(Household &house, bool is_augm_ll, bool is_cache_depen = true);
+    double atomic_materialize_house_log_lik_(Household &house, bool is_cache_depen = true);
 
     void move_all_();
     void adapt_proposal_of_sampled_params_(unsigned long step);
@@ -136,12 +134,10 @@ private:
     //----- Metropolis : augmented moves -----//
     void move_all_augm_();
     double atomic_move_augm_single_house_(size_t H);
-    double metropolis_augm_single_move_(Household &house, Individual &member, const std::string &a);
+    double metropolis_augm_single_move_(Household &house, Individual &member, size_t a);
 
     //----- Metropolis : power posteriors -----//
     void power_post_zero_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var);
     void power_post_fractions_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var);
     void power_post_adaptive_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var);
 };
-
-#endif // HOUSEPI__MCMC__IMPL__H

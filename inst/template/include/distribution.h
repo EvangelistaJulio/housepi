@@ -5,15 +5,15 @@
  * See the LICENSE file for details.
  */
 
-#ifndef HOUSEPI__DISTRIBUTION__H
-#define HOUSEPI__DISTRIBUTION__H
+#pragma once
 
+#include <memory>
 #include <string>
-
+#include <string_view>
+#include <utility>
+#include <vector>
 #include "tools/nan.h"
 #include "tools/random.h"
-#include "tools/types.h"
-
 #include "function.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -31,7 +31,7 @@ public:
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
 	Distribution(const std::string &name,
-				 const hsp::named_args &args = {},
+				 const std::vector<std::pair<std::string, double>> &args = {},
 				 double domain_min = hsp::na::DOUBLE, bool is_min_open = true,
 				 double domain_max = hsp::na::DOUBLE, bool is_max_open = true)
 		: Function(name, args,
@@ -48,12 +48,8 @@ public:
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
 	double rand(hsp::rnd_gen &prng) const { return (this->*rand_)(prng); }
-	/// Return value of probability density/mass function.
-	double pdf(double x) const { return eval_function_as_distr_(x); }
 	/// Return value of log-probability density/mass function.
 	double logpdf(double x) const { return (this->*log_func_)((this->*delocate_)(x)); }
-	/// Return value of cumulative distribution.
-	double cdf(double x) const { return eval_primitive_as_distr_(x); }
 	/// Return value of log-ratio of probability density/mass functions.
 	double logratio(double xo, double xn) const { return (this->*log_ratio_)((this->*delocate_)(xo), (this->*delocate_)(xn)); }
 
@@ -218,9 +214,7 @@ protected:
 };
 
 /// Compose registries to get a distribution from them.
-std::unique_ptr<Distribution> compose_distr_registries(const std::string &opt,
+std::unique_ptr<Distribution> compose_distr_registries(std::string_view opt,
 													   const std::string &err_type,
 													   const std::vector<std::string> &registries,
 													   bool is_cumul = false);
-
-#endif // HOUSEPI__DISTRIBUTION__H

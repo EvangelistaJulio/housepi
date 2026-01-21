@@ -5,11 +5,11 @@
  * See the LICENSE file for details.
  */
 
-#ifndef HOUSEPI__ATTRIBUTE__H
-#define HOUSEPI__ATTRIBUTE__H
+#pragma once
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -40,7 +40,7 @@ public:
     /// Productory of pointed attributes values.
     explicit Attribute(const std::vector<const Attribute *> other_ptrs);
     /// Function attribute by registry choice.
-    explicit Attribute(const std::string &s, bool is_primitive = false);
+    explicit Attribute(std::string_view s, bool is_primitive = false);
     /// Attribute deconstructor.
     virtual ~Attribute();
 
@@ -60,7 +60,7 @@ public:
     /// Initialize attribute as function.
     void init_function(const std::shared_ptr<Function> f);
     /// Initialize attribute as function given the function name.
-    void init_function(const std::string &s, bool is_primitive = false);
+    void init_function(std::string_view s, bool is_primitive = false);
     /// Transfer from other Attribute.
     void transfer(const Attribute &other);
 
@@ -76,21 +76,21 @@ public:
     const std::shared_ptr<Function> get_function() const { return pFunc_; }
 
     /// Wheter it's constant.
-    virtual bool is_constant() const;
+    virtual bool is_constant() const noexcept;
     /// Wheter it's discrete.
-    virtual bool is_discrete() const;
+    virtual bool is_discrete() const noexcept;
 
     /// Wheter it's a number.
-    bool is_numeric() const;
+    bool is_numeric() const noexcept;
     /// Wheter it's a pointer.
-    bool is_pointer() const { return pAttr_ != nullptr; }
+    bool is_pointer() const noexcept { return pAttr_ != nullptr; }
     /// Wheter it's a function.
-    bool is_function() const { return pFunc_ != nullptr; }
+    bool is_function() const noexcept { return pFunc_ != nullptr; }
     /// Wheter it has no definitions.
-    bool is_empty() const { return !is_numeric() && !is_pointer() && !is_function(); }
+    bool is_empty() const noexcept { return !is_numeric() && !is_pointer() && !is_function(); }
 
     /// Get attribute name.
-    std::string name() const { return name_; }
+    std::string_view name() const { return name_; }
     /// Get attribute name to display in errors.
     std::string err_name() const { return err_type_ + " '" + name_ + "'"; }
     /// Get a description about the functional status.
@@ -132,5 +132,3 @@ protected:
     void do_set_error_(double) { throw std::runtime_error(
         "Tried to change non numeric " + err_name() + "."); }
 };
-
-#endif // HOUSEPI__ATTRIBUTE__H

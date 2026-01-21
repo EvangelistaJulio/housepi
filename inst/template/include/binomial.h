@@ -5,8 +5,7 @@
  * See the LICENSE file for details.
  */
 
-#ifndef HOUSEPI__BINOMIAL__H
-#define HOUSEPI__BINOMIAL__H
+#pragma once
 
 #include <vector>
 
@@ -36,5 +35,3 @@ namespace bax
                                         const std::vector<double> &commu_esc_proba,
                                         const std::vector<std::vector<double>> &p2p_esc_proba);
 }
-
-#endif // HOUSEPI__BINOMIAL__H

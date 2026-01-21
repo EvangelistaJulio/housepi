@@ -5,13 +5,11 @@
  * See the LICENSE file for details.
  */
 
-#ifndef HOUSEPI__INFEC_PROFILE__H
-#define HOUSEPI__INFEC_PROFILE__H
+#pragma once
 
 #include <memory>
 #include <string>
 #include <vector>
-
 #include "tools/types.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -20,12 +18,22 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+namespace hsp::infprof
+{
+    /// Augmented instantaneous infectivity profile.
+    constexpr const char *INSTANT = ".profile_inst";
+    /// Default size for lookup table for discrete case
+    constexpr unsigned LOOKUP_SIZE = 30;
+}
+
 struct Parameter;
 class Individual;
 class Distribution;
 
 struct InfecProfile
 {
+    friend struct Augmented;
+
 public:
     std::shared_ptr<Distribution> generic_profile;
 
@@ -45,7 +53,6 @@ public:
     void update();
     void recover();
     void request_discrete() { is_discrete_requested_ = true; };
-    void transfer_augm_definitions(hsp::str_table &target) const;
 
     /////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////  InfecProfile : getter  //////////////////////////////
@@ -67,6 +74,7 @@ private:
     std::vector<double> lookup_buffer_inst_ = {};  /// instantaneous LookUp Table (buffer)
     std::vector<double> lookup_buffer_cumul_ = {}; /// cumulative LookUp Table (buffer)
     hsp::str_table augm_profile_definitions_ = {}; /// augmented profile definitions
+    size_t augm_infecprof_key_;                    /// augmented profile key
 
     void init_lookup_();
     void clear_lookup_();
@@ -86,5 +94,3 @@ private:
     double do_cumul_lookup_(const Individual *, double t);
     double do_cumul_augm_(const Individual *i, double t);
 };
-
-#endif // HOUSEPI__INFEC_PROFILE__H

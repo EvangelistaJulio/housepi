@@ -155,18 +155,7 @@ HousepiAugmented <- R6::R6Class(
     #' @description Find augmented variables required by model.
     #' @param refer_file Path to reference file.
     require = function(refer_file) {
-      # vector of regular expression to use for assertion
-      regexp <- c(
-        # from : .aug("string"
-        '.aug\\s*\\(\\s*["\'](.*?)["\']',
-        # from : get_augmented("string"
-        '.get_augm_variable\\s*\\(\\s*["\'](.*?)["\']',
-        # from : .set_augm_value("string"
-        '.set_augm_value\\s*\\(\\s*["\'](.*?)["\']'
-      )
-      # find required augmented variables from regular expressions
-      output <- template_required_find(refer_file, regexp)
-
+      output <- template_extract_keys(refer_file, "AugmKey")
       c(set_source_name_(output, "model"), self$augm_required)
     },
 

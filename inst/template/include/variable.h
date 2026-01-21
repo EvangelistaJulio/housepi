@@ -5,18 +5,14 @@
  * See the LICENSE file for details.
  */
 
-#ifndef HOUSEPI__VARIABLE__H
-#define HOUSEPI__VARIABLE__H
+#pragma once
 
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <vector>
-
-#include "tools/nan.h"
-#include "tools/parser.h"
 #include "tools/random.h"
-
 #include "attribute.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -35,24 +31,14 @@ public:
     //////////////////////////////////  Variable : constructor  /////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    Variable(const std::string &name = "",
-             const std::string &err_type = "variable",
-             double value = hsp::na::DOUBLE,
-             bool is_const = true,
-             const hsp::parse::Definition &expr = "",
-             bool is_prim = false)
-    {
-        this->set_name(name, err_type);
-        init(value, is_const, expr, is_prim);
-    }
+    Variable(const std::string &err_type = "variable");
     ~Variable();
 
     /// Sugar to call variable as a function if applicable, otherwise raise error.
     double operator()(double x) const { return (this->*evaluate_)(x); }
 
     /// Helper to initialize variable.
-    void init(double value, bool is_const,
-              const hsp::parse::Definition &parser = "", bool is_prim = false);
+    void init(double value, bool is_const, std::string_view expr, bool is_prim = false);
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////  Variable : setter  ///////////////////////////////////
@@ -65,23 +51,27 @@ public:
     void user_reset(hsp::rnd_gen &prng);
 
     /// Assign an attribute to function.
-    void init_func_attr(const std::string &key, const Attribute &attr);
-    /// Initialize function reshaping. NOTE: to be called necessarily.
+    void init_func_attr(std::string_view key, const Attribute &attr);
+
+    /// Initialize function reshaping.
+    /// NOTE: to be called necessarily.
     void init_func_reshaping(bool discr);
 
     /// Initialize pointer to distribution.
-    void init_distr(const hsp::parse::Definition &expr);
+    void init_distr(std::string_view opt);
+
     /// Assign an attribute to distribution.
-    void init_distr_attr(const std::string &key, const Attribute &attr);
-    /// Finalize reshaping of distribution. NOTE: to be called necessarily.
+    void init_distr_attr(std::string_view key, const Attribute &attr);
+
+    /// Finalize reshaping of distribution.
+    /// NOTE: to be called necessarily.
     void init_distr_reshaping(bool discr);
 
     /// Random initialization of variable.
     void init_rand(hsp::rnd_gen &prng);
 
     /// Initialize pointer to proposer.
-    void init_proposer(const std::string &proposal = "",
-                       double proposal_scale = hsp::na::DOUBLE);
+    void init_proposer(const std::string &proposal, double proposal_scale);
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////  Variable : getter  ///////////////////////////////////
@@ -90,10 +80,10 @@ public:
     /// Get pointer to distribution.
     const std::shared_ptr<Distribution> get_distribution() const { return pDistr_; }
 
-    bool is_constant() const override;
-    bool is_discrete() const override final;
-    bool is_model() const;
-    bool is_adaptable() const;
+    bool is_constant() const noexcept override final;
+    bool is_discrete() const noexcept override final;
+    bool is_model() const noexcept;
+    bool is_adaptable() const noexcept;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////  Variable : Metropolis-Hastings  ////////////////////////////
@@ -172,5 +162,3 @@ protected:
     double do_get_move_logratio_default_() const { return get_distr_logratio() - get_propose_logratio(); }
     double do_move_logratio_sample_() const { return 0.; }
 };
-
-#endif // HOUSEPI__VARIABLE__H

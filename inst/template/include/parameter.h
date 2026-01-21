@@ -5,17 +5,14 @@
  * See the LICENSE file for details.
  */
 
-#ifndef HOUSEPI__PARAMETER__H
-#define HOUSEPI__PARAMETER__H
+#pragma once
 
 #include <string>
 #include <vector>
-
 #include "tools/keys.h"
-#include "tools/parser.h"
+#include "tools/parser.h" // UPDATE: this shouldn't be public
 #include "tools/random.h"
 #include "tools/types.h"
-
 #include "attribute.h"
 #include "variable.h"
 
@@ -48,6 +45,8 @@ struct Parameter
 
     std::vector<std::vector<double>> smpl_values = {}; /// values of the sample
     std::vector<std::vector<double>> smpl_priors = {}; /// prior values of the sample
+
+    std::unordered_set<size_t> user_discrete_set = {}; /// user defined discrete parameters
 
     /////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////  Parameter : getter  /////////////////////////////////
@@ -108,5 +107,3 @@ private:
     void helper_build_constant_(const hsp::str_table &deftable, size_t k);
     void helper_build_to_sample_(const hsp::str_table &deftable, size_t k);
 };
-
-#endif // HOUSEPI__PARAMETER__H

@@ -11,11 +11,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "tools/keys.h"
-#include "tools/keys_helper.h"
-
-#include "individual.h"
-#include "household.h"
+#include "housepi_model_setup.h"
 #include "model.h"
 
 REGISTER_HOUSEPI_KEYS(AugmKey, proba)
@@ -35,7 +31,7 @@ double Model::compute_house_obs_log_lik(Household &house)
 {
 	double output = 0.0;
 	for (const auto &member : house.infected())
-		output += std::log(member.aug("proba"));
+		output += std::log(member.aug(AugmKey::proba));
 	return output;
 }
 

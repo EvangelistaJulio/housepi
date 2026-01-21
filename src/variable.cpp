@@ -5,8 +5,9 @@
  * See the LICENSE file for details.
  */
 
-#include "tools/messages.h"
 #include "tools/global.h"
+#include "tools/messages.h"
+#include "tools/parser.h"
 #include "tools/string.h"
 #include "tools/random.h"
 
@@ -216,16 +217,22 @@ namespace
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+Variable::Variable(const std::string &err_type)
+{
+    this->set_name("", err_type);
+    this->is_constant_ = true;
+    buffer_ = hsp::na::DOUBLE;
+    user_value_ = hsp::na::DOUBLE;
+    value_ = hsp::na::DOUBLE;
+    evaluate_ = &Variable::do_eval_error_;
+}
 Variable::~Variable() = default;
 
 /// Initialize variable.
-void Variable::init(double value, bool is_const,
-                    const hsp::parse::Definition &parser, bool is_primitive)
+void Variable::init(double value, bool is_const, std::string_view expr, bool is_primitive)
 {
     this->is_constant_ = is_const;
-    buffer_ = hsp::na::DOUBLE;
-    user_value_ = hsp::na::DOUBLE;
-    evaluate_ = &Variable::do_eval_error_;
+    hsp::parse::Definition parser(expr);
 
     if (is_const || parser.is_na()) // initialization as a numeric variable
     {
@@ -261,7 +268,7 @@ void Variable::user_reset(hsp::rnd_gen &prng)
 }
 
 /// Assign an attribute to function.
-void Variable::init_func_attr(const string &key, const Attribute &attr) { pFunc_->init_attr(key, attr); }
+void Variable::init_func_attr(std::string_view key, const Attribute &attr) { pFunc_->init_attr(key, attr); }
 
 /// Initialize function reshaping.
 /// Drop function if it's constant when reshaping.
@@ -279,7 +286,7 @@ void Variable::init_func_reshaping(bool discr)
     pFunc_->assert_is_callable_explicitly();
 
     if (pFunc_->is_constant())
-        init(pFunc_->evaluate(), true);
+        init(pFunc_->evaluate(), true, "", false);
 
     else if (is_constant())
         throw std::invalid_argument(
@@ -290,14 +297,13 @@ void Variable::init_func_reshaping(bool discr)
 }
 
 /// Assign distribution with constant arguments.
-void Variable::init_distr(const hsp::parse::Definition &expr)
+void Variable::init_distr(std::string_view opt)
 {
-    pDistr_ = compose_distr_registries(
-        expr.root.func, "distribution", {"continuos", "discrete"});
+    pDistr_ = compose_distr_registries(opt, "distribution", {"continuos", "discrete"});
 }
 
 /// Assign an attribute to distribution.
-void Variable::init_distr_attr(const string &key, const Attribute &attr)
+void Variable::init_distr_attr(std::string_view key, const Attribute &attr)
 {
     pDistr_->init_attr(key, attr);
     if (key == hsp::params::LOC && pProp_ != nullptr)
@@ -405,7 +411,7 @@ void Variable::helper_init_proposer_monte_carlo_(const string &proposal, double 
 }
 
 /// Wheter the variable is constant.
-bool Variable::is_constant() const
+bool Variable::is_constant() const noexcept
 {
     if (is_numeric())
         return is_constant_;
@@ -416,16 +422,16 @@ bool Variable::is_constant() const
     return is_constant_;
 }
 /// Wheter the variable is discrete.
-bool Variable::is_discrete() const
+bool Variable::is_discrete() const noexcept
 {
     if (is_model())
         return pDistr_->is_discrete();
     return Attribute::is_discrete();
 }
 /// Wheter the variable has a prior or a model associated.
-bool Variable::is_model() const { return pDistr_ != nullptr && !pDistr_->is_empty(); }
+bool Variable::is_model() const noexcept { return pDistr_ != nullptr && !pDistr_->is_empty(); }
 /// Wheter the variable has an adaptable parametric proposal rule.
-bool Variable::is_adaptable() const { return pProp_ != nullptr && pProp_->is_adaptable(); }
+bool Variable::is_adaptable() const noexcept { return pProp_ != nullptr && pProp_->is_adaptable(); }
 
 /// Set new proposal internally and store a buffer of old value.
 void Variable::propose(hsp::rnd_gen &prng) { set(pProp_->propose(prng, value_)); }

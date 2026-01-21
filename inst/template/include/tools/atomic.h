@@ -5,8 +5,7 @@
  * See the LICENSE file for details.
  */
 
-#ifndef HOUSEPI__TOOLS__ATOMIC__H
-#define HOUSEPI__TOOLS__ATOMIC__H
+#pragma once
 
 #include <stdexcept>
 #include <string>
@@ -52,5 +51,3 @@ namespace hsp::atomic
         std::string message_ = {};           /// Error message for last exception during multi-threading
     };
 }
-
-#endif // HOUSEPI__TOOLS__ATOMIC__H

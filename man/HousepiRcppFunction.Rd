@@ -14,20 +14,20 @@ Call housepi registered function.
 \section{Fields}{
 
 \describe{
-\item{\code{initialize\\cr}}{\itemize{
+\item{\code{initialize}}{\itemize{
 \item Parameter: name \code{character(1)} with function name.
 \item Parameter: args A named \code{numeric()} with arguments.
-\item Parameter: min \code{numeric(1)}\\cr Minimum value of the function.
-\item Parameter: max \code{numeric(1)}\\cr Maximum value of the function.
-\item Parameter: is_discr \code{logical(1)}\\cr Wheter discretized.
+\item Parameter: min \code{numeric(1)} Minimum value of the function.
+\item Parameter: max \code{numeric(1)} Maximum value of the function.
+\item Parameter: is_discr \code{logical(1)} Wheter discretized.
 }}
 
-\item{\code{func\\cr}}{\itemize{
-\item Parameter: x \code{numeric()}\\cr Input vector.
+\item{\code{func}}{\itemize{
+\item Parameter: x \code{numeric()} Input vector.
 }}
 
-\item{\code{prim\\cr}}{\itemize{
-\item Parameter: x \code{numeric()}\\cr Input vector.
+\item{\code{prim}}{\itemize{
+\item Parameter: x \code{numeric()} Input vector.
 }}
 }}
 

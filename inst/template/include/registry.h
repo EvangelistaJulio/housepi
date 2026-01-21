@@ -5,16 +5,14 @@
  * See the LICENSE file for details.
  */
 
-#ifndef HOUSEPI__REGISTRY__H
-#define HOUSEPI__REGISTRY__H
+#pragma once
 
+#include <functional>
+#include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
-#include <functional>
-
-#include "tools/operators.h"
-#include "tools/types.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -28,36 +26,25 @@ class Distribution;
 class FunctionRegistry
 {
 public:
-    virtual std::vector<std::string> get_options() const { return hsp::extract_keys(factory_map_); }
-    virtual std::unique_ptr<Function> create(const std::string &opt, bool is_prim = false) const;
+    bool count(std::string_view opt) const { return factory_map_.count(opt); }
+    std::vector<std::string> get_options() const;
+    virtual std::unique_ptr<Function> create(std::string_view opt, bool is_prim = false) const;
 
     template <typename T>
     void register_member()
     {
-        factory_map_[T().name()] = []()
+        factory_map_[std::string(T().name())] = []()
         { return std::make_unique<T>(); };
     }
 
-private:
-    hsp::dict<std::function<std::unique_ptr<Function>()>> factory_map_ = {};
+protected:
+    std::map<std::string, std::function<std::unique_ptr<Function>()>, std::less<>> factory_map_ = {};
 };
 
 class DistributionRegistry : public FunctionRegistry
 {
 public:
-    std::vector<std::string> get_options() const override final { return hsp::extract_keys(factory_map_); }
-    virtual std::unique_ptr<Distribution> create_distr(const std::string &opt, bool is_cumul = false) const;
-    std::unique_ptr<Function> create(const std::string &opt, bool is_prim = false) const override final;
-
-    template <typename T>
-    void register_member()
-    {
-        factory_map_[T().name()] = []()
-        { return std::make_unique<T>(); };
-    }
-
-private:
-    hsp::dict<std::function<std::unique_ptr<Distribution>()>> factory_map_ = {};
+    std::unique_ptr<Function> create(std::string_view opt, bool is_prim = false) const override final;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -66,7 +53,7 @@ private:
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Separate functions registries.
+/// Declare a housepi functions registry.
 #define DECLARE_HOUSEPI_REGISTRY(ClassName, RegistryType) \
     class ClassName : public RegistryType                 \
     {                                                     \
@@ -96,5 +83,3 @@ DECLARE_HOUSEPI_REGISTRY(InfecProfileRegistry, DistributionRegistry)
         };                                                             \
         static T##_##R##_AutoRegister T##_##R##_housepi_auto_register; \
     }
-
-#endif // HOUSEPI__REGISTRY__H

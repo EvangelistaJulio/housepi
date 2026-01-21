@@ -5,11 +5,8 @@
  * See the LICENSE file for details.
  */
 
-#ifndef HOUSEPI__TOOLS__OPENMP__H
-#define HOUSEPI__TOOLS__OPENMP__H
+#pragma once
 
 #ifdef _OPENMP
 #include <omp.h>
 #endif
-
-#endif // HOUSEPI__TOOLS__OPENMP__H

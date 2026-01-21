@@ -12,7 +12,9 @@
 
 #include "tools/global.h"
 #include "tools/messages.h"
+#include "tools/nan.h"
 #include "tools/openmp.h"
+#include "tools/operators.h"
 #include "tools/progress.h"
 #include "tools/read.h"
 #include "tools/string.h"
@@ -66,7 +68,7 @@ void Setup::build(const hsp::str_table &input)
                 "Internal error: multiple entries found in MCMC setup definition.");
 
         // check entries
-        const auto &headers = hsp::extract_keys(input);
+        const auto &headers = hsp::read::extract_keys(input);
         hsp::str::assert_no_unused_entries(headers, file_headers);
 
         // Random Initialization of Parameters
@@ -314,20 +316,19 @@ void Household::init_cache()
     const size_t hh_size = size();
 
     // size_t
-    cache_size_t_vec_.resize(hsp::key::Registry<HHsize_tKey>::instance().size());
+    cache_size_t_vec_.resize(hsp::key::size<HHsize_tKey>());
     for (auto &v : cache_size_t_vec_)
         v.assign(hh_size, 0);
     buffer_size_t_vec_ = cache_size_t_vec_;
 
-    // FLAG
     // double
-    cache_dbl_vec_.resize(hsp::key::Registry<HHdoubleKey>::instance().size());
+    cache_dbl_vec_.resize(hsp::key::size<HHdoubleKey>());
     for (auto &v : cache_dbl_vec_)
         v.assign(hh_size, 0.);
     buffer_dbl_vec_ = cache_dbl_vec_;
 
     // matrix
-    cache_dbl_mtx_.resize(hsp::key::Registry<HHmatrixKey>::instance().size());
+    cache_dbl_mtx_.resize(hsp::key::size<HHmatrixKey>());
     for (auto &v : cache_dbl_mtx_)
         v.assign(hh_size, std::vector<double>(hh_size, 0.));
     buffer_dbl_mtx_ = cache_dbl_mtx_;
@@ -363,18 +364,17 @@ void DataWide::build(const hsp::str_table &input)
     if (input.empty())
         return;
 
-    // drop all previous data and prepare for new
-    build_helper_clear_data_();
+    build_helper_clear_data_();               // drop previous data and lists
+    headers = hsp::read::extract_keys(input); // extract headers
 
-    // extract headers
-    for (const auto &[col, vec] : input)
-        headers.push_back(col);
     // assess the presence of house IDs
-    if (!(headers % "house_id"))
+    if (std::find(headers.begin(), headers.end(), "house_id") == headers.end())
         hsp::msg::warning(
             "Ignored household structure. Missing data column 'house_id'.");
+
     // assess individual IDs are unique
-    if (headers % "id" && input.at("id").size() != hsp::str::unique(input.at("id")).size())
+    if (std::find(headers.begin(), headers.end(), "id") != headers.end() &&
+        input.at("id").size() != hsp::str::unique(input.at("id")).size())
         hsp::msg::error(
             "Provided individual IDs are not unique.");
 
@@ -442,7 +442,7 @@ void DataWide::build_helper_clear_data_()
     headers.clear();
     house_vector_.clear();
     hhid_to_index_.clear();
-    all_infected_status_list.clear();
+    all_infected_statuses.clear();
     report_indiv = std::make_unique<ReportIndividual>();
     report_house = std::make_unique<ReportHousehold>();
     report_hh_size = std::make_unique<ReportHouseSizes>();
@@ -456,8 +456,7 @@ void DataWide::build_helper_fill_report_data_()
     {
         // list of unique infected statuses
         for (const auto &member : house.infected())
-            if (!(all_infected_status_list % member.status()))
-                all_infected_status_list.push_back(member.status());
+            all_infected_statuses.emplace(member.status());
 
         // observed quantities in-house
         const unsigned short house_size = house.size();
@@ -495,11 +494,11 @@ void DataWide::build_helper_fill_report_data_()
 
 /// Build multiplicities.
 /// UPDATE: I should find a way to deal internally with multiplicity.
-void DataWide::multiplicity_build(const hsp::str_table &input, bool is_any_augm)
+void DataWide::multiplicity_build(const hsp::str_table &input)
 {
     head_class_house_indexes.clear();
     auto n_houses = report_house->total;
-    if (is_any_augm || (input.size() == 0))
+    if (hsp::key::size<AugmKey>() > 0 || input.size() == 0)
     {
         // note: multiplicities are not compatible with data augmentation
         if (!input.empty())
@@ -523,8 +522,8 @@ void DataWide::multiplicity_build(const hsp::str_table &input, bool is_any_augm)
 
         for (size_t r = 0; r < n_houses; ++r)
         {
-            auto &house = (*this)(input.at("house_id")[r]);
-            auto H0 = (*this)(input.at("class_id")[r]).house_index();
+            auto &house = at(input.at("house_id")[r]);
+            auto H0 = at(input.at("class_id")[r]).house_index();
             auto m = hsp::str::toul(input.at("multiplicity")[r]);
 
             house.set_multiplicity(m, H0);
@@ -581,7 +580,7 @@ void DataLong::build(const hsp::str_table &input)
         headers.push_back(x.first);
 
     // check for individual IDs
-    if (!(headers % "id"))
+    if (std::find(headers.begin(), headers.end(), "id") == headers.end())
         throw std::invalid_argument(
             "Individual identifier column 'id' was missing.");
     // remove "id"

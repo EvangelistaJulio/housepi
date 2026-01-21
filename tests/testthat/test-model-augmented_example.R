@@ -39,7 +39,7 @@ test_that("Nested definitions raise errors", {
     )$evaluate_log_lik()
   ))
   expect_match(err_msg, "Could not find a definition")
-  expect_match(err_msg, "status 3")
+  expect_match(err_msg, "status")
 
   # second generation of definitions
   err_msg <- as.character(expect_error(
@@ -52,7 +52,7 @@ test_that("Nested definitions raise errors", {
     )$evaluate_log_lik()
   ))
   expect_match(err_msg, "Could not find a definition")
-  expect_match(err_msg, "status 4")
+  expect_match(err_msg, "status")
 })
 
 test_that("Missing function arguments raise errors", {

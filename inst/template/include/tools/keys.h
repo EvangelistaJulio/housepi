@@ -5,8 +5,7 @@
  * See the LICENSE file for details.
  */
 
-#ifndef HOUSEPI__TOOLS__KEYS__H
-#define HOUSEPI__TOOLS__KEYS__H
+#pragma once
 
 #include <cstddef>
 
@@ -17,5 +16,3 @@ enum class HHsize_tKey : size_t;
 enum class HHdoubleKey : size_t;
 enum class HHmatrixKey : size_t;
 enum class ParamKey : size_t;
-
-#endif // HOUSEPI__TOOLS__KEYS__H

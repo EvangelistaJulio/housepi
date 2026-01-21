@@ -171,19 +171,14 @@ void Distribution::init_trunc_helper_()
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-std::unique_ptr<Function> DistributionRegistry::create(const std::string &opt, bool is_prim) const
-{
-    return create_distr(opt, is_prim);
-}
-
-std::unique_ptr<Distribution> DistributionRegistry::create_distr(const string &opt, bool is_cumul) const
+std::unique_ptr<Function> DistributionRegistry::create(std::string_view opt, bool is_prim) const
 {
     auto it = factory_map_.find(opt);
     if (it == factory_map_.end())
         return nullptr;
 
     auto output = it->second();
-    if (is_cumul)
+    if (is_prim)
         output->set_eval_as_distr_primitive();
     else
         output->set_eval_as_distr_call();
@@ -194,7 +189,7 @@ std::unique_ptr<Distribution> DistributionRegistry::create_distr(const string &o
 /////////////////////////////////  Distribution Registry : setter  //////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-std::unique_ptr<Distribution> compose_distr_registries(const string &opt,
+std::unique_ptr<Distribution> compose_distr_registries(std::string_view opt,
                                                        const string &err_type,
                                                        const vector<std::string> &registries,
                                                        bool is_cumul)
@@ -220,13 +215,14 @@ std::unique_ptr<Distribution> compose_distr_registries(const string &opt,
     vector<string> options = {};
     for (auto &r : registry_ptrs)
     {
-        if (r->get_options() % opt)
-            return r->create_distr(opt, is_cumul);
+        if (r->count(opt))
+            return std::unique_ptr<Distribution>(
+                static_cast<Distribution *>(r->create(opt, is_cumul).release()));
         options += r->get_options();
     }
 
     throw std::invalid_argument(
-        "Unknown " + err_type + " '" + opt + "'." + hsp::str::find_closest(opt, options));
+        "Unknown " + err_type + " '" + string(opt) + "'." + hsp::str::find_closest(opt, options));
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////

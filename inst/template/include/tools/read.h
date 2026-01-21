@@ -5,8 +5,7 @@
  * See the LICENSE file for details.
  */
 
-#ifndef HOUSEPI__TOOLS__READ__H
-#define HOUSEPI__TOOLS__READ__H
+#pragma once
 
 #include <string>
 #include <vector>
@@ -25,6 +24,15 @@ namespace hsp::read
     size_t csv_n_rows(const str_table &table);
     /// Read CSV dataframe.
     str_table csv_table(const std::string &pathtofile);
-}
 
-#endif // HOUSEPI__TOOLS__READ__H
+    /// Extract keys from dictionary.
+    template <typename T>
+    std::vector<std::string> extract_keys(const dict<T> &input)
+    {
+        std::vector<std::string> entries;
+        entries.reserve(input.size());
+        for (const auto &[key, val] : input)
+            entries.push_back(key);
+        return entries;
+    }
+}

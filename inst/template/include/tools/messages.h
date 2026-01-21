@@ -5,8 +5,7 @@
  * See the LICENSE file for details.
  */
 
-#ifndef HOUSEPI__TOOLS__MESSAGES__H
-#define HOUSEPI__TOOLS__MESSAGES__H
+#pragma once
 
 #include <string>
 
@@ -19,5 +18,3 @@ namespace hsp::msg
     /// Display a warning message if not already displayed before.
     void warning(const std::string &txt);
 }
-
-#endif // HOUSEPI__TOOLS__MESSAGES__H

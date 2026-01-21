@@ -26,6 +26,7 @@
 #include "tools/string.h"
 #include "tools/types.h"
 
+/// UPDATE RCPP include could be avoided moving related code in main/export files
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
 #else
@@ -151,9 +152,9 @@ namespace hsp
     namespace na
     {
         /// Wheter double represents NA.
-        bool is(double x) { return std::isnan(x); }
+        bool is(double x) noexcept { return std::isnan(x); }
         /// Wheter string represents NA.
-        bool is(std::string_view txt)
+        bool is(std::string_view txt) noexcept
         {
             return txt.empty() ||
                    txt == "<NA>" ||
@@ -258,9 +259,9 @@ namespace hsp
         string format(bool condition)
         {
 #ifdef _HOUSEPI_RCPP
-            return (condition ? "TRUE" : "FALSE");
+            return condition ? "TRUE" : "FALSE";
 #else
-            return (condition ? "true" : "false");
+            return condition ? "true" : "false";
 #endif
         }
 
@@ -282,38 +283,15 @@ namespace hsp
             return output + ".";
         }
 
-        /// Format a 2D matrix.
-        string format(const std::vector<std::vector<double>> &vec)
-        {
-            if (vec.empty())
-                return "";
-
-            string output = "[";
-            for (size_t i = 0; i < vec.size(); ++i)
-            {
-                output += "[";
-                for (size_t j = 0; j < vec[i].size(); ++j)
-                {
-                    output += std::to_string(vec[i][j]);
-                    if (j < vec[i].size() - 1)
-                        output += ", ";
-                }
-                output += "]";
-                if (i < vec.size() - 1)
-                    output += ",\n";
-            }
-            return output + "]\n";
-        }
-
         /////////////////////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////  String Vector Functions  //////////////////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////////
 
         /// Wheter a name has been tagged as private.
-        bool is_private(const string &s)
+        bool is_private(std::string_view s) noexcept
         {
-            return s.size() >= string(HIDDEN_PREFIX).size() &&
-                   s.compare(0, string(HIDDEN_PREFIX).size(), HIDDEN_PREFIX) == 0;
+            return s.size() >= HIDDEN_PREFIX.size() &&
+                   s.compare(0, HIDDEN_PREFIX.size(), HIDDEN_PREFIX) == 0;
         }
 
         /// Make list composed of distinct entries.
@@ -322,7 +300,7 @@ namespace hsp
             vector<string> out;
             out.reserve(vec.size());
             for (const auto &s : vec)
-                if (!(out % s))
+                if (std::find(out.begin(), out.end(), s) == out.end())
                     out.push_back(s);
             return out;
         }
@@ -335,44 +313,44 @@ namespace hsp
             return vec;
         }
 
-        // Function to calculate Levenshtein distance
-        /// Levenshtein distance calculated the dynamic programming approach.
-        /// Ref.
+        /// Calcuate the Levenshtein distance.
+        /// Distance is equal to seq_B length if seq_A is empty, and viceversa.
+        /// (modified from) Ref.
         /// -----
-        /// https://github.com/guilhermeagostinelli/levenshtein/blob/master/levenshtein.cpp
-        unsigned short levenshtein(const string &seq_A, const string &seq_B)
+        /// Hjelmqvist, Sten (26 March 2012), Fast, memory efficient Levenshtein algorithm.
+        size_t levenshtein(std::string_view seq_A, std::string_view seq_B)
         {
-            unsigned short len_A = seq_A.size();
-            unsigned short len_B = seq_B.size();
-            // Verification matrix i.e. 2D array which will store the calculated distance
-            std::vector<std::vector<unsigned short>> verif(len_A + 1, vector<unsigned short>(len_B + 1, 0));
+            size_t len_A = seq_A.size();
+            size_t len_B = seq_B.size();
 
-            // If one of the words has zero length, the distance is equal to the size of the other word.
             if (len_A == 0)
                 return len_B;
             if (len_B == 0)
                 return len_A;
 
-            // Sets the first row and the first column of the verification matrix
-            for (unsigned short a = 0; a <= len_A; ++a)
-                verif[a][0] = a;
-            for (unsigned short b = 0; b <= len_B; ++b)
-                verif[0][b] = b;
+            std::vector<size_t> prev(len_B + 1), curr(len_B + 1);
 
-            // Verification step / matrix filling.
-            for (unsigned short a = 1; a <= len_A; ++a)
-                for (unsigned short b = 1; b <= len_B; ++b)
-                    if (seq_A[a - 1] == seq_B[b - 1])
-                        verif[a][b] = verif[a - 1][b - 1];
-                    else
-                        verif[a][b] = std::min({verif[a - 1][b - 1], verif[a - 1][b], verif[a][b - 1]}) + 1;
+            for (size_t b = 0; b <= len_B; ++b)
+                prev[b] = b;
 
-            // Last position of the matrix contains the distance
-            return verif[len_A][len_B];
+            for (size_t a = 1; a <= len_A; ++a)
+            {
+                curr[0] = a;
+                for (size_t b = 1; b <= len_B; ++b)
+                {
+                    size_t cost = (seq_A[a - 1] == seq_B[b - 1]) ? 0 : 1;
+                    curr[b] = std::min(prev[b] + 1,
+                                       std::min(curr[b - 1] + 1,
+                                                prev[b - 1] + cost));
+                }
+                std::swap(prev, curr);
+            }
+
+            return prev[len_B];
         }
 
         /// Function to find the closest match.
-        string find_closest(const string &input,
+        string find_closest(std::string_view input,
                             const vector<string> &options,
                             unsigned short min_dist,
                             bool show_avail_options)
@@ -415,7 +393,7 @@ namespace hsp
             vector<string> missing = {};
 
             for (const auto &x : options)
-                if (!(entries % x))
+                if (std::find(entries.begin(), entries.end(), x) == entries.end())
                     missing.push_back(x);
 
             if (missing.size() == 1)
@@ -434,7 +412,7 @@ namespace hsp
         {
             vector<string> unused = {};
             for (const auto &x : entries)
-                if (!(options % x))
+                if (std::find(options.begin(), options.end(), x) == options.end())
                     unused.push_back(x);
 
             if (unused.size() == 1)
@@ -841,13 +819,14 @@ namespace hsp
         }
 
         /// Parse a single expression into an AST node.
-        Entry parse_expression_(const string &expr)
+        Entry parse_expression_(std::string_view input)
         {
             // empty node
-            if (hsp::na::is(expr))
+            if (hsp::na::is(input))
                 return Entry();
 
             // pure function node
+            const string expr(input);
             const size_t bar_1 = expr.find('|');
             if (bar_1 == string::npos)
             {
@@ -966,7 +945,7 @@ namespace hsp
 #define MAKE_NODE_LIST_TYPE_DEPEN(type_flag)                            \
     void Entry::append_##type_flag##_depen(vector<string> &stack) const \
     {                                                                   \
-        if (is_terminal() && hsp::sources::is_##type_flag(type))        \
+        if (is_terminal() && is_##type_flag(type))                      \
             stack.push_back(value);                                     \
         else                                                            \
             for (const auto &child : children)                          \
@@ -977,7 +956,7 @@ namespace hsp
         MAKE_NODE_LIST_TYPE_DEPEN(parameter)
 
         /// Construct and parse expression into AST (and flattens it).
-        Definition::Definition(const string &expr) { root = parse_expression_(expr); }
+        Definition::Definition(std::string_view expr) { root = parse_expression_(expr); }
 
         /// Wheter terminal value is NA.
         bool Definition::is_na() const { return is_terminal() && na::is(root.value); }
