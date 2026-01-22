@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "tools/atomic.h"
-#include "tools/global.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/openmp.h"

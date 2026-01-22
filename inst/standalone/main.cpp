@@ -32,22 +32,63 @@
 using std::string;
 using std::vector;
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  standalone print decorator  //////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  Stdout Message Function  ////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Display a decorator for a section (if VERBOSE).
-void print_decorator(const string &title, const string &txt = "")
+namespace hsp::str
 {
-    const unsigned decor_left = 3;   // left size of decorator
-    const unsigned decor_width = 65; // total size of decorator
-    const char decor = '-';          // decorator for prints
+    /// Format a boolean value.
+    string format(bool condition) { return condition ? "true" : "false"; }
+}
 
-    std::cout << string(decor_left, decor)
-              << " " << title << " "
-              << string(decor_width - title.size() - decor_left, decor)
-              << (hsp::na::is(txt) ? "" : "\n" + txt)
-              << std::endl;
+namespace hsp::progress
+{
+    /// Implementation of check user interrupt.
+    void housepi_bar_user_interrupt() {}
+    /// Change barwidth according to console width.
+    unsigned housepi_bar_width_setup() { return 35; }
+    /// Whether environment is interactive and allows for carriage return.
+    bool is_housepi_bar_interactive() { return false; }
+}
+
+namespace hsp::msg
+{
+    /// Throw an error message.
+    /// Ref:
+    /// -----
+    /// Suppressing Call Stack Info in Rcpp-Generated Errors and Warnings
+    /// Michael Weylandt — written Mar 27, 2018
+    /// https://gallery.rcpp.org/articles/quiet-stop-and-warning/
+    [[noreturn]] void error(const string &txt)
+    {
+        std::cerr << "Error: " + txt + "\nExit..." << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
+
+    /// Print an information message to stdout.
+    void info(const string &txt) noexcept
+    {
+        std::cout << txt;
+        std::cout.flush();
+    }
+
+    /// Display a warning message if not already displayed before.
+    /// Ref:
+    /// -----
+    /// Suppressing Call Stack Info in Rcpp-Generated Errors and Warnings
+    /// Michael Weylandt — written Mar 27, 2018
+    /// https://gallery.rcpp.org/articles/quiet-stop-and-warning/
+    void warning(const string &txt)
+    {
+        if (is_new_housepi_warning(txt))
+        {
+            std::cerr << "Warning: " << txt << std::endl;
+            add_new_housepi_warning(txt);
+        }
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -405,7 +446,7 @@ int main(int argc, char *argv[])
 
     // initialize the user model object
     auto user_model = std::make_unique<Model>();
-    user_model->init_advanced_setup(); 
+    user_model->init_advanced_setup();
 
     user_model->read_data_wide(data_wide_file);         // 1) Load Data Wide
     user_model->read_data_long(data_long_file);         // ... and Data Long

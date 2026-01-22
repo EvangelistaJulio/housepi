@@ -18,3 +18,5 @@
 ^inst/--developer$
 ^inst/standalone$
 
+^doc$
+^Meta$

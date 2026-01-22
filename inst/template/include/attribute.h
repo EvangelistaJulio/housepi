@@ -18,6 +18,14 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+namespace hsp::params
+{
+    constexpr const char *X = "x";     /// Evaluation parameter.
+    constexpr const char *LOC = "loc"; /// Location parameter.
+    constexpr const char *MIN = "min"; /// Minimum value.
+    constexpr const char *MAX = "max"; /// Maximum value.
+}
+
 // forward declaration
 class Function;
 

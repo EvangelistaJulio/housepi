@@ -22,7 +22,6 @@
 #include <boost/random/beta_distribution.hpp>
 
 #include "tools/operators.h"
-#include "tools/global.h"
 #include "tools/string.h"
 
 #include "distribution.h"

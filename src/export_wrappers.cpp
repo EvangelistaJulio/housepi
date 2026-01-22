@@ -10,7 +10,6 @@
 #include <vector>
 
 #include "tools/flags.h"
-#include "tools/global.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
 
@@ -21,6 +20,70 @@
 
 #include <Rcpp.h>
 
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  Stdout Message Function  ////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace hsp::str
+{
+    /// Format a boolean value.
+    std::string format(bool condition) { return condition ? "TRUE" : "FALSE"; }
+}
+
+namespace hsp::progress
+{
+    /// Implementation of check user interrupt.
+    void housepi_bar_user_interrupt() { Rcpp::checkUserInterrupt(); }
+    /// Change barwidth according to console width.
+    unsigned housepi_bar_width_setup() { return Rcpp::as<unsigned>(Rcpp::Function("getOption")("width")) / 2; }
+    /// Whether environment is interactive and allows for carriage return.
+    bool is_housepi_bar_interactive() { return Rcpp::as<bool>(Rcpp::Function("interactive")()); }
+}
+
+namespace hsp::msg
+{
+    /// Throw an error message.
+    /// Ref:
+    /// -----
+    /// Suppressing Call Stack Info in Rcpp-Generated Errors and Warnings
+    /// Michael Weylandt — written Mar 27, 2018
+    /// https://gallery.rcpp.org/articles/quiet-stop-and-warning/
+    [[noreturn]] void error(const std::string &txt)
+    {
+        throw Rcpp::exception(txt.c_str(), false);
+    }
+
+    /// Print an information message to stdout.
+    void info(const std::string &txt) noexcept
+    {
+        Rcpp::Rcout << txt;
+        Rcpp::Rcout.flush();
+    }
+
+    /// Display a warning message if not already displayed before.
+    /// Ref:
+    /// -----
+    /// Suppressing Call Stack Info in Rcpp-Generated Errors and Warnings
+    /// Michael Weylandt — written Mar 27, 2018
+    /// https://gallery.rcpp.org/articles/quiet-stop-and-warning/
+    void warning(const std::string &txt)
+    {
+        if (is_new_housepi_warning(txt))
+        {
+            Rf_warningcall(R_NilValue, "%s", txt.c_str());
+            add_new_housepi_warning(txt);
+        }
+    }
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////  RCPP : MODULES  ////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
 RCPP_MODULE(housepi_flags)
 {
     Rcpp::class_<HousepiRcppCompiledFlags>("HousepiRcppCompiledFlags")
@@ -28,7 +91,8 @@ RCPP_MODULE(housepi_flags)
         .method("get_flags", &HousepiRcppCompiledFlags::get_flags);
 }
 
-// macro to define Rcpp wrapper classes to export to R
+/// macro to define Rcpp wrapper classes to export to R
+/// UPDATE: use a common base class instead.
 #define MAKE_HOUSEPI_RCPP_WRAPPER(Wrapper, family, set_eval, pdf_call, cdf_call, ...)              \
     class HousepiRcpp##Wrapper                                                                     \
     {                                                                                              \

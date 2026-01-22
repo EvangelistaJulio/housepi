@@ -15,6 +15,14 @@
 #include "tools/types.h"
 #include "household.h"
 
+namespace hsp::rates
+{
+    constexpr const char *REFERENCE = ".reference";  /// Rate reference choice.
+    constexpr const char *MISSING = ".missing_rate"; /// Missing rate.
+    constexpr const char *CONTACT = ".contact";      /// Contanct rate.
+    constexpr double VALUE_REFERENCE = 1.0;          /// Alias for reference value.
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////  *** Setup : struct ***  ////////////////////////////////

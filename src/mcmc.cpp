@@ -6,7 +6,6 @@
  */
 
 #include "tools/atomic.h"
-#include "tools/global.h"
 #include "tools/keys.h"
 #include "tools/keys_helper.h"
 #include "tools/messages.h"

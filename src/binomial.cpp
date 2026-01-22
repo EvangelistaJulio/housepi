@@ -12,9 +12,6 @@
 #include "tools/operators.h" // UPDATE: drop this dependency
 #include "binomial.h"
 
-// FLAG
-#include "tools/messages.h"
-
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////// *** BINOMIAL AUXILIARY NAMESPACE *** /////////////////////////////////
@@ -79,6 +76,7 @@ namespace bax
     /// @example
     ///	n_infec = 3
     ///	return [[0, 0, 0], [0, 0, 1], [0, 1, 1], [0, 1, 2]]
+    /// UPDATE: this must be updated to be cache friendly.
     vector<gentype> recursive_span_generation_(unsigned n)
     {
         vector<gentype> output(1, gentype(n, 0));
@@ -90,7 +88,6 @@ namespace bax
                     g[i] += 1;
                 output.push_back(gentype(root, 0) + g);
             }
-
         return output;
     }
 

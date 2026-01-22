@@ -1,5 +1,16 @@
 library(testthat)
 
+test_that("Chain binomial is not discretizable", {
+  expect_warning(
+    new_housepi_model("chain_binomial", discr = TRUE),
+    regexp = "No visible discrete time option"
+  )
+  expect_warning(
+    new_housepi_model("chain_binomial_heterogeneous", discr = TRUE),
+    regexp = "No visible discrete time option"
+  )
+})
+
 test_that("Deep clone works as expected", {
   hhmodel <- new_housepi_model("chain_binomial_heterogeneous")
   hhmodel$data_wide <- housepi::survey

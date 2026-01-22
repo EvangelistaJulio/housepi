@@ -12,6 +12,13 @@
 
 namespace hsp::progress
 {
+    /// Implementation of check user interrupt.
+    void housepi_bar_user_interrupt();
+    /// Implementation of progress bar width setup.
+    unsigned housepi_bar_width_setup();
+    /// Whether environment is interactive and allows for carriage return.
+    bool is_housepi_bar_interactive();
+
     /// Class for custom progress bar.
     class Bar
     {

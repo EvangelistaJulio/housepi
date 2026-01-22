@@ -5,7 +5,6 @@
  * See the LICENSE file for details.
  */
 
-#include "tools/global.h"
 #include "tools/messages.h"
 #include "tools/parser.h"
 #include "tools/string.h"

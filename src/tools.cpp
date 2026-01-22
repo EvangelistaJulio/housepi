@@ -16,7 +16,6 @@
 #include <unordered_set>
 #include <vector>
 
-#include "tools/global.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/operators.h"
@@ -26,76 +25,20 @@
 #include "tools/string.h"
 #include "tools/types.h"
 
-/// UPDATE RCPP include could be avoided moving related code in main/export files
-#ifdef _HOUSEPI_RCPP
-#include <Rcpp.h>
-#else
-#include <iostream>
-#endif
-
 namespace hsp
 {
     using std::string;
     using std::vector;
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////  Stdout Message Function  ////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
 
     namespace msg
     {
         /// Set of already issued warnings.
         std::unordered_set<string> housepi_issued_warnings_set;
 
-        /// Throw an error message.
-        /// Ref:
-        /// -----
-        /// Suppressing Call Stack Info in Rcpp-Generated Errors and Warnings
-        /// Michael Weylandt — written Mar 27, 2018
-        /// https://gallery.rcpp.org/articles/quiet-stop-and-warning/
-        [[noreturn]] void error(const string &txt)
-        {
-#ifdef _HOUSEPI_RCPP
-            throw Rcpp::exception(txt.c_str(), false);
-#else
-            std::cerr << "Error: " + txt + "\nExit..."
-                      << std::endl;
-            std::exit(EXIT_FAILURE);
-#endif
-        }
-
-        /// Print an information message to stdout.
-        void info(const string &txt)
-        {
-#ifdef _HOUSEPI_RCPP
-            Rcpp::Rcout << txt;
-            Rcpp::Rcout.flush();
-#else
-            std::cout << txt;
-            std::cout.flush();
-#endif
-        }
-
-        /// Display a warning message if not already displayed before.
-        /// Ref:
-        /// -----
-        /// Suppressing Call Stack Info in Rcpp-Generated Errors and Warnings
-        /// Michael Weylandt — written Mar 27, 2018
-        /// https://gallery.rcpp.org/articles/quiet-stop-and-warning/
-        void warning(const string &txt)
-        {
-            if (!housepi_issued_warnings_set.count(txt))
-            {
-#ifdef _HOUSEPI_RCPP
-                Rf_warningcall(R_NilValue, "%s", txt.c_str());
-#else
-                std::cerr << "Warning: " << txt << std::endl;
-#endif
-                housepi_issued_warnings_set.insert(txt);
-            }
-        }
+        /// Wheter text represent a previously unseen warning.
+        bool is_new_housepi_warning(const std::string &txt) noexcept { return !housepi_issued_warnings_set.count(txt); }
+        /// Mark given text as an already seen warning.
+        void add_new_housepi_warning(const std::string &txt) noexcept { housepi_issued_warnings_set.insert(txt); }
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -254,16 +197,6 @@ namespace hsp
         /////////////////////////////////////////////////////////////////////////////////////////////
         //////////////////////////////////  Formatter Functions  ////////////////////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////////
-
-        /// Format a boolean value.
-        string format(bool condition)
-        {
-#ifdef _HOUSEPI_RCPP
-            return condition ? "TRUE" : "FALSE";
-#else
-            return condition ? "true" : "false";
-#endif
-        }
 
         /// Format a dobule value (it deals with NA).
         string format(double x) { return na::is(x) ? "NA" : std::to_string(x); }
@@ -594,7 +527,7 @@ namespace hsp
         /// Implementation class for progress bar.
         ///
         /// -----
-        /// Ref :
+        /// Adapted from :
         /// OTHMAN EL HAMMOUCHI, April 15, 2024
         /// "Fancy thread safe progress bar in R for compiled code"
         /// https://othmanelhammouchi.com/posts/r-parallel-progress/
@@ -627,18 +560,11 @@ namespace hsp
 
             Impl()
             {
-#ifdef _HOUSEPI_RCPP
-                Rcpp::checkUserInterrupt();
-                // change barwidth according to console width
-                barwidth_ = Rcpp::as<unsigned>(Rcpp::Function("getOption")("width")) / 2;
-
-                // change if R interactive environment
-                bool is_interactive = Rcpp::as<bool>(Rcpp::Function("interactive")());
-                if (is_interactive)
+                housepi_bar_user_interrupt();
+                barwidth_ = housepi_bar_width_setup();
+                which_bar_ = &Impl::do_bar_new_line_;
+                if (is_housepi_bar_interactive())
                     which_bar_ = &Impl::do_bar_carriage_return_;
-                else
-                    which_bar_ = &Impl::do_bar_new_line_;
-#endif
             };
             ~Impl() {};
 
@@ -659,9 +585,7 @@ namespace hsp
             /// Start progressbar clock and display firs message.
             void open(unsigned long total)
             {
-#ifdef _HOUSEPI_RCPP
-                Rcpp::checkUserInterrupt();
-#endif
+                housepi_bar_user_interrupt();
                 if (total == 0)
                     throw std::invalid_argument(
                         "Progressbar total should be greater than 0.");
@@ -677,9 +601,7 @@ namespace hsp
             /// Update progress bar given the progress state.
             void update()
             {
-#ifdef _HOUSEPI_RCPP
-                Rcpp::checkUserInterrupt();
-#endif
+                housepi_bar_user_interrupt();
                 ++state_; // update internal state
                 if (!verbose_)
                     return;
@@ -726,9 +648,7 @@ namespace hsp
             /// End the progress bar because of a crash.
             void crash() const
             {
-#ifdef _HOUSEPI_RCPP
-                Rcpp::checkUserInterrupt();
-#endif
+                housepi_bar_user_interrupt();
                 if (is_bar_print_)
                     hsp::msg::info("\n");
             }
@@ -736,9 +656,7 @@ namespace hsp
             /// Close the progress bar.
             void close()
             {
-#ifdef _HOUSEPI_RCPP
-                Rcpp::checkUserInterrupt();
-#endif
+                housepi_bar_user_interrupt();
                 is_bar_print_ = false;
                 state_ = total_;
 
@@ -925,7 +843,7 @@ namespace hsp
         bool Entry::is_empty() const { return is_terminal() && na::is(value); }
 
         /// Wheter is implicitely callable.
-        bool Entry::is_callable_implicitly() const
+        bool Entry::is_callable_implicitly(std::string_view point) const
         {
             if (is_terminal())
                 return true;
@@ -933,9 +851,9 @@ namespace hsp
             bool is_x_arg = false;
             for (const auto &child : children)
             {
-                if (!child.is_callable_implicitly())
+                if (!child.is_callable_implicitly(point))
                     return false;
-                if (child.key == hsp::params::X)
+                if (child.key == point)
                     is_x_arg = true;
             }
             return is_x_arg;

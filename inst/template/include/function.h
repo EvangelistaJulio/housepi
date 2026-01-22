@@ -21,6 +21,14 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+namespace hsp::discr
+{
+    constexpr unsigned short NONE = 0;    /// None
+    constexpr unsigned short LEFT = 1;    /// Left
+    constexpr unsigned short CENTER = 2;  /// Center
+    constexpr unsigned short DEFINED = 3; /// Defined
+}
+
 /// Function parent class. Arguments stored in arrays.
 class Function
 {

@@ -11,7 +11,6 @@
 #include <string>
 #include <vector>
 
-#include "tools/global.h"
 #include "tools/keys.h"
 #include "tools/keys_helper.h"
 #include "tools/messages.h"
@@ -390,7 +389,7 @@ void Augmented::set_function_or_identity_for_(size_t k)
                 list_draws.emplace(a);
         }
     }
-    else if (parser.is_callable_implicitly() && !hsp::str::is_private(augmstr))
+    else if (parser.is_callable_implicitly(hsp::params::X) && !hsp::str::is_private(augmstr))
     {
         list_draws.emplace(a);
         list_export.emplace(a);
@@ -644,9 +643,13 @@ hsp::str_table Augmented::get_ordered_models_(int status) const
 /// Store the log-likelihood of individual augmented variables.
 double Augmented::materialize_augm_model_log_lik(Individual &member)
 {
+    const auto &block = model_blocks_[member.status_idx_];
+    if (block.models.empty())
+        return 0.;
+
     member.buffer_ = member.augm_log_lik_; // store old value in buffer
     member.augm_log_lik_ = 0.0;
-    for (const auto a : model_blocks_[member.status_idx_].models)
+    for (const auto a : block.models)
         member.augm_log_lik_ += member.augm_vec_[a].get_distr_logpdf();
 
     if (hsp::na::is(member.augm_log_lik_))
@@ -662,7 +665,7 @@ double Augmented::materialize_augm_model_logratio(Individual &member, size_t a)
 {
     member.buffer_ = member.augm_log_lik_; // store old value in buffer
 
-    const auto & block = model_blocks_[member.status_idx_];
+    const auto &block = model_blocks_[member.status_idx_];
     const auto it = block.depen.find(a);
     if (it == block.depen.end())
         return 0.;
@@ -723,7 +726,7 @@ void Augmented::init_individual_sample(vector<string> &id_draws)
             }
 
     // check all user request are satisfied
-    hsp::str::assert_no_missing_entries(existing_ids, id_draws, "trace id");
+    hsp::str::assert_no_missing_entries(existing_ids, id_draws, "draws id");
 }
 
 /// Initialize sample for individual augmented variable followup.

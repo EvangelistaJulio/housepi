@@ -10,7 +10,6 @@
 #include <string>
 #include <vector>
 
-#include "tools/global.h"
 #include "tools/messages.h"
 #include "tools/operators.h"
 #include "tools/parser.h"

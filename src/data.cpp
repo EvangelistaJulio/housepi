@@ -10,7 +10,6 @@
 #include <string>
 #include <vector>
 
-#include "tools/global.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/openmp.h"
@@ -50,15 +49,13 @@ void Setup::build(const hsp::str_table &input)
     const auto time_now = static_cast<std::uint64_t>(time_raw);
     // xor between upper and lower part of time stamp
     const std::uint64_t mixed = time_now ^ (time_now >> 32);
-
     // default seed for pseudo random number generator
     // note: constrain to 32bit for compatibility with R (mask sign bit)
     seed = static_cast<std::int32_t>(mixed & 0x7FFFFFFF);
 
-    // current chain
-    chain = 1;
-    // current thermodynamic rung
-    rung = 0;
+    chain = 1;        // current chain
+    rung = 0;         // current thermodynamic rung
+    id_draws.clear(); // drop previous id
 
     if (!input.empty())
     {

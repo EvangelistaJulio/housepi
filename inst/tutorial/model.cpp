@@ -1,9 +1,17 @@
 
+#include "housepi_model_setup.h"
 #include "function.h"
-#include "function_registry.h"
-#include "individual.h"
-#include "household.h"
+#include "registry.h"
+
 #include "model.h"
+
+REGISTER_HOUSEPI_KEYS(AugmKey, proba)
+REGISTER_HOUSEPI_KEYS(DataKey, )
+REGISTER_HOUSEPI_KEYS(GroupRateKey, )
+REGISTER_HOUSEPI_KEYS(HHsize_tKey, )
+REGISTER_HOUSEPI_KEYS(HHdoubleKey, )
+REGISTER_HOUSEPI_KEYS(HHmatrixKey, )
+REGISTER_HOUSEPI_KEYS(ParamKey, )
 
 class MyMonomialFunction : public Function
 {
@@ -35,7 +43,7 @@ protected:
 };
 
 // register user function so that it can be used in the analysis
-REGISTER_USER_FUNCTION(MyMonomialFunction)
+REGISTER_HOUSEPI_FUNCTION(MyMonomialFunction, UserFuncRegistry)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////  Model : compute single house log-likelihood  /////////////////////////////
@@ -46,7 +54,7 @@ double Model::compute_house_obs_log_lik(Household &house)
 {
     double output = 0.0;
     for (const Individual &member : house.infected())
-        output += std::log(member.aug("proba"));
+        output += std::log(member.aug(AugmKey::proba));
     return output;
 }
 

@@ -47,8 +47,8 @@ namespace hsp::parse
         bool is_func_default() const { return !is_terminal() && children.empty(); }
         /// Wheter node is a terminal node. Otherwise it is a function node.
         bool is_empty() const;
-        /// Wheter is implicitely callable.
-        bool is_callable_implicitly() const;
+        /// Wheter is implicitely callable on argument 'point'.
+        bool is_callable_implicitly(std::string_view point) const;
 
         /// List of dependencies per type contained in current and children definitions.
         void append_augmented_depen(std::vector<std::string> &stack) const;
@@ -70,7 +70,7 @@ namespace hsp::parse
         /// Wheter terminal value is NA.
         bool is_na() const;
         /// Wheter is implicitely callable.
-        bool is_callable_implicitly() const { return root.is_callable_implicitly(); }
+        bool is_callable_implicitly(std::string_view point) const { return root.is_callable_implicitly(point); }
 
         /// List of dependencies per type contained in currenet definition.
         std::vector<std::string> list_augmented_depen() const;
