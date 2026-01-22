@@ -29,9 +29,9 @@ namespace bax
 
     /// Heterogeneous chain binomial log-likelihood for ordered probabilities (seropositives, seronegatives).
     /// @param N_star n. of seropositves
-    /// @param commu_esc_proba ordered community escape probabilities
-    /// @param p2p_esc_proba ordered person-to-person escape probabilities
+    /// @param commu_esc_rate ordered community escape rates
+    /// @param p2p_esc_rate ordered person-to-person escape rates
     double chain_binomial_heter_log_lik(unsigned N_star,
-                                        const std::vector<double> &commu_esc_proba,
-                                        const std::vector<std::vector<double>> &p2p_esc_proba);
+                                        const std::vector<double> &commu_esc_rate,
+                                        const std::vector<std::vector<double>> &p2p_esc_rate);
 }

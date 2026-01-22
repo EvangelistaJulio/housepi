@@ -9,8 +9,11 @@
 // #include <sstream>
 #include <map>
 
-#include "tools/operators.h"
+#include "tools/operators.h" // UPDATE: drop this dependency
 #include "binomial.h"
+
+// FLAG
+#include "tools/messages.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -187,7 +190,8 @@ namespace bax
     /// ----
     /// Daniel Angel Jimenez
     /// https://www.cs.utexas.edu/users/djimenez/utsa/cs3343/lecture25.html
-    void recursive_span_combinations_(unsigned N, unsigned k, vector<unsigned> &current, matrix<unsigned> &results, unsigned start, unsigned loop)
+    void recursive_span_combinations_(unsigned N, unsigned k, vector<unsigned> &current,
+                                      matrix<unsigned> &results, unsigned start, unsigned loop)
     {
         if (loop + 1 > k)
         {
@@ -356,7 +360,8 @@ namespace bax
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Recursive function to generate all possible escape patterns for a given number of seropositives N_star.
-    void recursive_escape_patterns_function_(unsigned N_star, unsigned N, vector<unsigned> access_matrix, EscapePattern &father, vector<EscapePattern> &results)
+    void recursive_escape_patterns_function_(unsigned N_star, unsigned N, vector<unsigned> access_matrix,
+                                             EscapePattern &father, vector<EscapePattern> &results)
     {
         for (unsigned k = 0; k < N; ++k)
             for (unsigned long c = 0; c < Num_Combin_LookupTable[N][k]; ++c)
@@ -440,41 +445,44 @@ namespace bax
 
     /// Heterogeneous chain binomial log-likelihood for ordered probabilities (seropositives, seronegatives).
     double chain_binomial_heter_log_lik(unsigned N_star,
-                                        const vector<double> &commu_esc_proba,
-                                        const std::vector<std::vector<double>> &p2p_esc_proba)
+                                        const vector<double> &commu_escape_rate,
+                                        const std::vector<std::vector<double>> &p2p_escape_rate)
 
     {
-        unsigned hh_size = commu_esc_proba.size();
+        unsigned hh_size = commu_escape_rate.size();
         double ll = 0.;
 
         // (-) seronegatives contribution
         for (unsigned i = N_star; i < hh_size; ++i)
         {
             // community : i escaped from community
-            ll += std::log(commu_esc_proba[i]);
-
+            ll -= commu_escape_rate[i];
             // person-to-person : i escaped from k
             for (unsigned k = 0; k < N_star; ++k)
-                ll += std::log(p2p_esc_proba[k][i]);
+                ll -= p2p_escape_rate[k][i];
         }
 
         // (+) seropositives contribution
         if (N_star == 1) // single case
-            ll += std::log1p(-commu_esc_proba[0]);
+            ll += std::log1p(-std::exp(-commu_escape_rate[0]));
 
         else if (N_star > 1) // multiple cases
         {
             // flatten sub-matrix with only seropositives
+            // UPDATE: can I avoid this allocation?
             vector<double> escape_matrix((N_star + 1) * N_star, 1.);
 
             for (unsigned i = 0; i < N_star; ++i)
             {
                 // community : i escaped from community
-                escape_matrix[i] = commu_esc_proba[i];
+                escape_matrix[i] = std::exp(-commu_escape_rate[i]);
 
                 // person-to-person : i escaped from k
                 for (unsigned k = 0; k < N_star; ++k)
-                    escape_matrix[N_star * (k + 1) + i] = p2p_esc_proba[k][i];
+                    escape_matrix[N_star * (k + 1) + i] = std::exp(-p2p_escape_rate[k][i]);
+
+                // infector always "escapes" himself (check if actually relevant)
+                escape_matrix[N_star * (i + 1) + i] = 1.;
             }
 
             ll += std::log(ChainBinomial_LookupTable[N_star].likelihood(escape_matrix));
@@ -484,6 +492,7 @@ namespace bax
     }
 
     /*
+    /// UPDATE: to be moved to a separate file.
     /// Debug mode, to check values of the likelihood and print formulation.
     ///
     /// g++ -Wall -Wextra -std=gnu++11 -g -O2 -o auxiliary_binomial.o auxiliary_binomial.cpp ./auxiliary_binomial.o 7
@@ -496,25 +505,26 @@ namespace bax
         {
             size_t n_patterns = EscapePatterns_LookupTable[N_star].size();
             std::cerr << "\n<<" << N_star << ">>"
-                        << " n.terms = " << (n_patterns == 0 ? 0 : 1 + (n_patterns - 1) / 2) << std::endl;
+                      << " n.terms = " << (n_patterns == 0 ? 0 : 1 + (n_patterns - 1) / 2) << std::endl;
 
             // elements for the escape matrix //
-            dbl_vec commu_esc_proba(N_star);
+            vector<double> commu_esc_rate(N_star);
             for (unsigned i = 0; i < N_star; ++i)
             {
-                commu_esc_proba[i] = 0.15 + 0.025 * i;
+                commu_esc_rate[i] = -std::log(0.15 + 0.025 * i);
                 if (N_star < limit)
-                    std::cerr << "B" << i + 1 << " = " << commu_esc_proba[i] << std::endl;
+                    std::cerr << "B" << i + 1 << " = " << std::exp(-commu_esc_rate[i]) << std::endl;
             }
-            matrix<double> p2p_esc_proba(N_star);
+            matrix<double> p2p_esc_rate(N_star);
             for (unsigned row = 0; row < N_star; ++row)
             {
-                p2p_esc_proba[row].resize(N_star);
+                p2p_esc_rate[row].resize(N_star);
                 for (unsigned col = 0; col < N_star; ++col)
                 {
-                    p2p_esc_proba[row][col] = 0.25 + 0.0125 * col + 0.0125 * row;
+                    p2p_esc_rate[row][col] = -std::log(0.25 + 0.0125 * col + 0.0125 * row);
                     if (N_star < limit)
-                        std::cerr << "Q" << row + 1 << "_" << col + 1 << " = " << p2p_esc_proba[row][col] << std::endl;
+                        std::cerr << "Q" << row + 1 << "_" << col + 1 << " = "
+                                  << std::exp(-p2p_esc_proba[row][col]) << std::endl;
                 }
             }
 
@@ -522,7 +532,7 @@ namespace bax
                 std::cerr << ChainBinomial_LookupTable[N_star].str() << std::endl;
 
             auto start = std::chrono::high_resolution_clock::now();
-            std::cerr << "likelihood: " << std::exp(chain_binomial_heter_log_lik(N_star, commu_esc_proba, p2p_esc_proba));
+            std::cerr << "likelihood: " << std::exp(chain_binomial_heter_log_lik(N_star, commu_esc_rate, p2p_esc_rate));
             auto end = std::chrono::high_resolution_clock::now();
             std::chrono::duration<double> elapsed = end - start;
             std::cerr << " | time: " << elapsed.count() << " seconds" << std::endl;

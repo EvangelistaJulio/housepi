@@ -145,7 +145,7 @@ void Model::simulate_single_house(Household &house)
 		n_old_gen = n_new_gen;
 		n_new_gen = 0;
 
-		for (auto &member : house.healthy())
+		for (auto &member : house.susceptible())
 			if (uniform() >= exp(n_old_gen * log_p2p_esc_proba))
 			{
 				house.set_infected_status(member);

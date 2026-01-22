@@ -68,7 +68,7 @@ double Model::loglike_healthy(const Household &house) const
 	const auto &cumul_mtx = house.cache_double_matrix(HHmatrixKey::cumul);
 
 	double output = 0.;
-	for (const auto &member_i : house.healthy())
+	for (const auto &member_i : house.susceptible())
 	{
 		double roi_cumul = 0;
 		for (const auto &member_k : house.infected())
@@ -206,7 +206,7 @@ void Model::update_cache_dependecies(Household &house, Individual &member_i)
 	///////////////////////////////////
 
 	const double exposure = par(ParamKey::study_period) + house.get_member(i0).aug(AugmKey::onset_time) - t_infec_i;
-	for (const auto &member_k : house.healthy())
+	for (const auto &member_k : house.susceptible())
 	{
 		cumul_mtx[member_i][member_k] = infec_profile_cumul(member_i, exposure);
 		cumul_mtx[member_k][member_i] = 0.0;
@@ -258,7 +258,7 @@ void Model::simulate_single_house(Household &house)
 
 	// infection of secondary cases following the first case
 	for (double t = t0 + Dt; t <= tf && house.n_susceptible_status() > 0; t += Dt)
-		for (auto &member_i : house.healthy())
+		for (auto &member_i : house.susceptible())
 			if (uniform() >= exp(-roi_inst_simulation(house, member_i, t) * Dt))
 			{
 				house.set_infected_status(member_i);

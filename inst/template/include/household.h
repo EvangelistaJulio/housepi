@@ -105,14 +105,14 @@ public:
 	};
 
 	View<Individual> infected() { return View<Individual>(members_, infected_list_); }
-	View<Individual> healthy() { return View<Individual>(members_, healthy_list_); }
+	View<Individual> susceptible() { return View<Individual>(members_, healthy_list_); }
 	View<Individual> missing() { return View<Individual>(members_, missing_list_); }
 	View<const Individual> infected() const { return View<const Individual>(members_, infected_list_); }
-	View<const Individual> healthy() const { return View<const Individual>(members_, healthy_list_); }
+	View<const Individual> susceptible() const { return View<const Individual>(members_, healthy_list_); }
 	View<const Individual> missing() const { return View<const Individual>(members_, missing_list_); }
 
 	const std::vector<size_t> &infected_hhindexes() const { return infected_list_; }
-	const std::vector<size_t> &healthy_hhindexes() const { return healthy_list_; }
+	const std::vector<size_t> &susceptible_hhindexes() const { return healthy_list_; }
 	const std::vector<size_t> &missing_hhindexes() const { return missing_list_; }
 
 	size_t n_infected_status() const { return infected_list_.size(); }
