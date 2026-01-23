@@ -114,9 +114,9 @@ struct DataWide
     std::unique_ptr<ReportHousehold> report_house;
     std::unique_ptr<ReportHouseSizes> report_hh_size;
 
-    /////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////  DataWide : constructor  ///////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////
+	//////  CONSTRUCTOR  //////
+	///////////////////////////
 
     DataWide();
     ~DataWide();
@@ -126,89 +126,36 @@ struct DataWide
     Household &at(std::string_view house_id) { return at(house_id_to_index_(house_id)); }
     const Household &at(std::string_view house_id) const { return at(house_id_to_index_(house_id)); }
 
-    /////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////  DataWide : getter  //////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////
-
-    bool is_empty() const { return house_vector_.empty(); }
-
-    /////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////  DataWide : flags  ///////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////
-
-    /// Assert data_wide is not empty.
-    void assert_non_empty();
-    /// Warn if all individuals have missing status.
-    void warn_all_missing_status();
-
-    /////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////  DataWide : setter  //////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////
-
+	//////////////////////
+	//////  SETTER  //////
+	//////////////////////
+    
     void build(const hsp::str_table &input);
     void multiplicity_build(const hsp::str_table &input);
 
     void init_draws(unsigned long sample_size);
     void store_draws(unsigned long smpl_count);
+    
+	/////////////////////
+	//////  FLAGS  //////
+	/////////////////////
 
-    /////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////  DataWide : iterators  ///////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////
+    /// Wheter data have been provided.
+    bool is_empty() const { return house_vector_.empty(); }
+    /// Assert data_wide is not empty.
+    void assert_non_empty();
+    /// Warn if all individuals have missing status.
+    void warn_all_missing_status();
+
+	/////////////////////////
+	//////  ITERATORS  //////
+	/////////////////////////
 
     auto begin() { return house_vector_.begin(); }
     auto begin() const { return house_vector_.begin(); }
     auto end() { return house_vector_.end(); }
     auto end() const { return house_vector_.end(); }
 
-    template <typename T>
-    class View
-    {
-        // conditional to select the vector type if constant or not
-        using VectorRef = std::conditional_t<std::is_const<T>::value,
-                                             const std::vector<Household> &,
-                                             std::vector<Household> &>;
-
-    public:
-        VectorRef vec;
-        const std::vector<size_t> &indexes; /// NOTE: no need to copy here
-
-        View(VectorRef m, const std::vector<size_t> &i)
-            : vec(m), indexes(i) {}
-
-        class iterator
-        {
-        public:
-            iterator(View *v, size_t p) : view_(v), pos_(p) {}
-
-            T &operator*() const { return view_->vec[view_->indexes[pos_]]; }
-            T *operator->() const { return &view_->vec[view_->indexes[pos_]]; }
-
-            iterator &operator++()
-            {
-                ++pos_;
-                return *this;
-            }
-            iterator operator++(int)
-            {
-                iterator tmp = *this;
-                ++(*this);
-                return tmp;
-            }
-
-            bool operator==(const iterator &other) const { return pos_ == other.pos_; }
-            bool operator!=(const iterator &other) const { return !(*this == other); }
-
-        private:
-            View *view_;
-            size_t pos_;
-        };
-
-        iterator begin() { return iterator(this, 0); }
-        iterator end() { return iterator(this, indexes.size()); }
-    };
-
-    View<Household> restricted() { return View<Household>(house_vector_, head_class_house_indexes); }
-    View<const Household> restricted() const { return View<const Household>(house_vector_, head_class_house_indexes); }
     Household &restricted(size_t R) { return house_vector_[head_class_house_indexes[R]]; }
 
 private:

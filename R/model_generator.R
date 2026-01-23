@@ -141,8 +141,7 @@ HousepiGenerator <- R6::R6Class(
     # @description
     # When x$clone(deep=TRUE) is called, the deep_clone gets invoked once for
     # each field, with the name and value.
-    # UPDATE: when piping I am using this a lot, check for safety...
-    # UPDATE: data should live in a separate environment
+    # UPDATE: avoid re-importing dataset if not necessary using shared pointers
     deep_clone = function(name, value) {
       # make a new object of rcpp model class
       if (name == ".rcpp") {

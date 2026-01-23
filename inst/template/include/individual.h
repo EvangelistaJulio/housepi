@@ -38,12 +38,13 @@ namespace hsp::status
 class Individual : public AugmentedContainer
 {
 	friend class Household;
+	friend struct DataLong;
 	friend struct GroupRate;
 
 public:
-	///////////////////////////////////////////////////////////////////////////////////////////////
-	//////////////////////////////////  Individual : constructor  /////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////
+	//////  CONSTRUCTOR  //////
+	///////////////////////////
 
 	Individual()
 	{
@@ -66,6 +67,10 @@ public:
 	}
 	~Individual() = default;
 
+	/////////////////////////
+	//////  OPERATORS  //////
+	/////////////////////////
+
 	/// Sugar to tell if the corresponding members are the same.
 	bool operator==(const Individual &other) const { return this->index_ == other.index_; }
 	/// Sugar to tell if the corresponding members are different
@@ -73,19 +78,16 @@ public:
 	/// Sugar to call an Individual object as house index.
 	operator size_t() const { return hhindex_; }
 
-	///////////////////////////////////////////////////////////////////////////////////////////////
-	////////////////////////////////////  Individual : getter  ////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////
+	//////  GETTER  //////
+	//////////////////////
 
-	/// Individidaul unique identifier as in data.
-	const std::string &id() const { return id_; }
-	std::string err_name() const override final { return "individual '" + id_ + "'"; }
 	int status() const { return status_; }
 	double data(const std::string &d) const { return safe_at_(data_map_, d); }
 
 	/// Return associated data long format.
 	/// NOTE: return a reference to a static empty vector when no datalong is attached
-	const std::vector<double> &data_long(const std::string &d) const
+	const std::vector<double> &data_long(const std::string &d) const noexcept
 	{
 		if (pdatalong_ != nullptr)
 			return pdatalong_->at(d);
@@ -96,17 +98,22 @@ public:
 	double group_rate(GroupRateKey g) const { return group_rate_vec_[static_cast<size_t>(g)].get(); }
 	const Attribute &get_group_rate_attribute(size_t g) const { return group_rate_vec_[g]; }
 
-	///////////////////////////////////////////////////////////////////////////////////////////////
-	////////////////////////////////////  Individual : flags  /////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////
+	/////////////////////
+	//////  FLAGS  //////
+	/////////////////////
 
-	bool is_infected_status() const { return hsp::status::is_infected(status_); }
-	bool is_healthy_status() const { return hsp::status::is_susceptible(status_); }
-	bool is_missing_status() const { return hsp::status::is_missing(status_); }
+	bool is_infected_status() const noexcept { return hsp::status::is_infected(status_); }
+	bool is_healthy_status() const noexcept { return hsp::status::is_susceptible(status_); }
+	bool is_missing_status() const noexcept { return hsp::status::is_missing(status_); }
 
-	/// Initialize pointer to data long format.
-	void init_pointer_to_data_long(hsp::dict<std::vector<double>> *y) { pdatalong_ = y; }
+	////////////////////
+	//////  SHOW  //////
+	////////////////////
 
+	/// Individidaul unique identifier as in data.
+	const std::string &id() const { return id_; }
+	std::string err_name() const override final { return "individual '" + id_ + "'"; }
+	
 private:
 	std::string id_;									  /// user id
 	size_t index_;										  /// housepi internal index
@@ -116,7 +123,7 @@ private:
 	std::vector<Attribute> group_rate_vec_ = {};		  /// group rates
 	hsp::dict<std::vector<double>> *pdatalong_ = nullptr; /// data long format associated
 
-	// UPDATE: temporary waiting for restructuring of data.
+	/// UPDATE: temporary waiting for restructuring of data.
 	double safe_at_(const hsp::dict<double> &m, const std::string &k) const
 	{
 		const auto it = m.find(k);

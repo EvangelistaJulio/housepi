@@ -187,16 +187,16 @@ void MCMC::print_infer_state(const string &output_filename) const
                 << std::fixed << pImpl_->smpl_total_log_lik[i];
 
             // print parameter values
-            for (const auto &p : param.list_sample)
+            for (size_t u = 0; u < param.list_sample.size(); ++u)
                 ofs << hsp::read::DELIMITER << std::setprecision(5)
-                    << std::fixed << param.smpl_values[static_cast<size_t>(p)][i];
+                    << std::fixed << param.smpl_values[u][i];
 
             // print augmented variable of id trace
             if (!augm.smpl_values.empty())
-                for (size_t k = 0; k < augm.smpl_individuals.size(); ++k)
-                    for (const auto &a : augm.list_draws)
+                for (size_t j = 0; j < augm.smpl_individuals.size(); ++j)
+                    for (size_t u = 0; u < augm.list_draws.size(); ++u)
                         ofs << hsp::read::DELIMITER << std::setprecision(5)
-                            << std::fixed << augm.smpl_values[k][static_cast<size_t>(a)][i];
+                            << std::fixed << augm.smpl_values[j][u][i];
 
             // print which chain
             ofs << hsp::read::DELIMITER << (c + 1) << std::endl;

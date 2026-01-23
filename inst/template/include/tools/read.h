@@ -21,7 +21,7 @@ namespace hsp::read
     std::vector<std::string> parse_list(const std::string &txt);
 
     /// Get number of rows in CSV table.
-    size_t csv_n_rows(const str_table &table);
+    size_t csv_n_rows(const str_table &table) noexcept;
     /// Read CSV dataframe.
     str_table csv_table(const std::string &pathtofile);
 

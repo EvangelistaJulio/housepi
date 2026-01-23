@@ -128,27 +128,27 @@ std::unique_ptr<Function> compose_func_registries(std::string_view opt,
 Attribute::Attribute()
 {
     init_numeric(hsp::na::DOUBLE);
-    set_name("", "numeric");
+    name("", "numeric");
 }
 Attribute::Attribute(double x)
 {
     init_numeric(x);
-    set_name("", "numeric");
+    name("", "numeric");
 }
 Attribute::Attribute(const Attribute *y)
 {
     init_pointer(y);
-    set_name("", "pointer");
+    name("", "pointer");
 }
 Attribute::Attribute(const std::shared_ptr<Function> f)
 {
     init_function(f);
-    set_name(std::string(f->name()), "function");
+    name(std::string(f->name()), "function");
 }
 Attribute::Attribute(std::string_view s, bool is_primitive)
 {
     init_function(s, is_primitive);
-    set_name(std::string(pFunc_->name()), "function");
+    name(std::string(pFunc_->name()), "function");
 }
 /// Attribute deconstructor.
 Attribute::~Attribute() = default;
@@ -226,11 +226,11 @@ bool Attribute::is_discrete() const noexcept
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Set attribute name. Eventually also err type.
-void Attribute::set_name(const std::string &name, const std::string &err_type)
+void Attribute::name(const std::string &name, const std::string &err_type)
 {
-    this->name_ = name;
+    name_ = name;
     if (!hsp::na::is(err_type))
-        this->err_type_ = err_type;
+        err_type_ = err_type;
 }
 
 /// Initialize attribute as numeric.
@@ -310,13 +310,13 @@ Function::Function(const string &name,
                    double domain_max, bool is_max_open)
 {
     // initialize default arguments
-    x_arg_.set_name(hsp::params::X);
+    x_arg_.name(hsp::params::X);
     x_arg_.set(hsp::na::DOUBLE);
-    loc_arg_.set_name(hsp::params::LOC);
+    loc_arg_.name(hsp::params::LOC);
     loc_arg_.set(hsp::na::DOUBLE);
 
     // name of the function
-    this->name_ = name;
+    name_ = name;
 
     // allocate attribute for remaining arguments
     auto n_args = args.size();
@@ -337,7 +337,7 @@ Function::Function(const string &name,
         }
         else
         {
-            arguments_[counter].set_name(key);
+            arguments_[counter].name(key);
             arguments_[counter++].set(val);
         }
 

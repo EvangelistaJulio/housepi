@@ -8,7 +8,6 @@
 #pragma once
 
 #include <memory>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -29,13 +28,14 @@ class Individual;
 class Household;
 class MCMCImpl;
 
+/// UPDATE: to be redesigned to drop dependency on Rcpp here.
 class MCMC
 {
 public:
-	/////////////////////////////////////////////////////////////////////////////////////////////
-	////////////////////////////////////  MCMC : constructor  ///////////////////////////////////
-	/////////////////////////////////////////////////////////////////////////////////////////////
-
+	///////////////////////////
+	//////  CONSTRUCTOR  //////
+	///////////////////////////
+	
 	MCMC();
 	virtual ~MCMC();
 
@@ -103,8 +103,7 @@ public:
 	/// Update cahced augmeted dependecies.
 	virtual void update_cache_dependecies(Household &, Individual &) {}
 	/// Compute the log-likelihood for a single household.
-	virtual double compute_house_obs_log_lik(Household &) { throw std::runtime_error(
-		"Called undefined log-likelihood method.\nOverride it in your custom model implementation before proceeding."); }
+	virtual double compute_house_obs_log_lik(Household &) = 0;
 	double evaluate_log_lik(std::string_view house_id = "");
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
@@ -115,8 +114,7 @@ public:
 	virtual void init_model_for_simulation() {}
 
 	/// Simulation for a single household.
-	virtual void simulate_single_house(Household &) { throw std::runtime_error(
-		"Called undefined simulation method.\nOverride it in your custom model implementation before proceeding."); }
+	virtual void simulate_single_house(Household &) = 0;
 
 #ifdef _HOUSEPI_RCPP
 	/////////////////////////////////////////////////////////////////////////////////////////////

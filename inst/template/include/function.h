@@ -33,9 +33,9 @@ namespace hsp::discr
 class Function
 {
 public:
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////  Function : constructor  ///////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////
+    //////  CONSTRUCTOR  //////
+    ///////////////////////////
 
     Function(const std::string &name,
              const std::vector<std::pair<std::string, double>> &args = {},
@@ -43,17 +43,31 @@ public:
              double domain_max = hsp::na::DOUBLE, bool is_max_open = false);
     virtual ~Function() = default;
 
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////  Function : return value  //////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////
+    //////  OPERATORS  //////
+    /////////////////////////
 
     /// Sugar operator to call evaluate.
     double operator()(double x) const { return evaluate(x); }
 
-    /// Central method to return function's value at given x.
-    double evaluate(double x) const { return (this->*evaluate_)(x); }
-    /// By convention, the argument 'x' is automatically the last one.
-    double evaluate() const { return (this->*evaluate_)(x_arg_.get()); }
+    //////////////////////
+    //////  SETTER  //////
+    //////////////////////
+
+    /// Initialize given function attribute.
+    void init_attr(std::string_view key, const Attribute &attr);
+
+    /// Set argument value.
+    void set_arg(unsigned short i, double x) { arguments_[i].set(x); }
+
+    /// Virtual function to initialize discretization.
+    virtual void init_discretization() { throw std::invalid_argument(
+        "Called undefined method discretization of " + err_name() + "."); }
+
+    /// Virtual function to initialize truncation.
+    /// NOTE: always to be call after init_discretization.
+    virtual void init_truncation() { throw std::invalid_argument(
+        "Called to undefined method truncation of " + err_name() + "."); }
 
     /// Select call method for return value.
     void set_eval_call() { evaluate_ = &Function::eval_function_; }
@@ -64,28 +78,21 @@ public:
     /// Select primitive as a distributin method for return value.
     void set_eval_as_distr_primitive() { evaluate_ = &Function::cdf; }
 
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////  Function : getter  /////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////
+    //////  GETTER  //////
+    //////////////////////
+
+    /// Central method to return function's value at given x.
+    double evaluate(double x) const { return (this->*evaluate_)(x); }
+    /// By convention, the argument 'x' is automatically the last one.
+    double evaluate() const { return (this->*evaluate_)(x_arg_.get()); }
 
     /// Return value as for a probability density/mass function.
-    /// Return value of probability density/mass function.
-    double pdf(double x) const
-    {
-        if (is_valid(x))
-            return eval_function_(x);
-        return 0.;
-    }
-
+    double pdf(double x) const { return is_valid(x) ? eval_function_(x) : 0.; }
     /// Return value as for a cumulative distribution function.
-    /// Return value of cumulative distribution.
     double cdf(double x) const
-    {
-        if (is_valid(x))
-            return eval_primitive_(x);
-        if (is_above(x))
-            return eval_primitive_((this->*delocate_)(upper()));
-        return 0;
+    { 
+        return is_below(x) ? 0: eval_primitive_(is_above(x) ? (this->*delocate_)(upper()) : x);
     }
 
     size_t n_args() const { return arguments_.size(); }
@@ -97,6 +104,10 @@ public:
     const Attribute &get_loc() const { return loc_arg_; }
     const Attribute &get_lower() const { return lower_arg_; }
     const Attribute &get_upper() const { return upper_arg_; }
+
+    /////////////////////
+    //////  FLAGS  //////
+    /////////////////////
 
     /// Wheter it is empty.
     bool is_empty() const noexcept;
@@ -121,28 +132,9 @@ public:
     /// Returns TRUE if value x is within range.
     bool is_valid(double x) const { return (this->*is_valid_)((this->*delocate_)(x)); }
 
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////  Function : setter  /////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
-
-    /// Initialize given function attribute.
-    void init_attr(std::string_view key, const Attribute &attr);
-
-    /// Set argument value.
-    void set_arg(unsigned short i, double x) { arguments_[i].set(x); }
-
-    /// Virtual function to initialize discretization.
-    virtual void init_discretization() { throw std::invalid_argument(
-        "Called undefined method discretization of " + err_name() + "."); }
-
-    /// Virtual function to initialize truncation.
-    /// NOTE: always to be call after init_discretization.
-    virtual void init_truncation() { throw std::invalid_argument(
-        "Called to undefined method truncation of " + err_name() + "."); }
-
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////  Function : show  //////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////
+    //////  SHOW  //////
+    ////////////////////
 
     /// Get function name.
     std::string_view name() const { return name_; }

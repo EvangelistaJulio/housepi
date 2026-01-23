@@ -46,23 +46,20 @@ void Distribution::init_discr_helper_(unsigned short discr_type)
 
     if (discr_type == hsp::discr::CENTER) // centered discretization
     {
-        if (loc_arg_.is_empty())
-            rand_ = &Distribution::do_discr_center_rand_;
-        else
+        rand_ = &Distribution::do_discr_center_rand_;
+        if (!loc_arg_.is_empty())
             rand_ = &Distribution::do_discr_center_rand_loc_;
     }
     else if (discr_type == hsp::discr::LEFT) // left discretization
     {
-        if (loc_arg_.is_empty())
-            rand_ = &Distribution::do_discr_left_rand_;
-        else
+        rand_ = &Distribution::do_discr_left_rand_;
+        if (!loc_arg_.is_empty())
             rand_ = &Distribution::do_discr_left_rand_loc_;
     }
     else // discrete defined or no discretization
     {
-        if (loc_arg_.is_empty())
-            rand_ = &Distribution::raw_rand_;
-        else
+        rand_ = &Distribution::raw_rand_;
+        if (!loc_arg_.is_empty())
             rand_ = &Distribution::do_rand_loc_;
     }
 }
@@ -177,10 +174,10 @@ std::unique_ptr<Function> DistributionRegistry::create(std::string_view opt, boo
         return nullptr;
 
     auto output = it->second();
+    output->set_eval_as_distr_call();
     if (is_prim)
         output->set_eval_as_distr_primitive();
-    else
-        output->set_eval_as_distr_call();
+        
     return output;
 }
 

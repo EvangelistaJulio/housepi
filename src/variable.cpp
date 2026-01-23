@@ -218,7 +218,7 @@ namespace
 
 Variable::Variable(const std::string &err_type)
 {
-    this->set_name("", err_type);
+    this->name("", err_type);
     this->is_constant_ = true;
     buffer_ = hsp::na::DOUBLE;
     user_value_ = hsp::na::DOUBLE;
@@ -439,7 +439,6 @@ double Variable::get_distr_logpdf() const { return pDistr_->logpdf(value_); }
 double Variable::get_distr_logratio() const { return pDistr_->logratio(buffer_, value_); }
 double Variable::get_propose_logratio() const { return pProp_->logratio(buffer_, value_); }
 
-double Variable::get_accept_rate() const { return pProp_->get_accept_rate(); }
 void Variable::update_accept_rate(bool is_accepted) { pProp_->update_accept_rate(is_accepted); }
 void Variable::reset_accept_rate() { pProp_->reset_accept_rate(); }
 void Variable::adapt_proposal(double ratio) { pProp_->adapt(ratio); }

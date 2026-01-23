@@ -78,7 +78,6 @@ private:
     std::shared_ptr<InfecProfile> pInfecProfile_; /// pointer to external InfecProfile struct
     hsp::str_table deftable_ = {};                /// store definition table
 
-    bool is_any_model_ = false; /// store flag if one augmented model is provided
 
     struct ModelBlock_
     {
@@ -86,6 +85,7 @@ private:
         std::unordered_map<size_t, std::vector<size_t>> depen;
     };
     std::vector<ModelBlock_> model_blocks_;
+    bool is_any_model_ = false; /// store flag if one augmented model is provided
 
     void helper_assert_no_reserved_();
     void helper_build_definition_by_status_();

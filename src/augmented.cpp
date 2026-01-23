@@ -200,7 +200,7 @@ void Augmented::helper_build_definition_by_status_()
 
         // check associated status
         int status = hsp::status::MISSING;
-        string s = deftable_["status"][k];
+        const string &s = deftable_["status"][k];
         if (!hsp::na::is(s))
         {
             status = hsp::str::toi(s, "augmented status");
@@ -409,7 +409,7 @@ void Augmented::clear_all(Individual &member)
     member.augm_vec_.reserve(n);
     member.augm_vec_.assign(n, Variable("augmented"));
     for (size_t a = 0; a < n; ++a)
-        member.augm_vec_[a].set_name(hsp::key::as_string<AugmKey>(a));
+        member.augm_vec_[a].name(hsp::key::as_string<AugmKey>(a));
 }
 
 /// Initialize augmented dependecies for evaluations.
@@ -425,7 +425,7 @@ void Augmented::init()
         for (auto &member : house.infected())
         {
             init_missing(member, true);
-            member.status_idx_ = status_to_index.at(member.status());
+            member.augm_idx_status_ = status_to_index.at(member.status());
         }
 }
 
@@ -591,18 +591,22 @@ void Augmented::init_model_list()
     size_t i = 0;
     for (auto status : pDataWide_->all_infected_statuses)
     {
-        status_to_index.emplace(status, i);
-
+        // associate ordered models
         hsp::str_table ordered_models = get_ordered_models_(status);
-        auto &block = model_blocks_[i];
-        block.models.reserve(hsp::read::csv_n_rows(ordered_models));
-        for (const auto &[augmstr, others] : ordered_models)
+        if (!ordered_models.empty())
         {
-            const auto a = hsp::key::from_string<AugmKey>(augmstr);
-            block.models.push_back(a);
-            block.depen.emplace(a, hsp::key::from_string<AugmKey>(others));
+            is_any_model_ = true;
+            auto &block = model_blocks_[i];
+            block.models.reserve(hsp::read::csv_n_rows(ordered_models));
+            for (const auto &[augmstr, others] : ordered_models)
+            {
+                const auto a = hsp::key::from_string<AugmKey>(augmstr);
+                block.models.push_back(a);
+                block.depen.emplace(a, hsp::key::from_string<AugmKey>(others));
+            }
         }
-        ++i;
+        // update status to index map
+        status_to_index.emplace(status, i++);
     }
 }
 
@@ -643,7 +647,7 @@ hsp::str_table Augmented::get_ordered_models_(int status) const
 /// Store the log-likelihood of individual augmented variables.
 double Augmented::materialize_augm_model_log_lik(Individual &member)
 {
-    const auto &block = model_blocks_[member.status_idx_];
+    const auto &block = model_blocks_[member.augm_idx_status_];
     if (block.models.empty())
         return 0.;
 
@@ -665,7 +669,7 @@ double Augmented::materialize_augm_model_logratio(Individual &member, size_t a)
 {
     member.buffer_ = member.augm_log_lik_; // store old value in buffer
 
-    const auto &block = model_blocks_[member.status_idx_];
+    const auto &block = model_blocks_[member.augm_idx_status_];
     const auto it = block.depen.find(a);
     if (it == block.depen.end())
         return 0.;

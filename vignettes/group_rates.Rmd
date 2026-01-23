@@ -183,7 +183,7 @@ get_param_draws(results) |>
   dplyr::left_join(get_group_rates(hhmodel) |> 
                      dplyr::select(param_name, n) |> 
                      dplyr::rename(variable = param_name),
-                   by = "variable") |> 
+                   by = "variable") |>
   dplyr::mutate(variable = stringr::str_remove(variable, paste0("^", prefix)) |>
                   stringr::str_replace_all("_", " ")) |>
   ggplot(aes(x = variable, y = mean, label = sprintf("[%s]", n))) +

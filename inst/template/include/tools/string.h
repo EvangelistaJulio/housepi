@@ -44,7 +44,7 @@ namespace hsp::str
     std::vector<std::string> drop_private(std::vector<std::string> v);
 
     /// Find the closest match.
-    // NOTE: I find the options show alla available options annoying at the moment...
+    /// NOTE: I find the options show all available options annoying at the moment...
     std::string find_closest(std::string_view input,
                              const std::vector<std::string> &options,
                              unsigned short min_dist = MIN_DIST,

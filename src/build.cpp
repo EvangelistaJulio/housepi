@@ -10,6 +10,8 @@
 #include <string>
 #include <vector>
 
+#include "tools/keys.h"
+#include "tools/keys_helper.h"
 #include "tools/messages.h"
 #include "tools/operators.h"
 #include "tools/parser.h"
@@ -17,9 +19,6 @@
 #include "tools/read.h"
 #include "tools/string.h"
 #include "tools/types.h"
-
-#include "tools/keys.h"
-#include "tools/keys_helper.h"
 
 #include "attribute.h"
 #include "augmented_map.h"
@@ -94,7 +93,7 @@ void Parameter::build(const hsp::str_table &input)
         {
             hsp::key::Registry<ParamKey>::instance().add_key(paramstr);
             param_vec_.emplace_back();
-            param_vec_.back().set_name(paramstr, "parameter");
+            param_vec_.back().name(paramstr, "parameter");
         }
 
         if (hsp::str::tobool(input.at("const")[k]))
@@ -150,7 +149,7 @@ void Parameter::clear_lists_()
     param_vec_.reserve(n);
     param_vec_.assign(n, Variable("parameter"));
     for (size_t p = 0; p < n; ++p)
-        param_vec_[p].set_name(hsp::key::as_string<ParamKey>(p));
+        param_vec_[p].name(hsp::key::as_string<ParamKey>(p));
 
     list_const.clear();
     list_sample.clear();
@@ -291,29 +290,31 @@ void Parameter::user_reset(hsp::rnd_gen &prng)
 /// Initialize posterior sample of parameters and respective priors.
 void Parameter::init_draws(unsigned long sample_size)
 {
+    const size_t n = list_sample.size();
     smpl_values.clear();
-    smpl_values.reserve(list_sample.size());
     smpl_priors.clear();
-    smpl_priors.reserve(list_sample.size());
-    for (const auto &p : list_sample)
+    smpl_values.reserve(n);
+    smpl_priors.reserve(n);
+
+    for (size_t i = 0; i < n; ++i)
     {
-        smpl_values[p].clear();
-        smpl_values[p].reserve(sample_size);
-        smpl_values[p].assign(sample_size, hsp::na::DOUBLE);
-        smpl_priors[p].clear();
-        smpl_priors[p].reserve(sample_size);
-        smpl_priors[p].assign(sample_size, hsp::na::DOUBLE);
+        smpl_values[i].reserve(sample_size);
+        smpl_values[i].reserve(sample_size);
+        smpl_values[i].assign(sample_size, hsp::na::DOUBLE);
+        smpl_priors[i].assign(sample_size, hsp::na::DOUBLE);
     }
 }
 
 /// Store current sample of parameters and respective priors.
 void Parameter::store_draws(unsigned long smpl_count)
 {
-    for (const auto &p : list_sample)
+    size_t i = 0;
+    for (const auto p : list_sample)
     {
-        const auto &this_par = this->at(p);
-        smpl_values[p][smpl_count] = this_par.get();
-        smpl_priors[p][smpl_count] = this_par.get_distr_logpdf();
+        const auto &this_par = at(p);
+        smpl_values[i][smpl_count] = this_par.get();
+        smpl_priors[i][smpl_count] = this_par.get_distr_logpdf();
+        ++i;
     }
 }
 
@@ -347,7 +348,7 @@ const Attribute &Parameter::read_attribute(const hsp::parse::Entry &node, const 
         if (hsp::parse::is_data(node.type)) // terminal data node
         {
             storage_ = Attribute(member.data(node.value));
-            storage_.set_name(node.value, "data");
+            storage_.name(node.value, "data");
         }
         else if (hsp::parse::is_augmented(node.type)) // augmented terminal node
         {
@@ -409,7 +410,7 @@ void GroupRate::build(const hsp::str_table &input)
                 bool is_this_class = true;
                 for (const auto &d : data_headers)
                     if (!hsp::na::is(input.at(d)[r]))
-                        is_this_class &= (member.data(d) == hsp::str::tod(input.at(d)[r]));
+                        is_this_class &= member.data(d) == hsp::str::tod(input.at(d)[r]);
 
                 // if it's the case, add the parameter name
                 if (is_this_class)
@@ -476,7 +477,7 @@ void GroupRate::helper_init_all_rates_(Individual &member, const hsp::str_table 
             attr = Attribute(param_pointers);
 
         member.group_rate_vec_[hsp::key::from_string<GroupRateKey>(g)].transfer(attr);
-        member.group_rate_vec_[hsp::key::from_string<GroupRateKey>(g)].set_name(g, "group rate");
+        member.group_rate_vec_[hsp::key::from_string<GroupRateKey>(g)].name(g, "group rate");
     }
 }
 

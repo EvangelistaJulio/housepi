@@ -10,6 +10,8 @@
 #include <string>
 #include <vector>
 
+#include "tools/keys.h"
+#include "tools/keys_helper.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/openmp.h"
@@ -18,9 +20,6 @@
 #include "tools/read.h"
 #include "tools/string.h"
 #include "tools/types.h"
-
-#include "tools/keys.h"
-#include "tools/keys_helper.h"
 
 #include "attribute.h"
 #include "data.h"
@@ -633,5 +632,5 @@ void DataLong::build(const hsp::str_table &input)
     c = 0;
     for (auto &house : *pDataWide_)
         for (auto &member : house)
-            member.init_pointer_to_data_long(&indiv_datalist.at(c++));
+            member.pdatalong_ = &indiv_datalist.at(c++);
 }

@@ -432,6 +432,6 @@ fmt_assert_cli <- function(section, sms, minor = FALSE) {
 #' @noRd
 template_blank_data_wide_ <- function() {
   data.frame(id = c("tommy", "gina"),
-             house_id = "house_1",
+             house_id = "house",
              status = c(1, 0))
 }

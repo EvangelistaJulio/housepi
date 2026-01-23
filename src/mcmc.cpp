@@ -20,7 +20,8 @@
 #include "group_rate.h"
 #include "infec_profile.h"
 #include "mcmc_impl.h"
-#include "mcmc.h"
+#include "mcmc.h" /// UPDATE: should remove I/O and Rcpp dependencies from MCMC...
+#include "mcmc_impl.h"
 #include "parameter.h"
 
 namespace
@@ -69,8 +70,8 @@ void MCMCImpl::init_model_for_inference()
     callback_init_inference_();
 
     // init cache dependencies for all households and individuals
-    for (auto &house : data_wide->restricted())
-        house.init_cache();
+    for (size_t R = 0; R < data_wide->head_class_house_indexes.size(); ++R)
+        data_wide->restricted(R).init_cache();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -147,6 +148,7 @@ double MCMCImpl::atomic_materialize_house_log_lik_(Household &house, bool is_cac
 
         // compute and set household observation log-likelihood
         output = materialize_house_obs_log_lik_(house);
+
         // compute and set individual augmented log-likelihood
         if (augm->is_any_model())
             for (auto &member : house.infected())
@@ -343,8 +345,9 @@ void MCMCImpl::recover_parameter_(size_t p, bool is_cache_depen)
     total_log_lik_ = total_buffer_;
 
     // recover buffered log-likelihood in households
-    for (auto &house : data_wide->restricted())
+    for (size_t R = 0; R < data_wide->head_class_house_indexes.size(); ++R)
     {
+        auto &house = data_wide->restricted(R);
         house.recover_buffer_values(is_cache_depen);
         if (augm->is_any_sample())
             for (auto &member : house.infected())
@@ -415,7 +418,6 @@ double MCMCImpl::atomic_move_augm_single_house_(size_t H)
 /// Take care of a a single augmented Metropolis move.
 double MCMCImpl::metropolis_augm_single_move_(Household &house, Individual &member, size_t a)
 {
-
     auto &xaugm = member.get_augm_variable(a);
     xaugm.propose(setup->prng()); // propose new value and buffer old
 

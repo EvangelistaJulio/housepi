@@ -39,7 +39,7 @@ public:
 	void recover_augm_model_log_lik() { augm_log_lik_ = buffer_; };
 
 protected:
-	size_t status_idx_;					  /// index for augmented model
+	size_t augm_idx_status_;			  /// index for augmented model
 	std::vector<Variable> augm_vec_ = {}; /// dictionary of augmented definitions
 	double augm_log_lik_ = 0;			  /// current augmented model log-likelihood
 	double buffer_ = 0;					  /// buffer augmented model log-likelihood

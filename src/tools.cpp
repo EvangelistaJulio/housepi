@@ -433,7 +433,7 @@ namespace hsp
         }
 
         /// Get number of rows in CSV table.
-        size_t csv_n_rows(const str_table &table)
+        size_t csv_n_rows(const str_table &table) noexcept
         {
             if (table.empty())
                 return 0;

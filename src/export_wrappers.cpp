@@ -315,7 +315,6 @@ RCPP_MODULE(housepi_infec_profile)
 RCPP_MODULE(housepi_model_core)
 {
     Rcpp::class_<MCMC>("HousepiRcppMcmc")
-        .constructor()
         .method("init_advanced_setup", &MCMC::init_advanced_setup)
         .method("infer", &MCMC::infer)
         .method("data_wide_for_simulation", &MCMC::data_wide_for_simulation)

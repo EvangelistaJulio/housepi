@@ -582,11 +582,13 @@ format_credible_intervals <- function(mean, lower, upper,
 
     .fmt_num <- function(mn, low, up) {
       if (is.na(mn)) return(NA_character_)
+      if (mn == low && mn == up) return(sprintf(str_format, mn, mn, mn))
       if (isTRUE(mn < low) || isTRUE(mn > up)) warning_h(
         "Found an inconsistent credible interval."
       )
 
       if (isTRUE(as_integer)) digits <- 0
+      else if (mn == 0) digits <- max(0, ceiling(-log10(abs(low))) + 1)
       else digits <- max(0, ceiling(-log10(abs(mn))) + 1)
 
       mn_f <- formatC(mn, digits = digits, format = "f")

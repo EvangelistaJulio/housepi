@@ -11,15 +11,14 @@
 #include <vector>
 
 #include "tools/atomic.h"
+#include "tools/keys.h"
+#include "tools/keys_helper.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/openmp.h"
 #include "tools/operators.h"
 #include "tools/read.h"
 #include "tools/types.h"
-
-#include "tools/keys.h"
-#include "tools/keys_helper.h"
 
 #include "function.h"
 #include "distribution.h"
@@ -501,22 +500,20 @@ Rcpp::NumericMatrix MCMC::flush_param_draws()
     using namespace Rcpp;
     Parameter &param = *pImpl_->param;
 
+    if (param.list_sample.empty())
+        return NumericMatrix();
+
     try
     {
-        if (param.list_sample.empty())
-            return NumericMatrix();
-
         const size_t n_cols = param.list_sample.size();
-        CharacterVector headers(n_cols);
+        CharacterVector headers = wrap(hsp::key::as_string<ParamKey>(param.list_sample));
         NumericMatrix output(pImpl_->smpl_count, n_cols);
 
-        size_t col = 0;
-        for (const auto p : param.list_sample)
-        {
-            headers[col] = hsp::key::as_string<ParamKey>(p);
-            helper_vector_flush(output(_, col++), param.smpl_values[p]);
-        }
+        for (size_t c = 0; c < n_cols; ++c)
+            helper_vector_flush(output(_, c), param.smpl_values[c]);
+
         colnames(output) = std::move(headers);
+        param.smpl_values.clear();
         return output;
     }
     catch (const std::exception &e)
@@ -532,22 +529,24 @@ Rcpp::NumericMatrix MCMC::flush_param_lprior_draws()
     using namespace Rcpp;
     auto &param = *pImpl_->param;
 
+    if (param.list_sample.empty())
+        return NumericMatrix();
+
     try
     {
-        if (param.list_sample.empty())
-            return NumericMatrix();
-
         const size_t n_cols = param.list_sample.size();
         CharacterVector headers(n_cols);
         NumericMatrix output(pImpl_->smpl_count, n_cols);
 
-        size_t col = 0;
+        size_t c = 0;
         for (const auto p : param.list_sample)
         {
-            headers[col] = "lprior_" + hsp::key::as_string<ParamKey>(p);
-            helper_vector_flush(output(_, col++), param.smpl_priors[p]);
+            headers[c] = "lprior_" + hsp::key::as_string<ParamKey>(p);
+            helper_vector_flush(output(_, c), param.smpl_priors[c]);
+            ++c;
         }
         colnames(output) = std::move(headers);
+        param.smpl_priors.clear();
         return output;
     }
     catch (const std::exception &e)
@@ -563,11 +562,11 @@ Rcpp::NumericMatrix MCMC::flush_augm_draws()
     using namespace Rcpp;
     auto &augm = *pImpl_->augm;
 
+    if (augm.smpl_values.empty())
+        return NumericMatrix();
+
     try
     {
-        if (augm.smpl_values.empty())
-            return NumericMatrix();
-
         const size_t n_cols = augm.smpl_individuals.size() * augm.list_draws.size();
         CharacterVector headers(n_cols);
         NumericMatrix output(pImpl_->smpl_count, n_cols);
