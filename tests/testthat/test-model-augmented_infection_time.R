@@ -123,38 +123,38 @@ test_that("Simulations behave as expected", {
   )
 })
 
+test_that("Log-likelihood of augmented infection time model is correct", {
+  # dummy dataset
+  house <- data.frame(id = sprintf("hh01m%s", seq(1, 7)),
+                      house_id = "hh01",
+                      status = c(1, 1, 1, 0, 0, 0, 0),
+                      infec_time = c(0, 3, 4, NA, NA, NA, NA),
+                      onset_time = c(2, 6, 6, NA, NA, NA, NA))
+  house$incub_period <- house$onset_time - house$infec_time
+
+  # choice for the parameters
+  param <- list(alpha = 1e-04, beta = 0.07, gamma = 0.9,
+                size_ref = 4, study_period = 45, shape = 2, scale = 1.1)
+  # choice for the augmented variables
+  augm <- list(infec_time = ~ infec_time@D,
+               incub_period = ~ incub_period@D,
+               onset_time = ~ onset_time@D)
+
+  for (discr in c(FALSE, TRUE)) {
+    hhmodel <- new_housepi_model("augmented_infection_time",
+                                 discr = discr, quiet = TRUE) |>
+      add_data_wide(house) |>
+      load_parameter_list(!!!param) |>
+      load_augmented_list(!!!augm) |>
+      add_infec_profile(func = "gamma", discr = discr,
+                        shape = shape@P, scale = scale@P)
+
+    expect_equal(evaluate_log_lik(hhmodel),
+                 augm_infec_time_house_log_lik(house, param, discr))
+  }
+})
+
 # TO BE FIXED
-# test_that("Log-likelihood of augmented infection time model is correct", {
-#   # dummy dataset
-#   house <- data.frame(id = sprintf("hh01m%s", seq(1, 7)),
-#                       house_id = "hh01",
-#                       status = c(1, 1, 1, 0, 0, 0, 0),
-#                       infec_time = c(0, 3, 4, NA, NA, NA, NA),
-#                       onset_time = c(2, 6, 6, NA, NA, NA, NA))
-#   house$incub_period <- house$onset_time - house$infec_time
-# 
-#   # choice for the parameters
-#   param <- list(alpha = 1e-04, beta = 0.07, gamma = 0.9,
-#                 size_ref = 4, study_period = 45, shape = 2, scale = 1.1)
-#   # choice for the augmented variables
-#   augm <- list(infec_time = ~ infec_time@D,
-#                incub_period = ~ incub_period@D,
-#                onset_time = ~ onset_time@D)
-# 
-#   for (discr in c(FALSE, TRUE)) {
-#     hhmodel <- new_housepi_model("augmented_infection_time",
-#                                  discr = discr, quiet = TRUE) |>
-#       add_data_wide(house) |>
-#       load_parameter_list(!!!param) |>
-#       load_augmented_list(!!!augm) |>
-#       add_infec_profile(func = "gamma", discr = discr,
-#                         shape = shape@P, scale = scale@P)
-# 
-#     expect_equal(evaluate_log_lik(hhmodel),
-#                  augm_infec_time_house_log_lik(house, param, discr))
-#   }
-# })
-# 
 # test_that("Augmented moves preserve log-likelihood", {
 #   # dummy dataset
 #   house <- data.frame(id = sprintf("hh01m%s", seq(1, 7)),

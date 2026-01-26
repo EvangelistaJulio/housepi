@@ -253,7 +253,7 @@ void update_ofstream_datawide(std::ofstream &ofs,
             << hsp::read::DELIMITER << house.house_id()
             << hsp::read::DELIMITER << member.status();
         for (const auto &d : data_headers)
-            ofs << hsp::read::DELIMITER << member.data(d);
+            ofs << hsp::read::DELIMITER << member.get_data_wide_vec()[hsp::key::from_string<DataKey>(d)];
 
         for (const auto &a : augm_headers)
             ofs << hsp::read::DELIMITER << member.get_augm_variable(a).get();
@@ -470,7 +470,7 @@ int main(int argc, char *argv[])
     {
         if (hsp::na::is(output_file))
             hsp::msg::error("Missing output file for inference.");
-        user_model->infer();
+        user_model->run_inference();
         user_model->print_infer_state(output_file);
     }
     else if (is_simulate) // simulation an outbreak

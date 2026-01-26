@@ -8,12 +8,15 @@
 #pragma once
 
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
+
 #include "tools/nan.h"
 #include "tools/random.h"
+
 #include "function.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////

@@ -67,6 +67,8 @@ string AugmentedContainer::str_augm_summary() const
 /// Assign parameter definitions to dictionary.
 void Parameter::build(const hsp::str_table &input)
 {
+    hsp::key::clear<ParamKey>();
+
     if (input.empty())
         return;
 
@@ -91,7 +93,7 @@ void Parameter::build(const hsp::str_table &input)
 
         if (!hsp::key::count<ParamKey>(paramstr))
         {
-            hsp::key::Registry<ParamKey>::instance().add_key(paramstr);
+            hsp::key::add<ParamKey>(paramstr);
             param_vec_.emplace_back();
             param_vec_.back().name(paramstr, "parameter");
         }
@@ -124,21 +126,19 @@ void Parameter::build_for_expec(const hsp::dbl_table &input)
             "Found multiple definitions for the same parameters.");
 
     clear_lists_();
-    // store as sample values
-    smpl_values.reserve(hsp::key::size<ParamKey>());
+
     // update list of constant parameters to all parameters
-    list_const.reserve(hsp::key::size<ParamKey>());
+    list_const = hsp::key::from_string<ParamKey>(hsp::key::get_all<ParamKey>());
+
+    // store as sample values
+    smpl_values.clear();
 
     // reset definition dictionary to all constants NAs.
-    for (const auto &paramstr : hsp::key::get_all_keys<ParamKey>())
-    {
-        const auto p = hsp::key::from_string<ParamKey>(paramstr);
-        list_const.push_back(p);
-
-        smpl_values[p] = {};
-        if (std::find(headers.begin(), headers.end(), paramstr) != headers.end())
-            smpl_values[p] = input.at(string(paramstr));
-    }
+    for (const auto &paramstr : hsp::key::get_all<ParamKey>())
+        if (std::find(headers.begin(), headers.end(), paramstr) == headers.end())
+            smpl_values.emplace_back();
+        else
+            smpl_values.emplace_back(input.at(string(paramstr)));
 }
 
 /// Drop current lists of parameters.
@@ -260,7 +260,7 @@ void Parameter::make_cache_dependent(size_t p)
 /// Load parameters values of the n-th posterrior sample.
 void Parameter::load_sample_values(size_t n)
 {
-    for (const auto &paramstr : hsp::key::get_all_keys<ParamKey>())
+    for (const auto &paramstr : hsp::key::get_all<ParamKey>())
     {
         const auto p = hsp::key::from_string<ParamKey>(paramstr);
         const auto &vec = smpl_values[p];
@@ -290,18 +290,13 @@ void Parameter::user_reset(hsp::rnd_gen &prng)
 /// Initialize posterior sample of parameters and respective priors.
 void Parameter::init_draws(unsigned long sample_size)
 {
-    const size_t n = list_sample.size();
     smpl_values.clear();
     smpl_priors.clear();
-    smpl_values.reserve(n);
-    smpl_priors.reserve(n);
 
-    for (size_t i = 0; i < n; ++i)
+    for (size_t i = 0; i < list_sample.size(); ++i)
     {
-        smpl_values[i].reserve(sample_size);
-        smpl_values[i].reserve(sample_size);
-        smpl_values[i].assign(sample_size, hsp::na::DOUBLE);
-        smpl_priors[i].assign(sample_size, hsp::na::DOUBLE);
+        smpl_values.emplace_back(sample_size, hsp::na::DOUBLE);
+        smpl_priors.emplace_back(sample_size, hsp::na::DOUBLE);
     }
 }
 
@@ -347,7 +342,7 @@ const Attribute &Parameter::read_attribute(const hsp::parse::Entry &node, const 
         const auto &member = *member_ptr;
         if (hsp::parse::is_data(node.type)) // terminal data node
         {
-            storage_ = Attribute(member.data(node.value));
+            storage_ = Attribute(member.get_data_wide_vec()[hsp::key::from_string<DataKey>(node.value)]);
             storage_.name(node.value, "data");
         }
         else if (hsp::parse::is_augmented(node.type)) // augmented terminal node
@@ -391,6 +386,8 @@ GroupRate::~GroupRate() = default;
 /// Update model report and set group rates associate to new individual.
 void GroupRate::build(const hsp::str_table &input)
 {
+    hsp::key::clear<GroupRateKey>();
+
     if (input.empty())
         return;
 
@@ -410,7 +407,7 @@ void GroupRate::build(const hsp::str_table &input)
                 bool is_this_class = true;
                 for (const auto &d : data_headers)
                     if (!hsp::na::is(input.at(d)[r]))
-                        is_this_class &= member.data(d) == hsp::str::tod(input.at(d)[r]);
+                        is_this_class &= member.data_vec_[hsp::key::from_string<DataKey>(d)] == hsp::str::tod(input.at(d)[r]);
 
                 // if it's the case, add the parameter name
                 if (is_this_class)

@@ -32,13 +32,17 @@ namespace hsp::key
             declared_ = keys;
         }
 
-        void add_key(std::string_view name) { optional_.emplace_back(name); }
+        void add(std::string_view name)
+        {
+            if (std::find(optional_.begin(), optional_.end(), name) == optional_.end())
+                optional_.emplace_back(name);
+        }
 
         size_t size() const { return declared_.size() + optional_.size(); }
 
-        std::vector<std::string_view> get_all_keys() const
+        std::vector<std::string> get_all() const
         {
-            std::vector<std::string_view> vec;
+            std::vector<std::string> vec;
             vec.reserve(declared_.size() + optional_.size());
             for (auto &s : declared_)
                 vec.push_back(s);
@@ -101,10 +105,13 @@ namespace hsp::key
     void clear() { Registry<T>::instance().clear(); }
 
     template <typename T>
+    void add(std::string_view name) { Registry<T>::instance().add(name); }
+
+    template <typename T>
     size_t size() { return Registry<T>::instance().size(); }
 
     template <typename T>
-    std::vector<std::string_view> get_all_keys() { return Registry<T>::instance().get_all_keys(); }
+    std::vector<std::string> get_all() { return Registry<T>::instance().get_all(); }
 
     template <typename T>
     bool count(std::string_view name) { return Registry<T>::instance().count(name); }

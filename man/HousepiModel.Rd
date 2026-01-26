@@ -664,14 +664,13 @@ Dataset with associated augmented variables for last state.
 \subsection{Method \code{export_house_snapshot()}}{
 All variables associated to given household for last state.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$export_house_snapshot(house_id = NA)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$export_house_snapshot(house_id)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{house_id}}{\code{character(1)} ID of the household of interest.
-If \code{NA} it calls the household which caused last error, if any.}
+\item{\code{house_id}}{\code{character(1)} ID of the household of interest.}
 }
 \if{html}{\out{</div>}}
 }

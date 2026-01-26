@@ -5,8 +5,13 @@
  * See the LICENSE file for details.
  */
 
+#include <cmath>
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
 #include "tools/messages.h"
-#include "tools/operators.h"
 #include "tools/string.h"
 #include "tools/types.h"
 
@@ -108,10 +113,11 @@ std::unique_ptr<Function> compose_func_registries(std::string_view opt,
     vector<string> options = {};
     for (const auto &ptr : registry_ptrs)
     {
-        auto registry_options = ptr->get_options();
         if (ptr->count(opt))
             return ptr->create(opt, is_prim);
-        options += ptr->get_options();
+        const auto &y = ptr->get_options();
+        options.reserve(options.size() + y.size());
+        options.insert(options.end(), y.begin(), y.end());
     }
 
     throw std::invalid_argument(
@@ -669,9 +675,6 @@ unsigned short Function::which_discrete_case_() const
 namespace
 {
     using std::log;
-
-    // FIXME:
-    // verify if is_discrete should include Function::is_discrete() || (...)
 
     /// Minus Function.
     class Minus_ : public Function

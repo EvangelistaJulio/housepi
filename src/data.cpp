@@ -37,8 +37,9 @@ namespace
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-Setup::Setup() : unif_(0., 1.),
-                 progressbar_(std::make_unique<hsp::progress::Bar>()) {}
+Setup::Setup()
+    : unif_(0., 1.),
+      progressbar_(std::make_unique<hsp::progress::Bar>()) {}
 Setup::~Setup() = default;
 
 void Setup::build(const hsp::str_table &input)
@@ -144,7 +145,7 @@ void Setup::set_prng_seed()
     aux_prng.seed(seed);
     std::uniform_int_distribution<unsigned long> seed_generator(0, 0XFFFFFFFF);
 
-    prng_parallel_.reserve(n_threads);
+    prng_parallel_.resize(n_threads);
     for (unsigned n = 0; n < n_threads; ++n)
         prng_parallel_[n].seed(seed_generator(aux_prng));
 }
@@ -238,29 +239,36 @@ void Setup::prog_crash() { progressbar_->crash(); }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Link an individual to the household.
+/// Emplace a new individual in the household.
 void Household::init_member(size_t index,
                             const string &id,
                             int status,
-                            const hsp::dict<double> &data)
+                            const std::vector<double> &data)
 {
-    // emplace new individual
-    members_.emplace_back(index, house_size_, id, status, data);
+    size_t hhindex = size();
+    members_.emplace_back(index, hhindex, id, status, data);
 
     // update status lists within the household
     if (members_.back().is_infected_status())
-        infected_list_.push_back(house_size_);
+        infected_list_.push_back(hhindex);
     else if (members_.back().is_healthy_status())
-        healthy_list_.push_back(house_size_);
+        healthy_list_.push_back(hhindex);
     else
-        missing_list_.push_back(house_size_);
+        missing_list_.push_back(hhindex);
+}
 
-    ++house_size_;
+void Household::set_infected_status(Individual &member, int new_status)
+{
+    if (!hsp::status::is_infected(new_status))
+        throw std::invalid_argument(
+            "Tried to set as infected status " + std::to_string(new_status) +
+            " to " + err_name() + ".\nInfected status must be an integer greater than 0.");
+    helper_set_status_(member, new_status);
 }
 
 /// Change_status of individual i to new status (without controls).
 ///	NOTE: this introduces augmented variables -> it requires RJMCMC in case of inference.
-void Household::set_status_(Individual &member, int new_status)
+void Household::helper_set_status_(Individual &member, int new_status)
 {
     if (new_status == member.status())
         return;
@@ -288,9 +296,9 @@ void Household::init_contact_rates(size_t from, size_t to, const Attribute &x)
 {
     // initialize contact rate matrix if necessary
     if (contact_rates_.empty())
-        contact_rates_.resize(
-            house_size_,
-            vector<Attribute>(house_size_, Attribute(hsp::rates::VALUE_REFERENCE)));
+        contact_rates_.assign(
+            size(),
+            vector<Attribute>(size(), Attribute(hsp::rates::VALUE_REFERENCE)));
 
     contact_rates_[from][to] = x;
 }
@@ -336,9 +344,10 @@ void Household::init_cache()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-DataWide::DataWide() : report_indiv(std::make_unique<ReportIndividual>()),
-                       report_house(std::make_unique<ReportHousehold>()),
-                       report_hh_size(std::make_unique<ReportHouseSizes>()) {}
+DataWide::DataWide()
+    : report_indiv(std::make_unique<ReportIndividual>()),
+      report_house(std::make_unique<ReportHousehold>()),
+      report_hh_size(std::make_unique<ReportHouseSizes>()) {}
 DataWide::~DataWide() = default;
 
 /// Assert data_wide is not empty.
@@ -357,58 +366,53 @@ void DataWide::warn_all_missing_status()
 /// Assign data after pre-processing.
 void DataWide::build(const hsp::str_table &input)
 {
+    hsp::key::clear<DataKey>();
+    hsp::key::clear<HHsize_tKey>();
+    hsp::key::clear<HHdoubleKey>();
+    hsp::key::clear<HHmatrixKey>();
+
     if (input.empty())
         return;
 
-    build_helper_clear_data_();               // drop previous data and lists
-    headers = hsp::read::extract_keys(input); // extract headers
+    helper_build_clear_data_();        // drop previous data and lists
+    helper_build_data_headers_(input); // extract headers
+    report_indiv->total = hsp::read::csv_n_rows(input);
 
-    // assess the presence of house IDs
-    if (std::find(headers.begin(), headers.end(), "house_id") == headers.end())
-        hsp::msg::warning(
-            "Ignored household structure. Missing data column 'house_id'.");
-
-    // assess individual IDs are unique
-    if (std::find(headers.begin(), headers.end(), "id") != headers.end() &&
-        input.at("id").size() != hsp::str::unique(input.at("id")).size())
-        hsp::msg::error(
-            "Provided individual IDs are not unique.");
-
-    // safe load of households
-    report_indiv->total = input.at(headers[0]).size();
+    // store households
     for (size_t i = 0; i < report_indiv->total; ++i)
     {
         string id = std::to_string(i + 1);                          // default id
         string house_id = std::to_string(house_vector_.size() + 1); // default house_id
         int status = hsp::status::MISSING;
-        hsp::dict<double> data = {};
+
+        if (input.count("id"))
+        {
+            id = input.at("id")[i]; // user id
+            if (hsp::na::is(id))
+                throw std::invalid_argument(
+                    "Individual in row n." + std::to_string(i + 2) + " had missing 'id'.");
+        }
+        if (input.count("house_id"))
+        {
+            house_id = input.at("house_id")[i]; // user house_id
+            if (hsp::na::is(house_id))
+                throw std::invalid_argument(
+                    "Individual in row n." + std::to_string(i + 2) + " had missing 'house_id'.");
+        }
+        if (input.count("status"))
+        {
+            // note: NA status is a missing status
+            if (!hsp::na::is(input.at("status")[i]))
+                status = hsp::str::toi(input.at("status")[i], "individual status");
+        }
 
         // read individual data
-        for (const auto &key : headers)
-            if (key == "id")
-            {
-                id = input.at(key)[i]; // user id
-                if (hsp::na::is(id))
-                    throw std::invalid_argument(
-                        "Individual in row n." + std::to_string(i + 2) + " had missing " + key + ".");
-            }
-            else if (key == "house_id")
-            {
-                house_id = input.at(key)[i]; // user house_id
-                if (hsp::na::is(house_id))
-                    throw std::invalid_argument(
-                        "Individual in row n." + std::to_string(i + 2) + " had missing " + key + ".");
-            }
-            else if (key == "status")
-            {
-                // note: NA status is a missing status
-                if (!hsp::na::is(input.at("status")[i]))
-                    status = hsp::str::toi(input.at("status")[i], "individual status");
-            }
-            else
-            {
-                data.emplace(key, hsp::str::tod(input.at(key)[i], "data '" + key + "'"));
-            }
+        std::vector<double> data(hsp::key::size<DataKey>());
+        for (size_t d = 0; d < data.size(); ++d)
+        {
+            const string datastring = hsp::key::as_string<DataKey>(d);
+            data[d] = hsp::str::tod(input.at(datastring)[i], "data '" + datastring + "'");
+        }
 
         // if household index doesn't exist, add new household
         if (!hhid_to_index_.count(house_id))
@@ -424,16 +428,23 @@ void DataWide::build(const hsp::str_table &input)
         // assign the individual the respective household
         house.init_member(i, id, status, data);
     }
-    report_house->total = house_vector_.size();
-
-    headers = headers - vector<string>({"id", "house_id", "status"});
 
     // update report for data
     build_helper_fill_report_data_();
 }
 
-/// Use the loaded data to fill-in the respective report.
-void DataWide::build_helper_clear_data_()
+/// Get housepi household index from house_id.
+size_t DataWide::house_id_to_index_(std::string_view house_id) const
+{
+    auto it = hhid_to_index_.find(house_id);
+    if (it != hhid_to_index_.end())
+        return it->second;
+    throw std::invalid_argument(
+        "Index '" + std::string(house_id) + "' did not match any household in the data.");
+}
+
+/// Clear previous data report.
+void DataWide::helper_build_clear_data_()
 {
     headers.clear();
     house_vector_.clear();
@@ -444,9 +455,37 @@ void DataWide::build_helper_clear_data_()
     report_hh_size = std::make_unique<ReportHouseSizes>();
 }
 
+/// Assert that data headers are correct.
+void DataWide::helper_build_data_headers_(const hsp::str_table &input)
+{
+    headers = hsp::read::extract_keys(input);
+
+    // assess the presence of house IDs
+    if (std::find(headers.begin(), headers.end(), "house_id") == headers.end())
+        hsp::msg::warning("Ignored household structure. Missing data column 'house_id'.");
+
+    // assess individual IDs are unique
+    if (std::find(headers.begin(), headers.end(), "id") != headers.end() &&
+        input.at("id").size() != hsp::str::unique(input.at("id")).size())
+        hsp::msg::error("Provided individual IDs are not unique.");
+
+    // remove standard headers
+    headers = headers - vector<string>({"id", "house_id", "status"});
+
+    // pedantic check for declared data keys
+    hsp::str::assert_no_missing_entries(headers, hsp::key::get_all<DataKey>());
+
+    // add optional keys to registry
+    for (const auto &datastring : headers)
+        if (!hsp::key::count<DataKey>(datastring))
+            hsp::key::add<DataKey>(datastring);
+}
+
 /// Use the loaded data to fill-in the respective report.
 void DataWide::build_helper_fill_report_data_()
 {
+    report_house->total = house_vector_.size();
+
     // set report counts
     for (const auto &house : house_vector_)
     {
@@ -535,13 +574,8 @@ void DataWide::init_draws(unsigned long sample_size)
 {
     // sample over households
     smpl_values.clear();
-    smpl_values.resize(head_class_house_indexes.size());
     for (size_t R = 0; R < head_class_house_indexes.size(); ++R)
-    {
-        smpl_values[R].clear();
-        smpl_values[R].reserve(sample_size);
-        smpl_values[R].assign(sample_size, hsp::na::DOUBLE);
-    }
+        smpl_values.emplace_back(sample_size, hsp::na::DOUBLE);
 }
 
 /// Store current sample of log-likelihood for restricted households.
@@ -567,65 +601,47 @@ void DataWide::store_draws(unsigned long smpl_count)
 /// Assign data after pre-processing.
 void DataLong::build(const hsp::str_table &input)
 {
+    hsp::key::clear<LongKey>();
+
     if (input.empty())
         return;
 
-    // data sequence headers
-    headers.clear();
-    for (const auto &x : input)
-        headers.push_back(x.first);
+    helper_build_clear_data_();
+    helper_build_data_headers_(input);
 
-    // check for individual IDs
-    if (std::find(headers.begin(), headers.end(), "id") == headers.end())
-        throw std::invalid_argument(
-            "Individual identifier column 'id' was missing.");
-    // remove "id"
-    headers = headers - vector<string>({"id"});
+    // data-long allocation
+    size_t n_indiv = pDataWide_->report_indiv->total;
+    indiv_datalist.resize(n_indiv);
 
     // individual map for id -> index
-    // note: this could be moved elsewhere if required
     hsp::dict<size_t> id_to_index = {};
     size_t c = 0;
     for (const auto &house : *pDataWide_)
         for (const auto &member : house)
-        {
-            if (id_to_index.count(member.id()))
-                throw std::invalid_argument(
-                    "There were multiple individuals with id equal to '" + member.id() + "'.");
             id_to_index.emplace(member.id(), c++);
-        }
-
-    // data-long allocation
-    indiv_datalist.clear();
-    indiv_datalist.resize(pDataWide_->report_indiv->total);
-
-    for (auto &xmap : indiv_datalist)
-        for (const auto &key : headers)
-            xmap[key].clear();
 
     // load individual data list
-    const auto n_rows = input.at(headers[0]).size();
+    const auto n_rows = hsp::read::csv_n_rows(input);
     for (size_t r = 0; r < n_rows; ++r)
     {
         const auto &id = input.at("id")[r];
         if (hsp::na::is(id))
             throw std::invalid_argument(
                 "Invalid id found in row n." + std::to_string(r + 2) + ".");
+        // UPDATE: these errors should be more self-explicative
         if (!id_to_index.count(id))
-        {
-            // UPDATE: these errors should be more self-explicative
-            if (pDataWide_->is_empty())
-                throw std::invalid_argument(
-                    "Tried to define data long format before wide format.");
             throw std::invalid_argument(
                 "Id '" + id + "' from data long format had no match in loaded data wide format.");
-        }
 
         // append (since vector is initialized to empty)
-        auto &xdict = indiv_datalist.at(id_to_index.at(id));
-        for (const auto &key : headers)
-            xdict.at(key).emplace_back(
-                hsp::str::tod(input.at(key).at(r), "data long format '" + key + "'"));
+        auto &idat = indiv_datalist[id_to_index.at(id)];
+        idat.resize(hsp::key::size<LongKey>());
+        for (size_t d = 0; d < hsp::key::size<LongKey>(); ++d)
+        {
+            const auto &datastring = hsp::key::as_string<LongKey>(d);
+            idat[d].emplace_back(
+                hsp::str::tod(input.at(datastring)[r], "data long format '" + datastring + "'"));
+        }
     }
 
     // assign pointers to relative data-long to all individuals
@@ -633,4 +649,35 @@ void DataLong::build(const hsp::str_table &input)
     for (auto &house : *pDataWide_)
         for (auto &member : house)
             member.pdatalong_ = &indiv_datalist.at(c++);
+}
+
+/// Assign data after pre-processing.
+void DataLong::helper_build_clear_data_()
+{
+    // data sequence headers
+    headers.clear();
+    indiv_datalist.clear();
+}
+
+/// Assert that data headers are correct.
+void DataLong::helper_build_data_headers_(const hsp::str_table &input)
+{
+    if (pDataWide_->is_empty())
+        throw std::invalid_argument(
+            "Tried to define data long format before wide format.");
+
+    headers = hsp::read::extract_keys(input);
+    // check for individual IDs
+    if (std::find(headers.begin(), headers.end(), "id") == headers.end())
+        throw std::invalid_argument("Individual identifier column 'id' was missing.");
+    // remove 'id'
+    headers = headers - vector<string>({"id"});
+
+    // pedantic check for declared data keys
+    hsp::str::assert_no_missing_entries(headers, hsp::key::get_all<LongKey>());
+
+    // add optional keys to registry
+    for (const auto &datastring : headers)
+        if (!hsp::key::count<LongKey>(datastring))
+            hsp::key::add<LongKey>(datastring);
 }

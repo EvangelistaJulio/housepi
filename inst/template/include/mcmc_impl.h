@@ -46,9 +46,9 @@ public:
     std::shared_ptr<InfecProfile> infec_profile;
     std::shared_ptr<Augmented> augm;
 
-	///////////////////////////
-	//////  CONSTRUCTOR  //////
-	///////////////////////////
+    ///////////////////////////
+    //////  CONSTRUCTOR  //////
+    ///////////////////////////
 
     MCMCImpl(std::function<void()> func_init_inference,
              std::function<void()> func_init_simulation,
@@ -57,9 +57,9 @@ public:
              std::function<void(Household &, Individual &)> func_update_cache);
     ~MCMCImpl();
 
-	///////////////////////////////////
-	//////  METROPOLIS-HASTINGS  //////
-	///////////////////////////////////
+    ///////////////////////////////////
+    //////  METROPOLIS-HASTINGS  //////
+    ///////////////////////////////////
 
     unsigned long smpl_count = 0;                /// count of store samples
     std::vector<double> smpl_total_log_lik = {}; /// vector of total log-likelihood samples
@@ -72,9 +72,9 @@ public:
     double evaluate_single_house_log_lik(std::string_view house_id);
     double update_total_log_lik(bool is_cache_depen = true);
 
-	//////////////////////////
-	//////  SIMULATION  //////
-	//////////////////////////
+    //////////////////////////
+    //////  SIMULATION  //////
+    //////////////////////////
 
     /// Auxiliary method to initialize simulations.
     /// UPDATE: once I allow for multi-treading and a flag other than n_chains = 0, I can drop this.
@@ -94,10 +94,6 @@ private:
     std::function<void(Household &)> callback_simulate_house_;
     std::function<void(Household &, Individual &)> callback_update_cache_;
 
-    void init_model_for_simulation_() { callback_init_simulation_(); }
-    void update_cache_dependecies_(Household &h, Individual &i) { callback_update_cache_(h, i); }
-    double materialize_house_obs_log_lik_(Household &h);
-
     /////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////  MCMC : Impl : Metropolis-Hastings [private]  //////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -112,14 +108,16 @@ private:
         total_log_lik_ = new_ll;
     }
 
-    /// Increment total log-likelohood by a delta, buffer old value.
-    void increment_total_log_lik_(double delta) { set_total_log_lik_(total_log_lik_ + delta); }
+    /// Intialize a single Markov chain for Monte Carlo.
+    void init_monte_carlo_chain_();
 
-    void init_move_counts_();
-
+    /// Update and return contribution of given household to full logliklehood.
     double atomic_materialize_house_log_lik_(Household &house, bool is_cache_depen = true);
 
+    /// Move all model parameters and augmented variables.
     void move_all_();
+
+    /// Adpat the proposal of model parameters.
     void adapt_proposal_of_sampled_params_(unsigned long step);
 
     void init_posterior_sample_();

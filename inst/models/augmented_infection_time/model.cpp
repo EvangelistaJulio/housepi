@@ -16,6 +16,7 @@
 
 REGISTER_HOUSEPI_KEYS(AugmKey, infec_time, incub_period, onset_time)
 REGISTER_HOUSEPI_KEYS(DataKey, )
+REGISTER_HOUSEPI_KEYS(LongKey, )
 REGISTER_HOUSEPI_KEYS(GroupRateKey, community, susceptibility, infectivity)
 REGISTER_HOUSEPI_KEYS(HHsize_tKey, intro_case)
 REGISTER_HOUSEPI_KEYS(HHdoubleKey, )

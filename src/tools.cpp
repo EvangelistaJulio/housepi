@@ -399,7 +399,7 @@ namespace hsp
         /// Load files from the row with headers.
         bool read_row_by_headers_(std::ifstream &input,
                                   const vector<string> &headers,
-                                  std::unordered_map<string, string> &this_row)
+                                  hsp::dict<string> &this_row)
         {
             string line, tkn;
 
@@ -455,7 +455,7 @@ namespace hsp
             const auto headers = read_column_headers_(input);
 
             str_table output = {};
-            std::unordered_map<string, string> this_row = {};
+            hsp::dict<string> this_row = {};
             while (read_row_by_headers_(input, headers, this_row))
             {
                 for (const auto &[key, val] : this_row)

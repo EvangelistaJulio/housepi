@@ -10,9 +10,11 @@
 #include <memory>
 #include <string>
 #include <string_view>
-#include <vector>
 #include <unordered_set>
+#include <vector>
+
 #include "tools/types.h"
+
 #include "household.h"
 
 namespace hsp::rates
@@ -162,17 +164,12 @@ private:
     std::vector<Household> house_vector_ = {};
     hsp::dict<size_t> hhid_to_index_ = {};
 
-    size_t house_id_to_index_(std::string_view house_id) const
-    {
-        auto it = hhid_to_index_.find(house_id);
-        if (it != hhid_to_index_.end())
-            return it->second;
-        throw std::invalid_argument(
-            "Index '" + std::string(house_id) + "' did not match any household in the data.");
-    }
-
-    /// Clear data report.
-    void build_helper_clear_data_();
+    /// Get housepi household index from house_id.
+    size_t house_id_to_index_(std::string_view house_id) const;
+    /// Clear previous data report.
+    void helper_build_clear_data_();
+    /// Assert that data headers are correct.
+    void helper_build_data_headers_(const hsp::str_table &input);
     /// Use the loaded data to fill-in the respective report.
     void build_helper_fill_report_data_();
 };
@@ -186,7 +183,7 @@ private:
 struct DataLong
 {
     std::vector<std::string> headers = {};
-    std::vector<hsp::dbl_table> indiv_datalist = {};
+    std::vector<std::vector<std::vector<double>>> indiv_datalist = {};
 
     DataLong(std::shared_ptr<DataWide> ptr)
         : pDataWide_(ptr) {}
@@ -196,4 +193,9 @@ struct DataLong
 
 private:
     std::shared_ptr<DataWide> pDataWide_; // pointer to external DataWide struct
+
+    /// Clear previous data report.
+    void helper_build_clear_data_();
+    /// Assert that data headers are correct.
+    void helper_build_data_headers_(const hsp::str_table &input);
 };

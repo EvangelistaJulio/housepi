@@ -9,10 +9,12 @@
 
 #include <string>
 #include <vector>
+
 #include "tools/keys.h"
 #include "tools/parser.h" // UPDATE: this shouldn't be public
 #include "tools/random.h"
 #include "tools/types.h"
+
 #include "attribute.h"
 #include "variable.h"
 

@@ -12,6 +12,7 @@
 #include <string_view>
 #include <utility>
 #include <vector>
+
 #include "tools/keys.h"
 
 #ifdef _HOUSEPI_RCPP
@@ -94,7 +95,7 @@ public:
 
 	/// Inference specific initialization (e. g. cache variables, lookup tables, etc).
 	virtual void init_model_for_inference() {}
-	void infer();
+	void run_inference();
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	//////////////////////////////  MCMC : evaluate log-likelihood  /////////////////////////////
@@ -122,9 +123,13 @@ public:
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
 	Rcpp::DataFrame data_wide_for_simulation() const;
-	Rcpp::List simulate(size_t n_rep) { return helper_simulate_(n_rep, false); }
-	Rcpp::List simulate_for_prediction(size_t n) { return helper_simulate_(n, true); }
+	Rcpp::List run_simulation(size_t n_rep);
+	Rcpp::List run_simulation_for_predict(size_t n);
 	Rcpp::List log_evidence(const std::string &scheme, unsigned long n_rungs);
+
+	// UPDATE: these do not need to be exposed
+	Rcpp::List helper_simulate(size_t n, bool is_expec_measure); 
+	Rcpp::DataFrame helper_simulate_single_repetition();
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////  MCMC : Rcpp imports  ///////////////////////////////////
@@ -189,17 +194,4 @@ private:
 	std::string pair_contact_rate_;
 
 	void init_contact_rates_(Household &house);
-
-#ifdef _HOUSEPI_RCPP
-	Rcpp::DataFrame helper_export_data_wide_(const std::vector<std::string> &columns, bool is_status) const;
-	Rcpp::NumericVector helper_param_rcpp_snapshot_() const;
-	Rcpp::DataFrame helper_data_wide_rcpp_snapshot_(const Household &house) const;
-	Rcpp::DataFrame helper_data_long_rcpp_snapshot_(const Household &house) const;
-	Rcpp::DataFrame helper_group_rates_rcpp_snapshot_(const Household &house) const;
-	Rcpp::List helper_infec_profile_rcpp_snapshot_(const Household &house) const;
-	Rcpp::DataFrame helper_augm_rcpp_snapshot_(const Household &house) const;
-
-	Rcpp::List helper_simulate_(size_t n, bool is_expec_measure);
-	Rcpp::DataFrame helper_simulate_single_repetition_();
-#endif
 };

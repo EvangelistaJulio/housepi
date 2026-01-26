@@ -60,7 +60,7 @@ HousepiModel <- R6::R6Class(
 
     # @description
     # Parameters required by implementation file and other definitions.
-    .get_all_requried_param = function() {
+    .get_all_required_param = function() {
       if (private$.is_blank()) required <- private$.param$defs$name
       else required <- private$.param$require(private$.reference())
       c(required,                              # by the model
@@ -107,7 +107,7 @@ HousepiModel <- R6::R6Class(
     # Assert if parameter definitions match required
     # @param capital `logical(1)` to raise error.
     .assert_param = function(capital = TRUE) {
-      private$.param$assert(private$.get_all_requried_param(), capital)
+      private$.param$assert(private$.get_all_required_param(), capital)
     },
 
     ############################################################################
@@ -285,7 +285,6 @@ HousepiModel <- R6::R6Class(
     # this could be designed to be more helpful
     # e. g. create a standalone folder somewhere with correct links to headers
     .export_to_cpp_standalone = function(outpath = "inst/standalone/") {
-      private$.assert_group_rates()
       private$.build_group_rates()
 
       write.csv(private$.rcpp$export_data_wide(),
@@ -353,7 +352,7 @@ HousepiModel <- R6::R6Class(
       # NOTE: simulate_for_expec from 0 to table_size - 1 !
       lapply(iterator, function(r) {
         apply_measure(private$.refactor_data_wide(
-          cbind(static_df, private$.rcpp$simulate_for_prediction(r - 1)[[1]])
+          cbind(static_df, private$.rcpp$run_simulation_for_predict(r - 1)[[1]])
         ))
       })
     },
@@ -516,7 +515,7 @@ HousepiModel <- R6::R6Class(
       if ("_HOUSEPI_DISCRETE_TIME" %in% private$.last_user_flags) sms <- c(
         sms, "Model is set to {.emph discrete time} mode."
       )
-      if (length(private$.get_all_requried_param()) > 0) sms <- c(sms,
+      if (length(private$.get_all_required_param()) > 0) sms <- c(sms,
         fmt_assert_cli("Parameters", private$.assert_param(FALSE))
       )
       if (length(private$.get_all_required_augm()) > 0) sms <- c(sms,
@@ -848,7 +847,7 @@ HousepiModel <- R6::R6Class(
                           thin = thin, adapt = adapt,
                           chains = chains, threads = threads,
                           id_draws = id_draws, seed = seed, progress = progress)
-      private$.rcpp$infer()
+      private$.rcpp$run_inference()
       HousepiPosteriorDraws$new(private$.name, private$.rcpp)
     },
 
@@ -865,9 +864,8 @@ HousepiModel <- R6::R6Class(
     #' @description
     #' All variables associated to given household for last state.
     #' @param house_id `r rd_house_id_`
-    #' If `NA` it calls the household which caused last error, if any.
     #' @return `list`
-    export_house_snapshot = function(house_id = NA) {
+    export_house_snapshot = function(house_id) {
       house_id <- as.character(house_id)
       # export household snapshot
       output <- private$.rcpp$export_house_snapshot(house_id)
@@ -913,7 +911,7 @@ HousepiModel <- R6::R6Class(
       static_df <- private$.rcpp$data_wide_for_simulation()
       # produce list of simulated dataframes
       # then bind simulated entries with static part
-      output <- lapply(private$.rcpp$simulate(nsim), function(x) {
+      output <- lapply(private$.rcpp$run_simulation(nsim), function(x) {
         obs_process(private$.refactor_data_wide(cbind(static_df, x)))
       })
       # return a single data.frame if single simulation

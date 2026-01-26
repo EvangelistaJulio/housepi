@@ -23,6 +23,7 @@
 
 REGISTER_HOUSEPI_KEYS(AugmKey, )
 REGISTER_HOUSEPI_KEYS(DataKey, )
+REGISTER_HOUSEPI_KEYS(LongKey, )
 REGISTER_HOUSEPI_KEYS(GroupRateKey, community, susceptibility, infectivity)
 REGISTER_HOUSEPI_KEYS(HHsize_tKey, order)
 REGISTER_HOUSEPI_KEYS(HHdoubleKey, commu_escape_rate)

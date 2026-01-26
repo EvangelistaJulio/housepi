@@ -5,11 +5,11 @@
  * See the LICENSE file for details.
  */
 
+#include <cmath>
 #include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
-#include <cmath>
 
 #include <boost/math/distributions/normal.hpp>
 #include <boost/math/distributions/lognormal.hpp>
@@ -21,7 +21,6 @@
 #include <boost/math/distributions/geometric.hpp>
 #include <boost/random/beta_distribution.hpp>
 
-#include "tools/operators.h"
 #include "tools/string.h"
 
 #include "distribution.h"
@@ -177,7 +176,7 @@ std::unique_ptr<Function> DistributionRegistry::create(std::string_view opt, boo
     output->set_eval_as_distr_call();
     if (is_prim)
         output->set_eval_as_distr_primitive();
-        
+
     return output;
 }
 
@@ -214,7 +213,9 @@ std::unique_ptr<Distribution> compose_distr_registries(std::string_view opt,
         if (r->count(opt))
             return std::unique_ptr<Distribution>(
                 static_cast<Distribution *>(r->create(opt, is_cumul).release()));
-        options += r->get_options();
+        const auto &y = r->get_options();
+        options.reserve(options.size() + y.size());
+        options.insert(options.end(), y.begin(), y.end());
     }
 
     throw std::invalid_argument(

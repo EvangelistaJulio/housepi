@@ -12,6 +12,7 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <vector>
+
 #include "tools/random.h"
 #include "tools/types.h"
 
@@ -87,7 +88,6 @@ private:
     std::vector<ModelBlock_> model_blocks_;
     bool is_any_model_ = false; /// store flag if one augmented model is provided
 
-    void helper_assert_no_reserved_();
     void helper_build_definition_by_status_();
     void helper_build_definition_order_();
     void set_definition_dependency_order_for_(int status);

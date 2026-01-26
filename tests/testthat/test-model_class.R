@@ -103,7 +103,8 @@ test_that("Discretization is enabled as expected", {
                      proposal = "lognormal")
   )
 
-  y <- posterior::as_draws_matrix(get_param_draws(hhmodel$run_inference()))
+  results <- hhmodel$run_inference()
+  y <- posterior::as_draws_matrix(get_param_draws(results))
   expect_true(all(y == floor(y)))
 })
 

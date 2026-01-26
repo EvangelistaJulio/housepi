@@ -10,8 +10,9 @@
 #include <string>
 #include <string_view>
 #include <vector>
-#include "tools/types.h"
+
 #include "tools/keys.h"
+
 #include "attribute.h"
 #include "individual.h"
 
@@ -33,9 +34,7 @@ public:
 	{
 		house_id_ = house_id;
 		index_ = index;
-		house_multiplicity_ = 1;
 		multiplicity_class_ = index;
-		house_size_ = 0;
 	}
 	~Household() = default;
 
@@ -49,19 +48,13 @@ public:
 		house_multiplicity_ = m;
 		multiplicity_class_ = class_idx;
 	}
+	/// Emplace a new individual in the household.
 	void init_member(size_t index, const std::string &id,
-					 int status, const hsp::dict<double> &data);
+					 int status, const std::vector<double> &data);
 
-	void set_susceptible_status(Individual &member) { set_status_(member, hsp::status::SUSCEPTIBLE); }
-	void set_infected_status(Individual &member) { set_status_(member, hsp::status::INFECTED); }
-	void set_infected_status(Individual &member, int new_status)
-	{
-		if (!hsp::status::is_infected(new_status))
-			throw std::invalid_argument(
-				"Tried to set as infected status " + std::to_string(new_status) +
-				" to " + err_name() + ".\nInfected status must be an integer greater than 0.");
-		set_status_(member, new_status);
-	}
+	void set_susceptible_status(Individual &member) { helper_set_status_(member, hsp::status::SUSCEPTIBLE); }
+	void set_infected_status(Individual &member) { helper_set_status_(member, hsp::status::INFECTED); }
+	void set_infected_status(Individual &member, int new_status);
 	void init_contact_rates(size_t from, size_t to, const Attribute &x);
 
 	/////////////////////
@@ -220,39 +213,20 @@ public:
 	const std::string &house_id() const { return house_id_; }
 	std::string err_name() const { return "household '" + house_id_ + "'"; }
 	size_t house_index() const { return index_; }
-	size_t size() const { return house_size_; }
+	size_t size() const { return members_.size(); }
 
 private:
 	std::string house_id_ = "";			   /// User house id
 	size_t index_ = -1;					   /// Internal unique index
-	unsigned short house_size_ = 0;		   /// N. of house members
 	unsigned long house_multiplicity_ = 1; /// N. of equivalent houses
 	size_t multiplicity_class_ = -1;	   /// Index of multiplicity class
 
-	std::vector<Individual> members_ = {};
-	std::vector<size_t> infected_list_ = {};
-	std::vector<size_t> healthy_list_ = {};
-	std::vector<size_t> missing_list_ = {};
+	std::vector<Individual> members_ = {};	 /// Household members
+	std::vector<size_t> infected_list_ = {}; /// hh indexes of infected members
+	std::vector<size_t> healthy_list_ = {};	 /// hh indexes of susceptible members
+	std::vector<size_t> missing_list_ = {};	 /// hh indexes of members with missing status
 
-	// contact rate pointers
-	std::vector<std::vector<Attribute>> contact_rates_;
-
-	/// Change_status of individual i to new status (without controls).
-	void set_status_(Individual &member, int new_status);
-
-	///////////////////////////////////////////////////////////////////////////////////////////////
-	////////////////////////////  Household : log-likelihood [private]  ///////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////
-
-	double obs_log_lik_ = 0; // current observation log-likelihood
-	double obs_buffer_ = 0;	 // buffer observation log-likelihood
-
-	std::vector<double> smpl_log_lik_ = {}; // diagnostics
-
-	///////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////  Household : cache attributes [private]  //////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////
-
+	std::vector<std::vector<Attribute>> contact_rates_; /// contact rates
 	std::vector<std::vector<size_t>> cache_size_t_vec_ = {};
 	std::vector<std::vector<double>> cache_dbl_vec_ = {};
 	std::vector<std::vector<std::vector<double>>> cache_dbl_mtx_ = {};
@@ -260,4 +234,11 @@ private:
 	std::vector<std::vector<size_t>> buffer_size_t_vec_ = {};
 	std::vector<std::vector<double>> buffer_dbl_vec_ = {};
 	std::vector<std::vector<std::vector<double>>> buffer_dbl_mtx_ = {};
+
+	double obs_log_lik_ = 0;				/// current observation log-likelihood
+	double obs_buffer_ = 0;					/// buffer observation log-likelihood
+	std::vector<double> smpl_log_lik_ = {}; /// samples of household pointwise log-likelihood
+
+	/// Change_status of individual i to new status (without controls).
+	void helper_set_status_(Individual &member, int new_status);
 };

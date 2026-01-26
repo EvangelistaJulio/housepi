@@ -9,16 +9,13 @@ Perform inference and simulation from the model.
 \section{Fields}{
 
 \describe{
-\item{\code{infer}}{Perform MCMC inference of the model parameters. \itemize{
-\item Parameter: output_file - The file path where the output will be saved
-\item Parameter: progbar - Display the progress bar
-}}
+\item{\code{run_inference}}{Perform MCMC inference of the model parameters.}
 
 \item{\code{data_wide_for_simulation}}{Dataset without status and augmented entries.}
 
-\item{\code{simulate}}{Simulated status and augmented variables.}
+\item{\code{run_simulation}}{Simulated status and augmented variables.}
 
-\item{\code{simulate_for_prediction}}{Simulation for the computation of expected measure.}
+\item{\code{run_simulation_for_predict}}{Simulation for the computation of expected measure.}
 
 \item{\code{evaluate}}{Evaluate the log-likelihood according to the current state.}
 

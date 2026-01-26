@@ -7,6 +7,7 @@
 
 // #include <string>
 // #include <sstream>
+#include <cmath>
 #include <map>
 
 #include "tools/operators.h" // UPDATE: drop this dependency

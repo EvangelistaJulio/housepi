@@ -277,13 +277,10 @@ RCPP_MODULE(housepi_infec_profile)
 //' @name HousepiRcppModel
 //' @title Internal housepi Rcpp model
 //' @description Perform inference and simulation from the model.
-//' @field infer Perform MCMC inference of the model parameters. \itemize{
-//'   \item Parameter: output_file - The file path where the output will be saved
-//'   \item Parameter: progbar - Display the progress bar
-//' }
+//' @field run_inference Perform MCMC inference of the model parameters.
 //' @field data_wide_for_simulation Dataset without status and augmented entries.
-//' @field simulate Simulated status and augmented variables.
-//' @field simulate_for_prediction Simulation for the computation of expected measure.
+//' @field run_simulation Simulated status and augmented variables.
+//' @field run_simulation_for_predict Simulation for the computation of expected measure.
 //' @field evaluate Evaluate the log-likelihood according to the current state.
 //' @field log_evidence Evaluate the logarithm of the marginal likelihood (aka evidence).
 //' Uses the method of power posteriors. \itemize{
@@ -316,10 +313,10 @@ RCPP_MODULE(housepi_model_core)
 {
     Rcpp::class_<MCMC>("HousepiRcppMcmc")
         .method("init_advanced_setup", &MCMC::init_advanced_setup)
-        .method("infer", &MCMC::infer)
+        .method("run_inference", &MCMC::run_inference)
         .method("data_wide_for_simulation", &MCMC::data_wide_for_simulation)
-        .method("simulate", &MCMC::simulate)
-        .method("simulate_for_prediction", &MCMC::simulate_for_prediction)
+        .method("run_simulation", &MCMC::run_simulation)
+        .method("run_simulation_for_predict", &MCMC::run_simulation_for_predict)
         .method("evaluate_log_lik", &MCMC::evaluate_log_lik)
         .method("log_evidence", &MCMC::log_evidence)
         .method("import_data_wide", &MCMC::import_data_wide)

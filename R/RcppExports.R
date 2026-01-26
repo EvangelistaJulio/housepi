@@ -67,13 +67,10 @@ NULL
 #' @name HousepiRcppModel
 #' @title Internal housepi Rcpp model
 #' @description Perform inference and simulation from the model.
-#' @field infer Perform MCMC inference of the model parameters. \itemize{
-#'   \item Parameter: output_file - The file path where the output will be saved
-#'   \item Parameter: progbar - Display the progress bar
-#' }
+#' @field run_inference Perform MCMC inference of the model parameters.
 #' @field data_wide_for_simulation Dataset without status and augmented entries.
-#' @field simulate Simulated status and augmented variables.
-#' @field simulate_for_prediction Simulation for the computation of expected measure.
+#' @field run_simulation Simulated status and augmented variables.
+#' @field run_simulation_for_predict Simulation for the computation of expected measure.
 #' @field evaluate Evaluate the log-likelihood according to the current state.
 #' @field log_evidence Evaluate the logarithm of the marginal likelihood (aka evidence).
 #' Uses the method of power posteriors. \itemize{

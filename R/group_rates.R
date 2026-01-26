@@ -463,6 +463,7 @@ HousepiGroupRate <- R6::R6Class(
         warning_h(sms)
       }
 
+      # UPDATE: this is not necessary anymore!
       # find missing group rates and set as default
       if (isTRUE(capital)) for (g in template_missing_find(required, defined)) {
         self$add_quo(g, by = NA_character_)

@@ -41,6 +41,29 @@ namespace
     using std::string;
     using std::vector;
 
+    /// Check augmented names and assert no reserved names are used.
+    void helper_assert_augm_input(const hsp::str_table &input)
+    {
+        const vector<string> file_headers = {"name", "status",
+                                             "func", "fcumul",
+                                             "value", "const", "discr",
+                                             "model", hsp::params::MIN, hsp::params::MAX,
+                                             "proposal", "proposal_scale"};
+        const auto headers = hsp::read::extract_keys(input);
+        hsp::str::assert_no_missing_entries(headers, file_headers);
+        hsp::str::assert_no_unused_entries(headers, file_headers);
+
+        for (const auto &a : input.at("name"))
+        {
+            if (hsp::na::is(a))
+                throw std::invalid_argument(
+                    "Found an augmented variable with undefined name.");
+            if (a == hsp::infprof::INSTANT)
+                throw std::invalid_argument(
+                    "Tried to use the reserved augmented name '" + a + "'.\nPlease, choose a different name.");
+        }
+    }
+
     /// Helper to build augmented definition order and assert for acyclic.
     void walk_dependency_tree(const string &entry,
                               const hsp::str_table &tree,
@@ -121,30 +144,21 @@ Augmented::~Augmented() = default;
 /// Assign augmented variables to all individuals.
 void Augmented::build(const hsp::str_table &input)
 {
-    deftable_ = input;
+    hsp::key::clear<AugmKey>();
 
-    // skip if no definitions are present
-    if (deftable_.empty() && !pInfecProfile_->is_augmented())
+    if (input.empty() && !pInfecProfile_->is_augmented())
         return;
 
-    // check entries
-    const vector<string> file_headers = {"name", "status",
-                                         "func", "fcumul",
-                                         "value", "const", "discr",
-                                         "model", hsp::params::MIN, hsp::params::MAX,
-                                         "proposal", "proposal_scale"};
-    const auto headers = hsp::read::extract_keys(deftable_);
-    hsp::str::assert_no_missing_entries(headers, file_headers);
-    hsp::str::assert_no_unused_entries(headers, file_headers);
-    helper_assert_no_reserved_();
+    helper_assert_augm_input(input); // check entries
 
+    deftable_ = input;
     if (pInfecProfile_->is_augmented())
     {
         // eventually append infectivity profile definitions
         for (const auto &[key, vec] : pInfecProfile_->augm_profile_definitions_)
             deftable_.at(key) += vec;
 
-        hsp::key::Registry<AugmKey>::instance().add_key(hsp::infprof::INSTANT);
+        hsp::key::add<AugmKey>(hsp::infprof::INSTANT);
         pInfecProfile_->augm_infecprof_key_ = hsp::key::from_string<AugmKey>(hsp::infprof::INSTANT);
 
         // append discrete infectivity profile definitions if any
@@ -159,23 +173,6 @@ void Augmented::build(const hsp::str_table &input)
     for (auto &house : *pDataWide_)
         for (auto &member : house)
             clear_all(member);
-}
-
-// check augmented name
-void Augmented::helper_assert_no_reserved_()
-{
-    if (deftable_.empty() || !deftable_.count("name"))
-        return;
-
-    for (const auto &a : deftable_["name"])
-    {
-        if (hsp::na::is(a))
-            throw std::invalid_argument(
-                "Found an augmented variable with undefined name.");
-        if (a == hsp::infprof::INSTANT)
-            throw std::invalid_argument(
-                "Tried to use the reserved augmented name '" + a + "'.\nPlease, choose a different name.");
-    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -196,7 +193,7 @@ void Augmented::helper_build_definition_by_status_()
         // fill registry with optional augmented definitions
         const auto augmstr = deftable_["name"][k];
         if (!hsp::key::count<AugmKey>(augmstr))
-            hsp::key::Registry<AugmKey>::instance().add_key(augmstr);
+            hsp::key::add<AugmKey>(augmstr);
 
         // check associated status
         int status = hsp::status::MISSING;
@@ -586,6 +583,7 @@ void Augmented::user_reset(hsp::rnd_gen &prng)
 void Augmented::init_model_list()
 {
     status_to_index.clear();
+    model_blocks_.clear();
     model_blocks_.resize(pDataWide_->all_infected_statuses.size());
 
     size_t i = 0;

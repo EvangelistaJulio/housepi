@@ -539,7 +539,7 @@ HousepiSampler <- R6::R6Class(
 #' synthetic household datasets based on hierarchical models of covariates.
 #' It supports encoding and decoding of features,
 #' computation of marginal distributions, and sampling of households.
-#' @param ...Named features. Respective list of definition details.
+#' @param ... Named features. Respective list of definition details.
 #' @export
 new_household_sampler <- function(...) {
   HousepiSampler$new(...)

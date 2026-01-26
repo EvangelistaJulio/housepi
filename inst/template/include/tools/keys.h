@@ -11,6 +11,7 @@
 
 enum class AugmKey : size_t;
 enum class DataKey : size_t;
+enum class LongKey : size_t;
 enum class GroupRateKey : size_t;
 enum class HHsize_tKey : size_t;
 enum class HHdoubleKey : size_t;

@@ -53,16 +53,7 @@ MCMCImpl::MCMCImpl(std::function<void()> func_init_inference,
       callback_init_simulation_(std::move(func_init_simulation)),
       callback_house_log_lik_(std::move(func_household_log_lik)),
       callback_simulate_house_(std::move(func_simulate_house)),
-      callback_update_cache_(std::move(func_update_cache))
-{
-    hsp::key::clear<AugmKey>();
-    hsp::key::clear<DataKey>();
-    hsp::key::clear<GroupRateKey>();
-    hsp::key::clear<HHsize_tKey>();
-    hsp::key::clear<HHdoubleKey>();
-    hsp::key::clear<HHmatrixKey>();
-    hsp::key::clear<ParamKey>();
-}
+      callback_update_cache_(std::move(func_update_cache)) {}
 MCMCImpl::~MCMCImpl() = default;
 
 void MCMCImpl::init_model_for_inference()
@@ -87,8 +78,8 @@ void MCMCImpl::init_evaluate()
     data_wide->assert_non_empty();        // check if data is empty
     data_wide->warn_all_missing_status(); // warn if all missing status
     init_model_for_inference();           // initialize model for inference
-    param->user_reset(setup->prng());     // initialize non constant parameters
     augm->init();                         // initialize individual augmented relations
+    param->user_reset(setup->prng());     // initialize non constant parameters
     augm->user_reset(setup->prng());      // initialize non constant augmented
 }
 
@@ -143,11 +134,12 @@ double MCMCImpl::atomic_materialize_house_log_lik_(Household &house, bool is_cac
         {
             house.buffer_all_cache();
             for (auto &member : house.infected())
-                update_cache_dependecies_(house, member);
+                callback_update_cache_(house, member);
         }
 
         // compute and set household observation log-likelihood
-        output = materialize_house_obs_log_lik_(house);
+        output = callback_house_log_lik_(house);
+        house.set_obs_log_lik(output);
 
         // compute and set individual augmented log-likelihood
         if (augm->is_any_model())
@@ -159,6 +151,7 @@ double MCMCImpl::atomic_materialize_house_log_lik_(Household &house, bool is_cac
         atomic_error->set_if_first("While computing log-likelihood for " +
                                    house.err_name() + ":\n" + string(e.what()));
     }
+
     return output;
 }
 
@@ -204,17 +197,12 @@ void MCMCImpl::init_monte_carlo()
 /// NOTE: sweep is the number of previously completed thin sweeps.
 void MCMCImpl::run_monte_carlo()
 {
-    unsigned long &chain = setup->chain; // current chain
-    init_posterior_sample_();            // initialize diagnostics
+    init_posterior_sample_(); // initialize posterior sample
 
     // run multiple MCMC chains&
-    for (chain = 1; chain <= setup->n_chains; ++chain)
+    for (setup->chain = 1; setup->chain <= setup->n_chains; ++setup->chain)
     {
-        setup->prog_set_text();                     // set progress bar text
-        param->user_reset(setup->prng());           // reset parameter user definitions
-        augm->user_reset(setup->prng());            // reset augmented user definitions
-        set_total_log_lik_(update_total_log_lik()); // init cached, set total log-likelihood
-        init_move_counts_();                        // init move counts for adaptive
+        init_monte_carlo_chain_();
 
         // Finite adaptative iterations
         for (unsigned long i = 0; i < setup->n_adapt; i += setup->n_thin, setup->prog_update())
@@ -245,7 +233,7 @@ void MCMCImpl::run_monte_carlo()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Move all model parameters.
+/// Move all model parameters and augmented variables.
 void MCMCImpl::move_all_()
 {
     // move augmented variables to sample, if any
@@ -303,17 +291,16 @@ void MCMCImpl::adapt_proposal_of_sampled_params_(unsigned long step)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-double MCMCImpl::materialize_house_obs_log_lik_(Household &h)
+/// Intialize a single Markov chain for Monte Carlo.
+void MCMCImpl::init_monte_carlo_chain_()
 {
-    const double output = callback_house_log_lik_(h);
-    h.set_obs_log_lik(output);
-    return output;
-}
+    setup->prog_set_text();                     // set progress bar text
+    param->user_reset(setup->prng());           // reset parameter user definitions
+    augm->user_reset(setup->prng());            // reset augmented user definitions
+    set_total_log_lik_(update_total_log_lik()); // init cached, set total log-likelihood
 
-/// Set accept rates to zero.
-void MCMCImpl::init_move_counts_()
-{
-    for (const auto &p : param->list_sample)
+    // init move counts for adaptive
+    for (const auto p : param->list_sample)
         param->at(p).reset_accept_rate();
 }
 
@@ -388,7 +375,8 @@ void MCMCImpl::move_all_augm_()
     }
     atomic_error->throw_exception();
 
-    increment_total_log_lik_(delta_ll);
+    // increment total log-likelohood by a delta, buffer old value
+    set_total_log_lik_(total_log_lik_ + delta_ll);
 }
 
 /// Move augmented variables of infectious members inside household.
@@ -426,13 +414,17 @@ double MCMCImpl::metropolis_augm_single_move_(Household &house, Individual &memb
     {
         // update dependencies to perform computations
         house.buffer_all_cache();
-        update_cache_dependecies_(house, member);
+        callback_update_cache_(house, member);
 
         // Metropolis-Hastings
         // NOTE: materialize calls must come after getters
         double delta_ll = -house.get_obs_log_lik();
         delta_ll += augm->materialize_augm_model_logratio(member, a);
-        delta_ll += materialize_house_obs_log_lik_(house);
+        // compute and set household observation log-likelihood
+        const double house_ll = callback_house_log_lik_(house);
+        house.set_obs_log_lik(house_ll);
+
+        delta_ll += house_ll;
 
         if (setup->unif() < std::exp(setup->inv_T * delta_ll - xaugm.get_propose_logratio()))
             return delta_ll;
@@ -657,7 +649,7 @@ void MCMCImpl::helper_init_simulation()
     setup->n_chains = 0;           // use 0 chains as a state variable
     setup->n_threads = 1;          // impose no parallelization
     setup->set_n_threads();        // change accordingly
-    init_model_for_simulation_();  // initialize model for simulation
+    callback_init_simulation_();   // initialize model for simulation
 }
 
 /// Simulate a single household outbreak in place.
@@ -805,7 +797,7 @@ double MCMC::evaluate_log_lik(std::string_view house_id)
 }
 
 /// Performs the inference using Metropolis-Hastings.
-void MCMC::infer()
+void MCMC::run_inference()
 {
     try
     {

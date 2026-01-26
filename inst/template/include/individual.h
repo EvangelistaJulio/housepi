@@ -9,8 +9,9 @@
 
 #include <string>
 #include <vector>
+
 #include "tools/keys.h"
-#include "tools/types.h"
+
 #include "attribute.h"
 #include "augmented_map.h"
 
@@ -46,24 +47,17 @@ public:
 	//////  CONSTRUCTOR  //////
 	///////////////////////////
 
-	Individual()
-	{
-		id_ = "";
-		index_ = 0;
-		hhindex_ = 0;
-		status_ = hsp::status::MISSING;
-		data_map_ = {};
-	}
+	Individual() = default;
 
-	// NOTE: allowed data variables are numerical only
+	/// NOTE: allowed data variables are numerical only.
 	Individual(size_t index, size_t hhindex, const std::string &id,
-			   int status, const hsp::dict<double> &data)
+			   int status, const std::vector<double> &data)
 	{
 		index_ = index;
 		hhindex_ = hhindex;
 		id_ = id;
 		status_ = status;
-		data_map_ = data;
+		data_vec_ = data;
 	}
 	~Individual() = default;
 
@@ -83,18 +77,25 @@ public:
 	//////////////////////
 
 	int status() const { return status_; }
-	double data(const std::string &d) const { return safe_at_(data_map_, d); }
+
+	double data(DataKey d) const { return data_vec_[static_cast<size_t>(d)]; }
+	const std::vector<double> &get_data_wide_vec() const { return data_vec_; }
 
 	/// Return associated data long format.
 	/// NOTE: return a reference to a static empty vector when no datalong is attached
-	const std::vector<double> &data_long(const std::string &d) const noexcept
+	const std::vector<double> &data_long(LongKey d) const noexcept
 	{
 		if (pdatalong_ != nullptr)
-			return pdatalong_->at(d);
+			return pdatalong_->at(static_cast<size_t>(d));
 
 		static const std::vector<double> EMPTY_DATA_LONG_VEC = std::vector<double>();
 		return EMPTY_DATA_LONG_VEC;
 	}
+
+	/// Return associated data long format.
+	/// NOTE: return a reference to a static empty vector when no datalong is attached
+	const std::vector<std::vector<double>> *get_data_long_ptr() const noexcept { return pdatalong_; }
+
 	double group_rate(GroupRateKey g) const { return group_rate_vec_[static_cast<size_t>(g)].get(); }
 	const Attribute &get_group_rate_attribute(size_t g) const { return group_rate_vec_[g]; }
 
@@ -113,22 +114,13 @@ public:
 	/// Individidaul unique identifier as in data.
 	const std::string &id() const { return id_; }
 	std::string err_name() const override final { return "individual '" + id_ + "'"; }
-	
-private:
-	std::string id_;									  /// user id
-	size_t index_;										  /// housepi internal index
-	size_t hhindex_;									  /// household relative index
-	int status_;										  /// status of the individual
-	hsp::dict<double> data_map_ = {};					  /// data
-	std::vector<Attribute> group_rate_vec_ = {};		  /// group rates
-	hsp::dict<std::vector<double>> *pdatalong_ = nullptr; /// data long format associated
 
-	/// UPDATE: temporary waiting for restructuring of data.
-	double safe_at_(const hsp::dict<double> &m, const std::string &k) const
-	{
-		const auto it = m.find(k);
-		if (it != m.end())
-			return it->second;
-		throw std::out_of_range("Unknown data  '" + k + "'.");
-	}
+private:
+	std::string id_ = "";									/// user id
+	size_t index_ = 0;										/// housepi internal index
+	size_t hhindex_ = 0;									/// household relative index
+	int status_ = hsp::status::MISSING;						/// status of the individual
+	std::vector<double> data_vec_ = {};						/// data
+	std::vector<Attribute> group_rate_vec_ = {};			/// group rates
+	std::vector<std::vector<double>> *pdatalong_ = nullptr; /// data long format associated
 };

@@ -8,6 +8,7 @@
 #pragma once
 
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -77,6 +78,8 @@ public:
 	//////////////////////
 
     /// Get attribute numeric value.
+    /// UPDATE: this should become noexcept,
+    /// but non implicitely callable functions blocks this update
     double get() const { return (this->*get_)(); }
     /// Get pointer to attribute value.
     const Attribute *get_ptr() const { return (this->*get_ptr_)(); }

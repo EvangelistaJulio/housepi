@@ -9,6 +9,7 @@
 
 #include <string>
 #include <vector>
+
 #include "tools/keys.h"
 #include "variable.h"
 
@@ -26,7 +27,7 @@ class AugmentedContainer
 public:
 	virtual ~AugmentedContainer() = default;
 
-	/// Set numeric value of augmented variable. If not allowed, throw exception.
+	/// Set numeric value of augmented variable. If not allowed, raise exception.
 	void set_augm_value(AugmKey a, double x) { augm_vec_[static_cast<size_t>(a)].set(x); }
 
 	virtual std::string err_name() const = 0;
