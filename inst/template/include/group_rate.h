@@ -25,8 +25,6 @@ class Individual;
 
 struct GroupRate
 {
-    std::vector<std::string> headers;
-
     GroupRate(std::shared_ptr<DataWide> dataptr,
               std::shared_ptr<Parameter> paramptr);
     ~GroupRate();
@@ -34,7 +32,6 @@ struct GroupRate
     void build(const hsp::str_table &deftable);
 
 private:
-    const std::vector<std::string> file_headers_ = {"group_rate", "param_name"};
     std::shared_ptr<DataWide> pDataWide_;   /// pointer to external DataWide struct
     std::shared_ptr<Parameter> pParameter_; /// pointer to external Parameter struct
 

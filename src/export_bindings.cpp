@@ -269,8 +269,7 @@ Rcpp::DataFrame helper_export_data_wide(const DataWide &data_wide,
         IntegerVector df_status = IntegerVector(n_rows);
 
         // other non standard data columns
-        vector<NumericVector> df_double;
-        df_double.resize(columns.size());
+        vector<NumericVector> df_double(columns.size());
         for (size_t d = 0; d < columns.size(); ++d)
             df_double[d] = NumericVector(n_rows);
 
@@ -342,8 +341,7 @@ Rcpp::DataFrame MCMC::export_data_long() const
         CharacterVector datalist_index(n_rows);
 
         // other non standard data-long columns
-        vector<NumericVector> datalist_dbl = {};
-        datalist_dbl.resize(hsp::key::size<LongKey>());
+        vector<NumericVector> datalist_dbl(hsp::key::size<LongKey>());
         for (size_t d = 0; d < datalist_dbl.size(); ++d)
             datalist_dbl[d] = NumericVector(n_rows);
 
@@ -696,8 +694,7 @@ namespace
         CharacterVector df_house_id = CharacterVector(n_rows);
         IntegerVector df_status = IntegerVector(n_rows);
 
-        vector<NumericVector> df_double;
-        df_double.resize(headers.size());
+        vector<NumericVector> df_double(headers.size());
         for (size_t d = 0; d < headers.size(); ++d)
             df_double[d] = NumericVector(n_rows);
 
@@ -738,8 +735,7 @@ namespace
         }
 
         CharacterVector datalist_id(n_rows);
-        vector<NumericVector> datalist_dbl = {};
-        datalist_dbl.resize(hsp::key::size<LongKey>());
+        vector<NumericVector> datalist_dbl(hsp::key::size<LongKey>());
         for (size_t d = 0; d < datalist_dbl.size(); ++d)
             datalist_dbl[d] = NumericVector(n_rows);
 
@@ -766,11 +762,11 @@ namespace
     }
 
     /// Export to R a snapshot of current state of house augmented variables.
-    Rcpp::DataFrame helper_group_rates_rcpp_snapshot(const std::shared_ptr<GroupRate> group_rate, const Household &house)
+    Rcpp::DataFrame helper_group_rates_rcpp_snapshot(const Household &house)
     {
         using namespace Rcpp;
 
-        const auto &headers = group_rate->headers;
+        const auto &headers = hsp::key::get_all<GroupRateKey>();
 
         if (headers.empty())
             return DataFrame::create();
@@ -778,8 +774,7 @@ namespace
         const auto n_rows = house.size();
         CharacterVector df_id(n_rows);
 
-        vector<NumericVector> group_rate_dbl;
-        group_rate_dbl.resize(headers.size());
+        vector<NumericVector> group_rate_dbl(headers.size());
         for (size_t c = 0; c < headers.size(); ++c)
             group_rate_dbl[c] = NumericVector(n_rows);
 
@@ -862,8 +857,7 @@ namespace
         const auto n_rows = house.size();
         CharacterVector df_id(n_rows);
 
-        vector<NumericVector> augm_dbl;
-        augm_dbl.resize(n_cols);
+        vector<NumericVector> augm_dbl(n_cols);
         for (size_t c = 0; c < n_cols; ++c)
             augm_dbl[c] = NumericVector(n_rows);
 
@@ -902,7 +896,7 @@ Rcpp::List MCMC::export_house_snapshot(const string &house_id) const
             _["param"] = helper_param_rcpp_snapshot(pImpl_->param),
             _["data_wide"] = helper_data_wide_rcpp_snapshot(pImpl_->data_wide, house),
             _["data_long"] = helper_data_long_rcpp_snapshot(pImpl_->data_long, house),
-            _["group_rate"] = helper_group_rates_rcpp_snapshot(pImpl_->group_rate, house),
+            _["group_rate"] = helper_group_rates_rcpp_snapshot(house),
             _["infec_profile"] = helper_infec_profile_rcpp_snapshot(pImpl_->infec_profile, house),
             _["augm"] = helper_augm_rcpp_snapshot(pImpl_->augm, house));
     }
@@ -970,8 +964,7 @@ Rcpp::DataFrame MCMC::helper_simulate_single_repetition()
 
         IntegerVector df_status(n_rows);
 
-        vector<NumericVector> df_augm;
-        df_augm.resize(n_cols);
+        vector<NumericVector> df_augm(n_cols);
         for (size_t c = 0; c < n_cols; ++c)
             df_augm[c] = NumericVector(n_rows);
 

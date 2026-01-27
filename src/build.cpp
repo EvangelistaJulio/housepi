@@ -290,10 +290,12 @@ void Parameter::user_reset(hsp::rnd_gen &prng)
 /// Initialize posterior sample of parameters and respective priors.
 void Parameter::init_draws(unsigned long sample_size)
 {
+    const size_t n = list_sample.size();
     smpl_values.clear();
     smpl_priors.clear();
-
-    for (size_t i = 0; i < list_sample.size(); ++i)
+    smpl_values.reserve(n);
+    smpl_priors.reserve(n);
+    for (size_t i = 0; i < n; ++i)
     {
         smpl_values.emplace_back(sample_size, hsp::na::DOUBLE);
         smpl_priors.emplace_back(sample_size, hsp::na::DOUBLE);
@@ -422,28 +424,29 @@ void GroupRate::build(const hsp::str_table &input)
 /// Verify that group rates definitions are correct.
 vector<string> GroupRate::helper_assert_definitions_(const hsp::str_table &input)
 {
+    const std::vector<std::string> file_headers = {"group_rate", "param_name"};
+
     // check that tempalte headers are present
     vector<string> data_headers = hsp::read::extract_keys(input);
-    hsp::str::assert_no_missing_entries(data_headers, file_headers_);
+    hsp::str::assert_no_missing_entries(data_headers, file_headers);
 
     // remove template headers to keep only data
-    data_headers = data_headers - file_headers_;
+    data_headers = data_headers - file_headers;
     // check that required data columns are present
     hsp::str::assert_no_unused_entries(data_headers, pDataWide_->headers);
 
     // assert the group rate names are allowed
-    headers.clear();
-    for (const auto &g : input.at("group_rate"))
+    for (const auto &groupstr : input.at("group_rate"))
     {
-        if (g == hsp::rates::CONTACT || g == hsp::rates::MISSING)
+        if (groupstr == hsp::rates::CONTACT || groupstr == hsp::rates::MISSING)
             throw std::invalid_argument(
-                "Tried to use the reserved group rate name '" + g + "'.\nPlease, choose a different name.");
-        if (hsp::na::is(g))
+                "Tried to use the reserved group rate name '" + groupstr + "'.\nPlease, choose a different name.");
+        if (hsp::na::is(groupstr))
             throw std::invalid_argument(
                 "Found a missing group rate name in the definitions.");
-        headers.push_back(g);
+        if (!hsp::key::count<GroupRateKey>(groupstr))
+            hsp::key::add<GroupRateKey>(groupstr);
     }
-    headers = hsp::str::unique(headers);
 
     return data_headers;
 }

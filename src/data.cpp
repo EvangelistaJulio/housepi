@@ -574,6 +574,7 @@ void DataWide::init_draws(unsigned long sample_size)
 {
     // sample over households
     smpl_values.clear();
+    smpl_values.reserve(head_class_house_indexes.size());
     for (size_t R = 0; R < head_class_house_indexes.size(); ++R)
         smpl_values.emplace_back(sample_size, hsp::na::DOUBLE);
 }

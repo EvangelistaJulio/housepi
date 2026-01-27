@@ -737,13 +737,15 @@ void Augmented::init_draws(unsigned long sample_size)
     if (!is_any_draw())
         return;
 
+    const size_t n = list_draws.size();
+    smpl_values.clear();
     smpl_values.resize(smpl_individuals.size());
     for (size_t i = 0; i < smpl_individuals.size(); ++i)
     {
         auto &member_matrix = smpl_values[i];
-        member_matrix.resize(list_draws.size());
-        for (auto &row : member_matrix)
-            row.assign(sample_size, hsp::na::DOUBLE);
+        member_matrix.reserve(n);
+        for (size_t j = 0; j < n; ++j)
+            member_matrix.emplace_back(sample_size, hsp::na::DOUBLE);
     }
 }
 
