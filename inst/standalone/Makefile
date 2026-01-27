@@ -21,13 +21,25 @@ EXECUTABLE := $(MODEL)/model.exe
 
 # compilation flags
 CXX := g++
-CXXFLAGS := -std=c++17 -g -Wall -Wextra -pedantic -Wno-unknown-pragmas -I../template/include/ 
+CXXFLAGS := -std=c++17 -I../template/include/ \
+-Wall -Wextra -pedantic \
+-Wno-unknown-pragmas
 LDFLAGS :=
+
 ifdef DEBUG
-CXXFLAGS += -O0 -Werror -Wuninitialized
+CXXFLAGS += -g3 -O0 -Werror \
+-Wuninitialized \
+-fsanitize=address,undefined,leak \
+-fno-sanitize-recover=all \
+-fno-omit-frame-pointer \
+-fstack-protector-strong \
+-D_GLIBCXX_DEBUG \
+-D_GLIBCXX_DEBUG_PEDANTIC \
+-fno-inline
 else
-# standard Rcpp compilation flags
-CXXFLAGS += -O2
+CXXFLAGS += -g -O2
+endif
+
 # Change openMP flags according to OS
 ifeq ($(shell uname -s),Linux)
 CXXFLAGS += -fopenmp
@@ -45,7 +57,6 @@ endif
 endif
 else
 $(error Unsupported operating system.)
-endif
 endif
 
 # Make rules

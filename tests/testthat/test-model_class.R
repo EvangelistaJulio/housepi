@@ -9,7 +9,11 @@ test_that("Model class inconsistent calls", {
 
   # inference without definitions
   expect_error(hhmodel$run_inference(), regexp = "Nothing to sample")
+  
+  # FIXME house snapshot still not working
+  # output <- hhmodel$export_house_snapshot("house")
 })
+
 
 test_that("Model class blank calls", {
   # blank household model object
@@ -50,7 +54,7 @@ test_that("Model class blank calls", {
 
 test_that("Active bindings work as expected", {
   hhmodel <- new_housepi_model("blank")
-  
+
   # parameters
   hhmodel$parameters <- list(sample = list(prior = "uniform"),
                              uniform = list(prior = "uniform"))
@@ -58,7 +62,7 @@ test_that("Active bindings work as expected", {
   hhmodel$load_parameter_list(sample = list(prior = "uniform"),
                               uniform = list(prior = "uniform"))
   expect_equal(defs_a, hhmodel$parameters)
-  
+
   val <- 1
   hhmodel$load_parameter_list(
    var1 = list(prior = "normal", mean = indiv_shape + 1),
@@ -67,9 +71,9 @@ test_that("Active bindings work as expected", {
    var4 = list(prior = "normal", mean = ~ indiv_shape + !!val)
   )
   aux <- hhmodel$parameters
-  aux$name <- NULL  
+  aux$name <- NULL
   expect_equal(nrow(unique(aux)), 1)
-  
+
   # augmented
   hhmodel$augmented <- list(sample = list(model = "uniform"),
                             uniform = list(model = "uniform"))
@@ -77,7 +81,7 @@ test_that("Active bindings work as expected", {
   hhmodel$load_augmented_list(sample = list(model = "uniform"),
                               uniform = list(model = "uniform"))
   expect_equal(defs_a, hhmodel$augmented)
-  
+
   val <- 3
   hhmodel$load_augmented_list(
    var1 = list(model = "normal", mean = indiv_shape + 3),
@@ -150,12 +154,12 @@ test_that("Nested definittions works as expected", {
 
 test_that("Load augmented list works fine for external lists", {
   hhmodel <- new_housepi_model("blank")
-  
+
   external_list <- list(z0 = ~ date@D, z1 = ~ sqrt(log(z0)))
   # raise error for on injection
   expect_error(hhmodel$load_augmented_list(external_list),
                regexp = "injection operator")
-  
+
   tmp <- hhmodel$load_augmented_list(!!!external_list)$augmented
   hhmodel$load_augmented_list(z0 = date@D, z1 = sqrt(log(z0)))
   expect_equal(tmp, hhmodel$augmented)

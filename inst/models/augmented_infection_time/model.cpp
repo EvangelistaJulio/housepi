@@ -72,8 +72,10 @@ double Model::loglike_healthy(const Household &house) const
 	for (const auto &member_i : house.susceptible())
 	{
 		double roi_cumul = 0;
+
 		for (const auto &member_k : house.infected())
 			roi_cumul += cumul_mtx[member_k][member_i] * member_k.group_rate(GroupRateKey::infectivity);
+
 		output -= member_i.group_rate(GroupRateKey::community) * alpha_cumul + member_i.group_rate(GroupRateKey::susceptibility) * beta * roi_cumul;
 	}
 

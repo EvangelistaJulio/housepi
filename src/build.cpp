@@ -5,6 +5,7 @@
  * See the LICENSE file for details.
  */
 
+#include <algorithm>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -386,23 +387,26 @@ GroupRate::GroupRate(std::shared_ptr<DataWide> dataptr,
 GroupRate::~GroupRate() = default;
 
 /// Update model report and set group rates associate to new individual.
+/// NOTE: this has to run even if input is empty to initialize existing rates to reference.
 void GroupRate::build(const hsp::str_table &input)
 {
     hsp::key::clear<GroupRateKey>();
 
-    if (input.empty())
+    size_t n_rows = 0;
+    vector<string> data_headers = {};
+    if (!input.empty())
+    {
+        data_headers = helper_assert_definitions_(input);
+        n_rows = input.begin()->second.size();
+    } else if (hsp::key::size<GroupRateKey>() == 0)
         return;
 
-    const vector<string> data_headers(helper_assert_definitions_(input));
-
     // loop over all household members
-    const size_t n_rows = input.at("group_rate").size();
     for (auto &house : *pDataWide_)
         for (auto &member : house)
         {
             hsp::str_table these_rates = {};
 
-            // obtain group rates for given member
             for (size_t r = 0; r < n_rows; ++r)
             {
                 // check if all conditions are satisfied
@@ -416,7 +420,6 @@ void GroupRate::build(const hsp::str_table &input)
                     these_rates[input.at("group_rate")[r]].push_back(input.at("param_name")[r]);
             }
 
-            // assign rates to the individual
             helper_init_all_rates_(member, these_rates);
         }
 }
@@ -452,32 +455,37 @@ vector<string> GroupRate::helper_assert_definitions_(const hsp::str_table &input
 }
 
 /// Convert to a dictionary of parameter pointers and pass the pointers to the individual.
-/// UPDATE: I can move the full check on missing rates here!
 void GroupRate::helper_init_all_rates_(Individual &member, const hsp::str_table &these_rates)
 {
-    member.group_rate_vec_.resize(hsp::key::size<GroupRateKey>());
+    // initialize group rates to reference
+    member.group_rate_vec_.clear();
+    member.group_rate_vec_.reserve(hsp::key::size<GroupRateKey>());
+    for (size_t g = 0; g < hsp::key::size<GroupRateKey>(); ++g)
+    {
+        member.group_rate_vec_.emplace_back(Attribute(hsp::rates::VALUE_REFERENCE));
+        member.group_rate_vec_.back().name(hsp::key::as_string<GroupRateKey>(g), "group rate");
+    }
 
-    for (const auto &[g, vec] : these_rates)
+    // assign custom definitions
+    for (const auto &[groupstr, vec] : these_rates)
     {
         // extract non-reference parameter pointers
         vector<const Attribute *> param_pointers = {};
         for (const auto &paramstr : vec)
         {
             if (hsp::na::is(paramstr) || paramstr == hsp::rates::MISSING)
-                throw std::invalid_argument("A group rate definition '" + g +
+                throw std::invalid_argument("A group rate definition '" + groupstr +
                                             "' was missing for " + member.err_name() + ".");
             if (paramstr != hsp::rates::REFERENCE)
                 param_pointers.emplace_back(
                     pParameter_->at(hsp::key::from_string<ParamKey>(paramstr)).get_ptr());
         }
 
-        // initialize group rate to reference or the param pointers
-        auto attr = Attribute(hsp::rates::VALUE_REFERENCE);
         if (!param_pointers.empty())
-            attr = Attribute(param_pointers);
-
-        member.group_rate_vec_[hsp::key::from_string<GroupRateKey>(g)].transfer(attr);
-        member.group_rate_vec_[hsp::key::from_string<GroupRateKey>(g)].name(g, "group rate");
+        {
+            size_t g = hsp::key::from_string<GroupRateKey>(groupstr);
+            member.group_rate_vec_[g].transfer(Attribute(param_pointers));
+        }
     }
 }
 

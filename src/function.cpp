@@ -386,9 +386,6 @@ Attribute &Function::find_arg_(std::string_view arg_name)
         hsp::str::find_closest(arg_name, options));
 }
 
-/// Wheter it is empty.
-bool Function::is_empty() const noexcept { return hsp::na::is(name()); }
-
 /// Wheter return value is always constant.
 bool Function::is_constant() const noexcept
 {

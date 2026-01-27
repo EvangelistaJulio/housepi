@@ -5,6 +5,7 @@
  * See the LICENSE file for details.
  */
 
+#include <algorithm>
 #include <chrono>
 #include <stdexcept>
 #include <string>

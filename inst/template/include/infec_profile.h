@@ -36,7 +36,7 @@ struct InfecProfile
     friend struct Augmented;
 
 public:
-    std::shared_ptr<Distribution> generic_profile;
+    std::shared_ptr<Distribution> generic_profile = nullptr;
 
 	///////////////////////////
 	//////  CONSTRUCTOR  //////

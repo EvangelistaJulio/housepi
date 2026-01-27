@@ -184,8 +184,7 @@ namespace
             hsp::msg::error(
                 "Impossible to export infectivity profile when if definition is not generic.");
 
-        if (infec_profile->generic_profile == nullptr ||
-            infec_profile->generic_profile->is_empty())
+        if (infec_profile->generic_profile == nullptr)
             return List::create();
 
         return List::create(_["func"] = infec_profile->generic_profile->name(),
@@ -800,7 +799,7 @@ namespace
     {
         using namespace Rcpp;
 
-        if (!infec_profile->is_augmented() && infec_profile->generic_profile->is_empty())
+        if (infec_profile->generic_profile == nullptr && !infec_profile->is_augmented())
             return List::create();
 
         const size_t n_rows = house.size();
@@ -845,7 +844,7 @@ namespace
     }
 
     /// Export to R a snapshot of current state of house augmented variables.
-    Rcpp::DataFrame helper_augm_rcpp_snapshot(const std::shared_ptr<Augmented>augm, const Household &house)
+    Rcpp::DataFrame helper_augm_rcpp_snapshot(const std::shared_ptr<Augmented> augm, const Household &house)
     {
         using namespace Rcpp;
         const auto &list_export = augm->list_export;

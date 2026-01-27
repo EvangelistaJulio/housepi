@@ -38,17 +38,14 @@
 
 namespace
 {
-    using std::string;
-    using std::vector;
-
     /// Check augmented names and assert no reserved names are used.
     void helper_assert_augm_input(const hsp::str_table &input)
     {
-        const vector<string> file_headers = {"name", "status",
-                                             "func", "fcumul",
-                                             "value", "const", "discr",
-                                             "model", hsp::params::MIN, hsp::params::MAX,
-                                             "proposal", "proposal_scale"};
+        const std::vector<std::string> file_headers = {"name", "status",
+                                                      "func", "fcumul",
+                                                      "value", "const", "discr",
+                                                      "model", hsp::params::MIN, hsp::params::MAX,
+                                                      "proposal", "proposal_scale"};
         const auto headers = hsp::read::extract_keys(input);
         hsp::str::assert_no_missing_entries(headers, file_headers);
         hsp::str::assert_no_unused_entries(headers, file_headers);
@@ -65,11 +62,11 @@ namespace
     }
 
     /// Helper to build augmented definition order and assert for acyclic.
-    void walk_dependency_tree(const string &entry,
+    void walk_dependency_tree(const std::string &entry,
                               const hsp::str_table &tree,
-                              vector<string> &visited,
-                              vector<string> &recursion_stack,
-                              vector<string> &ordered)
+                              std::vector<std::string> &visited,
+                              std::vector<std::string> &recursion_stack,
+                              std::vector<std::string> &ordered)
     {
         if (!tree.count(entry))
             throw std::invalid_argument(
@@ -86,16 +83,16 @@ namespace
         for (auto &dep : tree.at(entry))
             walk_dependency_tree(dep, tree, visited, recursion_stack, ordered);
 
-        recursion_stack = recursion_stack - vector<string>({entry});
+        recursion_stack = recursion_stack - std::vector<std::string>({entry});
         visited.push_back(entry);
         ordered.push_back(entry);
     }
 
     /// Get topological order of definitions dependencies.
-    vector<string> extract_all_dependencies_order(const hsp::str_table &graph)
+    std::vector<std::string> extract_all_dependencies_order(const hsp::str_table &graph)
     {
         // inspect dependency tree for cycles and missing entries
-        vector<string> visited, recursion_stack, ordered;
+        std::vector<std::string> visited, recursion_stack, ordered;
         for (const auto &[a, vec] : graph)
             if (std::find(visited.begin(), visited.end(), a) == visited.end())
                 walk_dependency_tree(a, graph, visited, recursion_stack, ordered);
@@ -103,7 +100,7 @@ namespace
     }
 
     /// Get topological order of definitions depending on 'start' (start included).
-    vector<string> extract_dependents_order(const string &start, const hsp::str_table &graph)
+    std::vector<std::string> extract_dependents_order(const std::string &start, const hsp::str_table &graph)
     {
         // construct a reversed graph for dependents
         hsp::str_table reverse_graph;
@@ -118,12 +115,12 @@ namespace
         }
 
         // walk dependents of start
-        vector<string> visited, recursion_stack, ordered;
+        std::vector<std::string> visited, recursion_stack, ordered;
         for (const auto &dep : reverse_graph.at(start))
             walk_dependency_tree(dep, reverse_graph, visited, recursion_stack, ordered);
 
         std::reverse(ordered.begin(), ordered.end());
-        return vector<string>({start}) + ordered;
+        return std::vector<std::string>({start}) + ordered;
     }
 }
 
@@ -197,7 +194,7 @@ void Augmented::helper_build_definition_by_status_()
 
         // check associated status
         int status = hsp::status::MISSING;
-        const string &s = deftable_["status"][k];
+        const std::string &s = deftable_["status"][k];
         if (!hsp::na::is(s))
         {
             status = hsp::str::toi(s, "augmented status");
@@ -211,7 +208,7 @@ void Augmented::helper_build_definition_by_status_()
     // assert that name and status are univocal
     for (const auto &[status, idxs] : status_to_def_row)
     {
-        vector<string> name_to_status = {};
+        std::vector<std::string> name_to_status = {};
         for (size_t k : idxs)
             name_to_status.push_back(deftable_["name"][k]);
 
@@ -255,7 +252,7 @@ void Augmented::set_definition_dependency_order_for_(int status)
     hsp::dict<size_t> name_to_row; // ... and reverse dictionary name-to-row-index
     for (size_t k : get_unsorted_definition_rows_(status, true))
     {
-        vector<string> xdepen = {};
+        std::vector<std::string> xdepen = {};
         for (const auto c : columns)
             xdepen += hsp::parse::Definition(deftable_[c][k]).list_augmented_depen();
         tree[deftable_["name"][k]] = hsp::str::unique(xdepen);
@@ -275,7 +272,7 @@ void Augmented::set_definition_dependency_order_for_(int status)
     }
     catch (const std::exception &e)
     {
-        throw std::invalid_argument(string(e.what()) + " for status " + std::to_string(status) + ".");
+        throw std::invalid_argument(std::string(e.what()) + " for status " + std::to_string(status) + ".");
     }
 
     // define usage lists respecting definition order
@@ -284,15 +281,15 @@ void Augmented::set_definition_dependency_order_for_(int status)
 }
 
 /// Extract status-specific definitions row indexes.
-vector<size_t> Augmented::get_unsorted_definition_rows_(int status, bool is_pre_process) const
+std::vector<size_t> Augmented::get_unsorted_definition_rows_(int status, bool is_pre_process) const
 {
     // load the list of status-specific definition rows
     if (status_to_def_row.count(status))
     {
-        vector<size_t> allrows = status_to_def_row.at(status);
+        std::vector<size_t> allrows = status_to_def_row.at(status);
 
         // extract names
-        vector<string> name_to_status = {};
+        std::vector<std::string> name_to_status = {};
         for (size_t k : allrows)
             name_to_status.push_back(deftable_.find("name")->second[k]);
 
@@ -438,7 +435,7 @@ void Augmented::init_missing(Individual &member, bool force)
 
 /// Get the definition order for current member according to its status.
 /// NOTE: if status hasn't been observed in data, build on demand
-vector<size_t> Augmented::init_get_definition_order_(Individual &member)
+std::vector<size_t> Augmented::init_get_definition_order_(Individual &member)
 {
     int status = member.status();
 
@@ -504,7 +501,7 @@ void Augmented::helper_init_attributes_(Individual &member, size_t k)
     catch (const std::exception &e)
     {
         throw std::runtime_error("While initializing augmented '" + augmstr +
-                                 "' for " + member.err_name() + ":\n" + string(e.what()));
+                                 "' for " + member.err_name() + ":\n" + std::string(e.what()));
     }
 }
 
@@ -614,13 +611,13 @@ hsp::str_table Augmented::get_ordered_models_(int status) const
     // columns presenting definitions possibly containing sources
     const auto columns = {"value", "model", "func", hsp::params::MIN, hsp::params::MAX};
 
-    hsp::str_table tree;           // populate augmented dependency tree
-    hsp::str_table ordered_models; // store hierarchical order of models
-    vector<string> without_model;  // list of augmented without models
+    hsp::str_table tree;                    // populate augmented dependency tree
+    hsp::str_table ordered_models;          // store hierarchical order of models
+    std::vector<std::string> without_model; // list of augmented without models
     for (size_t k : get_unsorted_definition_rows_(status, false))
     {
         const auto &aumgstr = deftable_.at("name")[k];
-        vector<string> xdepen = {};
+        std::vector<std::string> xdepen = {};
         for (auto c : columns)
             xdepen += hsp::parse::Definition(deftable_.at(c)[k]).list_augmented_depen();
 
@@ -692,7 +689,7 @@ double Augmented::materialize_augm_model_logratio(Individual &member, size_t a)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Set individual id for augmented draws follow-up.
-void Augmented::init_individual_sample(vector<string> &id_draws)
+void Augmented::init_individual_sample(std::vector<std::string> &id_draws)
 {
     smpl_individuals.clear();
 
@@ -708,7 +705,7 @@ void Augmented::init_individual_sample(vector<string> &id_draws)
     }
 
     smpl_individuals.reserve(id_draws.size());
-    vector<string> existing_ids = {};
+    std::vector<std::string> existing_ids = {};
     for (const auto &house : *pDataWide_)
         for (const auto &member : house)
             if (std::find(id_draws.begin(), id_draws.end(), member.id()) != id_draws.end())

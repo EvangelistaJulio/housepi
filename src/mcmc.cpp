@@ -5,6 +5,12 @@
  * See the LICENSE file for details.
  */
 
+#include <algorithm>
+#include <functional>
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "tools/atomic.h"
 #include "tools/keys.h"
 #include "tools/keys_helper.h"
@@ -23,12 +29,6 @@
 #include "mcmc.h" /// UPDATE: should remove I/O and Rcpp dependencies from MCMC...
 #include "mcmc_impl.h"
 #include "parameter.h"
-
-namespace
-{
-    using std::string;
-    using std::vector;
-}
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -149,7 +149,7 @@ double MCMCImpl::atomic_materialize_house_log_lik_(Household &house, bool is_cac
     catch (const std::exception &e)
     {
         atomic_error->set_if_first("While computing log-likelihood for " +
-                                   house.err_name() + ":\n" + string(e.what()));
+                                   house.err_name() + ":\n" + std::string(e.what()));
     }
 
     return output;
@@ -397,7 +397,7 @@ double MCMCImpl::atomic_move_augm_single_house_(size_t H)
     catch (const std::exception &e)
     {
         atomic_error->set_if_first("While sampling augmented variables for " +
-                                   house.err_name() + ":\n" + string(e.what()));
+                                   house.err_name() + ":\n" + std::string(e.what()));
     }
 
     return delta_ll;
@@ -495,7 +495,7 @@ namespace
     /// Ref :
     /// ----
     /// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
-    std::pair<double, double> compute_stats(const vector<double> &data)
+    std::pair<double, double> compute_stats(const std::vector<double> &data)
     {
         size_t i = 0;
         size_t N = data.size();
@@ -523,13 +523,13 @@ namespace
 /// Friel, N., Hurn, M. & Wyse, J.
 /// Improving power posterior estimation of statistical evidence.
 /// Stat Comput 24, 709–723 (2014).
-vector<vector<double>> MCMCImpl::power_posteriors(std::string_view scheme, unsigned long n_rungs)
+std::vector<std::vector<double>> MCMCImpl::power_posteriors(std::string_view scheme, unsigned long n_rungs)
 {
     // check scheme choice
-    const vector<string> options = {"adaptive", "power-fractions"};
+    const std::vector<std::string> options = {"adaptive", "power-fractions"};
     if (std::find(options.begin(), options.end(), scheme) == options.end())
         throw std::invalid_argument(
-            "Invoked invalid power posterior scheme '" + string(scheme) + "'." +
+            "Invoked invalid power posterior scheme '" + std::string(scheme) + "'." +
             hsp::str::find_closest(scheme, options));
 
     // check number of rungs for the thermodynamic ladder
@@ -545,9 +545,9 @@ vector<vector<double>> MCMCImpl::power_posteriors(std::string_view scheme, unsig
     setup->prog_open_for_power_post();  // print progress bar
 
     // thermodynamic ladder estimates
-    vector<double> itm = {}; // inverse temperature
-    vector<double> avg = {}; // mean log-likelihood
-    vector<double> var = {}; // variance log-likelihood
+    std::vector<double> itm = {}; // inverse temperature
+    std::vector<double> avg = {}; // mean log-likelihood
+    std::vector<double> var = {}; // variance log-likelihood
 
     // run power posteriors
     power_post_zero_(itm, avg, var);
@@ -563,7 +563,7 @@ vector<vector<double>> MCMCImpl::power_posteriors(std::string_view scheme, unsig
 }
 
 /// Power posteriors at 0 inverse temperature.
-void MCMCImpl::power_post_zero_(vector<double> &itm, vector<double> &avg, vector<double> &var)
+void MCMCImpl::power_post_zero_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var)
 {
     // UPDATE: should I use previous inference for itm = 1 if available?
     // UPDATE: always under-estimate time if starting from itm = 0
@@ -579,7 +579,7 @@ void MCMCImpl::power_post_zero_(vector<double> &itm, vector<double> &avg, vector
 }
 
 /// Power posteriors with adaptive scheme for the thermodynamic ladder.
-void MCMCImpl::power_post_adaptive_(vector<double> &itm, vector<double> &avg, vector<double> &var)
+void MCMCImpl::power_post_adaptive_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var)
 {
     // Inverse Temperature 1
     {
@@ -626,7 +626,7 @@ void MCMCImpl::power_post_adaptive_(vector<double> &itm, vector<double> &avg, ve
 }
 
 /// Power posteriors with power fractions scheme for the thermodynamic ladder.
-void MCMCImpl::power_post_fractions_(vector<double> &itm, vector<double> &avg, vector<double> &var)
+void MCMCImpl::power_post_fractions_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var)
 {
     for (setup->rung = 1; setup->rung <= setup->n_rungs; ++setup->rung)
     {
@@ -711,7 +711,7 @@ void MCMC::build_all_rates()
     catch (const std::exception &e)
     {
         hsp::msg::error("While initializing contact rates:\n" +
-                        string(e.what()));
+                        std::string(e.what()));
     }
 }
 

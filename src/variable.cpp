@@ -14,12 +14,6 @@
 #include "proposal.h"
 #include "variable.h"
 
-namespace
-{
-    using std::string;
-    using std::vector;
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////  Proposal : constructor  //////////////////////////////////////
@@ -30,9 +24,9 @@ namespace
 Proposal::Proposal() = default;
 
 /// Proposal constructor from Distribution name.
-Proposal::Proposal(const string &distr_name,
+Proposal::Proposal(const std::string &distr_name,
                    double proposal_scale,
-                   const vector<unsigned short> &args_to_adapt,
+                   const std::vector<unsigned short> &args_to_adapt,
                    bool is_discrete)
     : pDistr_(compose_distr_registries(distr_name, "proposal", {"continuos"}))
 {
@@ -187,11 +181,11 @@ namespace
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Switchboard to select the custom metropolis proposal.
-    std::unique_ptr<Proposal> proposer_switch(const string &proposal = "",
+    std::unique_ptr<Proposal> proposer_switch(const std::string &proposal = "",
                                               double proposal_scale = hsp::na::DOUBLE,
                                               bool is_discrete = false)
     {
-        const vector<string> options = {"sample", "uniform", "normal", "lognormal"};
+        const std::vector<std::string> options = {"sample", "uniform", "normal", "lognormal"};
 
         if (hsp::na::is(proposal))
             return nullptr;
@@ -362,7 +356,7 @@ void Variable::init_rand(hsp::rnd_gen &prng) { set(pDistr_->rand(prng)); }
 
 /// Assign proposer to variable.
 /// NOTE: it must be assigned after model initialization.
-void Variable::init_proposer(const string &proposal, double proposal_scale)
+void Variable::init_proposer(const std::string &proposal, double proposal_scale)
 {
     is_constant_ = true; // if no proposal is defined, assume constant
 
@@ -391,7 +385,7 @@ void Variable::helper_init_sample_proposer_()
 }
 
 /// Helper with Monte Carlo proposer initialization.
-void Variable::helper_init_proposer_monte_carlo_(const string &proposal, double proposal_scale)
+void Variable::helper_init_proposer_monte_carlo_(const std::string &proposal, double proposal_scale)
 {
     // raise a warning if "lnorm" proposal when variable can be negative
     if (pDistr_ != nullptr && pDistr_->lower() < 0 && proposal == "lnorm")
@@ -428,7 +422,7 @@ bool Variable::is_discrete() const noexcept
     return Attribute::is_discrete();
 }
 /// Wheter the variable has a prior or a model associated.
-bool Variable::is_model() const noexcept { return pDistr_ != nullptr && !pDistr_->is_empty(); }
+bool Variable::is_model() const noexcept { return pDistr_ != nullptr; }
 /// Wheter the variable has an adaptable parametric proposal rule.
 bool Variable::is_adaptable() const noexcept { return pProp_ != nullptr && pProp_->is_adaptable(); }
 
@@ -444,7 +438,7 @@ void Variable::reset_accept_rate() { pProp_->reset_accept_rate(); }
 void Variable::adapt_proposal(double ratio) { pProp_->adapt(ratio); }
 
 /// Get a description about the functional status.
-string Variable::str_summary() const
+std::string Variable::str_summary() const
 {
     auto output = Attribute::str_summary();
     if (is_model())

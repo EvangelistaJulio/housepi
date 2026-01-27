@@ -113,8 +113,6 @@ public:
     //////  FLAGS  //////
     /////////////////////
 
-    /// Wheter it is empty.
-    bool is_empty() const noexcept;
     /// Wheter return value is always constant.
     bool is_constant() const noexcept;
     /// Wheter return value is always discrete.
