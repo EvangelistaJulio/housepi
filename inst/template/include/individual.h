@@ -10,8 +10,6 @@
 #include <string>
 #include <vector>
 
-#include "tools/keys.h"
-
 #include "attribute.h"
 #include "augmented_map.h"
 
@@ -78,15 +76,15 @@ public:
 
 	int status() const { return status_; }
 
-	double data(DataKey d) const { return data_vec_[static_cast<size_t>(d)]; }
+	double data(size_t d) const { return data_vec_[d]; }
 	const std::vector<double> &get_data_wide_vec() const { return data_vec_; }
 
 	/// Return associated data long format.
-	/// NOTE: return a reference to a static empty vector when no datalong is attached
-	const std::vector<double> &data_long(LongKey d) const noexcept
+	/// NOTE: return a reference to a static empty vector when no datalong is attached.
+	const std::vector<double> &data_long(size_t d) const noexcept
 	{
 		if (pdatalong_ != nullptr)
-			return pdatalong_->at(static_cast<size_t>(d));
+			return (*pdatalong_)[d];
 
 		static const std::vector<double> EMPTY_DATA_LONG_VEC = std::vector<double>();
 		return EMPTY_DATA_LONG_VEC;
@@ -96,7 +94,7 @@ public:
 	/// NOTE: return a reference to a static empty vector when no datalong is attached
 	const std::vector<std::vector<double>> *get_data_long_ptr() const noexcept { return pdatalong_; }
 
-	double group_rate(GroupRateKey g) const { return group_rate_vec_[static_cast<size_t>(g)].get(); }
+	double group_rate(size_t g) const { return group_rate_vec_[g].get(); }
 	const Attribute &get_group_rate_attribute(size_t g) const { return group_rate_vec_[g]; }
 
 	/////////////////////

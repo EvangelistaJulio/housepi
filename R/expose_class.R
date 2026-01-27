@@ -298,12 +298,7 @@ load_augmented_template <- function(hhmodel, append = FALSE) {
 ############################################################################
 
 #' @title Add group rate definition
-#' @description
-#' Add definitions of a group rate by given data feature(s).
-#' Group rates are relative to a reference class that can be specified.
-#' If no MCMC options are provided, the prior is assumed to be a
-#' \\eqn{\\mathrm{lognormal}[\\mu=0, \\sigma=3]}
-#' with support \\eqn{[0, 10]}.
+#' @description `r rd_grr_desc_`
 #' @param hhmodel `r rd_model_in_`
 #' @param name `r rd_var_name_`
 #' @param by `r rd_grr_by_`

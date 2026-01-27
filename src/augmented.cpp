@@ -11,7 +11,6 @@
 #include <string>
 #include <vector>
 
-#include "tools/keys.h"
 #include "tools/keys_helper.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
@@ -42,10 +41,10 @@ namespace
     void helper_assert_augm_input(const hsp::str_table &input)
     {
         const std::vector<std::string> file_headers = {"name", "status",
-                                                      "func", "fcumul",
-                                                      "value", "const", "discr",
-                                                      "model", hsp::params::MIN, hsp::params::MAX,
-                                                      "proposal", "proposal_scale"};
+                                                       "func", "fcumul",
+                                                       "value", "const", "discr",
+                                                       "model", hsp::params::MIN, hsp::params::MAX,
+                                                       "proposal", "proposal_scale"};
         const auto headers = hsp::read::extract_keys(input);
         hsp::str::assert_no_missing_entries(headers, file_headers);
         hsp::str::assert_no_unused_entries(headers, file_headers);
@@ -130,18 +129,21 @@ namespace
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Augmented::Augmented(std::shared_ptr<DataWide> dataptr,
+Augmented::Augmented(const std::vector<std::string> &keys,
+                     std::shared_ptr<DataWide> dataptr,
                      std::shared_ptr<Parameter> paramptr,
                      std::shared_ptr<InfecProfile> infprofptr)
-    : pDataWide_(dataptr),
+    : pRegistry(std::make_shared<hsp::key::Registry>(keys)),
+      pDataWide_(dataptr),
       pParameter_(paramptr),
       pInfecProfile_(infprofptr) {}
+    
 Augmented::~Augmented() = default;
 
 /// Assign augmented variables to all individuals.
 void Augmented::build(const hsp::str_table &input)
 {
-    hsp::key::clear<AugmKey>();
+    pRegistry->clear();
 
     if (input.empty() && !pInfecProfile_->is_augmented())
         return;
@@ -155,12 +157,12 @@ void Augmented::build(const hsp::str_table &input)
         for (const auto &[key, vec] : pInfecProfile_->augm_profile_definitions_)
             deftable_.at(key) += vec;
 
-        hsp::key::add<AugmKey>(hsp::infprof::INSTANT);
-        pInfecProfile_->augm_infecprof_key_ = hsp::key::from_string<AugmKey>(hsp::infprof::INSTANT);
+        pRegistry->add(hsp::infprof::INSTANT);
+        pInfecProfile_->augm_infecprof_key = pRegistry->from_string(hsp::infprof::INSTANT);
 
         // append discrete infectivity profile definitions if any
         if (pInfecProfile_->is_discrete_requested())
-            user_discrete_set.emplace(pInfecProfile_->augm_infecprof_key_);
+            user_discrete_set.emplace(pInfecProfile_->augm_infecprof_key);
     }
 
     helper_build_definition_by_status_();
@@ -189,8 +191,8 @@ void Augmented::helper_build_definition_by_status_()
     {
         // fill registry with optional augmented definitions
         const auto augmstr = deftable_["name"][k];
-        if (!hsp::key::count<AugmKey>(augmstr))
-            hsp::key::add<AugmKey>(augmstr);
+        if (!pRegistry->count(augmstr))
+            pRegistry->add(augmstr);
 
         // check associated status
         int status = hsp::status::MISSING;
@@ -318,7 +320,7 @@ std::vector<size_t> Augmented::get_unsorted_definition_rows_(int status, bool is
 void Augmented::set_sample_map_for_(int status, size_t k)
 {
     const auto &augmstr = deftable_["name"][k];
-    const auto a = hsp::key::from_string<AugmKey>(augmstr);
+    const auto a = pRegistry->from_string(augmstr);
 
     if (hsp::str::tobool(deftable_["const"][k]))
     {
@@ -362,7 +364,7 @@ void Augmented::set_sample_map_for_(int status, size_t k)
 void Augmented::set_function_or_identity_for_(size_t k)
 {
     const auto &augmstr = deftable_["name"][k];
-    const auto a = hsp::key::from_string<AugmKey>(augmstr);
+    const auto a = pRegistry->from_string(augmstr);
     const hsp::parse::Definition parser(deftable_["func"][k]);
 
     if (parser.is_terminal())
@@ -371,7 +373,7 @@ void Augmented::set_function_or_identity_for_(size_t k)
 
         // check the type of requested equality
         if (hsp::parse::is_parameter(parser.root.type))
-            is_identity_const = pParameter_->at(hsp::key::from_string<ParamKey>(parser.root.value)).is_constant();
+            is_identity_const = pParameter_->at(pParameter_->pRegistry->from_string(parser.root.value)).is_constant();
 
         else if (hsp::parse::is_augmented(parser.root.type))
             is_identity_const = false; // UPDATE: use an augmented dependecies tree to see if constant
@@ -399,18 +401,18 @@ void Augmented::set_function_or_identity_for_(size_t k)
 /// Clear all augmented definition of individual.
 void Augmented::clear_all(Individual &member)
 {
-    size_t n = hsp::key::size<AugmKey>();
+    size_t n = pRegistry->size();
     member.augm_vec_.reserve(n);
     member.augm_vec_.assign(n, Variable("augmented"));
     for (size_t a = 0; a < n; ++a)
-        member.augm_vec_[a].name(hsp::key::as_string<AugmKey>(a));
+        member.augm_vec_[a].name(pRegistry->as_string(a));
 }
 
 /// Initialize augmented dependecies for evaluations.
 /// NOTE: not to be called before simulation which builds on demand.
 void Augmented::init()
 {
-    if (hsp::key::size<AugmKey>() == 0)
+    if (pRegistry->size() == 0)
         return;
 
     init_model_list();
@@ -429,7 +431,7 @@ void Augmented::init_missing(Individual &member, bool force)
 {
     // loop over augmented variable definitions to assign placheholders
     for (size_t k : init_get_definition_order_(member))
-        if (force || member.augm_vec_[hsp::key::from_string<AugmKey>(deftable_["name"][k])].is_empty())
+        if (force || member.augm_vec_[pRegistry->from_string(deftable_["name"][k])].is_empty())
             helper_init_attributes_(member, k);
 }
 
@@ -466,7 +468,7 @@ std::vector<size_t> Augmented::init_get_definition_order_(Individual &member)
 void Augmented::helper_init_attributes_(Individual &member, size_t k)
 {
     const auto &augmstr = deftable_["name"][k];
-    const auto a = hsp::key::from_string<AugmKey>(augmstr);
+    const auto a = pRegistry->from_string(augmstr);
 
     try
     {
@@ -509,7 +511,7 @@ void Augmented::helper_init_attributes_(Individual &member, size_t k)
 void Augmented::init_model_attributes_(Individual &member, size_t k)
 {
     const auto &a = deftable_["name"][k];
-    auto &xaugm = member.augm_vec_[hsp::key::from_string<AugmKey>(a)];
+    auto &xaugm = member.augm_vec_[pRegistry->from_string(a)];
 
     if (!xaugm.is_model())
         return;
@@ -527,7 +529,7 @@ void Augmented::init_model_attributes_(Individual &member, size_t k)
 void Augmented::init_func_attributes_(Individual &member, size_t k)
 {
     const auto &a = deftable_["name"][k];
-    auto &xaugm = member.augm_vec_[hsp::key::from_string<AugmKey>(a)];
+    auto &xaugm = member.augm_vec_[pRegistry->from_string(a)];
 
     if (!xaugm.is_function())
         return;
@@ -561,7 +563,7 @@ void Augmented::user_reset(hsp::rnd_gen &prng, Individual &member)
 /// Initialize augmented initial values for all individuals.
 void Augmented::user_reset(hsp::rnd_gen &prng)
 {
-    if (hsp::key::size<AugmKey>() == 0)
+    if (pRegistry->size() == 0)
         return;
 
     for (auto &house : *pDataWide_)
@@ -595,9 +597,9 @@ void Augmented::init_model_list()
             block.models.reserve(hsp::read::csv_n_rows(ordered_models));
             for (const auto &[augmstr, others] : ordered_models)
             {
-                const auto a = hsp::key::from_string<AugmKey>(augmstr);
+                const auto a = pRegistry->from_string(augmstr);
                 block.models.push_back(a);
-                block.depen.emplace(a, hsp::key::from_string<AugmKey>(others));
+                block.depen.emplace(a, pRegistry->from_string(others));
             }
         }
         // update status to index map

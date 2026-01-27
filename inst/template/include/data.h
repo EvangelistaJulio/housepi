@@ -99,12 +99,22 @@ private:
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
+namespace hsp::key
+{
+    class Registry;
+}
+
 struct ReportIndividual;
 struct ReportHousehold;
 struct ReportHouseSizes;
 
 struct DataWide
 {
+    std::shared_ptr<hsp::key::Registry> pRegistry;         /// pointer to registry
+    std::unique_ptr<hsp::key::Registry> pHHsize_tRegistry; /// pointer to registry
+    std::unique_ptr<hsp::key::Registry> pHHdoubleRegistry; /// pointer to registry
+    std::unique_ptr<hsp::key::Registry> pHHmatrixRegistry; /// pointer to registry
+
     std::vector<std::string> headers = {}; /// Headers of input data
 
     // list of all infected statuses in the dataset
@@ -116,11 +126,14 @@ struct DataWide
     std::unique_ptr<ReportHousehold> report_house;
     std::unique_ptr<ReportHouseSizes> report_hh_size;
 
-	///////////////////////////
-	//////  CONSTRUCTOR  //////
-	///////////////////////////
+    ///////////////////////////
+    //////  CONSTRUCTOR  //////
+    ///////////////////////////
 
-    DataWide();
+    DataWide(const std::vector<std::string> &keys,
+             const std::vector<std::string> &hh_size_t_keys,
+             const std::vector<std::string> &hh_double_keys,
+             const std::vector<std::string> &hh_matrix_keys);
     ~DataWide();
 
     Household &at(size_t H) { return house_vector_[H]; }
@@ -128,35 +141,38 @@ struct DataWide
     Household &at(std::string_view house_id) { return at(house_id_to_index_(house_id)); }
     const Household &at(std::string_view house_id) const { return at(house_id_to_index_(house_id)); }
 
-	//////////////////////
-	//////  SETTER  //////
-	//////////////////////
-    
+    //////////////////////
+    //////  SETTER  //////
+    //////////////////////
+
     void build(const hsp::str_table &input);
-    void multiplicity_build(const hsp::str_table &input);
+    void multiplicity_build(const hsp::str_table &input, bool is_any_augm);
+
+    /// Initialize cached structeres according to household size.
+    void init_house_cache(Household &house);
 
     void init_draws(unsigned long sample_size);
     void store_draws(unsigned long smpl_count);
-    
-	/////////////////////
-	//////  FLAGS  //////
-	/////////////////////
+
+    /////////////////////
+    //////  FLAGS  //////
+    /////////////////////
 
     /// Wheter data have been provided.
-    bool is_empty() const { return house_vector_.empty(); }
+    bool is_empty() const noexcept { return house_vector_.empty(); }
     /// Assert data_wide is not empty.
     void assert_non_empty();
     /// Warn if all individuals have missing status.
     void warn_all_missing_status();
 
-	/////////////////////////
-	//////  ITERATORS  //////
-	/////////////////////////
+    /////////////////////////
+    //////  ITERATORS  //////
+    /////////////////////////
 
-    auto begin() { return house_vector_.begin(); }
-    auto begin() const { return house_vector_.begin(); }
-    auto end() { return house_vector_.end(); }
-    auto end() const { return house_vector_.end(); }
+    auto begin() noexcept { return house_vector_.begin(); }
+    auto begin() const noexcept { return house_vector_.begin(); }
+    auto end() noexcept { return house_vector_.end(); }
+    auto end() const noexcept { return house_vector_.end(); }
 
     Household &restricted(size_t R) { return house_vector_[head_class_house_indexes[R]]; }
 
@@ -182,12 +198,15 @@ private:
 
 struct DataLong
 {
+public:
+    std::unique_ptr<hsp::key::Registry> pRegistry; /// pointer to registry
+
     std::vector<std::string> headers = {};
     std::vector<std::vector<std::vector<double>>> indiv_datalist = {};
 
-    DataLong(std::shared_ptr<DataWide> ptr)
-        : pDataWide_(ptr) {}
-    ~DataLong() = default;
+    DataLong(const std::vector<std::string> &keys,
+             std::shared_ptr<DataWide> ptr);
+    ~DataLong();
 
     void build(const hsp::str_table &input);
 

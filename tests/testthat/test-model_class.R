@@ -1,7 +1,7 @@
 library(testthat)
 
 test_that("Model class inconsistent calls", {
-  # Default blank
+  # Default blank 
   expect_warning(new_housepi_model(), regexp = "Falling back to")
 
   # blank household model object
@@ -9,19 +9,21 @@ test_that("Model class inconsistent calls", {
 
   # inference without definitions
   expect_error(hhmodel$run_inference(), regexp = "Nothing to sample")
-  
-  # FIXME house snapshot still not working
-  # output <- hhmodel$export_house_snapshot("house")
 })
 
 
 test_that("Model class blank calls", {
   # blank household model object
   hhmodel <- new_housepi_model("blank")
+  snapshot <- hhmodel$export_house_snapshot("house")
+  expect_equal(length(snapshot$param), 0)
+  expect_equal(length(snapshot$augm), 0)
+  expect_equal(length(snapshot$group_rate), 0)
 
   # blank default data wide format
   data_wide <- housepi:::template_blank_data_wide_()
   expect_equal(hhmodel$data_wide, data_wide)
+  expect_equal(snapshot$data_wide, data_wide)
 
   # correct data long format
   data_long <- data.frame(id = data_wide$id[1],

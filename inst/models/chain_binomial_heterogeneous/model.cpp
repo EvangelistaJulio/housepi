@@ -18,17 +18,15 @@
 #include "binomial.h"
 #include "model.h"
 
-// FLAG
-#include "tools/messages.h"
-
-REGISTER_HOUSEPI_KEYS(AugmKey, )
-REGISTER_HOUSEPI_KEYS(DataKey, )
-REGISTER_HOUSEPI_KEYS(LongKey, )
+EMPTY_HOUSEPI_KEYS(AugmKey)
+EMPTY_HOUSEPI_KEYS(DataKey)
+EMPTY_HOUSEPI_KEYS(LongKey)
 REGISTER_HOUSEPI_KEYS(GroupRateKey, community, susceptibility, infectivity)
 REGISTER_HOUSEPI_KEYS(HHsize_tKey, order)
 REGISTER_HOUSEPI_KEYS(HHdoubleKey, commu_escape_rate)
 REGISTER_HOUSEPI_KEYS(HHmatrixKey, p2p_escape_rate)
 REGISTER_HOUSEPI_KEYS(ParamKey, alpha, beta)
+HOUSEPI_MODEL_CONSTRUCTOR()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////

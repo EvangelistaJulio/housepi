@@ -24,7 +24,7 @@ housepi_theme_set()
 ```
 
 In this vignette we show how to compute common household measures according to the model posterior distribution.
-This is generally refered to as Posterior Predictive Checks (PPC).
+This is generally referred to as Posterior Predictive Checks (PPC).
 We use the same chain binomial example presented in [Get started](housepi.html):
 
 ```{r}

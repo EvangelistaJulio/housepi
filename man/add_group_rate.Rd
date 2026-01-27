@@ -27,7 +27,7 @@ add_group_rate(
 \item{by}{\code{list} Features associated to group rate as data headers.\cr
 Corresponding data columns have to be categorical.}
 
-\item{prefix}{\code{character(1)} Prefix to parameter names associated to group rate.\cr
+\item{prefix}{\code{character(1)} Prefix to names of associated parameters.\cr
 If \code{NA} uses the first 3 letters of rate name (default).}
 
 \item{reference}{named \code{list} Features associated to reference group.\cr
@@ -62,11 +62,10 @@ Ignored if proposal is 'sample'.}
 \code{HousepiModel} object. Deep clone of input with new definitions.
 }
 \description{
-Add definitions of a group rate by given data feature(s).
-Group rates are relative to a reference class that can be specified.
-If no MCMC options are provided, the prior is assumed to be a
-\\eqn{\\mathrm{lognormal}[\\mu=0, \\sigma=3]}
-with support \\eqn{[0, 10]}.
+Add definitions of a group rate by given data feature(s).\cr
+Group rates are relative to a reference class that can be specified.\cr
+If no MCMC options are provided, the prior is assumed to be\cr
+\eqn{\mathrm{lognormal}[\mu=0, \sigma=3]} with support \eqn{[0, 10]}.
 }
 \references{
 Cauchemez, et al. (2009)

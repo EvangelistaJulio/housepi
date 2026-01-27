@@ -26,12 +26,6 @@
 #include "distribution.h"
 #include "registry.h"
 
-namespace
-{
-    using std::string;
-    using std::vector;
-}
-
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  Distribution - reshaping  ///////////////////////////////////
@@ -185,8 +179,8 @@ std::unique_ptr<Function> DistributionRegistry::create(std::string_view opt, boo
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 std::unique_ptr<Distribution> compose_distr_registries(std::string_view opt,
-                                                       const string &err_type,
-                                                       const vector<std::string> &registries,
+                                                       const std::string &err_type,
+                                                       const std::vector<std::string> &registries,
                                                        bool is_cumul)
 {
     if (registries.empty())
@@ -196,7 +190,7 @@ std::unique_ptr<Distribution> compose_distr_registries(std::string_view opt,
     if (hsp::na::is(opt))
         return nullptr;
 
-    vector<const DistributionRegistry *> registry_ptrs = {};
+    std::vector<const DistributionRegistry *> registry_ptrs = {};
     for (const auto &r : registries)
         if (r == "continuos")
             registry_ptrs.push_back(&ContinuosDistrRegistry::instance());
@@ -207,7 +201,7 @@ std::unique_ptr<Distribution> compose_distr_registries(std::string_view opt,
         else
             throw std::invalid_argument("Unknown " + err_type + " registry '" + r + "'.");
 
-    vector<string> options = {};
+    std::vector<std::string> options = {};
     for (auto &r : registry_ptrs)
     {
         if (r->count(opt))
@@ -218,8 +212,8 @@ std::unique_ptr<Distribution> compose_distr_registries(std::string_view opt,
         options.insert(options.end(), y.begin(), y.end());
     }
 
-    throw std::invalid_argument(
-        "Unknown " + err_type + " '" + string(opt) + "'." + hsp::str::find_closest(opt, options));
+    throw std::invalid_argument("Unknown " + err_type + " '" + std::string(opt) + "'." +
+                                hsp::str::find_closest(opt, options));
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -295,7 +289,7 @@ namespace
     ///////////////////////////  *** Uniform Distribution : class ***  //////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    class Uniform_ : public Distribution
+    class Uniform_ final : public Distribution
     {
     public:
         Uniform_()
@@ -354,7 +348,7 @@ namespace
     ////////////////////////////  *** Normal Distribution : class ***  //////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    class Normal_ : public Distribution
+    class Normal_ final : public Distribution
     {
     public:
         Normal_()
@@ -416,7 +410,7 @@ namespace
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Lognormal Distribution derived class.
-    class Lognormal_ : public Distribution
+    class Lognormal_ final : public Distribution
     {
     public:
         Lognormal_()
@@ -469,7 +463,7 @@ namespace
     //////////////////////////////  *** Beta Distribution : class ***  //////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    class Beta_ : public Distribution
+    class Beta_ final : public Distribution
     {
     public:
         Beta_()
@@ -532,7 +526,7 @@ namespace
     //////////////////////////////  *** Gamma Distribution : class ***  /////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    class Gamma_ : public Distribution
+    class Gamma_ final : public Distribution
     {
     public:
         Gamma_()
@@ -579,7 +573,7 @@ namespace
 
     /// Gamma (Mean-Variance) Distribution.
     /// UPDATE: this should be collapsed with the previous
-    class GammaMeanVar_ : public Distribution
+    class GammaMeanVar_ final : public Distribution
     {
     public:
         GammaMeanVar_()
@@ -636,7 +630,7 @@ namespace
     ////////////////////////////  *** Rayleigh Distribution : class ***  ////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    class Rayleigh_ : public Distribution
+    class Rayleigh_ final : public Distribution
     {
     public:
         Rayleigh_()
@@ -686,7 +680,7 @@ namespace
     ////////////////////////////  *** Weibull Distribution : class ***  /////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    class Weibull_ : public Distribution
+    class Weibull_ final : public Distribution
     {
     public:
         Weibull_()
@@ -738,7 +732,7 @@ namespace
     ///////////////////////////  *** Exponential Distribution : class ***  //////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    class Exponential_ : public Distribution
+    class Exponential_ final : public Distribution
     {
     public:
         Exponential_()
@@ -784,7 +778,7 @@ namespace
     /////////////////////////////  *** Poisson Distribution : class ***  ////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    class Poisson_ : public Distribution
+    class Poisson_ final : public Distribution
     {
     public:
         Poisson_()
@@ -827,7 +821,7 @@ namespace
     /////////////////////////////  *** Binomial Distribution : class ***  ///////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    class Binomial_ : public Distribution
+    class Binomial_ final : public Distribution
     {
     public:
         Binomial_()
@@ -897,7 +891,7 @@ namespace
     /////////////////////////  *** NegativeBinomial Distribution : class ***  ///////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    class NegativeBinomial_ : public Distribution
+    class NegativeBinomial_ final : public Distribution
     {
     public:
         NegativeBinomial_()
@@ -944,7 +938,7 @@ namespace
     ////////////////////////////  *** Geometric Distribution : class ***  ///////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    class Geometric_ : public Distribution
+    class Geometric_ final : public Distribution
     {
     public:
         Geometric_()
@@ -1006,7 +1000,7 @@ namespace
     /// Ferretti L, Ledda A, Wymant C, Zhao L, Ledda V, Abeler-Dorner L, et al.
     /// The timing of COVID-19 transmission.
     /// medRxiv; 2020. p. 2020.09.04.20188516. doi:10.1101/2020.09.04.20188516
-    class InfecProfile_Ferretti20 : public Distribution
+    class InfecProfile_Ferretti20 final : public Distribution
     {
     public:
         InfecProfile_Ferretti20()

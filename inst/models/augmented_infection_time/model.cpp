@@ -15,13 +15,14 @@
 #include "model.h"
 
 REGISTER_HOUSEPI_KEYS(AugmKey, infec_time, incub_period, onset_time)
-REGISTER_HOUSEPI_KEYS(DataKey, )
-REGISTER_HOUSEPI_KEYS(LongKey, )
+EMPTY_HOUSEPI_KEYS(DataKey)
+EMPTY_HOUSEPI_KEYS(LongKey)
 REGISTER_HOUSEPI_KEYS(GroupRateKey, community, susceptibility, infectivity)
 REGISTER_HOUSEPI_KEYS(HHsize_tKey, intro_case)
-REGISTER_HOUSEPI_KEYS(HHdoubleKey, )
+EMPTY_HOUSEPI_KEYS(HHdoubleKey)
 REGISTER_HOUSEPI_KEYS(HHmatrixKey, inst, cumul)
 REGISTER_HOUSEPI_KEYS(ParamKey, alpha, beta, gamma, size_ref, study_period)
+HOUSEPI_MODEL_CONSTRUCTOR()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -33,10 +34,10 @@ REGISTER_HOUSEPI_KEYS(ParamKey, alpha, beta, gamma, size_ref, study_period)
 void Model::init_advanced_setup()
 {
 #ifdef _HOUSEPI_DISCRETE_TIME
-	request_discrete(AugmKey::infec_time);
+	request_discrete_augm(AugmKey::infec_time);
 	request_infec_profile_discrete();
 #endif
-	request_discrete(ParamKey::size_ref);
+	request_discrete_param(ParamKey::size_ref);
 
 	// template infectivity profile (otherwise user defined)
 	// UPDATE: this should become more user friendly

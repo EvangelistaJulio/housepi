@@ -25,7 +25,11 @@ class Individual;
 
 struct GroupRate
 {
-    GroupRate(std::shared_ptr<DataWide> dataptr,
+public:
+    std::shared_ptr<hsp::key::Registry> pRegistry; /// pointer to registry
+
+    GroupRate(const std::vector<std::string> &keys,
+              std::shared_ptr<DataWide> dataptr,
               std::shared_ptr<Parameter> paramptr);
     ~GroupRate();
 

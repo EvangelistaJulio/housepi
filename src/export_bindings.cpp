@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "tools/atomic.h"
-#include "tools/keys.h"
 #include "tools/keys_helper.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
@@ -41,9 +40,6 @@
 
 namespace
 {
-    using std::string;
-    using std::vector;
-
     /// Auxiliary converter to R NA real values.
     double hsp_to_rcpp(double x) { return hsp::na::is(x) ? NA_REAL : x; }
 
@@ -62,8 +58,8 @@ namespace
         for (R_xlen_t i = 0; i < df.size(); ++i)
         {
             CharacterVector col = df[i];
-            vector<string> col_data(col.begin(), col.end());
-            output[as<string>(colnames[i])] = std::move(col_data);
+            std::vector<std::string> col_data(col.begin(), col.end());
+            output[as<std::string>(colnames[i])] = std::move(col_data);
         }
 
         return output;
@@ -84,8 +80,8 @@ namespace
         for (R_xlen_t i = 0; i < df.size(); ++i)
         {
             NumericVector col = df[i];
-            vector<double> col_data(col.begin(), col.end());
-            output[as<string>(colnames[i])] = std::move(col_data);
+            std::vector<double> col_data(col.begin(), col.end());
+            output[as<std::string>(colnames[i])] = std::move(col_data);
         }
 
         return output;
@@ -102,21 +98,24 @@ namespace
         for (size_t k = 0; k < n_args; ++k)
         {
             vals[k] = f->arg(k);
-            keys[k] = string(f->arg_name(k));
+            keys[k] = std::string(f->arg_name(k));
         }
         vals.names() = std::move(keys);
         return vals;
     }
 
     /// Standaridized percentage formatting.
-    double format_percentage(double value, double total) { return std::round(10000. * value / total) / 100.; }
+    double format_percentage(size_t value, size_t total)
+    {
+        return std::round(10000. * static_cast<double>(value) / static_cast<double>(total)) / 100.;
+    }
 
     // Copies src into dest. If destroy_src is true, releases src's storage after copy.
     template <typename DestNumeric>
-    void helper_vector_flush(DestNumeric dest, vector<double> &src)
+    void helper_vector_flush(DestNumeric dest, std::vector<double> &src)
     {
         std::copy(src.begin(), src.end(), dest.begin());
-        vector<double>().swap(src);
+        std::vector<double>().swap(src);
     }
 }
 
@@ -129,7 +128,7 @@ namespace
         }                                                       \
         catch (const std::exception &e)                         \
         {                                                       \
-            hsp::msg::error(string("While importing ") +        \
+            hsp::msg::error(std::string("While importing ") +   \
                             section_name + ":\n" + e.what());   \
         }                                                       \
     }
@@ -146,11 +145,12 @@ void MCMC::import_multiplicity(SEXP input)
 {
     try
     {
-        pImpl_->data_wide->multiplicity_build(rdataframe_to_strmap(input));
+        pImpl_->data_wide->multiplicity_build(rdataframe_to_strmap(input),
+                                              pImpl_->augm->pRegistry->size() > 0);
     }
     catch (const std::exception &e)
     {
-        hsp::msg::error(string("While importing ") + "multiplicity" + ":\n" + e.what());
+        hsp::msg::error(std::string("While importing ") + "multiplicity" + ":\n" + e.what());
     }
 }
 
@@ -163,7 +163,7 @@ void MCMC::import_param_for_prediction(SEXP input)
     catch (const std::exception &e)
     {
         hsp::msg::error("While importanting parameter table:\n" +
-                        string(e.what()));
+                        std::string(e.what()));
     }
 }
 
@@ -225,7 +225,7 @@ Rcpp::DataFrame MCMC::export_augmented_data_wide() const
     const size_t n_rows = pImpl_->data_wide->report_indiv->total;
 
     IntegerVector status_col(n_rows);
-    vector<NumericVector> augm_cols(n_cols);
+    std::vector<NumericVector> augm_cols(n_cols);
     for (size_t i = 0; i < n_cols; ++i)
         augm_cols[i] = NumericVector(n_rows);
 
@@ -244,7 +244,7 @@ Rcpp::DataFrame MCMC::export_augmented_data_wide() const
     List output = List::create(_["status"] = status_col);
     size_t i = 0;
     for (auto a : augm.list_export)
-        output[hsp::key::as_string<AugmKey>(a)] = augm_cols[i++];
+        output[augm.pRegistry->as_string(a)] = augm_cols[i++];
     return DataFrame(output);
 }
 
@@ -253,7 +253,7 @@ Rcpp::DataFrame MCMC::export_augmented_data_wide() const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Rcpp::DataFrame helper_export_data_wide(const DataWide &data_wide,
-                                        const vector<string> &columns, bool is_status)
+                                        const std::vector<std::string> &columns, bool is_status)
 {
     using namespace Rcpp;
 
@@ -268,7 +268,7 @@ Rcpp::DataFrame helper_export_data_wide(const DataWide &data_wide,
         IntegerVector df_status = IntegerVector(n_rows);
 
         // other non standard data columns
-        vector<NumericVector> df_double(columns.size());
+        std::vector<NumericVector> df_double(columns.size());
         for (size_t d = 0; d < columns.size(); ++d)
             df_double[d] = NumericVector(n_rows);
 
@@ -298,7 +298,7 @@ Rcpp::DataFrame helper_export_data_wide(const DataWide &data_wide,
     catch (const std::exception &e)
     {
         hsp::msg::error("While exporting data (wide):\n" +
-                        string(e.what()));
+                        std::string(e.what()));
     }
 }
 Rcpp::DataFrame MCMC::export_data_wide() const
@@ -311,7 +311,7 @@ Rcpp::DataFrame MCMC::data_wide_for_simulation() const
     std::vector<std::string> export_names(list_export.size());
     size_t i = 0;
     for (auto a : list_export)
-        export_names[i++] = hsp::key::as_string<AugmKey>(a);
+        export_names[i++] = pImpl_->augm->pRegistry->as_string(a);
 
     return helper_export_data_wide(*pImpl_->data_wide, pImpl_->data_wide->headers - export_names, false);
 }
@@ -340,7 +340,7 @@ Rcpp::DataFrame MCMC::export_data_long() const
         CharacterVector datalist_index(n_rows);
 
         // other non standard data-long columns
-        vector<NumericVector> datalist_dbl(hsp::key::size<LongKey>());
+        std::vector<NumericVector> datalist_dbl(data_long.pRegistry->size());
         for (size_t d = 0; d < datalist_dbl.size(); ++d)
             datalist_dbl[d] = NumericVector(n_rows);
 
@@ -348,7 +348,7 @@ Rcpp::DataFrame MCMC::export_data_long() const
         for (const auto &house : *pImpl_->data_wide)
             for (const auto &member : house)
             {
-                const vector<vector<double>> *ptr = member.get_data_long_ptr();
+                const std::vector<std::vector<double>> *ptr = member.get_data_long_ptr();
                 if (ptr != nullptr && !ptr->empty())
                     for (size_t k = 0; k < ptr->begin()->size(); ++k)
                     {
@@ -362,13 +362,13 @@ Rcpp::DataFrame MCMC::export_data_long() const
         // assign vectors to dataframe
         auto output = DataFrame::create(_["id"] = datalist_index);
         for (size_t d = 0; d < datalist_dbl.size(); ++d)
-            output.push_back(datalist_dbl[d], hsp::key::as_string<LongKey>(d));
+            output.push_back(datalist_dbl[d], data_long.pRegistry->as_string(d));
 
         return output;
     }
     catch (const std::exception &e)
     {
-        hsp::msg::error("While exporting data (long):\n" + string(e.what()));
+        hsp::msg::error("While exporting data (long):\n" + std::string(e.what()));
     }
 }
 
@@ -388,7 +388,8 @@ Rcpp::DataFrame MCMC::summarise_cases() const
         if (pImpl_->data_wide->is_empty())
             hsp::msg::warning("Called 'summarise_cases' on empty data.");
 
-        CharacterVector type = wrap(vector<string>(4, "individual") + vector<string>(4, "household"));
+        CharacterVector type = wrap(std::vector<std::string>(4, "individual") +
+                                    std::vector<std::string>(4, "household"));
         const size_t n_rows = type.size();
         CharacterVector comment = {"total", "missing", "not infected", "infected",
                                    "total", "no cases", "at least 1 case", "at least 2 cases"};
@@ -426,7 +427,7 @@ Rcpp::DataFrame MCMC::summarise_cases() const
     catch (const std::exception &e)
     {
         hsp::msg::error("While exporting data report:\n" +
-                        string(e.what()));
+                        std::string(e.what()));
     }
 }
 
@@ -472,7 +473,7 @@ Rcpp::DataFrame MCMC::summarise_house_sizes() const
     catch (const std::exception &e)
     {
         hsp::msg::error("While exporting household size report:\n" +
-                        string(e.what()));
+                        std::string(e.what()));
     }
 }
 
@@ -495,7 +496,7 @@ Rcpp::NumericMatrix MCMC::flush_total_log_lik_draws()
     catch (const std::exception &e)
     {
         hsp::msg::error("While exporting total log-likelihood draws:\n" +
-                        string(e.what()));
+                        std::string(e.what()));
     }
 }
 
@@ -511,7 +512,7 @@ Rcpp::NumericMatrix MCMC::flush_param_draws()
     try
     {
         const size_t n_cols = param.list_sample.size();
-        CharacterVector headers = wrap(hsp::key::as_string<ParamKey>(param.list_sample));
+        CharacterVector headers = wrap(param.pRegistry->as_string(param.list_sample));
         NumericMatrix output(pImpl_->smpl_count, n_cols);
 
         for (size_t c = 0; c < n_cols; ++c)
@@ -524,7 +525,7 @@ Rcpp::NumericMatrix MCMC::flush_param_draws()
     catch (const std::exception &e)
     {
         hsp::msg::error("While exporting parameters draws:\n" +
-                        string(e.what()));
+                        std::string(e.what()));
     }
 }
 
@@ -546,7 +547,7 @@ Rcpp::NumericMatrix MCMC::flush_param_lprior_draws()
         size_t c = 0;
         for (const auto p : param.list_sample)
         {
-            headers[c] = "lprior_" + hsp::key::as_string<ParamKey>(p);
+            headers[c] = "lprior_" + param.pRegistry->as_string(p);
             helper_vector_flush(output(_, c), param.smpl_priors[c]);
             ++c;
         }
@@ -557,7 +558,7 @@ Rcpp::NumericMatrix MCMC::flush_param_lprior_draws()
     catch (const std::exception &e)
     {
         hsp::msg::error("While exporting parameter log-priors draws:\n" +
-                        string(e.what()));
+                        std::string(e.what()));
     }
 }
 
@@ -585,7 +586,7 @@ Rcpp::NumericMatrix MCMC::flush_augm_draws()
             size_t j = 0;
             for (const auto a : augm.list_draws)
             {
-                headers[col] = member_ptr->id() + "_" + hsp::key::as_string<AugmKey>(a);
+                headers[col] = member_ptr->id() + "_" + augm.pRegistry->as_string(a);
                 helper_vector_flush(output(_, col++), member_matrix[j++]);
             }
         }
@@ -597,7 +598,7 @@ Rcpp::NumericMatrix MCMC::flush_augm_draws()
     catch (const std::exception &e)
     {
         hsp::msg::error("While exporting augmented draws:\n" +
-                        string(e.what()));
+                        std::string(e.what()));
     }
 }
 
@@ -623,7 +624,7 @@ Rcpp::NumericMatrix MCMC::flush_house_log_lik_draws()
 
         // retrieve restricted index by general index of multiplicity head class
         const auto n_classes = data_wide.head_class_house_indexes.size();
-        vector<vector<size_t>> house_classes(n_classes);
+        std::vector<std::vector<size_t>> house_classes(n_classes);
 
         std::unordered_map<size_t, size_t> restr_idx_map = {};
         restr_idx_map.reserve(n_classes);
@@ -644,7 +645,7 @@ Rcpp::NumericMatrix MCMC::flush_house_log_lik_draws()
 
             for (auto H : house_classes[R])
                 std::copy(src.begin(), src.end(), output(_, H).begin());
-            vector<double>().swap(src);
+            std::vector<double>().swap(src);
         }
         colnames(output) = std::move(headers);
 
@@ -653,7 +654,7 @@ Rcpp::NumericMatrix MCMC::flush_house_log_lik_draws()
     catch (const std::exception &e)
     {
         hsp::msg::error("While exporting household log-likelihood draws:\n" +
-                        string(e.what()));
+                        std::string(e.what()));
     }
 }
 
@@ -683,7 +684,8 @@ namespace
     }
 
     /// Export to R a snapshot of current state of house data.
-    Rcpp::DataFrame helper_data_wide_rcpp_snapshot(const std::shared_ptr<DataWide> data_wide, const Household &house)
+    Rcpp::DataFrame helper_data_wide_rcpp_snapshot(const std::shared_ptr<DataWide> data_wide,
+                                                   const Household &house)
     {
         using namespace Rcpp;
         const auto &headers = data_wide->headers;
@@ -693,7 +695,7 @@ namespace
         CharacterVector df_house_id = CharacterVector(n_rows);
         IntegerVector df_status = IntegerVector(n_rows);
 
-        vector<NumericVector> df_double(headers.size());
+        std::vector<NumericVector> df_double(headers.size());
         for (size_t d = 0; d < headers.size(); ++d)
             df_double[d] = NumericVector(n_rows);
 
@@ -718,7 +720,8 @@ namespace
     }
 
     /// Export to R a snapshot of current state of house data-long.
-    Rcpp::DataFrame helper_data_long_rcpp_snapshot(const std::shared_ptr<DataLong> data_long, const Household &house)
+    Rcpp::DataFrame helper_data_long_rcpp_snapshot(const std::shared_ptr<DataLong> data_long,
+                                                   const Household &house)
     {
         using namespace Rcpp;
 
@@ -728,44 +731,45 @@ namespace
         size_t n_rows = 0;
         for (const auto &member : house)
         {
-            const vector<vector<double>> *ptr = member.get_data_long_ptr();
+            const std::vector<std::vector<double>> *ptr = member.get_data_long_ptr();
             if (ptr != nullptr && !ptr->empty())
                 n_rows += ptr->begin()->size();
         }
 
         CharacterVector datalist_id(n_rows);
-        vector<NumericVector> datalist_dbl(hsp::key::size<LongKey>());
-        for (size_t d = 0; d < datalist_dbl.size(); ++d)
-            datalist_dbl[d] = NumericVector(n_rows);
+        std::vector<NumericVector> df_double(data_long->pRegistry->size());
+        for (size_t d = 0; d < df_double.size(); ++d)
+            df_double[d] = NumericVector(n_rows);
 
         size_t r = 0;
         for (const auto &member : house)
         {
-            const vector<vector<double>> *ptr = member.get_data_long_ptr();
+            const std::vector<std::vector<double>> *ptr = member.get_data_long_ptr();
             if (ptr != nullptr && !ptr->empty())
                 for (size_t k = 0; k < ptr->begin()->size(); ++k)
                 {
                     datalist_id[r] = member.id();
-                    for (size_t d = 0; d < datalist_dbl.size(); ++d)
-                        datalist_dbl[d][r] = hsp_to_rcpp(ptr->at(d)[k]);
+                    for (size_t d = 0; d < df_double.size(); ++d)
+                        df_double[d][r] = hsp_to_rcpp(ptr->at(d)[k]);
                     ++r;
                 }
         }
 
         // assign vectors to dataframe
         auto output = DataFrame::create(_["id"] = std::move(datalist_id));
-        for (size_t d = 0; d < datalist_dbl.size(); ++d)
-            output.push_back(datalist_dbl[d], hsp::key::as_string<LongKey>(d));
+        for (size_t d = 0; d < df_double.size(); ++d)
+            output.push_back(df_double[d], data_long->pRegistry->as_string(d));
 
         return output;
     }
 
     /// Export to R a snapshot of current state of house augmented variables.
-    Rcpp::DataFrame helper_group_rates_rcpp_snapshot(const Household &house)
+    Rcpp::DataFrame helper_group_rates_rcpp_snapshot(const std::shared_ptr<GroupRate> group_rate,
+                                                     const Household &house)
     {
         using namespace Rcpp;
 
-        const auto &headers = hsp::key::get_all<GroupRateKey>();
+        const auto &headers = group_rate->pRegistry->get_all();
 
         if (headers.empty())
             return DataFrame::create();
@@ -773,29 +777,28 @@ namespace
         const auto n_rows = house.size();
         CharacterVector df_id(n_rows);
 
-        vector<NumericVector> group_rate_dbl(headers.size());
+        std::vector<NumericVector> df_double(headers.size());
         for (size_t c = 0; c < headers.size(); ++c)
-            group_rate_dbl[c] = NumericVector(n_rows);
+            df_double[c] = NumericVector(n_rows);
 
         for (const auto &member : house)
         {
             df_id[member] = member.id();
 
             for (size_t c = 0; c < headers.size(); ++c)
-                group_rate_dbl[c][member] = hsp_to_rcpp(member.get_group_rate_attribute(
-                                                                  hsp::key::from_string<GroupRateKey>(headers[c]))
-                                                            .get());
+                df_double[c][member] = hsp_to_rcpp(member.get_group_rate_attribute(c).get());
         }
 
         auto output = DataFrame::create(_["id"] = df_id);
         for (size_t c = 0; c < headers.size(); ++c)
-            output.push_back(group_rate_dbl[c], headers[c]);
+            output.push_back(df_double[c], headers[c]);
 
         return output;
     }
 
     /// Export to R a snapshot of current state of house infectivity profile.
-    Rcpp::List helper_infec_profile_rcpp_snapshot(const std::shared_ptr<InfecProfile> infec_profile, const Household &house)
+    Rcpp::List helper_infec_profile_rcpp_snapshot(const std::shared_ptr<InfecProfile> infec_profile,
+                                                  const Household &house)
     {
         using namespace Rcpp;
 
@@ -817,7 +820,7 @@ namespace
         for (const auto &member : house.infected())
             if (infec_profile->is_augmented())
             {
-                const auto &f = member.get_augm_variable(hsp::key::from_string<AugmKey>(hsp::infprof::INSTANT)).get_function();
+                const auto &f = member.get_augm_variable(infec_profile->augm_infecprof_key).get_function();
 
                 infprof_name[member] = std::string(f->name());
                 infprof_discr[member] = f->is_discrete();
@@ -856,9 +859,9 @@ namespace
         const auto n_rows = house.size();
         CharacterVector df_id(n_rows);
 
-        vector<NumericVector> augm_dbl(n_cols);
+        std::vector<NumericVector> df_double(n_cols);
         for (size_t c = 0; c < n_cols; ++c)
-            augm_dbl[c] = NumericVector(n_rows);
+            df_double[c] = NumericVector(n_rows);
 
         for (const auto &member : house)
             df_id[member] = member.id();
@@ -867,20 +870,20 @@ namespace
         {
             size_t i = 0;
             for (auto a : list_export)
-                augm_dbl[i++][member] = hsp_to_rcpp(member.get_augm_variable(a).get());
+                df_double[i++][member] = hsp_to_rcpp(member.get_augm_variable(a).get());
         }
 
         auto output = DataFrame::create(_["id"] = df_id);
         size_t i = 0;
         for (auto a : list_export)
-            output.push_back(augm_dbl[i++], hsp::key::as_string<AugmKey>(a));
+            output.push_back(df_double[i++], augm->pRegistry->as_string(a));
 
         return output;
     }
 }
 
 /// Export a list containing all relevant information for a debug.
-Rcpp::List MCMC::export_house_snapshot(const string &house_id) const
+Rcpp::List MCMC::export_house_snapshot(const std::string &house_id) const
 {
     using namespace Rcpp;
 
@@ -895,14 +898,14 @@ Rcpp::List MCMC::export_house_snapshot(const string &house_id) const
             _["param"] = helper_param_rcpp_snapshot(pImpl_->param),
             _["data_wide"] = helper_data_wide_rcpp_snapshot(pImpl_->data_wide, house),
             _["data_long"] = helper_data_long_rcpp_snapshot(pImpl_->data_long, house),
-            _["group_rate"] = helper_group_rates_rcpp_snapshot(house),
+            _["group_rate"] = helper_group_rates_rcpp_snapshot(pImpl_->group_rate, house),
             _["infec_profile"] = helper_infec_profile_rcpp_snapshot(pImpl_->infec_profile, house),
             _["augm"] = helper_augm_rcpp_snapshot(pImpl_->augm, house));
     }
     catch (const std::exception &e)
     {
         hsp::msg::error("While exporting snapshot of household '" + house_id + "':\n" +
-                        string(e.what()));
+                        std::string(e.what()));
     }
 }
 
@@ -930,6 +933,7 @@ Rcpp::List MCMC::helper_simulate(size_t n, bool is_expec_measure)
 
         // initialization
         pImpl_->helper_init_simulation();
+        init_model_for_simulation();
         List output(n_rep);
 
         // run simulations
@@ -963,7 +967,7 @@ Rcpp::DataFrame MCMC::helper_simulate_single_repetition()
 
         IntegerVector df_status(n_rows);
 
-        vector<NumericVector> df_augm(n_cols);
+        std::vector<NumericVector> df_augm(n_cols);
         for (size_t c = 0; c < n_cols; ++c)
             df_augm[c] = NumericVector(n_rows);
 
@@ -971,7 +975,8 @@ Rcpp::DataFrame MCMC::helper_simulate_single_repetition()
         for (auto house : *pImpl_->data_wide) // NOTE: deep copy of households
             try
             {
-                pImpl_->simulate_single_house_in_place(house);
+                pImpl_->data_wide->init_house_cache(house);
+                simulate_single_house(house);
                 for (const auto &member : house)
                 {
                     df_status[r] = member.status();
@@ -983,14 +988,14 @@ Rcpp::DataFrame MCMC::helper_simulate_single_repetition()
             }
             catch (const std::exception &e)
             {
-                throw std::runtime_error(
-                    "While simulating " + house.err_name() + ":\n" + string(e.what()));
+                throw std::runtime_error("While simulating " + house.err_name() + ":\n" +
+                                         std::string(e.what()));
             }
 
         output = DataFrame::create(_["status"] = df_status);
         size_t c = 0;
         for (auto a : list_export)
-            output.push_back(df_augm[c++], hsp::key::as_string<AugmKey>(a));
+            output.push_back(df_augm[c++], pImpl_->augm->pRegistry->as_string(a));
     }
     catch (const std::exception &e)
     {
@@ -1014,7 +1019,7 @@ Rcpp::List MCMC::run_simulation_for_predict(size_t n) { return helper_simulate(n
 /// Ref: Friel, N., Hurn, M. & Wyse, J.
 /// Improving power posterior estimation of statistical evidence.
 /// Stat Comput 24, 709–723 (2014).
-Rcpp::List MCMC::log_evidence(const string &scheme, unsigned long n_rungs)
+Rcpp::List MCMC::log_evidence(const std::string &scheme, unsigned long n_rungs)
 {
     using namespace Rcpp;
 
@@ -1043,6 +1048,6 @@ Rcpp::List MCMC::log_evidence(const string &scheme, unsigned long n_rungs)
     catch (const std::exception &e)
     {
         hsp::msg::error("While estimating log_evidence with power posteriors:\n" +
-                        string(e.what()));
+                        std::string(e.what()));
     }
 }

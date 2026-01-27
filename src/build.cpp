@@ -11,7 +11,6 @@
 #include <string>
 #include <vector>
 
-#include "tools/keys.h"
 #include "tools/keys_helper.h"
 #include "tools/messages.h"
 #include "tools/operators.h"
@@ -31,25 +30,19 @@
 #include "parameter.h"
 #include "variable.h"
 
-namespace
-{
-    using std::string;
-    using std::vector;
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  *** AugmentedContainer : class ***  ////////////////////////////////
+///////////////////////////////////  *** AugmentedContainer : class ***  //////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// A string containing a summary of the augmented map.
-string AugmentedContainer::str_augm_summary() const
+std::string AugmentedContainer::str_augm_summary() const
 {
-    string output;
+    std::string output;
     for (const auto &var : augm_vec_)
     {
-        output += "- " + string(var.name()) + " : ";
+        output += "- " + std::string(var.name()) + " : ";
         if (var.is_function() && !var.get_function()->is_callable_implicitly())
             output += var.get_function()->str_summary();
         else
@@ -65,18 +58,21 @@ string AugmentedContainer::str_augm_summary() const
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+Parameter::Parameter(const std::vector<std::string> &keys)
+    : pRegistry(std::make_shared<hsp::key::Registry>(keys)) {}
+
 /// Assign parameter definitions to dictionary.
 void Parameter::build(const hsp::str_table &input)
 {
-    hsp::key::clear<ParamKey>();
+    pRegistry->clear();
 
     if (input.empty())
         return;
 
     // check entries
-    const vector<string> file_headers = {"name", "value", "const", "discr",
-                                         "prior", hsp::params::MIN, hsp::params::MAX,
-                                         "proposal", "proposal_scale"};
+    const std::vector<std::string> file_headers = {"name", "value", "const", "discr",
+                                                   "prior", hsp::params::MIN, hsp::params::MAX,
+                                                   "proposal", "proposal_scale"};
     const auto headers = hsp::read::extract_keys(input);
     hsp::str::assert_no_missing_entries(headers, file_headers);
     hsp::str::assert_no_unused_entries(headers, file_headers);
@@ -92,9 +88,9 @@ void Parameter::build(const hsp::str_table &input)
     {
         const auto &paramstr = input.at("name")[k]; // parameter name
 
-        if (!hsp::key::count<ParamKey>(paramstr))
+        if (!pRegistry->count(paramstr))
         {
-            hsp::key::add<ParamKey>(paramstr);
+            pRegistry->add(paramstr);
             param_vec_.emplace_back();
             param_vec_.back().name(paramstr, "parameter");
         }
@@ -129,28 +125,28 @@ void Parameter::build_for_expec(const hsp::dbl_table &input)
     clear_lists_();
 
     // update list of constant parameters to all parameters
-    list_const = hsp::key::from_string<ParamKey>(hsp::key::get_all<ParamKey>());
+    list_const = pRegistry->from_string(pRegistry->get_all());
 
     // store as sample values
     smpl_values.clear();
 
     // reset definition dictionary to all constants NAs.
-    for (const auto &paramstr : hsp::key::get_all<ParamKey>())
+    for (const auto &paramstr : pRegistry->get_all())
         if (std::find(headers.begin(), headers.end(), paramstr) == headers.end())
             smpl_values.emplace_back();
         else
-            smpl_values.emplace_back(input.at(string(paramstr)));
+            smpl_values.emplace_back(input.at(paramstr));
 }
 
 /// Drop current lists of parameters.
 void Parameter::clear_lists_()
 {
-    size_t n = hsp::key::size<ParamKey>();
+    size_t n = pRegistry->size();
     param_vec_.clear();
     param_vec_.reserve(n);
     param_vec_.assign(n, Variable("parameter"));
     for (size_t p = 0; p < n; ++p)
-        param_vec_[p].name(hsp::key::as_string<ParamKey>(p));
+        param_vec_[p].name(pRegistry->as_string(p));
 
     list_const.clear();
     list_sample.clear();
@@ -175,7 +171,7 @@ void Parameter::helper_build_constant_(const hsp::str_table &input, size_t k)
             "Constant parameter '" + paramstr + "' had undefined value.");
 
     // assign constant parameter to the set of variables
-    const auto p = hsp::key::from_string<ParamKey>(paramstr);
+    const auto p = pRegistry->from_string(paramstr);
     param_vec_[p].transfer(read_numeric(input.at("value")[k]));
     // check if discrete as requested
     if (user_discrete_set.count(p) && !param_vec_[p].is_discrete())
@@ -197,7 +193,7 @@ void Parameter::helper_build_to_sample_(const hsp::str_table &input, size_t k)
             "Non-constant parameter '" + paramstr + "' had undefined prior.");
 
     // create a new parameter Variable
-    const auto p = hsp::key::from_string<ParamKey>(paramstr);
+    const auto p = pRegistry->from_string(paramstr);
     param_vec_[p].transfer(read_numeric(input.at("value")[k]));
     auto &new_param = at(p);
 
@@ -215,7 +211,7 @@ void Parameter::helper_build_to_sample_(const hsp::str_table &input, size_t k)
     new_param.init_distr_reshaping(hsp::str::tobool(input.at("discr")[k]));
 
     // load proposal name
-    string proposal_name = "sample";
+    std::string proposal_name = "sample";
     if (!hsp::na::is(input.at("proposal")[k]))
         proposal_name = input.at("proposal")[k];
 
@@ -241,7 +237,7 @@ void Parameter::make_cache_dependent(size_t p)
     // remove a parameter from standard if it was defined as such
     if (std::find(list_sample_standard.begin(), list_sample_standard.end(), p) != list_sample_standard.end())
     {
-        const auto vec = vector<size_t>({p});
+        const auto vec = std::vector<size_t>({p});
         list_sample_standard = list_sample_standard - vec;
         list_adaptable_sample_standard = list_adaptable_sample_standard - vec;
         list_non_adapt_sample_standard = list_non_adapt_sample_standard - vec;
@@ -261,9 +257,9 @@ void Parameter::make_cache_dependent(size_t p)
 /// Load parameters values of the n-th posterrior sample.
 void Parameter::load_sample_values(size_t n)
 {
-    for (const auto &paramstr : hsp::key::get_all<ParamKey>())
+    for (const auto &paramstr : pRegistry->get_all())
     {
-        const auto p = hsp::key::from_string<ParamKey>(paramstr);
+        const auto p = pRegistry->from_string(paramstr);
         const auto &vec = smpl_values[p];
         if (!vec.empty())
             at(p).set(vec[n]);
@@ -275,7 +271,7 @@ void Parameter::make_cache_dependent(const hsp::parse::Entry &node)
     // cache dependecy if an augmented function depends on a parameter to be inferred
     if (hsp::parse::is_parameter(node.type))
     {
-        const auto p = hsp::key::from_string<ParamKey>(node.value);
+        const auto p = pRegistry->from_string(node.value);
         if (!at(p).is_constant())
             make_cache_dependent(p);
     }
@@ -334,7 +330,7 @@ const Attribute &Parameter::read_attribute(const hsp::parse::Entry &node, const 
     }
     else if (hsp::parse::is_parameter(node.type)) // terminal parameter node
     {
-        return at(hsp::key::from_string<ParamKey>(node.value));
+        return at(pRegistry->from_string(node.value));
     }
     else if (!node.is_empty())
     {
@@ -345,16 +341,16 @@ const Attribute &Parameter::read_attribute(const hsp::parse::Entry &node, const 
         const auto &member = *member_ptr;
         if (hsp::parse::is_data(node.type)) // terminal data node
         {
-            storage_ = Attribute(member.get_data_wide_vec()[hsp::key::from_string<DataKey>(node.value)]);
+            storage_ = Attribute(member.get_data_wide_vec()[pDataWideRegistry_->from_string(node.value)]);
             storage_.name(node.value, "data");
         }
         else if (hsp::parse::is_augmented(node.type)) // augmented terminal node
         {
-            return member.get_augm_variable(hsp::key::from_string<AugmKey>(node.value));
+            return member.get_augm_variable(pAugmRegistry_->from_string(node.value));
         }
         else if (hsp::parse::is_group_rate(node.type)) // group rate terminal node
         {
-            return member.get_group_rate_attribute(hsp::key::from_string<GroupRateKey>(node.value));
+            return member.get_group_rate_attribute(pGroupRateRegistry_->from_string(node.value));
         }
         else
             throw std::invalid_argument(
@@ -380,9 +376,11 @@ const Attribute &Parameter::read_numeric(const hsp::parse::Entry &node, const In
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-GroupRate::GroupRate(std::shared_ptr<DataWide> dataptr,
+GroupRate::GroupRate(const std::vector<std::string> &keys,
+                     std::shared_ptr<DataWide> dataptr,
                      std::shared_ptr<Parameter> paramptr)
-    : pDataWide_(dataptr),
+    : pRegistry(std::make_shared<hsp::key::Registry>(keys)),
+      pDataWide_(dataptr),
       pParameter_(paramptr) {}
 GroupRate::~GroupRate() = default;
 
@@ -390,15 +388,16 @@ GroupRate::~GroupRate() = default;
 /// NOTE: this has to run even if input is empty to initialize existing rates to reference.
 void GroupRate::build(const hsp::str_table &input)
 {
-    hsp::key::clear<GroupRateKey>();
+    pRegistry->clear();
 
     size_t n_rows = 0;
-    vector<string> data_headers = {};
+    std::vector<std::string> data_headers = {};
     if (!input.empty())
     {
         data_headers = helper_assert_definitions_(input);
         n_rows = input.begin()->second.size();
-    } else if (hsp::key::size<GroupRateKey>() == 0)
+    }
+    else if (pRegistry->size() == 0)
         return;
 
     // loop over all household members
@@ -413,7 +412,7 @@ void GroupRate::build(const hsp::str_table &input)
                 bool is_this_class = true;
                 for (const auto &d : data_headers)
                     if (!hsp::na::is(input.at(d)[r]))
-                        is_this_class &= member.data_vec_[hsp::key::from_string<DataKey>(d)] == hsp::str::tod(input.at(d)[r]);
+                        is_this_class &= member.data_vec_[pDataWide_->pRegistry->from_string(d)] == hsp::str::tod(input.at(d)[r]);
 
                 // if it's the case, add the parameter name
                 if (is_this_class)
@@ -425,12 +424,12 @@ void GroupRate::build(const hsp::str_table &input)
 }
 
 /// Verify that group rates definitions are correct.
-vector<string> GroupRate::helper_assert_definitions_(const hsp::str_table &input)
+std::vector<std::string> GroupRate::helper_assert_definitions_(const hsp::str_table &input)
 {
     const std::vector<std::string> file_headers = {"group_rate", "param_name"};
 
     // check that tempalte headers are present
-    vector<string> data_headers = hsp::read::extract_keys(input);
+    std::vector<std::string> data_headers = hsp::read::extract_keys(input);
     hsp::str::assert_no_missing_entries(data_headers, file_headers);
 
     // remove template headers to keep only data
@@ -447,8 +446,8 @@ vector<string> GroupRate::helper_assert_definitions_(const hsp::str_table &input
         if (hsp::na::is(groupstr))
             throw std::invalid_argument(
                 "Found a missing group rate name in the definitions.");
-        if (!hsp::key::count<GroupRateKey>(groupstr))
-            hsp::key::add<GroupRateKey>(groupstr);
+        if (!pRegistry->count(groupstr))
+            pRegistry->add(groupstr);
     }
 
     return data_headers;
@@ -459,18 +458,18 @@ void GroupRate::helper_init_all_rates_(Individual &member, const hsp::str_table 
 {
     // initialize group rates to reference
     member.group_rate_vec_.clear();
-    member.group_rate_vec_.reserve(hsp::key::size<GroupRateKey>());
-    for (size_t g = 0; g < hsp::key::size<GroupRateKey>(); ++g)
+    member.group_rate_vec_.reserve(pRegistry->size());
+    for (size_t g = 0; g < pRegistry->size(); ++g)
     {
         member.group_rate_vec_.emplace_back(Attribute(hsp::rates::VALUE_REFERENCE));
-        member.group_rate_vec_.back().name(hsp::key::as_string<GroupRateKey>(g), "group rate");
+        member.group_rate_vec_.back().name(pRegistry->as_string(g), "group rate");
     }
 
     // assign custom definitions
     for (const auto &[groupstr, vec] : these_rates)
     {
         // extract non-reference parameter pointers
-        vector<const Attribute *> param_pointers = {};
+        std::vector<const Attribute *> param_pointers = {};
         for (const auto &paramstr : vec)
         {
             if (hsp::na::is(paramstr) || paramstr == hsp::rates::MISSING)
@@ -478,12 +477,12 @@ void GroupRate::helper_init_all_rates_(Individual &member, const hsp::str_table 
                                             "' was missing for " + member.err_name() + ".");
             if (paramstr != hsp::rates::REFERENCE)
                 param_pointers.emplace_back(
-                    pParameter_->at(hsp::key::from_string<ParamKey>(paramstr)).get_ptr());
+                    pParameter_->at(pParameter_->pRegistry->from_string(paramstr)).get_ptr());
         }
 
         if (!param_pointers.empty())
         {
-            size_t g = hsp::key::from_string<GroupRateKey>(groupstr);
+            size_t g = pRegistry->from_string(groupstr);
             member.group_rate_vec_[g].transfer(Attribute(param_pointers));
         }
     }
@@ -522,12 +521,12 @@ void InfecProfile::init_template(hsp::str_table input)
 
         for (const auto &key : file_headers)
             if (!input.count(key))
-                input.emplace(key, vector<string>(n_rows, ""));
+                input.emplace(key, std::vector<std::string>(n_rows, ""));
 
         // discretization
-        input["discr"] = vector<string>(n_rows, "false");
+        input["discr"] = std::vector<std::string>(n_rows, "false");
         if (is_discrete_requested_)
-            input["discr"] = vector<string>(n_rows, "true");
+            input["discr"] = std::vector<std::string>(n_rows, "true");
         else if (input.count("discr"))
         {
             for (size_t r = 0; r < n_rows; ++r)
@@ -547,7 +546,7 @@ void InfecProfile::init_template(hsp::str_table input)
     catch (const std::exception &e)
     {
         throw std::runtime_error(
-            "While building infectivity profile template:\n" + string(e.what()));
+            "While building infectivity profile template:\n" + std::string(e.what()));
     }
 }
 
@@ -560,7 +559,7 @@ void InfecProfile::init_lookup_()
     if (generic_profile->get_upper().is_empty())
         size_lut_ = hsp::infprof::LOOKUP_SIZE;
     else
-        size_lut_ = generic_profile->upper() + 1;
+        size_lut_ = static_cast<size_t>(generic_profile->upper()) + 1;
 
     lookup_inst_.resize(size_lut_);
     lookup_cumul_.resize(size_lut_);
@@ -633,7 +632,7 @@ void InfecProfile::build(const hsp::str_table &input)
     if (!input.count("func"))
         throw std::invalid_argument(
             "A function name choice was missing in infectivity profile definition.");
-    for (const string &in_name : input.at("func"))
+    for (const std::string &in_name : input.at("func"))
         if (hsp::parse::Definition(in_name).is_na())
             throw std::invalid_argument(
                 "Provided NA as a function name in infectivity profile definition.");
@@ -663,7 +662,7 @@ void InfecProfile::build_generic_profile_(const hsp::str_table &input)
         generic_profile->init_attr(hsp::params::MIN, pParameter_->read_attribute(input.at(hsp::params::MIN)[0]));
     else
     {
-        const string default_min_expr = generic_profile->is_discrete() ? "1|N" : "0|N";
+        const std::string default_min_expr = generic_profile->is_discrete() ? "1|N" : "0|N";
         generic_profile->init_attr(hsp::params::MIN, pParameter_->read_attribute(default_min_expr));
     }
 
@@ -674,10 +673,9 @@ void InfecProfile::build_generic_profile_(const hsp::str_table &input)
     generic_profile->init_truncation();
 
     // if discrete and generic, initializes lookup table
+    clear_lookup_();
     if (generic_profile->is_discrete())
         init_lookup_();
-    else
-        clear_lookup_();
 }
 
 /// Build for individual augmented function infectivity profile.
@@ -749,14 +747,14 @@ double InfecProfile::do_inst_default_(const Individual *, double t)
 /// Lookup method for discrete instantaneous infectivity profile.
 double InfecProfile::do_inst_lookup_(const Individual *, double t)
 {
-    if (generic_profile->is_valid(t) && t < size_lut_)
+    if (generic_profile->is_valid(t) && t < static_cast<double>(size_lut_))
         return lookup_inst_.at(static_cast<size_t>(t));
     return 0;
 }
 /// Augmented method for instantaneous infectivity profile.
 double InfecProfile::do_inst_augm_(const Individual *member, double t)
 {
-    return member->get_augm_variable(augm_infecprof_key_).get_function()->pdf(t);
+    return member->get_augm_variable(augm_infecprof_key).get_function()->pdf(t);
 }
 
 /// Default method for cumulative infectivity profile.
@@ -769,12 +767,12 @@ double InfecProfile::do_cumul_lookup_(const Individual *, double t)
 {
     if (generic_profile->is_below(t))
         return 0.;
-    if (t >= size_lut_ || generic_profile->is_above(t))
+    if (t >= static_cast<double>(size_lut_) || generic_profile->is_above(t))
         return lookup_cumul_.at(size_lut_ - 1);
     return lookup_cumul_.at(static_cast<size_t>(t));
 }
 /// Augmented method for cumulative infectivity profile.
 double InfecProfile::do_cumul_augm_(const Individual *member, double t)
 {
-    return member->get_augm_variable(augm_infecprof_key_).get_function()->cdf(t);
+    return member->get_augm_variable(augm_infecprof_key).get_function()->cdf(t);
 }

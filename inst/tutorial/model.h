@@ -6,6 +6,8 @@
 class Model : public MCMC
 {
 public:
+	Model();
+	
 	// override general MCMC methods
 	double compute_house_obs_log_lik(Household &house) override final;
 	void simulate_single_house(Household &house) override final;

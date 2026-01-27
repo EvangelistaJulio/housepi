@@ -20,9 +20,9 @@ namespace bax
     /// Functions for the generations lookup table.
     void init_generations_lookuptable(unsigned max_N);
 
-    unsigned get_num_generations(unsigned n_positive);
-    std::vector<unsigned> get_generation_vector(unsigned n_positive, unsigned i);
-    unsigned get_generation_multipl(unsigned n_positive, unsigned i);
+    unsigned long get_num_generations(unsigned n_positive);
+    std::vector<unsigned> get_generation_vector(unsigned n_positive, unsigned long i);
+    unsigned long get_generation_multipl(unsigned n_positive, unsigned long i);
 
     /// Recursive likelihood formulation lookuptable.
     void init_escape_patterns_lookuptable(unsigned max_N, bool clean_combinations = true);

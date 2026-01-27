@@ -105,9 +105,13 @@ rd_aug_max_ <- paste(rd_var_max_, rd_types_)
 ############################################################################
 ############################################################################
 
+rd_grr_desc_ <- "Add definitions of a group rate by given data feature(s).\\cr
+Group rates are relative to a reference class that can be specified.\\cr
+If no MCMC options are provided, the prior is assumed to be\\cr
+\\eqn{\\mathrm{lognormal}[\\mu=0, \\sigma=3]} with support \\eqn{[0, 10]}."
 rd_grr_by_ <- "`list` Features associated to group rate as data headers.\\cr
 Corresponding data columns have to be categorical."
-rd_grr_prefix_ <- "`character(1)` Prefix to parameter names associated to group rate.\\cr
+rd_grr_prefix_ <- "`character(1)` Prefix to names of associated parameters.\\cr
 If `NA` uses the first 3 letters of rate name (default)."
 rd_grr_refer_ <- "named `list` Features associated to reference group.\\cr
 Default is the group with the largest sample size."

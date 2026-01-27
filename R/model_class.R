@@ -42,9 +42,9 @@ HousepiModel <- R6::R6Class(
 
     # @description
     # Dataset headers required by implementation file and other definitions.
-    .get_all_required_data = function() {
+    .get_all_required_data_wide = function() {
       required <- c()
-      if (!private$.is_blank()) required <- private$.data_required()
+      if (!private$.is_blank()) required <- private$.data_wide_required()
       c(required, # by the model
         private$.augm$data_required,          # by augmented
         private$.infec_profile$data_required) # by infec profile
@@ -89,7 +89,7 @@ HousepiModel <- R6::R6Class(
       if (length(headers) == 0) stop_h(
         "Impossible to proceed. No data was provided."
       )
-      required <- private$.get_all_required_data()
+      required <- private$.get_all_required_data_wide()
       template_missing_stop(required, headers, "data")
       invisible(self)
     },
@@ -128,7 +128,7 @@ HousepiModel <- R6::R6Class(
 
       # note: this might be a modeler error
       if (length(private$.get_all_required_augm()) > 0) warning_h(
-        "Model with augmentated variable called multiplicity engine."
+        "Model with augmented dependencies called multiplicity engine."
       )
 
       # load data_wide
@@ -137,7 +137,7 @@ HousepiModel <- R6::R6Class(
 
       headers <- c(
         # data headers required by implementation
-        private$.get_all_required_data(),
+        private$.get_all_required_data_wide(),
         # data headers required by group rates
         unlist(lapply(
           private$.group_rates$logic_tables,
@@ -736,12 +736,7 @@ HousepiModel <- R6::R6Class(
     ############################################################################
     ############################################################################
 
-    #' @description
-    #' Add definitions of a group rate by given data feature(s).
-    #' Group rates are relative to a reference class that can be specified.
-    #' If no MCMC options are provided, the prior is assumed to be a
-    #' \\eqn{\\mathrm{lognormal}[\\mu=0, \\sigma=3]}
-    #' with support \\eqn{[0, 10]}.
+    #' @description `r rd_grr_desc_`
     #' @param name `r rd_var_name_`
     #' @param by `r rd_grr_by_`
     #' @param prefix `r rd_grr_prefix_`

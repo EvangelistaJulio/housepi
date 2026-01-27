@@ -27,13 +27,10 @@
 
 namespace hsp
 {
-    using std::string;
-    using std::vector;
-
     namespace msg
     {
         /// Set of already issued warnings.
-        std::unordered_set<string> housepi_issued_warnings_set;
+        std::unordered_set<std::string> housepi_issued_warnings_set;
 
         /// Wheter text represent a previously unseen warning.
         bool is_new_housepi_warning(const std::string &txt) noexcept { return !housepi_issued_warnings_set.count(txt); }
@@ -122,7 +119,7 @@ namespace hsp
         /////////////////////////////////////////////////////////////////////////////////////////////
 
         /// Convert to lower case.
-        string tolow(string s)
+        std::string tolow(std::string s)
         {
             std::transform(s.begin(), s.end(), s.begin(),
                            [](unsigned char c)
@@ -131,7 +128,7 @@ namespace hsp
         }
 
         /// Convert to upper case.
-        string toup(string s)
+        std::string toup(std::string s)
         {
             std::transform(s.begin(), s.end(), s.begin(),
                            [](unsigned char c)
@@ -140,7 +137,7 @@ namespace hsp
         }
 
         /// Convert string to boolean variable. NA is assumed as FALSE.
-        bool tobool(const string &tkn)
+        bool tobool(const std::string &tkn)
         {
             if (na::is(tkn))
                 return false;
@@ -155,7 +152,7 @@ namespace hsp
 
         /// Template function to wrap conversion functions with try-catch.
         template <typename Func, typename... Args>
-        auto converter_(Func func, const string &input, const string &errtxt, Args &&...args) -> decltype(func(input, std::forward<Args>(args)...))
+        auto converter_(Func func, const std::string &input, const std::string &errtxt, Args &&...args) -> decltype(func(input, std::forward<Args>(args)...))
         {
             try
             {
@@ -163,33 +160,33 @@ namespace hsp
             }
             catch (const std::invalid_argument &e)
             {
-                string sms = (errtxt.empty()) ? "" : "Unable to import " + errtxt + ". ";
+                std::string sms = (errtxt.empty()) ? "" : "Unable to import " + errtxt + ". ";
                 throw std::invalid_argument(sms + "Value '" + input + "' is not suitable to conversion.");
             }
         }
 
         /// Converter to double using stod with function pointer casting.
-        double tod(const string &input, const string &errtxt)
+        double tod(const std::string &input, const std::string &errtxt)
         {
             if (na::is(input))
                 return na::DOUBLE;
-            return converter_(static_cast<double (*)(const string &, size_t *)>(std::stod), input, errtxt, nullptr);
+            return converter_(static_cast<double (*)(const std::string &, size_t *)>(std::stod), input, errtxt, nullptr);
         }
 
         /// Converter to int using stoi with function pointer casting.
-        int toi(const string &input, const string &errtxt)
+        int toi(const std::string &input, const std::string &errtxt)
         {
-            return converter_(static_cast<int (*)(const string &, size_t *, int)>(std::stoi), input, errtxt, nullptr, 10);
+            return converter_(static_cast<int (*)(const std::string &, size_t *, int)>(std::stoi), input, errtxt, nullptr, 10);
         }
 
         /// Converter to unsigned long using stoul with function pointer casting.
-        unsigned long toul(const string &input, const string &errtxt)
+        unsigned long toul(const std::string &input, const std::string &errtxt)
         {
-            return converter_(static_cast<unsigned long (*)(const string &, size_t *, int)>(std::stoul), input, errtxt, nullptr, 10);
+            return converter_(static_cast<unsigned long (*)(const std::string &, size_t *, int)>(std::stoul), input, errtxt, nullptr, 10);
         }
 
         /// Converter to unsigned 32bit integer (for R compatibility).
-        std::int32_t toi32(const string &input, const string &errtxt)
+        std::int32_t toi32(const std::string &input, const std::string &errtxt)
         {
             return static_cast<std::int32_t>(toul(input, errtxt));
         }
@@ -199,16 +196,16 @@ namespace hsp
         /////////////////////////////////////////////////////////////////////////////////////////////
 
         /// Format a dobule value (it deals with NA).
-        string format(double x) { return na::is(x) ? "NA" : std::to_string(x); }
+        std::string format(double x) { return na::is(x) ? "NA" : std::to_string(x); }
 
         /// Format a list of string options.
-        string format(const vector<string> &options, size_t max_print)
+        std::string format(const std::vector<std::string> &options, size_t max_print)
         {
             if (options.empty())
                 return "";
 
             max_print = std::min(options.size(), max_print);
-            string output = "'" + options[0] + "'";
+            std::string output = "'" + options[0] + "'";
             for (size_t i = 1; i < max_print; ++i)
                 output += ", '" + options[i] + "'";
             if (options.size() > max_print)
@@ -228,9 +225,9 @@ namespace hsp
         }
 
         /// Make list composed of distinct entries.
-        vector<string> unique(const vector<string> &vec)
+        std::vector<std::string> unique(const std::vector<std::string> &vec)
         {
-            vector<string> out;
+            std::vector<std::string> out;
             out.reserve(vec.size());
             for (const auto &s : vec)
                 if (std::find(out.begin(), out.end(), s) == out.end())
@@ -239,7 +236,7 @@ namespace hsp
         }
 
         /// Drop private entries from list.
-        vector<string> drop_private(vector<string> vec)
+        std::vector<std::string> drop_private(std::vector<std::string> vec)
         {
             auto new_end = std::remove_if(vec.begin(), vec.end(), is_private);
             vec.erase(new_end, vec.end());
@@ -283,20 +280,20 @@ namespace hsp
         }
 
         /// Function to find the closest match.
-        string find_closest(std::string_view input,
-                            const vector<string> &options,
-                            unsigned short min_dist,
-                            bool show_avail_options)
+        std::string find_closest(std::string_view input,
+                                 const std::vector<std::string> &options,
+                                 size_t min_dist,
+                                 bool show_avail_options)
         {
-            string closest = "";
-            unsigned short dist_closest = min_dist;
+            std::string closest = "";
+            auto dist_closest = min_dist;
 
             for (const auto &x : options)
             {
-                const auto distance = levenshtein(input, x);
-                if (distance <= dist_closest)
+                auto d = levenshtein(input, x);
+                if (d <= dist_closest)
                 {
-                    dist_closest = distance;
+                    dist_closest = d;
                     closest = x;
                 }
             }
@@ -316,14 +313,14 @@ namespace hsp
         }
 
         /// Check for missing entries given a vector of options.
-        void assert_no_missing_entries(const vector<string> &entries,
-                                       const vector<string> &options,
-                                       const string &where)
+        void assert_no_missing_entries(const std::vector<std::string> &entries,
+                                       const std::vector<std::string> &options,
+                                       const std::string &where)
         {
             if (options.empty())
                 return;
 
-            vector<string> missing = {};
+            std::vector<std::string> missing = {};
 
             for (const auto &x : options)
                 if (std::find(entries.begin(), entries.end(), x) == entries.end())
@@ -339,11 +336,11 @@ namespace hsp
         }
 
         /// Check for unused entries given a vector of options.
-        void assert_no_unused_entries(const vector<string> &entries,
-                                      const vector<string> &options,
-                                      const string &where)
+        void assert_no_unused_entries(const std::vector<std::string> &entries,
+                                      const std::vector<std::string> &options,
+                                      const std::string &where)
         {
-            vector<string> unused = {};
+            std::vector<std::string> unused = {};
             for (const auto &x : entries)
                 if (std::find(options.begin(), options.end(), x) == options.end())
                     unused.push_back(x);
@@ -367,7 +364,7 @@ namespace hsp
     namespace read
     {
         /// Clean string from forbidden characters and convert to UNDEFINED.
-        const string strcleaner_(string tkn)
+        const std::string strcleaner_(std::string tkn)
         {
             // forbidden characters
             for (char r : {'"', '\r', '\n'})
@@ -379,13 +376,13 @@ namespace hsp
         }
 
         /// Read column headers and compare to required headers.
-        vector<string> read_column_headers_(std::ifstream &input)
+        std::vector<std::string> read_column_headers_(std::ifstream &input)
         {
             // clean headers
-            vector<string> headers = {};
+            std::vector<std::string> headers = {};
 
             // read first line
-            string line, tkn;
+            std::string line, tkn;
             std::getline(input, line);
             std::istringstream iss(line);
 
@@ -398,10 +395,10 @@ namespace hsp
 
         /// Load files from the row with headers.
         bool read_row_by_headers_(std::ifstream &input,
-                                  const vector<string> &headers,
-                                  hsp::dict<string> &this_row)
+                                  const std::vector<std::string> &headers,
+                                  hsp::dict<std::string> &this_row)
         {
-            string line, tkn;
+            std::string line, tkn;
 
             if (!std::getline(input, line))
                 return false;
@@ -420,11 +417,11 @@ namespace hsp
         }
 
         /// Parse the list from the string.
-        vector<string> parse_list(const string &tkn)
+        std::vector<std::string> parse_list(const std::string &tkn)
         {
-            vector<string> output = {};
+            std::vector<std::string> output = {};
             std::istringstream args_ss(strcleaner_(tkn));
-            string tmp;
+            std::string tmp;
 
             // rea the entries of the dictionary
             while (std::getline(args_ss, tmp, LIST_DELIMITER))
@@ -441,7 +438,7 @@ namespace hsp
         }
 
         /// Read csv table in pathtofile and store it parsed in csv_parsed_table.
-        str_table csv_table(const string &pathtofile)
+        str_table csv_table(const std::string &pathtofile)
         {
             if (na::is(pathtofile))
                 return {};
@@ -455,7 +452,7 @@ namespace hsp
             const auto headers = read_column_headers_(input);
 
             str_table output = {};
-            hsp::dict<string> this_row = {};
+            hsp::dict<std::string> this_row = {};
             while (read_row_by_headers_(input, headers, this_row))
             {
                 for (const auto &[key, val] : this_row)
@@ -486,7 +483,7 @@ namespace hsp
         using namespace std::chrono;
 
         /// Format elapsed time in seconds.
-        string format_time_(seconds scs)
+        std::string format_time_(seconds scs)
         {
             std::ostringstream oss;
 
@@ -534,24 +531,24 @@ namespace hsp
         class Bar::Impl
         {
         private:
-            const string symbol_ = "\u25A0"; /// bar decorator
-            unsigned barwidth_ = 35;         /// bar total size
-            bool verbose_ = true;            /// wheter to show bar
-            bool is_bar_print_ = false;      /// wheter bar is printing
-            unsigned long state_ = 0;        /// current iteration
-            unsigned long total_ = 0;        /// total number of iterations
-            string text_ = "";               /// current text to show
+            const std::string symbol_ = "\u25A0"; /// bar decorator
+            unsigned barwidth_ = 35;              /// bar total size
+            bool verbose_ = true;                 /// wheter to show bar
+            bool is_bar_print_ = false;           /// wheter bar is printing
+            unsigned long state_ = 0;             /// current iteration
+            unsigned long total_ = 0;             /// total number of iterations
+            std::string text_ = "";               /// current text to show
 
             steady_clock::time_point start_;
             steady_clock::time_point lastprint_;
             unsigned long thintime_ = 0;
 
             /// Function to display the progress bar.
-            void bar_(const string &sms) const { (this->*which_bar_)(sms); }
+            void bar_(const std::string &sms) const { (this->*which_bar_)(sms); }
 
-            void (Impl::*which_bar_)(const string &) const = &Impl::do_bar_carriage_return_;
-            void do_bar_carriage_return_(const string &sms) const { hsp::msg::info("\r" + sms); }
-            void do_bar_new_line_(const string &sms) const { hsp::msg::info(sms + "\n"); }
+            void (Impl::*which_bar_)(const std::string &) const = &Impl::do_bar_carriage_return_;
+            void do_bar_carriage_return_(const std::string &sms) const { hsp::msg::info("\r" + sms); }
+            void do_bar_new_line_(const std::string &sms) const { hsp::msg::info(sms + "\n"); }
 
         public:
             /////////////////////////////////////////////////////////////////////////////////////////////
@@ -573,7 +570,7 @@ namespace hsp
             /////////////////////////////////////////////////////////////////////////////////////////////
 
             /// Set description text of progress bar.
-            void set_text(const string &text) { text_ = text; }
+            void set_text(const std::string &text) { text_ = text; }
 
             /// Set description text of progress bar.
             void set_thintime(unsigned long thintime)
@@ -606,7 +603,7 @@ namespace hsp
                 if (!verbose_)
                     return;
 
-                const double progress = static_cast<double>(state_) / total_;
+                const double progress = static_cast<double>(state_) / static_cast<double>(total_);
                 const auto now = steady_clock::now();
                 const auto elapsed = duration_cast<seconds>(now - start_);
                 const auto missing = duration_cast<seconds>(elapsed * (1. / progress - 1.));
@@ -623,10 +620,10 @@ namespace hsp
                     oss << text_ << " |";
                     for (unsigned u = 0; u < where; ++u)
                         oss << symbol_;
-                    oss << string(barwidth_ - where, ' ') << "| "
+                    oss << std::string(barwidth_ - where, ' ') << "| "
                         << std::fixed << std::setprecision(0) << 100. * progress << "% "
                         << format_time_(elapsed) << "<" << format_time_(missing)
-                        << string(10, ' ');
+                        << std::string(10, ' ');
                     bar_(oss.str());
 
                     lastprint_ = steady_clock::now();
@@ -636,7 +633,7 @@ namespace hsp
                 {
                     // eventually print initial message
                     std::ostringstream oss;
-                    oss << text_ << " |" << string(barwidth_, ' ') << "| 0% ";
+                    oss << text_ << " |" << std::string(barwidth_, ' ') << "| 0% ";
                     if (which_bar_ == &Impl::do_bar_new_line_)
                         oss << "\n";
                     hsp::msg::info(oss.str());
@@ -671,7 +668,7 @@ namespace hsp
                     for (unsigned u = 0; u < barwidth_; u++)
                         oss << symbol_;
                     oss << "| " << format_time_(elapsed)
-                        << string(25, ' ');
+                        << std::string(25, ' ');
                     if (which_bar_ == &Impl::do_bar_carriage_return_)
                         oss << "\n";
                     bar_(oss.str());
@@ -691,7 +688,7 @@ namespace hsp
         //////////////////////////////////////////  Bar : Setter  /////////////////////////////////////////
         ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-        void Bar::set_text(const string &text) { pImpl_->set_text(text); }
+        void Bar::set_text(const std::string &text) { pImpl_->set_text(text); }
         void Bar::set_thintime(unsigned long thintime) { pImpl_->set_thintime(thintime); }
         void Bar::open(unsigned long total) { pImpl_->open(total); }
         void Bar::update() { pImpl_->update(); }
@@ -708,10 +705,10 @@ namespace hsp
     namespace parse
     {
         /// Split on sep at top level (ignore separators inside braces).
-        vector<string> split_top_(const string &s)
+        std::vector<std::string> split_top_(const std::string &s)
         {
-            vector<string> entries;
-            string current;
+            std::vector<std::string> entries;
+            std::string current;
             int level = 0;
 
             for (char c : s)
@@ -744,9 +741,9 @@ namespace hsp
                 return Entry();
 
             // pure function node
-            const string expr(input);
+            const std::string expr(input);
             const size_t bar_1 = expr.find('|');
-            if (bar_1 == string::npos)
+            if (bar_1 == std::string::npos)
             {
                 Entry node;
                 node.func = expr;
@@ -758,7 +755,7 @@ namespace hsp
 
             // if not found, then it's a terminal node {value|type}
             const size_t bar_2 = expr_tail.find('|');
-            if (bar_2 == string::npos)
+            if (bar_2 == std::string::npos)
                 return Entry(expr_head, expr_tail);
 
             // otherwise it is a non-default function node
@@ -790,7 +787,7 @@ namespace hsp
                 {
                     // Terminal Child Node
                     auto barc = c.find('|');
-                    if (barc == string::npos)
+                    if (barc == std::string::npos)
                         throw std::runtime_error(
                             "Missing terminal '|' in definition '" + expr + "'.");
                     Entry child(c.substr(0, barc), c.substr(barc + 1));
@@ -803,14 +800,14 @@ namespace hsp
         }
 
         /// Definition Entry constructor.
-        Entry::Entry(const string &value_, const string &type_)
+        Entry::Entry(const std::string &value_, const std::string &type_)
         {
             value = value_;
             type = hsp::str::toup(type_);
         }
 
         /// Rebuild string from node using recursion.
-        string Entry::str() const
+        std::string Entry::str() const
         {
             if (is_empty())
                 return "";
@@ -819,7 +816,7 @@ namespace hsp
             if (is_terminal())
                 return value + "|" + type;
 
-            string str_args, str_children;
+            std::string str_args, str_children;
             for (size_t i = 0; i < children.size(); ++i)
             {
                 const auto &child = children[i];
@@ -860,14 +857,14 @@ namespace hsp
         }
 
 /// Append dependencies of chosen type to stack.
-#define MAKE_NODE_LIST_TYPE_DEPEN(type_flag)                            \
-    void Entry::append_##type_flag##_depen(vector<string> &stack) const \
-    {                                                                   \
-        if (is_terminal() && is_##type_flag(type))                      \
-            stack.push_back(value);                                     \
-        else                                                            \
-            for (const auto &child : children)                          \
-                child.append_##type_flag##_depen(stack);                \
+#define MAKE_NODE_LIST_TYPE_DEPEN(type_flag)                                      \
+    void Entry::append_##type_flag##_depen(std::vector<std::string> &stack) const \
+    {                                                                             \
+        if (is_terminal() && is_##type_flag(type))                                \
+            stack.push_back(value);                                               \
+        else                                                                      \
+            for (const auto &child : children)                                    \
+                child.append_##type_flag##_depen(stack);                          \
     }
         MAKE_NODE_LIST_TYPE_DEPEN(augmented)
         MAKE_NODE_LIST_TYPE_DEPEN(data)
@@ -880,12 +877,12 @@ namespace hsp
         bool Definition::is_na() const { return is_terminal() && na::is(root.value); }
 
 /// Return unique list of dependencies of chosen type.
-#define MAKE_PARSER_LIST_TYPE_DEPEN(type_flag)                  \
-    vector<string> Definition::list_##type_flag##_depen() const \
-    {                                                           \
-        vector<string> stack = {};                              \
-        root.append_##type_flag##_depen(stack);                 \
-        return hsp::str::unique(stack);                         \
+#define MAKE_PARSER_LIST_TYPE_DEPEN(type_flag)                            \
+    std::vector<std::string> Definition::list_##type_flag##_depen() const \
+    {                                                                     \
+        std::vector<std::string> stack = {};                              \
+        root.append_##type_flag##_depen(stack);                           \
+        return hsp::str::unique(stack);                                   \
     }
         MAKE_PARSER_LIST_TYPE_DEPEN(augmented)
         MAKE_PARSER_LIST_TYPE_DEPEN(data)

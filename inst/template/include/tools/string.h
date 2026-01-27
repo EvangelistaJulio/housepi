@@ -47,7 +47,7 @@ namespace hsp::str
     /// NOTE: I find the options show all available options annoying at the moment...
     std::string find_closest(std::string_view input,
                              const std::vector<std::string> &options,
-                             unsigned short min_dist = MIN_DIST,
+                             size_t min_dist = MIN_DIST,
                              bool show_avail_options = false);
 
     /// Check for unused entries from a vector of options and throw exception.

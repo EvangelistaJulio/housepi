@@ -22,6 +22,11 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+namespace hsp::key
+{
+    class Registry;
+}
+
 struct DataWide;
 struct Parameter;
 struct InfecProfile;
@@ -29,8 +34,9 @@ class Individual;
 
 struct Augmented
 {
-    ~Augmented();
-
+    /// UPATE: once read_attribute goes back to MCMCImpl, this can become private
+    std::shared_ptr<hsp::key::Registry> pRegistry; /// pointer to registry
+    
     std::unordered_set<size_t> list_draws = {};
     std::unordered_set<size_t> list_export = {};
     std::unordered_set<size_t> user_discrete_set = {};
@@ -46,9 +52,11 @@ struct Augmented
     std::vector<const Individual *> smpl_individuals = {};
     std::vector<std::vector<std::vector<double>>> smpl_values = {};
 
-    Augmented(std::shared_ptr<DataWide> dataptr,
+    Augmented(const std::vector<std::string> &keys,
+              std::shared_ptr<DataWide> dataptr,
               std::shared_ptr<Parameter> paramptr,
               std::shared_ptr<InfecProfile> infprofptr);
+    ~Augmented();
 
     void build(const hsp::str_table &input);
     void init();
@@ -74,11 +82,10 @@ struct Augmented
     double materialize_augm_model_logratio(Individual &member, size_t a);
 
 private:
-    std::shared_ptr<DataWide> pDataWide_;         /// pointer to external DataWide struct
-    std::shared_ptr<Parameter> pParameter_;       /// pointer to external Parameter struct
-    std::shared_ptr<InfecProfile> pInfecProfile_; /// pointer to external InfecProfile struct
-    hsp::str_table deftable_ = {};                /// store definition table
-
+    std::shared_ptr<DataWide> pDataWide_;            /// pointer to external DataWide struct
+    std::shared_ptr<Parameter> pParameter_;          /// pointer to external Parameter struct
+    std::shared_ptr<InfecProfile> pInfecProfile_;    /// pointer to external InfecProfile struct
+    hsp::str_table deftable_ = {};                   /// store definition table
 
     struct ModelBlock_
     {

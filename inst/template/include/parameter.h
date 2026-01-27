@@ -10,7 +10,6 @@
 #include <string>
 #include <vector>
 
-#include "tools/keys.h"
 #include "tools/parser.h" // UPDATE: this shouldn't be public
 #include "tools/random.h"
 #include "tools/types.h"
@@ -24,11 +23,18 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+namespace hsp::key
+{
+    class Registry;
+}
+
 class Individual;
 
 /// Implementation of Parameters.
 struct Parameter
 {
+    std::shared_ptr<hsp::key::Registry> pRegistry; /// pointer to registry
+
     /// NOTE: list_const + list_sample = all parameters in param_vec_
     /// NOTE: list_sample_standard + list_sample_cached = list_sample
     /// NOTE: list_adaptable_sample_standard + list_non_adapt_sample_standard = list_sample_standard
@@ -50,9 +56,15 @@ struct Parameter
 
     std::unordered_set<size_t> user_discrete_set = {}; /// user defined discrete parameters
 
-    /////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////  Parameter : getter  /////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////
+	//////  CONSTRUCTOR  //////
+	///////////////////////////
+
+    Parameter(const std::vector<std::string> &keys);
+    
+	//////////////////////
+	//////  GETTER  //////
+	//////////////////////
 
     /// Get reference to parameter Variable class.
     Variable &at(size_t p) { return param_vec_[p]; }
@@ -62,9 +74,9 @@ struct Parameter
     /// Flag to check if there are parameters to sample.
     bool is_any_sample() const { return !list_sample.empty(); }
 
-    /////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////  Parameter : setter  /////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////
+	//////  SETTER  //////
+	//////////////////////
 
     void build(const hsp::str_table &deftable);
     void build_for_expec(const hsp::dbl_table &deftable);
@@ -84,6 +96,10 @@ struct Parameter
     /////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////  Parameter : definition helpers  ////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
+
+    void link_to_data_wide(std::shared_ptr<hsp::key::Registry> pRegistry) { pDataWideRegistry_ = pRegistry; }
+    void link_to_group_rate(std::shared_ptr<hsp::key::Registry> pRegistry) { pGroupRateRegistry_ = pRegistry; }
+    void link_to_augm(std::shared_ptr<hsp::key::Registry> pRegistry) { pAugmRegistry_ = pRegistry; }
 
     /// Auxiliary method to read a definition as a single attribute.
     const Attribute &read_attribute(const hsp::parse::Entry &node, const Individual *member_ptr = nullptr) const;
@@ -108,4 +124,9 @@ private:
     void clear_lists_();
     void helper_build_constant_(const hsp::str_table &deftable, size_t k);
     void helper_build_to_sample_(const hsp::str_table &deftable, size_t k);
+
+    /// UPDATE: waiting for an updated read_attribute framework...
+    std::shared_ptr<hsp::key::Registry> pDataWideRegistry_ = nullptr; /// pointer to external registry
+    std::shared_ptr<hsp::key::Registry> pGroupRateRegistry_ = nullptr; /// pointer to external registry
+    std::shared_ptr<hsp::key::Registry> pAugmRegistry_ = nullptr; /// pointer to external registry
 };

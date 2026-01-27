@@ -22,15 +22,18 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-class Model : public MCMC
+class Model final : public MCMC
 {
+public:
+	Model();
+
 	// model dependent methods
 	double community_risk() const;
 	double person_to_person_risk() const;
 
 	// override general MCMC methods
 	void init_model_for_inference() override final;
-	double compute_house_obs_log_lik(Household &house) override final;	
+	double compute_house_obs_log_lik(Household &house) override final;
 	void simulate_single_house(Household &house) override final;
 };
 

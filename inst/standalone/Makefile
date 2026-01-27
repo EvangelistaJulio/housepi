@@ -27,7 +27,8 @@ CXXFLAGS := -std=c++17 -I../template/include/ \
 LDFLAGS :=
 
 ifdef DEBUG
-CXXFLAGS += -g3 -O0 -Werror \
+CXXFLAGS += -g3 -O0 \
+-Werror \
 -Wuninitialized \
 -fsanitize=address,undefined,leak \
 -fno-sanitize-recover=all \
@@ -38,6 +39,10 @@ CXXFLAGS += -g3 -O0 -Werror \
 -fno-inline
 else
 CXXFLAGS += -g -O2
+endif
+
+ifdef DISCRETE
+CXXFLAGS += -D_HOUSEPI_RCPP
 endif
 
 # Change openMP flags according to OS

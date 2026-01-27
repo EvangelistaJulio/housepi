@@ -11,9 +11,8 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <unordered_map>
 #include <vector>
-
-#include "tools/keys.h"
 
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
@@ -36,8 +35,15 @@ public:
 	///////////////////////////
 	//////  CONSTRUCTOR  //////
 	///////////////////////////
-	
-	MCMC();
+
+	MCMC(const std::vector<std::string> &data_wide_keys,
+		 const std::vector<std::string> &hh_size_t_keys,
+		 const std::vector<std::string> &hh_double_keys,
+		 const std::vector<std::string> &hh_matrix_keys,
+		 const std::vector<std::string> &data_long_keys,
+		 const std::vector<std::string> &param_keys,
+		 const std::vector<std::string> &group_rate_keys,
+		 const std::vector<std::string> &augm_keys);
 	virtual ~MCMC();
 
 	/// Virtual method for user initialization of advanced setup.
@@ -69,7 +75,7 @@ public:
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
 	/// Return value of parameter.
-	double par(ParamKey p) const;
+	double par(size_t p) const;
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////  MCMC : augmented variables  ////////////////////////////////
@@ -77,8 +83,8 @@ public:
 
 	void init_missing_augm(Individual &member);
 	void clear_all_augm(Individual &member);
-	void request_discrete(AugmKey a);
-	void request_discrete(ParamKey p);
+	void request_discrete_augm(size_t a);
+	void request_discrete_param(size_t p);
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////  MCMC : infectivity profile  ////////////////////////////////
@@ -128,7 +134,7 @@ public:
 	Rcpp::List log_evidence(const std::string &scheme, unsigned long n_rungs);
 
 	// UPDATE: these do not need to be exposed
-	Rcpp::List helper_simulate(size_t n, bool is_expec_measure); 
+	Rcpp::List helper_simulate(size_t n, bool is_expec_measure);
 	Rcpp::DataFrame helper_simulate_single_repetition();
 
 	/////////////////////////////////////////////////////////////////////////////////////////////

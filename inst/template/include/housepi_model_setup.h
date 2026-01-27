@@ -7,28 +7,37 @@
 
 #pragma once
 
-#include "tools/keys.h"
 #include "tools/keys_helper.h"
 
 #include "individual.h"
 #include "household.h"
 
-/// Define enum keys and auto-generate registration.
-#define REGISTER_HOUSEPI_KEYS(T, ...)                                    \
-    enum class T : size_t                                                \
-    {                                                                    \
-        __VA_ARGS__                                                      \
-    };                                                                   \
-                                                                         \
-    namespace                                                            \
-    {                                                                    \
-        struct T##_AutoRegister                                          \
-        {                                                                \
-            T##_AutoRegister()                                           \
-            {                                                            \
-                auto keys = hsp::key::helper_parse_names(#__VA_ARGS__);  \
-                hsp::key::Registry<T>::instance().init(std::move(keys)); \
-            }                                                            \
-        };                                                               \
-        static T##_AutoRegister T##_housepi_auto_register;               \
+#define EMPTY_HOUSEPI_KEYS(T)                                \
+    namespace                                                \
+    {                                                        \
+        static const std::vector<std::string> T##_keys = {}; \
     }
+
+#define REGISTER_HOUSEPI_KEYS(T, ...)                                                                \
+    namespace                                                                                        \
+    {                                                                                                \
+        struct T                                                                                     \
+        {                                                                                            \
+            enum : size_t                                                                            \
+            {                                                                                        \
+                __VA_ARGS__                                                                          \
+            };                                                                                       \
+        };                                                                                           \
+                                                                                                     \
+        static const std::vector<std::string> T##_keys = hsp::key::helper_parse_names(#__VA_ARGS__); \
+    }
+
+#define HOUSEPI_MODEL_CONSTRUCTOR()          \
+    Model::Model() : MCMC(DataKey_keys,      \
+                          HHsize_tKey_keys,  \
+                          HHdoubleKey_keys,  \
+                          HHmatrixKey_keys,  \
+                          LongKey_keys,      \
+                          ParamKey_keys,     \
+                          GroupRateKey_keys, \
+                          AugmKey_keys) {}

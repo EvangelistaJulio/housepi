@@ -11,8 +11,6 @@
 #include <string_view>
 #include <vector>
 
-#include "tools/keys.h"
-
 #include "attribute.h"
 #include "individual.h"
 
@@ -25,6 +23,8 @@
 /// Household class.
 class Household
 {
+	friend struct DataWide;
+
 public:
 	///////////////////////////
 	//////  CONSTRUCTOR  //////
@@ -61,9 +61,6 @@ public:
 	//////  CACHE  //////
 	/////////////////////
 
-	/// Initialize cached structeres according to household size.
-	void init_cache();
-
 	/// Deep copies of cache attributes in the buffer
 	void buffer_all_cache()
 	{
@@ -86,16 +83,16 @@ public:
 	}
 
 	// Cache size_t vector
-	std::vector<size_t> &cache_size_t_vector(HHsize_tKey e) { return cache_size_t_vec_[static_cast<size_t>(e)]; }
-	const std::vector<size_t> &cache_size_t_vector(HHsize_tKey e) const { return cache_size_t_vec_[static_cast<size_t>(e)]; }
+	std::vector<size_t> &cache_size_t_vector(size_t e) { return cache_size_t_vec_[e]; }
+	const std::vector<size_t> &cache_size_t_vector(size_t e) const { return cache_size_t_vec_[e]; }
 
 	// Cached double vector
-	std::vector<double> &cache_double_vector(HHdoubleKey e) { return cache_dbl_vec_[static_cast<size_t>(e)]; }
-	const std::vector<double> &cache_double_vector(HHdoubleKey e) const { return cache_dbl_vec_[static_cast<size_t>(e)]; }
+	std::vector<double> &cache_double_vector(size_t e) { return cache_dbl_vec_[e]; }
+	const std::vector<double> &cache_double_vector(size_t e) const { return cache_dbl_vec_[e]; }
 
 	// Cache double matrix
-	std::vector<std::vector<double>> &cache_double_matrix(HHmatrixKey e) { return cache_dbl_mtx_[static_cast<size_t>(e)]; }
-	const std::vector<std::vector<double>> &cache_double_matrix(HHmatrixKey e) const { return cache_dbl_mtx_[static_cast<size_t>(e)]; }
+	std::vector<std::vector<double>> &cache_double_matrix(size_t e) { return cache_dbl_mtx_[e]; }
+	const std::vector<std::vector<double>> &cache_double_matrix(size_t e) const { return cache_dbl_mtx_[e]; }
 
 	//////////////////////////////
 	//////  LOG-LIKELIHOOD  //////

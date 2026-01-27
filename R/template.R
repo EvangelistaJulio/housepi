@@ -268,41 +268,9 @@ template_extract_keys <- function(refer_file, key_family) {
   script <- paste(readLines(refer_file), collapse = " ")
   reg <- sprintf("REGISTER_HOUSEPI_KEYS\\(%s,\\s*([^)]+)\\)", key_family)
   args <- stringr::str_match(script, reg)[1, 2]
+  if (is.na(args)) return(character(0))
   args <- stringr::str_trim(stringr::str_split(args, ",")[[1]])
   args[nzchar(args)]
-}
-
-#' Find the vector of definition names required by the model according.
-#' @param refer_file `character(1)`. Path to reference file.
-#' @param regular_expr `character()` . Regular expressions.
-#' @return `character()`
-#' @keywords internal
-#' @noRd
-template_required_find <- function(refer_file, regular_expr) {
-  required <- c()
-
-  # check if reference file exists
-  if (file.exists(refer_file)) {
-    # read the script and extract parameters
-    script <- readChar(refer_file, file.info(refer_file)$size)
-
-    # extract all calls in .refer source file
-    for (reg in regular_expr) {
-      matches <- stringr::str_match_all(script, reg)
-      required <- c(required, unlist(matches[[1]][, 2]))
-    }
-
-    # re-order alphabetically
-    required <- sort(unique(required))
-
-  } else {
-    warning_h(
-      sprintf("Impossible to find reference file '%s'.", refer_file),
-      "Try to generate a new model object."
-    )
-  }
-
-  required
 }
 
 #' Compared required definitions to current definitions and find missing ones.

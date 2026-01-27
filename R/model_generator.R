@@ -21,41 +21,6 @@ generator_assert_source_files <- function(source_dir) {
 }
 
 # @description
-# Assert cache allocations in source code match calls.
-generator_assert_cache <- function(source_dir) {
-  # use source file as a reference
-  refer_file <- file.path(source_dir, "model.cpp")
-
-  # dictionary of allocate\call functions
-  checks <- list(
-    "cache_house_integer_vector" = ".cache_integer_vector",
-    "cache_house_size_t_vector" = ".cache_size_t_vector",
-    "cache_house_double_vector" = ".cache_double_vector",
-    "cache_house_double_matrix" = ".cache_double_matrix"
-  )
-
-  required <- c()
-  defined <- c()
-  for (i in seq_along(checks)) {
-    # regular expression
-    regexp <- '%s\\s*\\(\\s*["\'](.*?)["\']'
-    # .extra_<type>("string")
-    reg_called <- sprintf(regexp, checks[[i]])
-    # allocate_extra_house_<type>("string")
-    reg_allocated <- sprintf(regexp, names(checks)[[i]])
-
-    # set of extra variables
-    required <- c(required, template_required_find(refer_file, reg_called))
-    defined <- c(defined, template_required_find(refer_file, reg_allocated))
-  }
-  required <- set_source_name_(unique(required), "model")
-  # point out unused cached variables
-  template_not_used_warn(required, defined, "cached variable")
-  # stop if cached variables are missing
-  template_missing_stop(required, defined, "cached variable")
-}
-
-# @description
 # Check whether source model contains a literal macro/token.
 generator_assert_allows_flag <- function(source_dir, flag) {
   candidates <- c(file.path(source_dir, "src", "model.cpp"),
@@ -342,7 +307,6 @@ HousepiGenerator <- R6::R6Class(
         # source directory must contain source files
         generator_assert_source_files(private$.source_dir)
         # organize cache directory to perform compilation
-        generator_assert_cache(private$.source_dir)
         private$.copy_source_code()
       }
 
@@ -515,17 +479,12 @@ HousepiGenerator <- R6::R6Class(
     ############################################################################
     ############################################################################
 
-    # @description Dataset headers required by the model.
+    # @description Dataset headers (wide format) required by the model.
     # @return `character()`
-    .data_required = function() {
-      # vector of regular expression to use for assertion
-      regexp <- c(
-        # from : .data("string")
-        '.data\\s*\\(\\s*["\'](.*?)["\']'
-      )
+    .data_wide_required = function() {
       # retrieve required data headers from regular expressions
       refer_file <- private$.reference()
-      output <- template_required_find(refer_file, regexp)
+      output <- template_extract_keys(refer_file, "DataKey")
       set_source_name_(output, "model")
     },
 

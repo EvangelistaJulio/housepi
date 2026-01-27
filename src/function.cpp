@@ -18,13 +18,6 @@
 #include "function.h"
 #include "registry.h"
 
-namespace
-{
-    using std::string;
-    using std::vector;
-    using named_args = std::vector<std::pair<std::string, double>>;
-}
-
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////  Function : show  ///////////////////////////////////////
@@ -32,9 +25,9 @@ namespace
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Return formatted function summary.
-string Function::str_summary(bool show_x_arg) const
+std::string Function::str_summary(bool show_x_arg) const
 {
-    string output = name_ + "(";
+    std::string output = name_ + "(";
     if (show_x_arg)
     {
         output += std::string(x_arg_.name());
@@ -82,8 +75,8 @@ std::unique_ptr<Function> FunctionRegistry::create(std::string_view opt, bool is
 }
 
 std::unique_ptr<Function> compose_func_registries(std::string_view opt,
-                                                  const string &err_type,
-                                                  const vector<string> &registries,
+                                                  const std::string &err_type,
+                                                  const std::vector<std::string> &registries,
                                                   bool is_prim)
 {
     if (registries.empty())
@@ -93,7 +86,7 @@ std::unique_ptr<Function> compose_func_registries(std::string_view opt,
     if (hsp::na::is(opt))
         return nullptr;
 
-    vector<const FunctionRegistry *> registry_ptrs = {};
+    std::vector<const FunctionRegistry *> registry_ptrs = {};
     for (const auto &r : registries)
         if (r == "user")
             registry_ptrs.push_back(&UserFuncRegistry::instance());
@@ -110,7 +103,7 @@ std::unique_ptr<Function> compose_func_registries(std::string_view opt,
         else
             throw std::invalid_argument("Unknown " + err_type + " registry '" + r + "'.");
 
-    vector<string> options = {};
+    std::vector<std::string> options = {};
     for (const auto &ptr : registry_ptrs)
     {
         if (ptr->count(opt))
@@ -120,8 +113,8 @@ std::unique_ptr<Function> compose_func_registries(std::string_view opt,
         options.insert(options.end(), y.begin(), y.end());
     }
 
-    throw std::invalid_argument(
-        "Unknown " + err_type + " '" + string(opt) + "'." + hsp::str::find_closest(opt, options));
+    throw std::invalid_argument("Unknown " + err_type + " '" + std::string(opt) + "'." +
+                                hsp::str::find_closest(opt, options));
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -162,9 +155,9 @@ Attribute::~Attribute() = default;
 /// Wheter it's a number.
 bool Attribute::is_numeric() const noexcept { return !hsp::na::is(value_); }
 
-string Attribute::str_summary() const
+std::string Attribute::str_summary() const
 {
-    string sms = "";
+    std::string sms = "";
     if (!is_function() || pFunc_->is_callable_implicitly())
         sms = std::to_string(get()) + " | ";
 
@@ -310,7 +303,7 @@ void Attribute::transfer(const Attribute &other)
 
 /// Initial defaults for function.
 /// NOTE: to access arguments by index, I must provide separate name/value.
-Function::Function(const string &name,
+Function::Function(const std::string &name,
                    const std::vector<std::pair<std::string, double>> &args,
                    double domain_min, bool is_min_open,
                    double domain_max, bool is_max_open)
@@ -329,7 +322,7 @@ Function::Function(const string &name,
     for (const auto &[key, val] : args)
         if (key == hsp::params::X || key == hsp::params::LOC)
             --n_args;
-    arguments_ = vector<Attribute>(n_args);
+    arguments_ = std::vector<Attribute>(n_args);
 
     size_t counter = 0;
     for (const auto &[key, val] : args)
@@ -378,7 +371,7 @@ Attribute &Function::find_arg_(std::string_view arg_name)
             return attr;
 
     // else format the error showing options
-    vector<string> options = {hsp::params::X, hsp::params::LOC};
+    std::vector<std::string> options = {hsp::params::X, hsp::params::LOC};
     for (const auto &attr : arguments_)
         options.emplace_back(attr.name());
     throw std::invalid_argument(
@@ -419,9 +412,9 @@ bool Function::is_callable_explicitly() const noexcept
 }
 
 /// Collect names of missing arguments.
-vector<string> Function::get_missing_argument() const
+std::vector<std::string> Function::get_missing_argument() const
 {
-    vector<string> undefined_args;
+    std::vector<std::string> undefined_args;
     for (const auto &attr : arguments_)
         if (attr.is_empty())
             undefined_args.emplace_back(attr.name());
@@ -530,10 +523,10 @@ void Function::init_range_helper_(bool is_min_open, bool is_max_open)
 }
 
 /// Return formatted range.
-string Function::str_range() const
+std::string Function::str_range() const
 {
-    const string str_min = hsp::str::format(lower_arg_.get());
-    const string str_max = hsp::str::format(upper_arg_.get());
+    const std::string str_min = hsp::str::format(lower_arg_.get());
+    const std::string str_max = hsp::str::format(upper_arg_.get());
 
     if (is_valid_ == &Function::do_is_valid_always_)
         return "(-Inf, Inf)";
@@ -578,13 +571,13 @@ void Function::init_attr(std::string_view key, const Attribute &attr)
         const auto undefined_args = attr.get_function()->get_missing_argument();
         if (!undefined_args.empty())
             throw std::invalid_argument(
-                "Impossible to associate " + attr.err_name() + " as argument '" + string(key) + "' of " + err_name() + ".\n" +
+                "Impossible to associate " + attr.err_name() + " as argument '" + std::string(key) + "' of " + err_name() + ".\n" +
                 "Non default argument" + (undefined_args.size() > 1 ? "s " : " ") + hsp::str::format(undefined_args) +
                 " of " + attr.err_name() + " cannot be missing.");
 
         if (!attr.get_function()->is_callable_implicitly())
             throw std::invalid_argument(
-                "Impossible to associate " + attr.err_name() + " as argument '" + string(key) + "' of " + err_name() + ".\n" +
+                "Impossible to associate " + attr.err_name() + " as argument '" + std::string(key) + "' of " + err_name() + ".\n" +
                 "Argument 'x' of " + attr.err_name() + " cannot be missing.");
     }
 
@@ -674,7 +667,7 @@ namespace
     using std::log;
 
     /// Minus Function.
-    class Minus_ : public Function
+    class Minus_ final : public Function
     {
     public:
         Minus_() : Function("minus") {}
@@ -686,7 +679,7 @@ namespace
     };
 
     /// Subtraction function.
-    class Subtraction_ : public Function
+    class Subtraction_ final : public Function
     {
     public:
         Subtraction_() : Function("sub", {{"x2", 0.}}) {}
@@ -698,7 +691,7 @@ namespace
     };
 
     /// Division Function.
-    class Division_ : public Function
+    class Division_ final : public Function
     {
     public:
         Division_() : Function("div", {{"x2", 1}}) {}
@@ -709,7 +702,7 @@ namespace
     };
 
     /// Power Function.
-    class Power_ : public Function
+    class Power_ final : public Function
     {
     public:
         Power_() : Function("pow", {{"x2", 1.}}) {}
@@ -729,7 +722,7 @@ namespace
     };
 
     /// SquareRoot Function.
-    class SquareRoot_ : public Function
+    class SquareRoot_ final : public Function
     {
     public:
         SquareRoot_() : Function("sqrt", {},
@@ -744,7 +737,7 @@ namespace
     };
 
     /// Exponential Function.
-    class Exponential_ : public Function
+    class Exponential_ final : public Function
     {
     public:
         Exponential_() : Function("exp") {}
@@ -758,7 +751,7 @@ namespace
     };
 
     /// Logarithm Function.
-    class Logarithm_ : public Function
+    class Logarithm_ final : public Function
     {
     public:
         Logarithm_() : Function("log", {},
@@ -773,7 +766,7 @@ namespace
     };
 
     /// Sine Function.
-    class Sine_ : public Function
+    class Sine_ final : public Function
     {
     public:
         Sine_() : Function("sin") {}
@@ -787,7 +780,7 @@ namespace
     };
 
     /// Cosine Function.
-    class Cosine_ : public Function
+    class Cosine_ final : public Function
     {
     public:
         Cosine_() : Function("cos") {}
@@ -801,7 +794,7 @@ namespace
     };
 
     /// Tangent Function.
-    class Tangent_ : public Function
+    class Tangent_ final : public Function
     {
     public:
         Tangent_() : Function("tan") {}
@@ -821,7 +814,7 @@ namespace
     class VariadicFunction : public Function
     {
     public:
-        VariadicFunction(const string &name = "") : Function(name) {}
+        VariadicFunction(const std::string &name = "") : Function(name) {}
         virtual ~VariadicFunction() = default;
 
         // UPDATE: this might change for future variadic functions
@@ -855,7 +848,7 @@ namespace
     };
 
 #define MAKE_VARIADIC_ALGEBRAIC(ClassName, FunctionName, Symbol) \
-    class ClassName : public VariadicFunction                    \
+    class ClassName final : public VariadicFunction              \
     {                                                            \
     public:                                                      \
         ClassName() : VariadicFunction(FunctionName) {}          \
@@ -872,7 +865,7 @@ namespace
     MAKE_VARIADIC_ALGEBRAIC(Product_, "prod", *=)
 
 #define MAKE_VARIADIC_MIN_MAX(ClassName, FunctionName, Symbol) \
-    class ClassName : public VariadicFunction                  \
+    class ClassName final : public VariadicFunction            \
     {                                                          \
     public:                                                    \
         ClassName() : VariadicFunction(FunctionName) {}        \

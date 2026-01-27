@@ -50,11 +50,18 @@ public:
     //////  CONSTRUCTOR  //////
     ///////////////////////////
 
-    MCMCImpl(std::function<void()> func_init_inference,
-             std::function<void()> func_init_simulation,
-             std::function<double(Household &)> func_house_log_lik,
-             std::function<void(Household &)> func_simulate_house,
-             std::function<void(Household &, Individual &)> func_update_cache);
+    MCMCImpl(
+        const std::vector<std::string> &data_wide_keys,
+        const std::vector<std::string> &hh_size_t_keys,
+        const std::vector<std::string> &hh_double_keys,
+        const std::vector<std::string> &hh_matrix_keys,
+        const std::vector<std::string> &data_long_keys,
+        const std::vector<std::string> &param_keys,
+        const std::vector<std::string> &group_rate_keys,
+        const std::vector<std::string> &augm_keys,
+        std::function<void()> func_init_inference,
+        std::function<double(Household &)> func_house_log_lik,
+        std::function<void(Household &, Individual &)> func_update_cache);
     ~MCMCImpl();
 
     ///////////////////////////////////
@@ -66,7 +73,7 @@ public:
 
     void init_monte_carlo();
     void init_evaluate();
-    void init_model_for_inference();
+    void init_household_cache();
     void run_monte_carlo();
     std::vector<std::vector<double>> power_posteriors(std::string_view scheme, unsigned long N);
     double evaluate_single_house_log_lik(std::string_view house_id);
@@ -80,18 +87,14 @@ public:
     /// UPDATE: once I allow for multi-treading and a flag other than n_chains = 0, I can drop this.
     void helper_init_simulation();
 
-    /// Simulate a single household outbreak in place.
-    void simulate_single_house_in_place(Household &house);
-
 private:
     /////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////  MCMC : Impl : Callbacks Virtual Methods  ////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
+    /// UPDATE: this is not efficient.
     std::function<void()> callback_init_inference_;
-    std::function<void()> callback_init_simulation_;
     std::function<double(Household &)> callback_house_log_lik_;
-    std::function<void(Household &)> callback_simulate_house_;
     std::function<void(Household &, Individual &)> callback_update_cache_;
 
     /////////////////////////////////////////////////////////////////////////////////////////////

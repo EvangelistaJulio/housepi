@@ -37,17 +37,18 @@ struct InfecProfile
 
 public:
     std::shared_ptr<Distribution> generic_profile = nullptr;
+    size_t augm_infecprof_key; /// augmented profile key
 
-	///////////////////////////
-	//////  CONSTRUCTOR  //////
-	///////////////////////////
+    ///////////////////////////
+    //////  CONSTRUCTOR  //////
+    ///////////////////////////
 
     InfecProfile(std::shared_ptr<Parameter> paramptr);
     ~InfecProfile();
 
-	//////////////////////
-	//////  SETTER  //////
-	//////////////////////
+    //////////////////////
+    //////  SETTER  //////
+    //////////////////////
 
     void build(const hsp::str_table &input);
     void init_template(hsp::str_table input);
@@ -55,9 +56,9 @@ public:
     void recover();
     void request_discrete() { is_discrete_requested_ = true; };
 
-	//////////////////////
-	//////  GETTER  //////
-	//////////////////////
+    //////////////////////
+    //////  GETTER  //////
+    //////////////////////
 
     bool is_lookup() const { return inst_ == &InfecProfile::do_inst_lookup_; }
     bool is_augmented() const { return inst_ == &InfecProfile::do_inst_augm_; }
@@ -75,7 +76,6 @@ private:
     std::vector<double> lookup_buffer_inst_ = {};  /// instantaneous LookUp Table (buffer)
     std::vector<double> lookup_buffer_cumul_ = {}; /// cumulative LookUp Table (buffer)
     hsp::str_table augm_profile_definitions_ = {}; /// augmented profile definitions
-    size_t augm_infecprof_key_;                    /// augmented profile key
 
     void init_lookup_();
     void clear_lookup_();

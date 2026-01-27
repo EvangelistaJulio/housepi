@@ -12,7 +12,6 @@
 #include <vector>
 
 #include "tools/atomic.h"
-#include "tools/keys.h"
 #include "tools/keys_helper.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
@@ -36,33 +35,44 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-MCMCImpl::MCMCImpl(std::function<void()> func_init_inference,
-                   std::function<void()> func_init_simulation,
-                   std::function<double(Household &)> func_household_log_lik,
-                   std::function<void(Household &)> func_simulate_house,
-                   std::function<void(Household &, Individual &)> func_update_cache)
+MCMCImpl::MCMCImpl(
+    const std::vector<std::string> &data_wide_keys,
+    const std::vector<std::string> &hh_size_t_keys,
+    const std::vector<std::string> &hh_double_keys,
+    const std::vector<std::string> &hh_matrix_keys,
+    const std::vector<std::string> &data_long_keys,
+    const std::vector<std::string> &param_keys,
+    const std::vector<std::string> &group_rate_keys,
+    const std::vector<std::string> &augm_keys,
+    std::function<void()> func_init_inference,
+    std::function<double(Household &)> func_household_log_lik,
+    std::function<void(Household &, Individual &)> func_update_cache)
     : atomic_error(std::make_unique<hsp::atomic::Error>()),
+      // modules
       setup(std::make_shared<Setup>()),
-      data_wide(std::make_shared<DataWide>()),
-      data_long(std::make_shared<DataLong>(data_wide)),
-      param(std::make_shared<Parameter>()),
-      group_rate(std::make_shared<GroupRate>(data_wide, param)),
+      data_wide(std::make_shared<DataWide>(data_wide_keys, hh_size_t_keys, hh_double_keys, hh_matrix_keys)),
+      data_long(std::make_shared<DataLong>(data_long_keys, data_wide)),
+      param(std::make_shared<Parameter>(param_keys)),
+      group_rate(std::make_shared<GroupRate>(group_rate_keys, data_wide, param)),
       infec_profile(std::make_shared<InfecProfile>(param)),
-      augm(std::make_shared<Augmented>(data_wide, param, infec_profile)),
+      augm(std::make_shared<Augmented>(augm_keys, data_wide, param, infec_profile)),
+      // callbacks
       callback_init_inference_(std::move(func_init_inference)),
-      callback_init_simulation_(std::move(func_init_simulation)),
       callback_house_log_lik_(std::move(func_household_log_lik)),
-      callback_simulate_house_(std::move(func_simulate_house)),
-      callback_update_cache_(std::move(func_update_cache)) {}
+      callback_update_cache_(std::move(func_update_cache))
+{
+    /// UPDATE: waiting for refactoring of read_attribute
+    param->link_to_data_wide(data_wide->pRegistry);
+    param->link_to_group_rate(group_rate->pRegistry);
+    param->link_to_augm(augm->pRegistry);
+}
 MCMCImpl::~MCMCImpl() = default;
 
-void MCMCImpl::init_model_for_inference()
+void MCMCImpl::init_household_cache()
 {
-    callback_init_inference_();
-
     // init cache dependencies for all households and individuals
     for (size_t R = 0; R < data_wide->head_class_house_indexes.size(); ++R)
-        data_wide->restricted(R).init_cache();
+        data_wide->init_house_cache(data_wide->restricted(R));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -77,7 +87,8 @@ void MCMCImpl::init_evaluate()
     setup->n_chains = 0;                  // use 0 chains as a state variable
     data_wide->assert_non_empty();        // check if data is empty
     data_wide->warn_all_missing_status(); // warn if all missing status
-    init_model_for_inference();           // initialize model for inference
+    callback_init_inference_();           // user initialization of model for inference
+    init_household_cache();               // cache user household variables
     augm->init();                         // initialize individual augmented relations
     param->user_reset(setup->prng());     // initialize non constant parameters
     augm->user_reset(setup->prng());      // initialize non constant augmented
@@ -274,7 +285,7 @@ bool MCMCImpl::move_single_parameter_(size_t p, bool is_cache_depen)
 /// Adpat the proposal of model parameters.
 void MCMCImpl::adapt_proposal_of_sampled_params_(unsigned long step)
 {
-    const double ratio = static_cast<double>(step) / setup->n_adapt;
+    const double ratio = static_cast<double>(step) / static_cast<double>(setup->n_adapt);
 
     // adpat all standard model parameters
     for (const auto &p : param->list_adaptable_sample_standard)
@@ -512,7 +523,7 @@ namespace
             sqr_diff += delta * delta2;
         }
 
-        return {avg, sqr_diff / (N - 1.)};
+        return {avg, sqr_diff / static_cast<double>(N - 1.)};
     }
 }
 
@@ -539,7 +550,8 @@ std::vector<std::vector<double>> MCMCImpl::power_posteriors(std::string_view sch
     setup->n_rungs = n_rungs;           // NOTE: set before progress bar
     double buffer_inv_T = setup->inv_T; // buffer user setup
     init_monte_carlo();                 // initialize mcmc sampling
-    init_model_for_inference();         // initialize model for inference
+    callback_init_inference_();         // user initialization of model for inference
+    init_household_cache();             // cache user household variables
     augm->init();                       // initialize augmented variables
     setup->prog_declare();              // declare current progress bar
     setup->prog_open_for_power_post();  // print progress bar
@@ -631,7 +643,7 @@ void MCMCImpl::power_post_fractions_(std::vector<double> &itm, std::vector<doubl
     for (setup->rung = 1; setup->rung <= setup->n_rungs; ++setup->rung)
     {
         // inverse tempearture = (rung / #rungs)^5
-        setup->inv_T = std::pow(static_cast<double>(setup->rung) / setup->n_rungs, 5);
+        setup->inv_T = std::pow(static_cast<double>(setup->rung) / static_cast<double>(setup->n_rungs), 5.);
         run_monte_carlo();
 
         const auto [stats_avg, stats_var] = compute_stats(smpl_total_log_lik);
@@ -649,14 +661,6 @@ void MCMCImpl::helper_init_simulation()
     setup->n_chains = 0;           // use 0 chains as a state variable
     setup->n_threads = 1;          // impose no parallelization
     setup->set_n_threads();        // change accordingly
-    callback_init_simulation_();   // initialize model for simulation
-}
-
-/// Simulate a single household outbreak in place.
-void MCMCImpl::simulate_single_house_in_place(Household &house)
-{
-    house.init_cache();
-    callback_simulate_house_(house);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -665,20 +669,24 @@ void MCMCImpl::simulate_single_house_in_place(Household &house)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-MCMC::MCMC()
+MCMC::MCMC(
+    const std::vector<std::string> &data_wide_keys,
+    const std::vector<std::string> &hh_size_t_keys,
+    const std::vector<std::string> &hh_double_keys,
+    const std::vector<std::string> &hh_matrix_keys,
+    const std::vector<std::string> &data_long_keys,
+    const std::vector<std::string> &param_keys,
+    const std::vector<std::string> &group_rate_keys,
+    const std::vector<std::string> &augm_keys)
     : pImpl_(std::make_unique<MCMCImpl>(
+          data_wide_keys, hh_size_t_keys, hh_double_keys, hh_matrix_keys, data_long_keys,
+          param_keys, group_rate_keys, augm_keys,
           [this]()
           { this->init_model_for_inference(); },
-          [this]()
-          { this->init_model_for_simulation(); },
           [this](Household &h) -> double
           { return this->compute_house_obs_log_lik(h); },
-          [this](Household &h)
-          { return this->simulate_single_house(h); },
           [this](Household &h, Individual &i)
-          { this->update_cache_dependecies(h, i); }))
-{
-}
+          { this->update_cache_dependecies(h, i); })) {}
 MCMC::~MCMC() = default;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -686,7 +694,7 @@ MCMC::~MCMC() = default;
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 double MCMC::uniform() { return pImpl_->setup->unif(); }
-double MCMC::par(ParamKey p) const { return pImpl_->param->at(static_cast<size_t>(p)).get(); }
+double MCMC::par(size_t p) const { return pImpl_->param->at(p).get(); }
 
 size_t MCMC::get_max_hh_cases() const { return pImpl_->data_wide->report_hh_size->max_cases.first; }
 void MCMC::assert_no_missing_status() const
@@ -738,8 +746,7 @@ void MCMC::init_contact_rates_(Household &house)
                             "' (" + house.err_name() + ").");
 
                     else if (pair_contact_rate_ != hsp::rates::REFERENCE) // parameter rate
-                        y = pImpl_->param->at(
-                            static_cast<size_t>(hsp::key::from_string<ParamKey>(pair_contact_rate_)));
+                        y = pImpl_->param->at(pImpl_->param->pRegistry->from_string(pair_contact_rate_));
 
                     house.init_contact_rates(static_cast<size_t>(member_k), static_cast<size_t>(member_i), y);
                 }
@@ -775,8 +782,8 @@ void MCMC::init_missing_augm(Individual &member)
     pImpl_->augm->user_reset(pImpl_->setup->prng(), member);
 }
 
-void MCMC::request_discrete(AugmKey a) { pImpl_->augm->user_discrete_set.emplace(static_cast<size_t>(a)); }
-void MCMC::request_discrete(ParamKey p) { pImpl_->param->user_discrete_set.emplace(static_cast<size_t>(p)); }
+void MCMC::request_discrete_augm(size_t a) { pImpl_->augm->user_discrete_set.emplace(a); }
+void MCMC::request_discrete_param(size_t p) { pImpl_->param->user_discrete_set.emplace(p); }
 
 /// Initialize model and evaluate log-likelihood.
 double MCMC::evaluate_log_lik(std::string_view house_id)
@@ -802,7 +809,8 @@ void MCMC::run_inference()
     try
     {
         pImpl_->init_monte_carlo();               // initialize mcmc sampling
-        pImpl_->init_model_for_inference();       // user initialization model
+        init_model_for_inference();               // user initialization model
+        pImpl_->init_household_cache();           // cache user household variables
         pImpl_->augm->init();                     // initialize augmented variables
         pImpl_->setup->prog_declare();            // declare current progress bar
         pImpl_->setup->prog_open_for_inference(); // open progress bar

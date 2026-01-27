@@ -72,7 +72,7 @@ namespace
     ////////////////////////////////  *** Sample_Proposal : class ***  ////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    class Sample_Proposal : public Proposal
+    class Sample_Proposal final : public Proposal
     {
     public:
         Sample_Proposal(std::shared_ptr<Distribution> distr) { pDistr_ = distr; }
@@ -85,7 +85,7 @@ namespace
     ///////////////////////////////  *** Uniform_Proposal : class ***  ////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    class Uniform_Proposal : public Proposal
+    class Uniform_Proposal final : public Proposal
     {
     public:
         Uniform_Proposal(double proposal_scale = hsp::na::DOUBLE, bool is_discrete = false)
@@ -105,7 +105,7 @@ namespace
     ///////////////////////////////  *** Normal_Proposal : class ***  /////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    class Normal_Proposal : public Proposal
+    class Normal_Proposal final : public Proposal
     {
     public:
         Normal_Proposal(double proposal_scale = hsp::na::DOUBLE, bool is_discrete = false)
@@ -125,7 +125,7 @@ namespace
     ///////////////////////////////  *** Lognorm_Proposal : class ***  ////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    class Lognorm_Proposal : public Proposal
+    class Lognorm_Proposal final : public Proposal
     {
     public:
         Lognorm_Proposal(double proposal_scale = 1., bool is_discrete = false)

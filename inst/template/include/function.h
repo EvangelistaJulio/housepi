@@ -62,7 +62,7 @@ public:
     void init_attr(std::string_view key, const Attribute &attr);
 
     /// Set argument value.
-    void set_arg(unsigned short i, double x) { arguments_[i].set(x); }
+    void set_arg(size_t i, double x) { arguments_[i].set(x); }
 
     /// Virtual function to initialize discretization.
     virtual void init_discretization() { throw std::invalid_argument(
@@ -100,11 +100,11 @@ public:
     }
 
     size_t n_args() const { return arguments_.size(); }
-    double arg(unsigned short i) const { return arguments_[i].get(); }
+    double arg(size_t i) const { return arguments_[i].get(); }
     double lower() const { return lower_arg_.get(); }
     double upper() const { return upper_arg_.get(); }
 
-    const Attribute &get_arg(unsigned short i) const { return arguments_[i]; }
+    const Attribute &get_arg(size_t i) const { return arguments_[i]; }
     const Attribute &get_loc() const { return loc_arg_; }
     const Attribute &get_lower() const { return lower_arg_; }
     const Attribute &get_upper() const { return upper_arg_; }

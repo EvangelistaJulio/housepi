@@ -1,5 +1,10 @@
-PKG_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS) -D_HOUSEPI_RCPP -I../inst/template/include
-PKG_LIBS = $(SHLIB_OPENMP_CXXFLAGS)
+PKG_CXXFLAGS = \
+  $(SHLIB_OPENMP_CXXFLAGS) \
+  -D_HOUSEPI_RCPP \
+  -I../inst/template/include
+
+PKG_LIBS = \
+  $(SHLIB_OPENMP_CXXFLAGS)
 
 COMMON_SOURCES = \
 	RcppExports.cpp \

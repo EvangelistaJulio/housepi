@@ -12,7 +12,6 @@
 #include <iostream>
 #include <iomanip>
 
-#include "tools/keys.h"
 #include "tools/keys_helper.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
@@ -124,7 +123,8 @@ void MCMC::read_multiplicity(const string &f)
 {
     try
     {
-        pImpl_->data_wide->multiplicity_build(hsp::read::csv_table(f));
+        pImpl_->data_wide->multiplicity_build(hsp::read::csv_table(f),
+                                              pImpl_->augm->pRegistry->size() > 0);
     }
     catch (const std::exception &e)
     {
@@ -161,13 +161,14 @@ void MCMC::print_infer_state(const string &output_filename) const
 
     // header parameters
     for (const auto &p : param.list_sample)
-        ofs << hsp::read::DELIMITER << hsp::key::as_string<ParamKey>(p);
+        ofs << hsp::read::DELIMITER << param.pRegistry->as_string(p);
 
     // header augmented variable of id trace
     if (augm.is_any_draw())
         for (size_t k = 0; k < augm.smpl_individuals.size(); ++k)
             for (const auto &a : augm.list_draws)
-                ofs << hsp::read::DELIMITER << augm.smpl_individuals[k]->id() << "_" << hsp::key::as_string<AugmKey>(a);
+                ofs << hsp::read::DELIMITER << augm.smpl_individuals[k]->id()
+                    << "_" << augm.pRegistry->as_string(a);
 
     // header chain
     ofs << hsp::read::DELIMITER << "_chain_" << std::endl;
@@ -241,7 +242,7 @@ std::ofstream open_ofstream_datawide(const string &f,
 /// Print all augmented variables of each individual.
 void update_ofstream_datawide(std::ofstream &ofs,
                               Household &house,
-                              const vector<string> &data_headers,
+                              const std::vector<size_t> &data_headers,
                               const std::unordered_set<size_t> &augm_headers)
 {
     if (!ofs.is_open())
@@ -253,7 +254,7 @@ void update_ofstream_datawide(std::ofstream &ofs,
             << hsp::read::DELIMITER << house.house_id()
             << hsp::read::DELIMITER << member.status();
         for (const auto &d : data_headers)
-            ofs << hsp::read::DELIMITER << member.get_data_wide_vec()[hsp::key::from_string<DataKey>(d)];
+            ofs << hsp::read::DELIMITER << member.get_data_wide_vec()[d];
 
         for (const auto &a : augm_headers)
             ofs << hsp::read::DELIMITER << member.get_augm_variable(a).get();
@@ -275,15 +276,17 @@ void MCMC::print_simulated_data_wide(const string &pathtofile)
                                                    data_wide.headers,
                                                    augm.list_export);
         pImpl_->helper_init_simulation();
+        init_model_for_simulation();
 
         for (Household house : data_wide) // NOTE: deep copy of household
             try
             {
                 // inplace simulation
-                pImpl_->simulate_single_house_in_place(house);
+                pImpl_->data_wide->init_house_cache(house);
+                simulate_single_house(house);
                 // print the simulated data
                 update_ofstream_datawide(ofs, house,
-                                         data_wide.headers,
+                                         data_wide.pRegistry->from_string(data_wide.headers),
                                          augm.list_export);
             }
             catch (const std::exception &e)

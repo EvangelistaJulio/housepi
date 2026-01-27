@@ -15,13 +15,15 @@
 #include "tools/messages.h"
 #include "model.h"
 
-REGISTER_HOUSEPI_KEYS(AugmKey, )
-REGISTER_HOUSEPI_KEYS(DataKey, )
-REGISTER_HOUSEPI_KEYS(GroupRateKey, )
-REGISTER_HOUSEPI_KEYS(HHsize_tKey, )
-REGISTER_HOUSEPI_KEYS(HHdoubleKey, )
-REGISTER_HOUSEPI_KEYS(HHmatrixKey, )
-REGISTER_HOUSEPI_KEYS(ParamKey, )
+EMPTY_HOUSEPI_KEYS(AugmKey)
+EMPTY_HOUSEPI_KEYS(DataKey)
+EMPTY_HOUSEPI_KEYS(LongKey)
+EMPTY_HOUSEPI_KEYS(GroupRateKey)
+EMPTY_HOUSEPI_KEYS(HHsize_tKey)
+EMPTY_HOUSEPI_KEYS(HHdoubleKey)
+EMPTY_HOUSEPI_KEYS(HHmatrixKey)
+EMPTY_HOUSEPI_KEYS(ParamKey)
+HOUSEPI_MODEL_CONSTRUCTOR()
 
 /// Raise error when "blank" model.
 void Model::init_model_for_inference() { hsp::msg::warning(

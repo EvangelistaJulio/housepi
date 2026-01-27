@@ -162,15 +162,15 @@ namespace bax
         }
     }
 
-    unsigned get_num_generations(unsigned n_positive)
+    unsigned long get_num_generations(unsigned n_positive)
     {
         return Num_Gener_LookupTable[n_positive];
     }
-    std::vector<unsigned> get_generation_vector(unsigned n_positive, unsigned i)
+    std::vector<unsigned> get_generation_vector(unsigned n_positive, unsigned long i)
     {
         return Generations_LookupTable[n_positive][i];
     }
-    unsigned get_generation_multipl(unsigned n_positive, unsigned i)
+    unsigned long get_generation_multipl(unsigned n_positive, unsigned long i)
     {
         return Multipl_Gener_LookupTable[n_positive][i];
     }
@@ -443,15 +443,14 @@ namespace bax
 
     /// Heterogeneous chain binomial log-likelihood for ordered probabilities (seropositives, seronegatives).
     double chain_binomial_heter_log_lik(unsigned N_star,
-                                        const vector<double> &commu_escape_rate,
+                                        const std::vector<double> &commu_escape_rate,
                                         const std::vector<std::vector<double>> &p2p_escape_rate)
 
     {
-        unsigned hh_size = commu_escape_rate.size();
         double ll = 0.;
 
         // (-) seronegatives contribution
-        for (unsigned i = N_star; i < hh_size; ++i)
+        for (size_t i = N_star; i < commu_escape_rate.size(); ++i)
         {
             // community : i escaped from community
             ll -= commu_escape_rate[i];

@@ -11,7 +11,6 @@
 #include <string>
 #include <vector>
 
-#include "tools/keys.h"
 #include "tools/keys_helper.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
@@ -25,12 +24,6 @@
 #include "attribute.h"
 #include "data.h"
 #include "data_reports.h"
-
-namespace
-{
-    using std::string;
-    using std::vector;
-}
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -213,7 +206,7 @@ void Setup::drop_mcmc_adapt()
 }
 
 /// The text to print in the Markov chian progress bar.
-string Setup::fmt_progtxt()
+std::string Setup::fmt_progtxt()
 {
     if (is_power_post())
         return "power post " + std::to_string(rung) + "/" + std::to_string(n_rungs);
@@ -222,12 +215,12 @@ string Setup::fmt_progtxt()
     return "sample";
 }
 
-void Setup::prog_declare(const string &text)
+void Setup::prog_declare(const std::string &text)
 {
     prog_set_text(text);
     progressbar_->set_thintime(progress);
 }
-void Setup::prog_set_text(const string &text) { progressbar_->set_text(hsp::na::is(text) ? fmt_progtxt() : text); }
+void Setup::prog_set_text(const std::string &text) { progressbar_->set_text(hsp::na::is(text) ? fmt_progtxt() : text); }
 void Setup::prog_open_for_inference() { progressbar_->open(c_n_sweeps * n_chains); }
 void Setup::prog_open_for_power_post() { progressbar_->open(c_n_sweeps * n_chains * (n_rungs + 1)); }
 void Setup::prog_update() { progressbar_->update(); }
@@ -242,7 +235,7 @@ void Setup::prog_crash() { progressbar_->crash(); }
 
 /// Emplace a new individual in the household.
 void Household::init_member(size_t index,
-                            const string &id,
+                            const std::string &id,
                             int status,
                             const std::vector<double> &data)
 {
@@ -299,7 +292,7 @@ void Household::init_contact_rates(size_t from, size_t to, const Attribute &x)
     if (contact_rates_.empty())
         contact_rates_.assign(
             size(),
-            vector<Attribute>(size(), Attribute(hsp::rates::VALUE_REFERENCE)));
+            std::vector<Attribute>(size(), Attribute(hsp::rates::VALUE_REFERENCE)));
 
     contact_rates_[from][to] = x;
 }
@@ -312,41 +305,21 @@ void Household::assert_log_lik_not_NaN() const
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  Household : cache attributes  //////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Initialize cached structeres according to household size.
-void Household::init_cache()
-{
-    const size_t hh_size = size();
-
-    // size_t
-    cache_size_t_vec_.resize(hsp::key::size<HHsize_tKey>());
-    for (auto &v : cache_size_t_vec_)
-        v.assign(hh_size, 0);
-    buffer_size_t_vec_ = cache_size_t_vec_;
-
-    // double
-    cache_dbl_vec_.resize(hsp::key::size<HHdoubleKey>());
-    for (auto &v : cache_dbl_vec_)
-        v.assign(hh_size, 0.);
-    buffer_dbl_vec_ = cache_dbl_vec_;
-
-    // matrix
-    cache_dbl_mtx_.resize(hsp::key::size<HHmatrixKey>());
-    for (auto &v : cache_dbl_mtx_)
-        v.assign(hh_size, std::vector<double>(hh_size, 0.));
-    buffer_dbl_mtx_ = cache_dbl_mtx_;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////  *** DataWide : struct ***  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-DataWide::DataWide()
-    : report_indiv(std::make_unique<ReportIndividual>()),
+DataWide::DataWide(
+    const std::vector<std::string> &keys,
+    const std::vector<std::string> &hh_size_t_keys,
+    const std::vector<std::string> &hh_double_keys,
+    const std::vector<std::string> &hh_matrix_keys)
+    : pRegistry(std::make_shared<hsp::key::Registry>(keys)),
+      pHHsize_tRegistry(std::make_unique<hsp::key::Registry>(hh_size_t_keys)),
+      pHHdoubleRegistry(std::make_unique<hsp::key::Registry>(hh_double_keys)),
+      pHHmatrixRegistry(std::make_unique<hsp::key::Registry>(hh_matrix_keys)),
+      report_indiv(std::make_unique<ReportIndividual>()),
       report_house(std::make_unique<ReportHousehold>()),
       report_hh_size(std::make_unique<ReportHouseSizes>()) {}
 DataWide::~DataWide() = default;
@@ -367,10 +340,10 @@ void DataWide::warn_all_missing_status()
 /// Assign data after pre-processing.
 void DataWide::build(const hsp::str_table &input)
 {
-    hsp::key::clear<DataKey>();
-    hsp::key::clear<HHsize_tKey>();
-    hsp::key::clear<HHdoubleKey>();
-    hsp::key::clear<HHmatrixKey>();
+    pRegistry->clear();
+    pHHsize_tRegistry->clear();
+    pHHdoubleRegistry->clear();
+    pHHmatrixRegistry->clear();
 
     if (input.empty())
         return;
@@ -382,8 +355,8 @@ void DataWide::build(const hsp::str_table &input)
     // store households
     for (size_t i = 0; i < report_indiv->total; ++i)
     {
-        string id = std::to_string(i + 1);                          // default id
-        string house_id = std::to_string(house_vector_.size() + 1); // default house_id
+        std::string id = std::to_string(i + 1);                          // default id
+        std::string house_id = std::to_string(house_vector_.size() + 1); // default house_id
         int status = hsp::status::MISSING;
 
         if (input.count("id"))
@@ -408,10 +381,10 @@ void DataWide::build(const hsp::str_table &input)
         }
 
         // read individual data
-        std::vector<double> data(hsp::key::size<DataKey>());
+        std::vector<double> data(pRegistry->size());
         for (size_t d = 0; d < data.size(); ++d)
         {
-            const string datastring = hsp::key::as_string<DataKey>(d);
+            const std::string datastring = pRegistry->as_string(d);
             data[d] = hsp::str::tod(input.at(datastring)[i], "data '" + datastring + "'");
         }
 
@@ -471,15 +444,15 @@ void DataWide::helper_build_data_headers_(const hsp::str_table &input)
         hsp::msg::error("Provided individual IDs are not unique.");
 
     // remove standard headers
-    headers = headers - vector<string>({"id", "house_id", "status"});
+    headers = headers - std::vector<std::string>({"id", "house_id", "status"});
 
     // pedantic check for declared data keys
-    hsp::str::assert_no_missing_entries(headers, hsp::key::get_all<DataKey>());
+    hsp::str::assert_no_missing_entries(headers, pRegistry->get_all());
 
     // add optional keys to registry
     for (const auto &datastring : headers)
-        if (!hsp::key::count<DataKey>(datastring))
-            hsp::key::add<DataKey>(datastring);
+        if (!pRegistry->count(datastring))
+            pRegistry->add(datastring);
 }
 
 /// Use the loaded data to fill-in the respective report.
@@ -495,10 +468,10 @@ void DataWide::build_helper_fill_report_data_()
             all_infected_statuses.emplace(member.status());
 
         // observed quantities in-house
-        const unsigned short house_size = house.size();
-        const unsigned short n_infec = house.n_infected_status();
-        const unsigned short n_miss = house.n_missing_status();
-        const unsigned short n_susc = house.n_susceptible_status();
+        const auto house_size = house.size();
+        const auto n_infec = house.n_infected_status();
+        const auto n_miss = house.n_missing_status();
+        const auto n_susc = house.n_susceptible_status();
 
         report_indiv->infectious += n_infec;
         report_indiv->missing += n_miss;
@@ -530,11 +503,11 @@ void DataWide::build_helper_fill_report_data_()
 
 /// Build multiplicities.
 /// UPDATE: I should find a way to deal internally with multiplicity.
-void DataWide::multiplicity_build(const hsp::str_table &input)
+void DataWide::multiplicity_build(const hsp::str_table &input, bool is_any_augm)
 {
     head_class_house_indexes.clear();
     auto n_houses = report_house->total;
-    if (hsp::key::size<AugmKey>() > 0 || input.size() == 0)
+    if (is_any_augm || input.size() == 0)
     {
         // note: multiplicities are not compatible with data augmentation
         if (!input.empty())
@@ -570,6 +543,38 @@ void DataWide::multiplicity_build(const hsp::str_table &input)
     }
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  DataWide : cache attributes  //////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Initialize cached structeres according to household size.
+void DataWide::init_house_cache(Household &house)
+{
+    const size_t hh_size = house.size();
+
+    // size_t
+    house.cache_size_t_vec_.resize(pHHsize_tRegistry->size());
+    for (auto &v : house.cache_size_t_vec_)
+        v.assign(hh_size, 0);
+    house.buffer_size_t_vec_ = house.cache_size_t_vec_;
+
+    // double
+    house.cache_dbl_vec_.resize(pHHdoubleRegistry->size());
+    for (auto &v : house.cache_dbl_vec_)
+        v.assign(hh_size, 0.);
+    house.buffer_dbl_vec_ = house.cache_dbl_vec_;
+
+    // matrix
+    house.cache_dbl_mtx_.resize(pHHmatrixRegistry->size());
+    for (auto &v : house.cache_dbl_mtx_)
+        v.assign(hh_size, std::vector<double>(hh_size, 0.));
+    house.buffer_dbl_mtx_ = house.cache_dbl_mtx_;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////  DataWide : posterior drawd  //////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 /// Initialize posterior sample of parameters.
 void DataWide::init_draws(unsigned long sample_size)
 {
@@ -581,13 +586,14 @@ void DataWide::init_draws(unsigned long sample_size)
 }
 
 /// Store current sample of log-likelihood for restricted households.
+/// UPDATE: multiplicity should not be multiplied within the compute_log_lik!
 void DataWide::store_draws(unsigned long smpl_count)
 {
     // store sample for restricted households
     for (size_t R = 0; R < head_class_house_indexes.size(); ++R)
     {
         auto &house = house_vector_[head_class_house_indexes[R]];
-        double x = house.get_obs_log_lik() / house.multiplicity();
+        double x = house.get_obs_log_lik() / static_cast<double>(house.multiplicity());
         for (const auto &member : house.infected())
             x += member.get_augm_model_log_lik();
         smpl_values[R][smpl_count] = x;
@@ -600,10 +606,16 @@ void DataWide::store_draws(unsigned long smpl_count)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+DataLong::DataLong(const std::vector<std::string> &keys,
+                   std::shared_ptr<DataWide> ptr)
+    : pRegistry(std::make_unique<hsp::key::Registry>(keys)),
+      pDataWide_(ptr) {}
+DataLong::~DataLong() = default;
+
 /// Assign data after pre-processing.
 void DataLong::build(const hsp::str_table &input)
 {
-    hsp::key::clear<LongKey>();
+    pRegistry->clear();
 
     if (input.empty())
         return;
@@ -637,10 +649,10 @@ void DataLong::build(const hsp::str_table &input)
 
         // append (since vector is initialized to empty)
         auto &idat = indiv_datalist[id_to_index.at(id)];
-        idat.resize(hsp::key::size<LongKey>());
-        for (size_t d = 0; d < hsp::key::size<LongKey>(); ++d)
+        idat.resize(pRegistry->size());
+        for (size_t d = 0; d < pRegistry->size(); ++d)
         {
-            const auto &datastring = hsp::key::as_string<LongKey>(d);
+            const auto &datastring = pRegistry->as_string(d);
             idat[d].emplace_back(
                 hsp::str::tod(input.at(datastring)[r], "data long format '" + datastring + "'"));
         }
@@ -673,13 +685,13 @@ void DataLong::helper_build_data_headers_(const hsp::str_table &input)
     if (std::find(headers.begin(), headers.end(), "id") == headers.end())
         throw std::invalid_argument("Individual identifier column 'id' was missing.");
     // remove 'id'
-    headers = headers - vector<string>({"id"});
+    headers = headers - std::vector<std::string>({"id"});
 
     // pedantic check for declared data keys
-    hsp::str::assert_no_missing_entries(headers, hsp::key::get_all<LongKey>());
+    hsp::str::assert_no_missing_entries(headers, pRegistry->get_all());
 
     // add optional keys to registry
     for (const auto &datastring : headers)
-        if (!hsp::key::count<LongKey>(datastring))
-            hsp::key::add<LongKey>(datastring);
+        if (!pRegistry->count(datastring))
+            pRegistry->add(datastring);
 }

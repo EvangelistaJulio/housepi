@@ -10,7 +10,6 @@
 #include <string>
 #include <vector>
 
-#include "tools/keys.h"
 #include "variable.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -28,10 +27,10 @@ public:
 	virtual ~AugmentedContainer() = default;
 
 	/// Set numeric value of augmented variable. If not allowed, raise exception.
-	void set_augm_value(AugmKey a, double x) { augm_vec_[static_cast<size_t>(a)].set(x); }
+	void set_augm_value(size_t a, double x) { augm_vec_[a].set(x); }
 
 	virtual std::string err_name() const = 0;
-	double aug(AugmKey a) const { return augm_vec_[static_cast<size_t>(a)].get(); }
+	double aug(size_t a) const { return augm_vec_[a].get(); }
 	Variable &get_augm_variable(size_t a) { return augm_vec_[a]; }
 	const Variable &get_augm_variable(size_t a) const { return augm_vec_[a]; }
 	std::string str_augm_summary() const;
