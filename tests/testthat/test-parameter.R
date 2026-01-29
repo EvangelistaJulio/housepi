@@ -115,7 +115,7 @@ test_that("Symbolic definitions are equivalent", {
            var4 = list(prior = "normal", mean = ~ indiv_shape + !!val))
   aux <- param$defs
   aux$name <- NULL
-  
+
   # check that all rows are identical
   expect_equal(nrow(unique(aux)), 1)
 })

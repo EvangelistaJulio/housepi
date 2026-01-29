@@ -465,7 +465,7 @@ std::vector<std::string> GroupRate::helper_assert_definitions_(const hsp::str_ta
     // remove template headers to keep only data
     data_headers = data_headers - file_headers;
     // check that required data columns are present
-    hsp::str::assert_no_unused_entries(data_headers, pDataWide_->headers);
+    hsp::str::assert_no_unused_entries(data_headers, pDataWide_->pRegistry->get_all());
 
     // assert the group rate names are allowed
     for (const std::string &groupstr : input.at("group_rate"))

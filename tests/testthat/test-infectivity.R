@@ -69,7 +69,7 @@ test_that("Spurious names are dropped", {
     ip2 = list(func = "gamma", status = 3,
                discr = TRUE, shape = ~ shape, scale = ~ scale)
   )
-  
+
   infec <- housepi:::HousepiInfecProfile$new()
   expect_no_error(aux_load(infec, !!!external_list))
   defs <- infec$defs

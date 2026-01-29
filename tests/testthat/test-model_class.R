@@ -1,7 +1,7 @@
 library(testthat)
 
 test_that("Model class inconsistent calls", {
-  # Default blank 
+  # Default blank
   expect_warning(new_housepi_model(), regexp = "Falling back to")
 
   # blank household model object
@@ -10,7 +10,6 @@ test_that("Model class inconsistent calls", {
   # inference without definitions
   expect_error(hhmodel$run_inference(), regexp = "Nothing to sample")
 })
-
 
 test_that("Model class blank calls", {
   # blank household model object
@@ -67,10 +66,10 @@ test_that("Active bindings work as expected", {
 
   val <- 1
   hhmodel$load_parameter_list(
-   var1 = list(prior = "normal", mean = indiv_shape + 1),
-   var2 = list(prior = "normal", mean = indiv_shape + !!val),
-   var3 = list(prior = "normal", mean = ~ indiv_shape + 1),
-   var4 = list(prior = "normal", mean = ~ indiv_shape + !!val)
+    var1 = list(prior = "normal", mean = indiv_shape + 1),
+    var2 = list(prior = "normal", mean = indiv_shape + !!val),
+    var3 = list(prior = "normal", mean = ~ indiv_shape + 1),
+    var4 = list(prior = "normal", mean = ~ indiv_shape + !!val)
   )
   aux <- hhmodel$parameters
   aux$name <- NULL
@@ -86,10 +85,10 @@ test_that("Active bindings work as expected", {
 
   val <- 3
   hhmodel$load_augmented_list(
-   var1 = list(model = "normal", mean = indiv_shape + 3),
-   var2 = list(model = "normal", mean = indiv_shape + !!val),
-   var3 = list(model = "normal", mean = ~ indiv_shape + 3),
-   var4 = list(model = "normal", mean = ~ indiv_shape + !!val)
+    var1 = list(model = "normal", mean = indiv_shape + 3),
+    var2 = list(model = "normal", mean = indiv_shape + !!val),
+    var3 = list(model = "normal", mean = ~ indiv_shape + 3),
+    var4 = list(model = "normal", mean = ~ indiv_shape + !!val)
   )
   aux <- hhmodel$augmented
   aux$name <- NULL

@@ -420,7 +420,6 @@ size_t DataWide::house_id_to_index_(std::string_view house_id) const
 /// Clear previous data report.
 void DataWide::helper_build_clear_data_()
 {
-    headers.clear();
     house_vector_.clear();
     hhid_to_index_.clear();
     all_infected_statuses.clear();
@@ -432,7 +431,7 @@ void DataWide::helper_build_clear_data_()
 /// Assert that data headers are correct.
 void DataWide::helper_build_data_headers_(const hsp::str_table &input)
 {
-    headers = hsp::read::extract_keys(input);
+    std::vector<std::string> headers = hsp::read::extract_keys(input);
 
     // assess the presence of house IDs
     if (std::find(headers.begin(), headers.end(), "house_id") == headers.end())

@@ -115,8 +115,6 @@ struct DataWide
     std::unique_ptr<hsp::key::Registry> pHHdoubleRegistry; /// pointer to registry
     std::unique_ptr<hsp::key::Registry> pHHmatrixRegistry; /// pointer to registry
 
-    std::vector<std::string> headers = {}; /// Headers of input data
-
     // list of all infected statuses in the dataset
     std::unordered_set<int> all_infected_statuses = {};
     std::vector<std::vector<double>> smpl_values = {};

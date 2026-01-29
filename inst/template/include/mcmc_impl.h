@@ -23,31 +23,34 @@
 
 struct TotalLogLike
 {
+public:
     std::vector<double> smpl_values = {}; /// vector of total log-likelihood samples
-    unsigned long count = 0;              /// count of store samples
-    double value = 0.;                    /// current total log-likelihood
-    double buffer = 0.;                   /// buffer total log-likelihood
 
-    void recover() noexcept { value = buffer; }
-    double logratio() const noexcept { return value - buffer; }
+    void recover() noexcept { value_ = buffer_; }
+    double logratio() const noexcept { return value_ - buffer_; }
 
     /// Set new total log-likelihood value and buffer old value.
     void set(double new_ll) noexcept
     {
-        buffer = value;
-        value = new_ll;
+        buffer_ = value_;
+        value_ = new_ll;
     }
-
     /// Increment total log-likelohood by a delta, buffer old value.
-    void increment(double delta_ll) noexcept { set(value + delta_ll); }
+    void increment(double delta_ll) noexcept { set(value_ + delta_ll); }
 
     void init_draws(unsigned long sample_size)
     {
-        count = 0;
+        count_ = 0;
         smpl_values.clear();
         smpl_values.assign(sample_size, hsp::na::DOUBLE);
     }
-    void store_draws() { smpl_values[count++] = value; }
+    void store_draws() { smpl_values[count_++] = value_; }
+    unsigned long count() const noexcept { return count_; }
+
+private:
+    double value_ = 0.;       /// current total log-likelihood
+    double buffer_ = 0.;      /// buffer total log-likelihood
+    unsigned long count_ = 0; /// count of store samples
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////

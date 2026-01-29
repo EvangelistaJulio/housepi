@@ -104,7 +104,7 @@ std::unique_ptr<Function> compose_func_registries(std::string_view opt,
             throw std::invalid_argument("Unknown " + err_type + " registry '" + r + "'.");
 
     std::vector<std::string> options = {};
-    for (const auto &ptr : registry_ptrs)
+    for (const FunctionRegistry *ptr : registry_ptrs)
     {
         if (ptr->count(opt))
             return ptr->create(opt, is_prim);

@@ -202,7 +202,7 @@ std::unique_ptr<Distribution> compose_distr_registries(std::string_view opt,
             throw std::invalid_argument("Unknown " + err_type + " registry '" + r + "'.");
 
     std::vector<std::string> options = {};
-    for (auto &r : registry_ptrs)
+    for (const DistributionRegistry *r : registry_ptrs)
     {
         if (r->count(opt))
             return std::unique_ptr<Distribution>(

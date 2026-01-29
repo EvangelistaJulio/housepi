@@ -128,12 +128,13 @@ public:
 	/////////////////////////////////  MCMC : Rcpp operations  //////////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
-	Rcpp::DataFrame data_wide_for_simulation() const;
-	Rcpp::List run_simulation(size_t n_rep);
-	Rcpp::List run_simulation_for_predict(size_t n);
 	Rcpp::List log_evidence(const std::string &scheme, unsigned long n_rungs);
 
-	// UPDATE: these do not need to be exposed
+	Rcpp::DataFrame data_wide_for_simulation() const;
+	Rcpp::List run_simulation(size_t n_rep) { return helper_simulate(n_rep, false); }
+	Rcpp::List run_simulation_for_predict(size_t n) { return helper_simulate(n, true); }
+
+	/// UPDATE: these do not need to be exposed
 	Rcpp::List helper_simulate(size_t n, bool is_expec_measure);
 	Rcpp::DataFrame helper_simulate_single_repetition();
 

@@ -62,7 +62,7 @@ test_that("Single infected member log-likelihood is correct", {
   com_class_B <- 1.41
   sus_class_B <- 1.03
   inf_class_B <- 1.3
-  # members sorted infected, susceptible 
+  # members sorted infected, susceptible
   # 'A' is the reference class
   house <- data.frame(id = sprintf("hh_01_%s", seq(1, 2)),
                       house_id = "hh_01",
@@ -71,16 +71,16 @@ test_that("Single infected member log-likelihood is correct", {
                       community = c(1, com_class_B),
                       susceptibility = c(1, sus_class_B),
                       infectivity = c(1, 1.3))
-  
+
   # fill house escape rate matrices
   par <- list(alpha = 0.15, beta = 0.22)
   commu_esc_rate <- par$alpha * house$community
   p2p_esc_rate <- par$beta * house$infectivity %o% house$susceptibility
-  
+
   # susceptible member
   log_lik <- - commu_esc_rate[2] - p2p_esc_rate[1, 2] + 
     log1p(-exp(-commu_esc_rate[1]))
-  
+
   # define housepi model
   hhmodel <- new_housepi_model("chain_binomial_heterogeneous")
   hhmodel$data_wide <- house

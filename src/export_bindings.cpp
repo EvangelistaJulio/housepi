@@ -188,7 +188,7 @@ namespace
         if (infec_profile->generic_profile == nullptr)
             return List::create();
 
-        return List::create(_["func"] = infec_profile->generic_profile->name(),
+        return List::create(_["func"] = std::string(infec_profile->generic_profile->name()),
                             // NOTE: arguments should not be polymorphic when called here
                             _["func_args"] = rcpp_export_args(infec_profile->generic_profile),
                             _["min"] = infec_profile->generic_profile->lower(),
@@ -305,7 +305,7 @@ Rcpp::DataFrame helper_export_data_wide(const DataWide &data_wide,
 Rcpp::DataFrame MCMC::export_data_wide() const
 {
     const DataWide &data_wide = *pImpl_->data_wide;
-    return helper_export_data_wide(data_wide, data_wide.headers, true);
+    return helper_export_data_wide(data_wide, data_wide.pRegistry->get_all(), true);
 }
 Rcpp::DataFrame MCMC::data_wide_for_simulation() const
 {
@@ -317,7 +317,7 @@ Rcpp::DataFrame MCMC::data_wide_for_simulation() const
     for (size_t a : augm.list_export)
         export_names[i++] = augm.pRegistry->as_string(a);
 
-    return helper_export_data_wide(data_wide, data_wide.headers - export_names, false);
+    return helper_export_data_wide(data_wide, data_wide.pRegistry->get_all() - export_names, false);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -492,7 +492,7 @@ Rcpp::NumericMatrix MCMC::flush_total_log_lik_draws()
 
     try
     {
-        NumericMatrix output(pImpl_->tot_log_lik.count, 1);
+        NumericMatrix output(pImpl_->tot_log_lik.count(), 1);
         helper_vector_flush(output(_, 0), pImpl_->tot_log_lik.smpl_values);
         colnames(output) = CharacterVector({"log_lik"});
         return output;
@@ -517,7 +517,7 @@ Rcpp::NumericMatrix MCMC::flush_param_draws()
     {
         const size_t n_cols = param.list_sample.size();
         CharacterVector headers = wrap(param.pRegistry->as_string(param.list_sample));
-        NumericMatrix output(pImpl_->tot_log_lik.count, n_cols);
+        NumericMatrix output(pImpl_->tot_log_lik.count(), n_cols);
 
         for (size_t c = 0; c < n_cols; ++c)
             helper_vector_flush(output(_, c), param.smpl_values[c]);
@@ -546,7 +546,7 @@ Rcpp::NumericMatrix MCMC::flush_param_lprior_draws()
     {
         const size_t n_cols = param.list_sample.size();
         CharacterVector headers(n_cols);
-        NumericMatrix output(pImpl_->tot_log_lik.count, n_cols);
+        NumericMatrix output(pImpl_->tot_log_lik.count(), n_cols);
 
         size_t c = 0;
         for (const size_t p : param.list_sample)
@@ -579,7 +579,7 @@ Rcpp::NumericMatrix MCMC::flush_augm_draws()
     {
         const size_t n_cols = augm.smpl_individuals.size() * augm.list_draws.size();
         CharacterVector headers(n_cols);
-        NumericMatrix output(pImpl_->tot_log_lik.count, n_cols);
+        NumericMatrix output(pImpl_->tot_log_lik.count(), n_cols);
 
         size_t col = 0;
         for (size_t i = 0; i < augm.smpl_values.size(); ++i)
@@ -623,7 +623,7 @@ Rcpp::NumericMatrix MCMC::flush_house_log_lik_draws()
 
         // create a NumericMatrix with n_house columns
         const size_t n_houses = data_wide.report_house->total;
-        NumericMatrix output(pImpl_->tot_log_lik.count, n_houses);
+        NumericMatrix output(pImpl_->tot_log_lik.count(), n_houses);
         CharacterVector headers(n_houses);
 
         // retrieve restricted index by general index of multiplicity head class
@@ -670,19 +670,23 @@ namespace
 {
 
     /// Export to R a snapshot of current state of house data.
+    /// NOTE: there are not private parameters so far.
     Rcpp::NumericVector helper_param_rcpp_snapshot(const std::shared_ptr<Parameter> param)
     {
         using namespace Rcpp;
-        const std::vector<size_t> list_full = param->list_sample + param->list_const;
+        size_t n = param->pRegistry->size();
 
-        if (list_full.empty())
+        if (n == 0)
             return NumericVector::create();
 
-        NumericVector output(list_full.size());
-        size_t c = 0;
-        for (const size_t p : list_full)
-            output[c++] = param->at(p).get();
-        output.names() = CharacterVector(wrap(list_full));
+        NumericVector output(n);
+        CharacterVector headers(n);
+        for (size_t p = 0; p < n; ++p)
+        {
+            output[p] = param->at(p).get();
+            headers[p] = std::string(param->at(p).name());
+        }
+        output.names() = CharacterVector(headers);
 
         return output;
     }
@@ -692,7 +696,7 @@ namespace
                                                    const Household &house)
     {
         using namespace Rcpp;
-        const std::vector<std::string> &headers = data_wide->headers;
+        const std::vector<std::string> &headers = data_wide->pRegistry->get_all();
 
         const size_t n_rows = house.size();
         CharacterVector df_id = CharacterVector(n_rows);
@@ -834,11 +838,11 @@ namespace
             else
             {
                 List generic = helper_export_infec_profile(infec_profile);
-                infprof_name[member] = wrap(generic["func"]);
-                infprof_discr[member] = generic["discr"];
+                infprof_name[member] = as<std::string>(generic["func"]);
+                infprof_discr[member] = as<bool>(generic["discr"]);
                 infprof_args[member] = generic["func_args"];
-                infprof_min[member] = generic["min"];
-                infprof_max[member] = generic["max"];
+                infprof_min[member] = as<double>(generic["min"]);
+                infprof_max[member] = as<double>(generic["max"]);
             }
 
         return List::create(_["id"] = df_id,
@@ -1008,9 +1012,6 @@ Rcpp::DataFrame MCMC::helper_simulate_single_repetition()
     }
     return output;
 }
-
-Rcpp::List MCMC::run_simulation(size_t n_rep) { return helper_simulate(n_rep, false); }
-Rcpp::List MCMC::run_simulation_for_predict(size_t n) { return helper_simulate(n, true); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////  MCMC : log-evidence /////////////////////////////////////

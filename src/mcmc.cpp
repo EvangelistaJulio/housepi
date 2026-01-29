@@ -429,9 +429,9 @@ void MCMCImpl::store_posterior_sample_()
 {
     if (!setup->is_power_post())
     {
-        data_wide->store_draws(tot_log_lik.count);
-        param->store_draws(tot_log_lik.count);
-        augm->store_draws(tot_log_lik.count);
+        data_wide->store_draws(tot_log_lik.count());
+        param->store_draws(tot_log_lik.count());
+        augm->store_draws(tot_log_lik.count());
     }
     // store total log-likelihood and update count
     tot_log_lik.store_draws();
