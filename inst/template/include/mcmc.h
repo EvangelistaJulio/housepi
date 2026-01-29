@@ -56,7 +56,7 @@ public:
 	/////////////////////////////////////  MCMC : summaries  ////////////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
-	size_t get_max_hh_cases() const;
+	size_t get_max_hh_cases() const noexcept;
 	void assert_no_missing_status() const;
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
@@ -66,7 +66,7 @@ public:
 	/// UPDATE: also contact rates should just be imported
 	void build_all_rates();
 	/// Auxiliary wrapper to emplace_back */
-	void emplace_contact_rate(std::string p) { pair_contact_rate_ = p; }
+	void emplace_contact_rate(std::string p) noexcept { pair_contact_rate_ = p; }
 	/// Assign the contact patterns between a couple of individuals.
 	virtual void init_house_contact_rates(Household &, const Individual &, const Individual &) {}
 

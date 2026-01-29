@@ -12,7 +12,7 @@
 #include <iostream>
 #include <iomanip>
 
-#include "tools/keys_helper.h"
+#include "tools/keys.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/read.h"
@@ -185,7 +185,7 @@ void MCMC::print_infer_state(const string &output_filename) const
 
             // print log-likelihood
             ofs << hsp::read::DELIMITER << std::setprecision(2)
-                << std::fixed << pImpl_->smpl_total_log_lik[i];
+                << std::fixed << pImpl_->tot_log_lik.smpl_values[i];
 
             // print parameter values
             for (size_t u = 0; u < param.list_sample.size(); ++u)
@@ -447,10 +447,8 @@ int main(int argc, char *argv[])
     //////  INITIALIZATION  //////
     //////////////////////////////
 
-    // initialize the user model object
-    auto user_model = std::make_unique<Model>();
-    user_model->init_advanced_setup();
-
+    auto user_model = std::make_unique<Model>();        // 0) create the user model object
+    user_model->init_advanced_setup();                  // ... and initialize advanced setup
     user_model->read_data_wide(data_wide_file);         // 1) Load Data Wide
     user_model->read_data_long(data_long_file);         // ... and Data Long
     user_model->read_setup(setup_file);                 // 2) Load Setup

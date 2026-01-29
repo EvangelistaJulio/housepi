@@ -137,7 +137,7 @@ struct DataWide
     ~DataWide();
 
     Household &at(size_t H) { return house_vector_[H]; }
-    const Household &at(size_t H) const { return house_vector_.at(H); }
+    const Household &at(size_t H) const { return house_vector_[H]; }
     Household &at(std::string_view house_id) { return at(house_id_to_index_(house_id)); }
     const Household &at(std::string_view house_id) const { return at(house_id_to_index_(house_id)); }
 
@@ -150,6 +150,12 @@ struct DataWide
 
     /// Initialize cached structeres according to household size.
     void init_house_cache(Household &house);
+    /// Initialize cached structeres for all households.
+    void init_cache();
+    /// Deep copies of cache attributes in the buffer
+    void buffer_all_cache(Household &house);
+    /// Recover previous values of the log-likelihood and cached depedencies.
+    void recover_buffer_values(Household &house, bool is_cache_depen);
 
     void init_draws(unsigned long sample_size);
     void store_draws(unsigned long smpl_count);

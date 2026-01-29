@@ -47,13 +47,13 @@ public:
     virtual void user_reset() {}
     virtual void associate_location(const Attribute &) {}
 
-    double get_accept_rate() const { return accept_rate_; }
-    void update_accept_rate(bool is_accepted)
+    double get_accept_rate() const noexcept { return accept_rate_; }
+    void update_accept_rate(bool is_accepted) noexcept
     {
         accept_rate_ = static_cast<double>(accept_rate_ * n_proposed_ + is_accepted) / (1. + n_proposed_);
         ++n_proposed_;
     }
-    void reset_accept_rate()
+    void reset_accept_rate() noexcept
     {
         accept_rate_ = 0.;
         n_proposed_ = 0;
@@ -69,7 +69,7 @@ public:
     virtual double logratio(double, double) const { return 0.; }
 
     /// Wheter proposer can be adapted.
-    bool is_adaptable() const { return !args_to_adapt_.empty(); }
+    bool is_adaptable() const noexcept { return !args_to_adapt_.empty(); }
 
     /// Return proposer scale.
     double scale() const;
@@ -78,7 +78,7 @@ public:
     //////  SHOW  //////
     ////////////////////
 
-    std::string name() const { return name_; }
+    std::string name() const noexcept { return name_; }
 
 protected:
     std::string name_ = "";                          /// name of the proposal

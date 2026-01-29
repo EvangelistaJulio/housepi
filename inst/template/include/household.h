@@ -61,27 +61,6 @@ public:
 	//////  CACHE  //////
 	/////////////////////
 
-	/// Deep copies of cache attributes in the buffer
-	void buffer_all_cache()
-	{
-		buffer_size_t_vec_ = cache_size_t_vec_;
-		buffer_dbl_vec_ = cache_dbl_vec_;
-		buffer_dbl_mtx_ = cache_dbl_mtx_;
-	}
-
-	/// Recover previous values of the log-likelihood and cached depedencies.
-	void recover_buffer_values(bool is_cache_depen)
-	{
-		obs_log_lik_ = obs_buffer_;
-
-		if (is_cache_depen)
-		{
-			cache_size_t_vec_.swap(buffer_size_t_vec_);
-			cache_dbl_vec_.swap(buffer_dbl_vec_);
-			cache_dbl_mtx_.swap(buffer_dbl_mtx_);
-		}
-	}
-
 	// Cache size_t vector
 	std::vector<size_t> &cache_size_t_vector(size_t e) { return cache_size_t_vec_[e]; }
 	const std::vector<size_t> &cache_size_t_vector(size_t e) const { return cache_size_t_vec_[e]; }
@@ -99,7 +78,7 @@ public:
 	//////////////////////////////
 
 	/// Return value of the household observation log-likelihood.
-	double get_obs_log_lik() const { return obs_log_lik_; }
+	double get_obs_log_lik() const noexcept { return obs_log_lik_; }
 	/// Store the log-likelihood of household observation.
 	void set_obs_log_lik(double x)
 	{
@@ -117,17 +96,17 @@ public:
 	Individual &get_member(size_t i) { return members_.at(i); }
 	const Individual &get_member(size_t i) const { return members_.at(i); }
 
-	unsigned long multiplicity() const { return house_multiplicity_; }
-	size_t multiplicity_class_index() const { return multiplicity_class_; }
-	bool is_multiplicity_head_class() const { return index_ == multiplicity_class_; }
+	unsigned long multiplicity() const noexcept { return house_multiplicity_; }
+	size_t multiplicity_class_index() const noexcept { return multiplicity_class_; }
+	bool is_multiplicity_head_class() const noexcept { return index_ == multiplicity_class_; }
 
-	const std::vector<size_t> &infected_hhindexes() const { return infected_list_; }
-	const std::vector<size_t> &susceptible_hhindexes() const { return healthy_list_; }
-	const std::vector<size_t> &missing_hhindexes() const { return missing_list_; }
+	const std::vector<size_t> &infected_hhindexes() const noexcept { return infected_list_; }
+	const std::vector<size_t> &susceptible_hhindexes() const noexcept { return healthy_list_; }
+	const std::vector<size_t> &missing_hhindexes() const noexcept { return missing_list_; }
 
-	size_t n_infected_status() const { return infected_list_.size(); }
-	size_t n_susceptible_status() const { return healthy_list_.size(); }
-	size_t n_missing_status() const { return missing_list_.size(); }
+	size_t n_infected_status() const noexcept { return infected_list_.size(); }
+	size_t n_susceptible_status() const noexcept { return healthy_list_.size(); }
+	size_t n_missing_status() const noexcept { return missing_list_.size(); }
 
 	double contact_rate(size_t from, size_t to) const { return contact_rates_[from][to].get(); }
 
@@ -135,10 +114,10 @@ public:
 	//////  ITERATORS  //////
 	/////////////////////////
 
-	auto begin() { return members_.begin(); }
-	auto end() { return members_.end(); }
-	auto begin() const { return members_.begin(); }
-	auto end() const { return members_.end(); }
+	auto begin() noexcept { return members_.begin(); }
+	auto end() noexcept { return members_.end(); }
+	auto begin() const noexcept { return members_.begin(); }
+	auto end() const noexcept { return members_.end(); }
 
 	// T should be Individual for mutable access
 	// or const Individual for const access.
@@ -207,10 +186,10 @@ public:
 	//////  SHOW  //////
 	////////////////////
 
-	const std::string &house_id() const { return house_id_; }
+	const std::string &house_id() const noexcept { return house_id_; }
 	std::string err_name() const { return "household '" + house_id_ + "'"; }
-	size_t house_index() const { return index_; }
-	size_t size() const { return members_.size(); }
+	size_t house_index() const noexcept { return index_; }
+	size_t size() const noexcept { return members_.size(); }
 
 private:
 	std::string house_id_ = "";			   /// User house id

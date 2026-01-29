@@ -51,7 +51,7 @@ public:
     void init(double value, bool is_const, std::string_view expr, bool is_prim = false);
 
     /// Recover buffered value.
-    void recover_value() { value_ = buffer_; }
+    void recover() noexcept { value_ = buffer_; }
 
     /// Restore user defined variable initialization.
     void user_reset(hsp::rnd_gen &prng);
@@ -84,7 +84,7 @@ public:
     //////////////////////
 
     /// Get pointer to distribution.
-    const std::shared_ptr<Distribution> get_distribution() const { return pDistr_; }
+    const std::shared_ptr<Distribution> get_distribution() const noexcept { return pDistr_; }
 
     bool is_constant() const noexcept override final;
     bool is_discrete() const noexcept override final;

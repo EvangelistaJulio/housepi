@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-#include "tools/keys_helper.h"
+#include "tools/keys.h"
 #include "tools/messages.h"
 #include "tools/operators.h"
 #include "tools/parser.h"
@@ -40,7 +40,7 @@
 std::string AugmentedContainer::str_augm_summary() const
 {
     std::string output;
-    for (const auto &var : augm_vec_)
+    for (const Variable &var : augm_vec_)
     {
         output += "- " + std::string(var.name()) + " : ";
         if (var.is_function() && !var.get_function()->is_callable_implicitly())
@@ -73,7 +73,7 @@ void Parameter::build(const hsp::str_table &input)
     const std::vector<std::string> file_headers = {"name", "value", "const", "discr",
                                                    "prior", hsp::params::MIN, hsp::params::MAX,
                                                    "proposal", "proposal_scale"};
-    const auto headers = hsp::read::extract_keys(input);
+    const std::vector<std::string> headers = hsp::read::extract_keys(input);
     hsp::str::assert_no_missing_entries(headers, file_headers);
     hsp::str::assert_no_unused_entries(headers, file_headers);
 
@@ -86,7 +86,7 @@ void Parameter::build(const hsp::str_table &input)
     // load parameters from the row with options
     for (size_t k = 0; k < input.at("name").size(); ++k)
     {
-        const auto &paramstr = input.at("name")[k]; // parameter name
+        const std::string &paramstr = input.at("name")[k]; // parameter name
 
         if (!pRegistry->count(paramstr))
         {
@@ -103,7 +103,7 @@ void Parameter::build(const hsp::str_table &input)
 
     // initialize all parameters to standard
     list_sample_standard = list_sample;
-    for (const auto &p : list_sample_standard)
+    for (const size_t &p : list_sample_standard)
         if (at(p).is_adaptable())
             list_adaptable_sample_standard.push_back(p);
         else
@@ -116,7 +116,7 @@ void Parameter::build_for_expec(const hsp::dbl_table &input)
     if (input.empty())
         return;
 
-    const auto headers = hsp::read::extract_keys(input);
+    const std::vector<std::string> headers = hsp::read::extract_keys(input);
     // assert that parameter is not already defined
     if (headers.size() != hsp::str::unique(headers).size())
         throw std::invalid_argument(
@@ -131,7 +131,7 @@ void Parameter::build_for_expec(const hsp::dbl_table &input)
     smpl_values.clear();
 
     // reset definition dictionary to all constants NAs.
-    for (const auto &paramstr : pRegistry->get_all())
+    for (const std::string &paramstr : pRegistry->get_all())
         if (std::find(headers.begin(), headers.end(), paramstr) == headers.end())
             smpl_values.emplace_back();
         else
@@ -164,14 +164,14 @@ void Parameter::clear_lists_()
 /// Helper to build constant parameter.
 void Parameter::helper_build_constant_(const hsp::str_table &input, size_t k)
 {
-    const auto &paramstr = input.at("name")[k]; // parameter name
+    const std::string &paramstr = input.at("name")[k]; // parameter name
 
     if (hsp::na::is(input.at("value")[k]))
         throw std::invalid_argument(
             "Constant parameter '" + paramstr + "' had undefined value.");
 
     // assign constant parameter to the set of variables
-    const auto p = pRegistry->from_string(paramstr);
+    const size_t p = pRegistry->from_string(paramstr);
     param_vec_[p].transfer(read_numeric(input.at("value")[k]));
     // check if discrete as requested
     if (user_discrete_set.count(p) && !param_vec_[p].is_discrete())
@@ -185,7 +185,7 @@ void Parameter::helper_build_constant_(const hsp::str_table &input, size_t k)
 /// Helper to build parameter to sample.
 void Parameter::helper_build_to_sample_(const hsp::str_table &input, size_t k)
 {
-    const auto &paramstr = input.at("name")[k]; // parameter name
+    const std::string &paramstr = input.at("name")[k]; // parameter name
 
     // assert parameter to sample has a valid value initialization
     if (hsp::na::is(input.at("value")[k]) && hsp::na::is(input.at("prior")[k]))
@@ -193,9 +193,9 @@ void Parameter::helper_build_to_sample_(const hsp::str_table &input, size_t k)
             "Non-constant parameter '" + paramstr + "' had undefined prior.");
 
     // create a new parameter Variable
-    const auto p = pRegistry->from_string(paramstr);
+    const size_t p = pRegistry->from_string(paramstr);
     param_vec_[p].transfer(read_numeric(input.at("value")[k]));
-    auto &new_param = at(p);
+    Variable &new_param = at(p);
 
     // assign a prior distribution to the parameter
     hsp::parse::Definition parser(input.at("prior")[k]);
@@ -237,7 +237,7 @@ void Parameter::make_cache_dependent(size_t p)
     // remove a parameter from standard if it was defined as such
     if (std::find(list_sample_standard.begin(), list_sample_standard.end(), p) != list_sample_standard.end())
     {
-        const auto vec = std::vector<size_t>({p});
+        const std::vector<size_t> vec({p});
         list_sample_standard = list_sample_standard - vec;
         list_adaptable_sample_standard = list_adaptable_sample_standard - vec;
         list_non_adapt_sample_standard = list_non_adapt_sample_standard - vec;
@@ -257,10 +257,10 @@ void Parameter::make_cache_dependent(size_t p)
 /// Load parameters values of the n-th posterrior sample.
 void Parameter::load_sample_values(size_t n)
 {
-    for (const auto &paramstr : pRegistry->get_all())
+    for (const std::string &paramstr : pRegistry->get_all())
     {
-        const auto p = pRegistry->from_string(paramstr);
-        const auto &vec = smpl_values[p];
+        const size_t p = pRegistry->from_string(paramstr);
+        const std::vector<double> &vec = smpl_values[p];
         if (!vec.empty())
             at(p).set(vec[n]);
     }
@@ -271,7 +271,7 @@ void Parameter::make_cache_dependent(const hsp::parse::Entry &node)
     // cache dependecy if an augmented function depends on a parameter to be inferred
     if (hsp::parse::is_parameter(node.type))
     {
-        const auto p = pRegistry->from_string(node.value);
+        const size_t p = pRegistry->from_string(node.value);
         if (!at(p).is_constant())
             make_cache_dependent(p);
     }
@@ -280,8 +280,38 @@ void Parameter::make_cache_dependent(const hsp::parse::Entry &node)
 /// Randomly initialize values of the parameters to be inferred.
 void Parameter::user_reset(hsp::rnd_gen &prng)
 {
-    for (const auto &p : list_sample)
+    for (const size_t &p : list_sample)
         at(p).user_reset(prng);
+}
+
+/// Propose a valid move (return true), otherwise update refusal (false).
+bool Parameter::propose_valid_move(size_t p, hsp::rnd_gen &prng)
+{
+    Variable &this_par = at(p);
+
+    // set new value of the parameter and store the old to buffer
+    this_par.propose(prng);
+
+    if (this_par.is_valid_move())
+        return true;
+
+    // recover buffer if not valid move
+    this_par.recover();
+    return false;
+}
+
+/// Adpat the proposal of model parameters.
+void Parameter::adapt_proposal_of_sampled(unsigned long step, unsigned long tot)
+{
+    const double ratio = static_cast<double>(step) / static_cast<double>(tot);
+
+    // adpat all standard model parameters
+    for (const size_t p : list_adaptable_sample_standard)
+        at(p).adapt_proposal(ratio);
+
+    // adapt all parameters with cached dependecies
+    for (const size_t p : list_adaptable_sample_cached)
+        at(p).adapt_proposal(ratio);
 }
 
 /// Initialize posterior sample of parameters and respective priors.
@@ -303,9 +333,9 @@ void Parameter::init_draws(unsigned long sample_size)
 void Parameter::store_draws(unsigned long smpl_count)
 {
     size_t i = 0;
-    for (const auto p : list_sample)
+    for (const size_t p : list_sample)
     {
-        const auto &this_par = at(p);
+        const Variable &this_par = at(p);
         smpl_values[i][smpl_count] = this_par.get();
         smpl_priors[i][smpl_count] = this_par.get_distr_logpdf();
         ++i;
@@ -338,7 +368,7 @@ const Attribute &Parameter::read_attribute(const hsp::parse::Entry &node, const 
             throw std::invalid_argument(
                 "Not supported individidual specific definition found while parsing '" + node.str() + "'.");
 
-        const auto &member = *member_ptr;
+        const Individual &member = *member_ptr;
         if (hsp::parse::is_data(node.type)) // terminal data node
         {
             storage_ = Attribute(member.get_data_wide_vec()[pDataWideRegistry_->from_string(node.value)]);
@@ -363,7 +393,7 @@ const Attribute &Parameter::read_attribute(const hsp::parse::Entry &node, const 
 /// Convert a typed string into a double.
 const Attribute &Parameter::read_numeric(const hsp::parse::Entry &node, const Individual *member_ptr) const
 {
-    const auto &aux_attr_ = read_attribute(node, member_ptr);
+    const Attribute &aux_attr_ = read_attribute(node, member_ptr);
     if (!aux_attr_.is_empty() && !aux_attr_.is_constant())
         throw std::invalid_argument(
             "Definition '" + node.str() + "' could not be interpreted as a numeric constant.");
@@ -401,8 +431,8 @@ void GroupRate::build(const hsp::str_table &input)
         return;
 
     // loop over all household members
-    for (auto &house : *pDataWide_)
-        for (auto &member : house)
+    for (Household &house : *pDataWide_)
+        for (Individual &member : house)
         {
             hsp::str_table these_rates = {};
 
@@ -410,7 +440,7 @@ void GroupRate::build(const hsp::str_table &input)
             {
                 // check if all conditions are satisfied
                 bool is_this_class = true;
-                for (const auto &d : data_headers)
+                for (const std::string &d : data_headers)
                     if (!hsp::na::is(input.at(d)[r]))
                         is_this_class &= member.data_vec_[pDataWide_->pRegistry->from_string(d)] == hsp::str::tod(input.at(d)[r]);
 
@@ -438,7 +468,7 @@ std::vector<std::string> GroupRate::helper_assert_definitions_(const hsp::str_ta
     hsp::str::assert_no_unused_entries(data_headers, pDataWide_->headers);
 
     // assert the group rate names are allowed
-    for (const auto &groupstr : input.at("group_rate"))
+    for (const std::string &groupstr : input.at("group_rate"))
     {
         if (groupstr == hsp::rates::CONTACT || groupstr == hsp::rates::MISSING)
             throw std::invalid_argument(
@@ -470,7 +500,7 @@ void GroupRate::helper_init_all_rates_(Individual &member, const hsp::str_table 
     {
         // extract non-reference parameter pointers
         std::vector<const Attribute *> param_pointers = {};
-        for (const auto &paramstr : vec)
+        for (const std::string &paramstr : vec)
         {
             if (hsp::na::is(paramstr) || paramstr == hsp::rates::MISSING)
                 throw std::invalid_argument("A group rate definition '" + groupstr +

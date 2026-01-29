@@ -64,20 +64,20 @@ public:
 	/////////////////////////
 
 	/// Sugar to tell if the corresponding members are the same.
-	bool operator==(const Individual &other) const { return this->index_ == other.index_; }
+	bool operator==(const Individual &other) const noexcept { return index_ == other.index_; }
 	/// Sugar to tell if the corresponding members are different
-	bool operator!=(const Individual &other) const { return this->index_ != other.index_; }
+	bool operator!=(const Individual &other) const noexcept { return index_ != other.index_; }
 	/// Sugar to call an Individual object as house index.
-	operator size_t() const { return hhindex_; }
+	operator size_t() const noexcept { return hhindex_; }
 
 	//////////////////////
 	//////  GETTER  //////
 	//////////////////////
 
-	int status() const { return status_; }
+	int status() const noexcept { return status_; }
 
 	double data(size_t d) const { return data_vec_[d]; }
-	const std::vector<double> &get_data_wide_vec() const { return data_vec_; }
+	const std::vector<double> &get_data_wide_vec() const noexcept { return data_vec_; }
 
 	/// Return associated data long format.
 	/// NOTE: return a reference to a static empty vector when no datalong is attached.
@@ -110,7 +110,7 @@ public:
 	////////////////////
 
 	/// Individidaul unique identifier as in data.
-	const std::string &id() const { return id_; }
+	const std::string &id() const noexcept { return id_; }
 	std::string err_name() const override final { return "individual '" + id_ + "'"; }
 
 private:

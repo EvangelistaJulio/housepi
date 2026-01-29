@@ -56,7 +56,7 @@ void Proposal::adapt(double ratio)
     // target accept rate set to 1/4.
     const double factor = 1. + (1. - ratio) * (get_accept_rate() - 0.25);
     // loop over all ids of arguments to adapt
-    for (auto i : args_to_adapt_)
+    for (unsigned short i : args_to_adapt_)
         (pDistr_->set_arg)(i, factor * (pDistr_->arg)(i));
 }
 
@@ -327,8 +327,8 @@ void Variable::helper_degenerate_range_()
 
     // skip if range is not degenerate
     // UPDATE: hard to know in advance if not initialized Variables...
-    const auto lower = pDistr_->lower();
-    const auto upper = pDistr_->upper();
+    const double lower = pDistr_->lower();
+    const double upper = pDistr_->upper();
     if (hsp::na::is(lower) || hsp::na::is(upper) || lower < upper)
         return;
 
@@ -440,7 +440,7 @@ void Variable::adapt_proposal(double ratio) { pProp_->adapt(ratio); }
 /// Get a description about the functional status.
 std::string Variable::str_summary() const
 {
-    auto output = Attribute::str_summary();
+    std::string output = Attribute::str_summary();
     if (is_model())
         output += " | ~" + pDistr_->str_summary(false);
     return output;

@@ -54,18 +54,22 @@ public:
     void init_template(hsp::str_table input);
     void update();
     void recover();
-    void request_discrete() { is_discrete_requested_ = true; };
+    void request_discrete() noexcept { is_discrete_requested_ = true; };
 
     //////////////////////
     //////  GETTER  //////
     //////////////////////
 
-    bool is_lookup() const { return inst_ == &InfecProfile::do_inst_lookup_; }
-    bool is_augmented() const { return inst_ == &InfecProfile::do_inst_augm_; }
-    bool is_discrete_requested() const { return is_discrete_requested_; }
-
     double inst(const Individual *member_ptr, double t) { return (this->*inst_)(member_ptr, t); }
     double cumul(const Individual *member_ptr, double t) { return (this->*cumul_)(member_ptr, t); }
+
+    /////////////////////
+    //////  FLAGS  //////
+    /////////////////////
+
+    bool is_lookup() const noexcept { return inst_ == &InfecProfile::do_inst_lookup_; }
+    bool is_augmented() const noexcept { return inst_ == &InfecProfile::do_inst_augm_; }
+    bool is_discrete_requested() const noexcept { return is_discrete_requested_; }
 
 private:
     std::shared_ptr<Parameter> pParameter_;        /// pointer to external Parameter struct

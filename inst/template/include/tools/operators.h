@@ -24,7 +24,7 @@ std::vector<T> &operator+=(std::vector<T> &x, const std::vector<T> &y)
 template <typename T>
 std::vector<T> operator+(const std::vector<T> &x, const std::vector<T> &y)
 {
-    auto vec = x;
+    std::vector<T> vec = x;
     vec += y;
     return vec;
 }
@@ -36,7 +36,7 @@ std::vector<T> operator-(const std::vector<T> &v, const std::vector<T> &w)
     const std::unordered_set<T> exclusions(w.begin(), w.end());
     std::vector<T> result;
     result.reserve(v.size());
-    for (const auto &item : v)
+    for (const T &item : v)
         if (!exclusions.count(item))
             result.push_back(item);
     return result;

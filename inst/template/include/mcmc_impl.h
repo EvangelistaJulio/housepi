@@ -13,6 +13,43 @@
 #include <string_view>
 #include <vector>
 
+#include "tools/nan.h"
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////  *** Total Log-Likelihood : struct ***  ///////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct TotalLogLike
+{
+    std::vector<double> smpl_values = {}; /// vector of total log-likelihood samples
+    unsigned long count = 0;              /// count of store samples
+    double value = 0.;                    /// current total log-likelihood
+    double buffer = 0.;                   /// buffer total log-likelihood
+
+    void recover() noexcept { value = buffer; }
+    double logratio() const noexcept { return value - buffer; }
+
+    /// Set new total log-likelihood value and buffer old value.
+    void set(double new_ll) noexcept
+    {
+        buffer = value;
+        value = new_ll;
+    }
+
+    /// Increment total log-likelohood by a delta, buffer old value.
+    void increment(double delta_ll) noexcept { set(value + delta_ll); }
+
+    void init_draws(unsigned long sample_size)
+    {
+        count = 0;
+        smpl_values.clear();
+        smpl_values.assign(sample_size, hsp::na::DOUBLE);
+    }
+    void store_draws() { smpl_values[count++] = value; }
+};
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  *** MCMC : Impl : class ***  ////////////////////////////////
@@ -46,6 +83,8 @@ public:
     std::shared_ptr<InfecProfile> infec_profile;
     std::shared_ptr<Augmented> augm;
 
+    TotalLogLike tot_log_lik;
+
     ///////////////////////////
     //////  CONSTRUCTOR  //////
     ///////////////////////////
@@ -68,12 +107,8 @@ public:
     //////  METROPOLIS-HASTINGS  //////
     ///////////////////////////////////
 
-    unsigned long smpl_count = 0;                /// count of store samples
-    std::vector<double> smpl_total_log_lik = {}; /// vector of total log-likelihood samples
-
     void init_monte_carlo();
     void init_evaluate();
-    void init_household_cache();
     void run_monte_carlo();
     std::vector<std::vector<double>> power_posteriors(std::string_view scheme, unsigned long N);
     double evaluate_single_house_log_lik(std::string_view house_id);
@@ -101,16 +136,6 @@ private:
     ////////////////////////  MCMC : Impl : Metropolis-Hastings [private]  //////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    double total_log_lik_ = 0.; /// current total log-likelihood
-    double total_buffer_ = 0.;  /// buffer total log-likelihood
-
-    /// Set new total log-likelihood value and buffer old value.
-    void set_total_log_lik_(double new_ll)
-    {
-        total_buffer_ = total_log_lik_;
-        total_log_lik_ = new_ll;
-    }
-
     /// Intialize a single Markov chain for Monte Carlo.
     void init_monte_carlo_chain_();
 
@@ -120,16 +145,11 @@ private:
     /// Move all model parameters and augmented variables.
     void move_all_();
 
-    /// Adpat the proposal of model parameters.
-    void adapt_proposal_of_sampled_params_(unsigned long step);
-
     void init_posterior_sample_();
     void store_posterior_sample_();
 
     //----- Metropolis - parameter moves -----//
     bool move_single_parameter_(size_t p, bool is_cache_depen);
-    bool propose_valid_param_move_(size_t p);
-    bool accept_valid_param_move_(size_t p);
     void recover_parameter_(size_t p, bool is_cache_depen);
 
     //----- Metropolis : augmented moves -----//

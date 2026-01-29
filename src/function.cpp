@@ -87,7 +87,7 @@ std::unique_ptr<Function> compose_func_registries(std::string_view opt,
         return nullptr;
 
     std::vector<const FunctionRegistry *> registry_ptrs = {};
-    for (const auto &r : registries)
+    for (const std::string &r : registries)
         if (r == "user")
             registry_ptrs.push_back(&UserFuncRegistry::instance());
         else if (r == "transcendental")
@@ -108,7 +108,7 @@ std::unique_ptr<Function> compose_func_registries(std::string_view opt,
     {
         if (ptr->count(opt))
             return ptr->create(opt, is_prim);
-        const auto &y = ptr->get_options();
+        const std::vector<std::string> &y = ptr->get_options();
         options.reserve(options.size() + y.size());
         options.insert(options.end(), y.begin(), y.end());
     }
@@ -318,7 +318,7 @@ Function::Function(const std::string &name,
     name_ = name;
 
     // allocate attribute for remaining arguments
-    auto n_args = args.size();
+    size_t n_args = args.size();
     for (const auto &[key, val] : args)
         if (key == hsp::params::X || key == hsp::params::LOC)
             --n_args;
@@ -366,13 +366,13 @@ Attribute &Function::find_arg_(std::string_view arg_name)
     if (arg_name == hsp::params::LOC)
         return loc_arg_;
 
-    for (auto &attr : arguments_)
+    for (Attribute &attr : arguments_)
         if (attr.name() == arg_name)
             return attr;
 
     // else format the error showing options
     std::vector<std::string> options = {hsp::params::X, hsp::params::LOC};
-    for (const auto &attr : arguments_)
+    for (const Attribute &attr : arguments_)
         options.emplace_back(attr.name());
     throw std::invalid_argument(
         "Unknown argument '" + std::string(arg_name) + "' for " + err_name() + "." +
@@ -388,7 +388,7 @@ bool Function::is_constant() const noexcept
         return false;
 
     // check arguments
-    for (const auto &attr : arguments_)
+    for (const Attribute &attr : arguments_)
         if (!attr.is_constant())
             return false;
 
@@ -405,7 +405,7 @@ bool Function::is_constant() const noexcept
 /// Wheter all arguments are not empty.
 bool Function::is_callable_explicitly() const noexcept
 {
-    for (const auto &attr : arguments_)
+    for (const Attribute &attr : arguments_)
         if (attr.is_empty())
             return false;
     return true;
@@ -414,8 +414,8 @@ bool Function::is_callable_explicitly() const noexcept
 /// Collect names of missing arguments.
 std::vector<std::string> Function::get_missing_argument() const
 {
-    std::vector<std::string> undefined_args;
-    for (const auto &attr : arguments_)
+    std::vector<std::string> undefined_args = {};
+    for (const Attribute &attr : arguments_)
         if (attr.is_empty())
             undefined_args.emplace_back(attr.name());
     return undefined_args;
@@ -424,7 +424,7 @@ std::vector<std::string> Function::get_missing_argument() const
 /// Throw exception if not callable explicitly.
 void Function::assert_is_callable_explicitly() const
 {
-    const auto undefined_args = get_missing_argument();
+    const std::vector<std::string> undefined_args = get_missing_argument();
     if (!undefined_args.empty())
         throw std::invalid_argument(
             "Impossible to initialize " + err_name() + ": missing non default argument" +
@@ -568,7 +568,7 @@ void Function::init_attr(std::string_view key, const Attribute &attr)
     // assert that function attribute are implicitely callable
     if (attr.is_function())
     {
-        const auto undefined_args = attr.get_function()->get_missing_argument();
+        const std::vector<std::string> undefined_args = attr.get_function()->get_missing_argument();
         if (!undefined_args.empty())
             throw std::invalid_argument(
                 "Impossible to associate " + attr.err_name() + " as argument '" + std::string(key) + "' of " + err_name() + ".\n" +
@@ -823,7 +823,7 @@ namespace
         {
             if (!x_arg_.is_discrete())
                 return false;
-            for (const auto &attr : arguments_)
+            for (const Attribute &attr : arguments_)
                 if (!attr.is_discrete())
                     return false;
             return true;
@@ -838,7 +838,7 @@ namespace
                 return x_arg_;
             if (arg_name == hsp::params::LOC)
                 return loc_arg_;
-            for (auto &attr : arguments_)
+            for (Attribute &attr : arguments_)
                 if (!hsp::na::is(attr.name()) && attr.name() == arg_name)
                     return attr;
 
@@ -856,7 +856,7 @@ namespace
     protected:                                                   \
         double raw_function_(double x) const override final      \
         {                                                        \
-            for (const auto &attr : arguments_)                  \
+            for (const Attribute &attr : arguments_)             \
                 x Symbol attr.get();                             \
             return x;                                            \
         }                                                        \
@@ -873,7 +873,7 @@ namespace
     protected:                                                 \
         double raw_function_(double x) const override final    \
         {                                                      \
-            for (const auto &attr : arguments_)                \
+            for (const Attribute &attr : arguments_)           \
             {                                                  \
                 const double new_val = attr.get();             \
                 if (new_val Symbol x)                          \

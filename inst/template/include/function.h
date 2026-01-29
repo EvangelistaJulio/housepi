@@ -74,13 +74,13 @@ public:
         "Called to undefined method truncation of " + err_name() + "."); }
 
     /// Select call method for return value.
-    void set_eval_call() { evaluate_ = &Function::eval_function_; }
+    void set_eval_call() noexcept { evaluate_ = &Function::eval_function_; }
     /// Select primitive method for return value.
-    void set_eval_primitive() { evaluate_ = &Function::eval_primitive_; }
+    void set_eval_primitive() noexcept { evaluate_ = &Function::eval_primitive_; }
     /// Select call as a distributin method for return value.
-    void set_eval_as_distr_call() { evaluate_ = &Function::pdf; }
+    void set_eval_as_distr_call() noexcept { evaluate_ = &Function::pdf; }
     /// Select primitive as a distributin method for return value.
-    void set_eval_as_distr_primitive() { evaluate_ = &Function::cdf; }
+    void set_eval_as_distr_primitive() noexcept { evaluate_ = &Function::cdf; }
 
     //////////////////////
     //////  GETTER  //////
@@ -88,7 +88,7 @@ public:
 
     /// Central method to return function's value at given x.
     double evaluate(double x) const { return (this->*evaluate_)(x); }
-    /// By convention, the argument 'x' is automatically the last one.
+    /// Evaluate implicitely at 'x' value.
     double evaluate() const { return (this->*evaluate_)(x_arg_.get()); }
 
     /// Return value as for a probability density/mass function.
@@ -99,7 +99,7 @@ public:
         return is_below(x) ? 0: eval_primitive_(is_above(x) ? (this->*delocate_)(upper()) : x);
     }
 
-    size_t n_args() const { return arguments_.size(); }
+    size_t n_args() const noexcept { return arguments_.size(); }
     double arg(size_t i) const { return arguments_[i].get(); }
     double lower() const { return lower_arg_.get(); }
     double upper() const { return upper_arg_.get(); }
@@ -139,9 +139,9 @@ public:
     ////////////////////
 
     /// Get function name.
-    std::string_view name() const { return name_; }
+    std::string_view name() const noexcept { return name_; }
     /// Get argument name.
-    std::string_view arg_name(unsigned short i) const { return arguments_[i].name(); }
+    std::string_view arg_name(unsigned short i) const noexcept { return arguments_[i].name(); }
     /// Get function name complete with type to display in errors.
     std::string err_name() const { return err_type_ + " '" + name_ + "'"; }
 

@@ -72,11 +72,11 @@ struct Augmented
     void store_draws(unsigned long smpl_count);
 
     /// Flag if there are non-constant augmented definitions.
-    bool is_any_sample() const { return !status_to_sample.empty(); }
+    bool is_any_sample() const noexcept { return !status_to_sample.empty(); }
     /// Flag if there are augmented definitions with a model.
-    bool is_any_model() const { return is_any_model_; }
+    bool is_any_model() const noexcept { return is_any_model_; }
     /// Flag if augmented draws are stored.
-    bool is_any_draw() const { return !smpl_individuals.empty(); }
+    bool is_any_draw() const noexcept { return !smpl_individuals.empty(); }
 
     double materialize_augm_model_log_lik(Individual &member);
     double materialize_augm_model_logratio(Individual &member, size_t a);

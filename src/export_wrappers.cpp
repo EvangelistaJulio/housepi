@@ -112,7 +112,7 @@ RCPP_MODULE(housepi_flags)
                         arg_names = Rcpp::CharacterVector(args.size());                            \
                     for (R_xlen_t i = 0; i < args.size(); ++i)                                     \
                     {                                                                              \
-                        const auto this_arg = Rcpp::as<std::string>(arg_names[i]);                 \
+                        const std::string this_arg = Rcpp::as<std::string>(arg_names[i]);          \
                         ptr_->init_attr(this_arg, Attribute(Rcpp::as<double>(args[i])));           \
                     }                                                                              \
                 }                                                                                  \

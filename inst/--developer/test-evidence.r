@@ -16,10 +16,10 @@ tibble(x = seq(0.01, 10, 0.01),
 results <- new_housepi_model("augmented_example") |>
   add_parameter("theta", prior = "uniform") |>
   load_augmented_list(
-    .hidden = list(model = "exponential", rate = ~ theta@P,
+    .hidden = list(model = "exponential", rate = theta@P,
                    rule = "sample"),
     proba = list(func = "exponential",
-                 func_args = c(x = ~ x@D, rate = ~ .hidden))
+                 func_args = c(x = x@D, rate = .hidden))
   ) |>
   evidence(dataset, steps = 5000, rungs = 100, chains = 3)
 results$estimate
@@ -42,10 +42,10 @@ tibble(x = seq(-10, 10, 0.01),
 results <- new_housepi_model("augmented_example") |>
   add_parameter("theta", prior = "normal") |>
   load_augmented_list(
-    .hidden = list(model = "normal", mean = ~ theta@P,
+    .hidden = list(model = "normal", mean = theta@P,
                    rule = "sample", min = -10, max = 10),
     proba = list(func = "normal",
-                 func_args = c(x = ~ x@D, mean = ~ .hidden))
+                 func_args = c(x = x@D, mean = .hidden))
   ) |>
   evidence(dataset, steps = 10000, rungs = 100, chains = 4)
 results$estimate + log(20)

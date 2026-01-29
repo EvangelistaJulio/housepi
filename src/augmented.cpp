@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-#include "tools/keys_helper.h"
+#include "tools/keys.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/operators.h"
@@ -45,18 +45,18 @@ namespace
                                                        "value", "const", "discr",
                                                        "model", hsp::params::MIN, hsp::params::MAX,
                                                        "proposal", "proposal_scale"};
-        const auto headers = hsp::read::extract_keys(input);
+        const std::vector<std::string> headers = hsp::read::extract_keys(input);
         hsp::str::assert_no_missing_entries(headers, file_headers);
         hsp::str::assert_no_unused_entries(headers, file_headers);
 
-        for (const auto &a : input.at("name"))
+        for (const std::string &augmstr : input.at("name"))
         {
-            if (hsp::na::is(a))
+            if (hsp::na::is(augmstr))
                 throw std::invalid_argument(
                     "Found an augmented variable with undefined name.");
-            if (a == hsp::infprof::INSTANT)
-                throw std::invalid_argument(
-                    "Tried to use the reserved augmented name '" + a + "'.\nPlease, choose a different name.");
+            if (augmstr == hsp::infprof::INSTANT)
+                throw std::invalid_argument("Tried to use the reserved augmented name '" +
+                                            augmstr + "'.\nPlease, choose a different one.");
         }
     }
 
@@ -79,7 +79,7 @@ namespace
             return;
 
         recursion_stack.push_back(entry);
-        for (auto &dep : tree.at(entry))
+        for (const std::string &dep : tree.at(entry))
             walk_dependency_tree(dep, tree, visited, recursion_stack, ordered);
 
         recursion_stack = recursion_stack - std::vector<std::string>({entry});
@@ -105,7 +105,7 @@ namespace
         hsp::str_table reverse_graph;
         for (const auto &[node, dependents] : graph)
         {
-            for (const auto &dep : dependents)
+            for (const std::string &dep : dependents)
                 reverse_graph[dep].push_back(node);
 
             // ensure isolated nodes are present
@@ -115,7 +115,7 @@ namespace
 
         // walk dependents of start
         std::vector<std::string> visited, recursion_stack, ordered;
-        for (const auto &dep : reverse_graph.at(start))
+        for (const std::string &dep : reverse_graph.at(start))
             walk_dependency_tree(dep, reverse_graph, visited, recursion_stack, ordered);
 
         std::reverse(ordered.begin(), ordered.end());
@@ -137,7 +137,7 @@ Augmented::Augmented(const std::vector<std::string> &keys,
       pDataWide_(dataptr),
       pParameter_(paramptr),
       pInfecProfile_(infprofptr) {}
-    
+
 Augmented::~Augmented() = default;
 
 /// Assign augmented variables to all individuals.
@@ -169,8 +169,8 @@ void Augmented::build(const hsp::str_table &input)
     helper_build_definition_order_();
 
     // allocate memory for augmented variables to each individual
-    for (auto &house : *pDataWide_)
-        for (auto &member : house)
+    for (Household &house : *pDataWide_)
+        for (Individual &member : house)
             clear_all(member);
 }
 
@@ -190,7 +190,7 @@ void Augmented::helper_build_definition_by_status_()
     for (size_t k = 0; k < deftable_["name"].size(); ++k)
     {
         // fill registry with optional augmented definitions
-        const auto augmstr = deftable_["name"][k];
+        const std::string augmstr = deftable_["name"][k];
         if (!pRegistry->count(augmstr))
             pRegistry->add(augmstr);
 
@@ -214,7 +214,7 @@ void Augmented::helper_build_definition_by_status_()
         for (size_t k : idxs)
             name_to_status.push_back(deftable_["name"][k]);
 
-        auto degenerate = name_to_status - hsp::str::unique(name_to_status);
+        const std::vector<std::string> degenerate = name_to_status - hsp::str::unique(name_to_status);
         if (!degenerate.empty())
             throw std::invalid_argument(
                 "Incompatible definitions found for augmented " + hsp::str::format(degenerate));
@@ -267,10 +267,10 @@ void Augmented::set_definition_dependency_order_for_(int status)
         status_to_def_row[status] = {}; // NOTE: recycle from build to provide order
 
         // Dropping spurios private definition for no public definition depends on it
-        for (const auto &a : extract_all_dependencies_order(tree))
-            if (!hsp::str::is_private(a) ||
-                !hsp::str::drop_private(extract_dependents_order(a, tree)).empty())
-                status_to_def_row[status].push_back(name_to_row[a]);
+        for (const std::string &augmstr : extract_all_dependencies_order(tree))
+            if (!hsp::str::is_private(augmstr) ||
+                !hsp::str::drop_private(extract_dependents_order(augmstr, tree)).empty())
+                status_to_def_row[status].push_back(name_to_row.at(augmstr));
     }
     catch (const std::exception &e)
     {
@@ -319,8 +319,8 @@ std::vector<size_t> Augmented::get_unsorted_definition_rows_(int status, bool is
 /// Set sample map and relative usage list.
 void Augmented::set_sample_map_for_(int status, size_t k)
 {
-    const auto &augmstr = deftable_["name"][k];
-    const auto a = pRegistry->from_string(augmstr);
+    const std::string &augmstr = deftable_["name"][k];
+    const size_t a = pRegistry->from_string(augmstr);
 
     if (hsp::str::tobool(deftable_["const"][k]))
     {
@@ -363,8 +363,8 @@ void Augmented::set_sample_map_for_(int status, size_t k)
 /// Build augmented function and inspect for constant.
 void Augmented::set_function_or_identity_for_(size_t k)
 {
-    const auto &augmstr = deftable_["name"][k];
-    const auto a = pRegistry->from_string(augmstr);
+    const std::string &augmstr = deftable_["name"][k];
+    const size_t a = pRegistry->from_string(augmstr);
     const hsp::parse::Definition parser(deftable_["func"][k]);
 
     if (parser.is_terminal())
@@ -417,8 +417,8 @@ void Augmented::init()
 
     init_model_list();
 
-    for (auto &house : *pDataWide_)
-        for (auto &member : house.infected())
+    for (Household &house : *pDataWide_)
+        for (Individual &member : house.infected())
         {
             init_missing(member, true);
             member.augm_idx_status_ = status_to_index.at(member.status());
@@ -467,12 +467,12 @@ std::vector<size_t> Augmented::init_get_definition_order_(Individual &member)
 /// NOTE: a Variable must already be allocated.
 void Augmented::helper_init_attributes_(Individual &member, size_t k)
 {
-    const auto &augmstr = deftable_["name"][k];
-    const auto a = pRegistry->from_string(augmstr);
+    const std::string &augmstr = deftable_["name"][k];
+    const size_t a = pRegistry->from_string(augmstr);
 
     try
     {
-        auto &xaugm = member.augm_vec_[a];
+        Variable &xaugm = member.augm_vec_[a];
         xaugm.init(pParameter_->read_numeric(deftable_["value"][k], &member).get(),
                    hsp::str::tobool(deftable_["const"][k]), deftable_["func"][k],
                    hsp::str::tobool(deftable_["fcumul"][k]));
@@ -510,8 +510,8 @@ void Augmented::helper_init_attributes_(Individual &member, size_t k)
 /// Auxiliary method to assign attributes to augmented model.
 void Augmented::init_model_attributes_(Individual &member, size_t k)
 {
-    const auto &a = deftable_["name"][k];
-    auto &xaugm = member.augm_vec_[pRegistry->from_string(a)];
+    const std::string &augmstr = deftable_["name"][k];
+    Variable &xaugm = member.augm_vec_[pRegistry->from_string(augmstr)];
 
     if (!xaugm.is_model())
         return;
@@ -528,8 +528,8 @@ void Augmented::init_model_attributes_(Individual &member, size_t k)
 /// Auxiliary method to assign attributes to augmented function.
 void Augmented::init_func_attributes_(Individual &member, size_t k)
 {
-    const auto &a = deftable_["name"][k];
-    auto &xaugm = member.augm_vec_[pRegistry->from_string(a)];
+    const std::string &augmstr = deftable_["name"][k];
+    Variable &xaugm = member.augm_vec_[pRegistry->from_string(augmstr)];
 
     if (!xaugm.is_function())
         return;
@@ -556,7 +556,7 @@ void Augmented::init_func_attributes_(Individual &member, size_t k)
 /// Reset augmented initial values for given individual.
 void Augmented::user_reset(hsp::rnd_gen &prng, Individual &member)
 {
-    for (auto a : status_to_sample[member.status()])
+    for (size_t a : status_to_sample[member.status()])
         member.augm_vec_[a].user_reset(prng);
 }
 
@@ -566,8 +566,8 @@ void Augmented::user_reset(hsp::rnd_gen &prng)
     if (pRegistry->size() == 0)
         return;
 
-    for (auto &house : *pDataWide_)
-        for (auto &member : house.infected())
+    for (Household &house : *pDataWide_)
+        for (Individual &member : house.infected())
             user_reset(prng, member);
 }
 
@@ -586,18 +586,18 @@ void Augmented::init_model_list()
     model_blocks_.resize(pDataWide_->all_infected_statuses.size());
 
     size_t i = 0;
-    for (auto status : pDataWide_->all_infected_statuses)
+    for (int status : pDataWide_->all_infected_statuses)
     {
         // associate ordered models
         hsp::str_table ordered_models = get_ordered_models_(status);
         if (!ordered_models.empty())
         {
             is_any_model_ = true;
-            auto &block = model_blocks_[i];
+            ModelBlock_ &block = model_blocks_[i];
             block.models.reserve(hsp::read::csv_n_rows(ordered_models));
             for (const auto &[augmstr, others] : ordered_models)
             {
-                const auto a = pRegistry->from_string(augmstr);
+                const size_t a = pRegistry->from_string(augmstr);
                 block.models.push_back(a);
                 block.depen.emplace(a, pRegistry->from_string(others));
             }
@@ -618,7 +618,7 @@ hsp::str_table Augmented::get_ordered_models_(int status) const
     std::vector<std::string> without_model; // list of augmented without models
     for (size_t k : get_unsorted_definition_rows_(status, false))
     {
-        const auto &aumgstr = deftable_.at("name")[k];
+        const std::string &aumgstr = deftable_.at("name")[k];
         std::vector<std::string> xdepen = {};
         for (auto c : columns)
             xdepen += hsp::parse::Definition(deftable_.at(c)[k]).list_augmented_depen();
@@ -644,13 +644,13 @@ hsp::str_table Augmented::get_ordered_models_(int status) const
 /// Store the log-likelihood of individual augmented variables.
 double Augmented::materialize_augm_model_log_lik(Individual &member)
 {
-    const auto &block = model_blocks_[member.augm_idx_status_];
+    const ModelBlock_ &block = model_blocks_[member.augm_idx_status_];
     if (block.models.empty())
         return 0.;
 
     member.buffer_ = member.augm_log_lik_; // store old value in buffer
     member.augm_log_lik_ = 0.0;
-    for (const auto a : block.models)
+    for (const size_t a : block.models)
         member.augm_log_lik_ += member.augm_vec_[a].get_distr_logpdf();
 
     if (hsp::na::is(member.augm_log_lik_))
@@ -666,13 +666,13 @@ double Augmented::materialize_augm_model_logratio(Individual &member, size_t a)
 {
     member.buffer_ = member.augm_log_lik_; // store old value in buffer
 
-    const auto &block = model_blocks_[member.augm_idx_status_];
+    const ModelBlock_ &block = model_blocks_[member.augm_idx_status_];
     const auto it = block.depen.find(a);
     if (it == block.depen.end())
         return 0.;
 
     double delta_ll = 0.;
-    for (const auto b : it->second)
+    for (const size_t b : it->second)
         delta_ll += member.augm_vec_[b].get_distr_logratio();
     member.augm_log_lik_ += delta_ll;
 
@@ -708,8 +708,8 @@ void Augmented::init_individual_sample(std::vector<std::string> &id_draws)
 
     smpl_individuals.reserve(id_draws.size());
     std::vector<std::string> existing_ids = {};
-    for (const auto &house : *pDataWide_)
-        for (const auto &member : house)
+    for (const Household &house : *pDataWide_)
+        for (const Individual &member : house)
             if (std::find(id_draws.begin(), id_draws.end(), member.id()) != id_draws.end())
             {
                 // check id across all individuals
@@ -756,11 +756,11 @@ void Augmented::store_draws(unsigned long smpl_count)
 
     for (size_t i = 0; i < smpl_individuals.size(); ++i)
     {
-        const auto member_ptr = smpl_individuals[i];
+        const Individual *member_ptr = smpl_individuals[i];
         auto &member_matrix = smpl_values[i];
 
         size_t c = 0;
-        for (const auto &a : list_draws)
+        for (const size_t a : list_draws)
             member_matrix[c++][smpl_count] = member_ptr->augm_vec_[a].get();
     }
 }

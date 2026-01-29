@@ -11,6 +11,8 @@
 #include <string_view>
 #include <vector>
 
+#include "tools/nan.h"
+
 namespace hsp::parse
 {
     /// Wheter definitions is 'augmented'.
@@ -34,7 +36,7 @@ namespace hsp::parse
         bool is_braced = false;      /// wheter node was wrapped in {}
         std::vector<Entry> children; /// children if function node
 
-        Entry() {}
+        Entry() = default;
         explicit Entry(const std::string &value_, const std::string &type_);
         ~Entry() = default;
 
@@ -42,13 +44,13 @@ namespace hsp::parse
         std::string str() const;
 
         /// Wheter node is a terminal node. Otherwise it is a function node.
-        bool is_terminal() const { return func.empty(); }
+        bool is_terminal() const noexcept { return func.empty(); }
         /// Wheter node is a function with default arguments.
-        bool is_func_default() const { return !is_terminal() && children.empty(); }
+        bool is_func_default() const noexcept { return !is_terminal() && children.empty(); }
         /// Wheter node is a terminal node. Otherwise it is a function node.
-        bool is_empty() const;
+        bool is_empty() const noexcept { return is_terminal() && na::is(value); }
         /// Wheter is implicitely callable on argument 'point'.
-        bool is_callable_implicitly(std::string_view point) const;
+        bool is_callable_implicitly(std::string_view point) const noexcept;
 
         /// List of dependencies per type contained in current and children definitions.
         void append_augmented_depen(std::vector<std::string> &stack) const;
@@ -63,14 +65,14 @@ namespace hsp::parse
 
         /// Construct and parse expression into AST (and flattens it).
         Definition(std::string_view expr);
-        ~Definition() {}
+        ~Definition() = default;
 
         /// Wheter root node is a terminal node. Otherwise it is a function node.
-        bool is_terminal() const { return root.is_terminal(); }
+        bool is_terminal() const noexcept { return root.is_terminal(); }
         /// Wheter terminal value is NA.
-        bool is_na() const;
+        bool is_na() const noexcept { return is_terminal() && na::is(root.value); }
         /// Wheter is implicitely callable.
-        bool is_callable_implicitly(std::string_view point) const { return root.is_callable_implicitly(point); }
+        bool is_callable_implicitly(std::string_view point) const noexcept { return root.is_callable_implicitly(point); }
 
         /// List of dependencies per type contained in currenet definition.
         std::vector<std::string> list_augmented_depen() const;

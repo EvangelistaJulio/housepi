@@ -30,15 +30,15 @@ namespace hsp::key
                 optional_.emplace_back(name);
         }
 
-        size_t size() const { return declared_.size() + optional_.size(); }
+        size_t size() const noexcept { return declared_.size() + optional_.size(); }
 
         std::vector<std::string> get_all() const
         {
             std::vector<std::string> vec;
             vec.reserve(declared_.size() + optional_.size());
-            for (auto &s : declared_)
+            for (const std::string &s : declared_)
                 vec.push_back(s);
-            for (auto &s : optional_)
+            for (const std::string &s : optional_)
                 vec.push_back(s);
             return vec;
         }
@@ -62,7 +62,7 @@ namespace hsp::key
         {
             std::vector<std::string> output;
             output.reserve(indexes.size());
-            for (const auto &s : indexes)
+            for (size_t s : indexes)
                 output.push_back(as_string(s));
             return output;
         }
@@ -82,7 +82,7 @@ namespace hsp::key
         {
             std::vector<size_t> output;
             output.reserve(names.size());
-            for (const auto &s : names)
+            for (const std::string &s : names)
                 output.push_back(from_string(s));
             return output;
         }

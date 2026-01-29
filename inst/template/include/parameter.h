@@ -56,15 +56,15 @@ struct Parameter
 
     std::unordered_set<size_t> user_discrete_set = {}; /// user defined discrete parameters
 
-	///////////////////////////
-	//////  CONSTRUCTOR  //////
-	///////////////////////////
+    ///////////////////////////
+    //////  CONSTRUCTOR  //////
+    ///////////////////////////
 
     Parameter(const std::vector<std::string> &keys);
-    
-	//////////////////////
-	//////  GETTER  //////
-	//////////////////////
+
+    //////////////////////
+    //////  GETTER  //////
+    //////////////////////
 
     /// Get reference to parameter Variable class.
     Variable &at(size_t p) { return param_vec_[p]; }
@@ -72,11 +72,11 @@ struct Parameter
     const Variable &at(size_t p) const { return param_vec_[p]; }
 
     /// Flag to check if there are parameters to sample.
-    bool is_any_sample() const { return !list_sample.empty(); }
+    bool is_any_sample() const noexcept { return !list_sample.empty(); }
 
-	//////////////////////
-	//////  SETTER  //////
-	//////////////////////
+    //////////////////////
+    //////  SETTER  //////
+    //////////////////////
 
     void build(const hsp::str_table &deftable);
     void build_for_expec(const hsp::dbl_table &deftable);
@@ -88,6 +88,11 @@ struct Parameter
     /// Load parameters values of the n-th posterrior sample.
     void load_sample_values(size_t n);
 
+    /// Propose a valid move (return true), otherwise update refusal (false).
+    bool propose_valid_move(size_t p, hsp::rnd_gen &prng);
+    /// Adpat the proposal of model parameters.
+    void adapt_proposal_of_sampled(unsigned long step, unsigned long tot);
+
     /// Initialize posterior sample of parameters and respective priors.
     void init_draws(unsigned long sample_size);
     /// Store current sample of parameters and respective priors.
@@ -96,7 +101,9 @@ struct Parameter
     /////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////  Parameter : definition helpers  ////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
+    /// UPDATE: these are just temporary fixes.
 
+    /// Links used just by read_attribute.
     void link_to_data_wide(std::shared_ptr<hsp::key::Registry> pRegistry) { pDataWideRegistry_ = pRegistry; }
     void link_to_group_rate(std::shared_ptr<hsp::key::Registry> pRegistry) { pGroupRateRegistry_ = pRegistry; }
     void link_to_augm(std::shared_ptr<hsp::key::Registry> pRegistry) { pAugmRegistry_ = pRegistry; }
@@ -126,7 +133,7 @@ private:
     void helper_build_to_sample_(const hsp::str_table &deftable, size_t k);
 
     /// UPDATE: waiting for an updated read_attribute framework...
-    std::shared_ptr<hsp::key::Registry> pDataWideRegistry_ = nullptr; /// pointer to external registry
+    std::shared_ptr<hsp::key::Registry> pDataWideRegistry_ = nullptr;  /// pointer to external registry
     std::shared_ptr<hsp::key::Registry> pGroupRateRegistry_ = nullptr; /// pointer to external registry
-    std::shared_ptr<hsp::key::Registry> pAugmRegistry_ = nullptr; /// pointer to external registry
+    std::shared_ptr<hsp::key::Registry> pAugmRegistry_ = nullptr;      /// pointer to external registry
 };

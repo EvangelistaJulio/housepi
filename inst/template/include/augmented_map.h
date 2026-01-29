@@ -35,8 +35,8 @@ public:
 	const Variable &get_augm_variable(size_t a) const { return augm_vec_[a]; }
 	std::string str_augm_summary() const;
 
-	double get_augm_model_log_lik() const { return augm_log_lik_; }
-	void recover_augm_model_log_lik() { augm_log_lik_ = buffer_; };
+	double get_augm_model_log_lik() const noexcept { return augm_log_lik_; }
+	void recover_augm_model_log_lik() noexcept { augm_log_lik_ = buffer_; };
 
 protected:
 	size_t augm_idx_status_;			  /// index for augmented model

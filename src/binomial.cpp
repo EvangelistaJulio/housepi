@@ -83,7 +83,7 @@ namespace bax
         vector<gentype> output(1, gentype(n, 0));
 
         for (unsigned root = n - 1; root > 0; --root)
-            for (auto g : recursive_span_generation_(n - root))
+            for (gentype g : recursive_span_generation_(n - root))
             {
                 for (unsigned i = 0; i < n - root; ++i)
                     g[i] += 1;
@@ -229,7 +229,7 @@ namespace bax
 
         // store all results inside the LookUp Table
         unsigned long c = 0;
-        for (const auto &res_c : results)
+        for (const gentype &res_c : results)
         {
             Combinations_LookupTable[N][k][c].resize(N);
 
@@ -367,7 +367,7 @@ namespace bax
                 EscapePattern new_child(N_star);
 
                 // associate entries for this pattern
-                auto &indidx = Combinations_LookupTable[N][k][c];
+                gentype &indidx = Combinations_LookupTable[N][k][c];
 
                 for (unsigned i = k; i < N; ++i)
                 {

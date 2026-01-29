@@ -12,7 +12,7 @@
 #include <vector>
 
 #include "tools/atomic.h"
-#include "tools/keys_helper.h"
+#include "tools/keys.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/openmp.h"
@@ -26,7 +26,6 @@
 #include "infec_profile.h"
 #include "mcmc_impl.h"
 #include "mcmc.h" /// UPDATE: should remove I/O and Rcpp dependencies from MCMC...
-#include "mcmc_impl.h"
 #include "parameter.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -68,13 +67,6 @@ MCMCImpl::MCMCImpl(
 }
 MCMCImpl::~MCMCImpl() = default;
 
-void MCMCImpl::init_household_cache()
-{
-    // init cache dependencies for all households and individuals
-    for (size_t R = 0; R < data_wide->head_class_house_indexes.size(); ++R)
-        data_wide->init_house_cache(data_wide->restricted(R));
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////  MCMCImpl : evaluate log-likelihood  /////////////////////////////
@@ -88,7 +80,7 @@ void MCMCImpl::init_evaluate()
     data_wide->assert_non_empty();        // check if data is empty
     data_wide->warn_all_missing_status(); // warn if all missing status
     callback_init_inference_();           // user initialization of model for inference
-    init_household_cache();               // cache user household variables
+    data_wide->init_cache();              // cache user household variables
     augm->init();                         // initialize individual augmented relations
     param->user_reset(setup->prng());     // initialize non constant parameters
     augm->user_reset(setup->prng());      // initialize non constant augmented
@@ -143,8 +135,8 @@ double MCMCImpl::atomic_materialize_house_log_lik_(Household &house, bool is_cac
         // buffer all household cache dependencies
         if (is_cache_depen)
         {
-            house.buffer_all_cache();
-            for (auto &member : house.infected())
+            data_wide->buffer_all_cache(house);
+            for (Individual &member : house.infected())
                 callback_update_cache_(house, member);
         }
 
@@ -154,7 +146,7 @@ double MCMCImpl::atomic_materialize_house_log_lik_(Household &house, bool is_cac
 
         // compute and set individual augmented log-likelihood
         if (augm->is_any_model())
-            for (auto &member : house.infected())
+            for (Individual &member : house.infected())
                 output += augm->materialize_augm_model_log_lik(member);
     }
     catch (const std::exception &e)
@@ -220,7 +212,7 @@ void MCMCImpl::run_monte_carlo()
             for (unsigned long t = 1; t <= setup->n_thin; ++t)
             {
                 move_all_();
-                adapt_proposal_of_sampled_params_(i + t);
+                param->adapt_proposal_of_sampled(i + t, setup->n_adapt);
             }
 
         // Burn-in iterations
@@ -252,15 +244,15 @@ void MCMCImpl::move_all_()
         move_all_augm_();
 
     // move all standard model parameters
-    for (const auto &p : param->list_adaptable_sample_standard)
+    for (const size_t p : param->list_adaptable_sample_standard)
         param->at(p).update_accept_rate(move_single_parameter_(p, false));
-    for (const auto &p : param->list_non_adapt_sample_standard)
+    for (const size_t p : param->list_non_adapt_sample_standard)
         move_single_parameter_(p, false);
 
     // move parameters with cached dependecies
-    for (const auto &p : param->list_adaptable_sample_cached)
+    for (const size_t p : param->list_adaptable_sample_cached)
         param->at(p).update_accept_rate(move_single_parameter_(p, true));
-    for (const auto &p : param->list_non_adapt_sample_cached)
+    for (const size_t p : param->list_non_adapt_sample_cached)
         move_single_parameter_(p, true);
 }
 
@@ -269,31 +261,19 @@ bool MCMCImpl::move_single_parameter_(size_t p, bool is_cache_depen)
 {
     // proceed only if the new value is consistent
     // otherwise automatically refuse move
-    if (propose_valid_param_move_(p))
+    if (param->propose_valid_move(p, setup->prng()))
     {
         // if parameter is cache dependent, update cache
-        set_total_log_lik_(update_total_log_lik(is_cache_depen));
+        tot_log_lik.set(update_total_log_lik(is_cache_depen));
 
         // perform Metropolis-Hastings to accept or not move
-        if (accept_valid_param_move_(p))
+        const double D_ll = tot_log_lik.logratio();
+        const double move_logratio = param->at(p).get_move_logratio();
+        if (setup->unif() < std::exp(setup->inv_T * D_ll + move_logratio))
             return true; // accepted move
         recover_parameter_(p, is_cache_depen);
     }
     return false; // refused move
-}
-
-/// Adpat the proposal of model parameters.
-void MCMCImpl::adapt_proposal_of_sampled_params_(unsigned long step)
-{
-    const double ratio = static_cast<double>(step) / static_cast<double>(setup->n_adapt);
-
-    // adpat all standard model parameters
-    for (const auto &p : param->list_adaptable_sample_standard)
-        param->at(p).adapt_proposal(ratio);
-
-    // adapt all parameters with cached dependecies
-    for (const auto &p : param->list_adaptable_sample_cached)
-        param->at(p).adapt_proposal(ratio);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -305,63 +285,36 @@ void MCMCImpl::adapt_proposal_of_sampled_params_(unsigned long step)
 /// Intialize a single Markov chain for Monte Carlo.
 void MCMCImpl::init_monte_carlo_chain_()
 {
-    setup->prog_set_text();                     // set progress bar text
-    param->user_reset(setup->prng());           // reset parameter user definitions
-    augm->user_reset(setup->prng());            // reset augmented user definitions
-    set_total_log_lik_(update_total_log_lik()); // init cached, set total log-likelihood
+    setup->prog_set_text();                  // set progress bar text
+    param->user_reset(setup->prng());        // reset parameter user definitions
+    augm->user_reset(setup->prng());         // reset augmented user definitions
+    tot_log_lik.set(update_total_log_lik()); // init cached, set total log-likelihood
 
     // init move counts for adaptive
-    for (const auto p : param->list_sample)
+    for (const size_t p : param->list_sample)
         param->at(p).reset_accept_rate();
-}
-
-/// propose a valid move (return true), otherwise update refusal (return false).
-bool MCMCImpl::propose_valid_param_move_(size_t p)
-{
-    auto &this_par = param->at(p);
-
-    // set new value of the parameter and store the old to buffer
-    this_par.propose(setup->prng());
-
-    // recover buffer if not valid move
-    if (!this_par.is_valid_move())
-    {
-        this_par.recover_value();
-        return false;
-    }
-
-    return true;
 }
 
 /// Restore the parameter value in the buffer.
 void MCMCImpl::recover_parameter_(size_t p, bool is_cache_depen)
 {
     // recover buffer value of parameter
-    param->at(p).recover_value();
-
+    param->at(p).recover();
     // recover buffer value of full log-like
-    total_log_lik_ = total_buffer_;
+    tot_log_lik.recover();
 
     // recover buffered log-likelihood in households
     for (size_t R = 0; R < data_wide->head_class_house_indexes.size(); ++R)
     {
-        auto &house = data_wide->restricted(R);
-        house.recover_buffer_values(is_cache_depen);
+        Household &house = data_wide->restricted(R);
+        data_wide->recover_buffer_values(house, is_cache_depen);
         if (augm->is_any_sample())
-            for (auto &member : house.infected())
+            for (Individual &member : house.infected())
                 member.recover_augm_model_log_lik();
     }
 
     if (is_cache_depen)
         infec_profile->recover();
-}
-
-/// Metropolis-Hastings to accept or not current parameter move.
-bool MCMCImpl::accept_valid_param_move_(size_t p)
-{
-    const double D_ll = total_log_lik_ - total_buffer_;
-    const double move_logratio = param->at(p).get_move_logratio();
-    return setup->unif() < std::exp(setup->inv_T * D_ll + move_logratio);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -386,23 +339,22 @@ void MCMCImpl::move_all_augm_()
     }
     atomic_error->throw_exception();
 
-    // increment total log-likelohood by a delta, buffer old value
-    set_total_log_lik_(total_log_lik_ + delta_ll);
+    tot_log_lik.increment(delta_ll);
 }
 
 /// Move augmented variables of infectious members inside household.
 /// The move is performed one member at a time, one augmented variable at a time.
 double MCMCImpl::atomic_move_augm_single_house_(size_t H)
 {
-    auto &house = data_wide->at(H);
+    Household &house = data_wide->at(H);
     double delta_ll = 0.;
 
     try
     {
         // loop over infectious residents of the househould
-        for (auto &member_i : house.infected())
+        for (Individual &member_i : house.infected())
             // loop over augmented variables of infectious
-            for (auto a : augm->status_to_sample[member_i.status()])
+            for (size_t a : augm->status_to_sample[member_i.status()])
                 delta_ll += metropolis_augm_single_move_(house, member_i, a);
     }
     catch (const std::exception &e)
@@ -417,14 +369,14 @@ double MCMCImpl::atomic_move_augm_single_house_(size_t H)
 /// Take care of a a single augmented Metropolis move.
 double MCMCImpl::metropolis_augm_single_move_(Household &house, Individual &member, size_t a)
 {
-    auto &xaugm = member.get_augm_variable(a);
+    Variable &xaugm = member.get_augm_variable(a);
     xaugm.propose(setup->prng()); // propose new value and buffer old
 
     // proceed only if the new value is consistent
     if (xaugm.is_valid_move())
     {
         // update dependencies to perform computations
-        house.buffer_all_cache();
+        data_wide->buffer_all_cache(house);
         callback_update_cache_(house, member);
 
         // Metropolis-Hastings
@@ -441,11 +393,11 @@ double MCMCImpl::metropolis_augm_single_move_(Household &house, Individual &memb
             return delta_ll;
 
         // else recover cached values
-        house.recover_buffer_values(true);
+        data_wide->recover_buffer_values(house, true);
         member.recover_augm_model_log_lik();
     }
     // else recover buffered value
-    xaugm.recover_value();
+    xaugm.recover();
 
     return 0.;
 }
@@ -457,41 +409,32 @@ double MCMCImpl::metropolis_augm_single_move_(Household &house, Individual &memb
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Init posterior sampling.
+//// UPDATE: I would like to store also power posterior sample.
+/// NOTE: it will depend on chosen rungs in that case.
 void MCMCImpl::init_posterior_sample_()
 {
     unsigned long sample_size = setup->c_sample_size * setup->n_chains;
 
-    // diagnostics over full log-likelihood
-    smpl_count = 0;
-    smpl_total_log_lik.clear();
-    smpl_total_log_lik.reserve(sample_size);
-    smpl_total_log_lik.assign(sample_size, hsp::na::DOUBLE);
-
-    // initialize  other diagnostic vectors
-    // UPDATE: I need to store also power posterior sample
-    // NOTE: it will depend on chosen rungs in that case
     if (!setup->is_power_post())
     {
         data_wide->init_draws(sample_size);
         param->init_draws(sample_size);
         augm->init_draws(sample_size);
     }
+    tot_log_lik.init_draws(sample_size);
 }
 
 /// Store current Bayesian posterior sample.
 void MCMCImpl::store_posterior_sample_()
 {
-    // store sample of the full log-likelihood
-    smpl_total_log_lik[smpl_count] = total_log_lik_;
-
     if (!setup->is_power_post())
     {
-        data_wide->store_draws(smpl_count);
-        param->store_draws(smpl_count);
-        augm->store_draws(smpl_count);
+        data_wide->store_draws(tot_log_lik.count);
+        param->store_draws(tot_log_lik.count);
+        augm->store_draws(tot_log_lik.count);
     }
-
-    ++smpl_count;
+    // store total log-likelihood and update count
+    tot_log_lik.store_draws();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -551,7 +494,7 @@ std::vector<std::vector<double>> MCMCImpl::power_posteriors(std::string_view sch
     double buffer_inv_T = setup->inv_T; // buffer user setup
     init_monte_carlo();                 // initialize mcmc sampling
     callback_init_inference_();         // user initialization of model for inference
-    init_household_cache();             // cache user household variables
+    data_wide->init_cache();            // cache user household variables
     augm->init();                       // initialize augmented variables
     setup->prog_declare();              // declare current progress bar
     setup->prog_open_for_power_post();  // print progress bar
@@ -583,7 +526,7 @@ void MCMCImpl::power_post_zero_(std::vector<double> &itm, std::vector<double> &a
     setup->rung = 0;
     setup->inv_T = 0.0;
     run_monte_carlo();
-    const auto [stats_avg, stats_var] = compute_stats(smpl_total_log_lik);
+    const auto [stats_avg, stats_var] = compute_stats(tot_log_lik.smpl_values);
 
     itm.push_back(setup->inv_T);
     avg.push_back(stats_avg);
@@ -598,7 +541,7 @@ void MCMCImpl::power_post_adaptive_(std::vector<double> &itm, std::vector<double
         setup->rung = 1;
         setup->inv_T = 1.0;
         run_monte_carlo();
-        const auto [stats_avg, stats_var] = compute_stats(smpl_total_log_lik);
+        const auto [stats_avg, stats_var] = compute_stats(tot_log_lik.smpl_values);
 
         itm.push_back(setup->inv_T);
         avg.push_back(stats_avg);
@@ -622,7 +565,7 @@ void MCMCImpl::power_post_adaptive_(std::vector<double> &itm, std::vector<double
         // power posterior sampling
         setup->inv_T = new_t;
         run_monte_carlo();
-        const auto [stats_avg, stats_var] = compute_stats(smpl_total_log_lik);
+        const auto [stats_avg, stats_var] = compute_stats(tot_log_lik.smpl_values);
 
         // find larger rectangular discretization error
         is_right = (itm[k + 1] - setup->inv_T) * (avg[k + 1] - stats_avg) > (new_t - itm[k]) * (stats_avg - avg[k]);
@@ -646,7 +589,7 @@ void MCMCImpl::power_post_fractions_(std::vector<double> &itm, std::vector<doubl
         setup->inv_T = std::pow(static_cast<double>(setup->rung) / static_cast<double>(setup->n_rungs), 5.);
         run_monte_carlo();
 
-        const auto [stats_avg, stats_var] = compute_stats(smpl_total_log_lik);
+        const auto [stats_avg, stats_var] = compute_stats(tot_log_lik.smpl_values);
         itm.push_back(setup->inv_T);
         avg.push_back(stats_avg);
         var.push_back(stats_var);
@@ -696,7 +639,7 @@ MCMC::~MCMC() = default;
 double MCMC::uniform() { return pImpl_->setup->unif(); }
 double MCMC::par(size_t p) const { return pImpl_->param->at(p).get(); }
 
-size_t MCMC::get_max_hh_cases() const { return pImpl_->data_wide->report_hh_size->max_cases.first; }
+size_t MCMC::get_max_hh_cases() const noexcept { return pImpl_->data_wide->report_hh_size->max_cases.first; }
 void MCMC::assert_no_missing_status() const
 {
     if (pImpl_->data_wide->report_indiv->missing > 0)
@@ -713,7 +656,7 @@ void MCMC::build_all_rates()
 {
     try
     {
-        for (auto &house : *pImpl_->data_wide)
+        for (Household &house : *pImpl_->data_wide)
             init_contact_rates_(house);
     }
     catch (const std::exception &e)
@@ -727,8 +670,8 @@ void MCMC::build_all_rates()
 void MCMC::init_contact_rates_(Household &house)
 {
     // loop over all couples
-    for (const auto &member_k : house)     // from : member_k
-        for (const auto &member_i : house) // -> to : member_i
+    for (const Individual &member_k : house)     // from : member_k
+        for (const Individual &member_i : house) // -> to : member_i
             if (member_k != member_i)
             {
                 pair_contact_rate_ = "";
@@ -810,7 +753,7 @@ void MCMC::run_inference()
     {
         pImpl_->init_monte_carlo();               // initialize mcmc sampling
         init_model_for_inference();               // user initialization model
-        pImpl_->init_household_cache();           // cache user household variables
+        pImpl_->data_wide->init_cache();          // cache user household variables
         pImpl_->augm->init();                     // initialize augmented variables
         pImpl_->setup->prog_declare();            // declare current progress bar
         pImpl_->setup->prog_open_for_inference(); // open progress bar

@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-#include "tools/keys_helper.h"
+#include "tools/keys.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/openmp.h"
@@ -59,7 +59,7 @@ void Setup::build(const hsp::str_table &input)
                 "Internal error: multiple entries found in MCMC setup definition.");
 
         // check entries
-        const auto &headers = hsp::read::extract_keys(input);
+        const std::vector<std::string> &headers = hsp::read::extract_keys(input);
         hsp::str::assert_no_unused_entries(headers, file_headers);
 
         // Random Initialization of Parameters
@@ -397,7 +397,7 @@ void DataWide::build(const hsp::str_table &input)
             house_vector_.emplace_back(house_id, house_vector_.size());
         }
         // extract the household reference
-        auto &house = house_vector_.at(hhid_to_index_.at(house_id));
+        Household &house = house_vector_.at(hhid_to_index_.at(house_id));
 
         // assign the individual the respective household
         house.init_member(i, id, status, data);
@@ -450,7 +450,7 @@ void DataWide::helper_build_data_headers_(const hsp::str_table &input)
     hsp::str::assert_no_missing_entries(headers, pRegistry->get_all());
 
     // add optional keys to registry
-    for (const auto &datastring : headers)
+    for (const std::string &datastring : headers)
         if (!pRegistry->count(datastring))
             pRegistry->add(datastring);
 }
@@ -461,17 +461,17 @@ void DataWide::build_helper_fill_report_data_()
     report_house->total = house_vector_.size();
 
     // set report counts
-    for (const auto &house : house_vector_)
+    for (const Household &house : house_vector_)
     {
         // list of unique infected statuses
-        for (const auto &member : house.infected())
+        for (const Individual &member : house.infected())
             all_infected_statuses.emplace(member.status());
 
         // observed quantities in-house
-        const auto house_size = house.size();
-        const auto n_infec = house.n_infected_status();
-        const auto n_miss = house.n_missing_status();
-        const auto n_susc = house.n_susceptible_status();
+        const size_t house_size = house.size();
+        const size_t n_infec = house.n_infected_status();
+        const size_t n_miss = house.n_missing_status();
+        const size_t n_susc = house.n_susceptible_status();
 
         report_indiv->infectious += n_infec;
         report_indiv->missing += n_miss;
@@ -506,7 +506,7 @@ void DataWide::build_helper_fill_report_data_()
 void DataWide::multiplicity_build(const hsp::str_table &input, bool is_any_augm)
 {
     head_class_house_indexes.clear();
-    auto n_houses = report_house->total;
+    size_t n_houses = report_house->total;
     if (is_any_augm || input.size() == 0)
     {
         // note: multiplicities are not compatible with data augmentation
@@ -531,9 +531,9 @@ void DataWide::multiplicity_build(const hsp::str_table &input, bool is_any_augm)
 
         for (size_t r = 0; r < n_houses; ++r)
         {
-            auto &house = at(input.at("house_id")[r]);
-            auto H0 = at(input.at("class_id")[r]).house_index();
-            auto m = hsp::str::toul(input.at("multiplicity")[r]);
+            Household &house = at(input.at("house_id")[r]);
+            size_t H0 = at(input.at("class_id")[r]).house_index();
+            unsigned long m = hsp::str::toul(input.at("multiplicity")[r]);
 
             house.set_multiplicity(m, H0);
 
@@ -571,6 +571,35 @@ void DataWide::init_house_cache(Household &house)
     house.buffer_dbl_mtx_ = house.cache_dbl_mtx_;
 }
 
+/// Initialize cached structeres according to household size.
+void DataWide::init_cache()
+{
+    // init cache dependencies for all households and individuals
+    for (size_t R = 0; R < head_class_house_indexes.size(); ++R)
+        init_house_cache(restricted(R));
+}
+
+/// Deep copies of cache attributes in the buffer
+void DataWide::buffer_all_cache(Household &house)
+{
+    house.buffer_size_t_vec_ = house.cache_size_t_vec_;
+    house.buffer_dbl_vec_ = house.cache_dbl_vec_;
+    house.buffer_dbl_mtx_ = house.cache_dbl_mtx_;
+}
+
+/// Recover previous values of the log-likelihood and cached depedencies.
+void DataWide::recover_buffer_values(Household &house, bool is_cache_depen)
+{
+    house.obs_log_lik_ = house.obs_buffer_;
+
+    if (is_cache_depen)
+    {
+        house.cache_size_t_vec_.swap(house.buffer_size_t_vec_);
+        house.cache_dbl_vec_.swap(house.buffer_dbl_vec_);
+        house.cache_dbl_mtx_.swap(house.buffer_dbl_mtx_);
+    }
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////  DataWide : posterior drawd  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -592,9 +621,9 @@ void DataWide::store_draws(unsigned long smpl_count)
     // store sample for restricted households
     for (size_t R = 0; R < head_class_house_indexes.size(); ++R)
     {
-        auto &house = house_vector_[head_class_house_indexes[R]];
+        Household &house = house_vector_[head_class_house_indexes[R]];
         double x = house.get_obs_log_lik() / static_cast<double>(house.multiplicity());
-        for (const auto &member : house.infected())
+        for (const Individual &member : house.infected())
             x += member.get_augm_model_log_lik();
         smpl_values[R][smpl_count] = x;
     }
@@ -630,15 +659,15 @@ void DataLong::build(const hsp::str_table &input)
     // individual map for id -> index
     hsp::dict<size_t> id_to_index = {};
     size_t c = 0;
-    for (const auto &house : *pDataWide_)
-        for (const auto &member : house)
+    for (const Household &house : *pDataWide_)
+        for (const Individual &member : house)
             id_to_index.emplace(member.id(), c++);
 
     // load individual data list
-    const auto n_rows = hsp::read::csv_n_rows(input);
+    const size_t n_rows = hsp::read::csv_n_rows(input);
     for (size_t r = 0; r < n_rows; ++r)
     {
-        const auto &id = input.at("id")[r];
+        const std::string &id = input.at("id")[r];
         if (hsp::na::is(id))
             throw std::invalid_argument(
                 "Invalid id found in row n." + std::to_string(r + 2) + ".");
@@ -652,7 +681,7 @@ void DataLong::build(const hsp::str_table &input)
         idat.resize(pRegistry->size());
         for (size_t d = 0; d < pRegistry->size(); ++d)
         {
-            const auto &datastring = pRegistry->as_string(d);
+            const std::string &datastring = pRegistry->as_string(d);
             idat[d].emplace_back(
                 hsp::str::tod(input.at(datastring)[r], "data long format '" + datastring + "'"));
         }
@@ -660,8 +689,8 @@ void DataLong::build(const hsp::str_table &input)
 
     // assign pointers to relative data-long to all individuals
     c = 0;
-    for (auto &house : *pDataWide_)
-        for (auto &member : house)
+    for (Household &house : *pDataWide_)
+        for (Individual &member : house)
             member.pdatalong_ = &indiv_datalist.at(c++);
 }
 
@@ -691,7 +720,7 @@ void DataLong::helper_build_data_headers_(const hsp::str_table &input)
     hsp::str::assert_no_missing_entries(headers, pRegistry->get_all());
 
     // add optional keys to registry
-    for (const auto &datastring : headers)
+    for (const std::string &datastring : headers)
         if (!pRegistry->count(datastring))
             pRegistry->add(datastring);
 }

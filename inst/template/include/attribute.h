@@ -78,13 +78,12 @@ public:
 	//////////////////////
 
     /// Get attribute numeric value.
-    /// UPDATE: this should become noexcept,
-    /// but non implicitely callable functions blocks this update
+    /// UPDATE: this should become noexcept.
     double get() const { return (this->*get_)(); }
     /// Get pointer to attribute value.
     const Attribute *get_ptr() const { return (this->*get_ptr_)(); }
     /// Get pointer to attribute function.
-    const std::shared_ptr<Function> get_function() const { return pFunc_; }
+    const std::shared_ptr<Function> get_function() const noexcept { return pFunc_; }
 
 	/////////////////////
 	//////  FLAGS  //////
@@ -109,7 +108,7 @@ public:
     ////////////////////
 
     /// Get attribute name.
-    std::string_view name() const { return name_; }
+    std::string_view name() const noexcept { return name_; }
     /// Get attribute name to display in errors.
     std::string err_name() const { return err_type_ + " '" + name_ + "'"; }
     /// Get a description about the functional status.
@@ -125,23 +124,27 @@ protected:
     // Functional getter
     double (Attribute::*get_)() const = &Attribute::do_get_default_;
     /// Get attribute value from internal value.
-    double do_get_default_() const { return value_; }
+    double do_get_default_() const noexcept { return value_; }
     /// Get attribute value from external value.
     double do_get_from_pointer_() const { return pAttr_->get(); }
     /// Get attribute value from external function.
+    /// UPDATE: function evaluate should be noexcept.
     double do_get_from_function_() const;
     /// Get attribute error for not callable functions.
+    /// NOTE: This is used for "pure" augmented function, with no implicit 'x'.
+    /// UPDATE: I could attempt a different workaroud for get to be noexcept.
     double do_get_error_() const;
 
     // Functional pointer getter
     const Attribute *(Attribute::*get_ptr_)() const = &Attribute::do_get_ptr_default_;
     /// Get pointer to attribute error.
+    /// UPDATE: I could attempt a different workaroud for get_ptr to be noexcept.
     const Attribute *do_get_pointer_error_() const { throw std::runtime_error(
         "Tried to return a pointer to " + err_name() + "."); }
     /// Get pointer to attribute value internal value.
-    const Attribute *do_get_ptr_default_() const { return this; }
+    const Attribute *do_get_ptr_default_() const noexcept { return this; }
     /// Get pointer to attribute value from external value.
-    const Attribute *do_get_pointer_from_pointer_() const { return pAttr_; }
+    const Attribute *do_get_pointer_from_pointer_() const noexcept { return pAttr_; }
 
     // Functional setter
     void (Attribute::*do_set_)(double) = &Attribute::do_set_default_;

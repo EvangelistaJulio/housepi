@@ -191,7 +191,7 @@ std::unique_ptr<Distribution> compose_distr_registries(std::string_view opt,
         return nullptr;
 
     std::vector<const DistributionRegistry *> registry_ptrs = {};
-    for (const auto &r : registries)
+    for (const std::string &r : registries)
         if (r == "continuos")
             registry_ptrs.push_back(&ContinuosDistrRegistry::instance());
         else if (r == "discrete")
@@ -207,7 +207,7 @@ std::unique_ptr<Distribution> compose_distr_registries(std::string_view opt,
         if (r->count(opt))
             return std::unique_ptr<Distribution>(
                 static_cast<Distribution *>(r->create(opt, is_cumul).release()));
-        const auto &y = r->get_options();
+        const std::vector<std::string> &y = r->get_options();
         options.reserve(options.size() + y.size());
         options.insert(options.end(), y.begin(), y.end());
     }
@@ -329,14 +329,14 @@ namespace
         void init_uniform_range_()
         {
             // impose range minimum equal to argument minimum
-            const auto &min_arg = arguments_[0];
+            const Attribute &min_arg = arguments_[0];
             if (min_arg.is_function())
                 lower_arg_.transfer(min_arg);
             else
                 lower_arg_.transfer(min_arg);
 
             // impose range maximum equal to argument maximum
-            const auto &max_arg = arguments_[1];
+            const Attribute &max_arg = arguments_[1];
             if (max_arg.is_function())
                 upper_arg_.transfer(max_arg);
             else

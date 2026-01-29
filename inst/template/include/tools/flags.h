@@ -16,7 +16,7 @@ public:
     HousepiRcppCompiledFlags();
 
     /// Get compilation flags.
-    std::string get_flags() { return flags_; }
+    std::string get_flags() const noexcept { return flags_; }
 
 private:
     std::string flags_;
