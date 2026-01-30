@@ -7,18 +7,20 @@ Each positive status individual has an associated augmented variable \code{proba
 This example does not model transmission dynamics.
 \if{html}{\out{<hr>}}
 }
-\section{Likelihood}{
-Missing.
+\section{Parameters}{
+No parameters are required by the model.
 \if{html}{\out{<hr>}}
 }
 \section{Augmented}{
 \itemize{
-\item \code{proba} \eqn{p}{p}: an augmented variable (or function) to specify a probability associated to the individual.
-This variable should be defined so that \eqn{p \in [0,\,1]}{p in [0, 1]}.
+\item \code{proba} \eqn{p} : probability associated to each member.
+The definition should imply \eqn{p \in [0,\,1]}.
 }
 \if{html}{\out{<hr>}}
 }
-\section{Parameters}{
-No parameter is required by the model.
-Parameters could still be required by user definitions of augmented variables.
+\section{Likelihood}{
+\deqn{L = \sum_{s_i > 0} p_i}
+where \eqn{s_i} is the status of household member \eqn{i}.
 }
+
+

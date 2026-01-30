@@ -488,7 +488,8 @@ std::vector<std::vector<double>> MCMCImpl::power_posteriors(std::string_view sch
 
     // check number of rungs for the thermodynamic ladder
     if (n_rungs < 2)
-        throw std::invalid_argument("N. of rungs was not greater than 1.");
+        throw std::invalid_argument(
+            "N. of rungs was not greater than 1.");
 
     setup->n_rungs = n_rungs;           // NOTE: set before progress bar
     double buffer_inv_T = setup->inv_T; // buffer user setup

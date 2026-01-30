@@ -61,7 +61,6 @@ std::string AugmentedContainer::str_augm_summary() const
 Parameter::Parameter(const std::vector<std::string> &keys)
     : pRegistry(std::make_shared<hsp::key::Registry>(keys)) {}
 
-/// Assign parameter definitions to dictionary.
 void Parameter::build(const hsp::str_table &input)
 {
     pRegistry->clear();
@@ -110,7 +109,6 @@ void Parameter::build(const hsp::str_table &input)
             list_non_adapt_sample_standard.push_back(p);
 }
 
-/// Build parameter dictionaries for expected measure on posterior sample.
 void Parameter::build_for_expec(const hsp::dbl_table &input)
 {
     if (input.empty())
@@ -138,7 +136,6 @@ void Parameter::build_for_expec(const hsp::dbl_table &input)
             smpl_values.emplace_back(input.at(paramstr));
 }
 
-/// Drop current lists of parameters.
 void Parameter::clear_lists_()
 {
     size_t n = pRegistry->size();
@@ -161,7 +158,6 @@ void Parameter::clear_lists_()
     smpl_priors.clear();
 }
 
-/// Helper to build constant parameter.
 void Parameter::helper_build_constant_(const hsp::str_table &input, size_t k)
 {
     const std::string &paramstr = input.at("name")[k]; // parameter name
@@ -175,14 +171,14 @@ void Parameter::helper_build_constant_(const hsp::str_table &input, size_t k)
     param_vec_[p].transfer(read_numeric(input.at("value")[k]));
     // check if discrete as requested
     if (user_discrete_set.count(p) && !param_vec_[p].is_discrete())
-        throw std::invalid_argument("Definition of " + param_vec_[p].err_name() +
-                                    " did not return a discrete object as requested by model.");
+        throw std::invalid_argument(
+            "Definition of " + param_vec_[p].err_name() +
+            " did not return a discrete object as requested by model.");
 
     // update the lists of constant parameters
     list_const.push_back(p);
 }
 
-/// Helper to build parameter to sample.
 void Parameter::helper_build_to_sample_(const hsp::str_table &input, size_t k)
 {
     const std::string &paramstr = input.at("name")[k]; // parameter name
@@ -224,14 +220,14 @@ void Parameter::helper_build_to_sample_(const hsp::str_table &input, size_t k)
     new_param.init_proposer(proposal_name, proposal_scale);
     // check if discrete as requested
     if (user_discrete_set.count(p) && !new_param.is_discrete())
-        throw std::invalid_argument("Definition of " + new_param.err_name() +
-                                    " did not return a discrete object as requested by model.");
+        throw std::invalid_argument(
+            "Definition of " + new_param.err_name() +
+            " did not return a discrete object as requested by model.");
 
     // update the lists of parameters to sample
     list_sample.push_back(p);
 }
 
-/// Adjust lists of parameters to be inferred making parameter as dependent on cache.
 void Parameter::make_cache_dependent(size_t p)
 {
     // remove a parameter from standard if it was defined as such
@@ -254,7 +250,6 @@ void Parameter::make_cache_dependent(size_t p)
     }
 }
 
-/// Load parameters values of the n-th posterrior sample.
 void Parameter::load_sample_values(size_t n)
 {
     for (const std::string &paramstr : pRegistry->get_all())
@@ -277,14 +272,12 @@ void Parameter::make_cache_dependent(const hsp::parse::Entry &node)
     }
 }
 
-/// Randomly initialize values of the parameters to be inferred.
 void Parameter::user_reset(hsp::rnd_gen &prng)
 {
     for (const size_t &p : list_sample)
         at(p).user_reset(prng);
 }
 
-/// Propose a valid move (return true), otherwise update refusal (false).
 bool Parameter::propose_valid_move(size_t p, hsp::rnd_gen &prng)
 {
     Variable &this_par = at(p);
@@ -300,7 +293,6 @@ bool Parameter::propose_valid_move(size_t p, hsp::rnd_gen &prng)
     return false;
 }
 
-/// Adpat the proposal of model parameters.
 void Parameter::adapt_proposal_of_sampled(unsigned long step, unsigned long tot)
 {
     const double ratio = static_cast<double>(step) / static_cast<double>(tot);
@@ -314,7 +306,6 @@ void Parameter::adapt_proposal_of_sampled(unsigned long step, unsigned long tot)
         at(p).adapt_proposal(ratio);
 }
 
-/// Initialize posterior sample of parameters and respective priors.
 void Parameter::init_draws(unsigned long sample_size)
 {
     const size_t n = list_sample.size();
@@ -329,7 +320,6 @@ void Parameter::init_draws(unsigned long sample_size)
     }
 }
 
-/// Store current sample of parameters and respective priors.
 void Parameter::store_draws(unsigned long smpl_count)
 {
     size_t i = 0;
@@ -342,7 +332,6 @@ void Parameter::store_draws(unsigned long smpl_count)
     }
 }
 
-/// Auxiliary method to read a definition as a single attribute.
 const Attribute &Parameter::read_attribute(const hsp::parse::Entry &node, const Individual *member_ptr) const
 {
     storage_ = Attribute(); // reset auxiliary storage to default empty
@@ -390,7 +379,6 @@ const Attribute &Parameter::read_attribute(const hsp::parse::Entry &node, const 
     return storage_;
 }
 
-/// Convert a typed string into a double.
 const Attribute &Parameter::read_numeric(const hsp::parse::Entry &node, const Individual *member_ptr) const
 {
     const Attribute &aux_attr_ = read_attribute(node, member_ptr);
@@ -414,8 +402,6 @@ GroupRate::GroupRate(const std::vector<std::string> &keys,
       pParameter_(paramptr) {}
 GroupRate::~GroupRate() = default;
 
-/// Update model report and set group rates associate to new individual.
-/// NOTE: this has to run even if input is empty to initialize existing rates to reference.
 void GroupRate::build(const hsp::str_table &input)
 {
     pRegistry->clear();
@@ -453,7 +439,6 @@ void GroupRate::build(const hsp::str_table &input)
         }
 }
 
-/// Verify that group rates definitions are correct.
 std::vector<std::string> GroupRate::helper_assert_definitions_(const hsp::str_table &input)
 {
     const std::vector<std::string> file_headers = {"group_rate", "param_name"};
@@ -472,7 +457,8 @@ std::vector<std::string> GroupRate::helper_assert_definitions_(const hsp::str_ta
     {
         if (groupstr == hsp::rates::CONTACT || groupstr == hsp::rates::MISSING)
             throw std::invalid_argument(
-                "Tried to use the reserved group rate name '" + groupstr + "'.\nPlease, choose a different name.");
+                "Tried to use the reserved group rate name '" + groupstr +
+                "'.\nPlease, choose a different name.");
         if (hsp::na::is(groupstr))
             throw std::invalid_argument(
                 "Found a missing group rate name in the definitions.");
@@ -483,7 +469,6 @@ std::vector<std::string> GroupRate::helper_assert_definitions_(const hsp::str_ta
     return data_headers;
 }
 
-/// Convert to a dictionary of parameter pointers and pass the pointers to the individual.
 void GroupRate::helper_init_all_rates_(Individual &member, const hsp::str_table &these_rates)
 {
     // initialize group rates to reference
@@ -503,8 +488,9 @@ void GroupRate::helper_init_all_rates_(Individual &member, const hsp::str_table 
         for (const std::string &paramstr : vec)
         {
             if (hsp::na::is(paramstr) || paramstr == hsp::rates::MISSING)
-                throw std::invalid_argument("A group rate definition '" + groupstr +
-                                            "' was missing for " + member.err_name() + ".");
+                throw std::invalid_argument(
+                    "A group rate definition '" + groupstr +
+                    "' was missing for " + member.err_name() + ".");
             if (paramstr != hsp::rates::REFERENCE)
                 param_pointers.emplace_back(
                     pParameter_->at(pParameter_->pRegistry->from_string(paramstr)).get_ptr());
@@ -729,7 +715,7 @@ void InfecProfile::build_augmented_profile_(const hsp::str_table &input)
         bool is_discrete = hsp::str::tobool(input.at("discr")[r]);
 
         // match infectivity profile and augmented variable definition
-        augm_profile_definitions_["func"].push_back(hsp::infprof::INSTANT);
+        augm_profile_definitions_["name"].push_back(hsp::infprof::INSTANT);
         augm_profile_definitions_["status"].push_back(input.at("status")[r]);
         augm_profile_definitions_["func"].push_back(input.at("func")[r]);
         augm_profile_definitions_["fcumul"].push_back("false");

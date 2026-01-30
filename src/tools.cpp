@@ -160,8 +160,9 @@ namespace hsp
             }
             catch (const std::invalid_argument &e)
             {
-                std::string sms = (errtxt.empty()) ? "" : "Unable to import " + errtxt + ". ";
-                throw std::invalid_argument(sms + "Value '" + input + "' is not suitable to conversion.");
+                throw std::invalid_argument(
+                    (errtxt.empty() ? "" : "Unable to import " + errtxt + ". ") +
+                    "Value '" + input + "' is not suitable to conversion.");
             }
         }
 
@@ -346,12 +347,14 @@ namespace hsp
                     unused.push_back(x);
 
             if (unused.size() == 1)
-                throw std::invalid_argument("Unknown " + where + " " + str::format(unused, 1) +
-                                            str::find_closest(unused[0], options));
+                throw std::invalid_argument(
+                    "Unknown " + where + " " + str::format(unused, 1) +
+                    str::find_closest(unused[0], options));
 
             if (!unused.empty())
-                throw std::invalid_argument("Unknown " + where + "s: " + str::format(unused) +
-                                            str::find_closest("", options, 0));
+                throw std::invalid_argument(
+                    "Unknown " + where + "s: " + str::format(unused) +
+                    str::find_closest("", options, 0));
         }
     }
 

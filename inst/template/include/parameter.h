@@ -35,10 +35,11 @@ struct Parameter
 {
     std::shared_ptr<hsp::key::Registry> pRegistry; /// pointer to registry
 
-    /// NOTE: list_const + list_sample = all parameters in param_vec_
-    /// NOTE: list_sample_standard + list_sample_cached = list_sample
-    /// NOTE: list_adaptable_sample_standard + list_non_adapt_sample_standard = list_sample_standard
-    /// NOTE: list_adaptable_sample_cached + list_non_adapt_sample_cached = list_sample_cached
+    /// NOTE: 
+    /// list_const + list_sample = all parameters in param_vec_
+    /// list_sample_standard + list_sample_cached = list_sample
+    /// list_adaptable_sample_standard + list_non_adapt_sample_standard = list_sample_standard
+    /// list_adaptable_sample_cached + list_non_adapt_sample_cached = list_sample_cached
 
     std::vector<size_t> list_const = {};  /// list of constant parameters
     std::vector<size_t> list_sample = {}; /// list of parameters to sample
@@ -78,14 +79,18 @@ struct Parameter
     //////  SETTER  //////
     //////////////////////
 
+    /// Assign parameter definitions to dictionary.
     void build(const hsp::str_table &deftable);
+    /// Build parameter dictionaries for expected measure on posterior sample.
     void build_for_expec(const hsp::dbl_table &deftable);
+    /// Adjust lists of parameters to be inferred making parameter as dependent on cache.
     void make_cache_dependent(size_t p);
+    /// Adjust lists of parameters to be inferred making parameter as dependent on cache.
     void make_cache_dependent(const hsp::parse::Entry &node);
 
     /// Randomly initialize values of the parameters to be inferred.
     void user_reset(hsp::rnd_gen &prng);
-    /// Load parameters values of the n-th posterrior sample.
+    /// Load parameters values of the n-th posterior sample.
     void load_sample_values(size_t n);
 
     /// Propose a valid move (return true), otherwise update refusal (false).
@@ -128,8 +133,11 @@ private:
     std::vector<Variable> param_vec_ = {}; /// parameters vector
     mutable Attribute storage_;            /// auxiliary storage attribute used for reading.
 
+    /// Drop current lists of parameters.
     void clear_lists_();
+    /// Helper to build constant parameter.
     void helper_build_constant_(const hsp::str_table &deftable, size_t k);
+    /// Helper to build parameter to sample.
     void helper_build_to_sample_(const hsp::str_table &deftable, size_t k);
 
     /// UPDATE: waiting for an updated read_attribute framework...

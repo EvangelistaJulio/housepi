@@ -35,12 +35,18 @@ MODEL3_DLL = ../inst/models/$(MODEL3_NAME)/housepi$(subst _,,$(MODEL3_NAME))$(SH
 MODEL4_NAME = chain_binomial_heterogeneous
 MODEL4_DLL = ../inst/models/$(MODEL4_NAME)/housepi$(subst _,,$(MODEL4_NAME))$(SHLIB_EXT)
 
-all: $(SHLIB) $(MODEL1_DLL) $(MODEL2_DLL) $(MODEL3_DLL) $(MODEL4_DLL) cache_template
+all: $(SHLIB) cache_template $(MODEL1_DLL) $(MODEL2_DLL) $(MODEL3_DLL) $(MODEL4_DLL)
 
+cache_template: $(SHLIB)
+	@echo "** caching templates"
+	@mkdir -p ../inst/template/src
+	@cp $(COMMON_SOURCES) model.cpp $(COMMON_OBJECTS) ../inst/template/src/
+	@cp $(SHLIB) ../inst/template/src/housepienvironment$(SHLIB_EXT)
+	
 ../inst/models/%/model.o: ../inst/models/%/model.cpp
 	@echo "*** building template: '$*'"
 	$(CXX) $(ALL_CPPFLAGS) $(ALL_CXXFLAGS) -I../inst/models/$* -c $< -o $@
-
+	
 $(MODEL1_DLL): ../inst/models/$(MODEL1_NAME)/model.o $(COMMON_OBJECTS)
 	$(SHLIB_LINK) -o $(MODEL1_DLL) $^ $(PKG_LIBS) $(ALL_LIBS)
 	@$(RM) ../inst/models/$(MODEL1_NAME)/model.o
@@ -56,11 +62,5 @@ $(MODEL3_DLL): ../inst/models/$(MODEL3_NAME)/model.o $(COMMON_OBJECTS)
 $(MODEL4_DLL): ../inst/models/$(MODEL4_NAME)/model.o $(COMMON_OBJECTS)
 	$(SHLIB_LINK) -o $(MODEL4_DLL) $^ $(PKG_LIBS) $(ALL_LIBS)
 	@$(RM) ../inst/models/$(MODEL4_NAME)/model.o
-
-cache_template: $(SHLIB)
-	@echo "** caching templates"
-	@mkdir -p ../inst/template/src
-	@cp $(COMMON_SOURCES) model.cpp $(COMMON_OBJECTS) ../inst/template/src/
-	@cp $(SHLIB) ../inst/template/src/housepienvironment$(SHLIB_EXT)
 
 .PHONY: all cache_template

@@ -2,47 +2,76 @@
 \title{Augmented Infection Time}
 \name{housepi template : Augmented Infection Time}
 \description{
-This model assumed that each household member \eqn{i}{i} is suject to a force of infection \eqn{{\lambda}_{i}(t)}{lambda_i(t)},
-where time \eqn{t}{t} can take continuous or discrete values.
-A susceptible member can get infected at time/day \eqn{t_{i}}{t_i} according to a inhomogeneous Poisson process of rate equal to the force infection.
+This model assumed that each household member \eqn{i} is suject to a force of infection \eqn{{\lambda}_{i}(t)}{lambda_i(t)},
+where time \eqn{t} can take continuous or discrete values.
+A susceptible member can get infected at time/day \eqn{t_{i}} according to a inhomogeneous Poisson process of rate equal to the force infection.
 \if{html}{\out{<hr>}}
 }
-\section{Likelihood}{
+\section{Parameters}{
 \itemize{
-\item Force of infection: \deqn{
-{\lambda}_{i}(t) = {\mu}^{(\rm com)}_{i} {\alpha} + {\mu}^{(\rm sus)}_{i} {\beta} \left(\frac{n_{\ast}}{n}\right)^{\gamma} \sum_{k\,:\,t_{k}<t_{i}} {\mu}^{(\rm inf)}_{k} f_{k}(t)
-}{
-lambda_i(t) = mu_com_i * alpha + mu_sus_i * beta * (n_star/n)^gamma sum_{k: t_k < t_i} mu_inf_k f_k(t)
-}
-\item Infectivity profile: \eqn{f_{k}}{f_k}.
+\item \code{alpha} \eqn{\alpha} : community transmission rate
+\item \code{beta} \eqn{\beta} : person to person transmission rate
+\item \code{gamma} \eqn{\gamma} : parameter to model the dilution of contacts
+\item \code{size_ref} \eqn{n_{\ast}} : the size of the reference household (required constant)
+\item \code{study_period} : number of days of the follow-up period after inclusion (required constant)
 }
 \if{html}{\out{<hr>}}
 }
 \section{Group Rates}{
 \itemize{
-\item \code{community} \eqn{{\mu}^{(\rm com)}}{mu_com}: individual predisposition to infection from community relative to reference;
-\item \code{susceptibility} \eqn{{\mu}^{(\rm sus)}}{mu_sus}: individual predisposition to infection relative to reference.
-\item \code{infectivity} \eqn{{\mu}^{(\rm inf)}}{mu_inf}: individual predisposition to transmission relative to reference;
+\item \code{community} \eqn{{\mu}^{(\rm com)}} : predisposition to infection from community relative to reference
+\item \code{susceptibility} \eqn{{\mu}^{(\rm sus)}}: predisposition to infection relative to reference
+\item \code{infectivity} \eqn{{\mu}^{(\rm inf)}} : predisposition to transmission relative to reference
 }
 \if{html}{\out{<hr>}}
 }
 \section{Augmented}{
 \itemize{
-\item \code{infec_time} : time of symptom onset of infectious individual;
-\item \code{onset_date} : time of symptom onset of infectious individual;
-\item \code{incub_period} : time between infection and symptom onset.
+\item \code{infec_time} \eqn{t_{i}} : time of infection of infectious member
+\item \code{onset_date} : time of symptom onset of infectious member
+\item \code{incub_period} : time between infection and symptom onset
 }
-Note: by including an external end of the follow-up, \code{onset_date} and \code{incub_period} won't be required anymore.
-This change will also drop \code{study_period} (see below).
+Future note: by including an external end of the follow-up \eqn{t_{\rm end}}, \code{onset_date} and \code{incub_period} won't be required anymore.
+This change will also drop \code{study_period} \eqn{t_{\rm end} - t_{0}},
+where \eqn{t_{0}} is the earliest infection time in the household.
 \if{html}{\out{<hr>}}
 }
-\section{Parameters}{
+\section{Likelihood}{
+
+\deqn{L = P^{(+)} P^{(-)}}
+
+If \eqn{s_i} is the status of household member \eqn{i}, and
+
 \itemize{
-\item \code{alpha} \eqn{\alpha}{alpha} : community transmission rate;
-\item \code{beta} \eqn{\beta}{beta} : person to person transmission rate (baseline);
-\item \code{size_ref} \eqn{n_{\ast}}{n_star} : the size of the reference household (it must be constant);
-\item \code{gamma} \eqn{\gamma}{gamma} : parameter to model the dilution of contacts;
-\item \code{study_period} : number of days of the follow-up period after inclusion (it must be constant).
+\item Force of infection for a household of size \eqn{n} : \deqn{
+{\lambda}_{i}(t) = {\mu}^{(\rm com)}_{i} {\alpha} + {\mu}^{(\rm sus)}_{i} {\beta} \left(\frac{n_{\ast}}{n}\right)^{\gamma} \sum_{j\,:\,t_{j}<t_{i}} {\mu}^{(\rm inf)}_{j} f_{j}(t)
+}
+\item \code{infectivity profile} \eqn{f_{i}} : can be specified
+}
+
+\subsection{Real time}{
+\itemize{
+\item Infectious contribution :
+\eqn{
+P^{(+)} =\prod_{{i}:s_{i}>0} \lambda_{i}(t_{i})\exp{-\int_{t_{0}}^{t_{i}}\lambda_{i}(t){\rm d}t}
+}
+\item Susceptible contribution :
+\eqn{
+P^{(-)} = \prod_{{i}:s_{i}<0} \exp{-\int_{t_{0}}^{t_{\rm end}}\lambda_{i}(t){\rm d}t}
+}
+}
+}
+\subsection{Discrete time}{
+\itemize{
+\item Infectious contribution :
+\eqn{
+P^{(+)} = \prod_{{i}:s_{i}>0}\left(1-\exp{-\lambda_{i}(t_{i})}\right)\exp{-\sum_{t={t}_{0}}^{t_{i}-1} \lambda_{i}(t)}
+}
+\item Susceptible contribution :
+\eqn{
+{P}^{(-)} =\prod_{{i}:s_{i}<0}\exp{-\sum_{t={t}_{0}}^{t_{\rm end}}\lambda_{i}(t)}
+}
+}
 }
 \if{html}{\out{<hr>}}
 }

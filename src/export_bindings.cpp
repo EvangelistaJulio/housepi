@@ -997,8 +997,9 @@ Rcpp::DataFrame MCMC::helper_simulate_single_repetition()
             }
             catch (const std::exception &e)
             {
-                throw std::runtime_error("While simulating " + house.err_name() + ":\n" +
-                                         std::string(e.what()));
+                throw std::runtime_error(
+                    "While simulating " + house.err_name() + ":\n" +
+                    std::string(e.what()));
             }
 
         output = DataFrame::create(_["status"] = df_status);

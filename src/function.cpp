@@ -101,7 +101,8 @@ std::unique_ptr<Function> compose_func_registries(std::string_view opt,
         else if (r == "infecprofile")
             registry_ptrs.push_back(&InfecProfileRegistry::instance());
         else
-            throw std::invalid_argument("Unknown " + err_type + " registry '" + r + "'.");
+            throw std::invalid_argument(
+                "Unknown " + err_type + " registry '" + r + "'.");
 
     std::vector<std::string> options = {};
     for (const FunctionRegistry *ptr : registry_ptrs)
@@ -113,8 +114,9 @@ std::unique_ptr<Function> compose_func_registries(std::string_view opt,
         options.insert(options.end(), y.begin(), y.end());
     }
 
-    throw std::invalid_argument("Unknown " + err_type + " '" + std::string(opt) + "'." +
-                                hsp::str::find_closest(opt, options));
+    throw std::invalid_argument(
+        "Unknown " + err_type + " '" + std::string(opt) + "'." +
+        hsp::str::find_closest(opt, options));
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////

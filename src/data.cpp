@@ -107,7 +107,8 @@ void Setup::build(const hsp::str_table &input)
 void Setup::set_n_threads()
 {
     if (n_threads == 0)
-        throw std::invalid_argument("N. of threads was not greater than 0.");
+        throw std::invalid_argument(
+            "N. of threads was not greater than 0.");
 
 #ifdef _OPENMP
     unsigned int max_threads = omp_get_num_procs();
@@ -161,7 +162,8 @@ void Setup::assert_mcmc_setup()
             "Inverse temperature " + std::to_string(inv_T) + " was out of range [0, 1].");
 
     if (n_chains < 1)
-        throw std::out_of_range("Number of chains was not greater than 0.");
+        throw std::out_of_range(
+            "Number of chains was not greater than 0.");
 
     // Interpret thinning equal to 0 has been interpreted as 1.
     if (n_thin == 0)
@@ -197,7 +199,8 @@ void Setup::assert_mcmc_setup()
 void Setup::drop_mcmc_adapt()
 {
     if (n_adapt > 0)
-        hsp::msg::warning("Dropped adaptation steps: no parametric MCMC proposals were found.");
+        hsp::msg::warning(
+            "Dropped adaptation steps: no parametric MCMC proposals were found.");
     n_adapt = 0;
 
     // re-assign number of sweeps
@@ -301,7 +304,8 @@ void Household::init_contact_rates(size_t from, size_t to, const Attribute &x)
 void Household::assert_log_lik_not_NaN() const
 {
     if (hsp::na::is(obs_log_lik_))
-        throw std::runtime_error("Observation log-likelihood returned NaN.");
+        throw std::runtime_error(
+            "Observation log-likelihood returned NaN.");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -328,13 +332,15 @@ DataWide::~DataWide() = default;
 void DataWide::assert_non_empty()
 {
     if (report_house->total == 0)
-        throw std::length_error("Unable to proceed: no data was found.");
+        throw std::length_error(
+            "Unable to proceed: no data was found.");
 }
 /// Warn if all individuals have missing status.
 void DataWide::warn_all_missing_status()
 {
     if (report_indiv->total == report_indiv->missing)
-        hsp::msg::warning("All individuals in the data had missing status.");
+        hsp::msg::warning(
+            "All individuals in the data had missing status.");
 }
 
 /// Assign data after pre-processing.
@@ -711,7 +717,8 @@ void DataLong::helper_build_data_headers_(const hsp::str_table &input)
     headers = hsp::read::extract_keys(input);
     // check for individual IDs
     if (std::find(headers.begin(), headers.end(), "id") == headers.end())
-        throw std::invalid_argument("Individual identifier column 'id' was missing.");
+        throw std::invalid_argument(
+            "Individual identifier column 'id' was missing.");
     // remove 'id'
     headers = headers - std::vector<std::string>({"id"});
 

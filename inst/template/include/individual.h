@@ -34,7 +34,7 @@ namespace hsp::status
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Class for individual household study member.
-class Individual : public AugmentedContainer
+class Individual final : public AugmentedContainer
 {
 	friend class Household;
 	friend struct DataLong;
@@ -81,7 +81,7 @@ public:
 
 	/// Return associated data long format.
 	/// NOTE: return a reference to a static empty vector when no datalong is attached.
-	const std::vector<double> &data_long(size_t d) const noexcept
+	const std::vector<double> &data_long(size_t d) const
 	{
 		if (pdatalong_ != nullptr)
 			return (*pdatalong_)[d];

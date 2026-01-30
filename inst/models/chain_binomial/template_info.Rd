@@ -12,17 +12,31 @@ Given a final size of positive cases within household, all possible chains of tr
 Finally, the likelihood of an observed household outbreak is the sum of the probability of each chain.
 \if{html}{\out{<hr>}}
 }
-\section{Likelihood}{
+\section{Parameters}{
 \itemize{
-\item Community transmission probability: \eqn{1 - \exp(-\alpha)}{1 - exp(-alpha)}
-\item Person-to-person transmission probability: \eqn{1 - \exp(-\beta)}{1 - exp(-beta)}
+\item \code{alpha} \eqn{\alpha}{alpha} : community transmission rate
+\item \code{beta} \eqn{\beta}{beta} : person to person transmission rate
 }
 \if{html}{\out{<hr>}}
 }
-\section{Parameters}{
+\section{Likelihood}{
+\deqn{L = P^{(+)}(n_{+}) P^{(-)}(n, n_{+})}
+for a household of size \eqn{n} with
 \itemize{
-\item \code{alpha} \eqn{\alpha}{alpha} : community transmission rate;
-\item \code{beta} \eqn{\beta}{beta} : person to person transmission rate.
+\item Number of sero-positive household members : \eqn{n_{+}}
+\item Sero-positive contribution :
+\eqn{P^{(+)}(n_{+}) 
+= 
+1 - \sum_{k=0}^{n_{+} - 1} \binom{n_{+}}{k} P^{(+)}(k) P^{(-)}(n_{+}, k)}
+\item Sero-negative contribution :
+\eqn{P^{(-)}(n, n_{+}) = (B Q^{n_{+}})^{n - n_{+}}}
+}
+where
+\itemize{
+\item Community escape probability :
+\eqn{B = \exp(-\alpha)}
+\item Person-to-person escape probability :
+\eqn{Q = \exp(-\beta)}
 }
 \if{html}{\out{<hr>}}
 }

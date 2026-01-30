@@ -38,12 +38,16 @@ public:
               std::shared_ptr<Parameter> paramptr);
     ~GroupRate();
 
+    /// Update model report and set group rates associate to new individual.
+    /// NOTE: this has to run even if input is empty to initialize existing rates to reference.
     void build(const hsp::str_table &deftable);
 
 private:
     std::shared_ptr<DataWide> pDataWide_;   /// pointer to external DataWide struct
     std::shared_ptr<Parameter> pParameter_; /// pointer to external Parameter struct
 
+    /// Verify that group rates definitions are correct.
     std::vector<std::string> helper_assert_definitions_(const hsp::str_table &input);
+    /// Convert to a dictionary of parameter pointers and pass the pointers to the individual.
     void helper_init_all_rates_(Individual &member, const hsp::str_table &these_rates);
 };
