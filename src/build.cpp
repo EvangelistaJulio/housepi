@@ -709,12 +709,11 @@ void InfecProfile::build_augmented_profile_(const hsp::str_table &input)
     cumul_ = &InfecProfile::do_cumul_augm_;
     augm_profile_definitions_.clear();
 
+    // match infectivity profile and augmented variable definition
     for (size_t r = 0; r < hsp::read::csv_n_rows(input); ++r)
     {
-        // initialize for instantaneous and cumulative profiles
         bool is_discrete = hsp::str::tobool(input.at("discr")[r]);
 
-        // match infectivity profile and augmented variable definition
         augm_profile_definitions_["name"].push_back(hsp::infprof::INSTANT);
         augm_profile_definitions_["status"].push_back(input.at("status")[r]);
         augm_profile_definitions_["func"].push_back(input.at("func")[r]);
@@ -733,22 +732,22 @@ void InfecProfile::build_augmented_profile_(const hsp::str_table &input)
 std::unique_ptr<Distribution> InfecProfile::helper_build_profile_(const hsp::str_table &input)
 {
     hsp::parse::Definition parser(hsp::parse::Definition(input.at("func")[0]));
-    auto placeholder = compose_distr_registries(parser.root.func,
-                                                "infectivity profile",
-                                                {"infecprofile", "continuos", "discrete"});
+    auto output = compose_distr_registries(parser.root.func,
+                                           "infectivity profile",
+                                           {"infecprofile", "continuos", "discrete"});
     for (const auto &node : parser.root.children)
     {
-        placeholder->init_attr(node.key, pParameter_->read_attribute(node));
+        output->init_attr(node.key, pParameter_->read_attribute(node));
         pParameter_->make_cache_dependent(node);
     }
 
     // discretization
     if (input.count("discr") && hsp::str::tobool(input.at("discr")[0]))
-        placeholder->init_discretization();
+        output->init_discretization();
     else if (is_discrete_requested_)
         hsp::msg::error(
             "Definition of infectivity profile did not return a discrete object as requested by the model.");
-    return placeholder;
+    return output;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////

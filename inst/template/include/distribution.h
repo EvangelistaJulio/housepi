@@ -32,18 +32,13 @@ public:
 	///////////////////////////
 	//////  CONSTRUCTOR  //////
 	///////////////////////////
-	
-	Distribution(const std::string &name,
-				 const std::vector<std::pair<std::string, double>> &args = {},
+
+	Distribution(const std::vector<std::pair<std::string, double>> &args = {},
 				 double domain_min = hsp::na::DOUBLE, bool is_min_open = true,
 				 double domain_max = hsp::na::DOUBLE, bool is_max_open = true)
-		: Function(name, args,
+		: Function(args,
 				   domain_min, is_min_open,
-				   domain_max, is_max_open)
-	{
-		err_type_ = "distribution";
-		set_eval_as_distr_call();
-	}
+				   domain_max, is_max_open) { set_eval_as_distr_call(); }
 	virtual ~Distribution() = default;
 
 	//////////////////////
@@ -55,6 +50,8 @@ public:
 	double logpdf(double x) const { return (this->*log_func_)((this->*delocate_)(x)); }
 	/// Return value of log-ratio of probability density/mass functions.
 	double logratio(double xo, double xn) const { return (this->*log_ratio_)((this->*delocate_)(xo), (this->*delocate_)(xn)); }
+
+	std::string err_name() const override { return "distribution '" + std::string(name()) + "'"; }
 
 protected:
 	/////////////////////////////////////////////////////////////////////////////////////////////

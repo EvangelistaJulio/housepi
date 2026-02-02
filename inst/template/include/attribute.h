@@ -110,7 +110,7 @@ public:
     /// Get attribute name.
     std::string_view name() const noexcept { return name_; }
     /// Get attribute name to display in errors.
-    std::string err_name() const { return err_type_ + " '" + name_ + "'"; }
+    std::string err_name() const { return err_type_ + " '" + std::string(name()) + "'"; }
     /// Get a description about the functional status.
     virtual std::string str_summary() const;
 

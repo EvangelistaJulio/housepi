@@ -27,7 +27,7 @@
 /// Return formatted function summary.
 std::string Function::str_summary(bool show_x_arg) const
 {
-    std::string output = name_ + "(";
+    std::string output(name());
     if (show_x_arg)
     {
         output += std::string(x_arg_.name());
@@ -42,7 +42,7 @@ std::string Function::str_summary(bool show_x_arg) const
         output += "=";
         output += hsp::str::format(arguments_[c].get());
     }
-    return output + ") : " + str_range();
+    return "(" + output + ") : " + str_range();
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -305,8 +305,7 @@ void Attribute::transfer(const Attribute &other)
 
 /// Initial defaults for function.
 /// NOTE: to access arguments by index, I must provide separate name/value.
-Function::Function(const std::string &name,
-                   const std::vector<std::pair<std::string, double>> &args,
+Function::Function(const std::vector<std::pair<std::string, double>> &args,
                    double domain_min, bool is_min_open,
                    double domain_max, bool is_max_open)
 {
@@ -315,9 +314,6 @@ Function::Function(const std::string &name,
     x_arg_.set(hsp::na::DOUBLE);
     loc_arg_.name(hsp::params::LOC);
     loc_arg_.set(hsp::na::DOUBLE);
-
-    // name of the function
-    name_ = name;
 
     // allocate attribute for remaining arguments
     size_t n_args = args.size();
@@ -347,6 +343,7 @@ Function::Function(const std::string &name,
     // UPDATE: not sure if setting pointer to smtg exiting the domain I still have control
     init_attr(hsp::params::MIN, Attribute(domain_min));
     init_attr(hsp::params::MAX, Attribute(domain_max));
+
     init_range_helper_(is_min_open, is_max_open);
 }
 
@@ -583,6 +580,7 @@ void Function::init_attr(std::string_view key, const Attribute &attr)
                 "Argument 'x' of " + attr.err_name() + " cannot be missing.");
     }
 
+
     // distinguish between range keys and standard keys
     if (key == hsp::params::MIN || key == hsp::params::MAX)
     {
@@ -592,9 +590,7 @@ void Function::init_attr(std::string_view key, const Attribute &attr)
         if (attr.is_empty() && attr.is_constant())
             return;
 
-        if (name() == "uniform")
-            find_arg_(key).transfer(attr);
-        else if (key == hsp::params::MIN)
+        if (key == hsp::params::MIN)
             lower_arg_.transfer(attr);
         else // key == hsp::params::MAX
             upper_arg_.transfer(attr);
@@ -672,7 +668,7 @@ namespace
     class Minus_ final : public Function
     {
     public:
-        Minus_() : Function("minus") {}
+        std::string_view name() const noexcept override final { return "minus"; }
         void init_truncation() override final {}
         bool is_discrete() const noexcept override final { return x_arg_.is_discrete(); }
 
@@ -684,7 +680,8 @@ namespace
     class Subtraction_ final : public Function
     {
     public:
-        Subtraction_() : Function("sub", {{"x2", 0.}}) {}
+        Subtraction_() : Function({{"x2", 0.}}) {}
+        std::string_view name() const noexcept override final { return "sub"; }
         void init_truncation() override final {}
         bool is_discrete() const noexcept override final { return get_arg(0).is_discrete() && x_arg_.is_discrete(); }
 
@@ -696,7 +693,8 @@ namespace
     class Division_ final : public Function
     {
     public:
-        Division_() : Function("div", {{"x2", 1}}) {}
+        Division_() : Function({{"x2", 1}}) {}
+        std::string_view name() const noexcept override final { return "div"; }
         void init_truncation() override final {}
 
     protected:
@@ -707,7 +705,8 @@ namespace
     class Power_ final : public Function
     {
     public:
-        Power_() : Function("pow", {{"x2", 1.}}) {}
+        Power_() : Function({{"x2", 1.}}) {}
+        std::string_view name() const noexcept override final { return "pow"; }
         void init_truncation() override final { init_range_helper_(); }
         bool is_discrete() const noexcept override final { return Function::is_discrete() || (get_arg(0).is_discrete() && x_arg_.is_discrete()); }
 
@@ -727,8 +726,8 @@ namespace
     class SquareRoot_ final : public Function
     {
     public:
-        SquareRoot_() : Function("sqrt", {},
-                                 0., false, hsp::na::DOUBLE, false) {}
+        SquareRoot_() : Function({}, 0., false, hsp::na::DOUBLE, false) {}
+        std::string_view name() const noexcept override final { return "sqrt"; }
         void init_truncation() override final { init_range_min_(); }
 
     protected:
@@ -742,7 +741,7 @@ namespace
     class Exponential_ final : public Function
     {
     public:
-        Exponential_() : Function("exp") {}
+        std::string_view name() const noexcept override final { return "exp"; }
         void init_truncation() override final { init_range_helper_(); }
 
     protected:
@@ -756,8 +755,8 @@ namespace
     class Logarithm_ final : public Function
     {
     public:
-        Logarithm_() : Function("log", {},
-                                0., true, hsp::na::DOUBLE, false) {}
+        Logarithm_() : Function({}, 0., true, hsp::na::DOUBLE, false) {}
+        std::string_view name() const noexcept override final { return "log"; }
         void init_truncation() override final { init_range_min_(0., true); }
 
     protected:
@@ -771,7 +770,7 @@ namespace
     class Sine_ final : public Function
     {
     public:
-        Sine_() : Function("sin") {}
+        std::string_view name() const noexcept override final { return "sin"; }
         void init_truncation() override final { init_range_helper_(); }
 
     protected:
@@ -785,7 +784,7 @@ namespace
     class Cosine_ final : public Function
     {
     public:
-        Cosine_() : Function("cos") {}
+        std::string_view name() const noexcept override final { return "cos"; }
         void init_truncation() override final { init_range_helper_(); }
 
     protected:
@@ -799,7 +798,7 @@ namespace
     class Tangent_ final : public Function
     {
     public:
-        Tangent_() : Function("tan") {}
+        std::string_view name() const noexcept override final { return "tan"; }
         void init_truncation() override final { init_range_helper_(); }
 
     protected:
@@ -816,9 +815,6 @@ namespace
     class VariadicFunction : public Function
     {
     public:
-        VariadicFunction(const std::string &name = "") : Function(name) {}
-        virtual ~VariadicFunction() = default;
-
         // UPDATE: this might change for future variadic functions
         void init_truncation() override final {}
         bool is_discrete() const noexcept override final
@@ -849,40 +845,42 @@ namespace
         }
     };
 
-#define MAKE_VARIADIC_ALGEBRAIC(ClassName, FunctionName, Symbol) \
-    class ClassName final : public VariadicFunction              \
-    {                                                            \
-    public:                                                      \
-        ClassName() : VariadicFunction(FunctionName) {}          \
-                                                                 \
-    protected:                                                   \
-        double raw_function_(double x) const override final      \
-        {                                                        \
-            for (const Attribute &attr : arguments_)             \
-                x Symbol attr.get();                             \
-            return x;                                            \
-        }                                                        \
+#define MAKE_VARIADIC_ALGEBRAIC(ClassName, FunctionName, Symbol)                       \
+    class ClassName final : public VariadicFunction                                    \
+    {                                                                                  \
+    public:                                                                            \
+        ClassName() : VariadicFunction() {}                                            \
+        std::string_view name() const noexcept override final { return FunctionName; } \
+                                                                                       \
+    protected:                                                                         \
+        double raw_function_(double x) const override final                            \
+        {                                                                              \
+            for (const Attribute &attr : arguments_)                                   \
+                x Symbol attr.get();                                                   \
+            return x;                                                                  \
+        }                                                                              \
     };
     MAKE_VARIADIC_ALGEBRAIC(Summation_, "sum", +=)
     MAKE_VARIADIC_ALGEBRAIC(Product_, "prod", *=)
 
-#define MAKE_VARIADIC_MIN_MAX(ClassName, FunctionName, Symbol) \
-    class ClassName final : public VariadicFunction            \
-    {                                                          \
-    public:                                                    \
-        ClassName() : VariadicFunction(FunctionName) {}        \
-                                                               \
-    protected:                                                 \
-        double raw_function_(double x) const override final    \
-        {                                                      \
-            for (const Attribute &attr : arguments_)           \
-            {                                                  \
-                const double new_val = attr.get();             \
-                if (new_val Symbol x)                          \
-                    x = new_val;                               \
-            }                                                  \
-            return x;                                          \
-        }                                                      \
+#define MAKE_VARIADIC_MIN_MAX(ClassName, FunctionName, Symbol)                         \
+    class ClassName final : public VariadicFunction                                    \
+    {                                                                                  \
+    public:                                                                            \
+        ClassName() : VariadicFunction() {}                                            \
+        std::string_view name() const noexcept override final { return FunctionName; } \
+                                                                                       \
+    protected:                                                                         \
+        double raw_function_(double x) const override final                            \
+        {                                                                              \
+            for (const Attribute &attr : arguments_)                                   \
+            {                                                                          \
+                const double new_val = attr.get();                                     \
+                if (new_val Symbol x)                                                  \
+                    x = new_val;                                                       \
+            }                                                                          \
+            return x;                                                                  \
+        }                                                                              \
     };
     MAKE_VARIADIC_MIN_MAX(Minimum_, "min", <)
     MAKE_VARIADIC_MIN_MAX(Maximum_, "max", >)

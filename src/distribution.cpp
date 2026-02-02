@@ -295,10 +295,10 @@ namespace
     {
     public:
         Uniform_()
-            : Distribution("uniform",
-                           {{hsp::params::MIN, 0.}, {hsp::params::MAX, 1.}},
+            : Distribution({{hsp::params::MIN, 0.}, {hsp::params::MAX, 1.}},
                            hsp::na::DOUBLE, false, hsp::na::DOUBLE, false),
               unif_gen(arg(0), arg(1)) { init_uniform_range_(); }
+        std::string_view name() const noexcept override final { return "uniform"; }
 
         void init_discretization() override final
         {
@@ -330,19 +330,8 @@ namespace
         /// Ensure uniform range (min, max) match argument (min, max).
         void init_uniform_range_()
         {
-            // impose range minimum equal to argument minimum
-            const Attribute &min_arg = arguments_[0];
-            if (min_arg.is_function())
-                lower_arg_.transfer(min_arg);
-            else
-                lower_arg_.transfer(min_arg);
-
-            // impose range maximum equal to argument maximum
-            const Attribute &max_arg = arguments_[1];
-            if (max_arg.is_function())
-                upper_arg_.transfer(max_arg);
-            else
-                upper_arg_.transfer(max_arg);
+            lower_arg_.transfer(arguments_[0]);
+            upper_arg_.transfer(arguments_[1]);
         }
     };
 
@@ -354,10 +343,10 @@ namespace
     {
     public:
         Normal_()
-            : Distribution("normal",
-                           {{"mean", 0.}, {"sd", 1.}},
+            : Distribution({{"mean", 0.}, {"sd", 1.}},
                            hsp::na::DOUBLE, false, hsp::na::DOUBLE, false),
               norm_gen(0., 1.) {}
+        std::string_view name() const noexcept override final { return "normal"; }
 
         void init_discretization() override final
         {
@@ -416,10 +405,10 @@ namespace
     {
     public:
         Lognormal_()
-            : Distribution("lognormal",
-                           {{"meanlog", 0.}, {"sdlog", 1.}},
+            : Distribution({{"meanlog", 0.}, {"sdlog", 1.}},
                            0., true, hsp::na::DOUBLE, false),
               norm_gen(0., 1.) {}
+        std::string_view name() const noexcept override final { return "lognormal"; }
 
         INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
@@ -469,9 +458,9 @@ namespace
     {
     public:
         Beta_()
-            : Distribution("beta",
-                           {{"shape1", hsp::na::DOUBLE}, {"shape2", hsp::na::DOUBLE}},
+            : Distribution({{"shape1", hsp::na::DOUBLE}, {"shape2", hsp::na::DOUBLE}},
                            0., true, 1., true) {}
+        std::string_view name() const noexcept override final { return "beta"; }
 
         void init_discretization() override final
         {
@@ -532,9 +521,9 @@ namespace
     {
     public:
         Gamma_()
-            : Distribution("gamma",
-                           {{"shape", hsp::na::DOUBLE}, {"scale", 1.}},
+            : Distribution({{"shape", hsp::na::DOUBLE}, {"scale", 1.}},
                            0., false, hsp::na::DOUBLE, false) {}
+        std::string_view name() const noexcept override final { return "gamma"; }
 
         INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
@@ -579,9 +568,9 @@ namespace
     {
     public:
         GammaMeanVar_()
-            : Distribution("gamma_meanvar",
-                           {{"mean", hsp::na::DOUBLE}, {"var", hsp::na::DOUBLE}},
+            : Distribution({{"mean", hsp::na::DOUBLE}, {"var", hsp::na::DOUBLE}},
                            0., false, hsp::na::DOUBLE, false) {}
+        std::string_view name() const noexcept override final { return "gamma_meanvar"; }
 
         INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
@@ -636,10 +625,10 @@ namespace
     {
     public:
         Rayleigh_()
-            : Distribution("rayleigh",
-                           {{"scale", 1.}},
+            : Distribution({{"scale", 1.}},
                            0., false, hsp::na::DOUBLE, false),
               unif_gen(0., 1.) {}
+        std::string_view name() const noexcept override final { return "rayleigh"; }
 
         INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
@@ -686,10 +675,10 @@ namespace
     {
     public:
         Weibull_()
-            : Distribution("weibull",
-                           {{"shape", hsp::na::DOUBLE}, {"scale", 1.}},
+            : Distribution({{"shape", hsp::na::DOUBLE}, {"scale", 1.}},
                            0., false, hsp::na::DOUBLE, false),
               unif_gen(0., 1.) {}
+        std::string_view name() const noexcept override final { return "weibull"; }
 
         INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
@@ -738,10 +727,10 @@ namespace
     {
     public:
         Exponential_()
-            : Distribution("exponential",
-                           {{"rate", 1.}},
+            : Distribution({{"rate", 1.}},
                            0., false, hsp::na::DOUBLE, false),
               unif_gen(0., 1.) {}
+        std::string_view name() const noexcept override final { return "exponential"; }
 
         INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
@@ -784,9 +773,9 @@ namespace
     {
     public:
         Poisson_()
-            : Distribution("poisson",
-                           {{"lambda", hsp::na::DOUBLE}},
+            : Distribution({{"lambda", hsp::na::DOUBLE}},
                            0., false, hsp::na::DOUBLE, false) { init_discr_helper_(hsp::discr::DEFINED); }
+        std::string_view name() const noexcept override final { return "poisson"; }
 
         INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
 
@@ -827,14 +816,14 @@ namespace
     {
     public:
         Binomial_()
-            : Distribution("binomial",
-                           {{"size", hsp::na::DOUBLE}, {"prob", hsp::na::DOUBLE}},
+            : Distribution({{"size", hsp::na::DOUBLE}, {"prob", hsp::na::DOUBLE}},
                            0., false, hsp::na::DOUBLE, false)
         {
             init_discr_helper_(hsp::discr::DEFINED);
             upper_arg_.init_pointer(get_arg(0).get_ptr());
             init_range_helper_(false, false);
         }
+        std::string_view name() const noexcept override final { return "binomial"; }
 
         void init_discretization() override final {}
         void init_truncation() override final
@@ -897,9 +886,9 @@ namespace
     {
     public:
         NegativeBinomial_()
-            : Distribution("negative_binomial",
-                           {{"size", hsp::na::DOUBLE}, {"prob", hsp::na::DOUBLE}},
+            : Distribution({{"size", hsp::na::DOUBLE}, {"prob", hsp::na::DOUBLE}},
                            0., false, hsp::na::DOUBLE, false) { init_discr_helper_(hsp::discr::DEFINED); }
+        std::string_view name() const noexcept override final { return "negative_binomial"; }
 
         INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
 
@@ -944,9 +933,9 @@ namespace
     {
     public:
         Geometric_()
-            : Distribution("geometric",
-                           {{"prob", hsp::na::DOUBLE}},
+            : Distribution({{"prob", hsp::na::DOUBLE}},
                            0., false, hsp::na::DOUBLE, false) { init_discr_helper_(hsp::discr::DEFINED); }
+        std::string_view name() const noexcept override final { return "geometric"; }
 
         INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
 
@@ -1006,9 +995,9 @@ namespace
     {
     public:
         InfecProfile_Ferretti20()
-            : Distribution("ferretti20",
-                           {{"shape", 5.85}, {"scale", 1.85}, {"c_loc", -4.0}, {"mean_incub", 5.42}, {"incub_period", 5.42}},
+            : Distribution({{"shape", 5.85}, {"scale", 1.85}, {"c_loc", -4.0}, {"mean_incub", 5.42}, {"incub_period", 5.42}},
                            0., false, hsp::na::DOUBLE, false) {}
+        std::string_view name() const noexcept override final { return "ferretti20"; }
 
         INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 

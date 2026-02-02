@@ -30,6 +30,7 @@ public:
     std::vector<std::string> get_options() const;
     virtual std::unique_ptr<Function> create(std::string_view opt, bool is_prim = false) const;
 
+    /// UPDATE: this requires to create an instance of T.
     template <typename T>
     void register_member()
     {

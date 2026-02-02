@@ -74,9 +74,9 @@ namespace
     class AdaptableProposal : public Proposal
     {
     public:
-        //////////////////////////
-        //////  CONSTUCTOR  //////
-        //////////////////////////
+        ///////////////////////////
+        //////  CONSTRUCTOR  //////
+        ///////////////////////////
 
         AdaptableProposal(const std::string &distr_name,
                           double proposal_scale,
@@ -499,7 +499,7 @@ void Variable::adapt_proposal(double ratio) { pProp_->adapt(ratio); }
 /// Get a description about the functional status.
 std::string Variable::str_summary() const
 {
-    std::string output = Attribute::str_summary();
+    std::string output(Attribute::str_summary());
     if (is_model())
         output += " | ~" + pDistr_->str_summary(false);
     return output;

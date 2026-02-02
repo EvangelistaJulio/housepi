@@ -41,8 +41,7 @@ public:
     //////  CONSTRUCTOR  //////
     ///////////////////////////
 
-    Function(const std::string &name,
-             const std::vector<std::pair<std::string, double>> &args = {},
+    Function(const std::vector<std::pair<std::string, double>> &args = {},
              double domain_min = hsp::na::DOUBLE, bool is_min_open = false,
              double domain_max = hsp::na::DOUBLE, bool is_max_open = false);
     virtual ~Function() = default;
@@ -105,9 +104,9 @@ public:
     double upper() const { return upper_arg_.get(); }
 
     const Attribute &get_arg(size_t i) const { return arguments_[i]; }
-    const Attribute &get_loc() const { return loc_arg_; }
-    const Attribute &get_lower() const { return lower_arg_; }
-    const Attribute &get_upper() const { return upper_arg_; }
+    const Attribute &get_loc() const noexcept { return loc_arg_; }
+    const Attribute &get_lower() const noexcept { return lower_arg_; }
+    const Attribute &get_upper() const noexcept { return upper_arg_; }
 
     /////////////////////
     //////  FLAGS  //////
@@ -139,18 +138,16 @@ public:
     ////////////////////
 
     /// Get function name.
-    std::string_view name() const noexcept { return name_; }
+    virtual std::string_view name() const noexcept = 0;
     /// Get argument name.
     std::string_view arg_name(unsigned short i) const noexcept { return arguments_[i].name(); }
     /// Get function name complete with type to display in errors.
-    std::string err_name() const { return err_type_ + " '" + name_ + "'"; }
+    virtual std::string err_name() const { return "function '" + std::string(name()) + "'"; }
 
     std::string str_range() const;
     std::string str_summary(bool show_x_arg = true) const;
 
 protected:
-    std::string err_type_ = "function";                                      // type name displayed in errors
-    std::string name_;                                                       /// function name
     std::vector<Attribute> arguments_ = {};                                  /// array with arguments
     Attribute x_arg_ = Attribute();                                          /// 'x' argument
     Attribute loc_arg_ = Attribute();                                        /// 'loc' argument
