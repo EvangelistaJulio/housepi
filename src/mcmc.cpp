@@ -149,8 +149,8 @@ double MCMCImpl::atomic_materialize_house_log_lik_(Household &house, bool is_cac
         if (is_cache_depen)
         {
             data_wide->buffer_all_cache(house);
-            for (Individual &member : house.infected())
-                callback_update_cache_(house, member);
+            for (size_t i : house.infected_hhindexes())
+                callback_update_cache_(house, house.member(i));
         }
 
         // compute and set household observation log-likelihood
@@ -159,8 +159,8 @@ double MCMCImpl::atomic_materialize_house_log_lik_(Household &house, bool is_cac
 
         // compute and set individual augmented log-likelihood
         if (augm->is_any_model())
-            for (Individual &member : house.infected())
-                output += augm->materialize_augm_model_log_lik(member);
+            for (size_t i : house.infected_hhindexes())
+                output += augm->materialize_augm_model_log_lik(house.member(i));
     }
     catch (const std::exception &e)
     {
@@ -322,8 +322,8 @@ void MCMCImpl::recover_parameter_(size_t p, bool is_cache_depen)
         Household &house = data_wide->restricted(R);
         data_wide->recover_buffer_values(house, is_cache_depen);
         if (augm->is_any_sample())
-            for (Individual &member : house.infected())
-                member.recover_augm_model_log_lik();
+            for (size_t i : house.infected_hhindexes())
+                house.member(i).recover_augm_model_log_lik();
     }
 
     if (is_cache_depen)
@@ -364,11 +364,13 @@ double MCMCImpl::atomic_move_augm_single_house_(size_t H)
 
     try
     {
-        // loop over infectious residents of the househould
-        for (Individual &member_i : house.infected())
-            // loop over augmented variables of infectious
+        // loop over augmented variables of infectious
+        for (size_t i : house.infected_hhindexes())
+        {
+            Individual &member_i = house.member(i);
             for (size_t a : augm->status_to_sample[member_i.status()])
                 delta_ll += metropolis_augm_single_move_(house, member_i, a);
+        }
     }
     catch (const std::exception &e)
     {
@@ -706,7 +708,7 @@ void MCMC::init_contact_rates_(Household &house)
                     else if (pair_contact_rate_ != hsp::rates::REFERENCE) // parameter rate
                         y = pImpl_->param->at(pImpl_->param->pRegistry->from_string(pair_contact_rate_));
 
-                    house.init_contact_rates(static_cast<size_t>(member_k), static_cast<size_t>(member_i), y);
+                    house.init_contact_rates(member_k.hhindex(), member_i.hhindex(), y);
                 }
             }
 }

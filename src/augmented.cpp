@@ -411,8 +411,9 @@ void Augmented::init()
     init_model_list_();
 
     for (Household &house : *pDataWide_)
-        for (Individual &member : house.infected())
+        for (size_t i : house.infected_hhindexes())
         {
+            Individual &member = house.member(i);
             init_missing(member, true);
             member.augm_idx_status_ = status_to_index.at(member.status());
         }
@@ -552,8 +553,8 @@ void Augmented::user_reset(hsp::rnd_gen &prng)
         return;
 
     for (Household &house : *pDataWide_)
-        for (Individual &member : house.infected())
-            user_reset(prng, member);
+        for (size_t i : house.infected_hhindexes())
+            user_reset(prng, house.member(i));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

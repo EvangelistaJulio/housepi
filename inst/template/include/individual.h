@@ -67,8 +67,6 @@ public:
 	bool operator==(const Individual &other) const noexcept { return index_ == other.index_; }
 	/// Sugar to tell if the corresponding members are different
 	bool operator!=(const Individual &other) const noexcept { return index_ != other.index_; }
-	/// Sugar to call an Individual object as house index.
-	operator size_t() const noexcept { return hhindex_; }
 
 	//////////////////////
 	//////  GETTER  //////
@@ -111,6 +109,7 @@ public:
 
 	/// Individidaul unique identifier as in data.
 	const std::string &id() const noexcept { return id_; }
+	size_t hhindex() const noexcept { return hhindex_; }
 	std::string err_name() const override final { return "individual '" + id_ + "'"; }
 
 private:

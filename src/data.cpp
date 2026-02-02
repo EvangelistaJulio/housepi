@@ -270,7 +270,7 @@ void Household::helper_set_status_(Individual &member, int new_status)
     if (new_status == member.status())
         return;
 
-    const size_t i = static_cast<size_t>(member); // get within house index
+    const size_t i = member.hhindex(); // get within house index
 
     if (member.is_infected_status())
         infected_list_.erase(std::find(infected_list_.begin(), infected_list_.end(), i));
@@ -469,8 +469,8 @@ void DataWide::build_helper_fill_report_data_()
     for (const Household &house : house_vector_)
     {
         // list of unique infected statuses
-        for (const Individual &member : house.infected())
-            all_infected_statuses.emplace(member.status());
+        for (size_t i : house.infected_hhindexes())
+            all_infected_statuses.emplace(house.member(i).status());
 
         // observed quantities in-house
         const size_t house_size = house.size();
@@ -599,8 +599,8 @@ void DataWide::store_draws(unsigned long smpl_count)
     {
         Household &house = house_vector_[head_class_house_indexes[R]];
         double x = house.get_obs_log_lik() / static_cast<double>(house.multiplicity());
-        for (const Individual &member : house.infected())
-            x += member.get_augm_model_log_lik();
+        for (size_t i : house.infected_hhindexes())
+            x += house.member(i).get_augm_model_log_lik();
         smpl_values[R][smpl_count] = x;
     }
 }

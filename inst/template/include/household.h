@@ -93,8 +93,8 @@ public:
 	//////  GETTER  //////
 	//////////////////////
 
-	Individual &get_member(size_t i) { return members_.at(i); }
-	const Individual &get_member(size_t i) const { return members_.at(i); }
+	Individual &member(size_t i) { return members_.at(i); }
+	const Individual &member(size_t i) const { return members_.at(i); }
 
 	unsigned long multiplicity() const noexcept { return house_multiplicity_; }
 	size_t multiplicity_class_index() const noexcept { return multiplicity_class_; }
@@ -118,69 +118,6 @@ public:
 	auto end() noexcept { return members_.end(); }
 	auto begin() const noexcept { return members_.begin(); }
 	auto end() const noexcept { return members_.end(); }
-
-	// T should be Individual for mutable access
-	// or const Individual for const access.
-	/// NOTE: if Individual is constant, then indexes are immutable as well;
-	///		  otherwise, indexes are copied and access is safe.
-	/// UPDATE: this is hiding too many operations under the carpet and should be removed...
-	template <typename T>
-	class View
-	{
-		// conditional vector reference: if constant or not
-		using vector_ref = std::conditional_t<std::is_const<T>::value,
-											  const std::vector<Individual> &,
-											  std::vector<Individual> &>;
-		// conditional index: reference or copy
-		using index_ref = std::conditional_t<std::is_const<T>::value,
-											 const std::vector<size_t> &,
-											 std::vector<size_t>>;
-
-	public:
-		vector_ref vec;
-		index_ref indexes;
-
-		View(vector_ref m, const std::vector<size_t> &i)
-			: vec(m), indexes(i) {}
-
-		class iterator
-		{
-		public:
-			iterator(View *v, size_t p) : view_(v), pos_(p) {}
-
-			T &operator*() const { return view_->vec[view_->indexes[pos_]]; }
-			T *operator->() const { return &view_->vec[view_->indexes[pos_]]; }
-
-			iterator &operator++()
-			{
-				++pos_;
-				return *this;
-			}
-			iterator operator++(int)
-			{
-				iterator tmp = *this;
-				++(*this);
-				return tmp;
-			}
-
-			bool operator==(const iterator &other) const { return pos_ == other.pos_; }
-			bool operator!=(const iterator &other) const { return !(*this == other); }
-
-		private:
-			View *view_;
-			size_t pos_;
-		};
-
-		iterator begin() { return iterator(this, 0); }
-		iterator end() { return iterator(this, indexes.size()); }
-	};
-
-	View<Individual> infected() { return View<Individual>(members_, infected_list_); }
-	View<Individual> susceptible() { return View<Individual>(members_, healthy_list_); }
-	View<Individual> missing() { return View<Individual>(members_, missing_list_); }
-	View<const Individual> infected() const { return View<const Individual>(members_, infected_list_); }
-	View<const Individual> susceptible() const { return View<const Individual>(members_, healthy_list_); }
-	View<const Individual> missing() const { return View<const Individual>(members_, missing_list_); }
 
 	////////////////////
 	//////  SHOW  //////

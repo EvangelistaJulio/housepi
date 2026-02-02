@@ -151,9 +151,21 @@ struct DataWide
     /// Deep copy cache attributes in the buffer.
     void buffer_all_cache(Household &house)
     {
-        house.buffer_size_t_vec_ = house.cache_size_t_vec_;
-        house.buffer_dbl_vec_ = house.cache_dbl_vec_;
-        house.buffer_dbl_mtx_ = house.cache_dbl_mtx_;
+        for (size_t i = 0; i < house.cache_size_t_vec_.size(); ++i)
+            std::copy(house.cache_size_t_vec_[i].begin(),
+                      house.cache_size_t_vec_[i].end(),
+                      house.buffer_size_t_vec_[i].begin());
+
+        for (size_t i = 0; i < house.cache_dbl_vec_.size(); ++i)
+            std::copy(house.cache_dbl_vec_[i].begin(),
+                      house.cache_dbl_vec_[i].end(),
+                      house.buffer_dbl_vec_[i].begin());
+
+        for (size_t i = 0; i < house.cache_dbl_mtx_.size(); ++i)
+            for (size_t j = 0; j < house.cache_dbl_mtx_[i].size(); ++j)
+                std::copy(house.cache_dbl_mtx_[i][j].begin(),
+                          house.cache_dbl_mtx_[i][j].end(),
+                          house.buffer_dbl_mtx_[i][j].begin());
     }
     /// Recover previous values of the log-likelihood and cached depedencies.
     void recover_buffer_values(Household &house, bool is_cache_depen)

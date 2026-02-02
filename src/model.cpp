@@ -39,6 +39,6 @@ double Model::compute_house_obs_log_lik(Household &) { return 0.; }
 /// Augmented variable initialization.
 void Model::simulate_single_house(Household &house)
 {
-	for (Individual &member : house.infected())
-		init_missing_augm(member);
+	for (size_t i : house.infected_hhindexes())
+		init_missing_augm(house.member(i));
 }
