@@ -83,9 +83,6 @@ public:
     //////  GETTER  //////
     //////////////////////
 
-    /// Get pointer to distribution.
-    const std::shared_ptr<Distribution> get_distribution() const noexcept { return pDistr_; }
-
     bool is_constant() const noexcept override final;
     bool is_discrete() const noexcept override final;
     bool is_model() const noexcept;
@@ -120,7 +117,7 @@ protected:
     double user_value_;       /// initial user defined value
     bool is_constant_ = true; /// user flag for wheter constant or not
 
-    // NOTE: Household must be copyable for simulations -> Variable pointers must be shared
+    /// NOTE: Household must be copyable for simulations -> Variable pointers must be shared
     std::shared_ptr<Distribution> pDistr_; /// prior\model distribution of the variable
     std::shared_ptr<Proposal> pProp_;      /// Monte Carlo proposer
 

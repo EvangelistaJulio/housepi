@@ -253,6 +253,7 @@ protected:
     void init_range_helper_(bool is_min_open = false, bool is_max_open = false);
 
     //---- alternative valid range methods -----//
+    /// NOTE: if getter becomes noexcept, also these checks will
     bool (Function::*is_below_)(double) const = &Function::do_is_below_never_;
     bool (Function::*is_above_)(double) const = &Function::do_is_above_never_;
     bool (Function::*is_valid_)(double) const = &Function::do_is_valid_always_;
@@ -263,16 +264,16 @@ protected:
     bool do_is_valid_always_(double) const { return true; }
 
     //----- range : minimum -----//
-    bool do_is_below_open_min_(double x) const { return (x <= lower_arg_.get()); }
-    bool do_is_below_close_min_(double x) const { return (x < lower_arg_.get()); }
-    bool do_is_valid_open_min_(double x) const { return (x > lower_arg_.get()); }
-    bool do_is_valid_close_min_(double x) const { return (x >= lower_arg_.get()); }
+    bool do_is_below_open_min_(double x) const { return x <= lower_arg_.get(); }
+    bool do_is_below_close_min_(double x) const { return x < lower_arg_.get(); }
+    bool do_is_valid_open_min_(double x) const { return x > lower_arg_.get(); }
+    bool do_is_valid_close_min_(double x) const { return x >= lower_arg_.get(); }
 
     //----- range : maximum -----//
-    bool do_is_above_open_max_(double x) const { return (x >= upper_arg_.get()); }
-    bool do_is_above_close_max_(double x) const { return (x > upper_arg_.get()); }
-    bool do_is_valid_open_max_(double x) const { return (x < upper_arg_.get()); }
-    bool do_is_valid_close_max_(double x) const { return (x <= upper_arg_.get()); }
+    bool do_is_above_open_max_(double x) const { return x >= upper_arg_.get(); }
+    bool do_is_above_close_max_(double x) const { return x > upper_arg_.get(); }
+    bool do_is_valid_open_max_(double x) const { return x < upper_arg_.get(); }
+    bool do_is_valid_close_max_(double x) const { return x <= upper_arg_.get(); }
 
     //----- range : both -----//
     bool do_is_valid_both_open_(double x) const { return (x > lower_arg_.get()) && (x < upper_arg_.get()); }
