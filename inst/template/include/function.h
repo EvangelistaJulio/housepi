@@ -60,9 +60,6 @@ public:
     /// Initialize given function attribute.
     void init_attr(std::string_view key, const Attribute &attr);
 
-    /// Set argument value.
-    void set_arg(size_t i, double x) { arguments_[i].set(x); }
-
     /// Virtual function to initialize discretization.
     virtual void init_discretization() { throw std::invalid_argument(
         "Called undefined method discretization of " + err_name() + "."); }
@@ -80,6 +77,16 @@ public:
     void set_eval_as_distr_call() noexcept { evaluate_ = &Function::pdf; }
     /// Select primitive as a distributin method for return value.
     void set_eval_as_distr_primitive() noexcept { evaluate_ = &Function::cdf; }
+
+    /// Set argument value.
+    /// UPDATE: just required by AdaptableProposal.
+    void set_arg(size_t i, double x) { arguments_[i].set(x); }
+    /// Set lower value.
+    /// UPDATE: just required by AdaptableProposal.
+    void set_lower(double x) { lower_arg_.set(x); }
+    /// Set upper value.
+    /// UPDATE: just required by AdaptableProposal.
+    void set_upper(double x) { upper_arg_.set(x); }
 
     //////////////////////
     //////  GETTER  //////
@@ -103,7 +110,6 @@ public:
     double lower() const { return lower_arg_.get(); }
     double upper() const { return upper_arg_.get(); }
 
-    const Attribute &get_arg(size_t i) const { return arguments_[i]; }
     const Attribute &get_loc() const noexcept { return loc_arg_; }
     const Attribute &get_lower() const noexcept { return lower_arg_; }
     const Attribute &get_upper() const noexcept { return upper_arg_; }

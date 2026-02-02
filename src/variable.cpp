@@ -78,20 +78,15 @@ namespace
         //////  CONSTRUCTOR  //////
         ///////////////////////////
 
-        AdaptableProposal(const std::string &distr_name,
-                          double proposal_scale,
-                          const std::vector<unsigned short> &args_to_adapt,
-                          bool is_discrete)
+        AdaptableProposal(const std::string &distr_name, double scale, bool is_discrete)
             : pDistr_(compose_distr_registries(distr_name, "proposal", {"continuos"}))
         {
             if (is_discrete)
                 pDistr_->init_discretization();
             pDistr_->init_truncation();
 
-            if (!hsp::na::is(proposal_scale))
-                user_scale_ = std::fabs(proposal_scale);
-
-            args_to_adapt_ = args_to_adapt;
+            if (!hsp::na::is(scale))
+                user_scale_ = std::fabs(scale);
         }
         virtual ~AdaptableProposal() = default;
 
@@ -109,15 +104,6 @@ namespace
             accept_rate_ = 0.;
             n_proposed_ = 0;
         }
-        /// Increase spread if acceptation rate is high and viceversa.
-        void adapt(double ratio) override final
-        {
-            // target accept rate set to 1/4.
-            const double factor = 1. + (1. - ratio) * (accept_rate_ - 0.25);
-            // loop over all ids of arguments to adapt
-            for (unsigned short i : args_to_adapt_)
-                pDistr_->set_arg(i, factor * pDistr_->arg(i));
-        }
 
         /////////////////////
         //////  FLAGS  //////
@@ -133,11 +119,13 @@ namespace
         std::string_view name() const noexcept override final { return pDistr_->name(); }
 
     protected:
-        std::unique_ptr<Distribution> pDistr_;           /// distribution associated to proposal
-        double user_scale_ = 1.;                         /// scale of the Metropolis proposal
-        double accept_rate_ = 0.;                        /// acceptance rate
-        unsigned long n_proposed_ = 0;                   /// n. of proposed moves
-        std::vector<unsigned short> args_to_adapt_ = {}; /// which arguments should be adapted
+        std::unique_ptr<Distribution> pDistr_; /// distribution associated to proposal
+        double user_scale_ = 1.;               /// scale of the Metropolis proposal
+        double accept_rate_ = 0.;              /// acceptance rate
+        unsigned long n_proposed_ = 0;         /// n. of proposed moves
+
+        /// Factor used for adaptation, with target accept rate set to 25%.
+        double factor_(double ratio) { return 1. + (1. - ratio) * (accept_rate_ - 0.25); }
     };
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -147,8 +135,8 @@ namespace
     class Uniform_Proposal final : public AdaptableProposal
     {
     public:
-        Uniform_Proposal(double proposal_scale = hsp::na::DOUBLE, bool is_discrete = false)
-            : AdaptableProposal("uniform", proposal_scale, {0, 1}, is_discrete) { user_reset(); }
+        Uniform_Proposal(double scale, bool is_discrete)
+            : AdaptableProposal("uniform", scale, is_discrete) { user_reset(); }
 
         void user_reset() override final
         {
@@ -158,6 +146,13 @@ namespace
 
         double propose(hsp::rnd_gen &prng, double xo) const override final { return xo + pDistr_->rand(prng); }
         double logratio(double, double) const override final { return 0.; }
+
+        void adapt(double ratio) override final
+        {
+            const double m = factor_(ratio);
+            pDistr_->set_lower(m * pDistr_->lower());
+            pDistr_->set_upper(m * pDistr_->upper());
+        }
     };
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -167,8 +162,8 @@ namespace
     class Normal_Proposal final : public AdaptableProposal
     {
     public:
-        Normal_Proposal(double proposal_scale = hsp::na::DOUBLE, bool is_discrete = false)
-            : AdaptableProposal("normal", proposal_scale, {1}, is_discrete) { user_reset(); }
+        Normal_Proposal(double scale, bool is_discrete)
+            : AdaptableProposal("normal", scale, is_discrete) { user_reset(); }
 
         void user_reset() override final
         {
@@ -178,6 +173,9 @@ namespace
 
         double propose(hsp::rnd_gen &prng, double xo) const override final { return xo + pDistr_->rand(prng); }
         double logratio(double, double) const override final { return 0.; }
+
+        /// Adapt standard deviation.
+        void adapt(double ratio) override final { pDistr_->set_arg(1, factor_(ratio) * pDistr_->arg(1)); }
     };
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -187,8 +185,8 @@ namespace
     class Lognorm_Proposal final : public AdaptableProposal
     {
     public:
-        Lognorm_Proposal(double proposal_scale = 1., bool is_discrete = false)
-            : AdaptableProposal("lognormal", proposal_scale, {1}, is_discrete) { user_reset(); }
+        Lognorm_Proposal(double scale, bool is_discrete)
+            : AdaptableProposal("lognormal", scale, is_discrete) { user_reset(); }
 
         void user_reset() override final
         {
@@ -215,6 +213,9 @@ namespace
         double propose(hsp::rnd_gen &prng, double xo) const override final { return (this->*propose_)(prng, xo); }
         double logratio(double xo, double xn) const override final { return (this->*logratio_)(xo, xn); }
 
+        /// Adapt log of standard deviation.
+        void adapt(double ratio) override final { pDistr_->set_arg(1, factor_(ratio) * pDistr_->arg(1)); }
+
     private:
         const Attribute *pAttr_loc_ = nullptr; /// pointer to attribute location
 
@@ -240,26 +241,24 @@ namespace
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Switchboard to select the custom metropolis proposal.
-    std::shared_ptr<Proposal> proposer_switch(const std::string &proposal = "",
-                                              double proposal_scale = hsp::na::DOUBLE,
-                                              bool is_discrete = false)
+    std::shared_ptr<Proposal> proposal_switch(const std::string &name, double scale, bool is_discrete)
     {
         const std::vector<std::string> options = {"sample", "uniform", "normal", "lognormal"};
 
-        if (hsp::na::is(proposal))
+        if (hsp::na::is(name))
             return nullptr;
 
-        if (proposal == "uniform")
-            return std::make_shared<Uniform_Proposal>(proposal_scale, is_discrete);
+        if (name == "uniform")
+            return std::make_shared<Uniform_Proposal>(scale, is_discrete);
 
-        if (proposal == "normal")
-            return std::make_shared<Normal_Proposal>(proposal_scale, is_discrete);
+        if (name == "normal")
+            return std::make_shared<Normal_Proposal>(scale, is_discrete);
 
-        if (proposal == "lognormal")
-            return std::make_shared<Lognorm_Proposal>(proposal_scale, is_discrete);
+        if (name == "lognormal")
+            return std::make_shared<Lognorm_Proposal>(scale, is_discrete);
 
         throw std::invalid_argument(
-            "Unknown proposal '" + proposal + "'." + hsp::str::find_closest(proposal, options));
+            "Unknown proposal '" + name + "'." + hsp::str::find_closest(name, options));
     }
 }
 
@@ -452,7 +451,7 @@ void Variable::helper_init_proposer_monte_carlo_(const std::string &proposal, do
             "Provided a lognormal proposal for non-positive " + err_name() + ".");
 
     // select proposer
-    pProp_ = proposer_switch(proposal, proposal_scale, is_discrete());
+    pProp_ = proposal_switch(proposal, proposal_scale, is_discrete());
 
     // setup parameteric proposal functional methods
     get_move_logratio_ = &Variable::do_get_move_logratio_default_;

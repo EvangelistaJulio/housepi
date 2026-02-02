@@ -295,44 +295,34 @@ namespace
     {
     public:
         Uniform_()
-            : Distribution({{hsp::params::MIN, 0.}, {hsp::params::MAX, 1.}},
-                           hsp::na::DOUBLE, false, hsp::na::DOUBLE, false),
-              unif_gen(arg(0), arg(1)) { init_uniform_range_(); }
+            : Distribution({}, 0., false, 1., false),
+              unif_gen(0., 1.) {}
         std::string_view name() const noexcept override final { return "uniform"; }
 
+        /// UPDATE: should understand when discrete defined...
         void init_discretization() override final
         {
-            // UPDATE: should understand when discrete defined...
             init_discr_helper_(hsp::discr::CENTER);
         }
+        /// NOTE: truncation for uniform distribution is inside raw
         void init_truncation() override final
         {
-            init_uniform_range_();
             init_range_helper_(false, false);
-            // NOTE: truncation for uniform distribution is inside raw
         }
 
     protected:
         mutable std::uniform_real_distribution<double> unif_gen;
 
-        double raw_pdf_(double) const override final { return 1. / (arg(1) - arg(0)); }
-        double raw_cdf_(double x) const override final { return (x - arg(0)) / (arg(1) - arg(0)); }
+        double raw_pdf_(double) const override final { return 1. / (upper_arg_.get() - lower_arg_.get()); }
+        double raw_cdf_(double x) const override final { return (x - lower_arg_.get()) / (upper_arg_.get() - lower_arg_.get()); }
         double raw_logpdf_(double) const override final { return 0.; }
         double raw_logratio_(double, double) const override final { return 0.; }
         double raw_rand_(hsp::rnd_gen &prng) const override final
         {
             const double r = unif_gen(prng);
-            return arg(0) * (1. - r) + arg(1) * r;
+            return lower_arg_.get() * (1. - r) + upper_arg_.get() * r;
         }
-        double raw_quantile_(double p) const override final { return arg(0) * (1. - p) + arg(1) * p; }
-
-    private:
-        /// Ensure uniform range (min, max) match argument (min, max).
-        void init_uniform_range_()
-        {
-            lower_arg_.transfer(arguments_[0]);
-            upper_arg_.transfer(arguments_[1]);
-        }
+        double raw_quantile_(double p) const override final { return lower_arg_.get() * (1. - p) + upper_arg_.get() * p; }
     };
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -820,7 +810,7 @@ namespace
                            0., false, hsp::na::DOUBLE, false)
         {
             init_discr_helper_(hsp::discr::DEFINED);
-            upper_arg_.init_pointer(get_arg(0).get_ptr());
+            upper_arg_.init_pointer(arguments_[0].get_ptr());
             init_range_helper_(false, false);
         }
         std::string_view name() const noexcept override final { return "binomial"; }
@@ -832,7 +822,7 @@ namespace
                 throw std::invalid_argument(
                     "Invoked invalid min value " + hsp::str::format(lower_arg_.get()) +
                     " for " + err_name() + ".");
-            if (lower() > 0. || get_arg(0).get_ptr() != get_upper().get_ptr())
+            if (lower() > 0. || arguments_[0].get_ptr() != get_upper().get_ptr())
             {
                 if (upper() > arg(0))
                     throw std::invalid_argument(

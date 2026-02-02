@@ -683,7 +683,7 @@ namespace
         Subtraction_() : Function({{"x2", 0.}}) {}
         std::string_view name() const noexcept override final { return "sub"; }
         void init_truncation() override final {}
-        bool is_discrete() const noexcept override final { return get_arg(0).is_discrete() && x_arg_.is_discrete(); }
+        bool is_discrete() const noexcept override final { return arguments_[0].is_discrete() && x_arg_.is_discrete(); }
 
     protected:
         double raw_function_(double x) const override final { return x - arg(0); }
@@ -708,7 +708,7 @@ namespace
         Power_() : Function({{"x2", 1.}}) {}
         std::string_view name() const noexcept override final { return "pow"; }
         void init_truncation() override final { init_range_helper_(); }
-        bool is_discrete() const noexcept override final { return Function::is_discrete() || (get_arg(0).is_discrete() && x_arg_.is_discrete()); }
+        bool is_discrete() const noexcept override final { return Function::is_discrete() || (arguments_[0].is_discrete() && x_arg_.is_discrete()); }
 
     protected:
         double raw_function_(double x) const override final { return std::pow(x, arg(0)); }
