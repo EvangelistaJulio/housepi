@@ -28,18 +28,16 @@ HOUSEPI_MODEL_CONSTRUCTOR()
 ///////////////////////  Model : compute single house log-likelihood  /////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Compute the log-likelihood within household.
 double Model::compute_house_obs_log_lik(Household &house)
 {
 	double output = 0.0;
-	for (const auto &member : house.infected())
+	for (const Individual &member : house.infected())
 		output += std::log(member.aug(AugmKey::proba));
 	return output;
 }
 
-/// Augmented variable initialization.
 void Model::simulate_single_house(Household &house)
 {
-	for (auto &member : house.infected())
+	for (Individual &member : house.infected())
 		init_missing_augm(member);
 }

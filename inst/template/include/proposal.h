@@ -66,7 +66,7 @@ public:
     //////////////////////
 
     virtual double propose(hsp::rnd_gen &, double) const = 0;
-    virtual double logratio(double, double) const { return 0.; }
+    virtual double logratio(double, double) const = 0;
 
     /// Wheter proposer can be adapted.
     bool is_adaptable() const noexcept { return !args_to_adapt_.empty(); }

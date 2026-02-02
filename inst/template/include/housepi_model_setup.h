@@ -32,12 +32,15 @@
         static const std::vector<std::string> T##_keys = hsp::key::helper_parse_names(#__VA_ARGS__); \
     }
 
-#define HOUSEPI_MODEL_CONSTRUCTOR()          \
-    Model::Model() : MCMC(DataKey_keys,      \
-                          HHsize_tKey_keys,  \
-                          HHdoubleKey_keys,  \
-                          HHmatrixKey_keys,  \
-                          LongKey_keys,      \
-                          ParamKey_keys,     \
-                          GroupRateKey_keys, \
-                          AugmKey_keys) {}
+#define HOUSEPI_MODEL_CONSTRUCTOR()                     \
+    Model::Model() : MCMC(DataKey_keys,                 \
+                          HHsize_tKey_keys,             \
+                          HHdoubleKey_keys,             \
+                          HHmatrixKey_keys,             \
+                          LongKey_keys,                 \
+                          ParamKey_keys,                \
+                          GroupRateKey_keys,            \
+                          AugmKey_keys)                 \
+    {                                                   \
+        init_advanced_setup();                          \
+    }

@@ -78,13 +78,13 @@ class MCMCImpl
 {
 public:
     std::unique_ptr<hsp::atomic::Error> atomic_error;
-    std::shared_ptr<Setup> setup;
-    std::shared_ptr<DataWide> data_wide;
-    std::shared_ptr<DataLong> data_long;
-    std::shared_ptr<Parameter> param;
-    std::shared_ptr<GroupRate> group_rate;
-    std::shared_ptr<InfecProfile> infec_profile;
-    std::shared_ptr<Augmented> augm;
+    std::unique_ptr<Setup> setup;
+    std::unique_ptr<DataWide> data_wide;
+    std::unique_ptr<DataLong> data_long;
+    std::unique_ptr<Parameter> param;
+    std::unique_ptr<GroupRate> group_rate;
+    std::unique_ptr<InfecProfile> infec_profile;
+    std::unique_ptr<Augmented> augm;
 
     TotalLogLike tot_log_lik;
 
@@ -102,6 +102,7 @@ public:
         const std::vector<std::string> &group_rate_keys,
         const std::vector<std::string> &augm_keys,
         std::function<void()> func_init_inference,
+        std::function<void(Household &)> func_init_house_for_infer,
         std::function<double(Household &)> func_house_log_lik,
         std::function<void(Household &, Individual &)> func_update_cache);
     ~MCMCImpl();
@@ -110,6 +111,7 @@ public:
     //////  METROPOLIS-HASTINGS  //////
     ///////////////////////////////////
 
+    void user_init_for_evaluate();
     void init_monte_carlo();
     void init_evaluate();
     void run_monte_carlo();
@@ -132,6 +134,7 @@ private:
 
     /// UPDATE: this is not efficient.
     std::function<void()> callback_init_inference_;
+    std::function<void(Household &)> callback_init_house_for_inference_;
     std::function<double(Household &)> callback_house_log_lik_;
     std::function<void(Household &, Individual &)> callback_update_cache_;
 

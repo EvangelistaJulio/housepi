@@ -26,15 +26,25 @@ class Model final : public MCMC
 {
 public:
 	Model();
-	
-	// model dependent methods
+
+	/// Initialize the LookUp Table.
+	void init_model_for_evaluation() override final;
+	/// Initialize internal order for house escape matrix
+	/// ordered members : 1) infectious, 2) susceptibles
+	/// NOTE: this works only if size = n_infected_status + n_susceptible_status
+	void init_house_for_evaluation(Household &house) override final;
+
+	/// Compute the log-likelihood for a single household.
+	double compute_house_obs_log_lik(Household &house) override final;
+	/// Risk of infection from the community.
 	double community_risk() const;
+	/// Risk of infection from another household member.
 	double person_to_person_risk() const;
+	/// The person-to-person escape probabilities stored inside a matrix.
+	/// Important: it must be re-ordered to have seropositives first.
 	void fill_house_escape_matrix(Household &house) const;
 
-	// override MCMC general methods
-	void init_model_for_inference() override final;
-	double compute_house_obs_log_lik(Household &house) override final;
+	/// Simulate the infection within a household.
 	void simulate_single_house(Household &house) override final;
 };
 

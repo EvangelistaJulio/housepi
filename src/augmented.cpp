@@ -131,10 +131,10 @@ namespace
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Augmented::Augmented(const std::vector<std::string> &keys,
-                     std::shared_ptr<DataWide> dataptr,
-                     std::shared_ptr<Parameter> paramptr,
-                     std::shared_ptr<InfecProfile> infprofptr)
-    : pRegistry(std::make_shared<hsp::key::Registry>(keys)),
+                     DataWide *dataptr,
+                     Parameter *paramptr,
+                     InfecProfile *infprofptr)
+    : pRegistry(std::make_unique<hsp::key::Registry>(keys)),
       pDataWide_(dataptr),
       pParameter_(paramptr),
       pInfecProfile_(infprofptr) {}
@@ -169,11 +169,11 @@ void Augmented::helper_build_append_infec_profile_()
         deftable_[col] += pInfecProfile_->augm_profile_definitions_.at(col);
 
     pRegistry->add(hsp::infprof::INSTANT);
-    pInfecProfile_->augm_infecprof_key = pRegistry->from_string(hsp::infprof::INSTANT);
+    pInfecProfile_->augm_key = pRegistry->from_string(hsp::infprof::INSTANT);
 
     // append discrete infectivity profile definitions if any
     if (pInfecProfile_->is_discrete_requested())
-        user_discrete_set.emplace(pInfecProfile_->augm_infecprof_key);
+        user_discrete_set.emplace(pInfecProfile_->augm_key);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

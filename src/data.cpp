@@ -319,7 +319,7 @@ DataWide::DataWide(
     const std::vector<std::string> &hh_size_t_keys,
     const std::vector<std::string> &hh_double_keys,
     const std::vector<std::string> &hh_matrix_keys)
-    : pRegistry(std::make_shared<hsp::key::Registry>(keys)),
+    : pRegistry(std::make_unique<hsp::key::Registry>(keys)),
       pHHsize_tRegistry(std::make_unique<hsp::key::Registry>(hh_size_t_keys)),
       pHHdoubleRegistry(std::make_unique<hsp::key::Registry>(hh_double_keys)),
       pHHmatrixRegistry(std::make_unique<hsp::key::Registry>(hh_matrix_keys)),
@@ -576,35 +576,6 @@ void DataWide::init_house_cache(Household &house)
     house.buffer_dbl_mtx_ = house.cache_dbl_mtx_;
 }
 
-/// Initialize cached structeres according to household size.
-void DataWide::init_cache()
-{
-    // init cache dependencies for all households and individuals
-    for (size_t R = 0; R < head_class_house_indexes.size(); ++R)
-        init_house_cache(restricted(R));
-}
-
-/// Deep copies of cache attributes in the buffer
-void DataWide::buffer_all_cache(Household &house)
-{
-    house.buffer_size_t_vec_ = house.cache_size_t_vec_;
-    house.buffer_dbl_vec_ = house.cache_dbl_vec_;
-    house.buffer_dbl_mtx_ = house.cache_dbl_mtx_;
-}
-
-/// Recover previous values of the log-likelihood and cached depedencies.
-void DataWide::recover_buffer_values(Household &house, bool is_cache_depen)
-{
-    house.obs_log_lik_ = house.obs_buffer_;
-
-    if (is_cache_depen)
-    {
-        house.cache_size_t_vec_.swap(house.buffer_size_t_vec_);
-        house.cache_dbl_vec_.swap(house.buffer_dbl_vec_);
-        house.cache_dbl_mtx_.swap(house.buffer_dbl_mtx_);
-    }
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////  DataWide : posterior drawd  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -641,7 +612,7 @@ void DataWide::store_draws(unsigned long smpl_count)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 DataLong::DataLong(const std::vector<std::string> &keys,
-                   std::shared_ptr<DataWide> ptr)
+                   DataWide *ptr)
     : pRegistry(std::make_unique<hsp::key::Registry>(keys)),
       pDataWide_(ptr) {}
 DataLong::~DataLong() = default;

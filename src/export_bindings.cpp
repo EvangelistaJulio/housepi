@@ -89,7 +89,7 @@ namespace
     }
 
     /// Export Function argument list to R.
-    Rcpp::NumericVector rcpp_export_args(const std::shared_ptr<Function> f)
+    Rcpp::NumericVector rcpp_export_args(const Function *f)
     {
         using namespace Rcpp;
 
@@ -177,7 +177,7 @@ void MCMC::import_param_for_prediction(SEXP input)
 namespace
 {
     /// Export to R definitions of infectivity profile.
-    Rcpp::List helper_export_infec_profile(const std::shared_ptr<InfecProfile> infec_profile)
+    Rcpp::List helper_export_infec_profile(const InfecProfile *infec_profile)
     {
         using namespace Rcpp;
 
@@ -185,15 +185,15 @@ namespace
             hsp::msg::error(
                 "Impossible to export infectivity profile when if definition is not generic.");
 
-        if (infec_profile->generic_profile == nullptr)
+        if (infec_profile->generic == nullptr)
             return List::create();
 
-        return List::create(_["func"] = std::string(infec_profile->generic_profile->name()),
+        return List::create(_["func"] = std::string(infec_profile->generic->name()),
                             // NOTE: arguments should not be polymorphic when called here
-                            _["func_args"] = rcpp_export_args(infec_profile->generic_profile),
-                            _["min"] = infec_profile->generic_profile->lower(),
-                            _["max"] = infec_profile->generic_profile->upper(),
-                            _["discr"] = infec_profile->generic_profile->is_discrete());
+                            _["func_args"] = rcpp_export_args(infec_profile->generic.get()),
+                            _["min"] = infec_profile->generic->lower(),
+                            _["max"] = infec_profile->generic->upper(),
+                            _["discr"] = infec_profile->generic->is_discrete());
     }
 }
 
@@ -214,7 +214,7 @@ Rcpp::List MCMC::export_setup() const
                         _["progress"] = setup.progress);
 }
 
-Rcpp::List MCMC::export_infec_profile() const { return helper_export_infec_profile(pImpl_->infec_profile); }
+Rcpp::List MCMC::export_infec_profile() const { return helper_export_infec_profile(pImpl_->infec_profile.get()); }
 
 /// Export to R all augmented variables at the current state.
 Rcpp::DataFrame MCMC::export_augmented_data_wide() const
@@ -671,7 +671,7 @@ namespace
 
     /// Export to R a snapshot of current state of house data.
     /// NOTE: there are not private parameters so far.
-    Rcpp::NumericVector helper_param_rcpp_snapshot(const std::shared_ptr<Parameter> param)
+    Rcpp::NumericVector helper_param_rcpp_snapshot(const Parameter *param)
     {
         using namespace Rcpp;
         size_t n = param->pRegistry->size();
@@ -692,7 +692,7 @@ namespace
     }
 
     /// Export to R a snapshot of current state of house data.
-    Rcpp::DataFrame helper_data_wide_rcpp_snapshot(const std::shared_ptr<DataWide> data_wide,
+    Rcpp::DataFrame helper_data_wide_rcpp_snapshot(const DataWide *data_wide,
                                                    const Household &house)
     {
         using namespace Rcpp;
@@ -728,7 +728,7 @@ namespace
     }
 
     /// Export to R a snapshot of current state of house data-long.
-    Rcpp::DataFrame helper_data_long_rcpp_snapshot(const std::shared_ptr<DataLong> data_long,
+    Rcpp::DataFrame helper_data_long_rcpp_snapshot(const DataLong *data_long,
                                                    const Household &house)
     {
         using namespace Rcpp;
@@ -771,7 +771,7 @@ namespace
     }
 
     /// Export to R a snapshot of current state of house augmented variables.
-    Rcpp::DataFrame helper_group_rates_rcpp_snapshot(const std::shared_ptr<GroupRate> group_rate,
+    Rcpp::DataFrame helper_group_rates_rcpp_snapshot(const GroupRate *group_rate,
                                                      const Household &house)
     {
         using namespace Rcpp;
@@ -804,12 +804,12 @@ namespace
     }
 
     /// Export to R a snapshot of current state of house infectivity profile.
-    Rcpp::List helper_infec_profile_rcpp_snapshot(const std::shared_ptr<InfecProfile> infec_profile,
+    Rcpp::List helper_infec_profile_rcpp_snapshot(const InfecProfile *infec_profile,
                                                   const Household &house)
     {
         using namespace Rcpp;
 
-        if (infec_profile->generic_profile == nullptr && !infec_profile->is_augmented())
+        if (infec_profile->generic == nullptr && !infec_profile->is_augmented())
             return List::create();
 
         const size_t n_rows = house.size();
@@ -827,11 +827,11 @@ namespace
         for (const Individual &member : house.infected())
             if (infec_profile->is_augmented())
             {
-                const auto &f = member.get_augm_variable(infec_profile->augm_infecprof_key).get_function();
+                const auto &f = member.get_augm_variable(infec_profile->augm_key).get_function();
 
                 infprof_name[member] = std::string(f->name());
                 infprof_discr[member] = f->is_discrete();
-                infprof_args[member] = rcpp_export_args(f);
+                infprof_args[member] = rcpp_export_args(f.get());
                 infprof_min[member] = f->lower();
                 infprof_max[member] = f->upper();
             }
@@ -854,7 +854,7 @@ namespace
     }
 
     /// Export to R a snapshot of current state of house augmented variables.
-    Rcpp::DataFrame helper_augm_rcpp_snapshot(const std::shared_ptr<Augmented> augm, const Household &house)
+    Rcpp::DataFrame helper_augm_rcpp_snapshot(const Augmented *augm, const Household &house)
     {
         using namespace Rcpp;
 
@@ -902,12 +902,12 @@ Rcpp::List MCMC::export_house_snapshot(const std::string &house_id) const
         const Household &house = pImpl_->data_wide->at(house_id);
 
         return List::create(
-            _["param"] = helper_param_rcpp_snapshot(pImpl_->param),
-            _["data_wide"] = helper_data_wide_rcpp_snapshot(pImpl_->data_wide, house),
-            _["data_long"] = helper_data_long_rcpp_snapshot(pImpl_->data_long, house),
-            _["group_rate"] = helper_group_rates_rcpp_snapshot(pImpl_->group_rate, house),
-            _["infec_profile"] = helper_infec_profile_rcpp_snapshot(pImpl_->infec_profile, house),
-            _["augm"] = helper_augm_rcpp_snapshot(pImpl_->augm, house));
+            _["param"] = helper_param_rcpp_snapshot(pImpl_->param.get()),
+            _["data_wide"] = helper_data_wide_rcpp_snapshot(pImpl_->data_wide.get(), house),
+            _["data_long"] = helper_data_long_rcpp_snapshot(pImpl_->data_long.get(), house),
+            _["group_rate"] = helper_group_rates_rcpp_snapshot(pImpl_->group_rate.get(), house),
+            _["infec_profile"] = helper_infec_profile_rcpp_snapshot(pImpl_->infec_profile.get(), house),
+            _["augm"] = helper_augm_rcpp_snapshot(pImpl_->augm.get(), house));
     }
     catch (const std::exception &e)
     {

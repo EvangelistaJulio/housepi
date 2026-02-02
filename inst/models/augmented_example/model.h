@@ -27,8 +27,10 @@ class Model final : public MCMC
 public:
 	Model();
 
-	// override general MCMC methods
+	/// Compute the log-likelihood within household.
 	double compute_house_obs_log_lik(Household &house) override final;
+
+	/// Simulate augmented infectious members augmented variables.
 	void simulate_single_house(Household &house) override final;
 };
 

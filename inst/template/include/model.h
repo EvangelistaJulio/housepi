@@ -26,7 +26,7 @@ class Model final : public MCMC
 public:
 	Model();
 
-	void init_model_for_inference() override final;
+	void init_model_for_evaluation() override final;
 	void init_model_for_simulation() override final;
 	double compute_house_obs_log_lik(Household &) override final;
 	void simulate_single_house(Household &house) override final;

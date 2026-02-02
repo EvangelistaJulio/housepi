@@ -110,7 +110,7 @@ struct ReportHouseSizes;
 
 struct DataWide
 {
-    std::shared_ptr<hsp::key::Registry> pRegistry;         /// pointer to registry
+    std::unique_ptr<hsp::key::Registry> pRegistry;         /// pointer to registry
     std::unique_ptr<hsp::key::Registry> pHHsize_tRegistry; /// pointer to registry
     std::unique_ptr<hsp::key::Registry> pHHdoubleRegistry; /// pointer to registry
     std::unique_ptr<hsp::key::Registry> pHHmatrixRegistry; /// pointer to registry
@@ -148,12 +148,25 @@ struct DataWide
 
     /// Initialize cached structeres according to household size.
     void init_house_cache(Household &house);
-    /// Initialize cached structeres for all households.
-    void init_cache();
-    /// Deep copies of cache attributes in the buffer
-    void buffer_all_cache(Household &house);
+    /// Deep copy cache attributes in the buffer.
+    void buffer_all_cache(Household &house)
+    {
+        house.buffer_size_t_vec_ = house.cache_size_t_vec_;
+        house.buffer_dbl_vec_ = house.cache_dbl_vec_;
+        house.buffer_dbl_mtx_ = house.cache_dbl_mtx_;
+    }
     /// Recover previous values of the log-likelihood and cached depedencies.
-    void recover_buffer_values(Household &house, bool is_cache_depen);
+    void recover_buffer_values(Household &house, bool is_cache_depen)
+    {
+        house.obs_log_lik_ = house.obs_buffer_;
+
+        if (is_cache_depen)
+        {
+            house.cache_size_t_vec_.swap(house.buffer_size_t_vec_);
+            house.cache_dbl_vec_.swap(house.buffer_dbl_vec_);
+            house.cache_dbl_mtx_.swap(house.buffer_dbl_mtx_);
+        }
+    }
 
     void init_draws(unsigned long sample_size);
     void store_draws(unsigned long smpl_count);
@@ -209,13 +222,13 @@ public:
     std::vector<std::vector<std::vector<double>>> indiv_datalist = {};
 
     DataLong(const std::vector<std::string> &keys,
-             std::shared_ptr<DataWide> ptr);
+             DataWide *ptr);
     ~DataLong();
 
     void build(const hsp::str_table &input);
 
 private:
-    std::shared_ptr<DataWide> pDataWide_; // pointer to external DataWide struct
+    DataWide *pDataWide_; // pointer to external DataWide struct
 
     /// Clear previous data report.
     void helper_build_clear_data_();

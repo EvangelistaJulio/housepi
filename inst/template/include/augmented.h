@@ -35,7 +35,7 @@ class Individual;
 struct Augmented
 {
     /// UPATE: once read_attribute goes back to MCMCImpl, this can become private
-    std::shared_ptr<hsp::key::Registry> pRegistry; /// pointer to registry
+    std::unique_ptr<hsp::key::Registry> pRegistry; /// pointer to registry
 
     std::unordered_set<size_t> list_draws = {};
     std::unordered_set<size_t> list_export = {};
@@ -53,9 +53,9 @@ struct Augmented
     std::vector<std::vector<std::vector<double>>> smpl_values = {};
 
     Augmented(const std::vector<std::string> &keys,
-              std::shared_ptr<DataWide> dataptr,
-              std::shared_ptr<Parameter> paramptr,
-              std::shared_ptr<InfecProfile> infprofptr);
+              DataWide *dataptr,
+              Parameter *paramptr,
+              InfecProfile *infprofptr);
     ~Augmented();
 
     /// Assign augmented variables to all individuals.
@@ -97,10 +97,10 @@ struct Augmented
     bool is_any_draw() const noexcept { return !smpl_individuals.empty(); }
 
 private:
-    std::shared_ptr<DataWide> pDataWide_;         /// pointer to external DataWide struct
-    std::shared_ptr<Parameter> pParameter_;       /// pointer to external Parameter struct
-    std::shared_ptr<InfecProfile> pInfecProfile_; /// pointer to external InfecProfile struct
-    hsp::str_table deftable_ = {};                /// store definition table
+    DataWide *pDataWide_;          /// pointer to external DataWide struct
+    Parameter *pParameter_;        /// pointer to external Parameter struct
+    InfecProfile *pInfecProfile_;  /// pointer to external InfecProfile struct
+    hsp::str_table deftable_ = {}; /// store definition table
 
     /// Auxiliary block for status-specific models.
     struct ModelBlock_

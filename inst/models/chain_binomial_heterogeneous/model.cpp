@@ -34,8 +34,7 @@ HOUSEPI_MODEL_CONSTRUCTOR()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Initialize the Lookup Table.
-void Model::init_model_for_inference()
+void Model::init_model_for_evaluation()
 {
 	// unknown status are not modeled
 	assert_no_missing_status();
@@ -44,13 +43,25 @@ void Model::init_model_for_inference()
 	bax::init_escape_patterns_lookuptable(get_max_hh_cases());
 }
 
+void Model::init_house_for_evaluation(Household &house)
+{
+	auto &order = house.cache_size_t_vector(HHsize_tKey::order);
+	order.clear();
+	order.reserve(house.size());
+	order.insert(order.end(), house.infected_hhindexes().begin(), house.infected_hhindexes().end());
+	order.insert(order.end(), house.susceptible_hhindexes().begin(), house.susceptible_hhindexes().end());
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////  Model : compute single house loglike  //////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Compute the log-likelihood for a single household.
+double Model::community_risk() const { return par(ParamKey::alpha); }
+
+double Model::person_to_person_risk() const { return par(ParamKey::beta); }
+
 double Model::compute_house_obs_log_lik(Household &house)
 {
 	// fill matrix with escape probabilities
@@ -63,25 +74,11 @@ double Model::compute_house_obs_log_lik(Household &house)
 									  house.cache_double_matrix(HHmatrixKey::p2p_escape_rate));
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  Model : fill house escape matrix  //////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// The person-to-person escape probabilities stored inside a matrix.
-/// Important: it must be re-ordered to have seropositives first.
 void Model::fill_house_escape_matrix(Household &house) const
 {
+	const auto &order = house.cache_size_t_vector(HHsize_tKey::order);
 	const double commu_rate = community_risk();
 	const double p2p_rate = person_to_person_risk();
-
-	/// ordered members group rates : 1) infectious, 2) susceptibles
-	/// NOTE: this works only if size = n_infected_status + n_susceptible_status
-	/// UPDATE: this is not changing throughout inference w\o status change!
-	auto &order = house.cache_size_t_vector(HHsize_tKey::order);
-	order.clear();
-	order.reserve(house.size());
-	order.insert(order.end(), house.infected_hhindexes().begin(), house.infected_hhindexes().end());
-	order.insert(order.end(), house.susceptible_hhindexes().begin(), house.susceptible_hhindexes().end());
 
 	// assign values to escape matrix
 	auto &commu_mtx = house.cache_double_vector(HHdoubleKey::commu_escape_rate);
@@ -90,7 +87,7 @@ void Model::fill_house_escape_matrix(Household &house) const
 	// fill matrix according to order
 	for (size_t i = 0; i < house.size(); ++i)
 	{
-		const auto &member_i = house.get_member(order[i]);
+		const Individual &member_i = house.get_member(order[i]);
 		double inf_i = member_i.group_rate(GroupRateKey::infectivity);
 		double sus_i = member_i.group_rate(GroupRateKey::susceptibility);
 
@@ -100,7 +97,7 @@ void Model::fill_house_escape_matrix(Household &house) const
 		// person-to-person
 		for (size_t k = 0; k < i; ++k)
 		{
-			const auto &member_k = house.get_member(order[k]);
+			const Individual &member_k = house.get_member(order[k]);
 			// [i] : infector -> [r] : infectee
 			p2p_mtx[i][k] = inf_i * p2p_rate * member_k.group_rate(GroupRateKey::susceptibility);
 			// [r] : infector -> [i] : infectee
@@ -110,22 +107,11 @@ void Model::fill_house_escape_matrix(Household &house) const
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////// Model : transmission rate  ///////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Risk of infection from the community.
-double Model::community_risk() const { return par(ParamKey::alpha); }
-
-/// Risk of infection from another household member.
-double Model::person_to_person_risk() const { return par(ParamKey::beta); }
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////  Model : simulate single house  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Simulate the infection within a household.
 void Model::simulate_single_house(Household &house)
 {
 	const double commu_rate = community_risk();
@@ -137,7 +123,7 @@ void Model::simulate_single_house(Household &house)
 
 	std::vector<Individual *> new_gen_set = {};
 
-	for (auto &member : house)
+	for (Individual &member : house)
 		if (uniform() < exp(-commu_rate * member.group_rate(GroupRateKey::community)))
 			house.set_susceptible_status(member);
 		else
@@ -157,12 +143,12 @@ void Model::simulate_single_house(Household &house)
 		std::swap(old_gen_set, new_gen_set);
 		new_gen_set.clear();
 
-		for (auto &member_i : house.susceptible())
+		for (Individual &member_i : house.susceptible())
 		{
 			double sus_i = member_i.group_rate(GroupRateKey::susceptibility);
 
 			double r = 0.;
-			for (auto *member_k : old_gen_set)
+			for (Individual *member_k : old_gen_set)
 				r += member_k->group_rate(GroupRateKey::infectivity);
 
 			if (uniform() >= exp(-r * p2p_rate * sus_i))

@@ -26,7 +26,7 @@ EMPTY_HOUSEPI_KEYS(ParamKey)
 HOUSEPI_MODEL_CONSTRUCTOR()
 
 /// Raise error when "blank" model.
-void Model::init_model_for_inference() { hsp::msg::warning(
+void Model::init_model_for_evaluation() { hsp::msg::warning(
 	"Computed log-likelihood with 'blank' model."); }
 
 /// Raise error when "blank" model.

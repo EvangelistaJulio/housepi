@@ -47,7 +47,7 @@ public:
 	virtual ~MCMC();
 
 	/// Virtual method for user initialization of advanced setup.
-	virtual void init_advanced_setup() {}
+	virtual void init_advanced_setup() { }
 
 	/// Uniform distributed in [0, 1) rand number generator.
 	double uniform();
@@ -57,6 +57,7 @@ public:
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
 	size_t get_max_hh_cases() const noexcept;
+	/// Throw an exception if at least a member as missing status.
 	void assert_no_missing_status() const;
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
@@ -100,7 +101,10 @@ public:
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
 	/// Inference specific initialization (e. g. cache variables, lookup tables, etc).
-	virtual void init_model_for_inference() {}
+	virtual void init_model_for_evaluation() {}
+	/// Inference specific initialization for each household. 
+	/// NOTE: it's run right after 'init_model_for_evaluation'.
+	virtual void init_house_for_evaluation(Household &) {}
 	void run_inference();
 
 	/////////////////////////////////////////////////////////////////////////////////////////////

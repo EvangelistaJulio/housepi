@@ -27,13 +27,17 @@ class Model final : public MCMC
 public:
 	Model();
 
-	// model dependent methods
+	/// Initialize the LookUp Tables.
+	void init_model_for_evaluation() override final;
+
+	/// Compute the log-likelihood within household.
+	double compute_house_obs_log_lik(Household &house) override final;
+	/// Risk of infection from the community.
 	double community_risk() const;
+	/// Risk of infection from another household member.
 	double person_to_person_risk() const;
 
-	// override general MCMC methods
-	void init_model_for_inference() override final;
-	double compute_house_obs_log_lik(Household &house) override final;
+	/// Simulate the infection within a household.
 	void simulate_single_house(Household &house) override final;
 };
 

@@ -429,7 +429,6 @@ HousepiGenerator <- R6::R6Class(
         m <- get_rcpp_module_from_dll("housepi_model_core", private$.dll)
       }
       y <- m$HousepiRcppModel$new()
-      y$init_advanced_setup()
       y
     },
 

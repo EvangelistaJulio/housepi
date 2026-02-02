@@ -33,9 +33,9 @@ class Individual;
 /// Implementation of Parameters.
 struct Parameter
 {
-    std::shared_ptr<hsp::key::Registry> pRegistry; /// pointer to registry
+    std::unique_ptr<hsp::key::Registry> pRegistry; /// pointer to registry
 
-    /// NOTE: 
+    /// NOTE:
     /// list_const + list_sample = all parameters in param_vec_
     /// list_sample_standard + list_sample_cached = list_sample
     /// list_adaptable_sample_standard + list_non_adapt_sample_standard = list_sample_standard
@@ -109,9 +109,9 @@ struct Parameter
     /// UPDATE: these are just temporary fixes.
 
     /// Links used just by read_attribute.
-    void link_to_data_wide(std::shared_ptr<hsp::key::Registry> pRegistry) { pDataWideRegistry_ = pRegistry; }
-    void link_to_group_rate(std::shared_ptr<hsp::key::Registry> pRegistry) { pGroupRateRegistry_ = pRegistry; }
-    void link_to_augm(std::shared_ptr<hsp::key::Registry> pRegistry) { pAugmRegistry_ = pRegistry; }
+    void link_to_data_wide(const hsp::key::Registry *pRegistry) { pDataWideRegistry_ = pRegistry; }
+    void link_to_group_rate(const hsp::key::Registry *pRegistry) { pGroupRateRegistry_ = pRegistry; }
+    void link_to_augm(const hsp::key::Registry *pRegistry) { pAugmRegistry_ = pRegistry; }
 
     /// Auxiliary method to read a definition as a single attribute.
     const Attribute &read_attribute(const hsp::parse::Entry &node, const Individual *member_ptr = nullptr) const;
@@ -141,7 +141,7 @@ private:
     void helper_build_to_sample_(const hsp::str_table &deftable, size_t k);
 
     /// UPDATE: waiting for an updated read_attribute framework...
-    std::shared_ptr<hsp::key::Registry> pDataWideRegistry_ = nullptr;  /// pointer to external registry
-    std::shared_ptr<hsp::key::Registry> pGroupRateRegistry_ = nullptr; /// pointer to external registry
-    std::shared_ptr<hsp::key::Registry> pAugmRegistry_ = nullptr;      /// pointer to external registry
+    const hsp::key::Registry *pDataWideRegistry_;  /// pointer to external registry
+    const hsp::key::Registry *pGroupRateRegistry_; /// pointer to external registry
+    const hsp::key::Registry *pAugmRegistry_;      /// pointer to external registry
 };

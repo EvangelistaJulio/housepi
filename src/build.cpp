@@ -59,7 +59,7 @@ std::string AugmentedContainer::str_augm_summary() const
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 Parameter::Parameter(const std::vector<std::string> &keys)
-    : pRegistry(std::make_shared<hsp::key::Registry>(keys)) {}
+    : pRegistry(std::make_unique<hsp::key::Registry>(keys)) {}
 
 void Parameter::build(const hsp::str_table &input)
 {
@@ -395,9 +395,9 @@ const Attribute &Parameter::read_numeric(const hsp::parse::Entry &node, const In
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 GroupRate::GroupRate(const std::vector<std::string> &keys,
-                     std::shared_ptr<DataWide> dataptr,
-                     std::shared_ptr<Parameter> paramptr)
-    : pRegistry(std::make_shared<hsp::key::Registry>(keys)),
+                     DataWide *dataptr,
+                     const Parameter *paramptr)
+    : pRegistry(std::make_unique<hsp::key::Registry>(keys)),
       pDataWide_(dataptr),
       pParameter_(paramptr) {}
 GroupRate::~GroupRate() = default;
@@ -511,7 +511,7 @@ void GroupRate::helper_init_all_rates_(Individual &member, const hsp::str_table 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Infectivity profile constructor.
-InfecProfile::InfecProfile(std::shared_ptr<Parameter> paramptr)
+InfecProfile::InfecProfile(Parameter *paramptr)
     : pParameter_(paramptr) {}
 /// Infectivity profile deconstructor.
 InfecProfile::~InfecProfile() = default;
@@ -521,7 +521,7 @@ void InfecProfile::init_template(hsp::str_table input)
 {
     // if not previous build, proceed with template
     // if no template, assume no need for an infectivity profile
-    if (generic_profile != nullptr ||
+    if (generic != nullptr ||
         !augm_profile_definitions_.empty() ||
         input.empty())
         return;
@@ -572,10 +572,10 @@ void InfecProfile::init_lookup_()
     inst_ = &InfecProfile::do_inst_lookup_;
     cumul_ = &InfecProfile::do_cumul_lookup_;
 
-    if (generic_profile->get_upper().is_empty())
+    if (generic->get_upper().is_empty())
         size_lut_ = hsp::infprof::LOOKUP_SIZE;
     else
-        size_lut_ = static_cast<size_t>(generic_profile->upper()) + 1;
+        size_lut_ = static_cast<size_t>(generic->upper()) + 1;
 
     lookup_inst_.resize(size_lut_);
     lookup_cumul_.resize(size_lut_);
@@ -670,27 +670,27 @@ void InfecProfile::build_generic_profile_(const hsp::str_table &input)
     inst_ = &InfecProfile::do_inst_default_;
     cumul_ = &InfecProfile::do_cumul_default_;
 
-    generic_profile = helper_build_profile_({{"func", {input.at("func")[0]}},
-                                             {"discr", {input.count("discr") ? input.at("discr")[0] : "false"}}});
+    generic = helper_build_profile_({{"func", {input.at("func")[0]}},
+                                     {"discr", {input.count("discr") ? input.at("discr")[0] : "false"}}});
 
     // range minimum
     if (input.count(hsp::params::MIN))
-        generic_profile->init_attr(hsp::params::MIN, pParameter_->read_attribute(input.at(hsp::params::MIN)[0]));
+        generic->init_attr(hsp::params::MIN, pParameter_->read_attribute(input.at(hsp::params::MIN)[0]));
     else
     {
-        const std::string default_min_expr = generic_profile->is_discrete() ? "1|N" : "0|N";
-        generic_profile->init_attr(hsp::params::MIN, pParameter_->read_attribute(default_min_expr));
+        const std::string default_min_expr = generic->is_discrete() ? "1|N" : "0|N";
+        generic->init_attr(hsp::params::MIN, pParameter_->read_attribute(default_min_expr));
     }
 
     // range maximum
     if (input.count(hsp::params::MAX))
-        generic_profile->init_attr(hsp::params::MAX, pParameter_->read_attribute(input.at(hsp::params::MAX)[0]));
+        generic->init_attr(hsp::params::MAX, pParameter_->read_attribute(input.at(hsp::params::MAX)[0]));
     // range truncation
-    generic_profile->init_truncation();
+    generic->init_truncation();
 
     // if discrete and generic, initializes lookup table
     clear_lookup_();
-    if (generic_profile->is_discrete())
+    if (generic->is_discrete())
         init_lookup_();
 }
 
@@ -702,7 +702,7 @@ void InfecProfile::build_augmented_profile_(const hsp::str_table &input)
         helper_build_profile_({{"func", {hsp::parse::Definition(input.at("func")[r]).root.func}},
                                {"discr", {input.at("discr")[r]}}});
     // drop generic definition
-    generic_profile = nullptr;
+    generic = nullptr;
     clear_lookup_();
 
     inst_ = &InfecProfile::do_inst_augm_;
@@ -755,40 +755,28 @@ std::unique_ptr<Distribution> InfecProfile::helper_build_profile_(const hsp::str
 ///////////////////////////  MCMC : Impl : InfecProfile : getter methods  ///////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Default method for instantaneous infectivity profile.
-double InfecProfile::do_inst_default_(const Individual *, double t)
-{
-    return generic_profile->pdf(t);
-}
-/// Lookup method for discrete instantaneous infectivity profile.
+double InfecProfile::do_inst_default_(const Individual *, double t) { return generic->pdf(t); }
 double InfecProfile::do_inst_lookup_(const Individual *, double t)
 {
-    if (generic_profile->is_valid(t) && t < static_cast<double>(size_lut_))
+    if (generic->is_valid(t) && t < static_cast<double>(size_lut_))
         return lookup_inst_.at(static_cast<size_t>(t));
     return 0;
 }
-/// Augmented method for instantaneous infectivity profile.
 double InfecProfile::do_inst_augm_(const Individual *member, double t)
 {
-    return member->get_augm_variable(augm_infecprof_key).get_function()->pdf(t);
+    return member->get_augm_variable(augm_key).get_function()->pdf(t);
 }
 
-/// Default method for cumulative infectivity profile.
-double InfecProfile::do_cumul_default_(const Individual *, double t)
-{
-    return generic_profile->cdf(t);
-}
-/// Lookup method for discrete cumulative infectivity profile.
+double InfecProfile::do_cumul_default_(const Individual *, double t) { return generic->cdf(t); }
 double InfecProfile::do_cumul_lookup_(const Individual *, double t)
 {
-    if (generic_profile->is_below(t))
+    if (generic->is_below(t))
         return 0.;
-    if (t >= static_cast<double>(size_lut_) || generic_profile->is_above(t))
+    if (t >= static_cast<double>(size_lut_) || generic->is_above(t))
         return lookup_cumul_.at(size_lut_ - 1);
     return lookup_cumul_.at(static_cast<size_t>(t));
 }
-/// Augmented method for cumulative infectivity profile.
 double InfecProfile::do_cumul_augm_(const Individual *member, double t)
 {
-    return member->get_augm_variable(augm_infecprof_key).get_function()->cdf(t);
+    return member->get_augm_variable(augm_key).get_function()->cdf(t);
 }

@@ -44,26 +44,28 @@ MCMCImpl::MCMCImpl(
     const std::vector<std::string> &group_rate_keys,
     const std::vector<std::string> &augm_keys,
     std::function<void()> func_init_inference,
+    std::function<void(Household &)> func_init_house_for_infer,
     std::function<double(Household &)> func_household_log_lik,
     std::function<void(Household &, Individual &)> func_update_cache)
     : atomic_error(std::make_unique<hsp::atomic::Error>()),
       // modules
-      setup(std::make_shared<Setup>()),
-      data_wide(std::make_shared<DataWide>(data_wide_keys, hh_size_t_keys, hh_double_keys, hh_matrix_keys)),
-      data_long(std::make_shared<DataLong>(data_long_keys, data_wide)),
-      param(std::make_shared<Parameter>(param_keys)),
-      group_rate(std::make_shared<GroupRate>(group_rate_keys, data_wide, param)),
-      infec_profile(std::make_shared<InfecProfile>(param)),
-      augm(std::make_shared<Augmented>(augm_keys, data_wide, param, infec_profile)),
+      setup(std::make_unique<Setup>()),
+      data_wide(std::make_unique<DataWide>(data_wide_keys, hh_size_t_keys, hh_double_keys, hh_matrix_keys)),
+      data_long(std::make_unique<DataLong>(data_long_keys, data_wide.get())),
+      param(std::make_unique<Parameter>(param_keys)),
+      group_rate(std::make_unique<GroupRate>(group_rate_keys, data_wide.get(), param.get())),
+      infec_profile(std::make_unique<InfecProfile>(param.get())),
+      augm(std::make_unique<Augmented>(augm_keys, data_wide.get(), param.get(), infec_profile.get())),
       // callbacks
       callback_init_inference_(std::move(func_init_inference)),
+      callback_init_house_for_inference_(std::move(func_init_house_for_infer)),
       callback_house_log_lik_(std::move(func_household_log_lik)),
       callback_update_cache_(std::move(func_update_cache))
 {
     /// UPDATE: waiting for refactoring of read_attribute
-    param->link_to_data_wide(data_wide->pRegistry);
-    param->link_to_group_rate(group_rate->pRegistry);
-    param->link_to_augm(augm->pRegistry);
+    param->link_to_data_wide(data_wide->pRegistry.get());
+    param->link_to_group_rate(group_rate->pRegistry.get());
+    param->link_to_augm(augm->pRegistry.get());
 }
 MCMCImpl::~MCMCImpl() = default;
 
@@ -73,14 +75,25 @@ MCMCImpl::~MCMCImpl() = default;
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+void MCMCImpl::user_init_for_evaluate()
+{
+    callback_init_inference_();
+    // init cache dependencies for all households and individuals
+    for (size_t R = 0; R < data_wide->head_class_house_indexes.size(); ++R)
+    {
+        Household &house = data_wide->restricted(R);
+        data_wide->init_house_cache(house);
+        callback_init_house_for_inference_(house);
+    }
+}
+
 /// Assert setup definitions are ok to proceed with log-likelihood evaluation.
 void MCMCImpl::init_evaluate()
 {
     setup->n_chains = 0;                  // use 0 chains as a state variable
     data_wide->assert_non_empty();        // check if data is empty
     data_wide->warn_all_missing_status(); // warn if all missing status
-    callback_init_inference_();           // user initialization of model for inference
-    data_wide->init_cache();              // cache user household variables
+    user_init_for_evaluate();             // user initialization of model for inference
     augm->init();                         // initialize individual augmented relations
     param->user_reset(setup->prng());     // initialize non constant parameters
     augm->user_reset(setup->prng());      // initialize non constant augmented
@@ -494,8 +507,7 @@ std::vector<std::vector<double>> MCMCImpl::power_posteriors(std::string_view sch
     setup->n_rungs = n_rungs;           // NOTE: set before progress bar
     double buffer_inv_T = setup->inv_T; // buffer user setup
     init_monte_carlo();                 // initialize mcmc sampling
-    callback_init_inference_();         // user initialization of model for inference
-    data_wide->init_cache();            // cache user household variables
+    user_init_for_evaluate();           // user initialization of model for inference
     augm->init();                       // initialize augmented variables
     setup->prog_declare();              // declare current progress bar
     setup->prog_open_for_power_post();  // print progress bar
@@ -626,7 +638,9 @@ MCMC::MCMC(
           data_wide_keys, hh_size_t_keys, hh_double_keys, hh_matrix_keys, data_long_keys,
           param_keys, group_rate_keys, augm_keys,
           [this]()
-          { this->init_model_for_inference(); },
+          { this->init_model_for_evaluation(); },
+          [this](Household &h)
+          { this->init_house_for_evaluation(h); },
           [this](Household &h) -> double
           { return this->compute_house_obs_log_lik(h); },
           [this](Household &h, Individual &i)
@@ -753,8 +767,7 @@ void MCMC::run_inference()
     try
     {
         pImpl_->init_monte_carlo();               // initialize mcmc sampling
-        init_model_for_inference();               // user initialization model
-        pImpl_->data_wide->init_cache();          // cache user household variables
+        pImpl_->user_init_for_evaluate();         // user initialization model
         pImpl_->augm->init();                     // initialize augmented variables
         pImpl_->setup->prog_declare();            // declare current progress bar
         pImpl_->setup->prog_open_for_inference(); // open progress bar

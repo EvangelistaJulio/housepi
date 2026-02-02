@@ -31,11 +31,11 @@ class Individual;
 struct GroupRate
 {
 public:
-    std::shared_ptr<hsp::key::Registry> pRegistry; /// pointer to registry
+    std::unique_ptr<hsp::key::Registry> pRegistry; /// pointer to registry
 
     GroupRate(const std::vector<std::string> &keys,
-              std::shared_ptr<DataWide> dataptr,
-              std::shared_ptr<Parameter> paramptr);
+              DataWide *dataptr,
+              const Parameter *paramptr);
     ~GroupRate();
 
     /// Update model report and set group rates associate to new individual.
@@ -43,8 +43,8 @@ public:
     void build(const hsp::str_table &deftable);
 
 private:
-    std::shared_ptr<DataWide> pDataWide_;   /// pointer to external DataWide struct
-    std::shared_ptr<Parameter> pParameter_; /// pointer to external Parameter struct
+    DataWide *pDataWide_;   /// pointer to external DataWide struct
+    const Parameter *pParameter_; /// pointer to external Parameter struct
 
     /// Verify that group rates definitions are correct.
     std::vector<std::string> helper_assert_definitions_(const hsp::str_table &input);

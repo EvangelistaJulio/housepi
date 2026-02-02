@@ -443,7 +443,6 @@ int main(int argc, char *argv[])
     //////////////////////////////
 
     auto user_model = std::make_unique<Model>();        // 0) create the user model object
-    user_model->init_advanced_setup();                  // ... and initialize advanced setup
     user_model->read_data_wide(data_wide_file);         // 1) Load Data Wide
     user_model->read_data_long(data_long_file);         // ... and Data Long
     user_model->read_setup(setup_file);                 // 2) Load Setup

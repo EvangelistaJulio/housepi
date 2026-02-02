@@ -36,14 +36,14 @@ struct InfecProfile
     friend struct Augmented;
 
 public:
-    std::shared_ptr<Distribution> generic_profile = nullptr;
-    size_t augm_infecprof_key; /// augmented profile key
+    std::unique_ptr<Distribution> generic = nullptr;
+    size_t augm_key; /// augmented profile key
 
     ///////////////////////////
     //////  CONSTRUCTOR  //////
     ///////////////////////////
 
-    InfecProfile(std::shared_ptr<Parameter> paramptr);
+    InfecProfile(Parameter *paramptr);
     ~InfecProfile();
 
     //////////////////////
@@ -72,7 +72,7 @@ public:
     bool is_discrete_requested() const noexcept { return is_discrete_requested_; }
 
 private:
-    std::shared_ptr<Parameter> pParameter_;        /// pointer to external Parameter struct
+    Parameter *pParameter_;                        /// pointer to external Parameter struct
     bool is_discrete_requested_ = false;           /// wheter is requested as discrete
     size_t size_lut_ = 0;                          /// size of the LookUp Table table
     std::vector<double> lookup_inst_ = {};         /// instantaneous LookUp Table
@@ -88,14 +88,20 @@ private:
     void build_augmented_profile_(const hsp::str_table &input);
     std::unique_ptr<Distribution> helper_build_profile_(const hsp::str_table &input);
 
-    //===== Functional methods for getter methods =====//
+    /// Functional method
     double (InfecProfile::*inst_)(const Individual *, double) = &InfecProfile::do_inst_default_;
+    /// Default method for instantaneous infectivity profile.
     double do_inst_default_(const Individual *, double t);
+    /// Lookup method for discrete instantaneous infectivity profile.
     double do_inst_lookup_(const Individual *, double t);
+    /// Augmented method for instantaneous infectivity profile.
     double do_inst_augm_(const Individual *i, double t);
 
     double (InfecProfile::*cumul_)(const Individual *, double) = &InfecProfile::do_cumul_default_;
+    /// Default method for cumulative infectivity profile.
     double do_cumul_default_(const Individual *, double t);
+    /// Lookup method for discrete cumulative infectivity profile.
     double do_cumul_lookup_(const Individual *, double t);
+    /// Augmented method for cumulative infectivity profile.
     double do_cumul_augm_(const Individual *i, double t);
 };
