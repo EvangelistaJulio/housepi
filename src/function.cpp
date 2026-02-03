@@ -455,66 +455,50 @@ void Function::init_range_helper_(bool is_min_open, bool is_max_open)
     {
         is_below_ = &Function::do_is_below_never_;
         is_above_ = &Function::do_is_above_never_;
-        is_valid_ = &Function::do_is_valid_always_;
     }
     else if (!lower_arg_.is_empty() && upper_arg_.is_empty()) // Lower Bound
     {
         is_above_ = &Function::do_is_above_never_;
         if (is_min_open)
-        {
             is_below_ = &Function::do_is_below_open_min_;
-            is_valid_ = &Function::do_is_valid_open_min_;
-        }
         else
-        {
             is_below_ = &Function::do_is_below_close_min_;
-            is_valid_ = &Function::do_is_valid_close_min_;
-        }
     }
     else if (lower_arg_.is_empty() && !upper_arg_.is_empty()) // Upper Bound
     {
         is_below_ = &Function::do_is_below_never_;
         if (is_max_open)
-        {
             is_above_ = &Function::do_is_above_open_max_;
-            is_valid_ = &Function::do_is_valid_open_max_;
-        }
         else
-        {
             is_above_ = &Function::do_is_above_close_max_;
-            is_valid_ = &Function::do_is_valid_close_max_;
-        }
     }
     else // Within an Interval
     {
+        bool wrong_open = false, wrong_close = false; // check for consistency
+
         if (is_min_open && is_max_open)
         {
             is_below_ = &Function::do_is_below_open_min_;
             is_above_ = &Function::do_is_above_open_max_;
-            is_valid_ = &Function::do_is_valid_both_open_;
+            wrong_close = lower_arg_.get() > upper_arg_.get();
         }
         else if (is_min_open && !is_max_open)
         {
             is_below_ = &Function::do_is_below_open_min_;
             is_above_ = &Function::do_is_above_close_max_;
-            is_valid_ = &Function::do_is_valid_open_min_close_max_;
         }
         else if (!is_min_open && is_max_open)
         {
             is_below_ = &Function::do_is_below_close_min_;
             is_above_ = &Function::do_is_above_open_max_;
-            is_valid_ = &Function::do_is_valid_close_min_open_max_;
         }
         else
         {
             is_below_ = &Function::do_is_below_close_min_;
             is_above_ = &Function::do_is_above_close_max_;
-            is_valid_ = &Function::do_is_valid_both_close_;
+            wrong_open = lower_arg_.get() >= upper_arg_.get();
         }
 
-        // check for consistency
-        bool wrong_open = (is_valid_ != &Function::do_is_valid_both_close_) && (lower_arg_.get() >= upper_arg_.get());
-        bool wrong_close = (is_valid_ == &Function::do_is_valid_both_close_) && (lower_arg_.get() > upper_arg_.get());
         if (wrong_open || wrong_close)
             throw std::invalid_argument(
                 "Generated an inconsistent range " + str_range() + " for " + err_name() + ".");
@@ -527,32 +511,23 @@ std::string Function::str_range() const
     const std::string str_min = hsp::str::format(lower_arg_.get());
     const std::string str_max = hsp::str::format(upper_arg_.get());
 
-    if (is_valid_ == &Function::do_is_valid_always_)
-        return "(-Inf, Inf)";
+    std::string output;
 
-    if (is_valid_ == &Function::do_is_valid_open_min_)
-        return "(" + str_min + ", Inf)";
+    if (is_below_ == &Function::do_is_below_never_)
+        output = "(-Inf,";
+    else if (is_below_ == &Function::do_is_below_open_min_)
+        output = "(" + str_min;
+    else 
+        output = "[" + str_min;
 
-    if (is_valid_ == &Function::do_is_valid_close_min_)
-        return "[" + str_min + ", Inf)";
+    if (is_above_ == &Function::do_is_above_never_)
+        output += " Inf)";
+    else if (is_above_ == &Function::do_is_above_open_max_)
+        output += ", " + str_max + ")";
+    else 
+        output += ", " + str_max + "]";
 
-    if (is_valid_ == &Function::do_is_valid_open_max_)
-        return "(-Inf, " + str_max + ")";
-
-    if (is_valid_ == &Function::do_is_valid_close_max_)
-        return "(-Inf, " + str_max + "]";
-
-    if (is_valid_ == &Function::do_is_valid_both_open_)
-        return "(" + str_min + ", " + str_max + ")";
-
-    if (is_valid_ == &Function::do_is_valid_open_min_close_max_)
-        return "(" + str_min + ", " + str_max + "]";
-
-    if (is_valid_ == &Function::do_is_valid_close_min_open_max_)
-        return "[" + str_min + ", " + str_max + ")";
-
-    // (is_valid_ == &Function::do_is_valid_both_close_)
-    return "[" + str_min + ", " + str_max + "]";
+    return output;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -579,7 +554,6 @@ void Function::init_attr(std::string_view key, const Attribute &attr)
                 "Impossible to associate " + attr.err_name() + " as argument '" + std::string(key) + "' of " + err_name() + ".\n" +
                 "Argument 'x' of " + attr.err_name() + " cannot be missing.");
     }
-
 
     // distinguish between range keys and standard keys
     if (key == hsp::params::MIN || key == hsp::params::MAX)

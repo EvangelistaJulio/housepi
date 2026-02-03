@@ -10,6 +10,8 @@
 #include <string>
 #include <vector>
 
+#include "tools/loglike.h"
+
 #include "variable.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -22,6 +24,8 @@
 class AugmentedContainer
 {
 	friend struct Augmented;
+	friend struct DataWide;
+	friend class MCMCImpl;
 
 public:
 	virtual ~AugmentedContainer() = default;
@@ -29,20 +33,15 @@ public:
 	/// Set numeric value of augmented variable. If not allowed, raise exception.
 	void set_augm_value(size_t a, double x) { augm_vec_[a].set(x); }
 
-	virtual std::string err_name() const = 0;
 	double aug(size_t a) const { return augm_vec_[a].get(); }
 	Variable &get_augm_variable(size_t a) { return augm_vec_[a]; }
 	const Variable &get_augm_variable(size_t a) const { return augm_vec_[a]; }
 	std::string str_augm_summary() const;
 
-	double get_augm_model_log_lik() const noexcept { return augm_log_lik_; }
-	void recover_augm_model_log_lik() noexcept { augm_log_lik_ = buffer_; };
-
 protected:
 	size_t augm_idx_status_;			  /// index for augmented model
 	std::vector<Variable> augm_vec_ = {}; /// dictionary of augmented definitions
-	double augm_log_lik_ = 0;			  /// current augmented model log-likelihood
-	double buffer_ = 0;					  /// buffer augmented model log-likelihood
+	hsp::LogLike augm_log_lik_; /// augmented model log-likelihood
 
 	AugmentedContainer() = default;
 };

@@ -13,6 +13,7 @@
 #include <string_view>
 #include <vector>
 
+#include "tools/loglike.h"
 #include "tools/nan.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -21,22 +22,10 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct TotalLogLike
+struct TotalLogLike : public hsp::LogLike
 {
 public:
     std::vector<double> smpl_values = {}; /// vector of total log-likelihood samples
-
-    void recover() noexcept { value_ = buffer_; }
-    double logratio() const noexcept { return value_ - buffer_; }
-
-    /// Set new total log-likelihood value and buffer old value.
-    void set(double new_ll) noexcept
-    {
-        buffer_ = value_;
-        value_ = new_ll;
-    }
-    /// Increment total log-likelohood by a delta, buffer old value.
-    void increment(double delta_ll) noexcept { set(value_ + delta_ll); }
 
     void init_draws(unsigned long sample_size)
     {
@@ -48,8 +37,6 @@ public:
     unsigned long count() const noexcept { return count_; }
 
 private:
-    double value_ = 0.;       /// current total log-likelihood
-    double buffer_ = 0.;      /// buffer total log-likelihood
     unsigned long count_ = 0; /// count of store samples
 };
 
@@ -94,9 +81,10 @@ public:
 
     MCMCImpl(
         const std::vector<std::string> &data_wide_keys,
-        const std::vector<std::string> &hh_size_t_keys,
-        const std::vector<std::string> &hh_double_keys,
-        const std::vector<std::string> &hh_matrix_keys,
+        const std::vector<std::string> &hh_size_keys,
+        const std::vector<std::string> &hh_size_vec_keys,
+        const std::vector<std::string> &hh_double_vec_keys,
+        const std::vector<std::string> &hh_double_mtx_keys,
         const std::vector<std::string> &data_long_keys,
         const std::vector<std::string> &param_keys,
         const std::vector<std::string> &group_rate_keys,

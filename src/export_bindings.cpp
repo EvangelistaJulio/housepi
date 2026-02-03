@@ -709,13 +709,14 @@ namespace
 
         for (const Individual &member : house)
         {
-            df_id[member] = member.id();
-            df_house_id[member] = house.house_id();
-            df_status[member] = member.status();
+            const size_t i = member.hhindex();
+            df_id[i] = member.id();
+            df_house_id[i] = house.house_id();
+            df_status[i] = member.status();
 
             const std::vector<double> &data_vec = member.get_data_wide_vec();
             for (size_t d = 0; d < headers.size(); ++d)
-                df_double[d][member] = hsp_to_rcpp(data_vec[d]);
+                df_double[d][i] = hsp_to_rcpp(data_vec[d]);
         }
 
         auto output = DataFrame::create(_["id"] = std::move(df_id),
@@ -790,10 +791,11 @@ namespace
 
         for (const Individual &member : house)
         {
-            df_id[member] = member.id();
+            const size_t i = member.hhindex();
+            df_id[i] = member.id();
 
             for (size_t c = 0; c < headers.size(); ++c)
-                df_double[c][member] = hsp_to_rcpp(member.get_group_rate_attribute(c).get());
+                df_double[c][i] = hsp_to_rcpp(member.get_group_rate_attribute(c).get());
         }
 
         auto output = DataFrame::create(_["id"] = df_id);
@@ -821,28 +823,28 @@ namespace
         NumericVector infprof_min(n_rows, NA_REAL);
         NumericVector infprof_max(n_rows, NA_REAL);
 
-        for (const Individual &member : house)
-            df_id[member] = member.id();
+        for (size_t i = 0; i < house.size(); ++i)
+            df_id[i] = house.member(i).id();
 
-        for (const Individual &member : house.infected())
+        for (size_t i : house.infected_hhindexes())
             if (infec_profile->is_augmented())
             {
-                const auto &f = member.get_augm_variable(infec_profile->augm_key).get_function();
+                const auto &f = house.member(i).get_augm_variable(infec_profile->augm_key).get_function();
 
-                infprof_name[member] = std::string(f->name());
-                infprof_discr[member] = f->is_discrete();
-                infprof_args[member] = rcpp_export_args(f.get());
-                infprof_min[member] = f->lower();
-                infprof_max[member] = f->upper();
+                infprof_name[i] = std::string(f->name());
+                infprof_discr[i] = f->is_discrete();
+                infprof_args[i] = rcpp_export_args(f.get());
+                infprof_min[i] = f->lower();
+                infprof_max[i] = f->upper();
             }
             else
             {
                 List generic = helper_export_infec_profile(infec_profile);
-                infprof_name[member] = as<std::string>(generic["func"]);
-                infprof_discr[member] = as<bool>(generic["discr"]);
-                infprof_args[member] = generic["func_args"];
-                infprof_min[member] = as<double>(generic["min"]);
-                infprof_max[member] = as<double>(generic["max"]);
+                infprof_name[i] = as<std::string>(generic["func"]);
+                infprof_discr[i] = as<bool>(generic["discr"]);
+                infprof_args[i] = generic["func_args"];
+                infprof_min[i] = as<double>(generic["min"]);
+                infprof_max[i] = as<double>(generic["max"]);
             }
 
         return List::create(_["id"] = df_id,
@@ -870,14 +872,13 @@ namespace
         for (size_t c = 0; c < n_cols; ++c)
             df_double[c] = NumericVector(n_rows);
 
-        for (const Individual &member : house)
-            df_id[member] = member.id();
-
-        for (const Individual &member : house)
+        for (size_t i = 0; i < house.size(); ++i)
         {
-            size_t i = 0;
+            const Individual &member_i = house.member(i);
+            df_id[i] = member_i.id();
+            size_t c = 0;
             for (size_t a : augm->list_export)
-                df_double[i++][member] = hsp_to_rcpp(member.get_augm_variable(a).get());
+                df_double[c++][i] = hsp_to_rcpp(member_i.get_augm_variable(a).get());
         }
 
         auto output = DataFrame::create(_["id"] = df_id);

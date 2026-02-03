@@ -110,7 +110,7 @@ public:
 	/// Individidaul unique identifier as in data.
 	const std::string &id() const noexcept { return id_; }
 	size_t hhindex() const noexcept { return hhindex_; }
-	std::string err_name() const override final { return "individual '" + id_ + "'"; }
+	std::string err_name() const { return "individual '" + id_ + "'"; }
 
 private:
 	std::string id_ = "";									/// user id

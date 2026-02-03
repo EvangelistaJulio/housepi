@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "tools/keys.h"
+#include "tools/loglike.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/openmp.h"
@@ -300,14 +301,6 @@ void Household::init_contact_rates(size_t from, size_t to, const Attribute &x)
     contact_rates_[from][to] = x;
 }
 
-/// Assert that current log-likelihood id not a NaN.
-void Household::assert_log_lik_not_NaN() const
-{
-    if (hsp::na::is(obs_log_lik_))
-        throw std::runtime_error(
-            "Observation log-likelihood returned NaN.");
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////  *** DataWide : struct ***  ///////////////////////////////////
@@ -316,13 +309,15 @@ void Household::assert_log_lik_not_NaN() const
 
 DataWide::DataWide(
     const std::vector<std::string> &keys,
-    const std::vector<std::string> &hh_size_t_keys,
-    const std::vector<std::string> &hh_double_keys,
-    const std::vector<std::string> &hh_matrix_keys)
+    const std::vector<std::string> &size_keys,
+    const std::vector<std::string> &size_vec_keys,
+    const std::vector<std::string> &double_vec_keys,
+    const std::vector<std::string> &double_mtx_keys)
     : pRegistry(std::make_unique<hsp::key::Registry>(keys)),
-      pHHsize_tRegistry(std::make_unique<hsp::key::Registry>(hh_size_t_keys)),
-      pHHdoubleRegistry(std::make_unique<hsp::key::Registry>(hh_double_keys)),
-      pHHmatrixRegistry(std::make_unique<hsp::key::Registry>(hh_matrix_keys)),
+      p_size_Registry(std::make_unique<hsp::key::Registry>(size_keys)),
+      p_size_vec_Registry(std::make_unique<hsp::key::Registry>(size_vec_keys)),
+      p_double_vec_Registry(std::make_unique<hsp::key::Registry>(double_vec_keys)),
+      p_double_mtx_Registry(std::make_unique<hsp::key::Registry>(double_mtx_keys)),
       report_indiv(std::make_unique<ReportIndividual>()),
       report_house(std::make_unique<ReportHousehold>()),
       report_hh_size(std::make_unique<ReportHouseSizes>()) {}
@@ -347,9 +342,10 @@ void DataWide::warn_all_missing_status()
 void DataWide::build(const hsp::str_table &input)
 {
     pRegistry->clear();
-    pHHsize_tRegistry->clear();
-    pHHdoubleRegistry->clear();
-    pHHmatrixRegistry->clear();
+    p_size_Registry->clear();
+    p_size_vec_Registry->clear();
+    p_double_vec_Registry->clear();
+    p_double_mtx_Registry->clear();
 
     if (input.empty())
         return;
@@ -552,28 +548,127 @@ void DataWide::multiplicity_build(const hsp::str_table &input, bool is_any_augm)
 //////////////////////////////////  DataWide : cache attributes  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Initialize cached structeres according to household size.
 void DataWide::init_house_cache(Household &house)
 {
     const size_t hh_size = house.size();
 
     // size_t
-    house.cache_size_t_vec_.resize(pHHsize_tRegistry->size());
-    for (auto &v : house.cache_size_t_vec_)
-        v.assign(hh_size, 0);
-    house.buffer_size_t_vec_ = house.cache_size_t_vec_;
+    {
+        size_t n = p_size_Registry->size();
+        house.cache_size_.assign(n, 0);
+        house.buffer_size_.assign(n, 0);
+    }
 
-    // double
-    house.cache_dbl_vec_.resize(pHHdoubleRegistry->size());
-    for (auto &v : house.cache_dbl_vec_)
-        v.assign(hh_size, 0.);
-    house.buffer_dbl_vec_ = house.cache_dbl_vec_;
+    // size_t vector
+    {
+        size_t n = p_size_vec_Registry->size();
+        house.cache_size_vec_.resize(n);
+        house.buffer_size_vec_.resize(n);
+        for (size_t e = 0; e < n; ++e)
+        {
+            house.cache_size_vec_[e].assign(hh_size, 0);
+            house.buffer_size_vec_[e].assign(hh_size, 0);
+        }
+    }
 
-    // matrix
-    house.cache_dbl_mtx_.resize(pHHmatrixRegistry->size());
-    for (auto &v : house.cache_dbl_mtx_)
-        v.assign(hh_size, std::vector<double>(hh_size, 0.));
-    house.buffer_dbl_mtx_ = house.cache_dbl_mtx_;
+    // double vector
+    {
+        size_t n = p_double_vec_Registry->size();
+        house.cache_dbl_vec_.resize(n);
+        house.buffer_dbl_vec_.resize(n);
+        for (size_t e = 0; e < n; ++e)
+        {
+
+            house.cache_dbl_vec_[e].assign(hh_size, 0);
+            house.buffer_dbl_vec_[e].assign(hh_size, 0);
+        }
+    }
+
+    // double matrix
+    {
+        size_t n = p_double_mtx_Registry->size();
+        house.cache_dbl_mtx_.resize(n);
+        house.buffer_dbl_mtx_.resize(n);
+        for (size_t e = 0; e < n; ++e)
+        {
+
+            house.cache_dbl_mtx_[e].assign(hh_size, std::vector<double>(hh_size, 0.));
+            house.buffer_dbl_mtx_[e].assign(hh_size, std::vector<double>(hh_size, 0.));
+        }
+    }
+}
+
+void DataWide::buffer_all_cache(Household &house)
+{
+    std::copy(house.cache_size_.begin(),
+              house.cache_size_.end(),
+              house.buffer_size_.begin());
+
+    for (size_t e = 0; e < house.cache_size_vec_.size(); ++e)
+        std::copy(house.cache_size_vec_[e].begin(),
+                  house.cache_size_vec_[e].end(),
+                  house.buffer_size_vec_[e].begin());
+
+    for (size_t e = 0; e < house.cache_dbl_vec_.size(); ++e)
+        std::copy(house.cache_dbl_vec_[e].begin(),
+                  house.cache_dbl_vec_[e].end(),
+                  house.buffer_dbl_vec_[e].begin());
+
+    for (size_t e = 0; e < house.cache_dbl_mtx_.size(); ++e)
+        for (size_t i = 0; i < house.cache_dbl_mtx_[e].size(); ++i)
+            std::copy(house.cache_dbl_mtx_[e][i].begin(),
+                      house.cache_dbl_mtx_[e][i].end(),
+                      house.buffer_dbl_mtx_[e][i].begin());
+}
+
+void DataWide::buffer_member_cache(Household &house, size_t i)
+{
+    std::copy(house.cache_size_.begin(),
+              house.cache_size_.end(),
+              house.buffer_size_.begin());
+
+    for (size_t e = 0; e < house.cache_size_vec_.size(); ++e)
+        house.buffer_size_vec_[e][i] = house.cache_size_vec_[e][i];
+
+    for (size_t e = 0; e < house.cache_dbl_vec_.size(); ++e)
+        house.buffer_dbl_vec_[e][i] = house.cache_dbl_vec_[e][i];
+
+    for (size_t e = 0; e < house.cache_dbl_mtx_.size(); ++e)
+    {
+        std::copy(house.cache_dbl_mtx_[e][i].begin(),
+                  house.cache_dbl_mtx_[e][i].end(),
+                  house.buffer_dbl_mtx_[e][i].begin());
+
+        for (size_t j = 0; j < house.size(); ++j)
+            house.buffer_dbl_mtx_[e][j][i] = house.cache_dbl_mtx_[e][j][i];
+    }
+}
+
+void DataWide::recover_all_buffer(Household &house)
+{
+    house.cache_size_.swap(house.buffer_size_);
+    house.cache_size_vec_.swap(house.buffer_size_vec_);
+    house.cache_dbl_vec_.swap(house.buffer_dbl_vec_);
+    house.cache_dbl_mtx_.swap(house.buffer_dbl_mtx_);
+}
+
+void DataWide::recover_member_buffer(Household &house, size_t i)
+{
+    house.cache_size_.swap(house.buffer_size_);
+
+    for (size_t e = 0; e < house.cache_size_vec_.size(); ++e)
+        house.cache_size_vec_[e][i] = house.buffer_size_vec_[e][i];
+
+    for (size_t e = 0; e < house.cache_dbl_vec_.size(); ++e)
+        house.cache_dbl_vec_[e][i] = house.buffer_dbl_vec_[e][i];
+
+    for (size_t e = 0; e < house.cache_dbl_mtx_.size(); ++e)
+    {
+        house.cache_dbl_mtx_[e][i].swap(house.buffer_dbl_mtx_[e][i]);
+        for (size_t j = 0; j < house.size(); ++j)
+            if (j != i)
+                house.cache_dbl_mtx_[e][j][i] = house.buffer_dbl_mtx_[e][j][i];
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -598,9 +693,9 @@ void DataWide::store_draws(unsigned long smpl_count)
     for (size_t R = 0; R < head_class_house_indexes.size(); ++R)
     {
         Household &house = house_vector_[head_class_house_indexes[R]];
-        double x = house.get_obs_log_lik() / static_cast<double>(house.multiplicity());
+        double x = house.obs_log_lik_.get() / static_cast<double>(house.multiplicity());
         for (size_t i : house.infected_hhindexes())
-            x += house.member(i).get_augm_model_log_lik();
+            x += house.member(i).augm_log_lik_.get();
         smpl_values[R][smpl_count] = x;
     }
 }

@@ -193,7 +193,7 @@ test_that("Known errors are unchanged", {
                    min = 1, max = 15, discr = TRUE)
     ) |>
     evaluate_log_lik() |>
-    expect_error(regexp = "Observation log-likelihood returned NaN")
+    expect_error(regexp = "returned NaN")
 })
 
 test_that("Augmented model log-likelihoods are correctly computed", {

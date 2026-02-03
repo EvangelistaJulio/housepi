@@ -22,9 +22,10 @@ EMPTY_HOUSEPI_KEYS(AugmKey)
 EMPTY_HOUSEPI_KEYS(DataKey)
 EMPTY_HOUSEPI_KEYS(LongKey)
 REGISTER_HOUSEPI_KEYS(GroupRateKey, community, susceptibility, infectivity)
-REGISTER_HOUSEPI_KEYS(HHsize_tKey, order)
-REGISTER_HOUSEPI_KEYS(HHdoubleKey, commu_escape_rate)
-REGISTER_HOUSEPI_KEYS(HHmatrixKey, p2p_escape_rate)
+EMPTY_HOUSEPI_KEYS(HHsizeKey)
+REGISTER_HOUSEPI_KEYS(HHsizevecKey, order)
+REGISTER_HOUSEPI_KEYS(HHdoublevecKey, commu_escape_rate)
+REGISTER_HOUSEPI_KEYS(HHdoublemtxKey, p2p_escape_rate)
 REGISTER_HOUSEPI_KEYS(ParamKey, alpha, beta)
 HOUSEPI_MODEL_CONSTRUCTOR()
 
@@ -45,7 +46,7 @@ void Model::init_model_for_evaluation()
 
 void Model::init_house_for_evaluation(Household &house)
 {
-	auto &order = house.cache_size_t_vector(HHsize_tKey::order);
+	auto &order = house.cache_size_vector(HHsizevecKey::order);
 	order.clear();
 	order.reserve(house.size());
 	order.insert(order.end(), house.infected_hhindexes().begin(), house.infected_hhindexes().end());
@@ -70,19 +71,19 @@ double Model::compute_house_obs_log_lik(Household &house)
 	// compute corresponding loglikelihood times house multiplicity
 	return house.multiplicity() * bax::chain_binomial_heter_log_lik(
 									  house.n_infected_status(),
-									  house.cache_double_vector(HHdoubleKey::commu_escape_rate),
-									  house.cache_double_matrix(HHmatrixKey::p2p_escape_rate));
+									  house.cache_double_vector(HHdoublevecKey::commu_escape_rate),
+									  house.cache_double_matrix(HHdoublemtxKey::p2p_escape_rate));
 }
 
 void Model::fill_house_escape_matrix(Household &house) const
 {
-	const auto &order = house.cache_size_t_vector(HHsize_tKey::order);
+	const auto &order = house.cache_size_vector(HHsizevecKey::order);
 	const double commu_rate = community_risk();
 	const double p2p_rate = person_to_person_risk();
 
 	// assign values to escape matrix
-	auto &commu_mtx = house.cache_double_vector(HHdoubleKey::commu_escape_rate);
-	auto &p2p_mtx = house.cache_double_matrix(HHmatrixKey::p2p_escape_rate);
+	auto &commu_mtx = house.cache_double_vector(HHdoublevecKey::commu_escape_rate);
+	auto &p2p_mtx = house.cache_double_matrix(HHdoublemtxKey::p2p_escape_rate);
 
 	// fill matrix according to order
 	for (size_t i = 0; i < house.size(); ++i)

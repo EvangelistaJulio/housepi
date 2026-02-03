@@ -24,6 +24,7 @@
 class Household
 {
 	friend struct DataWide;
+	friend class MCMCImpl;
 
 public:
 	///////////////////////////
@@ -61,9 +62,13 @@ public:
 	//////  CACHE  //////
 	/////////////////////
 
+	/// Return cached size_t value.
+	size_t &cache_size(size_t e) { return cache_size_[e]; }
+	size_t cache_size(size_t e) const { return cache_size_[e]; }
+
 	// Cache size_t vector
-	std::vector<size_t> &cache_size_t_vector(size_t e) { return cache_size_t_vec_[e]; }
-	const std::vector<size_t> &cache_size_t_vector(size_t e) const { return cache_size_t_vec_[e]; }
+	std::vector<size_t> &cache_size_vector(size_t e) { return cache_size_vec_[e]; }
+	const std::vector<size_t> &cache_size_vector(size_t e) const { return cache_size_vec_[e]; }
 
 	// Cached double vector
 	std::vector<double> &cache_double_vector(size_t e) { return cache_dbl_vec_[e]; }
@@ -72,22 +77,6 @@ public:
 	// Cache double matrix
 	std::vector<std::vector<double>> &cache_double_matrix(size_t e) { return cache_dbl_mtx_[e]; }
 	const std::vector<std::vector<double>> &cache_double_matrix(size_t e) const { return cache_dbl_mtx_[e]; }
-
-	//////////////////////////////
-	//////  LOG-LIKELIHOOD  //////
-	//////////////////////////////
-
-	/// Return value of the household observation log-likelihood.
-	double get_obs_log_lik() const noexcept { return obs_log_lik_; }
-	/// Store the log-likelihood of household observation.
-	void set_obs_log_lik(double x)
-	{
-		obs_buffer_ = obs_log_lik_;
-		obs_log_lik_ = x;
-		assert_log_lik_not_NaN();
-	}
-	/// Assert that current log-likelihood id not a NaN.
-	void assert_log_lik_not_NaN() const;
 
 	//////////////////////
 	//////  GETTER  //////
@@ -140,17 +129,18 @@ private:
 	std::vector<size_t> missing_list_ = {};	 /// hh indexes of members with missing status
 
 	std::vector<std::vector<Attribute>> contact_rates_; /// contact rates
-	std::vector<std::vector<size_t>> cache_size_t_vec_ = {};
+	std::vector<size_t> cache_size_ = {};
+	std::vector<std::vector<size_t>> cache_size_vec_ = {};
 	std::vector<std::vector<double>> cache_dbl_vec_ = {};
 	std::vector<std::vector<std::vector<double>>> cache_dbl_mtx_ = {};
 
-	std::vector<std::vector<size_t>> buffer_size_t_vec_ = {};
+	std::vector<size_t> buffer_size_ = {};
+	std::vector<std::vector<size_t>> buffer_size_vec_ = {};
 	std::vector<std::vector<double>> buffer_dbl_vec_ = {};
 	std::vector<std::vector<std::vector<double>>> buffer_dbl_mtx_ = {};
 
-	double obs_log_lik_ = 0;				/// current observation log-likelihood
-	double obs_buffer_ = 0;					/// buffer observation log-likelihood
-	std::vector<double> smpl_log_lik_ = {}; /// samples of household pointwise log-likelihood
+	hsp::LogLike obs_log_lik_;				/// pointwise observation log-likelihood
+	std::vector<double> smpl_log_lik_ = {}; /// samples of log-likelihood
 
 	/// Change_status of individual i to new status (without controls).
 	void helper_set_status_(Individual &member, int new_status);

@@ -37,9 +37,10 @@ public:
 	///////////////////////////
 
 	MCMC(const std::vector<std::string> &data_wide_keys,
-		 const std::vector<std::string> &hh_size_t_keys,
-		 const std::vector<std::string> &hh_double_keys,
-		 const std::vector<std::string> &hh_matrix_keys,
+		 const std::vector<std::string> &hh_size_keys,
+		 const std::vector<std::string> &hh_size_vec_keys,
+		 const std::vector<std::string> &hh_double_vec_keys,
+		 const std::vector<std::string> &hh_double_mtx_keys,
 		 const std::vector<std::string> &data_long_keys,
 		 const std::vector<std::string> &param_keys,
 		 const std::vector<std::string> &group_rate_keys,

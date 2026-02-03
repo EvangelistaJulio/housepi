@@ -110,10 +110,11 @@ struct ReportHouseSizes;
 
 struct DataWide
 {
-    std::unique_ptr<hsp::key::Registry> pRegistry;         /// pointer to registry
-    std::unique_ptr<hsp::key::Registry> pHHsize_tRegistry; /// pointer to registry
-    std::unique_ptr<hsp::key::Registry> pHHdoubleRegistry; /// pointer to registry
-    std::unique_ptr<hsp::key::Registry> pHHmatrixRegistry; /// pointer to registry
+    std::unique_ptr<hsp::key::Registry> pRegistry;
+    std::unique_ptr<hsp::key::Registry> p_size_Registry;
+    std::unique_ptr<hsp::key::Registry> p_size_vec_Registry;
+    std::unique_ptr<hsp::key::Registry> p_double_vec_Registry;
+    std::unique_ptr<hsp::key::Registry> p_double_mtx_Registry;
 
     // list of all infected statuses in the dataset
     std::unordered_set<int> all_infected_statuses = {};
@@ -129,9 +130,10 @@ struct DataWide
     ///////////////////////////
 
     DataWide(const std::vector<std::string> &keys,
-             const std::vector<std::string> &hh_size_t_keys,
-             const std::vector<std::string> &hh_double_keys,
-             const std::vector<std::string> &hh_matrix_keys);
+             const std::vector<std::string> &size_keys,
+             const std::vector<std::string> &size_vec_keys,
+             const std::vector<std::string> &double_vec_keys,
+             const std::vector<std::string> &double_mtx_keys);
     ~DataWide();
 
     Household &at(size_t H) { return house_vector_[H]; }
@@ -148,37 +150,14 @@ struct DataWide
 
     /// Initialize cached structeres according to household size.
     void init_house_cache(Household &house);
-    /// Deep copy cache attributes in the buffer.
-    void buffer_all_cache(Household &house)
-    {
-        for (size_t i = 0; i < house.cache_size_t_vec_.size(); ++i)
-            std::copy(house.cache_size_t_vec_[i].begin(),
-                      house.cache_size_t_vec_[i].end(),
-                      house.buffer_size_t_vec_[i].begin());
-
-        for (size_t i = 0; i < house.cache_dbl_vec_.size(); ++i)
-            std::copy(house.cache_dbl_vec_[i].begin(),
-                      house.cache_dbl_vec_[i].end(),
-                      house.buffer_dbl_vec_[i].begin());
-
-        for (size_t i = 0; i < house.cache_dbl_mtx_.size(); ++i)
-            for (size_t j = 0; j < house.cache_dbl_mtx_[i].size(); ++j)
-                std::copy(house.cache_dbl_mtx_[i][j].begin(),
-                          house.cache_dbl_mtx_[i][j].end(),
-                          house.buffer_dbl_mtx_[i][j].begin());
-    }
-    /// Recover previous values of the log-likelihood and cached depedencies.
-    void recover_buffer_values(Household &house, bool is_cache_depen)
-    {
-        house.obs_log_lik_ = house.obs_buffer_;
-
-        if (is_cache_depen)
-        {
-            house.cache_size_t_vec_.swap(house.buffer_size_t_vec_);
-            house.cache_dbl_vec_.swap(house.buffer_dbl_vec_);
-            house.cache_dbl_mtx_.swap(house.buffer_dbl_mtx_);
-        }
-    }
+    /// Deep copy all household cache attributes in the buffer.
+    void buffer_all_cache(Household &house);
+    /// Deep copy member cache attributes in the buffer.
+    void buffer_member_cache(Household &house, size_t i);
+    /// Recover all buffered values of cached depedencies.
+    void recover_all_buffer(Household &house);
+    /// Recover all buffered values of member cached depedencies.
+    void recover_member_buffer(Household &house, size_t i);
 
     void init_draws(unsigned long sample_size);
     void store_draws(unsigned long smpl_count);

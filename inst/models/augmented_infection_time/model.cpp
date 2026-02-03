@@ -18,9 +18,10 @@ REGISTER_HOUSEPI_KEYS(AugmKey, infec_time, incub_period, onset_time)
 EMPTY_HOUSEPI_KEYS(DataKey)
 EMPTY_HOUSEPI_KEYS(LongKey)
 REGISTER_HOUSEPI_KEYS(GroupRateKey, community, susceptibility, infectivity)
-REGISTER_HOUSEPI_KEYS(HHsize_tKey, intro_case)
-EMPTY_HOUSEPI_KEYS(HHdoubleKey)
-REGISTER_HOUSEPI_KEYS(HHmatrixKey, inst, cumul)
+REGISTER_HOUSEPI_KEYS(HHsizeKey, intro_case)
+EMPTY_HOUSEPI_KEYS(HHsizevecKey)
+EMPTY_HOUSEPI_KEYS(HHdoublevecKey)
+REGISTER_HOUSEPI_KEYS(HHdoublemtxKey, inst, cumul)
 REGISTER_HOUSEPI_KEYS(ParamKey, alpha, beta, gamma, size_ref, study_period)
 HOUSEPI_MODEL_CONSTRUCTOR()
 
@@ -59,12 +60,12 @@ double Model::loglike_susceptible(const Household &house) const
 	if (house.n_susceptible_status() == 0)
 		return 0.;
 
-	const Individual &member_0 = house.member(house.cache_size_t_vector(HHsize_tKey::intro_case)[0]);
+	const Individual &member_0 = house.member(house.cache_size(HHsizeKey::intro_case));
 	const double alpha_cumul = par(ParamKey::alpha) * (par(ParamKey::study_period) + member_0.aug(AugmKey::incub_period));
 	const double beta = transmission_rate(house);
 
 	// load pre-computed cumulative infectivity profiles
-	const auto &cumul_mtx = house.cache_double_matrix(HHmatrixKey::cumul);
+	const auto &cumul_mtx = house.cache_double_matrix(HHdoublemtxKey::cumul);
 
 	double output = 0.;
 	for (size_t i : house.susceptible_hhindexes())
@@ -86,12 +87,12 @@ double Model::loglike_infectious(const Household &house) const
 	if (house.n_infected_status() < 2)
 		return 0.;
 
-	const size_t i0 = house.cache_size_t_vector(HHsize_tKey::intro_case)[0];
+	const size_t i0 = house.cache_size(HHsizeKey::intro_case);
 	const Individual &member_0 = house.member(i0);
 	const double t_intro = member_0.aug(AugmKey::infec_time);
 
-	const auto &inst_mtx = house.cache_double_matrix(HHmatrixKey::inst);
-	const auto &cumul_mtx = house.cache_double_matrix(HHmatrixKey::cumul);
+	const auto &inst_mtx = house.cache_double_matrix(HHdoublemtxKey::inst);
+	const auto &cumul_mtx = house.cache_double_matrix(HHdoublemtxKey::cumul);
 
 	const double alpha = par(ParamKey::alpha);
 	const double beta = transmission_rate(house);
@@ -141,8 +142,8 @@ void Model::update_cache_dependecies(Household &house, Individual &member_i)
 	const size_t i = member_i.hhindex();
 	const double t_infec_i = member_i.aug(AugmKey::infec_time);
 
-	auto &inst_mtx = house.cache_double_matrix(HHmatrixKey::inst);
-	auto &cumul_mtx = house.cache_double_matrix(HHmatrixKey::cumul);
+	auto &inst_mtx = house.cache_double_matrix(HHdoublemtxKey::inst);
+	auto &cumul_mtx = house.cache_double_matrix(HHdoublemtxKey::cumul);
 
 	double new_t0 = t_infec_i; // init time introduction to current case
 	size_t i0 = i;			   // set index to current member
@@ -193,7 +194,7 @@ void Model::update_cache_dependecies(Household &house, Individual &member_i)
 		}
 
 	// store intro case
-	house.cache_size_t_vector(HHsize_tKey::intro_case)[0] = i0;
+	house.cache_size(HHsizeKey::intro_case) = i0;
 
 	///////////////////////////////////
 	//////  Susceptible Members  //////

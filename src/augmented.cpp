@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "tools/keys.h"
+#include "tools/loglike.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/operators.h"
@@ -633,16 +634,12 @@ double Augmented::materialize_augm_model_log_lik(Individual &member)
     if (block.models.empty())
         return 0.;
 
-    member.buffer_ = member.augm_log_lik_; // store old value in buffer
-    member.augm_log_lik_ = 0.0;
+    double new_ll = 0.0;
     for (const size_t a : block.models)
-        member.augm_log_lik_ += member.augm_vec_[a].get_distr_logpdf();
+        new_ll += member.augm_vec_[a].get_distr_logpdf();
+    member.augm_log_lik_.set(new_ll); 
 
-    if (hsp::na::is(member.augm_log_lik_))
-        throw std::runtime_error(
-            "Augmented log-likelihood returned NaN for " + member.err_name() + ".");
-
-    return member.augm_log_lik_;
+    return new_ll;
 }
 
 double Augmented::materialize_augm_model_logratio(Individual &member, size_t a)
@@ -651,16 +648,13 @@ double Augmented::materialize_augm_model_logratio(Individual &member, size_t a)
     if (block.depen[a].empty())
         return 0.;
 
-    member.buffer_ = member.augm_log_lik_; // store old value in buffer
-    for (const size_t b : block.depen[a])  // depen includes 'a'
-        member.augm_log_lik_ += member.augm_vec_[b].get_distr_logratio();
+    double new_ll = member.augm_log_lik_.get(); // store old value in buffer
+    for (const size_t b : block.depen[a])       // depen includes 'a'
+        new_ll += member.augm_vec_[b].get_distr_logratio();
 
-    if (hsp::na::is(member.augm_log_lik_))
-        throw std::runtime_error(
-            "Augmented log-likelihood returned NaN for " + member.err_name() +
-            " after change of " + member.augm_vec_.at(a).err_name() + ".");
+    member.augm_log_lik_.set(new_ll);
 
-    return member.augm_log_lik_ - member.buffer_;
+    return member.augm_log_lik_.logratio();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

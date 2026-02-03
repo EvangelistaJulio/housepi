@@ -13,6 +13,7 @@
 
 #include "tools/atomic.h"
 #include "tools/keys.h"
+#include "tools/loglike.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/openmp.h"
@@ -36,9 +37,10 @@
 
 MCMCImpl::MCMCImpl(
     const std::vector<std::string> &data_wide_keys,
-    const std::vector<std::string> &hh_size_t_keys,
-    const std::vector<std::string> &hh_double_keys,
-    const std::vector<std::string> &hh_matrix_keys,
+    const std::vector<std::string> &hh_size_keys,
+    const std::vector<std::string> &hh_size_vec_keys,
+    const std::vector<std::string> &hh_double_vec_keys,
+    const std::vector<std::string> &hh_double_mtx_keys,
     const std::vector<std::string> &data_long_keys,
     const std::vector<std::string> &param_keys,
     const std::vector<std::string> &group_rate_keys,
@@ -50,12 +52,21 @@ MCMCImpl::MCMCImpl(
     : atomic_error(std::make_unique<hsp::atomic::Error>()),
       // modules
       setup(std::make_unique<Setup>()),
-      data_wide(std::make_unique<DataWide>(data_wide_keys, hh_size_t_keys, hh_double_keys, hh_matrix_keys)),
+      data_wide(std::make_unique<DataWide>(data_wide_keys,
+                                           hh_size_keys,
+                                           hh_size_vec_keys,
+                                           hh_double_vec_keys,
+                                           hh_double_mtx_keys)),
       data_long(std::make_unique<DataLong>(data_long_keys, data_wide.get())),
       param(std::make_unique<Parameter>(param_keys)),
-      group_rate(std::make_unique<GroupRate>(group_rate_keys, data_wide.get(), param.get())),
+      group_rate(std::make_unique<GroupRate>(group_rate_keys,
+                                             data_wide.get(),
+                                             param.get())),
       infec_profile(std::make_unique<InfecProfile>(param.get())),
-      augm(std::make_unique<Augmented>(augm_keys, data_wide.get(), param.get(), infec_profile.get())),
+      augm(std::make_unique<Augmented>(augm_keys,
+                                       data_wide.get(),
+                                       param.get(),
+                                       infec_profile.get())),
       // callbacks
       callback_init_inference_(std::move(func_init_inference)),
       callback_init_house_for_inference_(std::move(func_init_house_for_infer)),
@@ -155,7 +166,7 @@ double MCMCImpl::atomic_materialize_house_log_lik_(Household &house, bool is_cac
 
         // compute and set household observation log-likelihood
         output = callback_house_log_lik_(house);
-        house.set_obs_log_lik(output);
+        house.obs_log_lik_.set(output);
 
         // compute and set individual augmented log-likelihood
         if (augm->is_any_model())
@@ -320,10 +331,14 @@ void MCMCImpl::recover_parameter_(size_t p, bool is_cache_depen)
     for (size_t R = 0; R < data_wide->head_class_house_indexes.size(); ++R)
     {
         Household &house = data_wide->restricted(R);
-        data_wide->recover_buffer_values(house, is_cache_depen);
+        house.obs_log_lik_.recover();
+
+        if (is_cache_depen)
+            data_wide->recover_all_buffer(house);
+
         if (augm->is_any_sample())
             for (size_t i : house.infected_hhindexes())
-                house.member(i).recover_augm_model_log_lik();
+                house.member(i).augm_log_lik_.recover();
     }
 
     if (is_cache_depen)
@@ -390,26 +405,24 @@ double MCMCImpl::metropolis_augm_single_move_(Household &house, Individual &memb
     // proceed only if the new value is consistent
     if (xaugm.is_valid_move())
     {
+        size_t i = member.hhindex();
         // update dependencies to perform computations
-        data_wide->buffer_all_cache(house);
+        data_wide->buffer_member_cache(house, i);
         callback_update_cache_(house, member);
 
         // Metropolis-Hastings
-        // NOTE: materialize calls must come after getters
-        double delta_ll = -house.get_obs_log_lik();
-        delta_ll += augm->materialize_augm_model_logratio(member, a);
+        double delta_ll = augm->materialize_augm_model_logratio(member, a);
         // compute and set household observation log-likelihood
-        const double house_ll = callback_house_log_lik_(house);
-        house.set_obs_log_lik(house_ll);
-
-        delta_ll += house_ll;
+        house.obs_log_lik_.set(callback_house_log_lik_(house));
+        delta_ll += house.obs_log_lik_.logratio();
 
         if (setup->unif() < std::exp(setup->inv_T * delta_ll - xaugm.get_propose_logratio()))
             return delta_ll;
 
         // else recover cached values
-        data_wide->recover_buffer_values(house, true);
-        member.recover_augm_model_log_lik();
+        house.obs_log_lik_.recover();
+        member.augm_log_lik_.recover();
+        data_wide->recover_member_buffer(house, i);
     }
     // else recover buffered value
     xaugm.recover();
@@ -629,16 +642,24 @@ void MCMCImpl::helper_init_simulation()
 
 MCMC::MCMC(
     const std::vector<std::string> &data_wide_keys,
-    const std::vector<std::string> &hh_size_t_keys,
-    const std::vector<std::string> &hh_double_keys,
-    const std::vector<std::string> &hh_matrix_keys,
+    const std::vector<std::string> &hh_size_keys,
+    const std::vector<std::string> &hh_size_vec_keys,
+    const std::vector<std::string> &hh_double_vec_keys,
+    const std::vector<std::string> &hh_double_mtx_keys,
     const std::vector<std::string> &data_long_keys,
     const std::vector<std::string> &param_keys,
     const std::vector<std::string> &group_rate_keys,
     const std::vector<std::string> &augm_keys)
     : pImpl_(std::make_unique<MCMCImpl>(
-          data_wide_keys, hh_size_t_keys, hh_double_keys, hh_matrix_keys, data_long_keys,
-          param_keys, group_rate_keys, augm_keys,
+          data_wide_keys,
+          hh_size_keys,
+          hh_size_vec_keys,
+          hh_double_vec_keys,
+          hh_double_mtx_keys,
+          data_long_keys,
+          param_keys,
+          group_rate_keys,
+          augm_keys,
           [this]()
           { this->init_model_for_evaluation(); },
           [this](Household &h)
