@@ -225,7 +225,7 @@ void Attribute::name(const std::string &name, const std::string &err_type)
 
 void Attribute::init_numeric(double x)
 {
-    get_mode_ = Mode::This;
+    mode_ = Mode::This;
     value_ = x;
     pAttr_ = nullptr;
     pFunc_ = nullptr;
@@ -236,7 +236,7 @@ void Attribute::init_pointer(const Attribute *y)
         throw std::invalid_argument(
             "Tried to assign empty pointer to " + err_name() + ".");
 
-    get_mode_ = Mode::Pointer;
+    mode_ = Mode::Pointer;
     value_ = hsp::na::DOUBLE;
     pAttr_ = y;
     pFunc_ = nullptr;
@@ -251,7 +251,7 @@ void Attribute::init_function(const std::shared_ptr<Function> f)
         throw std::invalid_argument(
             "Tried to assign " + err_name() + " as its own argument.");
 
-    get_mode_ = Mode::Function;
+    mode_ = Mode::Function;
     value_ = hsp::na::DOUBLE;
     pAttr_ = nullptr;
     pFunc_ = f;
@@ -277,7 +277,7 @@ void Attribute::transfer(const Attribute &other)
 
 double Attribute::get() const
 {
-    switch (get_mode_)
+    switch (mode_)
     {
     case Mode::This:
         return value_;

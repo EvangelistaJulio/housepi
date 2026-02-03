@@ -40,8 +40,7 @@ protected:
         Pointer,  /// Get other attribute value
         Function, /// Get function value
         Error     /// Raise error if to get
-    };
-    Mode get_mode_ = Mode::This; /// Attribute mode
+    } mode_ = Mode::This;
 
 public:
     ///////////////////////////
@@ -70,7 +69,7 @@ public:
     /// Set attribute value.
     void set(double x)
     {
-        switch (get_mode_)
+        switch (mode_)
         {
         case Mode::This:
             value_ = x;
@@ -109,7 +108,7 @@ public:
     /// Get pointer to attribute value.
     const Attribute *get_ptr() const
     {
-        switch (get_mode_)
+        switch (mode_)
         {
         case Mode::This:
             return this;

@@ -275,7 +275,6 @@ Variable::Variable(const std::string &err_type)
     buffer_ = hsp::na::DOUBLE;
     user_value_ = hsp::na::DOUBLE;
     value_ = hsp::na::DOUBLE;
-    evaluate_ = &Variable::do_eval_error_;
 }
 Variable::~Variable() = default;
 
@@ -298,7 +297,6 @@ void Variable::init(double value, bool is_const, std::string_view expr, bool is_
     else // initialization as a function
     {
         init_function(parser.root.func, is_primitive);
-        evaluate_ = &Variable::do_eval_func_;
     }
 }
 
@@ -344,7 +342,7 @@ void Variable::init_func_reshaping(bool discr)
             "Impossible to set " + err_name() + " as constant. Check its dependencies.");
 
     else if (!pFunc_->is_callable_implicitly())
-        get_mode_ = Mode::Error;
+        mode_ = Mode::Error;
 }
 
 /// Assign distribution with constant arguments.
@@ -429,7 +427,32 @@ void Variable::init_proposer(const std::string &proposal, double proposal_scale)
     }
 }
 
-double Variable::do_eval_func_(double x) const { return pFunc_->evaluate(x); }
+/// Sugar to call variable as a function if applicable, otherwise raise error.
+double Variable::operator()(double x) const
+{
+    switch (mode_)
+    {
+    case Mode::Function:
+        return pFunc_->evaluate(x);
+    case Mode::This:
+    case Mode::Pointer:
+    case Mode::Error:
+        throw std::runtime_error(
+            "Called undefined evaluate operator for non-function " + err_name() + ".");
+    }
+    __builtin_unreachable();
+}
+
+bool Variable::is_valid_move() const
+{
+    switch (valid_mode_)
+    {
+    case Validity::Always:
+        return true;
+    case Validity::Check:
+        return pDistr_->is_valid(value_);
+    }
+}
 
 /// Helper with proposer initialization of direct sample from prior/model.
 void Variable::helper_init_sample_proposer_()
@@ -438,8 +461,8 @@ void Variable::helper_init_sample_proposer_()
     pProp_ = std::make_shared<Sample_Proposal>(pDistr_.get());
 
     // setup sample proposal functional methods
-    get_move_logratio_ = &Variable::do_move_logratio_sample_;
-    is_valid_move_ = &Variable::do_is_valid_move_always_;
+    ratio_mode_ = Ratio::None;
+    valid_mode_ = Validity::Always;
 }
 
 /// Helper with Monte Carlo proposer initialization.
@@ -453,12 +476,9 @@ void Variable::helper_init_proposer_monte_carlo_(const std::string &proposal, do
     // select proposer
     pProp_ = proposal_switch(proposal, proposal_scale, is_discrete());
 
-    // setup parameteric proposal functional methods
-    get_move_logratio_ = &Variable::do_get_move_logratio_default_;
-    if (pDistr_ == nullptr)
-        is_valid_move_ = &Variable::do_is_valid_move_always_;
-    else
-        is_valid_move_ = &Variable::do_is_valid_move_default_;
+    // set modes
+    ratio_mode_ = Ratio::Compute;
+    valid_mode_ = pDistr_ == nullptr ? Validity::Always : Validity::Check;
 }
 
 /// Wheter the variable is constant.
@@ -503,5 +523,3 @@ std::string Variable::str_summary() const
         output += " | ~" + pDistr_->str_summary(false);
     return output;
 }
-
-bool Variable::do_is_valid_move_default_() const { return pDistr_->is_valid(value_); }

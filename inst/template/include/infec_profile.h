@@ -60,15 +60,15 @@ public:
     //////  GETTER  //////
     //////////////////////
 
-    double inst(const Individual *member_ptr, double t) { return (this->*inst_)(member_ptr, t); }
-    double cumul(const Individual *member_ptr, double t) { return (this->*cumul_)(member_ptr, t); }
+    double inst(const Individual *member_ptr, double t);
+    double cumul(const Individual *member_ptr, double t);
 
     /////////////////////
     //////  FLAGS  //////
     /////////////////////
 
-    bool is_lookup() const noexcept { return inst_ == &InfecProfile::do_inst_lookup_; }
-    bool is_augmented() const noexcept { return inst_ == &InfecProfile::do_inst_augm_; }
+    bool is_augmented() const noexcept { return mode_ == Mode::Augmented; }
+    bool is_lookup() const noexcept { return mode_ == Mode::LookUp; }
     bool is_discrete_requested() const noexcept { return is_discrete_requested_; }
 
 private:
@@ -81,27 +81,17 @@ private:
     std::vector<double> lookup_buffer_cumul_ = {}; /// cumulative LookUp Table (buffer)
     hsp::str_table augm_profile_definitions_ = {}; /// augmented profile definitions
 
+    enum class Mode : uint8_t
+    {
+        Augmented, /// augmented infectivity profile
+        Generic,   /// generic infectivity profile
+        LookUp     /// generic infectivity profile
+    } mode_ = Mode::Generic;
+
     void init_lookup_();
     void clear_lookup_();
 
     void build_generic_profile_(const hsp::str_table &input);
     void build_augmented_profile_(const hsp::str_table &input);
     std::unique_ptr<Distribution> helper_build_profile_(const hsp::str_table &input);
-
-    /// Functional method
-    double (InfecProfile::*inst_)(const Individual *, double) = &InfecProfile::do_inst_default_;
-    /// Default method for instantaneous infectivity profile.
-    double do_inst_default_(const Individual *, double t);
-    /// Lookup method for discrete instantaneous infectivity profile.
-    double do_inst_lookup_(const Individual *, double t);
-    /// Augmented method for instantaneous infectivity profile.
-    double do_inst_augm_(const Individual *i, double t);
-
-    double (InfecProfile::*cumul_)(const Individual *, double) = &InfecProfile::do_cumul_default_;
-    /// Default method for cumulative infectivity profile.
-    double do_cumul_default_(const Individual *, double t);
-    /// Lookup method for discrete cumulative infectivity profile.
-    double do_cumul_lookup_(const Individual *, double t);
-    /// Augmented method for cumulative infectivity profile.
-    double do_cumul_augm_(const Individual *i, double t);
 };

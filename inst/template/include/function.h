@@ -248,9 +248,6 @@ protected:
     /////////////////////////  Function : discretization [protected]  ///////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    /// Initialize functional discretization.
-    virtual void init_discr_helper_(Mode::Discr discr_mode) { discr_mode_ = discr_mode; }
-
     /// Polymorphic function method.
     virtual double function_(double x) const
     {
@@ -357,6 +354,19 @@ protected:
             return x;
         case Mode::Deloc::Active:
             return x - loc_arg_.get();
+        }
+        __builtin_unreachable();
+    }
+
+    /// Relocate according to mode. Used for random number generation.
+    double relocate_(double x) const
+    {
+        switch (deloc_mode_)
+        {
+        case Mode::Deloc::None:
+            return x;
+        case Mode::Deloc::Active:
+            return x + loc_arg_.get();
         }
         __builtin_unreachable();
     }

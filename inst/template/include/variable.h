@@ -41,7 +41,7 @@ public:
     /////////////////////////
 
     /// Sugar to call variable as a function if applicable, otherwise raise error.
-    double operator()(double x) const { return (this->*evaluate_)(x); }
+    double operator()(double x) const;
 
     //////////////////////
     //////  SETTER  //////
@@ -101,12 +101,21 @@ public:
 
     /// Set new proposal internally and store a buffer of old value.
     void propose(hsp::rnd_gen &prng);
-    bool is_valid_move() const { return (this->*is_valid_move_)(); }
+    bool is_valid_move() const;
 
     double get_distr_logpdf() const;
     double get_distr_logratio() const;
     double get_propose_logratio() const;
-    double get_move_logratio() const { return (this->*get_move_logratio_)(); }
+    double get_move_logratio() const
+    {
+        switch (ratio_mode_)
+        {
+        case Ratio::None:
+            return 0;
+        case Ratio::Compute:
+            return get_distr_logratio() - get_propose_logratio();
+        }
+    }
 
     void update_accept_rate(bool is_accepted);
     void reset_accept_rate();
@@ -128,15 +137,17 @@ protected:
     std::shared_ptr<Distribution> pDistr_; /// prior\model distribution of the variable
     std::shared_ptr<Proposal> pProp_;      /// Monte Carlo proposer
 
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////  Variable : getter [private]  //////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
-
-    double (Variable::*evaluate_)(double) const = &Variable::do_eval_error_;
-    double do_eval_error_(double) const { throw std::runtime_error(
-        "Called undefined evaluate operator for non-function " + err_name() + "."); }
-    double do_eval_func_(double x) const;
-
+    enum class Validity : uint8_t
+    {
+        Always, /// always valid
+        Check   /// to be assert
+    } valid_mode_ = Validity::Check;
+    enum class Ratio : uint8_t
+    {
+        None,   /// always valid
+        Compute /// to be assert
+    } ratio_mode_ = Ratio::Compute;
+    
     /////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////  Variable : setter [private]  //////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -148,18 +159,4 @@ protected:
 
     /// Helper with degenerate range.
     void helper_degenerate_range_();
-
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////  Variable : Metropolis-Hastings [private]  ///////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
-
-    //----- Valid move : functional methods -----//
-    bool (Variable::*is_valid_move_)() const = &Variable::do_is_valid_move_default_;
-    bool do_is_valid_move_default_() const;
-    bool do_is_valid_move_always_() const { return true; }
-
-    //----- Move logratio : functional methods -----//
-    double (Variable::*get_move_logratio_)() const = &Variable::do_get_move_logratio_default_;
-    double do_get_move_logratio_default_() const { return get_distr_logratio() - get_propose_logratio(); }
-    double do_move_logratio_sample_() const { return 0.; }
 };

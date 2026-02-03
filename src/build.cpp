@@ -569,8 +569,7 @@ void InfecProfile::init_template(hsp::str_table input)
 /// Store values of the infectivity profile.
 void InfecProfile::init_lookup_()
 {
-    inst_ = &InfecProfile::do_inst_lookup_;
-    cumul_ = &InfecProfile::do_cumul_lookup_;
+    mode_ = Mode::LookUp;
 
     if (generic->get_upper().is_empty())
         size_lut_ = hsp::infprof::LOOKUP_SIZE;
@@ -613,7 +612,7 @@ void InfecProfile::update()
 
     for (size_t i = 1; i < size_lut_; ++i)
     {
-        double x = do_inst_default_(nullptr, i);
+        double x = generic->pdf(i);
         lookup_inst_[i] = x;
         lookup_cumul_[i] = x + lookup_cumul_[i - 1];
     }
@@ -667,9 +666,7 @@ void InfecProfile::build(const hsp::str_table &input)
 /// NOTE: no status dependence allowed here.
 void InfecProfile::build_generic_profile_(const hsp::str_table &input)
 {
-    inst_ = &InfecProfile::do_inst_default_;
-    cumul_ = &InfecProfile::do_cumul_default_;
-
+    mode_ = Mode::Generic;
     generic = helper_build_profile_({{"func", {input.at("func")[0]}},
                                      {"discr", {input.count("discr") ? input.at("discr")[0] : "false"}}});
 
@@ -705,8 +702,7 @@ void InfecProfile::build_augmented_profile_(const hsp::str_table &input)
     generic = nullptr;
     clear_lookup_();
 
-    inst_ = &InfecProfile::do_inst_augm_;
-    cumul_ = &InfecProfile::do_cumul_augm_;
+    mode_ = Mode::Augmented;
     augm_profile_definitions_.clear();
 
     // match infectivity profile and augmented variable definition
@@ -754,28 +750,38 @@ std::unique_ptr<Distribution> InfecProfile::helper_build_profile_(const hsp::str
 ///////////////////////////  MCMC : Impl : InfecProfile : getter methods  ///////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double InfecProfile::do_inst_default_(const Individual *, double t) { return generic->pdf(t); }
-double InfecProfile::do_inst_lookup_(const Individual *, double t)
+double InfecProfile::inst(const Individual *member_ptr, double t)
 {
-    if (generic->is_valid(t) && t < static_cast<double>(size_lut_))
-        return lookup_inst_.at(static_cast<size_t>(t));
-    return 0;
+    switch (mode_)
+    {
+    case Mode::Augmented:
+        return member_ptr->get_augm_variable(augm_key).get_function()->pdf(t);
+    case Mode::Generic:
+        return generic->pdf(t);
+    case Mode::LookUp:
+        return generic->is_valid(t) &&
+                       t < static_cast<double>(size_lut_)
+                   ? lookup_inst_.at(static_cast<size_t>(t))
+                   : 0.;
+    }
+    __builtin_unreachable();
 }
-double InfecProfile::do_inst_augm_(const Individual *member, double t)
+double InfecProfile::cumul(const Individual *member_ptr, double t)
 {
-    return member->get_augm_variable(augm_key).get_function()->pdf(t);
-}
-
-double InfecProfile::do_cumul_default_(const Individual *, double t) { return generic->cdf(t); }
-double InfecProfile::do_cumul_lookup_(const Individual *, double t)
-{
-    if (generic->is_below(t))
-        return 0.;
-    if (t >= static_cast<double>(size_lut_) || generic->is_above(t))
-        return lookup_cumul_.at(size_lut_ - 1);
-    return lookup_cumul_.at(static_cast<size_t>(t));
-}
-double InfecProfile::do_cumul_augm_(const Individual *member, double t)
-{
-    return member->get_augm_variable(augm_key).get_function()->cdf(t);
+    switch (mode_)
+    {
+    case Mode::Augmented:
+        return member_ptr->get_augm_variable(augm_key).get_function()->cdf(t);
+    case Mode::Generic:
+        return generic->cdf(t);
+    case Mode::LookUp:
+    {
+        if (generic->is_below(t))
+            return 0.;
+        if (t >= static_cast<double>(size_lut_) || generic->is_above(t))
+            return lookup_cumul_.at(size_lut_ - 1);
+        return lookup_cumul_.at(static_cast<size_t>(t));
+    }
+    }
+    __builtin_unreachable();
 }

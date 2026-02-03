@@ -28,6 +28,13 @@
 /// Parent class of all distributions.
 class Distribution : public Function
 {
+protected:
+	enum class Trunc : uint8_t
+	{
+		None,  /// No truncation
+		Active /// Active truncation
+	};
+	Trunc trunc_mode_ = Trunc::None; /// truncation mdoe
 
 public:
 	///////////////////////////
@@ -46,7 +53,17 @@ public:
 	//////  GETTER  //////
 	//////////////////////
 
-	double rand(hsp::rnd_gen &prng) const { return (this->*rand_)(prng); }
+	double rand(hsp::rnd_gen &prng) const
+	{
+		switch (trunc_mode_)
+		{
+		case Trunc::None:
+			return relocate_(cast_discr_(raw_rand_(prng)));
+		case Trunc::Active:
+			return relocate_(cast_discr_(inverse_sampling_(prng)));
+		}
+		__builtin_unreachable();
+	}
 	/// Return value of log-probability density/mass function.
 	double logpdf(double x) const { return log_func_(delocate_(x)); }
 	/// Return value of log-ratio of probability density/mass functions.
@@ -59,8 +76,6 @@ protected:
 	////////////////////////////  Distribution : setter [protected] /////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
-	/// Initialize functional discretization.
-	void init_discr_helper_(Mode::Discr discr_type) override final;
 	void init_trunc_helper_();
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
@@ -85,20 +100,6 @@ protected:
 	/// Raw quantile.
 	virtual double raw_quantile_(double) const { throw std::invalid_argument(
 		"Called to undefined method 'quantile' of " + err_name() + "."); }
-
-	/////////////////////////////////////////////////////////////////////////////////////////////
-	////////////////////////////  Distribution : getter [protected] /////////////////////////////
-	/////////////////////////////////////////////////////////////////////////////////////////////
-
-	static double cast_center_(double x) { return static_cast<double>(std::lround(x)); }
-	static double cast_left_(double x) { return std::floor(x); }
-
-	double (Distribution::*rand_)(hsp::rnd_gen &) const = &Distribution::raw_rand_;
-	double do_discr_center_rand_(hsp::rnd_gen &prng) const { return cast_center_(raw_rand_(prng)); }
-	double do_discr_left_rand_(hsp::rnd_gen &prng) const { return cast_left_(raw_rand_(prng)); }
-	double do_rand_loc_(hsp::rnd_gen &prng) const { return loc_arg_.get() + raw_rand_(prng); }
-	double do_discr_center_rand_loc_(hsp::rnd_gen &prng) const { return loc_arg_.get() + cast_center_(raw_rand_(prng)); }
-	double do_discr_left_rand_loc_(hsp::rnd_gen &prng) const { return loc_arg_.get() + cast_left_(raw_rand_(prng)); }
 
 	/// Raw method to call.
 	double raw_function_(double) const override final { throw std::runtime_error(
@@ -132,7 +133,7 @@ protected:
 			__builtin_unreachable();
 		}
 
-		return (this->*trunc_)(y);
+		return y / (this->*trunc_)();
 	}
 
 	/// Polymorphic log-function method.
@@ -163,7 +164,7 @@ protected:
 			__builtin_unreachable();
 		}
 
-		return (this->*logtrunc_)(y);
+		return y - logtrunc_();
 	}
 
 	/// Polymorphic primitive method.
@@ -188,7 +189,7 @@ protected:
 			__builtin_unreachable();
 		}
 
-		return (this->*trunc_)((this->*shift_)(raw_cdf_(adjusted_x)));
+		return (raw_cdf_(adjusted_x) - (this->*shift_)()) / (this->*trunc_)();
 	}
 
 	/// Polymorphic log_ratio method.
@@ -221,10 +222,23 @@ protected:
 	}
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
-	//////////////////////  Distribution : functional truncation [private] //////////////////////
+	////////////////////////////  Distribution : getter [protected] /////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
-	/// UPDATE: if lower/upper values don't change, I could just cached them.
+	double cast_discr_(double x) const
+	{
+		switch (discr_mode_)
+		{
+		case Mode::Discr::Center:
+			return static_cast<double>(std::lround(x));
+		case Mode::Discr::Left:
+			return std::floor(x);
+		case Mode::Discr::Defined:
+		case Mode::Discr::None:
+			return x;
+		}
+		__builtin_unreachable();
+	}
 
 	double inverse_sampling_(hsp::rnd_gen &prng) const
 	{
@@ -235,75 +249,58 @@ protected:
 		return raw_quantile_(sx + dx);
 	}
 
-	double (Distribution::*trunc_)(double) const = &Distribution::do_trunc_dummy_;
-
-	// default case
-	double do_trunc_dummy_(double x) const { return x; }
-
-	// continuos case
-	double do_trunc_min_(double x) const { return x / (1. - raw_cdf_(lower())); }
-	double do_trunc_max_(double x) const { return x / (raw_cdf_(upper())); }
-	double do_trunc_both_sides_(double x) const { return x / (raw_cdf_(upper()) - raw_cdf_(lower())); }
-	double do_trunc_rand_(hsp::rnd_gen &prng) const { return inverse_sampling_(prng); }
-
-	// case of discrete defined
-	double do_trunc_min_discr_defined_(double x) const { return x / (1. - raw_cdf_(lower() - 1)); }
-	double do_trunc_max_discr_defined_(double x) const { return x / (raw_cdf_(upper() + 1)); }
-	double do_trunc_both_sides_discr_defined_(double x) const { return x / (raw_cdf_(upper() + 1) - raw_cdf_(lower() - 1)); }
-	// note : do_trunx_rand_discr_defined == do_trunc_rand_
-
-	// case of center discretization
-	double do_trunc_min_discr_center_(double x) const { return x / (1. - raw_cdf_(std::ceil(lower()) - .5)); }
-	double do_trunc_max_discr_center_(double x) const { return x / (raw_cdf_(std::floor(upper()) + .5)); }
-	double do_trunc_both_sides_discr_center_(double x) const { return x / (raw_cdf_(std::floor(upper()) + .5) - raw_cdf_(std::ceil(lower()) - .5)); }
-	double do_trunc_rand_discr_center_(hsp::rnd_gen &prng) const { return cast_center_(do_trunc_rand_(prng)); }
-
-	// case of left discretization
-	double do_trunc_min_discr_left_(double x) const { return x / (1. - raw_cdf_(std::floor(lower()))); }
-	double do_trunc_max_discr_left_(double x) const { return x / (raw_cdf_(std::ceil(upper() + 1))); }
-	double do_trunc_both_sides_discr_left_(double x) const { return x / (raw_cdf_(std::ceil(upper() + 1)) - raw_cdf_(std::floor(lower()))); }
-	double do_trunc_rand_discr_left_(hsp::rnd_gen &prng) const { return cast_left_(do_trunc_rand_(prng)); }
-
 	/////////////////////////////////////////////////////////////////////////////////////////////
-	////////////////////  Distribution : functional log-truncation [private] ////////////////////
+	//////////////////////  Distribution : functional truncation [private] //////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
-	/// note : this is not improving the case of discretization with repspect to simply log of pdf
-	double (Distribution::*logtrunc_)(double) const = &Distribution::do_logtrunc_dummy_;
+	/// UPDATE: if lower/upper values don't change, I could just cached them.
+
+	double (Distribution::*trunc_)() const = &Distribution::do_trunc_dummy_;
 
 	// default case
-	double do_logtrunc_dummy_(double x) const { return x; }
+	double do_trunc_dummy_() const { return 1.; }
 
 	// continuos case
-	double do_logtrunc_min_(double x) const { return x - std::log(1. - raw_cdf_(lower())); }
-	double do_logtrunc_max_(double x) const { return x - std::log(raw_cdf_(upper())); }
-	double do_logtrunc_both_sides_(double x) const { return x - std::log(raw_cdf_(upper()) - raw_cdf_(lower())); }
+	double do_trunc_min_() const { return 1. - raw_cdf_(lower()); }
+	double do_trunc_max_() const { return raw_cdf_(upper()); }
+	double do_trunc_both_sides_() const { return raw_cdf_(upper()) - raw_cdf_(lower()); }
 
 	// case of discrete defined
-	double do_logtrunc_min_discr_defined_(double x) const { return x - std::log(1. - raw_cdf_(lower() - 1)); }
-	double do_logtrunc_max_discr_defined_(double x) const { return x - std::log(raw_cdf_(upper() + 1)); }
-	double do_logtrunc_both_sides_discr_defined_(double x) const { return x - std::log(raw_cdf_(upper() + 1) - raw_cdf_(lower() - 1)); }
+	double do_trunc_min_discr_defined_() const { return 1. - raw_cdf_(lower() - 1); }
+	double do_trunc_max_discr_defined_() const { return raw_cdf_(upper() + 1); }
+	double do_trunc_both_sides_discr_defined_() const { return raw_cdf_(upper() + 1) - raw_cdf_(lower() - 1); }
 
 	// case of center discretization
-	double do_logtrunc_min_discr_center_(double x) const { return x - std::log(1. - raw_cdf_(std::ceil(lower()) - .5)); }
-	double do_logtrunc_max_discr_center_(double x) const { return x - std::log(raw_cdf_(std::floor(upper()) + .5)); }
-	double do_logtrunc_both_sides_discr_center_(double x) const { return x - std::log(raw_cdf_(std::floor(upper()) + .5) - raw_cdf_(std::ceil(lower()) - .5)); }
+	double do_trunc_min_discr_center_() const { return 1. - raw_cdf_(std::ceil(lower()) - 0.5); }
+	double do_trunc_max_discr_center_() const { return raw_cdf_(std::floor(upper()) + 0.5); }
+	double do_trunc_both_sides_discr_center_() const { return raw_cdf_(std::floor(upper()) + 0.5) - raw_cdf_(std::ceil(lower()) - 0.5); }
 
 	// case of left discretization
-	double do_logtrunc_min_discr_left_(double x) const { return x - std::log(1. - raw_cdf_(std::floor(lower()))); }
-	double do_logtrunc_max_discr_left_(double x) const { return x - std::log(raw_cdf_(std::ceil(upper()))); }
-	double do_logtrunc_both_sides_discr_left_(double x) const { return x - std::log(raw_cdf_(std::ceil(upper())) - raw_cdf_(std::floor(lower()))); }
+	double do_trunc_min_discr_left_() const { return 1. - raw_cdf_(std::floor(lower())); }
+	double do_trunc_max_discr_left_() const { return raw_cdf_(std::ceil(upper() + 1)); }
+	double do_trunc_both_sides_discr_left_() const { return raw_cdf_(std::ceil(upper() + 1)) - raw_cdf_(std::floor(lower())); }
+
+	double logtrunc_() const {
+		switch (trunc_mode_)
+		{
+		case Trunc::None:
+			return 0;
+		case Trunc::Active:
+			return std::log((this->*trunc_)());
+		}
+		__builtin_unreachable();
+	} 
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	/////////////////////////  Distribution : functional shift [private] ////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
-	double (Distribution::*shift_)(double) const = &Distribution::do_shift_dummy_;
-	double do_shift_dummy_(double x) const { return x; }
-	double do_shift_min_(double x) const { return x - raw_cdf_(lower()); }
-	double do_shift_min_discr_defined_(double x) const { return x - raw_cdf_(lower() - 1); }
-	double do_shift_min_discr_center_(double x) const { return x - raw_cdf_(std::floor(lower()) - .5); }
-	double do_shift_min_discr_left_(double x) const { return x - raw_cdf_(std::floor(lower())); }
+	double (Distribution::*shift_)() const = &Distribution::do_shift_dummy_;
+	double do_shift_dummy_() const { return 0.; }
+	double do_shift_min_() const { return raw_cdf_(lower()); }
+	double do_shift_min_discr_defined_() const { return raw_cdf_(lower() - 1); }
+	double do_shift_min_discr_center_() const { return raw_cdf_(std::floor(lower()) - 0.5); }
+	double do_shift_min_discr_left_() const { return raw_cdf_(std::floor(lower())); }
 };
 
 /// Compose registries to get a distribution from them.

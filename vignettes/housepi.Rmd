@@ -165,7 +165,7 @@ For further information on the available options for the definition of the param
 After having provided all necessary definitions, we can perform inference calling `run_inference()`.
 With housepi we can perform inference using Bayesian Markov chain Monte Carlo (MCMC) with the Metropolis-Hastings algorithm. 
 Standard options for the MCMC can be provided at this stage, including controls on the number of threads^[Multi-threading is implemented with *openMP* which is unfortunately not supported on latest macOS distributions.
-The option `threads` is disabled on such systems.] and on the progress bar.
+The option `threads` is disabled on such systems.].
 This will return an object which collects all the relevant MCMC draws. 
 The draws come as [posterior](https://CRAN.R-project.org/package=posterior) objects that can be accessed to compute estimates.
 
@@ -176,8 +176,7 @@ results <- hhmodel |>
                 thin = 10,        # delay between MCMC steps that are stored
                 adapt = 500,      # finite adaptation steps before MCMC steps
                 chains = 3,       # number of independent chains
-                threads = 1,      # number of threads
-                progress = FALSE) # disable progress bar
+                threads = 1)      # number of threads
 
 # summarize posterior draws of parameters
 posterior::summarize_draws(get_param_draws(results))
@@ -311,9 +310,7 @@ hhmodel <- hhsimul |>
 
 results <- hhmodel |>
   add_data_wide(simulated) |>
-  run_inference(chains = 3, steps = 1000, adapt = 500, thin = 10,
-                # update progress bar every 3 seconds
-                progress = 3)
+  run_inference(chains = 3, steps = 1000, adapt = 500, thin = 10)
 ```
 We can visualize traces vs expected values as follows
 
