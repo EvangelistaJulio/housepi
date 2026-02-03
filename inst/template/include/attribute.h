@@ -21,6 +21,17 @@ namespace hsp::params
     constexpr const char *MAX = "max"; /// Maximum value.
 }
 
+namespace hsp::mode
+{
+    enum class Getter : uint8_t
+    {
+        This,     /// Get internal value
+        Pointer,  /// Get other attribute value
+        Function, /// Get function value
+        Error     /// Raise error if to get
+    };
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////// *** Attribute : class *** ///////////////////////////////////
@@ -34,9 +45,9 @@ class Function;
 class Attribute
 {
 public:
-	///////////////////////////
-	//////  CONSTRUCTOR  //////
-	///////////////////////////
+    ///////////////////////////
+    //////  CONSTRUCTOR  //////
+    ///////////////////////////
 
     /// Empty attribute constructor.
     Attribute();
@@ -53,12 +64,27 @@ public:
     /// Attribute deconstructor.
     virtual ~Attribute();
 
-	//////////////////////
-	//////  SETTER  //////
-	//////////////////////
+    //////////////////////
+    //////  SETTER  //////
+    //////////////////////
 
     /// Set attribute value.
-    void set(double x) { (this->*do_set_)(x); }
+    void set(double x)
+    {
+        switch (get_mode_)
+        {
+        case hsp::mode::Getter::This:
+            value_ = x;
+            break;
+        case hsp::mode::Getter::Pointer:
+        case hsp::mode::Getter::Function:
+        case hsp::mode::Getter::Error:
+            throw std::runtime_error(
+                "Tried to change non numeric " + err_name() + ".");
+        default:
+            __builtin_unreachable();
+        }
+    }
     /// Set attribute name. Eventually also err type.
     void name(const std::string &name, const std::string &err_type = "");
 
@@ -73,21 +99,37 @@ public:
     /// Transfer from other Attribute.
     void transfer(const Attribute &other);
 
-	//////////////////////
-	//////  GETTER  //////
-	//////////////////////
+    //////////////////////
+    //////  GETTER  //////
+    //////////////////////
 
     /// Get attribute numeric value.
-    /// UPDATE: this should become noexcept.
-    double get() const { return (this->*get_)(); }
+    /// NOTE: this can't become noexcept because of special function calls.
+    /// UPDATE: this can't be inlined because of Function.
+    double get() const;
+
     /// Get pointer to attribute value.
-    const Attribute *get_ptr() const { return (this->*get_ptr_)(); }
+    const Attribute *get_ptr() const
+    {
+        switch (get_mode_)
+        {
+        case hsp::mode::Getter::This:
+            return this;
+        case hsp::mode::Getter::Pointer:
+            return pAttr_;
+        case hsp::mode::Getter::Function:
+        case hsp::mode::Getter::Error:
+            throw std::runtime_error(
+                "Tried to return a pointer to " + err_name() + ".");
+        }
+        __builtin_unreachable();
+    }
     /// Get pointer to attribute function.
     const std::shared_ptr<Function> get_function() const noexcept { return pFunc_; }
 
-	/////////////////////
-	//////  FLAGS  //////
-	/////////////////////
+    /////////////////////
+    //////  FLAGS  //////
+    /////////////////////
 
     /// Wheter it's constant.
     virtual bool is_constant() const noexcept;
@@ -121,36 +163,5 @@ protected:
     const Attribute *pAttr_ = nullptr;          /// pointer to attribute
     std::shared_ptr<Function> pFunc_ = nullptr; /// pointer to function
 
-    // Functional getter
-    double (Attribute::*get_)() const = &Attribute::do_get_default_;
-    /// Get attribute value from internal value.
-    double do_get_default_() const noexcept { return value_; }
-    /// Get attribute value from external value.
-    double do_get_from_pointer_() const { return pAttr_->get(); }
-    /// Get attribute value from external function.
-    /// UPDATE: function evaluate should be noexcept.
-    double do_get_from_function_() const;
-    /// Get attribute error for not callable functions.
-    /// NOTE: This is used for "pure" augmented function, with no implicit 'x'.
-    /// UPDATE: I could attempt a different workaroud for get to be noexcept.
-    double do_get_error_() const;
-
-    // Functional pointer getter
-    const Attribute *(Attribute::*get_ptr_)() const = &Attribute::do_get_ptr_default_;
-    /// Get pointer to attribute error.
-    /// UPDATE: I could attempt a different workaroud for get_ptr to be noexcept.
-    const Attribute *do_get_pointer_error_() const { throw std::runtime_error(
-        "Tried to return a pointer to " + err_name() + "."); }
-    /// Get pointer to attribute value internal value.
-    const Attribute *do_get_ptr_default_() const noexcept { return this; }
-    /// Get pointer to attribute value from external value.
-    const Attribute *do_get_pointer_from_pointer_() const noexcept { return pAttr_; }
-
-    // Functional setter
-    void (Attribute::*do_set_)(double) = &Attribute::do_set_default_;
-    /// Set attribute internal value.
-    virtual void do_set_default_(double x) { value_ = x; }
-    /// Set error. Non numeric attributes can't be set, but just assigned.
-    void do_set_error_(double) { throw std::runtime_error(
-        "Tried to change non numeric " + err_name() + "."); }
+    hsp::mode::Getter get_mode_ = hsp::mode::Getter::This;
 };

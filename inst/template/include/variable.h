@@ -47,6 +47,13 @@ public:
     //////  SETTER  //////
     //////////////////////
 
+    /// Change value. Buffer old value.
+    void set(double x)
+    {
+        buffer_ = value_;
+        Attribute::set(x);
+    }
+
     /// Helper to initialize variable.
     void init(double value, bool is_const, std::string_view expr, bool is_prim = false);
 
@@ -141,13 +148,6 @@ protected:
 
     /// Helper with degenerate range.
     void helper_degenerate_range_();
-
-    /// Store the buffer and change value.
-    void do_set_default_(double x) override final
-    {
-        buffer_ = value_;
-        value_ = x;
-    }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////  Variable : Metropolis-Hastings [private]  ///////////////////////

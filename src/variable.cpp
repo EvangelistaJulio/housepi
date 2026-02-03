@@ -344,7 +344,7 @@ void Variable::init_func_reshaping(bool discr)
             "Impossible to set " + err_name() + " as constant. Check its dependencies.");
 
     else if (!pFunc_->is_callable_implicitly())
-        get_ = &Variable::do_get_error_;
+        get_mode_ = hsp::mode::Getter::Error;
 }
 
 /// Assign distribution with constant arguments.

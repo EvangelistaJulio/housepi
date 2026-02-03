@@ -25,12 +25,26 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace hsp::discr
+namespace hsp::mode
 {
-    constexpr unsigned short NONE = 0;    /// None
-    constexpr unsigned short LEFT = 1;    /// Left
-    constexpr unsigned short CENTER = 2;  /// Center
-    constexpr unsigned short DEFINED = 3; /// Defined
+    enum class Discr : uint8_t
+    {
+        None,   /// No discretization
+        Left,   /// Left discretization
+        Center, /// Centered discretization
+        Defined /// Discrete defined
+    };
+    enum class Interval : uint8_t
+    {
+        None,  /// No interval
+        Open,  /// Open interval
+        Closed /// Closed interval
+    };
+    enum class Deloc : uint8_t
+    {
+        None,  /// No delocalization
+        Active /// Active delocalization
+    };
 }
 
 /// Function parent class. Arguments stored in arrays.
@@ -101,8 +115,8 @@ public:
     double pdf(double x) const { return is_valid(x) ? eval_function_(x) : 0.; }
     /// Return value as for a cumulative distribution function.
     double cdf(double x) const
-    { 
-        return is_below(x) ? 0: eval_primitive_(is_above(x) ? (this->*delocate_)(upper()) : x);
+    {
+        return is_below(x) ? 0 : eval_primitive_(is_above(x) ? delocate_(upper()) : x);
     }
 
     size_t n_args() const noexcept { return arguments_.size(); }
@@ -133,9 +147,35 @@ public:
     void assert_is_callable_explicitly() const;
 
     /// Returns TRUE if value x is below range minimum.
-    bool is_below(double x) const { return (this->*is_below_)((this->*delocate_)(x)); }
+    bool is_below(double x) const
+    {
+        switch (below_mode_)
+        {
+        case hsp::mode::Interval::None:
+            return false;
+        case hsp::mode::Interval::Open:
+            return delocate_(x) <= lower_arg_.get();
+        case hsp::mode::Interval::Closed:
+            return delocate_(x) < lower_arg_.get();
+        }
+        __builtin_unreachable();
+    }
+
     /// Returns TRUE if value x is above range maximum.
-    bool is_above(double x) const { return (this->*is_above_)((this->*delocate_)(x)); }
+    bool is_above(double x) const
+    {
+        switch (above_mode_)
+        {
+        case hsp::mode::Interval::None:
+            return false;
+        case hsp::mode::Interval::Open:
+            return delocate_(x) >= upper_arg_.get();
+        case hsp::mode::Interval::Closed:
+            return delocate_(x) > upper_arg_.get();
+        }
+        __builtin_unreachable();
+    }
+
     /// Returns TRUE if value x is within range.
     bool is_valid(double x) const { return !is_below(x) && !is_above(x); }
 
@@ -165,10 +205,10 @@ protected:
     virtual Attribute &find_arg_(std::string_view arg_name);
 
     /// Return value of call.
-    double eval_function_(double x) const { return (this->*function_)((this->*delocate_)(x)); }
+    double eval_function_(double x) const { return (this->*function_)(delocate_(x)); }
 
     /// Return value of primitive.
-    double eval_primitive_(double x) const { return (this->*primitive_)((this->*delocate_)(x)); }
+    double eval_primitive_(double x) const { return (this->*primitive_)(delocate_(x)); }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////  Function : virtual methods [protected]  ///////////////////////////
@@ -190,9 +230,9 @@ protected:
     /////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Internal code to define the type of discretization.
-    unsigned short which_discrete_case_() const;
+    hsp::mode::Discr which_discrete_case_() const;
     /// Initialize functional discretization.
-    virtual void init_discr_helper_(unsigned short discr_type);
+    virtual void init_discr_helper_(hsp::mode::Discr discr_mode);
 
     /// Polymorphic function method.
     double (Function::*function_)(double) const = &Function::raw_function_;
@@ -243,34 +283,31 @@ protected:
     ////////////////////////////  Function : lcoation [protected]  //////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    double (Function::*delocate_)(double) const = &Function::do_delocate_none_;
-    double do_delocate_none_(double x) const { return x; }
-    double do_delocate_(double x) const { return x - loc_arg_.get(); }
+    /// Store delocation mode.
+    hsp::mode::Deloc deloc_mode_ = hsp::mode::Deloc::None;
+    /// Delocate according to mode.
+    double delocate_(double x) const
+    {
+        switch (deloc_mode_)
+        {
+        case hsp::mode::Deloc::None:
+            return x;
+        case hsp::mode::Deloc::Active:
+            return x - loc_arg_.get();
+        }
+        __builtin_unreachable();
+    }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////  Function : range [protected]  ////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
+    hsp::mode::Interval below_mode_ = hsp::mode::Interval::None; /// Store lower interval below mode
+    hsp::mode::Interval above_mode_ = hsp::mode::Interval::None; /// Store upper interval above mode
+
     /// Internal code to define the type of range.
     bool init_range_min_(double min_val = 0., bool is_min_open = false);
     void init_range_helper_(bool is_min_open = false, bool is_max_open = false);
-
-    //---- alternative valid range methods -----//
-    bool (Function::*is_below_)(double) const = &Function::do_is_below_never_;
-    bool (Function::*is_above_)(double) const = &Function::do_is_above_never_;
-
-    //----- range : none ------//
-    bool do_is_below_never_(double) const noexcept { return false; }
-    bool do_is_above_never_(double) const noexcept { return false; }
-
-    //----- range : minimum -----//
-    /// NOTE: if getter becomes noexcept, also these checks will
-    bool do_is_below_open_min_(double x) const { return x <= lower_arg_.get(); }
-    bool do_is_below_close_min_(double x) const { return x < lower_arg_.get(); }
-
-    //----- range : maximum -----//
-    bool do_is_above_open_max_(double x) const { return x >= upper_arg_.get(); }
-    bool do_is_above_close_max_(double x) const { return x > upper_arg_.get(); }
 };
 
 /// Compose registries to get a function from them.

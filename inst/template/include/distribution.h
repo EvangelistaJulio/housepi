@@ -47,9 +47,9 @@ public:
 
 	double rand(hsp::rnd_gen &prng) const { return (this->*rand_)(prng); }
 	/// Return value of log-probability density/mass function.
-	double logpdf(double x) const { return (this->*log_func_)((this->*delocate_)(x)); }
+	double logpdf(double x) const { return (this->*log_func_)(delocate_(x)); }
 	/// Return value of log-ratio of probability density/mass functions.
-	double logratio(double xo, double xn) const { return (this->*log_ratio_)((this->*delocate_)(xo), (this->*delocate_)(xn)); }
+	double logratio(double xo, double xn) const { return (this->*log_ratio_)(delocate_(xo), delocate_(xn)); }
 
 	std::string err_name() const override { return "distribution '" + std::string(name()) + "'"; }
 
@@ -59,7 +59,7 @@ protected:
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
 	/// Initialize functional discretization.
-	void init_discr_helper_(unsigned short discr_type) override final;
+	void init_discr_helper_(hsp::mode::Discr discr_type) override final;
 	void init_trunc_helper_();
 
 	/////////////////////////////////////////////////////////////////////////////////////////////

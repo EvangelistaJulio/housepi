@@ -184,15 +184,6 @@ std::string Attribute::str_summary() const
     return sms;
 }
 
-/// Get attribute value from external function.
-///
-/// NOTE: these can't be moved in the class because of forward declaration of Function
-double Attribute::do_get_from_function_() const { return pFunc_->evaluate(); }
-/// Get attribute error for not callable functions.
-double Attribute::do_get_error_() const { throw std::runtime_error(
-    "Impossible to return value for " + err_name() +
-    ". Argument 'x' of " + pFunc_->err_name() + " cannot be missing."); }
-
 /// Wheter it's constant.
 /// NOTE: by construction convention, a pointer to constant must be initialized to numeric instead.
 /// NOTE: if empty, then it's constant by convention.
@@ -226,7 +217,6 @@ bool Attribute::is_discrete() const noexcept
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Set attribute name. Eventually also err type.
 void Attribute::name(const std::string &name, const std::string &err_type)
 {
     name_ = name;
@@ -234,31 +224,24 @@ void Attribute::name(const std::string &name, const std::string &err_type)
         err_type_ = err_type;
 }
 
-/// Initialize attribute as numeric.
 void Attribute::init_numeric(double x)
 {
-    get_ = &Attribute::do_get_default_;
-    get_ptr_ = &Attribute::do_get_ptr_default_;
-    do_set_ = &Attribute::do_set_default_;
+    get_mode_ = hsp::mode::Getter::This;
     value_ = x;
     pAttr_ = nullptr;
     pFunc_ = nullptr;
 }
-/// Initialize attribute as pointer.
 void Attribute::init_pointer(const Attribute *y)
 {
     if (y == nullptr)
         throw std::invalid_argument(
             "Tried to assign empty pointer to " + err_name() + ".");
 
-    get_ = &Attribute::do_get_from_pointer_;
-    get_ptr_ = &Attribute::do_get_pointer_from_pointer_;
-    do_set_ = &Attribute::do_set_error_;
+    get_mode_ = hsp::mode::Getter::Pointer;
     value_ = hsp::na::DOUBLE;
     pAttr_ = y;
     pFunc_ = nullptr;
 }
-/// Initialize attribute as function.
 void Attribute::init_function(const std::shared_ptr<Function> f)
 {
     // check the function is different from the current one
@@ -269,14 +252,11 @@ void Attribute::init_function(const std::shared_ptr<Function> f)
         throw std::invalid_argument(
             "Tried to assign " + err_name() + " as its own argument.");
 
-    get_ = &Attribute::do_get_from_function_;
-    get_ptr_ = &Attribute::do_get_pointer_error_;
-    do_set_ = &Attribute::do_set_error_;
+    get_mode_ = hsp::mode::Getter::Function;
     value_ = hsp::na::DOUBLE;
     pAttr_ = nullptr;
     pFunc_ = f;
 }
-/// Initialize attribute as function given the function name.
 void Attribute::init_function(std::string_view s, bool is_primitive)
 {
     init_function(compose_func_registries(
@@ -286,7 +266,6 @@ void Attribute::init_function(std::string_view s, bool is_primitive)
         is_primitive));
 }
 
-/// Transfer from other Attribute.
 void Attribute::transfer(const Attribute &other)
 {
     if (other.is_constant())
@@ -295,6 +274,25 @@ void Attribute::transfer(const Attribute &other)
         init_function(other.get_function());
     else
         init_pointer(other.get_ptr());
+}
+
+double Attribute::get() const
+{
+    switch (get_mode_)
+    {
+    case hsp::mode::Getter::This:
+        return value_;
+    case hsp::mode::Getter::Pointer:
+        return pAttr_->get();
+    case hsp::mode::Getter::Function:
+        return pFunc_->evaluate();
+    case hsp::mode::Getter::Error:
+        throw std::runtime_error(
+            "Impossible to return value for " + err_name() +
+            ". Argument 'x' of " + pFunc_->err_name() + " cannot be missing.");
+    default:
+        __builtin_unreachable();
+    }
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -311,9 +309,7 @@ Function::Function(const std::vector<std::pair<std::string, double>> &args,
 {
     // initialize default arguments
     x_arg_.name(hsp::params::X);
-    x_arg_.set(hsp::na::DOUBLE);
     loc_arg_.name(hsp::params::LOC);
-    loc_arg_.set(hsp::na::DOUBLE);
 
     // allocate attribute for remaining arguments
     size_t n_args = args.size();
@@ -451,58 +447,30 @@ bool Function::init_range_min_(double min_val, bool is_min_open)
 /// Set the range of validity of the value, and the corresponding validation function.
 void Function::init_range_helper_(bool is_min_open, bool is_max_open)
 {
-    if (lower_arg_.is_empty() && upper_arg_.is_empty()) // Unbounded
-    {
-        is_below_ = &Function::do_is_below_never_;
-        is_above_ = &Function::do_is_above_never_;
-    }
-    else if (!lower_arg_.is_empty() && upper_arg_.is_empty()) // Lower Bound
-    {
-        is_above_ = &Function::do_is_above_never_;
-        if (is_min_open)
-            is_below_ = &Function::do_is_below_open_min_;
-        else
-            is_below_ = &Function::do_is_below_close_min_;
-    }
-    else if (lower_arg_.is_empty() && !upper_arg_.is_empty()) // Upper Bound
-    {
-        is_below_ = &Function::do_is_below_never_;
-        if (is_max_open)
-            is_above_ = &Function::do_is_above_open_max_;
-        else
-            is_above_ = &Function::do_is_above_close_max_;
-    }
-    else // Within an Interval
-    {
-        bool wrong_open = false, wrong_close = false; // check for consistency
+    if (lower_arg_.is_empty())
+        below_mode_ = hsp::mode::Interval::None;
+    else if (is_min_open)
+        below_mode_ = hsp::mode::Interval::Open;
+    else
+        below_mode_ = hsp::mode::Interval::Closed;
 
-        if (is_min_open && is_max_open)
-        {
-            is_below_ = &Function::do_is_below_open_min_;
-            is_above_ = &Function::do_is_above_open_max_;
-            wrong_close = lower_arg_.get() > upper_arg_.get();
-        }
-        else if (is_min_open && !is_max_open)
-        {
-            is_below_ = &Function::do_is_below_open_min_;
-            is_above_ = &Function::do_is_above_close_max_;
-        }
-        else if (!is_min_open && is_max_open)
-        {
-            is_below_ = &Function::do_is_below_close_min_;
-            is_above_ = &Function::do_is_above_open_max_;
-        }
-        else
-        {
-            is_below_ = &Function::do_is_below_close_min_;
-            is_above_ = &Function::do_is_above_close_max_;
-            wrong_open = lower_arg_.get() >= upper_arg_.get();
-        }
+    if (upper_arg_.is_empty())
+        above_mode_ = hsp::mode::Interval::None;
+    else if (is_max_open)
+        above_mode_ = hsp::mode::Interval::Open;
+    else
+        above_mode_ = hsp::mode::Interval::Closed;
 
-        if (wrong_open || wrong_close)
-            throw std::invalid_argument(
-                "Generated an inconsistent range " + str_range() + " for " + err_name() + ".");
-    }
+    // check for consistency
+    bool wrong_open = false, wrong_close = false;
+    if (is_min_open && is_max_open)
+        wrong_close = lower_arg_.get() > upper_arg_.get();
+    else if (!is_min_open && !is_max_open)
+        wrong_open = lower_arg_.get() >= upper_arg_.get();
+
+    if (wrong_open || wrong_close)
+        throw std::invalid_argument(
+            "Generated an inconsistent range " + str_range() + " for " + err_name() + ".");
 }
 
 /// Return formatted range.
@@ -513,19 +481,19 @@ std::string Function::str_range() const
 
     std::string output;
 
-    if (is_below_ == &Function::do_is_below_never_)
-        output = "(-Inf,";
-    else if (is_below_ == &Function::do_is_below_open_min_)
-        output = "(" + str_min;
-    else 
+    if (below_mode_ == hsp::mode::Interval::Closed)
         output = "[" + str_min;
+    else if (below_mode_ == hsp::mode::Interval::Open)
+        output = "(" + str_min;
+    else
+        output = "(-Inf,";
 
-    if (is_above_ == &Function::do_is_above_never_)
-        output += " Inf)";
-    else if (is_above_ == &Function::do_is_above_open_max_)
-        output += ", " + str_max + ")";
-    else 
+    if (above_mode_ == hsp::mode::Interval::Closed)
         output += ", " + str_max + "]";
+    else if (above_mode_ == hsp::mode::Interval::Open)
+        output += ", " + str_max + ")";
+    else
+        output += " Inf)";
 
     return output;
 }
@@ -574,7 +542,7 @@ void Function::init_attr(std::string_view key, const Attribute &attr)
 
     // Apply location argument shift.
     if (key == hsp::params::LOC)
-        delocate_ = &Function::do_delocate_;
+        deloc_mode_ = hsp::mode::Deloc::Active;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -584,23 +552,23 @@ void Function::init_attr(std::string_view key, const Attribute &attr)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Select functional method for discretization.
-void Function::init_discr_helper_(unsigned short discr_type)
+void Function::init_discr_helper_(hsp::mode::Discr discr_mode)
 {
-    if (discr_type == hsp::discr::DEFINED)
+    if (discr_mode == hsp::mode::Discr::Defined)
     {
         function_ = &Function::do_function_discrete_;
         log_func_ = &Function::do_logfunc_discrete_;
         primitive_ = &Function::do_primitive_discrete_;
         log_ratio_ = &Function::do_logratio_discrete_;
     }
-    else if (discr_type == hsp::discr::CENTER)
+    else if (discr_mode == hsp::mode::Discr::Center)
     {
         function_ = &Function::do_function_discr_center_;
         log_func_ = &Function::do_logfunc_discr_center_;
         primitive_ = &Function::do_primitive_discr_center_;
         log_ratio_ = &Function::do_logratio_discr_center_;
     }
-    else if (discr_type == hsp::discr::LEFT)
+    else if (discr_mode == hsp::mode::Discr::Left)
     {
         function_ = &Function::do_function_discr_left_;
         log_func_ = &Function::do_logfunc_discr_left_;
@@ -617,15 +585,15 @@ void Function::init_discr_helper_(unsigned short discr_type)
 }
 
 /// Returns the case of the discretization.
-unsigned short Function::which_discrete_case_() const
+hsp::mode::Discr Function::which_discrete_case_() const
 {
     if (function_ == &Function::do_function_discrete_)
-        return hsp::discr::DEFINED;
+        return hsp::mode::Discr::Defined;
     if (function_ == &Function::do_function_discr_center_)
-        return hsp::discr::CENTER;
+        return hsp::mode::Discr::Center;
     if (function_ == &Function::do_function_discr_left_)
-        return hsp::discr::LEFT;
-    return hsp::discr::NONE;
+        return hsp::mode::Discr::Left;
+    return hsp::mode::Discr::None;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
