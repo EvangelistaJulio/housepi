@@ -251,9 +251,11 @@ void Model::simulate_single_house(Household &house)
 	const double tf = member_0.aug(AugmKey::onset_time) + par(ParamKey::study_period);
 
 	// infection of secondary cases following the first case
+	std::vector<size_t> sus_hhindexes;
+	sus_hhindexes.reserve(house.n_susceptible_status());
 	for (double t = t0 + Dt; t <= tf && house.n_susceptible_status() > 0; t += Dt)
 	{
-		const auto sus_hhindexes(house.susceptible_hhindexes()); // old susceptible
+		sus_hhindexes = house.susceptible_hhindexes(); // old susceptible
 		for (size_t i : sus_hhindexes)
 		{
 			Individual &member_i = house.member(i);

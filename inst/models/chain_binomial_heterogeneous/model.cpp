@@ -139,12 +139,14 @@ void Model::simulate_single_house(Household &house)
 
 	std::vector<Individual *> old_gen_set = {};
 
+	std::vector<size_t> sus_hhindexes;
+	sus_hhindexes.reserve(house.n_susceptible_status());
 	while (house.n_susceptible_status() > 0 && !new_gen_set.empty())
 	{
 		std::swap(old_gen_set, new_gen_set);
 		new_gen_set.clear();
 
-		const auto sus_hhindexes = house.susceptible_hhindexes();
+		sus_hhindexes = house.susceptible_hhindexes();
 		for (size_t i : sus_hhindexes)
 		{
 			Individual &member_i = house.member(i);

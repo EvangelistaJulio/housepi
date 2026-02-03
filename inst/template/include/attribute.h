@@ -21,17 +21,6 @@ namespace hsp::params
     constexpr const char *MAX = "max"; /// Maximum value.
 }
 
-namespace hsp::mode
-{
-    enum class Getter : uint8_t
-    {
-        This,     /// Get internal value
-        Pointer,  /// Get other attribute value
-        Function, /// Get function value
-        Error     /// Raise error if to get
-    };
-}
-
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////// *** Attribute : class *** ///////////////////////////////////
@@ -44,6 +33,16 @@ class Function;
 /// Attribute parent class.
 class Attribute
 {
+protected:
+    enum class Mode : uint8_t
+    {
+        This,     /// Get internal value
+        Pointer,  /// Get other attribute value
+        Function, /// Get function value
+        Error     /// Raise error if to get
+    };
+    Mode get_mode_ = Mode::This; /// Attribute mode
+
 public:
     ///////////////////////////
     //////  CONSTRUCTOR  //////
@@ -55,7 +54,7 @@ public:
     explicit Attribute(double x);
     /// Pointer to double attribute.
     explicit Attribute(const Attribute *y);
-    /// Function attribute.
+    /// Function attribute. // UPDATE: should not be shared.
     explicit Attribute(const std::shared_ptr<Function> f);
     /// Productory of pointed attributes values.
     explicit Attribute(const std::vector<const Attribute *> other_ptrs);
@@ -73,12 +72,12 @@ public:
     {
         switch (get_mode_)
         {
-        case hsp::mode::Getter::This:
+        case Mode::This:
             value_ = x;
             break;
-        case hsp::mode::Getter::Pointer:
-        case hsp::mode::Getter::Function:
-        case hsp::mode::Getter::Error:
+        case Mode::Pointer:
+        case Mode::Function:
+        case Mode::Error:
             throw std::runtime_error(
                 "Tried to change non numeric " + err_name() + ".");
         default:
@@ -105,7 +104,6 @@ public:
 
     /// Get attribute numeric value.
     /// NOTE: this can't become noexcept because of special function calls.
-    /// UPDATE: this can't be inlined because of Function.
     double get() const;
 
     /// Get pointer to attribute value.
@@ -113,12 +111,12 @@ public:
     {
         switch (get_mode_)
         {
-        case hsp::mode::Getter::This:
+        case Mode::This:
             return this;
-        case hsp::mode::Getter::Pointer:
+        case Mode::Pointer:
             return pAttr_;
-        case hsp::mode::Getter::Function:
-        case hsp::mode::Getter::Error:
+        case Mode::Function:
+        case Mode::Error:
             throw std::runtime_error(
                 "Tried to return a pointer to " + err_name() + ".");
         }
@@ -157,11 +155,9 @@ public:
     virtual std::string str_summary() const;
 
 protected:
-    std::string err_type_ = "attribute";        // type name displayed in errors
+    std::string err_type_ = "attribute";        /// type name displayed in errors
     std::string name_ = "";                     /// name of argument
     double value_;                              /// internal value
     const Attribute *pAttr_ = nullptr;          /// pointer to attribute
     std::shared_ptr<Function> pFunc_ = nullptr; /// pointer to function
-
-    hsp::mode::Getter get_mode_ = hsp::mode::Getter::This;
 };

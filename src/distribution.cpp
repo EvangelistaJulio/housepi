@@ -33,17 +33,17 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Select functional for discretization of random sampling.
-void Distribution::init_discr_helper_(hsp::mode::Discr discr_type)
+void Distribution::init_discr_helper_(Mode::Discr discr_type)
 {
     Function::init_discr_helper_(discr_type);
 
-    if (discr_type == hsp::mode::Discr::Center)
+    if (discr_type == Mode::Discr::Center)
     {
         rand_ = &Distribution::do_discr_center_rand_;
         if (!loc_arg_.is_empty())
             rand_ = &Distribution::do_discr_center_rand_loc_;
     }
-    else if (discr_type == hsp::mode::Discr::Left)
+    else if (discr_type == Mode::Discr::Left)
     {
         rand_ = &Distribution::do_discr_left_rand_;
         if (!loc_arg_.is_empty())
@@ -59,10 +59,7 @@ void Distribution::init_discr_helper_(hsp::mode::Discr discr_type)
 
 /// Select functional method in case of truncation.
 void Distribution::init_trunc_helper_()
-{
-    const hsp::mode::Discr discr_type = which_discrete_case_();
-
-    if (lower_arg_.is_empty() && upper_arg_.is_empty()) // No Truncation
+{    if (lower_arg_.is_empty() && upper_arg_.is_empty()) // No Truncation
     {
         trunc_ = &Distribution::do_trunc_dummy_;
         logtrunc_ = &Distribution::do_logtrunc_dummy_;
@@ -70,21 +67,21 @@ void Distribution::init_trunc_helper_()
     }
     else if (!lower_arg_.is_empty() && upper_arg_.is_empty()) // Lower Range Truncation
     {
-        switch (discr_type)
+        switch (discr_mode_)
         {
-        case hsp::mode::Discr::Defined: // discrete defined
+        case Mode::Discr::Defined: // discrete defined
             trunc_ = &Distribution::do_trunc_min_discr_defined_;
             logtrunc_ = &Distribution::do_logtrunc_min_discr_defined_;
             shift_ = &Distribution::do_shift_min_discr_defined_;
             rand_ = &Distribution::do_trunc_rand_;
             break;
-        case hsp::mode::Discr::Center: // centered discretization
+        case Mode::Discr::Center: // centered discretization
             trunc_ = &Distribution::do_trunc_min_discr_center_;
             logtrunc_ = &Distribution::do_logtrunc_min_discr_center_;
             shift_ = &Distribution::do_shift_min_discr_center_;
             rand_ = &Distribution::do_trunc_rand_discr_center_;
             break;
-        case hsp::mode::Discr::Left: // left discretization
+        case Mode::Discr::Left: // left discretization
             trunc_ = &Distribution::do_trunc_min_discr_left_;
             logtrunc_ = &Distribution::do_logtrunc_min_discr_left_;
             shift_ = &Distribution::do_shift_min_discr_left_;
@@ -100,19 +97,19 @@ void Distribution::init_trunc_helper_()
     else if (lower_arg_.is_empty() && !upper_arg_.is_empty()) // Upper Range Truncation
     {
         shift_ = &Distribution::do_shift_dummy_;
-        switch (discr_type)
+        switch (discr_mode_)
         {
-        case hsp::mode::Discr::Defined: // discrete defined
+        case Mode::Discr::Defined: // discrete defined
             trunc_ = &Distribution::do_trunc_max_discr_defined_;
             logtrunc_ = &Distribution::do_logtrunc_max_discr_defined_;
             rand_ = &Distribution::do_trunc_rand_;
             break;
-        case hsp::mode::Discr::Center: // centered discretization
+        case Mode::Discr::Center: // centered discretization
             trunc_ = &Distribution::do_trunc_max_discr_center_;
             logtrunc_ = &Distribution::do_logtrunc_max_discr_center_;
             rand_ = &Distribution::do_trunc_rand_discr_center_;
             break;
-        case hsp::mode::Discr::Left: // left discretization
+        case Mode::Discr::Left: // left discretization
             trunc_ = &Distribution::do_trunc_max_discr_left_;
             logtrunc_ = &Distribution::do_logtrunc_max_discr_left_;
             rand_ = &Distribution::do_trunc_rand_discr_left_;
@@ -125,21 +122,21 @@ void Distribution::init_trunc_helper_()
     }
     else // Both Sides Truncation
     {
-        switch (discr_type)
+        switch (discr_mode_)
         {
-        case hsp::mode::Discr::Defined: // discrete defined
+        case Mode::Discr::Defined: // discrete defined
             trunc_ = &Distribution::do_trunc_both_sides_discr_defined_;
             logtrunc_ = &Distribution::do_logtrunc_both_sides_discr_defined_;
             shift_ = &Distribution::do_shift_min_discr_defined_;
             rand_ = &Distribution::do_trunc_rand_;
             break;
-        case hsp::mode::Discr::Center: // centered discretization
+        case Mode::Discr::Center: // centered discretization
             trunc_ = &Distribution::do_trunc_both_sides_discr_center_;
             logtrunc_ = &Distribution::do_logtrunc_both_sides_discr_center_;
             shift_ = &Distribution::do_shift_min_discr_center_;
             rand_ = &Distribution::do_trunc_rand_discr_center_;
             break;
-        case hsp::mode::Discr::Left: // left discretization
+        case Mode::Discr::Left: // left discretization
             trunc_ = &Distribution::do_trunc_both_sides_discr_left_;
             logtrunc_ = &Distribution::do_logtrunc_both_sides_discr_left_;
             shift_ = &Distribution::do_shift_min_discr_left_;
@@ -270,7 +267,7 @@ namespace
 #define INIT_DISCR_LEFT_MIN_ZERO_CLOSE()            \
     void init_discretization() override final       \
     {                                               \
-        init_discr_helper_(hsp::mode::Discr::Left); \
+        init_discr_helper_(Mode::Discr::Left); \
     }                                               \
     void init_truncation() override final           \
     {                                               \
@@ -302,7 +299,7 @@ namespace
         /// UPDATE: should understand when discrete defined...
         void init_discretization() override final
         {
-            init_discr_helper_(hsp::mode::Discr::Center);
+            init_discr_helper_(Mode::Discr::Center);
         }
         /// NOTE: truncation for uniform distribution is inside raw
         void init_truncation() override final
@@ -341,9 +338,9 @@ namespace
         void init_discretization() override final
         {
             if (lower_arg_.is_empty())
-                init_discr_helper_(hsp::mode::Discr::Center);
+                init_discr_helper_(Mode::Discr::Center);
             else
-                init_discr_helper_(hsp::mode::Discr::Left);
+                init_discr_helper_(Mode::Discr::Left);
         }
         void init_truncation() override final
         {
@@ -764,7 +761,7 @@ namespace
     public:
         Poisson_()
             : Distribution({{"lambda", hsp::na::DOUBLE}},
-                           0., false, hsp::na::DOUBLE, false) { init_discr_helper_(hsp::mode::Discr::Defined); }
+                           0., false, hsp::na::DOUBLE, false) { init_discr_helper_(Mode::Discr::Defined); }
         std::string_view name() const noexcept override final { return "poisson"; }
 
         INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
@@ -809,7 +806,7 @@ namespace
             : Distribution({{"size", hsp::na::DOUBLE}, {"prob", hsp::na::DOUBLE}},
                            0., false, hsp::na::DOUBLE, false)
         {
-            init_discr_helper_(hsp::mode::Discr::Defined);
+            init_discr_helper_(Mode::Discr::Defined);
             upper_arg_.init_pointer(arguments_[0].get_ptr());
             init_range_helper_(false, false);
         }
@@ -877,7 +874,7 @@ namespace
     public:
         NegativeBinomial_()
             : Distribution({{"size", hsp::na::DOUBLE}, {"prob", hsp::na::DOUBLE}},
-                           0., false, hsp::na::DOUBLE, false) { init_discr_helper_(hsp::mode::Discr::Defined); }
+                           0., false, hsp::na::DOUBLE, false) { init_discr_helper_(Mode::Discr::Defined); }
         std::string_view name() const noexcept override final { return "negative_binomial"; }
 
         INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
@@ -924,7 +921,7 @@ namespace
     public:
         Geometric_()
             : Distribution({{"prob", hsp::na::DOUBLE}},
-                           0., false, hsp::na::DOUBLE, false) { init_discr_helper_(hsp::mode::Discr::Defined); }
+                           0., false, hsp::na::DOUBLE, false) { init_discr_helper_(Mode::Discr::Defined); }
         std::string_view name() const noexcept override final { return "geometric"; }
 
         INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()

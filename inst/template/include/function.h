@@ -25,31 +25,44 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace hsp::mode
-{
-    enum class Discr : uint8_t
-    {
-        None,   /// No discretization
-        Left,   /// Left discretization
-        Center, /// Centered discretization
-        Defined /// Discrete defined
-    };
-    enum class Interval : uint8_t
-    {
-        None,  /// No interval
-        Open,  /// Open interval
-        Closed /// Closed interval
-    };
-    enum class Deloc : uint8_t
-    {
-        None,  /// No delocalization
-        Active /// Active delocalization
-    };
-}
-
 /// Function parent class. Arguments stored in arrays.
 class Function
 {
+protected:
+    struct Mode
+    {
+        enum class Discr : uint8_t
+        {
+            None,   /// No discretization
+            Center, /// Centered discretization
+            Left,   /// Left discretization
+            Defined /// Discrete defined
+        };
+        enum class Interv : uint8_t
+        {
+            None,  /// No interval
+            Open,  /// Open interval
+            Closed /// Closed interval
+        };
+        enum class Deloc : uint8_t
+        {
+            None,  /// No delocalization
+            Active /// Active delocalization
+        };
+        enum class Eval : uint8_t
+        {
+            Func,  /// as function
+            Prim,  /// as primitive
+            Proba, /// as probability mass/density
+            Cumul  /// as cumulative
+        };
+    };
+    Mode::Eval eval_mode_ = Mode::Eval::Func;      /// evaluation mode
+    Mode::Discr discr_mode_ = Mode::Discr::None;   /// discretization mode
+    Mode::Deloc deloc_mode_ = Mode::Deloc::None;   /// delocation mode
+    Mode::Interv below_mode_ = Mode::Interv::None; /// lower interval below mode
+    Mode::Interv above_mode_ = Mode::Interv::None; /// upper interval above mode
+
 public:
     ///////////////////////////
     //////  CONSTRUCTOR  //////
@@ -83,14 +96,14 @@ public:
     virtual void init_truncation() { throw std::invalid_argument(
         "Called to undefined method truncation of " + err_name() + "."); }
 
-    /// Select call method for return value.
-    void set_eval_call() noexcept { evaluate_ = &Function::eval_function_; }
+    /// Select function method for return value.
+    void set_eval_call() noexcept { eval_mode_ = Mode::Eval::Func; }
     /// Select primitive method for return value.
-    void set_eval_primitive() noexcept { evaluate_ = &Function::eval_primitive_; }
+    void set_eval_primitive() noexcept { eval_mode_ = Mode::Eval::Prim; }
     /// Select call as a distributin method for return value.
-    void set_eval_as_distr_call() noexcept { evaluate_ = &Function::pdf; }
+    void set_eval_as_distr_call() noexcept { eval_mode_ = Mode::Eval::Proba; }
     /// Select primitive as a distributin method for return value.
-    void set_eval_as_distr_primitive() noexcept { evaluate_ = &Function::cdf; }
+    void set_eval_as_distr_primitive() noexcept { eval_mode_ = Mode::Eval::Cumul; }
 
     /// Set argument value.
     /// UPDATE: just required by AdaptableProposal.
@@ -106,19 +119,6 @@ public:
     //////  GETTER  //////
     //////////////////////
 
-    /// Central method to return function's value at given x.
-    double evaluate(double x) const { return (this->*evaluate_)(x); }
-    /// Evaluate implicitely at 'x' value.
-    double evaluate() const { return (this->*evaluate_)(x_arg_.get()); }
-
-    /// Return value as for a probability density/mass function.
-    double pdf(double x) const { return is_valid(x) ? eval_function_(x) : 0.; }
-    /// Return value as for a cumulative distribution function.
-    double cdf(double x) const
-    {
-        return is_below(x) ? 0 : eval_primitive_(is_above(x) ? delocate_(upper()) : x);
-    }
-
     size_t n_args() const noexcept { return arguments_.size(); }
     double arg(size_t i) const { return arguments_[i].get(); }
     double lower() const { return lower_arg_.get(); }
@@ -128,6 +128,32 @@ public:
     const Attribute &get_lower() const noexcept { return lower_arg_; }
     const Attribute &get_upper() const noexcept { return upper_arg_; }
 
+    /// Evaluate implicitely at 'x' value.
+    double evaluate() const { return evaluate(x_arg_.get()); }
+
+    /// Central method to return function's value at given x.
+    double evaluate(double x) const
+    {
+        switch (eval_mode_)
+        {
+        case Mode::Eval::Func:
+            return function_(delocate_(x));
+        case Mode::Eval::Prim:
+            return primitive_(delocate_(x));
+        case Mode::Eval::Proba:
+            return pdf(x);
+        case Mode::Eval::Cumul:
+            return cdf(x);
+        }
+        __builtin_unreachable();
+    }
+
+    /// Return value as for a probability density/mass function.
+    double pdf(double x) const { return is_valid(x) ? function_(delocate_(x)) : 0.; }
+
+    /// Return value as for a cumulative distribution function.
+    double cdf(double x) const { return is_below(x) ? 0 : primitive_(delocate_(is_above(x) ? upper() : x)); }
+
     /////////////////////
     //////  FLAGS  //////
     /////////////////////
@@ -135,7 +161,7 @@ public:
     /// Wheter return value is always constant.
     bool is_constant() const noexcept;
     /// Wheter return value is always discrete.
-    virtual bool is_discrete() const noexcept { return function_ != &Function::raw_function_; }
+    virtual bool is_discrete() const noexcept { return discr_mode_ != Mode::Discr::None; }
     /// Wheter all arguments are not empty.
     bool is_callable_explicitly() const noexcept;
     /// Wheter it can be called implicitely, i. e. if also 'x' has been linked.
@@ -151,11 +177,11 @@ public:
     {
         switch (below_mode_)
         {
-        case hsp::mode::Interval::None:
+        case Mode::Interv::None:
             return false;
-        case hsp::mode::Interval::Open:
+        case Mode::Interv::Open:
             return delocate_(x) <= lower_arg_.get();
-        case hsp::mode::Interval::Closed:
+        case Mode::Interv::Closed:
             return delocate_(x) < lower_arg_.get();
         }
         __builtin_unreachable();
@@ -166,11 +192,11 @@ public:
     {
         switch (above_mode_)
         {
-        case hsp::mode::Interval::None:
+        case Mode::Interv::None:
             return false;
-        case hsp::mode::Interval::Open:
+        case Mode::Interv::Open:
             return delocate_(x) >= upper_arg_.get();
-        case hsp::mode::Interval::Closed:
+        case Mode::Interv::Closed:
             return delocate_(x) > upper_arg_.get();
         }
         __builtin_unreachable();
@@ -194,21 +220,14 @@ public:
     std::string str_summary(bool show_x_arg = true) const;
 
 protected:
-    std::vector<Attribute> arguments_ = {};                                  /// array with arguments
-    Attribute x_arg_ = Attribute();                                          /// 'x' argument
-    Attribute loc_arg_ = Attribute();                                        /// 'loc' argument
-    Attribute lower_arg_ = Attribute();                                      /// lower bound
-    Attribute upper_arg_ = Attribute();                                      /// upper bound
-    double (Function::*evaluate_)(double) const = &Function::eval_function_; /// return value method
+    std::vector<Attribute> arguments_ = {}; /// array with arguments
+    Attribute x_arg_ = Attribute();         /// 'x' argument
+    Attribute loc_arg_ = Attribute();       /// 'loc' argument
+    Attribute lower_arg_ = Attribute();     /// lower bound
+    Attribute upper_arg_ = Attribute();     /// upper bound
 
     /// Find attribute and return. If doesn't exists, return an empty attribute.
     virtual Attribute &find_arg_(std::string_view arg_name);
-
-    /// Return value of call.
-    double eval_function_(double x) const { return (this->*function_)(delocate_(x)); }
-
-    /// Return value of primitive.
-    double eval_primitive_(double x) const { return (this->*primitive_)(delocate_(x)); }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////  Function : virtual methods [protected]  ///////////////////////////
@@ -229,70 +248,114 @@ protected:
     /////////////////////////  Function : discretization [protected]  ///////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    /// Internal code to define the type of discretization.
-    hsp::mode::Discr which_discrete_case_() const;
     /// Initialize functional discretization.
-    virtual void init_discr_helper_(hsp::mode::Discr discr_mode);
+    virtual void init_discr_helper_(Mode::Discr discr_mode) { discr_mode_ = discr_mode; }
 
     /// Polymorphic function method.
-    double (Function::*function_)(double) const = &Function::raw_function_;
-    /// Call for discrete defined function.
-    double do_function_discrete_(double x) const { return raw_function_(std::floor(x)); }
-    /// Call for center discretization.
-    virtual double do_function_discr_center_(double x) const
+    virtual double function_(double x) const
     {
-        const double i = std::round(x);
-        return raw_primitive_(i + .5) - raw_primitive_(i - .5);
-    }
-    /// Call for left discretization.
-    virtual double do_function_discr_left_(double x) const
-    {
-        const double i = std::floor(x);
-        return raw_primitive_(i + 1.) - raw_primitive_(i);
+        switch (discr_mode_)
+        {
+        case Mode::Discr::None:
+            return raw_function_(x);
+        case Mode::Discr::Center:
+        {
+            const double i = std::round(x);
+            return raw_primitive_(i + 0.5) - raw_primitive_(i - 0.5);
+        }
+        case Mode::Discr::Left:
+        {
+            const double i = std::floor(x);
+            return raw_primitive_(i + 1.) - raw_primitive_(i);
+        }
+        case Mode::Discr::Defined:
+            return raw_function_(std::floor(x));
+        }
+        __builtin_unreachable();
     }
 
-    /// Polymorphic function method.
-    double (Function::*log_func_)(double) const = &Function::raw_logfunc_;
-    double do_logfunc_discrete_(double x) const { return raw_logfunc_(std::floor(x)); }
-    double do_logfunc_discr_center_(double x) const { return std::log(do_function_discr_center_(x)); }
-    double do_logfunc_discr_left_(double x) const { return std::log(do_function_discr_left_(x)); }
-
-    double (Function::*primitive_)(double) const = &Function::raw_primitive_;
-    double do_primitive_discrete_(double x) const { return raw_primitive_(std::floor(x)); }
-    virtual double do_primitive_discr_center_(double x) const { return raw_primitive_(std::round(x) + .5); }
-    virtual double do_primitive_discr_left_(double x) const { return raw_primitive_(std::floor(x) + 1.); }
-
-    double (Function::*log_ratio_)(double, double) const = &Function::raw_logratio_;
-    double do_logratio_discrete_(double xo, double xn) const { return raw_logratio_(std::floor(xo), std::floor(xn)); }
-    virtual double do_logratio_discr_center_(double xo, double xn) const
+    /// Polymorphic log-function method.
+    virtual double log_func_(double x) const
     {
-        const double io = std::round(xo), in = std::round(xn);
-        if (io == in)
-            return 0.;
-        return std::log((raw_primitive_(in + .5) - raw_primitive_(in - .5)) / (raw_primitive_(io + .5) - raw_primitive_(io - .5)));
+        switch (discr_mode_)
+        {
+        case Mode::Discr::None:
+            return raw_logfunc_(x);
+        case Mode::Discr::Center:
+        {
+            const double i = std::round(x);
+            return std::log(raw_primitive_(i + 0.5) - raw_primitive_(i - 0.5));
+        }
+        case Mode::Discr::Left:
+        {
+            const double i = std::floor(x);
+            return std::log(raw_primitive_(i + 1.) - raw_primitive_(i));
+        }
+        case Mode::Discr::Defined:
+            return raw_logfunc_(std::floor(x));
+        }
+        __builtin_unreachable();
     }
-    virtual double do_logratio_discr_left_(double xo, double xn) const
+
+    /// Polymorphic primitive method.
+    virtual double primitive_(double x) const
     {
-        const double io = std::floor(xo), in = std::floor(xn);
-        if (io == in)
-            return 0.;
-        return std::log((raw_primitive_(in + 1.) - raw_primitive_(in)) / (raw_primitive_(io + 1.) - raw_primitive_(io)));
+        switch (discr_mode_)
+        {
+        case Mode::Discr::None:
+            return raw_primitive_(x);
+        case Mode::Discr::Center:
+            return raw_primitive_(std::round(x) + 0.5);
+        case Mode::Discr::Left:
+            return raw_primitive_(std::floor(x) + 1.);
+        case Mode::Discr::Defined:
+            return raw_primitive_(std::floor(x));
+        }
+        __builtin_unreachable();
+    }
+
+    /// Polymorphic log_ratio method.
+    virtual double log_ratio_(double xo, double xn) const
+    {
+        switch (discr_mode_)
+        {
+        case Mode::Discr::None:
+            return raw_logratio_(xo, xn);
+        case Mode::Discr::Center:
+        {
+            const double io = std::round(xo), in = std::round(xn);
+            if (io == in)
+                return 0.;
+            return std::log(raw_primitive_(in + .5) - raw_primitive_(in - .5)) -
+                   std::log(raw_primitive_(io + .5) - raw_primitive_(io - .5));
+        }
+        case Mode::Discr::Left:
+        {
+            const double io = std::floor(xo), in = std::floor(xn);
+            if (io == in)
+                return 0.;
+            return std::log(raw_primitive_(in + 1.) - raw_primitive_(in)) -
+                   std::log(raw_primitive_(io + 1.) - raw_primitive_(io));
+        }
+        case Mode::Discr::Defined:
+            return raw_logratio_(std::floor(xo), std::floor(xn));
+        }
+        __builtin_unreachable();
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////  Function : lcoation [protected]  //////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    /// Store delocation mode.
-    hsp::mode::Deloc deloc_mode_ = hsp::mode::Deloc::None;
     /// Delocate according to mode.
+    /// FIXME: this hasn't been tested.
     double delocate_(double x) const
     {
         switch (deloc_mode_)
         {
-        case hsp::mode::Deloc::None:
+        case Mode::Deloc::None:
             return x;
-        case hsp::mode::Deloc::Active:
+        case Mode::Deloc::Active:
             return x - loc_arg_.get();
         }
         __builtin_unreachable();
@@ -301,9 +364,6 @@ protected:
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////  Function : range [protected]  ////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
-
-    hsp::mode::Interval below_mode_ = hsp::mode::Interval::None; /// Store lower interval below mode
-    hsp::mode::Interval above_mode_ = hsp::mode::Interval::None; /// Store upper interval above mode
 
     /// Internal code to define the type of range.
     bool init_range_min_(double min_val = 0., bool is_min_open = false);

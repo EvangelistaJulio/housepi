@@ -28,6 +28,7 @@
 /// Parent class of all distributions.
 class Distribution : public Function
 {
+
 public:
 	///////////////////////////
 	//////  CONSTRUCTOR  //////
@@ -47,9 +48,9 @@ public:
 
 	double rand(hsp::rnd_gen &prng) const { return (this->*rand_)(prng); }
 	/// Return value of log-probability density/mass function.
-	double logpdf(double x) const { return (this->*log_func_)(delocate_(x)); }
+	double logpdf(double x) const { return log_func_(delocate_(x)); }
 	/// Return value of log-ratio of probability density/mass functions.
-	double logratio(double xo, double xn) const { return (this->*log_ratio_)(delocate_(xo), delocate_(xn)); }
+	double logratio(double xo, double xn) const { return log_ratio_(delocate_(xo), delocate_(xn)); }
 
 	std::string err_name() const override { return "distribution '" + std::string(name()) + "'"; }
 
@@ -59,7 +60,7 @@ protected:
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
 	/// Initialize functional discretization.
-	void init_discr_helper_(hsp::mode::Discr discr_type) override final;
+	void init_discr_helper_(Mode::Discr discr_type) override final;
 	void init_trunc_helper_();
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
@@ -99,40 +100,132 @@ protected:
 	double do_discr_center_rand_loc_(hsp::rnd_gen &prng) const { return loc_arg_.get() + cast_center_(raw_rand_(prng)); }
 	double do_discr_left_rand_loc_(hsp::rnd_gen &prng) const { return loc_arg_.get() + cast_left_(raw_rand_(prng)); }
 
-	double raw_function_(double x) const override final { return (this->*trunc_)(raw_pdf_(x)); }
-	double do_function_discr_center_(double x) const override final
+	/// Raw method to call.
+	double raw_function_(double) const override final { throw std::runtime_error(
+		"Forbbiden call to raw_function_ for " + err_name() + "\n"); }
+
+	/// Polymorphic function method.
+	double function_(double x) const override final
 	{
-		const double i = std::round(x);
-		return (this->*trunc_)(raw_cdf_(i + .5) - raw_cdf_(i - .5));
-	}
-	double do_function_discr_left_(double x) const override final
-	{
-		const double i = std::floor(x);
-		return (this->*trunc_)(raw_cdf_(i + 1.) - raw_cdf_(i));
+		double y;
+		switch (discr_mode_)
+		{
+		case Mode::Discr::None:
+			y = raw_pdf_(x);
+			break;
+		case Mode::Discr::Center:
+		{
+			const double i = std::round(x);
+			y = raw_cdf_(i + .5) - raw_cdf_(i - .5);
+			break;
+		}
+		case Mode::Discr::Left:
+		{
+			const double i = std::floor(x);
+			y = raw_cdf_(i + 1.) - raw_cdf_(i);
+			break;
+		}
+		case Mode::Discr::Defined:
+			y = raw_pdf_(std::floor(x));
+			break;
+		default:
+			__builtin_unreachable();
+		}
+
+		return (this->*trunc_)(y);
 	}
 
-	double raw_logfunc_(double x) const override final { return (this->*logtrunc_)(raw_logpdf_(x)); }
-
-	double raw_primitive_(double x) const override final { return (this->*trunc_)((this->*shift_)(raw_cdf_(x))); }
-	double do_primitive_discr_center_(double x) const override final { return (this->*trunc_)((this->*shift_)(raw_cdf_(std::round(x) + .5))); }
-	double do_primitive_discr_left_(double x) const override final { return (this->*trunc_)((this->*shift_)(raw_cdf_(std::floor(x) + 1.))); }
-
-	double do_logratio_discr_center_(double xo, double xn) const override final
+	/// Polymorphic log-function method.
+	double log_func_(double x) const override final
 	{
-		const double io = std::round(xo), in = std::round(xn);
-		return std::log((raw_cdf_(in + .5) - raw_cdf_(in - .5)) / (raw_cdf_(io + .5) - raw_cdf_(io - .5)));
+		double y;
+		switch (discr_mode_)
+		{
+		case Mode::Discr::None:
+			y = raw_logpdf_(x);
+			break;
+		case Mode::Discr::Center:
+		{
+			const double i = std::round(x);
+			y = raw_cdf_(i + 0.5) - raw_cdf_(i - 0.5);
+			break;
+		}
+		case Mode::Discr::Left:
+		{
+			const double i = std::floor(x);
+			y = raw_cdf_(i + 1.) - raw_cdf_(i);
+			break;
+		}
+		case Mode::Discr::Defined:
+			y = raw_logpdf_(std::floor(x));
+			break;
+		default:
+			__builtin_unreachable();
+		}
+
+		return (this->*logtrunc_)(y);
 	}
-	double do_logratio_discr_left_(double xo, double xn) const override final
+
+	/// Polymorphic primitive method.
+	double primitive_(double x) const override final
 	{
-		const double io = std::floor(xo), in = std::floor(xn);
-		return std::log((raw_cdf_(in + 1.) - raw_cdf_(in)) / (raw_cdf_(io + 1.) - raw_cdf_(io)));
+		double adjusted_x;
+		switch (discr_mode_)
+		{
+		case Mode::Discr::None:
+			adjusted_x = x;
+			break;
+		case Mode::Discr::Center:
+			adjusted_x = std::round(x) + 0.5;
+			break;
+		case Mode::Discr::Left:
+			adjusted_x = std::floor(x) + 1.0;
+			break;
+		case Mode::Discr::Defined:
+			adjusted_x = std::floor(x);
+			break;
+		default:
+			__builtin_unreachable();
+		}
+
+		return (this->*trunc_)((this->*shift_)(raw_cdf_(adjusted_x)));
+	}
+
+	/// Polymorphic log_ratio method.
+	double log_ratio_(double xo, double xn) const override final
+	{
+		switch (discr_mode_)
+		{
+		case Mode::Discr::None:
+			return raw_logratio_(xo, xn);
+		case Mode::Discr::Center:
+		{
+			const double io = std::round(xo), in = std::round(xn);
+			if (io == in)
+				return 0.;
+			return std::log(raw_cdf_(in + .5) - raw_cdf_(in - .5)) -
+				   std::log(raw_cdf_(io + .5) - raw_cdf_(io - .5));
+		}
+		case Mode::Discr::Left:
+		{
+			const double io = std::floor(xo), in = std::floor(xn);
+			if (io == in)
+				return 0.;
+			return std::log(raw_cdf_(in + 1.) - raw_cdf_(in)) -
+				   std::log(raw_cdf_(io + 1.) - raw_cdf_(io));
+		}
+		case Mode::Discr::Defined:
+			return raw_logratio_(std::floor(xo), std::floor(xn));
+		}
+		__builtin_unreachable();
 	}
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	//////////////////////  Distribution : functional truncation [private] //////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
-	// UPDATE: this static isn't elegant
+	/// UPDATE: if lower/upper values don't change, I could just cached them.
+
 	double inverse_sampling_(hsp::rnd_gen &prng) const
 	{
 		static std::uniform_real_distribution<double> unif_gen(0., 1.);

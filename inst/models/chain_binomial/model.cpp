@@ -134,12 +134,14 @@ void Model::simulate_single_house(Household &house)
 	size_t n_old_gen = 0;
 	size_t n_new_gen = house.n_infected_status();
 
+	std::vector<size_t> sus_hhindexes;
+	sus_hhindexes.reserve(house.n_susceptible_status());
 	while ((house.n_infected_status() > 0) && (n_new_gen > 0))
 	{
 		n_old_gen = n_new_gen;
 		n_new_gen = 0;
 
-		const auto sus_hhindexes = house.susceptible_hhindexes();
+		sus_hhindexes = house.susceptible_hhindexes();
 		for (size_t i : sus_hhindexes)
 			if (uniform() >= exp(n_old_gen * log_p2p_esc_proba))
 			{
