@@ -268,15 +268,15 @@ void MCMCImpl::move_all_()
         move_all_augm_();
 
     // move all standard model parameters
-    for (const size_t p : param->list_adaptable_sample_standard)
+    for (size_t p : param->list_adaptable_sample_standard)
         param->at(p).update_accept_rate(move_single_parameter_(p, false));
-    for (const size_t p : param->list_non_adapt_sample_standard)
+    for (size_t p : param->list_non_adapt_sample_standard)
         move_single_parameter_(p, false);
 
     // move parameters with cached dependecies
-    for (const size_t p : param->list_adaptable_sample_cached)
+    for (size_t p : param->list_adaptable_sample_cached)
         param->at(p).update_accept_rate(move_single_parameter_(p, true));
-    for (const size_t p : param->list_non_adapt_sample_cached)
+    for (size_t p : param->list_non_adapt_sample_cached)
         move_single_parameter_(p, true);
 }
 
@@ -315,7 +315,7 @@ void MCMCImpl::init_monte_carlo_chain_()
     tot_log_lik.set(update_total_log_lik()); // init cached, set total log-likelihood
 
     // init move counts for adaptive
-    for (const size_t p : param->list_sample)
+    for (size_t p : param->list_sample)
         param->at(p).reset_accept_rate();
 }
 

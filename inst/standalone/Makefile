@@ -42,7 +42,7 @@ CXXFLAGS += -g -O2
 endif
 
 ifdef DISCRETE
-CXXFLAGS += -D_HOUSEPI_RCPP
+CXXFLAGS += -D_HOUSEPI_DISCRETE_TIME
 endif
 
 # Change openMP flags according to OS

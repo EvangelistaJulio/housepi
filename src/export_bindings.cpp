@@ -222,8 +222,8 @@ Rcpp::DataFrame MCMC::export_augmented_data_wide() const
     using namespace Rcpp;
     const Augmented &augm = *pImpl_->augm;
 
-    const size_t n_cols = augm.list_export.size();
-    const size_t n_rows = pImpl_->data_wide->report_indiv->total;
+    size_t n_cols = augm.list_export.size();
+    size_t n_rows = pImpl_->data_wide->report_indiv->total;
 
     IntegerVector status_col(n_rows);
     std::vector<NumericVector> augm_cols(n_cols);
@@ -263,7 +263,7 @@ Rcpp::DataFrame helper_export_data_wide(const DataWide &data_wide,
         if (data_wide.is_empty())
             return DataFrame();
 
-        const size_t n_rows = data_wide.report_indiv->total;
+        size_t n_rows = data_wide.report_indiv->total;
         CharacterVector df_id = CharacterVector(n_rows);
         CharacterVector df_house_id = CharacterVector(n_rows);
         IntegerVector df_status = IntegerVector(n_rows);
@@ -394,7 +394,7 @@ Rcpp::DataFrame MCMC::summarise_cases() const
 
         CharacterVector type = wrap(std::vector<std::string>(4, "individual") +
                                     std::vector<std::string>(4, "household"));
-        const size_t n_rows = type.size();
+        size_t n_rows = type.size();
         CharacterVector comment = {"total", "missing", "not infected", "infected",
                                    "total", "no cases", "at least 1 case", "at least 2 cases"};
         IntegerVector counts(n_rows);
@@ -449,7 +449,7 @@ Rcpp::DataFrame MCMC::summarise_house_sizes() const
     try
     {
         CharacterVector comment({"max cases", "max miss", "min size", "max size"});
-        const size_t n_rows = comment.size();
+        size_t n_rows = comment.size();
         IntegerVector value(n_rows), counts(n_rows);
         NumericVector pct(n_rows);
 
@@ -515,7 +515,7 @@ Rcpp::NumericMatrix MCMC::flush_param_draws()
 
     try
     {
-        const size_t n_cols = param.list_sample.size();
+        size_t n_cols = param.list_sample.size();
         CharacterVector headers = wrap(param.pRegistry->as_string(param.list_sample));
         NumericMatrix output(pImpl_->tot_log_lik.count(), n_cols);
 
@@ -544,12 +544,12 @@ Rcpp::NumericMatrix MCMC::flush_param_lprior_draws()
 
     try
     {
-        const size_t n_cols = param.list_sample.size();
+        size_t n_cols = param.list_sample.size();
         CharacterVector headers(n_cols);
         NumericMatrix output(pImpl_->tot_log_lik.count(), n_cols);
 
         size_t c = 0;
-        for (const size_t p : param.list_sample)
+        for (size_t p : param.list_sample)
         {
             headers[c] = "lprior_" + param.pRegistry->as_string(p);
             helper_vector_flush(output(_, c), param.smpl_priors[c]);
@@ -577,7 +577,7 @@ Rcpp::NumericMatrix MCMC::flush_augm_draws()
 
     try
     {
-        const size_t n_cols = augm.smpl_individuals.size() * augm.list_draws.size();
+        size_t n_cols = augm.smpl_individuals.size() * augm.list_draws.size();
         CharacterVector headers(n_cols);
         NumericMatrix output(pImpl_->tot_log_lik.count(), n_cols);
 
@@ -588,7 +588,7 @@ Rcpp::NumericMatrix MCMC::flush_augm_draws()
             auto &member_matrix = augm.smpl_values[i];
 
             size_t j = 0;
-            for (const size_t a : augm.list_draws)
+            for (size_t a : augm.list_draws)
             {
                 headers[col] = member_ptr->id() + "_" + augm.pRegistry->as_string(a);
                 helper_vector_flush(output(_, col++), member_matrix[j++]);
@@ -622,12 +622,12 @@ Rcpp::NumericMatrix MCMC::flush_house_log_lik_draws()
             return NumericMatrix();
 
         // create a NumericMatrix with n_house columns
-        const size_t n_houses = data_wide.report_house->total;
+        size_t n_houses = data_wide.report_house->total;
         NumericMatrix output(pImpl_->tot_log_lik.count(), n_houses);
         CharacterVector headers(n_houses);
 
         // retrieve restricted index by general index of multiplicity head class
-        const size_t n_classes = data_wide.head_class_house_indexes.size();
+        size_t n_classes = data_wide.head_class_house_indexes.size();
         std::vector<std::vector<size_t>> house_classes(n_classes);
 
         std::unordered_map<size_t, size_t> restr_idx_map = {};
@@ -637,8 +637,8 @@ Rcpp::NumericMatrix MCMC::flush_house_log_lik_draws()
 
         for (const Household &house : data_wide)
         {
-            const size_t R = restr_idx_map.at(house.multiplicity_class_index());
-            const size_t H = house.house_index();
+            size_t R = restr_idx_map.at(house.multiplicity_class_index());
+            size_t H = house.house_index();
             house_classes[R].push_back(H);
             headers[H] = house.house_id();
         }
@@ -698,7 +698,7 @@ namespace
         using namespace Rcpp;
         const std::vector<std::string> &headers = data_wide->pRegistry->get_all();
 
-        const size_t n_rows = house.size();
+        size_t n_rows = house.size();
         CharacterVector df_id = CharacterVector(n_rows);
         CharacterVector df_house_id = CharacterVector(n_rows);
         IntegerVector df_status = IntegerVector(n_rows);
@@ -709,7 +709,7 @@ namespace
 
         for (const Individual &member : house)
         {
-            const size_t i = member.hhindex();
+            size_t i = member.hhindex();
             df_id[i] = member.id();
             df_house_id[i] = house.house_id();
             df_status[i] = member.status();
@@ -782,7 +782,7 @@ namespace
         if (headers.empty())
             return DataFrame::create();
 
-        const size_t n_rows = house.size();
+        size_t n_rows = house.size();
         CharacterVector df_id(n_rows);
 
         std::vector<NumericVector> df_double(headers.size());
@@ -791,7 +791,7 @@ namespace
 
         for (const Individual &member : house)
         {
-            const size_t i = member.hhindex();
+            size_t i = member.hhindex();
             df_id[i] = member.id();
 
             for (size_t c = 0; c < headers.size(); ++c)
@@ -814,7 +814,7 @@ namespace
         if (infec_profile->generic == nullptr && !infec_profile->is_augmented())
             return List::create();
 
-        const size_t n_rows = house.size();
+        size_t n_rows = house.size();
         CharacterVector df_id(n_rows);
 
         CharacterVector infprof_name(n_rows, NA_STRING);
@@ -860,12 +860,12 @@ namespace
     {
         using namespace Rcpp;
 
-        const size_t n_cols = augm->list_export.size();
+        size_t n_cols = augm->list_export.size();
 
         if (n_cols == 0)
             return DataFrame::create();
 
-        const size_t n_rows = house.size();
+        size_t n_rows = house.size();
         CharacterVector df_id(n_rows);
 
         std::vector<NumericVector> df_double(n_cols);
@@ -972,8 +972,8 @@ Rcpp::DataFrame MCMC::helper_simulate_single_repetition()
 
     try
     {
-        const size_t n_cols = augm.list_export.size();
-        const size_t n_rows = data_wide.report_indiv->total;
+        size_t n_cols = augm.list_export.size();
+        size_t n_rows = data_wide.report_indiv->total;
 
         IntegerVector df_status(n_rows);
 

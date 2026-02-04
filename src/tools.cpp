@@ -464,7 +464,7 @@ namespace hsp
             }
 
             // ensure all columns have the same number of rows
-            const size_t n_rows = csv_n_rows(output);
+            size_t n_rows = csv_n_rows(output);
             for (const auto &[col, vec] : output)
                 if (vec.size() != n_rows)
                     throw std::runtime_error(
@@ -765,7 +765,7 @@ namespace hsp::parse
 
         // pure function node
         const std::string expr(input);
-        const size_t bar_1 = expr.find('|');
+        size_t bar_1 = expr.find('|');
         if (bar_1 == std::string::npos)
         {
             Entry node;
@@ -777,7 +777,7 @@ namespace hsp::parse
         const std::string expr_tail = expr.substr(bar_1 + 1);
 
         // if not found, then it's a terminal node {value|type}
-        const size_t bar_2 = expr_tail.find('|');
+        size_t bar_2 = expr_tail.find('|');
         if (bar_2 == std::string::npos)
             return Entry(expr_head, expr_tail);
 

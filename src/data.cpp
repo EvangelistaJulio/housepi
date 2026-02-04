@@ -271,7 +271,7 @@ void Household::helper_set_status_(Individual &member, int new_status)
     if (new_status == member.status())
         return;
 
-    const size_t i = member.hhindex(); // get within house index
+    size_t i = member.hhindex(); // get within house index
 
     if (member.is_infected_status())
         infected_list_.erase(std::find(infected_list_.begin(), infected_list_.end(), i));
@@ -469,10 +469,10 @@ void DataWide::build_helper_fill_report_data_()
             all_infected_statuses.emplace(house.member(i).status());
 
         // observed quantities in-house
-        const size_t house_size = house.size();
-        const size_t n_infec = house.n_infected_status();
-        const size_t n_miss = house.n_missing_status();
-        const size_t n_susc = house.n_susceptible_status();
+        size_t house_size = house.size();
+        size_t n_infec = house.n_infected_status();
+        size_t n_miss = house.n_missing_status();
+        size_t n_susc = house.n_susceptible_status();
 
         report_indiv->infectious += n_infec;
         report_indiv->missing += n_miss;
@@ -550,7 +550,7 @@ void DataWide::multiplicity_build(const hsp::str_table &input, bool is_any_augm)
 
 void DataWide::init_house_cache(Household &house)
 {
-    const size_t hh_size = house.size();
+    size_t hh_size = house.size();
 
     // size_t
     {
@@ -735,7 +735,7 @@ void DataLong::build(const hsp::str_table &input)
             id_to_index.emplace(member.id(), c++);
 
     // load individual data list
-    const size_t n_rows = hsp::read::csv_n_rows(input);
+    size_t n_rows = hsp::read::csv_n_rows(input);
     for (size_t r = 0; r < n_rows; ++r)
     {
         const std::string &id = input.at("id")[r];

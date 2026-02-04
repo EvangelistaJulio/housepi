@@ -102,7 +102,7 @@ void Parameter::build(const hsp::str_table &input)
 
     // initialize all parameters to standard
     list_sample_standard = list_sample;
-    for (const size_t &p : list_sample_standard)
+    for (size_t p : list_sample_standard)
         if (at(p).is_adaptable())
             list_adaptable_sample_standard.push_back(p);
         else
@@ -167,7 +167,7 @@ void Parameter::helper_build_constant_(const hsp::str_table &input, size_t k)
             "Constant parameter '" + paramstr + "' had undefined value.");
 
     // assign constant parameter to the set of variables
-    const size_t p = pRegistry->from_string(paramstr);
+    size_t p = pRegistry->from_string(paramstr);
     param_vec_[p].transfer(read_numeric(input.at("value")[k]));
     // check if discrete as requested
     if (user_discrete_set.count(p) && !param_vec_[p].is_discrete())
@@ -189,7 +189,7 @@ void Parameter::helper_build_to_sample_(const hsp::str_table &input, size_t k)
             "Non-constant parameter '" + paramstr + "' had undefined prior.");
 
     // create a new parameter Variable
-    const size_t p = pRegistry->from_string(paramstr);
+    size_t p = pRegistry->from_string(paramstr);
     param_vec_[p].transfer(read_numeric(input.at("value")[k]));
     Variable &new_param = at(p);
 
@@ -254,7 +254,7 @@ void Parameter::load_sample_values(size_t n)
 {
     for (const std::string &paramstr : pRegistry->get_all())
     {
-        const size_t p = pRegistry->from_string(paramstr);
+        size_t p = pRegistry->from_string(paramstr);
         const std::vector<double> &vec = smpl_values[p];
         if (!vec.empty())
             at(p).set(vec[n]);
@@ -266,16 +266,10 @@ void Parameter::make_cache_dependent(const hsp::parse::Entry &node)
     // cache dependecy if an augmented function depends on a parameter to be inferred
     if (hsp::parse::is_parameter(node.type))
     {
-        const size_t p = pRegistry->from_string(node.value);
+        size_t p = pRegistry->from_string(node.value);
         if (!at(p).is_constant())
             make_cache_dependent(p);
     }
-}
-
-void Parameter::user_reset(hsp::rnd_gen &prng)
-{
-    for (const size_t &p : list_sample)
-        at(p).user_reset(prng);
 }
 
 bool Parameter::propose_valid_move(size_t p, hsp::rnd_gen &prng)
@@ -298,17 +292,17 @@ void Parameter::adapt_proposal_of_sampled(unsigned long step, unsigned long tot)
     const double ratio = static_cast<double>(step) / static_cast<double>(tot);
 
     // adpat all standard model parameters
-    for (const size_t p : list_adaptable_sample_standard)
+    for (size_t p : list_adaptable_sample_standard)
         at(p).adapt_proposal(ratio);
 
     // adapt all parameters with cached dependecies
-    for (const size_t p : list_adaptable_sample_cached)
+    for (size_t p : list_adaptable_sample_cached)
         at(p).adapt_proposal(ratio);
 }
 
 void Parameter::init_draws(unsigned long sample_size)
 {
-    const size_t n = list_sample.size();
+    size_t n = list_sample.size();
     smpl_values.clear();
     smpl_priors.clear();
     smpl_values.reserve(n);
@@ -323,7 +317,7 @@ void Parameter::init_draws(unsigned long sample_size)
 void Parameter::store_draws(unsigned long smpl_count)
 {
     size_t i = 0;
-    for (const size_t p : list_sample)
+    for (size_t p : list_sample)
     {
         const Variable &this_par = at(p);
         smpl_values[i][smpl_count] = this_par.get();
@@ -532,7 +526,7 @@ void InfecProfile::init_template(hsp::str_table input)
             throw std::invalid_argument(
                 "A function name was missing for infectivity profile template.");
 
-        const size_t n_rows = hsp::read::csv_n_rows(input);
+        size_t n_rows = hsp::read::csv_n_rows(input);
         const auto file_headers = {"func", "status", "discr", hsp::params::MAX};
 
         for (const auto &key : file_headers)
@@ -566,67 +560,15 @@ void InfecProfile::init_template(hsp::str_table input)
     }
 }
 
-/// Store values of the infectivity profile.
-void InfecProfile::init_lookup_()
+bool InfecProfile::LookUpTable::is_constant() const noexcept { return generic_ptr_->is_constant(); }
+void InfecProfile::LookUpTable::materialize_()
 {
-    mode_ = Mode::LookUp;
-
-    if (generic->get_upper().is_empty())
-        size_lut_ = hsp::infprof::LOOKUP_SIZE;
-    else
-        size_lut_ = static_cast<size_t>(generic->upper()) + 1;
-
-    lookup_inst_.resize(size_lut_);
-    lookup_cumul_.resize(size_lut_);
-    lookup_buffer_inst_.resize(size_lut_);
-    lookup_buffer_cumul_.resize(size_lut_);
-
-    update();
-}
-
-/// Clear infectivity profile lookup table.
-void InfecProfile::clear_lookup_()
-{
-    size_lut_ = 0;
-
-    lookup_inst_.clear();
-    lookup_cumul_.clear();
-    lookup_buffer_inst_.clear();
-    lookup_buffer_cumul_.clear();
-}
-
-/// If infectivity profile is a lookup table, store its values.
-/// UPDATE: this should not be recoverd if constant.
-void InfecProfile::update()
-{
-    if (!is_lookup())
-        return;
-
-    // move current lookup table to buffer
-    lookup_inst_.swap(lookup_buffer_inst_);
-    lookup_cumul_.swap(lookup_buffer_cumul_);
-
-    // Set infectivity to 0 on the same day
-    lookup_inst_[0] = 0.;
-    lookup_cumul_[0] = 0.;
-
-    for (size_t i = 1; i < size_lut_; ++i)
+    for (size_t i = 1; i < size_; ++i)
     {
-        double x = generic->pdf(i);
-        lookup_inst_[i] = x;
-        lookup_cumul_[i] = x + lookup_cumul_[i - 1];
+        double x = generic_ptr_->pdf(i);
+        inst_[i] = x;
+        cumul_[i] = x + cumul_[i - 1];
     }
-}
-
-/// If infectivity profile is a lookup table, recover its buffered values.
-/// UPDATE: this should not be recoverd if constant.
-void InfecProfile::recover()
-{
-    if (!is_lookup())
-        return;
-
-    lookup_inst_.swap(lookup_buffer_inst_);
-    lookup_cumul_.swap(lookup_buffer_cumul_);
 }
 
 /// Build infectivity profile distribution.
@@ -662,13 +604,13 @@ void InfecProfile::build(const hsp::str_table &input)
         build_generic_profile_(input);
 }
 
-/// Build for generic infectivity profile.
-/// NOTE: no status dependence allowed here.
 void InfecProfile::build_generic_profile_(const hsp::str_table &input)
 {
     mode_ = Mode::Generic;
     generic = helper_build_profile_({{"func", {input.at("func")[0]}},
                                      {"discr", {input.count("discr") ? input.at("discr")[0] : "false"}}});
+    lookup_.clear();
+    augm_profile_definitions_.clear();
 
     // range minimum
     if (input.count(hsp::params::MIN))
@@ -686,24 +628,28 @@ void InfecProfile::build_generic_profile_(const hsp::str_table &input)
     generic->init_truncation();
 
     // if discrete and generic, initializes lookup table
-    clear_lookup_();
     if (generic->is_discrete())
-        init_lookup_();
+    {
+        mode_ = Mode::LookUp;
+        size_t n = hsp::infprof::LOOKUP_SIZE;
+        if (!generic->get_upper().is_empty())
+            n = 1 + generic->upper();
+        lookup_.init(generic.get(), n);
+    }
 }
 
-/// Build for individual augmented function infectivity profile.
 void InfecProfile::build_augmented_profile_(const hsp::str_table &input)
 {
+    // drop generic definition
+    mode_ = Mode::Augmented;
+    generic = nullptr;
+    lookup_.clear();
+    augm_profile_definitions_.clear();
+
     // use helper to check profile name and discretization
     for (size_t r = 0; r < hsp::read::csv_n_rows(input); ++r)
         helper_build_profile_({{"func", {hsp::parse::Definition(input.at("func")[r]).root.func}},
                                {"discr", {input.at("discr")[r]}}});
-    // drop generic definition
-    generic = nullptr;
-    clear_lookup_();
-
-    mode_ = Mode::Augmented;
-    augm_profile_definitions_.clear();
 
     // match infectivity profile and augmented variable definition
     for (size_t r = 0; r < hsp::read::csv_n_rows(input); ++r)
@@ -759,10 +705,7 @@ double InfecProfile::inst(const Individual *member_ptr, double t)
     case Mode::Generic:
         return generic->pdf(t);
     case Mode::LookUp:
-        return generic->is_valid(t) &&
-                       t < static_cast<double>(size_lut_)
-                   ? lookup_inst_.at(static_cast<size_t>(t))
-                   : 0.;
+        return lookup_.inst(t);
     }
     __builtin_unreachable();
 }
@@ -775,13 +718,7 @@ double InfecProfile::cumul(const Individual *member_ptr, double t)
     case Mode::Generic:
         return generic->cdf(t);
     case Mode::LookUp:
-    {
-        if (generic->is_below(t))
-            return 0.;
-        if (t >= static_cast<double>(size_lut_) || generic->is_above(t))
-            return lookup_cumul_.at(size_lut_ - 1);
-        return lookup_cumul_.at(static_cast<size_t>(t));
-    }
+        return generic->is_below(t) ? 0. : lookup_.cumul(t);
     }
     __builtin_unreachable();
 }

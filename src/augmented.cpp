@@ -318,7 +318,7 @@ std::vector<size_t> Augmented::get_unsorted_definition_rows_(int status, bool is
 void Augmented::set_sample_map_for_(int status, size_t k)
 {
     const std::string &augmstr = deftable_["name"][k];
-    const size_t a = pRegistry->from_string(augmstr);
+    size_t a = pRegistry->from_string(augmstr);
 
     if (hsp::str::tobool(deftable_["const"][k]))
     {
@@ -361,7 +361,7 @@ void Augmented::set_sample_map_for_(int status, size_t k)
 void Augmented::set_function_or_identity_for_(size_t k)
 {
     const std::string &augmstr = deftable_["name"][k];
-    const size_t a = pRegistry->from_string(augmstr);
+    size_t a = pRegistry->from_string(augmstr);
     const hsp::parse::Definition parser(deftable_["func"][k]);
 
     if (parser.is_terminal())
@@ -457,7 +457,7 @@ std::vector<size_t> Augmented::init_get_definition_order_(Individual &member)
 void Augmented::helper_init_attributes_(Individual &member, size_t k)
 {
     const std::string &augmstr = deftable_["name"][k];
-    const size_t a = pRegistry->from_string(augmstr);
+    size_t a = pRegistry->from_string(augmstr);
 
     try
     {
@@ -635,7 +635,7 @@ double Augmented::materialize_augm_model_log_lik(Individual &member)
         return 0.;
 
     double new_ll = 0.0;
-    for (const size_t a : block.models)
+    for (size_t a : block.models)
         new_ll += member.augm_vec_[a].get_distr_logpdf();
     member.augm_log_lik_.set(new_ll); 
 
@@ -649,7 +649,7 @@ double Augmented::materialize_augm_model_logratio(Individual &member, size_t a)
         return 0.;
 
     double new_ll = member.augm_log_lik_.get(); // store old value in buffer
-    for (const size_t b : block.depen[a])       // depen includes 'a'
+    for (size_t b : block.depen[a])       // depen includes 'a'
         new_ll += member.augm_vec_[b].get_distr_logratio();
 
     member.augm_log_lik_.set(new_ll);
@@ -707,7 +707,7 @@ void Augmented::init_draws(unsigned long sample_size)
     if (!is_any_draw())
         return;
 
-    const size_t n = list_draws.size();
+    size_t n = list_draws.size();
     smpl_values.clear();
     smpl_values.resize(smpl_individuals.size());
     for (size_t i = 0; i < smpl_individuals.size(); ++i)
@@ -730,7 +730,7 @@ void Augmented::store_draws(unsigned long smpl_count)
         auto &member_matrix = smpl_values[i];
 
         size_t c = 0;
-        for (const size_t a : list_draws)
+        for (size_t a : list_draws)
             member_matrix[c++][smpl_count] = member_ptr->augm_vec_[a].get();
     }
 }

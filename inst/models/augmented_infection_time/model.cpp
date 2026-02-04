@@ -74,6 +74,7 @@ double Model::loglike_susceptible(const Household &house) const
 		double roi_cumul = 0;
 
 		for (size_t k : house.infected_hhindexes())
+
 			roi_cumul += cumul_mtx[k][i] * house.member(i).group_rate(GroupRateKey::infectivity);
 
 		output -= member_i.group_rate(GroupRateKey::community) * alpha_cumul + member_i.group_rate(GroupRateKey::susceptibility) * beta * roi_cumul;

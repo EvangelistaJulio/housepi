@@ -157,6 +157,6 @@ protected:
     std::string err_type_ = "attribute";        /// type name displayed in errors
     std::string name_ = "";                     /// name of argument
     double value_;                              /// internal value
-    const Attribute *pAttr_ = nullptr;          /// pointer to attribute
-    std::shared_ptr<Function> pFunc_ = nullptr; /// pointer to function
+    const Attribute *pAttr_;          /// pointer to attribute
+    std::shared_ptr<Function> pFunc_; /// pointer to function
 };

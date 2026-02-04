@@ -89,7 +89,11 @@ struct Parameter
     void make_cache_dependent(const hsp::parse::Entry &node);
 
     /// Randomly initialize values of the parameters to be inferred.
-    void user_reset(hsp::rnd_gen &prng);
+    void user_reset(hsp::rnd_gen &prng)
+    {
+        for (size_t p : list_sample)
+            at(p).user_reset(prng);
+    }
     /// Load parameters values of the n-th posterior sample.
     void load_sample_values(size_t n);
 
