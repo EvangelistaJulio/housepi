@@ -5,8 +5,11 @@ Version: 0.0.1
 Authors@R: person("Francesco", "Camaglia", email = "francesco.camaglia@pasteur.fr", role = c("aut", "cre"))
 Description: This is the core implementation the package housepi. Direct access is deprecated.
 License: GPL (>= 3)
+NeedsCompilation: yes
 Encoding: UTF-8
 Depends: Rcpp (>= 1.0.0)
-LinkingTo: Rcpp, BH
+LinkingTo:
+    Rcpp (>= 1.0.0), 
+    BH (>= 1.0.0)
 RcppModules: housepi_flags, housepi_function, housepi_distribution, housepi_infec_profile, housepi_model_core
 RoxygenNote: 7.3.3

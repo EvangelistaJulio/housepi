@@ -115,6 +115,7 @@ public:
         case Ratio::Compute:
             return get_distr_logratio() - get_propose_logratio();
         }
+        __builtin_unreachable();
     }
 
     void update_accept_rate(bool is_accepted);

@@ -1,3 +1,5 @@
+CXX_STD = CXX17
+
 PKG_CXXFLAGS = \
   $(SHLIB_OPENMP_CXXFLAGS) \
   -D_HOUSEPI_RCPP \
@@ -48,19 +50,19 @@ cache_template: $(SHLIB)
 	$(CXX) $(ALL_CPPFLAGS) $(ALL_CXXFLAGS) -I../inst/models/$* -c $< -o $@
 	
 $(MODEL1_DLL): ../inst/models/$(MODEL1_NAME)/model.o $(COMMON_OBJECTS)
-	$(SHLIB_LINK) -o $(MODEL1_DLL) $^ $(PKG_LIBS) $(ALL_LIBS)
+	$(SHLIB_LINK) -o $(MODEL1_DLL) $^ $(PKG_LIBS)
 	@$(RM) ../inst/models/$(MODEL1_NAME)/model.o
 
 $(MODEL2_DLL): ../inst/models/$(MODEL2_NAME)/model.o $(COMMON_OBJECTS)
-	$(SHLIB_LINK) -o $(MODEL2_DLL) $^ $(PKG_LIBS) $(ALL_LIBS)
+	$(SHLIB_LINK) -o $(MODEL2_DLL) $^ $(PKG_LIBS)
 	@$(RM) ../inst/models/$(MODEL2_NAME)/model.o
 
 $(MODEL3_DLL): ../inst/models/$(MODEL3_NAME)/model.o $(COMMON_OBJECTS)
-	$(SHLIB_LINK) -o $(MODEL3_DLL) $^ $(PKG_LIBS) $(ALL_LIBS)
+	$(SHLIB_LINK) -o $(MODEL3_DLL) $^ $(PKG_LIBS)
 	@$(RM) ../inst/models/$(MODEL3_NAME)/model.o
 
 $(MODEL4_DLL): ../inst/models/$(MODEL4_NAME)/model.o $(COMMON_OBJECTS)
-	$(SHLIB_LINK) -o $(MODEL4_DLL) $^ $(PKG_LIBS) $(ALL_LIBS)
+	$(SHLIB_LINK) -o $(MODEL4_DLL) $^ $(PKG_LIBS)
 	@$(RM) ../inst/models/$(MODEL4_NAME)/model.o
 
 .PHONY: all cache_template

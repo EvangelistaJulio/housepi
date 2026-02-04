@@ -452,6 +452,7 @@ bool Variable::is_valid_move() const
     case Validity::Check:
         return pDistr_->is_valid(value_);
     }
+    __builtin_unreachable();
 }
 
 /// Helper with proposer initialization of direct sample from prior/model.
@@ -484,14 +485,20 @@ void Variable::helper_init_proposer_monte_carlo_(const std::string &proposal, do
 /// Wheter the variable is constant.
 bool Variable::is_constant() const noexcept
 {
-    if (is_numeric())
+    switch (mode_)
+    {
+    case Mode::This:
         return is_constant_;
-    if (is_pointer())
+    case Mode::Pointer:
         return false;
-    if (is_function())
+    case Mode::Function:
         return pFunc_->is_constant();
-    return is_constant_;
+    case Mode::Error:
+        return is_constant_;
+    }
+    __builtin_unreachable();
 }
+
 /// Wheter the variable is discrete.
 bool Variable::is_discrete() const noexcept
 {

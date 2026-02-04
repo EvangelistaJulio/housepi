@@ -8,20 +8,23 @@ Authors@R: c(person("Francesco", "Camaglia", role = c("aut", "cre"),
 Description: Epidemiological Analysis of Household Outbreaks.
 URL: http://mmmi-pasteur.pages.pasteur.fr/housepi, https://gitlab.pasteur.fr/mmmi-pasteur/housepi
 License: GPL (>= 3)
+NeedsCompilation: yes
 Encoding: UTF-8
 Imports:
-    cli,
-    dplyr,
-    pkgbuild,
-    posterior,
-    R6,
+    cli (>= 3.0.0),
+    dplyr (>= 1.0.0),
+    pkgbuild (>= 1.0.0),
+    posterior (>= 1.0.0),
+    R6 (>= 2.0.0),
     Rcpp (>= 1.0.0),
-    rlang,
-    stringr,
-    tidyr,
-    utils,
-    withr
-LinkingTo: Rcpp, BH
+    rlang (>= 1.0.0),
+    stringr (>= 1.0.0),
+    tidyr (>= 1.0.0),
+    utils (>= 4.0.0),
+    withr (>= 3.0.0)
+LinkingTo: 
+    Rcpp (>= 1.0.0),
+    BH (>= 1.0.0)
 Roxygen: list(markdown = TRUE, r6 = TRUE)
 RoxygenNote: 7.3.3
 Suggests: 
