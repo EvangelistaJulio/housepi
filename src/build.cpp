@@ -30,28 +30,6 @@
 #include "parameter.h"
 #include "variable.h"
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  *** AugmentedContainer : class ***  //////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// A string containing a summary of the augmented map.
-std::string AugmentedContainer::str_augm_summary() const
-{
-    std::string output;
-    for (const Variable &var : augm_vec_)
-    {
-        output += "- " + std::string(var.name()) + " : ";
-        if (var.is_function() && !var.get_function()->is_callable_implicitly())
-            output += var.get_function()->str_summary();
-        else
-            output += var.str_summary();
-        output += "\n";
-    }
-    return output;
-}
-
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////  *** Parameter : struct ***  ////////////////////////////////
@@ -70,7 +48,7 @@ void Parameter::build(const hsp::str_table &input)
 
     // check entries
     const std::vector<std::string> file_headers = {"name", "value", "const", "discr",
-                                                   "prior", hsp::params::MIN, hsp::params::MAX,
+                                                   "prior", "min", "max",
                                                    "proposal", "proposal_scale"};
     const std::vector<std::string> headers = hsp::read::extract_keys(input);
     hsp::str::assert_no_missing_entries(headers, file_headers);
@@ -91,7 +69,8 @@ void Parameter::build(const hsp::str_table &input)
         {
             pRegistry->add(paramstr);
             param_vec_.emplace_back();
-            param_vec_.back().name(paramstr, "parameter");
+            param_vec_.back().name(paramstr);
+            param_vec_.back().set_err_type("parameter");
         }
 
         if (hsp::str::tobool(input.at("const")[k]))
@@ -140,10 +119,12 @@ void Parameter::clear_lists_()
 {
     size_t n = pRegistry->size();
     param_vec_.clear();
-    param_vec_.reserve(n);
-    param_vec_.assign(n, Variable("parameter"));
+    param_vec_.resize(n);
     for (size_t p = 0; p < n; ++p)
+    {
         param_vec_[p].name(pRegistry->as_string(p));
+        param_vec_[p].set_err_type("parameter");
+    }
 
     list_const.clear();
     list_sample.clear();
@@ -191,37 +172,27 @@ void Parameter::helper_build_to_sample_(const hsp::str_table &input, size_t k)
     // create a new parameter Variable
     size_t p = pRegistry->from_string(paramstr);
     param_vec_[p].transfer(read_numeric(input.at("value")[k]));
-    Variable &new_param = at(p);
+    Variable &xparam = at(p);
 
     // assign a prior distribution to the parameter
     hsp::parse::Definition parser(input.at("prior")[k]);
-    new_param.init_distr(parser.root.func);
-
+    xparam.init_distr(parser.root.func);
     // load prior arguments
     for (const auto &child : parser.root.children)
-        new_param.init_distr_attr(child.key, read_numeric(child));
-
+        xparam.init_distr_attr(child.key, read_numeric(child));
     // load parameter range
-    new_param.init_distr_attr(hsp::params::MIN, read_numeric(input.at(hsp::params::MIN)[k]));
-    new_param.init_distr_attr(hsp::params::MAX, read_numeric(input.at(hsp::params::MAX)[k]));
-    new_param.init_distr_reshaping(hsp::str::tobool(input.at("discr")[k]));
+    for (const auto key : {"min", "max"})
+        xparam.init_distr_attr(key, read_numeric(input.at(key)[k]));
+    xparam.init_distr_reshaping(hsp::str::tobool(input.at("discr")[k]));
 
-    // load proposal name
-    std::string proposal_name = "sample";
-    if (!hsp::na::is(input.at("proposal")[k]))
-        proposal_name = input.at("proposal")[k];
+    // assign proposal
+    xparam.init_proposal(input.at("proposal")[k],
+                         hsp::str::tod(input.at("proposal_scale")[k]));
 
-    // load proposal scale
-    double proposal_scale = 1.;
-    if (!hsp::na::is(input.at("proposal_scale")[k]))
-        proposal_scale = hsp::str::tod(input.at("proposal_scale")[k]);
-
-    // assign the proposer to the parameter
-    new_param.init_proposer(proposal_name, proposal_scale);
     // check if discrete as requested
-    if (user_discrete_set.count(p) && !new_param.is_discrete())
+    if (user_discrete_set.count(p) && !xparam.is_discrete())
         throw std::invalid_argument(
-            "Definition of " + new_param.err_name() +
+            "Definition of " + xparam.err_name() +
             " did not return a discrete object as requested by model.");
 
     // update the lists of parameters to sample
@@ -248,6 +219,15 @@ void Parameter::make_cache_dependent(size_t p)
         else
             list_non_adapt_sample_cached.push_back(p);
     }
+}
+
+void Parameter::user_reset(hsp::rnd_gen &prng)
+{
+    for (size_t p : list_sample)
+        at(p).user_reset(prng);
+
+    for (size_t p = 0; p < pRegistry->size(); ++p)
+        at(p).optimize();
 }
 
 void Parameter::load_sample_values(size_t n)
@@ -320,7 +300,7 @@ void Parameter::store_draws(unsigned long smpl_count)
     for (size_t p : list_sample)
     {
         const Variable &this_par = at(p);
-        smpl_values[i][smpl_count] = this_par.get();
+        smpl_values[i][smpl_count] = this_par.value();
         smpl_priors[i][smpl_count] = this_par.get_distr_logpdf();
         ++i;
     }
@@ -330,18 +310,15 @@ const Attribute &Parameter::read_attribute(const hsp::parse::Entry &node, const 
 {
     storage_ = Attribute(); // reset auxiliary storage to default empty
 
-    if (!node.is_terminal()) // function node
+    if (!node.is_terminal())
     {
-        Attribute temporary(node.func);
-        for (const auto &child : node.children)
-            temporary.get_function()->init_attr(child.key, read_attribute(child, member_ptr));
-        storage_ = std::move(temporary);
+        helper_store_read_function_(node, member_ptr);
     }
-    else if (hsp::parse::is_numeric(node.type)) // terminal numeric node
+    else if (hsp::parse::is_numeric(node.type))
     {
-        storage_ = Attribute(hsp::str::tod(node.value, "argument with numeric type"));
+        storage_.init_numeric(hsp::str::tod(node.value, "argument with numeric type"));
     }
-    else if (hsp::parse::is_parameter(node.type)) // terminal parameter node
+    else if (hsp::parse::is_parameter(node.type))
     {
         return at(pRegistry->from_string(node.value));
     }
@@ -351,19 +328,20 @@ const Attribute &Parameter::read_attribute(const hsp::parse::Entry &node, const 
             throw std::invalid_argument(
                 "Not supported individidual specific definition found while parsing '" + node.str() + "'.");
 
-        const Individual &member = *member_ptr;
-        if (hsp::parse::is_data(node.type)) // terminal data node
+        if (hsp::parse::is_data_wide(node.type))
         {
-            storage_ = Attribute(member.get_data_wide_vec()[pDataWideRegistry_->from_string(node.value)]);
-            storage_.name(node.value, "data");
+            size_t d = pDataWideRegistry_->from_string(node.value);
+            storage_.init_numeric(member_ptr->get_data_wide_vec()[d]);
+            storage_.name(node.value);
+            storage_.set_err_type("data");
         }
-        else if (hsp::parse::is_augmented(node.type)) // augmented terminal node
+        else if (hsp::parse::is_augmented(node.type))
         {
-            return member.get_augm_variable(pAugmRegistry_->from_string(node.value));
+            return member_ptr->get_augm_variable(pAugmRegistry_->from_string(node.value));
         }
-        else if (hsp::parse::is_group_rate(node.type)) // group rate terminal node
+        else if (hsp::parse::is_group_rate(node.type))
         {
-            return member.get_group_rate_attribute(pGroupRateRegistry_->from_string(node.value));
+            return member_ptr->get_group_rate_attribute(pGroupRateRegistry_->from_string(node.value));
         }
         else
             throw std::invalid_argument(
@@ -373,13 +351,27 @@ const Attribute &Parameter::read_attribute(const hsp::parse::Entry &node, const 
     return storage_;
 }
 
+void Parameter::helper_store_read_function_(const hsp::parse::Entry &node, const Individual *member_ptr) const
+{
+    Attribute parent;
+    parent.init_function(compose_func_registries(
+        node.func, "function",
+        {"user", "transcendental", "arithmetic",
+         "continuos", "discrete", "infecprofile"}));
+
+    for (const auto &child : node.children)
+        parent.function()->init_attr(child.key, read_attribute(child, member_ptr));
+
+    storage_ = std::move(parent);
+}
+
 const Attribute &Parameter::read_numeric(const hsp::parse::Entry &node, const Individual *member_ptr) const
 {
-    const Attribute &aux_attr_ = read_attribute(node, member_ptr);
-    if (!aux_attr_.is_empty() && !aux_attr_.is_constant())
+    storage_ = read_attribute(node, member_ptr);
+    if (!storage_.is_numeric() && !storage_.is_empty())
         throw std::invalid_argument(
             "Definition '" + node.str() + "' could not be interpreted as a numeric constant.");
-    return aux_attr_;
+    return storage_;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -470,8 +462,9 @@ void GroupRate::helper_init_all_rates_(Individual &member, const hsp::str_table 
     member.group_rate_vec_.reserve(pRegistry->size());
     for (size_t g = 0; g < pRegistry->size(); ++g)
     {
-        member.group_rate_vec_.emplace_back(Attribute(hsp::rates::VALUE_REFERENCE));
-        member.group_rate_vec_.back().name(pRegistry->as_string(g), "group rate");
+        member.group_rate_vec_.emplace_back(hsp::rates::VALUE_REFERENCE);
+        member.group_rate_vec_.back().name(pRegistry->as_string(g));
+        member.group_rate_vec_.back().set_err_type("group rate");
     }
 
     // assign custom definitions
@@ -487,13 +480,13 @@ void GroupRate::helper_init_all_rates_(Individual &member, const hsp::str_table 
                     "' was missing for " + member.err_name() + ".");
             if (paramstr != hsp::rates::REFERENCE)
                 param_pointers.emplace_back(
-                    pParameter_->at(pParameter_->pRegistry->from_string(paramstr)).get_ptr());
+                    pParameter_->at(pParameter_->pRegistry->from_string(paramstr)).pointer());
         }
 
         if (!param_pointers.empty())
         {
             size_t g = pRegistry->from_string(groupstr);
-            member.group_rate_vec_[g].transfer(Attribute(param_pointers));
+            member.group_rate_vec_[g].init_productory(param_pointers);
         }
     }
 }
@@ -527,7 +520,7 @@ void InfecProfile::init_template(hsp::str_table input)
                 "A function name was missing for infectivity profile template.");
 
         size_t n_rows = hsp::read::csv_n_rows(input);
-        const auto file_headers = {"func", "status", "discr", hsp::params::MAX};
+        const auto file_headers = {"func", "status", "discr", "max"};
 
         for (const auto &key : file_headers)
             if (!input.count(key))
@@ -583,7 +576,7 @@ void InfecProfile::build(const hsp::str_table &input)
     // check all entries are legitimiate
     hsp::str::assert_no_unused_entries(
         hsp::read::extract_keys(input),
-        {"func", "status", "discr", hsp::params::MIN, hsp::params::MAX});
+        {"func", "status", "discr", "min", "max"});
 
     // check definition list has a function
     if (!input.count("func"))
@@ -597,7 +590,7 @@ void InfecProfile::build(const hsp::str_table &input)
     // check if definition is generic or augmented
     if (hsp::read::csv_n_rows(input) > 1 ||
         hsp::parse::Definition(input.at("func")[0]).is_augmented_depen() ||
-        hsp::parse::Definition(input.at(hsp::params::MAX)[0]).is_augmented_depen() ||
+        hsp::parse::Definition(input.at("max")[0]).is_augmented_depen() ||
         !hsp::na::is(input.at("status")[0]))
         build_augmented_profile_(input);
     else
@@ -607,23 +600,22 @@ void InfecProfile::build(const hsp::str_table &input)
 void InfecProfile::build_generic_profile_(const hsp::str_table &input)
 {
     mode_ = Mode::Generic;
-    generic = helper_build_profile_({{"func", {input.at("func")[0]}},
-                                     {"discr", {input.count("discr") ? input.at("discr")[0] : "false"}}});
+    generic = helper_build_profile_(
+        {{"func", {input.at("func")[0]}},
+         {"discr", {input.count("discr") ? input.at("discr")[0] : "false"}}});
     lookup_.clear();
     augm_profile_definitions_.clear();
 
     // range minimum
-    if (input.count(hsp::params::MIN))
-        generic->init_attr(hsp::params::MIN, pParameter_->read_attribute(input.at(hsp::params::MIN)[0]));
-    else
-    {
-        const std::string default_min_expr = generic->is_discrete() ? "1|N" : "0|N";
-        generic->init_attr(hsp::params::MIN, pParameter_->read_attribute(default_min_expr));
-    }
+    std::string min_expr = generic->is_discrete() ? "1|N" : "0|N"; // default
+    if (input.count("min"))
+        min_expr = input.at("min")[0];
+    generic->init_attr("min", pParameter_->read_attribute(min_expr));
 
     // range maximum
-    if (input.count(hsp::params::MAX))
-        generic->init_attr(hsp::params::MAX, pParameter_->read_attribute(input.at(hsp::params::MAX)[0]));
+    if (input.count("max"))
+        generic->init_attr("max", pParameter_->read_attribute(input.at("max")[0]));
+
     // range truncation
     generic->init_truncation();
 
@@ -632,8 +624,8 @@ void InfecProfile::build_generic_profile_(const hsp::str_table &input)
     {
         mode_ = Mode::LookUp;
         size_t n = hsp::infprof::LOOKUP_SIZE;
-        if (!generic->get_upper().is_empty())
-            n = 1 + generic->upper();
+        if (!generic->upper().is_empty())
+            n = 1 + generic->upper().value();
         lookup_.init(generic.get(), n);
     }
 }
@@ -656,7 +648,7 @@ void InfecProfile::build_augmented_profile_(const hsp::str_table &input)
     {
         bool is_discrete = hsp::str::tobool(input.at("discr")[r]);
 
-        augm_profile_definitions_["name"].push_back(hsp::infprof::INSTANT);
+        augm_profile_definitions_["name"].push_back(hsp::infprof::AUGM_FUNC);
         augm_profile_definitions_["status"].push_back(input.at("status")[r]);
         augm_profile_definitions_["func"].push_back(input.at("func")[r]);
         augm_profile_definitions_["fcumul"].push_back("false");
@@ -664,8 +656,8 @@ void InfecProfile::build_augmented_profile_(const hsp::str_table &input)
         augm_profile_definitions_["const"].push_back("false");
         augm_profile_definitions_["discr"].push_back(hsp::str::format(is_discrete));
         augm_profile_definitions_["model"].push_back("");
-        augm_profile_definitions_[hsp::params::MIN].push_back(is_discrete ? "1|N" : "0|N");
-        augm_profile_definitions_[hsp::params::MAX].push_back(input.at(hsp::params::MAX)[r]);
+        augm_profile_definitions_["min"].push_back(is_discrete ? "1|N" : "0|N");
+        augm_profile_definitions_["max"].push_back(input.at("max")[r]);
         augm_profile_definitions_["proposal"].push_back("");
         augm_profile_definitions_["proposal_scale"].push_back("");
     }
@@ -701,7 +693,7 @@ double InfecProfile::inst(const Individual *member_ptr, double t)
     switch (mode_)
     {
     case Mode::Augmented:
-        return member_ptr->get_augm_variable(augm_key).get_function()->pdf(t);
+        return member_ptr->get_augm_variable(augm_key).function()->pdf(t);
     case Mode::Generic:
         return generic->pdf(t);
     case Mode::LookUp:
@@ -714,7 +706,7 @@ double InfecProfile::cumul(const Individual *member_ptr, double t)
     switch (mode_)
     {
     case Mode::Augmented:
-        return member_ptr->get_augm_variable(augm_key).get_function()->cdf(t);
+        return member_ptr->get_augm_variable(augm_key).function()->cdf(t);
     case Mode::Generic:
         return generic->cdf(t);
     case Mode::LookUp:

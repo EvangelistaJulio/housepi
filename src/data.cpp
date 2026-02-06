@@ -294,10 +294,7 @@ void Household::init_contact_rates(size_t from, size_t to, const Attribute &x)
 {
     // initialize contact rate matrix if necessary
     if (contact_rates_.empty())
-        contact_rates_.assign(
-            size(),
-            std::vector<Attribute>(size(), Attribute(hsp::rates::VALUE_REFERENCE)));
-
+        contact_rates_.assign(size(), std::vector<Attribute>(size(), hsp::rates::VALUE_REFERENCE));
     contact_rates_[from][to] = x;
 }
 

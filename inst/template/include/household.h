@@ -97,7 +97,7 @@ public:
 	size_t n_susceptible_status() const noexcept { return healthy_list_.size(); }
 	size_t n_missing_status() const noexcept { return missing_list_.size(); }
 
-	double contact_rate(size_t from, size_t to) const { return contact_rates_[from][to].get(); }
+	double contact_rate(size_t from, size_t to) const { return contact_rates_[from][to].value(); }
 
 	/////////////////////////
 	//////  ITERATORS  //////

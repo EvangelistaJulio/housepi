@@ -126,7 +126,7 @@ test_that("Augmented aliasing works as expected", {
                     simulated$hour <= simulated$day + 1))
 })
 
-test_that("Nested definittions works as expected", {
+test_that("Nested definitions works as expected", {
   hhmodel <- new_housepi_model("blank")
 
   # define Box-Muller transformation

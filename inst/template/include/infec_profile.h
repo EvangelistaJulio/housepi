@@ -22,7 +22,7 @@
 namespace hsp::infprof
 {
     /// Augmented instantaneous infectivity profile.
-    constexpr const char *INSTANT = ".profile_inst";
+    constexpr const char *AUGM_FUNC = ".infec_prof_augm_func";
     /// Default size for lookup table for discrete case
     constexpr unsigned LOOKUP_SIZE = 30;
 }

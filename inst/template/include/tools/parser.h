@@ -18,7 +18,7 @@ namespace hsp::parse
     /// Wheter definitions is 'augmented'.
     inline bool is_augmented(std::string_view s) { return s == "A"; }
     /// Wheter definitions is 'data'.
-    inline bool is_data(std::string_view s) { return s == "D"; }
+    inline bool is_data_wide(std::string_view s) { return s == "D"; }
     /// Wheter definitions is 'group rate'.
     inline bool is_group_rate(std::string_view s) { return s == "G"; }
     /// Wheter definitions is 'numeric'.
@@ -54,7 +54,7 @@ namespace hsp::parse
 
         /// List of dependencies per type contained in current and children definitions.
         void append_augmented_depen(std::vector<std::string> &stack) const;
-        void append_data_depen(std::vector<std::string> &stack) const;
+        void append_data_wide_depen(std::vector<std::string> &stack) const;
         void append_parameter_depen(std::vector<std::string> &stack) const;
     };
 
@@ -76,12 +76,12 @@ namespace hsp::parse
 
         /// List of dependencies per type contained in currenet definition.
         std::vector<std::string> list_augmented_depen() const;
-        std::vector<std::string> list_data_depen() const;
+        std::vector<std::string> list_data_wide_depen() const;
         std::vector<std::string> list_parameter_depen() const;
 
         /// Wheter there is any dependency on augmented, data, or parameters.
         bool is_augmented_depen() const { return !list_augmented_depen().empty(); }
-        bool is_data_depen() const { return !list_data_depen().empty(); }
+        bool is_data_wide_depen() const { return !list_data_wide_depen().empty(); }
         bool is_parameter_depen() const { return !list_parameter_depen().empty(); }
     };
 }

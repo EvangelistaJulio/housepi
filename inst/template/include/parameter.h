@@ -89,11 +89,7 @@ struct Parameter
     void make_cache_dependent(const hsp::parse::Entry &node);
 
     /// Randomly initialize values of the parameters to be inferred.
-    void user_reset(hsp::rnd_gen &prng)
-    {
-        for (size_t p : list_sample)
-            at(p).user_reset(prng);
-    }
+    void user_reset(hsp::rnd_gen &prng);
     /// Load parameters values of the n-th posterior sample.
     void load_sample_values(size_t n);
 
@@ -148,4 +144,6 @@ private:
     const hsp::key::Registry *pDataWideRegistry_;  /// pointer to external registry
     const hsp::key::Registry *pGroupRateRegistry_; /// pointer to external registry
     const hsp::key::Registry *pAugmRegistry_;      /// pointer to external registry
+
+    void helper_store_read_function_(const hsp::parse::Entry &node, const Individual *member_ptr) const;
 };

@@ -20,16 +20,18 @@
 #include "tools/read.h"
 #include "tools/types.h"
 
-#include "function.h"
-#include "distribution.h"
+#include "attribute.h"
+#include "augmented.h"
 #include "data.h"
 #include "data_reports.h"
-#include "parameter.h"
+#include "distribution.h"
+#include "function.h"
 #include "group_rate.h"
 #include "infec_profile.h"
-#include "augmented.h"
 #include "mcmc_impl.h"
 #include "mcmc.h"
+#include "parameter.h"
+#include "variable.h"
 
 #include <Rcpp.h>
 
@@ -43,6 +45,10 @@ namespace
 {
     /// Auxiliary converter to R NA real values.
     double hsp_to_rcpp(double x) { return hsp::na::is(x) ? NA_REAL : x; }
+    double hsp_to_rcpp(const Attribute &attr)
+    {
+        return attr.is_empty() ? NA_REAL : hsp_to_rcpp(attr.value());
+    }
 
     /// Convert R dataframe map of string vectors.
     hsp::str_table rdataframe_to_strmap(SEXP input)
@@ -191,8 +197,8 @@ namespace
         return List::create(_["func"] = std::string(infec_profile->generic->name()),
                             // NOTE: arguments should not be polymorphic when called here
                             _["func_args"] = rcpp_export_args(infec_profile->generic.get()),
-                            _["min"] = infec_profile->generic->lower(),
-                            _["max"] = infec_profile->generic->upper(),
+                            _["min"] = hsp_to_rcpp(infec_profile->generic->lower()),
+                            _["max"] = hsp_to_rcpp(infec_profile->generic->upper()),
                             _["discr"] = infec_profile->generic->is_discrete());
     }
 }
@@ -237,7 +243,7 @@ Rcpp::DataFrame MCMC::export_augmented_data_wide() const
             status_col[row] = member.status();
             size_t i = 0;
             for (size_t a : augm.list_export)
-                augm_cols[i++][row] = hsp_to_rcpp(member.get_augm_variable(a).get());
+                augm_cols[i++][row] = hsp_to_rcpp(member.get_augm_variable(a));
             ++row;
         }
 
@@ -683,7 +689,7 @@ namespace
         CharacterVector headers(n);
         for (size_t p = 0; p < n; ++p)
         {
-            output[p] = param->at(p).get();
+            output[p] = param->at(p).value();
             headers[p] = std::string(param->at(p).name());
         }
         output.names() = CharacterVector(headers);
@@ -795,7 +801,7 @@ namespace
             df_id[i] = member.id();
 
             for (size_t c = 0; c < headers.size(); ++c)
-                df_double[c][i] = hsp_to_rcpp(member.get_group_rate_attribute(c).get());
+                df_double[c][i] = hsp_to_rcpp(member.get_group_rate_attribute(c));
         }
 
         auto output = DataFrame::create(_["id"] = df_id);
@@ -829,13 +835,13 @@ namespace
         for (size_t i : house.infected_hhindexes())
             if (infec_profile->is_augmented())
             {
-                const auto &f = house.member(i).get_augm_variable(infec_profile->augm_key).get_function();
+                const auto &f = house.member(i).get_augm_variable(infec_profile->augm_key).function();
 
                 infprof_name[i] = std::string(f->name());
                 infprof_discr[i] = f->is_discrete();
                 infprof_args[i] = rcpp_export_args(f.get());
-                infprof_min[i] = f->lower();
-                infprof_max[i] = f->upper();
+                infprof_min[i] = hsp_to_rcpp(f->lower());
+                infprof_max[i] = hsp_to_rcpp(f->upper());
             }
             else
             {
@@ -878,7 +884,7 @@ namespace
             df_id[i] = member_i.id();
             size_t c = 0;
             for (size_t a : augm->list_export)
-                df_double[c++][i] = hsp_to_rcpp(member_i.get_augm_variable(a).get());
+                df_double[c++][i] = hsp_to_rcpp(member_i.get_augm_variable(a));
         }
 
         auto output = DataFrame::create(_["id"] = df_id);
@@ -992,7 +998,7 @@ Rcpp::DataFrame MCMC::helper_simulate_single_repetition()
                     df_status[r] = member.status();
                     size_t c = 0;
                     for (size_t a : augm.list_export)
-                        df_double[c++][r] = hsp_to_rcpp(member.get_augm_variable(a).get());
+                        df_double[c++][r] = hsp_to_rcpp(member.get_augm_variable(a));
                     ++r;
                 }
             }

@@ -12,42 +12,17 @@
 #include <vector>
 
 #include "tools/messages.h"
+#include "tools/nan.h"
 #include "tools/string.h"
 #include "tools/types.h"
 
+#include "attribute.h"
 #include "function.h"
 #include "registry.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////  Function : show  ///////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Return formatted function summary.
-std::string Function::str_summary(bool show_x_arg) const
-{
-    std::string output(name());
-    if (show_x_arg)
-    {
-        output += std::string(x_arg_.name());
-        output += "=";
-        output += hsp::str::format(x_arg_.get());
-    }
-    for (size_t c = 0; c < arguments_.size(); ++c)
-    {
-        if (c > 0 || show_x_arg)
-            output += ", ";
-        output += std::string(arguments_[c].name());
-        output += "=";
-        output += hsp::str::format(arguments_[c].get());
-    }
-    return "(" + output + ") : " + str_range();
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////// *** FunctionRegistry : class *** //////////////////////////////
+///////////////////////////////// *** FunctionRegistry : class ***  /////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -89,16 +64,22 @@ std::unique_ptr<Function> compose_func_registries(std::string_view opt,
     for (const std::string &r : registries)
         if (r == "user")
             registry_ptrs.push_back(&UserFuncRegistry::instance());
+
         else if (r == "transcendental")
             registry_ptrs.push_back(&TranscendentalRegistry::instance());
+
         else if (r == "arithmetic")
             registry_ptrs.push_back(&ArithmeticRegistry::instance());
+
         else if (r == "continuos")
             registry_ptrs.push_back(&ContinuosDistrRegistry::instance());
+
         else if (r == "discrete")
             registry_ptrs.push_back(&DiscreteDistrRegistry::instance());
+
         else if (r == "infecprofile")
             registry_ptrs.push_back(&InfecProfileRegistry::instance());
+
         else
             throw std::invalid_argument(
                 "Unknown " + err_type + " registry '" + r + "'.");
@@ -120,94 +101,99 @@ std::unique_ptr<Function> compose_func_registries(std::string_view opt,
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  Attribute : constructor ///////////////////////////////////
+///////////////////////////////////  *** Attribute : class ***  /////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Empty attribute constructor.
-Attribute::Attribute()
-{
-    init_numeric(hsp::na::DOUBLE);
-    name("", "numeric");
-}
-Attribute::Attribute(double x)
-{
-    init_numeric(x);
-    name("", "numeric");
-}
-Attribute::Attribute(const Attribute *y)
-{
-    init_pointer(y);
-    name("", "pointer");
-}
-Attribute::Attribute(const std::shared_ptr<Function> f)
-{
-    init_function(f);
-    name(std::string(f->name()), "function");
-}
-Attribute::Attribute(std::string_view s, bool is_primitive)
-{
-    init_function(s, is_primitive);
-    name(std::string(pFunc_->name()), "function");
-}
-/// Attribute deconstructor.
+Attribute::Attribute() = default;
 Attribute::~Attribute() = default;
 
-/// Wheter it's a number.
-bool Attribute::is_numeric() const noexcept { return !hsp::na::is(value_); }
+std::string Attribute::str_val() const
+{
+    switch (mode_)
+    {
+    case Mode::Empty:
+        return hsp::str::format(hsp::na::DOUBLE);
+    case Mode::Numeric:
+        return hsp::str::format(value_);
+    default:
+    {
+        if (is_constant())
+            return hsp::str::format(value());
+        return "@";
+    }
+    }
+}
 
 std::string Attribute::str_summary() const
 {
     std::string sms = "";
     if (!is_function() || pFunc_->is_callable_implicitly())
-        sms = std::to_string(get()) + " | ";
+        sms = str_val() + " | ";
 
-    if (is_discrete())
-        sms += "discrete";
-    else
-        sms += "real";
+    sms += is_discrete() ? "discrete" : "real";
+    sms += is_constant() ? " constant" : " variable";
 
-    if (is_constant())
-        sms += " constant";
-    else
-        sms += " variable";
-
-    if (is_numeric())
-        sms += " numeric";
-    else if (is_pointer())
-        sms += " pointer -> " + pAttr_->err_name();
-    else if (is_function())
-        sms += " function " + pFunc_->str_summary();
-    else
-        sms += " empty";
-    return sms;
+    switch (mode_)
+    {
+    case Mode::Empty:
+        return sms + " empty";
+    case Mode::Numeric:
+        return sms + " numeric";
+    case Mode::Pointer:
+        return sms + " pointer -> " + pAttr_->err_name();
+    case Mode::Function:
+        return sms + " function " + pFunc_->str_summary();
+    }
+    __builtin_unreachable();
 }
 
-/// Wheter it's constant.
-/// NOTE: by construction convention, a pointer to constant must be initialized to numeric instead.
-/// NOTE: if empty, then it's constant by convention.
 bool Attribute::is_constant() const noexcept
 {
-    if (is_numeric())
-        return true;
-    if (is_pointer())
+    switch (mode_)
+    {
+    case Mode::Empty:
+        return false;
+    case Mode::Numeric:
+        return is_user_const_;
+    case Mode::Pointer:
         return pAttr_->is_constant();
-    if (is_function())
+    case Mode::Function:
         return pFunc_->is_constant();
-    return true;
+    }
+    __builtin_unreachable();
 }
 
-/// Wheter it's discrete.
-/// NOTE: if empty, then it's discrete by convention.
 bool Attribute::is_discrete() const noexcept
 {
-    if (is_numeric())
+    switch (mode_)
+    {
+    case Mode::Empty:
+        return false;
+    case Mode::Numeric:
         return value_ == std::floor(value_);
-    if (is_pointer())
+    case Mode::Pointer:
         return pAttr_->is_discrete();
-    if (is_function())
+    case Mode::Function:
         return pFunc_->is_discrete();
-    return true;
+    }
+    __builtin_unreachable();
+}
+
+bool Attribute::is_callable() const noexcept
+{
+    switch (mode_)
+    {
+    case Mode::Empty:
+        return false;
+    case Mode::Numeric:
+        return !hsp::na::is(value_);
+    case Mode::Pointer:
+        return pAttr_->is_callable();
+    case Mode::Function:
+        return pFunc_->is_callable_implicitly();
+    }
+    __builtin_unreachable();
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -216,32 +202,7 @@ bool Attribute::is_discrete() const noexcept
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Attribute::name(const std::string &name, const std::string &err_type)
-{
-    name_ = name;
-    if (!hsp::na::is(err_type))
-        err_type_ = err_type;
-}
-
-void Attribute::init_numeric(double x)
-{
-    mode_ = Mode::This;
-    value_ = x;
-    pAttr_ = nullptr;
-    pFunc_ = nullptr;
-}
-void Attribute::init_pointer(const Attribute *y)
-{
-    if (y == nullptr)
-        throw std::invalid_argument(
-            "Tried to assign empty pointer to " + err_name() + ".");
-
-    mode_ = Mode::Pointer;
-    value_ = hsp::na::DOUBLE;
-    pAttr_ = y;
-    pFunc_ = nullptr;
-}
-void Attribute::init_function(const std::shared_ptr<Function> f)
+void Attribute::init_function(std::shared_ptr<Function> f)
 {
     // check the function is different from the current one
     if (f == nullptr)
@@ -251,44 +212,52 @@ void Attribute::init_function(const std::shared_ptr<Function> f)
         throw std::invalid_argument(
             "Tried to assign " + err_name() + " as its own argument.");
 
+    if (err_type_ == "empty")
+        err_type_ = "function";
+
+    name_ = f->name();
     mode_ = Mode::Function;
     value_ = hsp::na::DOUBLE;
     pAttr_ = nullptr;
     pFunc_ = f;
-}
-void Attribute::init_function(std::string_view s, bool is_primitive)
-{
-    init_function(compose_func_registries(
-        s, "function",
-        {"user", "transcendental", "arithmetic",
-         "continuos", "discrete", "infecprofile"},
-        is_primitive));
+    is_user_const_ = false;
 }
 
 void Attribute::transfer(const Attribute &other)
 {
-    if (other.is_constant())
-        init_numeric(other.get());
-    else if (other.is_function())
-        init_function(other.get_function());
-    else
-        init_pointer(other.get_ptr());
+    switch (other.mode_)
+    {
+    case Mode::Empty:
+        if (other.err_type_ != "empty")
+            init_pointer(other.pointer());
+        // NOTE: nothing to transfer if pure empty
+        return;
+    case Mode::Numeric:
+        init_numeric(other.value());
+        return;
+    case Mode::Pointer:
+        init_pointer(other.pointer());
+        return;
+    case Mode::Function:
+        init_function(other.function());
+        return;
+    }
+    __builtin_unreachable();
 }
 
-double Attribute::get() const
+inline double Attribute::value() const
 {
     switch (mode_)
     {
-    case Mode::This:
+    case Mode::Empty:
+        throw std::runtime_error(
+            "Impossible to return value for " + err_name() + ".");
+    case Mode::Numeric:
         return value_;
     case Mode::Pointer:
-        return pAttr_->get();
+        return pAttr_->value();
     case Mode::Function:
         return pFunc_->evaluate();
-    case Mode::Error:
-        throw std::runtime_error(
-            "Impossible to return value for " + err_name() +
-            ". Argument 'x' of " + pFunc_->err_name() + " cannot be missing.");
     default:
         __builtin_unreachable();
     }
@@ -302,44 +271,50 @@ double Attribute::get() const
 
 /// Initial defaults for function.
 /// NOTE: to access arguments by index, I must provide separate name/value.
+/// UPDATE: at the moment only place where to set open ranges
+/// UPDATE: not sure if setting pointer to smtg exiting the domain I still have control
 Function::Function(const std::vector<std::pair<std::string, double>> &args,
-                   double domain_min, bool is_min_open,
-                   double domain_max, bool is_max_open)
+                   double domain_min, double domain_max)
 {
-    // initialize default arguments
-    x_arg_.name(hsp::params::X);
-    loc_arg_.name(hsp::params::LOC);
+    // default arguments initialized as empty
+    x_arg_.name("x");
+    loc_.name("loc");
+    lower_.name("min");
+    upper_.name("max");
 
-    // allocate attribute for remaining arguments
-    size_t n_args = args.size();
+    // allocate other arguments
+    arguments_.reserve(args.size());
     for (const auto &[key, val] : args)
-        if (key == hsp::params::X || key == hsp::params::LOC)
-            --n_args;
-    arguments_ = std::vector<Attribute>(n_args);
-
-    size_t counter = 0;
-    for (const auto &[key, val] : args)
-        if (key == hsp::params::X)
+        if (key == "x")
         {
-            x_arg_.set(val);
+            x_arg_.init_numeric(val);
         }
-        else if (key == hsp::params::LOC)
+        else if (key == "loc")
         {
-            loc_arg_.set(val);
+            loc_.init_numeric(val);
         }
         else
         {
-            arguments_[counter].name(key);
-            arguments_[counter++].set(val);
+            // distinguish empty defaults
+            if (hsp::na::is(val))
+                arguments_.emplace_back();
+            else
+                arguments_.emplace_back(val);
+            arguments_.back().name(key);
         }
+    arguments_.shrink_to_fit();
 
-    // Assign Domain
-    // UPDATE: at the moment only place where to set open ranges
-    // UPDATE: not sure if setting pointer to smtg exiting the domain I still have control
-    init_attr(hsp::params::MIN, Attribute(domain_min));
-    init_attr(hsp::params::MAX, Attribute(domain_max));
-
-    init_range_helper_(is_min_open, is_max_open);
+    // assign domain if any, otherwise leave empty
+    if (!hsp::na::is(domain_min))
+    {
+        lower_.init_numeric(domain_min);
+        below_mode_ = Mode::Interval::Closed;
+    }
+    if (!hsp::na::is(domain_max))
+    {
+        upper_.init_numeric(domain_max);
+        above_mode_ = Mode::Interval::Closed;
+    }
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -351,21 +326,21 @@ Function::Function(const std::vector<std::pair<std::string, double>> &args,
 /// Assert argument exists at assignment. Returns it's index.
 Attribute &Function::find_arg_(std::string_view arg_name)
 {
-    if (hsp::na::is(arg_name))
-        throw std::invalid_argument(
-            "Provided an unnamed argument to " + err_name() + ".");
-
-    if (arg_name == hsp::params::X)
+    if (arg_name == "x")
         return x_arg_;
-    if (arg_name == hsp::params::LOC)
-        return loc_arg_;
+    if (arg_name == "loc")
+        return loc_;
+    if (arg_name == "min")
+        return lower_;
+    if (arg_name == "max")
+        return upper_;
 
     for (Attribute &attr : arguments_)
         if (attr.name() == arg_name)
             return attr;
 
     // else format the error showing options
-    std::vector<std::string> options = {hsp::params::X, hsp::params::LOC};
+    std::vector<std::string> options = {"x", "loc", "min", "max"};
     for (const Attribute &attr : arguments_)
         options.emplace_back(attr.name());
     throw std::invalid_argument(
@@ -374,29 +349,27 @@ Attribute &Function::find_arg_(std::string_view arg_name)
 }
 
 /// Wheter return value is always constant.
+/// UPDATE: at the moment also a mutable range makes the function non constant.
 bool Function::is_constant() const noexcept
 {
-    // check X value
-    // NOTE: a function with undefined 'x' is not constant
-    if (x_arg_.is_empty() || !x_arg_.is_constant())
+    if (!x_arg_.is_constant())
         return false;
 
-    // check arguments
+    // variable arguments
     for (const Attribute &attr : arguments_)
         if (!attr.is_constant())
             return false;
 
-    // check range
-    if (!lower_arg_.is_constant())
+    // variable range
+    if (below_mode_ != Mode::Interval::None && !lower_.is_constant())
         return false;
-    if (!upper_arg_.is_constant())
+    if (above_mode_ != Mode::Interval::None && !upper_.is_constant())
         return false;
 
     // otherwise constant
     return true;
 }
 
-/// Wheter all arguments are not empty.
 bool Function::is_callable_explicitly() const noexcept
 {
     for (const Attribute &attr : arguments_)
@@ -432,64 +405,94 @@ void Function::assert_is_callable_explicitly() const
 /// Functional range for lower bound and no upper bound.
 bool Function::init_range_min_(double min_val, bool is_min_open)
 {
-    if (lower() < min_val)
-        throw std::invalid_argument(
-            "Invoked invalid min value " + hsp::str::format(lower()) + " for " + err_name() + ".");
+    if (lower_.is_empty())
+        throw std::runtime_error(
+            "Forbidden initialization of minimum value for " + err_name() + ".");
 
-    if (lower() == min_val && hsp::na::is(upper()))
+    const double old = lower_.value();
+    if (old < min_val)
+        throw std::invalid_argument(
+            "Invoked invalid min value " + hsp::str::format(old) + " for " + err_name() + ".");
+
+    if (old == min_val && upper_.is_empty())
         return false;
 
-    init_range_helper_(is_min_open ? lower() == min_val : false, false);
+    init_range_helper_(is_min_open ? old == min_val : false, false);
     return true;
 }
 
 /// Set the range of validity of the value, and the corresponding validation function.
 void Function::init_range_helper_(bool is_min_open, bool is_max_open)
 {
-    if (lower_arg_.is_empty())
-        below_mode_ = Mode::Interv::None;
+    if (lower_.is_empty())
+        below_mode_ = Mode::Interval::None;
     else if (is_min_open)
-        below_mode_ = Mode::Interv::Open;
+        below_mode_ = Mode::Interval::Open;
     else
-        below_mode_ = Mode::Interv::Closed;
+        below_mode_ = Mode::Interval::Closed;
 
-    if (upper_arg_.is_empty())
-        above_mode_ = Mode::Interv::None;
+    if (upper_.is_empty())
+        above_mode_ = Mode::Interval::None;
     else if (is_max_open)
-        above_mode_ = Mode::Interv::Open;
+        above_mode_ = Mode::Interval::Open;
     else
-        above_mode_ = Mode::Interv::Closed;
+        above_mode_ = Mode::Interval::Closed;
 
-    // check for consistency
+    // check for consistency if both range limits are provided
+    if (!lower_.is_callable() || !upper_.is_callable())
+        return;
+
     bool wrong_open = false, wrong_close = false;
     if (is_min_open && is_max_open)
-        wrong_close = lower_arg_.get() > upper_arg_.get();
+        wrong_close = lower_.value() > upper_.value();
     else if (!is_min_open && !is_max_open)
-        wrong_open = lower_arg_.get() >= upper_arg_.get();
+        wrong_open = lower_.value() >= upper_.value();
 
     if (wrong_open || wrong_close)
         throw std::invalid_argument(
             "Generated an inconsistent range " + str_range() + " for " + err_name() + ".");
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////  Function : show  ///////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Return formatted function summary.
+std::string Function::str_summary(bool show_x_arg) const
+{
+    std::string sms = std::string(name()) + "(";
+    if (show_x_arg)
+        sms += std::string(x_arg_.name()) + "=" + x_arg_.str_val();
+
+    for (size_t c = 0; c < arguments_.size(); ++c)
+    {
+        if (c > 0 || show_x_arg)
+            sms += ", ";
+        sms += std::string(arguments_[c].name()) + "=" + arguments_[c].str_val();
+    }
+    return sms + ") : " + str_range();
+}
+
 /// Return formatted range.
 std::string Function::str_range() const
 {
-    const std::string str_min = hsp::str::format(lower_arg_.get());
-    const std::string str_max = hsp::str::format(upper_arg_.get());
+    const std::string &str_min = lower_.str_val();
+    const std::string &str_max = upper_.str_val();
 
     std::string output;
 
-    if (below_mode_ == Mode::Interv::Closed)
+    if (below_mode_ == Mode::Interval::Closed)
         output = "[" + str_min;
-    else if (below_mode_ == Mode::Interv::Open)
+    else if (below_mode_ == Mode::Interval::Open)
         output = "(" + str_min;
     else
         output = "(-Inf,";
 
-    if (above_mode_ == Mode::Interv::Closed)
+    if (above_mode_ == Mode::Interval::Closed)
         output += ", " + str_max + "]";
-    else if (above_mode_ == Mode::Interv::Open)
+    else if (above_mode_ == Mode::Interval::Open)
         output += ", " + str_max + ")";
     else
         output += " Inf)";
@@ -503,45 +506,53 @@ std::string Function::str_range() const
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Assign attribute to function.
 void Function::init_attr(std::string_view key, const Attribute &attr)
 {
     // assert that function attribute are implicitely callable
+    try
+    {
+        helper_assert_valid_attribute_(key, attr);
+    }
+    catch (const std::exception &e)
+    {
+        throw std::invalid_argument(
+            "Impossible to associate " + attr.err_name() +
+            " as argument '" + std::string(key) + "' of " + err_name() + ".\n" +
+            std::string(e.what()));
+    }
+
+    // transfer attribute
+    find_arg_(key).transfer(attr);
+
+    // apply location argument shift
+    if (key == "loc")
+        deloc_mode_ = Mode::Location::Active;
+}
+
+/// Assert that proposed function attribute is valid.
+void Function::helper_assert_valid_attribute_(std::string_view key, const Attribute &attr)
+{
     if (attr.is_function())
     {
-        const std::vector<std::string> undefined_args = attr.get_function()->get_missing_argument();
+        const auto &undefined_args = attr.function()->get_missing_argument();
         if (!undefined_args.empty())
             throw std::invalid_argument(
-                "Impossible to associate " + attr.err_name() + " as argument '" + std::string(key) + "' of " + err_name() + ".\n" +
-                "Non default argument" + (undefined_args.size() > 1 ? "s " : " ") + hsp::str::format(undefined_args) +
+                "Non default argument" + std::string(undefined_args.size() > 1 ? "s " : " ") +
+                hsp::str::format(undefined_args) +
                 " of " + attr.err_name() + " cannot be missing.");
 
-        if (!attr.get_function()->is_callable_implicitly())
+        if (!attr.function()->is_callable_implicitly())
             throw std::invalid_argument(
-                "Impossible to associate " + attr.err_name() + " as argument '" + std::string(key) + "' of " + err_name() + ".\n" +
                 "Argument 'x' of " + attr.err_name() + " cannot be missing.");
     }
-
-    // distinguish between range keys and standard keys
-    if (key == hsp::params::MIN || key == hsp::params::MAX)
+    else if (attr.is_constant())
     {
-        // skip empty constants for range
-        // NOTE: Variable overwrites 'is_constant' method,
-        // thus empty does not always imply constant
-        if (attr.is_empty() && attr.is_constant())
-            return;
-
-        if (key == hsp::params::MIN)
-            lower_arg_.transfer(attr);
-        else // key == hsp::params::MAX
-            upper_arg_.transfer(attr);
+        double x = attr.value();
+        if (hsp::na::is(x) || (key == "x" && !is_valid(x)))
+            throw std::invalid_argument(
+                "Value " + hsp::str::format(x) + " for argument '" + std::string(key) +
+                "' is outside of range " + str_range() + ".");
     }
-    else
-        find_arg_(key).transfer(attr);
-
-    // Apply location argument shift.
-    if (key == hsp::params::LOC)
-        deloc_mode_ = Mode::Deloc::Active;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -552,8 +563,6 @@ void Function::init_attr(std::string_view key, const Attribute &attr)
 
 namespace
 {
-    using std::log;
-
     /// Minus Function.
     class Minus_ final : public Function
     {
@@ -570,7 +579,7 @@ namespace
     class Subtraction_ final : public Function
     {
     public:
-        Subtraction_() : Function({{"x2", 0.}}) {}
+        Subtraction_() : Function({{"x2", hsp::na::DOUBLE}}) {}
         std::string_view name() const noexcept override final { return "sub"; }
         void init_truncation() override final {}
         bool is_discrete() const noexcept override final { return arguments_[0].is_discrete() && x_arg_.is_discrete(); }
@@ -583,7 +592,7 @@ namespace
     class Division_ final : public Function
     {
     public:
-        Division_() : Function({{"x2", 1}}) {}
+        Division_() : Function({{"x2", hsp::na::DOUBLE}}) {}
         std::string_view name() const noexcept override final { return "div"; }
         void init_truncation() override final {}
 
@@ -595,36 +604,36 @@ namespace
     class Power_ final : public Function
     {
     public:
-        Power_() : Function({{"x2", 1.}}) {}
+        Power_() : Function({{"x2", hsp::na::DOUBLE}}) {}
         std::string_view name() const noexcept override final { return "pow"; }
         void init_truncation() override final { init_range_helper_(); }
         bool is_discrete() const noexcept override final { return Function::is_discrete() || (arguments_[0].is_discrete() && x_arg_.is_discrete()); }
 
     protected:
         double raw_function_(double x) const override final { return std::pow(x, arg(0)); }
-        double raw_logfunc_(double x) const override final { return arg(0) * log(x); }
+        double raw_logfunc_(double x) const override final { return arg(0) * std::log(x); }
         double raw_primitive_(double x) const override final
         {
             if (std::abs(arg(0) + 1.) < 1.e-10)
-                return log(std::abs(x));
+                return std::log(std::abs(x));
             return std::pow(x, arg(0) + 1.) / (arg(0) + 1.);
         }
-        double raw_logratio_(double xo, double xn) const override final { return arg(0) * log(xn / xo); }
+        double raw_logratio_(double xo, double xn) const override final { return arg(0) * std::log(xn / xo); }
     };
 
     /// SquareRoot Function.
     class SquareRoot_ final : public Function
     {
     public:
-        SquareRoot_() : Function({}, 0., false, hsp::na::DOUBLE, false) {}
+        SquareRoot_() : Function({}, 0.) {}
         std::string_view name() const noexcept override final { return "sqrt"; }
         void init_truncation() override final { init_range_min_(); }
 
     protected:
         double raw_function_(double x) const override final { return std::sqrt(x); }
-        double raw_logfunc_(double x) const override final { return 0.5 * log(x); }
+        double raw_logfunc_(double x) const override final { return 0.5 * std::log(x); }
         double raw_primitive_(double x) const override final { return std::pow(x, 1.5) / 1.5; }
-        double raw_logratio_(double xo, double xn) const override final { return 0.5 * log(xn / xo); }
+        double raw_logratio_(double xo, double xn) const override final { return raw_logfunc_(xn) - raw_logfunc_(xo); }
     };
 
     /// Exponential Function.
@@ -645,15 +654,15 @@ namespace
     class Logarithm_ final : public Function
     {
     public:
-        Logarithm_() : Function({}, 0., true, hsp::na::DOUBLE, false) {}
+        Logarithm_() : Function({}, 0.) { below_mode_ = Mode::Interval::Open; }
         std::string_view name() const noexcept override final { return "log"; }
         void init_truncation() override final { init_range_min_(0., true); }
 
     protected:
-        double raw_function_(double x) const override final { return log(x); }
-        double raw_logfunc_(double x) const override final { return log(log(x)); }
-        double raw_primitive_(double x) const override final { return x * log(x) - x; }
-        double raw_logratio_(double xo, double xn) const override final { return log(log(xn) / log(xo)); }
+        double raw_function_(double x) const override final { return std::log(x); }
+        double raw_logfunc_(double x) const override final { return std::log(std::log(x)); }
+        double raw_primitive_(double x) const override final { return x * std::log(x) - x; }
+        double raw_logratio_(double xo, double xn) const override final { return raw_logfunc_(xn) - raw_logfunc_(xo); }
     };
 
     /// Sine Function.
@@ -665,9 +674,9 @@ namespace
 
     protected:
         double raw_function_(double x) const override final { return std::sin(x); }
-        double raw_logfunc_(double x) const override final { return log(std::sin(x)); }
+        double raw_logfunc_(double x) const override final { return std::log(std::sin(x)); }
         double raw_primitive_(double x) const override final { return -std::cos(x); }
-        double raw_logratio_(double xo, double xn) const override final { return log(std::sin(xn) / std::sin(xo)); }
+        double raw_logratio_(double xo, double xn) const override final { return raw_logfunc_(xn) - raw_logfunc_(xo); }
     };
 
     /// Cosine Function.
@@ -679,9 +688,9 @@ namespace
 
     protected:
         double raw_function_(double x) const override final { return std::cos(x); }
-        double raw_logfunc_(double x) const override final { return log(std::cos(x)); }
+        double raw_logfunc_(double x) const override final { return std::log(std::cos(x)); }
         double raw_primitive_(double x) const override final { return std::sin(x); }
-        double raw_logratio_(double xo, double xn) const override final { return log(std::cos(xn) / std::cos(xo)); }
+        double raw_logratio_(double xo, double xn) const override final { return raw_logfunc_(xn) - raw_logfunc_(xo); }
     };
 
     /// Tangent Function.
@@ -693,8 +702,8 @@ namespace
 
     protected:
         double raw_function_(double x) const override final { return std::tan(x); }
-        double raw_logfunc_(double x) const override final { return log(std::tan(x)); }
-        double raw_logratio_(double xo, double xn) const override final { return log(std::tan(xn) / std::tan(xo)); }
+        double raw_logfunc_(double x) const override final { return std::log(std::tan(x)); }
+        double raw_logratio_(double xo, double xn) const override final { return raw_logfunc_(xn) - raw_logfunc_(xo); }
     };
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -722,10 +731,15 @@ namespace
         /// If attribute doesn't exist at initialization, create it.
         Attribute &find_arg_(std::string_view arg_name) override final
         {
-            if (arg_name == hsp::params::X)
+            if (arg_name == "x")
                 return x_arg_;
-            if (arg_name == hsp::params::LOC)
-                return loc_arg_;
+            if (arg_name == "loc")
+                return loc_;
+            if (arg_name == "min")
+                return lower_;
+            if (arg_name == "max")
+                return upper_;
+
             for (Attribute &attr : arguments_)
                 if (!hsp::na::is(attr.name()) && attr.name() == arg_name)
                     return attr;
@@ -746,7 +760,7 @@ namespace
         double raw_function_(double x) const override final                            \
         {                                                                              \
             for (const Attribute &attr : arguments_)                                   \
-                x Symbol attr.get();                                                   \
+                x Symbol attr.value();                                                 \
             return x;                                                                  \
         }                                                                              \
     };
@@ -765,7 +779,7 @@ namespace
         {                                                                              \
             for (const Attribute &attr : arguments_)                                   \
             {                                                                          \
-                const double new_val = attr.get();                                     \
+                const double new_val = attr.value();                                   \
                 if (new_val Symbol x)                                                  \
                     x = new_val;                                                       \
             }                                                                          \
@@ -802,8 +816,7 @@ REGISTER_HOUSEPI_FUNCTION(Tangent_, TranscendentalRegistry)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Productory of pointed attributes values.
-Attribute::Attribute(const std::vector<const Attribute *> other_ptrs)
+void Attribute::init_productory(const std::vector<const Attribute *> &other_ptrs)
 {
     if (other_ptrs.size() == 1)
     {
@@ -812,9 +825,14 @@ Attribute::Attribute(const std::vector<const Attribute *> other_ptrs)
     }
 
     auto fun = std::make_shared<Product_>();
-    // initialize attributes to pointers
-    fun->init_attr(hsp::params::X, Attribute(other_ptrs[0]));
+    Attribute aux;
+    aux.init_pointer(other_ptrs[0]);
+    fun->init_attr("x", aux);
     for (size_t i = 1; i < other_ptrs.size(); ++i)
-        fun->init_attr("", Attribute(other_ptrs[i]));
+    {
+        aux.init_pointer(other_ptrs[i]);
+        fun->init_attr("", aux);
+    }
+
     init_function(fun);
 }

@@ -13,6 +13,7 @@
 #include <string_view>
 #include <vector>
 
+#include "tools/nan.h"
 #include "tools/random.h"
 
 #include "attribute.h"
@@ -28,17 +29,19 @@ class Proposal;
 
 class Variable : public Attribute
 {
+    enum class Validity : uint8_t
+    {
+        Always,
+        Check
+    } valid_mode_ = Validity::Check;
+    enum class Ratio : uint8_t
+    {
+        None,
+        Compute
+    } ratio_mode_ = Ratio::Compute;
+
 public:
-    ///////////////////////////
-    //////  CONSTRUCTOR  //////
-    ///////////////////////////
-
-    Variable(const std::string &err_type = "variable");
     ~Variable();
-
-    /////////////////////////
-    //////  OPERATORS  //////
-    /////////////////////////
 
     /// Sugar to call variable as a function if applicable, otherwise raise error.
     double operator()(double x) const;
@@ -47,6 +50,25 @@ public:
     //////  SETTER  //////
     //////////////////////
 
+    /// Restore empty. Used in multiple initializations.
+    void clear() noexcept
+    {
+        mode_ = Mode::Empty;
+        value_ = hsp::na::DOUBLE;
+        pAttr_ = nullptr;
+        pFunc_ = nullptr;
+        pDistr_ = nullptr;
+        pProp_ = nullptr;
+    }
+
+    /// Enforce user choice for constant.
+    void enforce_user_const()
+    {
+        is_user_const_ = true;
+        if (is_constant())
+            user_value_ = value();
+    }
+
     /// Change value. Buffer old value.
     void set(double x)
     {
@@ -54,43 +76,34 @@ public:
         Attribute::set(x);
     }
 
-    /// Helper to initialize variable.
-    void init(double value, bool is_const, std::string_view expr, bool is_prim = false);
-
     /// Recover buffered value.
     void recover() noexcept { value_ = buffer_; }
 
-    /// Restore user defined variable initialization.
-    void user_reset(hsp::rnd_gen &prng);
-
-    /// Assign an attribute to function.
-    void init_func_attr(std::string_view key, const Attribute &attr);
-
-    /// Initialize function reshaping.
-    /// NOTE: to be called necessarily.
-    void init_func_reshaping(bool discr);
-
     /// Initialize pointer to distribution.
     void init_distr(std::string_view opt);
-
     /// Assign an attribute to distribution.
     void init_distr_attr(std::string_view key, const Attribute &attr);
-
     /// Finalize reshaping of distribution.
     /// NOTE: to be called necessarily.
     void init_distr_reshaping(bool discr);
 
-    /// Random initialization of variable.
-    void init_rand(hsp::rnd_gen &prng);
-
+    /// Restore user defined variable initialization.
+    void user_reset(hsp::rnd_gen &prng);
+    /// Eventually prune indirections if to constants.
+    void optimize();
     /// Initialize pointer to proposer.
-    void init_proposer(const std::string &proposal, double proposal_scale);
+    void init_proposal(const std::string &proposal, double proposal_scale);
 
-    //////////////////////
-    //////  GETTER  //////
-    //////////////////////
+    /// Assign an attribute to function.
+    void init_func_attr(std::string_view key, const Attribute &attr);
+    /// Initialize function reshaping.
+    /// NOTE: to be called necessarily.
+    void init_func_reshaping(bool discr);
 
-    bool is_constant() const noexcept override final;
+    /////////////////////
+    //////  FLAGS  //////
+    /////////////////////
+
     bool is_discrete() const noexcept override final;
     bool is_model() const noexcept;
     bool is_adaptable() const noexcept;
@@ -130,34 +143,22 @@ public:
     std::string str_summary() const override final;
 
 protected:
-    double buffer_;           /// buffered value
-    double user_value_;       /// initial user defined value
-    bool is_constant_ = true; /// user flag for wheter constant or not
+    double buffer_ = hsp::na::DOUBLE;     /// buffered value
+    double user_value_ = hsp::na::DOUBLE; /// initial user defined value
 
-    /// NOTE: Household must be copyable for simulations -> Variable pointers must be shared
+    /// NOTE: Household must be copyable for simulations 
+    /// UPDATE: pointers should become unique -> Function clonable.
     std::shared_ptr<Distribution> pDistr_; /// prior\model distribution of the variable
     std::shared_ptr<Proposal> pProp_;      /// Monte Carlo proposer
 
-    enum class Validity : uint8_t
-    {
-        Always, /// always valid
-        Check   /// to be assert
-    } valid_mode_ = Validity::Check;
-    enum class Ratio : uint8_t
-    {
-        None,   /// always valid
-        Compute /// to be assert
-    } ratio_mode_ = Ratio::Compute;
-    
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////  Variable : setter [private]  //////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////
+    //////  HELPERS  //////
+    ///////////////////////
 
-    /// Helper with proposer initialization of direct sample from prior/model.
-    void helper_init_sample_proposer_();
-    /// Helper with Monte Carlo proposer initialization.
-    void helper_init_proposer_monte_carlo_(const std::string &proposal, double proposal_scale);
-
-    /// Helper with degenerate range.
-    void helper_degenerate_range_();
+    /// Assert that range is non-degenerate.
+    void helper_assert_non_degenerate_range_();
+    /// Initialize proposal of direct sample from prior/model.
+    void helper_init_sample_proposal_();
+    /// Initialize parametric Monte Carlo proposal.
+    void helper_init_monte_carlo_proposal_(const std::string &proposal, double proposal_scale);
 };

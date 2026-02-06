@@ -2,7 +2,8 @@ library(testthat)
 
 test_that("Function exported from housepi are correct", {
   x <- seq(0, 1000, 1)
-  expect_equal(expose_function("pow")$func(x), x)
+  expect_error(expose_function("pow")$func(x),
+               regexp = "missing non default")
   expect_equal(expose_function("pow", x2 = 2)$func(x), x^2)
   expect_equal(expose_function("pow", x2 = -3)$func(x), x^(-3))
   expect_equal(expose_function("exp")$func(x), exp(x))

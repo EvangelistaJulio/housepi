@@ -33,10 +33,9 @@ public:
 	/// Set numeric value of augmented variable. If not allowed, raise exception.
 	void set_augm_value(size_t a, double x) { augm_vec_[a].set(x); }
 
-	double aug(size_t a) const { return augm_vec_[a].get(); }
+	double aug(size_t a) const { return augm_vec_[a].value(); }
 	Variable &get_augm_variable(size_t a) { return augm_vec_[a]; }
 	const Variable &get_augm_variable(size_t a) const { return augm_vec_[a]; }
-	std::string str_augm_summary() const;
 
 protected:
 	size_t augm_idx_status_;			  /// index for augmented model

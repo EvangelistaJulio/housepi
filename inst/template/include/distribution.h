@@ -41,11 +41,9 @@ public:
 	///////////////////////////
 
 	Distribution(const std::vector<std::pair<std::string, double>> &args = {},
-				 double domain_min = hsp::na::DOUBLE, bool is_min_open = true,
-				 double domain_max = hsp::na::DOUBLE, bool is_max_open = true)
-		: Function(args,
-				   domain_min, is_min_open,
-				   domain_max, is_max_open) { set_eval_as_distr_call(); }
+				 double domain_min = hsp::na::DOUBLE,
+				 double domain_max = hsp::na::DOUBLE)
+		: Function(args, domain_min, domain_max) { set_eval_as_distr_call(); }
 	virtual ~Distribution() = default;
 
 	//////////////////////
@@ -104,22 +102,22 @@ protected:
 		double y;
 		switch (discr_mode_)
 		{
-		case Mode::Discr::None:
+		case Mode::Discrete::None:
 			y = raw_pdf_(x);
 			break;
-		case Mode::Discr::Center:
+		case Mode::Discrete::Center:
 		{
 			const double i = std::round(x);
 			y = raw_cdf_(i + .5) - raw_cdf_(i - .5);
 			break;
 		}
-		case Mode::Discr::Left:
+		case Mode::Discrete::Left:
 		{
 			const double i = std::floor(x);
 			y = raw_cdf_(i + 1.) - raw_cdf_(i);
 			break;
 		}
-		case Mode::Discr::Defined:
+		case Mode::Discrete::Defined:
 			y = raw_pdf_(std::floor(x));
 			break;
 		default:
@@ -135,22 +133,22 @@ protected:
 		double y;
 		switch (discr_mode_)
 		{
-		case Mode::Discr::None:
+		case Mode::Discrete::None:
 			y = raw_logpdf_(x);
 			break;
-		case Mode::Discr::Center:
+		case Mode::Discrete::Center:
 		{
 			const double i = std::round(x);
 			y = raw_cdf_(i + 0.5) - raw_cdf_(i - 0.5);
 			break;
 		}
-		case Mode::Discr::Left:
+		case Mode::Discrete::Left:
 		{
 			const double i = std::floor(x);
 			y = raw_cdf_(i + 1.) - raw_cdf_(i);
 			break;
 		}
-		case Mode::Discr::Defined:
+		case Mode::Discrete::Defined:
 			y = raw_logpdf_(std::floor(x));
 			break;
 		default:
@@ -166,16 +164,16 @@ protected:
 		double adjusted_x;
 		switch (discr_mode_)
 		{
-		case Mode::Discr::None:
+		case Mode::Discrete::None:
 			adjusted_x = x;
 			break;
-		case Mode::Discr::Center:
+		case Mode::Discrete::Center:
 			adjusted_x = std::round(x) + 0.5;
 			break;
-		case Mode::Discr::Left:
+		case Mode::Discrete::Left:
 			adjusted_x = std::floor(x) + 1.0;
 			break;
-		case Mode::Discr::Defined:
+		case Mode::Discrete::Defined:
 			adjusted_x = std::floor(x);
 			break;
 		default:
@@ -190,9 +188,9 @@ protected:
 	{
 		switch (discr_mode_)
 		{
-		case Mode::Discr::None:
+		case Mode::Discrete::None:
 			return raw_logratio_(xo, xn);
-		case Mode::Discr::Center:
+		case Mode::Discrete::Center:
 		{
 			const double io = std::round(xo), in = std::round(xn);
 			if (io == in)
@@ -200,7 +198,7 @@ protected:
 			return std::log(raw_cdf_(in + .5) - raw_cdf_(in - .5)) -
 				   std::log(raw_cdf_(io + .5) - raw_cdf_(io - .5));
 		}
-		case Mode::Discr::Left:
+		case Mode::Discrete::Left:
 		{
 			const double io = std::floor(xo), in = std::floor(xn);
 			if (io == in)
@@ -208,7 +206,7 @@ protected:
 			return std::log(raw_cdf_(in + 1.) - raw_cdf_(in)) -
 				   std::log(raw_cdf_(io + 1.) - raw_cdf_(io));
 		}
-		case Mode::Discr::Defined:
+		case Mode::Discrete::Defined:
 			return raw_logratio_(std::floor(xo), std::floor(xn));
 		}
 		__builtin_unreachable();
@@ -222,12 +220,12 @@ protected:
 	{
 		switch (discr_mode_)
 		{
-		case Mode::Discr::Center:
+		case Mode::Discrete::Center:
 			return static_cast<double>(std::lround(x));
-		case Mode::Discr::Left:
+		case Mode::Discrete::Left:
 			return std::floor(x);
-		case Mode::Discr::Defined:
-		case Mode::Discr::None:
+		case Mode::Discrete::Defined:
+		case Mode::Discrete::None:
 			return x;
 		}
 		__builtin_unreachable();
@@ -237,8 +235,8 @@ protected:
 	{
 		static std::uniform_real_distribution<double> unif_gen(0., 1.);
 		const double r = unif_gen(prng);
-		const double sx = lower_arg_.is_empty() ? 0. : (1. - r) * raw_cdf_(lower());
-		const double dx = upper_arg_.is_empty() ? r : r * raw_cdf_(upper());
+		const double sx = lower_.is_empty() ? 0. : (1. - r) * raw_cdf_(lower_.value());
+		const double dx = upper_.is_empty() ? r : r * raw_cdf_(upper_.value());
 		return raw_quantile_(sx + dx);
 	}
 
@@ -255,26 +253,27 @@ protected:
 	double do_trunc_dummy_() const { return 1.; }
 
 	// continuos case
-	double do_trunc_min_() const { return 1. - raw_cdf_(lower()); }
-	double do_trunc_max_() const { return raw_cdf_(upper()); }
-	double do_trunc_both_sides_() const { return raw_cdf_(upper()) - raw_cdf_(lower()); }
+	double do_trunc_min_() const { return 1. - raw_cdf_(lower_.value()); }
+	double do_trunc_max_() const { return raw_cdf_(upper_.value()); }
+	double do_trunc_both_sides_() const { return raw_cdf_(upper_.value()) - raw_cdf_(lower_.value()); }
 
 	// case of discrete defined
-	double do_trunc_min_discr_defined_() const { return 1. - raw_cdf_(lower() - 1); }
-	double do_trunc_max_discr_defined_() const { return raw_cdf_(upper() + 1); }
-	double do_trunc_both_sides_discr_defined_() const { return raw_cdf_(upper() + 1) - raw_cdf_(lower() - 1); }
+	double do_trunc_min_discr_defined_() const { return 1. - raw_cdf_(lower_.value() - 1); }
+	double do_trunc_max_discr_defined_() const { return raw_cdf_(upper_.value() + 1); }
+	double do_trunc_both_sides_discr_defined_() const { return raw_cdf_(upper_.value() + 1) - raw_cdf_(lower_.value() - 1); }
 
 	// case of center discretization
-	double do_trunc_min_discr_center_() const { return 1. - raw_cdf_(std::ceil(lower()) - 0.5); }
-	double do_trunc_max_discr_center_() const { return raw_cdf_(std::floor(upper()) + 0.5); }
-	double do_trunc_both_sides_discr_center_() const { return raw_cdf_(std::floor(upper()) + 0.5) - raw_cdf_(std::ceil(lower()) - 0.5); }
+	double do_trunc_min_discr_center_() const { return 1. - raw_cdf_(std::ceil(lower_.value()) - 0.5); }
+	double do_trunc_max_discr_center_() const { return raw_cdf_(std::floor(upper_.value()) + 0.5); }
+	double do_trunc_both_sides_discr_center_() const { return raw_cdf_(std::floor(upper_.value()) + 0.5) - raw_cdf_(std::ceil(lower_.value()) - 0.5); }
 
 	// case of left discretization
-	double do_trunc_min_discr_left_() const { return 1. - raw_cdf_(std::floor(lower())); }
-	double do_trunc_max_discr_left_() const { return raw_cdf_(std::ceil(upper() + 1)); }
-	double do_trunc_both_sides_discr_left_() const { return raw_cdf_(std::ceil(upper() + 1)) - raw_cdf_(std::floor(lower())); }
+	double do_trunc_min_discr_left_() const { return 1. - raw_cdf_(std::floor(lower_.value())); }
+	double do_trunc_max_discr_left_() const { return raw_cdf_(std::ceil(upper_.value() + 1)); }
+	double do_trunc_both_sides_discr_left_() const { return raw_cdf_(std::ceil(upper_.value() + 1)) - raw_cdf_(std::floor(lower_.value())); }
 
-	double logtrunc_() const {
+	double logtrunc_() const
+	{
 		switch (trunc_mode_)
 		{
 		case Trunc::None:
@@ -283,7 +282,7 @@ protected:
 			return std::log((this->*trunc_)());
 		}
 		__builtin_unreachable();
-	} 
+	}
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	/////////////////////////  Distribution : functional shift [private] ////////////////////////
@@ -291,10 +290,10 @@ protected:
 
 	double (Distribution::*shift_)() const = &Distribution::do_shift_dummy_;
 	double do_shift_dummy_() const { return 0.; }
-	double do_shift_min_() const { return raw_cdf_(lower()); }
-	double do_shift_min_discr_defined_() const { return raw_cdf_(lower() - 1); }
-	double do_shift_min_discr_center_() const { return raw_cdf_(std::floor(lower()) - 0.5); }
-	double do_shift_min_discr_left_() const { return raw_cdf_(std::floor(lower())); }
+	double do_shift_min_() const { return raw_cdf_(lower_.value()); }
+	double do_shift_min_discr_defined_() const { return raw_cdf_(lower_.value() - 1); }
+	double do_shift_min_discr_center_() const { return raw_cdf_(std::floor(lower_.value()) - 0.5); }
+	double do_shift_min_discr_left_() const { return raw_cdf_(std::floor(lower_.value())); }
 };
 
 /// Compose registries to get a distribution from them.

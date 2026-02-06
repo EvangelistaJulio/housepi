@@ -86,7 +86,6 @@ struct Augmented
     /// NOTE: to be called only if any model is defined.
     double materialize_augm_model_log_lik(Individual &member);
     /// Change in log-likelihood associated to given augmented.
-    /// UPDATE: waiting for a smarter architecture of model blocks to remove search.
     double materialize_augm_model_logratio(Individual &member, size_t a);
 
     /// Flag if there are non-constant augmented definitions.

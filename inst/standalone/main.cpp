@@ -254,7 +254,11 @@ void update_ofstream_datawide(std::ofstream &ofs,
             ofs << hsp::read::DELIMITER << member.get_data_wide_vec()[d];
 
         for (const size_t a : augm_headers)
-            ofs << hsp::read::DELIMITER << member.get_augm_variable(a).get();
+        {
+            const Variable &xaugm = member.get_augm_variable(a);
+            double x = xaugm.is_empty() ? hsp::na::DOUBLE : xaugm.value();
+            ofs << hsp::read::DELIMITER << x;
+        }
 
         ofs << std::endl;
     }

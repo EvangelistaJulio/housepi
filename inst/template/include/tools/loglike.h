@@ -25,7 +25,7 @@ namespace hsp
         {
             if (hsp::na::is(new_ll))
                 throw std::runtime_error(
-                    "Log-likelihood returned NaN.");
+                    "Log-likelihood returned a NaN value.");
 
             buffer_ = value_;
             value_ = new_ll;

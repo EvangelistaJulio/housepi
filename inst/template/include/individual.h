@@ -92,7 +92,7 @@ public:
 	/// NOTE: return a reference to a static empty vector when no datalong is attached
 	const std::vector<std::vector<double>> *get_data_long_ptr() const noexcept { return pdatalong_; }
 
-	double group_rate(size_t g) const { return group_rate_vec_[g].get(); }
+	double group_rate(size_t g) const { return group_rate_vec_[g].value(); }
 	const Attribute &get_group_rate_attribute(size_t g) const { return group_rate_vec_[g]; }
 
 	/////////////////////

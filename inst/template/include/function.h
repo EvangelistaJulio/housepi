@@ -31,37 +31,37 @@ class Function
 protected:
     struct Mode
     {
-        enum class Discr : uint8_t
+        enum class Discrete : uint8_t
         {
-            None,   /// No discretization
-            Center, /// Centered discretization
-            Left,   /// Left discretization
-            Defined /// Discrete defined
+            None,
+            Center,
+            Left,
+            Defined
         };
-        enum class Interv : uint8_t
+        enum class Interval : uint8_t
         {
-            None,  /// No interval
-            Open,  /// Open interval
-            Closed /// Closed interval
+            None,
+            Open,
+            Closed
         };
-        enum class Deloc : uint8_t
+        enum class Location : uint8_t
         {
-            None,  /// No delocalization
-            Active /// Active delocalization
+            None,
+            Active
         };
-        enum class Eval : uint8_t
+        enum class Evaluate : uint8_t
         {
-            Func,  /// as function
-            Prim,  /// as primitive
-            Proba, /// as probability mass/density
-            Cumul  /// as cumulative
+            Function,
+            Primitive,
+            Probability,
+            Cumulative
         };
     };
-    Mode::Eval eval_mode_ = Mode::Eval::Func;      /// evaluation mode
-    Mode::Discr discr_mode_ = Mode::Discr::None;   /// discretization mode
-    Mode::Deloc deloc_mode_ = Mode::Deloc::None;   /// delocation mode
-    Mode::Interv below_mode_ = Mode::Interv::None; /// lower interval below mode
-    Mode::Interv above_mode_ = Mode::Interv::None; /// upper interval above mode
+    Mode::Evaluate eval_mode_ = Mode::Evaluate::Function;
+    Mode::Discrete discr_mode_ = Mode::Discrete::None;
+    Mode::Location deloc_mode_ = Mode::Location::None;
+    Mode::Interval below_mode_ = Mode::Interval::None;
+    Mode::Interval above_mode_ = Mode::Interval::None;
 
 public:
     ///////////////////////////
@@ -69,8 +69,8 @@ public:
     ///////////////////////////
 
     Function(const std::vector<std::pair<std::string, double>> &args = {},
-             double domain_min = hsp::na::DOUBLE, bool is_min_open = false,
-             double domain_max = hsp::na::DOUBLE, bool is_max_open = false);
+             double domain_min = hsp::na::DOUBLE,
+             double domain_max = hsp::na::DOUBLE);
     virtual ~Function() = default;
 
     /////////////////////////
@@ -84,7 +84,7 @@ public:
     //////  SETTER  //////
     //////////////////////
 
-    /// Initialize given function attribute.
+    /// Initialize function attribute by assigning from another one.
     void init_attr(std::string_view key, const Attribute &attr);
 
     /// Virtual function to initialize discretization.
@@ -97,52 +97,50 @@ public:
         "Called to undefined method truncation of " + err_name() + "."); }
 
     /// Select function method for return value.
-    void set_eval_call() noexcept { eval_mode_ = Mode::Eval::Func; }
+    void set_eval_call() noexcept { eval_mode_ = Mode::Evaluate::Function; }
     /// Select primitive method for return value.
-    void set_eval_primitive() noexcept { eval_mode_ = Mode::Eval::Prim; }
+    void set_eval_primitive() noexcept { eval_mode_ = Mode::Evaluate::Primitive; }
     /// Select call as a distributin method for return value.
-    void set_eval_as_distr_call() noexcept { eval_mode_ = Mode::Eval::Proba; }
+    void set_eval_as_distr_call() noexcept { eval_mode_ = Mode::Evaluate::Probability; }
     /// Select primitive as a distributin method for return value.
-    void set_eval_as_distr_primitive() noexcept { eval_mode_ = Mode::Eval::Cumul; }
+    void set_eval_as_distr_primitive() noexcept { eval_mode_ = Mode::Evaluate::Cumulative; }
 
     /// Set argument value.
     /// UPDATE: just required by AdaptableProposal.
     void set_arg(size_t i, double x) { arguments_[i].set(x); }
     /// Set lower value.
     /// UPDATE: just required by AdaptableProposal.
-    void set_lower(double x) { lower_arg_.set(x); }
+    void set_lower(double x) { lower_.set(x); }
     /// Set upper value.
     /// UPDATE: just required by AdaptableProposal.
-    void set_upper(double x) { upper_arg_.set(x); }
+    void set_upper(double x) { upper_.set(x); }
 
     //////////////////////
     //////  GETTER  //////
     //////////////////////
 
     size_t n_args() const noexcept { return arguments_.size(); }
-    double arg(size_t i) const { return arguments_[i].get(); }
-    double lower() const { return lower_arg_.get(); }
-    double upper() const { return upper_arg_.get(); }
+    double arg(size_t i) const { return arguments_[i].value(); }
 
-    const Attribute &get_loc() const noexcept { return loc_arg_; }
-    const Attribute &get_lower() const noexcept { return lower_arg_; }
-    const Attribute &get_upper() const noexcept { return upper_arg_; }
+    const Attribute &loc() const noexcept { return loc_; }
+    const Attribute &lower() const noexcept { return lower_; }
+    const Attribute &upper() const noexcept { return upper_; }
 
-    /// Evaluate implicitely at 'x' value.
-    double evaluate() const { return evaluate(x_arg_.get()); }
+    /// Evaluate implicitly at 'x' value.
+    double evaluate() const { return evaluate(x_arg_.value()); }
 
     /// Central method to return function's value at given x.
     double evaluate(double x) const
     {
         switch (eval_mode_)
         {
-        case Mode::Eval::Func:
+        case Mode::Evaluate::Function:
             return function_(delocate_(x));
-        case Mode::Eval::Prim:
+        case Mode::Evaluate::Primitive:
             return primitive_(delocate_(x));
-        case Mode::Eval::Proba:
+        case Mode::Evaluate::Probability:
             return pdf(x);
-        case Mode::Eval::Cumul:
+        case Mode::Evaluate::Cumulative:
             return cdf(x);
         }
         __builtin_unreachable();
@@ -152,7 +150,7 @@ public:
     double pdf(double x) const { return is_valid(x) ? function_(delocate_(x)) : 0.; }
 
     /// Return value as for a cumulative distribution function.
-    double cdf(double x) const { return is_below(x) ? 0 : primitive_(delocate_(is_above(x) ? upper() : x)); }
+    double cdf(double x) const { return is_below(x) ? 0 : primitive_(delocate_(is_above(x) ? upper_.value() : x)); }
 
     /////////////////////
     //////  FLAGS  //////
@@ -161,7 +159,7 @@ public:
     /// Wheter return value is always constant.
     bool is_constant() const noexcept;
     /// Wheter return value is always discrete.
-    virtual bool is_discrete() const noexcept { return discr_mode_ != Mode::Discr::None; }
+    virtual bool is_discrete() const noexcept { return discr_mode_ != Mode::Discrete::None; }
     /// Wheter all arguments are not empty.
     bool is_callable_explicitly() const noexcept;
     /// Wheter it can be called implicitely, i. e. if also 'x' has been linked.
@@ -177,12 +175,12 @@ public:
     {
         switch (below_mode_)
         {
-        case Mode::Interv::None:
+        case Mode::Interval::None:
             return false;
-        case Mode::Interv::Open:
-            return delocate_(x) <= lower_arg_.get();
-        case Mode::Interv::Closed:
-            return delocate_(x) < lower_arg_.get();
+        case Mode::Interval::Open:
+            return delocate_(x) <= lower_.value();
+        case Mode::Interval::Closed:
+            return delocate_(x) < lower_.value();
         }
         __builtin_unreachable();
     }
@@ -192,12 +190,12 @@ public:
     {
         switch (above_mode_)
         {
-        case Mode::Interv::None:
+        case Mode::Interval::None:
             return false;
-        case Mode::Interv::Open:
-            return delocate_(x) >= upper_arg_.get();
-        case Mode::Interv::Closed:
-            return delocate_(x) > upper_arg_.get();
+        case Mode::Interval::Open:
+            return delocate_(x) >= upper_.value();
+        case Mode::Interval::Closed:
+            return delocate_(x) > upper_.value();
         }
         __builtin_unreachable();
     }
@@ -222,9 +220,9 @@ public:
 protected:
     std::vector<Attribute> arguments_ = {}; /// array with arguments
     Attribute x_arg_ = Attribute();         /// 'x' argument
-    Attribute loc_arg_ = Attribute();       /// 'loc' argument
-    Attribute lower_arg_ = Attribute();     /// lower bound
-    Attribute upper_arg_ = Attribute();     /// upper bound
+    Attribute loc_ = Attribute();           /// 'loc' argument
+    Attribute lower_ = Attribute();         /// lower bound
+    Attribute upper_ = Attribute();         /// upper bound
 
     /// Find attribute and return. If doesn't exists, return an empty attribute.
     virtual Attribute &find_arg_(std::string_view arg_name);
@@ -253,19 +251,19 @@ protected:
     {
         switch (discr_mode_)
         {
-        case Mode::Discr::None:
+        case Mode::Discrete::None:
             return raw_function_(x);
-        case Mode::Discr::Center:
+        case Mode::Discrete::Center:
         {
             const double i = std::round(x);
             return raw_primitive_(i + 0.5) - raw_primitive_(i - 0.5);
         }
-        case Mode::Discr::Left:
+        case Mode::Discrete::Left:
         {
             const double i = std::floor(x);
             return raw_primitive_(i + 1.) - raw_primitive_(i);
         }
-        case Mode::Discr::Defined:
+        case Mode::Discrete::Defined:
             return raw_function_(std::floor(x));
         }
         __builtin_unreachable();
@@ -276,19 +274,19 @@ protected:
     {
         switch (discr_mode_)
         {
-        case Mode::Discr::None:
+        case Mode::Discrete::None:
             return raw_logfunc_(x);
-        case Mode::Discr::Center:
+        case Mode::Discrete::Center:
         {
             const double i = std::round(x);
             return std::log(raw_primitive_(i + 0.5) - raw_primitive_(i - 0.5));
         }
-        case Mode::Discr::Left:
+        case Mode::Discrete::Left:
         {
             const double i = std::floor(x);
             return std::log(raw_primitive_(i + 1.) - raw_primitive_(i));
         }
-        case Mode::Discr::Defined:
+        case Mode::Discrete::Defined:
             return raw_logfunc_(std::floor(x));
         }
         __builtin_unreachable();
@@ -299,13 +297,13 @@ protected:
     {
         switch (discr_mode_)
         {
-        case Mode::Discr::None:
+        case Mode::Discrete::None:
             return raw_primitive_(x);
-        case Mode::Discr::Center:
+        case Mode::Discrete::Center:
             return raw_primitive_(std::round(x) + 0.5);
-        case Mode::Discr::Left:
+        case Mode::Discrete::Left:
             return raw_primitive_(std::floor(x) + 1.);
-        case Mode::Discr::Defined:
+        case Mode::Discrete::Defined:
             return raw_primitive_(std::floor(x));
         }
         __builtin_unreachable();
@@ -316,9 +314,9 @@ protected:
     {
         switch (discr_mode_)
         {
-        case Mode::Discr::None:
+        case Mode::Discrete::None:
             return raw_logratio_(xo, xn);
-        case Mode::Discr::Center:
+        case Mode::Discrete::Center:
         {
             const double io = std::round(xo), in = std::round(xn);
             if (io == in)
@@ -326,7 +324,7 @@ protected:
             return std::log(raw_primitive_(in + .5) - raw_primitive_(in - .5)) -
                    std::log(raw_primitive_(io + .5) - raw_primitive_(io - .5));
         }
-        case Mode::Discr::Left:
+        case Mode::Discrete::Left:
         {
             const double io = std::floor(xo), in = std::floor(xn);
             if (io == in)
@@ -334,7 +332,7 @@ protected:
             return std::log(raw_primitive_(in + 1.) - raw_primitive_(in)) -
                    std::log(raw_primitive_(io + 1.) - raw_primitive_(io));
         }
-        case Mode::Discr::Defined:
+        case Mode::Discrete::Defined:
             return raw_logratio_(std::floor(xo), std::floor(xn));
         }
         __builtin_unreachable();
@@ -350,10 +348,10 @@ protected:
     {
         switch (deloc_mode_)
         {
-        case Mode::Deloc::None:
+        case Mode::Location::None:
             return x;
-        case Mode::Deloc::Active:
-            return x - loc_arg_.get();
+        case Mode::Location::Active:
+            return x - loc_.value();
         }
         __builtin_unreachable();
     }
@@ -363,17 +361,20 @@ protected:
     {
         switch (deloc_mode_)
         {
-        case Mode::Deloc::None:
+        case Mode::Location::None:
             return x;
-        case Mode::Deloc::Active:
-            return x + loc_arg_.get();
+        case Mode::Location::Active:
+            return x + loc_.value();
         }
         __builtin_unreachable();
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////  Function : range [protected]  ////////////////////////////////
+    ////////////////////////////  Function : helpers [protected]  ///////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// Assert that proposed function attribute is valid.
+    void helper_assert_valid_attribute_(std::string_view key, const Attribute &attr);
 
     /// Internal code to define the type of range.
     bool init_range_min_(double min_val = 0., bool is_min_open = false);

@@ -37,26 +37,26 @@ void Distribution::init_trunc_helper_()
 {
     trunc_mode_ = Trunc::Active;
 
-    if (lower_arg_.is_empty() && upper_arg_.is_empty()) // No Truncation
+    if (lower_.is_empty() && upper_.is_empty()) // No Truncation
     {
         trunc_ = &Distribution::do_trunc_dummy_;
         shift_ = &Distribution::do_shift_dummy_;
         trunc_mode_ = Trunc::None;
     }
-    else if (!lower_arg_.is_empty() && upper_arg_.is_empty()) // Lower Range Truncation
+    else if (!lower_.is_empty() && upper_.is_empty()) // Lower Range Truncation
     {
         switch (discr_mode_)
         {
-        case Mode::Discr::Defined: // discrete defined
+        case Mode::Discrete::Defined: // discrete defined
             trunc_ = &Distribution::do_trunc_min_discr_defined_;
             shift_ = &Distribution::do_shift_min_discr_defined_;
 
             break;
-        case Mode::Discr::Center: // centered discretization
+        case Mode::Discrete::Center: // centered discretization
             trunc_ = &Distribution::do_trunc_min_discr_center_;
             shift_ = &Distribution::do_shift_min_discr_center_;
             break;
-        case Mode::Discr::Left: // left discretization
+        case Mode::Discrete::Left: // left discretization
             trunc_ = &Distribution::do_trunc_min_discr_left_;
             shift_ = &Distribution::do_shift_min_discr_left_;
             break;
@@ -65,18 +65,18 @@ void Distribution::init_trunc_helper_()
             shift_ = &Distribution::do_shift_min_;
         }
     }
-    else if (lower_arg_.is_empty() && !upper_arg_.is_empty()) // Upper Range Truncation
+    else if (lower_.is_empty() && !upper_.is_empty()) // Upper Range Truncation
     {
         shift_ = &Distribution::do_shift_dummy_;
         switch (discr_mode_)
         {
-        case Mode::Discr::Defined: // discrete defined
+        case Mode::Discrete::Defined: // discrete defined
             trunc_ = &Distribution::do_trunc_max_discr_defined_;
             break;
-        case Mode::Discr::Center: // centered discretization
+        case Mode::Discrete::Center: // centered discretization
             trunc_ = &Distribution::do_trunc_max_discr_center_;
             break;
-        case Mode::Discr::Left: // left discretization
+        case Mode::Discrete::Left: // left discretization
             trunc_ = &Distribution::do_trunc_max_discr_left_;
             break;
         default: // no discretization
@@ -87,15 +87,15 @@ void Distribution::init_trunc_helper_()
     {
         switch (discr_mode_)
         {
-        case Mode::Discr::Defined: // discrete defined
+        case Mode::Discrete::Defined: // discrete defined
             trunc_ = &Distribution::do_trunc_both_sides_discr_defined_;
             shift_ = &Distribution::do_shift_min_discr_defined_;
             break;
-        case Mode::Discr::Center: // centered discretization
+        case Mode::Discrete::Center: // centered discretization
             trunc_ = &Distribution::do_trunc_both_sides_discr_center_;
             shift_ = &Distribution::do_shift_min_discr_center_;
             break;
-        case Mode::Discr::Left: // left discretization
+        case Mode::Discrete::Left: // left discretization
             trunc_ = &Distribution::do_trunc_both_sides_discr_left_;
             shift_ = &Distribution::do_shift_min_discr_left_;
             break;
@@ -222,7 +222,7 @@ namespace
 #define INIT_DISCR_LEFT_MIN_ZERO_CLOSE()      \
     void init_discretization() override final \
     {                                         \
-        discr_mode_ = Mode::Discr::Left;      \
+        discr_mode_ = Mode::Discrete::Left;   \
     }                                         \
     void init_truncation() override final     \
     {                                         \
@@ -247,34 +247,28 @@ namespace
     {
     public:
         Uniform_()
-            : Distribution({}, 0., false, 1., false),
+            : Distribution({}, 0., 1.),
               unif_gen(0., 1.) {}
         std::string_view name() const noexcept override final { return "uniform"; }
 
         /// UPDATE: should understand when discrete defined...
-        void init_discretization() override final
-        {
-            discr_mode_ = Mode::Discr::Center;
-        }
+        void init_discretization() override final { discr_mode_ = Mode::Discrete::Center; }
         /// NOTE: truncation for uniform distribution is inside raw
-        void init_truncation() override final
-        {
-            init_range_helper_(false, false);
-        }
+        void init_truncation() override final { init_range_helper_(false, false); }
 
     protected:
         mutable std::uniform_real_distribution<double> unif_gen;
 
-        double raw_pdf_(double) const override final { return 1. / (upper_arg_.get() - lower_arg_.get()); }
-        double raw_cdf_(double x) const override final { return (x - lower_arg_.get()) / (upper_arg_.get() - lower_arg_.get()); }
+        double raw_pdf_(double) const override final { return 1. / (upper_.value() - lower_.value()); }
+        double raw_cdf_(double x) const override final { return (x - lower_.value()) / (upper_.value() - lower_.value()); }
         double raw_logpdf_(double) const override final { return 0.; }
         double raw_logratio_(double, double) const override final { return 0.; }
         double raw_rand_(hsp::rnd_gen &prng) const override final
         {
             const double r = unif_gen(prng);
-            return lower_arg_.get() * (1. - r) + upper_arg_.get() * r;
+            return lower_.value() * (1. - r) + upper_.value() * r;
         }
-        double raw_quantile_(double p) const override final { return lower_arg_.get() * (1. - p) + upper_arg_.get() * p; }
+        double raw_quantile_(double p) const override final { return lower_.value() * (1. - p) + upper_.value() * p; }
     };
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -285,14 +279,13 @@ namespace
     {
     public:
         Normal_()
-            : Distribution({{"mean", 0.}, {"sd", 1.}},
-                           hsp::na::DOUBLE, false, hsp::na::DOUBLE, false),
+            : Distribution({{"mean", 0.}, {"sd", 1.}}),
               norm_gen(0., 1.) {}
         std::string_view name() const noexcept override final { return "normal"; }
 
         void init_discretization() override final
         {
-            discr_mode_ = lower_arg_.is_empty() ? Mode::Discr::Center : Mode::Discr::Left;
+            discr_mode_ = lower_.is_empty() ? Mode::Discrete::Center : Mode::Discrete::Left;
         }
         void init_truncation() override final
         {
@@ -344,9 +337,8 @@ namespace
     {
     public:
         Lognormal_()
-            : Distribution({{"meanlog", 0.}, {"sdlog", 1.}},
-                           0., true, hsp::na::DOUBLE, false),
-              norm_gen(0., 1.) {}
+            : Distribution({{"meanlog", 0.}, {"sdlog", 1.}}, 0.),
+              norm_gen(0., 1.) { below_mode_ = Mode::Interval::Open; }
         std::string_view name() const noexcept override final { return "lognormal"; }
 
         INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
@@ -398,7 +390,11 @@ namespace
     public:
         Beta_()
             : Distribution({{"shape1", hsp::na::DOUBLE}, {"shape2", hsp::na::DOUBLE}},
-                           0., true, 1., true) {}
+                           0., 1.)
+        {
+            below_mode_ = Mode::Interval::Closed;
+            above_mode_ = Mode::Interval::Closed;
+        }
         std::string_view name() const noexcept override final { return "beta"; }
 
         void init_discretization() override final
@@ -408,15 +404,17 @@ namespace
         }
         void init_truncation() override final
         {
-            if (lower() < 0)
+            const double sx = lower_.value();
+            const double dx = upper_.value();
+            if (sx < 0)
                 throw std::invalid_argument(
-                    "Invoked invalid min value " + hsp::str::format(lower()) + " for " + err_name() + ".");
-            if (upper() > 1)
+                    "Invoked invalid min value " + hsp::str::format(sx) + " for " + err_name() + ".");
+            if (dx > 1)
                 throw std::invalid_argument(
-                    "Invoked invalid max value " + hsp::str::format(upper()) + " for " + err_name() + ".");
-            if (lower() > 0 || upper() < 1)
+                    "Invoked invalid max value " + hsp::str::format(dx) + " for " + err_name() + ".");
+            if (sx > 0 || dx < 1)
             {
-                init_range_helper_(lower() == 0, upper() == 1);
+                init_range_helper_(sx == 0, dx == 1);
                 init_trunc_helper_();
             }
         }
@@ -460,8 +458,7 @@ namespace
     {
     public:
         Gamma_()
-            : Distribution({{"shape", hsp::na::DOUBLE}, {"scale", 1.}},
-                           0., false, hsp::na::DOUBLE, false) {}
+            : Distribution({{"shape", hsp::na::DOUBLE}, {"scale", 1.}}, 0.) {}
         std::string_view name() const noexcept override final { return "gamma"; }
 
         INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
@@ -507,8 +504,7 @@ namespace
     {
     public:
         GammaMeanVar_()
-            : Distribution({{"mean", hsp::na::DOUBLE}, {"var", hsp::na::DOUBLE}},
-                           0., false, hsp::na::DOUBLE, false) {}
+            : Distribution({{"mean", hsp::na::DOUBLE}, {"var", hsp::na::DOUBLE}}, 0.) {}
         std::string_view name() const noexcept override final { return "gamma_meanvar"; }
 
         INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
@@ -564,8 +560,7 @@ namespace
     {
     public:
         Rayleigh_()
-            : Distribution({{"scale", 1.}},
-                           0., false, hsp::na::DOUBLE, false),
+            : Distribution({{"scale", 1.}}, 0.),
               unif_gen(0., 1.) {}
         std::string_view name() const noexcept override final { return "rayleigh"; }
 
@@ -614,8 +609,7 @@ namespace
     {
     public:
         Weibull_()
-            : Distribution({{"shape", hsp::na::DOUBLE}, {"scale", 1.}},
-                           0., false, hsp::na::DOUBLE, false),
+            : Distribution({{"shape", hsp::na::DOUBLE}, {"scale", 1.}}, 0.),
               unif_gen(0., 1.) {}
         std::string_view name() const noexcept override final { return "weibull"; }
 
@@ -666,8 +660,7 @@ namespace
     {
     public:
         Exponential_()
-            : Distribution({{"rate", 1.}},
-                           0., false, hsp::na::DOUBLE, false),
+            : Distribution({{"rate", 1.}}, 0.),
               unif_gen(0., 1.) {}
         std::string_view name() const noexcept override final { return "exponential"; }
 
@@ -712,8 +705,7 @@ namespace
     {
     public:
         Poisson_()
-            : Distribution({{"lambda", hsp::na::DOUBLE}},
-                           0., false, hsp::na::DOUBLE, false) { discr_mode_ = Mode::Discr::Defined; }
+            : Distribution({{"lambda", hsp::na::DOUBLE}}, 0.) { discr_mode_ = Mode::Discrete::Defined; }
         std::string_view name() const noexcept override final { return "poisson"; }
 
         INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
@@ -755,27 +747,29 @@ namespace
     {
     public:
         Binomial_()
-            : Distribution({{"size", hsp::na::DOUBLE}, {"prob", hsp::na::DOUBLE}},
-                           0., false, hsp::na::DOUBLE, false)
+            : Distribution({{"size", hsp::na::DOUBLE}, {"prob", hsp::na::DOUBLE}}, 0.)
         {
-            discr_mode_ = Mode::Discr::Defined;
-            upper_arg_.init_pointer(arguments_[0].get_ptr());
-            init_range_helper_(false, false);
+            discr_mode_ = Mode::Discrete::Defined;
+            upper_.init_pointer(arguments_[0].pointer());
+            below_mode_ = Mode::Interval::Closed;
+            above_mode_ = Mode::Interval::Closed;
         }
         std::string_view name() const noexcept override final { return "binomial"; }
 
         void init_discretization() override final {}
         void init_truncation() override final
         {
-            if (lower() < 0.)
+            const double sx = lower_.value();
+            if (sx < 0.)
                 throw std::invalid_argument(
-                    "Invoked invalid min value " + hsp::str::format(lower_arg_.get()) +
+                    "Invoked invalid min value " + hsp::str::format(sx) +
                     " for " + err_name() + ".");
-            if (lower() > 0. || arguments_[0].get_ptr() != get_upper().get_ptr())
+            if (sx > 0. || arguments_[0].pointer() != upper().pointer())
             {
-                if (upper() > arg(0))
+                const double dx = lower_.value();
+                if (dx > arg(0))
                     throw std::invalid_argument(
-                        "Invoked invalid max value " + hsp::str::format(upper_arg_.get()) +
+                        "Invoked invalid max value " + hsp::str::format(dx) +
                         " for " + err_name() + " with size " + std::to_string(arg(0)) + ".");
                 init_range_helper_(false, false);
                 init_trunc_helper_();
@@ -825,8 +819,7 @@ namespace
     {
     public:
         NegativeBinomial_()
-            : Distribution({{"size", hsp::na::DOUBLE}, {"prob", hsp::na::DOUBLE}},
-                           0., false, hsp::na::DOUBLE, false) { discr_mode_ = Mode::Discr::Defined; }
+            : Distribution({{"size", hsp::na::DOUBLE}, {"prob", hsp::na::DOUBLE}}, 0.) { discr_mode_ = Mode::Discrete::Defined; }
         std::string_view name() const noexcept override final { return "negative_binomial"; }
 
         INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
@@ -872,8 +865,7 @@ namespace
     {
     public:
         Geometric_()
-            : Distribution({{"prob", hsp::na::DOUBLE}},
-                           0., false, hsp::na::DOUBLE, false) { discr_mode_ = Mode::Discr::Defined; }
+            : Distribution({{"prob", hsp::na::DOUBLE}}, 0.) { discr_mode_ = Mode::Discrete::Defined; }
         std::string_view name() const noexcept override final { return "geometric"; }
 
         INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
@@ -934,8 +926,7 @@ namespace
     {
     public:
         InfecProfile_Ferretti20()
-            : Distribution({{"shape", 5.85}, {"scale", 1.85}, {"c_loc", -4.0}, {"mean_incub", 5.42}, {"incub_period", 5.42}},
-                           0., false, hsp::na::DOUBLE, false) {}
+            : Distribution({{"shape", 5.85}, {"scale", 1.85}, {"c_loc", -4.0}, {"mean_incub", 5.42}, {"incub_period", 5.42}}, 0.) {}
         std::string_view name() const noexcept override final { return "ferretti20"; }
 
         INIT_DISCR_LEFT_MIN_ZERO_CLOSE()

@@ -793,31 +793,40 @@ namespace hsp::parse
         // populate the parent node with children nodes
         Entry node;
         node.func = expr_head;
+        node.children.reserve(children.size());
         for (size_t i = 0; i < children.size(); ++i)
         {
             const std::string &c = children[i];
 
             if (c.size() >= 2 && c.front() == '{' && c.back() == '}')
             {
-                // Function Child Node
+                // function child node
                 // parse inner expression and keep braced flag
                 auto child = parse_expression_(c.substr(1, c.size() - 2));
                 child.is_braced = true;
                 child.key = args[i];
-                node.children.push_back(std::move(child));
+                node.children.emplace_back(child);
             }
             else
             {
-                // Terminal Child Node
+                // terminal child node
                 size_t barc = c.find('|');
                 if (barc == std::string::npos)
                     throw std::runtime_error(
                         "Missing terminal '|' in definition '" + expr + "'.");
                 Entry child(c.substr(0, barc), c.substr(barc + 1));
                 child.key = args[i];
-                node.children.push_back(std::move(child));
+                node.children.emplace_back(child);
             }
         }
+
+        // ensure "x" arguments is defined at the end
+        auto it = std::find_if(node.children.begin(), node.children.end(),
+                               [&](const Entry &e)
+                               { return e.key == "x"; });
+
+        if (it != node.children.end())
+            std::rotate(it, it + 1, node.children.end());
 
         return node;
     }
@@ -877,13 +886,13 @@ namespace hsp::parse
     }
 
     MAKE_NODE_LIST_TYPE_DEPEN(augmented)
-    MAKE_NODE_LIST_TYPE_DEPEN(data)
+    MAKE_NODE_LIST_TYPE_DEPEN(data_wide)
     MAKE_NODE_LIST_TYPE_DEPEN(parameter)
 
     /// Construct and parse expression into AST (and flattens it).
     Definition::Definition(std::string_view expr) { root = parse_expression_(expr); }
 
     MAKE_PARSER_LIST_TYPE_DEPEN(augmented)
-    MAKE_PARSER_LIST_TYPE_DEPEN(data)
+    MAKE_PARSER_LIST_TYPE_DEPEN(data_wide)
     MAKE_PARSER_LIST_TYPE_DEPEN(parameter)
 }

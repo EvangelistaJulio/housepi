@@ -140,8 +140,8 @@ namespace
 
         void user_reset() override final
         {
-            pDistr_->init_attr(hsp::params::MIN, Attribute(-user_scale_));
-            pDistr_->init_attr(hsp::params::MAX, Attribute(user_scale_));
+            pDistr_->init_attr("min", -user_scale_);
+            pDistr_->init_attr("max", user_scale_);
         }
 
         double propose(hsp::rnd_gen &prng, double xo) const override final { return xo + pDistr_->rand(prng); }
@@ -150,8 +150,8 @@ namespace
         void adapt(double ratio) override final
         {
             const double m = factor_(ratio);
-            pDistr_->set_lower(m * pDistr_->lower());
-            pDistr_->set_upper(m * pDistr_->upper());
+            pDistr_->set_lower(m * pDistr_->lower().value());
+            pDistr_->set_upper(m * pDistr_->upper().value());
         }
     };
 
@@ -167,8 +167,8 @@ namespace
 
         void user_reset() override final
         {
-            pDistr_->init_attr("mean", Attribute(0.));
-            pDistr_->init_attr("sd", Attribute(user_scale_));
+            pDistr_->init_attr("mean", 0.);
+            pDistr_->init_attr("sd", user_scale_);
         }
 
         double propose(hsp::rnd_gen &prng, double xo) const override final { return xo + pDistr_->rand(prng); }
@@ -190,13 +190,13 @@ namespace
 
         void user_reset() override final
         {
-            pDistr_->init_attr("meanlog", Attribute(0.));
-            pDistr_->init_attr("sdlog", Attribute(user_scale_));
+            pDistr_->init_attr("meanlog", 0.);
+            pDistr_->init_attr("sdlog", user_scale_);
         }
 
         void associate_location(const Attribute &other) override final
         {
-            pAttr_loc_ = other.get_ptr();
+            pAttr_loc_ = other.pointer();
 
             if (pAttr_loc_ == nullptr)
             {
@@ -223,7 +223,7 @@ namespace
         double do_propose_(hsp::rnd_gen &prng, double xo) const { return xo * pDistr_->rand(prng); }
         double do_propose_loc_(hsp::rnd_gen &prng, double xo) const
         {
-            const double loc = pAttr_loc_->get();
+            const double loc = pAttr_loc_->value();
             return loc + (xo - loc) * pDistr_->rand(prng);
         }
 
@@ -231,7 +231,7 @@ namespace
         double do_logratio_(double xo, double xn) const { return std::log(xo / xn); }
         double do_logratio_loc_(double xo, double xn) const
         {
-            const double loc = pAttr_loc_->get();
+            const double loc = pAttr_loc_->value();
             return std::log((xo - loc) / (xn - loc));
         }
     };
@@ -264,57 +264,11 @@ namespace
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  Variable : setter  /////////////////////////////////////////
+//////////////////////////////////  *** Variable : class ***  /////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Variable::Variable(const std::string &err_type)
-{
-    this->name("", err_type);
-    this->is_constant_ = true;
-    buffer_ = hsp::na::DOUBLE;
-    user_value_ = hsp::na::DOUBLE;
-    value_ = hsp::na::DOUBLE;
-}
 Variable::~Variable() = default;
-
-/// Initialize variable.
-void Variable::init(double value, bool is_const, std::string_view expr, bool is_primitive)
-{
-    this->is_constant_ = is_const;
-    hsp::parse::Definition parser(expr);
-
-    if (is_const || parser.is_na()) // initialization as a numeric variable
-    {
-        init_numeric(value);
-        user_value_ = value;
-        // UPDATE: what if constant = T, discrete = T and value != integer?
-    }
-    else if (parser.is_terminal()) // initialization as a pointer
-    {
-        init_pointer(this); // NOTE: this is just a placeholder
-    }
-    else // initialization as a function
-    {
-        init_function(parser.root.func, is_primitive);
-    }
-}
-
-/// Restore user defined variable initialization.
-///
-/// NOTE: by construction convention it is possible to randomly initialize
-///       if user value is NA but a distribution is given.
-///       Otherwise it is truly a constant NA value.
-void Variable::user_reset(hsp::rnd_gen &prng)
-{
-    if (!hsp::na::is(user_value_))
-        value_ = user_value_;
-    else if (is_model())
-        init_rand(prng);
-
-    if (pProp_ != nullptr)
-        pProp_->user_reset();
-}
 
 /// Assign an attribute to function.
 void Variable::init_func_attr(std::string_view key, const Attribute &attr) { pFunc_->init_attr(key, attr); }
@@ -333,16 +287,6 @@ void Variable::init_func_reshaping(bool discr)
 
     // assert no missing arguments
     pFunc_->assert_is_callable_explicitly();
-
-    if (pFunc_->is_constant())
-        init(pFunc_->evaluate(), true, "", false);
-
-    else if (is_constant())
-        throw std::invalid_argument(
-            "Impossible to set " + err_name() + " as constant. Check its dependencies.");
-
-    else if (!pFunc_->is_callable_implicitly())
-        mode_ = Mode::Error;
 }
 
 /// Assign distribution with constant arguments.
@@ -355,37 +299,38 @@ void Variable::init_distr(std::string_view opt)
 void Variable::init_distr_attr(std::string_view key, const Attribute &attr)
 {
     pDistr_->init_attr(key, attr);
-    if (key == hsp::params::LOC && pProp_ != nullptr)
-        pProp_->associate_location(pDistr_->get_loc());
+    if (key == "loc" && pProp_ != nullptr)
+        pProp_->associate_location(pDistr_->loc());
 }
 
 /// Initialize distribution reshaping.
-void Variable::init_distr_reshaping(bool discr)
+void Variable::init_distr_reshaping(bool is_discr)
 {
     if (!is_model())
         return;
 
-    if (discr)
+    if (is_discr)
         pDistr_->init_discretization();
     pDistr_->init_truncation();
+
     pDistr_->assert_is_callable_explicitly();
 
     // check that non-constant variable has non-zero dimensional range
-    helper_degenerate_range_();
+    helper_assert_non_degenerate_range_();
 }
 
 /// Helper with degenerate range.
-void Variable::helper_degenerate_range_()
+void Variable::helper_assert_non_degenerate_range_()
 {
     // skip if one of the range extremes is not provided
-    if (pDistr_->get_lower().is_empty() || pDistr_->get_upper().is_empty())
+    if (!pDistr_->lower().is_callable() || !pDistr_->upper().is_callable())
         return;
 
+    const double lower = pDistr_->lower().value();
+    const double upper = pDistr_->upper().value();
+
     // skip if range is not degenerate
-    // UPDATE: hard to know in advance if not initialized Variables...
-    const double lower = pDistr_->lower();
-    const double upper = pDistr_->upper();
-    if (hsp::na::is(lower) || hsp::na::is(upper) || lower < upper)
+    if (lower < upper)
         return;
 
     // case empty interval, lower and upper are "open"
@@ -395,7 +340,7 @@ void Variable::helper_degenerate_range_()
             " for " + err_name() + ".");
 
     // Warn user if it was not chosen as constant
-    if (!is_constant_)
+    if (!is_user_const_)
         hsp::msg::warning(
             "Forced at least one instance of " + err_name() +
             " to be constant as its range was degenerate.");
@@ -407,24 +352,78 @@ void Variable::helper_degenerate_range_()
 /////////////////////////////////  Variable : Setter (Proposal)  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Random initialization of variable.
-void Variable::init_rand(hsp::rnd_gen &prng) { set(pDistr_->rand(prng)); }
-
 /// Assign proposer to variable.
 /// NOTE: it must be assigned after model initialization.
-void Variable::init_proposer(const std::string &proposal, double proposal_scale)
+void Variable::init_proposal(const std::string &proposal, double proposal_scale)
 {
-    is_constant_ = true; // if no proposal is defined, assume constant
+    if (mode_ != Mode::Numeric && mode_ != Mode::Empty)
+        return;
 
     if (!hsp::na::is(proposal))
     {
-        is_constant_ = false; // else variable to be sampled
+        is_user_const_ = false;
 
         if (proposal == "sample")
-            helper_init_sample_proposer_();
+            helper_init_sample_proposal_();
         else
-            helper_init_proposer_monte_carlo_(proposal, proposal_scale);
+            helper_init_monte_carlo_proposal_(proposal, proposal_scale);
     }
+}
+
+/// Helper with proposer initialization of direct sample from prior/model.
+void Variable::helper_init_sample_proposal_()
+{
+    // assign the pointer to the proposer
+    pProp_ = std::make_shared<Sample_Proposal>(pDistr_.get());
+
+    // setup sample proposal functional methods
+    ratio_mode_ = Ratio::None;
+    valid_mode_ = Validity::Always;
+}
+
+/// Helper with Monte Carlo proposer initialization.
+void Variable::helper_init_monte_carlo_proposal_(const std::string &proposal, double proposal_scale)
+{
+    // raise a warning if "lnorm" proposal when variable can be negative
+    if (pDistr_ != nullptr && pDistr_->lower().value() < 0 && proposal == "lnorm")
+        hsp::msg::warning(
+            "Provided a lognormal proposal for non-positive " + err_name() + ".");
+
+    // select proposer
+    pProp_ = proposal_switch(proposal, proposal_scale, is_discrete());
+
+    // set modes
+    ratio_mode_ = Ratio::Compute;
+    valid_mode_ = pDistr_ == nullptr ? Validity::Always : Validity::Check;
+}
+
+/// Restore user defined variable initialization.
+///
+/// NOTE: by construction convention it is possible to randomly initialize
+///       if user value is NA but a distribution is given.
+///       Otherwise it is truly a constant NA value.
+void Variable::user_reset(hsp::rnd_gen &prng)
+{
+    if (!hsp::na::is(user_value_))
+        value_ = user_value_;
+    else if (is_model())
+        set(pDistr_->rand(prng));
+
+    if (pProp_ != nullptr)
+        pProp_->user_reset();
+}
+
+void Variable::optimize()
+{
+    if (is_constant())
+        init_numeric(value());
+    else if (is_user_const_)
+        throw std::invalid_argument(
+            "Impossible to set " + err_name() + " as constant. Check its dependencies.");
+
+    // reduce function indirection
+    if (is_pointer() && pointer()->is_function())
+        init_function(pointer()->function());
 }
 
 /// Sugar to call variable as a function if applicable, otherwise raise error.
@@ -432,13 +431,13 @@ double Variable::operator()(double x) const
 {
     switch (mode_)
     {
-    case Mode::Function:
-        return pFunc_->evaluate(x);
-    case Mode::This:
+    case Mode::Empty:
+    case Mode::Numeric:
     case Mode::Pointer:
-    case Mode::Error:
         throw std::runtime_error(
             "Called undefined evaluate operator for non-function " + err_name() + ".");
+    case Mode::Function:
+        return pFunc_->evaluate(x);
     }
     __builtin_unreachable();
 }
@@ -455,57 +454,8 @@ bool Variable::is_valid_move() const
     __builtin_unreachable();
 }
 
-/// Helper with proposer initialization of direct sample from prior/model.
-void Variable::helper_init_sample_proposer_()
-{
-    // assign the pointer to the proposer
-    pProp_ = std::make_shared<Sample_Proposal>(pDistr_.get());
-
-    // setup sample proposal functional methods
-    ratio_mode_ = Ratio::None;
-    valid_mode_ = Validity::Always;
-}
-
-/// Helper with Monte Carlo proposer initialization.
-void Variable::helper_init_proposer_monte_carlo_(const std::string &proposal, double proposal_scale)
-{
-    // raise a warning if "lnorm" proposal when variable can be negative
-    if (pDistr_ != nullptr && pDistr_->lower() < 0 && proposal == "lnorm")
-        hsp::msg::warning(
-            "Provided a lognormal proposal for non-positive " + err_name() + ".");
-
-    // select proposer
-    pProp_ = proposal_switch(proposal, proposal_scale, is_discrete());
-
-    // set modes
-    ratio_mode_ = Ratio::Compute;
-    valid_mode_ = pDistr_ == nullptr ? Validity::Always : Validity::Check;
-}
-
-/// Wheter the variable is constant.
-bool Variable::is_constant() const noexcept
-{
-    switch (mode_)
-    {
-    case Mode::This:
-        return is_constant_;
-    case Mode::Pointer:
-        return false;
-    case Mode::Function:
-        return pFunc_->is_constant();
-    case Mode::Error:
-        return is_constant_;
-    }
-    __builtin_unreachable();
-}
-
 /// Wheter the variable is discrete.
-bool Variable::is_discrete() const noexcept
-{
-    if (is_model())
-        return pDistr_->is_discrete();
-    return Attribute::is_discrete();
-}
+bool Variable::is_discrete() const noexcept { return is_model() ? pDistr_->is_discrete() : Attribute::is_discrete(); }
 /// Wheter the variable has a prior or a model associated.
 bool Variable::is_model() const noexcept { return pDistr_ != nullptr; }
 /// Wheter the variable has an adaptable parametric proposal rule.
@@ -525,8 +475,5 @@ void Variable::adapt_proposal(double ratio) { pProp_->adapt(ratio); }
 /// Get a description about the functional status.
 std::string Variable::str_summary() const
 {
-    std::string output(Attribute::str_summary());
-    if (is_model())
-        output += " | ~" + pDistr_->str_summary(false);
-    return output;
+    return Attribute::str_summary() + (is_model() ? " | ~" + pDistr_->str_summary(false) : "");
 }

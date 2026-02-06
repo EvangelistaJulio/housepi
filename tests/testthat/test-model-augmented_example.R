@@ -89,10 +89,15 @@ test_that("Missing function arguments raise errors", {
                               proba = exp(test@D + noise))
   expect_error(hhmodel$evaluate_log_lik(), regexp = "Impossible to associate")
 
-  # check that log(NaN) = NaN
+  # check that log(NaN) causes error
   hhmodel$load_augmented_list(proba = log(test@D))
   #expect_error(hhmodel$run_inference(), regexp = "Nothing to sample")
-  expect_error(hhmodel$evaluate_log_lik(), regexp = "Impossible to return")
+  expect_error(hhmodel$evaluate_log_lik(), regexp = "Impossible to associate")
+  
+  # check that log(0) causes error
+  hhmodel$load_augmented_list(noise = 0., proba = log(noise))
+  #expect_error(hhmodel$run_inference(), regexp = "Nothing to sample")
+  expect_error(hhmodel$evaluate_log_lik(), regexp = "Impossible to associate")
 })
 
 test_that("Augmented log-likelihood seeding is fine", {
@@ -137,13 +142,14 @@ test_that("Augmented aliasing works as expected", {
   expect_equal(hhmodel$evaluate_log_lik(), ll)
 
   # check normalization of binomial with augmented example
+  size <- 10
   hhmodel <- new_housepi_model("augmented_example")
   hhmodel$data_wide <- data.frame(
-    id = seq(0, 100), house_id = "hh1", status = 1, X = seq(0, 100)
+    id = seq(0, size), house_id = "hh1", status = 1, X = seq(0, size)
   )
   hhmodel$load_augmented_list(
     pdf = list(func = "binomial",
-               func_args = c(x = X@D, size = 10, prob = 0.5)),
+               func_args = c(x = X@D, size = !!size, prob = 0.5)),
     proba = exp(pdf)
   )
   expect_equal(hhmodel$evaluate_log_lik(), 1)
@@ -193,7 +199,7 @@ test_that("Known errors are unchanged", {
                    min = 1, max = 15, discr = TRUE)
     ) |>
     evaluate_log_lik() |>
-    expect_error(regexp = "returned NaN")
+    expect_error(regexp = "returned a NaN")
 })
 
 test_that("Augmented model log-likelihoods are correctly computed", {
@@ -202,7 +208,6 @@ test_that("Augmented model log-likelihoods are correctly computed", {
                       house_id = "hh01",
                       status = c(1, 1, 1, 0, 0, 0, 0),
                       x = c(1.1, 2.2, 3.3, NA, NA, NA, NA))
-  
   shape <- 2
   scale <- 1.1
   id_draws <- house[house$status > 0,]$id

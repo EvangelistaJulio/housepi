@@ -675,7 +675,7 @@ MCMC::~MCMC() = default;
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 double MCMC::uniform() { return pImpl_->setup->unif(); }
-double MCMC::par(size_t p) const { return pImpl_->param->at(p).get(); }
+double MCMC::par(size_t p) const { return pImpl_->param->at(p).value(); }
 
 size_t MCMC::get_max_hh_cases() const noexcept { return pImpl_->data_wide->report_hh_size->max_cases.first; }
 void MCMC::assert_no_missing_status() const
@@ -727,7 +727,10 @@ void MCMC::init_contact_rates_(Household &house)
                             "' (" + house.err_name() + ").");
 
                     else if (pair_contact_rate_ != hsp::rates::REFERENCE) // parameter rate
-                        y = pImpl_->param->at(pImpl_->param->pRegistry->from_string(pair_contact_rate_));
+                    {
+                        size_t p = pImpl_->param->pRegistry->from_string(pair_contact_rate_);
+                        y = pImpl_->param->at(p);
+                    }
 
                     house.init_contact_rates(member_k.hhindex(), member_i.hhindex(), y);
                 }

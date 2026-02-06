@@ -25,6 +25,7 @@
 #include "augmented.h"
 #include "augmented_map.h"
 #include "data.h"
+#include "function.h"
 #include "individual.h"
 #include "infec_profile.h"
 #include "parameter.h"
@@ -44,7 +45,7 @@ namespace
         const std::vector<std::string> file_headers = {"name", "status",
                                                        "func", "fcumul",
                                                        "value", "const", "discr",
-                                                       "model", hsp::params::MIN, hsp::params::MAX,
+                                                       "model", "min", "max",
                                                        "proposal", "proposal_scale"};
         const std::vector<std::string> headers = hsp::read::extract_keys(input);
         hsp::str::assert_no_missing_entries(headers, file_headers);
@@ -55,7 +56,7 @@ namespace
             if (hsp::na::is(augmstr))
                 throw std::invalid_argument(
                     "Found an augmented variable with undefined name.");
-            if (augmstr == hsp::infprof::INSTANT)
+            if (augmstr == hsp::infprof::AUGM_FUNC)
                 throw std::invalid_argument(
                     "Tried to use the reserved augmented name '" +
                     augmstr + "'.\nPlease, choose a different one.");
@@ -169,8 +170,8 @@ void Augmented::helper_build_append_infec_profile_()
     for (const std::string &col : hsp::read::extract_keys(deftable_))
         deftable_[col] += pInfecProfile_->augm_profile_definitions_.at(col);
 
-    pRegistry->add(hsp::infprof::INSTANT);
-    pInfecProfile_->augm_key = pRegistry->from_string(hsp::infprof::INSTANT);
+    pRegistry->add(hsp::infprof::AUGM_FUNC);
+    pInfecProfile_->augm_key = pRegistry->from_string(hsp::infprof::AUGM_FUNC);
 
     // append discrete infectivity profile definitions if any
     if (pInfecProfile_->is_discrete_requested())
@@ -245,7 +246,7 @@ void Augmented::helper_build_definition_order_()
 void Augmented::set_definition_dependency_order_for_(int status)
 {
     // columns presenting definitions possibly containing sources
-    const auto columns = {"value", "model", "func", hsp::params::MIN, hsp::params::MAX};
+    const auto columns = {"value", "model", "func", "min", "max"};
 
     hsp::str_table tree;           // populate augmented dependency tree
     hsp::dict<size_t> name_to_row; // ... and reverse dictionary name-to-row-index
@@ -266,7 +267,7 @@ void Augmented::set_definition_dependency_order_for_(int status)
         // Ignore spurios private definition if no public definition depends on it
         // NOTE: ensure private infectivity is stored.
         for (const std::string &augmstr : extract_all_dependencies_order(tree))
-            if (augmstr == hsp::infprof::INSTANT ||
+            if (augmstr == hsp::infprof::AUGM_FUNC ||
                 !hsp::str::is_private(augmstr) ||
                 !hsp::str::drop_private(extract_dependents_order(augmstr, tree)).empty())
                 status_to_def_row[status].push_back(name_to_row.at(augmstr));
@@ -382,7 +383,7 @@ void Augmented::set_function_or_identity_for_(size_t k)
                 list_draws.emplace(a);
         }
     }
-    else if (parser.is_callable_implicitly(hsp::params::X) && !hsp::str::is_private(augmstr))
+    else if (parser.is_callable_implicitly("x") && !hsp::str::is_private(augmstr))
     {
         list_draws.emplace(a);
         list_export.emplace(a);
@@ -398,10 +399,12 @@ void Augmented::set_function_or_identity_for_(size_t k)
 void Augmented::clear_all(Individual &member)
 {
     size_t n = pRegistry->size();
-    member.augm_vec_.reserve(n);
-    member.augm_vec_.assign(n, Variable("augmented"));
+    member.augm_vec_.resize(n);
     for (size_t a = 0; a < n; ++a)
+    {
         member.augm_vec_[a].name(pRegistry->as_string(a));
+        member.augm_vec_[a].set_err_type("augmented");
+    }
 }
 
 void Augmented::init()
@@ -462,25 +465,24 @@ void Augmented::helper_init_attributes_(Individual &member, size_t k)
     try
     {
         Variable &xaugm = member.augm_vec_[a];
-        xaugm.init(pParameter_->read_numeric(deftable_["value"][k], &member).get(),
-                   hsp::str::tobool(deftable_["const"][k]), deftable_["func"][k],
-                   hsp::str::tobool(deftable_["fcumul"][k]));
+        xaugm.clear();
+
+        if (hsp::str::tobool(deftable_["const"][k]))
+        {
+            xaugm.init_numeric(
+                pParameter_->read_numeric(deftable_["value"][k], &member).value());
+            xaugm.enforce_user_const(); // enforce user constant choice
+        }
+        else
+            init_func_attributes_(member, k);
 
         // initialize model
-        hsp::parse::Definition parser(deftable_["model"][k]);
-        xaugm.init_distr(parser.root.func);
         init_model_attributes_(member, k);
 
-        // initialize function
-        init_func_attributes_(member, k);
-
-        // pointer (case of identity function)
-        if (xaugm.is_pointer())
-            xaugm.transfer(pParameter_->read_attribute(deftable_["func"][k], &member));
-
-        // assign proposer if variable to be sampled
+        // assign proposal if variable to be sampled
+        // NOTE: not necessarily according to a model
         if (!xaugm.is_constant())
-            xaugm.init_proposer(deftable_["proposal"][k],
+            xaugm.init_proposal(deftable_["proposal"][k],
                                 hsp::str::tod(deftable_["proposal_scale"][k]));
 
         // check if satisfies discrete requirement, if any
@@ -502,14 +504,16 @@ void Augmented::init_model_attributes_(Individual &member, size_t k)
 {
     const std::string &augmstr = deftable_["name"][k];
     Variable &xaugm = member.augm_vec_[pRegistry->from_string(augmstr)];
+    hsp::parse::Definition parser(deftable_["model"][k]);
+    xaugm.init_distr(parser.root.func);
 
     if (!xaugm.is_model())
         return;
 
-    for (const auto &child : hsp::parse::Definition(deftable_["model"][k]).root.children)
+    for (const auto &child : parser.root.children)
         xaugm.init_distr_attr(child.key, pParameter_->read_attribute(child, &member));
 
-    for (const auto key : {hsp::params::MIN, hsp::params::MAX})
+    for (const auto key : {"min", "max"})
         xaugm.init_distr_attr(key, pParameter_->read_attribute(deftable_[key][k], &member));
 
     xaugm.init_distr_reshaping(hsp::str::tobool(deftable_["discr"][k]));
@@ -519,22 +523,35 @@ void Augmented::init_func_attributes_(Individual &member, size_t k)
 {
     const std::string &augmstr = deftable_["name"][k];
     Variable &xaugm = member.augm_vec_[pRegistry->from_string(augmstr)];
+    hsp::parse::Definition parser(deftable_["func"][k]);
 
-    if (!xaugm.is_function())
+    // pointer mode
+    if (parser.is_terminal())
+    {
+        xaugm.transfer(pParameter_->read_attribute(parser.root, &member));
         return;
+    }
 
-    // initialize function
-    for (const auto &child : hsp::parse::Definition(deftable_["func"][k]).root.children)
+    // function mode
+    bool is_primitive = hsp::str::tobool(deftable_["fcumul"][k]);
+    xaugm.init_function(compose_func_registries(
+        parser.root.func, "function",
+        {"user", "transcendental", "arithmetic",
+         "continuos", "discrete", "infecprofile"},
+        is_primitive));
+
+    // attribute
+    for (const auto &child : parser.root.children)
     {
         xaugm.init_func_attr(child.key, pParameter_->read_attribute(child, &member));
         pParameter_->make_cache_dependent(child);
     }
 
-    // initialize range
-    for (const auto key : {hsp::params::MIN, hsp::params::MAX})
+    // range
+    for (const auto key : {"min", "max"})
         xaugm.init_func_attr(key, pParameter_->read_attribute(deftable_[key][k], &member));
 
-    // initialize discretization and truncation
+    // discretization and truncation
     xaugm.init_func_reshaping(hsp::str::tobool(deftable_["discr"][k]));
 }
 
@@ -546,6 +563,9 @@ void Augmented::user_reset(hsp::rnd_gen &prng, Individual &member)
 {
     for (size_t a : status_to_sample[member.status()])
         member.augm_vec_[a].user_reset(prng);
+
+    for (size_t a = 0; a < pRegistry->size(); ++a)
+        member.augm_vec_[a].optimize();
 }
 
 void Augmented::user_reset(hsp::rnd_gen &prng)
@@ -593,7 +613,7 @@ void Augmented::init_model_list_()
 hsp::str_table Augmented::get_ordered_models_(int status) const
 {
     // columns presenting definitions possibly containing sources
-    const auto columns = {"value", "model", "func", hsp::params::MIN, hsp::params::MAX};
+    const auto columns = {"value", "model", "func", "min", "max"};
 
     hsp::str_table tree;                    // populate augmented dependency tree
     hsp::str_table ordered_models;          // store hierarchical order of models
@@ -637,7 +657,7 @@ double Augmented::materialize_augm_model_log_lik(Individual &member)
     double new_ll = 0.0;
     for (size_t a : block.models)
         new_ll += member.augm_vec_[a].get_distr_logpdf();
-    member.augm_log_lik_.set(new_ll); 
+    member.augm_log_lik_.set(new_ll);
 
     return new_ll;
 }
@@ -649,7 +669,7 @@ double Augmented::materialize_augm_model_logratio(Individual &member, size_t a)
         return 0.;
 
     double new_ll = member.augm_log_lik_.get(); // store old value in buffer
-    for (size_t b : block.depen[a])       // depen includes 'a'
+    for (size_t b : block.depen[a])             // depen includes 'a'
         new_ll += member.augm_vec_[b].get_distr_logratio();
 
     member.augm_log_lik_.set(new_ll);
@@ -731,6 +751,6 @@ void Augmented::store_draws(unsigned long smpl_count)
 
         size_t c = 0;
         for (size_t a : list_draws)
-            member_matrix[c++][smpl_count] = member_ptr->augm_vec_[a].get();
+            member_matrix[c++][smpl_count] = member_ptr->augm_vec_[a].value();
     }
 }

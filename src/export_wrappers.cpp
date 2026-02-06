@@ -118,9 +118,9 @@ RCPP_MODULE(housepi_flags)
                 }                                                                                  \
                                                                                                    \
                 if (!hsp::na::is(min))                                                             \
-                    ptr_->init_attr(hsp::params::MIN, Attribute(min));                             \
+                    ptr_->init_attr("min", Attribute(min));                                        \
                 if (!hsp::na::is(max))                                                             \
-                    ptr_->init_attr(hsp::params::MAX, Attribute(max));                             \
+                    ptr_->init_attr("max", Attribute(max));                                        \
                                                                                                    \
                 if (is_discr)                                                                      \
                     ptr_->init_discretization();                                                   \
