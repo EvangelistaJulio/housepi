@@ -668,7 +668,7 @@ double Augmented::materialize_augm_model_logratio(Individual &member, size_t a)
     if (block.depen[a].empty())
         return 0.;
 
-    double new_ll = member.augm_log_lik_.get(); // store old value in buffer
+    double new_ll = member.augm_log_lik_.value(); // store old value in buffer
     for (size_t b : block.depen[a])             // depen includes 'a'
         new_ll += member.augm_vec_[b].get_distr_logratio();
 

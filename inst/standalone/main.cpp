@@ -98,7 +98,7 @@ namespace hsp::msg
     {                                                                     \
         try                                                               \
         {                                                                 \
-            pImpl_->module->build(hsp::read::csv_table(f));               \
+            pImpl_->module.build(hsp::read::csv_table(f));                \
         }                                                                 \
         catch (const std::exception &e)                                   \
         {                                                                 \
@@ -120,8 +120,8 @@ void MCMC::read_multiplicity(const std::string &f)
 {
     try
     {
-        pImpl_->data_wide->multiplicity_build(hsp::read::csv_table(f),
-                                              pImpl_->augm->pRegistry->size() > 0);
+        pImpl_->data_wide.multiplicity_build(hsp::read::csv_table(f),
+                                             pImpl_->augm.pRegistry->size() > 0);
     }
     catch (const std::exception &e)
     {
@@ -141,9 +141,9 @@ void MCMC::print_infer_state(const std::string &output_filename) const
     if (hsp::na::is(output_filename))
         return;
 
-    const Setup &setup = *pImpl_->setup;
-    const Parameter &param = *pImpl_->param;
-    const Augmented &augm = *pImpl_->augm;
+    const Setup &setup = pImpl_->setup;
+    const Parameter &param = pImpl_->param;
+    const Augmented &augm = pImpl_->augm;
 
     std::ofstream ofs;
     ofs.open(output_filename);
@@ -267,8 +267,8 @@ void update_ofstream_datawide(std::ofstream &ofs,
 /// Print the simulated data to the provided file.
 void MCMC::print_simulated_data_wide(const std::string &pathtofile)
 {
-    const DataWide &data_wide = *pImpl_->data_wide;
-    const Augmented &augm = *pImpl_->augm;
+    const DataWide &data_wide = pImpl_->data_wide;
+    const Augmented &augm = pImpl_->augm;
 
     try
     {
@@ -283,7 +283,7 @@ void MCMC::print_simulated_data_wide(const std::string &pathtofile)
             try
             {
                 // inplace simulation
-                pImpl_->data_wide->init_house_cache(house);
+                pImpl_->data_wide.init_house_cache(house);
                 simulate_single_house(house);
                 // print the simulated data
                 update_ofstream_datawide(ofs, house, data_wide.pRegistry->size(), augm.list_export);
@@ -324,7 +324,7 @@ double MCMC::log_evidence(std::string_view scheme, unsigned long n_rungs)
         const std::vector<double> &avg_vec = pp[1];
         const std::vector<double> &var_vec = pp[2];
 
-        for (unsigned long k = 0; k < pImpl_->setup->n_rungs; ++k)
+        for (unsigned long k = 0; k < pImpl_->setup.n_rungs; ++k)
         {
             double d_inv_tem = inv_tem[k + 1] - inv_tem[k];
             output += (avg_vec[k + 1] + avg_vec[k]) * d_inv_tem / 2.;

@@ -49,15 +49,16 @@ augmented_helper_proposal <- function(opts, proposal_scale) {
     if (is.na(opts$proposal)) {
       if (is.na(opts$model)) opts$const <- TRUE
       else opts$proposal <- "sample"
-    } else if (opts$proposal == "sample") {
+    } else {
       if (is.na(opts$model)) stop_h(
         sprintf("No model to sample from for augmented '%s'.", opts$name)
       )
-    } else {
-      if (is.na(proposal_scale)) opts$proposal_scale <- 1
-      else if (is.numeric(proposal_scale) &&
-                 proposal_scale > 0) opts$proposal_scale <- proposal_scale
-      else stop_h("Proposal scale must be a numeric greater than 0.")
+      if (opts$proposal != "sample")  {
+        if (is.na(proposal_scale)) opts$proposal_scale <- 1
+        else if (is.numeric(proposal_scale) &&
+                   proposal_scale > 0) opts$proposal_scale <- proposal_scale
+        else stop_h("Proposal scale must be a numeric greater than 0.")
+      }
     }
   } else {
     opts$proposal <- NA_character_

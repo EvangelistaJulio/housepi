@@ -13,32 +13,15 @@
 #include <string_view>
 #include <vector>
 
+#include "tools/atomic.h"
 #include "tools/loglike.h"
 #include "tools/nan.h"
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////  *** Total Log-Likelihood : struct ***  ///////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-struct TotalLogLike : public hsp::LogLike
-{
-public:
-    std::vector<double> smpl_values = {}; /// vector of total log-likelihood samples
-
-    void init_draws(unsigned long sample_size)
-    {
-        count_ = 0;
-        smpl_values.clear();
-        smpl_values.assign(sample_size, hsp::na::DOUBLE);
-    }
-    void store_draws() { smpl_values[count_++] = value_; }
-    unsigned long count() const noexcept { return count_; }
-
-private:
-    unsigned long count_ = 0; /// count of store samples
-};
+#include "augmented.h"
+#include "data.h"
+#include "group_rate.h"
+#include "infec_profile.h"
+#include "parameter.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -46,34 +29,39 @@ private:
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace hsp::atomic
-{
-    struct Error;
-}
-
 class Individual;
 class Household;
-struct Setup;
-struct DataWide;
-struct DataLong;
-struct Parameter;
-struct GroupRate;
-struct InfecProfile;
-struct Augmented;
 
 class MCMCImpl
 {
 public:
-    std::unique_ptr<hsp::atomic::Error> atomic_error;
-    std::unique_ptr<Setup> setup;
-    std::unique_ptr<DataWide> data_wide;
-    std::unique_ptr<DataLong> data_long;
-    std::unique_ptr<Parameter> param;
-    std::unique_ptr<GroupRate> group_rate;
-    std::unique_ptr<InfecProfile> infec_profile;
-    std::unique_ptr<Augmented> augm;
+    hsp::atomic::Error atomic_error;
 
-    TotalLogLike tot_log_lik;
+    Setup setup;
+    DataWide data_wide;
+    DataLong data_long;
+    Parameter param;
+    GroupRate group_rate;
+    InfecProfile infec_profile;
+    Augmented augm;
+
+    struct TotalLogLike : public hsp::LogLike
+    {
+    public:
+        std::vector<double> smpl_values = {}; /// vector of total log-likelihood samples
+
+        void init_draws(unsigned long sample_size)
+        {
+            count_ = 0;
+            smpl_values.clear();
+            smpl_values.assign(sample_size, hsp::na::DOUBLE);
+        }
+        void store_draws() { smpl_values[count_++] = value_; }
+        unsigned long count() const noexcept { return count_; }
+
+    private:
+        unsigned long count_ = 0; /// count of store samples
+    } tot_log_lik;
 
     ///////////////////////////
     //////  CONSTRUCTOR  //////

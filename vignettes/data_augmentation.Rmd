@@ -171,22 +171,26 @@ hhmodel <- new_housepi_model("augmented_example") |>
     # between augmented onset and infection times
     incub_period = .onset_time - .infec_time,
     
-    # here we correct right censoring of maximum values
-    # to allow for the event to occur during the whole day
-    # add 'infec_time' time definition
-    .infec_time = list(
-      value = 0,                   # initial value set to 0
-      model = "uniform",           # uniform within [0, exposure_max + 0.99]
-      max = exposure_max@D + 0.99, # min = 0 by default for uniform
-      proposal = "normal",         # MCMC proposal is a normal distribution
-      proposal_scale = 0.5         # with std. deviation 0.5
-    ),
     
     # add 'onset_time' time definition
+    # here we correct right censoring of maximum values
+    # to allow for the event to occur during the whole day
     .onset_time = list(
-      value = onset_max@D + 0.99, model = "uniform",
-      min = onset_min@D, max = onset_max@D + 0.99,
-      proposal = "normal", proposal_scale = 0.5
+      model = "uniform",
+      min = onset_min@D,
+      max = onset_max@D + 0.99,
+      proposal = "normal",
+      proposal_scale = 0.5
+    ),
+
+    # add 'infec_time' time definition
+    .infec_time = list(
+      model = "uniform",
+      # min = 0 by default for uniform
+      # we impose here .infec_time < .onset_time
+      max = min(.onset_time, exposure_max@D + 0.99),
+      proposal = "normal",
+      proposal_scale = 0.5
     )
   ) |>
 
@@ -212,7 +216,7 @@ We can do so by providing the `id` of individuals whose augmented variables we w
 #|  Overlaying orange lines indicate the values used for the simulation.
 results <- hhmodel |>
   add_data_wide(dataset) |>
-  run_inference(steps = 1000, thin = 10, chains = 3, adapt = 500,
+  run_inference(steps = 1000, thin = 5, chains = 3, adapt = 500,
                 # store augmented draws of "7" and "13"
                 id_draws = c("7", "13"), 
                 progress = FALSE)
@@ -269,32 +273,6 @@ bayesplot::mcmc_trace(get_augm_draws(results))
 #|  Trace plot of the corresponding model contribution to the log-likelihood.
 bayesplot::mcmc_trace(get_total_log_lik_draws(results))
 ```
-
-What happens if we don't provide a model for an augmented variable? This is still allowed if a proposal rule has been defined:
-
-```{r}
-#| warning: false
-# random walk (without model)
-results <- new_housepi_model("blank") |>
-  add_augmented("random_walk", value = 14, proposal = "normal") |>
-  run_inference()
-```
-
-```{r}
-#| fig.height: 2
-#| fig.alt: >
-#|  Trace plot of a single augmented variable without model, i. e. random walk.
-bayesplot::mcmc_trace(get_augm_draws(results))
-```
-
-```{r}
-#| fig.height: 2
-#| fig.alt: >
-#|  The flat trace plot of the corresponding log-likelihood shows no contribution.
-bayesplot::mcmc_trace(get_total_log_lik_draws(results))
-```
-
-In this case the variable has no contribution to the likelihood!
 
 ```{r child = "helpers/_footer.Rmd"}
 ```

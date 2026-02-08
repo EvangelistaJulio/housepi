@@ -159,6 +159,7 @@ struct DataWide
     /// Recover all buffered values of member cached depedencies.
     void recover_member_buffer(Household &house, size_t i);
 
+    void assert_finite_log_lik() const;
     void init_draws(unsigned long sample_size);
     void store_draws(unsigned long smpl_count);
 

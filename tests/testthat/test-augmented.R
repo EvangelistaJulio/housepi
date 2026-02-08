@@ -47,9 +47,6 @@ test_that("Undefined definitions are controoled", {
   expect_error(aux_add(augm, name = "test", proposal = "sample", value = NA),
                regexp = "No model")
 
-  expect_error(aux_add(augm, name = "test", proposal = "norm", value = NA),
-               regexp = "undefined")
-
   expect_no_error(aux_add(augm, name = "test", value = NA))
 
   augm <- housepi:::HousepiAugmented$new()

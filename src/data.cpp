@@ -669,8 +669,26 @@ void DataWide::recover_member_buffer(Household &house, size_t i)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  DataWide : posterior drawd  //////////////////////////////////
+///////////////////////////////////  DataWide : posterior draws  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void DataWide::assert_finite_log_lik() const
+{
+    for (size_t R = 0; R < head_class_house_indexes.size(); ++R)
+    {
+        const Household &house = house_vector_[head_class_house_indexes[R]];
+
+        for (size_t i : house.infected_hhindexes())
+            if (house.member(i).augm_log_lik_.is_inf())
+                throw std::runtime_error(
+                    "Initial augmented log-likelihood computation returned infinity for " +
+                    house.member(i).err_name() + ".");
+
+        if (house.obs_log_lik_.is_inf())
+            throw std::runtime_error(
+                "Initial log-likelihood computation returned infinity for " + house.err_name() + ".");
+    }
+}
 
 /// Initialize posterior sample of parameters.
 void DataWide::init_draws(unsigned long sample_size)
@@ -690,9 +708,9 @@ void DataWide::store_draws(unsigned long smpl_count)
     for (size_t R = 0; R < head_class_house_indexes.size(); ++R)
     {
         Household &house = house_vector_[head_class_house_indexes[R]];
-        double x = house.obs_log_lik_.get() / static_cast<double>(house.multiplicity());
+        double x = house.obs_log_lik_.value();
         for (size_t i : house.infected_hhindexes())
-            x += house.member(i).augm_log_lik_.get();
+            x += house.member(i).augm_log_lik_.value();
         smpl_values[R][smpl_count] = x;
     }
 }

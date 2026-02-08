@@ -172,11 +172,11 @@ The draws come as [posterior](https://CRAN.R-project.org/package=posterior) obje
 ```{r}
 # run the Monte Carlo specifying setup options
 results <- hhmodel |>
-  run_inference(steps = 1000,     # number of MCMC steps (per chain)
-                thin = 10,        # delay between MCMC steps that are stored
-                adapt = 500,      # finite adaptation steps before MCMC steps
-                chains = 3,       # number of independent chains
-                threads = 1)      # number of threads
+  run_inference(steps = 1000, # MCMC steps per chain
+                thin = 5,     # delay between stored samples
+                adapt = 500,  # preliminary finite adaptation steps
+                chains = 3,   # independent chains
+                threads = 1)  # parallel threads
 
 # summarize posterior draws of parameters
 posterior::summarize_draws(get_param_draws(results))
@@ -310,7 +310,7 @@ hhmodel <- hhsimul |>
 
 results <- hhmodel |>
   add_data_wide(simulated) |>
-  run_inference(chains = 3, steps = 1000, adapt = 500, thin = 10)
+  run_inference(chains = 3, steps = 1000, adapt = 500, thin = 5)
 ```
 We can visualize traces vs expected values as follows
 

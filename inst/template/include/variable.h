@@ -62,12 +62,7 @@ public:
     }
 
     /// Enforce user choice for constant.
-    void enforce_user_const()
-    {
-        is_user_const_ = true;
-        if (is_constant())
-            user_value_ = value();
-    }
+    void enforce_user_const() noexcept { is_user_const_ = true; }
 
     /// Change value. Buffer old value.
     void set(double x)
@@ -144,7 +139,6 @@ public:
 
 protected:
     double buffer_ = hsp::na::DOUBLE;     /// buffered value
-    double user_value_ = hsp::na::DOUBLE; /// initial user defined value
 
     /// NOTE: Household must be copyable for simulations 
     /// UPDATE: pointers should become unique -> Function clonable.

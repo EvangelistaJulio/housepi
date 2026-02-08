@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <limits>
 #include <stdexcept>
 
 #include "tools/nan.h"
@@ -17,7 +18,7 @@ namespace hsp
     {
         void recover() noexcept { value_ = buffer_; }
         double logratio() const noexcept { return value_ - buffer_; }
-        double get() const noexcept { return value_; }
+        double value() const noexcept { return value_; }
 
         /// Set new log-likelihood value. Buffer old value.
         /// Raise exception if new value is a NaN.
@@ -25,13 +26,16 @@ namespace hsp
         {
             if (hsp::na::is(new_ll))
                 throw std::runtime_error(
-                    "Log-likelihood returned a NaN value.");
+                    "Log-likelihood computation returned NaN value.");
 
             buffer_ = value_;
             value_ = new_ll;
         }
         /// Increment log-likelihood by a delta. Buffer old value.
         void increment(double delta_ll) { set(value_ + delta_ll); }
+
+        /// Wheter value is infinity.
+        bool is_inf() const noexcept { return  std::isinf(value_); }
 
     protected:
         double value_ = 0.;  /// Current log-likelihood

@@ -33,7 +33,7 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Select functional method in case of truncation.
-void Distribution::init_trunc_helper_()
+void Distribution::helper_init_distr_truncation_()
 {
     trunc_mode_ = Trunc::Active;
 
@@ -219,15 +219,15 @@ namespace
     }
 
 // Macro for left discretization when min = 0 (close).
-#define INIT_DISCR_LEFT_MIN_ZERO_CLOSE()      \
-    void init_discretization() override final \
-    {                                         \
-        discr_mode_ = Mode::Discrete::Left;   \
-    }                                         \
-    void init_truncation() override final     \
-    {                                         \
-        if (init_range_min_(0., false))       \
-            init_trunc_helper_();             \
+#define INIT_DISCR_LEFT_MIN_ZERO_CLOSE()       \
+    void init_discretization() override final  \
+    {                                          \
+        discr_mode_ = Mode::Discrete::Left;    \
+    }                                          \
+    void init_truncation() override final      \
+    {                                          \
+        if (helper_init_range_min_(0., false)) \
+            helper_init_distr_truncation_();   \
     }
 
 // Macro for discrete defined when min = 0 (close).
@@ -235,8 +235,8 @@ namespace
     void init_discretization() override final {} \
     void init_truncation() override final        \
     {                                            \
-        if (init_range_min_(0., false))          \
-            init_trunc_helper_();                \
+        if (helper_init_range_min_(0., false))   \
+            helper_init_distr_truncation_();     \
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -253,8 +253,6 @@ namespace
 
         /// UPDATE: should understand when discrete defined...
         void init_discretization() override final { discr_mode_ = Mode::Discrete::Center; }
-        /// NOTE: truncation for uniform distribution is inside raw
-        void init_truncation() override final { init_range_helper_(false, false); }
 
     protected:
         mutable std::uniform_real_distribution<double> unif_gen;
@@ -289,8 +287,8 @@ namespace
         }
         void init_truncation() override final
         {
-            init_range_helper_(false, false);
-            init_trunc_helper_();
+            helper_init_standard_range_();
+            helper_init_distr_truncation_();
         }
 
     protected:
@@ -414,8 +412,8 @@ namespace
                     "Invoked invalid max value " + hsp::str::format(dx) + " for " + err_name() + ".");
             if (sx > 0 || dx < 1)
             {
-                init_range_helper_(sx == 0, dx == 1);
-                init_trunc_helper_();
+                helper_init_standard_range_(sx == 0, dx == 1);
+                helper_init_distr_truncation_();
             }
         }
 
@@ -771,8 +769,8 @@ namespace
                     throw std::invalid_argument(
                         "Invoked invalid max value " + hsp::str::format(dx) +
                         " for " + err_name() + " with size " + std::to_string(arg(0)) + ".");
-                init_range_helper_(false, false);
-                init_trunc_helper_();
+                helper_init_standard_range_();
+                helper_init_distr_truncation_();
             }
         }
 

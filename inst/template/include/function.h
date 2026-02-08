@@ -92,9 +92,8 @@ public:
         "Called undefined method discretization of " + err_name() + "."); }
 
     /// Virtual function to initialize truncation.
-    /// NOTE: always to be call after init_discretization.
-    virtual void init_truncation() { throw std::invalid_argument(
-        "Called to undefined method truncation of " + err_name() + "."); }
+    /// NOTE: always to be called ONLY after init_discretization.
+    virtual void init_truncation() { helper_init_standard_range_(); };
 
     /// Select function method for return value.
     void set_eval_call() noexcept { eval_mode_ = Mode::Evaluate::Function; }
@@ -376,9 +375,11 @@ protected:
     /// Assert that proposed function attribute is valid.
     void helper_assert_valid_attribute_(std::string_view key, const Attribute &attr);
 
-    /// Internal code to define the type of range.
-    bool init_range_min_(double min_val = 0., bool is_min_open = false);
-    void init_range_helper_(bool is_min_open = false, bool is_max_open = false);
+    /// Set the range of validity of the value, and the corresponding validation function.
+    void helper_init_standard_range_(bool is_min_open = false, bool is_max_open = false);
+
+    /// Functional range for lower bound and no upper bound.
+    bool helper_init_range_min_(double min_val = 0., bool is_min_open = false);
 };
 
 /// Compose registries to get a function from them.

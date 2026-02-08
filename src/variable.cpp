@@ -326,26 +326,28 @@ void Variable::helper_assert_non_degenerate_range_()
     if (!pDistr_->lower().is_callable() || !pDistr_->upper().is_callable())
         return;
 
-    const double lower = pDistr_->lower().value();
-    const double upper = pDistr_->upper().value();
-
     // skip if range is not degenerate
-    if (lower < upper)
+    const double sx = pDistr_->lower().value();
+    const double dx = pDistr_->upper().value();
+    if (sx < dx)
         return;
 
     // case empty interval, lower and upper are "open"
-    if (lower > upper || !pDistr_->is_valid(lower) || !pDistr_->is_valid(upper))
+    if (sx > dx || !pDistr_->is_valid(sx) || !pDistr_->is_valid(dx))
         throw std::invalid_argument(
-            "Definition produced a degenerate range " + pDistr_->str_range() +
+            "Definition produced a inconsistent range " + pDistr_->str_range() +
             " for " + err_name() + ".");
 
-    // Warn user if it was not chosen as constant
-    if (!is_user_const_)
-        hsp::msg::warning(
-            "Forced at least one instance of " + err_name() +
-            " to be constant as its range was degenerate.");
+    if (!pDistr_->lower().is_constant() || !pDistr_->upper().is_constant())
+        return;
 
-    init_numeric(lower);
+    // warn user if it was not chosen as constant
+    if (!is_user_const_)
+    {
+        hsp::msg::warning(
+            "Turned at least one " + err_name() + " to constant as range was degenerate.");
+        init_numeric(sx);
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -356,11 +358,13 @@ void Variable::helper_assert_non_degenerate_range_()
 /// NOTE: it must be assigned after model initialization.
 void Variable::init_proposal(const std::string &proposal, double proposal_scale)
 {
-    if (mode_ != Mode::Numeric && mode_ != Mode::Empty)
+    if (mode_ != Mode::Empty && mode_ != Mode::Numeric)
         return;
 
     if (!hsp::na::is(proposal))
     {
+        if (mode_ == Mode::Empty)
+            init_numeric(hsp::na::DOUBLE);
         is_user_const_ = false;
 
         if (proposal == "sample")
@@ -398,15 +402,12 @@ void Variable::helper_init_monte_carlo_proposal_(const std::string &proposal, do
 }
 
 /// Restore user defined variable initialization.
-///
-/// NOTE: by construction convention it is possible to randomly initialize
-///       if user value is NA but a distribution is given.
-///       Otherwise it is truly a constant NA value.
 void Variable::user_reset(hsp::rnd_gen &prng)
 {
-    if (!hsp::na::is(user_value_))
-        value_ = user_value_;
-    else if (is_model())
+    if (is_constant())
+        return;
+
+    if (is_model())
         set(pDistr_->rand(prng));
 
     if (pProp_ != nullptr)

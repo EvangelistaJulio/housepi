@@ -69,10 +69,10 @@ double Model::compute_house_obs_log_lik(Household &house)
 	fill_house_escape_matrix(house);
 
 	// compute corresponding loglikelihood times house multiplicity
-	return house.multiplicity() * bax::chain_binomial_heter_log_lik(
-									  house.n_infected_status(),
-									  house.cache_double_vector(HHdoublevecKey::commu_escape_rate),
-									  house.cache_double_matrix(HHdoublemtxKey::p2p_escape_rate));
+	return bax::chain_binomial_heter_log_lik(
+		house.n_infected_status(),
+		house.cache_double_vector(HHdoublevecKey::commu_escape_rate),
+		house.cache_double_matrix(HHdoublemtxKey::p2p_escape_rate));
 }
 
 void Model::fill_house_escape_matrix(Household &house) const

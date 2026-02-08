@@ -120,16 +120,11 @@ HousepiModel <- R6::R6Class(
     #
     # @return `data.frame`
     .generate_multiplicity_defs = function() {
-      # check if model allows for multiplicity
-      refer_file <- private$.reference()
-      regexp <- ".multiplicity\\s*\\(\\s*\\)"
-
-      if (!template_assert_expression(refer_file, regexp)) return(NULL)
-
-      # note: this might be a modeler error
-      if (length(private$.get_all_required_augm()) > 0) warning_h(
-        "Model with augmented dependencies called multiplicity engine."
-      )
+      # skip if augmented definitions are required
+      if (length(private$.get_all_required_augm()) > 0) return(NULL)
+      # skip if augmented definitions are provided
+      # UPDATE: there could be the case of all constants...
+      if (length(dim(private$.augm$defs)[1]) > 0) return(NULL)
 
       # load data_wide
       # UPDATE: this "back & forth" of data_wide is not optimal!

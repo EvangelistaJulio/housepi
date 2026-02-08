@@ -486,7 +486,7 @@ void GroupRate::helper_init_all_rates_(Individual &member, const hsp::str_table 
         if (!param_pointers.empty())
         {
             size_t g = pRegistry->from_string(groupstr);
-            member.group_rate_vec_[g].init_productory(param_pointers);
+            member.group_rate_vec_[g].init_product(param_pointers);
         }
     }
 }

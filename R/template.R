@@ -233,31 +233,6 @@ set_source_name_ <- function(x, name = NA_character_) {
   x
 }
 
-#' @title
-#' Template assert expression
-#' @description
-#' Assert if a given string expression is present in source file.
-#'
-#' @param refer_file
-#' A `character(1)` with the path/to/.refer containing the model source.
-#' @param expr
-#' A `character(1)` with the expression.
-#'
-#' @return `logical(1)`
-#'
-#' @keywords internal
-#' @noRd
-template_assert_expression <- function(refer_file, expression) {
-  # check if reference file exists
-  if (!file.exists(refer_file)) return(FALSE)
-  # read the script and extract parameters
-  script <- readChar(refer_file, file.info(refer_file)$size)
-
-  # extract all calls in .refer source file
-  matches <- stringr::str_match_all(script, expression)
-  length(unlist(matches)) > 0
-}
-
 #' Extract arguments following a key family in REGISTER_HOUSEPI_KEYS.
 #' @param refer_file `character(1)`. Path to reference file.
 #' @param key_family `character(1)`. Key family name to search for.

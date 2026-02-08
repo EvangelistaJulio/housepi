@@ -103,7 +103,7 @@ double Model::compute_house_obs_log_lik(Household &house)
 		log_likelihood += std::log(sero_positive_term);
 	}
 
-	return house.multiplicity() * log_likelihood;
+	return log_likelihood;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

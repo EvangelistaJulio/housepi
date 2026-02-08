@@ -244,7 +244,7 @@ protected:
 	//////////////////////  Distribution : functional truncation [private] //////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
-	void init_trunc_helper_();
+	void helper_init_distr_truncation_();
 	/// UPDATE: if lower/upper values don't change, I could just cached them.
 
 	double (Distribution::*trunc_)() const = &Distribution::do_trunc_dummy_;

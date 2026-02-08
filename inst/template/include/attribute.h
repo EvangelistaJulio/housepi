@@ -84,7 +84,7 @@ public:
     /// Initialize attribute as function.
     void init_function(std::shared_ptr<Function> f);
     /// Productory of pointed attributes values.
-    void init_productory(const std::vector<const Attribute *> &other_ptrs);
+    void init_product(const std::vector<const Attribute *> &other_ptrs);
     /// Transfer from other Attribute.
     void transfer(const Attribute &other);
 
@@ -166,7 +166,7 @@ public:
     /// Wheter it's a function.
     bool is_function() const noexcept { return mode_ == Mode::Function; }
 
-    /// Wheter it's able to return. 
+    /// Wheter it's able to return.
     bool is_callable() const noexcept;
 
     ////////////////////

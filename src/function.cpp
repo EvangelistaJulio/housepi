@@ -116,21 +116,21 @@ std::string Attribute::str_val() const
         return hsp::str::format(hsp::na::DOUBLE);
     case Mode::Numeric:
         return hsp::str::format(value_);
-    default:
-    {
-        if (is_constant())
-            return hsp::str::format(value());
-        return "@";
+    case Mode::Pointer:
+        return pAttr_->str_val();
+    case Mode::Function:
+        if (pFunc_->is_callable_implicitly())
+            return hsp::str::format(pFunc_->evaluate());
+        return "<>";
     }
-    }
+    __builtin_unreachable();
 }
 
 std::string Attribute::str_summary() const
 {
-    std::string sms = "";
-    if (!is_function() || pFunc_->is_callable_implicitly())
-        sms = str_val() + " | ";
+    std::string sms = err_name() + " ";
 
+    sms += (is_function() && !pFunc_->is_callable_implicitly()) ? "<> | " : str_val() + " | ";
     sms += is_discrete() ? "discrete" : "real";
     sms += is_constant() ? " constant" : " variable";
 
@@ -214,8 +214,8 @@ void Attribute::init_function(std::shared_ptr<Function> f)
 
     if (err_type_ == "empty")
         err_type_ = "function";
-
-    name_ = f->name();
+    if (hsp::na::is(name_))
+        name_ = f->name();
     mode_ = Mode::Function;
     value_ = hsp::na::DOUBLE;
     pAttr_ = nullptr;
@@ -228,12 +228,15 @@ void Attribute::transfer(const Attribute &other)
     switch (other.mode_)
     {
     case Mode::Empty:
+        // NOTE: nothing to transfer if other is pure empty
         if (other.err_type_ != "empty")
             init_pointer(other.pointer());
-        // NOTE: nothing to transfer if pure empty
         return;
     case Mode::Numeric:
-        init_numeric(other.value());
+        if (other.is_user_const_)
+            init_numeric(other.value());
+        else
+            init_pointer(other.pointer());
         return;
     case Mode::Pointer:
         init_pointer(other.pointer());
@@ -324,19 +327,19 @@ Function::Function(const std::vector<std::pair<std::string, double>> &args,
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Assert argument exists at assignment. Returns it's index.
-Attribute &Function::find_arg_(std::string_view arg_name)
+Attribute &Function::find_arg_(std::string_view key)
 {
-    if (arg_name == "x")
+    if (key == "x")
         return x_arg_;
-    if (arg_name == "loc")
+    if (key == "loc")
         return loc_;
-    if (arg_name == "min")
+    if (key == "min")
         return lower_;
-    if (arg_name == "max")
+    if (key == "max")
         return upper_;
 
     for (Attribute &attr : arguments_)
-        if (attr.name() == arg_name)
+        if (attr.name() == key)
             return attr;
 
     // else format the error showing options
@@ -344,8 +347,8 @@ Attribute &Function::find_arg_(std::string_view arg_name)
     for (const Attribute &attr : arguments_)
         options.emplace_back(attr.name());
     throw std::invalid_argument(
-        "Unknown argument '" + std::string(arg_name) + "' for " + err_name() + "." +
-        hsp::str::find_closest(arg_name, options));
+        "Unknown argument '" + std::string(key) + "' for " + err_name() + "." +
+        hsp::str::find_closest(key, options));
 }
 
 /// Wheter return value is always constant.
@@ -402,8 +405,7 @@ void Function::assert_is_callable_explicitly() const
 ///////////////////////////////////  Function : set range  //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Functional range for lower bound and no upper bound.
-bool Function::init_range_min_(double min_val, bool is_min_open)
+bool Function::helper_init_range_min_(double min_val, bool is_min_open)
 {
     if (lower_.is_empty())
         throw std::runtime_error(
@@ -417,12 +419,11 @@ bool Function::init_range_min_(double min_val, bool is_min_open)
     if (old == min_val && upper_.is_empty())
         return false;
 
-    init_range_helper_(is_min_open ? old == min_val : false, false);
+    helper_init_standard_range_(is_min_open ? old == min_val : false, false);
     return true;
 }
 
-/// Set the range of validity of the value, and the corresponding validation function.
-void Function::init_range_helper_(bool is_min_open, bool is_max_open)
+void Function::helper_init_standard_range_(bool is_min_open, bool is_max_open)
 {
     if (lower_.is_empty())
         below_mode_ = Mode::Interval::None;
@@ -442,13 +443,10 @@ void Function::init_range_helper_(bool is_min_open, bool is_max_open)
     if (!lower_.is_callable() || !upper_.is_callable())
         return;
 
-    bool wrong_open = false, wrong_close = false;
-    if (is_min_open && is_max_open)
-        wrong_close = lower_.value() > upper_.value();
-    else if (!is_min_open && !is_max_open)
-        wrong_open = lower_.value() >= upper_.value();
-
-    if (wrong_open || wrong_close)
+    bool is_wrong = lower_.value() > upper_.value();
+    if (below_mode_ == Mode::Interval::Open && below_mode_ == above_mode_)
+        is_wrong = is_wrong || lower_.value() == upper_.value();
+    if (is_wrong)
         throw std::invalid_argument(
             "Generated an inconsistent range " + str_range() + " for " + err_name() + ".");
 }
@@ -483,21 +481,30 @@ std::string Function::str_range() const
 
     std::string output;
 
-    if (below_mode_ == Mode::Interval::Closed)
-        output = "[" + str_min;
-    else if (below_mode_ == Mode::Interval::Open)
+    switch (below_mode_)
+    {
+    case Mode::Interval::None:
+        output = "(-Inf";
+        break;
+    case Mode::Interval::Open:
         output = "(" + str_min;
-    else
-        output = "(-Inf,";
-
-    if (above_mode_ == Mode::Interval::Closed)
-        output += ", " + str_max + "]";
-    else if (above_mode_ == Mode::Interval::Open)
-        output += ", " + str_max + ")";
-    else
-        output += " Inf)";
-
-    return output;
+        break;
+    case Mode::Interval::Closed:
+        output = "[" + str_min;
+        break;
+    default:
+        __builtin_unreachable();
+    }
+    switch (above_mode_)
+    {
+    case Mode::Interval::None:
+        return output + ", Inf)";
+    case Mode::Interval::Open:
+        return output + ", " + str_max + ")";
+    case Mode::Interval::Closed:
+        return output + ", " + str_max + "]";
+    }
+    __builtin_unreachable();
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -568,7 +575,6 @@ namespace
     {
     public:
         std::string_view name() const noexcept override final { return "minus"; }
-        void init_truncation() override final {}
         bool is_discrete() const noexcept override final { return x_arg_.is_discrete(); }
 
     protected:
@@ -581,7 +587,6 @@ namespace
     public:
         Subtraction_() : Function({{"x2", hsp::na::DOUBLE}}) {}
         std::string_view name() const noexcept override final { return "sub"; }
-        void init_truncation() override final {}
         bool is_discrete() const noexcept override final { return arguments_[0].is_discrete() && x_arg_.is_discrete(); }
 
     protected:
@@ -594,7 +599,6 @@ namespace
     public:
         Division_() : Function({{"x2", hsp::na::DOUBLE}}) {}
         std::string_view name() const noexcept override final { return "div"; }
-        void init_truncation() override final {}
 
     protected:
         double raw_function_(double x) const override final { return x / arg(0); }
@@ -606,7 +610,6 @@ namespace
     public:
         Power_() : Function({{"x2", hsp::na::DOUBLE}}) {}
         std::string_view name() const noexcept override final { return "pow"; }
-        void init_truncation() override final { init_range_helper_(); }
         bool is_discrete() const noexcept override final { return Function::is_discrete() || (arguments_[0].is_discrete() && x_arg_.is_discrete()); }
 
     protected:
@@ -627,7 +630,7 @@ namespace
     public:
         SquareRoot_() : Function({}, 0.) {}
         std::string_view name() const noexcept override final { return "sqrt"; }
-        void init_truncation() override final { init_range_min_(); }
+        void init_truncation() override final { helper_init_range_min_(); }
 
     protected:
         double raw_function_(double x) const override final { return std::sqrt(x); }
@@ -641,7 +644,6 @@ namespace
     {
     public:
         std::string_view name() const noexcept override final { return "exp"; }
-        void init_truncation() override final { init_range_helper_(); }
 
     protected:
         double raw_function_(double x) const override final { return std::exp(x); }
@@ -656,7 +658,7 @@ namespace
     public:
         Logarithm_() : Function({}, 0.) { below_mode_ = Mode::Interval::Open; }
         std::string_view name() const noexcept override final { return "log"; }
-        void init_truncation() override final { init_range_min_(0., true); }
+        void init_truncation() override final { helper_init_range_min_(0., true); }
 
     protected:
         double raw_function_(double x) const override final { return std::log(x); }
@@ -670,7 +672,6 @@ namespace
     {
     public:
         std::string_view name() const noexcept override final { return "sin"; }
-        void init_truncation() override final { init_range_helper_(); }
 
     protected:
         double raw_function_(double x) const override final { return std::sin(x); }
@@ -684,7 +685,6 @@ namespace
     {
     public:
         std::string_view name() const noexcept override final { return "cos"; }
-        void init_truncation() override final { init_range_helper_(); }
 
     protected:
         double raw_function_(double x) const override final { return std::cos(x); }
@@ -698,7 +698,6 @@ namespace
     {
     public:
         std::string_view name() const noexcept override final { return "tan"; }
-        void init_truncation() override final { init_range_helper_(); }
 
     protected:
         double raw_function_(double x) const override final { return std::tan(x); }
@@ -714,8 +713,6 @@ namespace
     class VariadicFunction : public Function
     {
     public:
-        // UPDATE: this might change for future variadic functions
-        void init_truncation() override final {}
         bool is_discrete() const noexcept override final
         {
             if (!x_arg_.is_discrete())
@@ -729,19 +726,19 @@ namespace
     protected:
         /// Override the find argument method at assigment.
         /// If attribute doesn't exist at initialization, create it.
-        Attribute &find_arg_(std::string_view arg_name) override final
+        Attribute &find_arg_(std::string_view key) override final
         {
-            if (arg_name == "x")
+            if (key == "x")
                 return x_arg_;
-            if (arg_name == "loc")
+            if (key == "loc")
                 return loc_;
-            if (arg_name == "min")
+            if (key == "min")
                 return lower_;
-            if (arg_name == "max")
+            if (key == "max")
                 return upper_;
 
             for (Attribute &attr : arguments_)
-                if (!hsp::na::is(attr.name()) && attr.name() == arg_name)
+                if (!hsp::na::is(attr.name()) && attr.name() == key)
                     return attr;
 
             arguments_.emplace_back();
@@ -816,7 +813,7 @@ REGISTER_HOUSEPI_FUNCTION(Tangent_, TranscendentalRegistry)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Attribute::init_productory(const std::vector<const Attribute *> &other_ptrs)
+void Attribute::init_product(const std::vector<const Attribute *> &other_ptrs)
 {
     if (other_ptrs.size() == 1)
     {
