@@ -426,7 +426,7 @@ namespace
         }
         double raw_cdf_(double x) const override final
         {
-            return boost::math::ibeta(arg(0), arg(1), x);
+            return boost::math::ibeta<double>(arg(0), arg(1), x);
         }
         double raw_logpdf_(double x) const override final
         {
@@ -440,7 +440,7 @@ namespace
         }
         double raw_quantile_(double p) const override final
         {
-            return boost::math::quantile(boost::math::beta_distribution<>(arg(0), arg(1)), p);
+            return boost::math::quantile(boost::math::beta_distribution<double>(arg(0), arg(1)), p);
         }
         double raw_rand_(hsp::rnd_gen &prng) const override final
         {
@@ -484,7 +484,7 @@ namespace
         }
         double raw_quantile_(double p) const override final
         {
-            return boost::math::quantile(boost::math::gamma_distribution<>(arg(0), arg(1)), p);
+            return boost::math::quantile(boost::math::gamma_distribution<double>(arg(0), arg(1)), p);
         }
         double raw_rand_(hsp::rnd_gen &prng) const override final
         {
@@ -540,7 +540,7 @@ namespace
         {
             const double m = arg(0);
             const double v = arg(1);
-            return boost::math::quantile(boost::math::gamma_distribution<>(m * m / v, v / m), p);
+            return boost::math::quantile(boost::math::gamma_distribution<double>(m * m / v, v / m), p);
         }
         double raw_rand_(hsp::rnd_gen &prng) const override final
         {
@@ -729,7 +729,7 @@ namespace
         }
         double raw_quantile_(double p) const override final
         {
-            return boost::math::quantile(boost::math::poisson_distribution<>(arg(0)), p);
+            return boost::math::quantile(boost::math::poisson_distribution<double>(arg(0)), p);
         }
         double raw_rand_(hsp::rnd_gen &prng) const override final
         {
@@ -801,7 +801,7 @@ namespace
         }
         double raw_quantile_(double p) const override final
         {
-            return boost::math::quantile(boost::math::binomial_distribution<>(arg(0), arg(1)), p);
+            return boost::math::quantile(boost::math::binomial_distribution<double>(arg(0), arg(1)), p);
         }
         double raw_rand_(hsp::rnd_gen &prng) const override final
         {
@@ -847,7 +847,7 @@ namespace
         }
         double raw_quantile_(double p) const override final
         {
-            return boost::math::quantile(boost::math::negative_binomial_distribution<>(arg(0), arg(1)), p);
+            return boost::math::quantile(boost::math::negative_binomial_distribution<double>(arg(0), arg(1)), p);
         }
         double raw_rand_(hsp::rnd_gen &prng) const override final
         {
@@ -889,7 +889,7 @@ namespace
         }
         double raw_quantile_(double p) const override final
         {
-            return boost::math::quantile(boost::math::geometric_distribution<>(arg(0)), p);
+            return boost::math::quantile(boost::math::geometric_distribution<double>(arg(0)), p);
         }
         double raw_rand_(hsp::rnd_gen &prng) const override final
         {

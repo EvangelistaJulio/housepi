@@ -15,7 +15,7 @@
 #include "tools/messages.h"
 
 #include "contact_rate.h"
-#include "attribute.h"
+#include "function.h"
 #include "data_wide.h"
 #include "household.h"
 #include "individual.h"

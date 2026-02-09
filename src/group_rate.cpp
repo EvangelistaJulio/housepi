@@ -17,7 +17,7 @@
 #include "tools/types.h"
 
 #include "group_rate.h"
-#include "attribute.h"
+#include "function.h"
 #include "data_wide.h"
 #include "household.h"
 #include "individual.h"

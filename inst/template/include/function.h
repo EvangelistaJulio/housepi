@@ -17,7 +17,156 @@
 
 #include "tools/nan.h"
 
-#include "attribute.h"
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////// *** Attribute : class *** ///////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+class Function;
+
+/// Attribute parent class.
+class Attribute
+{
+protected:
+    enum class Mode : uint8_t
+    {
+        Empty,
+        Numeric,
+        Pointer,
+        Function
+    } mode_ = Mode::Empty;
+
+public:
+    ///////////////////////////
+    //////  CONSTRUCTOR  //////
+    ///////////////////////////
+
+    Attribute();
+    Attribute(double x) { init_numeric(x); }
+    virtual ~Attribute();
+
+    //////////////////////
+    //////  SETTER  //////
+    //////////////////////
+
+    /// Set attribute name.
+    void name(const std::string &name) { name_ = name; }
+    /// Set error type.
+    void set_err_type(const std::string &err_type) { err_type_ = err_type; }
+
+    /// Initialize attribute as numeric.
+    void init_numeric(double x);
+    /// Initialize attribute as pointer.
+    void init_pointer(const Attribute *y);
+    /// Initialize attribute as function.
+    void init_function(std::shared_ptr<Function> f);
+    /// Productory of pointed attributes values.
+    void init_product(const std::vector<const Attribute *> &other_ptrs);
+    /// Transfer from other Attribute.
+    void transfer(const Attribute &other);
+
+    /// Set attribute value.
+    void set(double x)
+    {
+        switch (mode_)
+        {
+        case Mode::Empty:
+            mode_ = Mode::Numeric;
+            value_ = x;
+            return;
+        case Mode::Numeric:
+            value_ = x;
+            return;
+        case Mode::Pointer:
+        case Mode::Function:
+            throw std::runtime_error(
+                "Tried to change non numeric " + err_name() + ".");
+        }
+        __builtin_unreachable();
+    }
+
+    //////////////////////
+    //////  GETTER  //////
+    //////////////////////
+
+    /// Get attribute numeric value.
+    double value() const;
+
+    /// Get pointer to attribute value.
+    const Attribute *pointer() const noexcept
+    {
+        switch (mode_)
+        {
+        case Mode::Empty:
+        case Mode::Numeric:
+            return this;
+        case Mode::Pointer:
+            return pAttr_->pointer();
+        case Mode::Function:
+            return this;
+        }
+        __builtin_unreachable();
+    }
+    /// Get pointer to attribute function.
+    /// FIXME: this should not be a constant method.
+    std::shared_ptr<Function> function() const noexcept
+    {
+        switch (mode_)
+        {
+        case Mode::Empty:
+        case Mode::Numeric:
+            return nullptr;
+        case Mode::Pointer:
+            return pAttr_->function();
+        case Mode::Function:
+            return pFunc_;
+        }
+        __builtin_unreachable();
+    }
+
+    /////////////////////
+    //////  FLAGS  //////
+    /////////////////////
+
+    /// Wheter it's constant.
+    bool is_constant() const noexcept;
+    /// Wheter it's discrete.
+    virtual bool is_discrete() const noexcept;
+
+    /// Wheter it has no definitions.
+    bool is_empty() const noexcept { return mode_ == Mode::Empty; }
+    /// Wheter it's a number.
+    bool is_numeric() const noexcept { return mode_ == Mode::Numeric; }
+    /// Wheter it's a pointer.
+    bool is_pointer() const noexcept { return mode_ == Mode::Pointer; }
+    /// Wheter it's a function.
+    bool is_function() const noexcept { return mode_ == Mode::Function; }
+
+    /// Wheter it's able to return.
+    bool is_callable() const noexcept;
+
+    ////////////////////
+    //////  SHOW  //////
+    ////////////////////
+
+    /// Get attribute name.
+    std::string_view name() const noexcept { return name_; }
+    /// Get attribute name to display in errors.
+    std::string err_name() const { return err_type_ + " '" + std::string(name()) + "'"; }
+    /// Get attribute value to display in errors.
+    std::string str_val() const;
+    /// Get a summary of the attribute.
+    virtual std::string str_summary() const;
+
+protected:
+    std::string err_type_ = "empty";            /// type name displayed in errors
+    std::string name_ = "";                     /// name of argument
+    bool is_user_const_ = false;                /// user flag for constant
+    double value_ = hsp::na::DOUBLE;            /// internal value
+    const Attribute *pAttr_ = nullptr;          /// pointer to attribute
+    std::shared_ptr<Function> pFunc_ = nullptr; /// pointer to function
+};
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -381,6 +530,24 @@ protected:
     /// Functional range for lower bound and no upper bound.
     bool helper_init_range_min_(double min_val = 0., bool is_min_open = false);
 };
+
+inline double Attribute::value() const
+{
+    switch (mode_)
+    {
+    case Mode::Empty:
+        throw std::runtime_error(
+            "Impossible to return value for " + err_name() + ".");
+    case Mode::Numeric:
+        return value_;
+    case Mode::Pointer:
+        return pAttr_->value();
+    case Mode::Function:
+        return pFunc_->evaluate();
+    default:
+        __builtin_unreachable();
+    }
+}
 
 /// Compose registries to get a function from them.
 std::unique_ptr<Function> compose_func_registries(std::string_view opt,

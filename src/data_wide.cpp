@@ -21,7 +21,7 @@
 #include "tools/types.h"
 
 #include "data_wide.h"
-#include "attribute.h"
+#include "function.h"
 #include "tools/data_reports.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -388,14 +388,12 @@ void DataWide::buffer_member_cache(Household &house, size_t i)
         house.buffer_dbl_vec_[e][i] = house.cache_dbl_vec_[e][i];
 
     for (size_t e = 0; e < house.cache_dbl_mtx_.size(); ++e)
-    {
-        std::copy(house.cache_dbl_mtx_[e][i].begin(),
-                  house.cache_dbl_mtx_[e][i].end(),
-                  house.buffer_dbl_mtx_[e][i].begin());
-
         for (size_t j = 0; j < house.size(); ++j)
-            house.buffer_dbl_mtx_[e][j][i] = house.cache_dbl_mtx_[e][j][i];
-    }
+        {
+            house.buffer_dbl_mtx_[e][i][j] = house.cache_dbl_mtx_[e][i][j];
+            if (i != j)
+                house.buffer_dbl_mtx_[e][j][i] = house.cache_dbl_mtx_[e][j][i];
+        }
 }
 
 void DataWide::recover_all_buffer(Household &house)

@@ -15,7 +15,7 @@
 #include "tools/random.h"
 #include "tools/types.h"
 
-#include "attribute.h"
+#include "function.h"
 #include "variable.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////

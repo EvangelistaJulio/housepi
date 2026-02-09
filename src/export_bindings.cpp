@@ -22,7 +22,6 @@
 
 #include "mcmc.h"
 #include "mcmc_impl.h"
-#include "attribute.h"
 #include "augmented.h"
 #include "data_wide.h"
 #include "data_long.h"

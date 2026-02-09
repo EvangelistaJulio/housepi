@@ -37,6 +37,10 @@ CXXFLAGS += -g3 -O0 \
 -D_GLIBCXX_DEBUG \
 -D_GLIBCXX_DEBUG_PEDANTIC \
 -fno-inline
+else ifdef PROFILE
+CXXFLAGS += -g -O3 \
+-fno-omit-frame-pointer \
+-DNDEBUG 
 else
 CXXFLAGS += -g -O2
 endif
@@ -88,9 +92,13 @@ clean:
 	$(RM) main.o {$(MODEL),$(SRC),../models/*}/*.{o,exe,so,tmp}
 	$(RM) -r ../template/src/
 
-# Run make in debugging mode using standard housepi files
+# Run make in debugging mode
 debug:
 	$(MAKE) DEBUG=1
+
+# Run make in profiling mode
+profile:
+	$(MAKE) PROFILE=1
 
 # Test log-likelihood evaluation 
 test-log-lik:

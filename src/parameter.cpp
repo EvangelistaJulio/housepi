@@ -21,7 +21,6 @@
 #include "tools/types.h"
 
 #include "parameter.h"
-#include "attribute.h"
 #include "data_wide.h"
 #include "function.h"
 #include "group_rate.h"
