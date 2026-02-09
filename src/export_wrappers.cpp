@@ -13,10 +13,10 @@
 #include "tools/messages.h"
 #include "tools/nan.h"
 
-#include "function.h"
-#include "distribution.h"
-#include "mcmc.h"
 #include "model.h"
+#include "mcmc.h"
+#include "distribution.h"
+#include "function.h"
 
 #include <Rcpp.h>
 
@@ -296,7 +296,7 @@ RCPP_MODULE(housepi_infec_profile)
 //' @field import_infec_profile Import infectivity profile definition from R List.
 //' @field import_augm Import augmented variable definitions from R Data.Frame.
 //' @field import_param_for_prediction Import parameter tables for expected measures estimation.
-//' @field build_all_rates Assign all contact and group rates.
+//' @field build_contact_rates Assign all contact rates.
 //' @field export_setup Return a List with current setup.
 //' @field export_infec_profile Return a List with infectivity profile.
 //' @field export_data_wide Return a DataFrame with current database.
@@ -327,7 +327,7 @@ RCPP_MODULE(housepi_model_core)
         .method("import_infec_profile", &MCMC::import_infec_profile)
         .method("import_augm", &MCMC::import_augm)
         .method("import_param_for_prediction", &MCMC::import_param_for_prediction)
-        .method("build_all_rates", &MCMC::build_all_rates)
+        .method("build_contact_rates", &MCMC::build_contact_rates)
         .method("export_data_wide", &MCMC::export_data_wide)
         .method("export_data_long", &MCMC::export_data_long)
         .method("summarise_cases", &MCMC::summarise_cases)

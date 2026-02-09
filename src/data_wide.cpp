@@ -6,7 +6,6 @@
  */
 
 #include <algorithm>
-#include <chrono>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -17,219 +16,13 @@
 #include "tools/nan.h"
 #include "tools/openmp.h"
 #include "tools/operators.h"
-#include "tools/progress.h"
 #include "tools/read.h"
 #include "tools/string.h"
 #include "tools/types.h"
 
+#include "data_wide.h"
 #include "attribute.h"
-#include "data.h"
-#include "data_reports.h"
-
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  *** Setup : struct ***  ////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-
-Setup::Setup()
-    : unif_(0., 1.),
-      progressbar_(std::make_unique<hsp::progress::Bar>()) {}
-Setup::~Setup() = default;
-
-void Setup::build(const hsp::str_table &input)
-{
-    const auto time_raw = std::chrono::steady_clock::now().time_since_epoch().count();
-    // ensure time_now is 64bit
-    const auto time_now = static_cast<std::uint64_t>(time_raw);
-    // xor between upper and lower part of time stamp
-    const std::uint64_t mixed = time_now ^ (time_now >> 32);
-    // default seed for pseudo random number generator
-    // note: constrain to 32bit for compatibility with R (mask sign bit)
-    seed = static_cast<std::int32_t>(mixed & 0x7FFFFFFF);
-
-    chain = 1;        // current chain
-    rung = 0;         // current thermodynamic rung
-    id_draws.clear(); // drop previous id
-
-    if (!input.empty())
-    {
-        // check no multiple entries if internal error
-        if (hsp::read::csv_n_rows(input) != 1)
-            throw std::runtime_error(
-                "Internal error: multiple entries found in MCMC setup definition.");
-
-        // check entries
-        const std::vector<std::string> &headers = hsp::read::extract_keys(input);
-        hsp::str::assert_no_unused_entries(headers, file_headers);
-
-        // Random Initialization of Parameters
-        if (input.count("progress") && !hsp::na::is(input.at("progress")[0]))
-            progress = hsp::str::toul(input.at("progress")[0]);
-
-        // N. of Threads
-        if (input.count("threads") && !hsp::na::is(input.at("threads")[0]))
-            n_threads = hsp::str::toi(input.at("threads")[0], "threads");
-
-        // PRNG Seed
-        if (input.count("seed") && !hsp::na::is(input.at("seed")[0]))
-            seed = hsp::str::toi32(input.at("seed")[0], "seed");
-
-        // N. of Chains
-        if (input.count("chains") && !hsp::na::is(input.at("chains")[0]))
-            n_chains = hsp::str::toul(input.at("chains")[0], "chains");
-
-        // N. of Steps
-        if (input.count("steps") && !hsp::na::is(input.at("steps")[0]))
-            n_steps = hsp::str::toul(input.at("steps")[0], "steps");
-
-        // N. of Adaptive Steps
-        if (input.count("adapt") && !hsp::na::is(input.at("adapt")[0]))
-            n_adapt = hsp::str::toul(input.at("adapt")[0], "adpat");
-
-        // N. of Thinning Steps
-        if (input.count("thin") && !hsp::na::is(input.at("thin")[0]))
-            n_thin = hsp::str::toul(input.at("thin")[0], "thin");
-
-        // N. of Steps to "Burn-In"
-        if (input.count("burnin") && !hsp::na::is(input.at("burnin")[0]))
-            n_burnin = hsp::str::toul(input.at("burnin")[0], "burnin");
-
-        // Individual ID for Augmented Trace
-        if (input.count("id_draws") && !hsp::na::is(input.at("id_draws")[0]))
-            id_draws = hsp::read::parse_list(input.at("id_draws")[0]);
-    }
-
-    set_n_threads(); // define number of threads
-    set_prng_seed(); // pseudo-random number generator seeding
-}
-
-/// Set the number of threads for parrell computations (default is 1).
-void Setup::set_n_threads()
-{
-    if (n_threads == 0)
-        throw std::invalid_argument(
-            "N. of threads was not greater than 0.");
-
-#ifdef _OPENMP
-    unsigned int max_threads = omp_get_num_procs();
-
-    if (n_threads > max_threads)
-    {
-        hsp::msg::warning(
-            "N. of threads reduced to " + std::to_string(max_threads) + " available threads.");
-        n_threads = max_threads;
-    }
-
-    // declare the global number of omp threads
-    omp_set_num_threads(n_threads);
-
-#else
-    if (n_threads != 1)
-        hsp::msg::warning(
-            "Multi-threading was disabled. OpenMP is not supported on current machine.");
-
-    n_threads = 1;
-#endif
-}
-
-/// Assign seed for random generators.
-/// Concomitantely create different generators for different parallel threads
-void Setup::set_prng_seed()
-{
-    hsp::rnd_gen aux_prng;
-    aux_prng.seed(seed);
-    std::uniform_int_distribution<unsigned long> seed_generator(0, 0XFFFFFFFF);
-
-    prng_parallel_.resize(n_threads);
-    for (unsigned n = 0; n < n_threads; ++n)
-        prng_parallel_[n].seed(seed_generator(aux_prng));
-}
-
-/// Return pseudo random number generator.
-hsp::rnd_gen &Setup::prng()
-{
-#ifdef _OPENMP
-    return prng_parallel_[omp_get_thread_num()];
-#else
-    return prng_parallel_[0];
-#endif
-}
-
-void Setup::assert_mcmc_setup()
-{
-    if (inv_T < 0. || inv_T > 1.)
-        throw std::range_error(
-            "Inverse temperature " + std::to_string(inv_T) + " was out of range [0, 1].");
-
-    if (n_chains < 1)
-        throw std::out_of_range(
-            "Number of chains was not greater than 0.");
-
-    // Interpret thinning equal to 0 has been interpreted as 1.
-    if (n_thin == 0)
-        n_thin = 1;
-
-    if (n_steps < 1)
-        throw std::out_of_range(
-            "N. of steps was not greater than 0.");
-    if (n_burnin >= n_steps)
-        throw std::out_of_range(
-            "Burn-in must was not smaller than n. of steps.");
-    if (n_thin > n_steps)
-        throw std::out_of_range(
-            "Thinning was not be smaller than (or equal to) n. of steps. ");
-
-    c_sample_size = (n_steps - n_burnin) / n_thin;
-    // adjust steps and sample size
-    c_sample_size += (n_steps - n_burnin) % n_thin > 0;
-    n_steps = n_burnin + c_sample_size * n_thin;
-
-    if (c_sample_size == 0)
-        throw std::out_of_range(
-            "Choice of steps, burn-in and thin generated an empty sample.");
-
-    // assign number of sweeps
-    // NOTE: because of rounding I can't put all in the same line
-    c_n_sweeps = n_adapt / n_thin;
-    c_n_sweeps += n_burnin / n_thin;
-    c_n_sweeps += c_sample_size;
-}
-
-// Drop adaptation steps.
-void Setup::drop_mcmc_adapt()
-{
-    if (n_adapt > 0)
-        hsp::msg::warning(
-            "Dropped adaptation steps: no parametric MCMC proposals were found.");
-    n_adapt = 0;
-
-    // re-assign number of sweeps
-    c_n_sweeps = n_burnin / n_thin;
-    c_n_sweeps += c_sample_size;
-}
-
-/// The text to print in the Markov chian progress bar.
-std::string Setup::fmt_progtxt()
-{
-    if (is_power_post())
-        return "power post " + std::to_string(rung) + "/" + std::to_string(n_rungs);
-    if (n_chains > 1)
-        return "sample " + std::to_string(chain) + "/" + std::to_string(n_chains);
-    return "sample";
-}
-
-void Setup::prog_declare(const std::string &text)
-{
-    prog_set_text(text);
-    progressbar_->set_thintime(progress);
-}
-void Setup::prog_set_text(const std::string &text) { progressbar_->set_text(hsp::na::is(text) ? fmt_progtxt() : text); }
-void Setup::prog_open_for_inference() { progressbar_->open(c_n_sweeps * n_chains); }
-void Setup::prog_open_for_power_post() { progressbar_->open(c_n_sweeps * n_chains * (n_rungs + 1)); }
-void Setup::prog_update() { progressbar_->update(); }
-void Setup::prog_close() { progressbar_->close(); }
-void Setup::prog_crash() { progressbar_->crash(); }
+#include "tools/data_reports.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -248,20 +41,11 @@ void Household::init_member(size_t index,
 
     // update status lists within the household
     if (members_.back().is_infected_status())
-        infected_list_.push_back(hhindex);
+        infected_list_.emplace(hhindex);
     else if (members_.back().is_healthy_status())
-        healthy_list_.push_back(hhindex);
+        healthy_list_.emplace(hhindex);
     else
-        missing_list_.push_back(hhindex);
-}
-
-void Household::set_infected_status(Individual &member, int new_status)
-{
-    if (!hsp::status::is_infected(new_status))
-        throw std::invalid_argument(
-            "Tried to set as infected status " + std::to_string(new_status) +
-            " to " + err_name() + ".\nInfected status must be an integer greater than 0.");
-    helper_set_status_(member, new_status);
+        missing_list_.emplace(hhindex);
 }
 
 /// Change_status of individual i to new status (without controls).
@@ -274,19 +58,19 @@ void Household::helper_set_status_(Individual &member, int new_status)
     size_t i = member.hhindex(); // get within house index
 
     if (member.is_infected_status())
-        infected_list_.erase(std::find(infected_list_.begin(), infected_list_.end(), i));
+        infected_list_.erase(i);
     else if (member.is_healthy_status())
-        healthy_list_.erase(std::find(healthy_list_.begin(), healthy_list_.end(), i));
+        healthy_list_.erase(i);
     else
-        missing_list_.erase(std::find(missing_list_.begin(), missing_list_.end(), i));
+        missing_list_.erase(i);
 
     member.status_ = new_status; // change member status
     if (member.is_infected_status())
-        infected_list_.push_back(i);
+        infected_list_.emplace(i);
     else if (member.is_healthy_status())
-        healthy_list_.push_back(i);
+        healthy_list_.emplace(i);
     else
-        missing_list_.push_back(i);
+        missing_list_.emplace(i);
 }
 
 /// Associate a pointer to parameter value for the contact from->to.
@@ -314,26 +98,8 @@ DataWide::DataWide(
       p_size_Registry(std::make_unique<hsp::key::Registry>(size_keys)),
       p_size_vec_Registry(std::make_unique<hsp::key::Registry>(size_vec_keys)),
       p_double_vec_Registry(std::make_unique<hsp::key::Registry>(double_vec_keys)),
-      p_double_mtx_Registry(std::make_unique<hsp::key::Registry>(double_mtx_keys)),
-      report_indiv(std::make_unique<ReportIndividual>()),
-      report_house(std::make_unique<ReportHousehold>()),
-      report_hh_size(std::make_unique<ReportHouseSizes>()) {}
+      p_double_mtx_Registry(std::make_unique<hsp::key::Registry>(double_mtx_keys)) {}
 DataWide::~DataWide() = default;
-
-/// Assert data_wide is not empty.
-void DataWide::assert_non_empty()
-{
-    if (report_house->total == 0)
-        throw std::length_error(
-            "Unable to proceed: no data was found.");
-}
-/// Warn if all individuals have missing status.
-void DataWide::warn_all_missing_status()
-{
-    if (report_indiv->total == report_indiv->missing)
-        hsp::msg::warning(
-            "All individuals in the data had missing status.");
-}
 
 /// Assign data after pre-processing.
 void DataWide::build(const hsp::str_table &input)
@@ -349,10 +115,10 @@ void DataWide::build(const hsp::str_table &input)
 
     helper_build_clear_data_();        // drop previous data and lists
     helper_build_data_headers_(input); // extract headers
-    report_indiv->total = hsp::read::csv_n_rows(input);
+    report_indiv.total = hsp::read::csv_n_rows(input);
 
     // store households
-    for (size_t i = 0; i < report_indiv->total; ++i)
+    for (size_t i = 0; i < report_indiv.total; ++i)
     {
         std::string id = std::to_string(i + 1);                          // default id
         std::string house_id = std::to_string(house_vector_.size() + 1); // default house_id
@@ -422,9 +188,9 @@ void DataWide::helper_build_clear_data_()
     house_vector_.clear();
     hhid_to_index_.clear();
     all_infected_statuses.clear();
-    report_indiv = std::make_unique<ReportIndividual>();
-    report_house = std::make_unique<ReportHousehold>();
-    report_hh_size = std::make_unique<ReportHouseSizes>();
+    report_indiv = ReportIndividual();
+    report_house = ReportHousehold();
+    report_hh_size = ReportHouseSizes();
 }
 
 /// Assert that data headers are correct.
@@ -456,7 +222,7 @@ void DataWide::helper_build_data_headers_(const hsp::str_table &input)
 /// Use the loaded data to fill-in the respective report.
 void DataWide::build_helper_fill_report_data_()
 {
-    report_house->total = house_vector_.size();
+    report_house.total = house_vector_.size();
 
     // set report counts
     for (const Household &house : house_vector_)
@@ -471,13 +237,13 @@ void DataWide::build_helper_fill_report_data_()
         size_t n_miss = house.n_missing_status();
         size_t n_susc = house.n_susceptible_status();
 
-        report_indiv->infectious += n_infec;
-        report_indiv->missing += n_miss;
-        report_indiv->susceptible += n_susc;
+        report_indiv.infectious += n_infec;
+        report_indiv.missing += n_miss;
+        report_indiv.susceptible += n_susc;
 
-        report_house->no_cases += (n_infec == 0);
-        report_house->at_least_1_case += (n_infec > 0);
-        report_house->at_least_2_cases += (n_infec > 1);
+        report_house.no_cases += (n_infec == 0);
+        report_house.at_least_1_case += (n_infec > 0);
+        report_house.at_least_2_cases += (n_infec > 1);
 
 #define UPDATE_REPORT_SIZE(Report, Value, Symbol) \
     if (Report.first Symbol Value)                \
@@ -489,13 +255,13 @@ void DataWide::build_helper_fill_report_data_()
         ++Report.second;
 
         // max number of house cases
-        UPDATE_REPORT_SIZE(report_hh_size->max_cases, n_infec, <);
+        UPDATE_REPORT_SIZE(report_hh_size.max_cases, n_infec, <);
         // max number of missing status
-        UPDATE_REPORT_SIZE(report_hh_size->max_miss, n_miss, <);
+        UPDATE_REPORT_SIZE(report_hh_size.max_miss, n_miss, <);
         // minimum house number of members
-        UPDATE_REPORT_SIZE(report_hh_size->min_size, house_size, >);
+        UPDATE_REPORT_SIZE(report_hh_size.min_size, house_size, >);
         // maximum house number of members
-        UPDATE_REPORT_SIZE(report_hh_size->max_cases, house_size, <);
+        UPDATE_REPORT_SIZE(report_hh_size.max_cases, house_size, <);
     }
 }
 
@@ -504,7 +270,7 @@ void DataWide::build_helper_fill_report_data_()
 void DataWide::multiplicity_build(const hsp::str_table &input, bool is_any_augm)
 {
     head_class_house_indexes.clear();
-    size_t n_houses = report_house->total;
+    size_t n_houses = report_house.total;
     if (is_any_augm || input.size() == 0)
     {
         // note: multiplicities are not compatible with data augmentation
@@ -713,101 +479,4 @@ void DataWide::store_draws(unsigned long smpl_count)
             x += house.member(i).augm_log_lik_.value();
         smpl_values[R][smpl_count] = x;
     }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  MCMC : Impl : DataLong : build  ////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-DataLong::DataLong(const std::vector<std::string> &keys,
-                   DataWide *ptr)
-    : pRegistry(std::make_unique<hsp::key::Registry>(keys)),
-      pDataWide_(ptr) {}
-DataLong::~DataLong() = default;
-
-/// Assign data after pre-processing.
-void DataLong::build(const hsp::str_table &input)
-{
-    pRegistry->clear();
-
-    if (input.empty())
-        return;
-
-    helper_build_clear_data_();
-    helper_build_data_headers_(input);
-
-    // data-long allocation
-    size_t n_indiv = pDataWide_->report_indiv->total;
-    indiv_datalist.resize(n_indiv);
-
-    // individual map for id -> index
-    hsp::dict<size_t> id_to_index = {};
-    size_t c = 0;
-    for (const Household &house : *pDataWide_)
-        for (const Individual &member : house)
-            id_to_index.emplace(member.id(), c++);
-
-    // load individual data list
-    size_t n_rows = hsp::read::csv_n_rows(input);
-    for (size_t r = 0; r < n_rows; ++r)
-    {
-        const std::string &id = input.at("id")[r];
-        if (hsp::na::is(id))
-            throw std::invalid_argument(
-                "Invalid id found in row n." + std::to_string(r + 2) + ".");
-        // UPDATE: these errors should be more self-explicative
-        if (!id_to_index.count(id))
-            throw std::invalid_argument(
-                "Id '" + id + "' from data long format had no match in loaded data wide format.");
-
-        // append (since vector is initialized to empty)
-        auto &idat = indiv_datalist[id_to_index.at(id)];
-        idat.resize(pRegistry->size());
-        for (size_t d = 0; d < pRegistry->size(); ++d)
-        {
-            const std::string &datastring = pRegistry->as_string(d);
-            idat[d].emplace_back(
-                hsp::str::tod(input.at(datastring)[r], "data long format '" + datastring + "'"));
-        }
-    }
-
-    // assign pointers to relative data-long to all individuals
-    c = 0;
-    for (Household &house : *pDataWide_)
-        for (Individual &member : house)
-            member.pdatalong_ = &indiv_datalist.at(c++);
-}
-
-/// Assign data after pre-processing.
-void DataLong::helper_build_clear_data_()
-{
-    // data sequence headers
-    headers.clear();
-    indiv_datalist.clear();
-}
-
-/// Assert that data headers are correct.
-void DataLong::helper_build_data_headers_(const hsp::str_table &input)
-{
-    if (pDataWide_->is_empty())
-        throw std::invalid_argument(
-            "Tried to define data long format before wide format.");
-
-    headers = hsp::read::extract_keys(input);
-    // check for individual IDs
-    if (std::find(headers.begin(), headers.end(), "id") == headers.end())
-        throw std::invalid_argument(
-            "Individual identifier column 'id' was missing.");
-    // remove 'id'
-    headers = headers - std::vector<std::string>({"id"});
-
-    // pedantic check for declared data keys
-    hsp::str::assert_no_missing_entries(headers, pRegistry->get_all());
-
-    // add optional keys to registry
-    for (const std::string &datastring : headers)
-        if (!pRegistry->count(datastring))
-            pRegistry->add(datastring);
 }

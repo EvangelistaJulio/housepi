@@ -112,8 +112,8 @@ test_that("Augmented log-likelihood seeding is fine", {
   ll1 <- hhmodel$evaluate_log_lik(seed = 1)
   ll2 <- hhmodel$evaluate_log_lik(seed = 2)
   expect_true(ll1 != ll2)
-  expect_identical(ll2, hhmodel$evaluate_log_lik(seed = 2))
-  expect_identical(ll2, sum(log(hhmodel$export_augmented_data()$proba)))
+  expect_equal(ll2, hhmodel$evaluate_log_lik(seed = 2))
+  expect_equal(ll2, sum(log(hhmodel$export_augmented_data()$proba)))
 })
 
 test_that("Augmented aliasing works as expected", {

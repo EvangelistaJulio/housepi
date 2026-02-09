@@ -20,16 +20,16 @@
 #include "tools/read.h"
 #include "tools/types.h"
 
+#include "mcmc.h"
+#include "mcmc_impl.h"
 #include "attribute.h"
 #include "augmented.h"
-#include "data.h"
-#include "data_reports.h"
+#include "data_wide.h"
+#include "data_long.h"
 #include "distribution.h"
 #include "function.h"
 #include "group_rate.h"
 #include "infec_profile.h"
-#include "mcmc_impl.h"
-#include "mcmc.h"
 #include "parameter.h"
 #include "variable.h"
 
@@ -229,7 +229,7 @@ Rcpp::DataFrame MCMC::export_augmented_data_wide() const
     const Augmented &augm = pImpl_->augm;
 
     size_t n_cols = augm.list_export.size();
-    size_t n_rows = pImpl_->data_wide.report_indiv->total;
+    size_t n_rows = pImpl_->data_wide.report_indiv.total;
 
     IntegerVector status_col(n_rows);
     std::vector<NumericVector> augm_cols(n_cols);
@@ -269,7 +269,7 @@ Rcpp::DataFrame helper_export_data_wide(const DataWide &data_wide,
         if (data_wide.is_empty())
             return DataFrame();
 
-        size_t n_rows = data_wide.report_indiv->total;
+        size_t n_rows = data_wide.report_indiv.total;
         CharacterVector df_id = CharacterVector(n_rows);
         CharacterVector df_house_id = CharacterVector(n_rows);
         IntegerVector df_status = IntegerVector(n_rows);
@@ -390,8 +390,8 @@ Rcpp::DataFrame MCMC::export_data_long() const
 Rcpp::DataFrame MCMC::summarise_cases() const
 {
     using namespace Rcpp;
-    const ReportIndividual &report_indiv = *pImpl_->data_wide.report_indiv;
-    const ReportHousehold &report_house = *pImpl_->data_wide.report_house;
+    const ReportIndividual &report_indiv = pImpl_->data_wide.report_indiv;
+    const ReportHousehold &report_house = pImpl_->data_wide.report_house;
 
     try
     {
@@ -449,8 +449,8 @@ Rcpp::DataFrame MCMC::summarise_cases() const
 Rcpp::DataFrame MCMC::summarise_house_sizes() const
 {
     using namespace Rcpp;
-    const ReportIndividual &report_indiv = *pImpl_->data_wide.report_indiv;
-    const ReportHouseSizes &report_hh_size = *pImpl_->data_wide.report_hh_size;
+    const ReportIndividual &report_indiv = pImpl_->data_wide.report_indiv;
+    const ReportHouseSizes &report_hh_size = pImpl_->data_wide.report_hh_size;
 
     try
     {
@@ -628,7 +628,7 @@ Rcpp::NumericMatrix MCMC::flush_house_log_lik_draws()
             return NumericMatrix();
 
         // create a NumericMatrix with n_house columns
-        size_t n_houses = data_wide.report_house->total;
+        size_t n_houses = data_wide.report_house.total;
         NumericMatrix output(pImpl_->tot_log_lik.count(), n_houses);
         CharacterVector headers(n_houses);
 
@@ -979,7 +979,7 @@ Rcpp::DataFrame MCMC::helper_simulate_single_repetition()
     try
     {
         size_t n_cols = augm.list_export.size();
-        size_t n_rows = data_wide.report_indiv->total;
+        size_t n_rows = data_wide.report_indiv.total;
 
         IntegerVector df_status(n_rows);
 

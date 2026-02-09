@@ -15,6 +15,7 @@
 
 #include "tools/types.h"
 
+#include "tools/data_reports.h"
 #include "household.h"
 
 namespace hsp::rates
@@ -24,74 +25,6 @@ namespace hsp::rates
     constexpr const char *CONTACT = ".contact";      /// Contanct rate.
     constexpr double VALUE_REFERENCE = 1.0;          /// Alias for reference value.
 }
-
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  *** Setup : struct ***  ////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-
-namespace hsp::progress
-{
-    class Bar;
-}
-
-struct Setup
-{
-    Setup();
-    ~Setup();
-
-    const std::vector<std::string> file_headers = {"steps", "burnin", "thin",
-                                                   "adapt", "chains", "threads",
-                                                   "id_draws", "seed", "progress"};
-
-    unsigned long n_steps = 1;  /// n. iterations
-    unsigned long n_burnin = 0; /// n. burnin iterations
-    unsigned long n_thin = 1;   /// n. thinning iterations
-    unsigned long n_adapt = 0;  /// n. (finite) adaptive steps
-    unsigned long n_chains = 1; /// n. chains
-    unsigned n_threads = 1;     /// n. of OMP threads
-    std::int32_t seed;          /// random generator seed
-    unsigned long progress = 1; /// thinning seconds for progress bar
-    unsigned long n_rungs = 0;  /// n. of rungs
-
-    unsigned long c_sample_size = 0;        /// single chain sample size
-    unsigned long c_n_sweeps = 0;           /// single chain n. of sweeps
-    double inv_T = 1.;                      /// inverse temperature
-    std::vector<std::string> id_draws = {}; /// augmented trace to save
-
-    unsigned long chain = 1; /// current MCMC chain
-    unsigned long rung = 0;  /// current MCMC thermodynamic rung
-
-    bool is_power_post() const { return n_rungs > 0; }
-    std::string fmt_progtxt();
-
-    void set_n_threads();
-    void build(const hsp::str_table &input);
-    void assert_mcmc_setup();
-    void drop_mcmc_adapt();
-
-    // progress bar
-    void prog_declare(const std::string &text = "");
-    void prog_set_text(const std::string &text = "");
-    void prog_open_for_inference();
-    void prog_open_for_power_post();
-    void prog_update();
-    void prog_close();
-    void prog_crash();
-
-    /// Set seed for pseudo random number generator.
-    void set_prng_seed();
-    /// Return pseudo random number generator.
-    hsp::rnd_gen &prng();
-    /// Sample a uniform distributed variable between 0 and 1.
-    double unif() { return unif_(prng()); }
-
-private:
-    std::vector<hsp::rnd_gen> prng_parallel_ = {};    // pseudo-random number generators
-    std::uniform_real_distribution<double> unif_;     // uniform sampler
-    std::unique_ptr<hsp::progress::Bar> progressbar_; // progress bar
-};
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -121,9 +54,9 @@ struct DataWide
     std::vector<std::vector<double>> smpl_values = {};
     std::vector<size_t> head_class_house_indexes = {};
 
-    std::unique_ptr<ReportIndividual> report_indiv;
-    std::unique_ptr<ReportHousehold> report_house;
-    std::unique_ptr<ReportHouseSizes> report_hh_size;
+    ReportIndividual report_indiv;
+    ReportHousehold report_house;
+    ReportHouseSizes report_hh_size;
 
     ///////////////////////////
     //////  CONSTRUCTOR  //////
@@ -167,12 +100,32 @@ struct DataWide
     //////  FLAGS  //////
     /////////////////////
 
+    /// Assert data_wide is not empty.
+    void assert_non_empty()
+    {
+        if (report_house.total == 0)
+            throw std::length_error(
+                "Unable to proceed: no data was found.");
+    }
+    /// Assert that not all individuals have missing status.
+    void assert_not_all_missing_status()
+    {
+        if (report_indiv.total == report_indiv.missing)
+            throw std::length_error(
+                "All individuals in the data had missing status.");
+    }
+
+    void assert_no_missing_status() const
+    {
+        if (report_indiv.missing > 0)
+            throw std::length_error(
+                "Individual with missing status are incompatible with current model.");
+    }
+
+    size_t get_max_hh_cases() const noexcept { return report_hh_size.max_cases.first; }
+
     /// Wheter data have been provided.
     bool is_empty() const noexcept { return house_vector_.empty(); }
-    /// Assert data_wide is not empty.
-    void assert_non_empty();
-    /// Warn if all individuals have missing status.
-    void warn_all_missing_status();
 
     /////////////////////////
     //////  ITERATORS  //////
@@ -197,33 +150,4 @@ private:
     void helper_build_data_headers_(const hsp::str_table &input);
     /// Use the loaded data to fill-in the respective report.
     void build_helper_fill_report_data_();
-};
-
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  *** DataLong : struct ***  ///////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-
-struct DataLong
-{
-public:
-    std::unique_ptr<hsp::key::Registry> pRegistry; /// pointer to registry
-
-    std::vector<std::string> headers = {};
-    std::vector<std::vector<std::vector<double>>> indiv_datalist = {};
-
-    DataLong(const std::vector<std::string> &keys,
-             DataWide *ptr);
-    ~DataLong();
-
-    void build(const hsp::str_table &input);
-
-private:
-    DataWide *pDataWide_; // pointer to external DataWide struct
-
-    /// Clear previous data report.
-    void helper_build_clear_data_();
-    /// Assert that data headers are correct.
-    void helper_build_data_headers_(const hsp::str_table &input);
 };

@@ -8,6 +8,7 @@
 #pragma once
 
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "tools/parser.h" // UPDATE: this shouldn't be public

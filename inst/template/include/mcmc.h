@@ -11,9 +11,11 @@
 #include <string>
 #include <string_view>
 #include <utility>
-#include <unordered_map>
 #include <vector>
 
+#include "tools/types.h"
+
+/// UPDATE: to be redesigned to improve dependency on Rcpp here.
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
 #endif
@@ -28,7 +30,6 @@ class Individual;
 class Household;
 class MCMCImpl;
 
-/// UPDATE: to be redesigned to drop dependency on Rcpp here.
 class MCMC
 {
 public:
@@ -48,7 +49,7 @@ public:
 	virtual ~MCMC();
 
 	/// Virtual method for user initialization of advanced setup.
-	virtual void init_advanced_setup() { }
+	virtual void init_advanced_setup() {}
 
 	/// Uniform distributed in [0, 1) rand number generator.
 	double uniform();
@@ -66,11 +67,11 @@ public:
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
 	/// UPDATE: also contact rates should just be imported
-	void build_all_rates();
-	/// Auxiliary wrapper to emplace_back */
-	void emplace_contact_rate(std::string p) noexcept { pair_contact_rate_ = p; }
+	void build_contact_rates();
+
 	/// Assign the contact patterns between a couple of individuals.
-	virtual void init_house_contact_rates(Household &, const Individual &, const Individual &) {}
+	/// UPDATE: this will be dropped in favor of table definition.
+	virtual std::string init_contact_rates(Household &, const Individual &, const Individual &) { return ""; }
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////  MCMC : parameters  ////////////////////////////////////
@@ -92,10 +93,10 @@ public:
 	///////////////////////////////  MCMC : infectivity profile  ////////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
-	void init_infec_profile_template(std::vector<std::pair<std::string, std::string>> x);
+	void init_infec_profile_template(hsp::dict<std::string> x);
 	double infec_profile_inst(const Individual &member, double t) const;
 	double infec_profile_cumul(const Individual &member, double t) const;
-	void request_infec_profile_discrete();
+	void request_discrete_infec_profile();
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////  MCMC : inference //////////////////////////////////////
@@ -103,7 +104,7 @@ public:
 
 	/// Inference specific initialization (e. g. cache variables, lookup tables, etc).
 	virtual void init_model_for_evaluation() {}
-	/// Inference specific initialization for each household. 
+	/// Inference specific initialization for each household.
 	/// NOTE: it's run right after 'init_model_for_evaluation'.
 	virtual void init_house_for_evaluation(Household &) {}
 	void run_inference();
@@ -116,6 +117,8 @@ public:
 	virtual void update_cache_dependecies(Household &, Individual &) {}
 	/// Compute the log-likelihood for a single household.
 	virtual double compute_house_obs_log_lik(Household &) = 0;
+
+	/// Initialize model and evaluate log-likelihood.
 	double evaluate_log_lik(std::string_view house_id = "");
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
@@ -200,10 +203,4 @@ public:
 
 private:
 	std::unique_ptr<MCMCImpl> pImpl_;
-
-	/// Contact Rateas
-	/// UPDATE: this should be dropped in favour of table definitions
-	std::string pair_contact_rate_;
-
-	void init_contact_rates_(Household &house);
 };

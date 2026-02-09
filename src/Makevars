@@ -10,16 +10,23 @@ PKG_LIBS = \
 
 COMMON_SOURCES = \
 	RcppExports.cpp \
+	attribute.cpp \
 	augmented.cpp \
 	binomial.cpp \
-	build.cpp \
-	data.cpp \
+	contact_rate.cpp \
+	data_long.cpp \
+	data_wide.cpp \
 	distribution.cpp \
 	export_bindings.cpp \
 	export_wrappers.cpp \
 	flags.cpp \
 	function.cpp \
+	group_rate.cpp \
+	infec_profile.cpp \
 	mcmc.cpp \
+	mcmc_impl.cpp \
+	parameter.cpp \
+	setup.cpp \
 	tools.cpp \
 	variable.cpp 
 

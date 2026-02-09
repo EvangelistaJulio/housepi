@@ -35,7 +35,7 @@ void Model::init_advanced_setup()
 {
 #ifdef _HOUSEPI_DISCRETE_TIME
 	request_discrete_augm(AugmKey::infec_time);
-	request_infec_profile_discrete();
+	request_discrete_infec_profile();
 #endif
 	request_discrete_param(ParamKey::size_ref);
 
@@ -231,7 +231,7 @@ void Model::simulate_single_house(Household &house)
 	size_t i0;
 	if (house.n_infected_status() > 0)
 		// amongst pre-existing infectious as in data
-		i0 = house.infected_hhindexes().at(uniform() * house.n_infected_status());
+		i0 = *std::next(house.infected_hhindexes().begin(), uniform() * house.n_infected_status());
 	else
 		// amongst all members
 		i0 = uniform() * house.size();
@@ -252,7 +252,7 @@ void Model::simulate_single_house(Household &house)
 	const double tf = member_0.aug(AugmKey::onset_time) + par(ParamKey::study_period);
 
 	// infection of secondary cases following the first case
-	std::vector<size_t> sus_hhindexes;
+	std::unordered_set<size_t> sus_hhindexes;
 	sus_hhindexes.reserve(house.n_susceptible_status());
 	for (double t = t0 + Dt; t <= tf && house.n_susceptible_status() > 0; t += Dt)
 	{

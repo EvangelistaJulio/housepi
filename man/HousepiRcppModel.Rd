@@ -43,7 +43,7 @@ Uses the method of power posteriors. \itemize{
 
 \item{\code{import_param_for_prediction}}{Import parameter tables for expected measures estimation.}
 
-\item{\code{build_all_rates}}{Assign all contact and group rates.}
+\item{\code{build_contact_rates}}{Assign all contact rates.}
 
 \item{\code{export_setup}}{Return a List with current setup.}
 

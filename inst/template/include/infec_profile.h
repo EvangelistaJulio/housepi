@@ -52,6 +52,7 @@ public:
 
     void build(const hsp::str_table &input);
     void init_template(hsp::str_table input);
+    void init_template(hsp::dict<std::string> input);
 
     /// If infectivity profile is a lookup table, store its values.
     /// NOTE: infectivity is set to 0 on day 0.
@@ -92,8 +93,8 @@ public:
     //////  GETTER  //////
     //////////////////////
 
-    double inst(const Individual *member_ptr, double t);
-    double cumul(const Individual *member_ptr, double t);
+    double inst(const Individual *member_ptr, double t) const;
+    double cumul(const Individual *member_ptr, double t) const;
 
     /////////////////////
     //////  FLAGS  //////

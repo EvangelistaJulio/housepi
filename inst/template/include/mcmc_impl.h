@@ -17,11 +17,14 @@
 #include "tools/loglike.h"
 #include "tools/nan.h"
 
-#include "augmented.h"
-#include "data.h"
-#include "group_rate.h"
-#include "infec_profile.h"
+#include "setup.h"
+#include "data_wide.h"
+#include "data_long.h"
 #include "parameter.h"
+#include "group_rate.h"
+#include "contact_rate.h"
+#include "infec_profile.h"
+#include "augmented.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -42,6 +45,7 @@ public:
     DataLong data_long;
     Parameter param;
     GroupRate group_rate;
+    ContactRate contact_rate;
     InfecProfile infec_profile;
     Augmented augm;
 
@@ -80,20 +84,61 @@ public:
         std::function<void()> func_init_inference,
         std::function<void(Household &)> func_init_house_for_infer,
         std::function<double(Household &)> func_house_log_lik,
-        std::function<void(Household &, Individual &)> func_update_cache);
+        std::function<void(Household &, Individual &)> func_update_cache,
+        std::function<std::string(Household &, const Individual &, const Individual &)> func_init_contact_rates);
     ~MCMCImpl();
+
+    //////////////////////
+    //////  GETTER  //////
+    //////////////////////
+
+    double uniform() { return setup.unif(); }
+    double par(size_t p) const { return param.at(p).value(); }
+
+    size_t get_max_hh_cases() const noexcept { return data_wide.get_max_hh_cases(); }
+    void assert_no_missing_status() const { data_wide.assert_no_missing_status(); }
+
+    double infec_profile_inst(const Individual &i, double t) const { return infec_profile.inst(&i, t); }
+    double infec_profile_cumul(const Individual &i, double t) const { return infec_profile.cumul(&i, t); }
+
+    //////////////////////
+    //////  SETTER  //////
+    //////////////////////
+
+	/// UPDATE: also contact rates should just be imported
+    void build_contact_rates() { contact_rate.build(); }
+
+    void init_infec_profile_template(hsp::dict<std::string> x) { infec_profile.init_template(x); }
+
+    void clear_all_augm(Individual &member) { augm.clear_all(member); }
+    void init_missing_augm(Individual &member);
+
+    /// Request discrete parameter definition.
+    void request_discrete_param(size_t p) { param.user_discrete_set.emplace(p); }
+    /// Request discrete augmented definition.
+    void request_discrete_augm(size_t a) { augm.user_discrete_set.emplace(a); }
+    /// Request discrete infectivity profile definition.
+    void request_discrete_infec_profile() { infec_profile.request_discrete(); }
+
+    //////////////////////////
+    //////  EVALUATION  //////
+    //////////////////////////
+
+    void user_init_for_evaluate();
+    void init_evaluate();
+    double update_total_log_lik(bool is_cache_depen = true);
+    double evaluate_single_house_log_lik(std::string_view house_id);
+    double evaluate_log_lik(std::string_view house_id = "");
 
     ///////////////////////////////////
     //////  METROPOLIS-HASTINGS  //////
     ///////////////////////////////////
 
-    void user_init_for_evaluate();
     void init_monte_carlo();
-    void init_evaluate();
     void run_monte_carlo();
+    /// Performs the inference using Metropolis-Hastings.
+    void run_inference();
     std::vector<std::vector<double>> power_posteriors(std::string_view scheme, unsigned long N);
-    double evaluate_single_house_log_lik(std::string_view house_id);
-    double update_total_log_lik(bool is_cache_depen = true);
 
     //////////////////////////
     //////  SIMULATION  //////

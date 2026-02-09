@@ -134,7 +134,7 @@ void Model::simulate_single_house(Household &house)
 	size_t n_old_gen = 0;
 	size_t n_new_gen = house.n_infected_status();
 
-	std::vector<size_t> sus_hhindexes;
+	std::unordered_set<size_t> sus_hhindexes;
 	sus_hhindexes.reserve(house.n_susceptible_status());
 	while ((house.n_infected_status() > 0) && (n_new_gen > 0))
 	{

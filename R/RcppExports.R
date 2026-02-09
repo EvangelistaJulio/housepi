@@ -86,7 +86,7 @@ NULL
 #' @field import_infec_profile Import infectivity profile definition from R List.
 #' @field import_augm Import augmented variable definitions from R Data.Frame.
 #' @field import_param_for_prediction Import parameter tables for expected measures estimation.
-#' @field build_all_rates Assign all contact and group rates.
+#' @field build_contact_rates Assign all contact rates.
 #' @field export_setup Return a List with current setup.
 #' @field export_infec_profile Return a List with infectivity profile.
 #' @field export_data_wide Return a DataFrame with current database.

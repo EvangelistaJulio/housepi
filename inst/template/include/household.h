@@ -9,6 +9,7 @@
 
 #include <string>
 #include <string_view>
+#include <unordered_set>
 #include <vector>
 
 #include "attribute.h"
@@ -55,7 +56,15 @@ public:
 
 	void set_susceptible_status(Individual &member) { helper_set_status_(member, hsp::status::SUSCEPTIBLE); }
 	void set_infected_status(Individual &member) { helper_set_status_(member, hsp::status::INFECTED); }
-	void set_infected_status(Individual &member, int new_status);
+	void set_infected_status(Individual &member, int new_status)
+	{
+		if (!hsp::status::is_infected(new_status))
+			throw std::invalid_argument(
+				"Tried to set as infected status " + std::to_string(new_status) +
+				" to " + err_name() + ".\nInfected status must be an integer greater than 0.");
+		helper_set_status_(member, new_status);
+	}
+
 	void init_contact_rates(size_t from, size_t to, const Attribute &x);
 
 	/////////////////////
@@ -85,13 +94,14 @@ public:
 	Individual &member(size_t i) { return members_.at(i); }
 	const Individual &member(size_t i) const { return members_.at(i); }
 
+	/// UPDATE: multiplicity should be dealt outside of the class
 	unsigned long multiplicity() const noexcept { return house_multiplicity_; }
 	size_t multiplicity_class_index() const noexcept { return multiplicity_class_; }
 	bool is_multiplicity_head_class() const noexcept { return index_ == multiplicity_class_; }
 
-	const std::vector<size_t> &infected_hhindexes() const noexcept { return infected_list_; }
-	const std::vector<size_t> &susceptible_hhindexes() const noexcept { return healthy_list_; }
-	const std::vector<size_t> &missing_hhindexes() const noexcept { return missing_list_; }
+	const std::unordered_set<size_t> &infected_hhindexes() const noexcept { return infected_list_; }
+	const std::unordered_set<size_t> &susceptible_hhindexes() const noexcept { return healthy_list_; }
+	const std::unordered_set<size_t> &missing_hhindexes() const noexcept { return missing_list_; }
 
 	size_t n_infected_status() const noexcept { return infected_list_.size(); }
 	size_t n_susceptible_status() const noexcept { return healthy_list_.size(); }
@@ -123,12 +133,13 @@ private:
 	unsigned long house_multiplicity_ = 1; /// N. of equivalent houses
 	size_t multiplicity_class_ = -1;	   /// Index of multiplicity class
 
-	std::vector<Individual> members_ = {};	 /// Household members
-	std::vector<size_t> infected_list_ = {}; /// hh indexes of infected members
-	std::vector<size_t> healthy_list_ = {};	 /// hh indexes of susceptible members
-	std::vector<size_t> missing_list_ = {};	 /// hh indexes of members with missing status
+	std::vector<Individual> members_ = {};	   /// Household members
+	std::unordered_set<size_t> infected_list_; /// hh indexes of infected members
+	std::unordered_set<size_t> healthy_list_;  /// hh indexes of susceptible members
+	std::unordered_set<size_t> missing_list_;  /// hh indexes of members with missing status
 
 	std::vector<std::vector<Attribute>> contact_rates_; /// contact rates
+
 	std::vector<size_t> cache_size_ = {};
 	std::vector<std::vector<size_t>> cache_size_vec_ = {};
 	std::vector<std::vector<double>> cache_dbl_vec_ = {};

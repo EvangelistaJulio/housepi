@@ -18,13 +18,16 @@
 #include "tools/read.h"
 #include "tools/string.h"
 
-#include "data.h"
+#include "mcmc.h"
+#include "mcmc_impl.h"
+#include "setup.h"
+#include "data_wide.h"
+#include "data_long.h"
 #include "parameter.h"
 #include "group_rate.h"
+#include "contact_rate.h"
 #include "infec_profile.h"
 #include "augmented.h"
-#include "mcmc_impl.h"
-#include "mcmc.h"
 
 #include "model.h" // header to the user defined model provided by the Make command
 
@@ -453,7 +456,7 @@ int main(int argc, char *argv[])
     user_model->read_param(param_file);                 // 3) Load Parameters
     user_model->read_infec_profile(infec_profile_file); // 4) Load Infectivity Profile
     user_model->read_group_rate(group_rates_file);      // 5) Load Group Rates
-    user_model->build_all_rates();                      // ... and Contact Rates (temporary)
+    user_model->build_contact_rates();                  // ... and Contact Rates (temporary)
     user_model->read_augm(augm_file);                   // 6) Load Augmented Variables
     user_model->read_multiplicity(multiplicity_file);   // 7) Load Multiplicities
 

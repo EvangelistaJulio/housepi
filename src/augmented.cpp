@@ -23,9 +23,9 @@
 #include "tools/types.h"
 
 #include "augmented.h"
-#include "augmented_map.h"
-#include "data.h"
+#include "data_wide.h"
 #include "function.h"
+#include "household.h"
 #include "individual.h"
 #include "infec_profile.h"
 #include "parameter.h"

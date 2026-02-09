@@ -249,8 +249,9 @@ HousepiModel <- R6::R6Class(
       # build group rate definitions
       private$.build_group_rates()
 
-      # build contact rates (UPDATE: temporary)
-      private$.rcpp$build_all_rates()
+      # build contact rates
+      # UPDATE: waiting for table definitions
+      private$.rcpp$build_contact_rates()
 
       # assert parameter definitions
       private$.assert_param()

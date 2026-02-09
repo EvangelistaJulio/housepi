@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <limits>
+#include <cmath>
 #include <stdexcept>
 
 #include "tools/nan.h"
