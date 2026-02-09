@@ -13,15 +13,11 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 
 RcppExport SEXP _rcpp_module_boot_housepi_flags();
 RcppExport SEXP _rcpp_module_boot_housepi_function();
-RcppExport SEXP _rcpp_module_boot_housepi_distribution();
-RcppExport SEXP _rcpp_module_boot_housepi_infec_profile();
 RcppExport SEXP _rcpp_module_boot_housepi_model_core();
 
 static const R_CallMethodDef CallEntries[] = {
     {"_rcpp_module_boot_housepi_flags", (DL_FUNC) &_rcpp_module_boot_housepi_flags, 0},
     {"_rcpp_module_boot_housepi_function", (DL_FUNC) &_rcpp_module_boot_housepi_function, 0},
-    {"_rcpp_module_boot_housepi_distribution", (DL_FUNC) &_rcpp_module_boot_housepi_distribution, 0},
-    {"_rcpp_module_boot_housepi_infec_profile", (DL_FUNC) &_rcpp_module_boot_housepi_infec_profile, 0},
     {"_rcpp_module_boot_housepi_model_core", (DL_FUNC) &_rcpp_module_boot_housepi_model_core, 0},
     {NULL, NULL, 0}
 };

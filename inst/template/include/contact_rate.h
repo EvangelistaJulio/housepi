@@ -35,7 +35,8 @@ public:
         const Parameter *paramptr);
     ~ContactRate();
 
-    /// Build all group rates and contact rates and set rate per group.
+    /// Build symmetric contact rates.
+    /// FIXME: skipped for the moment
     void build();
 
 private:
@@ -44,5 +45,5 @@ private:
     DataWide *pDataWide_;         /// pointer to external DataWide struct
     const Parameter *pParameter_; /// pointer to external Parameter struct
 
-    void init_contact_rates_(Household &house, const Individual &member_k, const Individual &member_i);
+    void init_contact_rates_(Household &house, size_t k, size_t i);
 };

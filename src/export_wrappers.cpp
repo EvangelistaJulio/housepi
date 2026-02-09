@@ -91,92 +91,150 @@ RCPP_MODULE(housepi_flags)
         .method("get_flags", &HousepiRcppCompiledFlags::get_flags);
 }
 
-/// macro to define Rcpp wrapper classes to export to R
-/// UPDATE: use a common base class instead.
-#define MAKE_HOUSEPI_RCPP_WRAPPER(Wrapper, family, set_eval, pdf_call, cdf_call, ...)              \
-    class HousepiRcpp##Wrapper                                                                     \
-    {                                                                                              \
-    public:                                                                                        \
-        HousepiRcpp##Wrapper(std::string name_, SEXP args_, double min, double max, bool is_discr) \
-        {                                                                                          \
-            try                                                                                    \
-            {                                                                                      \
-                ptr_ = compose_func_registries(name_, family, {__VA_ARGS__}, false);               \
-                if (args_ != R_NilValue)                                                           \
-                {                                                                                  \
-                    Rcpp::List args(args_);                                                        \
-                    Rcpp::CharacterVector arg_names;                                               \
-                    if (args.hasAttribute("names"))                                                \
-                        arg_names = args.names();                                                  \
-                    else                                                                           \
-                        arg_names = Rcpp::CharacterVector(args.size());                            \
-                    for (R_xlen_t i = 0; i < args.size(); ++i)                                     \
-                    {                                                                              \
-                        const std::string this_arg = Rcpp::as<std::string>(arg_names[i]);          \
-                        ptr_->init_attr(this_arg, Attribute(Rcpp::as<double>(args[i])));           \
-                    }                                                                              \
-                }                                                                                  \
-                                                                                                   \
-                if (!hsp::na::is(min))                                                             \
-                    ptr_->init_attr("min", Attribute(min));                                        \
-                if (!hsp::na::is(max))                                                             \
-                    ptr_->init_attr("max", Attribute(max));                                        \
-                                                                                                   \
-                if (is_discr)                                                                      \
-                    ptr_->init_discretization();                                                   \
-                ptr_->init_truncation();                                                           \
-                ptr_->assert_is_callable_explicitly();                                             \
-            }                                                                                      \
-            catch (const std::exception &e)                                                        \
-            {                                                                                      \
-                hsp::msg::error(                                                                   \
-                    "While initializing " family " '" + name_ + "':\n" + e.what());                \
-            }                                                                                      \
-        }                                                                                          \
-        ~HousepiRcpp##Wrapper() = default;                                                         \
-        Rcpp::NumericVector pdf_call(Rcpp::NumericVector x) const                                  \
-        {                                                                                          \
-            ptr_->set_eval##_call();                                                               \
-            return call_(x);                                                                       \
-        }                                                                                          \
-        Rcpp::NumericVector cdf_call(Rcpp::NumericVector x) const                                  \
-        {                                                                                          \
-            ptr_->set_eval##_primitive();                                                          \
-            return call_(x);                                                                       \
-        }                                                                                          \
-        Rcpp::NumericVector args() const                                                           \
-        {                                                                                          \
-            Rcpp::NumericVector output(ptr_->n_args());                                            \
-            Rcpp::CharacterVector names(ptr_->n_args());                                           \
-            for (size_t i = 0; i < ptr_->n_args(); ++i)                                            \
-            {                                                                                      \
-                output[i] = ptr_->arg(i);                                                          \
-                names[i] = std::string(ptr_->arg_name(i));                                         \
-            }                                                                                      \
-            output.names() = std::move(names);                                                     \
-            return output;                                                                         \
-        }                                                                                          \
-                                                                                                   \
-    private:                                                                                       \
-        std::unique_ptr<Function> ptr_;                                                            \
-                                                                                                   \
-        Rcpp::NumericVector call_(Rcpp::NumericVector x) const                                     \
-        {                                                                                          \
-            try                                                                                    \
-            {                                                                                      \
-                const R_xlen_t n = x.size();                                                       \
-                Rcpp::NumericVector y(n);                                                          \
-                for (R_xlen_t i = 0; i < n; ++i)                                                   \
-                    y[i] = ptr_->evaluate(x[i]);                                                   \
-                return y;                                                                          \
-            }                                                                                      \
-            catch (const std::exception &e)                                                        \
-            {                                                                                      \
-                hsp::msg::error(                                                                   \
-                    "While calling " family " '" + std::string(ptr_->name()) + "':\n" + e.what()); \
-            }                                                                                      \
-        }                                                                                          \
+namespace {
+    // Base class to wrap internal hosuepi functions
+    class HousepiRcppBase
+    {
+    public:
+        HousepiRcppBase(std::string name, const std::string& family,
+                        SEXP args_, double min, double max, bool is_discr,
+                        std::vector<std::string> registry_types)
+            : family_(family)
+        {
+            try
+            {
+                ptr_ = compose_func_registries(name, family_, registry_types, false);
+                
+                if (args_ != R_NilValue)
+                {
+                    Rcpp::List args(args_);
+                    Rcpp::CharacterVector arg_names(args.size());
+                    if (args.hasAttribute("names"))
+                        arg_names = args.names();
+                        
+                    for (R_xlen_t i = 0; i < args.size(); ++i)
+                        ptr_->init_attr(
+                            Rcpp::as<std::string>(arg_names[i]),
+                            Attribute(Rcpp::as<double>(args[i])));
+                }
+                
+                if (!hsp::na::is(min))
+                    ptr_->init_attr("min", Attribute(min));
+                if (!hsp::na::is(max))
+                    ptr_->init_attr("max", Attribute(max));
+                
+                if (is_discr)
+                    ptr_->init_discretization();
+                ptr_->init_truncation();
+                ptr_->assert_is_callable_explicitly();
+            }
+            catch (const std::exception &e)
+            {
+                hsp::msg::error(
+                    "While initializing " + family_ + " '" + name + "':\n" + e.what());
+            }
+        }
+        
+        virtual ~HousepiRcppBase() = default;
+        
+        Rcpp::NumericVector args() const
+        {
+            Rcpp::NumericVector output(ptr_->n_args());
+            Rcpp::CharacterVector names(ptr_->n_args());
+            for (size_t i = 0; i < ptr_->n_args(); ++i)
+            {
+                output[i] = ptr_->arg(i);
+                names[i] = std::string(ptr_->arg_name(i));
+            }
+            output.names() = std::move(names);
+            return output;
+        }
+        
+    protected:
+        std::unique_ptr<Function> ptr_;
+        std::string family_;
+        
+        Rcpp::NumericVector call_(Rcpp::NumericVector x) const
+        {
+            try
+            {
+                const R_xlen_t n = x.size();
+                Rcpp::NumericVector y(n);
+                for (R_xlen_t i = 0; i < n; ++i)
+                    y[i] = ptr_->evaluate(x[i]);
+                return y;
+            }
+            catch (const std::exception &e)
+            {
+                hsp::msg::error(
+                    "While calling " + family_ + " '" + std::string(ptr_->name()) + "':\n" + e.what());
+            }
+        }
     };
+
+    // Function wrapper
+    class HousepiRcppFunction : public HousepiRcppBase
+    {
+    public:
+        HousepiRcppFunction(std::string name_, SEXP args_, double min, double max, bool is_discr)
+            : HousepiRcppBase(name_, "function", args_, min, max, is_discr, 
+                            {"user", "transcendental", "arithmetic"}) {}
+        
+        Rcpp::NumericVector func(Rcpp::NumericVector x) const
+        {
+            ptr_->set_eval_call();
+            return call_(x);
+        }
+        
+        Rcpp::NumericVector prim(Rcpp::NumericVector x) const
+        {
+            ptr_->set_eval_primitive();
+            return call_(x);
+        }
+    };
+
+    // Distribution wrapper
+    class HousepiRcppDistribution : public HousepiRcppBase
+    {
+    public:
+        HousepiRcppDistribution(std::string name_, SEXP args_, double min, double max, bool is_discr)
+            : HousepiRcppBase(name_, "distribution", args_, min, max, is_discr,
+                            {"continuos", "discrete"}) {}
+        
+        Rcpp::NumericVector pdf(Rcpp::NumericVector x) const
+        {
+            ptr_->set_eval_as_distr_call();
+            return call_(x);
+        }
+        
+        Rcpp::NumericVector cdf(Rcpp::NumericVector x) const
+        {
+            ptr_->set_eval_as_distr_primitive();
+            return call_(x);
+        }
+    };
+
+    // InfecProfile wrapper
+    class HousepiRcppInfecProfile : public HousepiRcppBase
+    {
+    public:
+        HousepiRcppInfecProfile(std::string name_, SEXP args_, double min, double max, bool is_discr)
+            : HousepiRcppBase(name_, "infectivity profile", args_, min, max, is_discr,
+                            {"infecprofile", "continuos", "discrete"}) {}
+        
+        Rcpp::NumericVector inst(Rcpp::NumericVector x) const
+        {
+            ptr_->set_eval_as_distr_call();
+            return call_(x);
+        }
+        
+        Rcpp::NumericVector cumul(Rcpp::NumericVector x) const
+        {
+            ptr_->set_eval_as_distr_primitive();
+            return call_(x);
+        }
+    };
+}
 
 //' @name HousepiRcppFunction
 //' @title Rcpp Function from Housepi
@@ -197,18 +255,6 @@ RCPP_MODULE(housepi_flags)
 //' }
 //' @return `numeric()`
 //' @keywords internal
-RCPP_MODULE(housepi_function)
-{
-    MAKE_HOUSEPI_RCPP_WRAPPER(Function, "function",
-                              set_eval, func, prim,
-                              "user", "transcendental", "arithmetic");
-
-    Rcpp::class_<HousepiRcppFunction>("HousepiRcppFunction")
-        .constructor<std::string, SEXP, double, double, bool>()
-        .method("func", &HousepiRcppFunction::func)
-        .method("prim", &HousepiRcppFunction::prim)
-        .method("args", &HousepiRcppFunction::args);
-}
 
 //' @name HousepiRcppDistribution
 //' @title Rcpp Distribution from Housepi
@@ -229,18 +275,6 @@ RCPP_MODULE(housepi_function)
 //' }
 //' @return `numeric()`
 //' @keywords internal
-RCPP_MODULE(housepi_distribution)
-{
-    MAKE_HOUSEPI_RCPP_WRAPPER(Distribution, "distribution",
-                              set_eval_as_distr, pdf, cdf,
-                              "continuos", "discrete");
-
-    Rcpp::class_<HousepiRcppDistribution>("HousepiRcppDistribution")
-        .constructor<std::string, SEXP, double, double, bool>()
-        .method("pdf", &HousepiRcppDistribution::pdf)
-        .method("cdf", &HousepiRcppDistribution::cdf)
-        .method("args", &HousepiRcppDistribution::args);
-}
 
 //' @name HousepiRcppInfecProfile
 //' @title Rcpp Infectivity Profile from Housepi
@@ -261,17 +295,29 @@ RCPP_MODULE(housepi_distribution)
 //' }
 //' @return `numeric()`
 //' @keywords internal
-RCPP_MODULE(housepi_infec_profile)
+
+RCPP_MODULE(housepi_function)
 {
-    MAKE_HOUSEPI_RCPP_WRAPPER(InfecProfile, "infectivity profile",
-                              set_eval_as_distr, inst, cumul,
-                              "infecprofile", "continuos", "discrete");
+    Rcpp::class_<HousepiRcppBase>("HousepiRcppBase")
+        .method("args", &HousepiRcppBase::args);
+    
+    Rcpp::class_<HousepiRcppFunction>("HousepiRcppFunction")
+        .constructor<std::string, SEXP, double, double, bool>()        
+        .derives<HousepiRcppBase>("HousepiRcppBase")
+        .method("func", &HousepiRcppFunction::func)
+        .method("prim", &HousepiRcppFunction::prim);
+
+     Rcpp::class_<HousepiRcppDistribution>("HousepiRcppDistribution")
+        .constructor<std::string, SEXP, double, double, bool>()        
+        .derives<HousepiRcppBase>("HousepiRcppBase")
+        .method("pdf", &HousepiRcppDistribution::pdf)
+        .method("cdf", &HousepiRcppDistribution::cdf);
 
     Rcpp::class_<HousepiRcppInfecProfile>("HousepiRcppInfecProfile")
-        .constructor<std::string, SEXP, double, double, bool>()
+        .constructor<std::string, SEXP, double, double, bool>()        
+        .derives<HousepiRcppBase>("HousepiRcppBase")
         .method("inst", &HousepiRcppInfecProfile::inst)
-        .method("cumul", &HousepiRcppInfecProfile::cumul)
-        .method("args", &HousepiRcppInfecProfile::args);
+        .method("cumul", &HousepiRcppInfecProfile::cumul);
 }
 
 //' @name HousepiRcppModel

@@ -11,5 +11,5 @@ Depends: Rcpp (>= 1.0.0)
 LinkingTo:
     Rcpp (>= 1.0.0), 
     BH (>= 1.0.0)
-RcppModules: housepi_flags, housepi_function, housepi_distribution, housepi_infec_profile, housepi_model_core
+RcppModules: housepi_flags, housepi_function, housepi_model_core
 RoxygenNote: 7.3.3

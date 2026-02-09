@@ -25,6 +25,7 @@
 class Household
 {
 	friend struct DataWide;
+	friend struct ContactRate;
 	friend class MCMCImpl;
 
 public:
@@ -64,8 +65,6 @@ public:
 				" to " + err_name() + ".\nInfected status must be an integer greater than 0.");
 		helper_set_status_(member, new_status);
 	}
-
-	void init_contact_rates(size_t from, size_t to, const Attribute &x);
 
 	/////////////////////
 	//////  CACHE  //////

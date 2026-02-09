@@ -73,15 +73,6 @@ void Household::helper_set_status_(Individual &member, int new_status)
         missing_list_.emplace(i);
 }
 
-/// Associate a pointer to parameter value for the contact from->to.
-void Household::init_contact_rates(size_t from, size_t to, const Attribute &x)
-{
-    // initialize contact rate matrix if necessary
-    if (contact_rates_.empty())
-        contact_rates_.assign(size(), std::vector<Attribute>(size(), hsp::rates::VALUE_REFERENCE));
-    contact_rates_[from][to] = x;
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////  *** DataWide : struct ***  ///////////////////////////////////

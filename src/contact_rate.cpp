@@ -41,11 +41,21 @@ void ContactRate::build()
 {
     try
     {
+        /// FIXME: skipped for the momemt
+        return;
+
         // loop over all household pairs
         for (Household &house : *pDataWide_)
-            for (const Individual &member_k : house)     // from : member_k
-                for (const Individual &member_i : house) // -> to : member_i
-                    init_contact_rates_(house, member_k, member_i);
+        {
+            // initialize contact rate matrix
+            const size_t size = house.size();
+            house.contact_rates_.clear();
+            house.contact_rates_.assign(size, std::vector<Attribute>(size, hsp::rates::VALUE_REFERENCE));
+                
+            for (size_t k = 0; k < size; ++k)  // from : member k
+                for (size_t i = 0; i < k; ++i) // -> to : member i
+                    init_contact_rates_(house, k, i);
+        }
     }
     catch (const std::exception &e)
     {
@@ -54,31 +64,26 @@ void ContactRate::build()
     }
 }
 
-/// Set contact rate according to user assignement. // UPDATE
-void ContactRate::init_contact_rates_(Household &house, const Individual &member_k, const Individual &member_i)
+/// Set contact rate according to user assignement.
+void ContactRate::init_contact_rates_(Household &house, size_t k, size_t i)
 {
-    if (member_k == member_i)
-        return;
+    const Individual &member_k = house.member(k);
+    const Individual &member_i = house.member(i);
+    const std::string rate = callback_init_contact_rate_(house, member_k, member_i);
 
-    const std::string ctc_rate = callback_init_contact_rate_(house, member_k, member_i);
-
-    if (hsp::na::is(ctc_rate))
+    if (hsp::na::is(rate))
         return;
+    else if (rate == hsp::rates::MISSING)
+        throw std::invalid_argument(
+            "Missing contact rate for members '" +  member_k.id() + 
+            "' and '" + member_i.id() + "', from " + house.err_name() + ".");
 
     // default reference rate
-    Attribute y(hsp::rates::VALUE_REFERENCE);
-
-    if (ctc_rate == hsp::rates::MISSING)
-        throw std::invalid_argument(
-            "Missing contact rate for individuals '" +
-            member_k.id() + "' and '" + member_i.id() +
-            "' (" + house.err_name() + ").");
-
-    else if (ctc_rate != hsp::rates::REFERENCE) // parameter rate
+    if (rate != hsp::rates::REFERENCE) // parameter rate
     {
-        size_t p = pParameter_->pRegistry->from_string(ctc_rate);
-        y = pParameter_->at(p);
+        size_t p = pParameter_->pRegistry->from_string(rate);
+        Attribute attr = pParameter_->at(p);
+        house.contact_rates_[k][i] = attr;
+        house.contact_rates_[i][k] = attr; /// NOTE: assuming symmetric
     }
-
-    house.init_contact_rates(member_k.hhindex(), member_i.hhindex(), y);
 }
