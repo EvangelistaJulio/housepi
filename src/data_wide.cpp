@@ -41,11 +41,11 @@ void Household::init_member(size_t index,
 
     // update status lists within the household
     if (members_.back().is_infected_status())
-        infected_list_.emplace(hhindex);
+        infected_list_.emplace_back(hhindex);
     else if (members_.back().is_healthy_status())
-        healthy_list_.emplace(hhindex);
+        healthy_list_.emplace_back(hhindex);
     else
-        missing_list_.emplace(hhindex);
+        missing_list_.emplace_back(hhindex);
 }
 
 /// Change_status of individual i to new status (without controls).
@@ -58,19 +58,19 @@ void Household::helper_set_status_(Individual &member, int new_status)
     size_t i = member.hhindex(); // get within house index
 
     if (member.is_infected_status())
-        infected_list_.erase(i);
+        infected_list_.erase(std::find(infected_list_.begin(), infected_list_.end(), i));
     else if (member.is_healthy_status())
-        healthy_list_.erase(i);
+        healthy_list_.erase(std::find(healthy_list_.begin(), healthy_list_.end(), i));
     else
-        missing_list_.erase(i);
+        missing_list_.erase(std::find(missing_list_.begin(), missing_list_.end(), i));
 
     member.status_ = new_status; // change member status
     if (member.is_infected_status())
-        infected_list_.emplace(i);
+        infected_list_.emplace_back(i);
     else if (member.is_healthy_status())
-        healthy_list_.emplace(i);
+        healthy_list_.emplace_back(i);
     else
-        missing_list_.emplace(i);
+        missing_list_.emplace_back(i);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

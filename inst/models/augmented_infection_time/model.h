@@ -40,7 +40,7 @@ public:
 		return loglike_susceptible(house) + loglike_infectious(house);
 	}
 	/// Transmission rate.
-	double transmission_rate(const Household &house) const;
+	double transmission_rate(size_t house_size) const;
 	/// Susceptible members contribution to log-likelihood.
 	double loglike_susceptible(const Household &house) const;
 	/// Infectious members contribution to log-likelihood.

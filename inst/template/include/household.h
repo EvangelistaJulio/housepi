@@ -9,7 +9,6 @@
 
 #include <string>
 #include <string_view>
-#include <unordered_set>
 #include <vector>
 
 #include "function.h"
@@ -98,9 +97,9 @@ public:
 	size_t multiplicity_class_index() const noexcept { return multiplicity_class_; }
 	bool is_multiplicity_head_class() const noexcept { return index_ == multiplicity_class_; }
 
-	const std::unordered_set<size_t> &infected_hhindexes() const noexcept { return infected_list_; }
-	const std::unordered_set<size_t> &susceptible_hhindexes() const noexcept { return healthy_list_; }
-	const std::unordered_set<size_t> &missing_hhindexes() const noexcept { return missing_list_; }
+	const std::vector<size_t> &infected_hhindexes() const noexcept { return infected_list_; }
+	const std::vector<size_t> &susceptible_hhindexes() const noexcept { return healthy_list_; }
+	const std::vector<size_t> &missing_hhindexes() const noexcept { return missing_list_; }
 
 	size_t n_infected_status() const noexcept { return infected_list_.size(); }
 	size_t n_susceptible_status() const noexcept { return healthy_list_.size(); }
@@ -133,9 +132,9 @@ private:
 	size_t multiplicity_class_ = -1;	   /// Index of multiplicity class
 
 	std::vector<Individual> members_ = {};	   /// Household members
-	std::unordered_set<size_t> infected_list_; /// hh indexes of infected members
-	std::unordered_set<size_t> healthy_list_;  /// hh indexes of susceptible members
-	std::unordered_set<size_t> missing_list_;  /// hh indexes of members with missing status
+	std::vector<size_t> infected_list_; /// hh indexes of infected members
+	std::vector<size_t> healthy_list_;  /// hh indexes of susceptible members
+	std::vector<size_t> missing_list_;  /// hh indexes of members with missing status
 
 	std::vector<std::vector<Attribute>> contact_rates_; /// contact rates
 

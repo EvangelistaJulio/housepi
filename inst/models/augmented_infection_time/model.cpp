@@ -50,9 +50,9 @@ void Model::init_advanced_setup()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Model::transmission_rate(const Household &house) const
+double Model::transmission_rate(size_t house_size) const
 {
-	return par(ParamKey::beta) * std::pow(par(ParamKey::size_ref) / house.size(), par(ParamKey::gamma));
+	return par(ParamKey::beta) * std::exp(par(ParamKey::gamma) * std::log(par(ParamKey::size_ref) / house_size));
 }
 
 double Model::loglike_susceptible(const Household &house) const
@@ -62,7 +62,7 @@ double Model::loglike_susceptible(const Household &house) const
 
 	const Individual &member_0 = house.member(house.cache_size(HHsizeKey::intro_case));
 	const double alpha_cumul = par(ParamKey::alpha) * (par(ParamKey::study_period) + member_0.aug(AugmKey::incub_period));
-	const double beta = transmission_rate(house);
+	const double beta = transmission_rate(house.size());
 
 	// load pre-computed cumulative infectivity profiles
 	const auto &cumul_mtx = house.cache_double_matrix(HHdoublemtxKey::cumul);
@@ -96,7 +96,7 @@ double Model::loglike_infectious(const Household &house) const
 	const auto &cumul_mtx = house.cache_double_matrix(HHdoublemtxKey::cumul);
 
 	const double alpha = par(ParamKey::alpha);
-	const double beta = transmission_rate(house);
+	const double beta = transmission_rate(house.size());
 
 	double output = 0.;
 	for (size_t i : house.infected_hhindexes())
@@ -252,7 +252,7 @@ void Model::simulate_single_house(Household &house)
 	const double tf = member_0.aug(AugmKey::onset_time) + par(ParamKey::study_period);
 
 	// infection of secondary cases following the first case
-	std::unordered_set<size_t> sus_hhindexes;
+	std::vector<size_t> sus_hhindexes;
 	sus_hhindexes.reserve(house.n_susceptible_status());
 	for (double t = t0 + Dt; t <= tf && house.n_susceptible_status() > 0; t += Dt)
 	{
@@ -282,7 +282,7 @@ double Model::roi_inst_simulation(Household &house, Individual &member_i, double
 		const double mu_k = member_k.group_rate(GroupRateKey::infectivity);
 		roi += infec_profile_inst(member_k, gentime) * mu_k;
 	}
-	roi *= member_i.group_rate(GroupRateKey::susceptibility) * transmission_rate(house);
+	roi *= member_i.group_rate(GroupRateKey::susceptibility) * transmission_rate(house.size());
 
 	return par(ParamKey::alpha) + roi;
 }

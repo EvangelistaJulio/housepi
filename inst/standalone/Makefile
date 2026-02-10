@@ -38,11 +38,10 @@ CXXFLAGS += -g3 -O0 \
 -D_GLIBCXX_DEBUG_PEDANTIC \
 -fno-inline
 else ifdef PROFILE
-CXXFLAGS += -g -O3 \
--fno-omit-frame-pointer \
--DNDEBUG 
+CXXFLAGS += -g -O3 -DNDEBUG\
+-fno-omit-frame-pointer
 else
-CXXFLAGS += -g -O2
+CXXFLAGS += -g -O3 -DNDEBUG
 endif
 
 ifdef DISCRETE

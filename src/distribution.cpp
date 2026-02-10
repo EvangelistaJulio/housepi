@@ -464,13 +464,11 @@ namespace
     protected:
         double raw_pdf_(double x) const override final
         {
-            const double shape = arg(0);
-            const double scale = arg(1);
-            return pow(x, shape - 1.) * exp(-shape * log(scale) - lgamma(shape) - x / scale);
+            return exp(raw_logpdf_(x));
         }
         double raw_cdf_(double x) const override final
         {
-            return boost::math::gamma_p(arg(0), x / arg(1));
+            return boost::math::gamma_p<double>(arg(0), x / arg(1));
         }
         double raw_logpdf_(double x) const override final
         {
@@ -510,17 +508,13 @@ namespace
     protected:
         double raw_pdf_(double x) const override final
         {
-            const double m = arg(0);
-            const double v = arg(1);
-            const double shape = m * m / v;
-            const double scale = v / m;
-            return pow(x, shape - 1.) * exp(-shape * log(scale) - lgamma(shape) - x / scale);
+            return exp(raw_logpdf_(x));
         }
         double raw_cdf_(double x) const override final
         {
             const double m = arg(0);
             const double v = arg(1);
-            return boost::math::gamma_p(m * m / v, x * m / v);
+            return boost::math::gamma_p<double>(m * m / v, x * m / v);
         }
         double raw_logpdf_(double x) const override final
         {
@@ -711,12 +705,11 @@ namespace
     protected:
         double raw_pdf_(double x) const override final
         {
-            const double lambda = arg(0);
-            return exp(x * log(lambda) - lambda - lgamma(x + 1.));
+            return exp(raw_logpdf_(x));
         }
         double raw_cdf_(double x) const override final
         {
-            return 1. - boost::math::gamma_p(x + 1., arg(0));
+            return 1. - boost::math::gamma_p<double>(x + 1., arg(0));
         }
         double raw_logpdf_(double x) const override final
         {
