@@ -7,6 +7,7 @@
 
 #include <chrono>
 #include <memory>
+#include <random>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -28,7 +29,7 @@
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 Setup::Setup()
-    : unif_(0., 1.),
+    : uniform_(0., 1.),
       progressbar_(std::make_unique<hsp::progress::Bar>()) {}
 Setup::~Setup() = default;
 

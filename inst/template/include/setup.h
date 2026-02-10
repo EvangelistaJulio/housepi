@@ -8,6 +8,7 @@
 #pragma once
 
 #include <memory>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -73,11 +74,14 @@ struct Setup
     void set_prng_seed();
     /// Return pseudo random number generator.
     hsp::rnd_gen &prng();
-    /// Sample a uniform distributed variable between 0 and 1.
-    double unif() { return unif_(prng()); }
+    /// Sample a uniform-distributed variable between 0 and 1.
+    double uniform() { return uniform_(prng()); }
+    /// Sample a exponential-distributed variable between 0 and Inf.
+    double exponential() { return exponential_(prng()); }
 
 private:
-    std::vector<hsp::rnd_gen> prng_parallel_ = {};    // pseudo-random number generators
-    std::uniform_real_distribution<double> unif_;     // uniform sampler
-    std::unique_ptr<hsp::progress::Bar> progressbar_; // progress bar
+    std::vector<hsp::rnd_gen> prng_parallel_ = {};      // pseudo-random number generators
+    std::uniform_real_distribution<double> uniform_;    // uniform sampler
+    std::exponential_distribution<double> exponential_; // exponential sampler
+    std::unique_ptr<hsp::progress::Bar> progressbar_;   // progress bar
 };

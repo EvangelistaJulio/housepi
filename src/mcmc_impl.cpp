@@ -98,13 +98,13 @@ void MCMCImpl::user_init_for_evaluate()
 /// Assert setup definitions are ok to proceed with log-likelihood evaluation.
 void MCMCImpl::init_evaluate()
 {
-    setup.n_chains = 0;                  // use 0 chains as a state variable
-    data_wide.assert_non_empty();        // check if data is empty
+    setup.n_chains = 0;                        // use 0 chains as a state variable
+    data_wide.assert_non_empty();              // check if data is empty
     data_wide.assert_not_all_missing_status(); // warn if all missing status
-    user_init_for_evaluate();            // user initialization of model for inference
-    augm.init();                         // initialize individual augmented relations
-    param.user_reset(setup.prng());      // initialize non constant parameters
-    augm.user_reset(setup.prng());       // initialize non constant augmented
+    user_init_for_evaluate();                  // user initialization of model for inference
+    augm.init();                               // initialize individual augmented relations
+    param.user_reset(setup.prng());            // initialize non constant parameters
+    augm.user_reset(setup.prng());             // initialize non constant augmented
 }
 
 /// Evaluate log-likelihood for the given household.
@@ -330,7 +330,8 @@ bool MCMCImpl::move_single_parameter_(size_t p, bool is_cache_depen)
         // perform Metropolis-Hastings to accept or not move
         const double D_ll = tot_log_lik.logratio();
         const double move_logratio = param.at(p).get_move_logratio();
-        if (uniform() < std::exp(setup.inv_T * D_ll + move_logratio))
+        // if (uniform() < std::exp(setup.inv_T * D_ll + move_logratio))
+        if (exponential() > -(setup.inv_T * D_ll + move_logratio))
             return true; // accepted move
         recover_parameter_(p, is_cache_depen);
     }
@@ -464,7 +465,8 @@ double MCMCImpl::metropolis_augm_single_move_(Household &house, Individual &memb
         house.obs_log_lik_.set(callback_house_log_lik_(house));
         delta_ll += house.obs_log_lik_.logratio();
 
-        if (uniform() < std::exp(setup.inv_T * delta_ll - xaugm.get_propose_logratio()))
+        // if (uniform() < std::exp(setup.inv_T * delta_ll - xaugm.get_propose_logratio()))
+        if (exponential() > xaugm.get_propose_logratio() - setup.inv_T * delta_ll)
             return delta_ll;
 
         // else recover cached values

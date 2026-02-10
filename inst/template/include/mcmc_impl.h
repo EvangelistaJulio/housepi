@@ -92,7 +92,11 @@ public:
     //////  GETTER  //////
     //////////////////////
 
-    double uniform() { return setup.unif(); }
+    /// Sample a uniform-distributed variable between 0 and 1.
+    double uniform() { return setup.uniform(); }
+    /// Sample a exponential-distributed variable between 0 and Inf.
+    double exponential() { return setup.exponential(); }
+
     double par(size_t p) const { return param.at(p).value(); }
 
     size_t get_max_hh_cases() const noexcept { return data_wide.get_max_hh_cases(); }
@@ -105,7 +109,7 @@ public:
     //////  SETTER  //////
     //////////////////////
 
-	/// UPDATE: also contact rates should just be imported
+    /// UPDATE: also contact rates should just be imported
     void build_contact_rates() { contact_rate.build(); }
 
     void init_infec_profile_template(hsp::dict<std::string> x) { infec_profile.init_template(x); }
