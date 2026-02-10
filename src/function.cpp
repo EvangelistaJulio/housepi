@@ -589,6 +589,7 @@ namespace
     protected:
         double raw_function_(double x) const override final { return -x; }
     };
+    REGISTER_HOUSEPI_FUNCTION(Minus_, ArithmeticRegistry)
 
     /// Subtraction function.
     class Subtraction_ final : public Function
@@ -601,6 +602,7 @@ namespace
     protected:
         double raw_function_(double x) const override final { return x - arg(0); }
     };
+    REGISTER_HOUSEPI_FUNCTION(Subtraction_, ArithmeticRegistry)
 
     /// Division Function.
     class Division_ final : public Function
@@ -612,6 +614,7 @@ namespace
     protected:
         double raw_function_(double x) const override final { return x / arg(0); }
     };
+    REGISTER_HOUSEPI_FUNCTION(Division_, ArithmeticRegistry)
 
     /// Power Function.
     class Power_ final : public Function
@@ -632,6 +635,7 @@ namespace
         }
         double raw_logratio_(double xo, double xn) const override final { return arg(0) * std::log(xn / xo); }
     };
+    REGISTER_HOUSEPI_FUNCTION(Power_, TranscendentalRegistry)
 
     /// SquareRoot Function.
     class SquareRoot_ final : public Function
@@ -647,6 +651,7 @@ namespace
         double raw_primitive_(double x) const override final { return std::pow(x, 1.5) / 1.5; }
         double raw_logratio_(double xo, double xn) const override final { return raw_logfunc_(xn) - raw_logfunc_(xo); }
     };
+    REGISTER_HOUSEPI_FUNCTION(SquareRoot_, TranscendentalRegistry)
 
     /// Exponential Function.
     class Exponential_ final : public Function
@@ -660,6 +665,7 @@ namespace
         double raw_primitive_(double x) const override final { return std::exp(x); }
         double raw_logratio_(double xo, double xn) const override final { return xn - xo; }
     };
+    REGISTER_HOUSEPI_FUNCTION(Exponential_, TranscendentalRegistry)
 
     /// Logarithm Function.
     class Logarithm_ final : public Function
@@ -675,6 +681,7 @@ namespace
         double raw_primitive_(double x) const override final { return x * std::log(x) - x; }
         double raw_logratio_(double xo, double xn) const override final { return raw_logfunc_(xn) - raw_logfunc_(xo); }
     };
+    REGISTER_HOUSEPI_FUNCTION(Logarithm_, TranscendentalRegistry)
 
     /// Sine Function.
     class Sine_ final : public Function
@@ -688,6 +695,7 @@ namespace
         double raw_primitive_(double x) const override final { return -std::cos(x); }
         double raw_logratio_(double xo, double xn) const override final { return raw_logfunc_(xn) - raw_logfunc_(xo); }
     };
+    REGISTER_HOUSEPI_FUNCTION(Sine_, TranscendentalRegistry)
 
     /// Cosine Function.
     class Cosine_ final : public Function
@@ -701,6 +709,7 @@ namespace
         double raw_primitive_(double x) const override final { return std::sin(x); }
         double raw_logratio_(double xo, double xn) const override final { return raw_logfunc_(xn) - raw_logfunc_(xo); }
     };
+    REGISTER_HOUSEPI_FUNCTION(Cosine_, TranscendentalRegistry)
 
     /// Tangent Function.
     class Tangent_ final : public Function
@@ -713,6 +722,7 @@ namespace
         double raw_logfunc_(double x) const override final { return std::log(std::tan(x)); }
         double raw_logratio_(double xo, double xn) const override final { return raw_logfunc_(xn) - raw_logfunc_(xo); }
     };
+    REGISTER_HOUSEPI_FUNCTION(Tangent_, TranscendentalRegistry)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////  VariadicFunction : class  ///////////////////////////////////
@@ -771,7 +781,9 @@ namespace
         }                                                                              \
     };
     MAKE_VARIADIC_ALGEBRAIC(Summation_, "sum", +=)
+    REGISTER_HOUSEPI_FUNCTION(Summation_, ArithmeticRegistry)
     MAKE_VARIADIC_ALGEBRAIC(Product_, "prod", *=)
+    REGISTER_HOUSEPI_FUNCTION(Product_, ArithmeticRegistry)
 
 #define MAKE_VARIADIC_MIN_MAX(ClassName, FunctionName, Symbol)                         \
     class ClassName final : public VariadicFunction                                    \
@@ -793,28 +805,14 @@ namespace
         }                                                                              \
     };
     MAKE_VARIADIC_MIN_MAX(Minimum_, "min", <)
+    REGISTER_HOUSEPI_FUNCTION(Minimum_, ArithmeticRegistry)
     MAKE_VARIADIC_MIN_MAX(Maximum_, "max", >)
+    REGISTER_HOUSEPI_FUNCTION(Maximum_, ArithmeticRegistry)
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  Register functions  //////////////////////////////////////
+//////////////////////////////////  Attribute : init product  ///////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
-
-REGISTER_HOUSEPI_FUNCTION(Minimum_, ArithmeticRegistry)
-REGISTER_HOUSEPI_FUNCTION(Maximum_, ArithmeticRegistry)
-REGISTER_HOUSEPI_FUNCTION(Minus_, ArithmeticRegistry)
-REGISTER_HOUSEPI_FUNCTION(Subtraction_, ArithmeticRegistry)
-REGISTER_HOUSEPI_FUNCTION(Division_, ArithmeticRegistry)
-REGISTER_HOUSEPI_FUNCTION(Summation_, ArithmeticRegistry)
-REGISTER_HOUSEPI_FUNCTION(Product_, ArithmeticRegistry)
-
-REGISTER_HOUSEPI_FUNCTION(Power_, TranscendentalRegistry)
-REGISTER_HOUSEPI_FUNCTION(SquareRoot_, TranscendentalRegistry)
-REGISTER_HOUSEPI_FUNCTION(Exponential_, TranscendentalRegistry)
-REGISTER_HOUSEPI_FUNCTION(Logarithm_, TranscendentalRegistry)
-REGISTER_HOUSEPI_FUNCTION(Sine_, TranscendentalRegistry)
-REGISTER_HOUSEPI_FUNCTION(Cosine_, TranscendentalRegistry)
-REGISTER_HOUSEPI_FUNCTION(Tangent_, TranscendentalRegistry)
 
 /// UPDATE: this will be moved when Attribute func beomes unique ptr
 void Attribute::init_product(const std::vector<const Attribute *> &other_ptrs)

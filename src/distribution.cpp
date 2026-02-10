@@ -6,21 +6,26 @@
  */
 
 #include <cmath>
+#include <limits>
 #include <memory>
 #include <random>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
-#include <boost/math/distributions/normal.hpp>
-#include <boost/math/distributions/lognormal.hpp>
-#include <boost/math/distributions/beta.hpp>
-#include <boost/math/distributions/gamma.hpp>
+#include <boost/math/special_functions/erf.hpp>
+#include <boost/math/special_functions/beta.hpp>
+#include <boost/math/special_functions/gamma.hpp>
+
 #include <boost/math/distributions/poisson.hpp>
 #include <boost/math/distributions/binomial.hpp>
 #include <boost/math/distributions/negative_binomial.hpp>
-#include <boost/math/distributions/geometric.hpp>
 #include <boost/random/beta_distribution.hpp>
+
+/// Block boost long double policy.
+using no_promote_policy = boost::math::policies::policy<
+    boost::math::policies::promote_float<false>,
+    boost::math::policies::promote_double<false>>;
 
 #include "tools/string.h"
 
@@ -186,7 +191,11 @@ namespace
     using std::sqrt;
 
 #ifndef M_1_SQRT_2PI
-    constexpr double M_1_SQRT_2PI = 0.398942280401432677939946059934; /// 1/sqrt(2pi
+    constexpr double M_1_SQRT_2PI = 0.398942280401432677939946059934; /// 1/sqrt(2pi)
+#endif
+
+#ifndef M_SQRT2
+    constexpr double M_SQRT2 = 1.41421356237309504880168872420969808; /// sqrt(2)
 #endif
 
 #ifndef M_SQRT1_2
@@ -269,6 +278,7 @@ namespace
         }
         double raw_quantile_(double p) const override final { return lower_.value() * (1. - p) + upper_.value() * p; }
     };
+    REGISTER_HOUSEPI_FUNCTION(Uniform_, ContinuosDistrRegistry)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////  *** Normal Distribution : class ***  //////////////////////////////
@@ -318,14 +328,14 @@ namespace
         }
         double raw_quantile_(double p) const override final
         {
-            static const boost::math::normal stdnorm(0., 1.);
-            return arg(0) + arg(1) * boost::math::quantile(stdnorm, p);
+            return arg(0) + arg(1) * boost::math::erfc_inv(2. - 2. * p, no_promote_policy{}) * M_SQRT2;
         }
         double raw_rand_(hsp::rnd_gen &prng) const override final
         {
             return arg(0) + arg(1) * norm_gen(prng);
         }
     };
+    REGISTER_HOUSEPI_FUNCTION(Normal_, ContinuosDistrRegistry)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////  *** Lognormal Distribution : class ***  /////////////////////////////
@@ -371,14 +381,14 @@ namespace
         }
         double raw_quantile_(double p) const override final
         {
-            static const boost::math::normal stdnorm(0., 1.);
-            return exp(arg(0) + arg(1) * boost::math::quantile(stdnorm, p));
+            return exp(arg(0) + arg(1) * boost::math::erfc_inv(2. - 2. * p, no_promote_policy{}) * M_SQRT2);
         }
         double raw_rand_(hsp::rnd_gen &prng) const override final
         {
             return exp(arg(0) + arg(1) * norm_gen(prng));
         }
     };
+    REGISTER_HOUSEPI_FUNCTION(Lognormal_, ContinuosDistrRegistry)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////  *** Beta Distribution : class ***  //////////////////////////////
@@ -427,7 +437,7 @@ namespace
         }
         double raw_cdf_(double x) const override final
         {
-            return boost::math::ibeta<double>(arg(0), arg(1), x);
+            return boost::math::ibeta(arg(0), arg(1), x, no_promote_policy{});
         }
         double raw_logpdf_(double x) const override final
         {
@@ -441,13 +451,14 @@ namespace
         }
         double raw_quantile_(double p) const override final
         {
-            return boost::math::quantile(boost::math::beta_distribution<double>(arg(0), arg(1)), p);
+            return boost::math::ibeta_inv(arg(0), arg(1), p, no_promote_policy{});
         }
         double raw_rand_(hsp::rnd_gen &prng) const override final
         {
             return boost::random::beta_distribution<double>(arg(0), arg(1))(prng);
         }
     };
+    REGISTER_HOUSEPI_FUNCTION(Beta_, ContinuosDistrRegistry)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////  *** Gamma Distribution : class ***  /////////////////////////////
@@ -478,7 +489,8 @@ namespace
         }
         double raw_cdf_(double x) const override final
         {
-            return boost::math::gamma_p<double>(arg(0), x / arg(1));
+            return boost::math::gamma_p(
+                arg(0), x / arg(1), no_promote_policy{});
         }
         double raw_logpdf_(double x) const override final
         {
@@ -492,13 +504,15 @@ namespace
         }
         double raw_quantile_(double p) const override final
         {
-            return boost::math::quantile(boost::math::gamma_distribution<double>(arg(0), arg(1)), p);
+            return arg(1) * boost::math::gamma_p_inv(
+                                arg(0), p, no_promote_policy{});
         }
         double raw_rand_(hsp::rnd_gen &prng) const override final
         {
             return std::gamma_distribution<double>(arg(0), arg(1))(prng);
         }
     };
+    REGISTER_HOUSEPI_FUNCTION(Gamma_, ContinuosDistrRegistry)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////  *** Gamma (Mean-Varance) Distribution : class ***  /////////////////////
@@ -535,7 +549,8 @@ namespace
         {
             const double m = arg(0);
             const double v = arg(1);
-            return boost::math::gamma_p<double>(m * m / v, x * m / v);
+            return boost::math::gamma_p(
+                m * m / v, x * m / v, no_promote_policy{});
         }
         double raw_logpdf_(double x) const override final
         {
@@ -555,7 +570,7 @@ namespace
         {
             const double m = arg(0);
             const double v = arg(1);
-            return boost::math::quantile(boost::math::gamma_distribution<double>(m * m / v, v / m), p);
+            return v / m * boost::math::gamma_p_inv(m * m / v, p, no_promote_policy{});
         }
         double raw_rand_(hsp::rnd_gen &prng) const override final
         {
@@ -564,6 +579,7 @@ namespace
             return std::gamma_distribution<double>(m * m / v, v / m)(prng);
         }
     };
+    REGISTER_HOUSEPI_FUNCTION(GammaMeanVar_, ContinuosDistrRegistry)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////  *** Rayleigh Distribution : class ***  ////////////////////////////
@@ -613,6 +629,7 @@ namespace
             return arg(0) * sqrt(-2 * log(unif_gen(prng)));
         }
     };
+    REGISTER_HOUSEPI_FUNCTION(Rayleigh_, ContinuosDistrRegistry)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////  *** Weibull Distribution : class ***  /////////////////////////////
@@ -664,6 +681,7 @@ namespace
             return arg(1) * pow(-log(unif_gen(prng)), 1.0 / arg(0));
         }
     };
+    REGISTER_HOUSEPI_FUNCTION(Weibull_, ContinuosDistrRegistry)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////  *** Exponential Distribution : class ***  //////////////////////////
@@ -709,6 +727,7 @@ namespace
             return -log(unif_gen(prng)) / arg(0);
         }
     };
+    REGISTER_HOUSEPI_FUNCTION(Exponential_, ContinuosDistrRegistry)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////  *** Poisson Distribution : class ***  ////////////////////////////
@@ -730,7 +749,7 @@ namespace
         }
         double raw_cdf_(double x) const override final
         {
-            return 1. - boost::math::gamma_p<double>(x + 1., arg(0));
+            return 1. - boost::math::gamma_p(x + 1., arg(0), no_promote_policy{});
         }
         double raw_logpdf_(double x) const override final
         {
@@ -750,6 +769,7 @@ namespace
             return std::poisson_distribution<unsigned>(arg(0))(prng);
         }
     };
+    REGISTER_HOUSEPI_FUNCTION(Poisson_, DiscreteDistrRegistry)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////  *** Binomial Distribution : class ***  ///////////////////////////
@@ -800,7 +820,7 @@ namespace
             const double size = arg(0);
             if (x > size)
                 return 1.;
-            return boost::math::ibeta(size - x, x + 1, 1. - arg(1));
+            return boost::math::ibeta(size - x, x + 1, 1. - arg(1), no_promote_policy{});
         }
         double raw_logpdf_(double x) const override final
         {
@@ -822,6 +842,7 @@ namespace
             return std::binomial_distribution<unsigned>(arg(0), arg(1))(prng);
         }
     };
+    REGISTER_HOUSEPI_FUNCTION(Binomial_, DiscreteDistrRegistry)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////  *** NegativeBinomial Distribution : class ***  ///////////////////////
@@ -868,6 +889,7 @@ namespace
             return std::negative_binomial_distribution<unsigned>(arg(0), arg(1))(prng);
         }
     };
+    REGISTER_HOUSEPI_FUNCTION(NegativeBinomial_, DiscreteDistrRegistry)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////  *** Geometric Distribution : class ***  ///////////////////////////
@@ -886,11 +908,11 @@ namespace
         double raw_pdf_(double x) const override final
         {
             const double prob = arg(0);
-            return prob * pow(1. - prob, x);
+            return prob * exp(x * log1p(-prob));
         }
         double raw_cdf_(double x) const override final
         {
-            return 1. - pow(1. - arg(0), x + 1);
+            return 1. - exp((x + 1) * log1p(-arg(0)));
         }
         double raw_logpdf_(double x) const override final
         {
@@ -903,13 +925,14 @@ namespace
         }
         double raw_quantile_(double p) const override final
         {
-            return boost::math::quantile(boost::math::geometric_distribution<double>(arg(0)), p);
+            return std::floor(log1p(-p) / log1p(-arg(0)));
         }
         double raw_rand_(hsp::rnd_gen &prng) const override final
         {
             return std::geometric_distribution<unsigned>(arg(0))(prng);
         }
     };
+    REGISTER_HOUSEPI_FUNCTION(Geometric_, DiscreteDistrRegistry)
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////  *** InfecProfile_Ferretti20 : class ***  ///////////////////////////
@@ -981,25 +1004,5 @@ namespace
             return (F0 + pow(1. + exp((m - tOST) / s), -a) - pow(1. + exp(m / s), -a)) / norm_cdf;
         }
     };
+    REGISTER_HOUSEPI_FUNCTION(InfecProfile_Ferretti20, InfecProfileRegistry)
 }
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  Register Distributions  ///////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-REGISTER_HOUSEPI_FUNCTION(Uniform_, ContinuosDistrRegistry)
-REGISTER_HOUSEPI_FUNCTION(Normal_, ContinuosDistrRegistry)
-REGISTER_HOUSEPI_FUNCTION(Lognormal_, ContinuosDistrRegistry)
-REGISTER_HOUSEPI_FUNCTION(Beta_, ContinuosDistrRegistry)
-REGISTER_HOUSEPI_FUNCTION(Gamma_, ContinuosDistrRegistry)
-REGISTER_HOUSEPI_FUNCTION(GammaMeanVar_, ContinuosDistrRegistry)
-REGISTER_HOUSEPI_FUNCTION(Rayleigh_, ContinuosDistrRegistry)
-REGISTER_HOUSEPI_FUNCTION(Weibull_, ContinuosDistrRegistry)
-REGISTER_HOUSEPI_FUNCTION(Exponential_, ContinuosDistrRegistry)
-
-REGISTER_HOUSEPI_FUNCTION(Poisson_, DiscreteDistrRegistry)
-REGISTER_HOUSEPI_FUNCTION(Binomial_, DiscreteDistrRegistry)
-REGISTER_HOUSEPI_FUNCTION(NegativeBinomial_, DiscreteDistrRegistry)
-REGISTER_HOUSEPI_FUNCTION(Geometric_, DiscreteDistrRegistry)
-
-REGISTER_HOUSEPI_FUNCTION(InfecProfile_Ferretti20, InfecProfileRegistry)
