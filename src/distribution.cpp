@@ -464,7 +464,16 @@ namespace
     protected:
         double raw_pdf_(double x) const override final
         {
-            return exp(raw_logpdf_(x));
+            if (x != 0.)
+                return exp(raw_logpdf_(x));
+
+            const double shape = arg(0);
+            if (shape < 1.)
+                return std::numeric_limits<double>::infinity();
+            else if (shape == 1.)
+                return exp(-log(arg(1)) - lgamma(1));
+            else
+                return 0.;
         }
         double raw_cdf_(double x) const override final
         {
@@ -508,7 +517,18 @@ namespace
     protected:
         double raw_pdf_(double x) const override final
         {
-            return exp(raw_logpdf_(x));
+            if (x != 0.)
+                return exp(raw_logpdf_(x));
+
+            const double m = arg(0);
+            const double v = arg(1);
+            const double shape = m * m / v;
+            if (shape < 1.)
+                return std::numeric_limits<double>::infinity();
+            else if (shape == 1.)
+                return exp(-log(v / m) - lgamma(1));
+            else
+                return 0.;
         }
         double raw_cdf_(double x) const override final
         {
