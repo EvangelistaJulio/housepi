@@ -118,9 +118,9 @@ public:
     void init_missing_augm(Individual &member);
 
     /// Request discrete parameter definition.
-    void request_discrete_param(size_t p) { param.user_discrete_set.emplace(p); }
+    void request_discrete_param(size_t p) { param.request_discrete(p); }
     /// Request discrete augmented definition.
-    void request_discrete_augm(size_t a) { augm.user_discrete_set.emplace(a); }
+    void request_discrete_augm(size_t a) { augm.request_discrete(a); }
     /// Request discrete infectivity profile definition.
     void request_discrete_infec_profile() { infec_profile.request_discrete(); }
 

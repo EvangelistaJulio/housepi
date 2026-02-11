@@ -175,7 +175,7 @@ void Augmented::helper_build_append_infec_profile_()
 
     // append discrete infectivity profile definitions if any
     if (pInfecProfile_->is_discrete_requested())
-        user_discrete_set.emplace(pInfecProfile_->augm_key);
+        user_discrete_set_.emplace(pInfecProfile_->augm_key);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -396,7 +396,7 @@ void Augmented::set_function_or_identity_for_(size_t k)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Augmented::clear_all(Individual &member)
+void Augmented::clear_all(AugmContainer &member)
 {
     size_t n = pRegistry->size();
     member.augm_vec_.resize(n);
@@ -486,8 +486,7 @@ void Augmented::helper_init_attributes_(Individual &member, size_t k)
                                 hsp::str::tod(deftable_["proposal_scale"][k]));
 
         // check if satisfies discrete requirement, if any
-        if (user_discrete_set.count(a) &&
-            !xaugm.is_discrete())
+        if (user_discrete_set_.count(a) && !xaugm.is_discrete())
             throw std::invalid_argument(
                 "Definition of " + xaugm.err_name() +
                 " did not return a discrete object as requested by model.");
@@ -559,7 +558,7 @@ void Augmented::init_func_attributes_(Individual &member, size_t k)
 ///////////////////////////////////  Augmented : user reset  ////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Augmented::user_reset(hsp::rnd_gen &prng, Individual &member)
+void Augmented::user_reset(hsp::rnd_gen &prng, AugmContainer &member)
 {
     for (size_t a : status_to_sample[member.status()])
         member.augm_vec_[a].user_reset(prng);
@@ -648,7 +647,7 @@ hsp::str_table Augmented::get_ordered_models_(int status) const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Augmented::materialize_augm_model_log_lik(Individual &member)
+double Augmented::materialize_augm_model_log_lik(AugmContainer &member)
 {
     const ModelBlock_ &block = model_blocks_[member.augm_idx_status_];
     if (block.models.empty())
@@ -662,7 +661,7 @@ double Augmented::materialize_augm_model_log_lik(Individual &member)
     return new_ll;
 }
 
-double Augmented::materialize_augm_model_logratio(Individual &member, size_t a)
+double Augmented::materialize_augm_model_logratio(AugmContainer &member, size_t a)
 {
     const ModelBlock_ &block = model_blocks_[member.augm_idx_status_];
     if (block.depen[a].empty())
@@ -746,7 +745,7 @@ void Augmented::store_draws(unsigned long smpl_count)
 
     for (size_t i = 0; i < smpl_individuals.size(); ++i)
     {
-        const Individual *member_ptr = smpl_individuals[i];
+        const AugmContainer *member_ptr = smpl_individuals[i];
         auto &member_matrix = smpl_values[i];
 
         size_t c = 0;

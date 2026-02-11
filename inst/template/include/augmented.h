@@ -30,6 +30,7 @@ namespace hsp::key
 struct DataWide;
 struct Parameter;
 struct InfecProfile;
+class AugmContainer;
 class Individual;
 
 struct Augmented
@@ -39,7 +40,6 @@ struct Augmented
 
     std::unordered_set<size_t> list_draws = {};
     std::unordered_set<size_t> list_export = {};
-    std::unordered_set<size_t> user_discrete_set = {};
 
     /// Status to definition row.
     std::unordered_map<int, std::vector<size_t>> status_to_def_row = {};
@@ -49,8 +49,12 @@ struct Augmented
     std::unordered_map<int, size_t> status_to_index = {};
 
     // optional augmented posterior sample
-    std::vector<const Individual *> smpl_individuals = {};
+    std::vector<const AugmContainer *> smpl_individuals = {};
     std::vector<std::vector<std::vector<double>>> smpl_values = {};
+
+    ///////////////////////////
+    //////  CONSTRUCTOR  //////
+    ///////////////////////////
 
     Augmented(const std::vector<std::string> &keys,
               DataWide *dataptr,
@@ -58,11 +62,15 @@ struct Augmented
               InfecProfile *infprofptr);
     ~Augmented();
 
+    //////////////////////
+    //////  SETTER  //////
+    //////////////////////
+
     /// Assign augmented variables to all individuals.
     void build(const hsp::str_table &input);
 
     /// Clear all augmented definition of individual.
-    void clear_all(Individual &member);
+    void clear_all(AugmContainer &member);
     /// Assign augmented variables only if missing.
     /// If force is true, re-initialize all augmented variables.
     void init_missing(Individual &member, bool force = false);
@@ -70,8 +78,11 @@ struct Augmented
     /// NOTE: not to be called before simulation which builds on demand.
     void init();
 
+    /// Request discrete augmented definition.
+    void request_discrete(size_t a) { user_discrete_set_.emplace(a); }
+
     /// Reset augmented initial values for given individual.
-    void user_reset(hsp::rnd_gen &prng, Individual &member);
+    void user_reset(hsp::rnd_gen &prng, AugmContainer &member);
     /// Initialize augmented initial values for all individuals.
     void user_reset(hsp::rnd_gen &prng);
 
@@ -82,11 +93,19 @@ struct Augmented
     /// Store sample for individual augmented variable followup.
     void store_draws(unsigned long smpl_count);
 
+    //////////////////////
+    //////  GETTER  //////
+    //////////////////////
+
     /// Compute and store log-likelihood associated to augmented variable models.
     /// NOTE: to be called only if any model is defined.
-    double materialize_augm_model_log_lik(Individual &member);
+    double materialize_augm_model_log_lik(AugmContainer &member);
     /// Change in log-likelihood associated to given augmented.
-    double materialize_augm_model_logratio(Individual &member, size_t a);
+    double materialize_augm_model_logratio(AugmContainer &member, size_t a);
+
+    /////////////////////
+    //////  FLAGS  //////
+    /////////////////////
 
     /// Flag if there are non-constant augmented definitions.
     bool is_any_sample() const noexcept { return !status_to_sample.empty(); }
@@ -101,6 +120,10 @@ private:
     InfecProfile *pInfecProfile_;  /// pointer to external InfecProfile struct
     hsp::str_table deftable_ = {}; /// store definition table
 
+    bool is_any_model_ = false; /// store flag if one augmented model is provided
+
+    std::unordered_set<size_t> user_discrete_set_ = {}; /// user defined discrete parameters
+
     /// Auxiliary block for status-specific models.
     struct ModelBlock_
     {
@@ -108,7 +131,6 @@ private:
         std::vector<std::vector<size_t>> depen = {}; /// list of respective dependecies
     };
     std::vector<ModelBlock_> model_blocks_;
-    bool is_any_model_ = false; /// store flag if one augmented model is provided
 
     /// Eventually append infectivity profile definitions.
     void helper_build_append_infec_profile_();

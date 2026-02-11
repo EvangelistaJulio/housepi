@@ -35,6 +35,7 @@
 
 Parameter::Parameter(const std::vector<std::string> &keys)
     : pRegistry(std::make_unique<hsp::key::Registry>(keys)) {}
+Parameter::~Parameter() = default;
 
 void Parameter::build(const hsp::str_table &input)
 {
@@ -148,7 +149,7 @@ void Parameter::helper_build_constant_(const hsp::str_table &input, size_t k)
     size_t p = pRegistry->from_string(paramstr);
     param_vec_[p].transfer(read_numeric(input.at("value")[k]));
     // check if discrete as requested
-    if (user_discrete_set.count(p) && !param_vec_[p].is_discrete())
+    if (user_discrete_set_.count(p) && !param_vec_[p].is_discrete())
         throw std::invalid_argument(
             "Definition of " + param_vec_[p].err_name() +
             " did not return a discrete object as requested by model.");
@@ -187,7 +188,7 @@ void Parameter::helper_build_to_sample_(const hsp::str_table &input, size_t k)
                          hsp::str::tod(input.at("proposal_scale")[k]));
 
     // check if discrete as requested
-    if (user_discrete_set.count(p) && !xparam.is_discrete())
+    if (user_discrete_set_.count(p) && !xparam.is_discrete())
         throw std::invalid_argument(
             "Definition of " + xparam.err_name() +
             " did not return a discrete object as requested by model.");

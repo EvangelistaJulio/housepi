@@ -13,20 +13,6 @@
 #include "function.h"
 #include "augmented_map.h"
 
-namespace hsp::status
-{
-	constexpr int INFECTED = 1;	   /// Infected status (>=)
-	constexpr int SUSCEPTIBLE = 0; /// Susceptible status (==)
-	constexpr int MISSING = -1;	   /// Missing status (<=)
-
-	/// Wheter individual status is infected.
-	inline bool is_infected(int s) { return s >= INFECTED; }
-	/// Wheter individual status is susceptible.
-	inline bool is_susceptible(int s) { return s == SUSCEPTIBLE; }
-	/// Wheter individual status is missing.
-	inline bool is_missing(int s) { return s <= MISSING; }
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////// *** Individual : class *** /////////////////////////////////////
@@ -34,7 +20,7 @@ namespace hsp::status
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Class for individual household study member.
-class Individual final : public AugmentedContainer
+class Individual final : public AugmContainer
 {
 	friend class Household;
 	friend struct DataLong;
@@ -72,8 +58,6 @@ public:
 	//////  GETTER  //////
 	//////////////////////
 
-	int status() const noexcept { return status_; }
-
 	double data(size_t d) const { return data_vec_[d]; }
 	const std::vector<double> &get_data_wide_vec() const noexcept { return data_vec_; }
 
@@ -95,28 +79,16 @@ public:
 	double group_rate(size_t g) const { return group_rate_vec_[g].value(); }
 	const Attribute &get_group_rate_attribute(size_t g) const { return group_rate_vec_[g]; }
 
-	/////////////////////
-	//////  FLAGS  //////
-	/////////////////////
-
-	bool is_infected_status() const noexcept { return hsp::status::is_infected(status_); }
-	bool is_healthy_status() const noexcept { return hsp::status::is_susceptible(status_); }
-	bool is_missing_status() const noexcept { return hsp::status::is_missing(status_); }
-
 	////////////////////
 	//////  SHOW  //////
 	////////////////////
 
-	/// Individidaul unique identifier as in data.
-	const std::string &id() const noexcept { return id_; }
 	size_t hhindex() const noexcept { return hhindex_; }
 	std::string err_name() const { return "individual '" + id_ + "'"; }
 
 private:
-	std::string id_ = "";									/// user id
 	size_t index_ = 0;										/// housepi internal index
 	size_t hhindex_ = 0;									/// household relative index
-	int status_ = hsp::status::MISSING;						/// status of the individual
 	std::vector<double> data_vec_ = {};						/// data
 	std::vector<Attribute> group_rate_vec_ = {};			/// group rates
 	std::vector<std::vector<double>> *pdatalong_ = nullptr; /// data long format associated

@@ -131,10 +131,10 @@ private:
 	unsigned long house_multiplicity_ = 1; /// N. of equivalent houses
 	size_t multiplicity_class_ = -1;	   /// Index of multiplicity class
 
-	std::vector<Individual> members_ = {};	   /// Household members
-	std::vector<size_t> infected_list_; /// hh indexes of infected members
-	std::vector<size_t> healthy_list_;  /// hh indexes of susceptible members
-	std::vector<size_t> missing_list_;  /// hh indexes of members with missing status
+	std::vector<Individual> members_ = {}; /// Household members
+	std::vector<size_t> infected_list_;	   /// hh indexes of infected members
+	std::vector<size_t> healthy_list_;	   /// hh indexes of susceptible members
+	std::vector<size_t> missing_list_;	   /// hh indexes of members with missing status
 
 	std::vector<std::vector<Attribute>> contact_rates_; /// contact rates
 

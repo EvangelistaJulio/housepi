@@ -589,7 +589,7 @@ Rcpp::NumericMatrix MCMC::flush_augm_draws()
         size_t col = 0;
         for (size_t i = 0; i < augm.smpl_values.size(); ++i)
         {
-            const Individual *member_ptr = augm.smpl_individuals[i];
+            const AugmContainer *member_ptr = augm.smpl_individuals[i];
             auto &member_matrix = augm.smpl_values[i];
 
             size_t j = 0;

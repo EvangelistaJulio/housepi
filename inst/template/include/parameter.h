@@ -56,25 +56,12 @@ struct Parameter
     std::vector<std::vector<double>> smpl_values = {}; /// values of the sample
     std::vector<std::vector<double>> smpl_priors = {}; /// prior values of the sample
 
-    std::unordered_set<size_t> user_discrete_set = {}; /// user defined discrete parameters
-
     ///////////////////////////
     //////  CONSTRUCTOR  //////
     ///////////////////////////
 
     Parameter(const std::vector<std::string> &keys);
-
-    //////////////////////
-    //////  GETTER  //////
-    //////////////////////
-
-    /// Get reference to parameter Variable class.
-    Variable &at(size_t p) { return param_vec_[p]; }
-    /// Get reference to parameter constant Variable class.
-    const Variable &at(size_t p) const { return param_vec_[p]; }
-
-    /// Flag to check if there are parameters to sample.
-    bool is_any_sample() const noexcept { return !list_sample.empty(); }
+    ~Parameter();
 
     //////////////////////
     //////  SETTER  //////
@@ -88,6 +75,9 @@ struct Parameter
     void make_cache_dependent(size_t p);
     /// Adjust lists of parameters to be inferred making parameter as dependent on cache.
     void make_cache_dependent(const hsp::parse::Entry &node);
+
+    /// Request discrete parameter definition.
+    void request_discrete(size_t p) { user_discrete_set_.emplace(p); }
 
     /// Randomly initialize values of the parameters to be inferred.
     void user_reset(hsp::rnd_gen &prng);
@@ -104,9 +94,21 @@ struct Parameter
     /// Store current sample of parameters and respective priors.
     void store_draws(unsigned long smpl_count);
 
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////  Parameter : definition helpers  ////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////
+    //////  GETTER  //////
+    //////////////////////
+
+    /// Get reference to parameter Variable class.
+    Variable &at(size_t p) { return param_vec_[p]; }
+    /// Get reference to parameter constant Variable class.
+    const Variable &at(size_t p) const { return param_vec_[p]; }
+
+    /// Flag to check if there are parameters to sample.
+    bool is_any_sample() const noexcept { return !list_sample.empty(); }
+
+    ///////////////////////
+    //////  HELPERS  //////
+    ///////////////////////
     /// UPDATE: these are just temporary fixes.
 
     /// Links used just by read_attribute.
@@ -131,8 +133,8 @@ struct Parameter
     }
 
 private:
-    std::vector<Variable> param_vec_ = {}; /// parameters vector
-    mutable Attribute storage_;            /// auxiliary storage attribute used for reading.
+    std::vector<Variable> param_vec_ = {};              /// parameters vector
+    std::unordered_set<size_t> user_discrete_set_ = {}; /// user defined discrete parameters
 
     /// Drop current lists of parameters.
     void clear_lists_();
@@ -142,6 +144,7 @@ private:
     void helper_build_to_sample_(const hsp::str_table &deftable, size_t k);
 
     /// UPDATE: waiting for an updated read_attribute framework...
+    mutable Attribute storage_;                    /// auxiliary storage attribute used for reading.
     const hsp::key::Registry *pDataWideRegistry_;  /// pointer to external registry
     const hsp::key::Registry *pGroupRateRegistry_; /// pointer to external registry
     const hsp::key::Registry *pAugmRegistry_;      /// pointer to external registry
