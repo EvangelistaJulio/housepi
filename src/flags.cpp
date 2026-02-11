@@ -5,6 +5,8 @@
  * See the LICENSE file for details.
  */
 
+#include "string"
+
 #include "tools/flags.h"
 
 /// Compile-time list of standard housepi flags.

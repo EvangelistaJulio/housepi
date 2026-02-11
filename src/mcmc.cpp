@@ -62,8 +62,8 @@ void MCMC::assert_no_missing_status() const { pImpl_->assert_no_missing_status()
 void MCMC::build_contact_rates() { pImpl_->build_contact_rates(); }
 
 void MCMC::init_infec_profile_template(hsp::dict<std::string> x) { pImpl_->init_infec_profile_template(x); }
-double MCMC::infec_profile_inst(const Individual &i, double t) const { return pImpl_->infec_profile_inst(i, t); }
-double MCMC::infec_profile_cumul(const Individual &i, double t) const { return pImpl_->infec_profile_cumul(i, t); }
+double MCMC::infec_profile_inst(const AugmContainer &i, double t) const { return pImpl_->infec_profile_inst(i, t); }
+double MCMC::infec_profile_cumul(const AugmContainer &i, double t) const { return pImpl_->infec_profile_cumul(i, t); }
 
 void MCMC::init_missing_augm(Individual &member) { pImpl_->init_missing_augm(member); }
 

@@ -32,6 +32,7 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+class AugmContainer;
 class Individual;
 class Household;
 
@@ -102,8 +103,8 @@ public:
     size_t get_max_hh_cases() const noexcept { return data_wide.get_max_hh_cases(); }
     void assert_no_missing_status() const { data_wide.assert_no_missing_status(); }
 
-    double infec_profile_inst(const Individual &i, double t) const { return infec_profile.inst(&i, t); }
-    double infec_profile_cumul(const Individual &i, double t) const { return infec_profile.cumul(&i, t); }
+    double infec_profile_inst(const AugmContainer &i, double t) const { return infec_profile.inst(&i, t); }
+    double infec_profile_cumul(const AugmContainer &i, double t) const { return infec_profile.cumul(&i, t); }
 
     //////////////////////
     //////  SETTER  //////

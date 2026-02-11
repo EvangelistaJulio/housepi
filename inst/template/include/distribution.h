@@ -47,6 +47,8 @@ public:
 		: Function(args, domain_min, domain_max) { set_eval_as_distr_call(); }
 	virtual ~Distribution() = default;
 
+	std::string err_name() const override { return "distribution '" + std::string(name()) + "'"; }
+
 	//////////////////////
 	//////  GETTER  //////
 	//////////////////////
@@ -66,8 +68,6 @@ public:
 	double logpdf(double x) const { return log_func_(delocate_(x)); }
 	/// Return value of log-ratio of probability density/mass functions.
 	double logratio(double xo, double xn) const { return log_ratio_(delocate_(xo), delocate_(xn)); }
-
-	std::string err_name() const override { return "distribution '" + std::string(name()) + "'"; }
 
 protected:
 	/////////////////////////////////////////////////////////////////////////////////////////////
@@ -245,8 +245,11 @@ protected:
 	//////////////////////  Distribution : functional truncation [private] //////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
+	/// Select functional method in case of truncation.
 	void helper_init_distr_truncation_();
-	/// UPDATE: if lower/upper values don't change, I could just cached them.
+
+	/// UPDATE: if values don't change, I should just cache!
+	/// UPDATE: truncation should become a switch too
 
 	double (Distribution::*trunc_)() const = &Distribution::do_trunc_dummy_;
 

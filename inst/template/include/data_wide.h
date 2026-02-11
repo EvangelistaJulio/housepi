@@ -76,7 +76,10 @@ struct DataWide
     //////  SETTER  //////
     //////////////////////
 
+    /// Assign data (wide format).
     void build(const hsp::str_table &input);
+    /// Build multiplicities.
+    /// UPDATE: I should find a way to deal internally with multiplicity.
     void multiplicity_build(const hsp::str_table &input, bool is_any_augm);
 
     /// Initialize cached structeres according to household size.
@@ -91,38 +94,27 @@ struct DataWide
     void recover_member_buffer(Household &house, size_t i);
 
     void assert_finite_log_lik() const;
+
+    /// Initialize posterior sample of parameters.
     void init_draws(unsigned long sample_size);
+    /// Store current sample of log-likelihood for restricted households.
     void store_draws(unsigned long smpl_count);
 
     /////////////////////
     //////  FLAGS  //////
     /////////////////////
 
-    /// Assert data_wide is not empty.
-    void assert_non_empty()
-    {
-        if (report_house.total == 0)
-            throw std::length_error(
-                "Unable to proceed: no data was found.");
-    }
+    /// Assert data wide is not empty.
+    void assert_non_empty();
     /// Assert that not all individuals have missing status.
-    void assert_not_all_missing_status()
-    {
-        if (report_indiv.total == report_indiv.missing)
-            throw std::length_error(
-                "All individuals in the data had missing status.");
-    }
+    void assert_not_all_missing_status();
+    /// Assert no individual has missing status.
+    void assert_no_missing_status() const;
 
-    void assert_no_missing_status() const
-    {
-        if (report_indiv.missing > 0)
-            throw std::length_error(
-                "Individual with missing status are incompatible with current model.");
-    }
-
+    /// Return maximum number of observed infected household members.
     size_t get_max_hh_cases() const noexcept { return report_hh_size.max_cases.first; }
 
-    /// Wheter data have been provided.
+    /// Wheter data has been provided.
     bool is_empty() const noexcept { return house_vector_.empty(); }
 
     /////////////////////////

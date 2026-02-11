@@ -140,5 +140,6 @@ private:
 	std::vector<double> smpl_log_lik_ = {}; /// samples of log-likelihood
 
 	/// Change_status of individual i to new status (without controls).
+	///	NOTE: this introduces augmented variables -> it requires RJMCMC in case of inference.
 	void helper_set_status_(Individual &member, int new_status);
 };

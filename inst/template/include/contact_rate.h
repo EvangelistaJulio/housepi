@@ -45,5 +45,6 @@ private:
     DataWide *pDataWide_;         /// pointer to external DataWide struct
     const Parameter *pParameter_; /// pointer to external Parameter struct
 
+    /// Set contact rate according to user assignement.
     void init_contact_rates_(Household &house, size_t k, size_t i);
 };

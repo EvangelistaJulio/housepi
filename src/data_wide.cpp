@@ -30,7 +30,6 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Emplace a new individual in the household.
 void Household::init_member(size_t index,
                             const std::string &id,
                             int status,
@@ -55,8 +54,6 @@ void Household::init_member(size_t index,
         missing_list_.emplace_back(hhindex);
 }
 
-/// Change_status of individual i to new status (without controls).
-///	NOTE: this introduces augmented variables -> it requires RJMCMC in case of inference.
 void Household::helper_set_status_(Individual &member, int new_status)
 {
     if (new_status == member.status())
@@ -99,7 +96,6 @@ DataWide::DataWide(
       p_double_mtx_Registry(std::make_unique<hsp::key::Registry>(double_mtx_keys)) {}
 DataWide::~DataWide() = default;
 
-/// Assign data after pre-processing.
 void DataWide::build(const hsp::str_table &input)
 {
     pRegistry->clear();
@@ -174,7 +170,6 @@ void DataWide::build(const hsp::str_table &input)
     build_helper_fill_report_data_();
 }
 
-/// Get housepi household index from house_id.
 size_t DataWide::house_id_to_index_(std::string_view house_id) const
 {
     auto it = hhid_to_index_.find(house_id);
@@ -184,7 +179,6 @@ size_t DataWide::house_id_to_index_(std::string_view house_id) const
         "Index '" + std::string(house_id) + "' did not match any household in the data.");
 }
 
-/// Clear previous data report.
 void DataWide::helper_build_clear_data_()
 {
     house_vector_.clear();
@@ -194,7 +188,6 @@ void DataWide::helper_build_clear_data_()
     report_hh_size = ReportHouseSizes();
 }
 
-/// Assert that data headers are correct.
 void DataWide::helper_build_data_headers_(const hsp::str_table &input)
 {
     std::vector<std::string> headers = hsp::read::extract_keys(input);
@@ -220,7 +213,6 @@ void DataWide::helper_build_data_headers_(const hsp::str_table &input)
             pRegistry->add(datastring);
 }
 
-/// Use the loaded data to fill-in the respective report.
 void DataWide::build_helper_fill_report_data_()
 {
     report_house.total = house_vector_.size();
@@ -262,8 +254,6 @@ void DataWide::build_helper_fill_report_data_()
     }
 }
 
-/// Build multiplicities.
-/// UPDATE: I should find a way to deal internally with multiplicity.
 void DataWide::multiplicity_build(const hsp::str_table &input, bool is_any_augm)
 {
     head_class_house_indexes.clear();
@@ -453,7 +443,6 @@ void DataWide::assert_finite_log_lik() const
     }
 }
 
-/// Initialize posterior sample of parameters.
 void DataWide::init_draws(unsigned long sample_size)
 {
     // sample over households
@@ -463,8 +452,6 @@ void DataWide::init_draws(unsigned long sample_size)
         smpl_values.emplace_back(sample_size, hsp::na::DOUBLE);
 }
 
-/// Store current sample of log-likelihood for restricted households.
-/// UPDATE: multiplicity should not be multiplied within the compute_log_lik!
 void DataWide::store_draws(unsigned long smpl_count)
 {
     // store sample for restricted households
@@ -476,4 +463,25 @@ void DataWide::store_draws(unsigned long smpl_count)
             x += house.member(i).augm_log_lik_.value();
         smpl_values[R][smpl_count] = x;
     }
+}
+
+void DataWide::assert_non_empty()
+{
+    if (report_house.total == 0)
+        throw std::length_error(
+            "Unable to proceed: no data was found.");
+}
+
+void DataWide::assert_not_all_missing_status()
+{
+    if (report_indiv.total == report_indiv.missing)
+        throw std::length_error(
+            "All individuals in the data had missing status.");
+}
+
+void DataWide::assert_no_missing_status() const
+{
+    if (report_indiv.missing > 0)
+        throw std::length_error(
+            "Individual with missing status are incompatible with current model.");
 }

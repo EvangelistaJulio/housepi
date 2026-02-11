@@ -35,7 +35,6 @@ DataLong::DataLong(const std::vector<std::string> &keys,
       pDataWide_(ptr) {}
 DataLong::~DataLong() = default;
 
-/// Assign data after pre-processing.
 void DataLong::build(const hsp::str_table &input)
 {
     pRegistry->clear();
@@ -88,7 +87,6 @@ void DataLong::build(const hsp::str_table &input)
             member.pdatalong_ = &indiv_datalist.at(c++);
 }
 
-/// Assign data after pre-processing.
 void DataLong::helper_build_clear_data_()
 {
     // data sequence headers
@@ -96,7 +94,6 @@ void DataLong::helper_build_clear_data_()
     indiv_datalist.clear();
 }
 
-/// Assert that data headers are correct.
 void DataLong::helper_build_data_headers_(const hsp::str_table &input)
 {
     if (pDataWide_->is_empty())

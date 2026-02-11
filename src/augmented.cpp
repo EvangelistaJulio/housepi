@@ -23,6 +23,7 @@
 #include "tools/types.h"
 
 #include "augmented.h"
+#include "augm_container.h"
 #include "data_wide.h"
 #include "function.h"
 #include "household.h"
@@ -249,7 +250,7 @@ void Augmented::helper_build_definition_order_()
     is_any_model_ = false;
 
     status_to_index_.clear();
-    status_to_sample.clear();
+    model_blocks_.clear();
     list_export.clear();
     list_draws.clear();
 
@@ -280,8 +281,9 @@ void Augmented::set_definition_dependency_order_for_(int status)
     // check dependecies and translate order from name to deftable row index
     try
     {
-        if (status_to_index_.count(status) == 0)
-            status_to_index_.emplace(status, status_to_index_.size());
+        // NOTE: this method is just called once per status
+        status_to_index_.emplace(status, model_blocks_.size());
+        model_blocks_.emplace_back();
 
         status_to_def_row_[status].clear(); // NOTE: recycled from build to store order
 
@@ -295,7 +297,7 @@ void Augmented::set_definition_dependency_order_for_(int status)
 
         // define usage lists respecting definition order
         for (size_t k : status_to_def_row_.at(status))
-            set_sample_map_for_(status, k);
+            set_sample_list_for_(status, k);
     }
     catch (const std::exception &e)
     {
@@ -337,7 +339,7 @@ std::vector<size_t> Augmented::get_unsorted_definition_rows_(int status, bool is
         std::to_string(status) + ".");
 }
 
-void Augmented::set_sample_map_for_(int status, size_t k)
+void Augmented::set_sample_list_for_(int status, size_t k)
 {
     const std::string &augmstr = deftable_["name"][k];
     size_t a = pRegistry->from_string(augmstr);
@@ -374,7 +376,7 @@ void Augmented::set_sample_map_for_(int status, size_t k)
         if (hsp::status::is_infected(status))
         {
             is_any_sample_ = true;
-            status_to_sample[status].push_back(a);
+            model_blocks_[status_to_index_.at(status)].sample.push_back(a);
         }
     }
 }
@@ -438,12 +440,12 @@ void Augmented::init()
 void Augmented::init_missing(Individual &member, bool force)
 {
     // loop over augmented variable definitions to assign placheholders
-    for (size_t k : helper_init_get_definition_order_(member))
+    for (size_t k : helper_materialize_definition_order_(member))
         if (force || member.augm_vec_[pRegistry->from_string(deftable_["name"][k])].is_empty())
             helper_init_attributes_(member, k);
 }
 
-std::vector<size_t> Augmented::helper_init_get_definition_order_(Individual &member)
+std::vector<size_t> Augmented::helper_materialize_definition_order_(Individual &member)
 {
     int status = member.status();
 
@@ -456,12 +458,12 @@ std::vector<size_t> Augmented::helper_init_get_definition_order_(Individual &mem
     // UPDATE: this architecture is sub-optimal for simulations
     if (status_to_def_row_.count(status))
     {
-        member.augm_idx_status_ = status_to_index_.at(status);
+        member.augm_idx_ = status_to_index_.at(status);
         return status_to_def_row_[status];
     }
     if (status_to_def_row_.count(hsp::status::MISSING))
     {
-        member.augm_idx_status_ = status_to_index_.at(hsp::status::MISSING);
+        member.augm_idx_ = status_to_index_.at(hsp::status::MISSING);
         return status_to_def_row_[hsp::status::MISSING];
     }
 
@@ -578,7 +580,7 @@ void Augmented::helper_init_func_attributes_(Individual &member, size_t k)
 
 void Augmented::user_reset(hsp::rnd_gen &prng, AugmContainer &member)
 {
-    for (size_t a : status_to_sample[member.status()])
+    for (size_t a : model_blocks_[member.augm_idx_].sample)
         member.augm_vec_[a].user_reset(prng);
 
     for (size_t a = 0; a < pRegistry->size(); ++a)
@@ -603,9 +605,6 @@ void Augmented::user_reset(hsp::rnd_gen &prng)
 
 void Augmented::helper_init_model_list_()
 {
-    model_blocks_.clear();
-    model_blocks_.resize(all_infected_statuses_.size());
-
     for (int status : all_infected_statuses_)
     {
         ModelBlock_ &block = model_blocks_[status_to_index_.at(status)];
@@ -663,7 +662,7 @@ hsp::str_table Augmented::get_ordered_models_(int status) const
 
 double Augmented::materialize_augm_model_log_lik(AugmContainer &member)
 {
-    const ModelBlock_ &block = model_blocks_[member.augm_idx_status_];
+    const ModelBlock_ &block = model_blocks_[member.augm_idx_];
     if (block.models.empty())
         return 0.;
 
@@ -677,7 +676,7 @@ double Augmented::materialize_augm_model_log_lik(AugmContainer &member)
 
 double Augmented::materialize_augm_model_logratio(AugmContainer &member, size_t a)
 {
-    const ModelBlock_ &block = model_blocks_[member.augm_idx_status_];
+    const ModelBlock_ &block = model_blocks_[member.augm_idx_];
     if (block.depen[a].empty())
         return 0.;
 

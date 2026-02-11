@@ -79,7 +79,7 @@ public:
 protected:
 	std::string id_ = "";				  /// user id
 	int status_ = hsp::status::MISSING;	  /// status of the individual
-	size_t augm_idx_status_;			  /// index for augmented model
+	size_t augm_idx_;					  /// index of status specific augmented definition
 	std::vector<Variable> augm_vec_ = {}; /// dictionary of augmented definitions
 	hsp::LogLike augm_log_lik_;			  /// augmented model log-likelihood
 

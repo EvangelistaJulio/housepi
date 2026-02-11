@@ -29,7 +29,7 @@ namespace hsp::infprof
 
 struct Parameter;
 class Distribution;
-class Individual;
+class AugmContainer;
 
 struct InfecProfile
 {
@@ -93,8 +93,8 @@ public:
     //////  GETTER  //////
     //////////////////////
 
-    double inst(const Individual *member_ptr, double t) const;
-    double cumul(const Individual *member_ptr, double t) const;
+    double inst(const AugmContainer *member_ptr, double t) const;
+    double cumul(const AugmContainer *member_ptr, double t) const;
 
     /////////////////////
     //////  FLAGS  //////

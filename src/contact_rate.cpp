@@ -36,7 +36,6 @@ ContactRate::ContactRate(
       pParameter_(paramptr) {}
 ContactRate::~ContactRate() = default;
 
-/// Build all group rates and contact rates and set rate per group.
 void ContactRate::build()
 {
     try
@@ -64,7 +63,6 @@ void ContactRate::build()
     }
 }
 
-/// Set contact rate according to user assignement.
 void ContactRate::init_contact_rates_(Household &house, size_t k, size_t i)
 {
     const Individual &member_k = house.member(k);

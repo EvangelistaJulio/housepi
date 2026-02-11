@@ -22,6 +22,7 @@
 
 #include "mcmc_impl.h"
 #include "data_wide.h"
+#include "household.h"
 #include "data_long.h"
 #include "parameter.h"
 #include "group_rate.h"
@@ -432,7 +433,7 @@ double MCMCImpl::atomic_move_augm_single_house_(size_t H)
         for (size_t i : house.infected_hhindexes())
         {
             Individual &member_i = house.member(i);
-            for (size_t a : augm.status_to_sample[member_i.status()])
+            for (size_t a : augm.list_sample(member_i.augm_idx_))
                 delta_ll += metropolis_augm_single_move_(house, member_i, a);
         }
     }

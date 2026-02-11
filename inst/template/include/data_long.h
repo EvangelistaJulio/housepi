@@ -37,6 +37,7 @@ public:
              DataWide *ptr);
     ~DataLong();
 
+    /// Assign data (long format) after pre-processing.
     void build(const hsp::str_table &input);
 
 private:

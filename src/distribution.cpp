@@ -38,18 +38,19 @@ using no_promote_policy = boost::math::policies::policy<
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Select functional method in case of truncation.
 void Distribution::helper_init_distr_truncation_()
 {
     trunc_mode_ = Trunc::Active;
 
-    if (lower_.is_empty() && upper_.is_empty()) // No Truncation
+    if (below_mode_ == Mode::Interval::None &&
+        above_mode_ == Mode::Interval::None) // No Truncation
     {
         trunc_ = &Distribution::do_trunc_dummy_;
         shift_ = &Distribution::do_shift_dummy_;
         trunc_mode_ = Trunc::None;
     }
-    else if (!lower_.is_empty() && upper_.is_empty()) // Lower Range Truncation
+    else if (below_mode_ != Mode::Interval::None &&
+             above_mode_ == Mode::Interval::None) // Lower Range Truncation
     {
         switch (discr_mode_)
         {
@@ -71,7 +72,8 @@ void Distribution::helper_init_distr_truncation_()
             shift_ = &Distribution::do_shift_min_;
         }
     }
-    else if (lower_.is_empty() && !upper_.is_empty()) // Upper Range Truncation
+    else if (below_mode_ == Mode::Interval::None &&
+             above_mode_ != Mode::Interval::None) // Upper Range Truncation
     {
         shift_ = &Distribution::do_shift_dummy_;
         switch (discr_mode_)

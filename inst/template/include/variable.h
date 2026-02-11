@@ -51,15 +51,7 @@ public:
     //////////////////////
 
     /// Restore empty. Used in multiple initializations.
-    void clear() noexcept
-    {
-        mode_ = Mode::Empty;
-        value_ = hsp::na::DOUBLE;
-        pAttr_ = nullptr;
-        pFunc_ = nullptr;
-        pDistr_ = nullptr;
-        pProp_ = nullptr;
-    }
+    void clear() noexcept;
 
     /// Enforce user choice for constant.
     void enforce_user_const() noexcept { is_user_const_ = true; }
@@ -74,6 +66,14 @@ public:
     /// Recover buffered value.
     void recover() noexcept { value_ = buffer_; }
 
+    /// Assign an attribute to function.
+    void init_func_attr(std::string_view key, const Attribute &attr);
+    /// Finalize reshaping of function.
+    /// Drop function if it's constant when reshaping.
+    /// NOTE: discretization of model has priority
+    ///       e. g. user discr is FALSE, but discrete-defined model
+    void init_func_reshaping(bool discr);
+
     /// Initialize pointer to distribution.
     void init_distr(std::string_view opt);
     /// Assign an attribute to distribution.
@@ -87,20 +87,18 @@ public:
     /// Eventually prune indirections if to constants.
     void optimize();
     /// Initialize pointer to proposer.
+    /// NOTE: it must be assigned after model initialization.
     void init_proposal(const std::string &proposal, double proposal_scale);
-
-    /// Assign an attribute to function.
-    void init_func_attr(std::string_view key, const Attribute &attr);
-    /// Initialize function reshaping.
-    /// NOTE: to be called necessarily.
-    void init_func_reshaping(bool discr);
 
     /////////////////////
     //////  FLAGS  //////
     /////////////////////
 
+    /// Wheter the variable is discrete.
     bool is_discrete() const noexcept override final;
+    /// Wheter the variable has a prior or a model associated.
     bool is_model() const noexcept;
+    /// Wheter the variable has an adaptable parametric proposal rule.
     bool is_adaptable() const noexcept;
 
     ///////////////////////////////////
@@ -138,9 +136,9 @@ public:
     std::string str_summary() const override final;
 
 protected:
-    double buffer_ = hsp::na::DOUBLE;     /// buffered value
+    double buffer_ = hsp::na::DOUBLE; /// buffered value
 
-    /// NOTE: Household must be copyable for simulations 
+    /// NOTE: Household must be copyable for simulations
     /// UPDATE: pointers should become unique -> Function clonable.
     std::shared_ptr<Distribution> pDistr_; /// prior\model distribution of the variable
     std::shared_ptr<Proposal> pProp_;      /// Monte Carlo proposer

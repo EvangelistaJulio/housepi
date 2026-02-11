@@ -41,9 +41,6 @@ struct Augmented
     std::unordered_set<size_t> list_draws = {};
     std::unordered_set<size_t> list_export = {};
 
-    /// Status to key of augmented variable to be sampled.
-    std::unordered_map<int, std::vector<size_t>> status_to_sample = {};
-
     // optional augmented posterior sample
     std::vector<const AugmContainer *> smpl_individuals = {};
     std::vector<std::vector<std::vector<double>>> smpl_values = {};
@@ -91,6 +88,8 @@ struct Augmented
     //////  GETTER  //////
     //////////////////////
 
+    const std::vector<size_t> &list_sample(size_t s) { return model_blocks_[s].sample; }
+
     /// Compute and store log-likelihood associated to augmented variable models.
     /// NOTE: to be called only if any model is defined.
     double materialize_augm_model_log_lik(AugmContainer &member);
@@ -130,8 +129,9 @@ private:
     /// Auxiliary block for status-specific models.
     struct ModelBlock_
     {
-        std::vector<size_t> models = {};             /// list of augmented with models
-        std::vector<std::vector<size_t>> depen = {}; /// list of respective dependecies
+        std::vector<size_t> models = {};             /// just augmented with models
+        std::vector<size_t> sample = {};             /// just augmented to sample
+        std::vector<std::vector<size_t>> depen = {}; /// all respective dependecies
     };
     std::vector<ModelBlock_> model_blocks_;
 
@@ -156,7 +156,7 @@ private:
     /// Extract status-specific definitions row indexes.
     std::vector<size_t> get_unsorted_definition_rows_(int status, bool is_pre_process) const;
     /// Set sample map and relative usage list.
-    void set_sample_map_for_(int status, size_t k);
+    void set_sample_list_for_(int status, size_t k);
     /// Build augmented function and inspect for constant.
     void set_function_or_identity_for_(size_t k);
 
@@ -168,7 +168,7 @@ private:
 
     /// Get the definition order for current member according to its status.
     /// NOTE: if status hasn't been observed in data, build on demand.
-    std::vector<size_t> helper_init_get_definition_order_(Individual &member);
+    std::vector<size_t> helper_materialize_definition_order_(Individual &member);
     /// Assign model arguments and range. Same for function, otherwise assign proposer.
     /// NOTE: a Variable must already be allocated.
     void helper_init_attributes_(Individual &member, size_t k);

@@ -17,10 +17,9 @@
 #include "tools/types.h"
 
 #include "infec_profile.h"
-#include "augmented_map.h"
+#include "augm_container.h"
 #include "distribution.h"
 #include "function.h"
-#include "individual.h"
 #include "parameter.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -228,7 +227,7 @@ std::unique_ptr<Distribution> InfecProfile::helper_build_profile_(const hsp::str
 ///////////////////////////  MCMC : Impl : InfecProfile : getter methods  ///////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-double InfecProfile::inst(const Individual *member_ptr, double t) const
+double InfecProfile::inst(const AugmContainer *member_ptr, double t) const
 {
     switch (mode_)
     {
@@ -241,7 +240,7 @@ double InfecProfile::inst(const Individual *member_ptr, double t) const
     }
     __builtin_unreachable();
 }
-double InfecProfile::cumul(const Individual *member_ptr, double t) const
+double InfecProfile::cumul(const AugmContainer *member_ptr, double t) const
 {
     switch (mode_)
     {
