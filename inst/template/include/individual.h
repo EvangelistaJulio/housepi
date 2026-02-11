@@ -32,17 +32,6 @@ public:
 	///////////////////////////
 
 	Individual() = default;
-
-	/// NOTE: allowed data variables are numerical only.
-	Individual(size_t index, size_t hhindex, const std::string &id,
-			   int status, const std::vector<double> &data)
-	{
-		index_ = index;
-		hhindex_ = hhindex;
-		id_ = id;
-		status_ = status;
-		data_vec_ = data;
-	}
 	~Individual() = default;
 
 	/////////////////////////

@@ -85,7 +85,6 @@ public:
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
 	void init_missing_augm(Individual &member);
-	void clear_all_augm(Individual &member);
 	void request_discrete_augm(size_t a);
 	void request_discrete_param(size_t p);
 

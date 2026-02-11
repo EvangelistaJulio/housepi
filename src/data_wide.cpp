@@ -37,12 +37,19 @@ void Household::init_member(size_t index,
                             const std::vector<double> &data)
 {
     size_t hhindex = size();
-    members_.emplace_back(index, hhindex, id, status, data);
+    members_.emplace_back();
+
+    Individual &last = members_.back();
+    last.index_ = index;
+    last.hhindex_ = hhindex;
+    last.id_ = id;
+    last.status_ = status;
+    last.data_vec_ = data;
 
     // update status lists within the household
-    if (members_.back().is_infected_status())
+    if (last.is_infected_status())
         infected_list_.emplace_back(hhindex);
-    else if (members_.back().is_healthy_status())
+    else if (last.is_healthy_status())
         healthy_list_.emplace_back(hhindex);
     else
         missing_list_.emplace_back(hhindex);
@@ -150,7 +157,11 @@ void DataWide::build(const hsp::str_table &input)
             // map data index to household number
             hhid_to_index_.emplace(house_id, house_vector_.size());
             // create a new empty household
-            house_vector_.emplace_back(house_id, house_vector_.size());
+            house_vector_.emplace_back();
+            Household &last = house_vector_.back();
+            last.house_id_ = house_id;
+            last.index_ = house_vector_.size() - 1;
+            last.multiplicity_class_ = last.index_;
         }
         // extract the household reference
         Household &house = house_vector_.at(hhid_to_index_.at(house_id));
@@ -178,7 +189,6 @@ void DataWide::helper_build_clear_data_()
 {
     house_vector_.clear();
     hhid_to_index_.clear();
-    all_infected_statuses.clear();
     report_indiv = ReportIndividual();
     report_house = ReportHousehold();
     report_hh_size = ReportHouseSizes();
@@ -218,10 +228,6 @@ void DataWide::build_helper_fill_report_data_()
     // set report counts
     for (const Household &house : house_vector_)
     {
-        // list of unique infected statuses
-        for (size_t i : house.infected_hhindexes())
-            all_infected_statuses.emplace(house.member(i).status());
-
         // observed quantities in-house
         size_t house_size = house.size();
         size_t n_infec = house.n_infected_status();
@@ -273,7 +279,9 @@ void DataWide::multiplicity_build(const hsp::str_table &input, bool is_any_augm)
         head_class_house_indexes.resize(n_houses);
         for (size_t H = 0; H < n_houses; ++H)
         {
-            house_vector_[H].set_multiplicity(1, H);
+            house_vector_[H].house_multiplicity_ = 1;
+            house_vector_[H].multiplicity_class_ = H;
+
             head_class_house_indexes[H] = H;
         }
     }
@@ -289,8 +297,8 @@ void DataWide::multiplicity_build(const hsp::str_table &input, bool is_any_augm)
             Household &house = at(input.at("house_id")[r]);
             size_t H0 = at(input.at("class_id")[r]).house_index();
             unsigned long m = hsp::str::toul(input.at("multiplicity")[r]);
-
-            house.set_multiplicity(m, H0);
+            house.house_multiplicity_ = m;
+            house.multiplicity_class_ = H0;
 
             if (house.is_multiplicity_head_class())
                 head_class_house_indexes.emplace_back(house.house_index());

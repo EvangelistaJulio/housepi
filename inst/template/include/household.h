@@ -32,24 +32,13 @@ public:
 	//////  CONSTRUCTOR  //////
 	///////////////////////////
 
-	Household(const std::string &house_id = "", size_t index = SIZE_MAX)
-	{
-		house_id_ = house_id;
-		index_ = index;
-		multiplicity_class_ = index;
-	}
+	Household() = default;
 	~Household() = default;
 
 	//////////////////////
 	//////  SETTER  //////
 	//////////////////////
 
-	/// Assign a multiplicity to the household.
-	void set_multiplicity(unsigned long m, size_t class_idx)
-	{
-		house_multiplicity_ = m;
-		multiplicity_class_ = class_idx;
-	}
 	/// Emplace a new individual in the household.
 	void init_member(size_t index, const std::string &id,
 					 int status, const std::vector<double> &data);
@@ -92,11 +81,6 @@ public:
 	Individual &member(size_t i) { return members_.at(i); }
 	const Individual &member(size_t i) const { return members_.at(i); }
 
-	/// UPDATE: multiplicity should be dealt outside of the class
-	unsigned long multiplicity() const noexcept { return house_multiplicity_; }
-	size_t multiplicity_class_index() const noexcept { return multiplicity_class_; }
-	bool is_multiplicity_head_class() const noexcept { return index_ == multiplicity_class_; }
-
 	const std::vector<size_t> &infected_hhindexes() const noexcept { return infected_list_; }
 	const std::vector<size_t> &susceptible_hhindexes() const noexcept { return healthy_list_; }
 	const std::vector<size_t> &missing_hhindexes() const noexcept { return missing_list_; }
@@ -104,6 +88,10 @@ public:
 	size_t n_infected_status() const noexcept { return infected_list_.size(); }
 	size_t n_susceptible_status() const noexcept { return healthy_list_.size(); }
 	size_t n_missing_status() const noexcept { return missing_list_.size(); }
+
+	unsigned long multiplicity() const noexcept { return house_multiplicity_; }
+	size_t multiplicity_class_index() const noexcept { return multiplicity_class_; }
+	bool is_multiplicity_head_class() const noexcept { return index_ == multiplicity_class_; }
 
 	double contact_rate(size_t from, size_t to) const { return contact_rates_[from][to].value(); }
 

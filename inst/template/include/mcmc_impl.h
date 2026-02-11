@@ -112,9 +112,10 @@ public:
     /// UPDATE: also contact rates should just be imported
     void build_contact_rates() { contact_rate.build(); }
 
+    
     void init_infec_profile_template(hsp::dict<std::string> x) { infec_profile.init_template(x); }
 
-    void clear_all_augm(Individual &member) { augm.clear_all(member); }
+    /// Initialize all augmented variables of given individual.
     void init_missing_augm(Individual &member);
 
     /// Request discrete parameter definition.

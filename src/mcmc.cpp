@@ -65,7 +65,6 @@ void MCMC::init_infec_profile_template(hsp::dict<std::string> x) { pImpl_->init_
 double MCMC::infec_profile_inst(const Individual &i, double t) const { return pImpl_->infec_profile_inst(i, t); }
 double MCMC::infec_profile_cumul(const Individual &i, double t) const { return pImpl_->infec_profile_cumul(i, t); }
 
-void MCMC::clear_all_augm(Individual &member) { pImpl_->clear_all_augm(member); }
 void MCMC::init_missing_augm(Individual &member) { pImpl_->init_missing_augm(member); }
 
 void MCMC::request_discrete_param(size_t p) { pImpl_->request_discrete_param(p); }

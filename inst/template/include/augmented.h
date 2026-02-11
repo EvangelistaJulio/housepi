@@ -41,12 +41,8 @@ struct Augmented
     std::unordered_set<size_t> list_draws = {};
     std::unordered_set<size_t> list_export = {};
 
-    /// Status to definition row.
-    std::unordered_map<int, std::vector<size_t>> status_to_def_row = {};
     /// Status to key of augmented variable to be sampled.
     std::unordered_map<int, std::vector<size_t>> status_to_sample = {};
-    /// Status to internal index.
-    std::unordered_map<int, size_t> status_to_index = {};
 
     // optional augmented posterior sample
     std::vector<const AugmContainer *> smpl_individuals = {};
@@ -69,8 +65,6 @@ struct Augmented
     /// Assign augmented variables to all individuals.
     void build(const hsp::str_table &input);
 
-    /// Clear all augmented definition of individual.
-    void clear_all(AugmContainer &member);
     /// Assign augmented variables only if missing.
     /// If force is true, re-initialize all augmented variables.
     void init_missing(Individual &member, bool force = false);
@@ -108,7 +102,7 @@ struct Augmented
     /////////////////////
 
     /// Flag if there are non-constant augmented definitions.
-    bool is_any_sample() const noexcept { return !status_to_sample.empty(); }
+    bool is_any_sample() const noexcept { return is_any_sample_; }
     /// Flag if there are augmented definitions with a model.
     bool is_any_model() const noexcept { return is_any_model_; }
     /// Flag if augmented draws are stored.
@@ -120,9 +114,18 @@ private:
     InfecProfile *pInfecProfile_;  /// pointer to external InfecProfile struct
     hsp::str_table deftable_ = {}; /// store definition table
 
-    bool is_any_model_ = false; /// store flag if one augmented model is provided
+    bool is_any_sample_ = false; /// whether at least one augmented model is provided
+    bool is_any_model_ = false;  /// whether at least one augmented model is provided
 
-    std::unordered_set<size_t> user_discrete_set_ = {}; /// user defined discrete parameters
+    /// User defined discrete parameters
+    std::unordered_set<size_t> user_discrete_set_ = {};
+
+    /// List of all infected statuses in the dataset
+    std::unordered_set<int> all_infected_statuses_ = {};
+    /// Status to definition row.
+    std::unordered_map<int, std::vector<size_t>> status_to_def_row_ = {};
+    /// Status to internal index.
+    std::unordered_map<int, size_t> status_to_index_ = {};
 
     /// Auxiliary block for status-specific models.
     struct ModelBlock_
@@ -134,10 +137,15 @@ private:
 
     /// Eventually append infectivity profile definitions.
     void helper_build_append_infec_profile_();
+    
     /// Assert that augmented status/generic definitions are non degenerate.
     /// Also, assert that status-specific definitions are for infected status only.
     /// By convention, generic defintion are associated to missing status.
     void helper_build_definition_by_status_();
+
+    /// Emplace all augmented definitions.
+    void helper_build_emplace_all_();
+
     /// Deal with the definition 'k' of augmented to be sampled (const = FALSE).
     /// NOTE: this assume definitions are univocal and status correct.
     void helper_build_definition_order_();

@@ -49,8 +49,6 @@ struct DataWide
     std::unique_ptr<hsp::key::Registry> p_double_vec_Registry;
     std::unique_ptr<hsp::key::Registry> p_double_mtx_Registry;
 
-    // list of all infected statuses in the dataset
-    std::unordered_set<int> all_infected_statuses = {};
     std::vector<std::vector<double>> smpl_values = {};
     std::vector<size_t> head_class_house_indexes = {};
 

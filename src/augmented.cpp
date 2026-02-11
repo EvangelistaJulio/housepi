@@ -128,7 +128,7 @@ namespace
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////  Augmented : build  //////////////////////////////////////
+////////////////////////////////////  *** Augmented : class ***  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -140,7 +140,6 @@ Augmented::Augmented(const std::vector<std::string> &keys,
       pDataWide_(dataptr),
       pParameter_(paramptr),
       pInfecProfile_(infprofptr) {}
-
 Augmented::~Augmented() = default;
 
 void Augmented::build(const hsp::str_table &input)
@@ -154,12 +153,8 @@ void Augmented::build(const hsp::str_table &input)
     deftable_ = input;                    // store user definitions
     helper_build_append_infec_profile_(); // add infectivity profile
     helper_build_definition_by_status_(); // process definition by status
+    helper_build_emplace_all_();          // allocate memory for all augmented
     helper_build_definition_order_();     // proicess definition order
-
-    // allocate memory for augmented variables to each individual
-    for (Household &house : *pDataWide_)
-        for (Individual &member : house)
-            clear_all(member);
 }
 
 void Augmented::helper_build_append_infec_profile_()
@@ -186,7 +181,7 @@ void Augmented::helper_build_append_infec_profile_()
 
 void Augmented::helper_build_definition_by_status_()
 {
-    status_to_def_row.clear();
+    status_to_def_row_.clear();
 
     for (size_t k = 0; k < deftable_["name"].size(); ++k)
     {
@@ -206,11 +201,11 @@ void Augmented::helper_build_definition_by_status_()
                     "Impossible to associate augmented '" + augmstr +
                     "' for non infectious status " + s + ".");
         }
-        status_to_def_row[status].push_back(k); // store status to definition row index
+        status_to_def_row_[status].push_back(k); // store status to definition row index
     }
 
     // assert that name and status are univocal
-    for (const auto &[status, idxs] : status_to_def_row)
+    for (const auto &[status, idxs] : status_to_def_row_)
     {
         std::vector<std::string> name_to_status = {};
         for (size_t k : idxs)
@@ -223,6 +218,25 @@ void Augmented::helper_build_definition_by_status_()
     }
 }
 
+void Augmented::helper_build_emplace_all_()
+{
+    all_infected_statuses_.clear();
+    size_t n = pRegistry->size();
+
+    for (Household &house : *pDataWide_)
+        for (Individual &member : house)
+        {
+            member.augm_vec_.resize(n);
+            for (size_t a = 0; a < n; ++a)
+            {
+                member.augm_vec_[a].name(pRegistry->as_string(a));
+                member.augm_vec_[a].set_err_type("augmented");
+            }
+            if (member.is_infected_status())
+                all_infected_statuses_.emplace(member.status());
+        }
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////  Augmented : build variable to sample  ///////////////////////////
@@ -231,15 +245,18 @@ void Augmented::helper_build_definition_by_status_()
 
 void Augmented::helper_build_definition_order_()
 {
+    is_any_sample_ = true;
+    is_any_model_ = true;
+
     status_to_sample.clear();
     list_export.clear();
     list_draws.clear();
 
     // NOTE: NA (i. e. generic) does not necessarily need checking.
-    if (pDataWide_->all_infected_statuses.empty())
+    if (all_infected_statuses_.empty())
         set_definition_dependency_order_for_(hsp::status::MISSING);
     else
-        for (int status : pDataWide_->all_infected_statuses)
+        for (int status : all_infected_statuses_)
             set_definition_dependency_order_for_(status);
 }
 
@@ -262,7 +279,7 @@ void Augmented::set_definition_dependency_order_for_(int status)
     // check dependecies and translate order from name to deftable row index
     try
     {
-        status_to_def_row[status].clear(); // NOTE: recycled from build to store order
+        status_to_def_row_[status].clear(); // NOTE: recycled from build to store order
 
         // Ignore spurios private definition if no public definition depends on it
         // NOTE: ensure private infectivity is stored.
@@ -270,7 +287,7 @@ void Augmented::set_definition_dependency_order_for_(int status)
             if (augmstr == hsp::infprof::AUGM_FUNC ||
                 !hsp::str::is_private(augmstr) ||
                 !hsp::str::drop_private(extract_dependents_order(augmstr, tree)).empty())
-                status_to_def_row[status].push_back(name_to_row.at(augmstr));
+                status_to_def_row_[status].push_back(name_to_row.at(augmstr));
     }
     catch (const std::exception &e)
     {
@@ -279,16 +296,16 @@ void Augmented::set_definition_dependency_order_for_(int status)
     }
 
     // define usage lists respecting definition order
-    for (size_t k : status_to_def_row.at(status))
+    for (size_t k : status_to_def_row_.at(status))
         set_sample_map_for_(status, k);
 }
 
 std::vector<size_t> Augmented::get_unsorted_definition_rows_(int status, bool is_pre_process) const
 {
     // load the list of status-specific definition rows
-    if (status_to_def_row.count(status))
+    if (status_to_def_row_.count(status))
     {
-        std::vector<size_t> allrows = status_to_def_row.at(status);
+        std::vector<size_t> allrows = status_to_def_row_.at(status);
 
         // extract names
         std::vector<std::string> name_to_status = {};
@@ -299,17 +316,17 @@ std::vector<size_t> Augmented::get_unsorted_definition_rows_(int status, bool is
         // skip generic if a status-specific already exist
         if (is_pre_process &&
             hsp::status::is_infected(status) &&
-            status_to_def_row.count(hsp::status::MISSING))
-            for (size_t k : status_to_def_row.at(hsp::status::MISSING))
+            status_to_def_row_.count(hsp::status::MISSING))
+            for (size_t k : status_to_def_row_.at(hsp::status::MISSING))
                 if (std::find(name_to_status.begin(), name_to_status.end(), deftable_.find("name")->second[k]) == name_to_status.end())
                     allrows.push_back(k);
 
         return allrows;
     }
 
-    if (status_to_def_row.count(hsp::status::MISSING))
+    if (status_to_def_row_.count(hsp::status::MISSING))
         // use generic definitions if status-specific don't exist
-        return status_to_def_row.at(hsp::status::MISSING);
+        return status_to_def_row_.at(hsp::status::MISSING);
 
     throw std::invalid_argument(
         "No definitions were compatible with augmented status " +
@@ -351,7 +368,10 @@ void Augmented::set_sample_map_for_(int status, size_t k)
         }
 
         if (hsp::status::is_infected(status))
+        {
+            is_any_sample_ = true;
             status_to_sample[status].push_back(a);
+        }
     }
 }
 
@@ -396,17 +416,6 @@ void Augmented::set_function_or_identity_for_(size_t k)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Augmented::clear_all(AugmContainer &member)
-{
-    size_t n = pRegistry->size();
-    member.augm_vec_.resize(n);
-    for (size_t a = 0; a < n; ++a)
-    {
-        member.augm_vec_[a].name(pRegistry->as_string(a));
-        member.augm_vec_[a].set_err_type("augmented");
-    }
-}
-
 void Augmented::init()
 {
     if (pRegistry->size() == 0)
@@ -419,7 +428,7 @@ void Augmented::init()
         {
             Individual &member = house.member(i);
             init_missing(member, true);
-            member.augm_idx_status_ = status_to_index.at(member.status());
+            member.augm_idx_status_ = status_to_index_.at(member.status());
         }
 }
 
@@ -435,17 +444,16 @@ std::vector<size_t> Augmented::init_get_definition_order_(Individual &member)
 {
     int status = member.status();
 
-    if (member.is_infected_status() &&
-        pDataWide_->all_infected_statuses.count(status) == 0)
+    if (member.is_infected_status() && all_infected_statuses_.count(status) == 0)
     {
         set_definition_dependency_order_for_(status);
-        pDataWide_->all_infected_statuses.emplace(status);
+        all_infected_statuses_.emplace(status);
     }
 
-    if (status_to_def_row.count(status))
-        return status_to_def_row[status];
-    if (status_to_def_row.count(hsp::status::MISSING))
-        return status_to_def_row[hsp::status::MISSING];
+    if (status_to_def_row_.count(status))
+        return status_to_def_row_[status];
+    if (status_to_def_row_.count(hsp::status::MISSING))
+        return status_to_def_row_[hsp::status::MISSING];
 
     if (member.is_infected_status())
         throw std::invalid_argument(
@@ -585,12 +593,12 @@ void Augmented::user_reset(hsp::rnd_gen &prng)
 
 void Augmented::init_model_list_()
 {
-    status_to_index.clear();
+    status_to_index_.clear();
     model_blocks_.clear();
-    model_blocks_.resize(pDataWide_->all_infected_statuses.size());
+    model_blocks_.resize(all_infected_statuses_.size());
 
     size_t i = 0;
-    for (int status : pDataWide_->all_infected_statuses)
+    for (int status : all_infected_statuses_)
     {
         ModelBlock_ &block = model_blocks_[i];
         block.depen.resize(pRegistry->size());
@@ -605,7 +613,7 @@ void Augmented::init_model_list_()
                 block.depen[pRegistry->from_string(augmstr)] = pRegistry->from_string(others);
         }
         // update status to index map
-        status_to_index.emplace(status, i++);
+        status_to_index_.emplace(status, i++);
     }
 }
 
@@ -668,7 +676,7 @@ double Augmented::materialize_augm_model_logratio(AugmContainer &member, size_t 
         return 0.;
 
     double new_ll = member.augm_log_lik_.value(); // store old value in buffer
-    for (size_t b : block.depen[a])             // depen includes 'a'
+    for (size_t b : block.depen[a])               // depen includes 'a'
         new_ll += member.augm_vec_[b].get_distr_logratio();
 
     member.augm_log_lik_.set(new_ll);
@@ -703,10 +711,7 @@ void Augmented::init_individual_sample(std::vector<std::string> &id_draws)
         for (const Individual &member : house)
             if (std::find(id_draws.begin(), id_draws.end(), member.id()) != id_draws.end())
             {
-                // check id across all individuals
-                if (std::find(existing_ids.begin(), existing_ids.end(), member.id()) != existing_ids.end())
-                    throw std::invalid_argument(
-                        "Multiple individuals shared the same id '" + member.id() + "'.");
+                // unique IDs are granted by class DataWide load
                 existing_ids.push_back(member.id());
 
                 // check status of chosen individual
