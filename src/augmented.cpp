@@ -245,9 +245,10 @@ void Augmented::helper_build_emplace_all_()
 
 void Augmented::helper_build_definition_order_()
 {
-    is_any_sample_ = true;
-    is_any_model_ = true;
+    is_any_sample_ = false;
+    is_any_model_ = false;
 
+    status_to_index_.clear();
     status_to_sample.clear();
     list_export.clear();
     list_draws.clear();
@@ -279,6 +280,9 @@ void Augmented::set_definition_dependency_order_for_(int status)
     // check dependecies and translate order from name to deftable row index
     try
     {
+        if (status_to_index_.count(status) == 0)
+            status_to_index_.emplace(status, status_to_index_.size());
+
         status_to_def_row_[status].clear(); // NOTE: recycled from build to store order
 
         // Ignore spurios private definition if no public definition depends on it
@@ -288,16 +292,16 @@ void Augmented::set_definition_dependency_order_for_(int status)
                 !hsp::str::is_private(augmstr) ||
                 !hsp::str::drop_private(extract_dependents_order(augmstr, tree)).empty())
                 status_to_def_row_[status].push_back(name_to_row.at(augmstr));
+
+        // define usage lists respecting definition order
+        for (size_t k : status_to_def_row_.at(status))
+            set_sample_map_for_(status, k);
     }
     catch (const std::exception &e)
     {
         throw std::invalid_argument(
             std::string(e.what()) + " for status " + std::to_string(status) + ".");
     }
-
-    // define usage lists respecting definition order
-    for (size_t k : status_to_def_row_.at(status))
-        set_sample_map_for_(status, k);
 }
 
 std::vector<size_t> Augmented::get_unsorted_definition_rows_(int status, bool is_pre_process) const
@@ -421,26 +425,25 @@ void Augmented::init()
     if (pRegistry->size() == 0)
         return;
 
-    init_model_list_();
+    helper_init_model_list_();
 
     for (Household &house : *pDataWide_)
         for (size_t i : house.infected_hhindexes())
         {
             Individual &member = house.member(i);
             init_missing(member, true);
-            member.augm_idx_status_ = status_to_index_.at(member.status());
         }
 }
 
 void Augmented::init_missing(Individual &member, bool force)
 {
     // loop over augmented variable definitions to assign placheholders
-    for (size_t k : init_get_definition_order_(member))
+    for (size_t k : helper_init_get_definition_order_(member))
         if (force || member.augm_vec_[pRegistry->from_string(deftable_["name"][k])].is_empty())
             helper_init_attributes_(member, k);
 }
 
-std::vector<size_t> Augmented::init_get_definition_order_(Individual &member)
+std::vector<size_t> Augmented::helper_init_get_definition_order_(Individual &member)
 {
     int status = member.status();
 
@@ -450,10 +453,17 @@ std::vector<size_t> Augmented::init_get_definition_order_(Individual &member)
         all_infected_statuses_.emplace(status);
     }
 
+    // UPDATE: this architecture is sub-optimal for simulations
     if (status_to_def_row_.count(status))
+    {
+        member.augm_idx_status_ = status_to_index_.at(status);
         return status_to_def_row_[status];
+    }
     if (status_to_def_row_.count(hsp::status::MISSING))
+    {
+        member.augm_idx_status_ = status_to_index_.at(hsp::status::MISSING);
         return status_to_def_row_[hsp::status::MISSING];
+    }
 
     if (member.is_infected_status())
         throw std::invalid_argument(
@@ -482,10 +492,10 @@ void Augmented::helper_init_attributes_(Individual &member, size_t k)
             xaugm.enforce_user_const(); // enforce user constant choice
         }
         else
-            init_func_attributes_(member, k);
+            helper_init_func_attributes_(member, k);
 
         // initialize model
-        init_model_attributes_(member, k);
+        helper_init_model_attributes_(member, k);
 
         // assign proposal if variable to be sampled
         // NOTE: not necessarily according to a model
@@ -507,7 +517,7 @@ void Augmented::helper_init_attributes_(Individual &member, size_t k)
     }
 }
 
-void Augmented::init_model_attributes_(Individual &member, size_t k)
+void Augmented::helper_init_model_attributes_(Individual &member, size_t k)
 {
     const std::string &augmstr = deftable_["name"][k];
     Variable &xaugm = member.augm_vec_[pRegistry->from_string(augmstr)];
@@ -526,7 +536,7 @@ void Augmented::init_model_attributes_(Individual &member, size_t k)
     xaugm.init_distr_reshaping(hsp::str::tobool(deftable_["discr"][k]));
 }
 
-void Augmented::init_func_attributes_(Individual &member, size_t k)
+void Augmented::helper_init_func_attributes_(Individual &member, size_t k)
 {
     const std::string &augmstr = deftable_["name"][k];
     Variable &xaugm = member.augm_vec_[pRegistry->from_string(augmstr)];
@@ -591,16 +601,14 @@ void Augmented::user_reset(hsp::rnd_gen &prng)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Augmented::init_model_list_()
+void Augmented::helper_init_model_list_()
 {
-    status_to_index_.clear();
     model_blocks_.clear();
     model_blocks_.resize(all_infected_statuses_.size());
 
-    size_t i = 0;
     for (int status : all_infected_statuses_)
     {
-        ModelBlock_ &block = model_blocks_[i];
+        ModelBlock_ &block = model_blocks_[status_to_index_.at(status)];
         block.depen.resize(pRegistry->size());
 
         // associate blocks for ordered model lists
@@ -612,8 +620,6 @@ void Augmented::init_model_list_()
             for (const auto &[augmstr, others] : ordered_models)
                 block.depen[pRegistry->from_string(augmstr)] = pRegistry->from_string(others);
         }
-        // update status to index map
-        status_to_index_.emplace(status, i++);
     }
 }
 

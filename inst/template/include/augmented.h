@@ -137,7 +137,7 @@ private:
 
     /// Eventually append infectivity profile definitions.
     void helper_build_append_infec_profile_();
-    
+
     /// Assert that augmented status/generic definitions are non degenerate.
     /// Also, assert that status-specific definitions are for infected status only.
     /// By convention, generic defintion are associated to missing status.
@@ -162,18 +162,18 @@ private:
 
     /// Deal with the definition of augmented variable with a model.
     /// NOTE: no need to initialize to generic since only used for posterior sampling.
-    void init_model_list_();
+    void helper_init_model_list_();
     /// Return dictionary of ordered models.
     hsp::str_table get_ordered_models_(int status) const;
 
     /// Get the definition order for current member according to its status.
-    /// NOTE: if status hasn't been observed in data, build on demand
-    std::vector<size_t> init_get_definition_order_(Individual &member);
+    /// NOTE: if status hasn't been observed in data, build on demand.
+    std::vector<size_t> helper_init_get_definition_order_(Individual &member);
     /// Assign model arguments and range. Same for function, otherwise assign proposer.
     /// NOTE: a Variable must already be allocated.
     void helper_init_attributes_(Individual &member, size_t k);
     /// Auxiliary method to assign attributes to augmented model.
-    void init_model_attributes_(Individual &member, size_t k);
+    void helper_init_model_attributes_(Individual &member, size_t k);
     /// Auxiliary method to assign attributes to augmented function.
-    void init_func_attributes_(Individual &member, size_t k);
+    void helper_init_func_attributes_(Individual &member, size_t k);
 };
