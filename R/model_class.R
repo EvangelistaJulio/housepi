@@ -44,8 +44,12 @@ HousepiModel <- R6::R6Class(
     # Dataset headers required by implementation file and other definitions.
     .get_all_required_data_wide = function() {
       required <- c()
-      if (!private$.is_blank()) required <- private$.data_wide_required()
-      c(required, # by the model
+      if (!private$.is_blank()) {
+        refer_file <- private$.reference()
+        output <- template_extract_keys(refer_file, "DataKey")
+        required <- set_source_name_(output, "model")
+      }
+      c(required,                             # by the model
         private$.augm$data_required,          # by augmented
         private$.infec_profile$data_required) # by infec profile
     },
@@ -90,7 +94,9 @@ HousepiModel <- R6::R6Class(
         "Impossible to proceed. No data was provided."
       )
       required <- private$.get_all_required_data_wide()
-      template_missing_stop(required, headers, "data")
+      sms <- template_missing_stop(required, headers, "data")
+      if (length(sms) > 0) stop_h(sms)
+      else sms
       invisible(self)
     },
 
@@ -243,6 +249,9 @@ HousepiModel <- R6::R6Class(
         seed = generator_adjust_seed(seed),
         progress = as.integer(progress)
       )))
+
+      # assert headers of last imported data_wide
+      private$.assert_data_wide(private$.cols_data_wide)
 
       # assert group rate definitions
       private$.assert_group_rates()
@@ -569,11 +578,7 @@ HousepiModel <- R6::R6Class(
         # import data.frame in rcpp
         private$.rcpp$import_data_wide(embed$data)
 
-      } else {
-        # assert headers of last imported data_wide
-        private$.assert_data_wide(private$.cols_data_wide)
       }
-
       invisible(self)
     },
 
@@ -884,11 +889,10 @@ HousepiModel <- R6::R6Class(
     #' It assumes the same community structure of the loaded data.
     #' @param nsim `r rd_simul_nsim_`
     #' @param seed `r rd_seed_`
-    #' @param progress `r rd_progress_`
     #' @param obs_process `r rd_simul_observ_`
     #' @return `data.frame`
-    run_simulation = function(nsim = 1, seed = NA_integer_,
-                              progress = FALSE, obs_process = NULL) {
+    run_simulation = function(nsim = 1, seed = NA_integer_, 
+                              obs_process = NULL) {
       # set observation process to identity if not provided
       if (is.null(obs_process)) obs_process <- function(x) x
       else if (!is.function(obs_process)) stop_h(
@@ -896,7 +900,7 @@ HousepiModel <- R6::R6Class(
       )
 
       # internal build function
-      private$.build_full(seed = seed, progress = progress)
+      private$.build_full(seed = seed)
 
       # refactor static data for simulation
       static_df <- private$.rcpp$data_wide_for_simulation()

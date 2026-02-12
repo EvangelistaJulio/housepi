@@ -478,19 +478,6 @@ HousepiGenerator <- R6::R6Class(
     ############################################################################
     ############################################################################
 
-    # @description Dataset headers (wide format) required by the model.
-    # @return `character()`
-    .data_wide_required = function() {
-      # retrieve required data headers from regular expressions
-      refer_file <- private$.reference()
-      output <- template_extract_keys(refer_file, "DataKey")
-      set_source_name_(output, "model")
-    },
-
-    ############################################################################
-    ############################################################################
-    ############################################################################
-
     .refactor_data_wide = function(x) {
       cpp_data_refactor(x, private$.info_data_wide, private$.cols_data_wide)
     },

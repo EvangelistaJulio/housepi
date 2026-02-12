@@ -88,7 +88,7 @@ struct Augmented
     //////  GETTER  //////
     //////////////////////
 
-    const std::vector<size_t> &list_sample(size_t s) { return model_blocks_[s].sample; }
+    const std::vector<size_t> &list_sample(size_t s) { return status_blocks_[s].sample; }
 
     /// Compute and store log-likelihood associated to augmented variable models.
     /// NOTE: to be called only if any model is defined.
@@ -124,16 +124,17 @@ private:
     /// Status to definition row.
     std::unordered_map<int, std::vector<size_t>> status_to_def_row_ = {};
     /// Status to internal index.
-    std::unordered_map<int, size_t> status_to_index_ = {};
+    std::unordered_map<int, size_t> map_status_to_index_ = {};
 
     /// Auxiliary block for status-specific models.
-    struct ModelBlock_
+    struct StatusBlock_
     {
+        std::vector<size_t> order = {};              /// definition order
         std::vector<size_t> models = {};             /// just augmented with models
         std::vector<size_t> sample = {};             /// just augmented to sample
         std::vector<std::vector<size_t>> depen = {}; /// all respective dependecies
     };
-    std::vector<ModelBlock_> model_blocks_;
+    std::vector<StatusBlock_> status_blocks_;
 
     /// Eventually append infectivity profile definitions.
     void helper_build_append_infec_profile_();

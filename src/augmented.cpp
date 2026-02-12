@@ -248,8 +248,8 @@ void Augmented::helper_build_definition_order_()
     is_any_sample_ = false;
     is_any_model_ = false;
 
-    status_to_index_.clear();
-    model_blocks_.clear();
+    map_status_to_index_.clear();
+    status_blocks_.clear();
     list_export.clear();
     list_draws.clear();
 
@@ -281,10 +281,8 @@ void Augmented::set_definition_dependency_order_for_(int status)
     try
     {
         // NOTE: this method is just called once per status
-        status_to_index_.emplace(status, model_blocks_.size());
-        model_blocks_.emplace_back();
-
-        status_to_def_row_[status].clear(); // NOTE: recycled from build to store order
+        map_status_to_index_.emplace(status, status_blocks_.size());
+        status_blocks_.emplace_back();
 
         // Ignore spurios private definition if no public definition depends on it
         // NOTE: ensure private infectivity is stored.
@@ -292,10 +290,10 @@ void Augmented::set_definition_dependency_order_for_(int status)
             if (augmstr == hsp::infprof::AUGM_FUNC ||
                 !hsp::str::is_private(augmstr) ||
                 !hsp::str::drop_private(extract_dependents_order(augmstr, tree)).empty())
-                status_to_def_row_[status].push_back(name_to_row.at(augmstr));
+                status_blocks_.back().order.emplace_back(name_to_row.at(augmstr));
 
         // define usage lists respecting definition order
-        for (size_t k : status_to_def_row_.at(status))
+        for (size_t k : status_blocks_.back().order)
             set_sample_list_for_(status, k);
     }
     catch (const std::exception &e)
@@ -375,7 +373,7 @@ void Augmented::set_sample_list_for_(int status, size_t k)
         if (hsp::status::is_infected(status))
         {
             is_any_sample_ = true;
-            model_blocks_[status_to_index_.at(status)].sample.push_back(a);
+            status_blocks_[map_status_to_index_.at(status)].sample.push_back(a);
         }
     }
 }
@@ -448,6 +446,7 @@ std::vector<size_t> Augmented::helper_materialize_definition_order_(Individual &
 {
     int status = member.status();
 
+    /// FIXME: this is mutating list export!!! so wrong
     if (member.is_infected_status() && all_infected_statuses_.count(status) == 0)
     {
         set_definition_dependency_order_for_(status);
@@ -455,15 +454,16 @@ std::vector<size_t> Augmented::helper_materialize_definition_order_(Individual &
     }
 
     // UPDATE: this architecture is sub-optimal for simulations
-    if (status_to_def_row_.count(status))
+    if (map_status_to_index_.count(status))
     {
-        member.augm_idx_ = status_to_index_.at(status);
-        return status_to_def_row_[status];
+        member.augm_idx_ = map_status_to_index_.at(status);
+        return status_blocks_[member.augm_idx_].order;
     }
-    if (status_to_def_row_.count(hsp::status::MISSING))
+    if (map_status_to_index_.count(hsp::status::MISSING))
     {
-        member.augm_idx_ = status_to_index_.at(hsp::status::MISSING);
-        return status_to_def_row_[hsp::status::MISSING];
+        member.augm_idx_ = map_status_to_index_.at(hsp::status::MISSING);
+        map_status_to_index_.emplace(status, hsp::status::MISSING);
+        return status_blocks_[member.augm_idx_].order;
     }
 
     if (member.is_infected_status())
@@ -580,7 +580,7 @@ void Augmented::helper_init_func_attributes_(Individual &member, size_t k)
 
 void Augmented::user_reset(hsp::rnd_gen &prng, AugmContainer &member)
 {
-    for (size_t a : model_blocks_[member.augm_idx_].sample)
+    for (size_t a : status_blocks_[member.augm_idx_].sample)
         member.augm_vec_[a].user_reset(prng);
 
     for (size_t a = 0; a < pRegistry->size(); ++a)
@@ -607,7 +607,7 @@ void Augmented::helper_init_model_list_()
 {
     for (int status : all_infected_statuses_)
     {
-        ModelBlock_ &block = model_blocks_[status_to_index_.at(status)];
+        StatusBlock_ &block = status_blocks_[map_status_to_index_.at(status)];
         block.depen.resize(pRegistry->size());
 
         // associate blocks for ordered model lists
@@ -662,7 +662,7 @@ hsp::str_table Augmented::get_ordered_models_(int status) const
 
 double Augmented::materialize_augm_model_log_lik(AugmContainer &member)
 {
-    const ModelBlock_ &block = model_blocks_[member.augm_idx_];
+    const StatusBlock_ &block = status_blocks_[member.augm_idx_];
     if (block.models.empty())
         return 0.;
 
@@ -676,7 +676,7 @@ double Augmented::materialize_augm_model_log_lik(AugmContainer &member)
 
 double Augmented::materialize_augm_model_logratio(AugmContainer &member, size_t a)
 {
-    const ModelBlock_ &block = model_blocks_[member.augm_idx_];
+    const StatusBlock_ &block = status_blocks_[member.augm_idx_];
     if (block.depen[a].empty())
         return 0.;
 

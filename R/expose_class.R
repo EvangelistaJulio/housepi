@@ -469,16 +469,14 @@ run_inference <- function(hhmodel,
 #' @param hhmodel `r rd_model_in_`
 #' @param nsim `r rd_simul_nsim_`
 #' @param seed `r rd_seed_`
-#' @param progress `r rd_progress_`
 #' @param obs_process `r rd_simul_observ_`
 #' @return `data.frame`
 #' @export
 run_simulation <- function(hhmodel,
                            nsim = 1, seed = NA_integer_,
-                           progress = FALSE, obs_process = NULL) {
+                           obs_process = NULL) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
   hhmodel$run_simulation(nsim = nsim, seed = seed,
-                         progress = progress,
                          obs_process = obs_process)
 }
 
