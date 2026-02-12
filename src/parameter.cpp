@@ -55,7 +55,7 @@ void Parameter::build(const hsp::str_table &input)
     // assert that parameter is not already defined
     if (input.at("name").size() != hsp::str::unique(input.at("name")).size())
         throw std::invalid_argument(
-            "Found multiple definitions for the same parameters.");
+            "Found multiple definitions for the same parameter.");
 
     clear_lists_();
     // load parameters from the row with options

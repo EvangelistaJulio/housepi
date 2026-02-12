@@ -15,7 +15,7 @@
 
 #include "tools/types.h"
 
-/// UPDATE: to be redesigned to improve dependency on Rcpp here.
+/// UPDATE: can it be redesigned to reduce dependency on Rcpp here?
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
 #endif

@@ -32,16 +32,6 @@ namespace hsp::str
     std::string format(bool condition) { return condition ? "TRUE" : "FALSE"; }
 }
 
-namespace hsp::progress
-{
-    /// Implementation of check user interrupt.
-    void housepi_bar_user_interrupt() { Rcpp::checkUserInterrupt(); }
-    /// Change barwidth according to console width.
-    unsigned housepi_bar_width_setup() { return Rcpp::as<unsigned>(Rcpp::Function("getOption")("width")) / 2; }
-    /// Whether environment is interactive and allows for carriage return.
-    bool is_housepi_bar_interactive() { return Rcpp::as<bool>(Rcpp::Function("interactive")()); }
-}
-
 namespace hsp::msg
 {
     /// Throw an error message.

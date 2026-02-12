@@ -209,8 +209,7 @@ void DataWide::helper_build_data_headers_(const hsp::str_table &input)
 
     // add optional keys to registry
     for (const std::string &datastring : headers)
-        if (!pRegistry->count(datastring))
-            pRegistry->add(datastring);
+        pRegistry->add(datastring);
 }
 
 void DataWide::build_helper_fill_report_data_()

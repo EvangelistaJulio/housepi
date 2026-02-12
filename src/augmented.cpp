@@ -188,8 +188,7 @@ void Augmented::helper_build_definition_by_status_()
     {
         // fill registry with optional augmented definitions
         const std::string augmstr = deftable_["name"][k];
-        if (!pRegistry->count(augmstr))
-            pRegistry->add(augmstr);
+        pRegistry->add(augmstr);
 
         // check associated status
         int status = hsp::status::MISSING;
@@ -514,8 +513,9 @@ void Augmented::helper_init_attributes_(Individual &member, size_t k)
     catch (const std::exception &e)
     {
         throw std::runtime_error(
-            "While initializing augmented '" + augmstr +
-            "' for " + member.err_name() + ":\n" + std::string(e.what()));
+            "While initializing augmented '" + augmstr + "' for " +
+            member.err_name() + " (status " + std::to_string(member.status()) + "):\n" +
+            std::string(e.what()));
     }
 }
 

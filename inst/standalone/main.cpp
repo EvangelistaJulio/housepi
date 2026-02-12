@@ -43,16 +43,6 @@ namespace hsp::str
     std::string format(bool condition) { return condition ? "true" : "false"; }
 }
 
-namespace hsp::progress
-{
-    /// Implementation of check user interrupt.
-    void housepi_bar_user_interrupt() {}
-    /// Change barwidth according to console width.
-    unsigned housepi_bar_width_setup() { return 35; }
-    /// Whether environment is interactive and allows for carriage return.
-    bool is_housepi_bar_interactive() { return false; }
-}
-
 namespace hsp::msg
 {
     /// Throw an error message.

@@ -97,8 +97,7 @@ std::vector<std::string> GroupRate::helper_assert_definitions_(const hsp::str_ta
         if (hsp::na::is(groupstr))
             throw std::invalid_argument(
                 "Found a missing group rate name in the definitions.");
-        if (!pRegistry->count(groupstr))
-            pRegistry->add(groupstr);
+        pRegistry->add(groupstr);
     }
 
     return data_headers;

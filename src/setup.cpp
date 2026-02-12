@@ -5,6 +5,10 @@
  * See the LICENSE file for details.
  */
 
+#include <fstream>
+#include <iomanip>
+#include <sstream>
+
 #include <chrono>
 #include <memory>
 #include <random>
@@ -15,12 +19,242 @@
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/openmp.h"
-#include "tools/progress.h"
 #include "tools/read.h"
 #include "tools/string.h"
 #include "tools/types.h"
 
 #include "setup.h"
+
+#ifdef _HOUSEPI_RCPP
+#include <Rcpp.h>
+#endif
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////  Progress Bar ////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace hsp
+{
+    using namespace std::chrono;
+
+    /// Format elapsed time in seconds.
+    std::string format_time_(seconds scs)
+    {
+        std::ostringstream oss;
+
+        const auto dys = duration_cast<duration<int, std::ratio<86400>>>(scs);
+        scs -= duration_cast<seconds>(dys);
+
+        const auto hrs = duration_cast<hours>(scs);
+        scs -= duration_cast<seconds>(hrs);
+
+        const auto mns = duration_cast<minutes>(scs);
+        scs -= duration_cast<seconds>(mns);
+
+        // show large time scales only if relevant
+        if (dys.count() > 0)
+            oss << dys.count() << "d"
+                << std::setfill('0') << std::setw(2) << hrs.count() << "h";
+
+        else if (hrs.count() > 0)
+            oss << hrs.count() << "h"
+                << std::setfill('0') << std::setw(2) << mns.count() << "m";
+
+        else if (mns.count() > 0)
+            oss << mns.count() << "m"
+                << std::setfill('0') << std::setw(2) << scs.count() << "s";
+
+        else
+            oss << scs.count() << "s";
+
+        return oss.str();
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////// *** Bar : Impl : class *** ///////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// Implementation class for progress bar.
+    ///
+    /// -----
+    /// Adapted from :
+    /// OTHMAN EL HAMMOUCHI, April 15, 2024
+    /// "Fancy thread safe progress bar in R for compiled code"
+    /// https://othmanelhammouchi.com/posts/r-parallel-progress/
+    class ProgressBar
+    {
+        enum class Mode : uint8_t
+        {
+            Interactive,
+            Static
+        } mode_ = Mode::Static;
+
+    public:
+        ///////////////////////////
+        //////  CONSTRUCTOR  //////
+        ///////////////////////////
+
+        ProgressBar()
+        {
+#ifdef _HOUSEPI_RCPP
+            check_user_interrupt_();
+            barwidth_ = Rcpp::as<unsigned>(Rcpp::Function("getOption")("width")) / 2;
+            if (Rcpp::as<bool>(Rcpp::Function("interactive")()))
+                mode_ = Mode::Interactive;
+#endif
+        };
+        ~ProgressBar() = default;
+
+        //////////////////////
+        //////  SETTER  //////
+        //////////////////////
+
+        /// Set description text of progress bar.
+        void set_text(const std::string &text) { text_ = text; }
+
+        /// Set description text of progress bar.
+        void set_thintime(unsigned long thintime)
+        {
+            verbose_ = thintime > 0;
+            thintime_ = thintime - 1;
+        }
+
+        /// Start progressbar clock and display firs message.
+        void open(unsigned long total)
+        {
+            check_user_interrupt_();
+            if (total == 0)
+                throw std::invalid_argument(
+                    "Progressbar total should be greater than 0.");
+
+            // initialize internal fields
+            total_ = total;
+            start_ = steady_clock::now();
+            lastprint_ = start_;
+            state_ = 0;
+            is_bar_print_ = false;
+        }
+
+        /// Update progress bar given the progress state.
+        void update()
+        {
+            check_user_interrupt_();
+            ++state_; // update internal state
+            if (!verbose_)
+                return;
+
+            const double progress = static_cast<double>(state_) / static_cast<double>(total_);
+            const auto now = steady_clock::now();
+            const auto elapsed = duration_cast<seconds>(now - start_);
+            const auto missing = duration_cast<seconds>(elapsed * (1. / progress - 1.));
+
+            // skip if expected to finish soon
+            if (missing.count() < 1)
+                return;
+
+            // print update message
+            if (static_cast<unsigned long>(duration_cast<seconds>(now - lastprint_).count()) > thintime_)
+            {
+                const unsigned where = progress * barwidth_;
+                std::ostringstream oss;
+                oss << text_ << " |";
+                for (unsigned u = 0; u < where; ++u)
+                    oss << symbol_;
+                oss << std::string(barwidth_ - where, ' ') << "| "
+                    << std::fixed << std::setprecision(0) << 100. * progress << "% "
+                    << format_time_(elapsed) << "<" << format_time_(missing)
+                    << std::string(10, ' ');
+                bar_(oss.str());
+
+                lastprint_ = steady_clock::now();
+                is_bar_print_ = true;
+            }
+            else if (!is_bar_print_ && static_cast<unsigned long>(missing.count()) > thintime_)
+            {
+                // eventually print initial message
+                std::ostringstream oss;
+                oss << text_ << " |" << std::string(barwidth_, ' ') << "| 0% ";
+                if (mode_ == Mode::Static)
+                    oss << "\n";
+                hsp::msg::info(oss.str());
+
+                is_bar_print_ = true;
+            }
+        }
+
+        /// End the progress bar because of a crash.
+        void crash() const
+        {
+            check_user_interrupt_();
+            if (is_bar_print_)
+                hsp::msg::info("\n");
+        }
+
+        /// Close the progress bar.
+        void close()
+        {
+            check_user_interrupt_();
+            is_bar_print_ = false;
+            state_ = total_;
+
+            if (!verbose_)
+                return;
+
+            const auto elapsed = duration_cast<seconds>(steady_clock::now() - start_);
+            if (static_cast<unsigned long>(elapsed.count()) > thintime_)
+            {
+                std::ostringstream oss;
+                oss << text_ << " |";
+                for (unsigned u = 0; u < barwidth_; u++)
+                    oss << symbol_;
+                oss << "| " << format_time_(elapsed)
+                    << std::string(25, ' ');
+                if (mode_ == Mode::Interactive)
+                    oss << "\n";
+                bar_(oss.str());
+            }
+        }
+
+    private:
+        const std::string symbol_ = "\u25A0"; /// bar decorator
+        unsigned barwidth_ = 35;              /// bar total size
+        bool verbose_ = true;                 /// wheter to show bar
+        bool is_bar_print_ = false;           /// wheter bar is printing
+        unsigned long state_ = 0;             /// current iteration
+        unsigned long total_ = 0;             /// total number of iterations
+        std::string text_ = "";               /// current text to show
+
+        steady_clock::time_point start_;
+        steady_clock::time_point lastprint_;
+        unsigned long thintime_ = 0;
+
+        /// Function to display the progress bar.
+        void bar_(const std::string &sms) const
+        {
+            switch (mode_)
+            {
+            case Mode::Interactive:
+                hsp::msg::info("\r" + sms);
+                return;
+            case Mode::Static:
+                hsp::msg::info(sms + "\n");
+                return;
+            }
+            __builtin_unreachable();
+        }
+
+        void check_user_interrupt_() const
+        {
+#ifdef _HOUSEPI_RCPP
+            Rcpp::checkUserInterrupt();
+#endif
+        }
+    };
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -30,7 +264,7 @@
 
 Setup::Setup()
     : uniform_(0., 1.),
-      progressbar_(std::make_unique<hsp::progress::Bar>()) {}
+      progressbar_(std::make_unique<hsp::ProgressBar>()) {}
 Setup::~Setup() = default;
 
 void Setup::build(const hsp::str_table &input)

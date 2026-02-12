@@ -21,9 +21,9 @@
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace hsp::progress
+namespace hsp
 {
-    class Bar;
+    class ProgressBar;
 }
 
 struct Setup
@@ -83,5 +83,5 @@ private:
     std::vector<hsp::rnd_gen> prng_parallel_ = {};      // pseudo-random number generators
     std::uniform_real_distribution<double> uniform_;    // uniform sampler
     std::exponential_distribution<double> exponential_; // exponential sampler
-    std::unique_ptr<hsp::progress::Bar> progressbar_;   // progress bar
+    std::unique_ptr<hsp::ProgressBar> progressbar_;     // progress bar
 };
