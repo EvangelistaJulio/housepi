@@ -90,6 +90,29 @@ public:
     ~MCMCImpl();
 
     //////////////////////
+    //////  SETTER  //////
+    //////////////////////
+
+    /// UPDATE: also contact rates should just be imported
+    void build_contact_rates() { contact_rate.build(); }
+
+    void init_infec_profile_template(hsp::dict<std::string> x) { infec_profile.init_template(x); }
+
+    /// Initialize all augmented variables of given individual.
+    void init_missing_augm(Individual &member);
+
+    /// Request discrete parameter definition.
+    void request_discrete_param(size_t p) { param.request_discrete(p); }
+    /// Request discrete augmented definition.
+    void request_discrete_augm(size_t a) { augm.request_discrete(a); }
+    /// Request discrete infectivity profile definition.
+    void request_discrete_infec_profile() { infec_profile.request_discrete(); }
+
+    /// Auxiliary method to initialize simulations.
+    /// UPDATE: once I allow for multi-treading and a flag other than n_chains = 0, I can drop this.
+    void helper_init_simulation();
+
+    //////////////////////
     //////  GETTER  //////
     //////////////////////
 
@@ -106,58 +129,44 @@ public:
     double infec_profile_inst(const AugmContainer &i, double t) const { return infec_profile.inst(&i, t); }
     double infec_profile_cumul(const AugmContainer &i, double t) const { return infec_profile.cumul(&i, t); }
 
-    //////////////////////
-    //////  SETTER  //////
-    //////////////////////
-
-    /// UPDATE: also contact rates should just be imported
-    void build_contact_rates() { contact_rate.build(); }
-
-    
-    void init_infec_profile_template(hsp::dict<std::string> x) { infec_profile.init_template(x); }
-
-    /// Initialize all augmented variables of given individual.
-    void init_missing_augm(Individual &member);
-
-    /// Request discrete parameter definition.
-    void request_discrete_param(size_t p) { param.request_discrete(p); }
-    /// Request discrete augmented definition.
-    void request_discrete_augm(size_t a) { augm.request_discrete(a); }
-    /// Request discrete infectivity profile definition.
-    void request_discrete_infec_profile() { infec_profile.request_discrete(); }
-
     //////////////////////////
     //////  EVALUATION  //////
     //////////////////////////
 
     void user_init_for_evaluate();
+    /// Assert setup definitions are ok to proceed with log-likelihood evaluation.
     void init_evaluate();
+    /// Compute new log-likelihood, store old value in buffer. Same for households.
     double update_total_log_lik(bool is_cache_depen = true);
+    /// Evaluate log-likelihood for the given household.
     double evaluate_single_house_log_lik(std::string_view house_id);
+    /// Initialize model and evaluate log-likelihood.
     double evaluate_log_lik(std::string_view house_id = "");
 
     ///////////////////////////////////
     //////  METROPOLIS-HASTINGS  //////
     ///////////////////////////////////
 
+    /// Assert setup definitions are ok to proceed with mcmc sampling.
     void init_monte_carlo();
+    /// Markov chain core, used for inference and power posteriors.
+    /// NOTE: sweep is the number of previously completed thin sweeps.
     void run_monte_carlo();
     /// Performs the inference using Metropolis-Hastings.
     void run_inference();
+    /// Trapezoidal rule to estimate logarithm of marginal likelihood (evidence) with power posteriors.
+    ///
+    /// Ref
+    /// -----
+    /// Friel, N., Hurn, M. & Wyse, J.
+    /// Improving power posterior estimation of statistical evidence.
+    /// Stat Comput 24, 709–723 (2014).
     std::vector<std::vector<double>> power_posteriors(std::string_view scheme, unsigned long N);
 
-    //////////////////////////
-    //////  SIMULATION  //////
-    //////////////////////////
-
-    /// Auxiliary method to initialize simulations.
-    /// UPDATE: once I allow for multi-treading and a flag other than n_chains = 0, I can drop this.
-    void helper_init_simulation();
-
 private:
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////  MCMC : Impl : Callbacks Virtual Methods  ////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////
+    //////  CALLBACKS  //////
+    /////////////////////////
 
     /// UPDATE: this is not efficient.
     std::function<void()> callback_init_inference_;
@@ -165,9 +174,9 @@ private:
     std::function<double(Household &)> callback_house_log_lik_;
     std::function<void(Household &, Individual &)> callback_update_cache_;
 
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////  MCMC : Impl : Metropolis-Hastings [private]  //////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////
+    //////  METROPOLIS-HASTINGS  //////
+    ///////////////////////////////////
 
     /// Intialize a single Markov chain for Monte Carlo.
     void init_monte_carlo_chain_();
@@ -178,20 +187,29 @@ private:
     /// Move all model parameters and augmented variables.
     void move_all_();
 
-    void init_posterior_sample_();
-    void store_posterior_sample_();
-
-    //----- Metropolis - parameter moves -----//
+    /// Attempt to move a single parameter for the given inverse temperature.
     bool move_single_parameter_(size_t p, bool is_cache_depen);
+    /// Restore the parameter value in the buffer.
     void recover_parameter_(size_t p, bool is_cache_depen);
 
-    //----- Metropolis : augmented moves -----//
+    /// Move augmented variables of all infected individuals.
     void move_all_augm_();
+    /// Move augmented variables of infectious members inside household.
+    /// The move is performed one member at a time, one augmented variable at a time.
     double atomic_move_augm_single_house_(size_t H);
+    /// Move a single augmented variable.
     double metropolis_augm_single_move_(Household &house, Individual &member, size_t a);
 
-    //----- Metropolis : power posteriors -----//
+    /// Init posterior sampling.
+    //// UPDATE: I would like to store also power posterior sample.
+    /// NOTE: it will depend on chosen rungs in that case.
+    void init_posterior_sample_();
+    /// Store current Bayesian posterior sample.
+    void store_posterior_sample_();
+
+    /// Power posteriors at 0 inverse temperature.
     void power_post_zero_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var);
+    /// Power posteriors with power fractions scheme for the thermodynamic ladder.
     void power_post_fractions_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var);
     void power_post_adaptive_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var);
 };

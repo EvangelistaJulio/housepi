@@ -33,10 +33,18 @@ struct GroupRate
 public:
     std::unique_ptr<hsp::key::Registry> pRegistry; /// pointer to registry
 
+    ///////////////////////////
+    //////  CONSTRUCTOR  //////
+    ///////////////////////////
+    
     GroupRate(const std::vector<std::string> &keys,
               DataWide *dataptr,
               const Parameter *paramptr);
     ~GroupRate();
+
+    //////////////////////
+    //////  SETTER  //////
+    //////////////////////
 
     /// Update model report and set group rates associate to new individual.
     /// NOTE: this has to run even if input is empty to initialize existing rates to reference.

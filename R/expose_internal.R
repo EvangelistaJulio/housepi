@@ -14,18 +14,15 @@ get_template_from_dll <- function(dll) {
 }
 
 # Get Rcpp module from dll
-get_rcpp_module_from_dll <- function(module_name, dll) {
+get_rcpp_module_from_dll <- function(dll) {
   dyn.load(dll)
-  Rcpp::Module(module_name, PACKAGE = get_template_from_dll(dll))
+  Rcpp::Module("housepi_rcpp_core", PACKAGE = get_template_from_dll(dll))
 }
 
 # Get Rcpp module from model
-get_rcpp_module_from_model <- function(module_name, hhmodel) {
-  if (is.null(hhmodel)) {
-    Rcpp::Module(module_name, PACKAGE = "housepi")
-  } else {
-    get_rcpp_module_from_dll(module_name, hhmodel$.__enclos_env__$private$.dll)
-  }
+get_rcpp_module_from_model <- function(hhmodel) {
+  if (is.null(hhmodel)) Rcpp::Module("housepi_rcpp_core", PACKAGE = "housepi")
+  else get_rcpp_module_from_dll(hhmodel$.__enclos_env__$private$.dll)
 }
 
 rd_test_name_ <- "`character(1)` Name of the %s."
@@ -54,7 +51,7 @@ If `NULL` the built-in registry is used (default).")
 expose_function <- function(name, ...,
                             min = NA_real_, max = NA_real_,
                             discr = FALSE, hhmodel = NULL) {
-  m <- get_rcpp_module_from_model("housepi_function", hhmodel)
+  m <- get_rcpp_module_from_model(hhmodel)
   m$HousepiRcppFunction$new(name, args = unlist(list(...)),
                             min = min, max = max, discr = discr)
 }
@@ -78,7 +75,7 @@ expose_function <- function(name, ...,
 expose_distribution <- function(name, ...,
                                 min = NA_real_, max = NA_real_,
                                 discr = FALSE, hhmodel = NULL) {
-  m <- get_rcpp_module_from_model("housepi_function", hhmodel)
+  m <- get_rcpp_module_from_model(hhmodel)
   m$HousepiRcppDistribution$new(name, args = unlist(list(...)),
                                 min = min, max = max, discr = discr)
 }
@@ -103,7 +100,7 @@ expose_infec_profile <- function(name, ...,
                                  min = NA_real_, max = NA_real_,
                                  discr = FALSE, hhmodel = NULL) {
   if (is.na(min)) min <- ifelse(discr, 1, 0)
-  m <- get_rcpp_module_from_model("housepi_function", hhmodel)
+  m <- get_rcpp_module_from_model(hhmodel)
   m$HousepiRcppInfecProfile$new(name, args = unlist(list(...)),
                                 min = min, max = max, discr = discr)
 }

@@ -2,7 +2,9 @@ Package: housepienvironment
 Type: Package
 Title: Household Model Environment
 Version: 0.0.1
-Authors@R: person("Francesco", "Camaglia", email = "francesco.camaglia@pasteur.fr", role = c("aut", "cre"))
+Authors@R: c(person("Francesco", "Camaglia", role = c("aut", "cre"), 
+                    email = "francesco.camaglia@pasteur.fr", comment = c(ORCID = "0000-0003-4810-2631")),
+             person("Simon", "Cauchemez", role = "aut", comment = c(ORCID = "0000-0001-9186-4549")))
 Description: This is the core implementation the package housepi. Direct access is deprecated.
 License: GPL (>= 3)
 NeedsCompilation: yes
@@ -11,5 +13,5 @@ Depends: Rcpp (>= 1.0.0)
 LinkingTo:
     Rcpp (>= 1.0.0), 
     BH (>= 1.0.0)
-RcppModules: housepi_flags, housepi_function, housepi_model_core
+RcppModules: housepi_rcpp_core
 RoxygenNote: 7.3.3

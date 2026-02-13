@@ -26,12 +26,6 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace hsp::str
-{
-    /// Format a boolean value.
-    std::string format(bool condition) { return condition ? "TRUE" : "FALSE"; }
-}
-
 namespace hsp::msg
 {
     /// Throw an error message.
@@ -74,19 +68,13 @@ namespace hsp::msg
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-RCPP_MODULE(housepi_flags)
+namespace
 {
-    Rcpp::class_<HousepiRcppCompiledFlags>("HousepiRcppCompiledFlags")
-        .constructor<>()
-        .method("get_flags", &HousepiRcppCompiledFlags::get_flags);
-}
-
-namespace {
     // Base class to wrap internal hosuepi functions
     class HousepiRcppBase
     {
     public:
-        HousepiRcppBase(std::string name, const std::string& family,
+        HousepiRcppBase(std::string name, const std::string &family,
                         SEXP args_, double min, double max, bool is_discr,
                         std::vector<std::string> registry_types)
             : family_(family)
@@ -94,25 +82,25 @@ namespace {
             try
             {
                 ptr_ = compose_func_registries(name, family_, registry_types, false);
-                
+
                 if (args_ != R_NilValue)
                 {
                     Rcpp::List args(args_);
                     Rcpp::CharacterVector arg_names(args.size());
                     if (args.hasAttribute("names"))
                         arg_names = args.names();
-                        
+
                     for (R_xlen_t i = 0; i < args.size(); ++i)
                         ptr_->init_attr(
                             Rcpp::as<std::string>(arg_names[i]),
                             Attribute(Rcpp::as<double>(args[i])));
                 }
-                
+
                 if (!hsp::na::is(min))
                     ptr_->init_attr("min", Attribute(min));
                 if (!hsp::na::is(max))
                     ptr_->init_attr("max", Attribute(max));
-                
+
                 if (is_discr)
                     ptr_->init_discretization();
                 ptr_->init_truncation();
@@ -124,9 +112,9 @@ namespace {
                     "While initializing " + family_ + " '" + name + "':\n" + e.what());
             }
         }
-        
+
         virtual ~HousepiRcppBase() = default;
-        
+
         Rcpp::NumericVector args() const
         {
             Rcpp::NumericVector output(ptr_->n_args());
@@ -139,11 +127,11 @@ namespace {
             output.names() = std::move(names);
             return output;
         }
-        
+
     protected:
         std::unique_ptr<Function> ptr_;
         std::string family_;
-        
+
         Rcpp::NumericVector call_(Rcpp::NumericVector x) const
         {
             try
@@ -167,15 +155,15 @@ namespace {
     {
     public:
         HousepiRcppFunction(std::string name_, SEXP args_, double min, double max, bool is_discr)
-            : HousepiRcppBase(name_, "function", args_, min, max, is_discr, 
-                            {"user", "transcendental", "arithmetic"}) {}
-        
+            : HousepiRcppBase(name_, "function", args_, min, max, is_discr,
+                              {"user", "transcendental", "arithmetic"}) {}
+
         Rcpp::NumericVector func(Rcpp::NumericVector x) const
         {
             ptr_->set_eval_call();
             return call_(x);
         }
-        
+
         Rcpp::NumericVector prim(Rcpp::NumericVector x) const
         {
             ptr_->set_eval_primitive();
@@ -189,14 +177,14 @@ namespace {
     public:
         HousepiRcppDistribution(std::string name_, SEXP args_, double min, double max, bool is_discr)
             : HousepiRcppBase(name_, "distribution", args_, min, max, is_discr,
-                            {"continuos", "discrete"}) {}
-        
+                              {"continuos", "discrete"}) {}
+
         Rcpp::NumericVector pdf(Rcpp::NumericVector x) const
         {
             ptr_->set_eval_as_distr_call();
             return call_(x);
         }
-        
+
         Rcpp::NumericVector cdf(Rcpp::NumericVector x) const
         {
             ptr_->set_eval_as_distr_primitive();
@@ -210,14 +198,14 @@ namespace {
     public:
         HousepiRcppInfecProfile(std::string name_, SEXP args_, double min, double max, bool is_discr)
             : HousepiRcppBase(name_, "infectivity profile", args_, min, max, is_discr,
-                            {"infecprofile", "continuos", "discrete"}) {}
-        
+                              {"infecprofile", "continuos", "discrete"}) {}
+
         Rcpp::NumericVector inst(Rcpp::NumericVector x) const
         {
             ptr_->set_eval_as_distr_call();
             return call_(x);
         }
-        
+
         Rcpp::NumericVector cumul(Rcpp::NumericVector x) const
         {
             ptr_->set_eval_as_distr_primitive();
@@ -286,30 +274,6 @@ namespace {
 //' @return `numeric()`
 //' @keywords internal
 
-RCPP_MODULE(housepi_function)
-{
-    Rcpp::class_<HousepiRcppBase>("HousepiRcppBase")
-        .method("args", &HousepiRcppBase::args);
-    
-    Rcpp::class_<HousepiRcppFunction>("HousepiRcppFunction")
-        .constructor<std::string, SEXP, double, double, bool>()        
-        .derives<HousepiRcppBase>("HousepiRcppBase")
-        .method("func", &HousepiRcppFunction::func)
-        .method("prim", &HousepiRcppFunction::prim);
-
-     Rcpp::class_<HousepiRcppDistribution>("HousepiRcppDistribution")
-        .constructor<std::string, SEXP, double, double, bool>()        
-        .derives<HousepiRcppBase>("HousepiRcppBase")
-        .method("pdf", &HousepiRcppDistribution::pdf)
-        .method("cdf", &HousepiRcppDistribution::cdf);
-
-    Rcpp::class_<HousepiRcppInfecProfile>("HousepiRcppInfecProfile")
-        .constructor<std::string, SEXP, double, double, bool>()        
-        .derives<HousepiRcppBase>("HousepiRcppBase")
-        .method("inst", &HousepiRcppInfecProfile::inst)
-        .method("cumul", &HousepiRcppInfecProfile::cumul);
-}
-
 //' @name HousepiRcppModel
 //' @title Internal housepi Rcpp model
 //' @description Perform inference and simulation from the model.
@@ -345,8 +309,34 @@ RCPP_MODULE(housepi_function)
 //' @field flush_house_log_lik_draws Return a NumericMatrix with household log-likelihood draws.
 //' @field export_house_snapshot Return a List with a snapshot containing full household and model details.
 //' @keywords internal
-RCPP_MODULE(housepi_model_core)
+
+RCPP_MODULE(housepi_rcpp_core)
 {
+    Rcpp::class_<HousepiRcppCompiledFlags>("HousepiRcppCompiledFlags")
+        .constructor<>()
+        .method("get_flags", &HousepiRcppCompiledFlags::get_flags);
+
+    Rcpp::class_<HousepiRcppBase>("HousepiRcppBase")
+        .method("args", &HousepiRcppBase::args);
+
+    Rcpp::class_<HousepiRcppFunction>("HousepiRcppFunction")
+        .constructor<std::string, SEXP, double, double, bool>()
+        .derives<HousepiRcppBase>("HousepiRcppBase")
+        .method("func", &HousepiRcppFunction::func)
+        .method("prim", &HousepiRcppFunction::prim);
+
+    Rcpp::class_<HousepiRcppDistribution>("HousepiRcppDistribution")
+        .constructor<std::string, SEXP, double, double, bool>()
+        .derives<HousepiRcppBase>("HousepiRcppBase")
+        .method("pdf", &HousepiRcppDistribution::pdf)
+        .method("cdf", &HousepiRcppDistribution::cdf);
+
+    Rcpp::class_<HousepiRcppInfecProfile>("HousepiRcppInfecProfile")
+        .constructor<std::string, SEXP, double, double, bool>()
+        .derives<HousepiRcppBase>("HousepiRcppBase")
+        .method("inst", &HousepiRcppInfecProfile::inst)
+        .method("cumul", &HousepiRcppInfecProfile::cumul);
+
     Rcpp::class_<MCMC>("HousepiRcppMcmc")
         .method("run_inference", &MCMC::run_inference)
         .method("data_wide_for_simulation", &MCMC::data_wide_for_simulation)

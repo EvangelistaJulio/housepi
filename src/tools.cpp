@@ -247,10 +247,10 @@ namespace hsp::str
     //////////////////////////////////  Formatter Functions  ////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    /// Format a dobule value (it deals with NA).
+    std::string format(bool condition) { return condition ? "TRUE" : "FALSE"; }
+
     std::string format(double x) { return na::is(x) ? "NA" : std::to_string(x); }
 
-    /// Format a list of string options.
     std::string format(const std::vector<std::string> &options, size_t max_print)
     {
         if (options.empty())

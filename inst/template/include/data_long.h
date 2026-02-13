@@ -33,10 +33,18 @@ public:
     std::vector<std::string> headers = {};
     std::vector<std::vector<std::vector<double>>> indiv_datalist = {};
 
+    ///////////////////////////
+    //////  CONSTRUCTOR  //////
+    ///////////////////////////
+
     DataLong(const std::vector<std::string> &keys,
              DataWide *ptr);
     ~DataLong();
 
+    //////////////////////
+    //////  SETTER  //////
+    //////////////////////
+    
     /// Assign data (long format) after pre-processing.
     void build(const hsp::str_table &input);
 

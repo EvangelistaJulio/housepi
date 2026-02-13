@@ -78,10 +78,22 @@ MCMCImpl::MCMCImpl(
 }
 MCMCImpl::~MCMCImpl() = default;
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+void MCMCImpl::init_missing_augm(Individual &member)
+{
+    augm.init_missing(member, false);
+    augm.user_reset(setup.prng(), member);
+}
+
+void MCMCImpl::helper_init_simulation()
+{
+    data_wide.assert_non_empty(); // check if data is empty
+    setup.n_chains = 0;           // use 0 chains as a state variable
+    setup.n_threads = 1;          // impose no parallelization
+    setup.set_n_threads();        // change accordingly
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////  MCMCImpl : evaluate log-likelihood  /////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 void MCMCImpl::user_init_for_evaluate()
@@ -96,7 +108,6 @@ void MCMCImpl::user_init_for_evaluate()
     }
 }
 
-/// Assert setup definitions are ok to proceed with log-likelihood evaluation.
 void MCMCImpl::init_evaluate()
 {
     setup.n_chains = 0;                        // use 0 chains as a state variable
@@ -108,7 +119,6 @@ void MCMCImpl::init_evaluate()
     augm.user_reset(setup.prng());             // initialize non constant augmented
 }
 
-/// Evaluate log-likelihood for the given household.
 double MCMCImpl::evaluate_single_house_log_lik(std::string_view house_id)
 {
     atomic_error.restore(); // reset atomic error
@@ -118,7 +128,6 @@ double MCMCImpl::evaluate_single_house_log_lik(std::string_view house_id)
     return output;
 }
 
-/// Initialize model and evaluate log-likelihood.
 double MCMCImpl::evaluate_log_lik(std::string_view house_id)
 {
     try
@@ -137,9 +146,7 @@ double MCMCImpl::evaluate_log_lik(std::string_view house_id)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////  MCMCImpl : update house log-likelihood  ////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Compute new log-likelihood, store old value in buffer. Same for households.
@@ -167,8 +174,6 @@ double MCMCImpl::update_total_log_lik(bool is_cache_depen)
     return new_ll;
 }
 
-/// Update and return contribution of given household to full logliklehood.
-/// NOTE: house multiplicity doesn't work with data augmentation
 double MCMCImpl::atomic_materialize_house_log_lik_(Household &house, bool is_cache_depen)
 {
     double output = 0;
@@ -201,12 +206,9 @@ double MCMCImpl::atomic_materialize_house_log_lik_(Household &house, bool is_cac
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////  MCMCImpl : inference  ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Assert setup definitions are ok to proceed with mcmc sampling.
 void MCMCImpl::init_monte_carlo()
 {
     // check if data is empty
@@ -233,13 +235,9 @@ void MCMCImpl::init_monte_carlo()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  MCMCImpl : run monte carlo  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Markov chain core, used for inference and power posteriors.
-/// NOTE: sweep is the number of previously completed thin sweeps.
 void MCMCImpl::run_monte_carlo()
 {
     init_posterior_sample_(); // initialize posterior sample
@@ -272,7 +270,6 @@ void MCMCImpl::run_monte_carlo()
     }
 }
 
-/// Performs the inference using Metropolis-Hastings.
 void MCMCImpl::run_inference()
 {
     try
@@ -293,12 +290,9 @@ void MCMCImpl::run_inference()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////  MCMCImpl : monte carlo moves /////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Move all model parameters and augmented variables.
 void MCMCImpl::move_all_()
 {
     // move augmented variables to sample, if any
@@ -318,7 +312,6 @@ void MCMCImpl::move_all_()
         move_single_parameter_(p, true);
 }
 
-/// Attempt to move a single parameter for the given inverse temperature.
 bool MCMCImpl::move_single_parameter_(size_t p, bool is_cache_depen)
 {
     // proceed only if the new value is consistent
@@ -340,12 +333,9 @@ bool MCMCImpl::move_single_parameter_(size_t p, bool is_cache_depen)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////  MCMCImpl : parameter moves  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Intialize a single Markov chain for Monte Carlo.
 void MCMCImpl::init_monte_carlo_chain_()
 {
     try
@@ -370,7 +360,6 @@ void MCMCImpl::init_monte_carlo_chain_()
     }
 }
 
-/// Restore the parameter value in the buffer.
 void MCMCImpl::recover_parameter_(size_t p, bool is_cache_depen)
 {
     // recover buffer value of parameter
@@ -397,12 +386,9 @@ void MCMCImpl::recover_parameter_(size_t p, bool is_cache_depen)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////  MCMCImpl : move all augmented variables  ///////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Move augmented variables from all households.
 void MCMCImpl::move_all_augm_()
 {
     double delta_ll = 0.;
@@ -420,8 +406,6 @@ void MCMCImpl::move_all_augm_()
     tot_log_lik.increment(delta_ll);
 }
 
-/// Move augmented variables of infectious members inside household.
-/// The move is performed one member at a time, one augmented variable at a time.
 double MCMCImpl::atomic_move_augm_single_house_(size_t H)
 {
     Household &house = data_wide.at(H);
@@ -446,7 +430,6 @@ double MCMCImpl::atomic_move_augm_single_house_(size_t H)
     return delta_ll;
 }
 
-/// Take care of a a single augmented Metropolis move.
 double MCMCImpl::metropolis_augm_single_move_(Household &house, Individual &member, size_t a)
 {
     Variable &xaugm = member.get_augm_variable(a);
@@ -482,14 +465,9 @@ double MCMCImpl::metropolis_augm_single_move_(Household &house, Individual &memb
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  MCMCImpl : posterior sample  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Init posterior sampling.
-//// UPDATE: I would like to store also power posterior sample.
-/// NOTE: it will depend on chosen rungs in that case.
 void MCMCImpl::init_posterior_sample_()
 {
     unsigned long sample_size = setup.c_sample_size * setup.n_chains;
@@ -503,7 +481,6 @@ void MCMCImpl::init_posterior_sample_()
     tot_log_lik.init_draws(sample_size);
 }
 
-/// Store current Bayesian posterior sample.
 void MCMCImpl::store_posterior_sample_()
 {
     if (!setup.is_power_post())
@@ -517,9 +494,7 @@ void MCMCImpl::store_posterior_sample_()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  MCMCImpl : estimate log_evidence  //////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 namespace
@@ -549,13 +524,6 @@ namespace
     }
 }
 
-/// Trapezoidal rule to estimate logarithm of marginal likelihood (evidence) with power posteriors.
-///
-/// Ref
-/// -----
-/// Friel, N., Hurn, M. & Wyse, J.
-/// Improving power posterior estimation of statistical evidence.
-/// Stat Comput 24, 709–723 (2014).
 std::vector<std::vector<double>> MCMCImpl::power_posteriors(std::string_view scheme, unsigned long n_rungs)
 {
     // check scheme choice
@@ -596,7 +564,6 @@ std::vector<std::vector<double>> MCMCImpl::power_posteriors(std::string_view sch
     return {itm, avg, var};
 }
 
-/// Power posteriors at 0 inverse temperature.
 void MCMCImpl::power_post_zero_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var)
 {
     // UPDATE: should I use previous inference for itm = 1 if available?
@@ -612,7 +579,6 @@ void MCMCImpl::power_post_zero_(std::vector<double> &itm, std::vector<double> &a
     var.push_back(stats_var);
 }
 
-/// Power posteriors with adaptive scheme for the thermodynamic ladder.
 void MCMCImpl::power_post_adaptive_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var)
 {
     // Inverse Temperature 1
@@ -659,7 +625,6 @@ void MCMCImpl::power_post_adaptive_(std::vector<double> &itm, std::vector<double
     }
 }
 
-/// Power posteriors with power fractions scheme for the thermodynamic ladder.
 void MCMCImpl::power_post_fractions_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var)
 {
     for (setup.rung = 1; setup.rung <= setup.n_rungs; ++setup.rung)
@@ -673,20 +638,4 @@ void MCMCImpl::power_post_fractions_(std::vector<double> &itm, std::vector<doubl
         avg.push_back(stats_avg);
         var.push_back(stats_var);
     }
-}
-
-void MCMCImpl::init_missing_augm(Individual &member)
-{
-    augm.init_missing(member, false);
-    augm.user_reset(setup.prng(), member);
-}
-
-/// Auxiliary method to initialize simulations.
-/// UPDATE: once I allow for multi-treading and a flag other than n_chains = 0, I can drop this.
-void MCMCImpl::helper_init_simulation()
-{
-    data_wide.assert_non_empty(); // check if data is empty
-    setup.n_chains = 0;           // use 0 chains as a state variable
-    setup.n_threads = 1;          // impose no parallelization
-    setup.set_n_threads();        // change accordingly
 }
