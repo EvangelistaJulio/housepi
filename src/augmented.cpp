@@ -173,7 +173,7 @@ void Augmented::helper_build_append_infec_profile_()
         return;
 
     for (const std::string &col : hsp::read::extract_keys(deftable_))
-        deftable_[col] += pInfecProfile_->augm_profile_definitions_.at(col);
+        deftable_[col] += pInfecProfile_->augm_definitions.at(col);
 
     pRegistry->add(hsp::infprof::AUGM_FUNC);
     pInfecProfile_->augm_key = pRegistry->from_string(hsp::infprof::AUGM_FUNC);

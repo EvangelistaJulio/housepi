@@ -125,18 +125,18 @@ namespace
     }
 }
 
-#define MAKE_RCPP_IMPORT_METHOD(module, section_name)           \
-    void MCMC::import_##module(SEXP input)                      \
-    {                                                           \
-        try                                                     \
-        {                                                       \
+#define MAKE_RCPP_IMPORT_METHOD(module, section_name)          \
+    void MCMC::import_##module(SEXP input)                     \
+    {                                                          \
+        try                                                    \
+        {                                                      \
             pImpl_->module.build(rdataframe_to_strmap(input)); \
-        }                                                       \
-        catch (const std::exception &e)                         \
-        {                                                       \
-            hsp::msg::error(std::string("While importing ") +   \
-                            section_name + ":\n" + e.what());   \
-        }                                                       \
+        }                                                      \
+        catch (const std::exception &e)                        \
+        {                                                      \
+            hsp::msg::error(std::string("While importing ") +  \
+                            section_name + ":\n" + e.what());  \
+        }                                                      \
     }
 MAKE_RCPP_IMPORT_METHOD(setup, "setup")
 MAKE_RCPP_IMPORT_METHOD(data_wide, "data-wide")
@@ -152,7 +152,7 @@ void MCMC::import_multiplicity(SEXP input)
     try
     {
         pImpl_->data_wide.multiplicity_build(rdataframe_to_strmap(input),
-                                              pImpl_->augm.pRegistry->size() > 0);
+                                             pImpl_->augm.pRegistry->size() > 0);
     }
     catch (const std::exception &e)
     {
@@ -187,14 +187,19 @@ namespace
         using namespace Rcpp;
 
         if (infec_profile.is_augmented())
-            hsp::msg::error(
-                "Impossible to export infectivity profile when if definition is not generic.");
+            /// FIXME: I need to reverse parser here + cast to numeric
+            return List::create(
+                _["func"] = CharacterVector(wrap(infec_profile.augm_definitions.at("func"))),
+                _["func_args"] = CharacterVector(wrap(infec_profile.augm_definitions.at("func"))),
+                _["min"] = CharacterVector(wrap(infec_profile.augm_definitions.at("min"))),
+                _["max"] = CharacterVector(wrap(infec_profile.augm_definitions.at("max"))),
+                _["discr"] = CharacterVector(wrap(infec_profile.augm_definitions.at("discr"))));
 
         if (infec_profile.generic == nullptr)
             return List::create();
 
+        // NOTE: arguments should not be polymorphic when called here
         return List::create(_["func"] = std::string(infec_profile.generic->name()),
-                            // NOTE: arguments should not be polymorphic when called here
                             _["func_args"] = rcpp_export_args(infec_profile.generic.get()),
                             _["min"] = hsp_to_rcpp(infec_profile.generic->lower()),
                             _["max"] = hsp_to_rcpp(infec_profile.generic->upper()),

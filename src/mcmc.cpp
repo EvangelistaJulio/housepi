@@ -12,7 +12,7 @@
 
 #include "tools/types.h"
 
-#include "mcmc.h" /// UPDATE: should remove I/O and Rcpp dependencies from MCMC...
+#include "mcmc.h"
 #include "mcmc_impl.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -91,7 +91,7 @@ namespace hsp
         {
             Interactive,
             Static
-        } mode_ = Mode::Static;
+        } mode_ = Mode::Interactive;
 
     public:
         ///////////////////////////
@@ -103,8 +103,8 @@ namespace hsp
 #ifdef _HOUSEPI_RCPP
             check_user_interrupt_();
             barwidth_ = Rcpp::as<unsigned>(Rcpp::Function("getOption")("width")) / 2;
-            if (Rcpp::as<bool>(Rcpp::Function("interactive")()))
-                mode_ = Mode::Interactive;
+            if (!Rcpp::as<bool>(Rcpp::Function("interactive")()))
+                mode_ = Mode::Static;
 #endif
         };
         ~ProgressBar() = default;

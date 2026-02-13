@@ -15,7 +15,7 @@
 
 #include "tools/types.h"
 
-/// UPDATE: can it be redesigned to reduce dependency on Rcpp here?
+/// UPDATE: can MCMC be redesigned to remove dependency on Rcpp?
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
 #endif

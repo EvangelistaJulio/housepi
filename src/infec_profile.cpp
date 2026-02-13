@@ -40,7 +40,7 @@ void InfecProfile::init_template(hsp::str_table input)
     // if not previous build, proceed with template
     // if no template, assume no need for an infectivity profile
     if (generic != nullptr ||
-        !augm_profile_definitions_.empty() ||
+        !augm_definitions.empty() ||
         input.empty())
         return;
 
@@ -107,7 +107,7 @@ void InfecProfile::LookUpTable::materialize_()
 /// NOTE: at the moment I am ignoring minimum
 void InfecProfile::build(const hsp::str_table &input)
 {
-    augm_profile_definitions_.clear();
+    augm_definitions.clear();
 
     if (input.empty())
         return;
@@ -131,19 +131,19 @@ void InfecProfile::build(const hsp::str_table &input)
         hsp::parse::Definition(input.at("func")[0]).is_augmented_depen() ||
         hsp::parse::Definition(input.at("max")[0]).is_augmented_depen() ||
         !hsp::na::is(input.at("status")[0]))
-        build_augmented_profile_(input);
+        build_augmented_(input);
     else
-        build_generic_profile_(input);
+        build_generic_(input);
 }
 
-void InfecProfile::build_generic_profile_(const hsp::str_table &input)
+void InfecProfile::build_generic_(const hsp::str_table &input)
 {
     mode_ = Mode::Generic;
-    generic = helper_build_profile_(
+    generic = helper_build_(
         {{"func", {input.at("func")[0]}},
          {"discr", {input.count("discr") ? input.at("discr")[0] : "false"}}});
     lookup_.clear();
-    augm_profile_definitions_.clear();
+    augm_definitions.clear();
 
     // range minimum
     std::string min_expr = generic->is_discrete() ? "1|N" : "0|N"; // default
@@ -169,40 +169,40 @@ void InfecProfile::build_generic_profile_(const hsp::str_table &input)
     }
 }
 
-void InfecProfile::build_augmented_profile_(const hsp::str_table &input)
+void InfecProfile::build_augmented_(const hsp::str_table &input)
 {
     // drop generic definition
     mode_ = Mode::Augmented;
     generic = nullptr;
     lookup_.clear();
-    augm_profile_definitions_.clear();
+    augm_definitions.clear();
 
     // use helper to check profile name and discretization
     for (size_t r = 0; r < hsp::read::csv_n_rows(input); ++r)
-        helper_build_profile_({{"func", {hsp::parse::Definition(input.at("func")[r]).root.func}},
-                               {"discr", {input.at("discr")[r]}}});
+        helper_build_({{"func", {hsp::parse::Definition(input.at("func")[r]).root.func}},
+                       {"discr", {input.at("discr")[r]}}});
 
     // match infectivity profile and augmented variable definition
     for (size_t r = 0; r < hsp::read::csv_n_rows(input); ++r)
     {
         bool is_discrete = hsp::str::tobool(input.at("discr")[r]);
 
-        augm_profile_definitions_["name"].push_back(hsp::infprof::AUGM_FUNC);
-        augm_profile_definitions_["status"].push_back(input.at("status")[r]);
-        augm_profile_definitions_["func"].push_back(input.at("func")[r]);
-        augm_profile_definitions_["fcumul"].push_back("false");
-        augm_profile_definitions_["value"].push_back("");
-        augm_profile_definitions_["const"].push_back("false");
-        augm_profile_definitions_["discr"].push_back(hsp::str::format(is_discrete));
-        augm_profile_definitions_["model"].push_back("");
-        augm_profile_definitions_["min"].push_back(is_discrete ? "1|N" : "0|N");
-        augm_profile_definitions_["max"].push_back(input.at("max")[r]);
-        augm_profile_definitions_["proposal"].push_back("");
-        augm_profile_definitions_["proposal_scale"].push_back("");
+        augm_definitions["name"].push_back(hsp::infprof::AUGM_FUNC);
+        augm_definitions["status"].push_back(input.at("status")[r]);
+        augm_definitions["func"].push_back(input.at("func")[r]);
+        augm_definitions["fcumul"].push_back("false");
+        augm_definitions["value"].push_back("");
+        augm_definitions["const"].push_back("false");
+        augm_definitions["discr"].push_back(hsp::str::format(is_discrete));
+        augm_definitions["model"].push_back("");
+        augm_definitions["min"].push_back(is_discrete ? "1|N" : "0|N");
+        augm_definitions["max"].push_back(input.at("max")[r]);
+        augm_definitions["proposal"].push_back("");
+        augm_definitions["proposal_scale"].push_back("");
     }
 }
 
-std::unique_ptr<Distribution> InfecProfile::helper_build_profile_(const hsp::str_table &input)
+std::unique_ptr<Distribution> InfecProfile::helper_build_(const hsp::str_table &input)
 {
     hsp::parse::Definition parser(hsp::parse::Definition(input.at("func")[0]));
     auto output = compose_distr_registries(parser.root.func,

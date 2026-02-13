@@ -36,8 +36,9 @@ struct InfecProfile
     friend struct Augmented;
 
 public:
-    std::unique_ptr<Distribution> generic;
-    size_t augm_key; /// augmented profile key
+    std::unique_ptr<Distribution> generic; /// generic profile
+    size_t augm_key;                       /// augmented key
+    hsp::str_table augm_definitions = {};  /// augmented definitions
 
     ///////////////////////////
     //////  CONSTRUCTOR  //////
@@ -112,17 +113,16 @@ private:
         LookUp     /// generic infectivity profile
     } mode_ = Mode::Generic;
 
-    Parameter *pParameter_;                        /// pointer to external Parameter struct
-    hsp::str_table augm_profile_definitions_ = {}; /// augmented profile definitions
-    bool is_discrete_requested_ = false;           /// wheter is requested as discrete
+    Parameter *pParameter_;              /// pointer to external Parameter struct
+    bool is_discrete_requested_ = false; /// wheter is requested as discrete
 
     /// Build for generic infectivity profile.
     /// NOTE: no status dependence allowed here.
-    void build_generic_profile_(const hsp::str_table &input);
+    void build_generic_(const hsp::str_table &input);
     /// Build for individual augmented function infectivity profile.
-    void build_augmented_profile_(const hsp::str_table &input);
+    void build_augmented_(const hsp::str_table &input);
     /// Helper to build profile.
-    std::unique_ptr<Distribution> helper_build_profile_(const hsp::str_table &input);
+    std::unique_ptr<Distribution> helper_build_(const hsp::str_table &input);
 
     /// Helper module to deal with the case of discrete time lookup table.
     struct LookUpTable
