@@ -145,8 +145,18 @@ Augmented::~Augmented() = default;
 
 void Augmented::build(const hsp::str_table &input)
 {
-    pRegistry->clear();
+    // drop previous definitions
+    is_any_sample_ = false;
+    is_any_model_ = false;
 
+    pRegistry->clear();
+    map_status_to_def_row_.clear();
+    map_status_to_block_.clear();
+    status_blocks_.clear();
+    list_export.clear();
+    list_draws.clear();
+
+    // skip if no augmented definitions
     if (input.empty() && !pInfecProfile_->is_augmented())
         return;
 
@@ -154,8 +164,7 @@ void Augmented::build(const hsp::str_table &input)
     deftable_ = input;                    // store user definitions
     helper_build_append_infec_profile_(); // add infectivity profile
     helper_build_definition_by_status_(); // process definition by status
-    helper_build_emplace_all_();          // allocate memory for all augmented
-    helper_build_definition_order_();     // process definition order
+    helper_build_allocation_order_();     // allocation and order
 }
 
 void Augmented::helper_build_append_infec_profile_()
@@ -180,8 +189,6 @@ void Augmented::helper_build_append_infec_profile_()
 
 void Augmented::helper_build_definition_by_status_()
 {
-    map_status_to_def_row_.clear();
-
     for (size_t k = 0; k < deftable_["name"].size(); ++k)
     {
         // fill registry with optional augmented definitions
@@ -216,14 +223,19 @@ void Augmented::helper_build_definition_by_status_()
     }
 }
 
-void Augmented::helper_build_emplace_all_()
-{
-    all_infected_statuses_.clear();
-    size_t n = pRegistry->size();
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////  Augmented : build definition order  ////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
+void Augmented::helper_build_allocation_order_()
+{
+    std::unordered_set<int> all_infected_statuses = {};
+
+    size_t n = pRegistry->size();
     for (Household &house : *pDataWide_)
         for (Individual &member : house)
         {
+            // UPDATE: this could be reserved during member construction
             member.augm_vec_.resize(n);
             for (size_t a = 0; a < n; ++a)
             {
@@ -231,23 +243,8 @@ void Augmented::helper_build_emplace_all_()
                 member.augm_vec_[a].set_err_type("augmented");
             }
             if (member.is_infected_status())
-                all_infected_statuses_.emplace(member.status());
+                all_infected_statuses.emplace(member.status());
         }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  Augmented : build definition order  ////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-void Augmented::helper_build_definition_order_()
-{
-    is_any_sample_ = false;
-    is_any_model_ = false;
-
-    map_status_to_block_.clear();
-    status_blocks_.clear();
-    list_export.clear();
-    list_draws.clear();
 
     // first, load status specific user definitions
     // NOTE: NA (i. e. generic) does not necessarily need checking
@@ -257,7 +254,7 @@ void Augmented::helper_build_definition_order_()
 
     // associate observed status to corresponding status block
     // if not defined specifically, then associate to generic
-    for (int status : all_infected_statuses_)
+    for (int status : all_infected_statuses)
         if (!map_status_to_block_.count(status))
         {
             if (!map_status_to_block_.count(hsp::status::MISSING))
@@ -267,7 +264,7 @@ void Augmented::helper_build_definition_order_()
 
     // if no observed infected status or status-specific definitions
     // then load generic definitition
-    if (all_infected_statuses_.empty() ||
+    if (all_infected_statuses.empty() ||
         (map_status_to_def_row_.size() == 1 &&
          hsp::status::is_missing(map_status_to_def_row_.begin()->first)))
         set_definition_dependency_order_for_(hsp::status::MISSING);
@@ -351,14 +348,27 @@ void Augmented::set_sample_list_for_(int status, size_t k)
     const std::string &augmstr = deftable_["name"][k];
     size_t a = pRegistry->from_string(augmstr);
 
+    bool is_to_export = true;
+    bool is_to_draw = true;
+
     if (hsp::str::tobool(deftable_["const"][k]))
     {
-        if (!hsp::str::is_private(augmstr))
-            list_export.emplace(a);
+        is_to_draw = false;
     }
     else if (!hsp::na::is(deftable_["func"][k]))
     {
-        set_function_or_identity_for_(k);
+        const hsp::parse::Definition parser(deftable_["func"][k]);
+        if (parser.is_terminal())
+        {
+            // check the type of requested equality
+            if (hsp::parse::is_parameter(parser.root.type))
+                is_to_draw = !pParameter_->at(pParameter_->pRegistry->from_string(parser.root.value)).is_constant();
+            // UPDATE: can I use dependecies tree to see if constant function?
+        }
+        else if (!parser.is_callable_implicitly("x"))
+        {
+            is_to_export = false;
+        }
     }
     else if (hsp::na::is(deftable_["value"][k]) && hsp::na::is(deftable_["model"][k]))
     {
@@ -374,45 +384,17 @@ void Augmented::set_sample_list_for_(int status, size_t k)
     }
     else
     {
-        if (!hsp::str::is_private(augmstr))
-        {
-            list_draws.emplace(a);
-            list_export.emplace(a);
-        }
-
         is_any_sample_ = true;
         status_blocks_[map_status_to_block_.at(status)].sample.emplace_back(a);
     }
-}
 
-void Augmented::set_function_or_identity_for_(size_t k)
-{
-    const std::string &augmstr = deftable_["name"][k];
-    size_t a = pRegistry->from_string(augmstr);
-    const hsp::parse::Definition parser(deftable_["func"][k]);
-
-    if (parser.is_terminal())
+    if (!hsp::str::is_private(augmstr) && is_to_export)
     {
-        bool is_identity_const = true;
-
-        // check the type of requested equality
-        if (hsp::parse::is_parameter(parser.root.type))
-            is_identity_const = pParameter_->at(pParameter_->pRegistry->from_string(parser.root.value)).is_constant();
-
-        else if (hsp::parse::is_augmented(parser.root.type))
-            is_identity_const = false; // UPDATE: use an augmented dependecies tree to see if constant
-
-        if (!hsp::str::is_private(augmstr))
-        {
-            list_export.emplace(a);
-            if (!is_identity_const)
-                list_draws.emplace(a);
-        }
-    }
-    else if (parser.is_callable_implicitly("x") && !hsp::str::is_private(augmstr))
-    {
-        list_draws.emplace(a);
-        list_export.emplace(a);
+        if (std::find(list_export.begin(), list_export.end(), a) == list_export.end())
+            list_export.emplace_back(a);
+        if (is_to_draw)
+            if (std::find(list_draws.begin(), list_draws.end(), a) == list_draws.end())
+                list_draws.emplace_back(a);
     }
 }
 

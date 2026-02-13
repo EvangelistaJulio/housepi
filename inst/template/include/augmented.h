@@ -38,8 +38,8 @@ struct Augmented
     /// UPATE: once read_attribute goes back to MCMCImpl, this can become private
     std::unique_ptr<hsp::key::Registry> pRegistry; /// pointer to registry
 
-    std::unordered_set<size_t> list_draws = {};
-    std::unordered_set<size_t> list_export = {};
+    std::vector<size_t> list_draws = {};
+    std::vector<size_t> list_export = {};
 
     // optional augmented posterior sample
     std::vector<const AugmContainer *> smpl_individuals = {};
@@ -119,8 +119,6 @@ private:
     /// User defined discrete parameters
     std::unordered_set<size_t> user_discrete_set_ = {};
 
-    /// List of all infected statuses in the dataset
-    std::unordered_set<int> all_infected_statuses_ = {};
     /// Status to definition row.
     std::unordered_map<int, std::vector<size_t>> map_status_to_def_row_ = {};
     /// Status to internal index.
@@ -147,12 +145,9 @@ private:
     /// By convention, generic defintion are associated to missing status.
     void helper_build_definition_by_status_();
 
-    /// Emplace all augmented definitions.
-    void helper_build_emplace_all_();
-
     /// Deal with the definition 'k' of augmented to be sampled (const = FALSE).
     /// NOTE: this assume definitions are univocal and status correct.
-    void helper_build_definition_order_();
+    void helper_build_allocation_order_();
 
     /// Set dependecies ordering for ininitializiation fo given status.
     /// At the same time assert that definition are complet and acyclic.
@@ -161,8 +156,6 @@ private:
     std::vector<size_t> get_unsorted_definition_rows_(int status, bool is_pre_process) const;
     /// Set sample map and relative usage list.
     void set_sample_list_for_(int status, size_t k);
-    /// Build augmented function and inspect for constant.
-    void set_function_or_identity_for_(size_t k);
 
     /// Deal with the definition of augmented variable with a model.
     /// NOTE: no need to initialize to generic since only used for posterior sampling.

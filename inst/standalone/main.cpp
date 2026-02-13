@@ -205,7 +205,7 @@ void MCMC::print_infer_state(const std::string &output_filename) const
 /// Print all augmented variables of each individual.
 std::ofstream open_ofstream_datawide(const std::string &f,
                                      const std::vector<std::string> &data_headers,
-                                     const std::unordered_set<size_t> &augm_headers)
+                                     const std::vector<std::string> &augm_headers)
 {
     std::ofstream ofs;
     ofs.open(f);
@@ -213,17 +213,13 @@ std::ofstream open_ofstream_datawide(const std::string &f,
     if (!ofs.is_open())
         throw std::runtime_error("Unable to open file: '" + f + "'");
 
-    // print default data headers
-    ofs << "id" << hsp::read::DELIMITER << "house_id" << hsp::read::DELIMITER << "status";
-
-    // print other data headers
+    ofs << "id"
+        << hsp::read::DELIMITER << "house_id"
+        << hsp::read::DELIMITER << "status";
     for (const std::string &datastr : data_headers)
         ofs << hsp::read::DELIMITER << datastr;
-
-    // print augmented variables headers
-    for (const size_t a : augm_headers)
-        ofs << hsp::read::DELIMITER << a;
-
+    for (const std::string &augmstr : augm_headers)
+        ofs << hsp::read::DELIMITER << augmstr;
     ofs << std::endl;
 
     return ofs;
@@ -233,7 +229,7 @@ std::ofstream open_ofstream_datawide(const std::string &f,
 void update_ofstream_datawide(std::ofstream &ofs,
                               Household &house,
                               size_t data_wide_size,
-                              const std::unordered_set<size_t> &augm_headers)
+                              const std::vector<size_t> &augm_export)
 {
     if (!ofs.is_open())
         throw std::runtime_error("Output file closed unexpectedly.");
@@ -245,14 +241,12 @@ void update_ofstream_datawide(std::ofstream &ofs,
             << hsp::read::DELIMITER << member.status();
         for (size_t d = 0; d < data_wide_size; ++d)
             ofs << hsp::read::DELIMITER << member.get_data_wide_vec()[d];
-
-        for (const size_t a : augm_headers)
+        for (size_t a : augm_export)
         {
             const Variable &xaugm = member.get_augm_variable(a);
             double x = xaugm.is_empty() ? hsp::na::DOUBLE : xaugm.value();
             ofs << hsp::read::DELIMITER << x;
         }
-
         ofs << std::endl;
     }
 }
@@ -268,7 +262,7 @@ void MCMC::print_simulated_data_wide(const std::string &pathtofile)
         // initialization
         std::ofstream ofs = open_ofstream_datawide(pathtofile,
                                                    data_wide.pRegistry->get_all(),
-                                                   augm.list_export);
+                                                   augm.pRegistry->as_string(augm.list_export));
         pImpl_->helper_init_simulation();
         init_model_for_simulation();
 
@@ -279,7 +273,8 @@ void MCMC::print_simulated_data_wide(const std::string &pathtofile)
                 pImpl_->data_wide.init_house_cache(house);
                 simulate_single_house(house);
                 // print the simulated data
-                update_ofstream_datawide(ofs, house, data_wide.pRegistry->size(), augm.list_export);
+                update_ofstream_datawide(ofs, house, data_wide.pRegistry->size(),
+                                         augm.list_export);
             }
             catch (const std::exception &e)
             {
