@@ -230,9 +230,8 @@ void Parameter::user_reset(hsp::rnd_gen &prng)
 
 void Parameter::load_sample_values(size_t n)
 {
-    for (const std::string &paramstr : pRegistry->get_all())
+    for (size_t p = 0; p < pRegistry->size(); ++p)
     {
-        size_t p = pRegistry->from_string(paramstr);
         const std::vector<double> &vec = smpl_values[p];
         if (!vec.empty())
             at(p).set(vec[n]);

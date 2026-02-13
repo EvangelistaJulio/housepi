@@ -677,7 +677,7 @@ void MCMCImpl::power_post_fractions_(std::vector<double> &itm, std::vector<doubl
 
 void MCMCImpl::init_missing_augm(Individual &member)
 {
-    augm.init_missing(member);
+    augm.init_missing(member, false);
     augm.user_reset(setup.prng(), member);
 }
 

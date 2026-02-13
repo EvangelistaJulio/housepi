@@ -122,13 +122,16 @@ private:
     /// List of all infected statuses in the dataset
     std::unordered_set<int> all_infected_statuses_ = {};
     /// Status to definition row.
-    std::unordered_map<int, std::vector<size_t>> status_to_def_row_ = {};
+    std::unordered_map<int, std::vector<size_t>> map_status_to_def_row_ = {};
     /// Status to internal index.
-    std::unordered_map<int, size_t> map_status_to_index_ = {};
+    std::unordered_map<int, size_t> map_status_to_block_ = {};
 
     /// Auxiliary block for status-specific models.
     struct StatusBlock_
     {
+        StatusBlock_(int status_) { status = status_; }
+
+        int status;                                  /// associated status
         std::vector<size_t> order = {};              /// definition order
         std::vector<size_t> models = {};             /// just augmented with models
         std::vector<size_t> sample = {};             /// just augmented to sample
@@ -163,7 +166,7 @@ private:
 
     /// Deal with the definition of augmented variable with a model.
     /// NOTE: no need to initialize to generic since only used for posterior sampling.
-    void helper_init_model_list_();
+    void helper_build_model_list_();
     /// Return dictionary of ordered models.
     hsp::str_table get_ordered_models_(int status) const;
 

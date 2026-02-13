@@ -28,8 +28,7 @@ LDFLAGS :=
 
 ifdef DEBUG
 CXXFLAGS += -g3 -O0 \
--Werror \
--Wuninitialized \
+-Werror -Wuninitialized -Wunused \
 -fsanitize=address,undefined,leak \
 -fno-sanitize-recover=all \
 -fno-omit-frame-pointer \
