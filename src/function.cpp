@@ -28,6 +28,34 @@
 Attribute::Attribute() = default;
 Attribute::~Attribute() = default;
 
+Attribute::Attribute(const Attribute &other)
+    : mode_(other.mode_),
+      err_type_(other.err_type_),
+      name_(other.name_),
+      is_user_const_(other.is_user_const_),
+      value_(other.value_),
+      pAttr_(other.pAttr_),
+      pFunc_(other.pFunc_ ? other.pFunc_->clone() : nullptr) {}
+
+Attribute::Attribute(Attribute &&) = default;
+
+Attribute &Attribute::operator=(Attribute other)
+{
+    swap(other);
+    return *this;
+}
+
+void Attribute::swap(Attribute &other) noexcept
+{
+    std::swap(mode_, other.mode_);
+    std::swap(err_type_, other.err_type_);
+    std::swap(name_, other.name_);
+    std::swap(is_user_const_, other.is_user_const_);
+    std::swap(value_, other.value_);
+    std::swap(pAttr_, other.pAttr_);
+    std::swap(pFunc_, other.pFunc_);
+}
+
 std::string Attribute::str_val() const
 {
     switch (mode_)
@@ -136,7 +164,7 @@ void Attribute::init_numeric(double x)
 
 void Attribute::init_pointer(const Attribute *y)
 {
-    if (y == nullptr)
+    if (!y)
         throw std::invalid_argument(
             "Tried to assign empty pointer to " + err_name() + ".");
 
@@ -150,10 +178,10 @@ void Attribute::init_pointer(const Attribute *y)
     is_user_const_ = false;
 }
 
-void Attribute::init_function(std::shared_ptr<Function> f)
+void Attribute::init_function(std::unique_ptr<Function> f)
 {
     // check the function is different from the current one
-    if (f == nullptr)
+    if (!f)
         throw std::invalid_argument(
             "Tried to assign empty function to " + err_name() + ".");
     if (f == pFunc_)
@@ -167,7 +195,7 @@ void Attribute::init_function(std::shared_ptr<Function> f)
     mode_ = Mode::Function;
     value_ = hsp::na::DOUBLE;
     pAttr_ = nullptr;
-    pFunc_ = f;
+    pFunc_ = std::move(f);
     is_user_const_ = false;
 }
 
@@ -190,10 +218,23 @@ void Attribute::transfer(const Attribute &other)
         init_pointer(other.pointer());
         return;
     case Mode::Function:
-        init_function(other.function());
+        init_function(other.function()->clone());
         return;
     }
     __builtin_unreachable();
+}
+
+void Attribute::init_func_attr(std::string_view key, const Attribute &attr)
+{
+    switch (mode_)
+    {
+    case Mode::Function:
+        pFunc_->init_attr(key, attr);
+        return;
+    default:
+        throw std::runtime_error(
+            "Attempted to initialize function attribute of " + err_name() + ".");
+    }
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -577,13 +618,20 @@ void Function::helper_assert_valid_attribute_(std::string_view key, const Attrib
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+#define MAKE_FUNCTION_CLONE_METHOD(Class_) \
+    std::unique_ptr<Function> clone() const override { return std::make_unique<Class_>(*this); }
+#define MAKE_FUNCTION_NAME_METHOD(name_) \
+    std::string_view name() const noexcept override final { return #name_; }
+
 namespace
 {
     /// Minus Function.
     class Minus_ final : public Function
     {
     public:
-        std::string_view name() const noexcept override final { return "minus"; }
+        MAKE_FUNCTION_CLONE_METHOD(Minus_)
+        MAKE_FUNCTION_NAME_METHOD(minus)
+
         bool is_discrete() const noexcept override final { return x_arg_.is_discrete(); }
 
     protected:
@@ -596,7 +644,9 @@ namespace
     {
     public:
         Subtraction_() : Function({{"x2", hsp::na::DOUBLE}}) {}
-        std::string_view name() const noexcept override final { return "sub"; }
+        MAKE_FUNCTION_CLONE_METHOD(Subtraction_)
+        MAKE_FUNCTION_NAME_METHOD(sub)
+
         bool is_discrete() const noexcept override final { return arguments_[0].is_discrete() && x_arg_.is_discrete(); }
 
     protected:
@@ -609,7 +659,8 @@ namespace
     {
     public:
         Division_() : Function({{"x2", hsp::na::DOUBLE}}) {}
-        std::string_view name() const noexcept override final { return "div"; }
+        MAKE_FUNCTION_CLONE_METHOD(Division_)
+        MAKE_FUNCTION_NAME_METHOD(div)
 
     protected:
         double raw_function_(double x) const override final { return x / arg(0); }
@@ -621,7 +672,9 @@ namespace
     {
     public:
         Power_() : Function({{"x2", hsp::na::DOUBLE}}) {}
-        std::string_view name() const noexcept override final { return "pow"; }
+        MAKE_FUNCTION_CLONE_METHOD(Power_)
+        MAKE_FUNCTION_NAME_METHOD(pow)
+
         bool is_discrete() const noexcept override final { return Function::is_discrete() || (arguments_[0].is_discrete() && x_arg_.is_discrete()); }
 
     protected:
@@ -642,7 +695,9 @@ namespace
     {
     public:
         SquareRoot_() : Function({}, 0.) {}
-        std::string_view name() const noexcept override final { return "sqrt"; }
+        MAKE_FUNCTION_CLONE_METHOD(SquareRoot_)
+        MAKE_FUNCTION_NAME_METHOD(sqrt)
+
         void init_truncation() override final { helper_init_range_min_(); }
 
     protected:
@@ -657,7 +712,8 @@ namespace
     class Exponential_ final : public Function
     {
     public:
-        std::string_view name() const noexcept override final { return "exp"; }
+        MAKE_FUNCTION_CLONE_METHOD(Exponential_)
+        MAKE_FUNCTION_NAME_METHOD(exp)
 
     protected:
         double raw_function_(double x) const override final { return std::exp(x); }
@@ -672,7 +728,9 @@ namespace
     {
     public:
         Logarithm_() : Function({}, 0.) { below_mode_ = Mode::Interval::Open; }
-        std::string_view name() const noexcept override final { return "log"; }
+        MAKE_FUNCTION_CLONE_METHOD(Logarithm_)
+        MAKE_FUNCTION_NAME_METHOD(log)
+
         void init_truncation() override final { helper_init_range_min_(0., true); }
 
     protected:
@@ -687,7 +745,8 @@ namespace
     class Sine_ final : public Function
     {
     public:
-        std::string_view name() const noexcept override final { return "sin"; }
+        MAKE_FUNCTION_CLONE_METHOD(Sine_)
+        MAKE_FUNCTION_NAME_METHOD(sin)
 
     protected:
         double raw_function_(double x) const override final { return std::sin(x); }
@@ -701,7 +760,8 @@ namespace
     class Cosine_ final : public Function
     {
     public:
-        std::string_view name() const noexcept override final { return "cos"; }
+        MAKE_FUNCTION_CLONE_METHOD(Cosine_)
+        MAKE_FUNCTION_NAME_METHOD(cos)
 
     protected:
         double raw_function_(double x) const override final { return std::cos(x); }
@@ -715,7 +775,8 @@ namespace
     class Tangent_ final : public Function
     {
     public:
-        std::string_view name() const noexcept override final { return "tan"; }
+        MAKE_FUNCTION_CLONE_METHOD(Tangent_)
+        MAKE_FUNCTION_NAME_METHOD(tan)
 
     protected:
         double raw_function_(double x) const override final { return std::tan(x); }
@@ -765,48 +826,50 @@ namespace
         }
     };
 
-#define MAKE_VARIADIC_ALGEBRAIC(ClassName, FunctionName, Symbol)                       \
-    class ClassName final : public VariadicFunction                                    \
-    {                                                                                  \
-    public:                                                                            \
-        ClassName() : VariadicFunction() {}                                            \
-        std::string_view name() const noexcept override final { return FunctionName; } \
-                                                                                       \
-    protected:                                                                         \
-        double raw_function_(double x) const override final                            \
-        {                                                                              \
-            for (const Attribute &attr : arguments_)                                   \
-                x Symbol attr.value();                                                 \
-            return x;                                                                  \
-        }                                                                              \
+#define MAKE_VARIADIC_ALGEBRAIC(Class_, name_, symbol)      \
+    class Class_ final : public VariadicFunction            \
+    {                                                       \
+    public:                                                 \
+        Class_() : VariadicFunction() {}                    \
+        MAKE_FUNCTION_CLONE_METHOD(Class_)                  \
+        MAKE_FUNCTION_NAME_METHOD(name_)                    \
+                                                            \
+    protected:                                              \
+        double raw_function_(double x) const override final \
+        {                                                   \
+            for (const Attribute &attr : arguments_)        \
+                x symbol attr.value();                      \
+            return x;                                       \
+        }                                                   \
     };
-    MAKE_VARIADIC_ALGEBRAIC(Summation_, "sum", +=)
+    MAKE_VARIADIC_ALGEBRAIC(Summation_, sum, +=)
     REGISTER_HOUSEPI_FUNCTION(Summation_, ArithmeticRegistry)
-    MAKE_VARIADIC_ALGEBRAIC(Product_, "prod", *=)
+    MAKE_VARIADIC_ALGEBRAIC(Product_, prod, *=)
     REGISTER_HOUSEPI_FUNCTION(Product_, ArithmeticRegistry)
 
-#define MAKE_VARIADIC_MIN_MAX(ClassName, FunctionName, Symbol)                         \
-    class ClassName final : public VariadicFunction                                    \
-    {                                                                                  \
-    public:                                                                            \
-        ClassName() : VariadicFunction() {}                                            \
-        std::string_view name() const noexcept override final { return FunctionName; } \
-                                                                                       \
-    protected:                                                                         \
-        double raw_function_(double x) const override final                            \
-        {                                                                              \
-            for (const Attribute &attr : arguments_)                                   \
-            {                                                                          \
-                const double new_val = attr.value();                                   \
-                if (new_val Symbol x)                                                  \
-                    x = new_val;                                                       \
-            }                                                                          \
-            return x;                                                                  \
-        }                                                                              \
+#define MAKE_VARIADIC_MIN_MAX(Class_, name_, symbol)        \
+    class Class_ final : public VariadicFunction            \
+    {                                                       \
+    public:                                                 \
+        Class_() : VariadicFunction() {}                    \
+        MAKE_FUNCTION_CLONE_METHOD(Class_)                  \
+        MAKE_FUNCTION_NAME_METHOD(name_)                    \
+                                                            \
+    protected:                                              \
+        double raw_function_(double x) const override final \
+        {                                                   \
+            for (const Attribute &attr : arguments_)        \
+            {                                               \
+                const double new_val = attr.value();        \
+                if (new_val symbol x)                       \
+                    x = new_val;                            \
+            }                                               \
+            return x;                                       \
+        }                                                   \
     };
-    MAKE_VARIADIC_MIN_MAX(Minimum_, "min", <)
+    MAKE_VARIADIC_MIN_MAX(Minimum_, min, <)
     REGISTER_HOUSEPI_FUNCTION(Minimum_, ArithmeticRegistry)
-    MAKE_VARIADIC_MIN_MAX(Maximum_, "max", >)
+    MAKE_VARIADIC_MIN_MAX(Maximum_, max, >)
     REGISTER_HOUSEPI_FUNCTION(Maximum_, ArithmeticRegistry)
 }
 
@@ -823,7 +886,7 @@ void Attribute::init_product(const std::vector<const Attribute *> &other_ptrs)
         return;
     }
 
-    auto fun = std::make_shared<Product_>();
+    auto fun = std::make_unique<Product_>();
     Attribute aux;
     aux.init_pointer(other_ptrs[0]);
     fun->init_attr("x", aux);
@@ -833,5 +896,5 @@ void Attribute::init_product(const std::vector<const Attribute *> &other_ptrs)
         fun->init_attr("", aux);
     }
 
-    init_function(fun);
+    init_function(std::move(fun));
 }

@@ -20,16 +20,16 @@ Finally, the likelihood of an observed household outbreak is the sum of the prob
 \if{html}{\out{<hr>}}
 }
 \section{Likelihood}{
-\deqn{L = P^{(+)}(n_{+}) P^{(-)}(n, n_{+})}
+\deqn{L = P_{I}(n_{I}) P_{S}(n, n_{I})}
 for a household of size \eqn{n} with
 \itemize{
-\item Number of sero-positive household members : \eqn{n_{+}}
+\item Number of sero-positive household members : \eqn{n_{I}}
 \item Sero-positive contribution :
-\eqn{P^{(+)}(n_{+}) 
+\eqn{P_{I}(n_{I}) 
 = 
-1 - \sum_{k=0}^{n_{+} - 1} \binom{n_{+}}{k} P^{(+)}(k) P^{(-)}(n_{+}, k)}
+1 - \sum_{k=0}^{n_{I} - 1} \binom{n_{I}}{k} P_{I}(k) P_{S}(n_{I}, k)}
 \item Sero-negative contribution :
-\eqn{P^{(-)}(n, n_{+}) = (B Q^{n_{+}})^{n - n_{+}}}
+\eqn{P_{S}(n, n_{I}) = (B Q^{n_{I}})^{n - n_{I}}}
 }
 where
 \itemize{

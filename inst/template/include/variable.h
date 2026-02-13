@@ -29,19 +29,23 @@ class Proposal;
 
 class Variable : public Attribute
 {
-    enum class Validity : uint8_t
-    {
-        Always,
-        Check
-    } valid_mode_ = Validity::Check;
-    enum class Ratio : uint8_t
-    {
-        None,
-        Compute
-    } ratio_mode_ = Ratio::Compute;
-
 public:
+    ///////////////////////////
+    //////  CONSTRUCTOR  //////
+    ///////////////////////////
+
+    Variable();
     ~Variable();
+
+    /// Copy constructor
+    Variable(const Variable &other);
+    /// Move constructor
+    Variable(Variable &&);
+
+    /// Copy assignment
+    Variable &operator=(Variable other);
+
+    void swap(Variable& other) noexcept;
 
     /// Sugar to call variable as a function if applicable, otherwise raise error.
     double operator()(double x) const;
@@ -136,12 +140,23 @@ public:
     std::string str_summary() const override final;
 
 protected:
+    enum class Validity : uint8_t
+    {
+        Always,
+        Check
+    } valid_mode_ = Validity::Check;
+    enum class Ratio : uint8_t
+    {
+        None,
+        Compute
+    } ratio_mode_ = Ratio::Compute;
+
     double buffer_ = hsp::na::DOUBLE; /// buffered value
 
     /// NOTE: Household must be copyable for simulations
     /// UPDATE: pointers should become unique -> Function clonable.
-    std::shared_ptr<Distribution> pDistr_; /// prior\model distribution of the variable
-    std::shared_ptr<Proposal> pProp_;      /// Monte Carlo proposer
+    std::unique_ptr<Distribution> pDistr_; /// prior\model distribution of the variable
+    std::unique_ptr<Proposal> pProp_;      /// Monte Carlo proposer
 
     ///////////////////////
     //////  HELPERS  //////

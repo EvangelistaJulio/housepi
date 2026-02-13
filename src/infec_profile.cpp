@@ -39,9 +39,7 @@ void InfecProfile::init_template(hsp::str_table input)
 {
     // if not previous build, proceed with template
     // if no template, assume no need for an infectivity profile
-    if (generic != nullptr ||
-        !augm_definitions.empty() ||
-        input.empty())
+    if (generic || !augm_definitions.empty() || input.empty())
         return;
 
     try

@@ -169,12 +169,13 @@ void Parameter::helper_build_to_sample_(const hsp::str_table &input, size_t k)
 
     // create a new parameter Variable
     size_t p = pRegistry->from_string(paramstr);
-    param_vec_[p].transfer(read_numeric(input.at("value")[k]));
     Variable &xparam = at(p);
+    xparam.transfer(read_numeric(input.at("value")[k]));
 
     // assign a prior distribution to the parameter
     hsp::parse::Definition parser(input.at("prior")[k]);
     xparam.init_distr(parser.root.func);
+
     // load prior arguments
     for (const auto &child : parser.root.children)
         xparam.init_distr_attr(child.key, read_numeric(child));
@@ -321,7 +322,7 @@ const Attribute &Parameter::read_attribute(const hsp::parse::Entry &node, const 
     }
     else if (!node.is_empty())
     {
-        if (member_ptr == nullptr)
+        if (!member_ptr)
             throw std::invalid_argument(
                 "Not supported individidual specific definition found while parsing '" + node.str() + "'.");
 
@@ -357,9 +358,9 @@ void Parameter::helper_store_read_function_(const hsp::parse::Entry &node, const
          "continuos", "discrete", "infecprofile"}));
 
     for (const auto &child : node.children)
-        parent.function()->init_attr(child.key, read_attribute(child, member_ptr));
+        parent.init_func_attr(child.key, read_attribute(child, member_ptr));
 
-    storage_ = std::move(parent);
+    storage_ = parent;
 }
 
 const Attribute &Parameter::read_numeric(const hsp::parse::Entry &node, const Individual *member_ptr) const

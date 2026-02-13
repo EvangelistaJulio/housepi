@@ -23,19 +23,19 @@ The index cases are not known a priori and represent the initial generation.
 \if{html}{\out{<hr>}}
 }
 \section{Likelihood}{
-\deqn{L = P^{(+)}(\mathbf{x}, \mathbf{s}) P^{(-)}(\mathbf{x}, \mathbf{s})}
+\deqn{L = P_{I}(\mathbf{x}, \mathbf{s}) P_{S}(\mathbf{x}, \mathbf{s})}
 with household members \eqn{\mathbf{x} = \lbrace x_i \rbrace_{i=1}^{n}}, 
 statuses \eqn{\mathbf{s} = \lbrace s_i \rbrace_{i=1}^{n}}
 and sero-positive members \eqn{\mathbf{x'} = \lbrace x_i \rbrace_{s_i > 0}}
 \itemize{
 \item Sero-positive contribution :
 \deqn{
-P^{(+)}(\mathbf{x'}) =
+P_{I}(\mathbf{x'}) =
 1 - \sum_{k=0}^{\vert\mathbf{x'}\vert - 1} \sum_{m = 1}^\binom{\vert\mathbf{x'}\vert}{k} 
-P^{(+)}(\mathbf{x'}, \mathbf{s'}^{(k,\,m)}) P^{(-)}(\mathbf{x'}, \mathbf{s'}^{(k,\,m)})}
+P_{I}(\mathbf{x'}, \mathbf{s'}^{(k,\,m)}) P_{S}(\mathbf{x'}, \mathbf{s'}^{(k,\,m)})}
 where \eqn{\mathbf{s'}^{(k,\,m)}} is the \eqn{m}-th combination of \eqn{k} positive statuses over \eqn{\vert\mathbf{x'}\vert} members.
 \item Sero-negative contribution :
-\eqn{P^{(-)}(\mathbf{x}, \mathbf{s}) = 
+\eqn{P_{S}(\mathbf{x}, \mathbf{s}) = 
 \prod_{i : s_i<0}B(x_i) \prod_{j : s_j > 0} Q(x_j, x_i)
 }
 }

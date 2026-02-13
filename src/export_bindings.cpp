@@ -195,7 +195,7 @@ namespace
                 _["max"] = CharacterVector(wrap(infec_profile.augm_definitions.at("max"))),
                 _["discr"] = CharacterVector(wrap(infec_profile.augm_definitions.at("discr"))));
 
-        if (infec_profile.generic == nullptr)
+        if (!infec_profile.generic)
             return List::create();
 
         // NOTE: arguments should not be polymorphic when called here
@@ -363,7 +363,7 @@ Rcpp::DataFrame MCMC::export_data_long() const
             for (const Individual &member : house)
             {
                 const std::vector<std::vector<double>> *ptr = member.get_data_long_ptr();
-                if (ptr != nullptr && !ptr->empty())
+                if (ptr && !ptr->empty())
                     for (size_t k = 0; k < ptr->begin()->size(); ++k)
                     {
                         datalist_index[r] = member.id();
@@ -751,7 +751,7 @@ namespace
         for (const Individual &member : house)
         {
             const std::vector<std::vector<double>> *ptr = member.get_data_long_ptr();
-            if (ptr != nullptr && !ptr->empty())
+            if (ptr && !ptr->empty())
                 n_rows += ptr->begin()->size();
         }
 
@@ -764,7 +764,7 @@ namespace
         for (const Individual &member : house)
         {
             const std::vector<std::vector<double>> *ptr = member.get_data_long_ptr();
-            if (ptr != nullptr && !ptr->empty())
+            if (ptr && !ptr->empty())
                 for (size_t k = 0; k < ptr->begin()->size(); ++k)
                 {
                     for (size_t d = 0; d < df_double.size(); ++d)
@@ -821,7 +821,7 @@ namespace
     {
         using namespace Rcpp;
 
-        if (infec_profile.generic == nullptr && !infec_profile.is_augmented())
+        if (!infec_profile.generic && !infec_profile.is_augmented())
             return List::create();
 
         size_t n_rows = house.size();
@@ -843,7 +843,7 @@ namespace
 
                 infprof_name[i] = std::string(f->name());
                 infprof_discr[i] = f->is_discrete();
-                infprof_args[i] = rcpp_export_args(f.get());
+                infprof_args[i] = rcpp_export_args(f);
                 infprof_min[i] = hsp_to_rcpp(f->lower());
                 infprof_max[i] = hsp_to_rcpp(f->upper());
             }

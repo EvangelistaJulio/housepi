@@ -47,6 +47,9 @@ public:
 		: Function(args, domain_min, domain_max) { set_eval_as_distr_call(); }
 	virtual ~Distribution() = default;
 
+	virtual std::unique_ptr<Distribution> clone_distrib() const = 0;
+	std::unique_ptr<Function> clone() const override final { return clone_distrib(); };
+
 	std::string err_name() const override { return "distribution '" + std::string(name()) + "'"; }
 
 	//////////////////////

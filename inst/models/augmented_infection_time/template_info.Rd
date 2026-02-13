@@ -38,7 +38,7 @@ where \eqn{t_{0}} is the earliest infection time in the household.
 }
 \section{Likelihood}{
 
-\deqn{L = P^{(+)} P^{(-)}}
+\deqn{L = P_{I} \cdot P_{S}}
 
 If \eqn{s_i} is the status of household member \eqn{i}, and
 
@@ -53,11 +53,11 @@ If \eqn{s_i} is the status of household member \eqn{i}, and
 \itemize{
 \item Infectious contribution :
 \eqn{
-P^{(+)} =\prod_{{i}:s_{i}>0} \lambda_{i}(t_{i})\exp{-\int_{t_{0}}^{t_{i}}\lambda_{i}(t){\rm d}t}
+P_{I} =\prod_{{i}:s_{i}>0} \lambda_{i}(t_{i})\exp{-\int_{t_{0}}^{t_{i}}\lambda_{i}(t){\rm d}t}
 }
 \item Susceptible contribution :
 \eqn{
-P^{(-)} = \prod_{{i}:s_{i}<0} \exp{-\int_{t_{0}}^{t_{\rm end}}\lambda_{i}(t){\rm d}t}
+P_{S} = \prod_{{i}:s_{i}<0} \exp{-\int_{t_{0}}^{t_{\rm end}}\lambda_{i}(t){\rm d}t}
 }
 }
 }
@@ -65,11 +65,11 @@ P^{(-)} = \prod_{{i}:s_{i}<0} \exp{-\int_{t_{0}}^{t_{\rm end}}\lambda_{i}(t){\rm
 \itemize{
 \item Infectious contribution :
 \eqn{
-P^{(+)} = \prod_{{i}:s_{i}>0}\left(1-\exp{-\lambda_{i}(t_{i})}\right)\exp{-\sum_{t={t}_{0}}^{t_{i}-1} \lambda_{i}(t)}
+P_{ I} = \prod_{{i}:s_{i}>0}\left(1-\exp{-\lambda_{i}(t_{i})}\right)\exp{-\sum_{t={t}_{0}}^{t_{i}-1} \lambda_{i}(t)}
 }
 \item Susceptible contribution :
 \eqn{
-{P}^{(-)} =\prod_{{i}:s_{i}<0}\exp{-\sum_{t={t}_{0}}^{t_{\rm end}}\lambda_{i}(t)}
+{P}_{S} =\prod_{{i}:s_{i}<0}\exp{-\sum_{t={t}_{0}}^{t_{\rm end}}\lambda_{i}(t)}
 }
 }
 }

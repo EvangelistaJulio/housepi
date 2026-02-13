@@ -76,7 +76,7 @@ MCMCImpl::MCMCImpl(
     param.link_to_group_rate(group_rate.pRegistry.get());
     param.link_to_augm(augm.pRegistry.get());
 }
-MCMCImpl::~MCMCImpl() = default; 
+MCMCImpl::~MCMCImpl() = default;
 
 void MCMCImpl::init_missing_augm(Individual &member)
 {

@@ -28,15 +28,6 @@ class Function;
 /// Attribute parent class.
 class Attribute
 {
-protected:
-    enum class Mode : uint8_t
-    {
-        Empty,
-        Numeric,
-        Pointer,
-        Function
-    } mode_ = Mode::Empty;
-
 public:
     ///////////////////////////
     //////  CONSTRUCTOR  //////
@@ -45,6 +36,15 @@ public:
     Attribute();
     Attribute(double x) { init_numeric(x); }
     virtual ~Attribute();
+
+    /// Copy constructor
+    Attribute(const Attribute &other);
+    /// Move constructor
+    Attribute(Attribute &&);
+    /// Copy assignment
+    Attribute &operator=(Attribute other);
+
+    void swap(Attribute &other) noexcept;
 
     //////////////////////
     //////  SETTER  //////
@@ -60,7 +60,7 @@ public:
     /// Initialize attribute as pointer.
     void init_pointer(const Attribute *y);
     /// Initialize attribute as function.
-    void init_function(std::shared_ptr<Function> f);
+    void init_function(std::unique_ptr<Function> f);
     /// Productory of pointed attributes values.
     void init_product(const std::vector<const Attribute *> &other_ptrs);
     /// Transfer from other Attribute.
@@ -86,6 +86,9 @@ public:
         __builtin_unreachable();
     }
 
+    /// Initialize function attribute by assigning from another one.
+    void init_func_attr(std::string_view key, const Attribute &attr);
+
     //////////////////////
     //////  GETTER  //////
     //////////////////////
@@ -110,7 +113,7 @@ public:
     }
     /// Get pointer to attribute function.
     /// FIXME: this should not be a constant method.
-    std::shared_ptr<Function> function() const noexcept
+    const Function *function() const noexcept
     {
         switch (mode_)
         {
@@ -120,7 +123,7 @@ public:
         case Mode::Pointer:
             return pAttr_->function();
         case Mode::Function:
-            return pFunc_;
+            return pFunc_.get();
         }
         __builtin_unreachable();
     }
@@ -160,12 +163,20 @@ public:
     virtual std::string str_summary() const;
 
 protected:
+    enum class Mode : uint8_t
+    {
+        Empty,
+        Numeric,
+        Pointer,
+        Function
+    } mode_ = Mode::Empty;
+
     std::string err_type_ = "empty";            /// type name displayed in errors
     std::string name_ = "";                     /// name of argument
     bool is_user_const_ = false;                /// user flag for constant
     double value_ = hsp::na::DOUBLE;            /// internal value
     const Attribute *pAttr_ = nullptr;          /// pointer to attribute
-    std::shared_ptr<Function> pFunc_ = nullptr; /// pointer to function
+    std::unique_ptr<Function> pFunc_ = nullptr; /// pointer to function
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -228,6 +239,8 @@ public:
 
     /// Sugar operator to call evaluate.
     double operator()(double x) const { return evaluate(x); }
+
+    virtual std::unique_ptr<Function> clone() const = 0;
 
     //////////////////////
     //////  SETTER  //////

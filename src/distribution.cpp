@@ -230,6 +230,11 @@ namespace
         return lgamma(a) + lgamma(b) - lgamma(a + b);
     }
 
+#define MAKE_DISTRIBUTION_CLONE_METHOD(Class_) \
+    std::unique_ptr<Distribution> clone_distrib() const override { return std::make_unique<Class_>(*this); }
+#define MAKE_DISTRIBUTION_NAME_METHOD(name_) \
+    std::string_view name() const noexcept override final { return #name_; }
+
 // Macro for left discretization when min = 0 (close).
 #define INIT_DISCR_LEFT_MIN_ZERO_CLOSE()       \
     void init_discretization() override final  \
@@ -261,7 +266,8 @@ namespace
         Uniform_()
             : Distribution({}, 0., 1.),
               unif_gen(0., 1.) {}
-        std::string_view name() const noexcept override final { return "uniform"; }
+        MAKE_DISTRIBUTION_CLONE_METHOD(Uniform_)
+        MAKE_DISTRIBUTION_NAME_METHOD(uniform)
 
         /// UPDATE: should understand when discrete defined...
         void init_discretization() override final { discr_mode_ = Mode::Discrete::Center; }
@@ -292,7 +298,8 @@ namespace
         Normal_()
             : Distribution({{"mean", 0.}, {"sd", 1.}}),
               norm_gen(0., 1.) {}
-        std::string_view name() const noexcept override final { return "normal"; }
+        MAKE_DISTRIBUTION_CLONE_METHOD(Normal_)
+        MAKE_DISTRIBUTION_NAME_METHOD(normal)
 
         void init_discretization() override final
         {
@@ -350,7 +357,8 @@ namespace
         Lognormal_()
             : Distribution({{"meanlog", 0.}, {"sdlog", 1.}}, 0.),
               norm_gen(0., 1.) { below_mode_ = Mode::Interval::Open; }
-        std::string_view name() const noexcept override final { return "lognormal"; }
+        MAKE_DISTRIBUTION_CLONE_METHOD(Lognormal_)
+        MAKE_DISTRIBUTION_NAME_METHOD(lognormal)
 
         INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
@@ -406,7 +414,8 @@ namespace
             below_mode_ = Mode::Interval::Closed;
             above_mode_ = Mode::Interval::Closed;
         }
-        std::string_view name() const noexcept override final { return "beta"; }
+        MAKE_DISTRIBUTION_CLONE_METHOD(Beta_)
+        MAKE_DISTRIBUTION_NAME_METHOD(beta)
 
         void init_discretization() override final
         {
@@ -471,7 +480,8 @@ namespace
     public:
         Gamma_()
             : Distribution({{"shape", hsp::na::DOUBLE}, {"scale", 1.}}, 0.) {}
-        std::string_view name() const noexcept override final { return "gamma"; }
+        MAKE_DISTRIBUTION_CLONE_METHOD(Gamma_)
+        MAKE_DISTRIBUTION_NAME_METHOD(gamma)
 
         INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
@@ -527,7 +537,8 @@ namespace
     public:
         GammaMeanVar_()
             : Distribution({{"mean", hsp::na::DOUBLE}, {"var", hsp::na::DOUBLE}}, 0.) {}
-        std::string_view name() const noexcept override final { return "gamma_meanvar"; }
+        MAKE_DISTRIBUTION_CLONE_METHOD(GammaMeanVar_)
+        MAKE_DISTRIBUTION_NAME_METHOD(gamma_meanvar)
 
         INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
@@ -593,7 +604,8 @@ namespace
         Rayleigh_()
             : Distribution({{"scale", 1.}}, 0.),
               unif_gen(0., 1.) {}
-        std::string_view name() const noexcept override final { return "rayleigh"; }
+        MAKE_DISTRIBUTION_CLONE_METHOD(Rayleigh_)
+        MAKE_DISTRIBUTION_NAME_METHOD(rayleigh)
 
         INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
@@ -643,7 +655,8 @@ namespace
         Weibull_()
             : Distribution({{"shape", hsp::na::DOUBLE}, {"scale", 1.}}, 0.),
               unif_gen(0., 1.) {}
-        std::string_view name() const noexcept override final { return "weibull"; }
+        MAKE_DISTRIBUTION_CLONE_METHOD(Weibull_)
+        MAKE_DISTRIBUTION_NAME_METHOD(weibull)
 
         INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
@@ -695,7 +708,8 @@ namespace
         Exponential_()
             : Distribution({{"rate", 1.}}, 0.),
               unif_gen(0., 1.) {}
-        std::string_view name() const noexcept override final { return "exponential"; }
+        MAKE_DISTRIBUTION_CLONE_METHOD(Exponential_)
+        MAKE_DISTRIBUTION_NAME_METHOD(exponential)
 
         INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
@@ -740,7 +754,8 @@ namespace
     public:
         Poisson_()
             : Distribution({{"lambda", hsp::na::DOUBLE}}, 0.) { discr_mode_ = Mode::Discrete::Defined; }
-        std::string_view name() const noexcept override final { return "poisson"; }
+        MAKE_DISTRIBUTION_CLONE_METHOD(Poisson_)
+        MAKE_DISTRIBUTION_NAME_METHOD(poisson)
 
         INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
 
@@ -788,7 +803,8 @@ namespace
             below_mode_ = Mode::Interval::Closed;
             above_mode_ = Mode::Interval::Closed;
         }
-        std::string_view name() const noexcept override final { return "binomial"; }
+        MAKE_DISTRIBUTION_CLONE_METHOD(Binomial_)
+        MAKE_DISTRIBUTION_NAME_METHOD(binomial)
 
         void init_discretization() override final {}
         void init_truncation() override final
@@ -855,7 +871,8 @@ namespace
     public:
         NegativeBinomial_()
             : Distribution({{"size", hsp::na::DOUBLE}, {"prob", hsp::na::DOUBLE}}, 0.) { discr_mode_ = Mode::Discrete::Defined; }
-        std::string_view name() const noexcept override final { return "negative_binomial"; }
+        MAKE_DISTRIBUTION_CLONE_METHOD(NegativeBinomial_)
+        MAKE_DISTRIBUTION_NAME_METHOD(negative_binomial)
 
         INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
 
@@ -902,7 +919,8 @@ namespace
     public:
         Geometric_()
             : Distribution({{"prob", hsp::na::DOUBLE}}, 0.) { discr_mode_ = Mode::Discrete::Defined; }
-        std::string_view name() const noexcept override final { return "geometric"; }
+        MAKE_DISTRIBUTION_CLONE_METHOD(Geometric_)
+        MAKE_DISTRIBUTION_NAME_METHOD(geometric)
 
         INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
 
@@ -964,7 +982,8 @@ namespace
     public:
         InfecProfile_Ferretti20()
             : Distribution({{"shape", 5.85}, {"scale", 1.85}, {"c_loc", -4.0}, {"mean_incub", 5.42}, {"incub_period", 5.42}}, 0.) {}
-        std::string_view name() const noexcept override final { return "ferretti20"; }
+        MAKE_DISTRIBUTION_CLONE_METHOD(InfecProfile_Ferretti20)
+        MAKE_DISTRIBUTION_NAME_METHOD(ferretti20)
 
         INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
