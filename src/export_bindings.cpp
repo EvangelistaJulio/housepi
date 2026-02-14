@@ -637,18 +637,13 @@ Rcpp::NumericMatrix MCMC::flush_house_log_lik_draws()
         CharacterVector headers(n_houses);
 
         // retrieve restricted index by general index of multiplicity head class
-        size_t n_classes = data_wide.head_class_house_indexes.size();
+        size_t n_classes = data_wide.restricted_size();
         std::vector<std::vector<size_t>> house_classes(n_classes);
-
-        std::unordered_map<size_t, size_t> restr_idx_map = {};
-        restr_idx_map.reserve(n_classes);
-        for (size_t R = 0; R < n_classes; ++R)
-            restr_idx_map.emplace(data_wide.head_class_house_indexes[R], R);
 
         for (const Household &house : data_wide)
         {
-            size_t R = restr_idx_map.at(house.multiplicity_class_index());
             size_t H = house.house_index();
+            size_t R = data_wide.get_restricted_index(H);
             house_classes[R].push_back(H);
             headers[H] = house.house_id();
         }

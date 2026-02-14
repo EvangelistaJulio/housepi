@@ -29,13 +29,6 @@
 /// Parent class of all distributions.
 class Distribution : public Function
 {
-protected:
-	enum class Trunc : uint8_t
-	{
-		None,  /// No truncation
-		Active /// Active truncation
-	} trunc_mode_ = Trunc::None;
-
 public:
 	///////////////////////////
 	//////  CONSTRUCTOR  //////
@@ -237,7 +230,7 @@ protected:
 
 	double inverse_sampling_(hsp::rnd_gen &prng) const
 	{
-		static std::uniform_real_distribution<double> unif_gen(0., 1.);
+		thread_local static std::uniform_real_distribution<double> unif_gen(0., 1.);
 		const double r = unif_gen(prng);
 		const double sx = lower_.is_empty() ? 0. : (1. - r) * raw_cdf_(lower_.value());
 		const double dx = upper_.is_empty() ? r : r * raw_cdf_(upper_.value());
@@ -247,6 +240,12 @@ protected:
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	//////////////////////  Distribution : functional truncation [private] //////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
+
+	enum class Trunc : uint8_t
+	{
+		None,  /// No truncation
+		Active /// Active truncation
+	} trunc_mode_ = Trunc::None;
 
 	/// Select functional method in case of truncation.
 	void helper_init_distr_truncation_();

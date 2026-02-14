@@ -54,7 +54,7 @@ public:
 	/// NOTE: return a reference to a static empty vector when no datalong is attached.
 	const std::vector<double> &data_long(size_t d) const
 	{
-		if (pdatalong_ != nullptr)
+		if (pdatalong_)
 			return (*pdatalong_)[d];
 
 		static const std::vector<double> EMPTY_DATA_LONG_VEC = std::vector<double>();

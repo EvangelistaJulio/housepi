@@ -100,7 +100,7 @@ void MCMCImpl::user_init_for_evaluate()
 {
     callback_init_inference_();
     // init cache dependencies for all households and individuals
-    for (size_t R = 0; R < data_wide.head_class_house_indexes.size(); ++R)
+    for (size_t R = 0; R < data_wide.restricted_size(); ++R)
     {
         Household &house = data_wide.restricted(R);
         data_wide.init_house_cache(house);
@@ -160,13 +160,13 @@ double MCMCImpl::update_total_log_lik(bool is_cache_depen)
 
     atomic_error.restore();
 #pragma omp parallel for reduction(+ : new_ll)
-    for (size_t R = 0; R < data_wide.head_class_house_indexes.size(); ++R)
+    for (size_t R = 0; R < data_wide.restricted_size(); ++R)
     {
         if (atomic_error.is_pending())
             continue;
 
         Household &house = data_wide.restricted(R);
-        new_ll += house.multiplicity() *
+        new_ll += data_wide.multiplicity(R) *
                   atomic_materialize_house_log_lik_(house, is_cache_depen);
     }
     atomic_error.throw_exception();
@@ -368,7 +368,7 @@ void MCMCImpl::recover_parameter_(size_t p, bool is_cache_depen)
     tot_log_lik.recover();
 
     // recover buffered log-likelihood in households
-    for (size_t R = 0; R < data_wide.head_class_house_indexes.size(); ++R)
+    for (size_t R = 0; R < data_wide.restricted_size(); ++R)
     {
         Household &house = data_wide.restricted(R);
         house.obs_log_lik_.recover();

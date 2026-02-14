@@ -26,9 +26,12 @@ class Distribution;
 class FunctionRegistry
 {
 public:
+    using func_uptr = std::unique_ptr<Function>;
+
+    size_t size() const noexcept { return factory_map_.size(); }
     bool count(std::string_view opt) const { return factory_map_.count(opt); }
     std::vector<std::string> get_options() const;
-    virtual std::unique_ptr<Function> create(std::string_view opt, bool is_prim = false) const;
+    virtual func_uptr create(std::string_view opt, bool is_prim = false) const;
 
     /// UPDATE: this requires to create an instance of T.
     template <typename T>
@@ -39,13 +42,13 @@ public:
     }
 
 protected:
-    std::map<std::string, std::function<std::unique_ptr<Function>()>, std::less<>> factory_map_ = {};
+    std::map<std::string, std::function<func_uptr()>, std::less<>> factory_map_ = {};
 };
 
 class DistributionRegistry : public FunctionRegistry
 {
 public:
-    std::unique_ptr<Function> create(std::string_view opt, bool is_prim = false) const override final;
+    func_uptr create(std::string_view opt, bool is_prim = false) const override final;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////

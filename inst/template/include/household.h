@@ -89,10 +89,6 @@ public:
 	size_t n_susceptible_status() const noexcept { return healthy_list_.size(); }
 	size_t n_missing_status() const noexcept { return missing_list_.size(); }
 
-	unsigned long multiplicity() const noexcept { return house_multiplicity_; }
-	size_t multiplicity_class_index() const noexcept { return multiplicity_class_; }
-	bool is_multiplicity_head_class() const noexcept { return index_ == multiplicity_class_; }
-
 	double contact_rate(size_t from, size_t to) const { return contact_rates_[from][to].value(); }
 
 	/////////////////////////
@@ -116,8 +112,6 @@ public:
 private:
 	std::string house_id_ = "";			   /// User house id
 	size_t index_ = -1;					   /// Internal unique index
-	unsigned long house_multiplicity_ = 1; /// N. of equivalent houses
-	size_t multiplicity_class_ = -1;	   /// Index of multiplicity class
 
 	std::vector<Individual> members_ = {}; /// Household members
 	std::vector<size_t> infected_list_;	   /// hh indexes of infected members
@@ -136,8 +130,7 @@ private:
 	std::vector<std::vector<double>> buffer_dbl_vec_ = {};
 	std::vector<std::vector<std::vector<double>>> buffer_dbl_mtx_ = {};
 
-	hsp::LogLike obs_log_lik_;				/// pointwise observation log-likelihood
-	std::vector<double> smpl_log_lik_ = {}; /// samples of log-likelihood
+	hsp::LogLike obs_log_lik_; /// pointwise observation log-likelihood
 
 	/// Change_status of individual i to new status (without controls).
 	///	NOTE: this introduces augmented variables -> it requires RJMCMC in case of inference.

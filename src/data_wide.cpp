@@ -157,7 +157,6 @@ void DataWide::build(const hsp::str_table &input)
             Household &last = house_vector_.back();
             last.house_id_ = house_id;
             last.index_ = house_vector_.size() - 1;
-            last.multiplicity_class_ = last.index_;
         }
         // extract the household reference
         Household &house = house_vector_.at(hhid_to_index_.at(house_id));
@@ -255,44 +254,47 @@ void DataWide::build_helper_fill_report_data_()
 
 void DataWide::multiplicity_build(const hsp::str_table &input, bool is_any_augm)
 {
-    head_class_house_indexes.clear();
     size_t n_houses = report_house.total;
-    if (is_any_augm || input.size() == 0)
+
+    mode_ = Mode::Unique;
+    multiplicity_.clear();
+    restricted_index.clear();
+    multiplicity_class.clear();
+
+    // note: multiplicities are not compatible with data augmentation
+    if (input.size() == 0 || is_any_augm)
+        return;
+
+    // UPDATE: this error is purely internal
+    if (input.at("house_id").size() != n_houses)
+        throw std::out_of_range(
+            "Multiplicity definitions had different dimensions than data.");
+
+    mode_ = Mode::Multiple;
+    restricted_index.resize(n_houses);
+    multiplicity_.reserve(n_houses);
+    multiplicity_class.reserve(n_houses);
+
+    std::unordered_map<size_t, size_t> restr_idx_map = {};
+    
+    for (size_t r = 0; r < n_houses; ++r)
     {
-        // note: multiplicities are not compatible with data augmentation
-        if (!input.empty())
-            hsp::msg::warning(
-                "Ignored multiplicity optimization: incompatible with data augmentation.");
+        Household &house = at(input.at("house_id")[r]);
+        size_t H = house.index_;
 
-        // default choice for restricted household indexes
-        head_class_house_indexes.resize(n_houses);
-        for (size_t H = 0; H < n_houses; ++H)
+        size_t H0 = at(input.at("class_id")[r]).house_index();
+        unsigned long m = hsp::str::toul(input.at("multiplicity")[r]);
+
+        if (H == H0)
         {
-            house_vector_[H].house_multiplicity_ = 1;
-            house_vector_[H].multiplicity_class_ = H;
-
-            head_class_house_indexes[H] = H;
+            restr_idx_map.emplace(H, restr_idx_map.size());
+            multiplicity_.push_back(m);
+            multiplicity_class.push_back(H);
         }
+        restricted_index[H] = restr_idx_map.at(H0);
     }
-    else
-    {
-        // UPDATE: this error is purely internal
-        if (input.at("house_id").size() != n_houses)
-            throw std::out_of_range(
-                "Multiplicity definitions had different dimensions than data.");
-
-        for (size_t r = 0; r < n_houses; ++r)
-        {
-            Household &house = at(input.at("house_id")[r]);
-            size_t H0 = at(input.at("class_id")[r]).house_index();
-            unsigned long m = hsp::str::toul(input.at("multiplicity")[r]);
-            house.house_multiplicity_ = m;
-            house.multiplicity_class_ = H0;
-
-            if (house.is_multiplicity_head_class())
-                head_class_house_indexes.emplace_back(house.house_index());
-        }
-    }
+    multiplicity_.shrink_to_fit();
+    multiplicity_class.shrink_to_fit();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -393,7 +395,7 @@ void DataWide::buffer_member_cache(Household &house, size_t i)
         }
 }
 
-void DataWide::recover_all_buffer(Household &house)
+void DataWide::recover_all_buffer(Household &house) noexcept
 {
     house.cache_size_.swap(house.buffer_size_);
     house.cache_size_vec_.swap(house.buffer_size_vec_);
@@ -426,9 +428,9 @@ void DataWide::recover_member_buffer(Household &house, size_t i)
 
 void DataWide::assert_finite_log_lik() const
 {
-    for (size_t R = 0; R < head_class_house_indexes.size(); ++R)
+    for (size_t R = 0; R < restricted_size(); ++R)
     {
-        const Household &house = house_vector_[head_class_house_indexes[R]];
+        const Household &house = restricted(R);
 
         for (size_t i : house.infected_hhindexes())
             if (house.member(i).augm_log_lik_.is_inf())
@@ -446,17 +448,17 @@ void DataWide::init_draws(unsigned long sample_size)
 {
     // sample over households
     smpl_values.clear();
-    smpl_values.reserve(head_class_house_indexes.size());
-    for (size_t R = 0; R < head_class_house_indexes.size(); ++R)
+    smpl_values.reserve(restricted_size());
+    for (size_t R = 0; R < restricted_size(); ++R)
         smpl_values.emplace_back(sample_size, hsp::na::DOUBLE);
 }
 
 void DataWide::store_draws(unsigned long smpl_count)
 {
     // store sample for restricted households
-    for (size_t R = 0; R < head_class_house_indexes.size(); ++R)
+    for (size_t R = 0; R < restricted_size(); ++R)
     {
-        Household &house = house_vector_[head_class_house_indexes[R]];
+        Household &house = restricted(R);
         double x = house.obs_log_lik_.value();
         for (size_t i : house.infected_hhindexes())
             x += house.member(i).augm_log_lik_.value();
@@ -464,14 +466,14 @@ void DataWide::store_draws(unsigned long smpl_count)
     }
 }
 
-void DataWide::assert_non_empty()
+void DataWide::assert_non_empty() const
 {
     if (report_house.total == 0)
         throw std::length_error(
             "Unable to proceed: no data was found.");
 }
 
-void DataWide::assert_not_all_missing_status()
+void DataWide::assert_not_all_missing_status() const
 {
     if (report_indiv.total == report_indiv.missing)
         throw std::length_error(

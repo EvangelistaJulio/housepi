@@ -50,7 +50,6 @@ struct DataWide
     std::unique_ptr<hsp::key::Registry> p_double_mtx_Registry;
 
     std::vector<std::vector<double>> smpl_values = {};
-    std::vector<size_t> head_class_house_indexes = {};
 
     ReportIndividual report_indiv;
     ReportHousehold report_house;
@@ -66,11 +65,6 @@ struct DataWide
              const std::vector<std::string> &double_vec_keys,
              const std::vector<std::string> &double_mtx_keys);
     ~DataWide();
-
-    Household &at(size_t H) { return house_vector_[H]; }
-    const Household &at(size_t H) const { return house_vector_[H]; }
-    Household &at(std::string_view house_id) { return at(house_id_to_index_(house_id)); }
-    const Household &at(std::string_view house_id) const { return at(house_id_to_index_(house_id)); }
 
     //////////////////////
     //////  SETTER  //////
@@ -89,7 +83,7 @@ struct DataWide
     /// Deep copy member cache attributes in the buffer.
     void buffer_member_cache(Household &house, size_t i);
     /// Recover all buffered values of cached depedencies.
-    void recover_all_buffer(Household &house);
+    void recover_all_buffer(Household &house) noexcept;
     /// Recover all buffered values of member cached depedencies.
     void recover_member_buffer(Household &house, size_t i);
 
@@ -100,14 +94,79 @@ struct DataWide
     /// Store current sample of log-likelihood for restricted households.
     void store_draws(unsigned long smpl_count);
 
+    //////////////////////
+    //////  GETTER  //////
+    //////////////////////
+
+    Household &at(size_t H) { return house_vector_[H]; }
+    const Household &at(size_t H) const { return house_vector_[H]; }
+    Household &at(std::string_view house_id) { return at(house_id_to_index_(house_id)); }
+    const Household &at(std::string_view house_id) const { return at(house_id_to_index_(house_id)); }
+
+    unsigned multiplicity(size_t R) const
+    {
+        switch (mode_)
+        {
+        case Mode::Unique:
+            return 1;
+        case Mode::Multiple:
+            return multiplicity_[R];
+        }
+        __builtin_unreachable();
+    }
+    size_t get_restricted_index(size_t H) const
+    {
+        switch (mode_)
+        {
+        case Mode::Unique:
+            return H;
+        case Mode::Multiple:
+            return restricted_index[H];
+        }
+        __builtin_unreachable();
+    }
+    size_t restricted_size() const noexcept
+    {
+        switch (mode_)
+        {
+        case Mode::Unique:
+            return report_house.total;
+        case Mode::Multiple:
+            return multiplicity_class.size();
+        }
+        __builtin_unreachable();
+    }
+    Household &restricted(size_t R)
+    {
+        switch (mode_)
+        {
+        case Mode::Unique:
+            return at(R);
+        case Mode::Multiple:
+            return at(multiplicity_class[R]);
+        }
+        __builtin_unreachable();
+    }
+    const Household &restricted(size_t R) const
+    {
+        switch (mode_)
+        {
+        case Mode::Unique:
+            return at(R);
+        case Mode::Multiple:
+            return at(multiplicity_class[R]);
+        }
+        __builtin_unreachable();
+    }
+
     /////////////////////
     //////  FLAGS  //////
     /////////////////////
 
     /// Assert data wide is not empty.
-    void assert_non_empty();
+    void assert_non_empty() const;
     /// Assert that not all individuals have missing status.
-    void assert_not_all_missing_status();
+    void assert_not_all_missing_status() const;
     /// Assert no individual has missing status.
     void assert_no_missing_status() const;
 
@@ -126,11 +185,19 @@ struct DataWide
     auto end() noexcept { return house_vector_.end(); }
     auto end() const noexcept { return house_vector_.end(); }
 
-    Household &restricted(size_t R) { return house_vector_[head_class_house_indexes[R]]; }
-
 private:
+    enum class Mode : uint8_t
+    {
+        Multiple,
+        Unique
+    } mode_ = Mode::Unique;
+
     std::vector<Household> house_vector_ = {};
     hsp::dict<size_t> hhid_to_index_ = {};
+
+    std::vector<unsigned> multiplicity_ = {};
+    std::vector<size_t> multiplicity_class = {};
+    std::vector<size_t> restricted_index = {};
 
     /// Get housepi household index from house_id.
     size_t house_id_to_index_(std::string_view house_id) const;

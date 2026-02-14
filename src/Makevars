@@ -10,6 +10,7 @@ PKG_LIBS = \
 
 COMMON_SOURCES = \
 	RcppExports.cpp \
+	attribute.cpp \
 	augmented.cpp \
 	binomial.cpp \
 	contact_rate.cpp \

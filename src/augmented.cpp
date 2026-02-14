@@ -699,6 +699,7 @@ void Augmented::init_individual_sample(std::vector<std::string> &id_draws)
                     hsp::msg::warning(
                         "Ignored draws of non infected " + member.err_name() + ".");
             }
+    smpl_individuals.shrink_to_fit();
 
     // check all user request are satisfied
     hsp::str::assert_no_missing_entries(existing_ids, id_draws, "draws id");
