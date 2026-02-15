@@ -263,8 +263,6 @@ void MCMC::print_simulated_data_wide(const std::string &pathtofile)
         for (Household house : data_wide) // NOTE: deep copy of household
             try
             {
-                // inplace simulation
-                pImpl_->data_wide.init_house_cache(house);
                 simulate_single_house(house);
                 // print the simulated data
                 update_ofstream_datawide(ofs, house, data_wide.pRegistry->size(),

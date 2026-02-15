@@ -99,11 +99,13 @@ void MCMCImpl::helper_init_simulation()
 void MCMCImpl::user_init_for_evaluate()
 {
     callback_init_inference_();
+
+    data_wide.init_all_cache();
+
     // init cache dependencies for all households and individuals
     for (size_t R = 0; R < data_wide.restricted_size(); ++R)
     {
         Household &house = data_wide.restricted(R);
-        data_wide.init_house_cache(house);
         callback_init_house_for_inference_(house);
     }
 }
@@ -156,7 +158,10 @@ double MCMCImpl::update_total_log_lik(bool is_cache_depen)
 
     // buffer infectivity profile if lookup tables are active
     if (is_cache_depen)
+    {
+        data_wide.buffer_all_cache();
         infec_profile.update();
+    }
 
     atomic_error.restore();
 #pragma omp parallel for reduction(+ : new_ll)
@@ -181,11 +186,8 @@ double MCMCImpl::atomic_materialize_house_log_lik_(Household &house, bool is_cac
     {
         // buffer all household cache dependencies
         if (is_cache_depen)
-        {
-            data_wide.buffer_all_cache(house);
             for (size_t i : house.infected_hhindexes())
                 callback_update_cache_(house, house.member(i));
-        }
 
         // compute and set household observation log-likelihood
         output = callback_house_log_lik_(house);
@@ -373,16 +375,16 @@ void MCMCImpl::recover_parameter_(size_t p, bool is_cache_depen)
         Household &house = data_wide.restricted(R);
         house.obs_log_lik_.recover();
 
-        if (is_cache_depen)
-            data_wide.recover_all_buffer(house);
-
         if (augm.is_any_sample())
             for (size_t i : house.infected_hhindexes())
                 house.member(i).augm_log_lik_.recover();
     }
 
     if (is_cache_depen)
+    {
+        data_wide.recover_all_buffer();
         infec_profile.recover();
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

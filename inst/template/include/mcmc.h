@@ -99,6 +99,34 @@ public:
 	void request_discrete_infec_profile();
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////  MCMC : evaluate log-likelihood  /////////////////////////////
+	/////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// Return cached size_t value.
+    size_t &cache_size(Household &house, size_t e);
+    size_t cache_size(const Household &house, size_t e) const;
+
+    /// Return cached size_t vector.
+    std::vector<size_t> &cache_size_vector(Household &house, size_t e);
+    const std::vector<size_t> &cache_size_vector(const Household &house, size_t e) const;
+
+    /// Return cached double vector.
+    std::vector<double> &cache_double_vector(Household &house, size_t e);
+    const std::vector<double> &cache_double_vector(const Household &house, size_t e) const;
+
+    /// Return cached double matrix.
+    std::vector<std::vector<double>> &cache_double_matrix(Household &house, size_t e);
+    const std::vector<std::vector<double>> &cache_double_matrix(const Household &house, size_t e) const;
+
+	/// Update cahced augmeted dependecies.
+	virtual void update_cache_dependecies(Household &, Individual &) {}
+	/// Compute the log-likelihood for a single household.
+	virtual double compute_house_obs_log_lik(Household &) = 0;
+
+	/// Initialize model and evaluate log-likelihood.
+	double evaluate_log_lik(std::string_view house_id = "");
+
+	/////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////  MCMC : inference //////////////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -109,17 +137,6 @@ public:
 	virtual void init_house_for_evaluation(Household &) {}
 	void run_inference();
 
-	/////////////////////////////////////////////////////////////////////////////////////////////
-	//////////////////////////////  MCMC : evaluate log-likelihood  /////////////////////////////
-	/////////////////////////////////////////////////////////////////////////////////////////////
-
-	/// Update cahced augmeted dependecies.
-	virtual void update_cache_dependecies(Household &, Individual &) {}
-	/// Compute the log-likelihood for a single household.
-	virtual double compute_house_obs_log_lik(Household &) = 0;
-
-	/// Initialize model and evaluate log-likelihood.
-	double evaluate_log_lik(std::string_view house_id = "");
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////  MCMC : simulation  ////////////////////////////////////

@@ -77,13 +77,15 @@ struct DataWide
     void multiplicity_build(const hsp::str_table &input, bool is_any_augm);
 
     /// Initialize cached structeres according to household size.
-    void init_house_cache(Household &house);
+    void init_all_cache();
+
     /// Deep copy all household cache attributes in the buffer.
-    void buffer_all_cache(Household &house);
+    void buffer_all_cache() { buffer_ = cached_; }
+    /// Recover all buffered values of cached depedencies.
+    void recover_all_buffer() noexcept { cached_.swap(buffer_); }
+
     /// Deep copy member cache attributes in the buffer.
     void buffer_member_cache(Household &house, size_t i);
-    /// Recover all buffered values of cached depedencies.
-    void recover_all_buffer(Household &house) noexcept;
     /// Recover all buffered values of member cached depedencies.
     void recover_member_buffer(Household &house, size_t i);
 
@@ -121,7 +123,7 @@ struct DataWide
         case Mode::Unique:
             return H;
         case Mode::Multiple:
-            return restricted_index[H];
+            return house_vector_[H].restricted_;
         }
         __builtin_unreachable();
     }
@@ -132,7 +134,7 @@ struct DataWide
         case Mode::Unique:
             return report_house.total;
         case Mode::Multiple:
-            return multiplicity_class.size();
+            return multiplicity_class_.size();
         }
         __builtin_unreachable();
     }
@@ -143,7 +145,7 @@ struct DataWide
         case Mode::Unique:
             return at(R);
         case Mode::Multiple:
-            return at(multiplicity_class[R]);
+            return at(multiplicity_class_[R]);
         }
         __builtin_unreachable();
     }
@@ -154,10 +156,30 @@ struct DataWide
         case Mode::Unique:
             return at(R);
         case Mode::Multiple:
-            return at(multiplicity_class[R]);
+            return at(multiplicity_class_[R]);
         }
         __builtin_unreachable();
     }
+
+    /////////////////////
+    //////  CACHE  //////
+    /////////////////////
+
+    /// Return cached size_t value.
+    size_t &cache_size(Household &house, size_t e) { return cached_[house.restricted_].size_[e]; }
+    size_t cache_size(const Household &house, size_t e) const { return cached_[house.restricted_].size_[e]; }
+
+    /// Return cached size_t vector.
+    std::vector<size_t> &cache_size_vector(Household &house, size_t e) { return cached_[house.restricted_].size_vec_[e]; }
+    const std::vector<size_t> &cache_size_vector(const Household &house, size_t e) const { return cached_[house.restricted_].size_vec_[e]; }
+
+    /// Return cached double vector.
+    std::vector<double> &cache_double_vector(Household &house, size_t e) { return cached_[house.restricted_].dbl_vec_[e]; }
+    const std::vector<double> &cache_double_vector(const Household &house, size_t e) const { return cached_[house.restricted_].dbl_vec_[e]; }
+
+    /// Return cached double matrix.
+    std::vector<std::vector<double>> &cache_double_matrix(Household &house, size_t e) { return cached_[house.restricted_].dbl_mtx_[e]; }
+    const std::vector<std::vector<double>> &cache_double_matrix(const Household &house, size_t e) const { return cached_[house.restricted_].dbl_mtx_[e]; }
 
     /////////////////////
     //////  FLAGS  //////
@@ -196,8 +218,17 @@ private:
     hsp::dict<size_t> hhid_to_index_ = {};
 
     std::vector<unsigned> multiplicity_ = {};
-    std::vector<size_t> multiplicity_class = {};
-    std::vector<size_t> restricted_index = {};
+    std::vector<size_t> multiplicity_class_ = {};
+
+    struct Cached_
+    {
+        std::vector<size_t> size_ = {};
+        std::vector<std::vector<size_t>> size_vec_ = {};
+        std::vector<std::vector<double>> dbl_vec_ = {};
+        std::vector<std::vector<std::vector<double>>> dbl_mtx_ = {};
+    };
+    std::vector<Cached_> cached_ = {};
+    std::vector<Cached_> buffer_ = {};
 
     /// Get housepi household index from house_id.
     size_t house_id_to_index_(std::string_view house_id) const;

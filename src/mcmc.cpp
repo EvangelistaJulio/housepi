@@ -71,5 +71,17 @@ void MCMC::request_discrete_param(size_t p) { pImpl_->request_discrete_param(p);
 void MCMC::request_discrete_augm(size_t a) { pImpl_->request_discrete_augm(a); }
 void MCMC::request_discrete_infec_profile() { pImpl_->request_discrete_infec_profile(); }
 
+size_t &MCMC::cache_size(Household &house, size_t e) { return pImpl_->cache_size(house, e); }
+size_t MCMC::cache_size(const Household &house, size_t e) const { return pImpl_->cache_size(house, e); }
+
+std::vector<size_t> &MCMC::cache_size_vector(Household &house, size_t e) { return pImpl_->cache_size_vector(house, e); }
+const std::vector<size_t> &MCMC::cache_size_vector(const Household &house, size_t e) const { return pImpl_->cache_size_vector(house, e); }
+
+std::vector<double> &MCMC::cache_double_vector(Household &house, size_t e) { return pImpl_->cache_double_vector(house, e); }
+const std::vector<double> &MCMC::cache_double_vector(const Household &house, size_t e) const { return pImpl_->cache_double_vector(house, e); }
+
+std::vector<std::vector<double>> &MCMC::cache_double_matrix(Household &house, size_t e) { return pImpl_->cache_double_matrix(house, e); }
+const std::vector<std::vector<double>> &MCMC::cache_double_matrix(const Household &house, size_t e) const { return pImpl_->cache_double_matrix(house, e); }
+
 double MCMC::evaluate_log_lik(std::string_view house_id) { return pImpl_->evaluate_log_lik(house_id); }
 void MCMC::run_inference() { pImpl_->run_inference(); }

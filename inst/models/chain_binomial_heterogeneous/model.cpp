@@ -46,7 +46,7 @@ void Model::init_model_for_evaluation()
 
 void Model::init_house_for_evaluation(Household &house)
 {
-	auto &order = house.cache_size_vector(HHsizevecKey::order);
+	auto &order = cache_size_vector(house, HHsizevecKey::order);
 	order.clear();
 	order.reserve(house.size());
 	order.insert(order.end(), house.infected_hhindexes().begin(), house.infected_hhindexes().end());
@@ -71,19 +71,19 @@ double Model::compute_house_obs_log_lik(Household &house)
 	// compute corresponding loglikelihood times house multiplicity
 	return bax::chain_binomial_heter_log_lik(
 		house.n_infected_status(),
-		house.cache_double_vector(HHdoublevecKey::commu_escape_rate),
-		house.cache_double_matrix(HHdoublemtxKey::p2p_escape_rate));
+		cache_double_vector(house, HHdoublevecKey::commu_escape_rate),
+		cache_double_matrix(house, HHdoublemtxKey::p2p_escape_rate));
 }
 
-void Model::fill_house_escape_matrix(Household &house) const
+void Model::fill_house_escape_matrix(Household &house)
 {
-	const auto &order = house.cache_size_vector(HHsizevecKey::order);
+	const auto &order = cache_size_vector(house, HHsizevecKey::order);
 	const double commu_rate = community_risk();
 	const double p2p_rate = person_to_person_risk();
 
 	// assign values to escape matrix
-	auto &commu_mtx = house.cache_double_vector(HHdoublevecKey::commu_escape_rate);
-	auto &p2p_mtx = house.cache_double_matrix(HHdoublemtxKey::p2p_escape_rate);
+	auto &commu_mtx = cache_double_vector(house, HHdoublevecKey::commu_escape_rate);
+	auto &p2p_mtx = cache_double_matrix(house, HHdoublemtxKey::p2p_escape_rate);
 
 	// fill matrix according to order
 	for (size_t i = 0; i < house.size(); ++i)

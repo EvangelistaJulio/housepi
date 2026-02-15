@@ -156,7 +156,6 @@ void DataWide::build(const hsp::str_table &input)
             house_vector_.emplace_back();
             Household &last = house_vector_.back();
             last.house_id_ = house_id;
-            last.index_ = house_vector_.size() - 1;
         }
         // extract the household reference
         Household &house = house_vector_.at(hhid_to_index_.at(house_id));
@@ -258,8 +257,11 @@ void DataWide::multiplicity_build(const hsp::str_table &input, bool is_any_augm)
 
     mode_ = Mode::Unique;
     multiplicity_.clear();
-    restricted_index.clear();
-    multiplicity_class.clear();
+    multiplicity_class_.clear();
+
+    // initialize household indexes
+    for (Household &house : house_vector_)
+        house.restricted_ = hhid_to_index_[house.house_id()];
 
     // note: multiplicities are not compatible with data augmentation
     if (input.size() == 0 || is_any_augm)
@@ -271,154 +273,117 @@ void DataWide::multiplicity_build(const hsp::str_table &input, bool is_any_augm)
             "Multiplicity definitions had different dimensions than data.");
 
     mode_ = Mode::Multiple;
-    restricted_index.resize(n_houses);
     multiplicity_.reserve(n_houses);
-    multiplicity_class.reserve(n_houses);
+    multiplicity_class_.reserve(n_houses);
 
-    std::unordered_map<size_t, size_t> restr_idx_map = {};
-    
+    hsp::dict<size_t> hhid_to_restricted = {};
     for (size_t r = 0; r < n_houses; ++r)
     {
-        Household &house = at(input.at("house_id")[r]);
-        size_t H = house.index_;
-
-        size_t H0 = at(input.at("class_id")[r]).house_index();
+        const std::string &house_id = input.at("house_id")[r];
+        const std::string &house_id_0 = input.at("class_id")[r];
         unsigned long m = hsp::str::toul(input.at("multiplicity")[r]);
 
-        if (H == H0)
+        if (house_id == house_id_0)
         {
-            restr_idx_map.emplace(H, restr_idx_map.size());
+            hhid_to_restricted.emplace(house_id, hhid_to_restricted.size());
             multiplicity_.push_back(m);
-            multiplicity_class.push_back(H);
+            multiplicity_class_.push_back(hhid_to_index_[house_id]);
         }
-        restricted_index[H] = restr_idx_map.at(H0);
+        at(house_id).restricted_ = hhid_to_restricted[house_id_0];
     }
     multiplicity_.shrink_to_fit();
-    multiplicity_class.shrink_to_fit();
+    multiplicity_class_.shrink_to_fit();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  DataWide : cache attributes  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void DataWide::init_house_cache(Household &house)
+void DataWide::init_all_cache()
 {
-    size_t hh_size = house.size();
+    cached_.resize(restricted_size());
+    buffer_.resize(restricted_size());
 
-    // size_t
+    for (size_t R = 0; R < restricted_size(); ++R)
     {
-        size_t n = p_size_Registry->size();
-        house.cache_size_.assign(n, 0);
-        house.buffer_size_.assign(n, 0);
-    }
+        Household &house = restricted(R);
+        size_t hh_size = house.size();
+        Cached_ &curr = cached_[R];
+        Cached_ &prev = buffer_[R];
 
-    // size_t vector
-    {
-        size_t n = p_size_vec_Registry->size();
-        house.cache_size_vec_.resize(n);
-        house.buffer_size_vec_.resize(n);
-        for (size_t e = 0; e < n; ++e)
+        // size_t
+        curr.size_.assign(p_size_Registry->size(), 0);
+        prev.size_.assign(p_size_Registry->size(), 0);
+
+        // size_t vector
+        curr.size_vec_.resize(p_size_vec_Registry->size());
+        prev.size_vec_.resize(p_size_vec_Registry->size());
+        for (size_t e = 0; e < p_size_vec_Registry->size(); ++e)
         {
-            house.cache_size_vec_[e].assign(hh_size, 0);
-            house.buffer_size_vec_[e].assign(hh_size, 0);
+            curr.size_vec_[e].assign(hh_size, 0);
+            prev.size_vec_[e].assign(hh_size, 0);
         }
-    }
 
-    // double vector
-    {
-        size_t n = p_double_vec_Registry->size();
-        house.cache_dbl_vec_.resize(n);
-        house.buffer_dbl_vec_.resize(n);
-        for (size_t e = 0; e < n; ++e)
-        {
-
-            house.cache_dbl_vec_[e].assign(hh_size, 0);
-            house.buffer_dbl_vec_[e].assign(hh_size, 0);
-        }
-    }
-
-    // double matrix
-    {
-        size_t n = p_double_mtx_Registry->size();
-        house.cache_dbl_mtx_.resize(n);
-        house.buffer_dbl_mtx_.resize(n);
-        for (size_t e = 0; e < n; ++e)
+        // double vector
+        curr.dbl_vec_.resize(p_double_vec_Registry->size());
+        prev.dbl_vec_.resize(p_double_vec_Registry->size());
+        for (size_t e = 0; e < p_double_vec_Registry->size(); ++e)
         {
 
-            house.cache_dbl_mtx_[e].assign(hh_size, std::vector<double>(hh_size, 0.));
-            house.buffer_dbl_mtx_[e].assign(hh_size, std::vector<double>(hh_size, 0.));
+            curr.dbl_vec_[e].assign(hh_size, 0);
+            prev.dbl_vec_[e].assign(hh_size, 0);
+        }
+
+        // double matrix
+        curr.dbl_mtx_.resize(p_double_mtx_Registry->size());
+        prev.dbl_mtx_.resize(p_double_mtx_Registry->size());
+        for (size_t e = 0; e < p_double_mtx_Registry->size(); ++e)
+        {
+            curr.dbl_mtx_[e].assign(hh_size, std::vector<double>(hh_size, 0.));
+            prev.dbl_mtx_[e].assign(hh_size, std::vector<double>(hh_size, 0.));
         }
     }
-}
-
-void DataWide::buffer_all_cache(Household &house)
-{
-    std::copy(house.cache_size_.begin(),
-              house.cache_size_.end(),
-              house.buffer_size_.begin());
-
-    for (size_t e = 0; e < house.cache_size_vec_.size(); ++e)
-        std::copy(house.cache_size_vec_[e].begin(),
-                  house.cache_size_vec_[e].end(),
-                  house.buffer_size_vec_[e].begin());
-
-    for (size_t e = 0; e < house.cache_dbl_vec_.size(); ++e)
-        std::copy(house.cache_dbl_vec_[e].begin(),
-                  house.cache_dbl_vec_[e].end(),
-                  house.buffer_dbl_vec_[e].begin());
-
-    for (size_t e = 0; e < house.cache_dbl_mtx_.size(); ++e)
-        for (size_t i = 0; i < house.cache_dbl_mtx_[e].size(); ++i)
-            std::copy(house.cache_dbl_mtx_[e][i].begin(),
-                      house.cache_dbl_mtx_[e][i].end(),
-                      house.buffer_dbl_mtx_[e][i].begin());
 }
 
 void DataWide::buffer_member_cache(Household &house, size_t i)
 {
-    std::copy(house.cache_size_.begin(),
-              house.cache_size_.end(),
-              house.buffer_size_.begin());
+    Cached_ &curr = cached_[house.restricted_];
+    Cached_ &prev = buffer_[house.restricted_];
+    prev.size_ = curr.size_;
 
-    for (size_t e = 0; e < house.cache_size_vec_.size(); ++e)
-        house.buffer_size_vec_[e][i] = house.cache_size_vec_[e][i];
+    for (size_t e = 0; e < curr.size_vec_.size(); ++e)
+        prev.size_vec_[e][i] = curr.size_vec_[e][i];
 
-    for (size_t e = 0; e < house.cache_dbl_vec_.size(); ++e)
-        house.buffer_dbl_vec_[e][i] = house.cache_dbl_vec_[e][i];
+    for (size_t e = 0; e < curr.dbl_vec_.size(); ++e)
+        prev.dbl_vec_[e][i] = curr.dbl_vec_[e][i];
 
-    for (size_t e = 0; e < house.cache_dbl_mtx_.size(); ++e)
+    for (size_t e = 0; e < curr.dbl_mtx_.size(); ++e)
         for (size_t j = 0; j < house.size(); ++j)
         {
-            house.buffer_dbl_mtx_[e][i][j] = house.cache_dbl_mtx_[e][i][j];
+            prev.dbl_mtx_[e][i][j] = curr.dbl_mtx_[e][i][j];
             if (i != j)
-                house.buffer_dbl_mtx_[e][j][i] = house.cache_dbl_mtx_[e][j][i];
+                prev.dbl_mtx_[e][j][i] = curr.dbl_mtx_[e][j][i];
         }
-}
-
-void DataWide::recover_all_buffer(Household &house) noexcept
-{
-    house.cache_size_.swap(house.buffer_size_);
-    house.cache_size_vec_.swap(house.buffer_size_vec_);
-    house.cache_dbl_vec_.swap(house.buffer_dbl_vec_);
-    house.cache_dbl_mtx_.swap(house.buffer_dbl_mtx_);
 }
 
 void DataWide::recover_member_buffer(Household &house, size_t i)
 {
-    house.cache_size_.swap(house.buffer_size_);
+    Cached_ &curr = cached_[house.restricted_];
+    Cached_ &prev = buffer_[house.restricted_];
+    curr.size_.swap(prev.size_);
 
-    for (size_t e = 0; e < house.cache_size_vec_.size(); ++e)
-        house.cache_size_vec_[e][i] = house.buffer_size_vec_[e][i];
+    for (size_t e = 0; e < prev.size_vec_.size(); ++e)
+        curr.size_vec_[e][i] = prev.size_vec_[e][i];
 
-    for (size_t e = 0; e < house.cache_dbl_vec_.size(); ++e)
-        house.cache_dbl_vec_[e][i] = house.buffer_dbl_vec_[e][i];
+    for (size_t e = 0; e < prev.dbl_vec_.size(); ++e)
+        curr.dbl_vec_[e][i] = prev.dbl_vec_[e][i];
 
-    for (size_t e = 0; e < house.cache_dbl_mtx_.size(); ++e)
+    for (size_t e = 0; e < prev.dbl_mtx_.size(); ++e)
     {
-        house.cache_dbl_mtx_[e][i].swap(house.buffer_dbl_mtx_[e][i]);
+        curr.dbl_mtx_[e][i].swap(prev.dbl_mtx_[e][i]);
         for (size_t j = 0; j < house.size(); ++j)
             if (j != i)
-                house.cache_dbl_mtx_[e][j][i] = house.buffer_dbl_mtx_[e][j][i];
+                curr.dbl_mtx_[e][j][i] = prev.dbl_mtx_[e][j][i];
     }
 }
 

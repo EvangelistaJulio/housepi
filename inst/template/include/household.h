@@ -54,26 +54,6 @@ public:
 		helper_set_status_(member, new_status);
 	}
 
-	/////////////////////
-	//////  CACHE  //////
-	/////////////////////
-
-	/// Return cached size_t value.
-	size_t &cache_size(size_t e) { return cache_size_[e]; }
-	size_t cache_size(size_t e) const { return cache_size_[e]; }
-
-	// Cache size_t vector
-	std::vector<size_t> &cache_size_vector(size_t e) { return cache_size_vec_[e]; }
-	const std::vector<size_t> &cache_size_vector(size_t e) const { return cache_size_vec_[e]; }
-
-	// Cached double vector
-	std::vector<double> &cache_double_vector(size_t e) { return cache_dbl_vec_[e]; }
-	const std::vector<double> &cache_double_vector(size_t e) const { return cache_dbl_vec_[e]; }
-
-	// Cache double matrix
-	std::vector<std::vector<double>> &cache_double_matrix(size_t e) { return cache_dbl_mtx_[e]; }
-	const std::vector<std::vector<double>> &cache_double_matrix(size_t e) const { return cache_dbl_mtx_[e]; }
-
 	//////////////////////
 	//////  GETTER  //////
 	//////////////////////
@@ -106,31 +86,17 @@ public:
 
 	const std::string &house_id() const noexcept { return house_id_; }
 	std::string err_name() const { return "household '" + house_id_ + "'"; }
-	size_t house_index() const noexcept { return index_; }
 	size_t size() const noexcept { return members_.size(); }
 
 private:
-	std::string house_id_ = "";			   /// User house id
-	size_t index_ = -1;					   /// Internal unique index
-
-	std::vector<Individual> members_ = {}; /// Household members
-	std::vector<size_t> infected_list_;	   /// hh indexes of infected members
-	std::vector<size_t> healthy_list_;	   /// hh indexes of susceptible members
-	std::vector<size_t> missing_list_;	   /// hh indexes of members with missing status
-
+	std::string house_id_ = "";							/// User house id
+	size_t restricted_ = -1;							/// Restricted unique index
+	std::vector<Individual> members_ = {};				/// Household members
+	std::vector<size_t> infected_list_;					/// hh indexes of infected members
+	std::vector<size_t> healthy_list_;					/// hh indexes of susceptible members
+	std::vector<size_t> missing_list_;					/// hh indexes of members with missing status
 	std::vector<std::vector<Attribute>> contact_rates_; /// contact rates
-
-	std::vector<size_t> cache_size_ = {};
-	std::vector<std::vector<size_t>> cache_size_vec_ = {};
-	std::vector<std::vector<double>> cache_dbl_vec_ = {};
-	std::vector<std::vector<std::vector<double>>> cache_dbl_mtx_ = {};
-
-	std::vector<size_t> buffer_size_ = {};
-	std::vector<std::vector<size_t>> buffer_size_vec_ = {};
-	std::vector<std::vector<double>> buffer_dbl_vec_ = {};
-	std::vector<std::vector<std::vector<double>>> buffer_dbl_mtx_ = {};
-
-	hsp::LogLike obs_log_lik_; /// pointwise observation log-likelihood
+	hsp::LogLike obs_log_lik_;							/// pointwise observation log-likelihood
 
 	/// Change_status of individual i to new status (without controls).
 	///	NOTE: this introduces augmented variables -> it requires RJMCMC in case of inference.

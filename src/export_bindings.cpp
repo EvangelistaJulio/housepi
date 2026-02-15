@@ -640,12 +640,11 @@ Rcpp::NumericMatrix MCMC::flush_house_log_lik_draws()
         size_t n_classes = data_wide.restricted_size();
         std::vector<std::vector<size_t>> house_classes(n_classes);
 
-        for (const Household &house : data_wide)
+        for (size_t H = 0; H < n_houses; ++H)
         {
-            size_t H = house.house_index();
             size_t R = data_wide.get_restricted_index(H);
             house_classes[R].push_back(H);
-            headers[H] = house.house_id();
+            headers[H] = data_wide.at(H).house_id();
         }
 
         for (size_t R = 0; R < n_classes; ++R)
@@ -990,7 +989,6 @@ Rcpp::DataFrame MCMC::helper_simulate_single_repetition()
         for (Household house : data_wide) // NOTE: deep copy of households
             try
             {
-                data_wide.init_house_cache(house);
                 simulate_single_house(house);
                 for (const Individual &member : house)
                 {

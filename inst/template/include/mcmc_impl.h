@@ -129,6 +129,22 @@ public:
     double infec_profile_inst(const AugmContainer &i, double t) const { return infec_profile.inst(&i, t); }
     double infec_profile_cumul(const AugmContainer &i, double t) const { return infec_profile.cumul(&i, t); }
 
+    /// Return cached size_t value.
+    size_t &cache_size(Household &house, size_t e) { return data_wide.cache_size(house, e); }
+    size_t cache_size(const Household &house, size_t e) const { return data_wide.cache_size(house, e); }
+
+    /// Return cached size_t vector.
+    std::vector<size_t> &cache_size_vector(Household &house, size_t e) { return data_wide.cache_size_vector(house, e); }
+    const std::vector<size_t> &cache_size_vector(const Household &house, size_t e) const { return data_wide.cache_size_vector(house, e); }
+
+    /// Return cached double vector.
+    std::vector<double> &cache_double_vector(Household &house, size_t e) { return data_wide.cache_double_vector(house, e); }
+    const std::vector<double> &cache_double_vector(const Household &house, size_t e) const { return data_wide.cache_double_vector(house, e); }
+
+    /// Return cached double matrix.
+    std::vector<std::vector<double>> &cache_double_matrix(Household &house, size_t e) { return data_wide.cache_double_matrix(house, e); }
+    const std::vector<std::vector<double>> &cache_double_matrix(const Household &house, size_t e) const { return data_wide.cache_double_matrix(house, e); }
+
     //////////////////////////
     //////  EVALUATION  //////
     //////////////////////////

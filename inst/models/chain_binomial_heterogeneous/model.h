@@ -42,7 +42,7 @@ public:
 	double person_to_person_risk() const;
 	/// The person-to-person escape probabilities stored inside a matrix.
 	/// Important: it must be re-ordered to have seropositives first.
-	void fill_house_escape_matrix(Household &house) const;
+	void fill_house_escape_matrix(Household &house);
 
 	/// Simulate the infection within a household.
 	void simulate_single_house(Household &house) override final;
