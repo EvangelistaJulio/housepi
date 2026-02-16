@@ -52,8 +52,10 @@ public:
 	/// Virtual method for user initialization of advanced setup.
 	virtual void init_advanced_setup() {}
 
-	/// Uniform distributed in [0, 1) rand number generator.
+    /// Sample a uniform-distributed variable between 0 and 1.
 	double uniform();
+    /// Sample a exponential-distributed variable between 0 and Inf.
+    double exponential();
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	/////////////////////////////////////  MCMC : summaries  ////////////////////////////////////

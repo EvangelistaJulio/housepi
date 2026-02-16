@@ -28,16 +28,18 @@ transmission_rate <- function(house, param) {
 # log-likelihood contribution of susceptible members
 loglike_susceptible <- function(house, param, discr) {
   member_0 <- find_introduction(house)
-
-  alpha_cumul <- param$alpha * (param$study_period + member_0$incub_period)
+  t_intro <- member_0$infec_time
+  # FIXME: assuming internally all end_followup are the same,
+  #        but this is not requested to the user!
+  alpha_cumul <- param$alpha * (member_0$end_followup - t_intro)
   beta <- transmission_rate(house, param)
 
   output <- 0
-  for (i in which(house$status == 0)) {
+  for (k in which(house$status == 0)) {
     roi_cumul <- 0
-    for (k in which(house$status == 1)) {
-      t_infec_k <- house[k, "infec_time"]
-      exposure <- param$study_period + member_0$onset_time - t_infec_k
+    for (i in which(house$status == 1)) {
+      t_infec_i <- house[i, "infec_time"]
+      exposure <- house[k, "end_followup"] - t_infec_i
       roi_cumul <- roi_cumul + infec_profile_cumul(exposure, param, discr)
     }
     output <- output - alpha_cumul - beta * roi_cumul
@@ -91,30 +93,35 @@ augm_infec_obs_log_lik <- function(house, param, discr = FALSE) {
 
 test_that("Simulations behave as expected", {
   hhsimul <- new_housepi_model("augmented_infection_time")
-  hhsimul$data_wide <- dplyr::mutate(housepi::survey, status = NA)
+  hhsimul$data_wide <- dplyr::mutate(housepi::survey, 
+                                     status = NA,
+                                     end_followup = 45)
   hhsimul$load_parameter_list(alpha = 0,
                               beta = 0,
-                              study_period = 21,
                               gamma = 1,
                               size_ref = 4)
-  # UPDATE: these dependencies should not be in template...
-
   hhsimul$load_augmented_list(
     incub_period = list(model = "gamma", shape = 2, scale = 1),
-    infec_time = -incub_period,
-    onset_time = infec_time + incub_period
+    infec_time = -incub_period
   )
+  
+  obs_process = function(df) {
+    dplyr::mutate(df, onset_time = infec_time + incub_period)
+  }
 
   # simulate just introduction cases
-  simulated <- hhsimul$run_simulation()
+  simulated <- hhsimul$run_simulation(obs_process = obs_process)
+  simulated <- dplyr::mutate(simulated,
+                             onset_time = infec_time + incub_period)
   expect_identical(
     length(unique(simulated$house_id)),
     sum(simulated$onset_time == 0, na.rm = TRUE)
   )
 
   # simulate all infected
-  expect_warning(hhsimul$add_parameter(name = "beta", value = 100))
-  simulated <- hhsimul$run_simulation()
+  expect_warning(hhsimul$add_parameter(name = "beta", value = 100),
+                 regexp = "Overwriting")
+  simulated <- hhsimul$run_simulation(obs_process = obs_process)
   expect_true(all(simulated$status > 0))
   expect_false(any(is.na(simulated$infec_time)))
   expect_equal(
@@ -125,27 +132,22 @@ test_that("Simulations behave as expected", {
 
 test_that("Log-likelihood of augmented infection time model is correct", {
   # dummy dataset
-  house <- data.frame(id = sprintf("hh01m%s", seq(1, 7)),
-                      house_id = "hh01",
+  house <- data.frame(house_id = "hh01",
                       status = c(1, 1, 1, 0, 0, 0, 0),
                       infec_time = c(0, 3, 4, NA, NA, NA, NA),
-                      onset_time = c(2, 6, 6, NA, NA, NA, NA))
-  house$incub_period <- house$onset_time - house$infec_time
+                      end_followup = 21)
+  house$id <- sprintf("hh01m%s", seq(1, dim(house)[1]))
 
   # choice for the parameters
   param <- list(alpha = 1e-04, beta = 0.07, gamma = 0.9,
-                size_ref = 4, study_period = 45, shape = 2, scale = 1.1)
-  # choice for the augmented variables
-  augm <- list(infec_time = ~ infec_time@D,
-               incub_period = ~ incub_period@D,
-               onset_time = ~ onset_time@D)
+                size_ref = 4, shape = 2, scale = 1.1)
 
   for (discr in c(FALSE, TRUE)) {
     hhmodel <- new_housepi_model("augmented_infection_time",
                                  discr = discr, quiet = TRUE) |>
       add_data_wide(house) |>
       load_parameter_list(!!!param) |>
-      load_augmented_list(!!!augm) |>
+      load_augmented_list(infec_time = infec_time@D) |>
       add_infec_profile(func = "gamma", discr = discr,
                         shape = shape@P, scale = scale@P)
 
@@ -156,10 +158,11 @@ test_that("Log-likelihood of augmented infection time model is correct", {
 
 test_that("Augmented moves preserve log-likelihood", {
   # dummy dataset
-  house <- data.frame(id = sprintf("hh01m%s", seq(1, 7)),
-                      house_id = "hh01",
+  house <- data.frame(house_id = "hh01",
                       status = c(1, 1, 1, 0, 0, 0, 0),
-                      onset_date = c(2, 6, 6, NA, NA, NA, NA))
+                      onset_date = c(2, 6, 6, NA, NA, NA, NA),
+                      end_followup = 21)
+  house$id <- sprintf("hh01m%s", seq(1, dim(house)[1]))
 
   hhmodel <- new_housepi_model("augmented_infection_time") |>
     add_data_wide(house) |>
@@ -232,7 +235,7 @@ test_that("Augmented moves preserve log-likelihood", {
     add_data_wide(join_augm_data(n_steps)) |>
     load_parameter_list(!!!snapshot$param) |>
     load_augmented_list(
-      infec_time = infec_time@D,
+      infec_time = onset_time@A - incub_period@A,
       onset_time = list(value = onset_time@D, const = TRUE,
                         model = "normal", mean = onset_date@D),
       incub_period = list(value = incub_period@D, const = TRUE,

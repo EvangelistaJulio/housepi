@@ -238,10 +238,10 @@ associated from a list by calling `load_augmented_list()`.
 ```{r}
 hhsimul <- hhsimul |>
   load_augmented_list(
-    # define default infection times of primary cases
+    # define default infection times of introduction cases 
+    # so that they all have symptom onset on day 30
     # secondary infection times are taken care by the simulation
-    infec_time = list(model = "lognormal",
-                      meanlog = 4, sdlog = 0.5, max = 365),
+    infec_time = 30 - incub_period,
     
     # define an incubation period for each individual
     # arguments are linked to parameters
@@ -260,7 +260,11 @@ We can inspect the state of the current loaded model definitions just by printin
 ```{r}
 # print current state of definitions 
 hhsimul
+```
 
+This tells us that in order to proceed we need to provide the missing parameters which can be done appending to the existing ones via
+
+```{r}
 # append missing parameters for incubation period
 hhsimul <- hhsimul |> 
   load_parameter_list(inc_shape = 2, inc_scale = 1,
@@ -287,7 +291,9 @@ obs_process <- function(x) {
 
 # run simulation using as structure an existing data set
 simulated <- hhsimul |>
-  add_data_wide(dplyr::mutate(housepi::survey, status = NA)) |>
+  add_data_wide(dplyr::mutate(housepi::survey, 
+                              status = NA,
+                              end_followup = 45)) |>
   run_simulation(obs_process = obs_process)
 
 head(simulated)
@@ -316,7 +322,7 @@ We can visualize traces vs expected values as follows
 
 ```{r}
 #| message: false
-#| warning: false
+#| warning: false 
 #| fig.alt: >
 #|  Trace plots for alpha, beta, and gamma parameters with three chains.
 #|  Overlaying orange lines indicate the values used for the simulation.

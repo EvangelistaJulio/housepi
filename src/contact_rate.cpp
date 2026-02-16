@@ -76,12 +76,12 @@ void ContactRate::init_contact_rates_(Household &house, size_t k, size_t i)
             "Missing contact rate for members '" +  member_k.id() + 
             "' and '" + member_i.id() + "', from " + house.err_name() + ".");
 
-    // default reference rate
-    if (rate != hsp::rates::REFERENCE) // parameter rate
-    {
-        size_t p = pParameter_->pRegistry->from_string(rate);
-        Attribute attr = pParameter_->at(p);
-        house.contact_rates_[k][i] = attr;
-        house.contact_rates_[i][k] = attr; /// NOTE: assuming symmetric
-    }
+    // skip if default reference rate
+    if (rate == hsp::rates::REFERENCE)
+        return;
+
+    size_t p = pParameter_->pRegistry->from_string(rate);
+    Attribute attr = pParameter_->at(p);
+    house.contact_rates_[k][i] = attr;
+    house.contact_rates_[i][k] = attr; /// NOTE: assuming symmetric
 }

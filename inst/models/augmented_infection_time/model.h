@@ -26,11 +26,19 @@ class Model final : public MCMC
 {
 public:
 	Model();
-	
+
 	/// Initialize infectivity profile.
 	void init_advanced_setup() override final;
 	/// Initialize household introduction case evaluation (fixed for single infector).
 	void init_house_for_evaluation(Household &house) override final;
+
+	void helper_update_pairwise_cache(
+		std::vector<std::vector<double>> &inst_mtx,
+		std::vector<std::vector<double>> &cumul_mtx,
+		const Individual &member_i,
+		const Individual &member_k,
+		double t_infec_i,
+		double t_infec_k);
 
 	/// WARNING: unpredictable behavior if i is not an infector.
 	/// WARNING: these function must not call any mutable parameter.

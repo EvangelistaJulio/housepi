@@ -91,23 +91,22 @@ onset_tommy <- 5
 hhmodel <- new_housepi_model("augmented_infection_time") |>
   add_data_wide(data.frame(id = c("tommy", "gina"),
                            status = c(1, 2),
-                           onset_date = c(onset_tommy, NA),
-                           house_id = "house_1")) |> 
-  load_parameter_list(alpha = 0.001, beta = 0.07, gamma = 0.9,
-                      size_ref = 4, study_period = 10) |> 
+                           onset_time = c(onset_tommy, NA),
+                           house_id = "house_1",
+                           end_followup = onset_tommy + 10)) |> 
+  load_parameter_list(alpha = 0.001, beta = 0.07, gamma = 0.9, size_ref = 4) |> 
 
   # associate augmented definitions
   load_augmented_list(
     # augmented infection time for symptomatic members 
     # here we use a generic definition
-    infec_time = onset_time - incub_period,
-    onset_time = onset_date@D,
+    infec_time = onset_time@D - incub_period,
     incub_period = list(model = "gamma", shape = 2, scale = 1),
 
     # augmented infection time for asymptomatic members
     # here we use a status specific definition, with priority over generic
     infec_time = list(status = 2, model = "uniform", 
-                      min = !!onset_tommy, max = !!onset_tommy + 10)
+                      min = !!onset_tommy, max = end_followup@D)
   )
 ```
 

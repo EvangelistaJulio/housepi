@@ -687,18 +687,20 @@ void Augmented::init_individual_sample(std::vector<std::string> &id_draws)
     std::vector<std::string> existing_ids = {};
     for (const Household &house : *pDataWide_)
         for (const Individual &member : house)
-            if (std::find(id_draws.begin(), id_draws.end(), member.id()) != id_draws.end())
-            {
-                // unique IDs are granted by class DataWide load
-                existing_ids.push_back(member.id());
+        {
+            if (std::find(id_draws.begin(), id_draws.end(), member.id()) == id_draws.end())
+                continue;
 
-                // check status of chosen individual
-                if (member.is_infected_status())
-                    smpl_individuals.emplace_back(&member);
-                else
-                    hsp::msg::warning(
-                        "Ignored draws of non infected " + member.err_name() + ".");
-            }
+            // unique IDs are granted by class DataWide load
+            existing_ids.push_back(member.id());
+
+            // check status of chosen individual
+            if (member.is_infected_status())
+                smpl_individuals.emplace_back(&member);
+            else
+                hsp::msg::warning(
+                    "Ignored draws of non infected " + member.err_name() + ".");
+        }
     smpl_individuals.shrink_to_fit();
 
     // check all user request are satisfied

@@ -9,6 +9,5 @@ list(
                prior = "uniform",
                max = 4,
                proposal = "normal"),
-  size_ref = 4,
-  study_period = 45
+  size_ref = 4
 )

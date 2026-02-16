@@ -7,13 +7,18 @@ where time \eqn{t} can take continuous or discrete values.
 A susceptible member can get infected at time/day \eqn{t_{i}} according to a inhomogeneous Poisson process of rate equal to the force infection.
 \if{html}{\out{<hr>}}
 }
+\section{Data}{
+\itemize{
+\item \code{end_followup} \eqn{t_{\rm end}} : end date of followup study
+}
+\if{html}{\out{<hr>}}
+}
 \section{Parameters}{
 \itemize{
 \item \code{alpha} \eqn{\alpha} : community transmission rate
 \item \code{beta} \eqn{\beta} : person to person transmission rate
 \item \code{gamma} \eqn{\gamma} : parameter to model the dilution of contacts
 \item \code{size_ref} \eqn{n_{\ast}} : the size of the reference household (required constant)
-\item \code{study_period} : number of days of the follow-up period after inclusion (required constant)
 }
 \if{html}{\out{<hr>}}
 }
@@ -31,9 +36,6 @@ A susceptible member can get infected at time/day \eqn{t_{i}} according to a inh
 \item \code{onset_date} : time of symptom onset of infectious member
 \item \code{incub_period} : time between infection and symptom onset
 }
-Future note: by including an external end of the follow-up \eqn{t_{\rm end}}, \code{onset_date} and \code{incub_period} won't be required anymore.
-This change will also drop \code{study_period} \eqn{t_{\rm end} - t_{0}},
-where \eqn{t_{0}} is the earliest infection time in the household.
 \if{html}{\out{<hr>}}
 }
 \section{Likelihood}{
@@ -47,6 +49,7 @@ If \eqn{s_i} is the status of household member \eqn{i}, and
 {\lambda}_{i}(t) = {\mu}^{(\rm com)}_{i} {\alpha} + {\mu}^{(\rm sus)}_{i} {\beta} \left(\frac{n_{\ast}}{n}\right)^{\gamma} \sum_{j\,:\,t_{j}<t_{i}} {\mu}^{(\rm inf)}_{j} f_{j}(t)
 }
 \item \code{infectivity profile} \eqn{f_{i}} : can be specified
+\item \eqn{t_{0}} : introduction time (earliest infection time in the household)
 }
 
 \subsection{Real time}{
