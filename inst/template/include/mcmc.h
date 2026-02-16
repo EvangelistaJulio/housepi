@@ -118,8 +118,10 @@ public:
     std::vector<std::vector<double>> &cache_double_matrix(Household &house, size_t e);
     const std::vector<std::vector<double>> &cache_double_matrix(const Household &house, size_t e) const;
 
-	/// Update cahced augmeted dependecies.
-	virtual void update_cache_dependecies(Household &, Individual &) {}
+	/// Update cached augmeted dependecies for whole household.
+	virtual void update_house_cache_dependecies(Household &) {}
+	/// Update cached augmeted dependecies for single household member.
+	virtual void update_member_cache_dependecies(Household &, Individual &) {}
 	/// Compute the log-likelihood for a single household.
 	virtual double compute_house_obs_log_lik(Household &) = 0;
 

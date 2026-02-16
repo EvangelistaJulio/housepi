@@ -82,10 +82,11 @@ public:
         const std::vector<std::string> &param_keys,
         const std::vector<std::string> &group_rate_keys,
         const std::vector<std::string> &augm_keys,
-        std::function<void()> func_init_inference,
-        std::function<void(Household &)> func_init_house_for_infer,
+        std::function<void()> func_init_eval,
+        std::function<void(Household &)> func_init_house_for_eval,
         std::function<double(Household &)> func_house_log_lik,
-        std::function<void(Household &, Individual &)> func_update_cache,
+        std::function<void(Household &)> func_house_update_cache,
+        std::function<void(Household &, Individual &)> func_member_update_cache,
         std::function<std::string(Household &, const Individual &, const Individual &)> func_init_contact_rates);
     ~MCMCImpl();
 
@@ -185,10 +186,11 @@ private:
     /////////////////////////
 
     /// UPDATE: this is not efficient.
-    std::function<void()> callback_init_inference_;
-    std::function<void(Household &)> callback_init_house_for_inference_;
+    std::function<void()> callback_init_eval_;
+    std::function<void(Household &)> callback_init_house_for_eval_;
     std::function<double(Household &)> callback_house_log_lik_;
-    std::function<void(Household &, Individual &)> callback_update_cache_;
+    std::function<void(Household &)> callback_update_house_cache_;
+    std::function<void(Household &, Individual &)> callback_update_member_cache_;
 
     ///////////////////////////////////
     //////  METROPOLIS-HASTINGS  //////

@@ -47,8 +47,10 @@ MCMC::MCMC(
           { this->init_house_for_evaluation(h); },
           [this](Household &h) -> double
           { return this->compute_house_obs_log_lik(h); },
+          [this](Household &h)
+          { this->update_house_cache_dependecies(h); },
           [this](Household &h, Individual &i)
-          { this->update_cache_dependecies(h, i); },
+          { this->update_member_cache_dependecies(h, i); },
           [this](Household &h, const Individual &k, const Individual &i) -> std::string
           { return this->init_contact_rates(h, k, i); })) {}
 MCMC::~MCMC() = default;

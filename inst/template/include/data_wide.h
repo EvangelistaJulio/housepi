@@ -77,7 +77,7 @@ struct DataWide
     void multiplicity_build(const hsp::str_table &input, bool is_any_augm);
 
     /// Initialize cached structeres according to household size.
-    void init_all_cache();
+    void allocate_all_cache();
 
     /// Deep copy all household cache attributes in the buffer.
     void buffer_all_cache() { buffer_ = cached_; }

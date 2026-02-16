@@ -44,6 +44,34 @@ void Model::init_advanced_setup()
 	init_infec_profile_template({{"func", "gamma_meanvar|mean:var|{2|N}:{1|N}"}});
 }
 
+void Model::init_house_for_evaluation(Household &house)
+{
+	size_t i0 = house.infected_hhindexes().front();
+	size_t n_infec = house.n_infected_status();
+
+	if (n_infec == 0)
+		throw std::logic_error(
+			"No infected member were found in " + house.err_name() +
+			".\nThis model is only compatible with households with at least one infected member.");
+
+	if (n_infec > 1)
+	{
+		double t_intro = house.member(i0).aug(AugmKey::infec_time);
+		for (size_t a = 1; a < house.n_infected_status(); ++a)
+		{
+			const size_t i = house.infected_hhindexes()[a];
+			double t_infec_i = house.member(i).aug(AugmKey::infec_time);
+			if (t_infec_i < t_intro)
+			{
+				t_intro = t_infec_i;
+				i0 = i;
+			}
+		}
+	}
+
+	cache_size(house, HHsizeKey::intro_case) = i0;
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////  Model : compute single house log-likelihood  /////////////////////////////
@@ -55,7 +83,7 @@ double Model::transmission_rate(size_t house_size) const
 	return par(ParamKey::beta) * std::exp(par(ParamKey::gamma) * std::log(par(ParamKey::size_ref) / house_size));
 }
 
-double Model::loglike_susceptible(const Household &house) const
+double Model::log_lik_susceptible(const Household &house) const
 {
 	if (house.n_susceptible_status() == 0)
 		return 0.;
@@ -74,7 +102,7 @@ double Model::loglike_susceptible(const Household &house) const
 		double roi_cumul = 0;
 
 		for (size_t k : house.infected_hhindexes())
-			roi_cumul += cumul_mtx[k][i] * house.member(i).group_rate(GroupRateKey::infectivity);
+			roi_cumul += cumul_mtx[k][i] * house.member(k).group_rate(GroupRateKey::infectivity);
 
 		output -= member_i.group_rate(GroupRateKey::community) * alpha_cumul + member_i.group_rate(GroupRateKey::susceptibility) * beta * roi_cumul;
 	}
@@ -82,7 +110,7 @@ double Model::loglike_susceptible(const Household &house) const
 	return output;
 }
 
-double Model::loglike_infectious(const Household &house) const
+double Model::log_lik_infectious(const Household &house) const
 {
 	if (house.n_infected_status() < 2)
 		return 0.;
@@ -137,7 +165,89 @@ double Model::loglike_infectious(const Household &house) const
 //////////////////////// Model : store dependencies of augmented variables  ///////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Model::update_cache_dependecies(Household &house, Individual &member_i)
+void Model::update_house_cache_dependecies(Household &house)
+{
+	auto &inst_mtx = cache_double_matrix(house, HHdoublemtxKey::inst);
+	auto &cumul_mtx = cache_double_matrix(house, HHdoublemtxKey::cumul);
+
+	size_t n_infec = house.n_infected_status();
+	const auto &infected_hhindexes = house.infected_hhindexes();
+
+	size_t &i0 = cache_size(house, HHsizeKey::intro_case);
+
+	if (n_infec > 1)
+	{
+		double new_t0 = house.member(i0).aug(AugmKey::infec_time);
+
+		for (size_t a = 1; a < n_infec; ++a)
+		{
+			const size_t i = infected_hhindexes[a];
+			const Individual &member_i = house.member(i);
+			const double t_infec_i = member_i.aug(AugmKey::infec_time);
+
+			for (size_t b = 0; b < a; ++b)
+			{
+				const size_t k = infected_hhindexes[b];
+				const Individual &member_k = house.member(k);
+				const double t_infec_k = member_k.aug(AugmKey::infec_time);
+				const double gentime = t_infec_k - t_infec_i;
+
+				// note: setting lut to 0 this is necessary because _houseROI_ is brute
+				inst_mtx[i][k] = 0.0;
+				cumul_mtx[i][k] = 0.0;
+				inst_mtx[k][i] = 0.0;
+				cumul_mtx[k][i] = 0.0;
+
+				if (gentime > 0)
+				{ // `i` : infector, `k` : infectee
+					inst_mtx[i][k] = infec_profile_inst(member_i, gentime);
+#ifdef _HOUSEPI_DISCRETE_TIME
+					cumul_mtx[i][k] = infec_profile_cumul(member_i, gentime - 1);
+#else
+					cumul_mtx[i][k] = infec_profile_cumul(member_i, gentime);
+#endif
+				}
+				else if (gentime < 0)
+				{ // `k` : infector, `i` : infectee
+					inst_mtx[k][i] = infec_profile_inst(member_k, -gentime);
+#ifdef _HOUSEPI_DISCRETE_TIME
+					cumul_mtx[k][i] = infec_profile_cumul(member_k, -gentime - 1);
+#else
+					cumul_mtx[k][i] = infec_profile_cumul(member_k, -gentime);
+#endif
+
+					// update first case
+					if (t_infec_k < new_t0)
+					{
+						new_t0 = t_infec_k;
+						i0 = k;
+					}
+				}
+				// case gentime == 0 is skipped
+			}
+		}
+	}
+
+	///////////////////////////////////
+	//////  Susceptible Members  //////
+	///////////////////////////////////
+
+	// FIXME: t_end can't depend on intro case.
+	const double t_end = par(ParamKey::study_period) + house.member(i0).aug(AugmKey::onset_time);
+	for (size_t i : infected_hhindexes)
+	{
+		const Individual &member_i = house.member(i);
+		const double t_infec_i = member_i.aug(AugmKey::infec_time);
+		const double exposure = t_end - t_infec_i;
+		for (size_t k : house.susceptible_hhindexes())
+		{
+			cumul_mtx[i][k] = infec_profile_cumul(member_i, exposure);
+			cumul_mtx[k][i] = 0.0;
+		}
+	}
+}
+
+void Model::update_member_cache_dependecies(Household &house, Individual &member_i)
 {
 	const size_t i = member_i.hhindex();
 	const double t_infec_i = member_i.aug(AugmKey::infec_time);
@@ -145,62 +255,65 @@ void Model::update_cache_dependecies(Household &house, Individual &member_i)
 	auto &inst_mtx = cache_double_matrix(house, HHdoublemtxKey::inst);
 	auto &cumul_mtx = cache_double_matrix(house, HHdoublemtxKey::cumul);
 
-	double new_t0 = t_infec_i; // init time introduction to current case
-	size_t i0 = i;			   // set index to current member
+	size_t &i0 = cache_size(house, HHsizeKey::intro_case); // set index to current member
 
 	///////////////////////////////////
 	//////// Infectious Members ///////
 	///////////////////////////////////
 
-	// note: setting lut to 0 this is necessary because _houseROI_ is brute
-	for (size_t k : house.infected_hhindexes())
-		if (k != i)
-		{
-			inst_mtx[i][k] = 0.0;
-			cumul_mtx[i][k] = 0.0;
-			inst_mtx[k][i] = 0.0;
-			cumul_mtx[k][i] = 0.0;
+	if (house.n_infected_status() > 1)
+	{
+		double new_t0 = house.member(i0).aug(AugmKey::infec_time);
 
-			const Individual &member_k = house.member(k);
-			const double t_infec_k = member_k.aug(AugmKey::infec_time);
-			const double gentime = t_infec_k - t_infec_i;
+		for (size_t k : house.infected_hhindexes())
+			if (k != i)
+			{
+				const Individual &member_k = house.member(k);
+				const double t_infec_k = member_k.aug(AugmKey::infec_time);
+				const double gentime = t_infec_k - t_infec_i;
 
-			if (gentime > 0)
-			{ // `i` : infector, `k` : infectee
-				inst_mtx[i][k] = infec_profile_inst(member_i, gentime);
+				// note: setting lut to 0 this is necessary because _houseROI_ is brute
+				inst_mtx[i][k] = 0.0;
+				cumul_mtx[i][k] = 0.0;
+				inst_mtx[k][i] = 0.0;
+				cumul_mtx[k][i] = 0.0;
+
+				if (gentime > 0)
+				{ // `i` : infector, `k` : infectee
+					inst_mtx[i][k] = infec_profile_inst(member_i, gentime);
 #ifdef _HOUSEPI_DISCRETE_TIME
-				cumul_mtx[i][k] = infec_profile_cumul(member_i, gentime - 1);
+					cumul_mtx[i][k] = infec_profile_cumul(member_i, gentime - 1);
 #else
-				cumul_mtx[i][k] = infec_profile_cumul(member_i, gentime);
+					cumul_mtx[i][k] = infec_profile_cumul(member_i, gentime);
 #endif
-			}
-			else if (gentime < 0)
-			{ // `k` : infector, `i` : infectee
-				inst_mtx[k][i] = infec_profile_inst(member_k, -gentime);
-#ifdef _HOUSEPI_DISCRETE_TIME
-				cumul_mtx[k][i] = infec_profile_cumul(member_k, -gentime - 1);
-#else
-				cumul_mtx[k][i] = infec_profile_cumul(member_k, -gentime);
-#endif
-
-				// update first case
-				if (t_infec_k < new_t0)
-				{
-					new_t0 = t_infec_k;
-					i0 = k;
 				}
-			}
-			// case gentime == 0 is skipped
-		}
+				else if (gentime < 0)
+				{ // `k` : infector, `i` : infectee
+					inst_mtx[k][i] = infec_profile_inst(member_k, -gentime);
+#ifdef _HOUSEPI_DISCRETE_TIME
+					cumul_mtx[k][i] = infec_profile_cumul(member_k, -gentime - 1);
+#else
+					cumul_mtx[k][i] = infec_profile_cumul(member_k, -gentime);
+#endif
 
-	// store intro case
-	cache_size(house, HHsizeKey::intro_case) = i0;
+					// update first case
+					if (t_infec_k < new_t0)
+					{
+						new_t0 = t_infec_k;
+						i0 = k;
+					}
+				}
+				// case gentime == 0 is skipped
+			}
+	}
 
 	///////////////////////////////////
 	//////  Susceptible Members  //////
 	///////////////////////////////////
 
-	const double exposure = par(ParamKey::study_period) + house.member(i0).aug(AugmKey::onset_time) - t_infec_i;
+	// FIXME: t_end can't depend on intro case.
+	const double t_end = par(ParamKey::study_period) + house.member(i0).aug(AugmKey::onset_time);
+	const double exposure = t_end - t_infec_i;
 	for (size_t k : house.susceptible_hhindexes())
 	{
 		cumul_mtx[i][k] = infec_profile_cumul(member_i, exposure);

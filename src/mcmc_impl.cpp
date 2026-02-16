@@ -46,10 +46,11 @@ MCMCImpl::MCMCImpl(
     const std::vector<std::string> &param_keys,
     const std::vector<std::string> &group_rate_keys,
     const std::vector<std::string> &augm_keys,
-    std::function<void()> func_init_inference,
-    std::function<void(Household &)> func_init_house_for_infer,
-    std::function<double(Household &)> func_household_log_lik,
-    std::function<void(Household &, Individual &)> func_update_cache,
+    std::function<void()> func_init_eval,
+    std::function<void(Household &)> func_init_house_for_eval,
+    std::function<double(Household &)> func_house_log_lik,
+    std::function<void(Household &)> func_house_update_cache,
+    std::function<void(Household &, Individual &)> func_member_update_cache,
     std::function<std::string(Household &, const Individual &, const Individual &)> func_init_contact_rates)
     : atomic_error(),
       // modules
@@ -66,10 +67,11 @@ MCMCImpl::MCMCImpl(
       infec_profile(&param),
       augm(augm_keys, &data_wide, &param, &infec_profile),
       // callbacks
-      callback_init_inference_(std::move(func_init_inference)),
-      callback_init_house_for_inference_(std::move(func_init_house_for_infer)),
-      callback_house_log_lik_(std::move(func_household_log_lik)),
-      callback_update_cache_(std::move(func_update_cache))
+      callback_init_eval_(std::move(func_init_eval)),
+      callback_init_house_for_eval_(std::move(func_init_house_for_eval)),
+      callback_house_log_lik_(std::move(func_house_log_lik)),
+      callback_update_house_cache_(std::move(func_house_update_cache)),
+      callback_update_member_cache_(std::move(func_member_update_cache))
 {
     /// UPDATE: waiting for refactoring of read_attribute
     param.link_to_data_wide(data_wide.pRegistry.get());
@@ -98,15 +100,15 @@ void MCMCImpl::helper_init_simulation()
 
 void MCMCImpl::user_init_for_evaluate()
 {
-    callback_init_inference_();
+    callback_init_eval_();
 
-    data_wide.init_all_cache();
+    data_wide.allocate_all_cache();
 
     // init cache dependencies for all households and individuals
     for (size_t R = 0; R < data_wide.restricted_size(); ++R)
     {
         Household &house = data_wide.restricted(R);
-        callback_init_house_for_inference_(house);
+        callback_init_house_for_eval_(house);
     }
 }
 
@@ -115,10 +117,10 @@ void MCMCImpl::init_evaluate()
     setup.n_chains = 0;                        // use 0 chains as a state variable
     data_wide.assert_non_empty();              // check if data is empty
     data_wide.assert_not_all_missing_status(); // warn if all missing status
-    user_init_for_evaluate();                  // user initialization of model for inference
     augm.init();                               // initialize individual augmented relations
     param.user_reset(setup.prng());            // initialize non constant parameters
     augm.user_reset(setup.prng());             // initialize non constant augmented
+    user_init_for_evaluate();                  // user initialization of model for inference
 }
 
 double MCMCImpl::evaluate_single_house_log_lik(std::string_view house_id)
@@ -186,8 +188,7 @@ double MCMCImpl::atomic_materialize_house_log_lik_(Household &house, bool is_cac
     {
         // buffer all household cache dependencies
         if (is_cache_depen)
-            for (size_t i : house.infected_hhindexes())
-                callback_update_cache_(house, house.member(i));
+            callback_update_house_cache_(house);
 
         // compute and set household observation log-likelihood
         output = callback_house_log_lik_(house);
@@ -277,8 +278,8 @@ void MCMCImpl::run_inference()
     try
     {
         init_monte_carlo();              // initialize mcmc sampling
-        user_init_for_evaluate();        // user initialization model
         augm.init();                     // initialize augmented variables
+        user_init_for_evaluate();        // user initialization model
         setup.prog_declare();            // declare current progress bar
         setup.prog_open_for_inference(); // open progress bar
         run_monte_carlo();               // run Monte Carlo
@@ -443,7 +444,7 @@ double MCMCImpl::metropolis_augm_single_move_(Household &house, Individual &memb
         size_t i = member.hhindex();
         // update dependencies to perform computations
         data_wide.buffer_member_cache(house, i);
-        callback_update_cache_(house, member);
+        callback_update_member_cache_(house, member);
 
         // Metropolis-Hastings
         double delta_ll = augm.materialize_augm_model_logratio(member, a);
@@ -543,8 +544,8 @@ std::vector<std::vector<double>> MCMCImpl::power_posteriors(std::string_view sch
     setup.n_rungs = n_rungs;           // NOTE: set before progress bar
     double buffer_inv_T = setup.inv_T; // buffer user setup
     init_monte_carlo();                // initialize mcmc sampling
-    user_init_for_evaluate();          // user initialization of model for inference
     augm.init();                       // initialize augmented variables
+    user_init_for_evaluate();          // user initialization of model for inference
     setup.prog_declare();              // declare current progress bar
     setup.prog_open_for_power_post();  // print progress bar
 

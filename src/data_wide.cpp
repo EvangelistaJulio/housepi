@@ -299,7 +299,7 @@ void DataWide::multiplicity_build(const hsp::str_table &input, bool is_any_augm)
 //////////////////////////////////  DataWide : cache attributes  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void DataWide::init_all_cache()
+void DataWide::allocate_all_cache()
 {
     cached_.resize(restricted_size());
     buffer_.resize(restricted_size());
