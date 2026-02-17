@@ -247,10 +247,7 @@ hhsimul <- hhsimul |>
     # arguments are linked to parameters
     incub_period = list(model = "gamma",
                         shape = inc_shape@P, scale = inc_scale@P,
-                        max = 14),
-    
-    # define 'onset_time' as the sum of incubation period and infection time
-    onset_time = infec_time + incub_period
+                        max = 14)
   )
 ```
 
@@ -285,8 +282,9 @@ We then propose a simple observation process, where we assume onsets after 6 PM 
 ```{r}
 # define an observation process after the outbreak simulation
 obs_process <- function(x) {
-  x$onset_date <- ifelse(x$status > 0, floor(x$onset_time + 0.25), NA)
-  x[!names(x) %in% c("incub_period", "onset_time", "infec_time")]
+  onset_date = floor(x$infec_time + x$incub_period + 0.25)
+  x$onset_date <- ifelse(x$status > 0, onset_date, NA)
+  x[!names(x) %in% c("incub_period", "infec_time")]
 }
 
 # run simulation using as structure an existing data set

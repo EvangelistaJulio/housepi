@@ -29,17 +29,17 @@ transmission_rate <- function(house, param) {
 loglike_susceptible <- function(house, param, discr) {
   member_0 <- find_introduction(house)
   t_intro <- member_0$infec_time
-  # FIXME: assuming internally all end_followup are the same,
-  #        but this is not requested to the user!
-  alpha_cumul <- param$alpha * (member_0$end_followup - t_intro)
+  alpha <- param$alpha
   beta <- transmission_rate(house, param)
 
   output <- 0
   for (k in which(house$status == 0)) {
+    t_end_k <- house[k, "end_followup"]
     roi_cumul <- 0
+    alpha_cumul <- alpha * (t_end_k - t_intro)
     for (i in which(house$status == 1)) {
       t_infec_i <- house[i, "infec_time"]
-      exposure <- house[k, "end_followup"] - t_infec_i
+      exposure <- t_end_k - t_infec_i
       roi_cumul <- roi_cumul + infec_profile_cumul(exposure, param, discr)
     }
     output <- output - alpha_cumul - beta * roi_cumul

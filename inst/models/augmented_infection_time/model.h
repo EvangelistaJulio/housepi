@@ -35,10 +35,8 @@ public:
 	void helper_update_pairwise_cache(
 		std::vector<std::vector<double>> &inst_mtx,
 		std::vector<std::vector<double>> &cumul_mtx,
-		const Individual &member_i,
-		const Individual &member_k,
-		double t_infec_i,
-		double t_infec_k);
+		const Individual &member_i, const Individual &member_k,
+		double t_infec_i, double t_infec_k);
 
 	/// WARNING: unpredictable behavior if i is not an infector.
 	/// WARNING: these function must not call any mutable parameter.
@@ -48,21 +46,16 @@ public:
 	void update_member_cache_dependecies(Household &house, Individual &member_i) override final;
 
 	/// Compute the log-likelihood within household.
-	double compute_house_obs_log_lik(Household &house) override final
-	{
-		return log_lik_susceptible(house) + log_lik_infectious(house);
-	}
+	double compute_house_obs_log_lik(Household &house) override final;
 	/// Transmission rate.
 	double transmission_rate(size_t house_size) const;
-	/// Susceptible members contribution to log-likelihood.
-	double log_lik_susceptible(const Household &house) const;
-	/// Infectious members contribution to log-likelihood.
-	double log_lik_infectious(const Household &house) const;
 
 	/// Poisson point process to simulate outbreak in a single household.
 	void simulate_single_house(Household &house) override final;
 	/// Instantaneous risk of Infection for individual i. Used in simulation.
-	double roi_inst_simulation(Household &house, Individual &member_i, double t_infec_i) const;
+	double roi_inst_simulation(
+		const Household &house, const Individual &member_i,
+		double t_infec_i, double alpha, double beta) const;
 };
 
 #endif // HOUSEPI__MODEL__H
