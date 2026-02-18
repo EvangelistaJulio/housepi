@@ -324,6 +324,9 @@ void Model::simulate_single_house(Household &house)
 	house.set_infected_status(member_0);
 	init_missing_augm(member_0);
 
+	if (house.size() < 2)
+		return;
+
 	// set all to susceptible except from introduction
 	for (Individual &member : house)
 		if (member != member_0)
@@ -366,10 +369,9 @@ double Model::roi_inst_simulation(const Household &house, const Individual &memb
 	{
 		const Individual &member_k = house.member(k);
 		const double gentime = t_infec_i - member_k.aug(AugmKey::infec_time);
-		const double mu_k = member_k.group_rate(GroupRateKey::infectivity);
-		roi += infec_profile_inst(member_k, gentime) * mu_k;
+		roi += member_k.group_rate(GroupRateKey::infectivity) * infec_profile_inst(member_k, gentime);
 	}
-	roi *= member_i.group_rate(GroupRateKey::susceptibility) * beta;
+	roi *= beta * member_i.group_rate(GroupRateKey::susceptibility);
 
 	return alpha + roi;
 }

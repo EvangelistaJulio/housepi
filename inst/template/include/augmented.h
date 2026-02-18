@@ -129,11 +129,13 @@ private:
     {
         StatusBlock_(int status_) { status = status_; }
 
-        int status;                                  /// associated status
-        std::vector<size_t> order = {};              /// definition order
-        std::vector<size_t> models = {};             /// just augmented with models
-        std::vector<size_t> sample = {};             /// just augmented to sample
-        std::vector<std::vector<size_t>> depen = {}; /// all respective dependecies
+        int status; /// associated status
+
+        std::vector<size_t> order = {}; /// definition order as in the deftable
+
+        std::vector<size_t> models = {};             /// keys for models
+        std::vector<size_t> sample = {};             /// keys for sample
+        std::vector<std::vector<size_t>> depen = {}; /// keys for respective dependecies
     };
     std::vector<StatusBlock_> status_blocks_;
 
@@ -153,15 +155,15 @@ private:
     /// At the same time assert that definition are complet and acyclic.
     void set_definition_dependency_order_for_(int status);
     /// Extract status-specific definitions row indexes.
-    std::vector<size_t> get_unsorted_definition_rows_(int status, bool is_pre_process) const;
+    std::vector<size_t> get_unsorted_definition_rows_(int status) const;
     /// Set sample map and relative usage list.
     void set_sample_list_for_(int status, size_t k);
 
     /// Deal with the definition of augmented variable with a model.
-    /// NOTE: no need to initialize to generic since only used for posterior sampling.
-    void helper_build_model_list_();
+    /// NOTE: process models only for posterior sampling, not simulations.
+    void helper_init_model_list_();
     /// Return dictionary of ordered models.
-    hsp::str_table get_ordered_models_(int status) const;
+    hsp::str_table get_ordered_models_(const StatusBlock_ &block) const;
 
     /// Get the definition order for current member according to its status.
     /// NOTE: if status hasn't been observed in data, build on demand.

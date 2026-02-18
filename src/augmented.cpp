@@ -73,7 +73,7 @@ namespace
     {
         if (!tree.count(entry))
             throw std::invalid_argument(
-                "Could not find a definition for augmented '" + entry + "'.");
+                "Could not find a definition for augmented '" + entry + "'");
 
         if (std::find(recursion_stack.begin(), recursion_stack.end(), entry) != recursion_stack.end())
             throw std::invalid_argument(
@@ -286,7 +286,7 @@ void Augmented::set_definition_dependency_order_for_(int status)
 
     hsp::str_table tree;           // populate augmented dependency tree
     hsp::dict<size_t> name_to_row; // ... and reverse dictionary name-to-row-index
-    for (size_t k : get_unsorted_definition_rows_(status, true))
+    for (size_t k : get_unsorted_definition_rows_(status))
     {
         std::vector<std::string> xdepen = {};
         for (const auto c : columns)
@@ -321,7 +321,7 @@ void Augmented::set_definition_dependency_order_for_(int status)
     }
 }
 
-std::vector<size_t> Augmented::get_unsorted_definition_rows_(int status, bool is_pre_process) const
+std::vector<size_t> Augmented::get_unsorted_definition_rows_(int status) const
 {
     // load the list of status-specific definition rows
     std::vector<size_t> allrows = map_status_to_def_row_.at(status);
@@ -333,8 +333,7 @@ std::vector<size_t> Augmented::get_unsorted_definition_rows_(int status, bool is
 
     // add generic definitions to current list (if not generic already)
     // skip generic if a status-specific already exist
-    if (is_pre_process &&
-        hsp::status::is_infected(status) &&
+    if (hsp::status::is_infected(status) &&
         map_status_to_def_row_.count(hsp::status::MISSING))
         for (size_t k : map_status_to_def_row_.at(hsp::status::MISSING))
             if (std::find(name_to_status.begin(), name_to_status.end(), deftable_.find("name")->second[k]) == name_to_status.end())
@@ -373,14 +372,13 @@ void Augmented::set_sample_list_for_(int status, size_t k)
     else if (hsp::na::is(deftable_["value"][k]) && hsp::na::is(deftable_["model"][k]))
     {
         throw std::invalid_argument(
-            "Impossible to initialize augmented '" + augmstr +
-            "' for status " + std::to_string(status) + " without a value or model.");
+            "Impossible to initialize augmented '" + augmstr + "'  without a value or model");
     }
     else if (hsp::na::is(deftable_["proposal"][k]))
     {
         throw std::runtime_error(
             "No proposal was provided for non-constant definition of augmented '" +
-            augmstr + "' for status " + std::to_string(status) + ".");
+            augmstr + "'");
     }
     else
     {
@@ -392,6 +390,7 @@ void Augmented::set_sample_list_for_(int status, size_t k)
     {
         if (std::find(list_export.begin(), list_export.end(), a) == list_export.end())
             list_export.emplace_back(a);
+
         if (is_to_draw)
             if (std::find(list_draws.begin(), list_draws.end(), a) == list_draws.end())
                 list_draws.emplace_back(a);
@@ -399,28 +398,45 @@ void Augmented::set_sample_list_for_(int status, size_t k)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  Augmented : build augmented models  ////////////////////////////
+/////////////////////////////////  Augmented : initialize augmented  //////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Augmented::helper_build_model_list_()
+void Augmented::init()
+{
+    if (pRegistry->size() == 0)
+        return;
+
+    helper_init_model_list_();
+
+    for (Household &house : *pDataWide_)
+        for (size_t i : house.infected_hhindexes())
+            init_missing(house.member(i), true);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////  Augmented : init augmented models  /////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Augmented::helper_init_model_list_()
 {
     for (StatusBlock_ &block : status_blocks_)
     {
         block.depen.resize(pRegistry->size());
 
         // associate blocks for ordered model lists
-        const hsp::str_table &ordered_models = get_ordered_models_(block.status);
+        const hsp::str_table &ordered_models = get_ordered_models_(block);
         if (!ordered_models.empty())
         {
             is_any_model_ = true;
             block.models = pRegistry->from_string(hsp::read::extract_keys(ordered_models));
+
             for (const auto &[augmstr, others] : ordered_models)
                 block.depen[pRegistry->from_string(augmstr)] = pRegistry->from_string(others);
         }
     }
 }
 
-hsp::str_table Augmented::get_ordered_models_(int status) const
+hsp::str_table Augmented::get_ordered_models_(const StatusBlock_ &block) const
 {
     // columns presenting definitions possibly containing sources
     const auto columns = {"value", "model", "func", "min", "max"};
@@ -428,7 +444,7 @@ hsp::str_table Augmented::get_ordered_models_(int status) const
     hsp::str_table tree;                    // populate augmented dependency tree
     hsp::str_table ordered_models;          // store hierarchical order of models
     std::vector<std::string> without_model; // list of augmented without models
-    for (size_t k : get_unsorted_definition_rows_(status, false))
+    for (size_t k : block.order) 
     {
         const std::string &aumgstr = deftable_.at("name")[k];
         std::vector<std::string> xdepen = {};
@@ -453,21 +469,8 @@ hsp::str_table Augmented::get_ordered_models_(int status) const
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  Augmented : initialize augmented  //////////////////////////////
+/////////////////////////////////  Augmented : init missing attribute  ////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-void Augmented::init()
-{
-    if (pRegistry->size() == 0)
-        return;
-
-    // NOTE: no need to process models for simulations
-    helper_build_model_list_();
-
-    for (Household &house : *pDataWide_)
-        for (size_t i : house.infected_hhindexes())
-            init_missing(house.member(i), true);
-}
 
 void Augmented::init_missing(Individual &member, bool force)
 {
@@ -736,6 +739,12 @@ void Augmented::store_draws(unsigned long smpl_count)
 
         size_t c = 0;
         for (size_t a : list_draws)
-            member_matrix[c++][smpl_count] = member_ptr->augm_vec_[a].value();
+        {
+            // FIXME: avoid storing empty values in the first place
+            // need for a list_draws per status block
+            const Variable &xaugm = member_ptr->augm_vec_[a];
+            if (!xaugm.is_empty())
+                member_matrix[c++][smpl_count] = xaugm.value();
+        }
     }
 }
