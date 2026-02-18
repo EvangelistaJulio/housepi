@@ -38,7 +38,6 @@ struct Augmented
     /// UPATE: once read_attribute goes back to MCMCImpl, this can become private
     std::unique_ptr<hsp::key::Registry> pRegistry; /// pointer to registry
 
-    std::vector<size_t> list_draws = {};
     std::vector<size_t> list_export = {};
 
     // optional augmented posterior sample
@@ -88,7 +87,8 @@ struct Augmented
     //////  GETTER  //////
     //////////////////////
 
-    const std::vector<size_t> &list_sample(size_t s) { return status_blocks_[s].sample; }
+    const std::vector<size_t> &list_sample(const AugmContainer &member) const;
+    const std::vector<size_t> &list_draws(const AugmContainer &member) const;
 
     /// Compute and store log-likelihood associated to augmented variable models.
     /// NOTE: to be called only if any model is defined.
@@ -135,6 +135,7 @@ private:
 
         std::vector<size_t> models = {};             /// keys for models
         std::vector<size_t> sample = {};             /// keys for sample
+        std::vector<size_t> draws = {};              /// keys for draws
         std::vector<std::vector<size_t>> depen = {}; /// keys for respective dependecies
     };
     std::vector<StatusBlock_> status_blocks_;

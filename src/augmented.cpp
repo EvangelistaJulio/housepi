@@ -154,7 +154,6 @@ void Augmented::build(const hsp::str_table &input)
     map_status_to_block_.clear();
     status_blocks_.clear();
     list_export.clear();
-    list_draws.clear();
 
     // skip if no augmented definitions
     if (input.empty() && !pInfecProfile_->is_augmented())
@@ -392,8 +391,7 @@ void Augmented::set_sample_list_for_(int status, size_t k)
             list_export.emplace_back(a);
 
         if (is_to_draw)
-            if (std::find(list_draws.begin(), list_draws.end(), a) == list_draws.end())
-                list_draws.emplace_back(a);
+            status_blocks_[map_status_to_block_.at(status)].draws.emplace_back(a);
     }
 }
 
@@ -444,7 +442,7 @@ hsp::str_table Augmented::get_ordered_models_(const StatusBlock_ &block) const
     hsp::str_table tree;                    // populate augmented dependency tree
     hsp::str_table ordered_models;          // store hierarchical order of models
     std::vector<std::string> without_model; // list of augmented without models
-    for (size_t k : block.order) 
+    for (size_t k : block.order)
     {
         const std::string &aumgstr = deftable_.at("name")[k];
         std::vector<std::string> xdepen = {};
@@ -638,6 +636,15 @@ void Augmented::user_reset(hsp::rnd_gen &prng)
 ///////////////////////////////////  Augmented : log-likelihood  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+const std::vector<size_t> &Augmented::list_sample(const AugmContainer &member) const
+{
+    return status_blocks_[member.augm_idx_].sample;
+}
+const std::vector<size_t> &Augmented::list_draws(const AugmContainer &member) const
+{
+    return status_blocks_[member.augm_idx_].draws;
+}
+
 double Augmented::materialize_augm_model_log_lik(AugmContainer &member)
 {
     const StatusBlock_ &block = status_blocks_[member.augm_idx_];
@@ -715,12 +722,12 @@ void Augmented::init_draws(unsigned long sample_size)
     if (!is_any_draw())
         return;
 
-    size_t n = list_draws.size();
     smpl_values.clear();
     smpl_values.resize(smpl_individuals.size());
     for (size_t i = 0; i < smpl_individuals.size(); ++i)
     {
         auto &member_matrix = smpl_values[i];
+        size_t n = list_draws(*smpl_individuals[i]).size();
         member_matrix.reserve(n);
         for (size_t j = 0; j < n; ++j)
             member_matrix.emplace_back(sample_size, hsp::na::DOUBLE);
@@ -734,17 +741,14 @@ void Augmented::store_draws(unsigned long smpl_count)
 
     for (size_t i = 0; i < smpl_individuals.size(); ++i)
     {
-        const AugmContainer *member_ptr = smpl_individuals[i];
+        const AugmContainer &member_ptr = *smpl_individuals[i];
         auto &member_matrix = smpl_values[i];
 
         size_t c = 0;
-        for (size_t a : list_draws)
+        for (size_t a : list_draws(member_ptr))
         {
-            // FIXME: avoid storing empty values in the first place
-            // need for a list_draws per status block
-            const Variable &xaugm = member_ptr->augm_vec_[a];
-            if (!xaugm.is_empty())
-                member_matrix[c++][smpl_count] = xaugm.value();
+            const Variable &xaugm = member_ptr.augm_vec_[a];
+            member_matrix[c++][smpl_count] = xaugm.value();
         }
     }
 }

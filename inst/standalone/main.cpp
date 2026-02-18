@@ -149,9 +149,9 @@ void MCMC::print_infer_state(const std::string &output_filename) const
 
     // header augmented variable of id trace
     if (augm.is_any_draw())
-        for (size_t k = 0; k < augm.smpl_individuals.size(); ++k)
-            for (const size_t a : augm.list_draws)
-                ofs << hsp::read::DELIMITER << augm.smpl_individuals[k]->id()
+        for (const AugmContainer *member_ptr : augm.smpl_individuals)
+            for (const size_t a : augm.list_draws(*member_ptr))
+                ofs << hsp::read::DELIMITER << member_ptr->id()
                     << "_" << augm.pRegistry->as_string(a);
 
     // header chain
@@ -179,7 +179,7 @@ void MCMC::print_infer_state(const std::string &output_filename) const
             // print augmented variable of id trace
             if (!augm.smpl_values.empty())
                 for (size_t j = 0; j < augm.smpl_individuals.size(); ++j)
-                    for (size_t u = 0; u < augm.list_draws.size(); ++u)
+                    for (size_t u = 0; u < augm.list_draws(*augm.smpl_individuals[j]).size(); ++u)
                         ofs << hsp::read::DELIMITER << std::setprecision(5)
                             << std::fixed << augm.smpl_values[j][u][i];
 

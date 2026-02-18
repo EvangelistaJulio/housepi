@@ -420,7 +420,7 @@ double MCMCImpl::atomic_move_augm_single_house_(size_t H)
         for (size_t i : house.infected_hhindexes())
         {
             Individual &member_i = house.member(i);
-            for (size_t a : augm.list_sample(member_i.augm_idx_))
+            for (size_t a : augm.list_sample(member_i))
                 delta_ll += metropolis_augm_single_move_(house, member_i, a);
         }
     }

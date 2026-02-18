@@ -587,20 +587,23 @@ Rcpp::NumericMatrix MCMC::flush_augm_draws()
 
     try
     {
-        size_t n_cols = augm.smpl_individuals.size() * augm.list_draws.size();
+        size_t n_cols = 0;
+        for (const AugmContainer *member : augm.smpl_individuals)
+            n_cols += augm.list_draws(*member).size();
+
         CharacterVector headers(n_cols);
         NumericMatrix output(pImpl_->tot_log_lik.count(), n_cols);
 
         size_t col = 0;
         for (size_t i = 0; i < augm.smpl_values.size(); ++i)
         {
-            const AugmContainer *member_ptr = augm.smpl_individuals[i];
+            const AugmContainer &member = *augm.smpl_individuals[i];
             auto &member_matrix = augm.smpl_values[i];
 
             size_t j = 0;
-            for (size_t a : augm.list_draws)
+            for (size_t a : augm.list_draws(member))
             {
-                headers[col] = member_ptr->id() + "_" + augm.pRegistry->as_string(a);
+                headers[col] = member.id() + "_" + augm.pRegistry->as_string(a);
                 helper_vector_flush(output(_, col++), member_matrix[j++]);
             }
         }
