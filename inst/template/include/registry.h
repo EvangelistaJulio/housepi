@@ -37,8 +37,8 @@ public:
     template <typename T>
     void register_member()
     {
-        factory_map_[std::string(T().name())] = []()
-        { return std::make_unique<T>(); };
+        factory_map_.emplace(std::string(T().name()), []()
+                             { return std::make_unique<T>(); });
     }
 
 protected:
