@@ -461,15 +461,10 @@ void Variable::user_reset(hsp::rnd_gen &prng)
 
 void Variable::optimize()
 {
-    if (is_constant())
-        init_numeric(value());
-    else if (is_user_const_)
-        throw std::invalid_argument(
-            "Impossible to set " + err_name() + " as constant. Check its dependencies.");
+    Attribute::optimize();
 
-    // reduce function indirection
-    if (is_pointer() && pointer()->is_function())
-        init_function(pointer()->function()->clone());
+    if (pDistr_)
+        pDistr_->optimize();
 }
 
 double Variable::operator()(double x) const

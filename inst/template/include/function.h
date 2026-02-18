@@ -65,6 +65,8 @@ public:
     void init_product(const std::vector<const Attribute *> &other_ptrs);
     /// Transfer from other Attribute.
     void transfer(const Attribute &other);
+    /// Optimizing pruning indirections and setting constants to numeric.
+    virtual void optimize();
 
     /// Set attribute value.
     void set(double x)
@@ -246,9 +248,6 @@ public:
     //////  SETTER  //////
     //////////////////////
 
-    /// Initialize function attribute by assigning from another one.
-    void init_attr(std::string_view key, const Attribute &attr);
-
     /// Virtual function to initialize discretization.
     virtual void init_discretization() { throw std::invalid_argument(
         "Called undefined method discretization of " + err_name() + "."); }
@@ -275,6 +274,12 @@ public:
     /// Set upper value.
     /// UPDATE: just required by AdaptableProposal.
     void set_upper(double x) { upper_.set(x); }
+
+    /// Initialize function attribute by assigning from another one.
+    void init_attr(std::string_view key, const Attribute &attr);
+    
+    /// Optimizing pruning indirections and setting constants to numeric.
+    void optimize();
 
     //////////////////////
     //////  GETTER  //////

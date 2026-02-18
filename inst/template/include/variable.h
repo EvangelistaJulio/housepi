@@ -88,8 +88,8 @@ public:
 
     /// Restore user defined variable initialization.
     void user_reset(hsp::rnd_gen &prng);
-    /// Eventually prune indirections if to constants.
-    void optimize();
+    /// Optimizing pruning indirections and setting constants to numeric.
+    void optimize() override final;
     /// Initialize pointer to proposer.
     /// NOTE: it must be assigned after model initialization.
     void init_proposal(const std::string &proposal, double proposal_scale);
