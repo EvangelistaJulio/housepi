@@ -426,16 +426,16 @@ int main(int argc, char *argv[])
     //////  INITIALIZATION  //////
     //////////////////////////////
 
-    auto user_model = std::make_unique<Model>();        // 0) create the user model object
-    user_model->read_data_wide(data_wide_file);         // 1) Load Data Wide
-    user_model->read_data_long(data_long_file);         // ... and Data Long
-    user_model->read_setup(setup_file);                 // 2) Load Setup
-    user_model->read_param(param_file);                 // 3) Load Parameters
-    user_model->read_infec_profile(infec_profile_file); // 4) Load Infectivity Profile
-    user_model->read_group_rate(group_rates_file);      // 5) Load Group Rates
-    user_model->build_contact_rates();                  // ... and Contact Rates (temporary)
-    user_model->read_augm(augm_file);                   // 6) Load Augmented Variables
-    user_model->read_multiplicity(multiplicity_file);   // 7) Load Multiplicities
+    Model user_model;                                  // 0) create the user model object
+    user_model.read_data_wide(data_wide_file);         // 1) Load Data Wide
+    user_model.read_data_long(data_long_file);         // ... and Data Long
+    user_model.read_setup(setup_file);                 // 2) Load Setup
+    user_model.read_param(param_file);                 // 3) Load Parameters
+    user_model.read_infec_profile(infec_profile_file); // 4) Load Infectivity Profile
+    user_model.read_group_rate(group_rates_file);      // 5) Load Group Rates
+    user_model.build_contact_rates();                  // ... and Contact Rates (temporary)
+    user_model.read_augm(augm_file);                   // 6) Load Augmented Variables
+    user_model.read_multiplicity(multiplicity_file);   // 7) Load Multiplicities
 
     //////////////////////////////
     ////////  EXECUTION  /////////
@@ -443,24 +443,24 @@ int main(int argc, char *argv[])
 
     if (is_loglikelihood) // evaluate loglikelihood
     {
-        std::cout << user_model->evaluate_log_lik() << std::endl;
+        std::cout << user_model.evaluate_log_lik() << std::endl;
     }
     else if (is_infer) // perform inference
     {
         if (hsp::na::is(output_file))
             hsp::msg::error("Missing output file for inference.");
-        user_model->run_inference();
-        user_model->print_infer_state(output_file);
+        user_model.run_inference();
+        user_model.print_infer_state(output_file);
     }
     else if (is_simulate) // simulation an outbreak
     {
         if (hsp::na::is(output_file))
             hsp::msg::error("Missing output file for simulation.");
-        user_model->print_simulated_data_wide(output_file);
+        user_model.print_simulated_data_wide(output_file);
     }
     else if (is_logevidence) // estimate log_evidence
     {
-        std::cout << user_model->log_evidence("adaptive", num_rungs) << std::endl;
+        std::cout << user_model.log_evidence("adaptive", num_rungs) << std::endl;
     }
 
     return EXIT_SUCCESS;
