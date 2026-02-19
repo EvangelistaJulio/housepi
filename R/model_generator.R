@@ -166,8 +166,7 @@ HousepiGenerator <- R6::R6Class(
       for (f in private$.last_user_flags) {
         if (generator_assert_allows_flag(source_dir, f)) keep <- c(keep, f)
         else if (f == "_HOUSEPI_DISCRETE_TIME") warning_h(
-          sprintf("No visible discrete time option for model '%s'.",
-                  private$.name)
+          sprintf("No visible discrete time option for model '%s'.", self$name)
         )
         else warning_h(
           sprintf("Ignoring unused flag '%s' not found in model source.", f),
@@ -287,7 +286,8 @@ HousepiGenerator <- R6::R6Class(
     .new_custom_model = function(as_template, force) {
       # force re-compilation or check for changes
       private$.need_compile <- TRUE
-      if (file.exists(private$.dll) && !force &&
+      if (!force &&
+            file.exists(private$.dll) &&
             !untracked_changes(private$.source_dir, private$.dll) &&
             private$.wheter_same_flags_as_dll()) {
         private$.need_compile <- FALSE
@@ -492,8 +492,8 @@ HousepiGenerator <- R6::R6Class(
     #' @field name `character(1)`. Model name.
     #' Assign a new `character(1)` to change model name.
     name = function(value) {
-      if (missing(value)) return(private$.name)
-      private$.name <- as.character(value)
+      if (missing(value)) return(spaced_template_choice(private$.name))
+      private$.name <- basename(as.character(value))
     },
 
     #' @field setup `list`. Last setup used by the build process.
@@ -520,11 +520,11 @@ HousepiGenerator <- R6::R6Class(
       withr::local_preserve_seed()
       # assign name to the model
       choice <- generator_init_helper_choice(choice)
-      private$.name <- basename(choice)
+      self$name <- choice
 
       # assign quiet field
       private$.quiet <- isTRUE(quiet)
-      # load user options # FIXME they can change if need recompile
+      # load user options
       user_options <- generator_process_user_options(...)
       # store raw flags for later checks
       private$.last_user_flags <- user_options$user_flags

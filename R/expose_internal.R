@@ -13,11 +13,29 @@ get_template_from_dll <- function(dll) {
   else tools::file_path_sans_ext(basename(dll))
 }
 
-# Get Rcpp module from dll
-get_rcpp_module_from_dll <- function(dll) {
-  dyn.load(dll)
-  Rcpp::Module("housepi_rcpp_core", PACKAGE = get_template_from_dll(dll))
+# Check if the same DLL is already loaded.
+is_dll_loaded <- function(dll) {
+  any(vapply(getLoadedDLLs(), function(x) x[["path"]] == dll, FALSE))
 }
+
+# Get Rcpp module associated to dll.
+get_rcpp_module_from_dll <- local({
+  # static private cache
+  module_cache <- list()
+
+  function(dll) {
+    # load DLL if not already loaded
+    if (!is_dll_loaded(dll)) dyn.load(dll)
+
+    # build and store module if not cached yet
+    if (!dll %in% names(module_cache)) {
+      module_cache[[dll]] <<-
+        Rcpp::Module("housepi_rcpp_core",
+                     PACKAGE = get_template_from_dll(dll))
+    }
+    module_cache[[dll]]
+  }
+})
 
 # Get Rcpp module from model
 get_rcpp_module_from_model <- function(hhmodel) {

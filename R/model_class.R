@@ -513,8 +513,7 @@ HousepiModel <- R6::R6Class(
     #' @description
     #' Override the default printing behavior.
     print = function() {
-      sms <- c(i = sprintf("Household model {.pkg %s}%s.",
-                           spaced_template_choice(self$name),
+      sms <- c(i = sprintf("Household model {.pkg %s}%s.", self$name,
                            ifelse(private$.is_template(), " (template)", "")))
       # UPDATE: to be rationalize in the future if more options are included
       if ("_HOUSEPI_DISCRETE_TIME" %in% private$.last_user_flags) sms <- c(
