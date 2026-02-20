@@ -7,18 +7,18 @@ test_that("Compilation flags are ok", {
 test_that("Model generator inconsistent calls", {
   # blank household model object
   hhgen <- housepi:::HousepiGenerator$new("blank")
-  
+
   # helper suggests correect template name
   expect_error(housepi:::HousepiGenerator$new("augment example"),
                regexp = "augmented example")
-  
+
   # model name imposed redundancy
   hhgen1 <- housepi:::HousepiGenerator$new("augmented example")
   hhgen2 <- housepi:::HousepiGenerator$new("augmented_example")
   hhgen3 <- housepi:::HousepiGenerator$new("augmented-example")
-  expect_equal(
-    unique(c(hhgen1$name, hhgen2$name, hhgen3$name)), "augmented example")
-  
+  expect_equal(unique(c(hhgen1$name, hhgen2$name, hhgen3$name)),
+               "augmented example")
+
   # inference without definitions
   expect_error(hhgen$run_inference())
 })

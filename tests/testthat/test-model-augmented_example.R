@@ -91,12 +91,10 @@ test_that("Missing function arguments raise errors", {
 
   # check that log(NaN) causes error
   hhmodel$load_augmented_list(proba = log(test@D))
-  #expect_error(hhmodel$run_inference(), regexp = "Nothing to sample")
   expect_error(hhmodel$evaluate_log_lik(), regexp = "Impossible to associate")
-  
+
   # check that log(0) causes error
   hhmodel$load_augmented_list(noise = 0., proba = log(noise))
-  #expect_error(hhmodel$run_inference(), regexp = "Nothing to sample")
   expect_error(hhmodel$evaluate_log_lik(), regexp = "Impossible to associate")
 })
 
@@ -210,21 +208,21 @@ test_that("Augmented model log-likelihoods are correctly computed", {
                       x = c(1.1, 2.2, 3.3, NA, NA, NA, NA))
   shape <- 2
   scale <- 1.1
-  id_draws <- house[house$status > 0,]$id
+  id_draws <- house[house$status > 0, ]$id
   results <- new_housepi_model("augmented_example") |>
     add_data_wide(house) |>
-    load_augmented_list(proba = list(model = "gamma", x = x@D, 
+    load_augmented_list(proba = list(model = "gamma", x = x@D,
                                      shape = !!shape, scale = !!scale)) |>
     run_inference(steps = 5, thin = 1, adapt = 0, chain = 1,
                   progress = FALSE, id_draws = id_draws)
-  
+
   # coherency between pointwise and total log-likelihood
   expect_equal(get_total_log_lik_draws(results)$log_lik,
                get_log_lik_draws(results)$hh01)
-                   
+
   # coherency between augmented draws and log-likelihood
   df <- as.data.frame(get_augm_draws(results))
   df <- as.matrix(df[, !startsWith(names(df), "."), drop = FALSE])
-  expect_equal(get_log_lik_draws(results)$hh01, 
+  expect_equal(get_log_lik_draws(results)$hh01,
                rowSums(log(df * dgamma(df, shape = shape, scale = scale))))
 })

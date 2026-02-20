@@ -9,7 +9,6 @@
 #include <string>
 #include <vector>
 
-#include "tools/flags.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
 
@@ -19,6 +18,8 @@
 #include "function.h"
 
 #include <Rcpp.h>
+
+std::string housepi_compile_flags();
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -214,6 +215,12 @@ namespace
     };
 }
 
+//' @name housepi_compile_flags
+//' @title Get Housepi Compilation Flags
+//' @description Return the compilation flags used when building the housepi library.
+//' @return `character(1)` A string containing the compiled flags.
+//' @keywords internal
+
 //' @name HousepiRcppFunction
 //' @title Rcpp Function from Housepi
 //' @description Call housepi registered function.
@@ -312,9 +319,7 @@ namespace
 
 RCPP_MODULE(housepi_rcpp_core)
 {
-    Rcpp::class_<HousepiRcppCompiledFlags>("HousepiRcppCompiledFlags")
-        .constructor<>()
-        .method("get_flags", &HousepiRcppCompiledFlags::get_flags);
+    Rcpp::function("housepi_compile_flags", &housepi_compile_flags);
 
     Rcpp::class_<HousepiRcppBase>("HousepiRcppBase")
         .method("args", &HousepiRcppBase::args);

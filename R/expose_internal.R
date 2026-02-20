@@ -26,7 +26,7 @@ get_rcpp_module_from_dll <- local({
   function(dll) {
     # load DLL if not already loaded
     if (!is_dll_loaded(dll)) dyn.load(dll)
-
+    
     # build and store module if not cached yet
     if (!dll %in% names(module_cache)) {
       module_cache[[dll]] <<-

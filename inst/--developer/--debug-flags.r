@@ -1,21 +1,26 @@
-library(housepi)
+devtools::load_all()
 
-official <- "/Users/fcamagli/Documents/SANDBOX/housepi/inst/models/augmented_infection_time/housepiaugmentedinfectiontime.so"
+# check module cache is empty
+env <- environment(get_rcpp_module_from_dll)
+names(env$module_cache)
 
-choice <- "augmented_infection_time"
+# load base DLL
+base_dll <- "/Users/fcamagli/Documents/SANDBOX/housepi/inst/models/augmented_infection_time/housepiaugmentedinfectiontime.so"
+m <- get_rcpp_module_from_dll(base_dll)
 
-for (discr in c(FALSE, TRUE, FALSE, TRUE)) {
-  print(paste0("MODEL DISCR=", discr))
-  hhgen <- housepi:::HousepiGenerator$new(
-    choice, discr = discr, quiet = TRUE)
-  private <- hhmodel$.__enclos_env__$private
-  print(private$.dll)
-  print(private$.last_user_flags)
-  
-  m <- housepi:::get_rcpp_module_from_dll(official)
-  y <- m$HousepiRcppCompiledFlags$new()
-  print(paste0("SO=", y$get_flags()))
-  print("")
-}
+# check available modules
+env <- environment(get_rcpp_module_from_dll)
+names(env$module_cache)
 
+# return base Model
+env$module_cache[[base_dll]]$HousepiRcppModel$new()
 
+# compile with DISCRETE flags and return store Model internally
+hhgen <- HousepiGenerator$new("augmented_infection_time", discr = TRUE, quiet = TRUE)
+
+# check available modules
+env <- environment(get_rcpp_module_from_dll)
+names(env$module_cache)
+
+# return base Model again
+env$module_cache[[base_dll]]$HousepiRcppModel$new()

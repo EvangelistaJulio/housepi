@@ -59,17 +59,17 @@ test_that("Log-likelihood traces and pointwise traces are coherent", {
 
 test_that("Single infected member log-likelihood is correct", {
   # fixed group rates
-  com_class_B <- 1.41
-  sus_class_B <- 1.03
-  inf_class_B <- 1.3
+  com_class_b <- 1.41
+  sus_class_b <- 1.03
+  inf_class_b <- 1.3
   # members sorted infected, susceptible
   # 'A' is the reference class
   house <- data.frame(id = sprintf("hh_01_%s", seq(1, 2)),
                       house_id = "hh_01",
                       status = c(1, 0),
                       class = c("A", "B"),
-                      community = c(1, com_class_B),
-                      susceptibility = c(1, sus_class_B),
+                      community = c(1, com_class_b),
+                      susceptibility = c(1, sus_class_b),
                       infectivity = c(1, 1.3))
 
   # fill house escape rate matrices
@@ -88,9 +88,9 @@ test_that("Single infected member log-likelihood is correct", {
                                susceptibility = "class",
                                infectivity = "class")
   hhmodel$parameters <- list(alpha = par$alpha, beta = par$beta,
-                             com_class_B = com_class_B,
-                             sus_class_B = sus_class_B,
-                             inf_class_B = inf_class_B)
+                             com_class_b = com_class_b,
+                             sus_class_b = sus_class_b,
+                             inf_class_b = inf_class_b)
   expect_equal(log_lik, hhmodel$evaluate_log_lik())
 })
 
@@ -116,12 +116,12 @@ test_that("Chain binomial models are coherent", {
 # UPDATE: TO BE CHECKED...
 # test_that("Three infected members likelihood is correct", {
 #   # fixed group rates
-#   com_class_B <- 1.41
-#   sus_class_B <- 1.03
-#   inf_class_B <- 1.3
-#   com_class_C <- 0.73
-#   sus_class_C <- 0.89
-#   inf_class_C <- 1.51
+#   com_class_b <- 1.41
+#   sus_class_b <- 1.03
+#   inf_class_b <- 1.3
+#   com_class_c <- 0.73
+#   sus_class_c <- 0.89
+#   inf_class_c <- 1.51
 #   # members sorted infected, susceptible
 #   # 'A' is the reference class
 #   house <- data.frame(
@@ -129,16 +129,16 @@ test_that("Chain binomial models are coherent", {
 #     house_id = "hh_01",
 #     status = c(1, 1, 1, 0),
 #     class = c("A", "B", "C", "C"),
-#     community = c(1, com_class_B, com_class_C, com_class_C),
-#     susceptibility = c(1, sus_class_B, sus_class_C, sus_class_C),
-#     infectivity = c(1, inf_class_B, inf_class_C, inf_class_C)
+#     community = c(1, com_class_b, com_class_c, com_class_c),
+#     susceptibility = c(1, sus_class_b, sus_class_c, sus_class_c),
+#     infectivity = c(1, inf_class_b, inf_class_c, inf_class_c)
 #   )
-# 
+#
 #   # fill house escape rate matrices
 #   par <- list(alpha = 0.15, beta = 0.22)
 #   commu_esc_rate <- par$alpha * house$community
 #   p2p_esc_rate <- par$beta * house$infectivity %o% house$susceptibility
-# 
+#
 #   # ... escape probabilities of infected
 #   commu_esc_proba <- exp(-commu_esc_rate[1:3])
 #   p2p_esc_proba <- exp(-p2p_esc_rate[1:3,1:3])
@@ -146,39 +146,39 @@ test_that("Chain binomial models are coherent", {
 #   # ... infection probabilities
 #   commu_inf_proba <- 1 - commu_esc_proba
 #   p2p_inf_proba <- 1 - p2p_esc_proba
-# 
+#
 #   # susceptible member
 #   log_lik <- - (commu_esc_rate[4] +
 #     p2p_esc_rate[1, 4] + p2p_esc_rate[2, 4] + p2p_esc_rate[3, 4])
-# 
+#
 #   # order 0: 0->1, 0->2, 0->3
 #   lik_0 <- prod(commu_inf_proba)
-# 
+#
 #   # order 1: 0->1, 0->2, (1->3 + 2->3)
 #   lik_1 <- function(a, b, c) {
 #     commu_inf_proba[a] * commu_inf_proba[b] * commu_esc_proba[c] *
 #     (p2p_inf_proba[a, c] * p2p_esc_proba[b, c] +
 #        p2p_inf_proba[b, c] * p2p_esc_proba[a, c])
 #   }
-# 
+#
 #   # order 2: 0->1, 1->2, 1->3
 #   lik_2 <- function(a, b, c) {
 #     commu_inf_proba[a] * commu_esc_proba[b] * commu_esc_proba[c] *
 #     p2p_inf_proba[a, b] * p2p_inf_proba[c, b]
 #   }
-# 
+#
 #   # order 3: 0->1, ((1->2, 2->3) + (1->3, 3->2))
 #   lik_3 <- function(a, b, c) {
 #     commu_inf_proba[a] * commu_esc_proba[b] * commu_esc_proba[c] *
 #     (p2p_inf_proba[a, b] * p2p_esc_proba[a, c] * p2p_inf_proba[b, c] +
 #        p2p_inf_proba[a, c] * p2p_esc_proba[a, b] * p2p_inf_proba[c, b])
 #   }
-# 
+#
 #   log_lik <- log_lik +
 #     log(lik_0 + lik_1(1, 2, 3) + lik_1(2, 3, 1) + lik_1(3, 1, 2) +
 #           lik_2(1, 2, 3) + lik_2(2, 3, 1) + lik_2(3, 1, 2) +
 #           lik_3(1, 2, 3) + lik_3(2, 3, 1) + lik_3(3, 1, 2))
-# 
+#
 #   # define housepi model
 #   hhmodel <- new_housepi_model("chain_binomial_heterogeneous")
 #   hhmodel$data_wide <- house
@@ -186,11 +186,11 @@ test_that("Chain binomial models are coherent", {
 #                                susceptibility = list("class", reference = "A"),
 #                                infectivity = list("class", reference = "A"))
 #   hhmodel$parameters <- list(alpha = par$alpha, beta = par$beta,
-#                              com_class_B = com_class_B,
-#                              sus_class_B = sus_class_B,
-#                              inf_class_B = inf_class_B,
-#                              com_class_C = com_class_C,
-#                              sus_class_C = sus_class_C,
-#                              inf_class_C = inf_class_C)
+#                              com_class_b = com_class_b,
+#                              sus_class_b = sus_class_b,
+#                              inf_class_b = inf_class_b,
+#                              com_class_c = com_class_c,
+#                              sus_class_c = sus_class_c,
+#                              inf_class_c = inf_class_c)
 #   expect_equal(log_lik, hhmodel$evaluate_log_lik())
 # })

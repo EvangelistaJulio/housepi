@@ -102,10 +102,10 @@ test_that("Parameter options work correctly", {
 
 test_that("Load list works as expected", {
   grp <- housepi:::HousepiGroupRate$new()
-  aux_load(grp, 
+  aux_load(grp,
            contact = list(by = c("age_group", "sex"), prefix = "ct",
                           prior = "uniform", min = 0, max = 10),
-           susceptibility = list(by = c("age_group", "sex"), 
+           susceptibility = list(by = c("age_group", "sex"),
                                  prior = "lognormal", sdlog = 3))
   expect_silent(grp$implement(dummy_df, dummy_factor_info))
   grp$parameters

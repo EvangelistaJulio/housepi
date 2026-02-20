@@ -57,12 +57,11 @@ void InfecProfile::init_template(hsp::str_table input)
         input["discr"] = std::vector<std::string>(n_rows, "false");
         if (is_discrete_requested_)
             input["discr"] = std::vector<std::string>(n_rows, "true");
+
         else if (input.count("discr"))
-        {
             for (size_t r = 0; r < n_rows; ++r)
                 if (!hsp::na::is(input.at("discr")[r]))
                     input["discr"][r] = input.at("discr")[r];
-        }
 
         build(input); // run build as if external input
 

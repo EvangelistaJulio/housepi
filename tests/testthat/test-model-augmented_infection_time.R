@@ -93,7 +93,7 @@ augm_infec_obs_log_lik <- function(house, param, discr = FALSE) {
 
 test_that("Simulations behave as expected", {
   hhsimul <- new_housepi_model("augmented_infection_time")
-  hhsimul$data_wide <- dplyr::mutate(housepi::survey, 
+  hhsimul$data_wide <- dplyr::mutate(housepi::survey,
                                      status = NA,
                                      end_followup = 45)
   hhsimul$load_parameter_list(alpha = 0,
@@ -104,8 +104,8 @@ test_that("Simulations behave as expected", {
     incub_period = list(model = "gamma", shape = 2, scale = 1),
     infec_time = -incub_period
   )
-  
-  obs_process = function(df) {
+
+  obs_process <- function(df) {
     dplyr::mutate(df, onset_time = infec_time + incub_period)
   }
 
@@ -170,14 +170,13 @@ test_that("Augmented moves preserve log-likelihood", {
     load_parameter_list(shape = 2, scale = 1.1, append = TRUE) |>
     load_augmented_list(
       infec_time = onset_time@A - incub_period@A,
-      onset_time = list(value = onset_date@D, 
-                        model = "normal", mean = onset_date@D),
+      onset_time = list(model = "normal", mean = onset_date@D),
       incub_period = list(model = "weibull", shape = 2, scale = 1)
     ) |>
     add_infec_profile(func = "gamma", shape = shape@P, scale = scale@P)
 
   n_steps <- 5
-  id_draws <- house[house$status > 0,]$id
+  id_draws <- house[house$status > 0, ]$id
   results <- hhmodel |>
     run_inference(steps = n_steps, thin = 1, adapt = 0, chain = 1,
                   progress = FALSE, id_draws = id_draws)
@@ -208,7 +207,7 @@ test_that("Augmented moves preserve log-likelihood", {
       tidyr::pivot_wider(names_from = augm, values_from = value) |>
       as.data.frame()
   }
-  
+
   join_augm_data <- function(i) {
     dplyr::left_join(house, get_augm_state(augm_draws, i), by = "id")
   }
@@ -217,19 +216,19 @@ test_that("Augmented moves preserve log-likelihood", {
   get_log_lik_i <- function(i) {
     df <- join_augm_data(i)
     out <- augm_infec_obs_log_lik(df, c(param_draws[i, ], consts))
-    df <- df[df$status > 0,]
-    out + 
+    df <- df[df$status > 0, ]
+    out +
       sum(dnorm(df$onset_time - df$onset_date, log = TRUE)) +
       sum(dweibull(df$incub_period, shape = 2, scale = 1, log = TRUE))
   }
-  
+
   # check that snapshot is last state
   snapshot <- hhmodel$export_house_snapshot("hh01")
-  expect_identical(unlist(c(param_draws[n_steps, ], consts)), 
+  expect_identical(unlist(c(param_draws[n_steps, ], consts)),
                    snapshot$param)
-  expect_identical(get_augm_state(augm_draws, n_steps), 
-                   snapshot$augm[house$status > 0,])
-  
+  expect_identical(get_augm_state(augm_draws, n_steps),
+                   snapshot$augm[house$status > 0, ])
+
   # check if log-likelihood is coherent
   hhmodel |>
     add_data_wide(join_augm_data(n_steps)) |>
@@ -241,7 +240,7 @@ test_that("Augmented moves preserve log-likelihood", {
       incub_period = list(value = incub_period@D, const = TRUE,
                           model = "weibull", shape = 2, scale = 1)
     ) |>
-    evaluate_log_lik() |> 
+    evaluate_log_lik() |>
     expect_equal(tot_log_lik[n_steps])
 
   # check that total log-likelihood is well computed

@@ -189,8 +189,8 @@ HousepiGenerator <- R6::R6Class(
         flags_dll <- c()
       } else {
         m <- get_rcpp_module_from_dll(private$.dll)
-        y <- m$HousepiRcppCompiledFlags$new()
-        flags_dll <- strsplit(y$get_flags(), ":")[[1]]
+        y <- m$housepi_compile_flags()
+        flags_dll <- strsplit(y, ":")[[1]]
       }
       setequal(private$.last_user_flags, flags_dll)
     },

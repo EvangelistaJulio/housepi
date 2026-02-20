@@ -151,7 +151,7 @@ double Model::compute_house_obs_log_lik(Household &house)
 //////////////////////// Model : store dependencies of augmented variables  ///////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-inline void Model::helper_update_pairwise_cache(
+void Model::helper_update_pairwise_cache(
 	std::vector<std::vector<double>> &inst_mtx,
 	std::vector<std::vector<double>> &cumul_mtx,
 	const Individual &member_i, const Individual &member_k,

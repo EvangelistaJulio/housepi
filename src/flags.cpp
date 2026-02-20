@@ -5,16 +5,14 @@
  * See the LICENSE file for details.
  */
 
-#include "string"
+#include <string>
 
-#include "tools/flags.h"
-
-/// Compile-time list of standard housepi flags.
-HousepiRcppCompiledFlags::HousepiRcppCompiledFlags()
+std::string housepi_compile_flags()
 {
-    flags_ = 
+    return
 #ifdef _HOUSEPI_DISCRETE_TIME
-        "_HOUSEPI_DISCRETE_TIME:"
+        "_HOUSEPI_DISCRETE_TIME:";
+#else
+        "";
 #endif
-    "";
 }
