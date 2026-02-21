@@ -29,8 +29,6 @@
 #include "infec_profile.h"
 #include "augmented.h"
 
-#include "model.h" // header to the user defined model provided by the Make command
-
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  Stdout Message Function  ////////////////////////////////////
@@ -327,7 +325,7 @@ double MCMC::log_evidence(std::string_view scheme, unsigned long n_rungs)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Main function for the standalone version of 'housepi'.
-int main(int argc, char *argv[])
+int standalone(MCMC &user_model,int argc, char *argv[])
 {
     using hsp::str::tolow;
     using hsp::str::toup;
@@ -426,7 +424,6 @@ int main(int argc, char *argv[])
     //////  INITIALIZATION  //////
     //////////////////////////////
 
-    Model user_model;                                  // 0) create the user model object
     user_model.read_data_wide(data_wide_file);         // 1) Load Data Wide
     user_model.read_data_long(data_long_file);         // ... and Data Long
     user_model.read_setup(setup_file);                 // 2) Load Setup

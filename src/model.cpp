@@ -11,7 +11,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "housepi_model_setup.h"
+#include "housepi.h"
 #include "tools/messages.h"
 #include "mcmc.h"
 
@@ -49,5 +49,5 @@ public:
 			init_missing_augm(house.member(i));
 	}
 };
-HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE()
 HOUSEPI_CLOSE_NAMED_MODULE_NAMESPACE()
+HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE()

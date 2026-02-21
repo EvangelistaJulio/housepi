@@ -11,7 +11,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "housepi_model_setup.h"
+#include "housepi.h"
 #include "mcmc.h"
 
 HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE()
@@ -402,5 +402,5 @@ double Model::roi_inst_simulation(const Household &house, const Individual &memb
 	return alpha + roi;
 }
 
-HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE()
 HOUSEPI_CLOSE_NAMED_MODULE_NAMESPACE()
+HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE()

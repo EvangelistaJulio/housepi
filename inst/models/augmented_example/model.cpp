@@ -11,7 +11,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "housepi_model_setup.h"
+#include "housepi.h"
 #include "mcmc.h"
 
 HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE()
@@ -47,5 +47,5 @@ public:
 	}
 };
 
-HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE()
 HOUSEPI_CLOSE_NAMED_MODULE_NAMESPACE()
+HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE()

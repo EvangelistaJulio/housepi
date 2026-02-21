@@ -18,6 +18,9 @@
 
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
+#else
+class MCMC;
+int standalone(MCMC &model, int argc, char *argv[]);
 #endif
 
 #ifndef HOUSEPI_MODULE_NAME
@@ -70,6 +73,7 @@
 #define HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE_IMPL_(module_name)                      \
     RCPP_MODULE(module_name)                                                           \
     {                                                                                  \
+        using namespace module_name;                                                   \
         Rcpp::function("housepi_compile_flags", &housepi_compile_flags);               \
                                                                                        \
         Rcpp::class_<ExposeBase>("ExposeBase")                                         \
@@ -130,6 +134,12 @@
     }
 #define HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE() \
     HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE_IMPL_(HOUSEPI_MODULE_NAME)
-#else 
-#define HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE()
+#else
+#define HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE()   \
+    int main(int argc, char *argv[])               \
+    {                                              \
+        using namespace HOUSEPI_MODULE_NAME;       \
+        Model user_model;                          \
+        return standalone(user_model, argc, argv); \
+    }
 #endif

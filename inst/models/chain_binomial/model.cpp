@@ -11,7 +11,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "housepi_model_setup.h"
+#include "housepi.h"
 #include "binomial.h"
 #include "mcmc.h"
 
@@ -155,5 +155,5 @@ void Model::simulate_single_house(Household &house)
 	}
 }
 
-HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE()
 HOUSEPI_CLOSE_NAMED_MODULE_NAMESPACE()
+HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE()

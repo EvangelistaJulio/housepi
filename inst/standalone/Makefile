@@ -11,7 +11,7 @@ STD_IN := -A augm.csv -D data_wide.csv -L data_long.csv -G group_rates.csv -I in
 
 # Lost of source files with exclusions
 EXCL_FILES := $(SRC)/model.cpp
-SOURCES := main.cpp $(MODEL)/model.cpp $(filter-out $(EXCL_FILES), $(wildcard $(SRC)/*.cpp))
+SOURCES := standalone.cpp $(MODEL)/model.cpp $(filter-out $(EXCL_FILES), $(wildcard $(SRC)/*.cpp))
 
 # Object files to build (automatic)
 OBJECTS := $(SOURCES:.cpp=.o)
@@ -77,8 +77,8 @@ $(EXECUTABLE): $(OBJECTS)
 $(MODEL)/model.o: $(MODEL)/model.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# For the main object
-main.o: main.cpp
+# For the standalone object
+standalone.o: standalone.cpp
 	$(CXX) $(CXXFLAGS) -I$(MODEL) -c $< -o $@
 
 # For all other objects
@@ -87,7 +87,7 @@ main.o: main.cpp
 
 # To clean objects
 clean:
-	$(RM) main.o {$(MODEL),$(SRC),../models/*}/*.{o,exe,so,tmp}
+	$(RM) {$(MODEL),$(SRC),../models/*}/*.{o,exe,so,tmp}
 	$(RM) -r ../template/src/
 
 # Run make in debugging mode
