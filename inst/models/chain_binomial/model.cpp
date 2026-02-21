@@ -13,8 +13,9 @@
 
 #include "housepi_model_setup.h"
 #include "binomial.h"
-#include "model.h"
+#include "mcmc.h"
 
+HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE(HOUSEPI_MODULE_NAME)
 HOUSEPI_DECLARE_EMPTY_KEYS(AugmKey)
 HOUSEPI_DECLARE_EMPTY_KEYS(DataKey)
 HOUSEPI_DECLARE_EMPTY_KEYS(LongKey)
@@ -24,23 +25,31 @@ HOUSEPI_DECLARE_EMPTY_KEYS(HHsizevecKey)
 HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublevecKey)
 HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublemtxKey)
 HOUSEPI_DECLARE_REGISTER_KEYS(ParamKey, alpha, beta)
-HOUSEPI_DEFINE_MODEL_CONSTRUCTOR()
-HOUSEPI_DECLARE_RCPP_MODULE(HOUSEPI_MODULE_NAME)
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////  Model : initialization  //////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-void Model::init_model_for_evaluation()
+class Model final : public MCMC
 {
-	// missing status are not modeled
-	assert_no_missing_status();
+public:
+	HOUSEPI_MODEL_CONSTRUCTOR()
 
-	// initialize look-up-table to largest possible value
-	bax::init_generations_lookuptable(get_max_hh_cases());
-}
+	/// Initialize the LookUp Tables to largest possible values.
+	/// NOTE: missing status are not modeled
+	void init_model_for_evaluation() override final
+	{
+		assert_no_missing_status();
+		bax::init_generations_lookuptable(get_max_hh_cases());
+	}
+
+	/// Risk of infection from the community.
+	double community_risk() const { return par(ParamKey::alpha); }
+	/// Risk of infection from another household member.
+	double person_to_person_risk() const { return par(ParamKey::beta); }
+
+	/// Compute the log-likelihood within household.
+	double compute_house_obs_log_lik(Household &house) override final;
+
+	/// Simulate the infection within a household.
+	void simulate_single_house(Household &house) override final;
+};
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -48,61 +57,55 @@ void Model::init_model_for_evaluation()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-double Model::community_risk() const { return par(ParamKey::alpha); }
-
-double Model::person_to_person_risk() const { return par(ParamKey::beta); }
-
 double Model::compute_house_obs_log_lik(Household &house)
 {
-	double log_likelihood = 0.;
-
-	double log_commu_esc_proba = -community_risk();
-	double log_commu_infec_proba = log(1. - exp(log_commu_esc_proba));
-	double log_p2p_esc_proba = -person_to_person_risk();
-
 	auto n_positive = house.n_infected_status();
+	double log_commu_esc_proba = -community_risk();
+
+	if (n_positive == 0)
+		return house.size() * log_commu_esc_proba;
+
+	double log_commu_infec_proba = std::log1p(-std::exp(log_commu_esc_proba));
+	double log_p2p_esc_proba = -person_to_person_risk();
 
 	///////////////////////////////////////////
 	/////////  Sero-Negatives Members  ////////
 	///////////////////////////////////////////
 
-	log_likelihood += (house.size() - n_positive) * (log_commu_esc_proba + n_positive * log_p2p_esc_proba);
+	double log_likelihood = (house.size() - n_positive) * (log_commu_esc_proba + n_positive * log_p2p_esc_proba);
 
 	///////////////////////////////////////////
 	/////////  Sero-Positives Members  ////////
 	///////////////////////////////////////////
 
-	if (n_positive > 0)
+	// sum over all possible generations
+	double sero_positive_term = 0., tmp = 0.;
+	for (unsigned long c = 0; c < bax::get_num_generations(n_positive); ++c)
 	{
-		// sum over all possible generations
-		double sero_positive_term = 0., tmp = 0.;
-		for (unsigned long c = 0; c < bax::get_num_generations(n_positive); ++c)
+		// reference to the LUT
+		const auto &gen_counts = bax::get_generation_vector(n_positive, c);
+
+		// generation (0) : infected by community
+		tmp = gen_counts[0] * log_commu_infec_proba;
+		// generation (0) : escaped by community
+		tmp += (n_positive - gen_counts[0]) * log_commu_esc_proba;
+
+		// generation (i) : within house, i > 0
+		for (size_t i = 1; i < gen_counts.size(); ++i)
 		{
-			// reference to the LUT
-			const auto &gen_counts = bax::get_generation_vector(n_positive, c);
+			// generation (i) : infected by previous generation i - 1
+			tmp += gen_counts[i] * std::log1p(-std::exp(gen_counts[i - 1] * log_p2p_esc_proba));
 
-			// generation (0) : infected by community
-			tmp = gen_counts[0] * log_commu_infec_proba;
-			// generation (0) : escaped by community
-			tmp += (n_positive - gen_counts[0]) * log_commu_esc_proba;
-
-			// generation (i) : within house, i > 0
-			for (size_t i = 1; i < gen_counts.size(); ++i)
-			{
-				// generation (i) : infected by previous generation i - 1
-				tmp += gen_counts[i] * std::log(1. - std::exp(gen_counts[i - 1] * log_p2p_esc_proba));
-
-				// generation (i) : escaped from other generations g, i. e. 0 <= g < i - 1
-				for (size_t j = 0; j < i - 1; ++j)
-					tmp += gen_counts[i] * gen_counts[j] * log_p2p_esc_proba;
-			}
-
-			// times n. of equivalent configurations returning the same kind of generation
-			sero_positive_term += bax::get_generation_multipl(n_positive, c) * std::exp(tmp);
+			// generation (i) : escaped from other generations g, i. e. 0 <= g < i - 1
+			for (size_t j = 0; j < i - 1; ++j)
+				tmp += gen_counts[i] * gen_counts[j] * log_p2p_esc_proba;
 		}
 
-		log_likelihood += std::log(sero_positive_term);
+		// times n. of equivalent configurations returning the same kind of generation
+		sero_positive_term += bax::get_generation_multipl(n_positive, c) * std::exp(tmp);
 	}
+
+	log_likelihood += std::log(sero_positive_term);
 
 	return log_likelihood;
 }
@@ -115,7 +118,7 @@ double Model::compute_house_obs_log_lik(Household &house)
 
 void Model::simulate_single_house(Household &house)
 {
-	double commu_esc_proba = exp(-community_risk());
+	double commu_esc_proba = std::exp(-community_risk());
 	double log_p2p_esc_proba = -person_to_person_risk();
 
 	//////////////////////////////////////////////////////////////////
@@ -137,17 +140,19 @@ void Model::simulate_single_house(Household &house)
 
 	std::vector<size_t> sus_hhindexes;
 	sus_hhindexes.reserve(house.n_susceptible_status());
-	while ((house.n_infected_status() > 0) && (n_new_gen > 0))
+	while (house.n_infected_status() > 0 && n_new_gen > 0)
 	{
 		n_old_gen = n_new_gen;
 		n_new_gen = 0;
 
 		sus_hhindexes = house.susceptible_hhindexes();
 		for (size_t i : sus_hhindexes)
-			if (uniform() >= exp(n_old_gen * log_p2p_esc_proba))
+			if (exponential() < -n_old_gen * log_p2p_esc_proba)
 			{
 				house.set_infected_status(house.member(i));
 				++n_new_gen;
 			}
 	}
 }
+
+HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE(HOUSEPI_MODULE_NAME)

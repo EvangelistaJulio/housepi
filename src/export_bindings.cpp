@@ -76,8 +76,8 @@ MCMC::MCMC(
           { return this->init_contact_rates(h, k, i); })) {}
 MCMC::~MCMC() = default;
 
-double MCMC::uniform() { return pImpl_->uniform(); }
-double MCMC::exponential() { return pImpl_->exponential(); }
+double MCMC::uniform() const { return pImpl_->uniform(); }
+double MCMC::exponential() const { return pImpl_->exponential(); }
 double MCMC::par(size_t p) const { return pImpl_->par(p); }
 
 size_t MCMC::get_max_hh_cases() const noexcept { return pImpl_->get_max_hh_cases(); }

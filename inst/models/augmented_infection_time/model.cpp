@@ -12,8 +12,9 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "housepi_model_setup.h"
-#include "model.h"
+#include "mcmc.h"
 
+HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE(HOUSEPI_MODULE_NAME)
 HOUSEPI_DECLARE_REGISTER_KEYS(AugmKey, infec_time)
 HOUSEPI_DECLARE_REGISTER_KEYS(DataKey, end_followup)
 HOUSEPI_DECLARE_EMPTY_KEYS(LongKey)
@@ -23,66 +24,90 @@ HOUSEPI_DECLARE_EMPTY_KEYS(HHsizevecKey)
 HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublevecKey)
 HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublemtxKey, inst, cumul)
 HOUSEPI_DECLARE_REGISTER_KEYS(ParamKey, alpha, beta, gamma, size_ref)
-HOUSEPI_DEFINE_MODEL_CONSTRUCTOR()
-HOUSEPI_DECLARE_RCPP_MODULE(HOUSEPI_MODULE_NAME)
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////  Model : initialization  //////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-void Model::init_advanced_setup()
+class Model final : public MCMC
 {
-#ifdef _HOUSEPI_DISCRETE_TIME
-	request_discrete_augm(AugmKey::infec_time);
-	request_discrete_infec_profile();
-#endif
-	request_discrete_param(ParamKey::size_ref);
+public:
+	HOUSEPI_MODEL_CONSTRUCTOR()
 
-	// template infectivity profile (otherwise user defined)
-	// UPDATE: this should become more user friendly
-	init_infec_profile_template({{"func", "gamma_meanvar|mean:var|{2|N}:{1|N}"}});
-}
-
-void Model::init_house_for_evaluation(Household &house)
-{
-	size_t i0 = house.infected_hhindexes().front();
-	size_t n_infec = house.n_infected_status();
-
-	if (n_infec == 0)
-		throw std::logic_error(
-			"No infected member were found in " + house.err_name() +
-			".\nThis model is only compatible with households with at least one infected member.");
-
-	if (n_infec > 1)
+	/// Initialize infectivity profile.
+	void init_advanced_setup() override final
 	{
-		double t_intro = house.member(i0).aug(AugmKey::infec_time);
-		for (size_t a = 1; a < house.n_infected_status(); ++a)
-		{
-			const size_t i = house.infected_hhindexes()[a];
-			double t_infec_i = house.member(i).aug(AugmKey::infec_time);
-			if (t_infec_i < t_intro)
-			{
-				t_intro = t_infec_i;
-				i0 = i;
-			}
-		}
+#ifdef _HOUSEPI_DISCRETE_TIME
+		request_discrete_augm(AugmKey::infec_time);
+		request_discrete_infec_profile();
+#endif
+		request_discrete_param(ParamKey::size_ref);
+
+		// template infectivity profile (otherwise user defined)
+		// UPDATE: this should become more user friendly
+		init_infec_profile_template({{"func", "gamma_meanvar|mean:var|{2|N}:{1|N}"}});
 	}
 
-	cache_size(house, HHsizeKey::intro_case) = i0;
-}
+	/// Initialize household introduction case evaluation (fixed for single infector).
+	void init_house_for_evaluation(Household &house) override final
+	{
+		size_t i0 = house.infected_hhindexes().front();
+		size_t n_infec = house.n_infected_status();
+
+		if (n_infec == 0)
+			throw std::logic_error(
+				"No infected member were found in " + house.err_name() +
+				".\nThis model is only compatible with households with at least one infected member.");
+
+		if (n_infec > 1)
+		{
+			double t_intro = house.member(i0).aug(AugmKey::infec_time);
+			for (size_t a = 1; a < house.n_infected_status(); ++a)
+			{
+				const size_t i = house.infected_hhindexes()[a];
+				double t_infec_i = house.member(i).aug(AugmKey::infec_time);
+				if (t_infec_i < t_intro)
+				{
+					t_intro = t_infec_i;
+					i0 = i;
+				}
+			}
+		}
+
+		cache_size(house, HHsizeKey::intro_case) = i0;
+	}
+
+	void helper_update_pairwise_cache(
+		std::vector<std::vector<double>> &inst_mtx,
+		std::vector<std::vector<double>> &cumul_mtx,
+		const Individual &member_i, const Individual &member_k,
+		double t_infec_i, double t_infec_k);
+
+	/// WARNING: unpredictable behavior if i is not an infector.
+	/// WARNING: these function must not call any mutable parameter.
+	/// Store cumulative and instantaneous infectivity profiles for household.
+	void update_house_cache_dependecies(Household &house) override final;
+	/// Store cumulative and instantaneous infectivity profiles according to an infector.
+	void update_member_cache_dependecies(Household &house, Individual &member_i) override final;
+
+	/// Transmission rate.
+	double transmission_rate(size_t house_size) const
+	{
+		return par(ParamKey::beta) * std::exp(par(ParamKey::gamma) * std::log(par(ParamKey::size_ref) / house_size));
+	}
+
+	/// Compute the log-likelihood within household.
+	double compute_house_obs_log_lik(Household &house) override final;
+	
+	/// Poisson point process to simulate outbreak in a single household.
+	void simulate_single_house(Household &house) override final;
+	/// Instantaneous risk of Infection for individual i. Used in simulation.
+	double roi_inst_simulation(
+		const Household &house, const Individual &member_i,
+		double t_infec_i, double alpha, double beta) const;
+};
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////  Model : compute single house log-likelihood  /////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-double Model::transmission_rate(size_t house_size) const
-{
-	return par(ParamKey::beta) * std::exp(par(ParamKey::gamma) * std::log(par(ParamKey::size_ref) / house_size));
-}
 
 double Model::compute_house_obs_log_lik(Household &house)
 {
@@ -376,3 +401,5 @@ double Model::roi_inst_simulation(const Household &house, const Individual &memb
 
 	return alpha + roi;
 }
+
+HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE(HOUSEPI_MODULE_NAME)

@@ -377,7 +377,7 @@ void Setup::set_prng_seed()
 }
 
 /// Return pseudo random number generator.
-hsp::rnd_gen &Setup::prng()
+hsp::rnd_gen &Setup::prng() const
 {
 #ifdef _OPENMP
     return prng_parallel_[omp_get_thread_num()];

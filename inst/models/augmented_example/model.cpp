@@ -12,8 +12,9 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "housepi_model_setup.h"
-#include "model.h"
+#include "mcmc.h"
 
+HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE(HOUSEPI_MODULE_NAME)
 HOUSEPI_DECLARE_REGISTER_KEYS(AugmKey, proba)
 HOUSEPI_DECLARE_EMPTY_KEYS(DataKey)
 HOUSEPI_DECLARE_EMPTY_KEYS(LongKey)
@@ -23,23 +24,27 @@ HOUSEPI_DECLARE_EMPTY_KEYS(HHsizevecKey)
 HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublevecKey)
 HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublemtxKey)
 HOUSEPI_DECLARE_EMPTY_KEYS(ParamKey)
-HOUSEPI_DEFINE_MODEL_CONSTRUCTOR()
-HOUSEPI_DECLARE_RCPP_MODULE(HOUSEPI_MODULE_NAME)
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////  Model : compute single house log-likelihood  /////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-double Model::compute_house_obs_log_lik(Household &house)
+class Model final : public MCMC
 {
-	double output = 0.0;
-	for (size_t i : house.infected_hhindexes())
-		output += std::log(house.member(i).aug(AugmKey::proba));
-	return output;
-}
+public:
+	HOUSEPI_MODEL_CONSTRUCTOR()
 
-void Model::simulate_single_house(Household &house)
-{
-	for (size_t i : house.infected_hhindexes())
-		init_missing_augm(house.member(i));
-}
+	/// Compute the log-likelihood within household.
+	double compute_house_obs_log_lik(Household &house) override final
+	{
+		double output = 0.0;
+		for (size_t i : house.infected_hhindexes())
+			output += std::log(house.member(i).aug(AugmKey::proba));
+		return output;
+	}
+
+	/// Simulate augmented infectious members augmented variables.
+	void simulate_single_house(Household &house) override final
+	{
+		for (size_t i : house.infected_hhindexes())
+			init_missing_augm(house.member(i));
+	}
+};
+
+HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE(HOUSEPI_MODULE_NAME)

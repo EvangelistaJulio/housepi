@@ -208,9 +208,9 @@ public:
 	virtual void init_advanced_setup() {}
 
 	/// Sample a uniform-distributed variable between 0 and 1.
-	double uniform();
+	double uniform() const;
 	/// Sample a exponential-distributed variable between 0 and Inf.
-	double exponential();
+	double exponential() const;
 
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	/////////////////////////////////////  MCMC : summaries  ////////////////////////////////////

@@ -134,19 +134,19 @@ struct Setup
 
     /// Get reference to the active pseudo-random number generator.
     /// @return Reference to PRNG for current thread.
-    hsp::rnd_gen &prng();
+    hsp::rnd_gen &prng() const;
 
     /// Sample a uniform-distributed variable in [0, 1).
     /// @return Uniform random value.
-    double uniform() { return uniform_(prng()); }
+    double uniform() const { return uniform_(prng()); }
 
     /// Sample an exponential-distributed variable with rate 1.
     /// @return Exponential random value in [0, ∞).
-    double exponential() { return exponential_(prng()); }
+    double exponential() const { return exponential_(prng()); }
 
 private:
-    std::vector<hsp::rnd_gen> prng_parallel_ = {};      /// Thread-local PRNGs for parallel chains.
-    std::uniform_real_distribution<double> uniform_;    /// Uniform [0, 1) distribution sampler.
-    std::exponential_distribution<double> exponential_; /// Exponential distribution sampler.
-    std::unique_ptr<hsp::ProgressBar> progressbar_;     /// Progress bar UI component.
+    mutable std::vector<hsp::rnd_gen> prng_parallel_ = {};              /// Thread-local PRNGs for parallel chains.
+    mutable std::uniform_real_distribution<double> uniform_;    /// Uniform [0, 1) distribution sampler.
+    mutable std::exponential_distribution<double> exponential_; /// Exponential distribution sampler.
+    std::unique_ptr<hsp::ProgressBar> progressbar_;             /// Progress bar UI component.
 };

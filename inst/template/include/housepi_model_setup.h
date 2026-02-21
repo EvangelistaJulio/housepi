@@ -19,6 +19,10 @@
 #include <Rcpp.h>
 #endif
 
+#ifndef HOUSEPI_MODULE_NAME
+#define HOUSEPI_MODULE_NAME housepiblank
+#endif
+
 #define HOUSEPI_DECLARE_EMPTY_KEYS(T)                        \
     namespace                                                \
     {                                                        \
@@ -39,24 +43,31 @@
         static const std::vector<std::string> T##_keys = hsp::key::helper_parse_names(#__VA_ARGS__); \
     }
 
-#define HOUSEPI_DEFINE_MODEL_CONSTRUCTOR()     \
-    Model::Model() : MCMC(DataKey_keys,        \
-                          HHsizeKey_keys,      \
-                          HHsizevecKey_keys,   \
-                          HHdoublevecKey_keys, \
-                          HHdoublemtxKey_keys, \
-                          LongKey_keys,        \
-                          ParamKey_keys,       \
-                          GroupRateKey_keys,   \
-                          AugmKey_keys)        \
-    {                                          \
-        init_advanced_setup();                 \
+#define HOUSEPI_MODEL_CONSTRUCTOR()     \
+    Model() : MCMC(DataKey_keys,        \
+                   HHsizeKey_keys,      \
+                   HHsizevecKey_keys,   \
+                   HHdoublevecKey_keys, \
+                   HHdoublemtxKey_keys, \
+                   LongKey_keys,        \
+                   ParamKey_keys,       \
+                   GroupRateKey_keys,   \
+                   AugmKey_keys)        \
+    {                                   \
+        init_advanced_setup();          \
     }
 
+#define HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE(module_name) \
+    namespace module_name                                \
+    {
+#define HOUSEPI_CLOSE_NAMED_MODULE_NAMESPACE }
+
 #ifdef _HOUSEPI_RCPP
-#define HOUSEPI_DECLARE_RCPP_MODULE(housepi_module_name)                               \
-    RCPP_MODULE(housepi_module_name)                                                   \
+#define HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE(module_name)                            \
+    HOUSEPI_CLOSE_NAMED_MODULE_NAMESPACE                                               \
+    RCPP_MODULE(module_name)                                                           \
     {                                                                                  \
+        using namespace module_name;                                                   \
         Rcpp::function("housepi_compile_flags", &housepi_compile_flags);               \
                                                                                        \
         Rcpp::class_<ExposeBase>("ExposeBase")                                         \
@@ -116,5 +127,6 @@
             .derives<MCMC>("MCMC");                                                    \
     }
 #else
-#define HOUSEPI_DECLARE_RCPP_MODULE(housepi_module_name)
+#define HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE(module_name) \
+    HOUSEPI_CLOSE_NAMED_MODULE_NAMESPACE
 #endif

@@ -14,7 +14,7 @@ rd_model_out_ <- paste(
 rd_mdl_choice_ <- "`character(1)` Choice for the model.\\cr
 One between:\\cr
 - template name;\\cr
-- path/to/folder with implementation files 'model.cpp' and 'model.h';\\cr
+- path/to/folder with implementation file 'model.cpp';\\cr
 - path/to/folder with previously compiled model;
 - 'blank': template name for blank model.
 - `NA`: fall back to 'blank' (default)."

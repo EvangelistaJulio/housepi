@@ -118,9 +118,9 @@ public:
     //////////////////////
 
     /// Sample a uniform-distributed variable between 0 and 1.
-    double uniform() { return setup.uniform(); }
+    double uniform() const { return setup.uniform(); }
     /// Sample a exponential-distributed variable between 0 and Inf.
-    double exponential() { return setup.exponential(); }
+    double exponential() const { return setup.exponential(); }
 
     double par(size_t p) const { return param.at(p).value(); }
 

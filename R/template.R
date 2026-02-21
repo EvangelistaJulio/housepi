@@ -127,7 +127,6 @@ copy_template_to_path <- function(name, path) {
   dir.create(path, recursive = TRUE, showWarnings = FALSE)
   if (dir.exists(path)) {
     templ_files <- c("model.cpp",
-                     "model.h",
                      "template_param.R",
                      "template_info.Rd")
     for (f in templ_files) {

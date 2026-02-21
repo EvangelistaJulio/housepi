@@ -16,8 +16,9 @@
 
 #include "housepi_model_setup.h"
 #include "binomial.h"
-#include "model.h"
+#include "mcmc.h"
 
+HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE(HOUSEPI_MODULE_NAME)
 HOUSEPI_DECLARE_EMPTY_KEYS(AugmKey)
 HOUSEPI_DECLARE_EMPTY_KEYS(DataKey)
 HOUSEPI_DECLARE_EMPTY_KEYS(LongKey)
@@ -27,42 +28,52 @@ HOUSEPI_DECLARE_REGISTER_KEYS(HHsizevecKey, order)
 HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublevecKey, commu_escape_rate)
 HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublemtxKey, p2p_escape_rate)
 HOUSEPI_DECLARE_REGISTER_KEYS(ParamKey, alpha, beta)
-HOUSEPI_DEFINE_MODEL_CONSTRUCTOR()
-HOUSEPI_DECLARE_RCPP_MODULE(HOUSEPI_MODULE_NAME)
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  Model : initialization  /////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-void Model::init_model_for_evaluation()
+class Model final : public MCMC
 {
-	// unknown status are not modeled
-	assert_no_missing_status();
+public:
+	HOUSEPI_MODEL_CONSTRUCTOR()
 
-	// initialize look-up-table to largest possible value
-	bax::init_escape_patterns_lookuptable(get_max_hh_cases());
-}
+	/// Initialize the LookUp Tables to largest possible values.
+	/// NOTE: missing status are not modeled.
+	void init_model_for_evaluation() override final
+	{
+		assert_no_missing_status();
+		bax::init_escape_patterns_lookuptable(get_max_hh_cases());
+	}
 
-void Model::init_house_for_evaluation(Household &house)
-{
-	auto &order = cache_size_vector(house, HHsizevecKey::order);
-	order.clear();
-	order.reserve(house.size());
-	order.insert(order.end(), house.infected_hhindexes().begin(), house.infected_hhindexes().end());
-	order.insert(order.end(), house.susceptible_hhindexes().begin(), house.susceptible_hhindexes().end());
-}
+	/// Initialize internal order for house escape matrix
+	/// ordered members : 1) infectious, 2) susceptibles
+	/// NOTE: this works only if size = n_infected_status + n_susceptible_status
+	void init_house_for_evaluation(Household &house) override final
+	{
+		auto &order = cache_size_vector(house, HHsizevecKey::order);
+		order.clear();
+		order.reserve(house.size());
+		order.insert(order.end(), house.infected_hhindexes().begin(), house.infected_hhindexes().end());
+		order.insert(order.end(), house.susceptible_hhindexes().begin(), house.susceptible_hhindexes().end());
+	}
+
+	/// Risk of infection from the community.
+	double community_risk() const { return par(ParamKey::alpha); }
+	/// Risk of infection from another household member.
+	double person_to_person_risk() const { return par(ParamKey::beta); }
+	/// Store person-to-person escape probabilities inside a cache.
+	/// Important: it must be re-ordered to have seropositives first.
+	void fill_house_escape_matrix(Household &house);
+
+	/// Compute the log-likelihood for a single household.
+	double compute_house_obs_log_lik(Household &house) override final;
+
+	/// Simulate the infection within a household.
+	void simulate_single_house(Household &house) override final;
+};
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////  Model : compute single house loglike  //////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-double Model::community_risk() const { return par(ParamKey::alpha); }
-
-double Model::person_to_person_risk() const { return par(ParamKey::beta); }
 
 double Model::compute_house_obs_log_lik(Household &house)
 {
@@ -126,7 +137,7 @@ void Model::simulate_single_house(Household &house)
 	std::vector<Individual *> new_gen_set = {};
 
 	for (Individual &member : house)
-		if (uniform() < exp(-commu_rate * member.group_rate(GroupRateKey::community)))
+		if (exponential() > commu_rate * member.group_rate(GroupRateKey::community))
 			house.set_susceptible_status(member);
 		else
 		{
@@ -140,24 +151,22 @@ void Model::simulate_single_house(Household &house)
 
 	std::vector<Individual *> old_gen_set = {};
 
-	std::vector<size_t> sus_hhindexes;
-	sus_hhindexes.reserve(house.n_susceptible_status());
 	while (house.n_susceptible_status() > 0 && !new_gen_set.empty())
 	{
 		std::swap(old_gen_set, new_gen_set);
 		new_gen_set.clear();
 
-		sus_hhindexes = house.susceptible_hhindexes();
-		for (size_t i : sus_hhindexes)
+		for (Individual &member_i : house)
 		{
-			Individual &member_i = house.member(i);
-			double sus_i = member_i.group_rate(GroupRateKey::susceptibility);
+			if (member_i.is_infected_status())
+				continue;
 
 			double r = 0.;
 			for (Individual *member_k : old_gen_set)
 				r += member_k->group_rate(GroupRateKey::infectivity);
 
-			if (uniform() >= exp(-r * p2p_rate * sus_i))
+			double sus_i = member_i.group_rate(GroupRateKey::susceptibility);
+			if (exponential() < r * p2p_rate * sus_i)
 			{
 				house.set_infected_status(member_i);
 				new_gen_set.push_back(&member_i);
@@ -165,3 +174,5 @@ void Model::simulate_single_house(Household &house)
 		}
 	}
 }
+
+HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE(HOUSEPI_MODULE_NAME)

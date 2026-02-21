@@ -112,7 +112,7 @@ rnd_string <- function(size = 8) {
 
 # Source code files
 source_files <- function(path) {
-  file.path(path, paste0("model.", c("cpp", "h")))
+  file.path(path, "model.cpp")
 }
 
 # return time of modification truncated
