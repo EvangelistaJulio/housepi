@@ -241,7 +241,10 @@ set_source_name_ <- function(x, name = NA_character_) {
 #' @noRd
 template_extract_keys <- function(refer_file, key_family) {
   script <- paste(readLines(refer_file), collapse = " ")
-  reg <- sprintf("REGISTER_HOUSEPI_KEYS\\(%s,\\s*([^)]+)\\)", key_family)
+  reg <- sprintf(
+    "HOUSEPI_DECLARE_REGISTER_KEYS\\(%s,\\s*([^)]+)\\)",
+    key_family
+  )
   args <- stringr::str_match(script, reg)[1, 2]
   if (is.na(args)) return(character(0))
   args <- stringr::str_trim(stringr::str_split(args, ",")[[1]])
@@ -356,8 +359,9 @@ template_not_used_warn <- function(required, defined, family, max_print = 5) {
 fmt_assert_cli <- function(section, sms, minor = FALSE) {
   if (length(sms) > 0) {
     sms <- gsub(sms, pattern = " were ", replacement = " are ")
+    sms <- gsub(sms, pattern = " was ", replacement = " is ")
     if (minor) c(`!` = paste0(cli::col_yellow(section), ":"),
-                 gsub(sms, pattern = " are required by ",
+                 gsub(sms, pattern = " (are|is) required by ",
                       replacement = " can be specified for "))
     else c(x = paste0(cli::col_yellow(section), ":"), sms)
   } else {

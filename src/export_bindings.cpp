@@ -5,10 +5,10 @@
  * See the LICENSE file for details.
  */
 
+#include <functional>
 #include <memory>
 #include <stdexcept>
 #include <string>
-#include <unordered_set>
 #include <vector>
 
 #include "tools/atomic.h"
@@ -32,7 +32,245 @@
 #include "parameter.h"
 #include "variable.h"
 
+#ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
+#endif
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////  *** MCMC : class ***  ////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+MCMC::MCMC(
+    const std::vector<std::string> &data_wide_keys,
+    const std::vector<std::string> &hh_size_keys,
+    const std::vector<std::string> &hh_size_vec_keys,
+    const std::vector<std::string> &hh_double_vec_keys,
+    const std::vector<std::string> &hh_double_mtx_keys,
+    const std::vector<std::string> &data_long_keys,
+    const std::vector<std::string> &param_keys,
+    const std::vector<std::string> &group_rate_keys,
+    const std::vector<std::string> &augm_keys)
+    : pImpl_(std::make_unique<MCMCImpl>(
+          data_wide_keys,
+          hh_size_keys,
+          hh_size_vec_keys,
+          hh_double_vec_keys,
+          hh_double_mtx_keys,
+          data_long_keys,
+          param_keys,
+          group_rate_keys,
+          augm_keys,
+          [this]()
+          { this->init_model_for_evaluation(); },
+          [this](Household &h)
+          { this->init_house_for_evaluation(h); },
+          [this](Household &h) -> double
+          { return this->compute_house_obs_log_lik(h); },
+          [this](Household &h)
+          { this->update_house_cache_dependecies(h); },
+          [this](Household &h, Individual &i)
+          { this->update_member_cache_dependecies(h, i); },
+          [this](Household &h, const Individual &k, const Individual &i) -> std::string
+          { return this->init_contact_rates(h, k, i); })) {}
+MCMC::~MCMC() = default;
+
+double MCMC::uniform() { return pImpl_->uniform(); }
+double MCMC::exponential() { return pImpl_->exponential(); }
+double MCMC::par(size_t p) const { return pImpl_->par(p); }
+
+size_t MCMC::get_max_hh_cases() const noexcept { return pImpl_->get_max_hh_cases(); }
+void MCMC::assert_no_missing_status() const { pImpl_->assert_no_missing_status(); }
+
+void MCMC::build_contact_rates() { pImpl_->build_contact_rates(); }
+
+void MCMC::init_infec_profile_template(hsp::dict<std::string> x) { pImpl_->init_infec_profile_template(x); }
+double MCMC::infec_profile_inst(const AugmContainer &i, double t) const { return pImpl_->infec_profile_inst(i, t); }
+double MCMC::infec_profile_cumul(const AugmContainer &i, double t) const { return pImpl_->infec_profile_cumul(i, t); }
+
+void MCMC::init_missing_augm(Individual &member) { pImpl_->init_missing_augm(member); }
+
+void MCMC::request_discrete_param(size_t p) { pImpl_->request_discrete_param(p); }
+void MCMC::request_discrete_augm(size_t a) { pImpl_->request_discrete_augm(a); }
+void MCMC::request_discrete_infec_profile() { pImpl_->request_discrete_infec_profile(); }
+
+size_t &MCMC::cache_size(Household &house, size_t e) { return pImpl_->cache_size(house, e); }
+size_t MCMC::cache_size(const Household &house, size_t e) const { return pImpl_->cache_size(house, e); }
+
+std::vector<size_t> &MCMC::cache_size_vector(Household &house, size_t e) { return pImpl_->cache_size_vector(house, e); }
+const std::vector<size_t> &MCMC::cache_size_vector(const Household &house, size_t e) const { return pImpl_->cache_size_vector(house, e); }
+
+std::vector<double> &MCMC::cache_double_vector(Household &house, size_t e) { return pImpl_->cache_double_vector(house, e); }
+const std::vector<double> &MCMC::cache_double_vector(const Household &house, size_t e) const { return pImpl_->cache_double_vector(house, e); }
+
+std::vector<std::vector<double>> &MCMC::cache_double_matrix(Household &house, size_t e) { return pImpl_->cache_double_matrix(house, e); }
+const std::vector<std::vector<double>> &MCMC::cache_double_matrix(const Household &house, size_t e) const { return pImpl_->cache_double_matrix(house, e); }
+
+double MCMC::evaluate_log_lik(std::string_view house_id) { return pImpl_->evaluate_log_lik(house_id); }
+void MCMC::run_inference() { pImpl_->run_inference(); }
+
+#ifdef _HOUSEPI_RCPP
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  Stdout Message Function  ////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace hsp::msg
+{
+    /// Throw an error message.
+    /// Ref:
+    /// -----
+    /// Suppressing Call Stack Info in Rcpp-Generated Errors and Warnings
+    /// Michael Weylandt — written Mar 27, 2018
+    /// https://gallery.rcpp.org/articles/quiet-stop-and-warning/
+    [[noreturn]] void error(const std::string &txt)
+    {
+        throw Rcpp::exception(txt.c_str(), false);
+    }
+
+    /// Print an information message to stdout.
+    void info(const std::string &txt) noexcept
+    {
+        Rcpp::Rcout << txt;
+        Rcpp::Rcout.flush();
+    }
+
+    /// Display a warning message if not already displayed before.
+    /// Ref:
+    /// -----
+    /// Suppressing Call Stack Info in Rcpp-Generated Errors and Warnings
+    /// Michael Weylandt — written Mar 27, 2018
+    /// https://gallery.rcpp.org/articles/quiet-stop-and-warning/
+    void warning(const std::string &txt)
+    {
+        if (is_new_housepi_warning(txt))
+        {
+            Rf_warningcall(R_NilValue, "%s", txt.c_str());
+            add_new_housepi_warning(txt);
+        }
+    }
+}
+
+ExposeBase::ExposeBase(std::string name, const std::string &family,
+                                 SEXP args_, double min, double max, bool is_discr,
+                                 std::vector<std::string> registry_types)
+    : family_(family)
+{
+    try
+    {
+        ptr_ = compose_func_registries(name, family_, registry_types, false);
+
+        if (args_ != R_NilValue)
+        {
+            Rcpp::List args(args_);
+            Rcpp::CharacterVector arg_names(args.size());
+            if (args.hasAttribute("names"))
+                arg_names = args.names();
+
+            for (R_xlen_t i = 0; i < args.size(); ++i)
+                ptr_->init_attr(
+                    Rcpp::as<std::string>(arg_names[i]),
+                    Attribute(Rcpp::as<double>(args[i])));
+        }
+
+        if (!hsp::na::is(min))
+            ptr_->init_attr("min", Attribute(min));
+        if (!hsp::na::is(max))
+            ptr_->init_attr("max", Attribute(max));
+
+        if (is_discr)
+            ptr_->init_discretization();
+        ptr_->init_truncation();
+        ptr_->assert_is_callable_explicitly();
+    }
+    catch (const std::exception &e)
+    {
+        hsp::msg::error(
+            "While initializing " + family_ + " '" + name + "':\n" + e.what());
+    }
+}
+
+ExposeBase::~ExposeBase() = default;
+
+Rcpp::NumericVector ExposeBase::args() const
+{
+    Rcpp::NumericVector output(ptr_->n_args());
+    Rcpp::CharacterVector names(ptr_->n_args());
+    for (size_t i = 0; i < ptr_->n_args(); ++i)
+    {
+        output[i] = ptr_->arg(i);
+        names[i] = std::string(ptr_->arg_name(i));
+    }
+    output.names() = std::move(names);
+    return output;
+}
+
+Rcpp::NumericVector ExposeBase::call_(Rcpp::NumericVector x) const
+{
+    try
+    {
+        const R_xlen_t n = x.size();
+        Rcpp::NumericVector y(n);
+        for (R_xlen_t i = 0; i < n; ++i)
+            y[i] = ptr_->evaluate(x[i]);
+        return y;
+    }
+    catch (const std::exception &e)
+    {
+        hsp::msg::error(
+            "While calling " + family_ + " '" + std::string(ptr_->name()) + "':\n" + e.what());
+    }
+}
+
+ExposeFunction::ExposeFunction(std::string name_, SEXP args_, double min, double max, bool is_discr)
+    : ExposeBase(name_, "function", args_, min, max, is_discr,
+                      {"user", "transcendental", "arithmetic"}) {}
+
+Rcpp::NumericVector ExposeFunction::func(Rcpp::NumericVector x) const
+{
+    ptr_->set_eval_call();
+    return call_(x);
+}
+
+Rcpp::NumericVector ExposeFunction::prim(Rcpp::NumericVector x) const
+{
+    ptr_->set_eval_primitive();
+    return call_(x);
+}
+
+ExposeDistribution::ExposeDistribution(std::string name_, SEXP args_, double min, double max, bool is_discr)
+    : ExposeBase(name_, "distribution", args_, min, max, is_discr,
+                      {"continuos", "discrete"}) {}
+
+Rcpp::NumericVector ExposeDistribution::pdf(Rcpp::NumericVector x) const
+{
+    ptr_->set_eval_as_distr_call();
+    return call_(x);
+}
+
+Rcpp::NumericVector ExposeDistribution::cdf(Rcpp::NumericVector x) const
+{
+    ptr_->set_eval_as_distr_primitive();
+    return call_(x);
+}
+
+ExposeInfecProfile::ExposeInfecProfile(std::string name_, SEXP args_, double min, double max, bool is_discr)
+    : ExposeBase(name_, "infectivity profile", args_, min, max, is_discr,
+                      {"infecprofile", "continuos", "discrete"}) {}
+
+Rcpp::NumericVector ExposeInfecProfile::inst(Rcpp::NumericVector x) const
+{
+    ptr_->set_eval_as_distr_call();
+    return call_(x);
+}
+
+Rcpp::NumericVector ExposeInfecProfile::cumul(Rcpp::NumericVector x) const
+{
+    ptr_->set_eval_as_distr_primitive();
+    return call_(x);
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1065,3 +1303,4 @@ Rcpp::List MCMC::log_evidence(const std::string &scheme, unsigned long n_rungs)
                         std::string(e.what()));
     }
 }
+#endif

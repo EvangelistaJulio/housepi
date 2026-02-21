@@ -329,7 +329,7 @@ housepi_assert_args <- function(hhmodel, family, last = FALSE) {
         error = function(e) {
           stop_h(sprintf("Wrong definition found for '%s'.",
                          readable_defs[r, "name"]),
-                 strsplit(e$message, "\n")[[1]][-1])
+                 tail(strsplit(e$message, "\n")[[1]], 1))
         }
       )
     }

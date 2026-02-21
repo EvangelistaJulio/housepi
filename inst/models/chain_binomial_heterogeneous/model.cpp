@@ -18,16 +18,17 @@
 #include "binomial.h"
 #include "model.h"
 
-EMPTY_HOUSEPI_KEYS(AugmKey)
-EMPTY_HOUSEPI_KEYS(DataKey)
-EMPTY_HOUSEPI_KEYS(LongKey)
-REGISTER_HOUSEPI_KEYS(GroupRateKey, community, susceptibility, infectivity)
-EMPTY_HOUSEPI_KEYS(HHsizeKey)
-REGISTER_HOUSEPI_KEYS(HHsizevecKey, order)
-REGISTER_HOUSEPI_KEYS(HHdoublevecKey, commu_escape_rate)
-REGISTER_HOUSEPI_KEYS(HHdoublemtxKey, p2p_escape_rate)
-REGISTER_HOUSEPI_KEYS(ParamKey, alpha, beta)
-HOUSEPI_MODEL_CONSTRUCTOR()
+HOUSEPI_DECLARE_EMPTY_KEYS(AugmKey)
+HOUSEPI_DECLARE_EMPTY_KEYS(DataKey)
+HOUSEPI_DECLARE_EMPTY_KEYS(LongKey)
+HOUSEPI_DECLARE_REGISTER_KEYS(GroupRateKey, community, susceptibility, infectivity)
+HOUSEPI_DECLARE_EMPTY_KEYS(HHsizeKey)
+HOUSEPI_DECLARE_REGISTER_KEYS(HHsizevecKey, order)
+HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublevecKey, commu_escape_rate)
+HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublemtxKey, p2p_escape_rate)
+HOUSEPI_DECLARE_REGISTER_KEYS(ParamKey, alpha, beta)
+HOUSEPI_DEFINE_MODEL_CONSTRUCTOR()
+HOUSEPI_DECLARE_RCPP_MODULE(HOUSEPI_MODULE_NAME)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////

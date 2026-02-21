@@ -2,4 +2,4 @@
 
 import(Rcpp)
 import(methods)
-useDynLib(housepienvironment, .registration = TRUE)
+useDynLib(housepi.custom, .registration = TRUE)

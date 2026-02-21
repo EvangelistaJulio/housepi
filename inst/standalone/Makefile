@@ -10,7 +10,7 @@ MODEL ?= $(SRC)
 STD_IN := -A augm.csv -D data_wide.csv -L data_long.csv -G group_rates.csv -I infec.csv -P param.csv -S setup.csv -M multiplicity.csv
 
 # Lost of source files with exclusions
-EXCL_FILES := $(SRC)/export_bindings.cpp $(SRC)/export_wrappers.cpp $(SRC)/RcppExports.cpp $(SRC)/model.cpp
+EXCL_FILES := $(SRC)/model.cpp
 SOURCES := main.cpp $(MODEL)/model.cpp $(filter-out $(EXCL_FILES), $(wildcard $(SRC)/*.cpp))
 
 # Object files to build (automatic)

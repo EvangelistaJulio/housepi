@@ -6,36 +6,36 @@ test_that("Nested definitions raise errors", {
 
   expect_no_error(
     hhmodel$load_augmented_list(
-      ..layer = list(model = "uniform", status = 1),
-      ..layer = list(func = ..dummy, status = c(2, 3, 4)),
-      ..dummy = list(model = "uniform"),
-      proba = ..layer
+      .layer = list(model = "uniform", status = 1),
+      .layer = list(func = .dummy, status = c(2, 3, 4)),
+      .dummy = list(model = "uniform"),
+      proba = .layer
     )$evaluate_log_lik()
   )
 
   # simple nest
   expect_error(
-    hhmodel$load_augmented_list(..dummy = proba,
-                                proba = ..dummy)$evaluate_log_lik(),
+    hhmodel$load_augmented_list(.dummy = proba,
+                                proba = .dummy)$evaluate_log_lik(),
     regexp = "cyclic definitions"
   )
 
   # triangular nest
   expect_error(
-    hhmodel$load_augmented_list(proba = ..layer,
-                                ..layer = ..dummy,
-                                ..dummy = proba)$evaluate_log_lik(),
+    hhmodel$load_augmented_list(proba = .layer,
+                                .layer = .dummy,
+                                .dummy = proba)$evaluate_log_lik(),
     regexp = "cyclic definitions"
   )
 
   # first generation of definitions
   err_msg <- as.character(expect_error(
     hhmodel$load_augmented_list(
-      ..layer = list(model = "normal", status = 1),
-      ..layer = list(func = ..dummy, status = 2),
-      #> NO ..layer provided for status 3 and 4
-      ..dummy = list(model = "lognormal", status = 2),
-      proba = ..layer
+      .layer = list(model = "normal", status = 1),
+      .layer = list(func = .dummy, status = 2),
+      #> NO .layer provided for status 3 and 4
+      .dummy = list(model = "lognormal", status = 2),
+      proba = .layer
     )$evaluate_log_lik()
   ))
   expect_match(err_msg, "Could not find a definition")
@@ -44,11 +44,11 @@ test_that("Nested definitions raise errors", {
   # second generation of definitions
   err_msg <- as.character(expect_error(
     hhmodel$load_augmented_list(
-      ..layer = list(model = "normal", status = 1),
-      ..layer = list(func = ..dummy, status = c(2, 3, 4)),
-      #> NO ..dummy provided for status 3, 4
-      ..dummy = list(model = "lognormal", status = c(2, 3)),
-      proba = ..layer
+      .layer = list(model = "normal", status = 1),
+      .layer = list(func = .dummy, status = c(2, 3, 4)),
+      #> NO .dummy provided for status 3, 4
+      .dummy = list(model = "lognormal", status = c(2, 3)),
+      proba = .layer
     )$evaluate_log_lik()
   ))
   expect_match(err_msg, "Could not find a definition")
@@ -103,8 +103,8 @@ test_that("Augmented log-likelihood seeding is fine", {
   hhmodel$data_wide <- data.frame(house_id = 1, id = seq(4), status = seq(4))
   hhmodel$load_augmented_list(
     proba = list(model = "uniform", status = 1),
-    proba = list(func = ..layer, status = c(2, 3, 4)),
-    ..layer = list(model = "uniform")
+    proba = list(func = .layer, status = c(2, 3, 4)),
+    .layer = list(model = "uniform")
   )
 
   ll1 <- hhmodel$evaluate_log_lik(seed = 1)
@@ -121,10 +121,10 @@ test_that("Augmented aliasing works as expected", {
   )
   hhmodel$add_parameter(name = "scale", value = 1)
   hhmodel$load_augmented_list(
-    ..dummy = x@D,
-    ..gamma = list(func = "gamma",
-                   func_args = c(x = ..dummy, shape = 2, scale = scale@P)),
-    proba = ..gamma
+    .dummy = x@D,
+    .layer = list(func = "gamma",
+                  func_args = c(x = .dummy, shape = 2, scale = scale@P)),
+    proba = .layer
   )
 
   ll <- sum(log(dgamma(hhmodel$data_wide$x, shape = 2, scale = 1)))
@@ -132,10 +132,10 @@ test_that("Augmented aliasing works as expected", {
 
   # check that order does not matter
   hhmodel$load_augmented_list(
-    ..gamma = list(func = "gamma",
-                   func_args = c(x = ..dummy, shape = 2, scale = scale@P)),
-    proba = ..gamma,
-    ..dummy = x@D
+    .layer = list(func = "gamma",
+                  func_args = c(x = .dummy, shape = 2, scale = scale@P)),
+    proba = .layer,
+    .dummy = x@D
   )
   expect_equal(hhmodel$evaluate_log_lik(), ll)
 

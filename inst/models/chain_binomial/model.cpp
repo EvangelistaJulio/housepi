@@ -15,16 +15,17 @@
 #include "binomial.h"
 #include "model.h"
 
-EMPTY_HOUSEPI_KEYS(AugmKey)
-EMPTY_HOUSEPI_KEYS(DataKey)
-EMPTY_HOUSEPI_KEYS(LongKey)
-EMPTY_HOUSEPI_KEYS(GroupRateKey)
-EMPTY_HOUSEPI_KEYS(HHsizeKey)
-EMPTY_HOUSEPI_KEYS(HHsizevecKey)
-EMPTY_HOUSEPI_KEYS(HHdoublevecKey)
-EMPTY_HOUSEPI_KEYS(HHdoublemtxKey)
-REGISTER_HOUSEPI_KEYS(ParamKey, alpha, beta)
-HOUSEPI_MODEL_CONSTRUCTOR()
+HOUSEPI_DECLARE_EMPTY_KEYS(AugmKey)
+HOUSEPI_DECLARE_EMPTY_KEYS(DataKey)
+HOUSEPI_DECLARE_EMPTY_KEYS(LongKey)
+HOUSEPI_DECLARE_EMPTY_KEYS(GroupRateKey)
+HOUSEPI_DECLARE_EMPTY_KEYS(HHsizeKey)
+HOUSEPI_DECLARE_EMPTY_KEYS(HHsizevecKey)
+HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublevecKey)
+HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublemtxKey)
+HOUSEPI_DECLARE_REGISTER_KEYS(ParamKey, alpha, beta)
+HOUSEPI_DEFINE_MODEL_CONSTRUCTOR()
+HOUSEPI_DECLARE_RCPP_MODULE(HOUSEPI_MODULE_NAME)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////

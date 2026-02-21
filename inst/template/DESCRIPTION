@@ -1,4 +1,4 @@
-Package: housepienvironment
+Package: housepi.custom
 Type: Package
 Title: Household Model Environment
 Version: 0.0.1
@@ -13,5 +13,4 @@ Depends: Rcpp (>= 1.0.0)
 LinkingTo:
     Rcpp (>= 1.0.0), 
     BH (>= 1.0.0)
-RcppModules: housepi_rcpp_core
 RoxygenNote: 7.3.3

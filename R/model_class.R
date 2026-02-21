@@ -437,6 +437,7 @@ HousepiModel <- R6::R6Class(
       }
       xquos <- convert_list_to_quosures(value)
       private$.param$load_quosures(xquos, append = FALSE)
+      housepi_assert_args(self, "parameter")
     },
 
     #' @field augmented `data.frame`. Augmented definitions.
@@ -444,6 +445,7 @@ HousepiModel <- R6::R6Class(
       if (missing(value)) return(housepi_defin_showcaser(private$.augm$defs))
       xquos <- convert_list_to_quosures(value)
       private$.augm$load_quosures(xquos, append = FALSE)
+      housepi_assert_args(self, "augmented")
     },
 
     #' @field infec_profile `data.frame`. Infectivity profile definitions.
@@ -469,6 +471,7 @@ HousepiModel <- R6::R6Class(
       }
       xquos <- convert_list_to_quosures(value)
       private$.infec_profile$load_quosures(xquos, append = FALSE)
+      housepi_assert_args(self, "infectivity profile")
     },
 
     #' @field group_rates `data.frame`. Group rate definitions.

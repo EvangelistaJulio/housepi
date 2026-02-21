@@ -26,11 +26,11 @@ get_rcpp_module_from_dll <- local({
   function(dll) {
     # load DLL if not already loaded
     if (!is_dll_loaded(dll)) dyn.load(dll)
-    
+
     # build and store module if not cached yet
     if (!dll %in% names(module_cache)) {
       module_cache[[dll]] <<-
-        Rcpp::Module("housepi_rcpp_core",
+        Rcpp::Module(get_template_from_dll(dll),
                      PACKAGE = get_template_from_dll(dll))
     }
     module_cache[[dll]]
@@ -39,7 +39,7 @@ get_rcpp_module_from_dll <- local({
 
 # Get Rcpp module from model
 get_rcpp_module_from_model <- function(hhmodel) {
-  if (is.null(hhmodel)) Rcpp::Module("housepi_rcpp_core", PACKAGE = "housepi")
+  if (is.null(hhmodel)) Rcpp::Module("housepiblank", PACKAGE = "housepi")
   else get_rcpp_module_from_dll(hhmodel$.__enclos_env__$private$.dll)
 }
 
@@ -60,7 +60,7 @@ If `NULL` the built-in registry is used (default).")
 #' @param max `r rd_var_max_`
 #' @param discr `r rd_test_discr_`
 #' @param hhmodel `r rd_test_model_`
-#' @return `FunctionHousepi` object.
+#' @return `ExposeFunction` object.
 #' @examples
 #' fnc <- expose_function("pow", x2 = 3)
 #' fnc$func(seq(0, 5))
@@ -70,8 +70,8 @@ expose_function <- function(name, ...,
                             min = NA_real_, max = NA_real_,
                             discr = FALSE, hhmodel = NULL) {
   m <- get_rcpp_module_from_model(hhmodel)
-  m$HousepiRcppFunction$new(name, args = unlist(list(...)),
-                            min = min, max = max, discr = discr)
+  m$ExposeFunction$new(name, args = unlist(list(...)),
+                       min = min, max = max, discr = discr)
 }
 
 #' @title Expose housepi distribution
@@ -84,7 +84,7 @@ expose_function <- function(name, ...,
 #' @param max `r rd_var_max_`
 #' @param discr `r rd_test_discr_`
 #' @param hhmodel `r rd_test_model_`
-#' @return `DistributionHousepi` object.
+#' @return `ExposeDistribution` object.
 #' @examples
 #' dst <- expose_distribution("weibull", shape = 2, scale = 1)
 #' dst$pdf(seq(0, 5))
@@ -94,8 +94,8 @@ expose_distribution <- function(name, ...,
                                 min = NA_real_, max = NA_real_,
                                 discr = FALSE, hhmodel = NULL) {
   m <- get_rcpp_module_from_model(hhmodel)
-  m$HousepiRcppDistribution$new(name, args = unlist(list(...)),
-                                min = min, max = max, discr = discr)
+  m$ExposeDistribution$new(name, args = unlist(list(...)),
+                           min = min, max = max, discr = discr)
 }
 
 #' @title Expose housepi infectivity profile
@@ -108,7 +108,7 @@ expose_distribution <- function(name, ...,
 #' @param max `r rd_var_max_`
 #' @param discr `r rd_test_discr_`
 #' @param hhmodel `r rd_test_model_`
-#' @return `InfecProfileHousepi` object.
+#' @return `ExposeInfecProfile` object.
 #' @examples
 #' ipf <- expose_infec_profile("gamma", shape = 2, scale = 1)
 #' ipf$inst(seq(0, 5))
@@ -119,6 +119,6 @@ expose_infec_profile <- function(name, ...,
                                  discr = FALSE, hhmodel = NULL) {
   if (is.na(min)) min <- ifelse(discr, 1, 0)
   m <- get_rcpp_module_from_model(hhmodel)
-  m$HousepiRcppInfecProfile$new(name, args = unlist(list(...)),
-                                min = min, max = max, discr = discr)
+  m$ExposeInfecProfile$new(name, args = unlist(list(...)),
+                           min = min, max = max, discr = discr)
 }

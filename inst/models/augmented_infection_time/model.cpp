@@ -14,16 +14,17 @@
 #include "housepi_model_setup.h"
 #include "model.h"
 
-REGISTER_HOUSEPI_KEYS(AugmKey, infec_time)
-REGISTER_HOUSEPI_KEYS(DataKey, end_followup)
-EMPTY_HOUSEPI_KEYS(LongKey)
-REGISTER_HOUSEPI_KEYS(GroupRateKey, community, susceptibility, infectivity)
-REGISTER_HOUSEPI_KEYS(HHsizeKey, intro_case)
-EMPTY_HOUSEPI_KEYS(HHsizevecKey)
-EMPTY_HOUSEPI_KEYS(HHdoublevecKey)
-REGISTER_HOUSEPI_KEYS(HHdoublemtxKey, inst, cumul)
-REGISTER_HOUSEPI_KEYS(ParamKey, alpha, beta, gamma, size_ref)
-HOUSEPI_MODEL_CONSTRUCTOR()
+HOUSEPI_DECLARE_REGISTER_KEYS(AugmKey, infec_time)
+HOUSEPI_DECLARE_REGISTER_KEYS(DataKey, end_followup)
+HOUSEPI_DECLARE_EMPTY_KEYS(LongKey)
+HOUSEPI_DECLARE_REGISTER_KEYS(GroupRateKey, community, susceptibility, infectivity)
+HOUSEPI_DECLARE_REGISTER_KEYS(HHsizeKey, intro_case)
+HOUSEPI_DECLARE_EMPTY_KEYS(HHsizevecKey)
+HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublevecKey)
+HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublemtxKey, inst, cumul)
+HOUSEPI_DECLARE_REGISTER_KEYS(ParamKey, alpha, beta, gamma, size_ref)
+HOUSEPI_DEFINE_MODEL_CONSTRUCTOR()
+HOUSEPI_DECLARE_RCPP_MODULE(HOUSEPI_MODULE_NAME)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////

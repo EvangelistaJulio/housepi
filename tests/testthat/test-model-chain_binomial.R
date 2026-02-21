@@ -67,7 +67,7 @@ test_that("Single infected member log-likelihood is correct", {
   house <- data.frame(id = sprintf("hh_01_%s", seq(1, 2)),
                       house_id = "hh_01",
                       status = c(1, 0),
-                      class = c("A", "B"),
+                      class = c("a", "b"),
                       community = c(1, com_class_b),
                       susceptibility = c(1, sus_class_b),
                       infectivity = c(1, 1.3))

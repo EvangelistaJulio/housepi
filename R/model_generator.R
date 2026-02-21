@@ -204,9 +204,8 @@ HousepiGenerator <- R6::R6Class(
     .initialize_blank_model = function() {
       private$.last_user_flags <- character()
       private$.source_dir <- system.file("template/src", package = "housepi")
-      # NOTE: blank model dll is never used for loading
       private$.dll <- file.path(private$.source_dir,
-                                dll_file_ext("housepienvironment"))
+                                dll_file_ext("housepiblank"))
       invisible(self)
     },
 
@@ -370,6 +369,13 @@ HousepiGenerator <- R6::R6Class(
       invisible(self)
     },
 
+    # @descrtiption
+    # Fla ot pass the name of the custom Rcpp module.
+    .custom_module_cpp_flag = function() {
+      paste0("HOUSEPI_MODULE_NAME=",
+             tools::file_path_sans_ext(basename(private$.dll)))
+    },
+
     # @description
     # Compile and load the source files inside cached directory.
     # Note: I am tricking pkgbuild::compile_dll and R CMD INSTALL.
@@ -388,6 +394,11 @@ HousepiGenerator <- R6::R6Class(
       # remove object file
       unlink(file.path(cache_dir_src, "model.o"))
 
+      # rename blank dll to match pseudo package environment
+      blank_dll <- file.path(cache_dir_src, dll_file_ext("housepiblank"))
+      custom_dll <- file.path(cache_dir_src, dll_file_ext("housepi.custom"))
+      overwrite(blank_dll, custom_dll)
+
       # touch installation files
       touch_time <- Sys.time() - 2
       for (f in list.files(cache_dir_src, full.names = TRUE)) {
@@ -403,19 +414,18 @@ HousepiGenerator <- R6::R6Class(
 
       # compile the dynamic library
       withr::with_envvar(
-        get_cpp_envvar_flags(paths = user_paths,
-                             flags = user_flags,
-                             linkers = user_linkers),
+        get_cpp_envvar_flags(
+          paths = user_paths,
+          flags = c(private$.custom_module_cpp_flag(), user_flags),
+          linkers = user_linkers
+        ),
         pkgbuild::compile_dll(private$.cache_dir,
                               quiet = private$.quiet,
                               compile_attributes = FALSE,
                               debug = FALSE)
       )
-      private$.need_compile <- FALSE
-
       # copy DLL outside of the source directory
-      from_file <- file.path(cache_dir_src, dll_file_ext("housepienvironment"))
-      overwrite(from_file, private$.dll)
+      overwrite(custom_dll, private$.dll)
 
       invisible(self)
     },
@@ -425,7 +435,7 @@ HousepiGenerator <- R6::R6Class(
       # expose internally the module
       if (private$.is_blank()) m <- get_rcpp_module_from_model(NULL)
       else m <- get_rcpp_module_from_dll(private$.dll)
-      y <- m$HousepiRcppModel$new()
+      y <- m$Model$new()
       y
     },
 
@@ -540,10 +550,15 @@ HousepiGenerator <- R6::R6Class(
                find_closest_template_name(choice))
       }
 
-      # finally recompile only the model script, if necessary.
-      if (private$.need_compile) do.call(private$.compile, user_options)
-      # generate the Rcpp model object.
-      if (is.null(private$.rcpp)) private$.rcpp <- private$.new_rcpp_model()
+      # if necessary, recompile only the model script
+      if (private$.need_compile) {
+        do.call(private$.compile, user_options)
+        private$.need_compile <- FALSE
+      }
+      # generate the Rcpp model object
+      if (is.null(private$.rcpp)) {
+        private$.rcpp <- private$.new_rcpp_model()
+      }
 
       invisible(self)
     }
