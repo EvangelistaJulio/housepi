@@ -435,8 +435,10 @@ HousepiGenerator <- R6::R6Class(
       # expose internally the module
       if (private$.is_blank()) m <- get_rcpp_module_from_model(NULL)
       else m <- get_rcpp_module_from_dll(private$.dll)
-      y <- m$Model$new()
-      y
+
+      class_name <- paste0("Model.", get_template_from_dll(private$.dll))
+      y <- do.call("$", list(m, class_name))
+      y$new()
     },
 
     ############################################################################

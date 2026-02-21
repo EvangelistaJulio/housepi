@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "tools/keys.h"
+#include "tools/types.h"
 
 #include "individual.h"
 #include "household.h"
@@ -57,17 +58,18 @@
         init_advanced_setup();          \
     }
 
-#define HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE(module_name) \
-    namespace module_name                                \
+#define HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE() \
+    namespace HOUSEPI_MODULE_NAME             \
     {
-#define HOUSEPI_CLOSE_NAMED_MODULE_NAMESPACE }
+#define HOUSEPI_CLOSE_NAMED_MODULE_NAMESPACE() }
+
+#define STRINGIFY(x) #x
+#define TOSTRING(x) STRINGIFY(x)
 
 #ifdef _HOUSEPI_RCPP
-#define HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE(module_name)                            \
-    HOUSEPI_CLOSE_NAMED_MODULE_NAMESPACE                                               \
+#define HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE_IMPL_(module_name)                      \
     RCPP_MODULE(module_name)                                                           \
     {                                                                                  \
-        using namespace module_name;                                                   \
         Rcpp::function("housepi_compile_flags", &housepi_compile_flags);               \
                                                                                        \
         Rcpp::class_<ExposeBase>("ExposeBase")                                         \
@@ -91,7 +93,7 @@
             .method("inst", &ExposeInfecProfile::inst)                                 \
             .method("cumul", &ExposeInfecProfile::cumul);                              \
                                                                                        \
-        Rcpp::class_<MCMC>("MCMC")                                                     \
+        Rcpp::class_<MCMC>("MCMC." TOSTRING(module_name))                              \
             .method("run_inference", &MCMC::run_inference)                             \
             .method("data_wide_for_simulation", &MCMC::data_wide_for_simulation)       \
             .method("run_simulation", &MCMC::run_simulation)                           \
@@ -122,11 +124,12 @@
             .method("flush_house_log_lik_draws", &MCMC::flush_house_log_lik_draws)     \
             .method("export_house_snapshot", &MCMC::export_house_snapshot);            \
                                                                                        \
-        Rcpp::class_<Model>("Model")                                                   \
+        Rcpp::class_<Model>("Model." TOSTRING(module_name))                            \
             .constructor()                                                             \
-            .derives<MCMC>("MCMC");                                                    \
+            .derives<MCMC>("MCMC." TOSTRING(module_name));                             \
     }
-#else
-#define HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE(module_name) \
-    HOUSEPI_CLOSE_NAMED_MODULE_NAMESPACE
+#define HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE() \
+    HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE_IMPL_(HOUSEPI_MODULE_NAME)
+#else 
+#define HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE()
 #endif
