@@ -44,6 +44,46 @@ template_models_dir <- function() {
   system.file("models", package = "housepi")
 }
 
+# Get template name from DLL file
+get_template_from_dll <- function(dll) {
+  if (is.null(dll) || is.na(dll) || !file.exists(dll)) NA_character_
+  else tools::file_path_sans_ext(basename(dll))
+}
+
+# Check if the same DLL is already loaded.
+is_dll_loaded <- function(dll) {
+  any(vapply(getLoadedDLLs(), function(x) x[["path"]] == dll, FALSE))
+}
+
+# Get Rcpp module associated to dll.
+get_rcpp_module_from_dll <- local({
+  # static private cache
+  module_cache <- list()
+
+  function(dll) {
+    # load DLL if not already loaded
+    if (!is_dll_loaded(dll)) dyn.load(dll)
+
+    # build and store module if not cached yet
+    if (!dll %in% names(module_cache)) {
+      module_cache[[dll]] <<-
+        Rcpp::Module(get_template_from_dll(dll),
+                     PACKAGE = get_template_from_dll(dll))
+    }
+    module_cache[[dll]]
+  }
+})
+
+# Get Rcpp module from model
+get_rcpp_module_from_model <- function(hhmodel) {
+  if (is.null(hhmodel)) {
+    dll <- template_dll_file(get_template_dir("blank"))
+  } else {
+    dll <- hhmodel$.__enclos_env__$private$.dll
+  }
+  get_rcpp_module_from_dll(dll)
+}
+
 #' @title
 #' Get template model directory
 #' @description

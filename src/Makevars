@@ -1,76 +1,32 @@
 CXX_STD = CXX17
+PKG_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS) -D_HOUSEPI_RCPP -I../inst/template/include
+PKG_LIBS = $(SHLIB_OPENMP_CXXFLAGS)
 
-PKG_CXXFLAGS = \
-  $(SHLIB_OPENMP_CXXFLAGS) \
-  -D_HOUSEPI_RCPP \
-  -I../inst/template/include
+MODELS_PATH = ../inst/models
+define model_template
+MODEL_$(1)_FLDR = $(MODELS_PATH)/$(2)
+MODEL_$(1)_DLL = $$(MODEL_$(1)_FLDR)/$$(subst _,,$(2))$$(SHLIB_EXT)
+endef
+$(eval $(call model_template,0,blank))
+$(eval $(call model_template,1,augmented_example))
+$(eval $(call model_template,2,augmented_infection_time))
+$(eval $(call model_template,3,chain_binomial))
+$(eval $(call model_template,4,chain_binomial_heterogeneous))
 
-PKG_LIBS = \
-  $(SHLIB_OPENMP_CXXFLAGS)
+all: $(SHLIB) $(MODEL_0_DLL) $(MODEL_1_DLL) $(MODEL_2_DLL) $(MODEL_3_DLL) $(MODEL_4_DLL)
 
-COMMON_SOURCES = \
-	attribute.cpp \
-	augmented.cpp \
-	binomial.cpp \
-	contact_rate.cpp \
-	data_long.cpp \
-	data_wide.cpp \
-	distribution.cpp \
-	export_bindings.cpp \
-	flags.cpp \
-	function.cpp \
-	group_rate.cpp \
-	infec_profile.cpp \
-	mcmc_impl.cpp \
-	parameter.cpp \
-	setup.cpp \
-	tools.cpp \
-	variable.cpp 
-
-COMMON_OBJECTS = $(COMMON_SOURCES:.cpp=.o)
-
-MODEL_1_NAME = augmented_example
-MODEL_1_MODULE = housepi$(subst _,,$(MODEL_1_NAME))
-MODEL_1_DLL = ../inst/models/$(MODEL_1_NAME)/$(MODEL_1_MODULE)$(SHLIB_EXT)
-
-MODEL_2_NAME = augmented_infection_time
-MODEL_2_MODULE = housepi$(subst _,,$(MODEL_2_NAME))
-MODEL_2_DLL = ../inst/models/$(MODEL_2_NAME)/$(MODEL_2_MODULE)$(SHLIB_EXT)
-
-MODEL_3_NAME = chain_binomial
-MODEL_3_MODULE = housepi$(subst _,,$(MODEL_3_NAME))
-MODEL_3_DLL = ../inst/models/$(MODEL_3_NAME)/$(MODEL_3_MODULE)$(SHLIB_EXT)
-
-MODEL_4_NAME = chain_binomial_heterogeneous
-MODEL_4_MODULE = housepi$(subst _,,$(MODEL_4_NAME))
-MODEL_4_DLL = ../inst/models/$(MODEL_4_NAME)/$(MODEL_4_MODULE)$(SHLIB_EXT)
-
-all: $(SHLIB) cache_template $(MODEL_1_DLL) $(MODEL_2_DLL) $(MODEL_3_DLL) $(MODEL_4_DLL)
-
-cache_template: $(SHLIB)
-	@echo "** caching templates"
-	@mkdir -p ../inst/template/src
-	@cp $(COMMON_SOURCES) model.cpp $(COMMON_OBJECTS) ../inst/template/src/
-	@cp $(SHLIB) ../inst/template/src/housepiblank$(SHLIB_EXT)
-	
-../inst/models/%/model.o: ../inst/models/%/model.cpp
+$(MODELS_PATH)/%/model.o: $(MODELS_PATH)/%/model.cpp $(SHLIB)
 	@echo "*** building template: '$*'"
-	$(CXX) $(ALL_CPPFLAGS) $(ALL_CXXFLAGS) -I../inst/models/$* -DHOUSEPI_MODULE_NAME=housepi$(subst _,,$*) -c $< -o $@
-	
-$(MODEL_1_DLL): ../inst/models/$(MODEL_1_NAME)/model.o $(COMMON_OBJECTS)
-	$(SHLIB_LINK) -o $(MODEL_1_DLL) $^ $(ALL_LIBS)
-	@$(RM) ../inst/models/$(MODEL_1_NAME)/model.o
+	$(CXX) $(ALL_CPPFLAGS) $(ALL_CXXFLAGS) -I$(MODELS_PATH)/$* -D_HOUSEPI_MODULE_NAME=$(subst _,,$*) -c $< -o $@
 
-$(MODEL_2_DLL): ../inst/models/$(MODEL_2_NAME)/model.o $(COMMON_OBJECTS)
-	$(SHLIB_LINK) -o $(MODEL_2_DLL) $^ $(ALL_LIBS)
-	@$(RM) ../inst/models/$(MODEL_2_NAME)/model.o
+define link_template
+$$(MODEL_$(1)_DLL): $$(MODEL_$(1)_FLDR)/model.o $$(SHLIB)
+	$$(SHLIB_LINK) -o $$(MODEL_$(1)_DLL) $$^ $$(ALL_LIBS)
+endef
+$(eval $(call link_template,0))
+$(eval $(call link_template,1))
+$(eval $(call link_template,2))
+$(eval $(call link_template,3))
+$(eval $(call link_template,4))
 
-$(MODEL_3_DLL): ../inst/models/$(MODEL_3_NAME)/model.o $(COMMON_OBJECTS)
-	$(SHLIB_LINK) -o $(MODEL_3_DLL) $^ $(ALL_LIBS)
-	@$(RM) ../inst/models/$(MODEL_3_NAME)/model.o
-
-$(MODEL_4_DLL): ../inst/models/$(MODEL_4_NAME)/model.o $(COMMON_OBJECTS)
-	$(SHLIB_LINK) -o $(MODEL_4_DLL) $^ $(ALL_LIBS)
-	@$(RM) ../inst/models/$(MODEL_4_NAME)/model.o
-
-.PHONY: all cache_template
+.PHONY: all

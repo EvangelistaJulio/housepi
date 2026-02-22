@@ -1,5 +1,4 @@
 #!/bin/sh
 rm -f src/*.o src/*.so src/*.exe
-rm -f -r inst/template/src/
-rm -f inst/models/*/*.o inst/models/*/*.so inst/models/*/*.exe
+rm -f inst/models/*/*.o inst/models/*/*.exe inst/models/*/*.so inst/models/*/*.dll
 rm -f inst/standalone/*.o inst/standalone/*.exe

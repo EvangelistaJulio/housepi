@@ -1,17 +1,22 @@
 # Standalone Makefile
 
-SRC := ../../src
-
 # If MODEL is not provided, set blank as default
-MODEL ?= $(SRC)
+MODEL ?= ../models/blank
 
 # Standard fields used for debugging
-# exported by .__enclos_env__$private$.export_to_cpp_standalone
-STD_IN := -A augm.csv -D data_wide.csv -L data_long.csv -G group_rates.csv -I infec.csv -P param.csv -S setup.csv -M multiplicity.csv
+# exported by private$.export_to_cpp_standalone
+STD_IN := -A augm.csv \
+-D data_wide.csv \
+-L data_long.csv \
+-G group_rates.csv \
+-I infec.csv \
+-P param.csv \
+-S setup.csv \
+-M multiplicity.csv
 
 # Lost of source files with exclusions
-EXCL_FILES := $(SRC)/model.cpp
-SOURCES := standalone.cpp $(MODEL)/model.cpp $(filter-out $(EXCL_FILES), $(wildcard $(SRC)/*.cpp))
+SRC := ../../src
+SOURCES := standalone.cpp $(MODEL)/model.cpp $(wildcard $(SRC)/*.cpp)
 
 # Object files to build (automatic)
 OBJECTS := $(SOURCES:.cpp=.o)
@@ -87,8 +92,7 @@ standalone.o: standalone.cpp
 
 # To clean objects
 clean:
-	$(RM) {$(MODEL),$(SRC),../models/*}/*.{o,exe,so,tmp}
-	$(RM) -r ../template/src/
+	$(RM) {$(MODEL),$(SRC),../models/*}/*.{o,exe,so,dll,tmp}
 
 # Run make in debugging mode
 debug:
@@ -110,4 +114,4 @@ test-infer:
 test-simulate:
 	$(EXECUTABLE) $(STD_IN) --simulate -O out.csv
 
-.PHONY: all clean debug test-log-lik test-infer test-simulate
+.PHONY: all clean debug profile test-log-lik test-infer test-simulate

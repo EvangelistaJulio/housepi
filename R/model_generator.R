@@ -200,16 +200,6 @@ HousepiGenerator <- R6::R6Class(
     ############################################################################
 
     # @description
-    # Initialize to "blank" model.
-    .initialize_blank_model = function() {
-      private$.last_user_flags <- character()
-      private$.source_dir <- system.file("template/src", package = "housepi")
-      private$.dll <- file.path(private$.source_dir,
-                                dll_file_ext("housepiblank"))
-      invisible(self)
-    },
-
-    # @description
     # Initialize custom model loading path to model source code.
     .initialize_custom_model = function(choice, as_template, force) {
       # UPDATE: storing should happen after assert source!
@@ -372,7 +362,7 @@ HousepiGenerator <- R6::R6Class(
     # @descrtiption
     # Fla ot pass the name of the custom Rcpp module.
     .custom_module_cpp_flag = function() {
-      paste0("HOUSEPI_MODULE_NAME=",
+      paste0("_HOUSEPI_MODULE_NAME=",
              tools::file_path_sans_ext(basename(private$.dll)))
     },
 
@@ -395,7 +385,7 @@ HousepiGenerator <- R6::R6Class(
       unlink(file.path(cache_dir_src, "model.o"))
 
       # rename blank dll to match pseudo package environment
-      blank_dll <- file.path(cache_dir_src, dll_file_ext("housepiblank"))
+      blank_dll <- file.path(cache_dir_src, dll_file_ext("housepi"))
       custom_dll <- file.path(cache_dir_src, dll_file_ext("housepi.custom"))
       overwrite(blank_dll, custom_dll)
 
@@ -541,9 +531,7 @@ HousepiGenerator <- R6::R6Class(
       # store raw flags for later checks
       private$.last_user_flags <- user_options$user_flags
 
-      if (choice == "blank") {
-        private$.initialize_blank_model()
-      } else if (dir.exists(choice)) {
+      if (dir.exists(choice)) {
         private$.initialize_custom_model(choice, as_template, force)
       } else if (!is.na(get_template_dir(choice))) {
         private$.initialize_template_model(choice, force)

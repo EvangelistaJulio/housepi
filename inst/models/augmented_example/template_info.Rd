@@ -2,7 +2,7 @@
 \title{Augmented Example}
 \name{housepi template : Augmented Example}
 \description{
-Dummy model used to illustrate the usage of augmented variables in housepi.
+Model used to illustrate the usage of augmented variables in housepi.
 Each positive status individual has an associated augmented variable \code{proba} to be specified.
 This example does not model transmission dynamics.
 \if{html}{\out{<hr>}}

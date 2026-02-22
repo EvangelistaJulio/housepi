@@ -150,11 +150,9 @@ dll_file_ext <- function(name) {
   paste0(name, .Platform$dynlib.ext)
 }
 
-# Templated name convention
+# Templated name convention (remove punctuation).
 template_name <- function(path) {
-  # remove punctuation from string
-  name <- gsub("[[:punct:]]", "", basename(path))
-  paste0("housepi", name)
+  gsub("[[:punct:]]", "", basename(path))
 }
 
 # Add random string to templated name
