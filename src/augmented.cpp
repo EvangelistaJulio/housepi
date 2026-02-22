@@ -590,7 +590,7 @@ void Augmented::helper_init_func_attributes_(Individual &member, size_t k)
     bool is_primitive = hsp::str::tobool(deftable_["fcumul"][k]);
     xaugm.init_function(compose_func_registries(
         parser.root.func, "function",
-        {"user", "transcendental", "arithmetic",
+        {"custom", "transcendental", "arithmetic",
          "continuos", "discrete", "infecprofile"},
         is_primitive));
 

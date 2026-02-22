@@ -153,9 +153,9 @@ std::unique_ptr<Distribution> compose_distr_registries(std::string_view opt,
     std::vector<const DistributionRegistry *> registry_ptrs = {};
     for (const std::string &r : registries)
         if (r == "continuos")
-            registry_ptrs.push_back(&ContinuosDistrRegistry::instance());
+            registry_ptrs.push_back(&ContinuosDistribRegistry::instance());
         else if (r == "discrete")
-            registry_ptrs.push_back(&DiscreteDistrRegistry::instance());
+            registry_ptrs.push_back(&DiscreteDistribRegistry::instance());
         else if (r == "infecprofile")
             registry_ptrs.push_back(&InfecProfileRegistry::instance());
         else
@@ -230,11 +230,6 @@ namespace
         return lgamma(a) + lgamma(b) - lgamma(a + b);
     }
 
-#define MAKE_DISTRIBUTION_CLONE_METHOD(Class_) \
-    std::unique_ptr<Distribution> clone_distrib() const override { return std::make_unique<Class_>(*this); }
-#define MAKE_DISTRIBUTION_NAME_METHOD(name_) \
-    std::string_view name() const noexcept override final { return #name_; }
-
 // Macro for left discretization when min = 0 (close).
 #define INIT_DISCR_LEFT_MIN_ZERO_CLOSE()       \
     void init_discretization() override final  \
@@ -266,8 +261,8 @@ namespace
         Uniform_()
             : Distribution({}, 0., 1.),
               unif_gen(0., 1.) {}
-        MAKE_DISTRIBUTION_CLONE_METHOD(Uniform_)
-        MAKE_DISTRIBUTION_NAME_METHOD(uniform)
+        HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Uniform_)
+        HOUSEPI_OVERRIDE_NAME_METHOD(uniform)
 
         /// UPDATE: should understand when discrete defined...
         void init_discretization() override final { discr_mode_ = Mode::Discrete::Center; }
@@ -286,7 +281,7 @@ namespace
         }
         double raw_quantile_(double p) const override final { return lower_.value() * (1. - p) + upper_.value() * p; }
     };
-    REGISTER_HOUSEPI_FUNCTION(Uniform_, ContinuosDistrRegistry)
+    HOUSEPI_REGISTER_FUNCTION(Uniform_, ContinuosDistrib)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////  *** Normal Distribution : class ***  //////////////////////////////
@@ -298,8 +293,8 @@ namespace
         Normal_()
             : Distribution({{"mean", 0.}, {"sd", 1.}}),
               norm_gen(0., 1.) {}
-        MAKE_DISTRIBUTION_CLONE_METHOD(Normal_)
-        MAKE_DISTRIBUTION_NAME_METHOD(normal)
+        HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Normal_)
+        HOUSEPI_OVERRIDE_NAME_METHOD(normal)
 
         void init_discretization() override final
         {
@@ -344,7 +339,7 @@ namespace
             return arg(0) + arg(1) * norm_gen(prng);
         }
     };
-    REGISTER_HOUSEPI_FUNCTION(Normal_, ContinuosDistrRegistry)
+    HOUSEPI_REGISTER_FUNCTION(Normal_, ContinuosDistrib)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////  *** Lognormal Distribution : class ***  /////////////////////////////
@@ -357,8 +352,8 @@ namespace
         Lognormal_()
             : Distribution({{"meanlog", 0.}, {"sdlog", 1.}}, 0.),
               norm_gen(0., 1.) { below_mode_ = Mode::Interval::Open; }
-        MAKE_DISTRIBUTION_CLONE_METHOD(Lognormal_)
-        MAKE_DISTRIBUTION_NAME_METHOD(lognormal)
+        HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Lognormal_)
+        HOUSEPI_OVERRIDE_NAME_METHOD(lognormal)
 
         INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
@@ -398,7 +393,7 @@ namespace
             return exp(arg(0) + arg(1) * norm_gen(prng));
         }
     };
-    REGISTER_HOUSEPI_FUNCTION(Lognormal_, ContinuosDistrRegistry)
+    HOUSEPI_REGISTER_FUNCTION(Lognormal_, ContinuosDistrib)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////  *** Beta Distribution : class ***  //////////////////////////////
@@ -414,8 +409,8 @@ namespace
             below_mode_ = Mode::Interval::Closed;
             above_mode_ = Mode::Interval::Closed;
         }
-        MAKE_DISTRIBUTION_CLONE_METHOD(Beta_)
-        MAKE_DISTRIBUTION_NAME_METHOD(beta)
+        HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Beta_)
+        HOUSEPI_OVERRIDE_NAME_METHOD(beta)
 
         void init_discretization() override final
         {
@@ -469,7 +464,7 @@ namespace
             return boost::random::beta_distribution<double>(arg(0), arg(1))(prng);
         }
     };
-    REGISTER_HOUSEPI_FUNCTION(Beta_, ContinuosDistrRegistry)
+    HOUSEPI_REGISTER_FUNCTION(Beta_, ContinuosDistrib)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////  *** Gamma Distribution : class ***  /////////////////////////////
@@ -480,8 +475,8 @@ namespace
     public:
         Gamma_()
             : Distribution({{"shape", hsp::na::DOUBLE}, {"scale", 1.}}, 0.) {}
-        MAKE_DISTRIBUTION_CLONE_METHOD(Gamma_)
-        MAKE_DISTRIBUTION_NAME_METHOD(gamma)
+        HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Gamma_)
+        HOUSEPI_OVERRIDE_NAME_METHOD(gamma)
 
         INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
@@ -524,7 +519,7 @@ namespace
             return std::gamma_distribution<double>(arg(0), arg(1))(prng);
         }
     };
-    REGISTER_HOUSEPI_FUNCTION(Gamma_, ContinuosDistrRegistry)
+    HOUSEPI_REGISTER_FUNCTION(Gamma_, ContinuosDistrib)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////  *** Gamma (Mean-Varance) Distribution : class ***  /////////////////////
@@ -537,8 +532,8 @@ namespace
     public:
         GammaMeanVar_()
             : Distribution({{"mean", hsp::na::DOUBLE}, {"var", hsp::na::DOUBLE}}, 0.) {}
-        MAKE_DISTRIBUTION_CLONE_METHOD(GammaMeanVar_)
-        MAKE_DISTRIBUTION_NAME_METHOD(gamma_meanvar)
+        HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(GammaMeanVar_)
+        HOUSEPI_OVERRIDE_NAME_METHOD(gamma_meanvar)
 
         INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
@@ -592,7 +587,7 @@ namespace
             return std::gamma_distribution<double>(m * m / v, v / m)(prng);
         }
     };
-    REGISTER_HOUSEPI_FUNCTION(GammaMeanVar_, ContinuosDistrRegistry)
+    HOUSEPI_REGISTER_FUNCTION(GammaMeanVar_, ContinuosDistrib)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////  *** Rayleigh Distribution : class ***  ////////////////////////////
@@ -604,8 +599,8 @@ namespace
         Rayleigh_()
             : Distribution({{"scale", 1.}}, 0.),
               unif_gen(0., 1.) {}
-        MAKE_DISTRIBUTION_CLONE_METHOD(Rayleigh_)
-        MAKE_DISTRIBUTION_NAME_METHOD(rayleigh)
+        HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Rayleigh_)
+        HOUSEPI_OVERRIDE_NAME_METHOD(rayleigh)
 
         INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
@@ -643,7 +638,7 @@ namespace
             return arg(0) * sqrt(-2 * log(unif_gen(prng)));
         }
     };
-    REGISTER_HOUSEPI_FUNCTION(Rayleigh_, ContinuosDistrRegistry)
+    HOUSEPI_REGISTER_FUNCTION(Rayleigh_, ContinuosDistrib)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////  *** Weibull Distribution : class ***  /////////////////////////////
@@ -655,8 +650,8 @@ namespace
         Weibull_()
             : Distribution({{"shape", hsp::na::DOUBLE}, {"scale", 1.}}, 0.),
               unif_gen(0., 1.) {}
-        MAKE_DISTRIBUTION_CLONE_METHOD(Weibull_)
-        MAKE_DISTRIBUTION_NAME_METHOD(weibull)
+        HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Weibull_)
+        HOUSEPI_OVERRIDE_NAME_METHOD(weibull)
 
         INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
@@ -696,7 +691,7 @@ namespace
             return arg(1) * pow(-log(unif_gen(prng)), 1.0 / arg(0));
         }
     };
-    REGISTER_HOUSEPI_FUNCTION(Weibull_, ContinuosDistrRegistry)
+    HOUSEPI_REGISTER_FUNCTION(Weibull_, ContinuosDistrib)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////  *** Exponential Distribution : class ***  //////////////////////////
@@ -708,8 +703,8 @@ namespace
         Exponential_()
             : Distribution({{"rate", 1.}}, 0.),
               unif_gen(0., 1.) {}
-        MAKE_DISTRIBUTION_CLONE_METHOD(Exponential_)
-        MAKE_DISTRIBUTION_NAME_METHOD(exponential)
+        HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Exponential_)
+        HOUSEPI_OVERRIDE_NAME_METHOD(exponential)
 
         INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
@@ -743,7 +738,7 @@ namespace
             return -log(unif_gen(prng)) / arg(0);
         }
     };
-    REGISTER_HOUSEPI_FUNCTION(Exponential_, ContinuosDistrRegistry)
+    HOUSEPI_REGISTER_FUNCTION(Exponential_, ContinuosDistrib)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////  *** Poisson Distribution : class ***  ////////////////////////////
@@ -754,8 +749,8 @@ namespace
     public:
         Poisson_()
             : Distribution({{"lambda", hsp::na::DOUBLE}}, 0.) { discr_mode_ = Mode::Discrete::Defined; }
-        MAKE_DISTRIBUTION_CLONE_METHOD(Poisson_)
-        MAKE_DISTRIBUTION_NAME_METHOD(poisson)
+        HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Poisson_)
+        HOUSEPI_OVERRIDE_NAME_METHOD(poisson)
 
         INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
 
@@ -786,7 +781,7 @@ namespace
             return std::poisson_distribution<unsigned>(arg(0))(prng);
         }
     };
-    REGISTER_HOUSEPI_FUNCTION(Poisson_, DiscreteDistrRegistry)
+    HOUSEPI_REGISTER_FUNCTION(Poisson_, DiscreteDistrib)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////  *** Binomial Distribution : class ***  ///////////////////////////
@@ -803,8 +798,8 @@ namespace
             below_mode_ = Mode::Interval::Closed;
             above_mode_ = Mode::Interval::Closed;
         }
-        MAKE_DISTRIBUTION_CLONE_METHOD(Binomial_)
-        MAKE_DISTRIBUTION_NAME_METHOD(binomial)
+        HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Binomial_)
+        HOUSEPI_OVERRIDE_NAME_METHOD(binomial)
 
         void init_discretization() override final {}
         void init_truncation() override final
@@ -860,7 +855,7 @@ namespace
             return std::binomial_distribution<unsigned>(arg(0), arg(1))(prng);
         }
     };
-    REGISTER_HOUSEPI_FUNCTION(Binomial_, DiscreteDistrRegistry)
+    HOUSEPI_REGISTER_FUNCTION(Binomial_, DiscreteDistrib)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////  *** NegativeBinomial Distribution : class ***  ///////////////////////
@@ -871,8 +866,8 @@ namespace
     public:
         NegativeBinomial_()
             : Distribution({{"size", hsp::na::DOUBLE}, {"prob", hsp::na::DOUBLE}}, 0.) { discr_mode_ = Mode::Discrete::Defined; }
-        MAKE_DISTRIBUTION_CLONE_METHOD(NegativeBinomial_)
-        MAKE_DISTRIBUTION_NAME_METHOD(negative_binomial)
+        HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(NegativeBinomial_)
+        HOUSEPI_OVERRIDE_NAME_METHOD(negative_binomial)
 
         INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
 
@@ -908,7 +903,7 @@ namespace
             return std::negative_binomial_distribution<unsigned>(arg(0), arg(1))(prng);
         }
     };
-    REGISTER_HOUSEPI_FUNCTION(NegativeBinomial_, DiscreteDistrRegistry)
+    HOUSEPI_REGISTER_FUNCTION(NegativeBinomial_, DiscreteDistrib)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////  *** Geometric Distribution : class ***  ///////////////////////////
@@ -919,8 +914,8 @@ namespace
     public:
         Geometric_()
             : Distribution({{"prob", hsp::na::DOUBLE}}, 0.) { discr_mode_ = Mode::Discrete::Defined; }
-        MAKE_DISTRIBUTION_CLONE_METHOD(Geometric_)
-        MAKE_DISTRIBUTION_NAME_METHOD(geometric)
+        HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Geometric_)
+        HOUSEPI_OVERRIDE_NAME_METHOD(geometric)
 
         INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
 
@@ -952,10 +947,10 @@ namespace
             return std::geometric_distribution<unsigned>(arg(0))(prng);
         }
     };
-    REGISTER_HOUSEPI_FUNCTION(Geometric_, DiscreteDistrRegistry)
+    HOUSEPI_REGISTER_FUNCTION(Geometric_, DiscreteDistrib)
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////  *** InfecProfile_Ferretti20 : class ***  ///////////////////////////
+    /////////////////////////////  *** Ferretti20_ : class ***  ///////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// The infectivity profile is considered equal to the distribution
@@ -977,13 +972,13 @@ namespace
     /// Ferretti L, Ledda A, Wymant C, Zhao L, Ledda V, Abeler-Dorner L, et al.
     /// The timing of COVID-19 transmission.
     /// medRxiv; 2020. p. 2020.09.04.20188516. doi:10.1101/2020.09.04.20188516
-    class InfecProfile_Ferretti20 final : public Distribution
+    class Ferretti20_ final : public Distribution
     {
     public:
-        InfecProfile_Ferretti20()
+        Ferretti20_()
             : Distribution({{"shape", 5.85}, {"scale", 1.85}, {"c_loc", -4.0}, {"mean_incub", 5.42}, {"incub_period", 5.42}}, 0.) {}
-        MAKE_DISTRIBUTION_CLONE_METHOD(InfecProfile_Ferretti20)
-        MAKE_DISTRIBUTION_NAME_METHOD(ferretti20)
+        HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Ferretti20_)
+        HOUSEPI_OVERRIDE_NAME_METHOD(ferretti20)
 
         INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
@@ -1025,5 +1020,5 @@ namespace
             return (F0 + pow(1. + exp((m - tOST) / s), -a) - pow(1. + exp(m / s), -a)) / norm_cdf;
         }
     };
-    REGISTER_HOUSEPI_FUNCTION(InfecProfile_Ferretti20, InfecProfileRegistry)
+    HOUSEPI_REGISTER_FUNCTION(Ferretti20_, InfecProfile)
 }

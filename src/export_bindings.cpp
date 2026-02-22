@@ -154,8 +154,8 @@ namespace hsp::msg
 }
 
 ExposeBase::ExposeBase(std::string name, const std::string &family,
-                                 SEXP args_, double min, double max, bool is_discr,
-                                 std::vector<std::string> registry_types)
+                       SEXP args_, double min, double max, bool is_discr,
+                       std::vector<std::string> registry_types)
     : family_(family)
 {
     try
@@ -226,7 +226,7 @@ Rcpp::NumericVector ExposeBase::call_(Rcpp::NumericVector x) const
 
 ExposeFunction::ExposeFunction(std::string name_, SEXP args_, double min, double max, bool is_discr)
     : ExposeBase(name_, "function", args_, min, max, is_discr,
-                      {"user", "transcendental", "arithmetic"}) {}
+                 {"custom", "transcendental", "arithmetic"}) {}
 
 Rcpp::NumericVector ExposeFunction::func(Rcpp::NumericVector x) const
 {
@@ -242,7 +242,7 @@ Rcpp::NumericVector ExposeFunction::prim(Rcpp::NumericVector x) const
 
 ExposeDistribution::ExposeDistribution(std::string name_, SEXP args_, double min, double max, bool is_discr)
     : ExposeBase(name_, "distribution", args_, min, max, is_discr,
-                      {"continuos", "discrete"}) {}
+                 {"continuos", "discrete"}) {}
 
 Rcpp::NumericVector ExposeDistribution::pdf(Rcpp::NumericVector x) const
 {
@@ -258,7 +258,7 @@ Rcpp::NumericVector ExposeDistribution::cdf(Rcpp::NumericVector x) const
 
 ExposeInfecProfile::ExposeInfecProfile(std::string name_, SEXP args_, double min, double max, bool is_discr)
     : ExposeBase(name_, "infectivity profile", args_, min, max, is_discr,
-                      {"infecprofile", "continuos", "discrete"}) {}
+                 {"infecprofile", "continuos", "discrete"}) {}
 
 Rcpp::NumericVector ExposeInfecProfile::inst(Rcpp::NumericVector x) const
 {

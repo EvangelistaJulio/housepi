@@ -28,7 +28,7 @@ class FunctionRegistry
 public:
     using func_uptr = std::unique_ptr<Function>;
 
-    size_t size() const noexcept { return factory_map_.size(); }
+    virtual std::string_view name() const = 0;
     bool count(std::string_view opt) const { return factory_map_.count(opt); }
     std::vector<std::string> get_options() const;
     virtual func_uptr create(std::string_view opt, bool is_prim = false) const;
@@ -51,39 +51,46 @@ public:
     func_uptr create(std::string_view opt, bool is_prim = false) const override final;
 };
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  *** Registry Implementations ***  /////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
+#define HOUSEPI_OVERRIDE_NAME_METHOD(name_) \
+    std::string_view name() const noexcept override final { return #name_; }
+#define HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Class_) \
+    std::unique_ptr<Function> clone() const override final { return std::make_unique<Class_>(*this); }
+#define HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Class_) \
+    std::unique_ptr<Distribution> clone_distrib() const override final { return std::make_unique<Class_>(*this); }
 
-/// Declare a housepi functions registry.
-#define DECLARE_HOUSEPI_REGISTRY(ClassName, RegistryType) \
-    class ClassName : public RegistryType                 \
-    {                                                     \
-    public:                                               \
-        static ClassName &instance()                      \
-        {                                                 \
-            static ClassName _inst;                       \
-            return _inst;                                 \
-        }                                                 \
+/// Declare housepi functions registry.
+#define HOUSEPI_DECLARE_REGISTRY_(ClassName, Type)    \
+    class ClassName##Registry : public Type##Registry \
+    {                                                 \
+    public:                                           \
+        HOUSEPI_OVERRIDE_NAME_METHOD(ClassName)       \
+        static ClassName##Registry &instance();       \
     };
-DECLARE_HOUSEPI_REGISTRY(ArithmeticRegistry, FunctionRegistry)
-DECLARE_HOUSEPI_REGISTRY(TranscendentalRegistry, FunctionRegistry)
-DECLARE_HOUSEPI_REGISTRY(UserFuncRegistry, FunctionRegistry)
-DECLARE_HOUSEPI_REGISTRY(ContinuosDistrRegistry, DistributionRegistry)
-DECLARE_HOUSEPI_REGISTRY(DiscreteDistrRegistry, DistributionRegistry)
-DECLARE_HOUSEPI_REGISTRY(InfecProfileRegistry, DistributionRegistry)
 
-#define REGISTER_HOUSEPI_FUNCTION(T, R)                                \
+/// Define instance method of registry.
+#define HOUSEPI_DEFINE_REGISTRY_INSTANCE_(ClassName)     \
+    ClassName##Registry &ClassName##Registry::instance() \
+    {                                                    \
+        static ClassName##Registry _inst;                \
+        return _inst;                                    \
+    }
+
+#define HOUSEPI_REGISTER_FUNCTION(T, R)                                \
     namespace                                                          \
     {                                                                  \
-        struct T##_##R##_AutoRegister                                  \
+        struct T##R##_AutoRegister                                     \
         {                                                              \
-            T##_##R##_AutoRegister()                                   \
+            T##R##_AutoRegister()                                      \
             {                                                          \
-                R::instance().template register_member<T>();           \
+                R##Registry::instance().template register_member<T>(); \
             }                                                          \
         };                                                             \
-        static T##_##R##_AutoRegister T##_##R##_housepi_auto_register; \
+        static T##R##_AutoRegister T##R##_auto_register;               \
     }
+
+HOUSEPI_DECLARE_REGISTRY_(Custom, Function)
+HOUSEPI_DECLARE_REGISTRY_(Arithmetic, Function)
+HOUSEPI_DECLARE_REGISTRY_(Transcendental, Function)
+HOUSEPI_DECLARE_REGISTRY_(ContinuosDistrib, Distribution)
+HOUSEPI_DECLARE_REGISTRY_(DiscreteDistrib, Distribution)
+HOUSEPI_DECLARE_REGISTRY_(InfecProfile, Distribution)

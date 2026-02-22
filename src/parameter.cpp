@@ -354,7 +354,7 @@ void Parameter::helper_store_read_function_(const hsp::parse::Entry &node, const
     Attribute parent;
     parent.init_function(compose_func_registries(
         node.func, "function",
-        {"user", "transcendental", "arithmetic",
+        {"custom", "transcendental", "arithmetic",
          "continuos", "discrete", "infecprofile"}));
 
     for (const auto &child : node.children)

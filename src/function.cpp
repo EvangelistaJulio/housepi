@@ -25,6 +25,13 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+HOUSEPI_DEFINE_REGISTRY_INSTANCE_(Custom)
+HOUSEPI_DEFINE_REGISTRY_INSTANCE_(Arithmetic)
+HOUSEPI_DEFINE_REGISTRY_INSTANCE_(Transcendental)
+HOUSEPI_DEFINE_REGISTRY_INSTANCE_(ContinuosDistrib)
+HOUSEPI_DEFINE_REGISTRY_INSTANCE_(DiscreteDistrib)
+HOUSEPI_DEFINE_REGISTRY_INSTANCE_(InfecProfile)
+
 std::vector<std::string> FunctionRegistry::get_options() const
 {
     std::vector<std::string> entries;
@@ -61,8 +68,8 @@ std::unique_ptr<Function> compose_func_registries(std::string_view opt,
 
     std::vector<const FunctionRegistry *> registry_ptrs = {};
     for (const std::string &r : registries)
-        if (r == "user")
-            registry_ptrs.push_back(&UserFuncRegistry::instance());
+        if (r == "custom")
+            registry_ptrs.push_back(&CustomRegistry::instance());
 
         else if (r == "transcendental")
             registry_ptrs.push_back(&TranscendentalRegistry::instance());
@@ -71,10 +78,10 @@ std::unique_ptr<Function> compose_func_registries(std::string_view opt,
             registry_ptrs.push_back(&ArithmeticRegistry::instance());
 
         else if (r == "continuos")
-            registry_ptrs.push_back(&ContinuosDistrRegistry::instance());
+            registry_ptrs.push_back(&ContinuosDistribRegistry::instance());
 
         else if (r == "discrete")
-            registry_ptrs.push_back(&DiscreteDistrRegistry::instance());
+            registry_ptrs.push_back(&DiscreteDistribRegistry::instance());
 
         else if (r == "infecprofile")
             registry_ptrs.push_back(&InfecProfileRegistry::instance());
@@ -410,62 +417,57 @@ void Function::optimize()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define MAKE_FUNCTION_CLONE_METHOD(Class_) \
-    std::unique_ptr<Function> clone() const override { return std::make_unique<Class_>(*this); }
-#define MAKE_FUNCTION_NAME_METHOD(name_) \
-    std::string_view name() const noexcept override final { return #name_; }
-
 namespace
 {
     /// Minus Function.
     class Minus_ final : public Function
     {
     public:
-        MAKE_FUNCTION_CLONE_METHOD(Minus_)
-        MAKE_FUNCTION_NAME_METHOD(minus)
+        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Minus_)
+        HOUSEPI_OVERRIDE_NAME_METHOD(minus)
 
         bool is_discrete() const noexcept override final { return x_arg_.is_discrete(); }
 
     protected:
         double raw_function_(double x) const override final { return -x; }
     };
-    REGISTER_HOUSEPI_FUNCTION(Minus_, ArithmeticRegistry)
+    HOUSEPI_REGISTER_FUNCTION(Minus_, Arithmetic)
 
     /// Subtraction function.
     class Subtraction_ final : public Function
     {
     public:
         Subtraction_() : Function({{"x2", hsp::na::DOUBLE}}) {}
-        MAKE_FUNCTION_CLONE_METHOD(Subtraction_)
-        MAKE_FUNCTION_NAME_METHOD(sub)
+        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Subtraction_)
+        HOUSEPI_OVERRIDE_NAME_METHOD(sub)
 
         bool is_discrete() const noexcept override final { return arguments_[0].is_discrete() && x_arg_.is_discrete(); }
 
     protected:
         double raw_function_(double x) const override final { return x - arg(0); }
     };
-    REGISTER_HOUSEPI_FUNCTION(Subtraction_, ArithmeticRegistry)
+    HOUSEPI_REGISTER_FUNCTION(Subtraction_, Arithmetic)
 
     /// Division Function.
     class Division_ final : public Function
     {
     public:
         Division_() : Function({{"x2", hsp::na::DOUBLE}}) {}
-        MAKE_FUNCTION_CLONE_METHOD(Division_)
-        MAKE_FUNCTION_NAME_METHOD(div)
+        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Division_)
+        HOUSEPI_OVERRIDE_NAME_METHOD(div)
 
     protected:
         double raw_function_(double x) const override final { return x / arg(0); }
     };
-    REGISTER_HOUSEPI_FUNCTION(Division_, ArithmeticRegistry)
+    HOUSEPI_REGISTER_FUNCTION(Division_, Arithmetic)
 
     /// Power Function.
     class Power_ final : public Function
     {
     public:
         Power_() : Function({{"x2", hsp::na::DOUBLE}}) {}
-        MAKE_FUNCTION_CLONE_METHOD(Power_)
-        MAKE_FUNCTION_NAME_METHOD(pow)
+        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Power_)
+        HOUSEPI_OVERRIDE_NAME_METHOD(pow)
 
         bool is_discrete() const noexcept override final { return Function::is_discrete() || (arguments_[0].is_discrete() && x_arg_.is_discrete()); }
 
@@ -480,15 +482,15 @@ namespace
         }
         double raw_logratio_(double xo, double xn) const override final { return arg(0) * std::log(xn / xo); }
     };
-    REGISTER_HOUSEPI_FUNCTION(Power_, TranscendentalRegistry)
+    HOUSEPI_REGISTER_FUNCTION(Power_, Transcendental)
 
     /// SquareRoot Function.
     class SquareRoot_ final : public Function
     {
     public:
         SquareRoot_() : Function({}, 0.) {}
-        MAKE_FUNCTION_CLONE_METHOD(SquareRoot_)
-        MAKE_FUNCTION_NAME_METHOD(sqrt)
+        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(SquareRoot_)
+        HOUSEPI_OVERRIDE_NAME_METHOD(sqrt)
 
         void init_truncation() override final { helper_init_range_min_(); }
 
@@ -498,14 +500,14 @@ namespace
         double raw_primitive_(double x) const override final { return std::pow(x, 1.5) / 1.5; }
         double raw_logratio_(double xo, double xn) const override final { return raw_logfunc_(xn) - raw_logfunc_(xo); }
     };
-    REGISTER_HOUSEPI_FUNCTION(SquareRoot_, TranscendentalRegistry)
+    HOUSEPI_REGISTER_FUNCTION(SquareRoot_, Transcendental)
 
     /// Exponential Function.
     class Exponential_ final : public Function
     {
     public:
-        MAKE_FUNCTION_CLONE_METHOD(Exponential_)
-        MAKE_FUNCTION_NAME_METHOD(exp)
+        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Exponential_)
+        HOUSEPI_OVERRIDE_NAME_METHOD(exp)
 
     protected:
         double raw_function_(double x) const override final { return std::exp(x); }
@@ -513,15 +515,15 @@ namespace
         double raw_primitive_(double x) const override final { return std::exp(x); }
         double raw_logratio_(double xo, double xn) const override final { return xn - xo; }
     };
-    REGISTER_HOUSEPI_FUNCTION(Exponential_, TranscendentalRegistry)
+    HOUSEPI_REGISTER_FUNCTION(Exponential_, Transcendental)
 
     /// Logarithm Function.
     class Logarithm_ final : public Function
     {
     public:
         Logarithm_() : Function({}, 0.) { below_mode_ = Mode::Interval::Open; }
-        MAKE_FUNCTION_CLONE_METHOD(Logarithm_)
-        MAKE_FUNCTION_NAME_METHOD(log)
+        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Logarithm_)
+        HOUSEPI_OVERRIDE_NAME_METHOD(log)
 
         void init_truncation() override final { helper_init_range_min_(0., true); }
 
@@ -531,14 +533,14 @@ namespace
         double raw_primitive_(double x) const override final { return x * std::log(x) - x; }
         double raw_logratio_(double xo, double xn) const override final { return raw_logfunc_(xn) - raw_logfunc_(xo); }
     };
-    REGISTER_HOUSEPI_FUNCTION(Logarithm_, TranscendentalRegistry)
+    HOUSEPI_REGISTER_FUNCTION(Logarithm_, Transcendental)
 
     /// Sine Function.
     class Sine_ final : public Function
     {
     public:
-        MAKE_FUNCTION_CLONE_METHOD(Sine_)
-        MAKE_FUNCTION_NAME_METHOD(sin)
+        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Sine_)
+        HOUSEPI_OVERRIDE_NAME_METHOD(sin)
 
     protected:
         double raw_function_(double x) const override final { return std::sin(x); }
@@ -546,14 +548,14 @@ namespace
         double raw_primitive_(double x) const override final { return -std::cos(x); }
         double raw_logratio_(double xo, double xn) const override final { return raw_logfunc_(xn) - raw_logfunc_(xo); }
     };
-    REGISTER_HOUSEPI_FUNCTION(Sine_, TranscendentalRegistry)
+    HOUSEPI_REGISTER_FUNCTION(Sine_, Transcendental)
 
     /// Cosine Function.
     class Cosine_ final : public Function
     {
     public:
-        MAKE_FUNCTION_CLONE_METHOD(Cosine_)
-        MAKE_FUNCTION_NAME_METHOD(cos)
+        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Cosine_)
+        HOUSEPI_OVERRIDE_NAME_METHOD(cos)
 
     protected:
         double raw_function_(double x) const override final { return std::cos(x); }
@@ -561,21 +563,21 @@ namespace
         double raw_primitive_(double x) const override final { return std::sin(x); }
         double raw_logratio_(double xo, double xn) const override final { return raw_logfunc_(xn) - raw_logfunc_(xo); }
     };
-    REGISTER_HOUSEPI_FUNCTION(Cosine_, TranscendentalRegistry)
+    HOUSEPI_REGISTER_FUNCTION(Cosine_, Transcendental)
 
     /// Tangent Function.
     class Tangent_ final : public Function
     {
     public:
-        MAKE_FUNCTION_CLONE_METHOD(Tangent_)
-        MAKE_FUNCTION_NAME_METHOD(tan)
+        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Tangent_)
+        HOUSEPI_OVERRIDE_NAME_METHOD(tan)
 
     protected:
         double raw_function_(double x) const override final { return std::tan(x); }
         double raw_logfunc_(double x) const override final { return std::log(std::tan(x)); }
         double raw_logratio_(double xo, double xn) const override final { return raw_logfunc_(xn) - raw_logfunc_(xo); }
     };
-    REGISTER_HOUSEPI_FUNCTION(Tangent_, TranscendentalRegistry)
+    HOUSEPI_REGISTER_FUNCTION(Tangent_, Transcendental)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////  VariadicFunction : class  ///////////////////////////////////
@@ -623,8 +625,8 @@ namespace
     {                                                       \
     public:                                                 \
         Class_() : VariadicFunction() {}                    \
-        MAKE_FUNCTION_CLONE_METHOD(Class_)                  \
-        MAKE_FUNCTION_NAME_METHOD(name_)                    \
+        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Class_)                  \
+        HOUSEPI_OVERRIDE_NAME_METHOD(name_)                    \
                                                             \
     protected:                                              \
         double raw_function_(double x) const override final \
@@ -635,17 +637,17 @@ namespace
         }                                                   \
     };
     MAKE_VARIADIC_ALGEBRAIC(Summation_, sum, +=)
-    REGISTER_HOUSEPI_FUNCTION(Summation_, ArithmeticRegistry)
+    HOUSEPI_REGISTER_FUNCTION(Summation_, Arithmetic)
     MAKE_VARIADIC_ALGEBRAIC(Product_, prod, *=)
-    REGISTER_HOUSEPI_FUNCTION(Product_, ArithmeticRegistry)
+    HOUSEPI_REGISTER_FUNCTION(Product_, Arithmetic)
 
 #define MAKE_VARIADIC_MIN_MAX(Class_, name_, symbol)        \
     class Class_ final : public VariadicFunction            \
     {                                                       \
     public:                                                 \
         Class_() : VariadicFunction() {}                    \
-        MAKE_FUNCTION_CLONE_METHOD(Class_)                  \
-        MAKE_FUNCTION_NAME_METHOD(name_)                    \
+        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Class_)                  \
+        HOUSEPI_OVERRIDE_NAME_METHOD(name_)                    \
                                                             \
     protected:                                              \
         double raw_function_(double x) const override final \
@@ -660,9 +662,9 @@ namespace
         }                                                   \
     };
     MAKE_VARIADIC_MIN_MAX(Minimum_, min, <)
-    REGISTER_HOUSEPI_FUNCTION(Minimum_, ArithmeticRegistry)
+    HOUSEPI_REGISTER_FUNCTION(Minimum_, Arithmetic)
     MAKE_VARIADIC_MIN_MAX(Maximum_, max, >)
-    REGISTER_HOUSEPI_FUNCTION(Maximum_, ArithmeticRegistry)
+    HOUSEPI_REGISTER_FUNCTION(Maximum_, Arithmetic)
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
