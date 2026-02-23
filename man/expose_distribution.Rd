@@ -4,14 +4,7 @@
 \alias{expose_distribution}
 \title{Expose housepi distribution}
 \usage{
-expose_distribution(
-  name,
-  ...,
-  min = NA_real_,
-  max = NA_real_,
-  discr = FALSE,
-  hhmodel = NULL
-)
+expose_distribution(name, ..., min = NA_real_, max = NA_real_, discr = FALSE)
 }
 \arguments{
 \item{name}{\code{character(1)} Name of the distribution.}
@@ -23,12 +16,9 @@ expose_distribution(
 \item{max}{\code{numeric(1)} Truncate to a maximum value.}
 
 \item{discr}{\code{logical(1)} Treat definition as discrete.}
-
-\item{hhmodel}{\code{HousepiModel} object. Where \%s has been registered.\cr
-If \code{NULL} the built-in registry is used (default).}
 }
 \value{
-\code{DistributionHousepi} object.
+\code{ExposeDistribution} object.
 }
 \description{
 Expose an object from housepi registered distribution.

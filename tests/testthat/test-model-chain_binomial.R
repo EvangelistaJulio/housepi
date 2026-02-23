@@ -1,11 +1,11 @@
 library(testthat)
 
 test_that("Chain binomial is not discretizable", {
-  expect_warning(
+  expect_error(
     new_housepi_model("chain_binomial", discr = TRUE),
     regexp = "No visible discrete time option"
   )
-  expect_warning(
+  expect_error(
     new_housepi_model("chain_binomial_heterogeneous", discr = TRUE),
     regexp = "No visible discrete time option"
   )

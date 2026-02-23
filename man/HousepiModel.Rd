@@ -84,7 +84,7 @@ used to run inference and simulation routines.
 One between:\cr
 \itemize{
 \item template name;\cr
-\item path/to/folder with implementation files 'model.cpp' and 'model.h';\cr
+\item path/to/folder with implementation file 'model.cpp';\cr
 \item path/to/folder with previously compiled model;
 \item 'blank': template name for blank model.
 \item \code{NA}: fall back to 'blank' (default).

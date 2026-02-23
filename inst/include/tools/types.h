@@ -7,9 +7,6 @@
 
 #pragma once
 
-/// DEVELOPER: flag used to develop Rcpp chunks
-//#define _HOUSEPI_RCPP
-
 #include <string>
 #include <vector>
 #include <map>

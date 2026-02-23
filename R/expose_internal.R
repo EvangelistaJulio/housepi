@@ -11,8 +11,6 @@ rd_test_name_ <- "`character(1)` Name of the %s."
 rd_test_x_ <- "`numeric()` Points where to evaluate."
 rd_test_args_ <- "named arguments. User argument values for the %s"
 rd_test_discr_ <- "`logical(1)` Treat definition as discrete."
-rd_test_model_ <- paste(rd_model_in_, "Where %s has been registered.\\cr
-If `NULL` the built-in registry is used (default).")
 
 #' @title Expose housepi function
 #' @description
@@ -23,7 +21,6 @@ If `NULL` the built-in registry is used (default).")
 #' @param min `r rd_var_min_`
 #' @param max `r rd_var_max_`
 #' @param discr `r rd_test_discr_`
-#' @param hhmodel `r rd_test_model_`
 #' @return `ExposeFunction` object.
 #' @examples
 #' fnc <- expose_function("pow", x2 = 3)
@@ -31,9 +28,10 @@ If `NULL` the built-in registry is used (default).")
 #' fnc$prim(seq(0, 5))
 #' @export
 expose_function <- function(name, ...,
-                            min = NA_real_, max = NA_real_,
-                            discr = FALSE, hhmodel = NULL) {
-  m <- get_rcpp_module_from_model(hhmodel)
+                            min = NA_real_,
+                            max = NA_real_,
+                            discr = FALSE) {
+  m <- get_rcpp_module_from_model()
   m$ExposeFunction$new(name, args = unlist(list(...)),
                        min = min, max = max, discr = discr)
 }
@@ -47,7 +45,6 @@ expose_function <- function(name, ...,
 #' @param min `r rd_var_min_`
 #' @param max `r rd_var_max_`
 #' @param discr `r rd_test_discr_`
-#' @param hhmodel `r rd_test_model_`
 #' @return `ExposeDistribution` object.
 #' @examples
 #' dst <- expose_distribution("weibull", shape = 2, scale = 1)
@@ -55,9 +52,10 @@ expose_function <- function(name, ...,
 #' dst$cdf(seq(0, 5))
 #' @export
 expose_distribution <- function(name, ...,
-                                min = NA_real_, max = NA_real_,
-                                discr = FALSE, hhmodel = NULL) {
-  m <- get_rcpp_module_from_model(hhmodel)
+                                min = NA_real_,
+                                max = NA_real_,
+                                discr = FALSE) {
+  m <- get_rcpp_module_from_model()
   m$ExposeDistribution$new(name, args = unlist(list(...)),
                            min = min, max = max, discr = discr)
 }
@@ -71,7 +69,6 @@ expose_distribution <- function(name, ...,
 #' @param min `r rd_var_min_`
 #' @param max `r rd_var_max_`
 #' @param discr `r rd_test_discr_`
-#' @param hhmodel `r rd_test_model_`
 #' @return `ExposeInfecProfile` object.
 #' @examples
 #' ipf <- expose_infec_profile("gamma", shape = 2, scale = 1)
@@ -79,10 +76,11 @@ expose_distribution <- function(name, ...,
 #' ipf$cumul(seq(0, 5))
 #' @export
 expose_infec_profile <- function(name, ...,
-                                 min = NA_real_, max = NA_real_,
-                                 discr = FALSE, hhmodel = NULL) {
+                                 min = NA_real_,
+                                 max = NA_real_,
+                                 discr = FALSE) {
   if (is.na(min)) min <- ifelse(discr, 1, 0)
-  m <- get_rcpp_module_from_model(hhmodel)
+  m <- get_rcpp_module_from_model()
   m$ExposeInfecProfile$new(name, args = unlist(list(...)),
                            min = min, max = max, discr = discr)
 }

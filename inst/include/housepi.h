@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "tools/keys.h"
-#include "tools/types.h"
 
 #include "individual.h"
 #include "household.h"
@@ -62,9 +61,20 @@ int standalone(MCMC &model, int argc, char *argv[]);
     }
 
 #define HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE() \
-    namespace _HOUSEPI_MODULE_NAME             \
+    namespace _HOUSEPI_MODULE_NAME            \
     {
 #define HOUSEPI_CLOSE_NAMED_MODULE_NAMESPACE() }
+
+/// Expose compile flags.
+std::string housepi_compile_flags()
+{
+    return
+#ifdef _HOUSEPI_DISCRETE_TIME
+        "_HOUSEPI_DISCRETE_TIME:";
+#else
+        "";
+#endif
+}
 
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
@@ -74,6 +84,7 @@ int standalone(MCMC &model, int argc, char *argv[]);
     RCPP_MODULE(module_name)                                                           \
     {                                                                                  \
         using namespace module_name;                                                   \
+                                                                                       \
         Rcpp::function("housepi_compile_flags", &housepi_compile_flags);               \
                                                                                        \
         Rcpp::class_<ExposeBase>("ExposeBase")                                         \
@@ -138,7 +149,7 @@ int standalone(MCMC &model, int argc, char *argv[]);
 #define HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE()   \
     int main(int argc, char *argv[])               \
     {                                              \
-        using namespace _HOUSEPI_MODULE_NAME;       \
+        using namespace _HOUSEPI_MODULE_NAME;      \
         Model user_model;                          \
         return standalone(user_model, argc, argv); \
     }

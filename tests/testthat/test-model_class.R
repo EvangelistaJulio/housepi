@@ -165,3 +165,13 @@ test_that("Load augmented list works fine for external lists", {
   hhmodel$load_augmented_list(z0 = date@D, z1 = sqrt(log(z0)))
   expect_equal(tmp, hhmodel$augmented)
 })
+
+test_that("Custom models and shares function registries", {
+  #pkgbuild::check_build_tools(debug = TRUE)
+  hhmodel_0 <- new_housepi_model("blank")
+  expect_error(expose_function("growth"), regexp = "Unknown function")
+  
+  custom <- system.file(file.path("examples", "custom"), package = "housepi")
+  hhmodel_1 <- new_housepi_model(custom, quiet = TRUE)
+  expect_no_error(expose_function("growth")$func(seq(3)))
+})

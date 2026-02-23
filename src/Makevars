@@ -1,5 +1,5 @@
 CXX_STD = CXX17
-PKG_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS) -D_HOUSEPI_RCPP -I../inst/template/include
+PKG_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS) -D_HOUSEPI_RCPP -I"../inst/include"
 PKG_LIBS = $(SHLIB_OPENMP_CXXFLAGS)
 
 MODELS_PATH = ../inst/models
@@ -17,7 +17,7 @@ all: $(SHLIB) $(MODEL_0_DLL) $(MODEL_1_DLL) $(MODEL_2_DLL) $(MODEL_3_DLL) $(MODE
 
 $(MODELS_PATH)/%/model.o: $(MODELS_PATH)/%/model.cpp $(SHLIB)
 	@echo "*** building template: '$*'"
-	$(CXX) $(ALL_CPPFLAGS) $(ALL_CXXFLAGS) -I$(MODELS_PATH)/$* -D_HOUSEPI_MODULE_NAME=$(subst _,,$*) -c $< -o $@
+	$(CXX) $(ALL_CPPFLAGS) $(ALL_CXXFLAGS) -I"$(MODELS_PATH)/$*" -D_HOUSEPI_MODULE_NAME=$(subst _,,$*) -c $< -o $@
 
 define link_template
 $$(MODEL_$(1)_DLL): $$(MODEL_$(1)_FLDR)/model.o $$(SHLIB)

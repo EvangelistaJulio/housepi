@@ -75,7 +75,7 @@ get_rcpp_module_from_dll <- local({
 })
 
 # Get Rcpp module from model
-get_rcpp_module_from_model <- function(hhmodel) {
+get_rcpp_module_from_model <- function(hhmodel = NULL) {
   if (is.null(hhmodel)) {
     dll <- template_dll_file(get_template_dir("blank"))
   } else {

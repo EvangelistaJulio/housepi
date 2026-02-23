@@ -124,6 +124,8 @@ navbar:
       text: "Templates"
       href: ~
       menu:
+        - text: "Blank"
+          href: reference/_hhmodel_blank.html
         - text: "Chain Binomial"
           href: reference/_hhmodel_chain_binomial.html
         - text: "Chain Binomial Heterogeneous"

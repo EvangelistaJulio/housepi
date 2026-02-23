@@ -4,14 +4,7 @@
 \alias{expose_infec_profile}
 \title{Expose housepi infectivity profile}
 \usage{
-expose_infec_profile(
-  name,
-  ...,
-  min = NA_real_,
-  max = NA_real_,
-  discr = FALSE,
-  hhmodel = NULL
-)
+expose_infec_profile(name, ..., min = NA_real_, max = NA_real_, discr = FALSE)
 }
 \arguments{
 \item{name}{\code{character(1)} Name of the infectivity profile.}
@@ -23,12 +16,9 @@ expose_infec_profile(
 \item{max}{\code{numeric(1)} Truncate to a maximum value.}
 
 \item{discr}{\code{logical(1)} Treat definition as discrete.}
-
-\item{hhmodel}{\code{HousepiModel} object. Where \%s has been registered.\cr
-If \code{NULL} the built-in registry is used (default).}
 }
 \value{
-\code{InfecProfileHousepi} object.
+\code{ExposeInfecProfile} object.
 }
 \description{
 Expose an object from housepi registered infectivity profile.

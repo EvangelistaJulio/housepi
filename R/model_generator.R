@@ -37,7 +37,7 @@ generator_assert_allows_flag <- function(source_dir, flag) {
 generator_process_user_options <- function(...) {
   user_paths <- character()
   user_flags <- character()
-  user_linkers <- character()
+  user_libs <- character()
   user_options <- list(...)
 
   # process time discrete option
@@ -45,9 +45,11 @@ generator_process_user_options <- function(...) {
     user_flags <- c(user_flags, "_HOUSEPI_DISCRETE_TIME")
   }
 
+  system.file("libs", .Platform$r_arch, package = "YourPkg")
+
   list("user_paths" = user_paths,
        "user_flags" = user_flags,
-       "user_linkers" = user_linkers)
+       "user_libs" = user_libs)
 }
 
 # @description
@@ -81,6 +83,26 @@ generator_adjust_seed <- function(seed) {
     sprintf("Maximum value for an integer in R is %.0f.", max_r_int)
   )
   seed
+}
+
+# Get C++ Rcpp and OpenMP flags used for environment compilation.
+generator_cpp_envvar_flags <- function(paths = NULL,
+                                       flags = NULL,
+                                       libs = NULL) {
+  flags <- c("_HOUSEPI_RCPP", flags)
+  paths <- c(system.file("include", package = "housepi"), paths)
+  housepi_lib <- file.path(system.file("libs", package = "housepi"),
+                           .Platform$r_arch,
+                           dll_file_ext("housepi"))
+
+  c(PKG_CXXFLAGS = paste0(c("$(SHLIB_OPENMP_CXXFLAGS)",
+                            paste0("-D", flags),
+                            paste0("-I", paths)),
+                          collapse = " "),
+    PKG_LIBS = paste0(c("$(SHLIB_OPENMP_CXXFLAGS)",
+                        if (length(libs)) paste0("-L", libs),
+                        housepi_lib),
+                      collapse = " "))
 }
 
 ############################################################################
@@ -165,12 +187,12 @@ HousepiGenerator <- R6::R6Class(
       keep <- character()
       for (f in private$.last_user_flags) {
         if (generator_assert_allows_flag(source_dir, f)) keep <- c(keep, f)
-        else if (f == "_HOUSEPI_DISCRETE_TIME") warning_h(
+        else if (f == "_HOUSEPI_DISCRETE_TIME") stop_h(
           sprintf("No visible discrete time option for model '%s'.", self$name)
         )
-        else warning_h(
-          sprintf("Ignoring unused flag '%s' not found in model source.", f),
-          "Only flags present in model.cpp are applied at compile time."
+        else stop_h(
+          sprintf("No visible option associated to flag '%s'.", f),
+          "Only flags used in model.cpp are applicable at compile time."
         )
       }
       # store just effective flags
@@ -326,7 +348,6 @@ HousepiGenerator <- R6::R6Class(
     # @description
     # Create temporary folder and copy source code there.
     .copy_source_code = function() {
-
       # clean all previous file in the cache
       unlink(list.files(private$.cache_dir, full.names = TRUE),
              recursive = TRUE)
@@ -334,10 +355,9 @@ HousepiGenerator <- R6::R6Class(
       # 'housepi' template package directory
       housepi_dir <- system.file("template", package = "housepi")
 
-      # copy folders from template
-      for (fldr in file.path(housepi_dir, c("src", "R"))) {
-        overwrite(fldr, private$.cache_dir, recursive = TRUE)
-      }
+      # copy R folder from template
+      overwrite(file.path(housepi_dir, "R"), private$.cache_dir,
+                recursive = TRUE)
 
       # copy single package files
       for (f in file.path(housepi_dir, c("NAMESPACE", "DESCRIPTION"))) {
@@ -345,6 +365,8 @@ HousepiGenerator <- R6::R6Class(
       }
 
       # copy model specific source files in the new folder
+      dir.create(file.path(private$.cache_dir, "src"),
+                 showWarnings = FALSE, recursive = TRUE)
       for (f in source_files(private$.source_dir)) {
         overwrite(f, file.path(private$.cache_dir, "src", basename(f)))
       }
@@ -372,42 +394,16 @@ HousepiGenerator <- R6::R6Class(
     # To avoid recompiling immutable files I just touch them.
     # @param user_paths A `character()` vector of additional include paths.
     # @param user_flags A `character()` vector of additional compiler flags.
-    # @param user_linkers A `character()` vector of additional linker flags.
+    # @param user_libs A `character()` vector of additional linker flags.
     .compile = function(user_paths = character(),
                         user_flags = character(),
-                        user_linkers = character()) {
-      # drop previous Rcpp model object
-      private$.rcpp <- NULL
-
-      # source folder in cache directory
-      cache_dir_src <- file.path(private$.cache_dir, "src")
-      # remove object file
-      unlink(file.path(cache_dir_src, "model.o"))
-
-      # rename blank dll to match pseudo package environment
-      blank_dll <- file.path(cache_dir_src, dll_file_ext("housepi"))
-      custom_dll <- file.path(cache_dir_src, dll_file_ext("housepi.custom"))
-      overwrite(blank_dll, custom_dll)
-
-      # touch installation files
-      touch_time <- Sys.time() - 2
-      for (f in list.files(cache_dir_src, full.names = TRUE)) {
-        Sys.setFileTime(f, touch_time)
-      }
-      # touch as source model file was more recent
-      Sys.setFileTime(file.path(cache_dir_src, "model.cpp"), touch_time + 1)
-      # same for registry about current flags if any
-      # NOTE: default installation has empty flags
-      if (length(private$.last_user_flags) > 0) {
-        Sys.setFileTime(file.path(cache_dir_src, "flags.cpp"), touch_time + 1)
-      }
-
+                        user_libs = character()) {
       # compile the dynamic library
       withr::with_envvar(
-        get_cpp_envvar_flags(
+        generator_cpp_envvar_flags(
           paths = user_paths,
           flags = c(private$.custom_module_cpp_flag(), user_flags),
-          linkers = user_linkers
+          libs = user_libs
         ),
         pkgbuild::compile_dll(private$.cache_dir,
                               quiet = private$.quiet,
@@ -415,6 +411,8 @@ HousepiGenerator <- R6::R6Class(
                               debug = FALSE)
       )
       # copy DLL outside of the source directory
+      custom_dll <- file.path(private$.cache_dir, "src",
+                              dll_file_ext("housepi.custom"))
       overwrite(custom_dll, private$.dll)
 
       invisible(self)
@@ -542,6 +540,8 @@ HousepiGenerator <- R6::R6Class(
 
       # if necessary, recompile only the model script
       if (private$.need_compile) {
+        # drop previous Rcpp model object
+        private$.rcpp <- NULL
         do.call(private$.compile, user_options)
         private$.need_compile <- FALSE
       }

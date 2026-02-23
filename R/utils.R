@@ -83,15 +83,12 @@ find_closest_match <- function(input, options, min_dist = 1) {
 
 # wrapper to file.copy with overwrite option
 overwrite <- function(from, to, ...) {
-  if (from != to) {
-    # user permission error (tipically)
-    if (!file.copy(from, to, overwrite = TRUE, ...)) {
-      print(from) # FLAG
-      print(to)
-      stop_h("Failed to setup necessary files.",
-             "Check your user permissions.")
-    }
-  }
+  if (from == to) return(invisible())
+  # user permission error (tipically)
+  if (!file.copy(from, to, overwrite = TRUE, ...)) stop_h(
+    "Failed to setup necessary files.",
+    "Check your user permissions."
+  )
 }
 
 # Define a custom get function (like in Python dictionaries)
@@ -163,21 +160,6 @@ random_name <- function(path) {
 # DLL fyle with templated name convention
 template_dll_file <- function(path) {
   file.path(path, dll_file_ext(template_name(path)))
-}
-
-# Get C++ Rcpp and OpenMP flags used for environment compilation.
-get_cpp_envvar_flags <- function(paths = NULL, flags = NULL, linkers = NULL) {
-  template_path <- system.file("template/include", package = "housepi")
-  include_paths <- c(template_path, paths)
-  include_flags <- c("_HOUSEPI_RCPP", flags)
-
-  c(PKG_CXXFLAGS = paste0(c("$(SHLIB_OPENMP_CXXFLAGS)",
-                            paste0("-D", include_flags),
-                            paste0("-I", include_paths)),
-                          collapse = " "),
-    PKG_LIBS = paste0(c("$(SHLIB_OPENMP_CXXFLAGS)",
-                        linkers),
-                      collapse = " "))
 }
 
 # helper function to deep clone R6 objects
