@@ -63,14 +63,19 @@ get_rcpp_module_from_dll <- local({
   module_cache <- list()
 
   function(dll) {
-    # load DLL if not already loaded
-    if (!is_dll_loaded(dll)) dyn.load(dll)
-
-    # build and store module if not cached yet
-    if (!dll %in% names(module_cache)) {
-      module_cache[[dll]] <<-
-        Rcpp::Module(get_template_from_dll(dll),
-                     PACKAGE = get_template_from_dll(dll))
+    if (is.null(dll)) {
+      dll <- "housepi"
+      if (!dll %in% names(module_cache)) {
+        module_cache[[dll]] <<-
+          Rcpp::Module("housepi", PACKAGE = "housepi")
+      }
+    } else {
+      if (!is_dll_loaded(dll)) dyn.load(dll)
+      if (!dll %in% names(module_cache)) {
+        module_cache[[dll]] <<-
+          Rcpp::Module(get_template_from_dll(dll),
+                       PACKAGE = get_template_from_dll(dll))
+      }
     }
     module_cache[[dll]]
   }
@@ -78,11 +83,8 @@ get_rcpp_module_from_dll <- local({
 
 # Get Rcpp module from model
 get_rcpp_module_from_model <- function(hhmodel = NULL) {
-  if (is.null(hhmodel)) {
-    dll <- template_dll_file(get_template_dir("blank"))
-  } else {
-    dll <- hhmodel$.__enclos_env__$private$.dll
-  }
+  if (is.null(hhmodel)) dll <- NULL
+  else dll <- hhmodel$.__enclos_env__$private$.dll
   get_rcpp_module_from_dll(dll)
 }
 

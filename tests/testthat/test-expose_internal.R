@@ -1,5 +1,23 @@
 library(testthat)
 
+test_that("Expose function has no leaks", {
+  mem_used_mb <- function() gc()["Vcells", "(Mb)"]
+  
+  fun <- expose_function("sin")
+  rm(fun)
+  invisible(gc())
+  mem_before <- mem_used_mb()
+  
+  # heavy allocation loop
+  for (i in cli::cli_progress_along(seq_len(200))) {
+    fun <- expose_function("sin")
+    rm(fun)
+    if (i %% 20 == 0) gc()
+  }
+  invisible(gc())
+  expect_lt(mem_used_mb() - mem_before, 5)
+})
+
 test_that("Function exported from housepi are correct", {
   x <- seq(0, 1000, 1)
   expect_error(expose_function("pow")$func(x),

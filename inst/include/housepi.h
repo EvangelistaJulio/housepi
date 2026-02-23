@@ -65,6 +65,12 @@ int standalone(MCMC &model, int argc, char *argv[]);
     {
 #define HOUSEPI_CLOSE_NAMED_MODULE_NAMESPACE() }
 
+//' @name housepi_compile_flags
+//' @title Get Housepi Compilation Flags
+//' @description Return the compilation flags used when building the housepi library.
+//' @return `character(1)` A string containing the compiled flags.
+//' @keywords internal
+
 /// Expose compile flags.
 std::string housepi_compile_flags()
 {
@@ -76,6 +82,42 @@ std::string housepi_compile_flags()
 #endif
 }
 
+//' @name HousepiRcppModel
+//' @title Internal housepi Rcpp model
+//' @description Perform inference and simulation from the model.
+//' @field run_inference Perform MCMC inference of the model parameters.
+//' @field data_wide_for_simulation Dataset without status and augmented entries.
+//' @field run_simulation Simulated status and augmented variables.
+//' @field run_simulation_for_predict Simulation for the computation of expected measure.
+//' @field evaluate Evaluate the log-likelihood according to the current state.
+//' @field log_evidence Evaluate the logarithm of the marginal likelihood (aka evidence).
+//' Uses the method of power posteriors. \itemize{
+//'   \item Parameter: scheme
+//'   \item Parameter: n_rungs
+//' }
+//' @field import_setup Import setup from R List.
+//' @field import_data_wide Import house indexed data in wide format from R Data.Frame.
+//' @field import_data_long Import individual indexed in long format from R Data.Frame.
+//' @field import_multiplicity Imoprt multiplicity definitions from R Data.Frame.
+//' @field import_group_rates Imoprt group rates definitions from R Data.Frame.
+//' @field import_param Import parameter definitions from R Data.Frame.
+//' @field import_infec_profile Import infectivity profile definition from R List.
+//' @field import_augm Import augmented variable definitions from R Data.Frame.
+//' @field import_param_for_prediction Import parameter tables for expected measures estimation.
+//' @field build_contact_rates Assign all contact rates.
+//' @field export_setup Return a List with current setup.
+//' @field export_infec_profile Return a List with infectivity profile.
+//' @field export_data_wide Return a DataFrame with current database.
+//' @field summarise_cases Return a DataFrame with a report of the current database.
+//' @field summarise_house_sizes Return a DataFrame with a report of household sizes.
+//' @field flush_total_log_lik_draws Return a NumericMatrix with the total log-likelihood draws.
+//' @field flush_param_draws Return a NumericMatrix with parameters draws.
+//' @field flush_param_lprior_draws Return a NumericMatrix with parameter with log-priors draws.
+//' @field flush_augm_draws Return a NumericMatrix with augmented draws.
+//' @field flush_house_log_lik_draws Return a NumericMatrix with household log-likelihood draws.
+//' @field export_house_snapshot Return a List with a snapshot containing full household and model details.
+//' @keywords internal
+
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
 
@@ -86,27 +128,6 @@ std::string housepi_compile_flags()
         using namespace module_name;                                                   \
                                                                                        \
         Rcpp::function("housepi_compile_flags", &housepi_compile_flags);               \
-                                                                                       \
-        Rcpp::class_<ExposeBase>("ExposeBase")                                         \
-            .method("args", &ExposeBase::args);                                        \
-                                                                                       \
-        Rcpp::class_<ExposeFunction>("ExposeFunction")                                 \
-            .constructor<std::string, SEXP, double, double, bool>()                    \
-            .derives<ExposeBase>("ExposeBase")                                         \
-            .method("func", &ExposeFunction::func)                                     \
-            .method("prim", &ExposeFunction::prim);                                    \
-                                                                                       \
-        Rcpp::class_<ExposeDistribution>("ExposeDistribution")                         \
-            .constructor<std::string, SEXP, double, double, bool>()                    \
-            .derives<ExposeBase>("ExposeBase")                                         \
-            .method("pdf", &ExposeDistribution::pdf)                                   \
-            .method("cdf", &ExposeDistribution::cdf);                                  \
-                                                                                       \
-        Rcpp::class_<ExposeInfecProfile>("ExposeInfecProfile")                         \
-            .constructor<std::string, SEXP, double, double, bool>()                    \
-            .derives<ExposeBase>("ExposeBase")                                         \
-            .method("inst", &ExposeInfecProfile::inst)                                 \
-            .method("cumul", &ExposeInfecProfile::cumul);                              \
                                                                                        \
         Rcpp::class_<MCMC>("MCMC." TOSTRING(module_name))                              \
             .method("run_inference", &MCMC::run_inference)                             \

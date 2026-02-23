@@ -45,8 +45,6 @@ generator_process_user_options <- function(...) {
     user_flags <- c(user_flags, "_HOUSEPI_DISCRETE_TIME")
   }
 
-  system.file("libs", .Platform$r_arch, package = "YourPkg")
-
   list("user_paths" = user_paths,
        "user_flags" = user_flags,
        "user_libs" = user_libs)
@@ -91,9 +89,7 @@ generator_cpp_envvar_flags <- function(paths = NULL,
                                        libs = NULL) {
   flags <- c("_HOUSEPI_RCPP", flags)
   paths <- c(system.file("include", package = "housepi"), paths)
-  housepi_lib <- file.path(system.file("libs", package = "housepi"),
-                           .Platform$r_arch,
-                           dll_file_ext("housepi"))
+  housepi_lib <- getLoadedDLLs()[["housepi"]][["path"]]
 
   c(PKG_CXXFLAGS = paste0(c("$(SHLIB_OPENMP_CXXFLAGS)",
                             paste0("-D", flags),
@@ -421,9 +417,7 @@ HousepiGenerator <- R6::R6Class(
     # @description Initialize new object of Rcpp Model.
     .new_rcpp_model = function() {
       # expose internally the module
-      if (private$.is_blank()) m <- get_rcpp_module_from_model(NULL)
-      else m <- get_rcpp_module_from_dll(private$.dll)
-
+      m <- get_rcpp_module_from_dll(private$.dll)
       class_name <- paste0("Model.", get_template_from_dll(private$.dll))
       y <- do.call("$", list(m, class_name))
       y$new()

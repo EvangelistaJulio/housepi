@@ -55,5 +55,3 @@ $(MODEL_3_DLL): $(MODEL_3_FLDR)/model.o $(SHLIB)
 
 $(MODEL_4_DLL): $(MODEL_4_FLDR)/model.o $(SHLIB)
 	$(SHLIB_LINK) -o $(MODEL_4_DLL) $(MODEL_4_FLDR)/model.o $(SHLIB) $(ALL_LIBS)
-
-.PHONY: all

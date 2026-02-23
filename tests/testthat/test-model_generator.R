@@ -26,7 +26,6 @@ test_that("Model generator inconsistent calls", {
 test_that("Model has no leaks", {
   mem_used_mb <- function() gc()["Vcells", "(Mb)"]
 
-  # warmup
   hhgen <- housepi:::HousepiGenerator$new("augmented example")
   rm(hhgen)
   invisible(gc())
