@@ -3,30 +3,57 @@ PKG_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS) -D_HOUSEPI_RCPP -I"../inst/include"
 PKG_LIBS = $(SHLIB_OPENMP_CXXFLAGS)
 
 MODELS_PATH = ../inst/models
-define model_template
-MODEL_$(1)_FLDR = $(MODELS_PATH)/$(2)
-MODEL_$(1)_DLL = $$(MODEL_$(1)_FLDR)/$$(subst _,,$(2))$$(SHLIB_EXT)
-endef
-$(eval $(call model_template,0,blank))
-$(eval $(call model_template,1,augmented_example))
-$(eval $(call model_template,2,augmented_infection_time))
-$(eval $(call model_template,3,chain_binomial))
-$(eval $(call model_template,4,chain_binomial_heterogeneous))
+
+MODEL_0_FLDR = $(MODELS_PATH)/blank
+MODEL_0_DLL = $(MODEL_0_FLDR)/blank$(SHLIB_EXT)
+
+MODEL_1_FLDR = $(MODELS_PATH)/augmented_example
+MODEL_1_DLL = $(MODEL_1_FLDR)/augmentedexample$(SHLIB_EXT)
+
+MODEL_2_FLDR = $(MODELS_PATH)/augmented_infection_time
+MODEL_2_DLL = $(MODEL_2_FLDR)/augmentedinfectiontime$(SHLIB_EXT)
+
+MODEL_3_FLDR = $(MODELS_PATH)/chain_binomial
+MODEL_3_DLL = $(MODEL_3_FLDR)/chainbinomial$(SHLIB_EXT)
+
+MODEL_4_FLDR = $(MODELS_PATH)/chain_binomial_heterogeneous
+MODEL_4_DLL = $(MODEL_4_FLDR)/chainbinomialheterogeneous$(SHLIB_EXT)
 
 all: $(SHLIB) $(MODEL_0_DLL) $(MODEL_1_DLL) $(MODEL_2_DLL) $(MODEL_3_DLL) $(MODEL_4_DLL)
 
-$(MODELS_PATH)/%/model.o: $(MODELS_PATH)/%/model.cpp $(SHLIB)
-	@echo "*** building template: '$*'"
-	$(CXX) $(ALL_CPPFLAGS) $(ALL_CXXFLAGS) -I"$(MODELS_PATH)/$*" -D_HOUSEPI_MODULE_NAME=$(subst _,,$*) -c $< -o $@
+$(MODEL_0_FLDR)/model.o: $(MODEL_0_FLDR)/model.cpp $(SHLIB)
+	@echo "*** building template: 'blank'"
+	$(CXX) $(ALL_CPPFLAGS) $(ALL_CXXFLAGS) -I"$(MODEL_0_FLDR)" -D_HOUSEPI_MODULE=blank -c $(MODEL_0_FLDR)/model.cpp -o $(MODEL_0_FLDR)/model.o
 
-define link_template
-$$(MODEL_$(1)_DLL): $$(MODEL_$(1)_FLDR)/model.o $$(SHLIB)
-	$$(SHLIB_LINK) -o $$(MODEL_$(1)_DLL) $$^ $$(ALL_LIBS)
-endef
-$(eval $(call link_template,0))
-$(eval $(call link_template,1))
-$(eval $(call link_template,2))
-$(eval $(call link_template,3))
-$(eval $(call link_template,4))
+$(MODEL_1_FLDR)/model.o: $(MODEL_1_FLDR)/model.cpp $(SHLIB)
+	@echo "*** building template: 'augmented_example'"
+	$(CXX) $(ALL_CPPFLAGS) $(ALL_CXXFLAGS) -I"$(MODEL_1_FLDR)" -D_HOUSEPI_MODULE=augmentedexample -c $(MODEL_1_FLDR)/model.cpp -o $(MODEL_1_FLDR)/model.o
+
+$(MODEL_2_FLDR)/model.o: $(MODEL_2_FLDR)/model.cpp $(SHLIB)
+	@echo "*** building template: 'augmented_infection_time'"
+	$(CXX) $(ALL_CPPFLAGS) $(ALL_CXXFLAGS) -I"$(MODEL_2_FLDR)" -D_HOUSEPI_MODULE=augmentedinfectiontime -c $(MODEL_2_FLDR)/model.cpp -o $(MODEL_2_FLDR)/model.o
+
+$(MODEL_3_FLDR)/model.o: $(MODEL_3_FLDR)/model.cpp $(SHLIB)
+	@echo "*** building template: 'chain_binomial'"
+	$(CXX) $(ALL_CPPFLAGS) $(ALL_CXXFLAGS) -I"$(MODEL_3_FLDR)" -D_HOUSEPI_MODULE=chainbinomial -c $(MODEL_3_FLDR)/model.cpp -o $(MODEL_3_FLDR)/model.o
+
+$(MODEL_4_FLDR)/model.o: $(MODEL_4_FLDR)/model.cpp $(SHLIB)
+	@echo "*** building template: 'chain_binomial_heterogeneous'"
+	$(CXX) $(ALL_CPPFLAGS) $(ALL_CXXFLAGS) -I"$(MODEL_4_FLDR)" -D_HOUSEPI_MODULE=chainbinomialheterogeneous -c $(MODEL_4_FLDR)/model.cpp -o $(MODEL_4_FLDR)/model.o
+
+$(MODEL_0_DLL): $(MODEL_0_FLDR)/model.o $(SHLIB)
+	$(SHLIB_LINK) -o $(MODEL_0_DLL) $(MODEL_0_FLDR)/model.o $(SHLIB) $(ALL_LIBS)
+
+$(MODEL_1_DLL): $(MODEL_1_FLDR)/model.o $(SHLIB)
+	$(SHLIB_LINK) -o $(MODEL_1_DLL) $(MODEL_1_FLDR)/model.o $(SHLIB) $(ALL_LIBS)
+
+$(MODEL_2_DLL): $(MODEL_2_FLDR)/model.o $(SHLIB)
+	$(SHLIB_LINK) -o $(MODEL_2_DLL) $(MODEL_2_FLDR)/model.o $(SHLIB) $(ALL_LIBS)
+
+$(MODEL_3_DLL): $(MODEL_3_FLDR)/model.o $(SHLIB)
+	$(SHLIB_LINK) -o $(MODEL_3_DLL) $(MODEL_3_FLDR)/model.o $(SHLIB) $(ALL_LIBS)
+
+$(MODEL_4_DLL): $(MODEL_4_FLDR)/model.o $(SHLIB)
+	$(SHLIB_LINK) -o $(MODEL_4_DLL) $(MODEL_4_FLDR)/model.o $(SHLIB) $(ALL_LIBS)
 
 .PHONY: all

@@ -384,7 +384,7 @@ HousepiGenerator <- R6::R6Class(
     # @descrtiption
     # Fla ot pass the name of the custom Rcpp module.
     .custom_module_cpp_flag = function() {
-      paste0("_HOUSEPI_MODULE_NAME=",
+      paste0("_HOUSEPI_MODULE=",
              tools::file_path_sans_ext(basename(private$.dll)))
     },
 

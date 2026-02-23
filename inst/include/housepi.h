@@ -22,8 +22,8 @@ class MCMC;
 int standalone(MCMC &model, int argc, char *argv[]);
 #endif
 
-#ifndef _HOUSEPI_MODULE_NAME
-#define _HOUSEPI_MODULE_NAME blank
+#ifndef _HOUSEPI_MODULE
+#define _HOUSEPI_MODULE blank
 #endif
 
 #define HOUSEPI_DECLARE_EMPTY_KEYS(T)                        \
@@ -61,7 +61,7 @@ int standalone(MCMC &model, int argc, char *argv[]);
     }
 
 #define HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE() \
-    namespace _HOUSEPI_MODULE_NAME            \
+    namespace _HOUSEPI_MODULE                 \
     {
 #define HOUSEPI_CLOSE_NAMED_MODULE_NAMESPACE() }
 
@@ -144,12 +144,12 @@ std::string housepi_compile_flags()
             .derives<MCMC>("MCMC." TOSTRING(module_name));                             \
     }
 #define HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE() \
-    HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE_IMPL_(_HOUSEPI_MODULE_NAME)
+    HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE_IMPL_(_HOUSEPI_MODULE)
 #else
 #define HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE()   \
     int main(int argc, char *argv[])               \
     {                                              \
-        using namespace _HOUSEPI_MODULE_NAME;      \
+        using namespace _HOUSEPI_MODULE;           \
         Model user_model;                          \
         return standalone(user_model, argc, argv); \
     }

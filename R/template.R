@@ -5,6 +5,8 @@
 ## See the LICENSE file for details.
 ##
 
+#' @importFrom Rcpp Module
+
 # Assert that given definition name is valid.
 assert_valid_definition_name <- function(x, family, is_implicit = FALSE) {
   sms <- c()

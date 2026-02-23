@@ -5,7 +5,41 @@
 ## See the LICENSE file for details.
 ##
 
-#' @importFrom Rcpp Module
+# Assert that arguments provided to model are legitimate.
+# UPDATE: at the moment augmented functions are not testable
+# because my registries are exposed separately
+housepi_assert_args <- function(hhmodel, family, last = FALSE) {
+  # load requested faimily definitions
+  col_model <- family2model_col(family)
+  col_args <- ifelse(col_model == "func", "func_args", "args")
+  pvt_module <- family2pvt_module(family)
+  defs <- hhmodel$.__enclos_env__$private[[pvt_module]]$defs
+  if (isTRUE(last)) defs <- utils::tail(defs, 1)
+
+  readable_defs <- housepi_defin_showcaser(defs)
+  for (r in seq_len(nrow(readable_defs))) {
+    distr_name <- readable_defs[r, col_model]
+    if (!is.na(distr_name)) {
+      arg_names <- names(readable_defs[r, col_args][[1]])
+      # NOTE: I am assuming `1` is a safe argument...
+      dummy_args <- stats::setNames(rep(1, length(arg_names)), arg_names)
+      # trigger C++ errors
+      tryCatch(
+        if (family == "infectivity profile") {
+          expose_infec_profile(distr_name, dummy_args)
+        } else {
+          expose_distribution(distr_name, dummy_args)
+        }
+        ,
+        error = function(e) {
+          stop_h(sprintf("Wrong definition found for '%s'.",
+                         readable_defs[r, "name"]),
+                 utils::tail(strsplit(e$message, "\n")[[1]], 1))
+        }
+      )
+    }
+  }
+}
 
 rd_test_name_ <- "`character(1)` Name of the %s."
 rd_test_x_ <- "`numeric()` Points where to evaluate."
