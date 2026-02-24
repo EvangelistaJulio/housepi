@@ -22,16 +22,16 @@
 #' straightforward analyses and advanced epidemiological investigations.
 "_PACKAGE"
 
-#' @useDynLib housepi, .registration = TRUE
-NULL
-
 .engine <- NULL
 
 .onLoad <- function(libname, pkgname) {
-  dll_path <- getLoadedDLLs()[[pkgname]][["path"]]
-  if (Sys.info()["sysname"] %in% c("Darwin", "Linux")) {
-    dyn.unload(dll_path)
-    dyn.load(dll_path, local = FALSE, now = TRUE)
-  }
+  # UPDATE: non local load should be improved
+  dll <- getLoadedDLLs()[[pkgname]]
+  if (!is.null(dll)) dyn.load(dll[["path"]], local = FALSE, now = TRUE)
+  else library.dynam(pkgname, pkgname, libname, local = FALSE)
   .engine <<- Rcpp::Module(pkgname, PACKAGE = pkgname)
+}
+
+.onUnload <- function(libpath) {
+  library.dynam.unload("housepi", libpath)
 }
