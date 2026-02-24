@@ -288,12 +288,14 @@ HousepiAugmented <- R6::R6Class(
     #' @param required `character()`. Required definitions.
     #' @param status_set `integer()`. All known statuses in data.
     #' @param capital `logical(1)`. Whether to raise error.
-    assert = function(required, status_set, capital) {
+    #' @param warn_unused `logical(1)`. Warn if unused are found.
+    assert = function(required, status_set, capital, warn_unused) {
       status_set <- sort(status_set)
       defined <- self$defs[["name"]]
       # point out augmented variables that are not used
-      template_not_used_warn(required, defined, self$family)
-
+      if (isTRUE(warn_unused)) {
+        template_not_used_warn(required, defined, self$family)
+      }
       # stop if augmented variables are missing
       sms <- template_missing_stop(required, defined, self$family)
       if (isTRUE(capital) && length(sms) > 0) stop_h(sms)

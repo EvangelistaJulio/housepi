@@ -48,7 +48,7 @@ template_models_dir <- function() {
 
 # Get template name from DLL file
 get_template_from_dll <- function(dll) {
-  if (is.null(dll) || is.na(dll) || !file.exists(dll)) NA_character_
+  if (is.null(dll) || is.na(dll)) NA_character_
   else tools::file_path_sans_ext(basename(dll))
 }
 
@@ -63,30 +63,18 @@ get_rcpp_module_from_dll <- local({
   module_cache <- list()
 
   function(dll) {
-    if (is.null(dll)) {
-      dll <- "housepi"
-      if (!dll %in% names(module_cache)) {
-        module_cache[[dll]] <<-
-          Rcpp::Module("housepi", PACKAGE = "housepi")
-      }
-    } else {
-      if (!is_dll_loaded(dll)) dyn.load(dll)
-      if (!dll %in% names(module_cache)) {
-        module_cache[[dll]] <<-
-          Rcpp::Module(get_template_from_dll(dll),
-                       PACKAGE = get_template_from_dll(dll))
-      }
+    if (is.null(dll) || is.na(dll)) stop_h(
+      "Impossible to load housepi module from empty DLL."
+    )
+    if (!is_dll_loaded(dll)) dyn.load(dll)
+    if (!dll %in% names(module_cache)) {
+      module_cache[[dll]] <<-
+        Rcpp::Module(get_template_from_dll(dll),
+                     PACKAGE = get_template_from_dll(dll))
     }
     module_cache[[dll]]
   }
 })
-
-# Get Rcpp module from model
-get_rcpp_module_from_model <- function(hhmodel = NULL) {
-  if (is.null(hhmodel)) dll <- NULL
-  else dll <- hhmodel$.__enclos_env__$private$.dll
-  get_rcpp_module_from_dll(dll)
-}
 
 #' @title
 #' Get template model directory

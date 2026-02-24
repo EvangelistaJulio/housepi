@@ -31,54 +31,58 @@ HousepiPosteriorDraws <- R6::R6Class(
 
   private = list(
     # @field
-    .name = NA_character_,
-    .param_draws = NULL,
-    .prior_draws = NULL,
-    .augm_draws = NULL,
-    .total_log_lik_draws = NULL,
-    .point_log_lik_draws = NULL,
-    .chain_tags = NULL,
-    .iter_names = NULL,
+    name_ = NA_character_,
+    param_draws_ = NULL,
+    prior_draws_ = NULL,
+    augm_draws_ = NULL,
+    total_log_lik_draws_ = NULL,
+    point_log_lik_draws_ = NULL,
+    chain_tags_ = NULL,
+    iter_names_ = NULL,
+
+    ############################################################################
+    ############################################################################
+    ############################################################################
 
     # Store auxiliary tags from inference setup.
-    .process_setup = function(setup) {
+    pre_process_setup_ = function(setup) {
       n_steps <- setup[["steps"]]
       n_burnin <- setup[["burnin"]]
       n_thin <- setup[["thin"]]
       n_chains <- setup[["chains"]]
       c_sample_size <- (n_steps - n_burnin) %/% n_thin
 
-      private$.chain_tags <- rep(seq_len(n_chains), each = c_sample_size)
-      private$.iter_names <- n_burnin + seq_len(c_sample_size) * n_thin
+      private$chain_tags_ <- rep(seq_len(n_chains), each = c_sample_size)
+      private$iter_names_ <- n_burnin + seq_len(c_sample_size) * n_thin
       invisible(self)
     },
 
     # @description Convert draws from housepi Rcpp to `posterior.`
     # @param x `matrix` or `data.frame`. Draws exported from Rcpp core.
     # @return `posterior::draws_df`
-    .cpp_draws_to_posterior = function(x) {
+    to_posterior_draws_ = function(x) {
       if (!is.matrix(x)) stop_h(
         "Something went wrong while exporting posterior draws."
       )
       if (length(x) == 0) return(NULL)
 
       # split into a list of matrix
-      list_trs <- lapply(split(seq_len(nrow(x)), private$.chain_tags),
+      list_trs <- lapply(split(seq_len(nrow(x)), private$chain_tags_),
                          function(idx) x[idx, , drop = FALSE])
 
       # create empty array
       n_chains <- length(list_trs)
       par_names <- colnames(x)
-      n_iter <- length(private$.iter_names)
+      n_iter <- length(private$iter_names_)
       array_trs <- array(
         NA_real_, dim = c(n_iter, n_chains, length(par_names)),
-        dimnames = list(private$.iter_names, seq_len(n_chains), par_names)
+        dimnames = list(private$iter_names_, seq_len(n_chains), par_names)
       )
 
       # associate draws from Cpp
       for (i in seq_along(list_trs)) array_trs[, i, ] <- list_trs[[i]]
       output <- posterior::as_draws_df(array_trs)
-      output$.iteration <- rep(private$.iter_names, times = n_chains)
+      output$.iteration <- rep(private$iter_names_, times = n_chains)
       output
     }
   ),
@@ -92,7 +96,7 @@ HousepiPosteriorDraws <- R6::R6Class(
     #' Draws of parameters.
     param_draws = function(value) {
       if (!missing(value)) stop_h("'param_draws' is read only.")
-      private$.param_draws
+      private$param_draws_
     },
 
     #' @field prior_draws `posterior::draws_df`.
@@ -100,8 +104,8 @@ HousepiPosteriorDraws <- R6::R6Class(
     prior_draws = function(value) {
       if (!missing(value)) stop_h("'prior_draws' is read only.")
       posterior::mutate_variables(
-        private$.prior_draws,
-        lprior = rowSums(posterior::as_draws_matrix(private$.prior_draws))
+        private$prior_draws_,
+        lprior = rowSums(posterior::as_draws_matrix(private$prior_draws_))
       )
     },
 
@@ -109,21 +113,21 @@ HousepiPosteriorDraws <- R6::R6Class(
     #' Draws selected individuals augmented variables.
     augm_draws = function(value) {
       if (!missing(value)) stop_h("'augm_draws' is read only.")
-      private$.augm_draws
+      private$augm_draws_
     },
 
     #' @field log_lik_draws `posterior::draws_df`.
     #' Draws of households pointwise log-likelihood.
     log_lik_draws = function(value) {
       if (!missing(value)) stop_h("'log_lik_draws' is read only.")
-      private$.point_log_lik_draws
+      private$point_log_lik_draws_
     },
 
     #' @field total_log_lik_draws `posterior::draws_df`.
     #' Draws of the total log-likelihood.
     total_log_lik_draws = function(value) {
       if (!missing(value)) stop_h("'total_log_lik_draws' is read only.")
-      private$.total_log_lik_draws
+      private$total_log_lik_draws_
     },
 
     #' @field complete_draws `posterior::draws_df`.
@@ -131,11 +135,11 @@ HousepiPosteriorDraws <- R6::R6Class(
     complete_draws = function(value) {
       if (!missing(value)) stop_h("'complete_draws' is read only.")
       # rename pointwise log-likelihood
-      aux <- private$.point_log_lik_draws
+      aux <- private$point_log_lik_draws_
       n_vars <- posterior::nvariables(aux)
       names(aux)[1:n_vars] <- paste0("log_lik[", 1:n_vars, "]")
       # bind all together
-      posterior::bind_draws(private$.param_draws, aux, self$prior_draws)
+      posterior::bind_draws(private$param_draws_, aux, self$prior_draws)
     }
   ),
 
@@ -147,51 +151,50 @@ HousepiPosteriorDraws <- R6::R6Class(
     #' @description
     #' Store posterior::draws_df internally.
     #' @param name `character(1)`. Model name.
-    #' @param rcpp_object `Rcpp_ModelHousepi`
-    initialize = function(name, rcpp_object) {
+    #' @param ptr `Rcpp::XPtr<MCMC>`
+    initialize = function(name, ptr) {
       # inherit model name
-      private$.name <- as.character(name)
+      private$name_ <- as.character(name)
       # process inference setup
-      private$.process_setup(rcpp_object$export_setup())
-
+      private$pre_process_setup_(.engine$export_setup(ptr))
       # store cpp draws concverted to posterior
-      private$.total_log_lik_draws <- private$.cpp_draws_to_posterior(
-        rcpp_object$flush_total_log_lik_draws()
+      private$total_log_lik_draws_ <- private$to_posterior_draws_(
+        .engine$flush_total_log_lik_draws(ptr)
       )
-      private$.param_draws <- private$.cpp_draws_to_posterior(
-        rcpp_object$flush_param_draws()
+      private$param_draws_ <- private$to_posterior_draws_(
+        .engine$flush_param_draws(ptr)
       )
-      private$.prior_draws <- private$.cpp_draws_to_posterior(
-        rcpp_object$flush_param_lprior_draws()
+      private$prior_draws_ <- private$to_posterior_draws_(
+        .engine$flush_param_lprior_draws(ptr)
       )
-      private$.augm_draws <- private$.cpp_draws_to_posterior(
-        rcpp_object$flush_augm_draws()
+      private$augm_draws_ <- private$to_posterior_draws_(
+        .engine$flush_augm_draws(ptr)
       )
-      private$.point_log_lik_draws <- private$.cpp_draws_to_posterior(
-        rcpp_object$flush_house_log_lik_draws()
+      private$point_log_lik_draws_ <- private$to_posterior_draws_(
+        .engine$flush_house_log_lik_draws(ptr)
       )
 
       # free auxiliary memory
-      private$.chain_tags <- NULL
-      private$.iter_names <- NULL
+      private$chain_tags_ <- NULL
+      private$iter_names_ <- NULL
 
       invisible()
     },
 
     #' @description Override the default printing behavior.
     print = function() {
-      niter <- posterior::niterations(private$.total_log_lik_draws)
-      nchains <- posterior::nchains(private$.total_log_lik_draws)
+      niter <- posterior::niterations(private$total_log_lik_draws_)
+      nchains <- posterior::nchains(private$total_log_lik_draws_)
 
-      if (is.null(private$.param_draws)) nparams <- 0
-      else nparams <- posterior::nvariables(private$.param_draws)
+      if (is.null(private$param_draws_)) nparams <- 0
+      else nparams <- posterior::nvariables(private$param_draws_)
 
-      if (is.null(private$.augm_draws)) naugm <- 0
-      else naugm <- posterior::nvariables(private$.augm_draws)
+      if (is.null(private$augm_draws_)) naugm <- 0
+      else naugm <- posterior::nvariables(private$augm_draws_)
 
       cli::cli_alert_info(sprintf(
         "Posterior draws of model {.pkg %s}.\n%s",
-        spaced_template_choice(private$.name),
+        spaced_template_choice(private$name_),
         sprintf(
           "%s iteration%s, %s chain%s%s%s.",
           niter, ifelse(niter > 1, "s", ""),
@@ -209,14 +212,14 @@ HousepiPosteriorDraws <- R6::R6Class(
     #' @return `posterior::draws_df`
     summarize_all_draws = function() {
       x1 <- x2 <- x3 <- NULL
-      if (posterior::is_draws(private$.param_draws)) {
-        x1 <- summarize_draws(private$.param_draws)
+      if (posterior::is_draws(private$param_draws_)) {
+        x1 <- summarize_draws(private$param_draws_)
       }
-      if (posterior::is_draws(private$.augm_draws)) {
-        x2 <- summarize_draws(private$.augm_draws)
+      if (posterior::is_draws(private$augm_draws_)) {
+        x2 <- summarize_draws(private$augm_draws_)
       }
-      if (posterior::is_draws(private$.total_log_lik_draws)) {
-        x3 <- summarize_draws(private$.total_log_lik_draws)
+      if (posterior::is_draws(private$total_log_lik_draws_)) {
+        x3 <- summarize_draws(private$total_log_lik_draws_)
       }
       rbind(x1, x2, x3)
     }

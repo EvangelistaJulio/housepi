@@ -12,7 +12,7 @@ housepi_assert_args <- function(hhmodel, family, last = FALSE) {
   # load requested faimily definitions
   col_model <- family2model_col(family)
   col_args <- ifelse(col_model == "func", "func_args", "args")
-  pvt_module <- family2pvt_module(family)
+  pvt_module <- family_to_taskmodule(family)
   defs <- hhmodel$.__enclos_env__$private[[pvt_module]]$defs
   if (isTRUE(last)) defs <- utils::tail(defs, 1)
 
@@ -65,9 +65,8 @@ expose_function <- function(name, ...,
                             min = NA_real_,
                             max = NA_real_,
                             discr = FALSE) {
-  m <- get_rcpp_module_from_model()
-  m$ExposeFunction$new(name, args = unlist(list(...)),
-                       min = min, max = max, discr = discr)
+  .engine$ExposeFunction$new(name, args = unlist(list(...)),
+                             min = min, max = max, discr = discr)
 }
 
 #' @title Expose housepi distribution
@@ -89,9 +88,8 @@ expose_distribution <- function(name, ...,
                                 min = NA_real_,
                                 max = NA_real_,
                                 discr = FALSE) {
-  m <- get_rcpp_module_from_model()
-  m$ExposeDistribution$new(name, args = unlist(list(...)),
-                           min = min, max = max, discr = discr)
+  .engine$ExposeDistribution$new(name, args = unlist(list(...)),
+                                 min = min, max = max, discr = discr)
 }
 
 #' @title Expose housepi infectivity profile
@@ -114,7 +112,6 @@ expose_infec_profile <- function(name, ...,
                                  max = NA_real_,
                                  discr = FALSE) {
   if (is.na(min)) min <- ifelse(discr, 1, 0)
-  m <- get_rcpp_module_from_model()
-  m$ExposeInfecProfile$new(name, args = unlist(list(...)),
-                           min = min, max = max, discr = discr)
+  .engine$ExposeInfecProfile$new(name, args = unlist(list(...)),
+                                 min = min, max = max, discr = discr)
 }

@@ -194,9 +194,8 @@ HousepiPrediction <- R6::R6Class(
 
   private = list(
     deep_clone = function(name, value) helper_clone(value),
-    .apply_func = NULL,
-    .cri_level = 0.95,
-    .stored_print = NULL
+    cri_level_ = 0.95,
+    stored_print_ = NULL
   ),
 
   ############################################################################
@@ -225,7 +224,7 @@ HousepiPrediction <- R6::R6Class(
         "Unrecognized function passed as observation process."
       )
       # associate credible interval
-      private$.cri_level <- ppc_set_cri_level(cri_level)
+      private$cri_level_ <- ppc_set_cri_level(cri_level)
 
       # load measure functions
       measure <- list(...)
@@ -241,14 +240,14 @@ HousepiPrediction <- R6::R6Class(
       withr::defer(rm(hmc))
       # run measures
       # NOTE: the only way I found is a call to a private method of HousepiModel
-      output <- hmc$.__enclos_env__$private$.run_measure(
+      output <- hmc$.__enclos_env__$private$run_measure_(
         param_table,
         function(x) lapply(measure, function(func) func(obs_process(x))),
         progress
       )
       output <- lapply(names(measure), function(x) lapply(output, `[[`, x))
       predictions <- lapply(output, ppc_extract_predicted_results,
-                            cri = private$.cri_level)
+                            cri = private$cri_level_)
       names(predictions) <- names(measure)
 
       # change environment according to measures
@@ -261,12 +260,12 @@ HousepiPrediction <- R6::R6Class(
       # restore locked environment
       lockEnvironment(self, bindings = TRUE)
       # store print message
-      private$.stored_print <- ppc_helper_print(
+      private$stored_print_ <- ppc_helper_print(
         hhmodel$name,
         inherits(param_table, "HousepiPosteriorDraws") ||
           posterior::is_draws(param_table),
         names(measure),
-        private$.cri_level
+        private$cri_level_
       )
 
       invisible(self)
@@ -275,7 +274,7 @@ HousepiPrediction <- R6::R6Class(
     #' @description
     #' Override the default printing behavior.
     print = function() {
-      cli::cli_inform(private$.stored_print)
+      cli::cli_inform(private$stored_print_)
       invisible(self)
     }
   )
@@ -396,8 +395,8 @@ PredictedCasesBySize <- R6::R6Class(
 
   private = list(
     deep_clone = function(name, value) helper_clone(value),
-    .max_hh_size = NA_integer_,
-    .counts = NULL
+    max_hh_size_ = NA_integer_,
+    counts_ = NULL
   ),
 
   ############################################################################
@@ -417,13 +416,13 @@ PredictedCasesBySize <- R6::R6Class(
         predicted = self$sec_attack_rate$predicted$sar,
         cri_lower = self$sec_attack_rate$cri_lower$sar,
         cri_upper = self$sec_attack_rate$cri_upper$sar,
-        counts = private$.counts$count
+        counts = private$counts_$count
       )
       colnames(output) <- helper_get_name_convention(colnames(output),
-                                                     private$.cri_level)
+                                                     private$cri_level_)
       # filter to maximum house size if applicable
-      if (!is.na(private$.max_hh_size)) {
-        output <- output[output$house_size <= private$.max_hh_size, ]
+      if (!is.na(private$max_hh_size_)) {
+        output <- output[output$house_size <= private$max_hh_size_, ]
       }
       output
     },
@@ -435,7 +434,7 @@ PredictedCasesBySize <- R6::R6Class(
       if (!missing(value)) stop_h("'formatted_case_table' is read only.")
       # filter according to max_house_size
       cases <- helper_filter_tables(self$cases_table_by_size,
-                                    private$.max_hh_size)
+                                    private$max_hh_size_)
 
       # empty frame as a placeholder for Credible Interval
       na_df <- cases$observed
@@ -448,7 +447,7 @@ PredictedCasesBySize <- R6::R6Class(
         cri_upper = helper_combine_obs_pred(na_df, cases$cri_upper)
       )
       names(output) <- helper_get_name_convention(names(output),
-                                                  private$.cri_level)
+                                                  private$cri_level_)
       output
     }
   ),
@@ -473,7 +472,7 @@ PredictedCasesBySize <- R6::R6Class(
                        obs_process = obs_process,
                        progress = progress,
                        cri_level = cri_level)
-      private$.counts <- helper_count_non_zero_cases(hhmodel$data_wide)
+      private$counts_ <- helper_count_non_zero_cases(hhmodel$data_wide)
 
       invisible(self)
     },
@@ -482,7 +481,7 @@ PredictedCasesBySize <- R6::R6Class(
     #' @param n `integer(1)`. Maximum household size to consider.
     #' If `NA`, restore observed maximum.
     set_max_house_size = function(n) {
-      private$.max_hh_size <- n
+      private$max_hh_size_ <- n
       invisible(self)
     },
 
@@ -499,7 +498,7 @@ PredictedCasesBySize <- R6::R6Class(
     #' @return `list`
     chisq_test = function(lower_tail = FALSE) {
       cases <- helper_filter_tables(self$cases_table_by_size,
-                                    private$.max_hh_size)
+                                    private$max_hh_size_)
       res <- (cases$observed - cases$predicted)^2 / cases$predicted
       x_val <- sum(res, na.rm = TRUE)
       ddof <- prod(dim(res)) - dim(res)[1] - sum(is.na(res))

@@ -289,12 +289,12 @@ family2model_col <- function(family) {
   ))
 }
 
-family2pvt_module <- function(family) {
-  if (family == "augmented") ".augm"
-  else if (family == "augmented function") ".augm"
-  else if (family == "parameter") ".param"
-  else if (family == "infectivity profile") ".infec_profile"
-  else if (family == "group rate") ".group_rates"
+family_to_taskmodule <- function(family) {
+  if (family == "augmented") "augm_"
+  else if (family == "augmented function") "augm_"
+  else if (family == "parameter") "param_"
+  else if (family == "infectivity profile") "infec_profile_"
+  else if (family == "group rate") "group_rates_"
   else stop_h(sprintf(
     "[Internal] Unrecognized module family '%s'.", family
   ))
@@ -303,7 +303,7 @@ family2pvt_module <- function(family) {
 # Helper to load definition lists into an HousepiModel clone.
 helper_load_def_list <- function(hhmodel, family, xquos, append) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
-  pvt_module <- family2pvt_module(family)
+  pvt_module <- family_to_taskmodule(family)
 
   new_obj <- hhmodel$clone(deep = TRUE)
   new_obj$.__enclos_env__$private[[pvt_module]]$load_quosures(

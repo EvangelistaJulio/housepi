@@ -401,6 +401,6 @@ double Model::roi_inst_simulation(const Household &house, const Individual &memb
 
 	return alpha + roi;
 }
-
+HOUSEPI_RCPP_MODEL_FACTORY()
 HOUSEPI_CLOSE_NAMED_MODULE_NAMESPACE()
 HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE()

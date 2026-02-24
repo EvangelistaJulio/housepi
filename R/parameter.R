@@ -173,10 +173,13 @@ HousepiParameter <- R6::R6Class(
     #' Assert parameter definitions match the requirement list.
     #' @param required `character()`. Required definitions.
     #' @param capital `logical(1)`. Whether to raise error.
-    assert = function(required, capital) {
+    #' @param warn_unused `logical(1)`. Warn if unused are found.
+    assert = function(required, capital, warn_unused) {
       defined <- self$defs[["name"]]
       # point out parameters that are not used
-      template_not_used_warn(required, defined, self$family)
+      if (isTRUE(warn_unused)) {
+        template_not_used_warn(required, defined, self$family)
+      }
       # stop if parameters are missing
       sms <- template_missing_stop(required, defined, self$family)
       if (isTRUE(capital) && length(sms) > 0) stop_h(sms)

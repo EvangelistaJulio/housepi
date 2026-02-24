@@ -16,7 +16,8 @@ STD_IN := -A augm.csv \
 
 # Lost of source files with exclusions
 SRC := ../../src
-SOURCES := standalone.cpp $(MODEL)/model.cpp $(wildcard $(SRC)/*.cpp)
+EXCL_FILES := $(SRC)/RcppExports.cpp
+SOURCES := standalone.cpp $(MODEL)/model.cpp $(filter-out $(EXCL_FILES), $(wildcard $(SRC)/*.cpp))
 
 # Object files to build (automatic)
 OBJECTS := $(SOURCES:.cpp=.o)

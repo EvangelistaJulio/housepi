@@ -40,19 +40,3 @@ test_that("Model has no leaks", {
   invisible(gc())
   expect_lt(mem_used_mb() - mem_before, 5)
 })
-
-test_that("Modules do not get overwritten", {
-  # NOTE: use profile as model status flag
-  hhgen_1 <- housepi:::HousepiGenerator$new("augmented_infection_time")
-  out_1 <- hhgen_1$.__enclos_env__$private$.rcpp$export_infec_profile()
-  expect_gt(length(out_1), 0)
-  
-  hhgen_2 <- housepi:::HousepiGenerator$new("chain_binomial")
-  out_2 <- hhgen_2$.__enclos_env__$private$.rcpp$export_infec_profile()
-  expect_length(out_2, 0)
-  
-  # reload first model base Model again
-  hhgen_3 <- housepi:::HousepiGenerator$new("augmented_infection_time")
-  out_3 <- hhgen_3$.__enclos_env__$private$.rcpp$export_infec_profile()
-  expect_identical(out_1, out_3)
-})

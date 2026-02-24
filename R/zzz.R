@@ -24,3 +24,14 @@
 
 #' @useDynLib housepi, .registration = TRUE
 NULL
+
+.engine <- NULL
+
+.onLoad <- function(libname, pkgname) {
+  dll_path <- getLoadedDLLs()[[pkgname]][["path"]]
+  if (Sys.info()["sysname"] %in% c("Darwin", "Linux")) {
+    dyn.unload(dll_path)
+    dyn.load(dll_path, local = FALSE, now = TRUE)
+  }
+  .engine <<- Rcpp::Module(pkgname, PACKAGE = pkgname)
+}

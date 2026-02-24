@@ -212,7 +212,7 @@ add_parameter <- function(hhmodel,
                           proposal_scale = NA_real_) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
   new_obj <- hhmodel$clone(deep = TRUE)
-  new_obj$.__enclos_env__$private$.param$add_quo(
+  new_obj$.__enclos_env__$private$param_$add_quo(
     name = name, value = rlang::enquo(value),
     const = const, discr = discr,
     prior = prior, rlang::enquos(...),
@@ -272,7 +272,7 @@ add_augmented <- function(hhmodel,
                           proposal_scale = NA_real_) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
   new_obj <- hhmodel$clone(deep = TRUE)
-  new_obj$.__enclos_env__$private$.augm$add_quo(
+  new_obj$.__enclos_env__$private$augm_$add_quo(
     name = name, value = rlang::enquo(value),
     status = status, const = const, discr = discr,
     func = rlang::enquo(func), func_args = rlang::enquos(func_args),
@@ -328,7 +328,7 @@ add_group_rate <-  function(hhmodel,
                             proposal_scale = NA_real_) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
   new_obj <- hhmodel$clone(deep = TRUE)
-  new_obj$.__enclos_env__$private$.group_rates$add_quo(
+  new_obj$.__enclos_env__$private$group_rates_$add_quo(
     name = name, by = by, prefix = prefix,
     reference = reference, independent = independent,
     prior = prior, rlang::enquos(...),
@@ -359,7 +359,7 @@ add_infec_profile <- function(hhmodel,
                               ..., max = NULL) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
   new_obj <- hhmodel$clone(deep = TRUE)
-  new_obj$.__enclos_env__$private$.infec_profile$add_quo(
+  new_obj$.__enclos_env__$private$infec_profile_$add_quo(
     func = func, status = status, discr = discr,
     rlang::enquos(...), max = rlang::enquo(max)
   )
@@ -400,7 +400,7 @@ load_group_rate_list <- function(hhmodel, ..., append = FALSE) {
   new_obj <- hhmodel$clone(deep = TRUE)
   # NOTE: dropping group rates might cause parameter drops
   if (isFALSE(append)) new_obj$drop_group_rates()
-  new_obj$.__enclos_env__$private$.group_rates$load_quosures(
+  new_obj$.__enclos_env__$private$group_rates_$load_quosures(
     rlang::enquos(...), append = append
   )
   new_obj
