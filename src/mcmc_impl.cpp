@@ -5,10 +5,11 @@
  * See the LICENSE file for details.
  */
 
-#include <algorithm>
-#include <functional>
 #include <memory>
+#include <stdexcept>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 #include "tools/atomic.h"
@@ -20,7 +21,7 @@
 #include "tools/string.h"
 #include "tools/types.h"
 
-#include "mcmc_impl.h"
+#include "mcmc.h"
 #include "data_wide.h"
 #include "household.h"
 #include "data_long.h"
@@ -32,11 +33,11 @@
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////  *** MCMCImpl : clas ***  //////////////////////////////
+////////////////////////////////////////  *** MCMC : clas ***  //////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-MCMCImpl::MCMCImpl(
+MCMC::MCMC(
     const std::vector<std::string> &data_wide_keys,
     const std::vector<std::string> &hh_size_keys,
     const std::vector<std::string> &hh_size_vec_keys,
@@ -45,15 +46,8 @@ MCMCImpl::MCMCImpl(
     const std::vector<std::string> &data_long_keys,
     const std::vector<std::string> &param_keys,
     const std::vector<std::string> &group_rate_keys,
-    const std::vector<std::string> &augm_keys,
-    std::function<void()> func_init_eval,
-    std::function<void(Household &)> func_init_house_for_eval,
-    std::function<double(Household &)> func_house_log_lik,
-    std::function<void(Household &)> func_house_update_cache,
-    std::function<void(Household &, Individual &)> func_member_update_cache,
-    std::function<std::string(Household &, const Individual &, const Individual &)> func_init_contact_rates)
+    const std::vector<std::string> &augm_keys)
     : atomic_error(),
-      // modules
       setup(),
       data_wide(data_wide_keys,
                 hh_size_keys,
@@ -63,85 +57,66 @@ MCMCImpl::MCMCImpl(
       data_long(data_long_keys, &data_wide),
       param(param_keys),
       group_rate(group_rate_keys, &data_wide, &param),
-      contact_rate(std::move(func_init_contact_rates), &data_wide, &param),
+      contact_rate(
+          [this](Household &h, const Individual &k, const Individual &i) -> std::string
+          { return this->init_contact_rates(h, k, i); },
+          &data_wide, &param),
       infec_profile(&param),
-      augm(augm_keys, &data_wide, &param, &infec_profile),
-      // callbacks
-      callback_init_eval_(std::move(func_init_eval)),
-      callback_init_house_for_eval_(std::move(func_init_house_for_eval)),
-      callback_house_log_lik_(std::move(func_house_log_lik)),
-      callback_update_house_cache_(std::move(func_house_update_cache)),
-      callback_update_member_cache_(std::move(func_member_update_cache))
+      augm(augm_keys, &data_wide, &param, &infec_profile)
 {
     /// UPDATE: waiting for refactoring of read_attribute
     param.link_to_data_wide(data_wide.pRegistry.get());
     param.link_to_group_rate(group_rate.pRegistry.get());
     param.link_to_augm(augm.pRegistry.get());
 }
-MCMCImpl::~MCMCImpl() = default;
-
-void MCMCImpl::init_missing_augm(Individual &member)
-{
-    augm.init_missing(member, false);
-    augm.user_reset(setup.prng(), member);
-}
-
-void MCMCImpl::helper_init_simulation()
-{
-    data_wide.assert_non_empty(); // check if data is empty
-    setup.n_chains = 0;           // use 0 chains as a state variable
-    setup.n_threads = 1;          // impose no parallelization
-    setup.set_n_threads();        // change accordingly
-}
+MCMC::~MCMC() = default;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  MCMCImpl : evaluate log-likelihood  /////////////////////////////
+//////////////////////////////////  MCMC : evaluate log-likelihood  ///////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void MCMCImpl::user_init_for_evaluate()
+void MCMC::init_evaluate_(bool is_reset)
 {
-    callback_init_eval_();
-
-    data_wide.allocate_all_cache();
-
-    // init cache dependencies for all households and individuals
-    for (size_t R = 0; R < data_wide.restricted_size(); ++R)
-    {
-        Household &house = data_wide.restricted(R);
-        callback_init_house_for_eval_(house);
-    }
-}
-
-void MCMCImpl::init_evaluate()
-{
-    setup.n_chains = 0;                        // use 0 chains as a state variable
     data_wide.assert_non_empty();              // check if data is empty
     data_wide.assert_not_all_missing_status(); // warn if all missing status
     augm.init();                               // initialize individual augmented relations
-    param.user_reset(setup.prng());            // initialize non constant parameters
-    augm.user_reset(setup.prng());             // initialize non constant augmented
-    user_init_for_evaluate();                  // user initialization of model for inference
+
+    if (is_reset)
+    {
+        param.user_reset(setup.prng()); // initialize non constant parameters
+        augm.user_reset(setup.prng());  // initialize non constant augmented
+    }
+
+    init_model_for_evaluation(); // user initialization of model for inference
+
+    // init cache dependencies for all households and individuals
+    data_wide.allocate_all_cache();
+    for (size_t R = 0; R < data_wide.restricted_size(); ++R)
+    {
+        Household &house = data_wide.restricted(R);
+        init_house_for_evaluation(house);
+    }
 }
 
-double MCMCImpl::evaluate_single_house_log_lik(std::string_view house_id)
-{
-    atomic_error.restore(); // reset atomic error
-    infec_profile.update(); // eventually buffer infectivity profile
-    double output = atomic_materialize_house_log_lik_(data_wide.at(house_id));
-    atomic_error.throw_exception(); // catch and throw if previous failed
-    return output;
-}
-
-double MCMCImpl::evaluate_log_lik(std::string_view house_id)
+double MCMC::evaluate_log_lik(std::string_view house_id)
 {
     try
     {
-        init_evaluate();
-        // mode for computing log-likelihood of specific household
+        setup.n_chains = 0; // use 0 chains as a state variable
+        init_evaluate_();   // initialize for evaluation
+
+        // mode: single house evaluation
         if (!hsp::na::is(house_id))
-            return evaluate_single_house_log_lik(house_id);
-        // initialize cached values and then compute total log-likelihood
-        return update_total_log_lik();
+        {
+            atomic_error.restore(); // reset atomic error
+            infec_profile.update(); // eventually recompute infectivity profile
+            double output = atomic_materialize_house_log_lik_(data_wide.at(house_id));
+            atomic_error.throw_exception(); // catch and throw if previous failed
+            return output;
+        }
+
+        // mode: total evaluation
+        return update_total_log_lik_();
     }
     catch (const std::exception &e)
     {
@@ -150,11 +125,11 @@ double MCMCImpl::evaluate_log_lik(std::string_view house_id)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////  MCMCImpl : update house log-likelihood  ////////////////////////////
+/////////////////////////////  MCMC : update house log-likelihood  ////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Compute new log-likelihood, store old value in buffer. Same for households.
-double MCMCImpl::update_total_log_lik(bool is_cache_depen)
+double MCMC::update_total_log_lik_(bool is_cache_depen)
 {
     double new_ll = 0.0;
 
@@ -181,17 +156,17 @@ double MCMCImpl::update_total_log_lik(bool is_cache_depen)
     return new_ll;
 }
 
-double MCMCImpl::atomic_materialize_house_log_lik_(Household &house, bool is_cache_depen)
+double MCMC::atomic_materialize_house_log_lik_(Household &house, bool is_cache_depen)
 {
     double output = 0;
     try
     {
         // buffer all household cache dependencies
         if (is_cache_depen)
-            callback_update_house_cache_(house);
+            update_house_cache_dependecies(house);
 
         // compute and set household observation log-likelihood
-        output = callback_house_log_lik_(house);
+        output = compute_house_obs_log_lik(house);
         house.obs_log_lik_.set(output);
 
         // compute and set individual augmented log-likelihood
@@ -209,20 +184,15 @@ double MCMCImpl::atomic_materialize_house_log_lik_(Household &house, bool is_cac
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////  MCMCImpl : inference  ////////////////////////////////////
+///////////////////////////////////////  MCMC : inference  ////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void MCMCImpl::init_monte_carlo()
+void MCMC::init_monte_carlo_()
 {
-    // check if data is empty
-    data_wide.assert_non_empty();
-
     // check if there is actually something to sample
     if (!param.is_any_sample() && !augm.is_any_sample())
         throw std::length_error(
             "Nothing to sample. Check your parameter and augmented definitions.");
-    // warn if all missing status
-    data_wide.assert_not_all_missing_status();
 
     // assert if setup is ok for mcmc
     setup.assert_mcmc_setup();
@@ -238,10 +208,10 @@ void MCMCImpl::init_monte_carlo()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  MCMCImpl : run monte carlo  ///////////////////////////////////
+//////////////////////////////////  MCMC : run monte carlo  ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void MCMCImpl::run_monte_carlo()
+void MCMC::run_monte_carlo_()
 {
     init_posterior_sample_(); // initialize posterior sample
 
@@ -273,16 +243,15 @@ void MCMCImpl::run_monte_carlo()
     }
 }
 
-void MCMCImpl::run_inference()
+void MCMC::run_inference()
 {
     try
     {
-        init_monte_carlo();              // initialize mcmc sampling
-        augm.init();                     // initialize augmented variables
-        user_init_for_evaluate();        // user initialization model
+        init_evaluate_(false);           // initialize for evaluation
+        init_monte_carlo_();             // initialize mcmc sampling
         setup.prog_declare();            // declare current progress bar
         setup.prog_open_for_inference(); // open progress bar
-        run_monte_carlo();               // run Monte Carlo
+        run_monte_carlo_();              // run Monte Carlo
         setup.prog_close();              // close progress bar
     }
     catch (std::exception &e)
@@ -293,10 +262,10 @@ void MCMCImpl::run_inference()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  MCMCImpl : monte carlo moves /////////////////////////////////
+///////////////////////////////////  MCMC : monte carlo moves /////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void MCMCImpl::move_all_()
+void MCMC::move_all_()
 {
     // move augmented variables to sample, if any
     if (augm.is_any_sample())
@@ -315,19 +284,19 @@ void MCMCImpl::move_all_()
         move_single_parameter_(p, true);
 }
 
-bool MCMCImpl::move_single_parameter_(size_t p, bool is_cache_depen)
+bool MCMC::move_single_parameter_(size_t p, bool is_cache_depen)
 {
     // proceed only if the new value is consistent
     // otherwise automatically refuse move
     if (param.propose_valid_move(p, setup.prng()))
     {
         // if parameter is cache dependent, update cache
-        tot_log_lik.set(update_total_log_lik(is_cache_depen));
+        tot_log_lik.set(update_total_log_lik_(is_cache_depen));
 
         // perform Metropolis-Hastings to accept or not move
         const double D_ll = tot_log_lik.logratio();
         const double move_logratio = param.at(p).get_move_logratio();
-        // if (uniform() < std::exp(setup.inv_T * D_ll + move_logratio))
+        
         if (exponential() > -(setup.inv_T * D_ll + move_logratio))
             return true; // accepted move
         recover_parameter_(p, is_cache_depen);
@@ -336,17 +305,17 @@ bool MCMCImpl::move_single_parameter_(size_t p, bool is_cache_depen)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  MCMCImpl : parameter moves  //////////////////////////////////
+///////////////////////////////////  MCMC : parameter moves  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void MCMCImpl::init_monte_carlo_chain_()
+void MCMC::init_monte_carlo_chain_()
 {
     try
     {
-        setup.prog_set_text();                   // set progress bar text
-        param.user_reset(setup.prng());          // reset parameter user definitions
-        augm.user_reset(setup.prng());           // reset augmented user definitions
-        tot_log_lik.set(update_total_log_lik()); // init cached, set total log-likelihood
+        setup.prog_set_text();                    // set progress bar text
+        param.user_reset(setup.prng());           // reset parameter user definitions
+        augm.user_reset(setup.prng());            // reset augmented user definitions
+        tot_log_lik.set(update_total_log_lik_()); // init cached, set total log-likelihood
 
         // assert that initial log-likelihood value is finite
         if (tot_log_lik.is_inf())
@@ -363,7 +332,7 @@ void MCMCImpl::init_monte_carlo_chain_()
     }
 }
 
-void MCMCImpl::recover_parameter_(size_t p, bool is_cache_depen)
+void MCMC::recover_parameter_(size_t p, bool is_cache_depen)
 {
     // recover buffer value of parameter
     param.at(p).recover();
@@ -389,10 +358,10 @@ void MCMCImpl::recover_parameter_(size_t p, bool is_cache_depen)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////  MCMCImpl : move all augmented variables  ///////////////////////////
+/////////////////////////////  MCMC : move all augmented variables  ///////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void MCMCImpl::move_all_augm_()
+void MCMC::move_all_augm_()
 {
     double delta_ll = 0.;
     atomic_error.restore();
@@ -409,7 +378,7 @@ void MCMCImpl::move_all_augm_()
     tot_log_lik.increment(delta_ll);
 }
 
-double MCMCImpl::atomic_move_augm_single_house_(size_t H)
+double MCMC::atomic_move_augm_single_house_(size_t H)
 {
     Household &house = data_wide.at(H);
     double delta_ll = 0.;
@@ -433,7 +402,7 @@ double MCMCImpl::atomic_move_augm_single_house_(size_t H)
     return delta_ll;
 }
 
-double MCMCImpl::metropolis_augm_single_move_(Household &house, Individual &member, size_t a)
+double MCMC::metropolis_augm_single_move_(Household &house, Individual &member, size_t a)
 {
     Variable &xaugm = member.get_augm_variable(a);
     xaugm.propose(setup.prng()); // propose new value and buffer old
@@ -444,15 +413,14 @@ double MCMCImpl::metropolis_augm_single_move_(Household &house, Individual &memb
         size_t i = member.hhindex();
         // update dependencies to perform computations
         data_wide.buffer_member_cache(house, i);
-        callback_update_member_cache_(house, member);
+        update_member_cache_dependecies(house, member);
 
         // Metropolis-Hastings
         double delta_ll = augm.materialize_augm_model_logratio(member, a);
         // compute and set household observation log-likelihood
-        house.obs_log_lik_.set(callback_house_log_lik_(house));
+        house.obs_log_lik_.set(compute_house_obs_log_lik(house));
         delta_ll += house.obs_log_lik_.logratio();
 
-        // if (uniform() < std::exp(setup.inv_T * delta_ll - xaugm.get_propose_logratio()))
         if (exponential() > xaugm.get_propose_logratio() - setup.inv_T * delta_ll)
             return delta_ll;
 
@@ -468,10 +436,10 @@ double MCMCImpl::metropolis_augm_single_move_(Household &house, Individual &memb
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  MCMCImpl : posterior sample  //////////////////////////////////
+//////////////////////////////////  MCMC : posterior sample  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void MCMCImpl::init_posterior_sample_()
+void MCMC::init_posterior_sample_()
 {
     unsigned long sample_size = setup.c_sample_size * setup.n_chains;
 
@@ -484,7 +452,7 @@ void MCMCImpl::init_posterior_sample_()
     tot_log_lik.init_draws(sample_size);
 }
 
-void MCMCImpl::store_posterior_sample_()
+void MCMC::store_posterior_sample_()
 {
     if (!setup.is_power_post())
     {
@@ -497,7 +465,7 @@ void MCMCImpl::store_posterior_sample_()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  MCMCImpl : estimate log_evidence  //////////////////////////////
+/////////////////////////////////  MCMC : estimate log_evidence  //////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 namespace
@@ -527,7 +495,7 @@ namespace
     }
 }
 
-std::vector<std::vector<double>> MCMCImpl::power_posteriors(std::string_view scheme, unsigned long n_rungs)
+std::vector<std::vector<double>> MCMC::power_posteriors(std::string_view scheme, unsigned long n_rungs)
 {
     // check scheme choice
     const std::vector<std::string> options = {"adaptive", "power-fractions"};
@@ -543,9 +511,8 @@ std::vector<std::vector<double>> MCMCImpl::power_posteriors(std::string_view sch
 
     setup.n_rungs = n_rungs;           // NOTE: set before progress bar
     double buffer_inv_T = setup.inv_T; // buffer user setup
-    init_monte_carlo();                // initialize mcmc sampling
-    augm.init();                       // initialize augmented variables
-    user_init_for_evaluate();          // user initialization of model for inference
+    init_evaluate_(false);             // initialize for evaluation
+    init_monte_carlo_();               // initialize mcmc sampling
     setup.prog_declare();              // declare current progress bar
     setup.prog_open_for_power_post();  // print progress bar
 
@@ -567,14 +534,14 @@ std::vector<std::vector<double>> MCMCImpl::power_posteriors(std::string_view sch
     return {itm, avg, var};
 }
 
-void MCMCImpl::power_post_zero_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var)
+void MCMC::power_post_zero_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var)
 {
     // UPDATE: should I use previous inference for itm = 1 if available?
     // UPDATE: always under-estimate time if starting from itm = 0
 
     setup.rung = 0;
     setup.inv_T = 0.0;
-    run_monte_carlo();
+    run_monte_carlo_();
     const auto [stats_avg, stats_var] = compute_stats(tot_log_lik.smpl_values);
 
     itm.push_back(setup.inv_T);
@@ -582,13 +549,13 @@ void MCMCImpl::power_post_zero_(std::vector<double> &itm, std::vector<double> &a
     var.push_back(stats_var);
 }
 
-void MCMCImpl::power_post_adaptive_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var)
+void MCMC::power_post_adaptive_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var)
 {
     // Inverse Temperature 1
     {
         setup.rung = 1;
         setup.inv_T = 1.0;
-        run_monte_carlo();
+        run_monte_carlo_();
         const auto [stats_avg, stats_var] = compute_stats(tot_log_lik.smpl_values);
 
         itm.push_back(setup.inv_T);
@@ -612,7 +579,7 @@ void MCMCImpl::power_post_adaptive_(std::vector<double> &itm, std::vector<double
 
         // power posterior sampling
         setup.inv_T = new_t;
-        run_monte_carlo();
+        run_monte_carlo_();
         const auto [stats_avg, stats_var] = compute_stats(tot_log_lik.smpl_values);
 
         // find larger rectangular discretization error
@@ -628,13 +595,13 @@ void MCMCImpl::power_post_adaptive_(std::vector<double> &itm, std::vector<double
     }
 }
 
-void MCMCImpl::power_post_fractions_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var)
+void MCMC::power_post_fractions_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var)
 {
     for (setup.rung = 1; setup.rung <= setup.n_rungs; ++setup.rung)
     {
         // inverse tempearture = (rung / #rungs)^5
         setup.inv_T = std::pow(static_cast<double>(setup.rung) / static_cast<double>(setup.n_rungs), 5.);
-        run_monte_carlo();
+        run_monte_carlo_();
 
         const auto [stats_avg, stats_var] = compute_stats(tot_log_lik.smpl_values);
         itm.push_back(setup.inv_T);

@@ -27,7 +27,7 @@ EXECUTABLE := $(MODEL)/model.exe
 
 # compilation flags
 CXX := g++
-CXXFLAGS := -std=c++17 -I../template/include/ \
+CXXFLAGS := -std=c++17 -I../include/ \
 -Wall -Wextra -pedantic \
 -Wno-unknown-pragmas
 LDFLAGS :=
@@ -93,7 +93,7 @@ standalone.o: standalone.cpp
 
 # To clean objects
 clean:
-	$(RM) {$(MODEL),$(SRC),../models/*}/*.{o,exe,so,dll,tmp}
+	$(RM) standalone.o {$(MODEL),$(SRC),../models/*}/*.{o,exe,so,dll,tmp}
 
 # Run make in debugging mode
 debug:

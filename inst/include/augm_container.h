@@ -38,7 +38,7 @@ class AugmContainer
 {
 	friend struct Augmented;
 	friend struct DataWide;
-	friend class MCMCImpl;
+	friend class MCMC;
 
 public:
 	///////////////////////////

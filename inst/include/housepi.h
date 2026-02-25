@@ -84,8 +84,7 @@ std::string housepi_compile_flags()
 #define HOUSEPI_RCPP_MODEL_FACTORY()          \
     Rcpp::XPtr<MCMC> housepi_new_model()      \
     {                                         \
-        auto model = new Model();             \
-        return Rcpp::XPtr<MCMC>(model, true); \
+        return Rcpp::XPtr<MCMC>(new Model(), true); \
     }
 
 #define HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE_IMPL_(module_name)        \

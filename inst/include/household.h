@@ -25,7 +25,7 @@ class Household
 {
 	friend struct DataWide;
 	friend struct ContactRate;
-	friend class MCMCImpl;
+	friend class MCMC;
 
 public:
 	///////////////////////////

@@ -19,7 +19,6 @@
 #include "tools/string.h"
 
 #include "mcmc.h"
-#include "mcmc_impl.h"
 #include "setup.h"
 #include "data_wide.h"
 #include "data_long.h"
@@ -79,11 +78,11 @@ namespace hsp::msg
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #define MAKE_READ_METHOD(module, section_name)                            \
-    void MCMC::read_##module(const std::string &f)                        \
+    void read_##module(MCMC &model, const std::string &f)                 \
     {                                                                     \
         try                                                               \
         {                                                                 \
-            pImpl_->module.build(hsp::read::csv_table(f));                \
+            model.module.build(hsp::read::csv_table(f));                  \
         }                                                                 \
         catch (const std::exception &e)                                   \
         {                                                                 \
@@ -101,12 +100,12 @@ MAKE_READ_METHOD(infec_profile, "infectivity profile")
 MAKE_READ_METHOD(augm, "augmented")
 
 // UPDATE: this will be removed once automatized in C++ reflection
-void MCMC::read_multiplicity(const std::string &f)
+void read_multiplicity(MCMC &model, const std::string &f)
 {
     try
     {
-        pImpl_->data_wide.multiplicity_build(hsp::read::csv_table(f),
-                                             pImpl_->augm.pRegistry->size() > 0);
+        model.data_wide.multiplicity_build(hsp::read::csv_table(f),
+                                           model.augm.pRegistry->size() > 0);
     }
     catch (const std::exception &e)
     {
@@ -121,14 +120,14 @@ void MCMC::read_multiplicity(const std::string &f)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Initialize the output file with inferred parameters with column names and initial values.
-void MCMC::print_infer_state(const std::string &output_filename) const
+void print_infer_state(const MCMC &model, const std::string &output_filename)
 {
     if (hsp::na::is(output_filename))
         return;
 
-    const Setup &setup = pImpl_->setup;
-    const Parameter &param = pImpl_->param;
-    const Augmented &augm = pImpl_->augm;
+    const Setup &setup = model.setup;
+    const Parameter &param = model.param;
+    const Augmented &augm = model.augm;
 
     std::ofstream ofs;
     ofs.open(output_filename);
@@ -167,7 +166,7 @@ void MCMC::print_infer_state(const std::string &output_filename) const
 
             // print log-likelihood
             ofs << hsp::read::DELIMITER << std::setprecision(2)
-                << std::fixed << pImpl_->tot_log_lik.smpl_values[i];
+                << std::fixed << model.tot_log_lik.smpl_values[i];
 
             // print parameter values
             for (size_t u = 0; u < param.list_sample.size(); ++u)
@@ -244,10 +243,10 @@ void update_ofstream_datawide(std::ofstream &ofs,
 }
 
 /// Print the simulated data to the provided file.
-void MCMC::print_simulated_data_wide(const std::string &pathtofile)
+void print_simulated_data_wide(MCMC &model, const std::string &pathtofile)
 {
-    const DataWide &data_wide = pImpl_->data_wide;
-    const Augmented &augm = pImpl_->augm;
+    const DataWide &data_wide = model.data_wide;
+    const Augmented &augm = model.augm;
 
     try
     {
@@ -255,13 +254,13 @@ void MCMC::print_simulated_data_wide(const std::string &pathtofile)
         std::ofstream ofs = open_ofstream_datawide(pathtofile,
                                                    data_wide.pRegistry->get_all(),
                                                    augm.pRegistry->as_string(augm.list_export));
-        pImpl_->helper_init_simulation();
-        init_model_for_simulation();
+        model.helper_init_simulation();
+        model.init_model_for_simulation();
 
         for (Household house : data_wide) // NOTE: deep copy of household
             try
             {
-                simulate_single_house(house);
+                model.simulate_single_house(house);
                 // print the simulated data
                 update_ofstream_datawide(ofs, house, data_wide.pRegistry->size(),
                                          augm.list_export);
@@ -292,17 +291,17 @@ void MCMC::print_simulated_data_wide(const std::string &pathtofile)
 /// Ref: Friel, N., Hurn, M. & Wyse, J.
 /// Improving power posterior estimation of statistical evidence.
 /// Stat Comput 24, 709–723 (2014).
-double MCMC::log_evidence(std::string_view scheme, unsigned long n_rungs)
+double log_evidence(MCMC &model, std::string_view scheme, unsigned long n_rungs)
 {
     try
     {
         double output = 0;
-        const auto pp = pImpl_->power_posteriors(scheme, n_rungs);
+        const auto pp = model.power_posteriors(scheme, n_rungs);
         const std::vector<double> &inv_tem = pp[0];
         const std::vector<double> &avg_vec = pp[1];
         const std::vector<double> &var_vec = pp[2];
 
-        for (unsigned long k = 0; k < pImpl_->setup.n_rungs; ++k)
+        for (unsigned long k = 0; k < model.setup.n_rungs; ++k)
         {
             double d_inv_tem = inv_tem[k + 1] - inv_tem[k];
             output += (avg_vec[k + 1] + avg_vec[k]) * d_inv_tem / 2.;
@@ -325,7 +324,7 @@ double MCMC::log_evidence(std::string_view scheme, unsigned long n_rungs)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Main function for the standalone version of 'housepi'.
-int standalone(MCMC &user_model,int argc, char *argv[])
+int standalone(MCMC &user_model, int argc, char *argv[])
 {
     using hsp::str::tolow;
     using hsp::str::toup;
@@ -424,15 +423,15 @@ int standalone(MCMC &user_model,int argc, char *argv[])
     //////  INITIALIZATION  //////
     //////////////////////////////
 
-    user_model.read_data_wide(data_wide_file);         // 1) Load Data Wide
-    user_model.read_data_long(data_long_file);         // ... and Data Long
-    user_model.read_setup(setup_file);                 // 2) Load Setup
-    user_model.read_param(param_file);                 // 3) Load Parameters
-    user_model.read_infec_profile(infec_profile_file); // 4) Load Infectivity Profile
-    user_model.read_group_rate(group_rates_file);      // 5) Load Group Rates
-    user_model.build_contact_rates();                  // ... and Contact Rates (temporary)
-    user_model.read_augm(augm_file);                   // 6) Load Augmented Variables
-    user_model.read_multiplicity(multiplicity_file);   // 7) Load Multiplicities
+    read_data_wide(user_model, data_wide_file);         // 1) Load Data Wide
+    read_data_long(user_model, data_long_file);         // ... and Data Long
+    read_setup(user_model, setup_file);                 // 2) Load Setup
+    read_param(user_model, param_file);                 // 3) Load Parameters
+    read_infec_profile(user_model, infec_profile_file); // 4) Load Infectivity Profile
+    read_group_rate(user_model, group_rates_file);      // 5) Load Group Rates
+    user_model.contact_rate.build();                    // ... and Contact Rates UPDATE: read instead!
+    read_augm(user_model, augm_file);                   // 6) Load Augmented Variables
+    read_multiplicity(user_model, multiplicity_file);   // 7) Load Multiplicities
 
     //////////////////////////////
     ////////  EXECUTION  /////////
@@ -447,17 +446,17 @@ int standalone(MCMC &user_model,int argc, char *argv[])
         if (hsp::na::is(output_file))
             hsp::msg::error("Missing output file for inference.");
         user_model.run_inference();
-        user_model.print_infer_state(output_file);
+        print_infer_state(user_model, output_file);
     }
     else if (is_simulate) // simulation an outbreak
     {
         if (hsp::na::is(output_file))
             hsp::msg::error("Missing output file for simulation.");
-        user_model.print_simulated_data_wide(output_file);
+        print_simulated_data_wide(user_model, output_file);
     }
     else if (is_logevidence) // estimate log_evidence
     {
-        std::cout << user_model.log_evidence("adaptive", num_rungs) << std::endl;
+        std::cout << log_evidence(user_model, "adaptive", num_rungs) << std::endl;
     }
 
     return EXIT_SUCCESS;
