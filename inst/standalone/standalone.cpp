@@ -7,7 +7,6 @@
 
 #include <string>
 #include <vector>
-#include <unordered_set>
 #include <fstream>
 #include <iostream>
 #include <iomanip>
@@ -18,7 +17,7 @@
 #include "tools/read.h"
 #include "tools/string.h"
 
-#include "mcmc.h"
+#include "standalone.h"
 #include "setup.h"
 #include "data_wide.h"
 #include "data_long.h"
@@ -37,11 +36,6 @@
 namespace hsp::msg
 {
     /// Throw an error message.
-    /// Ref:
-    /// -----
-    /// Suppressing Call Stack Info in Rcpp-Generated Errors and Warnings
-    /// Michael Weylandt — written Mar 27, 2018
-    /// https://gallery.rcpp.org/articles/quiet-stop-and-warning/
     [[noreturn]] void error(const std::string &txt)
     {
         std::cerr << "Error: " + txt + "\nExit..." << std::endl;
@@ -56,11 +50,6 @@ namespace hsp::msg
     }
 
     /// Display a warning message if not already displayed before.
-    /// Ref:
-    /// -----
-    /// Suppressing Call Stack Info in Rcpp-Generated Errors and Warnings
-    /// Michael Weylandt — written Mar 27, 2018
-    /// https://gallery.rcpp.org/articles/quiet-stop-and-warning/
     void warning(const std::string &txt)
     {
         if (is_new_housepi_warning(txt))
@@ -77,12 +66,12 @@ namespace hsp::msg
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define MAKE_READ_METHOD(module, section_name)                            \
-    void read_##module(MCMC &model, const std::string &f)                 \
+#define STANDALONE_MAKE_READ_METHOD_(module, section_name)                \
+    void Options::read_##module(MCMCBase &model)                          \
     {                                                                     \
         try                                                               \
         {                                                                 \
-            model.module.build(hsp::read::csv_table(f));                  \
+            model.module.build(hsp::read::csv_table(file.module));        \
         }                                                                 \
         catch (const std::exception &e)                                   \
         {                                                                 \
@@ -91,21 +80,22 @@ namespace hsp::msg
         }                                                                 \
     }
 
-MAKE_READ_METHOD(setup, "setup")
-MAKE_READ_METHOD(data_wide, "data-wide")
-MAKE_READ_METHOD(data_long, "data-long")
-MAKE_READ_METHOD(param, "parameters")
-MAKE_READ_METHOD(group_rate, "group rates")
-MAKE_READ_METHOD(infec_profile, "infectivity profile")
-MAKE_READ_METHOD(augm, "augmented")
+STANDALONE_MAKE_READ_METHOD_(setup, "setup")
+STANDALONE_MAKE_READ_METHOD_(data_wide, "data-wide")
+STANDALONE_MAKE_READ_METHOD_(data_long, "data-long")
+STANDALONE_MAKE_READ_METHOD_(param, "parameters")
+STANDALONE_MAKE_READ_METHOD_(group_rate, "group rate")
+STANDALONE_MAKE_READ_METHOD_(infec_profile, "infectivity profile")
+STANDALONE_MAKE_READ_METHOD_(augm, "augmented")
 
 // UPDATE: this will be removed once automatized in C++ reflection
-void read_multiplicity(MCMC &model, const std::string &f)
+void Options::read_multiplicity(MCMCBase &model)
 {
     try
     {
-        model.data_wide.multiplicity_build(hsp::read::csv_table(f),
-                                           model.augm.pRegistry->size() > 0);
+        model.data_wide.multiplicity_build(
+            hsp::read::csv_table(file.multiplicity),
+            model.augm.pRegistry->size() > 0);
     }
     catch (const std::exception &e)
     {
@@ -120,21 +110,21 @@ void read_multiplicity(MCMC &model, const std::string &f)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Initialize the output file with inferred parameters with column names and initial values.
-void print_infer_state(const MCMC &model, const std::string &output_filename)
+void print_infer_state(const MCMCBase &engine, const std::string &out_file)
 {
-    if (hsp::na::is(output_filename))
+    if (hsp::na::is(out_file))
         return;
 
-    const Setup &setup = model.setup;
-    const Parameter &param = model.param;
-    const Augmented &augm = model.augm;
+    const Setup &setup = engine.setup;
+    const Parameter &param = engine.param;
+    const Augmented &augm = engine.augm;
 
     std::ofstream ofs;
-    ofs.open(output_filename);
+    ofs.open(out_file);
 
     if (!ofs.is_open())
         throw std::runtime_error(
-            "Unable to open file: " + output_filename);
+            "Unable to open file: " + out_file);
 
     // Headers
     // header log-likelihood
@@ -166,7 +156,7 @@ void print_infer_state(const MCMC &model, const std::string &output_filename)
 
             // print log-likelihood
             ofs << hsp::read::DELIMITER << std::setprecision(2)
-                << std::fixed << model.tot_log_lik.smpl_values[i];
+                << std::fixed << engine.tot_log_lik.smpl_values[i];
 
             // print parameter values
             for (size_t u = 0; u < param.list_sample.size(); ++u)
@@ -242,111 +232,13 @@ void update_ofstream_datawide(std::ofstream &ofs,
     }
 }
 
-/// Print the simulated data to the provided file.
-void print_simulated_data_wide(MCMC &model, const std::string &pathtofile)
-{
-    const DataWide &data_wide = model.data_wide;
-    const Augmented &augm = model.augm;
-
-    try
-    {
-        // initialization
-        std::ofstream ofs = open_ofstream_datawide(pathtofile,
-                                                   data_wide.pRegistry->get_all(),
-                                                   augm.pRegistry->as_string(augm.list_export));
-        model.helper_init_simulation();
-        model.init_model_for_simulation();
-
-        for (Household house : data_wide) // NOTE: deep copy of household
-            try
-            {
-                model.simulate_single_house(house);
-                // print the simulated data
-                update_ofstream_datawide(ofs, house, data_wide.pRegistry->size(),
-                                         augm.list_export);
-            }
-            catch (const std::exception &e)
-            {
-                throw std::runtime_error(
-                    "While simulating " + house.err_name() + ":\n" + e.what());
-            }
-
-        // close ofstream
-        if (!ofs.is_open())
-            throw std::runtime_error(
-                "Output file '" + pathtofile + "' closed unexpectedly.");
-        ofs.close();
-    }
-    catch (const std::exception &e)
-    {
-        hsp::msg::error(e.what());
-    }
-}
-
-/// Estimate log_evidence according to a given scheme and number of rungs.
-/// Uses trapezoidal rule to estimate logarithm of marginal likelihood (evidence).
-///
-/// Ref.
-/// -----
-/// Ref: Friel, N., Hurn, M. & Wyse, J.
-/// Improving power posterior estimation of statistical evidence.
-/// Stat Comput 24, 709–723 (2014).
-double log_evidence(MCMC &model, std::string_view scheme, unsigned long n_rungs)
-{
-    try
-    {
-        double output = 0;
-        const auto pp = model.power_posteriors(scheme, n_rungs);
-        const std::vector<double> &inv_tem = pp[0];
-        const std::vector<double> &avg_vec = pp[1];
-        const std::vector<double> &var_vec = pp[2];
-
-        for (unsigned long k = 0; k < model.setup.n_rungs; ++k)
-        {
-            double d_inv_tem = inv_tem[k + 1] - inv_tem[k];
-            output += (avg_vec[k + 1] + avg_vec[k]) * d_inv_tem / 2.;
-            output += (var_vec[k] - var_vec[k + 1]) * d_inv_tem * d_inv_tem / 12.;
-        }
-
-        return output;
-    }
-    catch (const std::exception &e)
-    {
-        hsp::msg::error("While estimating log_evidence with power posteriors:\n" +
-                        std::string(e.what()));
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  * *** * MAIN FUNCTION * *** *  /////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Main function for the standalone version of 'housepi'.
-int standalone(MCMC &user_model, int argc, char *argv[])
+Options::Options(int argc, char *argv[])
 {
     using hsp::str::tolow;
     using hsp::str::toup;
 
     int carg_i = 1;   // command line iterator
     std::string carg; // command line argument
-
-    bool is_loglikelihood = false; // loglikelihood option
-    bool is_infer = false;         // inference option
-    bool is_simulate = false;      // simulation option
-    unsigned long num_rungs = 0;   // n. rungs power posteriors
-
-    // paths/to/files for import
-    std::string augm_file = "";
-    std::string data_wide_file = "";
-    std::string data_long_file = "";
-    std::string group_rates_file = "";
-    std::string infec_profile_file = "";
-    std::string multiplicity_file = "";
-    std::string output_file = "";
-    std::string param_file = "";
-    std::string setup_file = "";
 
     // check any command was supplied
     if (argc < 2)
@@ -365,7 +257,7 @@ int standalone(MCMC &user_model, int argc, char *argv[])
                 "No Software Manual is available, refer to the Rcpp tutorials.\nApologies for the inconvenience.");
 
         else if (tolow(carg) == "--log-lik")
-            is_loglikelihood = true;
+            is_log_lik = true;
 
         else if (tolow(carg) == "--infer")
             is_infer = true;
@@ -373,91 +265,62 @@ int standalone(MCMC &user_model, int argc, char *argv[])
         else if (tolow(carg) == "--simulate")
             is_simulate = true;
 
-        // UPDATE: under development
-        // else if (tolow(carg) == "--log-evidence")
-        //    num_rungs = hsp::str::toul(argv[++carg_i], "number of rungs");
+        /*  --FUTURE-LOG-EVIDENCE--
+        else if (tolow(carg) == "--log-evidence")
+            num_rungs = hsp::str::toul(argv[++carg_i], "number of rungs");
+        */
 
         else if (toup(carg) == "-A" || tolow(carg) == "--augmented")
-            augm_file = argv[++carg_i];
+            file.augm = argv[++carg_i];
 
         else if (toup(carg) == "-D" || tolow(carg) == "--dataset")
-            data_wide_file = argv[++carg_i];
+            file.data_wide = argv[++carg_i];
 
         else if (toup(carg) == "-L" || tolow(carg) == "--datalong")
-            data_long_file = argv[++carg_i];
+            file.data_long = argv[++carg_i];
 
         else if (toup(carg) == "-G" || tolow(carg) == "--group-rates")
-            group_rates_file = argv[++carg_i];
+            file.group_rate = argv[++carg_i];
 
         else if (toup(carg) == "-I" || tolow(carg) == "--infec-profile")
-            infec_profile_file = argv[++carg_i];
+            file.infec_profile = argv[++carg_i];
 
         else if (toup(carg) == "-M" || tolow(carg) == "--multiplicity")
-            multiplicity_file = argv[++carg_i];
+            file.multiplicity = argv[++carg_i];
 
         else if (toup(carg) == "-O" || tolow(carg) == "--output")
-            output_file = argv[++carg_i];
+            file.output = argv[++carg_i];
 
         else if (toup(carg) == "-P" || tolow(carg) == "--parameter")
-            param_file = argv[++carg_i];
+            file.param = argv[++carg_i];
 
         else if (toup(carg) == "-S" || tolow(carg) == "--setup")
-            setup_file = argv[++carg_i];
+            file.setup = argv[++carg_i];
 
         else
             hsp::msg::error("Unrecognized option `" + carg + "`.");
 
         carg_i++; // move to the next command line argument
     }
+    assert();
+}
 
+void Options::assert()
+{
     // check for single option
-    bool is_logevidence = num_rungs > 0; // power posterior option
-    int aux = is_loglikelihood + is_infer + is_simulate + is_logevidence;
+    int aux = is_log_lik + is_infer + is_simulate + is_log_evidence();
+
+    if (aux == 0)
+        is_log_lik = true; // default
     if (aux > 1)
         hsp::msg::error(
             "Incompatible commands: choose one between --log-lik, --infer, --simulate or --log-evidence.");
-    if (aux == 0)
-        is_loglikelihood = true; // default
 
-    //////////////////////////////
-    //////  INITIALIZATION  //////
-    //////////////////////////////
-
-    read_data_wide(user_model, data_wide_file);         // 1) Load Data Wide
-    read_data_long(user_model, data_long_file);         // ... and Data Long
-    read_setup(user_model, setup_file);                 // 2) Load Setup
-    read_param(user_model, param_file);                 // 3) Load Parameters
-    read_infec_profile(user_model, infec_profile_file); // 4) Load Infectivity Profile
-    read_group_rate(user_model, group_rates_file);      // 5) Load Group Rates
-    user_model.contact_rate.build();                    // ... and Contact Rates UPDATE: read instead!
-    read_augm(user_model, augm_file);                   // 6) Load Augmented Variables
-    read_multiplicity(user_model, multiplicity_file);   // 7) Load Multiplicities
-
-    //////////////////////////////
-    ////////  EXECUTION  /////////
-    //////////////////////////////
-
-    if (is_loglikelihood) // evaluate loglikelihood
+    if (hsp::na::is(file.output))
     {
-        std::cout << user_model.evaluate_log_lik() << std::endl;
-    }
-    else if (is_infer) // perform inference
-    {
-        if (hsp::na::is(output_file))
+        if (is_infer)
             hsp::msg::error("Missing output file for inference.");
-        user_model.run_inference();
-        print_infer_state(user_model, output_file);
-    }
-    else if (is_simulate) // simulation an outbreak
-    {
-        if (hsp::na::is(output_file))
+        if (is_simulate)
             hsp::msg::error("Missing output file for simulation.");
-        print_simulated_data_wide(user_model, output_file);
     }
-    else if (is_logevidence) // estimate log_evidence
-    {
-        std::cout << log_evidence(user_model, "adaptive", num_rungs) << std::endl;
-    }
-
-    return EXIT_SUCCESS;
 }

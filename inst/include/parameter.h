@@ -60,9 +60,11 @@ struct Parameter
     //////  CONSTRUCTOR  //////
     ///////////////////////////
 
-    Parameter(const std::vector<std::string> &keys);
+    Parameter();
     ~Parameter();
 
+    void init_registry(const std::vector<std::string> &keys);
+    
     //////////////////////
     //////  SETTER  //////
     //////////////////////
@@ -112,9 +114,9 @@ struct Parameter
     /// UPDATE: these are just temporary fixes.
 
     /// Links used just by read_attribute.
-    void link_to_data_wide(const hsp::key::Registry *pRegistry) { pDataWideRegistry_ = pRegistry; }
-    void link_to_group_rate(const hsp::key::Registry *pRegistry) { pGroupRateRegistry_ = pRegistry; }
-    void link_to_augm(const hsp::key::Registry *pRegistry) { pAugmRegistry_ = pRegistry; }
+    void bind_to_data_wide(const hsp::key::Registry *pRegistry) { pDataWideRegistry_ = pRegistry; }
+    void bind_to_group_rate(const hsp::key::Registry *pRegistry) { pGroupRateRegistry_ = pRegistry; }
+    void bind_to_augm(const hsp::key::Registry *pRegistry) { pAugmRegistry_ = pRegistry; }
 
     /// Auxiliary method to read a definition as a single attribute.
     const Attribute &read_attribute(const hsp::parse::Entry &node, const Individual *member_ptr = nullptr) const;

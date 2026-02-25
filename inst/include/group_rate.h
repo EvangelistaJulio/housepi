@@ -37,10 +37,11 @@ public:
     //////  CONSTRUCTOR  //////
     ///////////////////////////
     
-    GroupRate(const std::vector<std::string> &keys,
-              DataWide *dataptr,
+    GroupRate(DataWide *dataptr,
               const Parameter *paramptr);
     ~GroupRate();
+
+    void init_registry(const std::vector<std::string> &keys);
 
     //////////////////////
     //////  SETTER  //////

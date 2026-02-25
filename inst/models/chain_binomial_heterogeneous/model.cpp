@@ -16,23 +16,20 @@
 
 #include "housepi.h"
 #include "binomial.h"
-#include "mcmc.h"
 
 HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE()
-HOUSEPI_DECLARE_EMPTY_KEYS(AugmKey)
-HOUSEPI_DECLARE_EMPTY_KEYS(DataKey)
-HOUSEPI_DECLARE_EMPTY_KEYS(LongKey)
-HOUSEPI_DECLARE_REGISTER_KEYS(GroupRateKey, community, susceptibility, infectivity)
-HOUSEPI_DECLARE_EMPTY_KEYS(HHsizeKey)
-HOUSEPI_DECLARE_REGISTER_KEYS(HHsizevecKey, order)
-HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublevecKey, commu_escape_rate)
-HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublemtxKey, p2p_escape_rate)
-HOUSEPI_DECLARE_REGISTER_KEYS(ParamKey, alpha, beta)
-
-class Model final : public MCMC
+class Model final : public ModelBase
 {
 public:
-	HOUSEPI_MODEL_CONSTRUCTOR()
+	HOUSEPI_DECLARE_EMPTY_KEYS(AugmKey)
+	HOUSEPI_DECLARE_EMPTY_KEYS(DataKey)
+	HOUSEPI_DECLARE_EMPTY_KEYS(LongKey)
+	HOUSEPI_DECLARE_REGISTER_KEYS(GroupRateKey, community, susceptibility, infectivity)
+	HOUSEPI_DECLARE_EMPTY_KEYS(HHsizeKey)
+	HOUSEPI_DECLARE_REGISTER_KEYS(HHsizevecKey, order)
+	HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublevecKey, commu_escape_rate)
+	HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublemtxKey, p2p_escape_rate)
+	HOUSEPI_DECLARE_REGISTER_KEYS(ParamKey, alpha, beta)
 
 	/// Initialize the LookUp Tables to largest possible values.
 	/// NOTE: missing status are not modeled.

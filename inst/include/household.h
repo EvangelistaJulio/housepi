@@ -25,6 +25,8 @@ class Household
 {
 	friend struct DataWide;
 	friend struct ContactRate;
+	friend class MCMCBase;
+	template <class Model>
 	friend class MCMC;
 
 public:

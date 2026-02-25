@@ -38,6 +38,8 @@ class AugmContainer
 {
 	friend struct Augmented;
 	friend struct DataWide;
+	friend class MCMCBase;
+	template <class Model>
 	friend class MCMC;
 
 public:

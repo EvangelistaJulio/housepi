@@ -12,23 +12,20 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "housepi.h"
-#include "mcmc.h"
 
 HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE()
-HOUSEPI_DECLARE_REGISTER_KEYS(AugmKey, proba)
-HOUSEPI_DECLARE_EMPTY_KEYS(DataKey)
-HOUSEPI_DECLARE_EMPTY_KEYS(LongKey)
-HOUSEPI_DECLARE_EMPTY_KEYS(GroupRateKey)
-HOUSEPI_DECLARE_EMPTY_KEYS(HHsizeKey)
-HOUSEPI_DECLARE_EMPTY_KEYS(HHsizevecKey)
-HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublevecKey)
-HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublemtxKey)
-HOUSEPI_DECLARE_EMPTY_KEYS(ParamKey)
-
-class Model final : public MCMC
+class Model final : public ModelBase
 {
 public:
-	HOUSEPI_MODEL_CONSTRUCTOR()
+	HOUSEPI_DECLARE_REGISTER_KEYS(AugmKey, proba)
+	HOUSEPI_DECLARE_EMPTY_KEYS(DataKey)
+	HOUSEPI_DECLARE_EMPTY_KEYS(LongKey)
+	HOUSEPI_DECLARE_EMPTY_KEYS(GroupRateKey)
+	HOUSEPI_DECLARE_EMPTY_KEYS(HHsizeKey)
+	HOUSEPI_DECLARE_EMPTY_KEYS(HHsizevecKey)
+	HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublevecKey)
+	HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublemtxKey)
+	HOUSEPI_DECLARE_EMPTY_KEYS(ParamKey)
 
 	/// Compute the log-likelihood within household.
 	double compute_house_obs_log_lik(Household &house) override final
@@ -49,3 +46,9 @@ public:
 HOUSEPI_RCPP_MODEL_FACTORY()
 HOUSEPI_CLOSE_NAMED_MODULE_NAMESPACE()
 HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE()
+
+int main(int argc, char *argv[])
+{
+	using namespace blank;
+	return standalone<Model>(argc, argv);
+}

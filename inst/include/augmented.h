@@ -48,11 +48,12 @@ struct Augmented
     //////  CONSTRUCTOR  //////
     ///////////////////////////
 
-    Augmented(const std::vector<std::string> &keys,
-              DataWide *dataptr,
+    Augmented(DataWide *dataptr,
               Parameter *paramptr,
               InfecProfile *infprofptr);
     ~Augmented();
+
+    void init_registry(const std::vector<std::string> &keys);
 
     //////////////////////
     //////  SETTER  //////

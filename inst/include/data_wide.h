@@ -59,12 +59,14 @@ struct DataWide
     //////  CONSTRUCTOR  //////
     ///////////////////////////
 
-    DataWide(const std::vector<std::string> &keys,
-             const std::vector<std::string> &size_keys,
-             const std::vector<std::string> &size_vec_keys,
-             const std::vector<std::string> &double_vec_keys,
-             const std::vector<std::string> &double_mtx_keys);
+    DataWide();
     ~DataWide();
+
+    void init_registry(const std::vector<std::string> &keys,
+                       const std::vector<std::string> &size_keys,
+                       const std::vector<std::string> &size_vec_keys,
+                       const std::vector<std::string> &double_vec_keys,
+                       const std::vector<std::string> &double_mtx_keys);
 
     //////////////////////
     //////  SETTER  //////

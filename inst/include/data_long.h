@@ -37,9 +37,10 @@ public:
     //////  CONSTRUCTOR  //////
     ///////////////////////////
 
-    DataLong(const std::vector<std::string> &keys,
-             DataWide *ptr);
+    DataLong(DataWide *ptr);
     ~DataLong();
+
+    void init_registry(const std::vector<std::string> &keys);
 
     //////////////////////
     //////  SETTER  //////

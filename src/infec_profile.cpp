@@ -217,34 +217,3 @@ std::unique_ptr<Distribution> InfecProfile::helper_build_(const hsp::str_table &
             "Definition of infectivity profile did not return a discrete object as requested by the model.");
     return output;
 }
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////  MCMC : Impl : InfecProfile : getter methods  ///////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-double InfecProfile::inst(const AugmContainer *member_ptr, double t) const
-{
-    switch (mode_)
-    {
-    case Mode::Augmented:
-        return member_ptr->get_augm_variable(augm_key).function()->pdf(t);
-    case Mode::Generic:
-        return generic->pdf(t);
-    case Mode::LookUp:
-        return lookup_.inst(t);
-    }
-    __builtin_unreachable();
-}
-double InfecProfile::cumul(const AugmContainer *member_ptr, double t) const
-{
-    switch (mode_)
-    {
-    case Mode::Augmented:
-        return member_ptr->get_augm_variable(augm_key).function()->cdf(t);
-    case Mode::Generic:
-        return generic->cdf(t);
-    case Mode::LookUp:
-        return generic->is_below(t) ? 0. : lookup_.cumul(t);
-    }
-    __builtin_unreachable();
-}

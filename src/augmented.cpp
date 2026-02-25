@@ -133,15 +133,18 @@ namespace
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Augmented::Augmented(const std::vector<std::string> &keys,
-                     DataWide *dataptr,
+Augmented::Augmented(DataWide *dataptr,
                      Parameter *paramptr,
                      InfecProfile *infprofptr)
-    : pRegistry(std::make_unique<hsp::key::Registry>(keys)),
-      pDataWide_(dataptr),
+    : pDataWide_(dataptr),
       pParameter_(paramptr),
       pInfecProfile_(infprofptr) {}
 Augmented::~Augmented() = default;
+
+void Augmented::init_registry(const std::vector<std::string> &keys)
+{
+    pRegistry = std::make_unique<hsp::key::Registry>(keys);
+}
 
 void Augmented::build(const hsp::str_table &input)
 {

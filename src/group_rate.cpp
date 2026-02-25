@@ -29,13 +29,16 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-GroupRate::GroupRate(const std::vector<std::string> &keys,
-                     DataWide *dataptr,
+GroupRate::GroupRate(DataWide *dataptr,
                      const Parameter *paramptr)
-    : pRegistry(std::make_unique<hsp::key::Registry>(keys)),
-      pDataWide_(dataptr),
+    : pDataWide_(dataptr),
       pParameter_(paramptr) {}
 GroupRate::~GroupRate() = default;
+
+void GroupRate::init_registry(const std::vector<std::string> &keys)
+{
+    pRegistry = std::make_unique<hsp::key::Registry>(keys);
+}
 
 void GroupRate::build(const hsp::str_table &input)
 {

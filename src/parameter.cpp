@@ -33,9 +33,13 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-Parameter::Parameter(const std::vector<std::string> &keys)
-    : pRegistry(std::make_unique<hsp::key::Registry>(keys)) {}
+Parameter::Parameter() = default;
 Parameter::~Parameter() = default;
+
+void Parameter::init_registry(const std::vector<std::string> &keys)
+{
+    pRegistry = std::make_unique<hsp::key::Registry>(keys);
+}
 
 void Parameter::build(const hsp::str_table &input)
 {

@@ -13,23 +13,20 @@
 
 #include "housepi.h"
 #include "binomial.h"
-#include "mcmc.h"
 
 HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE()
-HOUSEPI_DECLARE_EMPTY_KEYS(AugmKey)
-HOUSEPI_DECLARE_EMPTY_KEYS(DataKey)
-HOUSEPI_DECLARE_EMPTY_KEYS(LongKey)
-HOUSEPI_DECLARE_EMPTY_KEYS(GroupRateKey)
-HOUSEPI_DECLARE_EMPTY_KEYS(HHsizeKey)
-HOUSEPI_DECLARE_EMPTY_KEYS(HHsizevecKey)
-HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublevecKey)
-HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublemtxKey)
-HOUSEPI_DECLARE_REGISTER_KEYS(ParamKey, alpha, beta)
-
-class Model final : public MCMC
+class Model final : public ModelBase
 {
 public:
-	HOUSEPI_MODEL_CONSTRUCTOR()
+	HOUSEPI_DECLARE_EMPTY_KEYS(AugmKey)
+	HOUSEPI_DECLARE_EMPTY_KEYS(DataKey)
+	HOUSEPI_DECLARE_EMPTY_KEYS(LongKey)
+	HOUSEPI_DECLARE_EMPTY_KEYS(GroupRateKey)
+	HOUSEPI_DECLARE_EMPTY_KEYS(HHsizeKey)
+	HOUSEPI_DECLARE_EMPTY_KEYS(HHsizevecKey)
+	HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublevecKey)
+	HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublemtxKey)
+	HOUSEPI_DECLARE_REGISTER_KEYS(ParamKey, alpha, beta)
 
 	/// Initialize the LookUp Tables to largest possible values.
 	/// NOTE: missing status are not modeled

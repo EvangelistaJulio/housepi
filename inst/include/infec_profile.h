@@ -13,6 +13,9 @@
 
 #include "tools/types.h"
 
+#include "distribution.h"
+#include "augm_container.h"
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  *** InfecProfile : struct ***  ///////////////////////////////
@@ -28,8 +31,6 @@ namespace hsp::infprof
 }
 
 struct Parameter;
-class Distribution;
-class AugmContainer;
 
 struct InfecProfile
 {
@@ -37,8 +38,8 @@ struct InfecProfile
 
 public:
     std::unique_ptr<Distribution> generic; /// generic profile
-    size_t augm_key;                       /// augmented key
     hsp::str_table augm_definitions = {};  /// augmented definitions
+    size_t augm_key;                       /// augmented key
 
     ///////////////////////////
     //////  CONSTRUCTOR  //////
@@ -94,8 +95,32 @@ public:
     //////  GETTER  //////
     //////////////////////
 
-    double inst(const AugmContainer *member_ptr, double t) const;
-    double cumul(const AugmContainer *member_ptr, double t) const;
+    double inst(const AugmContainer *member_ptr, double t) const
+    {
+        switch (mode_)
+        {
+        case Mode::Augmented:
+            return member_ptr->get_augm_variable(augm_key).function()->pdf(t);
+        case Mode::Generic:
+            return generic->pdf(t);
+        case Mode::LookUp:
+            return lookup_.inst(t);
+        }
+        __builtin_unreachable();
+    }
+    double cumul(const AugmContainer *member_ptr, double t) const
+    {
+        switch (mode_)
+        {
+        case Mode::Augmented:
+            return member_ptr->get_augm_variable(augm_key).function()->cdf(t);
+        case Mode::Generic:
+            return generic->cdf(t);
+        case Mode::LookUp:
+            return generic->is_below(t) ? 0. : lookup_.cumul(t);
+        }
+        __builtin_unreachable();
+    }
 
     /////////////////////
     //////  FLAGS  //////

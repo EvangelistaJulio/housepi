@@ -13,52 +13,39 @@
 
 #include "tools/keys.h"
 
+#include "model.h"
 #include "individual.h"
 #include "household.h"
 
 #ifdef _HOUSEPI_RCPP
 #include <Rcpp.h>
 #else
-class MCMC;
-int standalone(MCMC &model, int argc, char *argv[]);
+#include "standalone.h"
 #endif
 
 #ifndef _HOUSEPI_MODULE
 #define _HOUSEPI_MODULE blank
 #endif
 
-#define HOUSEPI_DECLARE_EMPTY_KEYS(T)                        \
-    namespace                                                \
-    {                                                        \
-        static const std::vector<std::string> T##_keys = {}; \
-    }
+#define HOUSEPI_DECLARE_EMPTY_KEYS(T) \
+    struct T                          \
+    {                                 \
+    };                                \
+                                      \
+    const std::vector<std::string> get_##T() const override final { return {}; }
 
-#define HOUSEPI_DECLARE_REGISTER_KEYS(T, ...)                                                        \
-    namespace                                                                                        \
-    {                                                                                                \
-        struct T                                                                                     \
-        {                                                                                            \
-            enum : size_t                                                                            \
-            {                                                                                        \
-                __VA_ARGS__                                                                          \
-            };                                                                                       \
-        };                                                                                           \
-                                                                                                     \
-        static const std::vector<std::string> T##_keys = hsp::key::helper_parse_names(#__VA_ARGS__); \
-    }
-
-#define HOUSEPI_MODEL_CONSTRUCTOR()     \
-    Model() : MCMC(DataKey_keys,        \
-                   HHsizeKey_keys,      \
-                   HHsizevecKey_keys,   \
-                   HHdoublevecKey_keys, \
-                   HHdoublemtxKey_keys, \
-                   LongKey_keys,        \
-                   ParamKey_keys,       \
-                   GroupRateKey_keys,   \
-                   AugmKey_keys)        \
-    {                                   \
-        init_advanced_setup();          \
+#define HOUSEPI_DECLARE_REGISTER_KEYS(T, ...)                     \
+    struct T                                                      \
+    {                                                             \
+        enum : size_t                                             \
+        {                                                         \
+            __VA_ARGS__                                           \
+        };                                                        \
+    };                                                            \
+                                                                  \
+    const std::vector<std::string> get_##T() const override final \
+    {                                                             \
+        return hsp::key::helper_parse_names(#__VA_ARGS__);        \
     }
 
 #define HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE() \
@@ -81,9 +68,9 @@ std::string housepi_compile_flags()
 #define TOSTRING(x) STRINGIFY(x)
 
 #ifdef _HOUSEPI_RCPP
-#define HOUSEPI_RCPP_MODEL_FACTORY()          \
-    Rcpp::XPtr<MCMC> housepi_new_model()      \
-    {                                         \
+#define HOUSEPI_RCPP_MODEL_FACTORY()                \
+    Rcpp::XPtr<MCMC> housepi_new_model()            \
+    {                                               \
         return Rcpp::XPtr<MCMC>(new Model(), true); \
     }
 
@@ -100,11 +87,10 @@ std::string housepi_compile_flags()
     HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE_IMPL_(_HOUSEPI_MODULE)
 #else
 #define HOUSEPI_RCPP_MODEL_FACTORY()
-#define HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE()   \
-    int main(int argc, char *argv[])               \
-    {                                              \
-        using namespace _HOUSEPI_MODULE;           \
-        Model user_model;                          \
-        return standalone(user_model, argc, argv); \
+#define HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE() \
+    int main(int argc, char *argv[])             \
+    {                                            \
+        using namespace _HOUSEPI_MODULE;         \
+        return standalone<Model>(argc, argv);    \
     }
 #endif

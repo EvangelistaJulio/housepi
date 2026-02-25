@@ -29,11 +29,14 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-DataLong::DataLong(const std::vector<std::string> &keys,
-                   DataWide *ptr)
-    : pRegistry(std::make_unique<hsp::key::Registry>(keys)),
-      pDataWide_(ptr) {}
+DataLong::DataLong(DataWide *ptr)
+    : pDataWide_(ptr) {}
 DataLong::~DataLong() = default;
+
+void DataLong::init_registry(const std::vector<std::string> &keys)
+{
+    pRegistry = std::make_unique<hsp::key::Registry>(keys);
+}
 
 void DataLong::build(const hsp::str_table &input)
 {

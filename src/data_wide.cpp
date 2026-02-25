@@ -83,18 +83,22 @@ void Household::helper_set_status_(Individual &member, int new_status)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-DataWide::DataWide(
+DataWide::DataWide() = default;
+DataWide::~DataWide() = default;
+
+void DataWide::init_registry(
     const std::vector<std::string> &keys,
     const std::vector<std::string> &size_keys,
     const std::vector<std::string> &size_vec_keys,
     const std::vector<std::string> &double_vec_keys,
     const std::vector<std::string> &double_mtx_keys)
-    : pRegistry(std::make_unique<hsp::key::Registry>(keys)),
-      p_size_Registry(std::make_unique<hsp::key::Registry>(size_keys)),
-      p_size_vec_Registry(std::make_unique<hsp::key::Registry>(size_vec_keys)),
-      p_double_vec_Registry(std::make_unique<hsp::key::Registry>(double_vec_keys)),
-      p_double_mtx_Registry(std::make_unique<hsp::key::Registry>(double_mtx_keys)) {}
-DataWide::~DataWide() = default;
+{
+    pRegistry = std::make_unique<hsp::key::Registry>(keys);
+    p_size_Registry = std::make_unique<hsp::key::Registry>(size_keys);
+    p_size_vec_Registry = std::make_unique<hsp::key::Registry>(size_vec_keys);
+    p_double_vec_Registry = std::make_unique<hsp::key::Registry>(double_vec_keys);
+    p_double_mtx_Registry = std::make_unique<hsp::key::Registry>(double_mtx_keys);
+}
 
 void DataWide::build(const hsp::str_table &input)
 {

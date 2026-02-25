@@ -310,18 +310,18 @@ namespace
         std::vector<double>().swap(src);
     }
 
-#define MAKE_RCPP_IMPORT_METHOD(module, section_name)         \
-    void import_##module(Rcpp::XPtr<MCMC> model, SEXP input)  \
-    {                                                         \
-        try                                                   \
-        {                                                     \
-            model->module.build(rdataframe_to_strmap(input)); \
-        }                                                     \
-        catch (const std::exception &e)                       \
-        {                                                     \
-            hsp::msg::error(std::string("While importing ") + \
-                            section_name + ":\n" + e.what()); \
-        }                                                     \
+#define MAKE_RCPP_IMPORT_METHOD(module, section_name)            \
+    void import_##module(Rcpp::XPtr<MCMCBase> model, SEXP input) \
+    {                                                            \
+        try                                                      \
+        {                                                        \
+            model->module.build(rdataframe_to_strmap(input));    \
+        }                                                        \
+        catch (const std::exception &e)                          \
+        {                                                        \
+            hsp::msg::error(std::string("While importing ") +    \
+                            section_name + ":\n" + e.what());    \
+        }                                                        \
     }
     MAKE_RCPP_IMPORT_METHOD(setup, "setup")
     MAKE_RCPP_IMPORT_METHOD(data_wide, "data-wide")
@@ -332,7 +332,7 @@ namespace
     MAKE_RCPP_IMPORT_METHOD(augm, "augmented")
 
     // UPDATE: this will be removed once automatized in C++ reflection
-    void import_multiplicity(Rcpp::XPtr<MCMC> model, SEXP input)
+    void import_multiplicity(Rcpp::XPtr<MCMCBase> model, SEXP input)
     {
         try
         {
@@ -346,7 +346,7 @@ namespace
         }
     }
 
-    void import_param_for_prediction(Rcpp::XPtr<MCMC> model, SEXP input)
+    void import_param_for_prediction(Rcpp::XPtr<MCMCBase> model, SEXP input)
     {
         try
         {
@@ -391,7 +391,7 @@ namespace
     }
 
     /// Export current setup configurations to R List.
-    Rcpp::List export_setup(Rcpp::XPtr<MCMC> model)
+    Rcpp::List export_setup(Rcpp::XPtr<MCMCBase> model)
     {
         using namespace Rcpp;
         const Setup &setup = model->setup;
@@ -407,13 +407,13 @@ namespace
                             _["progress"] = setup.progress);
     }
 
-    Rcpp::List export_infec_profile(Rcpp::XPtr<MCMC> model)
+    Rcpp::List export_infec_profile(Rcpp::XPtr<MCMCBase> model)
     {
         return helper_export_infec_profile(model->infec_profile);
     }
 
     /// Export to R all augmented variables at the current state.
-    Rcpp::DataFrame export_augmented_data_wide(Rcpp::XPtr<MCMC> model)
+    Rcpp::DataFrame export_augmented_data_wide(Rcpp::XPtr<MCMCBase> model)
     {
         using namespace Rcpp;
         const DataWide &data_wide = model->data_wide;
@@ -499,13 +499,13 @@ namespace
                             std::string(e.what()));
         }
     }
-    Rcpp::DataFrame export_data_wide(Rcpp::XPtr<MCMC> model)
+    Rcpp::DataFrame export_data_wide(Rcpp::XPtr<MCMCBase> model)
     {
         const DataWide &data_wide = model->data_wide;
         return helper_export_data_wide(data_wide, data_wide.pRegistry->get_all(), true);
     }
 
-    Rcpp::DataFrame data_wide_for_simulation(Rcpp::XPtr<MCMC> model)
+    Rcpp::DataFrame data_wide_for_simulation(Rcpp::XPtr<MCMCBase> model)
     {
         const DataWide &data_wide = model->data_wide;
         const Augmented &augm = model->augm;
@@ -519,11 +519,11 @@ namespace
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////  MCMC : DataLong : exports  /////////////////////////////////
+    ///////////////////////////////////  MCMCBase : DataLong : exports  ///////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Export current data configurations to R DataFrame.
-    Rcpp::DataFrame export_data_long(Rcpp::XPtr<MCMC> model)
+    Rcpp::DataFrame export_data_long(Rcpp::XPtr<MCMCBase> model)
     {
         using namespace Rcpp;
         const DataWide &data_wide = model->data_wide;
@@ -576,11 +576,11 @@ namespace
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////  MCMC : report exports  /////////////////////////////////////
+    ///////////////////////////////////  MCMCBase : report exports  ///////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Export current data configurations to R DataFrame.
-    Rcpp::DataFrame summarise_cases(Rcpp::XPtr<MCMC> model)
+    Rcpp::DataFrame summarise_cases(Rcpp::XPtr<MCMCBase> model)
     {
         using namespace Rcpp;
         const DataWide &data_wide = model->data_wide;
@@ -636,11 +636,11 @@ namespace
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////  MCMC : export house size report  ////////////////////////////////
+    //////////////////////////////  MCMCBase : export house size report  //////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Export current data configurations to R DataFrame.
-    Rcpp::DataFrame summarise_house_sizes(Rcpp::XPtr<MCMC> model)
+    Rcpp::DataFrame summarise_house_sizes(Rcpp::XPtr<MCMCBase> model)
     {
         using namespace Rcpp;
         const DataWide &data_wide = model->data_wide;
@@ -683,11 +683,11 @@ namespace
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////////  MCMC : export draws  //////////////////////////////////////
+    ////////////////////////////////////  MCMCBase : export draws  ////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Export MCMC draws of total log-likelihood posterior samples.
-    Rcpp::NumericMatrix flush_total_log_lik_draws(Rcpp::XPtr<MCMC> model)
+    Rcpp::NumericMatrix flush_total_log_lik_draws(Rcpp::XPtr<MCMCBase> model)
     {
         using namespace Rcpp;
         TotalLogLike &tot_log_lik = model->tot_log_lik;
@@ -707,7 +707,7 @@ namespace
     }
 
     /// Export MCMC draws of parameter values posterior samples.
-    Rcpp::NumericMatrix flush_param_draws(Rcpp::XPtr<MCMC> model)
+    Rcpp::NumericMatrix flush_param_draws(Rcpp::XPtr<MCMCBase> model)
     {
         using namespace Rcpp;
         Parameter &param = model->param;
@@ -737,7 +737,7 @@ namespace
     }
 
     /// Export MCMC draws of parameter log-priors posterior samples.
-    Rcpp::NumericMatrix flush_param_lprior_draws(Rcpp::XPtr<MCMC> model)
+    Rcpp::NumericMatrix flush_param_lprior_draws(Rcpp::XPtr<MCMCBase> model)
     {
         using namespace Rcpp;
         Parameter &param = model->param;
@@ -771,7 +771,7 @@ namespace
     }
 
     /// Export MCMC draws of augmented posterior samples.
-    Rcpp::NumericMatrix flush_augm_draws(Rcpp::XPtr<MCMC> model)
+    Rcpp::NumericMatrix flush_augm_draws(Rcpp::XPtr<MCMCBase> model)
     {
         using namespace Rcpp;
         Augmented &augm = model->augm;
@@ -814,12 +814,8 @@ namespace
         }
     }
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////  MCMC : export household log-likelihood matrix  ////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-
     /// Export all sampled values of the log-likelihood for all household.
-    Rcpp::NumericMatrix flush_house_log_lik_draws(Rcpp::XPtr<MCMC> model)
+    Rcpp::NumericMatrix flush_house_log_lik_draws(Rcpp::XPtr<MCMCBase> model)
     {
         using namespace Rcpp;
         DataWide &data_wide = model->data_wide;
@@ -1090,7 +1086,7 @@ namespace
     }
 
     /// Export a list containing all relevant information for a debug.
-    Rcpp::List export_house_snapshot(Rcpp::XPtr<MCMC> model, const std::string &house_id)
+    Rcpp::List export_house_snapshot(Rcpp::XPtr<MCMCBase> model, const std::string &house_id)
     {
         using namespace Rcpp;
 
@@ -1119,7 +1115,6 @@ namespace
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////  MCMC : simulate ///////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-
 
     /// Perform a unique repetition.
     Rcpp::DataFrame helper_simulate_single_repetition(Rcpp::XPtr<MCMC> model)
@@ -1228,7 +1223,7 @@ namespace
     ////////////////////////////////////////  MCMC : log-evidence /////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /*
+    /* --FUTURE-LOG-EVIDENCE--
     /// Estimate log_evidence according to a given scheme and number of rungs.
     /// Uses trapezoidal rule to estimate logarithm of marginal likelihood (evidence).
     ///
@@ -1241,33 +1236,25 @@ namespace
     {
         using namespace Rcpp;
 
-        try
-        {
-            double output = 0;
-            const auto pp = model->power_posteriors(scheme, n_rungs);
-            const std::vector<double> &inv_tem = pp[0];
-            const std::vector<double> &avg_vec = pp[1];
-            const std::vector<double> &var_vec = pp[2];
+        double output = 0;
+        const auto pp = model->power_posteriors(scheme, n_rungs);
+        const std::vector<double> &inv_tem = pp[0];
+        const std::vector<double> &avg_vec = pp[1];
+        const std::vector<double> &var_vec = pp[2];
 
-            for (unsigned long k = 0; k < model->setup.n_rungs; ++k)
-            {
-                double d_inv_tem = inv_tem[k + 1] - inv_tem[k];
-                output += (avg_vec[k + 1] + avg_vec[k]) * d_inv_tem / 2.;
-                output += (var_vec[k] - var_vec[k + 1]) * d_inv_tem * d_inv_tem / 12.;
-            }
-
-            return List::create(_["estimate"] = output,
-                                _["scheme"] = scheme,
-                                _["n_rungs"] = model->setup.c_sample_size,
-                                _["inv_temper"] = wrap(inv_tem),
-                                _["mean_log_lik"] = wrap(avg_vec),
-                                _["var_log_lik"] = wrap(var_vec));
-        }
-        catch (const std::exception &e)
+        for (unsigned long k = 0; k < model->setup.n_rungs; ++k)
         {
-            hsp::msg::error("While estimating log_evidence with power posteriors:\n" +
-                            std::string(e.what()));
+            double d_inv_tem = inv_tem[k + 1] - inv_tem[k];
+            output += (avg_vec[k + 1] + avg_vec[k]) * d_inv_tem / 2.;
+            output += (var_vec[k] - var_vec[k + 1]) * d_inv_tem * d_inv_tem / 12.;
         }
+
+        return List::create(_["estimate"] = output,
+                            _["scheme"] = scheme,
+                            _["n_rungs"] = model->setup.c_sample_size,
+                            _["inv_temper"] = wrap(inv_tem),
+                            _["mean_log_lik"] = wrap(avg_vec),
+                            _["var_log_lik"] = wrap(var_vec));
     }
     */
 }
@@ -1282,8 +1269,30 @@ namespace
 {
     // UPDATE: this should be imported instead
     void build_contact_rates(Rcpp::XPtr<MCMC> model) { model->contact_rate.build(); }
-    double evaluate_log_lik(Rcpp::XPtr<MCMC> model, std::string house_id) { return model->evaluate_log_lik(house_id); }
-    void run_inference(Rcpp::XPtr<MCMC> model) { model->run_inference(); }
+    double evaluate_log_lik(Rcpp::XPtr<MCMC> model, std::string house_id)
+    {
+        try
+        {
+            return model->evaluate_log_lik(house_id);
+        }
+        catch (const std::exception &e)
+        {
+            setup.prog_crash();
+            hsp::msg::error(e.what());
+        }
+    }
+    void run_inference(Rcpp::XPtr<MCMC> model)
+    {
+        try
+        {
+            model->run_inference();
+        }
+        catch (std::exception &e)
+        {
+            setup.prog_crash();
+            hsp::msg::error(e.what());
+        }
+    }
 }
 
 RCPP_MODULE(housepi)

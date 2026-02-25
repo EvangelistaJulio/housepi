@@ -12,23 +12,21 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "housepi.h"
-#include "mcmc.h"
 
 HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE()
-HOUSEPI_DECLARE_REGISTER_KEYS(AugmKey, infec_time)
-HOUSEPI_DECLARE_REGISTER_KEYS(DataKey, end_followup)
-HOUSEPI_DECLARE_EMPTY_KEYS(LongKey)
-HOUSEPI_DECLARE_REGISTER_KEYS(GroupRateKey, community, susceptibility, infectivity)
-HOUSEPI_DECLARE_REGISTER_KEYS(HHsizeKey, intro_case)
-HOUSEPI_DECLARE_EMPTY_KEYS(HHsizevecKey)
-HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublevecKey)
-HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublemtxKey, inst, cumul)
-HOUSEPI_DECLARE_REGISTER_KEYS(ParamKey, alpha, beta, gamma, size_ref)
 
-class Model final : public MCMC
+class Model final : public ModelBase
 {
 public:
-	HOUSEPI_MODEL_CONSTRUCTOR()
+	HOUSEPI_DECLARE_REGISTER_KEYS(AugmKey, infec_time)
+	HOUSEPI_DECLARE_REGISTER_KEYS(DataKey, end_followup)
+	HOUSEPI_DECLARE_EMPTY_KEYS(LongKey)
+	HOUSEPI_DECLARE_REGISTER_KEYS(GroupRateKey, community, susceptibility, infectivity)
+	HOUSEPI_DECLARE_REGISTER_KEYS(HHsizeKey, intro_case)
+	HOUSEPI_DECLARE_EMPTY_KEYS(HHsizevecKey)
+	HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublevecKey)
+	HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublemtxKey, inst, cumul)
+	HOUSEPI_DECLARE_REGISTER_KEYS(ParamKey, alpha, beta, gamma, size_ref)
 
 	/// Initialize infectivity profile.
 	void init_advanced_setup() override final
@@ -94,7 +92,7 @@ public:
 
 	/// Compute the log-likelihood within household.
 	double compute_house_obs_log_lik(Household &house) override final;
-	
+
 	/// Poisson point process to simulate outbreak in a single household.
 	void simulate_single_house(Household &house) override final;
 	/// Instantaneous risk of Infection for individual i. Used in simulation.

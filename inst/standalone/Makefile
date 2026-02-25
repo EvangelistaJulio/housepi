@@ -27,7 +27,7 @@ EXECUTABLE := $(MODEL)/model.exe
 
 # compilation flags
 CXX := g++
-CXXFLAGS := -std=c++17 -I../include/ \
+CXXFLAGS := -std=c++17 -I./ -I../include/ \
 -Wall -Wextra -pedantic \
 -Wno-unknown-pragmas
 LDFLAGS :=
