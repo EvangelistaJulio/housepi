@@ -46,9 +46,3 @@ public:
 HOUSEPI_RCPP_MODEL_FACTORY()
 HOUSEPI_CLOSE_NAMED_MODULE_NAMESPACE()
 HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE()
-
-int main(int argc, char *argv[])
-{
-	using namespace blank;
-	return standalone<Model>(argc, argv);
-}

@@ -32,6 +32,7 @@ and variable definitions from a single class.
 \subsection{Public methods}{
 \itemize{
 \item \href{#method-HousepiModel-new}{\code{HousepiModel$new()}}
+\item \href{#method-HousepiModel-copy}{\code{HousepiModel$copy()}}
 \item \href{#method-HousepiModel-print}{\code{HousepiModel$print()}}
 \item \href{#method-HousepiModel-help}{\code{HousepiModel$help()}}
 \item \href{#method-HousepiModel-add_data_wide}{\code{HousepiModel$add_data_wide()}}
@@ -58,7 +59,6 @@ and variable definitions from a single class.
 \item \href{#method-HousepiModel-drop_group_rates}{\code{HousepiModel$drop_group_rates()}}
 \item \href{#method-HousepiModel-drop_infectivity_profile}{\code{HousepiModel$drop_infectivity_profile()}}
 \item \href{#method-HousepiModel-drop_all}{\code{HousepiModel$drop_all()}}
-\item \href{#method-HousepiModel-clone}{\code{HousepiModel$clone()}}
 }
 }
 \if{html}{\out{<hr>}}
@@ -73,6 +73,7 @@ used to run inference and simulation routines.
   as_template = FALSE,
   force = FALSE,
   quiet = FALSE,
+  .hollow = FALSE,
   ...
 )}\if{html}{\out{</div>}}
 }
@@ -96,8 +97,10 @@ If \code{FALSE} recompile the model at every new session (default).}
 \item{\code{force}}{\code{logical(1)} Compile even if cached model already exists.\cr
 Default is \code{FALSE}.}
 
-\item{\code{quiet}}{\code{logical(1)} To hide compilation commands.\cr
+\item{\code{quiet}}{\code{logical(1)} If \code{TRUE} hide compilation commands.\cr
 Default is \code{FALSE}.}
+
+\item{\code{.hollow}}{NULL}
 
 \item{\code{...}}{Named arguments. Additional compilation options:\cr
 \itemize{
@@ -105,6 +108,19 @@ Default is \code{FALSE}.}
 }}
 }
 \if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HousepiModel-copy"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiModel-copy}{}}}
+\subsection{Method \code{copy()}}{
+Deep copy this object.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$copy()}\if{html}{\out{</div>}}
+}
+
+\subsection{Returns}{
+A new independent object.
 }
 }
 \if{html}{\out{<hr>}}
@@ -754,22 +770,5 @@ Drop all definitions.
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$drop_all()}\if{html}{\out{</div>}}
 }
 
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-clone"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-clone}{}}}
-\subsection{Method \code{clone()}}{
-The objects of this class are cloneable with this method.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$clone(deep = FALSE)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{deep}}{Whether to make a deep clone.}
-}
-\if{html}{\out{</div>}}
-}
 }
 }

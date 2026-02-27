@@ -29,7 +29,7 @@ If \code{FALSE} recompile the model at every new session (default).}
 \item{force}{\code{logical(1)} Compile even if cached model already exists.\cr
 Default is \code{FALSE}.}
 
-\item{quiet}{\code{logical(1)} To hide compilation commands.\cr
+\item{quiet}{\code{logical(1)} If \code{TRUE} hide compilation commands.\cr
 Default is \code{FALSE}.}
 
 \item{...}{Named arguments. Additional compilation options:\cr

@@ -110,9 +110,8 @@ This is used in advanced augmented definitions, see [Data augmentation](data_aug
 # Data importation
 
 To associate a data to a model we can call `add_data_wide()`.
-This will return a deep clone of the original object, which can then be used for piping^[
-If you are more comfortable with R6, the most direct way to associate data (and other definitions in general) is to use active methods, like `$data_wide`. 
-This will assign definitions to the original object, without having to clone it under the hood.].
+This will return a copy of the original object, which can then be used for piping^[
+If you are more comfortable with R6, another way to associate data (and definitions in general) is to use active methods like `$data_wide`.].
 
 ```{r}
 # import data in wide format using R6 active field

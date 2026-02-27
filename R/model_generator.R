@@ -22,45 +22,22 @@ NULL
 #' @noRd
 HousepiGenerator <- R6::R6Class(
   classname = "HousepiGenerator",
-  cloneable = TRUE,
+  cloneable = FALSE,
+  lock_class = TRUE,
 
   ############################################################################
   ################################## PRIVATE #################################
   ############################################################################
 
   private = list(
-    # @description
-    # When x$clone(deep=TRUE) is called, the deep_clone gets invoked once for
-    # each field, with the name and value.
-    # UPDATE: avoid re-importing dataset if not necessary using shared pointers
-    deep_clone = function(name, value) {
-      # make a new object of rcpp model class
-      if (name == "ptr_") {
-        if (is.null(value)) return(NULL)
-        output <- private$return_new_model_ptr_()
-        .engine$import_setup(
-          output, char_setup_input_(.engine$export_setup(value))
-        )
-        .engine$import_data_wide(
-          output, char_data_input_(.engine$export_data_wide(value))
-        )
-        .engine$import_data_long(
-          output, char_data_input_(.engine$export_data_long(value))
-        )
-        return(output)
-      }
-
-      # for all other fields, use generalized helper for deep clone
-      helper_clone(value)
-    },
-
     name_ = NA_character_,
     dll_ = NA_character_,
     cache_dir_ = NA_character_,
     source_dir_ = NA_character_,
     is_quiet_ = FALSE,
     needs_compile_ = FALSE,
-    ptr_ = NULL,
+    model_ptr_ = NULL,
+    mcmc_ptr_ = NULL,
     last_flags_ = character(),
 
     # @field infec_status_set_ `integer()`\cr
@@ -82,6 +59,13 @@ HousepiGenerator <- R6::R6Class(
     # @field info_data_long_ `list`\cr
     # List of levels of the factors in the data long.
     info_data_long_ = NULL,
+
+    # @description
+    # Finalize by deleting MCMC first (holds Model reference).
+    finalize = function() {
+      private$mcmc_ptr_  <- NULL
+      private$model_ptr_ <- NULL
+    },
 
     ############################################################################
     ############################################################################
@@ -144,7 +128,7 @@ HousepiGenerator <- R6::R6Class(
     # Wheter user flags are the same as existing dll.
     has_same_flags_as_dll_ = function() {
       m <- get_rcpp_module_from_dll(private$dll_)
-      y <- m$housepi_compile_flags()
+      y <- m$compile_flags()
       flags_dll <- strsplit(y, ":")[[1]]
       setequal(private$last_flags_, flags_dll)
     },
@@ -394,9 +378,11 @@ HousepiGenerator <- R6::R6Class(
       invisible(self)
     },
 
-    # @description Initialize new object of Rcpp Model.
-    return_new_model_ptr_ = function() {
-      get_rcpp_module_from_dll(private$dll_)$housepi_new_model()
+    # @description Initialize new Rcpp pointers to Model and MCMC.
+    create_new_pointers_ = function() {
+      if (!is.null(private$mcmc_ptr_)) return(invisible())
+      private$model_ptr_ <- get_rcpp_module_from_dll(private$dll_)$new_model()
+      private$mcmc_ptr_ <- .engine$create_mcmc_runner(private$model_ptr_)
     },
 
     ############################################################################
@@ -484,7 +470,7 @@ HousepiGenerator <- R6::R6Class(
     #' @field setup `list`. Last setup used by the build process.
     setup = function(value) {
       if (!missing(value)) stop_h("'setup' is read only.")
-      .engine$export_setup(private$ptr_)
+      .engine$export_setup(private$mcmc_ptr_)
     }
   ),
 
@@ -500,7 +486,7 @@ HousepiGenerator <- R6::R6Class(
     #' @param force `r rd_mdl_force_`
     #' @param quiet `r rd_mdl_quiet_`
     #' @param ... `r rd_mdl_flags_`
-    initialize = function(choice, as_template = FALSE,
+    initialize = function(choice = NA_character_, as_template = FALSE,
                           force = FALSE, quiet = FALSE, ...) {
       withr::local_preserve_seed()
       # assign name to the model
@@ -525,14 +511,12 @@ HousepiGenerator <- R6::R6Class(
       # if necessary, recompile only the model script
       if (private$needs_compile_) {
         # drop previous Rcpp model object
-        private$ptr_ <- NULL
+        private$finalize()
         do.call(private$compile_, user_options)
         private$needs_compile_ <- FALSE
       }
-      # generate the Rcpp model object
-      if (is.null(private$ptr_)) {
-        private$ptr_ <- private$return_new_model_ptr_()
-      }
+      # generate the Rcpp model object if missing
+      private$create_new_pointers_()
 
       invisible(self)
     }

@@ -305,7 +305,7 @@ helper_load_def_list <- function(hhmodel, family, xquos, append) {
   stopifnot(inherits(hhmodel, "HousepiModel"))
   pvt_module <- family_to_taskmodule(family)
 
-  new_obj <- hhmodel$clone(deep = TRUE)
+  new_obj <- hhmodel$copy()
   new_obj$.__enclos_env__$private[[pvt_module]]$load_quosures(
     xquos, append = append
   )

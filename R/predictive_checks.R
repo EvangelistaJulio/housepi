@@ -235,7 +235,7 @@ HousepiPrediction <- R6::R6Class(
 
       # run measures on posterior simulations
       # deep clone model before proceeding and acc
-      hmc <- hhmodel$clone(deep = TRUE)
+      hmc <- hhmodel$copy()
       # cleanup at end
       withr::defer(rm(hmc))
       # run measures

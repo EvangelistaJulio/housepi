@@ -36,6 +36,26 @@ assert_valid_status <- function(status) {
   )
 }
 
+# Associate dynamic library extension to name
+dll_file_ext <- function(name) {
+  paste0(name, .Platform$dynlib.ext)
+}
+
+# Templated name convention (remove punctuation).
+template_name <- function(path) {
+  gsub("[[:punct:]]", "_", basename(path))
+}
+
+# Add random string to templated name
+random_name <- function(path) {
+  paste0(template_name(path), rnd_string())
+}
+
+# DLL fyle with templated name convention
+template_dll_file <- function(path) {
+  file.path(path, dll_file_ext(template_name(path)))
+}
+
 # Return template name choice with spaces.
 spaced_template_choice <- function(x) {
   tolower(gsub("\\s+", " ", gsub("-|_| ", " ", x)))

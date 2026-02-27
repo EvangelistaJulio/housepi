@@ -48,7 +48,7 @@ Draws of parameters, priors and pointwise log-likelihood values.}
 \subsection{Method \code{new()}}{
 Store posterior::draws_df internally.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiPosteriorDraws$new(name, rcpp_object)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiPosteriorDraws$new(name, ptr)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -56,7 +56,7 @@ Store posterior::draws_df internally.
 \describe{
 \item{\code{name}}{\code{character(1)}. Model name.}
 
-\item{\code{rcpp_object}}{\code{Rcpp_ModelHousepi}}
+\item{\code{ptr}}{\verb{Rcpp::XPtr<MCMC>}}
 }
 \if{html}{\out{</div>}}
 }

@@ -23,37 +23,34 @@ protected:
         return I0 * std::exp(r * x);
     }
 };
-
 /// Register user function so that it can be used in the analysis.
 HOUSEPI_REGISTER_FUNCTION(Growth_, Custom)
 
 HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE()
-HOUSEPI_DECLARE_REGISTER_KEYS(AugmKey, proba)
-HOUSEPI_DECLARE_EMPTY_KEYS(DataKey)
-HOUSEPI_DECLARE_EMPTY_KEYS(LongKey)
-HOUSEPI_DECLARE_EMPTY_KEYS(GroupRateKey)
-HOUSEPI_DECLARE_EMPTY_KEYS(HHsizeKey)
-HOUSEPI_DECLARE_EMPTY_KEYS(HHsizevecKey)
-HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublevecKey)
-HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublemtxKey)
-HOUSEPI_DECLARE_EMPTY_KEYS(ParamKey)
-
-class Model : public MCMC
+class Model : public ModelBase
 {
 public:
-    HOUSEPI_MODEL_CONSTRUCTOR()
+    HOUSEPI_DECLARE_REGISTER_KEYS(AugmKey, proba)
+    HOUSEPI_DECLARE_EMPTY_KEYS(DataKey)
+    HOUSEPI_DECLARE_EMPTY_KEYS(LongKey)
+    HOUSEPI_DECLARE_EMPTY_KEYS(GroupRateKey)
+    HOUSEPI_DECLARE_EMPTY_KEYS(HHsizeKey)
+    HOUSEPI_DECLARE_EMPTY_KEYS(HHsizevecKey)
+    HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublevecKey)
+    HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublemtxKey)
+    HOUSEPI_DECLARE_REGISTER_KEYS(ParamKey, alpha)
 
     /// Compute the log-likelihood within household.
-    double compute_house_obs_log_lik(Household &house)
+    double compute_house_obs_log_lik(Household &house) override final
     {
-        double output = 0.;
+        double output = -ParamKey::alpha;
         for (size_t i : house.infected_hhindexes())
             output += std::log(house.member(i).aug(AugmKey::proba));
         return output;
     }
 
     /// Augmented variable initialization.
-    void simulate_single_house(Household &house)
+    void simulate_single_house(Household &house) override final
     {
         for (size_t i : house.infected_hhindexes())
             init_missing_augm(house.member(i));

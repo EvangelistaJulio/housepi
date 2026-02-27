@@ -17,15 +17,8 @@ test_that("Deep clone works as expected", {
   hhmodel$load_parameter_template()
   expect_no_error(out <- hhmodel$run_inference(steps = 2, progress = FALSE))
 
-  # shallow clone
-  hhclone <- hhmodel$clone(deep = FALSE)
-
-  # check backward changes
-  hhclone$add_group_rate("infectivity", by = "sex")
-  expect_equal(hhmodel$group_rates, hhclone$group_rates)
-
   # deep clone
-  hhclone <- hhmodel$clone(deep = TRUE)
+  hhclone <- hhmodel$copy()
 
   # data
   expect_equal(hhmodel$data_wide, hhclone$data_wide)

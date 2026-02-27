@@ -22,7 +22,7 @@ rd_mdl_astmpl_ <- "`logical(1)` Store dynamic library as a local template.\\cr
 If `FALSE` recompile the model at every new session (default)."
 rd_mdl_force_ <- "`logical(1)` Compile even if cached model already exists.\\cr
 Default is `FALSE`."
-rd_mdl_quiet_ <- "`logical(1)` To hide compilation commands.\\cr
+rd_mdl_quiet_ <- "`logical(1)` If `TRUE` hide compilation commands.\\cr
 Default is `FALSE`."
 rd_mdl_flags_ <- "Named arguments. Additional compilation options:\\cr
 - If `discr = TRUE`, uses the model in discrete time, if applicable."

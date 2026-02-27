@@ -161,3 +161,4 @@ private:
 	InfecProfile *infec_profile_;
 	Augmented *augm_;
 };
+

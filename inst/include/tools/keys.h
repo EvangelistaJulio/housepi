@@ -59,7 +59,4 @@ namespace hsp::key
         std::vector<std::string> declared_;
         std::vector<std::string> optional_;
     };
-
-    /// Parse comma-separated enum names from stringified variadic arguments.
-    std::vector<std::string> helper_parse_names(std::string input);
 }

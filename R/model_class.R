@@ -11,6 +11,10 @@
 ############################################################################
 ############################################################################
 
+# auxiliary environment
+.housepi_env <- new.env(parent = emptyenv())
+.housepi_env$hollow <- FALSE
+
 #' @title
 #' R6 class with the household model
 #' @description
@@ -20,7 +24,7 @@
 HousepiModel <- R6::R6Class(
   classname = "HousepiModel",
   inherit = HousepiGenerator,
-  cloneable = TRUE,
+  cloneable = FALSE,
   lock_class = TRUE,
 
   ############################################################################
@@ -237,7 +241,7 @@ HousepiModel <- R6::R6Class(
                            id_draws = NULL,
                            seed = NA_integer_, progress = FALSE) {
       # import setup
-      .engine$import_setup(private$ptr_, char_setup_input_(list(
+      .engine$import_setup(private$mcmc_ptr_, char_setup_input_(list(
         steps = as.integer(steps),
         adapt = as.integer(adapt),
         burnin = as.integer(burnin),
@@ -259,16 +263,17 @@ HousepiModel <- R6::R6Class(
 
       # build contact rates
       # UPDATE: waiting for table definitions
-      .engine$build_contact_rates(private$ptr_)
+      .engine$build_contact_rates(private$mcmc_ptr_)
 
       # assert parameter definitions
       private$assert_param_()
       # import parameters
-      .engine$import_param(private$ptr_, private$param_$defs)
+      .engine$import_param(private$mcmc_ptr_,
+                           private$param_$defs)
 
       # import group rates
       .engine$import_group_rate(
-        private$ptr_,
+        private$mcmc_ptr_,
         private$group_rates_$expose_to_cpp(private$info_data_wide_)
       )
 
@@ -276,13 +281,16 @@ HousepiModel <- R6::R6Class(
       private$assert_augm_()
 
       # import infectivity profile
-      .engine$import_infec_profile(private$ptr_, private$infec_profile_$defs)
+      .engine$import_infec_profile(private$mcmc_ptr_,
+                                   private$infec_profile_$defs)
 
       # import augmented variables
-      .engine$import_augm(private$ptr_, private$augm_$defs)
+      .engine$import_augm(private$mcmc_ptr_,
+                          private$augm_$defs)
 
       # associate multiplicity engine
-      .engine$import_multiplicity(private$ptr_, private$get_multiplicity_())
+      .engine$import_multiplicity(private$mcmc_ptr_,
+                                  private$get_multiplicity_())
       invisible(self)
     },
 
@@ -292,13 +300,13 @@ HousepiModel <- R6::R6Class(
     export_to_cpp_standalone_ = function(outpath = "inst/standalone/") {
       private$build_group_rates_()
 
-      write.csv(.engine$export_data_wide(private$ptr_),
+      write.csv(.engine$export_data_wide(private$mcmc_ptr_),
                 file.path(outpath, "data_wide.csv"),
                 quote = FALSE, row.names = FALSE)
       write.csv(private$get_multiplicity_(),
                 file.path(outpath, "multiplicity.csv"),
                 quote = FALSE, row.names = FALSE)
-      write.csv(.engine$export_data_long(private$ptr_),
+      write.csv(.engine$export_data_long(private$mcmc_ptr_),
                 file.path(outpath, "data_long.csv"),
                 quote = FALSE, row.names = FALSE)
       write.csv(private$group_rates_$expose_to_cpp(private$info_data_wide_),
@@ -339,7 +347,7 @@ HousepiModel <- R6::R6Class(
     run_measure_ = function(param_table, apply_measure, progress) {
       # attach param_table
       param_table <- private$helper_import_table_(param_table)
-      .engine$import_param_for_prediction(private$ptr_, param_table)
+      .engine$import_param_for_prediction(private$mcmc_ptr_, param_table)
 
       # define iterator, eventually with progress bar
       iterator <- seq_len(dim(param_table)[1])
@@ -352,13 +360,13 @@ HousepiModel <- R6::R6Class(
       )
 
       # static data (not returned by simulation)
-      static_df <- .engine$data_wide_for_simulation(private$ptr_)
+      static_df <- .engine$data_wide_for_simulation(private$mcmc_ptr_)
       # run simulation and apply all measures
       # NOTE: simulate_for_expec from 0 to table_size - 1 !
       lapply(iterator, function(r) {
         apply_measure(private$refactor_data_wide_(cbind(
           static_df,
-          .engine$run_simulation_for_predict(private$ptr_, r - 1)[[1]]
+          .engine$run_simulation_for_predict(private$mcmc_ptr_, r - 1)[[1]]
         )))
       })
     },
@@ -399,7 +407,7 @@ HousepiModel <- R6::R6Class(
       scheme <- as.character(scheme)
       rungs <- as.integer(rungs)
       # evaluate marginal from the internal Rcpp object
-      output <- .engine$logevidence(private$ptr_, scheme, rungs)
+      output <- .engine$logevidence(private$mcmc_ptr_, scheme, rungs)
       # reformat dataframe
       mask <- c("inv_temper", "mean_log_lik", "var_log_lik")
       output$detail <- as.data.frame(output[mask])
@@ -415,18 +423,18 @@ HousepiModel <- R6::R6Class(
   active = list(
     #' @field data_wide `data.frame`. Individual level data (wide format).
     data_wide = function(value) {
-      if (missing(value)) {
-        return(private$refactor_data_wide_(.engine$export_data_wide(private$ptr_)))
-      }
+      if (missing(value)) return(
+        private$refactor_data_wide_(.engine$export_data_wide(private$mcmc_ptr_))
+      )
       self$add_data_wide(value)
     },
 
     #' @field data_long
     #' `data.frame`. Additional data rows indexed by individual (long format).
     data_long = function(value) {
-      if (missing(value)) {
-        return(private$refactor_data_long_(.engine$export_data_long(private$ptr_)))
-      }
+      if (missing(value)) return(
+        private$refactor_data_long_(.engine$export_data_long(private$mcmc_ptr_))
+      )
       self$add_data_long(value)
     },
 
@@ -458,7 +466,7 @@ HousepiModel <- R6::R6Class(
         if (length(custom) > 0) return(custom)
 
         # get template/previously implemented
-        stored <- .engine$export_infec_profile(private$ptr_)
+        stored <- .engine$export_infec_profile(private$mcmc_ptr_)
         if (length(stored) > 0) {
           output <- data.frame(func = stored$func,
                                func_args = base::I(list(stored$func_args)),
@@ -503,6 +511,9 @@ HousepiModel <- R6::R6Class(
     #' @param ... `r rd_mdl_flags_`
     initialize = function(choice = NA_character_, as_template = FALSE,
                           force = FALSE, quiet = FALSE, ...) {
+      # helper construction option fort copying
+      if (isTRUE(.housepi_env$hollow)) return(invisible(self))
+
       # initialize internal fields
       self$drop_all()
       # generate model wrapper
@@ -512,6 +523,43 @@ HousepiModel <- R6::R6Class(
       if (private$is_blank_()) self$add_data_wide(template_blank_data_wide_())
 
       invisible(self)
+    },
+
+    #' @description Deep copy this object.
+    #' @return A new independent object.
+    copy = function() {
+      .housepi_env$hollow <- TRUE
+      on.exit(.housepi_env$hollow <- FALSE)
+      obj <- HousepiModel$new()
+
+      # clone default fields
+      obj_encl <- obj$.__enclos_env__$private
+      for (field in names(obj_encl)) {
+        val <- private[[field]]
+        if (!field %in% c("model_ptr_", "mcmc_ptr_") &&
+              !is.function(val)) {
+          obj_encl[[field]] <- helper_clone(val)
+        }
+      }
+      # use cloned paths to create new Rcpp pointers
+      obj_encl$create_new_pointers_()
+
+      # UPDATE: this transfer shall be cleaned
+      .engine$import_setup(
+        obj_encl$mcmc_ptr_,
+        char_setup_input_(.engine$export_setup(private$mcmc_ptr_))
+      )
+      # UPDATE: avoid continuos re-importing data
+      .engine$import_data_wide(
+        obj_encl$mcmc_ptr_,
+        char_data_input_(.engine$export_data_wide(private$mcmc_ptr_))
+      )
+      .engine$import_data_long(
+        obj_encl$mcmc_ptr_,
+        char_data_input_(.engine$export_data_long(private$mcmc_ptr_))
+      )
+
+      obj
     },
 
     #' @description
@@ -533,7 +581,7 @@ HousepiModel <- R6::R6Class(
         fmt_assert_cli("Group rates", private$assert_group_rates_(FALSE),
                        minor = TRUE)
       )
-      if (length(.engine$export_infec_profile(private$ptr_)) > 0) {
+      if (length(.engine$export_infec_profile(private$mcmc_ptr_)) > 0) {
         ip_sms <- NULL
         if (length(private$infec_profile_$showcase()) == 0) ip_sms <- c(
           "Using templated infectivity profile.",
@@ -578,9 +626,8 @@ HousepiModel <- R6::R6Class(
       private$cols_data_wide_ <- embed$cols
       # store all postive status
       private$infec_status_set_ <- embed$status
-
       # import data.frame in rcpp
-      .engine$import_data_wide(private$ptr_, embed$data)
+      .engine$import_data_wide(private$mcmc_ptr_, embed$data)
 
       invisible(self)
     },
@@ -588,13 +635,13 @@ HousepiModel <- R6::R6Class(
     #' @description Summarise statuses in loaded data.
     #' @return`data.frame`
     summarise_cases = function() {
-      .engine$summarise_cases(private$ptr_)
+      .engine$summarise_cases(private$mcmc_ptr_)
     },
 
     #' @description Summary house sizes in loaded data.
     #' @return `data.frame`
     summarise_house_sizes = function() {
-      .engine$summarise_house_sizes(private$ptr_)
+      .engine$summarise_house_sizes(private$mcmc_ptr_)
     },
 
     #' @description Store a copy of provided individual data.
@@ -612,7 +659,7 @@ HousepiModel <- R6::R6Class(
       # store column names
       private$cols_data_long_ <- embed$cols
       # import data.frame in rcpp
-      .engine$import_data_long(private$ptr_, embed$data)
+      .engine$import_data_long(private$mcmc_ptr_, embed$data)
 
       invisible(self)
     },
@@ -822,7 +869,7 @@ HousepiModel <- R6::R6Class(
     #' @return `numeric(1)`
     evaluate_log_lik = function(house_id = NA_character_, seed = NA_integer_) {
       private$build_full_(seed = seed)
-      .engine$evaluate_log_lik(private$ptr_, house_id)
+      .engine$evaluate_log_lik(private$mcmc_ptr_, house_id)
     },
 
     #' @description Run inference with Bayesian Markov chain Monte Carlo.
@@ -846,8 +893,8 @@ HousepiModel <- R6::R6Class(
                           thin = thin, adapt = adapt,
                           chains = chains, threads = threads,
                           id_draws = id_draws, seed = seed, progress = progress)
-      .engine$run_inference(private$ptr_)
-      HousepiPosteriorDraws$new(private$name_, private$ptr_)
+      .engine$run_inference(private$mcmc_ptr_)
+      HousepiPosteriorDraws$new(private$name_, private$mcmc_ptr_)
     },
 
     #' @description
@@ -855,8 +902,8 @@ HousepiModel <- R6::R6Class(
     #' @return `data.frame`
     export_augmented_data = function() {
       private$refactor_data_wide_(
-        cbind(.engine$data_wide_for_simulation(private$ptr_),
-              .engine$export_augmented_data_wide(private$ptr_))
+        cbind(.engine$data_wide_for_simulation(private$mcmc_ptr_),
+              .engine$export_augmented_data_wide(private$mcmc_ptr_))
       )
     },
 
@@ -867,7 +914,7 @@ HousepiModel <- R6::R6Class(
     export_house_snapshot = function(house_id) {
       house_id <- as.character(house_id)
       # export household snapshot
-      output <- .engine$export_house_snapshot(private$ptr_, house_id)
+      output <- .engine$export_house_snapshot(private$mcmc_ptr_, house_id)
       output$data_wide <- private$refactor_data_wide_(output$data_wide)
       # > data long
       if (all(dim(output$data_long) == 0)) output$data_long <- NULL
@@ -906,12 +953,15 @@ HousepiModel <- R6::R6Class(
       private$build_full_(seed = seed)
 
       # refactor static data for simulation
-      static_df <- .engine$data_wide_for_simulation(private$ptr_)
+      static_df <- .engine$data_wide_for_simulation(private$mcmc_ptr_)
       # produce list of simulated dataframes
       # then bind simulated entries with static part
-      output <- lapply(.engine$run_simulation(private$ptr_, nsim), function(x) {
-        obs_process(private$refactor_data_wide_(cbind(static_df, x)))
-      })
+      output <- lapply(
+        .engine$run_simulation(private$mcmc_ptr_, nsim),
+        function(x) {
+          obs_process(private$refactor_data_wide_(cbind(static_df, x)))
+        }
+      )
       # return a single data.frame if single simulation
       if (nsim == 1) output <- output[[1]]
 

@@ -11,21 +11,30 @@
 #include <string>
 #include <vector>
 
-#include "tools/keys.h"
+#ifdef _HOUSEPI_RCPP
+#include <Rcpp.h>
+#include "tools/plugin.h"
+#else
+#include "mcmc.h"
+#include "standalone.h"
+#endif
 
 #include "model.h"
 #include "individual.h"
 #include "household.h"
 
-#ifdef _HOUSEPI_RCPP
-#include <Rcpp.h>
-#else
-#include "standalone.h"
-#endif
-
 #ifndef _HOUSEPI_MODULE
 #define _HOUSEPI_MODULE blank
 #endif
+
+#define STRINGIFY(x) #x
+#define TOSTRING(x) STRINGIFY(x)
+
+namespace hsp::key
+{
+    /// Parse comma-separated enum names from stringified variadic arguments.
+    std::vector<std::string> helper_parse_names(std::string input);
+}
 
 #define HOUSEPI_DECLARE_EMPTY_KEYS(T) \
     struct T                          \
@@ -54,7 +63,7 @@
 #define HOUSEPI_CLOSE_NAMED_MODULE_NAMESPACE() }
 
 /// Expose compile flags.
-std::string housepi_compile_flags()
+std::string compile_flags()
 {
     return
 #ifdef _HOUSEPI_DISCRETE_TIME
@@ -64,23 +73,20 @@ std::string housepi_compile_flags()
 #endif
 }
 
-#define STRINGIFY(x) #x
-#define TOSTRING(x) STRINGIFY(x)
-
 #ifdef _HOUSEPI_RCPP
-#define HOUSEPI_RCPP_MODEL_FACTORY()                \
-    Rcpp::XPtr<MCMC> housepi_new_model()            \
-    {                                               \
-        return Rcpp::XPtr<MCMC>(new Model(), true); \
+#define HOUSEPI_RCPP_MODEL_FACTORY()         \
+    ModelXPtr new_model()                    \
+    {                                        \
+        return ModelXPtr(new Model(), true); \
     }
 
-#define HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE_IMPL_(module_name)        \
-    RCPP_MODULE(module_name)                                             \
-    {                                                                    \
-        using namespace module_name;                                     \
-                                                                         \
-        Rcpp::function("housepi_compile_flags", &housepi_compile_flags); \
-        Rcpp::function("housepi_new_model", &housepi_new_model);         \
+#define HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE_IMPL_(module_name) \
+    RCPP_MODULE(module_name)                                      \
+    {                                                             \
+        using namespace module_name;                              \
+                                                                  \
+        Rcpp::function("compile_flags", &compile_flags);          \
+        Rcpp::function("new_model", &new_model);                  \
     }
 
 #define HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE() \
@@ -91,6 +97,8 @@ std::string housepi_compile_flags()
     int main(int argc, char *argv[])             \
     {                                            \
         using namespace _HOUSEPI_MODULE;         \
-        return standalone<Model>(argc, argv);    \
+        Model model = Model();                   \
+        MCMC engine(model);                      \
+        return standalone(engine, argc, argv);   \
     }
 #endif

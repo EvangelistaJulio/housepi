@@ -142,26 +142,6 @@ helper_files <- function(path) {
   file.path(path, helper_names)
 }
 
-# Associate dynamic library extension to name
-dll_file_ext <- function(name) {
-  paste0(name, .Platform$dynlib.ext)
-}
-
-# Templated name convention (remove punctuation).
-template_name <- function(path) {
-  gsub("[[:punct:]]", "", basename(path))
-}
-
-# Add random string to templated name
-random_name <- function(path) {
-  paste0(template_name(path), rnd_string())
-}
-
-# DLL fyle with templated name convention
-template_dll_file <- function(path) {
-  file.path(path, dll_file_ext(template_name(path)))
-}
-
 # helper function to deep clone R6 objects
 helper_clone <- function(x) {
   if (is.data.frame(x)) x[TRUE, , drop = FALSE]

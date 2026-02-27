@@ -21,17 +21,11 @@
 #' The package aims to combine ease of use with flexibility, supporting both
 #' straightforward analyses and advanced epidemiological investigations.
 "_PACKAGE"
+#' @useDynLib housepi, .registration = TRUE
+NULL
 
 .engine <- NULL
 
 .onLoad <- function(libname, pkgname) {
-  # UPDATE: non local load should be improved
-  dll <- getLoadedDLLs()[[pkgname]]
-  if (!is.null(dll)) dyn.load(dll[["path"]], local = FALSE, now = TRUE)
-  else library.dynam(pkgname, pkgname, libname, local = FALSE)
   .engine <<- Rcpp::Module(pkgname, PACKAGE = pkgname)
-}
-
-.onUnload <- function(libpath) {
-  library.dynam.unload("housepi", libpath)
 }
