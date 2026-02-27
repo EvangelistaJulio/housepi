@@ -531,7 +531,7 @@ HousepiModel <- R6::R6Class(
       .housepi_env$hollow <- TRUE
       on.exit(.housepi_env$hollow <- FALSE)
       obj <- HousepiModel$new()
-
+      
       # clone default fields
       obj_encl <- obj$.__enclos_env__$private
       for (field in names(obj_encl)) {
@@ -541,9 +541,10 @@ HousepiModel <- R6::R6Class(
           obj_encl[[field]] <- helper_clone(val)
         }
       }
+      
       # use cloned paths to create new Rcpp pointers
       obj_encl$create_new_pointers_()
-
+      
       # UPDATE: this transfer shall be cleaned
       .engine$import_setup(
         obj_encl$mcmc_ptr_,
@@ -558,7 +559,7 @@ HousepiModel <- R6::R6Class(
         obj_encl$mcmc_ptr_,
         char_data_input_(.engine$export_data_long(private$mcmc_ptr_))
       )
-
+      
       obj
     },
 
@@ -597,7 +598,7 @@ HousepiModel <- R6::R6Class(
     #' @description
     #' Show model description in RStudio Help window.
     help = function() {
-      open_model_helper_(private$get_path_())
+      open_model_helper_(private$source_dir_)
       invisible(self)
     },
 
@@ -715,7 +716,7 @@ HousepiModel <- R6::R6Class(
       )
       # retrieve the template parameters file
       else self$load_parameter_list(
-        !!!get_template_def_list(private$get_path_(), "parameter"),
+        !!!get_template_def_list(private$source_dir_, "parameter"),
         append = isTRUE(append)
       )
       invisible(self)
@@ -777,7 +778,7 @@ HousepiModel <- R6::R6Class(
       )
       # retrieve the template augmented file
       else self$load_augmented_list(
-        !!!get_template_def_list(private$get_path_(), "augmented"),
+        !!!get_template_def_list(private$source_dir_, "augmented"),
         append = isTRUE(append)
       )
       invisible(self)

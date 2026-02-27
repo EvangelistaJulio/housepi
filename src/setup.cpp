@@ -25,7 +25,7 @@
 
 #include "setup.h"
 
-#ifdef _HOUSEPI_RCPP
+#ifndef _STANDALONE
 #include <Rcpp.h>
 #endif
 
@@ -100,7 +100,7 @@ namespace hsp
 
         ProgressBar()
         {
-#ifdef _HOUSEPI_RCPP
+#ifndef _STANDALONE
             check_user_interrupt_();
             barwidth_ = Rcpp::as<unsigned>(Rcpp::Function("getOption")("width")) / 2;
             if (!Rcpp::as<bool>(Rcpp::Function("interactive")()))
@@ -249,7 +249,7 @@ namespace hsp
 
         void check_user_interrupt_() const
         {
-#ifdef _HOUSEPI_RCPP
+#ifndef _STANDALONE
             Rcpp::checkUserInterrupt();
 #endif
         }

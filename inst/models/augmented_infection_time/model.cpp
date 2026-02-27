@@ -13,11 +13,12 @@
 
 #include "housepi.h"
 
-HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE()
+HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE(augmented_infection_time)
 
 class Model final : public ModelBase
 {
 public:
+	HOUSEPI_EXTRA_FLAG_SUPPORT()
 	HOUSEPI_DECLARE_REGISTER_KEYS(AugmKey, infec_time)
 	HOUSEPI_DECLARE_REGISTER_KEYS(DataKey, end_followup)
 	HOUSEPI_DECLARE_EMPTY_KEYS(LongKey)
@@ -401,4 +402,4 @@ double Model::roi_inst_simulation(const Household &house, const Individual &memb
 }
 HOUSEPI_RCPP_MODEL_FACTORY()
 HOUSEPI_CLOSE_NAMED_MODULE_NAMESPACE()
-HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE()
+HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE(augmented_infection_time)

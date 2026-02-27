@@ -43,7 +43,7 @@ dll_file_ext <- function(name) {
 
 # Templated name convention (remove punctuation).
 template_name <- function(path) {
-  gsub("[[:punct:]]", "_", basename(path))
+  gsub("[[:punct:] ]", "_", basename(path))
 }
 
 # Add random string to templated name
@@ -78,21 +78,29 @@ is_dll_loaded <- function(dll) {
 }
 
 # Get Rcpp module associated to dll.
-get_rcpp_module_from_dll <- local({
+get_rcpp_module <- local({
   # static private cache
-  module_cache <- list()
+  .cache <- list()
 
-  function(dll) {
-    if (is.null(dll) || is.na(dll)) stop_h(
-      "Impossible to load housepi module from empty DLL."
-    )
-    if (!is_dll_loaded(dll)) dyn.load(dll)
-    if (!dll %in% names(module_cache)) {
-      module_cache[[dll]] <<-
-        Rcpp::Module(get_template_from_dll(dll),
-                     PACKAGE = get_template_from_dll(dll))
+  function(dll = NA, module_name = NA) {
+    if (is.null(dll) || is.na(dll)) {
+      if (is.na(get_template_dir(module_name))) stop_h(
+        "Impossible to load housepi module from empty DLL."
+      )
+      package <- "housepi"
+    } else {
+      # enforce naming convention if dll is provided
+      module_name <- get_template_from_dll(dll)
+      package <- module_name
+      # load DLL if necessary
+      if (!is_dll_loaded(dll)) dyn.load(dll)
     }
-    module_cache[[dll]]
+    # load module in the cache if necessary
+    if (!module_name %in% names(.cache)) {
+      .cache[[module_name]] <<- Rcpp::Module(module_name, PACKAGE = package)
+    }
+
+    .cache[[module_name]]
   }
 })
 

@@ -11,21 +11,17 @@
 #include <string>
 #include <vector>
 
-#ifdef _HOUSEPI_RCPP
-#include <Rcpp.h>
-#include "tools/plugin.h"
-#else
+#ifdef _STANDALONE
 #include "mcmc.h"
 #include "standalone.h"
+#else
+#include <Rcpp.h>
+#include "tools/plugin.h"
 #endif
 
 #include "model.h"
 #include "individual.h"
 #include "household.h"
-
-#ifndef _HOUSEPI_MODULE
-#define _HOUSEPI_MODULE blank
-#endif
 
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
@@ -57,23 +53,44 @@ namespace hsp::key
         return hsp::key::helper_parse_names(#__VA_ARGS__);        \
     }
 
-#define HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE() \
-    namespace _HOUSEPI_MODULE                 \
+#define HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE_IMPL_(module_name) \
+    namespace module_name                                      \
     {
+
+#ifdef _HOUSEPI_MODULE
+#define HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE(module_name) \
+    HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE_IMPL_(_HOUSEPI_MODULE)
+#else
+#define HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE(module_name) \
+    HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE_IMPL_(module_name)
+#endif
+
 #define HOUSEPI_CLOSE_NAMED_MODULE_NAMESPACE() }
 
-/// Expose compile flags.
-std::string compile_flags()
-{
-    return
 #ifdef _HOUSEPI_DISCRETE_TIME
-        "_HOUSEPI_DISCRETE_TIME:";
+#define FLAG_STR_HOUSEPI_DISCRETE_TIME "_HOUSEPI_DISCRETE_TIME,"
 #else
-        "";
+#define FLAG_STR_HOUSEPI_DISCRETE_TIME ""
 #endif
-}
 
-#ifdef _HOUSEPI_RCPP
+#ifdef _STANDALONE
+#define HOUSEPI_EXTRA_FLAG_SUPPORT()
+#define HOUSEPI_RCPP_MODEL_FACTORY()
+#define HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE_IMPL_(module_name) \
+    int main(int argc, char *argv[])                              \
+    {                                                             \
+        using namespace module_name;                              \
+        Model model = Model();                                    \
+        MCMC engine(model);                                       \
+        return standalone(engine, argc, argv);                    \
+    }
+#else
+#define HOUSEPI_EXTRA_FLAG_SUPPORT()                                         \
+    std::vector<std::string> compile_flags() const override final            \
+    {                                                                        \
+        return hsp::key::helper_parse_names(FLAG_STR_HOUSEPI_DISCRETE_TIME); \
+    }
+
 #define HOUSEPI_RCPP_MODEL_FACTORY()         \
     ModelXPtr new_model()                    \
     {                                        \
@@ -85,20 +102,14 @@ std::string compile_flags()
     {                                                             \
         using namespace module_name;                              \
                                                                   \
-        Rcpp::function("compile_flags", &compile_flags);          \
         Rcpp::function("new_model", &new_model);                  \
     }
+#endif
 
-#define HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE() \
+#ifdef _HOUSEPI_MODULE
+#define HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE(module_name) \
     HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE_IMPL_(_HOUSEPI_MODULE)
 #else
-#define HOUSEPI_RCPP_MODEL_FACTORY()
-#define HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE() \
-    int main(int argc, char *argv[])             \
-    {                                            \
-        using namespace _HOUSEPI_MODULE;         \
-        Model model = Model();                   \
-        MCMC engine(model);                      \
-        return standalone(engine, argc, argv);   \
-    }
+#define HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE(module_name) \
+    HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE_IMPL_(module_name)
 #endif

@@ -21,6 +21,7 @@
 #' The package aims to combine ease of use with flexibility, supporting both
 #' straightforward analyses and advanced epidemiological investigations.
 "_PACKAGE"
+
 #' @useDynLib housepi, .registration = TRUE
 NULL
 

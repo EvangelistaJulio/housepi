@@ -127,9 +127,12 @@ HousepiGenerator <- R6::R6Class(
     # @description
     # Wheter user flags are the same as existing dll.
     has_same_flags_as_dll_ = function() {
-      m <- get_rcpp_module_from_dll(private$dll_)
-      y <- m$compile_flags()
-      flags_dll <- strsplit(y, ":")[[1]]
+      if (is.null(private$mcmc_ptr_)) {
+        if (length(private$last_flags_) == 0) return(TRUE)
+        else return(FALSE)
+      }
+      m <- get_rcpp_module(private$dll_, private$name_)
+      flags_dll <- .engine$compile_flags(m)
       setequal(private$last_flags_, flags_dll)
     },
 
@@ -144,7 +147,12 @@ HousepiGenerator <- R6::R6Class(
       # otherwise idiot warning...
       private$store_source_and_filter_flags_(choice)
       private$dll_ <- template_dll_file(choice)
-      private$build_as_custom_model_(as_template, force)
+      if (force ||
+            !file.exists(private$dll_) ||
+            untracked_changes(private$source_dir_, private$dll_) ||
+            !private$has_same_flags_as_dll_()) {
+        private$build_as_custom_model_(as_template, force)
+      }
       invisible(self)
     },
 
@@ -152,8 +160,9 @@ HousepiGenerator <- R6::R6Class(
     # Initialize template model loading template model name.
     init_template_model_ = function(choice) {
       private$store_source_and_filter_flags_(get_template_dir(choice))
-      private$dll_ <- template_dll_file(private$source_dir_)
-      private$build_as_custom_model_(FALSE, FALSE)
+      if (!private$has_same_flags_as_dll_()) {
+        private$build_as_custom_model_(FALSE, FALSE)
+      }
       invisible(self)
     },
 
@@ -174,9 +183,7 @@ HousepiGenerator <- R6::R6Class(
         "Move your implementation in a different folder."
       )
       else choice_ <- as.character(choice)
-      # NOTE: set name with active method
-      self$name <- choice_
-
+      private$name_ <- template_name(choice_)
       choice_
     },
 
@@ -242,31 +249,22 @@ HousepiGenerator <- R6::R6Class(
     # @param force `logical(1)`.
     # If `TRUE` compile even if a cached model already exists.
     build_as_custom_model_ = function(as_template, force) {
-      # force re-compilation or check for changes
       private$needs_compile_ <- TRUE
-      if (!force &&
-            file.exists(private$dll_) &&
-            !untracked_changes(private$source_dir_, private$dll_) &&
-            private$has_same_flags_as_dll_()) {
-        private$needs_compile_ <- FALSE
-      }
-
       # temporary directory where to store source code
-      if (private$needs_compile_) {
-        private$build_temporary_cache_(as_template, force)
+      # note: if it's been already cached, mark needs_compile_ false
+      private$build_temporary_cache_(as_template, force)
 
-        # asses if still to be compiled after further checks
-        if (private$needs_compile_) {
-          # change dll name if not as template
-          if (!as_template) private$dll_ <- file.path(
-            private$cache_dir_, dll_file_ext(random_name(private$source_dir_))
-          )
-          # source directory must contain source files
-          private$assert_source_files_()
-          # organize cache directory to perform compilation
-          private$copy_source_code_()
-        }
-      }
+      # asses if still to be compiled after further checks
+      if (!private$needs_compile_) return(invisible(self))
+
+      # change dll name if not as template
+      if (!as_template) private$dll_ <- file.path(
+        private$cache_dir_, dll_file_ext(random_name(private$source_dir_))
+      )
+      # source directory must contain source files
+      private$assert_source_files_()
+      # organize cache directory to perform compilation
+      private$copy_source_code_()
 
       invisible(self)
     },
@@ -332,7 +330,6 @@ HousepiGenerator <- R6::R6Class(
     # Generate flags used for environment compilation.
     build_compile_flags_ = function(paths = NULL, flags = NULL, libs = NULL) {
       flags <- c(
-        "_HOUSEPI_RCPP",
         # flag to pass the name of the custom Rcpp module
         paste0("_HOUSEPI_MODULE=", get_template_from_dll(private$dll_)),
         flags
@@ -381,7 +378,8 @@ HousepiGenerator <- R6::R6Class(
     # @description Initialize new Rcpp pointers to Model and MCMC.
     create_new_pointers_ = function() {
       if (!is.null(private$mcmc_ptr_)) return(invisible())
-      private$model_ptr_ <- get_rcpp_module_from_dll(private$dll_)$new_model()
+      private$model_ptr_ <- get_rcpp_module(private$dll_,
+                                            private$name_)$new_model()
       private$mcmc_ptr_ <- .engine$create_mcmc_runner(private$model_ptr_)
     },
 
@@ -398,20 +396,7 @@ HousepiGenerator <- R6::R6Class(
     # @description Wheter model is template.
     # @return `logical(1)`
     is_template_ = function() {
-      dirname(private$get_path_()) == template_models_dir()
-    },
-
-    # @description Environment path.
-    # @return `character(1)`
-    get_path_ = function() {
-      # reference script
-      output <- dirname(private$dll_)
-      # check if reference file exists
-      if (!dir.exists(output)) stop_h(
-        sprintf("Impossible to find environment path: '%s'.", output),
-        "Try to re-generate the model with 'force = TRUE'."
-      )
-      output
+      !is.na(get_template_dir(private$name_))
     },
 
     # @description Reference script.
@@ -463,8 +448,8 @@ HousepiGenerator <- R6::R6Class(
     #' @field name `character(1)`. Model name.
     #' Assign a new `character(1)` to change model name.
     name = function(value) {
-      if (missing(value)) return(spaced_template_choice(private$name_))
-      private$name_ <- basename(as.character(value))
+      if (!missing(value)) stop_h("'name' is read only.")
+      spaced_template_choice(private$name_)
     },
 
     #' @field setup `list`. Last setup used by the build process.

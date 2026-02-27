@@ -73,7 +73,6 @@ used to run inference and simulation routines.
   as_template = FALSE,
   force = FALSE,
   quiet = FALSE,
-  .hollow = FALSE,
   ...
 )}\if{html}{\out{</div>}}
 }
@@ -99,8 +98,6 @@ Default is \code{FALSE}.}
 
 \item{\code{quiet}}{\code{logical(1)} If \code{TRUE} hide compilation commands.\cr
 Default is \code{FALSE}.}
-
-\item{\code{.hollow}}{NULL}
 
 \item{\code{...}}{Named arguments. Additional compilation options:\cr
 \itemize{

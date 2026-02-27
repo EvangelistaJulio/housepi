@@ -1,4 +1,10 @@
 #!/bin/sh
-rm -f src/*.o src/*.so src/*.exe
-rm -f inst/models/*/*.o inst/models/*/*.exe inst/models/*/*.so inst/models/*/*.dll
-rm -f inst/standalone/*.o inst/standalone/*.exe
+rm -f src/*.o 
+rm -f src/*.so 
+rm -f src/*.exe
+rm -f src/model_*.cpp
+rm -f inst/models/*/*.o 
+rm -f inst/models/*/*.exe 
+rm -f inst/models/*/*.so 
+rm -f inst/models/*/*.dll
+rm -f inst/standalone/*.o 

@@ -5,7 +5,7 @@
  * See the LICENSE file for details.
  */
 
-#ifdef _HOUSEPI_RCPP
+#ifndef _STANDALONE
 #include <functional>
 #include <memory>
 #include <stdexcept>
@@ -1266,8 +1266,21 @@ namespace
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+#define MAKE_EXPORT_CHARACTER_VECTOR(method)           \
+    Rcpp::CharacterVector method(ModelXPtr model_xptr) \
+    {                                                  \
+        return Rcpp::wrap(model_xptr->method());       \
+    }
+
 namespace
 {
+    MAKE_EXPORT_CHARACTER_VECTOR(compile_flags)
+    MAKE_EXPORT_CHARACTER_VECTOR(get_DataKey)
+    MAKE_EXPORT_CHARACTER_VECTOR(get_LongKey)
+    MAKE_EXPORT_CHARACTER_VECTOR(get_ParamKey)
+    MAKE_EXPORT_CHARACTER_VECTOR(get_GroupRateKey)
+    MAKE_EXPORT_CHARACTER_VECTOR(get_AugmKey)
+
     Rcpp::XPtr<MCMC> create_mcmc_runner(ModelXPtr model_xptr)
     {
         return Rcpp::XPtr<MCMC>(new MCMC(*model_xptr), true);
@@ -1275,6 +1288,7 @@ namespace
 
     // UPDATE: this should be imported instead
     void build_contact_rates(Rcpp::XPtr<MCMC> engine) { engine->contact_rate.build(); }
+
     double evaluate_log_lik(Rcpp::XPtr<MCMC> engine, std::string house_id)
     {
         try
@@ -1324,6 +1338,13 @@ RCPP_MODULE(housepi)
         .method("inst", &ExposeInfecProfile::inst)
         .method("cumul", &ExposeInfecProfile::cumul);
 
+    Rcpp::function("compile_flags", &compile_flags);
+    Rcpp::function("get_DataKey", &get_DataKey);
+    Rcpp::function("get_LongKey", &get_LongKey);
+    Rcpp::function("get_ParamKey", &get_ParamKey);
+    Rcpp::function("get_GroupRateKey", &get_GroupRateKey);
+    Rcpp::function("get_AugmKey", &get_AugmKey);
+
     Rcpp::function("create_mcmc_runner", &create_mcmc_runner);
     Rcpp::function("run_inference", &run_inference);
     Rcpp::function("data_wide_for_simulation", &data_wide_for_simulation);
@@ -1354,4 +1375,13 @@ RCPP_MODULE(housepi)
     Rcpp::function("flush_house_log_lik_draws", &flush_house_log_lik_draws);
     Rcpp::function("export_house_snapshot", &export_house_snapshot);
 }
+#endif
+
+/// hints to Rcpp::compileAttributes()
+#if 0
+RCPP_MODULE(augmented_example) {}
+RCPP_MODULE(augmented_infection_time) {}
+RCPP_MODULE(blank) {}
+RCPP_MODULE(chain_binomial) {}
+RCPP_MODULE(chain_binomial_heterogeneous) {}
 #endif

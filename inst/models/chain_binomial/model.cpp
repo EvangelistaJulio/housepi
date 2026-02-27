@@ -14,7 +14,7 @@
 #include "housepi.h"
 #include "binomial.h"
 
-HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE()
+HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE(chain_binomial)
 class Model final : public ModelBase
 {
 public:
@@ -153,4 +153,4 @@ void Model::simulate_single_house(Household &house)
 }
 HOUSEPI_RCPP_MODEL_FACTORY()
 HOUSEPI_CLOSE_NAMED_MODULE_NAMESPACE()
-HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE()
+HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE(chain_binomial)

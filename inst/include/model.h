@@ -50,6 +50,7 @@ public:
 		augm_ = augm;
 	}
 
+	virtual std::vector<std::string> compile_flags() const { return {""}; }
 	virtual const std::vector<std::string> get_DataKey() const = 0;
 	virtual const std::vector<std::string> get_HHsizeKey() const = 0;
 	virtual const std::vector<std::string> get_HHsizevecKey() const = 0;
@@ -161,4 +162,3 @@ private:
 	InfecProfile *infec_profile_;
 	Augmented *augm_;
 };
-
