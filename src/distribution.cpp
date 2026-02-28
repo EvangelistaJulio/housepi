@@ -38,144 +38,147 @@ using no_promote_policy = boost::math::policies::policy<
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Distribution::helper_init_distr_truncation_()
+namespace hsp
 {
-    trunc_mode_ = Trunc::Active;
+    void Distribution::helper_init_distr_truncation_()
+    {
+        trunc_mode_ = Trunc::Active;
 
-    if (below_mode_ == Mode::Interval::None &&
-        above_mode_ == Mode::Interval::None) // No Truncation
-    {
-        trunc_ = &Distribution::do_trunc_dummy_;
-        shift_ = &Distribution::do_shift_dummy_;
-        trunc_mode_ = Trunc::None;
-    }
-    else if (below_mode_ != Mode::Interval::None &&
-             above_mode_ == Mode::Interval::None) // Lower Range Truncation
-    {
-        switch (discr_mode_)
+        if (below_mode_ == Mode::Interval::None &&
+            above_mode_ == Mode::Interval::None) // No Truncation
         {
-        case Mode::Discrete::Defined: // discrete defined
-            trunc_ = &Distribution::do_trunc_min_discr_defined_;
-            shift_ = &Distribution::do_shift_min_discr_defined_;
+            trunc_ = &Distribution::do_trunc_dummy_;
+            shift_ = &Distribution::do_shift_dummy_;
+            trunc_mode_ = Trunc::None;
+        }
+        else if (below_mode_ != Mode::Interval::None &&
+                 above_mode_ == Mode::Interval::None) // Lower Range Truncation
+        {
+            switch (discr_mode_)
+            {
+            case Mode::Discrete::Defined: // discrete defined
+                trunc_ = &Distribution::do_trunc_min_discr_defined_;
+                shift_ = &Distribution::do_shift_min_discr_defined_;
 
-            break;
-        case Mode::Discrete::Center: // centered discretization
-            trunc_ = &Distribution::do_trunc_min_discr_center_;
-            shift_ = &Distribution::do_shift_min_discr_center_;
-            break;
-        case Mode::Discrete::Left: // left discretization
-            trunc_ = &Distribution::do_trunc_min_discr_left_;
-            shift_ = &Distribution::do_shift_min_discr_left_;
-            break;
-        default: // no discretization
-            trunc_ = &Distribution::do_trunc_min_;
-            shift_ = &Distribution::do_shift_min_;
+                break;
+            case Mode::Discrete::Center: // centered discretization
+                trunc_ = &Distribution::do_trunc_min_discr_center_;
+                shift_ = &Distribution::do_shift_min_discr_center_;
+                break;
+            case Mode::Discrete::Left: // left discretization
+                trunc_ = &Distribution::do_trunc_min_discr_left_;
+                shift_ = &Distribution::do_shift_min_discr_left_;
+                break;
+            default: // no discretization
+                trunc_ = &Distribution::do_trunc_min_;
+                shift_ = &Distribution::do_shift_min_;
+            }
+        }
+        else if (below_mode_ == Mode::Interval::None &&
+                 above_mode_ != Mode::Interval::None) // Upper Range Truncation
+        {
+            shift_ = &Distribution::do_shift_dummy_;
+            switch (discr_mode_)
+            {
+            case Mode::Discrete::Defined: // discrete defined
+                trunc_ = &Distribution::do_trunc_max_discr_defined_;
+                break;
+            case Mode::Discrete::Center: // centered discretization
+                trunc_ = &Distribution::do_trunc_max_discr_center_;
+                break;
+            case Mode::Discrete::Left: // left discretization
+                trunc_ = &Distribution::do_trunc_max_discr_left_;
+                break;
+            default: // no discretization
+                trunc_ = &Distribution::do_trunc_max_;
+            }
+        }
+        else // Both Sides Truncation
+        {
+            switch (discr_mode_)
+            {
+            case Mode::Discrete::Defined: // discrete defined
+                trunc_ = &Distribution::do_trunc_both_sides_discr_defined_;
+                shift_ = &Distribution::do_shift_min_discr_defined_;
+                break;
+            case Mode::Discrete::Center: // centered discretization
+                trunc_ = &Distribution::do_trunc_both_sides_discr_center_;
+                shift_ = &Distribution::do_shift_min_discr_center_;
+                break;
+            case Mode::Discrete::Left: // left discretization
+                trunc_ = &Distribution::do_trunc_both_sides_discr_left_;
+                shift_ = &Distribution::do_shift_min_discr_left_;
+                break;
+            default: // no discretization
+                trunc_ = &Distribution::do_trunc_both_sides_;
+                shift_ = &Distribution::do_shift_min_;
+            }
         }
     }
-    else if (below_mode_ == Mode::Interval::None &&
-             above_mode_ != Mode::Interval::None) // Upper Range Truncation
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////  Distribution Registry : getter  //////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    std::unique_ptr<Function> DistributionRegistry::create(std::string_view opt, bool is_prim) const
     {
-        shift_ = &Distribution::do_shift_dummy_;
-        switch (discr_mode_)
-        {
-        case Mode::Discrete::Defined: // discrete defined
-            trunc_ = &Distribution::do_trunc_max_discr_defined_;
-            break;
-        case Mode::Discrete::Center: // centered discretization
-            trunc_ = &Distribution::do_trunc_max_discr_center_;
-            break;
-        case Mode::Discrete::Left: // left discretization
-            trunc_ = &Distribution::do_trunc_max_discr_left_;
-            break;
-        default: // no discretization
-            trunc_ = &Distribution::do_trunc_max_;
-        }
+        auto it = factory_map_.find(opt);
+        if (it == factory_map_.end())
+            return nullptr;
+
+        auto output = it->second();
+        output->set_eval_as_distr_call();
+        if (is_prim)
+            output->set_eval_as_distr_primitive();
+
+        return output;
     }
-    else // Both Sides Truncation
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////  Distribution Registry : setter  //////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    std::unique_ptr<Distribution> compose_distr_registries(std::string_view opt,
+                                                           const std::string &err_type,
+                                                           const std::vector<std::string> &registries,
+                                                           bool is_cumul)
     {
-        switch (discr_mode_)
-        {
-        case Mode::Discrete::Defined: // discrete defined
-            trunc_ = &Distribution::do_trunc_both_sides_discr_defined_;
-            shift_ = &Distribution::do_shift_min_discr_defined_;
-            break;
-        case Mode::Discrete::Center: // centered discretization
-            trunc_ = &Distribution::do_trunc_both_sides_discr_center_;
-            shift_ = &Distribution::do_shift_min_discr_center_;
-            break;
-        case Mode::Discrete::Left: // left discretization
-            trunc_ = &Distribution::do_trunc_both_sides_discr_left_;
-            shift_ = &Distribution::do_shift_min_discr_left_;
-            break;
-        default: // no discretization
-            trunc_ = &Distribution::do_trunc_both_sides_;
-            shift_ = &Distribution::do_shift_min_;
-        }
-    }
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  Distribution Registry : getter  //////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-std::unique_ptr<Function> DistributionRegistry::create(std::string_view opt, bool is_prim) const
-{
-    auto it = factory_map_.find(opt);
-    if (it == factory_map_.end())
-        return nullptr;
-
-    auto output = it->second();
-    output->set_eval_as_distr_call();
-    if (is_prim)
-        output->set_eval_as_distr_primitive();
-
-    return output;
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  Distribution Registry : setter  //////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-std::unique_ptr<Distribution> compose_distr_registries(std::string_view opt,
-                                                       const std::string &err_type,
-                                                       const std::vector<std::string> &registries,
-                                                       bool is_cumul)
-{
-    if (registries.empty())
-        throw std::invalid_argument(
-            "No registries were provided for '" + err_type + "'.");
-
-    if (hsp::na::is(opt))
-        return nullptr;
-
-    std::vector<const DistributionRegistry *> registry_ptrs = {};
-    for (const std::string &r : registries)
-        if (r == "continuos")
-            registry_ptrs.push_back(&ContinuosDistribRegistry::instance());
-        else if (r == "discrete")
-            registry_ptrs.push_back(&DiscreteDistribRegistry::instance());
-        else if (r == "infecprofile")
-            registry_ptrs.push_back(&InfecProfileRegistry::instance());
-        else
+        if (registries.empty())
             throw std::invalid_argument(
-                "Unknown " + err_type + " registry '" + r + "'.");
+                "No registries were provided for '" + err_type + "'.");
 
-    std::vector<std::string> options = {};
-    for (const DistributionRegistry *r : registry_ptrs)
-    {
-        if (r->count(opt))
-            return std::unique_ptr<Distribution>(
-                static_cast<Distribution *>(r->create(opt, is_cumul).release()));
-        const std::vector<std::string> &y = r->get_options();
-        options.reserve(options.size() + y.size());
-        options.insert(options.end(), y.begin(), y.end());
+        if (na::is(opt))
+            return nullptr;
+
+        std::vector<const DistributionRegistry *> registry_ptrs = {};
+        for (const std::string &r : registries)
+            if (r == "continuos")
+                registry_ptrs.push_back(&ContinuosDistribRegistry::instance());
+            else if (r == "discrete")
+                registry_ptrs.push_back(&DiscreteDistribRegistry::instance());
+            else if (r == "infecprofile")
+                registry_ptrs.push_back(&InfecProfileRegistry::instance());
+            else
+                throw std::invalid_argument(
+                    "Unknown " + err_type + " registry '" + r + "'.");
+
+        std::vector<std::string> options = {};
+        for (const DistributionRegistry *r : registry_ptrs)
+        {
+            if (r->count(opt))
+                return std::unique_ptr<Distribution>(
+                    static_cast<Distribution *>(r->create(opt, is_cumul).release()));
+            const std::vector<std::string> &y = r->get_options();
+            options.reserve(options.size() + y.size());
+            options.insert(options.end(), y.begin(), y.end());
+        }
+
+        throw std::invalid_argument(
+            "Unknown " + err_type + " '" + std::string(opt) + "'." +
+            str::find_closest(opt, options));
     }
-
-    throw std::invalid_argument(
-        "Unknown " + err_type + " '" + std::string(opt) + "'." +
-        hsp::str::find_closest(opt, options));
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -186,6 +189,7 @@ std::unique_ptr<Distribution> compose_distr_registries(std::string_view opt,
 
 namespace
 {
+    using namespace hsp;
     using std::exp;
     using std::lgamma;
     using std::log;
@@ -272,9 +276,9 @@ namespace
 
         double raw_pdf_(double) const override final { return 1. / (upper_.value() - lower_.value()); }
         double raw_cdf_(double x) const override final { return (x - lower_.value()) / (upper_.value() - lower_.value()); }
-        double raw_logpdf_(double) const override final { return 0.; }
-        double raw_logratio_(double, double) const override final { return 0.; }
-        double raw_rand_(hsp::rnd_gen &prng) const override final
+        double raw_log_pdf_(double) const override final { return 0.; }
+        double raw_log_ratio_(double, double) const override final { return 0.; }
+        double raw_rand_(rnd_gen &prng) const override final
         {
             const double r = unif_gen(prng);
             return lower_.value() * (1. - r) + upper_.value() * r;
@@ -319,13 +323,13 @@ namespace
         {
             return 0.5 * std::erfc(M_SQRT1_2 * (arg(0) - x) / arg(1));
         }
-        double raw_logpdf_(double x) const override final
+        double raw_log_pdf_(double x) const override final
         {
             const double sd = arg(1);
             const double z = (x - arg(0)) / sd;
             return -0.5 * z * z - M_LN_SQRT_2PI - log(sd);
         }
-        double raw_logratio_(double xo, double xn) const override final
+        double raw_log_ratio_(double xo, double xn) const override final
         {
             const double sd = arg(1);
             return (0.5 * xo * xo + (xn - xo) * arg(0) - 0.5 * xn * xn) / (sd * sd);
@@ -334,7 +338,7 @@ namespace
         {
             return arg(0) + arg(1) * boost::math::erfc_inv(2. - 2. * p, no_promote_policy{}) * M_SQRT2;
         }
-        double raw_rand_(hsp::rnd_gen &prng) const override final
+        double raw_rand_(rnd_gen &prng) const override final
         {
             return arg(0) + arg(1) * norm_gen(prng);
         }
@@ -370,13 +374,13 @@ namespace
         {
             return 0.5 * std::erfc(M_SQRT1_2 * (arg(0) - log(x)) / arg(1));
         }
-        double raw_logpdf_(double x) const override final
+        double raw_log_pdf_(double x) const override final
         {
             const double sdlog = arg(1);
             const double z = (log(x) - arg(0)) / sdlog;
             return -0.5 * z * z - log(x * sdlog) - M_LN_SQRT_2PI;
         }
-        double raw_logratio_(double xo, double xn) const override final
+        double raw_log_ratio_(double xo, double xn) const override final
         {
             const double lxo = log(xo);
             const double lxn = log(xn);
@@ -388,7 +392,7 @@ namespace
         {
             return exp(arg(0) + arg(1) * boost::math::erfc_inv(2. - 2. * p, no_promote_policy{}) * M_SQRT2);
         }
-        double raw_rand_(hsp::rnd_gen &prng) const override final
+        double raw_rand_(rnd_gen &prng) const override final
         {
             return exp(arg(0) + arg(1) * norm_gen(prng));
         }
@@ -403,7 +407,7 @@ namespace
     {
     public:
         Beta_()
-            : Distribution({{"shape1", hsp::na::DOUBLE}, {"shape2", hsp::na::DOUBLE}},
+            : Distribution({{"shape1", na::DOUBLE}, {"shape2", na::DOUBLE}},
                            0., 1.)
         {
             below_mode_ = Mode::Interval::Closed;
@@ -423,10 +427,10 @@ namespace
             const double dx = upper_.value();
             if (sx < 0)
                 throw std::invalid_argument(
-                    "Invoked invalid min value " + hsp::str::format(sx) + " for " + err_name() + ".");
+                    "Invoked invalid min value " + str::format(sx) + " for " + err_name() + ".");
             if (dx > 1)
                 throw std::invalid_argument(
-                    "Invoked invalid max value " + hsp::str::format(dx) + " for " + err_name() + ".");
+                    "Invoked invalid max value " + str::format(dx) + " for " + err_name() + ".");
             if (sx > 0 || dx < 1)
             {
                 helper_init_standard_range_(sx == 0, dx == 1);
@@ -445,13 +449,13 @@ namespace
         {
             return boost::math::ibeta(arg(0), arg(1), x, no_promote_policy{});
         }
-        double raw_logpdf_(double x) const override final
+        double raw_log_pdf_(double x) const override final
         {
             const double alpha = arg(0);
             const double beta = arg(1);
             return (alpha - 1.) * log(x) + (beta - 1.) * log1p(-x) - lbeta(alpha, beta);
         }
-        double raw_logratio_(double xo, double xn) const override final
+        double raw_log_ratio_(double xo, double xn) const override final
         {
             return (arg(0) - 1.) * log(xn / xo) + (arg(1) - 1.) * log((1. - xn) / (1. - xo));
         }
@@ -459,7 +463,7 @@ namespace
         {
             return boost::math::ibeta_inv(arg(0), arg(1), p, no_promote_policy{});
         }
-        double raw_rand_(hsp::rnd_gen &prng) const override final
+        double raw_rand_(rnd_gen &prng) const override final
         {
             return boost::random::beta_distribution<double>(arg(0), arg(1))(prng);
         }
@@ -474,7 +478,7 @@ namespace
     {
     public:
         Gamma_()
-            : Distribution({{"shape", hsp::na::DOUBLE}, {"scale", 1.}}, 0.) {}
+            : Distribution({{"shape", na::DOUBLE}, {"scale", 1.}}, 0.) {}
         HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Gamma_)
         HOUSEPI_OVERRIDE_NAME_METHOD(gamma)
 
@@ -484,7 +488,7 @@ namespace
         double raw_pdf_(double x) const override final
         {
             if (x != 0.)
-                return exp(raw_logpdf_(x));
+                return exp(raw_log_pdf_(x));
 
             const double shape = arg(0);
             if (shape < 1.)
@@ -499,13 +503,13 @@ namespace
             return boost::math::gamma_p(
                 arg(0), x / arg(1), no_promote_policy{});
         }
-        double raw_logpdf_(double x) const override final
+        double raw_log_pdf_(double x) const override final
         {
             const double shape = arg(0);
             const double t = x / arg(1);
             return shape * log(t) - log(x) - lgamma(shape) - t;
         }
-        double raw_logratio_(double xo, double xn) const override final
+        double raw_log_ratio_(double xo, double xn) const override final
         {
             return (arg(0) - 1.) * log(xn / xo) + (xo - xn) / arg(1);
         }
@@ -514,7 +518,7 @@ namespace
             return arg(1) * boost::math::gamma_p_inv(
                                 arg(0), p, no_promote_policy{});
         }
-        double raw_rand_(hsp::rnd_gen &prng) const override final
+        double raw_rand_(rnd_gen &prng) const override final
         {
             return std::gamma_distribution<double>(arg(0), arg(1))(prng);
         }
@@ -531,7 +535,7 @@ namespace
     {
     public:
         GammaMeanVar_()
-            : Distribution({{"mean", hsp::na::DOUBLE}, {"var", hsp::na::DOUBLE}}, 0.) {}
+            : Distribution({{"mean", na::DOUBLE}, {"var", na::DOUBLE}}, 0.) {}
         HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(GammaMeanVar_)
         HOUSEPI_OVERRIDE_NAME_METHOD(gamma_meanvar)
 
@@ -541,7 +545,7 @@ namespace
         double raw_pdf_(double x) const override final
         {
             if (x != 0.)
-                return exp(raw_logpdf_(x));
+                return exp(raw_log_pdf_(x));
 
             const double m = arg(0);
             const double v = arg(1);
@@ -560,7 +564,7 @@ namespace
             return boost::math::gamma_p(
                 m * m / v, x * m / v, no_promote_policy{});
         }
-        double raw_logpdf_(double x) const override final
+        double raw_log_pdf_(double x) const override final
         {
             const double m = arg(0);
             const double v = arg(1);
@@ -568,7 +572,7 @@ namespace
             const double t = x * m / v;
             return shape * log(t) - log(x) - lgamma(shape) - t;
         }
-        double raw_logratio_(double xo, double xn) const override final
+        double raw_log_ratio_(double xo, double xn) const override final
         {
             const double m = arg(0);
             const double v = arg(1);
@@ -580,7 +584,7 @@ namespace
             const double v = arg(1);
             return v / m * boost::math::gamma_p_inv(m * m / v, p, no_promote_policy{});
         }
-        double raw_rand_(hsp::rnd_gen &prng) const override final
+        double raw_rand_(rnd_gen &prng) const override final
         {
             const double m = arg(0);
             const double v = arg(1);
@@ -618,13 +622,13 @@ namespace
             const double scale = arg(0);
             return 1. - exp(-0.5 * x * x / (scale * scale));
         }
-        double raw_logpdf_(double x) const override final
+        double raw_log_pdf_(double x) const override final
         {
             const double scale = arg(0);
             const double scale2 = scale * scale;
             return log(x / scale2) - 0.5 * x * x / scale2;
         }
-        double raw_logratio_(double xo, double xn) const override final
+        double raw_log_ratio_(double xo, double xn) const override final
         {
             const double scale = arg(0);
             return log(xn / xo) + 0.5 * (xo * xo - xn * xn) / (scale * scale);
@@ -633,7 +637,7 @@ namespace
         {
             return arg(0) * sqrt(-2. * log1p(-p));
         }
-        double raw_rand_(hsp::rnd_gen &prng) const override final
+        double raw_rand_(rnd_gen &prng) const override final
         {
             return arg(0) * sqrt(-2 * log(unif_gen(prng)));
         }
@@ -648,7 +652,7 @@ namespace
     {
     public:
         Weibull_()
-            : Distribution({{"shape", hsp::na::DOUBLE}, {"scale", 1.}}, 0.),
+            : Distribution({{"shape", na::DOUBLE}, {"scale", 1.}}, 0.),
               unif_gen(0., 1.) {}
         HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Weibull_)
         HOUSEPI_OVERRIDE_NAME_METHOD(weibull)
@@ -669,14 +673,14 @@ namespace
         {
             return 1. - exp(-pow(x / arg(1), arg(0)));
         }
-        double raw_logpdf_(double x) const override final
+        double raw_log_pdf_(double x) const override final
         {
             const double shape = arg(0);
             const double scale = arg(1);
             const double z = x / scale;
             return log(shape / scale) + (shape - 1.) * log(z) - pow(z, shape);
         }
-        double raw_logratio_(double xo, double xn) const override final
+        double raw_log_ratio_(double xo, double xn) const override final
         {
             const double shape = arg(0);
             const double scale = arg(1);
@@ -686,7 +690,7 @@ namespace
         {
             return arg(1) * pow(-log1p(-p), 1. / arg(0));
         }
-        double raw_rand_(hsp::rnd_gen &prng) const override final
+        double raw_rand_(rnd_gen &prng) const override final
         {
             return arg(1) * pow(-log(unif_gen(prng)), 1.0 / arg(0));
         }
@@ -720,12 +724,12 @@ namespace
         {
             return 1. - exp(-arg(0) * x);
         }
-        double raw_logpdf_(double x) const override final
+        double raw_log_pdf_(double x) const override final
         {
             const double rate = arg(0);
             return log(rate) - rate * x;
         }
-        double raw_logratio_(double xo, double xn) const override final
+        double raw_log_ratio_(double xo, double xn) const override final
         {
             return arg(0) * (xo - xn);
         }
@@ -733,7 +737,7 @@ namespace
         {
             return -log1p(-p) / arg(0);
         }
-        double raw_rand_(hsp::rnd_gen &prng) const override final
+        double raw_rand_(rnd_gen &prng) const override final
         {
             return -log(unif_gen(prng)) / arg(0);
         }
@@ -748,7 +752,7 @@ namespace
     {
     public:
         Poisson_()
-            : Distribution({{"lambda", hsp::na::DOUBLE}}, 0.) { discr_mode_ = Mode::Discrete::Defined; }
+            : Distribution({{"lambda", na::DOUBLE}}, 0.) { discr_mode_ = Mode::Discrete::Defined; }
         HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Poisson_)
         HOUSEPI_OVERRIDE_NAME_METHOD(poisson)
 
@@ -757,18 +761,18 @@ namespace
     protected:
         double raw_pdf_(double x) const override final
         {
-            return exp(raw_logpdf_(x));
+            return exp(raw_log_pdf_(x));
         }
         double raw_cdf_(double x) const override final
         {
             return 1. - boost::math::gamma_p(x + 1., arg(0), no_promote_policy{});
         }
-        double raw_logpdf_(double x) const override final
+        double raw_log_pdf_(double x) const override final
         {
             const double lambda = arg(0);
             return x * log(lambda) - lambda - lgamma(x + 1.);
         }
-        double raw_logratio_(double xo, double xn) const override final
+        double raw_log_ratio_(double xo, double xn) const override final
         {
             return (xn - xo) * log(arg(0)) + lgamma(xo + 1.) - lgamma(xn + 1.);
         }
@@ -776,7 +780,7 @@ namespace
         {
             return boost::math::quantile(boost::math::poisson_distribution<double>(arg(0)), p);
         }
-        double raw_rand_(hsp::rnd_gen &prng) const override final
+        double raw_rand_(rnd_gen &prng) const override final
         {
             return std::poisson_distribution<unsigned>(arg(0))(prng);
         }
@@ -791,7 +795,7 @@ namespace
     {
     public:
         Binomial_()
-            : Distribution({{"size", hsp::na::DOUBLE}, {"prob", hsp::na::DOUBLE}}, 0.)
+            : Distribution({{"size", na::DOUBLE}, {"prob", na::DOUBLE}}, 0.)
         {
             discr_mode_ = Mode::Discrete::Defined;
             upper_.init_pointer(arguments_[0].pointer());
@@ -807,14 +811,14 @@ namespace
             const double sx = lower_.value();
             if (sx < 0.)
                 throw std::invalid_argument(
-                    "Invoked invalid min value " + hsp::str::format(sx) +
+                    "Invoked invalid min value " + str::format(sx) +
                     " for " + err_name() + ".");
             if (sx > 0. || arguments_[0].pointer() != upper().pointer())
             {
                 const double dx = lower_.value();
                 if (dx > arg(0))
                     throw std::invalid_argument(
-                        "Invoked invalid max value " + hsp::str::format(dx) +
+                        "Invoked invalid max value " + str::format(dx) +
                         " for " + err_name() + " with size " + std::to_string(arg(0)) + ".");
                 helper_init_standard_range_();
                 helper_init_distr_truncation_();
@@ -835,13 +839,13 @@ namespace
                 return 1.;
             return boost::math::ibeta(size - x, x + 1, 1. - arg(1), no_promote_policy{});
         }
-        double raw_logpdf_(double x) const override final
+        double raw_log_pdf_(double x) const override final
         {
             const double size = arg(0);
             const double prob = arg(1);
             return log_binom_coeff(size, x) + x * log(prob) + (size - x) * log1p(-prob);
         }
-        double raw_logratio_(double xo, double xn) const override final
+        double raw_log_ratio_(double xo, double xn) const override final
         {
             const double prob = arg(1);
             return logratio_binom_coeff(arg(0), xo, xn) + (xn - xo) * log(prob / (1. - prob));
@@ -850,7 +854,7 @@ namespace
         {
             return boost::math::quantile(boost::math::binomial_distribution<double>(arg(0), arg(1)), p);
         }
-        double raw_rand_(hsp::rnd_gen &prng) const override final
+        double raw_rand_(rnd_gen &prng) const override final
         {
             return std::binomial_distribution<unsigned>(arg(0), arg(1))(prng);
         }
@@ -865,7 +869,7 @@ namespace
     {
     public:
         NegativeBinomial_()
-            : Distribution({{"size", hsp::na::DOUBLE}, {"prob", hsp::na::DOUBLE}}, 0.) { discr_mode_ = Mode::Discrete::Defined; }
+            : Distribution({{"size", na::DOUBLE}, {"prob", na::DOUBLE}}, 0.) { discr_mode_ = Mode::Discrete::Defined; }
         HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(NegativeBinomial_)
         HOUSEPI_OVERRIDE_NAME_METHOD(negative_binomial)
 
@@ -882,13 +886,13 @@ namespace
         {
             return boost::math::ibeta(arg(0), x + 1., arg(1));
         }
-        double raw_logpdf_(double x) const override final
+        double raw_log_pdf_(double x) const override final
         {
             const double size = arg(0);
             const double prob = arg(1);
             return log_binom_coeff(x + size - 1., x) + x * log1p(-prob) + size * log(prob);
         }
-        double raw_logratio_(double xo, double xn) const override final
+        double raw_log_ratio_(double xo, double xn) const override final
         {
             const double size = arg(0);
             const double prob = arg(1);
@@ -898,7 +902,7 @@ namespace
         {
             return boost::math::quantile(boost::math::negative_binomial_distribution<double>(arg(0), arg(1)), p);
         }
-        double raw_rand_(hsp::rnd_gen &prng) const override final
+        double raw_rand_(rnd_gen &prng) const override final
         {
             return std::negative_binomial_distribution<unsigned>(arg(0), arg(1))(prng);
         }
@@ -913,7 +917,7 @@ namespace
     {
     public:
         Geometric_()
-            : Distribution({{"prob", hsp::na::DOUBLE}}, 0.) { discr_mode_ = Mode::Discrete::Defined; }
+            : Distribution({{"prob", na::DOUBLE}}, 0.) { discr_mode_ = Mode::Discrete::Defined; }
         HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Geometric_)
         HOUSEPI_OVERRIDE_NAME_METHOD(geometric)
 
@@ -929,12 +933,12 @@ namespace
         {
             return 1. - exp((x + 1) * log1p(-arg(0)));
         }
-        double raw_logpdf_(double x) const override final
+        double raw_log_pdf_(double x) const override final
         {
             const double prob = arg(0);
             return log(prob) + x * log1p(-prob);
         }
-        double raw_logratio_(double xo, double xn) const override final
+        double raw_log_ratio_(double xo, double xn) const override final
         {
             return (xn - xo) * log1p(-arg(0));
         }
@@ -942,7 +946,7 @@ namespace
         {
             return std::floor(log1p(-p) / log1p(-arg(0)));
         }
-        double raw_rand_(hsp::rnd_gen &prng) const override final
+        double raw_rand_(rnd_gen &prng) const override final
         {
             return std::geometric_distribution<unsigned>(arg(0))(prng);
         }

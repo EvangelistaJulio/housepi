@@ -75,7 +75,7 @@ loglike_infectious <- function(house, param, discr) {
       roi_cumul_i <- roi_cumul_i * beta + alpha * (t_infec_i - t_intro)
       roi_inst_i <- roi_inst_i * beta + alpha
       if (discr) {
-        output <- output + log(1. - exp(-roi_inst_i)) - roi_cumul_i + alpha
+        output <- output + log1p(- exp(-roi_inst_i)) - roi_cumul_i + alpha
       } else {
         output <- output + log(roi_inst_i) - roi_cumul_i
       }
@@ -156,6 +156,30 @@ test_that("Log-likelihood of augmented infection time model is correct", {
   }
 })
 
+# state of augmented values per iteration
+get_augm_state <- function(augm_draws, index) {
+  augm_draws[index, , drop = FALSE] |>
+    tidyr::pivot_longer(dplyr::everything(),
+                        names_to = "name", values_to = "value") |>
+    tidyr::separate(name, into = c("id", "augm"),
+                    sep = "_", extra = "merge") |>
+    tidyr::pivot_wider(names_from = augm, values_from = value) |>
+    as.data.frame()
+}
+
+join_augm_data <- function(house, augm_data) {
+  dplyr::left_join(house, augm_data, by = "id")
+}
+
+# get total log-likelihood (observation + augmented)
+get_log_lik_i <- function(df, par) {
+  out <- augm_infec_obs_log_lik(df, par)
+  df <- df[df$status > 0, ]
+  out +
+    sum(dnorm(df$onset_time - df$onset_date, log = TRUE)) +
+    sum(dweibull(df$incub_period, shape = 2, scale = 1, log = TRUE))
+}
+
 test_that("Augmented moves preserve log-likelihood", {
   # dummy dataset
   house <- data.frame(house_id = "hh01",
@@ -175,11 +199,11 @@ test_that("Augmented moves preserve log-likelihood", {
     ) |>
     add_infec_profile(func = "gamma", shape = shape@P, scale = scale@P)
 
-  n_steps <- 5
+  n_steps <- 100
   id_draws <- house[house$status > 0, ]$id
   results <- hhmodel |>
     run_inference(steps = n_steps, thin = 1, adapt = 0, chain = 1,
-                  progress = FALSE, id_draws = id_draws)
+                  progress = FALSE, seed = 2, id_draws = id_draws)
 
   tot_log_lik <- get_total_log_lik_draws(results)$log_lik
   expect_equal(tot_log_lik, get_log_lik_draws(results)$hh01)
@@ -197,31 +221,6 @@ test_that("Augmented moves preserve log-likelihood", {
     tidyr::pivot_wider(names_from = "name", values_from = "value") |>
     as.list()
 
-  # state of augmented values per iteration
-  get_augm_state <- function(df, index) {
-    df[index, ] |>
-      tidyr::pivot_longer(dplyr::everything(),
-                          names_to = "name", values_to = "value") |>
-      tidyr::separate(name, into = c("id", "augm"),
-                      sep = "_", extra = "merge") |>
-      tidyr::pivot_wider(names_from = augm, values_from = value) |>
-      as.data.frame()
-  }
-
-  join_augm_data <- function(i) {
-    dplyr::left_join(house, get_augm_state(augm_draws, i), by = "id")
-  }
-
-  # get total log-likelihood (observation + augmented)
-  get_log_lik_i <- function(i) {
-    df <- join_augm_data(i)
-    out <- augm_infec_obs_log_lik(df, c(param_draws[i, ], consts))
-    df <- df[df$status > 0, ]
-    out +
-      sum(dnorm(df$onset_time - df$onset_date, log = TRUE)) +
-      sum(dweibull(df$incub_period, shape = 2, scale = 1, log = TRUE))
-  }
-
   # check that snapshot is last state
   snapshot <- hhmodel$export_house_snapshot("hh01")
   expect_identical(unlist(c(param_draws[n_steps, ], consts)),
@@ -230,19 +229,22 @@ test_that("Augmented moves preserve log-likelihood", {
                    snapshot$augm[house$status > 0, ])
 
   # check if log-likelihood is coherent
-  hhmodel |>
-    add_data_wide(join_augm_data(n_steps)) |>
-    load_parameter_list(!!!snapshot$param) |>
+  hhmodel <- hhmodel |>
     load_augmented_list(
       infec_time = onset_time@A - incub_period@A,
       onset_time = list(value = onset_time@D, const = TRUE,
                         model = "normal", mean = onset_date@D),
       incub_period = list(value = incub_period@D, const = TRUE,
                           model = "weibull", shape = 2, scale = 1)
-    ) |>
-    evaluate_log_lik() |>
-    expect_equal(tot_log_lik[n_steps])
-
-  # check that total log-likelihood is well computed
-  expect_equal(tot_log_lik, sapply(seq_along(tot_log_lik), get_log_lik_i))
+    )
+  
+  for (i in seq(n_steps)) {
+    df <- join_augm_data(house, get_augm_state(augm_draws, i))
+    par <- c(param_draws[i, , drop = FALSE], consts)
+    hhmodel$data_wide <- df
+    hhmodel$parameters <- c(param_draws[i, , drop = FALSE], consts)
+    ll <- hhmodel$evaluate_log_lik()
+    expect_equal(ll, tot_log_lik[i])
+    expect_equal(ll, get_log_lik_i(df, par))
+  }
 })

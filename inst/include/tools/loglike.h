@@ -16,11 +16,11 @@ namespace hsp
 {
     struct LogLike
     {
-        void recover() noexcept { value_ = buffer_; }
-        double logratio() const noexcept { return value_ - buffer_; }
+        void recover() noexcept { value_ = old_; }
+        double log_ratio() const noexcept { return value_ - old_; }
         double value() const noexcept { return value_; }
 
-        /// Set new log-likelihood value. Buffer old value.
+        /// Set new log-likelihood value. Store old value.
         /// Raise exception if new value is a NaN.
         void set(double new_ll)
         {
@@ -28,17 +28,18 @@ namespace hsp
                 throw std::runtime_error(
                     "Log-likelihood computation returned NaN value.");
 
-            buffer_ = value_;
+            old_ = value_;
             value_ = new_ll;
         }
-        /// Increment log-likelihood by a delta. Buffer old value.
+        /// Increment log-likelihood by a delta. Store old value.
+        /// Raise exception if new value is a NaN.
         void increment(double delta_ll) { set(value_ + delta_ll); }
 
         /// Wheter value is infinity.
-        bool is_inf() const noexcept { return  std::isinf(value_); }
+        bool is_inf() const noexcept { return std::isinf(value_); }
 
     protected:
-        double value_ = 0.;  /// Current log-likelihood
-        double buffer_ = 0.; /// Buffered log-likelihood
+        double value_ = 0.; /// Current log-likelihood
+        double old_ = 0.;   /// Old log-likelihood
     };
 }

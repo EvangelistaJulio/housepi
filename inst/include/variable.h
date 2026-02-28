@@ -24,148 +24,151 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-class Distribution;
-class Proposal;
-
-class Variable : public Attribute
+namespace hsp
 {
-public:
-    ///////////////////////////
-    //////  CONSTRUCTOR  //////
-    ///////////////////////////
+    class Distribution;
+    class Proposal;
 
-    Variable();
-    ~Variable();
-
-    /// Copy constructor
-    Variable(const Variable &other);
-    /// Move constructor
-    Variable(Variable &&);
-
-    /// Copy assignment
-    Variable &operator=(Variable other);
-
-    void swap(Variable& other) noexcept;
-
-    /// Sugar to call variable as a function if applicable, otherwise raise error.
-    double operator()(double x) const;
-
-    //////////////////////
-    //////  SETTER  //////
-    //////////////////////
-
-    /// Restore empty. Used in multiple initializations.
-    void clear() noexcept;
-
-    /// Enforce user choice for constant.
-    void enforce_user_const() noexcept { is_user_const_ = true; }
-
-    /// Change value. Buffer old value.
-    void set(double x)
+    class Variable : public Attribute
     {
-        buffer_ = value_;
-        Attribute::set(x);
-    }
+    public:
+        ///////////////////////////
+        //////  CONSTRUCTOR  //////
+        ///////////////////////////
 
-    /// Recover buffered value.
-    void recover() noexcept { value_ = buffer_; }
+        Variable();
+        ~Variable();
 
-    /// Assign an attribute to function.
-    void init_func_attr(std::string_view key, const Attribute &attr);
-    /// Finalize reshaping of function.
-    /// Drop function if it's constant when reshaping.
-    /// NOTE: discretization of model has priority
-    ///       e. g. user discr is FALSE, but discrete-defined model
-    void init_func_reshaping(bool discr);
+        /// Copy constructor
+        Variable(const Variable &other);
+        /// Move constructor
+        Variable(Variable &&);
 
-    /// Initialize pointer to distribution.
-    void init_distr(std::string_view opt);
-    /// Assign an attribute to distribution.
-    void init_distr_attr(std::string_view key, const Attribute &attr);
-    /// Finalize reshaping of distribution.
-    /// NOTE: to be called necessarily.
-    void init_distr_reshaping(bool discr);
+        /// Copy assignment
+        Variable &operator=(Variable other);
 
-    /// Restore user defined variable initialization.
-    void user_reset(hsp::rnd_gen &prng);
-    /// Optimizing pruning indirections and setting constants to numeric.
-    void optimize() override final;
-    /// Initialize pointer to proposer.
-    /// NOTE: it must be assigned after model initialization.
-    void init_proposal(const std::string &proposal, double proposal_scale);
+        void swap(Variable &other) noexcept;
 
-    /////////////////////
-    //////  FLAGS  //////
-    /////////////////////
+        /// Sugar to call variable as a function if applicable, otherwise raise error.
+        double operator()(double x) const;
 
-    /// Wheter the variable is discrete.
-    bool is_discrete() const noexcept override final;
-    /// Wheter the variable has a prior or a model associated.
-    bool is_model() const noexcept;
-    /// Wheter the variable has an adaptable parametric proposal rule.
-    bool is_adaptable() const noexcept;
+        //////////////////////
+        //////  SETTER  //////
+        //////////////////////
 
-    ///////////////////////////////////
-    //////  METROPOLIS-HASTINGS  //////
-    ///////////////////////////////////
+        /// Restore empty. Used in multiple initializations.
+        void clear() noexcept;
 
-    /// Set new proposal internally and store a buffer of old value.
-    void propose(hsp::rnd_gen &prng);
-    bool is_valid_move() const;
+        /// Enforce user choice for constant.
+        void enforce_user_const() noexcept { is_user_const_ = true; }
 
-    double get_distr_logpdf() const;
-    double get_distr_logratio() const;
-    double get_propose_logratio() const;
-    double get_move_logratio() const
-    {
-        switch (ratio_mode_)
+        /// Change value. Store old value.
+        void set(double x)
         {
-        case Ratio::None:
-            return 0;
-        case Ratio::Compute:
-            return get_distr_logratio() - get_propose_logratio();
+            old_ = value_;
+            Attribute::set(x);
         }
-        __builtin_unreachable();
-    }
 
-    void update_accept_rate(bool is_accepted);
-    void reset_accept_rate();
-    void adapt_proposal(double ratio);
+        /// Recover old value.
+        void recover() noexcept { value_ = old_; }
 
-    ////////////////////
-    //////  SHOW  //////
-    ////////////////////
+        /// Assign an attribute to function.
+        void init_func_attr(std::string_view key, const Attribute &attr);
+        /// Finalize reshaping of function.
+        /// Drop function if it's constant when reshaping.
+        /// NOTE: discretization of model has priority
+        ///       e. g. user discr is FALSE, but discrete-defined model
+        void init_func_reshaping(bool discr);
 
-    /// Get a description about the functional status.
-    std::string str_summary() const override final;
+        /// Initialize pointer to distribution.
+        void init_distr(std::string_view opt);
+        /// Assign an attribute to distribution.
+        void init_distr_attr(std::string_view key, const Attribute &attr);
+        /// Finalize reshaping of distribution.
+        /// NOTE: to be called necessarily.
+        void init_distr_reshaping(bool discr);
 
-protected:
-    enum class Validity : uint8_t
-    {
-        Always,
-        Check
-    } valid_mode_ = Validity::Check;
-    enum class Ratio : uint8_t
-    {
-        None,
-        Compute
-    } ratio_mode_ = Ratio::Compute;
+        /// Restore user defined variable initialization.
+        void user_reset(rnd_gen &prng);
+        /// Optimizing pruning indirections and setting constants to numeric.
+        void optimize() override final;
+        /// Initialize pointer to proposer.
+        /// NOTE: it must be assigned after model initialization.
+        void init_proposal(const std::string &proposal, double proposal_scale);
 
-    double buffer_ = hsp::na::DOUBLE; /// buffered value
+        /////////////////////
+        //////  FLAGS  //////
+        /////////////////////
 
-    /// NOTE: Household must be copyable for simulations
-    /// UPDATE: pointers should become unique -> Function clonable.
-    std::unique_ptr<Distribution> pDistr_; /// prior\model distribution of the variable
-    std::unique_ptr<Proposal> pProp_;      /// Monte Carlo proposer
+        /// Wheter the variable is discrete.
+        bool is_discrete() const noexcept override final;
+        /// Wheter the variable has a prior or a model associated.
+        bool is_model() const noexcept;
+        /// Wheter the variable has an adaptable parametric proposal rule.
+        bool is_adaptable() const noexcept;
 
-    ///////////////////////
-    //////  HELPERS  //////
-    ///////////////////////
+        ///////////////////////////////////
+        //////  METROPOLIS-HASTINGS  //////
+        ///////////////////////////////////
 
-    /// Assert that range is non-degenerate.
-    void helper_assert_non_degenerate_range_();
-    /// Initialize proposal of direct sample from prior/model.
-    void helper_init_sample_proposal_();
-    /// Initialize parametric Monte Carlo proposal.
-    void helper_init_monte_carlo_proposal_(const std::string &proposal, double proposal_scale);
-};
+        /// Set new proposal internally and store old value.
+        void propose(rnd_gen &prng);
+        bool is_valid_move() const;
+
+        double get_distr_log_pdf() const;
+        double get_distr_log_ratio() const;
+        double get_propose_log_ratio() const;
+        double get_move_log_ratio() const
+        {
+            switch (ratio_mode_)
+            {
+            case Ratio::None:
+                return 0;
+            case Ratio::Compute:
+                return get_distr_log_ratio() - get_propose_log_ratio();
+            }
+            __builtin_unreachable();
+        }
+
+        void update_accept_rate(bool is_accepted);
+        void reset_accept_rate();
+        void adapt_proposal(double ratio);
+
+        ////////////////////
+        //////  SHOW  //////
+        ////////////////////
+
+        /// Get a description about the functional status.
+        std::string str_summary() const override final;
+
+    protected:
+        enum class Validity : uint8_t
+        {
+            Always,
+            Check
+        } valid_mode_ = Validity::Check;
+        enum class Ratio : uint8_t
+        {
+            None,
+            Compute
+        } ratio_mode_ = Ratio::Compute;
+
+        double old_ = na::DOUBLE; /// old value
+
+        /// NOTE: Household must be copyable for simulations
+        /// UPDATE: pointers should become unique -> Function clonable.
+        std::unique_ptr<Distribution> pDistr_; /// prior\model distribution of the variable
+        std::unique_ptr<Proposal> pProp_;      /// Monte Carlo proposer
+
+        ///////////////////////
+        //////  HELPERS  //////
+        ///////////////////////
+
+        /// Assert that range is non-degenerate.
+        void helper_assert_non_degenerate_range_();
+        /// Initialize proposal of direct sample from prior/model.
+        void helper_init_sample_proposal_();
+        /// Initialize parametric Monte Carlo proposal.
+        void helper_init_monte_carlo_proposal_(const std::string &proposal, double proposal_scale);
+    };
+}

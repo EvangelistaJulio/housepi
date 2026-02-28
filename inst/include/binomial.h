@@ -9,7 +9,7 @@
 
 #include <vector>
 
-namespace bax
+namespace hsp::bino
 {
     /// Functions for the generations lookup table.
     void init_generations_lookuptable(unsigned max_N);

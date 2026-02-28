@@ -94,7 +94,9 @@ standalone.o: standalone.cpp
 
 # To clean objects
 clean:
-	$(RM) standalone.o {$(MODEL),$(SRC),../models/*}/*.{o,exe,so,dll,tmp}
+	$(RM) standalone.o 
+	$(RM) $(SRC)/model_*.cpp
+	$(RM) {$(MODEL),$(SRC),../models/*}/*.{o,tmp,exe,so,dll}
 
 # Run make in debugging mode
 debug:

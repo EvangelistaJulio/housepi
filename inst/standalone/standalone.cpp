@@ -243,12 +243,12 @@ void print_simulated_data_wide(MCMC &engine, const std::string &pathtofile)
                                                data_wide.pRegistry->get_all(),
                                                augm.pRegistry->as_string(augm.list_export));
     engine.helper_init_simulation();
-    engine.model->init_model_for_simulation();
+    engine.model.init_model_for_simulation();
 
     for (Household house : data_wide) // NOTE: deep copy of household
         try
         {
-            engine.model->simulate_single_house(house);
+            engine.model.simulate_single_house(house);
             // print the simulated data
             update_ofstream_datawide(ofs, house,
                                      data_wide.pRegistry->size(),
@@ -351,13 +351,12 @@ void Options::assert()
         hsp::msg::error(
             "Incompatible commands: choose one between --log-lik, --infer, --simulate or --log-evidence.");
 
-    if (hsp::na::is(file.output))
-    {
-        if (is_infer)
-            hsp::msg::error("Missing output file for inference.");
-        if (is_simulate)
-            hsp::msg::error("Missing output file for simulation.");
-    }
+    if (!hsp::na::is(file.output))
+        return;
+    if (is_infer)
+        hsp::msg::error("Missing output file for inference.");
+    if (is_simulate)
+        hsp::msg::error("Missing output file for simulation.");
 }
 
 /* --FUTURE-LOG-EVIDENCE--

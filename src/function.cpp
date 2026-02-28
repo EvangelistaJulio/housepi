@@ -32,383 +32,386 @@ HOUSEPI_DEFINE_REGISTRY_INSTANCE_(ContinuosDistrib)
 HOUSEPI_DEFINE_REGISTRY_INSTANCE_(DiscreteDistrib)
 HOUSEPI_DEFINE_REGISTRY_INSTANCE_(InfecProfile)
 
-std::vector<std::string> FunctionRegistry::get_options() const
+namespace hsp
 {
-    std::vector<std::string> entries;
-    entries.reserve(factory_map_.size());
-    for (const auto &[key, val] : factory_map_)
-        entries.push_back(key);
-    return entries;
-}
+    std::vector<std::string> FunctionRegistry::get_options() const
+    {
+        std::vector<std::string> entries;
+        entries.reserve(factory_map_.size());
+        for (const auto &[key, val] : factory_map_)
+            entries.push_back(key);
+        return entries;
+    }
 
-std::unique_ptr<Function> FunctionRegistry::create(std::string_view opt, bool is_primitive) const
-{
-    auto it = factory_map_.find(opt);
-    if (it == factory_map_.end())
-        return nullptr;
+    std::unique_ptr<Function> FunctionRegistry::create(std::string_view opt, bool is_primitive) const
+    {
+        auto it = factory_map_.find(opt);
+        if (it == factory_map_.end())
+            return nullptr;
 
-    auto output = it->second();
-    if (is_primitive)
-        output->set_eval_primitive();
+        auto output = it->second();
+        if (is_primitive)
+            output->set_eval_primitive();
 
-    return output;
-}
+        return output;
+    }
 
-std::unique_ptr<Function> compose_func_registries(std::string_view opt,
-                                                  const std::string &err_type,
-                                                  const std::vector<std::string> &registries,
-                                                  bool is_prim)
-{
-    if (registries.empty())
-        throw std::invalid_argument(
-            "No registries were provided for '" + err_type + "'.");
-
-    if (hsp::na::is(opt))
-        return nullptr;
-
-    std::vector<const FunctionRegistry *> registry_ptrs = {};
-    for (const std::string &r : registries)
-        if (r == "custom")
-            registry_ptrs.push_back(&CustomRegistry::instance());
-
-        else if (r == "transcendental")
-            registry_ptrs.push_back(&TranscendentalRegistry::instance());
-
-        else if (r == "arithmetic")
-            registry_ptrs.push_back(&ArithmeticRegistry::instance());
-
-        else if (r == "continuos")
-            registry_ptrs.push_back(&ContinuosDistribRegistry::instance());
-
-        else if (r == "discrete")
-            registry_ptrs.push_back(&DiscreteDistribRegistry::instance());
-
-        else if (r == "infecprofile")
-            registry_ptrs.push_back(&InfecProfileRegistry::instance());
-
-        else
+    std::unique_ptr<Function> compose_func_registries(std::string_view opt,
+                                                      const std::string &err_type,
+                                                      const std::vector<std::string> &registries,
+                                                      bool is_prim)
+    {
+        if (registries.empty())
             throw std::invalid_argument(
-                "Unknown " + err_type + " registry '" + r + "'.");
+                "No registries were provided for '" + err_type + "'.");
 
-    std::vector<std::string> options = {};
-    for (const FunctionRegistry *ptr : registry_ptrs)
-    {
-        if (ptr->count(opt))
-            return ptr->create(opt, is_prim);
-        const std::vector<std::string> &y = ptr->get_options();
-        options.reserve(options.size() + y.size());
-        options.insert(options.end(), y.begin(), y.end());
-    }
+        if (na::is(opt))
+            return nullptr;
 
-    throw std::invalid_argument(
-        "Unknown " + err_type + " '" + std::string(opt) + "'." +
-        hsp::str::find_closest(opt, options));
-}
+        std::vector<const FunctionRegistry *> registry_ptrs = {};
+        for (const std::string &r : registries)
+            if (r == "custom")
+                registry_ptrs.push_back(&CustomRegistry::instance());
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  *** Function : class ***  ////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
+            else if (r == "transcendental")
+                registry_ptrs.push_back(&TranscendentalRegistry::instance());
 
-/// Initial defaults for function.
-/// NOTE: to access arguments by index, I must provide separate name/value.
-/// UPDATE: at the moment only place where to set open ranges
-/// UPDATE: not sure if setting pointer to smtg exiting the domain I still have control
-Function::Function(const std::vector<std::pair<std::string, double>> &args,
-                   double domain_min, double domain_max)
-{
-    // default arguments initialized as empty
-    x_arg_.name("x");
-    loc_.name("loc");
-    lower_.name("min");
-    upper_.name("max");
+            else if (r == "arithmetic")
+                registry_ptrs.push_back(&ArithmeticRegistry::instance());
 
-    // allocate other arguments
-    arguments_.reserve(args.size());
-    for (const auto &[key, val] : args)
-        if (key == "x")
-        {
-            x_arg_.init_numeric(val);
-        }
-        else if (key == "loc")
-        {
-            loc_.init_numeric(val);
-        }
-        else
-        {
-            // distinguish empty defaults
-            if (hsp::na::is(val))
-                arguments_.emplace_back();
+            else if (r == "continuos")
+                registry_ptrs.push_back(&ContinuosDistribRegistry::instance());
+
+            else if (r == "discrete")
+                registry_ptrs.push_back(&DiscreteDistribRegistry::instance());
+
+            else if (r == "infecprofile")
+                registry_ptrs.push_back(&InfecProfileRegistry::instance());
+
             else
-                arguments_.emplace_back(val);
-            arguments_.back().name(key);
+                throw std::invalid_argument(
+                    "Unknown " + err_type + " registry '" + r + "'.");
+
+        std::vector<std::string> options = {};
+        for (const FunctionRegistry *ptr : registry_ptrs)
+        {
+            if (ptr->count(opt))
+                return ptr->create(opt, is_prim);
+            const std::vector<std::string> &y = ptr->get_options();
+            options.reserve(options.size() + y.size());
+            options.insert(options.end(), y.begin(), y.end());
         }
-    arguments_.shrink_to_fit();
 
-    // assign domain if any, otherwise leave empty
-    if (!hsp::na::is(domain_min))
-    {
-        lower_.init_numeric(domain_min);
-        below_mode_ = Mode::Interval::Closed;
+        throw std::invalid_argument(
+            "Unknown " + err_type + " '" + std::string(opt) + "'." +
+            str::find_closest(opt, options));
     }
-    if (!hsp::na::is(domain_max))
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////  *** Function : class ***  ////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// Initial defaults for function.
+    /// NOTE: to access arguments by index, I must provide separate name/value.
+    /// UPDATE: at the moment only place where to set open ranges
+    /// UPDATE: not sure if setting pointer to smtg exiting the domain I still have control
+    Function::Function(const std::vector<std::pair<std::string, double>> &args,
+                       double domain_min, double domain_max)
     {
-        upper_.init_numeric(domain_max);
-        above_mode_ = Mode::Interval::Closed;
+        // default arguments initialized as empty
+        x_arg_.name("x");
+        loc_.name("loc");
+        lower_.name("min");
+        upper_.name("max");
+
+        // allocate other arguments
+        arguments_.reserve(args.size());
+        for (const auto &[key, val] : args)
+            if (key == "x")
+            {
+                x_arg_.init_numeric(val);
+            }
+            else if (key == "loc")
+            {
+                loc_.init_numeric(val);
+            }
+            else
+            {
+                // distinguish empty defaults
+                if (na::is(val))
+                    arguments_.emplace_back();
+                else
+                    arguments_.emplace_back(val);
+                arguments_.back().name(key);
+            }
+        arguments_.shrink_to_fit();
+
+        // assign domain if any, otherwise leave empty
+        if (!na::is(domain_min))
+        {
+            lower_.init_numeric(domain_min);
+            below_mode_ = Mode::Interval::Closed;
+        }
+        if (!na::is(domain_max))
+        {
+            upper_.init_numeric(domain_max);
+            above_mode_ = Mode::Interval::Closed;
+        }
     }
-}
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////  Function : Getter  /////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////  Function : Getter  /////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Assert argument exists at assignment. Returns it's index.
-Attribute &Function::find_arg_(std::string_view key)
-{
-    if (key == "x")
-        return x_arg_;
-    if (key == "loc")
-        return loc_;
-    if (key == "min")
-        return lower_;
-    if (key == "max")
-        return upper_;
+    /// Assert argument exists at assignment. Returns it's index.
+    Attribute &Function::find_arg_(std::string_view key)
+    {
+        if (key == "x")
+            return x_arg_;
+        if (key == "loc")
+            return loc_;
+        if (key == "min")
+            return lower_;
+        if (key == "max")
+            return upper_;
 
-    for (Attribute &attr : arguments_)
-        if (attr.name() == key)
-            return attr;
+        for (Attribute &attr : arguments_)
+            if (attr.name() == key)
+                return attr;
 
-    // else format the error showing options
-    std::vector<std::string> options = {"x", "loc", "min", "max"};
-    for (const Attribute &attr : arguments_)
-        options.emplace_back(attr.name());
-    throw std::invalid_argument(
-        "Unknown argument '" + std::string(key) + "' for " + err_name() + "." +
-        hsp::str::find_closest(key, options));
-}
+        // else format the error showing options
+        std::vector<std::string> options = {"x", "loc", "min", "max"};
+        for (const Attribute &attr : arguments_)
+            options.emplace_back(attr.name());
+        throw std::invalid_argument(
+            "Unknown argument '" + std::string(key) + "' for " + err_name() + "." +
+            str::find_closest(key, options));
+    }
 
-/// Wheter return value is always constant.
-/// UPDATE: at the moment also a mutable range makes the function non constant.
-bool Function::is_constant() const noexcept
-{
-    if (!x_arg_.is_constant())
-        return false;
-
-    // variable arguments
-    for (const Attribute &attr : arguments_)
-        if (!attr.is_constant())
+    /// Wheter return value is always constant.
+    /// UPDATE: at the moment also a mutable range makes the function non constant.
+    bool Function::is_constant() const noexcept
+    {
+        if (!x_arg_.is_constant())
             return false;
 
-    // variable range
-    if (below_mode_ != Mode::Interval::None && !lower_.is_constant())
-        return false;
-    if (above_mode_ != Mode::Interval::None && !upper_.is_constant())
-        return false;
+        // variable arguments
+        for (const Attribute &attr : arguments_)
+            if (!attr.is_constant())
+                return false;
 
-    // otherwise constant
-    return true;
-}
-
-bool Function::is_callable_explicitly() const noexcept
-{
-    for (const Attribute &attr : arguments_)
-        if (attr.is_empty())
+        // variable range
+        if (below_mode_ != Mode::Interval::None && !lower_.is_constant())
             return false;
-    return true;
-}
+        if (above_mode_ != Mode::Interval::None && !upper_.is_constant())
+            return false;
 
-/// Collect names of missing arguments.
-std::vector<std::string> Function::get_missing_argument() const
-{
-    std::vector<std::string> undefined_args = {};
-    for (const Attribute &attr : arguments_)
-        if (attr.is_empty())
-            undefined_args.emplace_back(attr.name());
-    return undefined_args;
-}
-
-/// Throw exception if not callable explicitly.
-void Function::assert_is_callable_explicitly() const
-{
-    const std::vector<std::string> undefined_args = get_missing_argument();
-    if (!undefined_args.empty())
-        throw std::invalid_argument(
-            "Impossible to initialize " + err_name() + ": missing non default argument" +
-            (undefined_args.size() > 1 ? "s " : " ") + hsp::str::format(undefined_args));
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  Function : set range  //////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool Function::helper_init_range_min_(double min_val, bool is_min_open)
-{
-    if (lower_.is_empty())
-        throw std::runtime_error(
-            "Forbidden initialization of minimum value for " + err_name() + ".");
-
-    const double old = lower_.value();
-    if (old < min_val)
-        throw std::invalid_argument(
-            "Invoked invalid min value " + hsp::str::format(old) + " for " + err_name() + ".");
-
-    if (old == min_val && upper_.is_empty())
-        return false;
-
-    helper_init_standard_range_(is_min_open ? old == min_val : false, false);
-    return true;
-}
-
-void Function::helper_init_standard_range_(bool is_min_open, bool is_max_open)
-{
-    if (lower_.is_empty())
-        below_mode_ = Mode::Interval::None;
-    else if (is_min_open)
-        below_mode_ = Mode::Interval::Open;
-    else
-        below_mode_ = Mode::Interval::Closed;
-
-    if (upper_.is_empty())
-        above_mode_ = Mode::Interval::None;
-    else if (is_max_open)
-        above_mode_ = Mode::Interval::Open;
-    else
-        above_mode_ = Mode::Interval::Closed;
-
-    // check for consistency if both range limits are provided
-    if (!lower_.is_callable() || !upper_.is_callable())
-        return;
-
-    bool is_wrong = lower_.value() > upper_.value();
-    if (below_mode_ == Mode::Interval::Open && below_mode_ == above_mode_)
-        is_wrong = is_wrong || lower_.value() == upper_.value();
-    if (is_wrong)
-        throw std::invalid_argument(
-            "Generated an inconsistent range " + str_range() + " for " + err_name() + ".");
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////  Function : show  ///////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Return formatted function summary.
-std::string Function::str_summary(bool show_x_arg) const
-{
-    std::string sms = std::string(name()) + "(";
-    if (show_x_arg)
-        sms += std::string(x_arg_.name()) + "=" + x_arg_.str_val();
-
-    for (size_t c = 0; c < arguments_.size(); ++c)
-    {
-        if (c > 0 || show_x_arg)
-            sms += ", ";
-        sms += std::string(arguments_[c].name()) + "=" + arguments_[c].str_val();
-    }
-    return sms + ") : " + str_range();
-}
-
-/// Return formatted range.
-std::string Function::str_range() const
-{
-    const std::string &str_min = lower_.str_val();
-    const std::string &str_max = upper_.str_val();
-
-    std::string output;
-
-    switch (below_mode_)
-    {
-    case Mode::Interval::None:
-        output = "(-Inf";
-        break;
-    case Mode::Interval::Open:
-        output = "(" + str_min;
-        break;
-    case Mode::Interval::Closed:
-        output = "[" + str_min;
-        break;
-    default:
-        __builtin_unreachable();
-    }
-    switch (above_mode_)
-    {
-    case Mode::Interval::None:
-        return output + ", Inf)";
-    case Mode::Interval::Open:
-        return output + ", " + str_max + ")";
-    case Mode::Interval::Closed:
-        return output + ", " + str_max + "]";
-    }
-    __builtin_unreachable();
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  Function : Arguments  ///////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-void Function::init_attr(std::string_view key, const Attribute &attr)
-{
-    // assert that function attribute are implicitely callable
-    try
-    {
-        helper_assert_valid_attribute_(key, attr);
-    }
-    catch (const std::exception &e)
-    {
-        throw std::invalid_argument(
-            "Impossible to associate " + attr.err_name() +
-            " as argument '" + std::string(key) + "' of " + err_name() + ".\n" +
-            std::string(e.what()));
+        // otherwise constant
+        return true;
     }
 
-    // transfer attribute
-    find_arg_(key).transfer(attr);
-
-    // apply location argument shift
-    if (key == "loc")
-        deloc_mode_ = Mode::Location::Active;
-}
-
-/// Assert that proposed function attribute is valid.
-void Function::helper_assert_valid_attribute_(std::string_view key, const Attribute &attr)
-{
-    if (attr.is_function())
+    bool Function::is_callable_explicitly() const noexcept
     {
-        const auto &undefined_args = attr.function()->get_missing_argument();
+        for (const Attribute &attr : arguments_)
+            if (attr.is_empty())
+                return false;
+        return true;
+    }
+
+    /// Collect names of missing arguments.
+    std::vector<std::string> Function::get_missing_argument() const
+    {
+        std::vector<std::string> undefined_args = {};
+        for (const Attribute &attr : arguments_)
+            if (attr.is_empty())
+                undefined_args.emplace_back(attr.name());
+        return undefined_args;
+    }
+
+    /// Throw exception if not callable explicitly.
+    void Function::assert_is_callable_explicitly() const
+    {
+        const std::vector<std::string> undefined_args = get_missing_argument();
         if (!undefined_args.empty())
             throw std::invalid_argument(
-                "Non default argument" + std::string(undefined_args.size() > 1 ? "s " : " ") +
-                hsp::str::format(undefined_args) +
-                " of " + attr.err_name() + " cannot be missing.");
-
-        if (!attr.function()->is_callable_implicitly())
-            throw std::invalid_argument(
-                "Argument 'x' of " + attr.err_name() + " cannot be missing.");
+                "Impossible to initialize " + err_name() + ": missing non default argument" +
+                (undefined_args.size() > 1 ? "s " : " ") + str::format(undefined_args));
     }
-    else if (attr.is_constant())
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////  Function : set range  //////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    bool Function::helper_init_range_min_(double min_val, bool is_min_open)
     {
-        double x = attr.value();
-        if (hsp::na::is(x) || (key == "x" && !is_valid(x)))
-            throw std::invalid_argument(
-                "Value " + hsp::str::format(x) + " for argument '" + std::string(key) +
-                "' is outside of range " + str_range() + ".");
-    }
-}
+        if (lower_.is_empty())
+            throw std::runtime_error(
+                "Forbidden initialization of minimum value for " + err_name() + ".");
 
-void Function::optimize()
-{
-    for (Attribute &attr : arguments_)
-        attr.optimize();
-    x_arg_.optimize();
-    loc_.optimize();
-    lower_.optimize();
-    upper_.optimize();
+        const double old = lower_.value();
+        if (old < min_val)
+            throw std::invalid_argument(
+                "Invoked invalid min value " + str::format(old) + " for " + err_name() + ".");
+
+        if (old == min_val && upper_.is_empty())
+            return false;
+
+        helper_init_standard_range_(is_min_open ? old == min_val : false, false);
+        return true;
+    }
+
+    void Function::helper_init_standard_range_(bool is_min_open, bool is_max_open)
+    {
+        if (lower_.is_empty())
+            below_mode_ = Mode::Interval::None;
+        else if (is_min_open)
+            below_mode_ = Mode::Interval::Open;
+        else
+            below_mode_ = Mode::Interval::Closed;
+
+        if (upper_.is_empty())
+            above_mode_ = Mode::Interval::None;
+        else if (is_max_open)
+            above_mode_ = Mode::Interval::Open;
+        else
+            above_mode_ = Mode::Interval::Closed;
+
+        // check for consistency if both range limits are provided
+        if (!lower_.is_callable() || !upper_.is_callable())
+            return;
+
+        bool is_wrong = lower_.value() > upper_.value();
+        if (below_mode_ == Mode::Interval::Open && below_mode_ == above_mode_)
+            is_wrong = is_wrong || lower_.value() == upper_.value();
+        if (is_wrong)
+            throw std::invalid_argument(
+                "Generated an inconsistent range " + str_range() + " for " + err_name() + ".");
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////  Function : show  ///////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// Return formatted function summary.
+    std::string Function::str_summary(bool show_x_arg) const
+    {
+        std::string sms = std::string(name()) + "(";
+        if (show_x_arg)
+            sms += std::string(x_arg_.name()) + "=" + x_arg_.str_val();
+
+        for (size_t c = 0; c < arguments_.size(); ++c)
+        {
+            if (c > 0 || show_x_arg)
+                sms += ", ";
+            sms += std::string(arguments_[c].name()) + "=" + arguments_[c].str_val();
+        }
+        return sms + ") : " + str_range();
+    }
+
+    /// Return formatted range.
+    std::string Function::str_range() const
+    {
+        const std::string &str_min = lower_.str_val();
+        const std::string &str_max = upper_.str_val();
+
+        std::string output;
+
+        switch (below_mode_)
+        {
+        case Mode::Interval::None:
+            output = "(-Inf";
+            break;
+        case Mode::Interval::Open:
+            output = "(" + str_min;
+            break;
+        case Mode::Interval::Closed:
+            output = "[" + str_min;
+            break;
+        default:
+            __builtin_unreachable();
+        }
+        switch (above_mode_)
+        {
+        case Mode::Interval::None:
+            return output + ", Inf)";
+        case Mode::Interval::Open:
+            return output + ", " + str_max + ")";
+        case Mode::Interval::Closed:
+            return output + ", " + str_max + "]";
+        }
+        __builtin_unreachable();
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////  Function : Arguments  ///////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    void Function::init_attr(std::string_view key, const Attribute &attr)
+    {
+        // assert that function attribute are implicitely callable
+        try
+        {
+            helper_assert_valid_attribute_(key, attr);
+        }
+        catch (const std::exception &e)
+        {
+            throw std::invalid_argument(
+                "Impossible to associate " + attr.err_name() +
+                " as argument '" + std::string(key) + "' of " + err_name() + ".\n" +
+                std::string(e.what()));
+        }
+
+        // transfer attribute
+        find_arg_(key).transfer(attr);
+
+        // apply location argument shift
+        if (key == "loc")
+            deloc_mode_ = Mode::Location::Active;
+    }
+
+    /// Assert that proposed function attribute is valid.
+    void Function::helper_assert_valid_attribute_(std::string_view key, const Attribute &attr)
+    {
+        if (attr.is_function())
+        {
+            const auto &undefined_args = attr.function()->get_missing_argument();
+            if (!undefined_args.empty())
+                throw std::invalid_argument(
+                    "Non default argument" + std::string(undefined_args.size() > 1 ? "s " : " ") +
+                    str::format(undefined_args) +
+                    " of " + attr.err_name() + " cannot be missing.");
+
+            if (!attr.function()->is_callable_implicitly())
+                throw std::invalid_argument(
+                    "Argument 'x' of " + attr.err_name() + " cannot be missing.");
+        }
+        else if (attr.is_constant())
+        {
+            double x = attr.value();
+            if (na::is(x) || (key == "x" && !is_valid(x)))
+                throw std::invalid_argument(
+                    "Value " + str::format(x) + " for argument '" + std::string(key) +
+                    "' is outside of range " + str_range() + ".");
+        }
+    }
+
+    void Function::optimize()
+    {
+        for (Attribute &attr : arguments_)
+            attr.optimize();
+        x_arg_.optimize();
+        loc_.optimize();
+        lower_.optimize();
+        upper_.optimize();
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -419,6 +422,8 @@ void Function::optimize()
 
 namespace
 {
+    using namespace hsp;
+
     /// Minus Function.
     class Minus_ final : public Function
     {
@@ -437,7 +442,7 @@ namespace
     class Subtraction_ final : public Function
     {
     public:
-        Subtraction_() : Function({{"x2", hsp::na::DOUBLE}}) {}
+        Subtraction_() : Function({{"x2", na::DOUBLE}}) {}
         HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Subtraction_)
         HOUSEPI_OVERRIDE_NAME_METHOD(sub)
 
@@ -452,7 +457,7 @@ namespace
     class Division_ final : public Function
     {
     public:
-        Division_() : Function({{"x2", hsp::na::DOUBLE}}) {}
+        Division_() : Function({{"x2", na::DOUBLE}}) {}
         HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Division_)
         HOUSEPI_OVERRIDE_NAME_METHOD(div)
 
@@ -465,7 +470,7 @@ namespace
     class Power_ final : public Function
     {
     public:
-        Power_() : Function({{"x2", hsp::na::DOUBLE}}) {}
+        Power_() : Function({{"x2", na::DOUBLE}}) {}
         HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Power_)
         HOUSEPI_OVERRIDE_NAME_METHOD(pow)
 
@@ -473,14 +478,14 @@ namespace
 
     protected:
         double raw_function_(double x) const override final { return std::pow(x, arg(0)); }
-        double raw_logfunc_(double x) const override final { return arg(0) * std::log(x); }
+        double raw_log_func_(double x) const override final { return arg(0) * std::log(x); }
         double raw_primitive_(double x) const override final
         {
             if (std::abs(arg(0) + 1.) < 1.e-10)
                 return std::log(std::abs(x));
             return std::pow(x, arg(0) + 1.) / (arg(0) + 1.);
         }
-        double raw_logratio_(double xo, double xn) const override final { return arg(0) * std::log(xn / xo); }
+        double raw_log_ratio_(double xo, double xn) const override final { return arg(0) * std::log(xn / xo); }
     };
     HOUSEPI_REGISTER_FUNCTION(Power_, Transcendental)
 
@@ -496,9 +501,9 @@ namespace
 
     protected:
         double raw_function_(double x) const override final { return std::sqrt(x); }
-        double raw_logfunc_(double x) const override final { return 0.5 * std::log(x); }
+        double raw_log_func_(double x) const override final { return 0.5 * std::log(x); }
         double raw_primitive_(double x) const override final { return std::pow(x, 1.5) / 1.5; }
-        double raw_logratio_(double xo, double xn) const override final { return raw_logfunc_(xn) - raw_logfunc_(xo); }
+        double raw_log_ratio_(double xo, double xn) const override final { return raw_log_func_(xn) - raw_log_func_(xo); }
     };
     HOUSEPI_REGISTER_FUNCTION(SquareRoot_, Transcendental)
 
@@ -511,9 +516,9 @@ namespace
 
     protected:
         double raw_function_(double x) const override final { return std::exp(x); }
-        double raw_logfunc_(double x) const override final { return x; }
+        double raw_log_func_(double x) const override final { return x; }
         double raw_primitive_(double x) const override final { return std::exp(x); }
-        double raw_logratio_(double xo, double xn) const override final { return xn - xo; }
+        double raw_log_ratio_(double xo, double xn) const override final { return xn - xo; }
     };
     HOUSEPI_REGISTER_FUNCTION(Exponential_, Transcendental)
 
@@ -529,9 +534,9 @@ namespace
 
     protected:
         double raw_function_(double x) const override final { return std::log(x); }
-        double raw_logfunc_(double x) const override final { return std::log(std::log(x)); }
+        double raw_log_func_(double x) const override final { return std::log(std::log(x)); }
         double raw_primitive_(double x) const override final { return x * std::log(x) - x; }
-        double raw_logratio_(double xo, double xn) const override final { return raw_logfunc_(xn) - raw_logfunc_(xo); }
+        double raw_log_ratio_(double xo, double xn) const override final { return raw_log_func_(xn) - raw_log_func_(xo); }
     };
     HOUSEPI_REGISTER_FUNCTION(Logarithm_, Transcendental)
 
@@ -544,9 +549,9 @@ namespace
 
     protected:
         double raw_function_(double x) const override final { return std::sin(x); }
-        double raw_logfunc_(double x) const override final { return std::log(std::sin(x)); }
+        double raw_log_func_(double x) const override final { return std::log(std::sin(x)); }
         double raw_primitive_(double x) const override final { return -std::cos(x); }
-        double raw_logratio_(double xo, double xn) const override final { return raw_logfunc_(xn) - raw_logfunc_(xo); }
+        double raw_log_ratio_(double xo, double xn) const override final { return raw_log_func_(xn) - raw_log_func_(xo); }
     };
     HOUSEPI_REGISTER_FUNCTION(Sine_, Transcendental)
 
@@ -559,9 +564,9 @@ namespace
 
     protected:
         double raw_function_(double x) const override final { return std::cos(x); }
-        double raw_logfunc_(double x) const override final { return std::log(std::cos(x)); }
+        double raw_log_func_(double x) const override final { return std::log(std::cos(x)); }
         double raw_primitive_(double x) const override final { return std::sin(x); }
-        double raw_logratio_(double xo, double xn) const override final { return raw_logfunc_(xn) - raw_logfunc_(xo); }
+        double raw_log_ratio_(double xo, double xn) const override final { return raw_log_func_(xn) - raw_log_func_(xo); }
     };
     HOUSEPI_REGISTER_FUNCTION(Cosine_, Transcendental)
 
@@ -574,8 +579,8 @@ namespace
 
     protected:
         double raw_function_(double x) const override final { return std::tan(x); }
-        double raw_logfunc_(double x) const override final { return std::log(std::tan(x)); }
-        double raw_logratio_(double xo, double xn) const override final { return raw_logfunc_(xn) - raw_logfunc_(xo); }
+        double raw_log_func_(double x) const override final { return std::log(std::tan(x)); }
+        double raw_log_ratio_(double xo, double xn) const override final { return raw_log_func_(xn) - raw_log_func_(xo); }
     };
     HOUSEPI_REGISTER_FUNCTION(Tangent_, Transcendental)
 
@@ -612,7 +617,7 @@ namespace
                 return upper_;
 
             for (Attribute &attr : arguments_)
-                if (!hsp::na::is(attr.name()) && attr.name() == key)
+                if (!na::is(attr.name()) && attr.name() == key)
                     return attr;
 
             arguments_.emplace_back();
@@ -625,8 +630,8 @@ namespace
     {                                                       \
     public:                                                 \
         Class_() : VariadicFunction() {}                    \
-        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Class_)                  \
-        HOUSEPI_OVERRIDE_NAME_METHOD(name_)                    \
+        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Class_)      \
+        HOUSEPI_OVERRIDE_NAME_METHOD(name_)                 \
                                                             \
     protected:                                              \
         double raw_function_(double x) const override final \
@@ -646,8 +651,8 @@ namespace
     {                                                       \
     public:                                                 \
         Class_() : VariadicFunction() {}                    \
-        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Class_)                  \
-        HOUSEPI_OVERRIDE_NAME_METHOD(name_)                    \
+        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Class_)      \
+        HOUSEPI_OVERRIDE_NAME_METHOD(name_)                 \
                                                             \
     protected:                                              \
         double raw_function_(double x) const override final \

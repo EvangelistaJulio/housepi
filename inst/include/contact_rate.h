@@ -20,31 +20,34 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct DataWide;
-struct Parameter;
-class Household;
-class Individual;
-
-/// UPDATE: callback will be dropped in favour of table definitions
-struct ContactRate
+namespace hsp
 {
-public:
-    ContactRate(
-        std::function<std::string(Household &, const Individual &, const Individual &)> func_init_contact_rate,
-        DataWide *dataptr,
-        const Parameter *paramptr);
-    ~ContactRate();
+    struct DataWide;
+    struct Parameter;
+    class Household;
+    class Individual;
 
-    /// Build symmetric contact rates.
-    /// FIXME: skipped for the moment
-    void build();
+    /// UPDATE: callback will be dropped in favour of table definitions
+    struct ContactRate
+    {
+    public:
+        ContactRate(
+            std::function<std::string(Household &, const Individual &, const Individual &)> func_init_contact_rate,
+            DataWide *dataptr,
+            const Parameter *paramptr);
+        ~ContactRate();
 
-private:
-    std::function<std::string(Household &, const Individual &, const Individual &)> callback_init_contact_rate_;
+        /// Build symmetric contact rates.
+        /// FIXME: skipped for the moment
+        void build();
 
-    DataWide *pDataWide_;         /// pointer to external DataWide struct
-    const Parameter *pParameter_; /// pointer to external Parameter struct
+    private:
+        std::function<std::string(Household &, const Individual &, const Individual &)> callback_init_contact_rate_;
 
-    /// Set contact rate according to user assignement.
-    void init_contact_rates_(Household &house, size_t k, size_t i);
-};
+        DataWide *pDataWide_;         /// pointer to external DataWide struct
+        const Parameter *pParameter_; /// pointer to external Parameter struct
+
+        /// Set contact rate according to user assignement.
+        void init_contact_rates_(Household &house, size_t k, size_t i);
+    };
+}

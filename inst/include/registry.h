@@ -20,51 +20,98 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-class Function;
-class Distribution;
-
-class FunctionRegistry
+namespace hsp
 {
-public:
-    using func_uptr = std::unique_ptr<Function>;
+    class Function;
+    class Distribution;
 
-    virtual std::string_view name() const = 0;
-    bool count(std::string_view opt) const { return factory_map_.count(opt); }
-    std::vector<std::string> get_options() const;
-    virtual func_uptr create(std::string_view opt, bool is_prim = false) const;
-
-    /// UPDATE: this requires to create an instance of T.
-    template <typename T>
-    void register_member()
+    /// @class FunctionRegistry
+    /// @brief Base registry class for managing factory-based creation of Function objects.
+    ///
+    /// FunctionRegistry implements the registry pattern for polymorphic object creation.
+    /// Derived classes maintain a factory map that enables dynamic instantiation of registered
+    /// function types by name. This pattern supports extensibility without modifying core code.
+    ///
+    /// @details
+    /// - Uses a std::map with std::function wrappers to store factory lambdas
+    /// - Provides template-based registration mechanism for derived classes
+    /// - Supports lookup and creation of objects by string identifier
+    class FunctionRegistry
     {
-        factory_map_.emplace(std::string(T().name()), []()
-                             { return std::make_unique<T>(); });
-    }
+    public:
+        using func_uptr = std::unique_ptr<Function>;
 
-protected:
-    std::map<std::string, std::function<func_uptr()>, std::less<>> factory_map_ = {};
-};
+        /// @brief Get the registry name.
+        /// @return The name of this registry.
+        virtual std::string_view name() const = 0;
 
-class DistributionRegistry : public FunctionRegistry
-{
-public:
-    func_uptr create(std::string_view opt, bool is_prim = false) const override final;
-};
+        /// @brief Check if a factory for the given option exists.
+        /// @param opt The option name to check.
+        /// @return true if the option is registered, false otherwise.
+        bool count(std::string_view opt) const { return factory_map_.count(opt); }
+
+        /// @brief Get all registered option names.
+        /// @return A vector of registered option identifiers.
+        std::vector<std::string> get_options() const;
+
+        /// @brief Create a Function instance for the given option.
+        /// @param opt The option/type name to instantiate.
+        /// @param is_prim Whether the object should be created in primitive mode (default: false).
+        /// @return A unique_ptr to the created Function object.
+        /// @throws std::exception if the option is not registered.
+        virtual func_uptr create(std::string_view opt, bool is_prim = false) const;
+
+        /// @brief Register a function type with the factory.
+        /// @tparam T The function class type to register. Must have a name() method.
+        /// @details This template method automatically creates and stores a factory lambda
+        /// that can be invoked later to create instances of type T.
+        template <typename T>
+        void register_member()
+        {
+            factory_map_.emplace(std::string(T().name()), []()
+                                 { return std::make_unique<T>(); });
+        }
+
+    protected:
+        /// @brief Factory map storing function creation lambdas.
+        /// @details Keys are the string names of registered types, values are factory functions
+        /// that return unique_ptr<Function> instances.
+        std::map<std::string, std::function<func_uptr()>, std::less<>> factory_map_ = {};
+    };
+
+    /// @class DistributionRegistry
+    /// @brief Specialized registry for creating Distribution objects.
+    ///
+    /// DistributionRegistry extends FunctionRegistry to provide specialized factory creation
+    /// for Distribution types. It overrides the create() method with final to enforce specific
+    /// distribution creation semantics in derived registries.
+    class DistributionRegistry : public FunctionRegistry
+    {
+    public:
+        /// @brief Create a Distribution instance for the given option.
+        /// @param opt The distribution type name to instantiate.
+        /// @param is_prim Whether the object should be created in primitive mode (default: false).
+        /// @return A unique_ptr to the created Function object (polymorphic base).
+        /// @details This override is marked final to prevent further specialization in derived
+        /// distribution registry classes.
+        func_uptr create(std::string_view opt, bool is_prim = false) const override final;
+    };
+}
 
 #define HOUSEPI_OVERRIDE_NAME_METHOD(name_) \
     std::string_view name() const noexcept override final { return #name_; }
 #define HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Class_) \
-    std::unique_ptr<Function> clone() const override final { return std::make_unique<Class_>(*this); }
+    std::unique_ptr<hsp::Function> clone() const override final { return std::make_unique<Class_>(*this); }
 #define HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Class_) \
-    std::unique_ptr<Distribution> clone_distrib() const override final { return std::make_unique<Class_>(*this); }
+    std::unique_ptr<hsp::Distribution> clone_distrib() const override final { return std::make_unique<Class_>(*this); }
 
 /// Declare housepi functions registry.
-#define HOUSEPI_DECLARE_REGISTRY_(ClassName, Type)    \
-    class ClassName##Registry : public Type##Registry \
-    {                                                 \
-    public:                                           \
-        HOUSEPI_OVERRIDE_NAME_METHOD(ClassName)       \
-        static ClassName##Registry &instance();       \
+#define HOUSEPI_DECLARE_REGISTRY_(ClassName, Type)         \
+    class ClassName##Registry : public hsp::Type##Registry \
+    {                                                      \
+    public:                                                \
+        HOUSEPI_OVERRIDE_NAME_METHOD(ClassName)            \
+        static ClassName##Registry &instance();            \
     };
 
 /// Define instance method of registry.

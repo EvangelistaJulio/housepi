@@ -1,0 +1,7 @@
+#!/bin/sh
+
+for f in inst/models/*/model.cpp; do
+  [ -f "$f" ] || continue
+  name=`basename \`dirname "$f"\``
+  cp "$f" "src/model_${name}.cpp"
+done

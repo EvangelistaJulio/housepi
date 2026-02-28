@@ -33,7 +33,7 @@ public:
 	void init_model_for_evaluation() override final
 	{
 		assert_no_missing_status();
-		bax::init_generations_lookuptable(get_max_hh_cases());
+		bino::init_generations_lookuptable(get_max_hh_cases());
 	}
 
 	/// Risk of infection from the community.
@@ -77,10 +77,10 @@ double Model::compute_house_obs_log_lik(Household &house)
 
 	// sum over all possible generations
 	double sero_positive_term = 0., tmp = 0.;
-	for (unsigned long c = 0; c < bax::get_num_generations(n_positive); ++c)
+	for (unsigned long c = 0; c < bino::get_num_generations(n_positive); ++c)
 	{
 		// reference to the LUT
-		const auto &gen_counts = bax::get_generation_vector(n_positive, c);
+		const auto &gen_counts = bino::get_generation_vector(n_positive, c);
 
 		// generation (0) : infected by community
 		tmp = gen_counts[0] * log_commu_infec_proba;
@@ -99,7 +99,7 @@ double Model::compute_house_obs_log_lik(Household &house)
 		}
 
 		// times n. of equivalent configurations returning the same kind of generation
-		sero_positive_term += bax::get_generation_multipl(n_positive, c) * std::exp(tmp);
+		sero_positive_term += bino::get_generation_multipl(n_positive, c) * std::exp(tmp);
 	}
 
 	log_likelihood += std::log(sero_positive_term);

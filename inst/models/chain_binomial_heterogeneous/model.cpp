@@ -36,7 +36,7 @@ public:
 	void init_model_for_evaluation() override final
 	{
 		assert_no_missing_status();
-		bax::init_escape_patterns_lookuptable(get_max_hh_cases());
+		bino::init_escape_patterns_lookuptable(get_max_hh_cases());
 	}
 
 	/// Initialize internal order for house escape matrix
@@ -78,7 +78,7 @@ double Model::compute_house_obs_log_lik(Household &house)
 	fill_house_escape_matrix(house);
 
 	// compute corresponding loglikelihood times house multiplicity
-	return bax::chain_binomial_heter_log_lik(
+	return bino::chain_binomial_heter_log_lik(
 		house.n_infected_status(),
 		cache_double_vector(house, HHdoublevecKey::commu_escape_rate),
 		cache_double_matrix(house, HHdoublemtxKey::p2p_escape_rate));

@@ -84,6 +84,8 @@ namespace hsp::msg
 
 namespace
 {
+    using namespace hsp;
+
     // Base class to wrap internal hosuepi functions
     class ExposeBase
     {
@@ -110,9 +112,9 @@ namespace
                             Attribute(Rcpp::as<double>(args[i])));
                 }
 
-                if (!hsp::na::is(min))
+                if (!na::is(min))
                     ptr_->init_attr("min", Attribute(min));
-                if (!hsp::na::is(max))
+                if (!na::is(max))
                     ptr_->init_attr("max", Attribute(max));
 
                 if (is_discr)
@@ -122,7 +124,7 @@ namespace
             }
             catch (const std::exception &e)
             {
-                hsp::msg::error(
+                msg::error(
                     "While initializing " + family_ + " '" + name + "':\n" + e.what());
             }
         }
@@ -157,7 +159,7 @@ namespace
             }
             catch (const std::exception &e)
             {
-                hsp::msg::error(
+                msg::error(
                     "While calling " + family_ + " '" + std::string(ptr_->name()) + "':\n" + e.what());
             }
         }
@@ -230,14 +232,14 @@ namespace
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Auxiliary converter to R NA real values.
-    double hsp_to_rcpp(double x) { return hsp::na::is(x) ? NA_REAL : x; }
+    double hsp_to_rcpp(double x) { return na::is(x) ? NA_REAL : x; }
     double hsp_to_rcpp(const Attribute &attr)
     {
         return attr.is_empty() ? NA_REAL : hsp_to_rcpp(attr.value());
     }
 
     /// Convert R dataframe map of string vectors.
-    hsp::str_table rdataframe_to_strmap(SEXP input)
+    str_table rdataframe_to_strmap(SEXP input)
     {
         using namespace Rcpp;
 
@@ -246,7 +248,7 @@ namespace
 
         DataFrame df(input);
         CharacterVector colnames = df.names();
-        hsp::str_table output;
+        str_table output;
 
         for (R_xlen_t i = 0; i < df.size(); ++i)
         {
@@ -259,7 +261,7 @@ namespace
     }
 
     /// Convert R dataframe map of double vectors.
-    hsp::dbl_table rdataframe_to_dblmap(SEXP input)
+    dbl_table rdataframe_to_dblmap(SEXP input)
     {
         using namespace Rcpp;
 
@@ -268,7 +270,7 @@ namespace
 
         DataFrame df(input);
         CharacterVector colnames = df.names();
-        hsp::dbl_table output;
+        dbl_table output;
 
         for (R_xlen_t i = 0; i < df.size(); ++i)
         {
@@ -320,7 +322,7 @@ namespace
         }                                                      \
         catch (const std::exception &e)                        \
         {                                                      \
-            hsp::msg::error(std::string("While importing ") +  \
+            msg::error(std::string("While importing ") +  \
                             section_name + ":\n" + e.what());  \
         }                                                      \
     }
@@ -343,7 +345,7 @@ namespace
         }
         catch (const std::exception &e)
         {
-            hsp::msg::error(std::string("While importing ") + "multiplicity" + ":\n" + e.what());
+            msg::error(std::string("While importing ") + "multiplicity" + ":\n" + e.what());
         }
     }
 
@@ -355,7 +357,7 @@ namespace
         }
         catch (const std::exception &e)
         {
-            hsp::msg::error("While importanting parameter table:\n" +
+            msg::error("While importanting parameter table:\n" +
                             std::string(e.what()));
         }
     }
@@ -496,7 +498,7 @@ namespace
         }
         catch (const std::exception &e)
         {
-            hsp::msg::error("While exporting data (wide):\n" +
+            msg::error("While exporting data (wide):\n" +
                             std::string(e.what()));
         }
     }
@@ -572,7 +574,7 @@ namespace
         }
         catch (const std::exception &e)
         {
-            hsp::msg::error("While exporting data (long):\n" + std::string(e.what()));
+            msg::error("While exporting data (long):\n" + std::string(e.what()));
         }
     }
 
@@ -591,7 +593,7 @@ namespace
         try
         {
             if (data_wide.is_empty())
-                hsp::msg::warning("Called 'summarise_cases' on empty data.");
+                msg::warning("Called 'summarise_cases' on empty data.");
 
             CharacterVector type = wrap(std::vector<std::string>(4, "individual") +
                                         std::vector<std::string>(4, "household"));
@@ -631,7 +633,7 @@ namespace
         }
         catch (const std::exception &e)
         {
-            hsp::msg::error("While exporting data report:\n" +
+            msg::error("While exporting data report:\n" +
                             std::string(e.what()));
         }
     }
@@ -678,7 +680,7 @@ namespace
         }
         catch (const std::exception &e)
         {
-            hsp::msg::error("While exporting household size report:\n" +
+            msg::error("While exporting household size report:\n" +
                             std::string(e.what()));
         }
     }
@@ -702,7 +704,7 @@ namespace
         }
         catch (const std::exception &e)
         {
-            hsp::msg::error("While exporting total log-likelihood draws:\n" +
+            msg::error("While exporting total log-likelihood draws:\n" +
                             std::string(e.what()));
         }
     }
@@ -732,7 +734,7 @@ namespace
         }
         catch (const std::exception &e)
         {
-            hsp::msg::error("While exporting parameters draws:\n" +
+            msg::error("While exporting parameters draws:\n" +
                             std::string(e.what()));
         }
     }
@@ -766,7 +768,7 @@ namespace
         }
         catch (const std::exception &e)
         {
-            hsp::msg::error("While exporting parameter log-priors draws:\n" +
+            msg::error("While exporting parameter log-priors draws:\n" +
                             std::string(e.what()));
         }
     }
@@ -810,7 +812,7 @@ namespace
         }
         catch (const std::exception &e)
         {
-            hsp::msg::error("While exporting augmented draws:\n" +
+            msg::error("While exporting augmented draws:\n" +
                             std::string(e.what()));
         }
     }
@@ -857,7 +859,7 @@ namespace
         }
         catch (const std::exception &e)
         {
-            hsp::msg::error("While exporting household log-likelihood draws:\n" +
+            msg::error("While exporting household log-likelihood draws:\n" +
                             std::string(e.what()));
         }
     }
@@ -1108,7 +1110,7 @@ namespace
         }
         catch (const std::exception &e)
         {
-            hsp::msg::error("While exporting snapshot of household '" + house_id + "':\n" +
+            msg::error("While exporting snapshot of household '" + house_id + "':\n" +
                             std::string(e.what()));
         }
     }
@@ -1174,7 +1176,7 @@ namespace
     {
         using namespace Rcpp;
         Parameter &param = engine->param;
-        hsp::atomic::Error &atomic_error = engine->atomic_error;
+        atomic::Error &atomic_error = engine->atomic_error;
 
         atomic_error.restore();
 
@@ -1207,7 +1209,7 @@ namespace
         }
         catch (std::exception &e)
         {
-            hsp::msg::error(e.what());
+            msg::error(e.what());
         }
     }
 
@@ -1258,7 +1260,6 @@ namespace
                             _["var_log_lik"] = wrap(var_vec));
     }
     */
-}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1272,8 +1273,6 @@ namespace
         return Rcpp::wrap(model_xptr->method());       \
     }
 
-namespace
-{
     MAKE_EXPORT_CHARACTER_VECTOR(compile_flags)
     MAKE_EXPORT_CHARACTER_VECTOR(get_DataKey)
     MAKE_EXPORT_CHARACTER_VECTOR(get_LongKey)
@@ -1298,7 +1297,7 @@ namespace
         catch (const std::exception &e)
         {
             engine->setup.prog_crash();
-            hsp::msg::error(e.what());
+            msg::error(e.what());
         }
     }
     void run_inference(Rcpp::XPtr<MCMC> engine)
@@ -1310,7 +1309,7 @@ namespace
         catch (std::exception &e)
         {
             engine->setup.prog_crash();
-            hsp::msg::error(e.what());
+            msg::error(e.what());
         }
     }
 }

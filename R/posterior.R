@@ -84,6 +84,12 @@ HousepiPosteriorDraws <- R6::R6Class(
       output <- posterior::as_draws_df(array_trs)
       output$.iteration <- rep(private$iter_names_, times = n_chains)
       output
+    },
+
+    # @description Return empty draws.
+    # @return `posterior::draws_df`
+    empty_draws_ = function() {
+      posterior::as_draws_df(data.frame())
     }
   ),
 
@@ -96,14 +102,16 @@ HousepiPosteriorDraws <- R6::R6Class(
     #' Draws of parameters.
     param_draws = function(value) {
       if (!missing(value)) stop_h("'param_draws' is read only.")
-      private$param_draws_
+      if (is.null(private$param_draws_)) private$empty_draws_()
+      else private$param_draws_
     },
 
     #' @field prior_draws `posterior::draws_df`.
     #' Draws of parameter priors.
     prior_draws = function(value) {
       if (!missing(value)) stop_h("'prior_draws' is read only.")
-      posterior::mutate_variables(
+      if (is.null(private$prior_draws_)) private$empty_draws_()
+      else posterior::mutate_variables(
         private$prior_draws_,
         lprior = rowSums(posterior::as_draws_matrix(private$prior_draws_))
       )
@@ -113,7 +121,8 @@ HousepiPosteriorDraws <- R6::R6Class(
     #' Draws selected individuals augmented variables.
     augm_draws = function(value) {
       if (!missing(value)) stop_h("'augm_draws' is read only.")
-      private$augm_draws_
+      if (is.null(private$augm_draws_)) private$empty_draws_()
+      else private$augm_draws_
     },
 
     #' @field log_lik_draws `posterior::draws_df`.

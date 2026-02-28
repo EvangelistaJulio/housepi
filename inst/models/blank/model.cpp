@@ -29,11 +29,11 @@ public:
 	HOUSEPI_DECLARE_EMPTY_KEYS(ParamKey)
 
 	/// Raise error when "blank" model.
-	void init_model_for_evaluation() override final { hsp::msg::warning(
+	void init_model_for_evaluation() override final { msg::warning(
 		"Computed log-likelihood with 'blank' model."); }
 
 	/// Raise error when "blank" model.
-	void init_model_for_simulation() override final { hsp::msg::warning(
+	void init_model_for_simulation() override final { msg::warning(
 		"Performed simulation with 'blank' model."); }
 
 	/// Unitary likelihood.

@@ -54,7 +54,7 @@ namespace hsp::key
     }
 
 #define HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE_IMPL_(module_name) \
-    namespace module_name                                      \
+    namespace hsp::module_name                                 \
     {
 
 #ifdef _HOUSEPI_MODULE
@@ -79,7 +79,7 @@ namespace hsp::key
 #define HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE_IMPL_(module_name) \
     int main(int argc, char *argv[])                              \
     {                                                             \
-        using namespace module_name;                              \
+        using namespace hsp::module_name;                         \
         Model model = Model();                                    \
         MCMC engine(model);                                       \
         return standalone(engine, argc, argv);                    \
@@ -100,7 +100,7 @@ namespace hsp::key
 #define HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE_IMPL_(module_name) \
     RCPP_MODULE(module_name)                                      \
     {                                                             \
-        using namespace module_name;                              \
+        using namespace hsp::module_name;                         \
                                                                   \
         Rcpp::function("new_model", &new_model);                  \
     }

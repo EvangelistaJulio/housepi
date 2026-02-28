@@ -10,7 +10,7 @@
 #include <Rcpp.h>
 #include "model.h"
 
-inline void invoke_destructor_(ModelBase *p) { delete p; }
-using ModelXPtr = Rcpp::XPtr<ModelBase, Rcpp::PreserveStorage,
+inline void invoke_destructor_(hsp::ModelBase *p) { delete p; }
+using ModelXPtr = Rcpp::XPtr<hsp::ModelBase, Rcpp::PreserveStorage,
 							 invoke_destructor_>;
 
