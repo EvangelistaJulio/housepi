@@ -34,7 +34,6 @@ HousepiGenerator <- R6::R6Class(
     dll_ = NA_character_,
     cache_dir_ = NA_character_,
     source_dir_ = NA_character_,
-    is_quiet_ = FALSE,
     needs_compile_ = FALSE,
     model_ptr_ = NULL,
     mcmc_ptr_ = NULL,
@@ -73,7 +72,7 @@ HousepiGenerator <- R6::R6Class(
 
     # @description
     # Process user options for compilation.
-    pre_process_user_options_ = function(...) {
+    pre_process_user_options_ = function(quiet, ...) {
       user_paths <- character()
       user_flags <- character()
       user_libs <- character()
@@ -85,7 +84,8 @@ HousepiGenerator <- R6::R6Class(
         user_flags <- c(user_flags, "_HOUSEPI_DISCRETE_TIME")
       }
 
-      list("user_paths" = user_paths,
+      list("quiet" = isTRUE(quiet),
+           "user_paths" = user_paths,
            "user_flags" = user_flags,
            "user_libs" = user_libs)
     },
@@ -349,12 +349,12 @@ HousepiGenerator <- R6::R6Class(
 
     # @description
     # Compile and load the source files inside cached directory.
-    # Note: I am tricking pkgbuild::compile_dll and R CMD INSTALL.
-    # To avoid recompiling immutable files I just touch them.
-    # @param user_paths A `character()` vector of additional include paths.
-    # @param user_flags A `character()` vector of additional compiler flags.
-    # @param user_libs A `character()` vector of additional linker flags.
-    compile_ = function(user_paths = character(),
+    # @param quiet `r rd_mdl_quiet_`
+    # @param user_paths `character()` Additional include paths.
+    # @param user_flags `character()` Additional compiler flags.
+    # @param user_libs `character()` Additional linker flags.
+    compile_ = function(quiet = TRUE,
+                        user_paths = character(),
                         user_flags = character(),
                         user_libs = character()) {
       # compile the dynamic library
@@ -363,7 +363,7 @@ HousepiGenerator <- R6::R6Class(
                                      flags = user_flags,
                                      libs = user_libs),
         pkgbuild::compile_dll(private$cache_dir_,
-                              quiet = private$is_quiet_,
+                              quiet = quiet,
                               compile_attributes = FALSE,
                               debug = FALSE)
       )
@@ -371,6 +371,10 @@ HousepiGenerator <- R6::R6Class(
       custom_dll <- file.path(private$cache_dir_, "src",
                               dll_file_ext("housepi.custom"))
       overwrite(custom_dll, private$dll_)
+      # drop other files
+      unlink(file.path(private$cache_dir_,
+                       c("NAMESPACE", "DESCRIPTION", "src", "R")),
+             recursive = TRUE)
 
       invisible(self)
     },
@@ -477,10 +481,8 @@ HousepiGenerator <- R6::R6Class(
       # assign name to the model
       choice <- private$helper_init_choice_(choice)
 
-      # assign quiet field
-      private$is_quiet_ <- isTRUE(quiet)
-      # load user options
-      user_options <- private$pre_process_user_options_(...)
+      # assign quiet field and load user options
+      user_options <- private$pre_process_user_options_(quiet, ...)
       # store raw flags for later checks
       private$last_flags_ <- user_options$user_flags
 

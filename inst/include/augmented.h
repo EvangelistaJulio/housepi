@@ -95,9 +95,9 @@ namespace hsp
 
         /// Compute and store log-likelihood associated to augmented variable models.
         /// NOTE: to be called only if any model is defined.
-        double materialize_augm_model_log_lik(AugmContainer &member);
+        double commit_augm_model_log_lik(AugmContainer &member);
         /// Change in log-likelihood associated to given augmented.
-        double materialize_augm_model_log_ratio(AugmContainer &member, size_t a);
+        double commit_augm_model_log_ratio(AugmContainer &member, size_t a);
 
         /////////////////////
         //////  FLAGS  //////

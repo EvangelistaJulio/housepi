@@ -23,14 +23,20 @@
 #include "individual.h"
 #include "household.h"
 
-#define STRINGIFY(x) #x
-#define TOSTRING(x) STRINGIFY(x)
-
 namespace hsp::key
 {
     /// Parse comma-separated enum names from stringified variadic arguments.
     std::vector<std::string> helper_parse_names(std::string input);
 }
+
+#define STRINGIFY(x) #x
+#define TOSTRING(x) STRINGIFY(x)
+
+#ifdef _HOUSEPI_DISCRETE_TIME
+#define FLAG_STR_HOUSEPI_DISCRETE_TIME "_HOUSEPI_DISCRETE_TIME,"
+#else
+#define FLAG_STR_HOUSEPI_DISCRETE_TIME ""
+#endif
 
 #define HOUSEPI_DECLARE_EMPTY_KEYS(T) \
     struct T                          \
@@ -53,26 +59,6 @@ namespace hsp::key
         return hsp::key::helper_parse_names(#__VA_ARGS__);        \
     }
 
-#define HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE_IMPL_(module_name) \
-    namespace hsp::module_name                                 \
-    {
-
-#ifdef _HOUSEPI_MODULE
-#define HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE(module_name) \
-    HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE_IMPL_(_HOUSEPI_MODULE)
-#else
-#define HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE(module_name) \
-    HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE_IMPL_(module_name)
-#endif
-
-#define HOUSEPI_CLOSE_NAMED_MODULE_NAMESPACE() }
-
-#ifdef _HOUSEPI_DISCRETE_TIME
-#define FLAG_STR_HOUSEPI_DISCRETE_TIME "_HOUSEPI_DISCRETE_TIME,"
-#else
-#define FLAG_STR_HOUSEPI_DISCRETE_TIME ""
-#endif
-
 #ifdef _STANDALONE
 #define HOUSEPI_EXTRA_FLAG_SUPPORT()
 #define HOUSEPI_RCPP_MODEL_FACTORY()
@@ -81,10 +67,12 @@ namespace hsp::key
     {                                                             \
         using namespace hsp::module_name;                         \
         Model model = Model();                                    \
-        MCMC engine(model);                                       \
+        hsp::MCMC engine(model);                                  \
         return standalone(engine, argc, argv);                    \
     }
+
 #else
+
 #define HOUSEPI_EXTRA_FLAG_SUPPORT()                                         \
     std::vector<std::string> compile_flags() const override final            \
     {                                                                        \
@@ -101,15 +89,19 @@ namespace hsp::key
     RCPP_MODULE(module_name)                                      \
     {                                                             \
         using namespace hsp::module_name;                         \
-                                                                  \
         Rcpp::function("new_model", &new_model);                  \
     }
 #endif
 
-#ifdef _HOUSEPI_MODULE
-#define HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE(module_name) \
+#define HOUSEPI_REGISTER_MODULE_INTERFACE() \
     HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE_IMPL_(_HOUSEPI_MODULE)
-#else
-#define HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE(module_name) \
-    HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE_IMPL_(module_name)
-#endif
+
+#define HOUSEPI_OPEN_MODULE_NAMESPACE_IMPL_(module_name) \
+    namespace hsp::module_name                           \
+    {
+#define HOUSEPI_OPEN_MODULE_NAMESPACE() \
+    HOUSEPI_OPEN_MODULE_NAMESPACE_IMPL_(_HOUSEPI_MODULE)
+#define HOUSEPI_CLOSE_MODULE_NAMESPACE() \
+    HOUSEPI_RCPP_MODEL_FACTORY()         \
+    }                                    \
+    HOUSEPI_REGISTER_MODULE_INTERFACE()

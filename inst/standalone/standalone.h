@@ -10,72 +10,75 @@
 #include <string>
 #include <vector>
 
-class MCMCBase;
-class MCMC;
-
-struct Options
+namespace hsp
 {
-    bool is_log_lik = false;     // loglikelihood option
-    bool is_infer = false;       // inference option
-    bool is_simulate = false;    // simulation option
-    unsigned long num_rungs = 0; // n. rungs power posteriors
+    class MCMCBase;
+    class MCMC;
 
-    struct PathToFiles
+    struct Options
     {
-        std::string augm = "";
-        std::string data_wide = "";
-        std::string data_long = "";
-        std::string group_rate = "";
-        std::string infec_profile = "";
-        std::string multiplicity = "";
-        std::string output = "";
-        std::string param = "";
-        std::string setup = "";
-    } file;
+        bool is_log_lik = false;     // loglikelihood option
+        bool is_infer = false;       // inference option
+        bool is_simulate = false;    // simulation option
+        unsigned long num_rungs = 0; // n. rungs power posteriors
 
-    Options(int argc, char *argv[]);
+        struct PathToFiles
+        {
+            std::string augm = "";
+            std::string data_wide = "";
+            std::string data_long = "";
+            std::string group_rate = "";
+            std::string infec_profile = "";
+            std::string multiplicity = "";
+            std::string output = "";
+            std::string param = "";
+            std::string setup = "";
+        } file;
 
-    void read_data_wide(MCMCBase &engine);
-    void read_data_long(MCMCBase &engine);
-    void read_setup(MCMCBase &engine);
-    void read_param(MCMCBase &engine);
-    void read_infec_profile(MCMCBase &engine);
-    void read_group_rate(MCMCBase &engine);
-    void read_augm(MCMCBase &engine);
-    void read_multiplicity(MCMCBase &engine);
+        Options(int argc, char *argv[]);
 
-    bool is_log_evidence() const noexcept { return num_rungs > 0; }
-    void assert();
-};
+        void read_data_wide(MCMCBase &engine);
+        void read_data_long(MCMCBase &engine);
+        void read_setup(MCMCBase &engine);
+        void read_param(MCMCBase &engine);
+        void read_infec_profile(MCMCBase &engine);
+        void read_group_rate(MCMCBase &engine);
+        void read_augm(MCMCBase &engine);
+        void read_multiplicity(MCMCBase &engine);
 
-/// Initialize the output file with inferred parameters with column names and initial values.
-void print_infer_state(const MCMCBase &engine, const std::string &f);
+        bool is_log_evidence() const noexcept { return num_rungs > 0; }
+        void assert();
+    };
 
-/// Print all augmented variables of each individual.
-std::ofstream open_ofstream_datawide(const std::string &f,
-                                     const std::vector<std::string> &data_headers,
-                                     const std::vector<std::string> &augm_headers);
+    /// Initialize the output file with inferred parameters with column names and initial values.
+    void print_infer_state(MCMC &engine, const std::string &f);
 
-/// Print all augmented variables of each individual.
-void update_ofstream_datawide(std::ofstream &ofs,
-                              Household &house,
-                              size_t data_wide_size,
-                              const std::vector<size_t> &augm_export);
+    /// Print all augmented variables of each individual.
+    std::ofstream open_ofstream_datawide(const std::string &f,
+                                         const std::vector<std::string> &data_headers,
+                                         const std::vector<std::string> &augm_headers);
 
-/// Print the simulated data to the provided file.
-void print_simulated_data_wide(MCMC &engine, const std::string &pathtofile);
+    /// Print all augmented variables of each individual.
+    void update_ofstream_datawide(std::ofstream &ofs,
+                                  Household &house,
+                                  size_t data_wide_size,
+                                  const std::vector<size_t> &augm_export);
 
-/* --FUTURE-LOG-EVIDENCE--
-/// Estimate log_evidence according to a given scheme and number of rungs.
-/// Uses trapezoidal rule to estimate logarithm of marginal likelihood (evidence).
-///
-/// Ref.
-/// -----
-/// Ref: Friel, N., Hurn, M. & Wyse, J.
-/// Improving power posterior estimation of statistical evidence.
-/// Stat Comput 24, 709–723 (2014).
-double log_evidence(MCMC &engine, std::string_view scheme, unsigned long n_rungs);
-*/
+    /// Print the simulated data to the provided file.
+    void print_simulated_data_wide(MCMC &engine, const std::string &pathtofile);
 
-/// Main function for the standalone version of 'housepi'.
-int standalone(MCMC &engine, int argc, char *argv[]);
+    /* --FUTURE-LOG-EVIDENCE--
+    /// Estimate log_evidence according to a given scheme and number of rungs.
+    /// Uses trapezoidal rule to estimate logarithm of marginal likelihood (evidence).
+    ///
+    /// Ref.
+    /// -----
+    /// Ref: Friel, N., Hurn, M. & Wyse, J.
+    /// Improving power posterior estimation of statistical evidence.
+    /// Stat Comput 24, 709–723 (2014).
+    double log_evidence(MCMC &engine, std::string_view scheme, unsigned long n_rungs);
+    */
+
+    /// Main function for the standalone version of 'housepi'.
+    int standalone(MCMC &engine, int argc, char *argv[]);
+}

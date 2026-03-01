@@ -13,7 +13,11 @@
 
 #include "housepi.h"
 
-HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE(augmented_infection_time)
+#ifndef _HOUSEPI_MODULE
+#define _HOUSEPI_MODULE augmented_infection_time
+#endif
+
+HOUSEPI_OPEN_MODULE_NAMESPACE()
 
 class Model final : public ModelBase
 {
@@ -223,7 +227,7 @@ void Model::update_house_cache_dependecies(Household &house)
 	auto &inst_mtx = cache_double_matrix(house, HHdoublemtxKey::inst);
 	auto &cumul_mtx = cache_double_matrix(house, HHdoublemtxKey::cumul);
 	size_t &i0 = cache_size(house, HHsizeKey::intro_case);
-	double new_t0 = 1000000;
+	double new_t0 = 100000;
 
 	size_t n_infec = house.n_infected_status();
 	const auto &infected_hhindexes = house.infected_hhindexes();
@@ -296,6 +300,8 @@ void Model::update_member_cache_dependecies(Household &house, Individual &member
 	if (house.n_infected_status() < 2)
 		return;
 
+	// commit introduction to current member
+	i0 = i;
 	double new_t0 = t_infec_i;
 
 	for (size_t k : house.infected_hhindexes())
@@ -400,6 +406,4 @@ double Model::roi_inst_simulation(const Household &house, const Individual &memb
 
 	return alpha + roi;
 }
-HOUSEPI_RCPP_MODEL_FACTORY()
-HOUSEPI_CLOSE_NAMED_MODULE_NAMESPACE()
-HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE(augmented_infection_time)
+HOUSEPI_CLOSE_MODULE_NAMESPACE()

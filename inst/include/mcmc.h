@@ -55,20 +55,6 @@ namespace hsp
 		//////  EVALUATION  //////
 		//////////////////////////
 
-		/// Compute and set value of observation log-likelihood for given household.
-		double materialize_house_obs_log_lik(Household &house)
-		{
-			double output = model.compute_house_obs_log_lik(house);
-			house.obs_log_lik_.set(output);
-			return output;
-		}
-		/// Compute and set value of observation log-likelihood for given household.
-		double materialize_house_obs_log_ratio(Household &house)
-		{
-			double output = -house.obs_log_lik_.value();
-			output += materialize_house_obs_log_lik(house);
-			return output;
-		}
 		/// Initialize model and evaluate log-likelihood.
 		double evaluate_log_lik(std::string_view house_id);
 
@@ -91,6 +77,7 @@ namespace hsp
 		*/
 
 	private:
+
 		//////////////////////////
 		//////  EVALUATION  //////
 		//////////////////////////
@@ -98,9 +85,24 @@ namespace hsp
 		/// Assert setup definitions, then proceed with initialization for evaluation.
 		void init_evaluate_(bool is_reset);
 
-		/// Compute new log-likelihood, store old value. Same for households.
-		double update_total_log_lik_(bool is_cache_depen);
+		/// Compute and set value of observation log-likelihood for given household.
+		double commit_house_obs_log_lik_(Household &house)
+		{
+			double output = model.compute_house_obs_log_lik(house);
+			house.obs_log_lik_.set(output);
+			return output;
+		}
+		/// Compute and set value of observation log-likelihood for given household.
+		double commit_house_obs_log_ratio(Household &house)
+		{
+			double output = -house.obs_log_lik_.value();
+			output += commit_house_obs_log_lik_(house);
+			return output;
+		}
 
+		/// Compute new log-likelihood, store old value. Same for households.
+		double commit_total_log_lik_(bool is_cache_depen);
+		
 		///////////////////////////////////
 		//////  METROPOLIS-HASTINGS  //////
 		///////////////////////////////////
@@ -110,7 +112,7 @@ namespace hsp
 		void run_monte_carlo_();
 
 		/// Update and return contribution of given household to full logliklehood.
-		double atomic_materialize_house_log_lik_(Household &house, bool is_cache_depen);
+		double atomic_commit_house_log_lik_(Household &house, bool is_cache_depen);
 
 		/// Move all model parameters and augmented variables.
 		void move_all_();

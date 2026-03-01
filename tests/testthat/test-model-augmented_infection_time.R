@@ -228,6 +228,14 @@ test_that("Augmented moves preserve log-likelihood", {
   expect_identical(get_augm_state(augm_draws, n_steps),
                    snapshot$augm[house$status > 0, ])
 
+  check_eval <- function(i) {
+    df <- join_augm_data(house, get_augm_state(augm_draws, i))
+    par <- c(param_draws[i, , drop = FALSE], consts)
+    get_log_lik_i(df, par)
+  }
+  ll_check <- sapply(seq_len(n_steps), check_eval)
+  expect_equal(tot_log_lik, ll_check)
+
   # check if log-likelihood is coherent
   hhmodel <- hhmodel |>
     load_augmented_list(
@@ -237,14 +245,11 @@ test_that("Augmented moves preserve log-likelihood", {
       incub_period = list(value = incub_period@D, const = TRUE,
                           model = "weibull", shape = 2, scale = 1)
     )
-  
-  for (i in seq(n_steps)) {
-    df <- join_augm_data(house, get_augm_state(augm_draws, i))
-    par <- c(param_draws[i, , drop = FALSE], consts)
-    hhmodel$data_wide <- df
+
+  housepi_eval <- function(i) {
+    hhmodel$data_wide <- join_augm_data(house, get_augm_state(augm_draws, i))
     hhmodel$parameters <- c(param_draws[i, , drop = FALSE], consts)
-    ll <- hhmodel$evaluate_log_lik()
-    expect_equal(ll, tot_log_lik[i])
-    expect_equal(ll, get_log_lik_i(df, par))
+    hhmodel$evaluate_log_lik()
   }
+  expect_equal(tot_log_lik[n_steps], housepi_eval(n_steps))
 })

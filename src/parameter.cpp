@@ -40,10 +40,10 @@ namespace hsp
 
     void Parameter::init_registry(const std::vector<std::string> &keys)
     {
-        pRegistry = std::make_unique<hsp::key::Registry>(keys);
+        pRegistry = std::make_unique<key::Registry>(keys);
     }
 
-    void Parameter::build(const hsp::str_table &input)
+    void Parameter::build(const str_table &input)
     {
         pRegistry->clear();
 
@@ -54,12 +54,12 @@ namespace hsp
         const std::vector<std::string> file_headers = {"name", "value", "const", "discr",
                                                        "prior", "min", "max",
                                                        "proposal", "proposal_scale"};
-        const std::vector<std::string> headers = hsp::read::extract_keys(input);
-        hsp::str::assert_no_missing_entries(headers, file_headers);
-        hsp::str::assert_no_unused_entries(headers, file_headers);
+        const std::vector<std::string> headers = read::extract_keys(input);
+        str::assert_no_missing_entries(headers, file_headers);
+        str::assert_no_unused_entries(headers, file_headers);
 
         // assert that parameter is not already defined
-        if (input.at("name").size() != hsp::str::unique(input.at("name")).size())
+        if (input.at("name").size() != str::unique(input.at("name")).size())
             throw std::invalid_argument(
                 "Found multiple definitions for the same parameter.");
 
@@ -77,7 +77,7 @@ namespace hsp
                 param_vec_.back().set_err_type("parameter");
             }
 
-            if (hsp::str::tobool(input.at("const")[k]))
+            if (str::tobool(input.at("const")[k]))
                 helper_build_constant_(input, k);
             else
                 helper_build_to_sample_(input, k);
@@ -92,14 +92,14 @@ namespace hsp
                 list_non_adapt_sample_standard.push_back(p);
     }
 
-    void Parameter::build_for_expec(const hsp::dbl_table &input)
+    void Parameter::build_for_expec(const dbl_table &input)
     {
         if (input.empty())
             return;
 
-        const std::vector<std::string> headers = hsp::read::extract_keys(input);
+        const std::vector<std::string> headers = read::extract_keys(input);
         // assert that parameter is not already defined
-        if (headers.size() != hsp::str::unique(headers).size())
+        if (headers.size() != str::unique(headers).size())
             throw std::invalid_argument(
                 "Found multiple definitions for the same parameters.");
 
@@ -143,11 +143,11 @@ namespace hsp
         smpl_priors.clear();
     }
 
-    void Parameter::helper_build_constant_(const hsp::str_table &input, size_t k)
+    void Parameter::helper_build_constant_(const str_table &input, size_t k)
     {
         const std::string &paramstr = input.at("name")[k]; // parameter name
 
-        if (hsp::na::is(input.at("value")[k]))
+        if (na::is(input.at("value")[k]))
             throw std::invalid_argument(
                 "Constant parameter '" + paramstr + "' had undefined value.");
 
@@ -164,12 +164,12 @@ namespace hsp
         list_const.push_back(p);
     }
 
-    void Parameter::helper_build_to_sample_(const hsp::str_table &input, size_t k)
+    void Parameter::helper_build_to_sample_(const str_table &input, size_t k)
     {
         const std::string &paramstr = input.at("name")[k]; // parameter name
 
         // assert parameter to sample has a valid value initialization
-        if (hsp::na::is(input.at("value")[k]) && hsp::na::is(input.at("prior")[k]))
+        if (na::is(input.at("value")[k]) && na::is(input.at("prior")[k]))
             throw std::invalid_argument(
                 "Non-constant parameter '" + paramstr + "' had undefined prior.");
 
@@ -179,7 +179,7 @@ namespace hsp
         xparam.transfer(read_numeric(input.at("value")[k]));
 
         // assign a prior distribution to the parameter
-        hsp::parse::Definition parser(input.at("prior")[k]);
+        parse::Definition parser(input.at("prior")[k]);
         xparam.init_distr(parser.root.func);
 
         // load prior arguments
@@ -188,11 +188,11 @@ namespace hsp
         // load parameter range
         for (const auto key : {"min", "max"})
             xparam.init_distr_attr(key, read_numeric(input.at(key)[k]));
-        xparam.init_distr_reshaping(hsp::str::tobool(input.at("discr")[k]));
+        xparam.init_distr_reshaping(str::tobool(input.at("discr")[k]));
 
         // assign proposal
         xparam.init_proposal(input.at("proposal")[k],
-                             hsp::str::tod(input.at("proposal_scale")[k]));
+                             str::tod(input.at("proposal_scale")[k]));
 
         // check if discrete as requested
         if (user_discrete_set_.count(p) && !xparam.is_discrete())
@@ -226,7 +226,7 @@ namespace hsp
         }
     }
 
-    void Parameter::user_reset(hsp::rnd_gen &prng)
+    void Parameter::user_reset(rnd_gen &prng)
     {
         for (size_t p : list_sample)
             at(p).user_reset(prng);
@@ -245,10 +245,10 @@ namespace hsp
         }
     }
 
-    void Parameter::make_cache_dependent(const hsp::parse::Entry &node)
+    void Parameter::make_cache_dependent(const parse::Entry &node)
     {
         // cache dependecy if an augmented function depends on a parameter to be inferred
-        if (hsp::parse::is_parameter(node.type))
+        if (parse::is_parameter(node.type))
         {
             size_t p = pRegistry->from_string(node.value);
             if (!at(p).is_constant())
@@ -256,7 +256,7 @@ namespace hsp
         }
     }
 
-    bool Parameter::propose_valid_move(size_t p, hsp::rnd_gen &prng)
+    bool Parameter::propose_valid_move(size_t p, rnd_gen &prng)
     {
         Variable &this_par = at(p);
 
@@ -293,8 +293,8 @@ namespace hsp
         smpl_priors.reserve(n);
         for (size_t i = 0; i < n; ++i)
         {
-            smpl_values.emplace_back(sample_size, hsp::na::DOUBLE);
-            smpl_priors.emplace_back(sample_size, hsp::na::DOUBLE);
+            smpl_values.emplace_back(sample_size, na::DOUBLE);
+            smpl_priors.emplace_back(sample_size, na::DOUBLE);
         }
     }
 
@@ -310,7 +310,7 @@ namespace hsp
         }
     }
 
-    const Attribute &Parameter::read_attribute(const hsp::parse::Entry &node, const Individual *member_ptr) const
+    const Attribute &Parameter::read_attribute(const parse::Entry &node, const Individual *member_ptr) const
     {
         storage_ = Attribute(); // reset auxiliary storage to default empty
 
@@ -318,11 +318,11 @@ namespace hsp
         {
             helper_store_read_function_(node, member_ptr);
         }
-        else if (hsp::parse::is_numeric(node.type))
+        else if (parse::is_numeric(node.type))
         {
-            storage_.init_numeric(hsp::str::tod(node.value, "argument with numeric type"));
+            storage_.init_numeric(str::tod(node.value, "argument with numeric type"));
         }
-        else if (hsp::parse::is_parameter(node.type))
+        else if (parse::is_parameter(node.type))
         {
             return at(pRegistry->from_string(node.value));
         }
@@ -332,18 +332,18 @@ namespace hsp
                 throw std::invalid_argument(
                     "Not supported individidual specific definition found while parsing '" + node.str() + "'.");
 
-            if (hsp::parse::is_data_wide(node.type))
+            if (parse::is_data_wide(node.type))
             {
                 size_t d = pDataWideRegistry_->from_string(node.value);
                 storage_.init_numeric(member_ptr->get_data_wide_vec()[d]);
                 storage_.name(node.value);
                 storage_.set_err_type("data");
             }
-            else if (hsp::parse::is_augmented(node.type))
+            else if (parse::is_augmented(node.type))
             {
                 return member_ptr->get_augm_variable(pAugmRegistry_->from_string(node.value));
             }
-            else if (hsp::parse::is_group_rate(node.type))
+            else if (parse::is_group_rate(node.type))
             {
                 return member_ptr->get_group_rate_attribute(pGroupRateRegistry_->from_string(node.value));
             }
@@ -355,7 +355,7 @@ namespace hsp
         return storage_;
     }
 
-    void Parameter::helper_store_read_function_(const hsp::parse::Entry &node, const Individual *member_ptr) const
+    void Parameter::helper_store_read_function_(const parse::Entry &node, const Individual *member_ptr) const
     {
         Attribute parent;
         parent.init_function(compose_func_registries(
@@ -369,7 +369,7 @@ namespace hsp
         storage_ = parent;
     }
 
-    const Attribute &Parameter::read_numeric(const hsp::parse::Entry &node, const Individual *member_ptr) const
+    const Attribute &Parameter::read_numeric(const parse::Entry &node, const Individual *member_ptr) const
     {
         storage_ = read_attribute(node, member_ptr);
         if (!storage_.is_numeric() && !storage_.is_empty())

@@ -4,6 +4,7 @@
 #include "function.h"
 #include "registry.h"
 
+HOUSEPI_OPEN_MODULE_NAMESPACE()
 class Growth_ : public Function
 {
 public:
@@ -26,7 +27,6 @@ protected:
 /// Register user function so that it can be used in the analysis.
 HOUSEPI_REGISTER_FUNCTION(Growth_, Custom)
 
-HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE()
 class Model : public ModelBase
 {
 public:
@@ -56,6 +56,4 @@ public:
             init_missing_augm(house.member(i));
     }
 };
-HOUSEPI_RCPP_MODEL_FACTORY()
-HOUSEPI_CLOSE_NAMED_MODULE_NAMESPACE()
-HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE()
+HOUSEPI_CLOSE_MODULE_NAMESPACE()

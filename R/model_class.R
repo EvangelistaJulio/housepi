@@ -297,7 +297,7 @@ HousepiModel <- R6::R6Class(
     # UPDATE:
     # this could be designed to be more helpful
     # e. g. create a standalone folder somewhere with correct links to headers
-    export_to_cpp_standalone_ = function(outpath = "inst/standalone/") {
+    export_to_standalone_ = function(outpath = "inst/standalone/") {
       private$build_group_rates_()
 
       write.csv(.engine$export_data_wide(private$mcmc_ptr_),

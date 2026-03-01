@@ -47,7 +47,7 @@ else ifdef PROFILE
 CXXFLAGS += -g -O3 -DNDEBUG\
 -fno-omit-frame-pointer
 else
-CXXFLAGS += -g -O3 -DNDEBUG
+CXXFLAGS += -g -O2 -DNDEBUG
 endif
 
 ifdef DISCRETE

@@ -450,7 +450,7 @@ namespace hsp::read
     /// Load files from the row with headers.
     bool read_row_by_headers_(std::ifstream &input,
                               const std::vector<std::string> &headers,
-                              hsp::dict<std::string> &this_row)
+                              dict<std::string> &this_row)
     {
         std::string line, tkn;
 
@@ -506,7 +506,7 @@ namespace hsp::read
         const std::vector<std::string> headers = read_column_headers_(input);
 
         str_table output = {};
-        hsp::dict<std::string> this_row = {};
+        dict<std::string> this_row = {};
         while (read_row_by_headers_(input, headers, this_row))
         {
             for (const auto &[key, val] : this_row)
@@ -549,7 +549,7 @@ namespace hsp::read
     {                                                                     \
         std::vector<std::string> stack = {};                              \
         root.append_##type_flag##_depen(stack);                           \
-        return hsp::str::unique(stack);                                   \
+        return str::unique(stack);                                        \
     }
 
 namespace hsp::parse
@@ -569,7 +569,7 @@ namespace hsp::parse
             else if (c == '}')
                 --level;
             // parse only top level
-            if (c == hsp::read::LIST_DELIMITER && level == 0)
+            if (c == read::LIST_DELIMITER && level == 0)
             {
                 entries.push_back(current);
                 current.clear();
@@ -587,7 +587,7 @@ namespace hsp::parse
     Entry parse_expression_(std::string_view input)
     {
         // empty node
-        if (hsp::na::is(input))
+        if (na::is(input))
             return Entry();
 
         // pure function node
@@ -662,7 +662,7 @@ namespace hsp::parse
     Entry::Entry(const std::string &value_, const std::string &type_)
     {
         value = value_;
-        type = hsp::str::toup(type_);
+        type = str::toup(type_);
     }
 
     /// Rebuild string from node using recursion.
@@ -681,8 +681,8 @@ namespace hsp::parse
             const auto &child = children[i];
             if (i > 0)
             {
-                str_args += hsp::read::DELIMITER;
-                str_children += hsp::read::DELIMITER;
+                str_args += read::DELIMITER;
+                str_children += read::DELIMITER;
             }
             str_args += child.key;
 

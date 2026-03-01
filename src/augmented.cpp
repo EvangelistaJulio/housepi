@@ -652,7 +652,7 @@ namespace hsp
         return status_blocks_[member.augm_idx_].draws;
     }
 
-    double Augmented::materialize_augm_model_log_lik(AugmContainer &member)
+    double Augmented::commit_augm_model_log_lik(AugmContainer &member)
     {
         const StatusBlock_ &block = status_blocks_[member.augm_idx_];
         if (block.models.empty())
@@ -664,7 +664,7 @@ namespace hsp
         return new_ll;
     }
 
-    double Augmented::materialize_augm_model_log_ratio(AugmContainer &member, size_t a)
+    double Augmented::commit_augm_model_log_ratio(AugmContainer &member, size_t a)
     {
         const StatusBlock_ &block = status_blocks_[member.augm_idx_];
         if (block.depen[a].empty())

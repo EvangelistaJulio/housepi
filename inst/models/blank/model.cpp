@@ -14,7 +14,11 @@
 #include "housepi.h"
 #include "tools/messages.h"
 
-HOUSEPI_OPEN_NAMED_MODULE_NAMESPACE(blank)
+#ifndef _HOUSEPI_MODULE
+#define _HOUSEPI_MODULE blank
+#endif
+
+HOUSEPI_OPEN_MODULE_NAMESPACE()
 class Model final : public ModelBase
 {
 public:
@@ -46,6 +50,4 @@ public:
 			init_missing_augm(house.member(i));
 	}
 };
-HOUSEPI_RCPP_MODEL_FACTORY()
-HOUSEPI_CLOSE_NAMED_MODULE_NAMESPACE()
-HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE(blank)
+HOUSEPI_CLOSE_MODULE_NAMESPACE()

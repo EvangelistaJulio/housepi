@@ -200,13 +200,13 @@ namespace hsp
         {
             atomic_error.restore(); // reset atomic error
             infec_profile.update(); // eventually recompute infectivity profile
-            double output = atomic_materialize_house_log_lik_(data_wide.at(house_id), true);
+            double output = atomic_commit_house_log_lik_(data_wide.at(house_id), true);
             atomic_error.throw_exception(); // catch and throw if previous failed
             return output;
         }
 
         // mode: total evaluation
-        return update_total_log_lik_(true);
+        return commit_total_log_lik_(true);
     }
 
     ///////////////////////////////////
@@ -250,7 +250,7 @@ namespace hsp
         }
     }
 
-    double MCMC::update_total_log_lik_(bool is_cache_depen)
+    double MCMC::commit_total_log_lik_(bool is_cache_depen)
     {
         double new_ll = 0.0;
 
@@ -270,9 +270,10 @@ namespace hsp
 
             Household &house = data_wide.restricted(R);
             new_ll += data_wide.multiplicity(R) *
-                      atomic_materialize_house_log_lik_(house, is_cache_depen);
+                      atomic_commit_house_log_lik_(house, is_cache_depen);
         }
         atomic_error.throw_exception();
+        tot_log_lik.set(new_ll);
 
         return new_ll;
     }
@@ -291,7 +292,8 @@ namespace hsp
             try
             {
                 init_monte_carlo_chain_();
-                tot_log_lik.set(update_total_log_lik_(true)); // init cached, set total log-likelihood
+                // NOTE: init all cached with flag `true`
+                commit_total_log_lik_(true);
 
                 // assert that initial log-likelihood value is finite
                 if (tot_log_lik.is_inf())
@@ -326,7 +328,7 @@ namespace hsp
         }
     }
 
-    double MCMC::atomic_materialize_house_log_lik_(Household &house, bool is_cache_depen)
+    double MCMC::atomic_commit_house_log_lik_(Household &house, bool is_cache_depen)
     {
         double output = 0;
         try
@@ -336,12 +338,12 @@ namespace hsp
                 model.update_house_cache_dependecies(house);
 
             // compute and set household observation log-likelihood
-            output = materialize_house_obs_log_lik(house);
+            output = commit_house_obs_log_lik_(house);
 
             // compute and set individual augmented log-likelihood
             if (augm.is_any_model())
                 for (size_t i : house.infected_hhindexes())
-                    output += augm.materialize_augm_model_log_lik(house.member(i));
+                    output += augm.commit_augm_model_log_lik(house.member(i));
         }
         catch (const std::exception &e)
         {
@@ -378,13 +380,13 @@ namespace hsp
         if (param.propose_valid_move(p, setup.prng()))
         {
             // if parameter is cache dependent, update cache
-            tot_log_lik.set(update_total_log_lik_(is_cache_depen));
+            commit_total_log_lik_(is_cache_depen);
 
             // perform Metropolis-Hastings to accept or not move
-            const double D_ll = tot_log_lik.log_ratio();
+            const double D_ll = setup.inv_T * tot_log_lik.log_ratio();
             const double move_logratio = param.at(p).get_move_log_ratio();
 
-            if (setup.exponential() > -(setup.inv_T * D_ll + move_logratio))
+            if (setup.exponential() > -(D_ll + move_logratio))
                 return true; // accepted move
             recover_parameter_(p, is_cache_depen);
         }
@@ -446,10 +448,10 @@ namespace hsp
             model.update_member_cache_dependecies(house, member);
 
             // Metropolis-Hastings
-            double delta_ll = materialize_house_obs_log_ratio(house) +
-                              augm.materialize_augm_model_log_ratio(member, a);
+            const double delta_ll = setup.inv_T * (commit_house_obs_log_ratio(house) +
+                                                   augm.commit_augm_model_log_ratio(member, a));
 
-            if (setup.exponential() > xaugm.get_propose_log_ratio() - setup.inv_T * delta_ll)
+            if (setup.exponential() > xaugm.get_propose_log_ratio() - delta_ll)
                 return delta_ll;
 
             // else recover cached values
@@ -462,152 +464,152 @@ namespace hsp
 
         return 0.;
     }
-}
 
-/* --FUTURE-LOG-EVIDENCE--
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  MCMC : estimate log_evidence  ////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
+    /* --FUTURE-LOG-EVIDENCE--
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////  MCMC : estimate log_evidence  ////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace
-{
-    /// Welford online's algorithm for mean and variance.
-    /// Ref :
-    /// ----
-    /// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
-    std::pair<double, double> compute_stats(const std::vector<double> &data)
+    namespace
     {
-        size_t i = 0;
-        size_t N = data.size();
-        double x, delta, delta2;
-        double sqr_diff = 0.;
-
-        double avg = 0.;
-        while (i < N)
+        /// Welford online's algorithm for mean and variance.
+        /// Ref :
+        /// ----
+        /// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+        std::pair<double, double> compute_stats(const std::vector<double> &data)
         {
-            x = data[i++];
-            delta = x - avg;
-            avg += delta / i;
-            delta2 = x - avg;
-            sqr_diff += delta * delta2;
+            size_t i = 0;
+            size_t N = data.size();
+            double x, delta, delta2;
+            double sqr_diff = 0.;
+
+            double avg = 0.;
+            while (i < N)
+            {
+                x = data[i++];
+                delta = x - avg;
+                avg += delta / i;
+                delta2 = x - avg;
+                sqr_diff += delta * delta2;
+            }
+
+            return {avg, sqr_diff / static_cast<double>(N - 1.)};
+        }
+    }
+
+    std::vector<std::vector<double>> MCMC::power_posteriors(std::string_view scheme, unsigned long n_rungs)
+    {
+        // check scheme choice
+        const std::vector<std::string> options = {"adaptive", "power-fractions"};
+        if (std::find(options.begin(), options.end(), scheme) == options.end())
+            throw std::invalid_argument(
+                "Invoked invalid power posterior scheme '" + std::string(scheme) + "'." +
+                str::find_closest(scheme, options));
+
+        // check number of rungs for the thermodynamic ladder
+        if (n_rungs < 2)
+            throw std::invalid_argument(
+                "N. of rungs was not greater than 1.");
+
+        setup.n_rungs = n_rungs;          // NOTE: set before progress bar
+        double old_inv_T = setup.inv_T;   // save user setup
+        init_monte_carlo_();              // initialize mcmc sampling
+        init_evaluate_(false);            // initialize for evaluation
+        setup.prog_declare();             // declare current progress bar
+        setup.prog_open_for_power_post(); // print progress bar
+
+        // thermodynamic ladder estimates
+        std::vector<double> itm = {}; // inverse temperature
+        std::vector<double> avg = {}; // mean log-likelihood
+        std::vector<double> var = {}; // variance log-likelihood
+
+        // run power posteriors
+        power_post_zero_(itm, avg, var);
+        if (scheme == "adaptive")
+            power_post_adaptive_(itm, avg, var);
+        else if (scheme == "power-fractions")
+            power_post_fractions_(itm, avg, var);
+
+        setup.prog_close();         // close progress bar
+        setup.inv_T = old_inv_T; // restore user setup
+
+        return {itm, avg, var};
+    }
+
+    void MCMC::power_post_zero_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var)
+    {
+        // UPDATE: should I use previous inference for itm = 1 if available?
+        // UPDATE: always under-estimate time if starting from itm = 0
+
+        setup.rung = 0;
+        setup.inv_T = 0.0;
+        run_monte_carlo_();
+        const auto [stats_avg, stats_var] = compute_stats(tot_log_lik.smpl_values);
+
+        itm.push_back(setup.inv_T);
+        avg.push_back(stats_avg);
+        var.push_back(stats_var);
+    }
+
+    void MCMC::power_post_adaptive_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var)
+    {
+        // Inverse Temperature 1
+        {
+            setup.rung = 1;
+            setup.inv_T = 1.0;
+            run_monte_carlo_();
+            const auto [stats_avg, stats_var] = compute_stats(tot_log_lik.smpl_values);
+
+            itm.push_back(setup.inv_T);
+            avg.push_back(stats_avg);
+            var.push_back(stats_var);
         }
 
-        return {avg, sqr_diff / static_cast<double>(N - 1.)};
+        // Inverse Temperatures (0, 1)
+        size_t k = 0; // index to interval lower bound
+        bool is_right = false;
+        while (setup.rung < setup.n_rungs)
+        {
+            ++setup.rung;
+
+            // adaptive choice of inverse temperature
+            // intersection between tangents
+            double new_t = (avg[k + 1] - itm[k + 1] * var[k + 1] - avg[k] + itm[k] * var[k]) / (var[k] - var[k + 1]);
+            // otherwise weighted average
+            if (new_t <= itm[k] || new_t >= itm[k + 1])
+                new_t = itm[k] + var[k + 1] * (itm[k + 1] - itm[k]) / (var[k] + var[k + 1]);
+
+            // power posterior sampling
+            setup.inv_T = new_t;
+            run_monte_carlo_();
+            const auto [stats_avg, stats_var] = compute_stats(tot_log_lik.smpl_values);
+
+            // find larger rectangular discretization error
+            is_right = (itm[k + 1] - setup.inv_T) * (avg[k + 1] - stats_avg) > (new_t - itm[k]) * (stats_avg - avg[k]);
+
+            // insert in-between for all lists
+            itm.insert(itm.begin() + k + 1, setup.inv_T);
+            avg.insert(avg.begin() + k + 1, stats_avg);
+            var.insert(var.begin() + k + 1, stats_var);
+
+            // if right interval is chosen, index points to inserted as lower bound
+            k += (is_right);
+        }
     }
-}
 
-std::vector<std::vector<double>> MCMC::power_posteriors(std::string_view scheme, unsigned long n_rungs)
-{
-    // check scheme choice
-    const std::vector<std::string> options = {"adaptive", "power-fractions"};
-    if (std::find(options.begin(), options.end(), scheme) == options.end())
-        throw std::invalid_argument(
-            "Invoked invalid power posterior scheme '" + std::string(scheme) + "'." +
-            hsp::str::find_closest(scheme, options));
-
-    // check number of rungs for the thermodynamic ladder
-    if (n_rungs < 2)
-        throw std::invalid_argument(
-            "N. of rungs was not greater than 1.");
-
-    setup.n_rungs = n_rungs;          // NOTE: set before progress bar
-    double old_inv_T = setup.inv_T;   // save user setup
-    init_monte_carlo_();              // initialize mcmc sampling
-    init_evaluate_(false);            // initialize for evaluation
-    setup.prog_declare();             // declare current progress bar
-    setup.prog_open_for_power_post(); // print progress bar
-
-    // thermodynamic ladder estimates
-    std::vector<double> itm = {}; // inverse temperature
-    std::vector<double> avg = {}; // mean log-likelihood
-    std::vector<double> var = {}; // variance log-likelihood
-
-    // run power posteriors
-    power_post_zero_(itm, avg, var);
-    if (scheme == "adaptive")
-        power_post_adaptive_(itm, avg, var);
-    else if (scheme == "power-fractions")
-        power_post_fractions_(itm, avg, var);
-
-    setup.prog_close();         // close progress bar
-    setup.inv_T = old_inv_T; // restore user setup
-
-    return {itm, avg, var};
-}
-
-void MCMC::power_post_zero_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var)
-{
-    // UPDATE: should I use previous inference for itm = 1 if available?
-    // UPDATE: always under-estimate time if starting from itm = 0
-
-    setup.rung = 0;
-    setup.inv_T = 0.0;
-    run_monte_carlo_();
-    const auto [stats_avg, stats_var] = compute_stats(tot_log_lik.smpl_values);
-
-    itm.push_back(setup.inv_T);
-    avg.push_back(stats_avg);
-    var.push_back(stats_var);
-}
-
-void MCMC::power_post_adaptive_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var)
-{
-    // Inverse Temperature 1
+    void MCMC::power_post_fractions_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var)
     {
-        setup.rung = 1;
-        setup.inv_T = 1.0;
-        run_monte_carlo_();
-        const auto [stats_avg, stats_var] = compute_stats(tot_log_lik.smpl_values);
+        for (setup.rung = 1; setup.rung <= setup.n_rungs; ++setup.rung)
+        {
+            // inverse tempearture = (rung / #rungs)^5
+            setup.inv_T = std::pow(static_cast<double>(setup.rung) / static_cast<double>(setup.n_rungs), 5.);
+            run_monte_carlo_();
 
-        itm.push_back(setup.inv_T);
-        avg.push_back(stats_avg);
-        var.push_back(stats_var);
+            const auto [stats_avg, stats_var] = compute_stats(tot_log_lik.smpl_values);
+            itm.push_back(setup.inv_T);
+            avg.push_back(stats_avg);
+            var.push_back(stats_var);
+        }
     }
-
-    // Inverse Temperatures (0, 1)
-    size_t k = 0; // index to interval lower bound
-    bool is_right = false;
-    while (setup.rung < setup.n_rungs)
-    {
-        ++setup.rung;
-
-        // adaptive choice of inverse temperature
-        // intersection between tangents
-        double new_t = (avg[k + 1] - itm[k + 1] * var[k + 1] - avg[k] + itm[k] * var[k]) / (var[k] - var[k + 1]);
-        // otherwise weighted average
-        if (new_t <= itm[k] || new_t >= itm[k + 1])
-            new_t = itm[k] + var[k + 1] * (itm[k + 1] - itm[k]) / (var[k] + var[k + 1]);
-
-        // power posterior sampling
-        setup.inv_T = new_t;
-        run_monte_carlo_();
-        const auto [stats_avg, stats_var] = compute_stats(tot_log_lik.smpl_values);
-
-        // find larger rectangular discretization error
-        is_right = (itm[k + 1] - setup.inv_T) * (avg[k + 1] - stats_avg) > (new_t - itm[k]) * (stats_avg - avg[k]);
-
-        // insert in-between for all lists
-        itm.insert(itm.begin() + k + 1, setup.inv_T);
-        avg.insert(avg.begin() + k + 1, stats_avg);
-        var.insert(var.begin() + k + 1, stats_var);
-
-        // if right interval is chosen, index points to inserted as lower bound
-        k += (is_right);
-    }
+    */
 }
-
-void MCMC::power_post_fractions_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var)
-{
-    for (setup.rung = 1; setup.rung <= setup.n_rungs; ++setup.rung)
-    {
-        // inverse tempearture = (rung / #rungs)^5
-        setup.inv_T = std::pow(static_cast<double>(setup.rung) / static_cast<double>(setup.n_rungs), 5.);
-        run_monte_carlo_();
-
-        const auto [stats_avg, stats_var] = compute_stats(tot_log_lik.smpl_values);
-        itm.push_back(setup.inv_T);
-        avg.push_back(stats_avg);
-        var.push_back(stats_var);
-    }
-}
-*/
