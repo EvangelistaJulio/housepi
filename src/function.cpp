@@ -178,10 +178,14 @@ namespace hsp
             return lower_;
         if (key == "max")
             return upper_;
-
         for (Attribute &attr : arguments_)
             if (attr.name() == key)
                 return attr;
+
+        // raise error for unnamed argument 
+        if (na::is(key))
+            throw std::invalid_argument(
+                "Unnamed argument passed to " + err_name() + ".");
 
         // else format the error showing options
         std::vector<std::string> options = {"x", "loc", "min", "max"};

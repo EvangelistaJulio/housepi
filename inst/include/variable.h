@@ -29,7 +29,7 @@ namespace hsp
     class Distribution;
     class Proposal;
 
-    class Variable : public Attribute
+    class Variable final : public Attribute
     {
     public:
         ///////////////////////////
@@ -141,13 +141,13 @@ namespace hsp
         /// Get a description about the functional status.
         std::string str_summary() const override final;
 
-    protected:
-        enum class Validity : uint8_t
+    private:
+        enum class Validity : std::uint8_t
         {
             Always,
             Check
         } valid_mode_ = Validity::Check;
-        enum class Ratio : uint8_t
+        enum class Ratio : std::uint8_t
         {
             None,
             Compute

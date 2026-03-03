@@ -208,7 +208,7 @@ namespace hsp
         auto end() const noexcept { return house_vector_.end(); }
 
     private:
-        enum class Mode : uint8_t
+        enum class Mode : std::uint8_t
         {
             Multiple,
             Unique

@@ -86,6 +86,34 @@ new_housepi_model("blank") |>
              linetype = 2)
 ```
 
+# Provide a location parameter
+
+All functions and distributions in housepi allow for a location parameter `loc` to translate the support of the distribution:
+
+```{r}
+#| warning: false
+#| fig.alt: >
+#|  Density plots showing gamma distributions with different location parameters.
+#|  Four panels display gamma distributions with location parameters set to 0, 1, 2, and 3 respectively.
+#|  Vertical dashed lines indicate the minimum of each shifted support.
+new_housepi_model("blank") |>
+  load_parameter_list(
+    gamma_0 = list(prior = "gamma", shape = 2, scale = 1),
+    gamma_1 = list(prior = "gamma", shape = 2, scale = 1, loc = 1),
+    gamma_2 = list(prior = "gamma", shape = 2, scale = 1, loc = 2),
+    gamma_3 = list(prior = "gamma", shape = 2, scale = 1, loc = 3)
+  ) |>
+  run_inference() |>
+  get_param_draws() |>
+  bayesplot::mcmc_dens() + 
+  coord_cartesian(xlim = c(0, NA)) +
+  geom_vline(
+    data = data.frame(Parameter = c("gamma_0", "gamma_1", "gamma_2", "gamma_3"),
+                      xintercept = c(0, 1, 2, 3)),
+    aes(xintercept = xintercept),
+    linetype = 2)
+```
+
 # Discrete priors
 
 ```{r}

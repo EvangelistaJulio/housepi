@@ -20,8 +20,12 @@ test_that("Expose function has no leaks", {
 
 test_that("Function exported from housepi are correct", {
   x <- seq(0, 1000, 1)
+
   expect_error(expose_function("pow")$func(x),
                regexp = "missing non default")
+  expect_error(expose_function("pow", 5),
+               regexp = "Unnamed argument")
+
   expect_equal(expose_function("pow", x2 = 2)$func(x), x^2)
   expect_equal(expose_function("pow", x2 = -3)$func(x), x^(-3))
   expect_equal(expose_function("exp")$func(x), exp(x))

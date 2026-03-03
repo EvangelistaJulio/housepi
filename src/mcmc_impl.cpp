@@ -448,7 +448,7 @@ namespace hsp
             model.update_member_cache_dependecies(house, member);
 
             // Metropolis-Hastings
-            const double delta_ll = setup.inv_T * (commit_house_obs_log_ratio(house) +
+            const double delta_ll = setup.inv_T * (commit_house_obs_log_ratio_(house) +
                                                    augm.commit_augm_model_log_ratio(member, a));
 
             if (setup.exponential() > xaugm.get_propose_log_ratio() - delta_ll)

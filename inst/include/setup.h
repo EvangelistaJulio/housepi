@@ -63,7 +63,7 @@ namespace hsp
         //////  SETTER  //////
         //////////////////////
 
-        /// Detect and set optimal number of threads based on system capabilities.
+        /// Set the number of threads for parrell computations (default is 1).
         void set_n_threads();
 
         /// Build Setup configuration from input table.
@@ -71,7 +71,7 @@ namespace hsp
         void build(const hsp::str_table &input);
 
         /// Validate MCMC setup parameters for consistency and feasibility.
-        /// @throws std::runtime_error if parameters are invalid.
+        /// @throws std::out_of_range if parameters are invalid.
         void assert_mcmc_setup();
 
         /// Remove adaptive phase parameters after burn-in completion.
@@ -140,5 +140,8 @@ namespace hsp
         mutable std::uniform_real_distribution<double> uniform_;    /// Uniform [0, 1) distribution sampler.
         mutable std::exponential_distribution<double> exponential_; /// Exponential distribution sampler.
         std::unique_ptr<hsp::ProgressBar> progressbar_;             /// Progress bar UI component.
+
+        /// Associate non-default user setup.
+        void helper_non_default_build_(const hsp::str_table &input);
     };
 }

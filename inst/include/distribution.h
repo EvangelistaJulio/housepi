@@ -243,7 +243,7 @@ namespace hsp
 		//////////////////////  Distribution : functional truncation [private] //////////////////////
 		/////////////////////////////////////////////////////////////////////////////////////////////
 
-		enum class Trunc : uint8_t
+		enum class Trunc : std::uint8_t
 		{
 			None,  /// No truncation
 			Active /// Active truncation

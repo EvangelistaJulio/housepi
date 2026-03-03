@@ -167,7 +167,7 @@ namespace hsp
         virtual std::string str_summary() const;
 
     protected:
-        enum class Mode : uint8_t
+        enum class Mode : std::uint8_t
         {
             Empty,
             Numeric,
@@ -195,25 +195,25 @@ namespace hsp
     protected:
         struct Mode
         {
-            enum class Discrete : uint8_t
+            enum class Discrete : std::uint8_t
             {
                 None,
                 Center,
                 Left,
                 Defined
             };
-            enum class Interval : uint8_t
+            enum class Interval : std::uint8_t
             {
                 None,
                 Open,
                 Closed
             };
-            enum class Location : uint8_t
+            enum class Location : std::uint8_t
             {
                 None,
                 Active
             };
-            enum class Evaluate : uint8_t
+            enum class Evaluate : std::uint8_t
             {
                 Function,
                 Primitive,

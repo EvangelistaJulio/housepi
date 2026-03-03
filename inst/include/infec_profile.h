@@ -133,7 +133,7 @@ namespace hsp
         bool is_discrete_requested() const noexcept { return is_discrete_requested_; }
 
     private:
-        enum class Mode : uint8_t
+        enum class Mode : std::uint8_t
         {
             Augmented, /// augmented infectivity profile
             Generic,   /// generic infectivity profile

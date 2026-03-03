@@ -87,7 +87,7 @@ namespace hsp
     /// https://othmanelhammouchi.com/posts/r-parallel-progress/
     class ProgressBar
     {
-        enum class Mode : uint8_t
+        enum class Mode : std::uint8_t
         {
             Interactive,
             Static
@@ -277,63 +277,65 @@ namespace hsp
         // note: constrain to 32bit for compatibility with R (mask sign bit)
         seed = static_cast<std::int32_t>(mixed & 0x7FFFFFFF);
 
-        chain = 1;        // current chain
-        rung = 0;         // current thermodynamic rung
-        id_draws.clear(); // drop previous id
-
-        if (!input.empty())
-        {
-            // check no multiple entries if internal error
-            if (read::csv_n_rows(input) != 1)
-                throw std::runtime_error(
-                    "Internal error: multiple entries found in MCMC setup definition.");
-
-            // check entries
-            const std::vector<std::string> &headers = read::extract_keys(input);
-            str::assert_no_unused_entries(headers, file_headers);
-
-            // Random Initialization of Parameters
-            if (input.count("progress") && !na::is(input.at("progress")[0]))
-                progress = str::toul(input.at("progress")[0]);
-
-            // N. of Threads
-            if (input.count("threads") && !na::is(input.at("threads")[0]))
-                n_threads = str::toi(input.at("threads")[0], "threads");
-
-            // PRNG Seed
-            if (input.count("seed") && !na::is(input.at("seed")[0]))
-                seed = str::toi32(input.at("seed")[0], "seed");
-
-            // N. of Chains
-            if (input.count("chains") && !na::is(input.at("chains")[0]))
-                n_chains = str::toul(input.at("chains")[0], "chains");
-
-            // N. of Steps
-            if (input.count("steps") && !na::is(input.at("steps")[0]))
-                n_steps = str::toul(input.at("steps")[0], "steps");
-
-            // N. of Adaptive Steps
-            if (input.count("adapt") && !na::is(input.at("adapt")[0]))
-                n_adapt = str::toul(input.at("adapt")[0], "adpat");
-
-            // N. of Thinning Steps
-            if (input.count("thin") && !na::is(input.at("thin")[0]))
-                n_thin = str::toul(input.at("thin")[0], "thin");
-
-            // N. of Steps to "Burn-In"
-            if (input.count("burnin") && !na::is(input.at("burnin")[0]))
-                n_burnin = str::toul(input.at("burnin")[0], "burnin");
-
-            // Individual ID for Augmented Trace
-            if (input.count("id_draws") && !na::is(input.at("id_draws")[0]))
-                id_draws = read::parse_list(input.at("id_draws")[0]);
-        }
-
-        set_n_threads(); // define number of threads
-        set_prng_seed(); // pseudo-random number generator seeding
+        chain = 1;                        // current chain
+        rung = 0;                         // current thermodynamic rung
+        id_draws.clear();                 // drop previous id
+        helper_non_default_build_(input); // read user input
+        set_n_threads();                  // define number of threads
+        set_prng_seed();                  // pseudo-random number generator seeding
     }
 
-    /// Set the number of threads for parrell computations (default is 1).
+    void Setup::helper_non_default_build_(const hsp::str_table &input)
+    {
+        if (input.empty())
+            return;
+
+        // check no multiple entries if internal error
+        if (read::csv_n_rows(input) != 1)
+            throw std::runtime_error(
+                "Internal error: multiple entries found in MCMC setup definition.");
+
+        // check entries
+        const std::vector<std::string> &headers = read::extract_keys(input);
+        str::assert_no_unused_entries(headers, file_headers);
+
+        // Random Initialization of Parameters
+        if (input.count("progress") && !na::is(input.at("progress")[0]))
+            progress = str::toul(input.at("progress")[0]);
+
+        // N. of Threads
+        if (input.count("threads") && !na::is(input.at("threads")[0]))
+            n_threads = str::toi(input.at("threads")[0], "threads");
+
+        // PRNG Seed
+        if (input.count("seed") && !na::is(input.at("seed")[0]))
+            seed = str::toi32(input.at("seed")[0], "seed");
+
+        // N. of Chains
+        if (input.count("chains") && !na::is(input.at("chains")[0]))
+            n_chains = str::toul(input.at("chains")[0], "chains");
+
+        // N. of Steps
+        if (input.count("steps") && !na::is(input.at("steps")[0]))
+            n_steps = str::toul(input.at("steps")[0], "steps");
+
+        // N. of Adaptive Steps
+        if (input.count("adapt") && !na::is(input.at("adapt")[0]))
+            n_adapt = str::toul(input.at("adapt")[0], "adpat");
+
+        // N. of Thinning Steps
+        if (input.count("thin") && !na::is(input.at("thin")[0]))
+            n_thin = str::toul(input.at("thin")[0], "thin");
+
+        // N. of Steps to "Burn-In"
+        if (input.count("burnin") && !na::is(input.at("burnin")[0]))
+            n_burnin = str::toul(input.at("burnin")[0], "burnin");
+
+        // Individual ID for Augmented Trace
+        if (input.count("id_draws") && !na::is(input.at("id_draws")[0]))
+            id_draws = read::parse_list(input.at("id_draws")[0]);
+    }
+
     void Setup::set_n_threads()
     {
         if (n_threads == 0)
@@ -363,16 +365,16 @@ namespace hsp
     }
 
     /// Assign seed for random generators.
-    /// Concomitantely create different generators for different parallel threads
+    /// Concomitantely create different generators for different parallel threads.
     void Setup::set_prng_seed()
     {
-        rnd_gen aux_prng;
-        aux_prng.seed(seed);
-        std::uniform_int_distribution<unsigned long> seed_generator(0, 0XFFFFFFFF);
-
         prng_parallel_.resize(n_threads);
-        for (unsigned n = 0; n < n_threads; ++n)
-            prng_parallel_[n].seed(seed_generator(aux_prng));
+        prng_parallel_[0].seed(seed);
+        for (size_t t = 1; t < n_threads; ++t)
+        {
+            prng_parallel_[t] = prng_parallel_[t - 1];
+            prng_parallel_[t].jump();
+        }
     }
 
     /// Return pseudo random number generator.
@@ -388,7 +390,7 @@ namespace hsp
     void Setup::assert_mcmc_setup()
     {
         if (inv_T < 0. || inv_T > 1.)
-            throw std::range_error(
+            throw std::out_of_range(
                 "Inverse temperature " + std::to_string(inv_T) + " was out of range [0, 1].");
 
         if (n_chains < 1)

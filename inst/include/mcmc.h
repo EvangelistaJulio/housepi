@@ -77,7 +77,6 @@ namespace hsp
 		*/
 
 	private:
-
 		//////////////////////////
 		//////  EVALUATION  //////
 		//////////////////////////
@@ -93,7 +92,7 @@ namespace hsp
 			return output;
 		}
 		/// Compute and set value of observation log-likelihood for given household.
-		double commit_house_obs_log_ratio(Household &house)
+		double commit_house_obs_log_ratio_(Household &house)
 		{
 			double output = -house.obs_log_lik_.value();
 			output += commit_house_obs_log_lik_(house);

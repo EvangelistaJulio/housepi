@@ -996,12 +996,14 @@ namespace
             const double i = arg(4); // 'incub_period'
             double tOST = x - i;     // time from onset to transmission
 
-            const double norm_pdf = (s / a) * (1. + (i / T - 1.) * pow(1 + exp(m / s), -a) - (i / T) * pow(1. + exp((m + T) / s), -a));
+            const double iT = i / T;
+            const double norm_pdf = (s / a) * (1. + (iT - 1.) * pow(1 + exp(m / s), -a) - iT * pow(1. + exp((m + T) / s), -a));
 
             if (tOST < 0)
-                tOST *= (T / i);
+                tOST /= iT;
 
-            return exp((m - tOST) / s) * pow(1. + exp((m - tOST) / s), -a - 1.) / norm_pdf;
+            const double emOSTs = exp((m - tOST) / s);
+            return emOSTs * pow(1. + emOSTs, -a - 1.) / norm_pdf;
         }
 
         double raw_cdf_(double x) const override final
@@ -1013,15 +1015,18 @@ namespace
             const double i = arg(4);   // 'incub_period'
             const double tOST = x - i; // time from onset to transmission
 
-            const double norm_cdf = (1. + (i / T - 1.) * pow(1 + exp(m / s), -a) - (i / T) * (pow(1. + exp((m + T) / s), -a)));
+            const double iT = i / T;
+            const double pema = pow(1. + exp(m / s), -a);
+            const double pemTSa = pow(1. + exp((m + T) / s), -a);
+            const double norm_cdf = 1. + (iT - 1.) * pema - iT * pemTSa;
 
             if (tOST < 0) // Integrate from -incub_period to tOST
-                return (i / T) * (pow(1. + exp((m - tOST * T / i) / s), -a) - pow(1. + exp((m + T) / s), -a)) / norm_cdf;
+                return iT * (pow(1. + exp((m - tOST / iT) / s), -a) - pemTSa) / norm_cdf;
 
             // Integrate from -incub to 0
-            const double F0 = (i / T) * (pow(1. + exp(m / s), -a) - pow(1. + exp((m + T) / s), -a));
+            const double F0 = iT * (pema - pemTSa);
             // Integrate from 0 to t_ost
-            return (F0 + pow(1. + exp((m - tOST) / s), -a) - pow(1. + exp(m / s), -a)) / norm_cdf;
+            return (F0 + pow(1. + exp((m - tOST) / s), -a) - pema) / norm_cdf;
         }
     };
     HOUSEPI_REGISTER_FUNCTION(Ferretti20_, InfecProfile)
