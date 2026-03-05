@@ -557,7 +557,8 @@ HousepiModel <- R6::R6Class(
         sms, "Model is set to {.emph discrete time} mode."
       )
       if (length(private$get_all_required_data_wide_()) > 0) sms <- c(sms,
-        fmt_assert_cli("Data", private$assert_data_wide_(FALSE))
+        fmt_assert_cli("Data", private$assert_data_wide_(FALSE),
+                       minor = length(private$cols_data_wide_) == 0)
       )
       if (length(private$get_all_required_param_()) > 0) sms <- c(sms,
         fmt_assert_cli("Parameters", private$assert_param_(FALSE))
@@ -618,9 +619,6 @@ HousepiModel <- R6::R6Class(
       tryCatch({
         private$assert_data_wide_()
       }, error = function(e) {
-        private$info_data_wide_ <- NULL
-        private$cols_data_wide_ <- character()
-        private$infec_status_set_ <- integer()
         stop_h(e)
       })
 

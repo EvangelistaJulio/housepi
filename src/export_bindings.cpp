@@ -253,7 +253,11 @@ namespace
     double hsp_to_rcpp(double x) { return na::is(x) ? NA_REAL : x; }
     double hsp_to_rcpp(const Attribute &attr)
     {
-        return attr.is_empty() ? NA_REAL : hsp_to_rcpp(attr.value());
+        if (attr.is_empty())
+            return NA_REAL;
+        if (attr.is_function() && !attr.function()->is_callable_implicitly())
+            return NA_REAL;
+        return hsp_to_rcpp(attr.value());
     }
 
     /// Convert R dataframe map of string vectors.

@@ -365,17 +365,11 @@ namespace hsp
             const std::string &str_val = deftable_["value"][k];
             const parse::Definition parser(na::is(str_val) ? deftable_["func"][k] : str_val);
 
+            // NOTE: don't store draws if just equal to something else
             if (parser.is_terminal())
-            {
-                // check the type of requested equality
-                if (parse::is_parameter(parser.root.type))
-                    is_to_draw = !pParameter_->at(pParameter_->pRegistry->from_string(parser.root.value)).is_constant();
-                // UPDATE: can I use dependecies tree to see if constant function?
-            }
+                is_to_draw = false;
             else if (!parser.is_callable_implicitly("x"))
-            {
                 is_to_export = false;
-            }
         }
         else if (na::is(deftable_["value"][k]) && na::is(deftable_["model"][k]))
         {
