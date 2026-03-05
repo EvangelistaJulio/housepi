@@ -5,69 +5,76 @@
 ## See the LICENSE file for details.
 ##
 
-# Parse augmented implicit function.
-helper_augmented_function <- function(opts, func, func_args) {
-  if (is.numeric(showcaser_extract_numeric(func))) {
+# Parse augmented implicit function/value.
+helper_augmented_core <- function(opts, value, func, func_args) {
+  if (is.null(value) && is.null(func)) return(opts)
+  if (is.numeric(showcaser_extract_numeric(value))) {
     # implicit numeric definition
-    opts$value <- func
+    opts$value <- value
     if (is.na(opts$const)) {
-      opts$const <- all(is.na(c(opts$model, opts$proposal)))
+      opts$const <- isTRUE(all(is.na(c(opts$model, opts$proposal))))
     }
   } else {
+    # NOTE: ensured just one between the 2 is not NULL
+    x <- if (is.null(value)) func else value
     # distinguish purely implicit function to plain name
-    opts$func <- ifelse(
-      is.null(func_args), func,
-      housepi_combine_to_call(func, func_args)
-    )
+    y <- housepi_combine_to_call(func_name = x,
+                                 func_args = func_args,
+                                 is_func = is.null(value))
+    if (housepi_is_sourced_value(y)) opts$value <- y
+    else opts$func <- y
+
     # note: a priori a function is not constant
     if (is.na(opts$const)) opts$const <- FALSE
   }
-
   opts
 }
 
 # process model arguments
 helper_augmented_model <- function(opts, args) {
+  if (is.null(args)) return(opts)
   if (is.na(opts$model)) stop_h(
     sprintf("Spare arguments for augmented '%s'.%s", opts$name,
             ifelse(is.na(opts$func), "", "Did you mean 'func_args'?"))
   )
-  if (!is.null(args)) {
-    opts$model <- housepi_combine_to_call(opts$model, args)
-  }
+  opts$model <- housepi_combine_to_call(opts$model, args)
   opts
 }
 
-# Interpret user choice for Monte Carlo proposal.
-augmented_helper_proposal <- function(opts, proposal_scale) {
-  # sampling proposal but no constant parameter provided
+# Interpret user choice for Monte Carlo move.
+helper_augmented_move <- function(opts, proposal_scale) {
+  # infer if sampling proposal but no constant parameter provided
   if (is.na(opts$const) && !(is.na(opts$proposal) && is.na(opts$model))) {
     opts$const <- FALSE
   }
 
-  if (isFALSE(opts$const)) {
-    if (is.na(opts$proposal)) {
-      if (is.na(opts$model)) opts$const <- TRUE
-      else opts$proposal <- "sample"
+  if (isTRUE(opts$const)) {
+    opts$proposal <- NA_character_
+    return(opts)
+  }
+
+  if (is.na(opts$proposal)) {
+    if (is.na(opts$model)) {
+      if (is.na(opts$func) && is.numeric(opts$value)) opts$const <- TRUE
     } else {
-      if (is.na(opts$model)) stop_h(
-        sprintf("No model to sample from for augmented '%s'.", opts$name)
-      )
-      if (opts$proposal != "sample")  {
-        if (is.na(proposal_scale)) opts$proposal_scale <- 1
-        else if (is.numeric(proposal_scale) &&
-                   proposal_scale > 0) opts$proposal_scale <- proposal_scale
-        else stop_h("Proposal scale must be a numeric greater than 0.")
-      }
+      opts$proposal <- "sample"
     }
   } else {
-    opts$proposal <- NA_character_
+    if (is.na(opts$model)) stop_h(
+      sprintf("No model to sample from for augmented '%s'.", opts$name)
+    )
+    if (opts$proposal != "sample")  {
+      if (is.na(proposal_scale)) opts$proposal_scale <- 1
+      else if (is.numeric(proposal_scale) &&
+                 proposal_scale > 0) opts$proposal_scale <- proposal_scale
+      else stop_h("Proposal scale must be a numeric greater than 0.")
+    }
   }
   opts
 }
 
 # Process constant or random.
-augmented_helper_const_vs_rand <- function(opts, value) {
+helper_augmented_const_vs_rand <- function(opts, value) {
   if (!is.null(value)) opts$value <- value
 
   if (isFALSE(opts$const) && all(is.na(c(opts$value, opts$model)))) stop_h(
@@ -94,7 +101,15 @@ HousepiAugmented <- R6::R6Class(
   ############################################################################
 
   private = list(
-    deep_clone = function(name, value) helper_clone(value)
+    deep_clone = function(name, value) helper_clone(value),
+
+    # Definitions required by augmented definitions
+    # according to the "type" of the definition.
+    find_required_def_ = function(type) {
+      find_required_definitions(
+        self$defs, type, c("value", "func", "model", "min", "max"), self$family
+      )
+    }
   ),
 
   ############################################################################
@@ -106,28 +121,28 @@ HousepiAugmented <- R6::R6Class(
     #' Find augmented required by augmented variable definitions.
     augm_required = function(value) {
       if (!missing(value)) stop_h("'augm_required' is read only.")
-      augmented_find_required_def(self$defs, "A")
+      private$find_required_def_("A")
     },
 
     #' @field data_required `character()`.
     #' Find data required by augmented variable definitions.
     data_required = function(value) {
       if (!missing(value)) stop_h("'data_required' is read only.")
-      augmented_find_required_def(self$defs, "D")
+      private$find_required_def_("D")
     },
 
     #' @field group_rates_required `character()`.
     #' Find group rates required by augmented variable definitions.
     group_rates_required = function(value) {
       if (!missing(value)) stop_h("'group_rates_required' is read only.")
-      augmented_find_required_def(self$defs, "G")
+      private$find_required_def_("G")
     },
 
     #' @field param_required `character()`.
     #' Find parameters required by augmented variable definitions.
     param_required = function(value) {
       if (!missing(value)) stop_h("'param_required' is read only.")
-      augmented_find_required_def(self$defs, "P")
+      private$find_required_def_("P")
     }
   ),
 
@@ -138,10 +153,8 @@ HousepiAugmented <- R6::R6Class(
   public = list(
     #' @field family `character(1)`. Module family.
     family = "augmented",
-
     #' @field store_warn_over `character()`. Cached overwritten names.
     store_warn_over = character(),
-
     #' @field defs `data.frame`. Formatted augmented definitions.
     defs = NULL,
 
@@ -190,13 +203,13 @@ HousepiAugmented <- R6::R6Class(
     #' @inherit add_augmented
     add_quo = function(name = NA_character_, value = NULL,
                        status = NA_integer_, const = NA, discr = FALSE,
-                       func = NULL, func_args = NULL,
                        model = NA_character_, ...,
+                       func = NULL, func_args = NULL,
                        min = NULL, max = NULL,
                        proposal = NA_character_,
                        proposal_scale = NA_real_,
-                       .warn_over = TRUE) {
-
+                       .warn_over = TRUE,
+                       .assert = FALSE) {
       # load non-quosures
       name <- housepi_smart_unwrap(name, "name")
       status <- housepi_smart_unwrap(status, "status")
@@ -205,11 +218,13 @@ HousepiAugmented <- R6::R6Class(
       model <- housepi_smart_unwrap(model, "model")
       proposal <- housepi_smart_unwrap(proposal, "proposal")
       proposal_scale <- housepi_smart_unwrap(proposal_scale, "proposal_scale")
+
       # load quosures
       value <- housepi_extractor(!!value)
       func <- housepi_extractor(!!func)
       min <- housepi_extractor(!!min)
       max <- housepi_extractor(!!max)
+
       # load dots # UPDATE: not super elegant...
       dots <- list(...)
       # flatten dots if single quosures list (from enquos)
@@ -224,13 +239,17 @@ HousepiAugmented <- R6::R6Class(
       }
 
       # control valid name
-      assert_valid_definition_name(name, self$family, !is.na(func))
+      assert_valid_definition_name(name, self$family, !is.na(value))
       # control valid status
       assert_valid_status(status)
       # control meaningful definition
       if (all(is.null(c(value, func)), is.na(model))) stop_h(
         sprintf("Incomplete definition for augmented '%s'.", name),
         "Provide at least one between 'value', 'model' and 'func'."
+      )
+      if (!is.null(value) && !is.null(func)) stop_h(
+        sprintf("Wrong definition for augmented '%s'.", name),
+        "Provide only one between 'value' and 'func'."
       )
 
       # auxiliary typed options for Rcpp build method
@@ -252,19 +271,9 @@ HousepiAugmented <- R6::R6Class(
       if (.warn_over) template_overwrite_warn(rmv_name, self$family)
       else self$store_warn_over <- c(self$store_warn_over, rmv_name)
 
-      # model arguments
-      if (!is.null(args)) {
-        opts <- helper_augmented_model(opts, args)
-      }
-      # augmented function
-      if (!is.null(func)) {
-        opts <- helper_augmented_function(opts, func, func_args)
-      }
-      # augmented variable
-      if (is.na(opts$func)) {
-        opts <- augmented_helper_proposal(opts, proposal_scale)
-        opts <- augmented_helper_const_vs_rand(opts, value)
-      }
+      opts <- helper_augmented_model(opts, args)
+      opts <- helper_augmented_core(opts, value, func, func_args)
+      opts <- helper_augmented_move(opts, proposal_scale)
 
       # domain
       if (!is.null(min)) opts$min <- min
@@ -272,6 +281,8 @@ HousepiAugmented <- R6::R6Class(
 
       # append definition(s)
       self$defs <- rbind(self$defs, data.frame(opts))
+      # assert last definition is correct
+      if (isTRUE(.assert)) housepi_assert_args(self, last = TRUE)
 
       invisible(self)
     },
@@ -279,7 +290,8 @@ HousepiAugmented <- R6::R6Class(
     #' @inherit load_augmented_list
     load_quosures = function(xquos, append = FALSE) {
       if (isFALSE(append)) self$initialize()
-      housepi_load_defin_quos(self, "func", xquos)
+      housepi_load_defin_quos(self, "value", xquos)
+      housepi_assert_args(self)
       invisible(self)
     },
 

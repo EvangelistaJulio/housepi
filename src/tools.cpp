@@ -251,7 +251,8 @@ namespace hsp::str
 
     std::string format(double x) { return na::is(x) ? "NA" : std::to_string(x); }
 
-    std::string format(const std::vector<std::string> &options, size_t max_print)
+    std::string format(const std::vector<std::string> &options,
+                       size_t max_print, bool add_dot)
     {
         if (options.empty())
             return "";
@@ -261,8 +262,10 @@ namespace hsp::str
         for (size_t i = 1; i < max_print; ++i)
             output += ", '" + options[i] + "'";
         if (options.size() > max_print)
-            output += ", ..";
-        return output + ".";
+            output += add_dot ? ", .." : ", ...";
+        else if (add_dot)
+            output += ".";
+        return output;
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////

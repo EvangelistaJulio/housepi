@@ -34,7 +34,10 @@ Default is \code{FALSE}.}
 
 \item{...}{Named arguments. Additional compilation options:\cr
 \itemize{
-\item If \code{discr = TRUE}, uses the model in discrete time, if applicable.
+\item \code{discr} : \code{logical(1)} If \code{TRUE} compile to discrete time.\cr
+\item \code{flags} : \code{character()} Compilation flags.\cr
+\item \code{libs} : \code{character()} Links to libraries.\cr
+\item \code{paths} : \code{character()} Include paths.
 }}
 }
 \value{

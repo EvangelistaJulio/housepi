@@ -45,7 +45,7 @@ HousepiGenerator <- R6::R6Class(
 
     # @field cols_data_wide_ `character()`\cr
     # Headers of last imported data wide.
-    cols_data_wide_ = NULL,
+    cols_data_wide_ = character(),
 
     # @field info_data_wide_ `list`\cr
     # List of levels of the factors in data wide.
@@ -53,7 +53,7 @@ HousepiGenerator <- R6::R6Class(
 
     # @field cols_data_long_ `character()`\cr
     # Headers of the last data long imported.
-    cols_data_long_ = NULL,
+    cols_data_long_ = character(),
 
     # @field info_data_long_ `list`\cr
     # List of levels of the factors in the data long.
@@ -73,21 +73,19 @@ HousepiGenerator <- R6::R6Class(
     # @description
     # Process user options for compilation.
     pre_process_user_options_ = function(quiet, ...) {
-      user_paths <- character()
-      user_flags <- character()
-      user_libs <- character()
-      user_options <- list(...)
+      options <- list(...)
+      paths <- character()
+      flags <- character()
+      libs <- character()
+
+      if ("paths" %in% names(options)) paths <- as.character(options$paths)
+      if ("flags" %in% names(options)) flags <- as.character(options$flags)
+      if ("libs" %in% names(options)) libs <- as.character(options$libs)
 
       # process time discrete option
-      if ("discr" %in% names(user_options) &&
-            isTRUE(user_options$discr)) {
-        user_flags <- c(user_flags, "_HOUSEPI_DISCRETE_TIME")
-      }
+      if (isTRUE(options$discr)) flags <- c(flags, "_HOUSEPI_DISCRETE_TIME")
 
-      list("quiet" = isTRUE(quiet),
-           "user_paths" = user_paths,
-           "user_flags" = user_flags,
-           "user_libs" = user_libs)
+      list(quiet = isTRUE(quiet), paths = paths, flags = flags, libs = libs)
     },
 
     # @description
@@ -354,14 +352,14 @@ HousepiGenerator <- R6::R6Class(
     # @param user_flags `character()` Additional compiler flags.
     # @param user_libs `character()` Additional linker flags.
     compile_ = function(quiet = TRUE,
-                        user_paths = character(),
-                        user_flags = character(),
-                        user_libs = character()) {
+                        paths = character(),
+                        flags = character(),
+                        libs = character()) {
       # compile the dynamic library
       withr::with_envvar(
-        private$build_compile_flags_(paths = user_paths,
-                                     flags = user_flags,
-                                     libs = user_libs),
+        private$build_compile_flags_(paths = paths,
+                                     flags = flags,
+                                     libs = libs),
         pkgbuild::compile_dll(private$cache_dir_,
                               quiet = quiet,
                               compile_attributes = FALSE,
@@ -484,7 +482,7 @@ HousepiGenerator <- R6::R6Class(
       # assign quiet field and load user options
       user_options <- private$pre_process_user_options_(quiet, ...)
       # store raw flags for later checks
-      private$last_flags_ <- user_options$user_flags
+      private$last_flags_ <- user_options$flags
 
       if (dir.exists(choice)) {
         private$init_custom_model_(choice, as_template, force)

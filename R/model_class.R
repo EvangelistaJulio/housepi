@@ -92,15 +92,15 @@ HousepiModel <- R6::R6Class(
 
     # @description
     # Assert if data_wide headers match implementation file.
-    assert_data_wide_ = function(headers) {
-      if (length(headers) == 0) stop_h(
+    # @param capital `logical(1)` to raise error.
+    assert_data_wide_ = function(capital = TRUE) {
+      if (isTRUE(capital) && length(private$cols_data_wide_) == 0) stop_h(
         "Impossible to proceed. No data was provided."
       )
       required <- private$get_all_required_data_wide_()
-      sms <- template_missing_stop(required, headers, "data")
-      if (length(sms) > 0) stop_h(sms)
+      sms <- template_missing_stop(required, private$cols_data_wide_, "data")
+      if (isTRUE(capital) && length(sms) > 0) stop_h(sms)
       else sms
-      invisible(self)
     },
 
     # @description
@@ -122,6 +122,12 @@ HousepiModel <- R6::R6Class(
     ############################################################################
     ############################################################################
     ############################################################################
+
+    # @description
+    # Get template or previously implemented infectiviyt profile.
+    get_internal_infec_profile_ = function() {
+      .engine$export_infec_profile(private$mcmc_ptr_)
+    },
 
     # @description
     # Generate multiplicity definitions
@@ -254,7 +260,7 @@ HousepiModel <- R6::R6Class(
       )))
 
       # assert headers of last imported data_wide
-      private$assert_data_wide_(private$cols_data_wide_)
+      private$assert_data_wide_()
 
       # assert group rate definitions
       private$assert_group_rates_()
@@ -392,9 +398,8 @@ HousepiModel <- R6::R6Class(
                             thin = 1, adapt = 0,
                             chains = 1, threads = 1,
                             seed = NA_integer_, progress = TRUE) {
-      # UPDATE: developer warning
       warning_h(
-        "The method to estimate logevidence is currently under development.",
+        "[Internal] This method is currently under development.",
         "Its usage is deprecated."
       )
 
@@ -423,76 +428,55 @@ HousepiModel <- R6::R6Class(
   active = list(
     #' @field data_wide `data.frame`. Individual level data (wide format).
     data_wide = function(value) {
-      if (missing(value)) return(
-        private$refactor_data_wide_(.engine$export_data_wide(private$mcmc_ptr_))
-      )
-      self$add_data_wide(value)
+      if (!missing(value)) stop_h("'data_wide' is read only.")
+      private$refactor_data_wide_(.engine$export_data_wide(private$mcmc_ptr_))
     },
 
     #' @field data_long
     #' `data.frame`. Additional data rows indexed by individual (long format).
     data_long = function(value) {
-      if (missing(value)) return(
-        private$refactor_data_long_(.engine$export_data_long(private$mcmc_ptr_))
-      )
-      self$add_data_long(value)
+      if (!missing(value)) stop_h("'data_long' is read only.")
+      private$refactor_data_long_(.engine$export_data_long(private$mcmc_ptr_))
     },
 
     #' @field parameters `data.frame`. Parameter definitions.
     parameters = function(value) {
-      if (missing(value)) {
-        private$build_group_rates_()
-        return(housepi_defin_showcaser(private$param_$defs))
-      }
-      xquos <- convert_list_to_quosures(value)
-      private$param_$load_quosures(xquos, append = FALSE)
-      housepi_assert_args(self, "parameter")
+      if (!missing(value)) stop_h("'parameters' is read only.")
+      private$build_group_rates_()
+      housepi_defin_showcaser(private$param_$defs)
     },
 
     #' @field augmented `data.frame`. Augmented definitions.
     augmented = function(value) {
-      if (missing(value)) return(housepi_defin_showcaser(private$augm_$defs))
-      xquos <- convert_list_to_quosures(value)
-      private$augm_$load_quosures(xquos, append = FALSE)
-      housepi_assert_args(self, "augmented")
+      if (!missing(value)) stop_h("'augmented' is read only.")
+      housepi_defin_showcaser(private$augm_$defs)
     },
 
     #' @field infec_profile `data.frame`. Infectivity profile definitions.
     infec_profile = function(value) {
-      # UPDATE: reformatting current rcpp_export waiting for status specific
-      if (missing(value)) {
-        # get custom definition
-        custom <- private$infec_profile_$showcase()
-        if (length(custom) > 0) return(custom)
-
-        # get template/previously implemented
-        stored <- .engine$export_infec_profile(private$mcmc_ptr_)
-        if (length(stored) > 0) {
-          output <- data.frame(func = stored$func,
-                               func_args = base::I(list(stored$func_args)),
-                               min = stored$min, max = stored$max,
-                               discr = stored$discr,
-                               stringsAsFactors = FALSE)
-          class(output$func_args) <- "list"
-          return(output)
-        }
-        return(NULL)
-      }
-      xquos <- convert_list_to_quosures(value)
-      private$infec_profile_$load_quosures(xquos, append = FALSE)
-      housepi_assert_args(self, "infectivity profile")
+      if (!missing(value)) stop_h("'infec_profile' is read only.")
+      # get custom definition
+      custom <- private$infec_profile_$showcase()
+      if (length(custom) > 0) return(custom)
+      # get template/previously implemented
+      stored <- private$get_internal_infec_profile_()
+      if (length(stored) == 0) return(NULL)
+      # format exported implementation
+      output <- data.frame(func = stored$func,
+                           func_args = base::I(list(stored$func_args)),
+                           min = stored$min, max = stored$max,
+                           discr = stored$discr,
+                           stringsAsFactors = FALSE)
+      class(output$func_args) <- "list"
+      output
     },
 
     #' @field group_rates `data.frame`. Group rate definitions.
     group_rates = function(value) {
-      if (missing(value)) {
-        private$assert_group_rates_()
-        private$build_group_rates_()
-        return(private$group_rates_$tidy_table)
-      }
-      self$drop_group_rates()
-      xquos <- convert_list_to_quosures(value)
-      private$group_rates_$load_quosures(xquos, append = FALSE)
+      if (!missing(value)) stop_h("'group_rates' is read only.")
+      private$assert_group_rates_()
+      private$build_group_rates_()
+      private$group_rates_$tidy_table
     }
   ),
 
@@ -531,7 +515,7 @@ HousepiModel <- R6::R6Class(
       .housepi_env$hollow <- TRUE
       on.exit(.housepi_env$hollow <- FALSE)
       obj <- HousepiModel$new()
-      
+
       # clone default fields
       obj_encl <- obj$.__enclos_env__$private
       for (field in names(obj_encl)) {
@@ -541,10 +525,10 @@ HousepiModel <- R6::R6Class(
           obj_encl[[field]] <- helper_clone(val)
         }
       }
-      
+
       # use cloned paths to create new Rcpp pointers
       obj_encl$create_new_pointers_()
-      
+
       # UPDATE: this transfer shall be cleaned
       .engine$import_setup(
         obj_encl$mcmc_ptr_,
@@ -559,7 +543,7 @@ HousepiModel <- R6::R6Class(
         obj_encl$mcmc_ptr_,
         char_data_input_(.engine$export_data_long(private$mcmc_ptr_))
       )
-      
+
       obj
     },
 
@@ -572,6 +556,9 @@ HousepiModel <- R6::R6Class(
       if ("_HOUSEPI_DISCRETE_TIME" %in% private$last_flags_) sms <- c(
         sms, "Model is set to {.emph discrete time} mode."
       )
+      if (length(private$get_all_required_data_wide_()) > 0) sms <- c(sms,
+        fmt_assert_cli("Data", private$assert_data_wide_(FALSE))
+      )
       if (length(private$get_all_required_param_()) > 0) sms <- c(sms,
         fmt_assert_cli("Parameters", private$assert_param_(FALSE))
       )
@@ -582,15 +569,16 @@ HousepiModel <- R6::R6Class(
         fmt_assert_cli("Group rates", private$assert_group_rates_(FALSE),
                        minor = TRUE)
       )
-      if (length(.engine$export_infec_profile(private$mcmc_ptr_)) > 0) {
-        ip_sms <- NULL
-        if (length(private$infec_profile_$showcase()) == 0) ip_sms <- c(
-          "Using templated infectivity profile.",
-          "It can be specified for model definitions."
+      if (length(private$get_internal_infec_profile_()) > 0) sms <- c(sms,
+        fmt_assert_cli(
+          "Infectivity profile",
+          if (length(private$infec_profile_$showcase()) == 0) c(
+            "Using templated profile. A custom choice can be provided."
+          )
+          else NULL,
+          minor = TRUE
         )
-        sms <- c(sms,
-                 fmt_assert_cli("Infectivity profile", ip_sms, minor = TRUE))
-      }
+      )
       cli::cli_inform(sms)
       invisible(self)
     },
@@ -617,16 +605,25 @@ HousepiModel <- R6::R6Class(
         "Dataset should be a data.frame."
       )
 
-      # assert data_wide headers
-      private$assert_data_wide_(colnames(data_wide))
       # convert factors
       embed <- cpp_data_factorize(data_wide)
       # store levels
       private$info_data_wide_ <- embed$info
       # store column names
       private$cols_data_wide_ <- embed$cols
-      # store all postive status
+      # store all positive status
       private$infec_status_set_ <- embed$status
+
+      # assert data_wide headers
+      tryCatch({
+        private$assert_data_wide_()
+      }, error = function(e) {
+        private$info_data_wide_ <- NULL
+        private$cols_data_wide_ <- character()
+        private$infec_status_set_ <- integer()
+        stop_h(e)
+      })
+
       # import data.frame in rcpp
       .engine$import_data_wide(private$mcmc_ptr_, embed$data)
 
@@ -693,8 +690,8 @@ HousepiModel <- R6::R6Class(
                              prior = prior, rlang::enquos(...),
                              min = rlang::enquo(min), max = rlang::enquo(max),
                              proposal = proposal,
-                             proposal_scale = proposal_scale)
-      housepi_assert_args(self, "parameter", last = TRUE)
+                             proposal_scale = proposal_scale,
+                             .assert = TRUE)
       invisible(self)
     },
 
@@ -704,7 +701,6 @@ HousepiModel <- R6::R6Class(
     #' @param append `r rd_list_append_`
     load_parameter_list = function(..., append = FALSE) {
       private$param_$load_quosures(rlang::enquos(...), append = append)
-      housepi_assert_args(self, "parameter")
       invisible(self)
     },
 
@@ -756,8 +752,8 @@ HousepiModel <- R6::R6Class(
                             model = model, rlang::enquos(...),
                             min = rlang::enquo(min), max = rlang::enquo(max),
                             proposal = proposal,
-                            proposal_scale = proposal_scale)
-      housepi_assert_args(self, "augmented", last = TRUE)
+                            proposal_scale = proposal_scale,
+                            .assert = TRUE)
       invisible(self)
     },
 
@@ -766,7 +762,6 @@ HousepiModel <- R6::R6Class(
     #' @param append `r rd_list_append_`
     load_augmented_list = function(..., append = FALSE) {
       private$augm_$load_quosures(rlang::enquos(...), append = append)
-      housepi_assert_args(self, "augmented")
       invisible(self)
     },
 
@@ -845,8 +840,8 @@ HousepiModel <- R6::R6Class(
       private$infec_profile_$add_quo(func = func,
                                      status = status, discr = discr,
                                      rlang::enquos(...),
-                                     max = rlang::enquo(max))
-      housepi_assert_args(self, "infectivity profile", last = TRUE)
+                                     max = rlang::enquo(max),
+                                     .assert = TRUE)
       invisible(self)
     },
 
@@ -855,7 +850,6 @@ HousepiModel <- R6::R6Class(
     #' @param append `r rd_list_append_`
     load_infec_profile_list = function(..., append = FALSE) {
       private$infec_profile_$load_quosures(rlang::enquos(...), append = append)
-      housepi_assert_args(self, "infectivity profile")
       invisible(self)
     },
 

@@ -29,6 +29,14 @@ new_housepi_model <- function(choice = NA_character_, as_template = FALSE,
 ############################################################################
 ############################################################################
 
+# Check hosuepi model.
+stopifnothousepi <- function(hhmodel) {
+  if (!inherits(hhmodel, "HousepiModel")) stop_h(
+    "'hhmodel' must be of class 'HousepiModel'",
+    "Create one with new_housepi_model()."
+  )
+}
+
 #' @title Add household data in wide format
 #' @description
 #' Make an internal copy of the provided household data.
@@ -37,7 +45,7 @@ new_housepi_model <- function(choice = NA_character_, as_template = FALSE,
 #' @return `r rd_model_out_`
 #' @export
 add_data_wide  <- function(hhmodel, data_wide) {
-  stopifnot(inherits(hhmodel, "HousepiModel"))
+  stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   new_obj$add_data_wide(data_wide)
   new_obj
@@ -51,7 +59,7 @@ add_data_wide  <- function(hhmodel, data_wide) {
 #' @return `r rd_model_out_`
 #' @export
 add_data_long <- function(hhmodel, data_long) {
-  stopifnot(inherits(hhmodel, "HousepiModel"))
+  stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   new_obj$add_data_long(data_long)
   new_obj
@@ -88,7 +96,7 @@ summarise_house_sizes <- function(hhmodel) {
 #' @rdname drop_definitions
 #' @export
 drop_parameters <-  function(hhmodel) {
-  stopifnot(inherits(hhmodel, "HousepiModel"))
+  stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   new_obj$drop_parameters()
   new_obj
@@ -97,7 +105,7 @@ drop_parameters <-  function(hhmodel) {
 #' @rdname drop_definitions
 #' @export
 drop_augmented <-  function(hhmodel) {
-  stopifnot(inherits(hhmodel, "HousepiModel"))
+  stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   new_obj$drop_augmented()
   new_obj
@@ -106,7 +114,7 @@ drop_augmented <-  function(hhmodel) {
 #' @rdname drop_definitions
 #' @export
 drop_group_rates <-  function(hhmodel) {
-  stopifnot(inherits(hhmodel, "HousepiModel"))
+  stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   new_obj$drop_group_rates()
   new_obj
@@ -115,7 +123,7 @@ drop_group_rates <-  function(hhmodel) {
 #' @rdname drop_definitions
 #' @export
 drop_infectivity_profile <-  function(hhmodel) {
-  stopifnot(inherits(hhmodel, "HousepiModel"))
+  stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   new_obj$drop_infectivity_profile()
   new_obj
@@ -124,7 +132,7 @@ drop_infectivity_profile <-  function(hhmodel) {
 #' @rdname drop_definitions
 #' @export
 drop_all <- function(hhmodel) {
-  stopifnot(inherits(hhmodel, "HousepiModel"))
+  stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   new_obj$drop_all()
   new_obj
@@ -142,35 +150,35 @@ drop_all <- function(hhmodel) {
 #' @rdname get_definitions
 #' @export
 get_data_wide <- function(hhmodel) {
-  stopifnot(inherits(hhmodel, "HousepiModel"))
+  stopifnothousepi(hhmodel)
   hhmodel$data_wide
 }
 
 #' @rdname get_definitions
 #' @export
 get_data_long <- function(hhmodel) {
-  stopifnot(inherits(hhmodel, "HousepiModel"))
+  stopifnothousepi(hhmodel)
   hhmodel$data_long
 }
 
 #' @rdname get_definitions
 #' @export
 get_parameters <- function(hhmodel) {
-  stopifnot(inherits(hhmodel, "HousepiModel"))
+  stopifnothousepi(hhmodel)
   hhmodel$parameters
 }
 
 #' @rdname get_definitions
 #' @export
 get_augmented <- function(hhmodel) {
-  stopifnot(inherits(hhmodel, "HousepiModel"))
+  stopifnothousepi(hhmodel)
   hhmodel$augmented
 }
 
 #' @rdname get_definitions
 #' @export
 get_group_rates <- function(hhmodel) {
-  stopifnot(inherits(hhmodel, "HousepiModel"))
+  stopifnothousepi(hhmodel)
   # internal build requires deep clone to avoid inplace
   hhmodel$copy()$group_rates
 }
@@ -178,7 +186,7 @@ get_group_rates <- function(hhmodel) {
 #' @rdname get_definitions
 #' @export
 get_infec_profile <- function(hhmodel) {
-  stopifnot(inherits(hhmodel, "HousepiModel"))
+  stopifnothousepi(hhmodel)
   hhmodel$infec_profile
 }
 
@@ -210,16 +218,16 @@ add_parameter <- function(hhmodel,
                           min = NULL, max = NULL,
                           proposal = NA_character_,
                           proposal_scale = NA_real_) {
-  stopifnot(inherits(hhmodel, "HousepiModel"))
+  stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   new_obj$.__enclos_env__$private$param_$add_quo(
     name = name, value = rlang::enquo(value),
     const = const, discr = discr,
     prior = prior, rlang::enquos(...),
     min = rlang::enquo(min), max = rlang::enquo(max),
-    proposal = proposal, proposal_scale = proposal_scale
+    proposal = proposal, proposal_scale = proposal_scale,
+    .assert = TRUE
   )
-  housepi_assert_args(new_obj, "parameter", last = TRUE)
   new_obj
 }
 
@@ -232,7 +240,7 @@ add_parameter <- function(hhmodel,
 #' @rdname load_template_definitions
 #' @export
 load_parameter_template <- function(hhmodel, append = FALSE) {
-  stopifnot(inherits(hhmodel, "HousepiModel"))
+  stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   new_obj$load_parameter_template(append = append)
   new_obj
@@ -270,7 +278,7 @@ add_augmented <- function(hhmodel,
                           min = NULL, max = NULL,
                           proposal = NA_character_,
                           proposal_scale = NA_real_) {
-  stopifnot(inherits(hhmodel, "HousepiModel"))
+  stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   new_obj$.__enclos_env__$private$augm_$add_quo(
     name = name, value = rlang::enquo(value),
@@ -278,16 +286,16 @@ add_augmented <- function(hhmodel,
     func = rlang::enquo(func), func_args = rlang::enquos(func_args),
     model = model, rlang::enquos(...),
     min = rlang::enquo(min), max = rlang::enquo(max),
-    proposal = proposal, proposal_scale = proposal_scale
+    proposal = proposal, proposal_scale = proposal_scale,
+    .assert = TRUE
   )
-  housepi_assert_args(new_obj, "augmented", last = TRUE)
   new_obj
 }
 
 #' @rdname load_template_definitions
 #' @export
 load_augmented_template <- function(hhmodel, append = FALSE) {
-  stopifnot(inherits(hhmodel, "HousepiModel"))
+  stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   new_obj$load_augmented_template(append = append)
   new_obj
@@ -326,7 +334,7 @@ add_group_rate <-  function(hhmodel,
                             min = NULL, max = NULL,
                             proposal = NA_character_,
                             proposal_scale = NA_real_) {
-  stopifnot(inherits(hhmodel, "HousepiModel"))
+  stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   new_obj$.__enclos_env__$private$group_rates_$add_quo(
     name = name, by = by, prefix = prefix,
@@ -357,16 +365,15 @@ add_infec_profile <- function(hhmodel,
                               func, status = NA_integer_,
                               discr = FALSE,
                               ..., max = NULL) {
-  stopifnot(inherits(hhmodel, "HousepiModel"))
+  stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   new_obj$.__enclos_env__$private$infec_profile_$add_quo(
     func = func, status = status, discr = discr,
-    rlang::enquos(...), max = rlang::enquo(max)
+    rlang::enquos(...), max = rlang::enquo(max),
+    .assert = TRUE
   )
-  housepi_assert_args(new_obj, "infectivity profile", last = TRUE)
   new_obj
 }
-
 
 ############################################################################
 ############################################################################
@@ -382,21 +389,29 @@ add_infec_profile <- function(hhmodel,
 #' @rdname load_definitions_list
 #' @export
 load_parameter_list <- function(hhmodel, ..., append = FALSE) {
-  helper_load_def_list(hhmodel, "parameter",
-                       xquos = rlang::enquos(...), append = append)
+  stopifnothousepi(hhmodel)
+  new_obj <- hhmodel$copy()
+  new_obj$.__enclos_env__$private$param_$load_quosures(
+    rlang::enquos(...), append = append
+  )
+  new_obj
 }
 
 #' @rdname load_definitions_list
 #' @export
 load_augmented_list <- function(hhmodel, ..., append = FALSE) {
-  helper_load_def_list(hhmodel, "augmented",
-                       xquos = rlang::enquos(...), append = append)
+  stopifnothousepi(hhmodel)
+  new_obj <- hhmodel$copy()
+  new_obj$.__enclos_env__$private$augm_$load_quosures(
+    rlang::enquos(...), append = append
+  )
+  new_obj
 }
 
 #' @rdname load_definitions_list
 #' @export
 load_group_rate_list <- function(hhmodel, ..., append = FALSE) {
-  stopifnot(inherits(hhmodel, "HousepiModel"))
+  stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   # NOTE: dropping group rates might cause parameter drops
   if (isFALSE(append)) new_obj$drop_group_rates()
@@ -409,8 +424,12 @@ load_group_rate_list <- function(hhmodel, ..., append = FALSE) {
 #' @rdname load_definitions_list
 #' @export
 load_infec_profile_list <- function(hhmodel, ..., append = FALSE) {
-  helper_load_def_list(hhmodel, "infectivity profile",
-                       xquos = rlang::enquos(...), append = append)
+  stopifnothousepi(hhmodel)
+  new_obj <- hhmodel$copy()
+  new_obj$.__enclos_env__$private$infec_profile_$load_quosures(
+    rlang::enquos(...), append = append
+  )
+  new_obj
 }
 
 ############################################################################
@@ -429,7 +448,7 @@ load_infec_profile_list <- function(hhmodel, ..., append = FALSE) {
 evaluate_log_lik <- function(hhmodel,
                              house_id = NA_character_,
                              seed = NA_integer_) {
-  stopifnot(inherits(hhmodel, "HousepiModel"))
+  stopifnothousepi(hhmodel)
   hhmodel$evaluate_log_lik(house_id = house_id, seed = seed)
 }
 
@@ -454,7 +473,7 @@ run_inference <- function(hhmodel,
                           chains = 1, threads = 1,
                           id_draws = NULL, seed = NA_integer_,
                           progress = TRUE) {
-  stopifnot(inherits(hhmodel, "HousepiModel"))
+  stopifnothousepi(hhmodel)
   hhmodel$run_inference(steps = steps, burnin = burnin,
                         thin = thin, adapt = adapt,
                         chains = chains, threads = threads,
@@ -475,7 +494,7 @@ run_inference <- function(hhmodel,
 run_simulation <- function(hhmodel,
                            nsim = 1, seed = NA_integer_,
                            obs_process = NULL) {
-  stopifnot(inherits(hhmodel, "HousepiModel"))
+  stopifnothousepi(hhmodel)
   hhmodel$run_simulation(nsim = nsim, seed = seed,
                          obs_process = obs_process)
 }
@@ -508,7 +527,7 @@ run_simulation <- function(hhmodel,
 #                         thin = 1, adapt = 0,
 #                         chains = 1, threads = 1,
 #                         seed = NA_integer_, progress = TRUE) {
-#   stopifnot(inherits(hhmodel, "HousepiModel"))
+#   stopifnothousepi(hhmodel)
 #   hhmodel$logevidence(scheme = scheme, rungs = rungs,
 #                       steps = steps, burnin = burnin,
 #                       thin = thin, adapt = adapt,

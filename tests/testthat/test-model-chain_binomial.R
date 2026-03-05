@@ -13,7 +13,7 @@ test_that("Chain binomial is not discretizable", {
 
 test_that("Deep clone works as expected", {
   hhmodel <- new_housepi_model("chain_binomial_heterogeneous")
-  hhmodel$data_wide <- housepi::survey
+  hhmodel$add_data_wide(housepi::survey)
   hhmodel$load_parameter_template()
   expect_no_error(out <- hhmodel$run_inference(steps = 2, progress = FALSE))
 
@@ -32,7 +32,7 @@ test_that("Deep clone works as expected", {
 
   # check no backward changes
   hhmodel$add_group_rate("susceptibility", by = "sex")
-  hhclone$data_wide <- dplyr::mutate(housepi::survey, status = NA)
+  hhclone$add_data_wide(dplyr::mutate(housepi::survey, status = NA))
   expect_failure(expect_equal(hhmodel$group_rates, hhclone$group_rates))
   expect_failure(expect_equal(hhmodel$data_wide, hhclone$data_wide))
 })
@@ -76,14 +76,15 @@ test_that("Single infected member log-likelihood is correct", {
 
   # define housepi model
   hhmodel <- new_housepi_model("chain_binomial_heterogeneous")
-  hhmodel$data_wide <- house
+  hhmodel$add_data_wide(house)
   hhmodel$load_group_rate_list(community = "class",
                                susceptibility = "class",
                                infectivity = "class")
-  hhmodel$parameters <- list(alpha = par$alpha, beta = par$beta,
-                             com_class_b = com_class_b,
-                             sus_class_b = sus_class_b,
-                             inf_class_b = inf_class_b)
+  hhmodel$load_parameter_list(alpha = !!par$alpha, 
+                              beta = !!par$beta,
+                              com_class_b = !!com_class_b,
+                              sus_class_b = !!sus_class_b,
+                              inf_class_b = !!inf_class_b)
   expect_equal(log_lik, hhmodel$evaluate_log_lik())
 })
 
@@ -91,16 +92,16 @@ test_that("Chain binomial models are coherent", {
   # log-likelihood from chain binomial model
   hhmodel1 <- new_housepi_model("chain_binomial")
 
-  hhmodel1$parameters <- list(alpha = 0.15, beta = 0.22)
-  hhmodel1$data_wide <- housepi::survey
+  hhmodel1$load_parameter_list(alpha = 0.15, beta = 0.22)
+  hhmodel1$add_data_wide(housepi::survey)
   ll1 <- hhmodel1$evaluate_log_lik()
 
   # log-likelihood from heterogeneous chain binomial model
   # with homogenous rates
   hhmodel2 <- new_housepi_model("chain_binomial_heterogeneous")
 
-  hhmodel2$parameters <- list(alpha = 0.15, beta = 0.22)
-  hhmodel2$data_wide <- housepi::survey
+  hhmodel2$load_parameter_list(alpha = 0.15, beta = 0.22)
+  hhmodel2$add_data_wide(housepi::survey)
   ll2 <- hhmodel2$evaluate_log_lik()
 
   expect_equal(ll1, ll2)
@@ -174,16 +175,16 @@ test_that("Chain binomial models are coherent", {
 #
 #   # define housepi model
 #   hhmodel <- new_housepi_model("chain_binomial_heterogeneous")
-#   hhmodel$data_wide <- house
+#   hhmodel$add_data_wide(house)
 #   hhmodel$load_group_rate_list(community = list("class", reference = "A"),
 #                                susceptibility = list("class", reference = "A"),
 #                                infectivity = list("class", reference = "A"))
-#   hhmodel$parameters <- list(alpha = par$alpha, beta = par$beta,
-#                              com_class_b = com_class_b,
-#                              sus_class_b = sus_class_b,
-#                              inf_class_b = inf_class_b,
-#                              com_class_c = com_class_c,
-#                              sus_class_c = sus_class_c,
-#                              inf_class_c = inf_class_c)
+#   hhmodel$load_parameter_list(alpha = par$alpha, beta = par$beta,
+#                               com_class_b = com_class_b,
+#                               sus_class_b = sus_class_b,
+#                               inf_class_b = inf_class_b,
+#                               com_class_c = com_class_c,
+#                               sus_class_c = sus_class_c,
+#                               inf_class_c = inf_class_c)
 #   expect_equal(log_lik, hhmodel$evaluate_log_lik())
 # })

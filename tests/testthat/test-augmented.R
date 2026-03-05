@@ -38,7 +38,7 @@ test_that("Constant value definition are coherent", {
   expect_equal(augm$defs, tmp$defs)
 
   augm <- aux_load(housepi:::HousepiAugmented$new(), dummy = 3@D)
-  tmp <- aux_add(housepi:::HousepiAugmented$new(), name = "dummy", func = 3@D)
+  tmp <- aux_add(housepi:::HousepiAugmented$new(), name = "dummy", value = 3@D)
   expect_equal(augm$defs, tmp$defs)
 })
 

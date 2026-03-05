@@ -2,12 +2,14 @@ library(testthat)
 
 test_that("Nested definitions raise errors", {
   hhmodel <- new_housepi_model("augmented_example")
-  hhmodel$data_wide <- data.frame(house_id = 1, id = seq(4), status = seq(4))
+  hhmodel$add_data_wide(
+    data.frame(house_id = 1, id = seq(4), status = seq(4))
+  )
 
   expect_no_error(
     hhmodel$load_augmented_list(
       .layer = list(model = "uniform", status = 1),
-      .layer = list(func = .dummy, status = c(2, 3, 4)),
+      .layer = list(value = .dummy, status = c(2, 3, 4)),
       .dummy = list(model = "uniform"),
       proba = .layer
     )$evaluate_log_lik()
@@ -32,7 +34,7 @@ test_that("Nested definitions raise errors", {
   err_msg <- as.character(expect_error(
     hhmodel$load_augmented_list(
       .layer = list(model = "normal", status = 1),
-      .layer = list(func = .dummy, status = 2),
+      .layer = list(value = .dummy, status = 2),
       #> NO .layer provided for status 3 and 4
       .dummy = list(model = "lognormal", status = 2),
       proba = .layer
@@ -45,7 +47,7 @@ test_that("Nested definitions raise errors", {
   err_msg <- as.character(expect_error(
     hhmodel$load_augmented_list(
       .layer = list(model = "normal", status = 1),
-      .layer = list(func = .dummy, status = c(2, 3, 4)),
+      .layer = list(value = .dummy, status = c(2, 3, 4)),
       #> NO .dummy provided for status 3, 4
       .dummy = list(model = "lognormal", status = c(2, 3)),
       proba = .layer
@@ -57,19 +59,14 @@ test_that("Nested definitions raise errors", {
 
 test_that("Missing function arguments raise errors", {
   hhmodel <- new_housepi_model("augmented_example")
-  hhmodel$data_wide <- data.frame(house_id = seq(3), id = seq(3),
-                                  status = 1, test = c(5.5, NA, -1.5))
+  hhmodel$add_data_wide(data.frame(house_id = seq(3), id = seq(3),
+                                   status = 1, test = c(5.5, NA, -1.5)))
 
   # non default arguments
-  hhmodel$add_augmented(name = "proba", func = "gamma", func_args = c(x = 1))
-  expect_error(hhmodel$evaluate_log_lik(), regexp = "missing non default")
-
-  # concatenated non default arguments
-  hhmodel$load_augmented_list(
-    gamma = list(func = "weibull", func_args = c(x = 1)),
-    proba = exp(-gamma)
+  expect_error(
+    hhmodel$add_augmented(name = "proba", func = "gamma"), 
+    regexp = "Missing non default"
   )
-  expect_error(hhmodel$evaluate_log_lik(), regexp = "missing non default")
 
   # data with NA values
   hhmodel$drop_augmented()
@@ -100,10 +97,12 @@ test_that("Missing function arguments raise errors", {
 
 test_that("Augmented log-likelihood seeding is fine", {
   hhmodel <- new_housepi_model("augmented_example")
-  hhmodel$data_wide <- data.frame(house_id = 1, id = seq(4), status = seq(4))
+  hhmodel$add_data_wide(
+    data.frame(house_id = 1, id = seq(4), status = seq(4))
+  )
   hhmodel$load_augmented_list(
     proba = list(model = "uniform", status = 1),
-    proba = list(func = .layer, status = c(2, 3, 4)),
+    proba = list(value = .layer, status = c(2, 3, 4)),
     .layer = list(model = "uniform")
   )
 
@@ -116,9 +115,9 @@ test_that("Augmented log-likelihood seeding is fine", {
 
 test_that("Augmented aliasing works as expected", {
   hhmodel <- new_housepi_model("augmented_example")
-  hhmodel$data_wide <- data.frame(
+  hhmodel$add_data_wide(data.frame(
     house_id = "hh1", id = seq(1, 3), x = 2 + runif(3), status = 1
-  )
+  ))
   hhmodel$add_parameter(name = "scale", value = 1)
   hhmodel$load_augmented_list(
     .dummy = x@D,
@@ -142,9 +141,9 @@ test_that("Augmented aliasing works as expected", {
   # check normalization of binomial with augmented example
   size <- 10
   hhmodel <- new_housepi_model("augmented_example")
-  hhmodel$data_wide <- data.frame(
+  hhmodel$add_data_wide(data.frame(
     id = seq(0, size), house_id = "hh1", status = 1, X = seq(0, size)
-  )
+  ))
   hhmodel$load_augmented_list(
     pdf = list(func = "binomial",
                func_args = c(x = X@D, size = !!size, prob = 0.5)),
@@ -168,7 +167,7 @@ test_that("Augmentation example on incubation from delays is coherent", {
                  func_args = c(x = ip@D, shape = !!shape, scale = !!scale))
   )
   # warning for no structure
-  expect_warning(hhmodel$data_wide <- df,
+  expect_warning(hhmodel$add_data_wide(df),
                  regexp = "Ignored household structure")
   expect_equal(hhmodel$evaluate_log_lik(), exact)
 })

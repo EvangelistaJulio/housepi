@@ -14,7 +14,7 @@
 namespace hsp::str
 {
     constexpr size_t MAX_PRINT = 5;                 /// Max elements to print.
-    constexpr size_t MIN_DIST = 3;                  /// Similarity threshold distance.
+    constexpr size_t MIN_DIST = 2;                  /// Similarity threshold distance.
     constexpr std::string_view HIDDEN_PREFIX = "."; /// Prefix for hidden objects.
 
     /// Convert to lower case.
@@ -34,7 +34,9 @@ namespace hsp::str
     /// Format a dobule value (it deals with NA).
     std::string format(double x);
     /// Format a list of string options.
-    std::string format(const std::vector<std::string> &options, size_t max_print = MAX_PRINT);
+    std::string format(const std::vector<std::string> &options,
+                       size_t max_print = MAX_PRINT,
+                       bool add_dot = true);
 
     /// Wheter a name has been tagged as private.
     bool is_private(std::string_view s) noexcept;

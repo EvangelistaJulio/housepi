@@ -25,7 +25,10 @@ Default is `FALSE`."
 rd_mdl_quiet_ <- "`logical(1)` If `TRUE` hide compilation commands.\\cr
 Default is `FALSE`."
 rd_mdl_flags_ <- "Named arguments. Additional compilation options:\\cr
-- If `discr = TRUE`, uses the model in discrete time, if applicable."
+- `discr` : `logical(1)` If `TRUE` compile to discrete time.\\cr
+- `flags` : `character()` Compilation flags.\\cr
+- `libs` : `character()` Links to libraries.\\cr
+- `paths` : `character()` Include paths."
 
 ############################################################################
 ############################################################################

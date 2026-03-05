@@ -27,13 +27,13 @@ test_that("Model class blank calls", {
   # correct data long format
   data_long <- data.frame(id = data_wide$id[1],
                           time = seq(3), measure = seq(3)**3)
-  hhmodel$data_long <- data_long
+  hhmodel$add_data_long(data_long)
   expect_equal(hhmodel$data_long, data_long)
 
   # factorization
   complex_data <- housepi::survey
   complex_data$dates <- as.Date(runif(dim(complex_data)[1], max = 100))
-  hhmodel$data_wide <- complex_data
+  hhmodel$add_data_wide(complex_data)
   expect_equal(hhmodel$data_wide, complex_data)
 
   # templates
@@ -53,16 +53,8 @@ test_that("Model class blank calls", {
   )
 })
 
-test_that("Active bindings work as expected", {
+test_that("Rlang calls work as expected", {
   hhmodel <- new_housepi_model("blank")
-
-  # parameters
-  hhmodel$parameters <- list(sample = list(prior = "uniform"),
-                             uniform = list(prior = "uniform"))
-  defs_a <- hhmodel$parameters
-  hhmodel$load_parameter_list(sample = list(prior = "uniform"),
-                              uniform = list(prior = "uniform"))
-  expect_equal(defs_a, hhmodel$parameters)
 
   val <- 1
   hhmodel$load_parameter_list(
@@ -74,14 +66,6 @@ test_that("Active bindings work as expected", {
   aux <- hhmodel$parameters
   aux$name <- NULL
   expect_equal(nrow(unique(aux)), 1)
-
-  # augmented
-  hhmodel$augmented <- list(sample = list(model = "uniform"),
-                            uniform = list(model = "uniform"))
-  defs_a <- hhmodel$augmented
-  hhmodel$load_augmented_list(sample = list(model = "uniform"),
-                              uniform = list(model = "uniform"))
-  expect_equal(defs_a, hhmodel$augmented)
 
   val <- 3
   hhmodel$load_augmented_list(

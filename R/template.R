@@ -7,35 +7,6 @@
 
 #' @importFrom Rcpp Module
 
-# Assert that given definition name is valid.
-assert_valid_definition_name <- function(x, family, is_implicit = FALSE) {
-  sms <- c()
-  if (length(x) != 1 || is.na(x) || !is.character(x) || nchar(x) == 0) {
-    sms <- c(
-      sprintf("Definition name of %s must be a non-empty character(1).", family)
-    )
-    if (isTRUE(is_implicit)) sms <- c(sms,
-      "Did you provide a list and forgot rlang injection operator `!!!`?"
-    )
-  } else if (!grepl("^[A-Za-z0-9_.]+$", x)) {
-    sms <- c(
-      sprintf("Definition %s name '%s' contained invalid characters.",
-              family, x),
-      "Only letters, numbers, underscores '_' and dots '.' are allowed."
-    )
-  }
-  if (!is.null(sms)) stop_h(sms)
-}
-
-# Assert that given status name is/are valid.
-assert_valid_status <- function(status) {
-  status <- status[!is.na(status)]
-  status_as_int <- as.integer(status)
-  if (any(status_as_int <= 0) || !all(status == status_as_int)) stop_h(
-    "Status specific definition is valid only for positive integer values."
-  )
-}
-
 # Associate dynamic library extension to name
 dll_file_ext <- function(name) {
   paste0(name, .Platform$dynlib.ext)

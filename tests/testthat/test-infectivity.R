@@ -55,10 +55,10 @@ test_that("Status specific definition work fine", {
                  regexp = "Overwriting")
 
   aux_load(infec,
-           list(func = "gamma", status = 1),
-           list(func = "beta", status = 2),
-           v1 = "delta")
-  expect_equal(infec$defs$func, c("gamma", "beta", "delta"))
+           list(func = "lognormal", status = 1),
+           list(func = "ferretti20", status = 2),
+           v1 = "uniform")
+  expect_equal(infec$defs$func, c("lognormal", "ferretti20", "uniform"))
   expect_equal(infec$defs$status, c(1, 2, NA_integer_))
 })
 

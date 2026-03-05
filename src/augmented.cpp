@@ -360,9 +360,11 @@ namespace hsp
         {
             is_to_draw = false;
         }
-        else if (!na::is(deftable_["func"][k]))
+        else if (!(na::is(deftable_["func"][k]) && na::is(deftable_["value"][k])))
         {
-            const parse::Definition parser(deftable_["func"][k]);
+            const std::string &str_val = deftable_["value"][k];
+            const parse::Definition parser(na::is(str_val) ? deftable_["func"][k] : str_val);
+
             if (parser.is_terminal())
             {
                 // check the type of requested equality
@@ -584,7 +586,8 @@ namespace hsp
     {
         const std::string &augmstr = deftable_["name"][k];
         Variable &xaugm = member.augm_vec_[pRegistry->from_string(augmstr)];
-        parse::Definition parser(deftable_["func"][k]);
+        std::string str_val = deftable_["value"][k];
+        parse::Definition parser(na::is(str_val) ? deftable_["func"][k] : str_val);
 
         // pointer mode
         if (parser.is_terminal())

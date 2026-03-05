@@ -22,7 +22,7 @@ test_that("Function exported from housepi are correct", {
   x <- seq(0, 1000, 1)
 
   expect_error(expose_function("pow")$func(x),
-               regexp = "missing non default")
+               regexp = "Missing non default")
   expect_error(expose_function("pow", 5),
                regexp = "Unnamed argument")
 

@@ -62,7 +62,7 @@ helper_split_external_semicol <- function(x) {
   gsub("^\\{(.*)\\}$", "\\1", result)
 }
 
-# helper to extract arguments from a definition
+# Helper to extract arguments from a definition.
 showcase_extract_args <- function(x) {
   lapply(x, function(element) {
     if (is.na(element)) return(NA_real_)

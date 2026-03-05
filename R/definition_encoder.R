@@ -61,7 +61,6 @@ housepi_format_call <- function(func_name, func_args) {
 
 # Helper to extract functin from call.
 housepi_func_from_call <- function(call) {
-
   # Helper to unwrap from useless parenthesis.
   strip_useless_parens <- function(x) {
     while (rlang::is_call(x) &&
@@ -100,6 +99,7 @@ housepi_func_from_call <- function(call) {
                       rlang::call_name(call))
 
   if (is.na(func_name)) housepi_format_sources(func_args)
+  else if (length(func_args) == 0) func_name
   else housepi_format_call(func_name, func_args)
 }
 
@@ -118,21 +118,22 @@ housepi_is_call <- function(x) {
 }
 
 # Combione function name and arguments.
-housepi_combine_to_call <- function(func_name, x) {
-  if (housepi_is_call(func_name)) {
+housepi_combine_to_call <- function(func_name, func_args, is_func = FALSE) {
+  func_name <- as.character(func_name)
+  if (housepi_is_call(func_name) && length(func_args) > 0) {
     stop_h("Impossible to associate arguments to a function which is a call.")
-  } else if (housepi_is_sourced_value((func_name))) {
-    # verify it's not a default sourced value mistakenly interpreted
+  } else if (housepi_is_sourced_value(func_name) && isTRUE(is_func)) {
     func_name <- showcaser_extract(func_name, "A")
+    # verify it's not a default sourced value mistakenly interpreted
     if (housepi_is_sourced_value(func_name)) stop_h(
-      "Impossible to associate arguments to a sourced value."
+      "[Internal] Impossible to associate arguments to a sourced value."
     )
   }
-  if (length(x) == 0) return(func_name)
+  if (length(func_args) == 0) return(func_name)
 
   sprintf("%s|%s|%s", func_name,
-          paste(names(x), collapse = ":"),
-          paste(sprintf("{%s}", x), collapse = ":"))
+          paste(names(func_args), collapse = ":"),
+          paste(sprintf("{%s}", func_args), collapse = ":"))
 }
 
 # Handle case of list() or c() container.
@@ -186,6 +187,7 @@ housepi_extractor <- function(...) {
 
   output <- unlist(lapply(x_quos, function(x_quo) {
     x_expr <- rlang::quo_get_expr(x_quo)
+
     # expand formula in case
     if (rlang::is_formula(x_expr)) x_expr <- rlang::f_rhs(x_expr)
 
@@ -221,6 +223,7 @@ housepi_extractor <- function(...) {
 # Load a named list of quosures for definitions.
 housepi_load_defin_quos <- function(self, implicit_name, xquos) {
   self$store_warn_over <- character()
+
   for (i in seq_along(xquos)) {
     nm <- names(xquos[i])
     def_quo <- xquos[[i]]
@@ -276,40 +279,4 @@ get_template_def_list <- function(path, family) {
   )
   # get template definition list and convert to quosures
   dget(templ_file)
-}
-
-family2model_col <- function(family) {
-  if (family == "augmented") "model"
-  else if (family == "augmented function") "func"
-  else if (family == "parameter") "prior"
-  else if (family == "infectivity profile") "func"
-  else if (family == "group rate") "prior"
-  else stop_h(sprintf(
-    "[Internal] Unrecognized module family '%s'.", family
-  ))
-}
-
-family_to_taskmodule <- function(family) {
-  if (family == "augmented") "augm_"
-  else if (family == "augmented function") "augm_"
-  else if (family == "parameter") "param_"
-  else if (family == "infectivity profile") "infec_profile_"
-  else if (family == "group rate") "group_rates_"
-  else stop_h(sprintf(
-    "[Internal] Unrecognized module family '%s'.", family
-  ))
-}
-
-# Helper to load definition lists into an HousepiModel clone.
-helper_load_def_list <- function(hhmodel, family, xquos, append) {
-  stopifnot(inherits(hhmodel, "HousepiModel"))
-  pvt_module <- family_to_taskmodule(family)
-
-  new_obj <- hhmodel$copy()
-  new_obj$.__enclos_env__$private[[pvt_module]]$load_quosures(
-    xquos, append = append
-  )
-  # run assessment
-  housepi_assert_args(new_obj, family)
-  new_obj
 }

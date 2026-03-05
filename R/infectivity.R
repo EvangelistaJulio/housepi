@@ -24,7 +24,15 @@ HousepiInfecProfile <- R6::R6Class(
   ############################################################################
 
   private = list(
-    deep_clone = function(name, value) helper_clone(value)
+    deep_clone = function(name, value) helper_clone(value),
+
+    # Definitions required by infectivity profile definitions
+    # according to the "type" of the definition
+    find_required_def_ = function(type) {
+      find_required_definitions(
+        self$defs, type, c("func", "max"), self$family
+      )
+    }
   ),
 
   ############################################################################
@@ -36,28 +44,28 @@ HousepiInfecProfile <- R6::R6Class(
     #' Augmented variables required by infectivity profile definition.
     augm_required = function(value) {
       if (!missing(value)) stop_h("'augm_required' is read only.")
-      infec_prof_find_required_def(self$defs, "A")
+      private$find_required_def_("A")
     },
 
     #' @field data_required `character()`.
     #' Dataset entries required by infectivity profile definition.
     data_required = function(value) {
       if (!missing(value)) stop_h("'data_required' is read only.")
-      infec_prof_find_required_def(self$defs, "D")
+      private$find_required_def_("D")
     },
 
     #' @field group_rates_required `character()`.
     #' Find group rates required by infectivity profile definition.
     group_rates_required = function(value) {
       if (!missing(value)) stop_h("'group_rates_required' is read only.")
-      infec_prof_find_required_def(self$defs, "G")
+      private$find_required_def_("G")
     },
 
     #' @field param_required `character()`.
     #' Parameters required by infectivity profile definition.
     param_required = function(value) {
       if (!missing(value)) stop_h("'param_required' is read only.")
-      infec_prof_find_required_def(self$defs, "P")
+      private$find_required_def_("P")
     }
   ),
 
@@ -103,7 +111,8 @@ HousepiInfecProfile <- R6::R6Class(
     #' @inherit add_infec_profile
     add_quo = function(func, status = NA_integer_,
                        discr = FALSE, ...,
-                       min = NULL, max = NULL, .warn_over = TRUE) {
+                       min = NULL, max = NULL,
+                       .warn_over = TRUE, .assert = FALSE) {
       # load non-quosures
       func <- housepi_smart_unwrap(func, "func")
       status <- housepi_smart_unwrap(status, "status")
@@ -128,14 +137,16 @@ HousepiInfecProfile <- R6::R6Class(
       if (.warn_over) template_overwrite_warn(rmv_name, self$family)
       else self$store_warn_over <- c(self$store_warn_over, rmv_name)
 
+      # append last definition
       self$defs <- rbind(self$defs, data.frame(list(
-        func = ifelse(is.null(func_args), func,
-                      housepi_combine_to_call(func, func_args)),
+        func = housepi_combine_to_call(func, func_args),
         status = as.integer(status),
         min = ifelse(is.null(min), ifelse(isTRUE(discr), "1|N", "0|N"), min),
         max = ifelse(is.null(max), NA_character_, max),
         discr = isTRUE(discr)
       )))
+      # assert last definition is correct
+      if (isTRUE(.assert)) housepi_assert_args(self, last = TRUE)
 
       invisible(self)
     },
@@ -144,6 +155,7 @@ HousepiInfecProfile <- R6::R6Class(
     load_quosures = function(xquos, append = FALSE) {
       if (isFALSE(append)) self$initialize()
       housepi_load_defin_quos(self, "func", xquos)
+      housepi_assert_args(self)
       invisible(self)
     },
 

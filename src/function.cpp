@@ -182,7 +182,7 @@ namespace hsp
             if (attr.name() == key)
                 return attr;
 
-        // raise error for unnamed argument 
+        // raise error for unnamed argument
         if (na::is(key))
             throw std::invalid_argument(
                 "Unnamed argument passed to " + err_name() + ".");
@@ -192,7 +192,7 @@ namespace hsp
         for (const Attribute &attr : arguments_)
             options.emplace_back(attr.name());
         throw std::invalid_argument(
-            "Unknown argument '" + std::string(key) + "' for " + err_name() + "." +
+            "Unused argument '" + std::string(key) + "' in " + err_name() + "." +
             str::find_closest(key, options));
     }
 
@@ -242,8 +242,10 @@ namespace hsp
         const std::vector<std::string> undefined_args = get_missing_argument();
         if (!undefined_args.empty())
             throw std::invalid_argument(
-                "Impossible to initialize " + err_name() + ": missing non default argument" +
-                (undefined_args.size() > 1 ? "s " : " ") + str::format(undefined_args));
+                std::string("Missing non default argument") +
+                (undefined_args.size() > 1 ? "s " : " ") +
+                str::format(undefined_args, str::MAX_PRINT, false) +
+                " for " + err_name() + ".");
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////

@@ -90,15 +90,32 @@ namespace
     class ExposeBase
     {
     public:
+        ///////////////////////////
+        //////  CONSTRUCTOR  //////
+        ///////////////////////////
         ExposeBase(std::string name, const std::string &family,
-                   SEXP args_, double min, double max, bool is_discr,
                    std::vector<std::string> registry_types)
             : family_(family)
         {
             try
             {
                 ptr_ = compose_func_registries(name, family_, registry_types, false);
+            }
+            catch (const std::exception &e)
+            {
+                msg::error("Exposing " + family_ + " '" + name + "' failed:\n" + e.what());
+            }
+        }
+        virtual ~ExposeBase() = default;
 
+        //////////////////////
+        //////  SETTER  //////
+        //////////////////////
+
+        void init(SEXP args_, double min, double max, bool is_discr)
+        {
+            try
+            {
                 if (args_ != R_NilValue)
                 {
                     Rcpp::List args(args_);
@@ -125,10 +142,14 @@ namespace
             catch (const std::exception &e)
             {
                 msg::error(
-                    "While initializing " + family_ + " '" + name + "':\n" + e.what());
+                    "While initializing " + family_ + " '" +
+                    std::string(ptr_->name()) + "':\n" + e.what());
             }
         }
-        virtual ~ExposeBase() = default;
+
+        //////////////////////
+        //////  GETTER  //////
+        //////////////////////
 
         Rcpp::NumericVector args() const
         {
@@ -168,9 +189,8 @@ namespace
     class ExposeFunction : public ExposeBase
     {
     public:
-        ExposeFunction(std::string name_, SEXP args_,
-                       double min, double max, bool is_discr)
-            : ExposeBase(name_, "function", args_, min, max, is_discr,
+        ExposeFunction(std::string name_)
+            : ExposeBase(name_, "function", 
                          {"custom", "transcendental", "arithmetic"}) {}
 
         Rcpp::NumericVector func(Rcpp::NumericVector x) const
@@ -188,9 +208,8 @@ namespace
     class ExposeDistribution : public ExposeBase
     {
     public:
-        ExposeDistribution(std::string name_, SEXP args_,
-                           double min, double max, bool is_discr)
-            : ExposeBase(name_, "distribution", args_, min, max, is_discr,
+        ExposeDistribution(std::string name_)
+            : ExposeBase(name_, "distribution",
                          {"continuos", "discrete"}) {}
 
         Rcpp::NumericVector pdf(Rcpp::NumericVector x) const
@@ -208,9 +227,8 @@ namespace
     class ExposeInfecProfile : public ExposeBase
     {
     public:
-        ExposeInfecProfile(std::string name_, SEXP args_,
-                           double min, double max, bool is_discr)
-            : ExposeBase(name_, "infectivity profile", args_, min, max, is_discr,
+        ExposeInfecProfile(std::string name_)
+            : ExposeBase(name_, "infectivity profile",
                          {"infecprofile", "continuos", "discrete"}) {}
 
         Rcpp::NumericVector inst(Rcpp::NumericVector x) const
@@ -322,8 +340,8 @@ namespace
         }                                                      \
         catch (const std::exception &e)                        \
         {                                                      \
-            msg::error(std::string("While importing ") +  \
-                            section_name + ":\n" + e.what());  \
+            msg::error(std::string("While importing ") +       \
+                       section_name + ":\n" + e.what());       \
         }                                                      \
     }
     MAKE_RCPP_IMPORT_METHOD(setup, "setup")
@@ -358,7 +376,7 @@ namespace
         catch (const std::exception &e)
         {
             msg::error("While importanting parameter table:\n" +
-                            std::string(e.what()));
+                       std::string(e.what()));
         }
     }
 
@@ -499,7 +517,7 @@ namespace
         catch (const std::exception &e)
         {
             msg::error("While exporting data (wide):\n" +
-                            std::string(e.what()));
+                       std::string(e.what()));
         }
     }
     Rcpp::DataFrame export_data_wide(Rcpp::XPtr<MCMC> engine)
@@ -634,7 +652,7 @@ namespace
         catch (const std::exception &e)
         {
             msg::error("While exporting data report:\n" +
-                            std::string(e.what()));
+                       std::string(e.what()));
         }
     }
 
@@ -681,7 +699,7 @@ namespace
         catch (const std::exception &e)
         {
             msg::error("While exporting household size report:\n" +
-                            std::string(e.what()));
+                       std::string(e.what()));
         }
     }
 
@@ -705,7 +723,7 @@ namespace
         catch (const std::exception &e)
         {
             msg::error("While exporting total log-likelihood draws:\n" +
-                            std::string(e.what()));
+                       std::string(e.what()));
         }
     }
 
@@ -735,7 +753,7 @@ namespace
         catch (const std::exception &e)
         {
             msg::error("While exporting parameters draws:\n" +
-                            std::string(e.what()));
+                       std::string(e.what()));
         }
     }
 
@@ -769,7 +787,7 @@ namespace
         catch (const std::exception &e)
         {
             msg::error("While exporting parameter log-priors draws:\n" +
-                            std::string(e.what()));
+                       std::string(e.what()));
         }
     }
 
@@ -813,7 +831,7 @@ namespace
         catch (const std::exception &e)
         {
             msg::error("While exporting augmented draws:\n" +
-                            std::string(e.what()));
+                       std::string(e.what()));
         }
     }
 
@@ -860,7 +878,7 @@ namespace
         catch (const std::exception &e)
         {
             msg::error("While exporting household log-likelihood draws:\n" +
-                            std::string(e.what()));
+                       std::string(e.what()));
         }
     }
 
@@ -1111,7 +1129,7 @@ namespace
         catch (const std::exception &e)
         {
             msg::error("While exporting snapshot of household '" + house_id + "':\n" +
-                            std::string(e.what()));
+                       std::string(e.what()));
         }
     }
 
@@ -1261,11 +1279,11 @@ namespace
     }
     */
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  *** housepi - Rcpp exports ***  ///////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////  *** housepi - Rcpp exports ***  ///////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #define MAKE_EXPORT_CHARACTER_VECTOR(method)           \
     Rcpp::CharacterVector method(ModelXPtr model_xptr) \
@@ -1317,22 +1335,23 @@ namespace
 RCPP_MODULE(housepi)
 {
     Rcpp::class_<ExposeBase>("ExposeBase")
+        .method("init", &ExposeBase::init)
         .method("args", &ExposeBase::args);
 
     Rcpp::class_<ExposeFunction>("ExposeFunction")
-        .constructor<std::string, SEXP, double, double, bool>()
+        .constructor<std::string>()
         .derives<ExposeBase>("ExposeBase")
         .method("func", &ExposeFunction::func)
         .method("prim", &ExposeFunction::prim);
 
     Rcpp::class_<ExposeDistribution>("ExposeDistribution")
-        .constructor<std::string, SEXP, double, double, bool>()
+        .constructor<std::string>()
         .derives<ExposeBase>("ExposeBase")
         .method("pdf", &ExposeDistribution::pdf)
         .method("cdf", &ExposeDistribution::cdf);
 
     Rcpp::class_<ExposeInfecProfile>("ExposeInfecProfile")
-        .constructor<std::string, SEXP, double, double, bool>()
+        .constructor<std::string>()
         .derives<ExposeBase>("ExposeBase")
         .method("inst", &ExposeInfecProfile::inst)
         .method("cumul", &ExposeInfecProfile::cumul);

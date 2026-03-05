@@ -86,19 +86,3 @@ find_required_definitions <- function(defs, src, col_with_sources, family) {
   # remove duplicates and add source name
   set_source_name_(unique(output), family)
 }
-
-# Definitions required by augmented definitions
-# according to the "type" of the definition.
-augmented_find_required_def <- function(defs, type) {
-  find_required_definitions(
-    defs, type, c("value", "func", "model", "min", "max"), "augmented"
-  )
-}
-
-# Definitions required by infectivity profile definitions
-# according to the "type" of the definition.
-infec_prof_find_required_def <- function(defs, type) {
-  find_required_definitions(
-    defs, type, c("func", "max"), "infectivity profile"
-  )
-}

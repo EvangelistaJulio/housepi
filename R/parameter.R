@@ -12,9 +12,7 @@ parameter_helper_prior <- function(opts, prior, args) {
     sprintf("No prior provided for parameter '%s'.", opts$name)
   )
   opts$const <- FALSE
-  # associate prior arguments, if any
-  if (is.null(args)) opts$prior <- prior
-  else opts$prior <- housepi_combine_to_call(prior, args)
+  opts$prior <- housepi_combine_to_call(prior, args)
   opts
 }
 
@@ -100,7 +98,8 @@ HousepiParameter <- R6::R6Class(
                        min = NULL, max = NULL,
                        proposal = NA_character_,
                        proposal_scale = NA_real_,
-                       .warn_over = TRUE) {
+                       .warn_over = TRUE,
+                       .assert = FALSE) {
       # load non-quosures
       name <- housepi_smart_unwrap(name, "name")
       const <- housepi_smart_unwrap(const, "const")
@@ -159,6 +158,9 @@ HousepiParameter <- R6::R6Class(
       # append as a row
       self$defs <- rbind(self$defs, data.frame(opts))
 
+      # assert last definition is correct
+      if (isTRUE(.assert)) housepi_assert_args(self, last = TRUE)
+
       invisible(self)
     },
 
@@ -166,6 +168,7 @@ HousepiParameter <- R6::R6Class(
     load_quosures = function(xquos, append = FALSE) {
       if (isFALSE(append)) self$initialize()
       housepi_load_defin_quos(self, "value", xquos)
+      housepi_assert_args(self)
       invisible(self)
     },
 

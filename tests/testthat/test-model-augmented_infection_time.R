@@ -93,9 +93,9 @@ augm_infec_obs_log_lik <- function(house, param, discr = FALSE) {
 
 test_that("Simulations behave as expected", {
   hhsimul <- new_housepi_model("augmented_infection_time")
-  hhsimul$data_wide <- dplyr::mutate(housepi::survey,
-                                     status = NA,
-                                     end_followup = 45)
+  hhsimul$add_data_wide(dplyr::mutate(housepi::survey,
+                                      status = NA,
+                                      end_followup = 45))
   hhsimul$load_parameter_list(alpha = 0,
                               beta = 0,
                               gamma = 1,
@@ -247,8 +247,8 @@ test_that("Augmented moves preserve log-likelihood", {
     )
 
   housepi_eval <- function(i) {
-    hhmodel$data_wide <- join_augm_data(house, get_augm_state(augm_draws, i))
-    hhmodel$parameters <- c(param_draws[i, , drop = FALSE], consts)
+    hhmodel$add_data_wide(join_augm_data(house, get_augm_state(augm_draws, i)))
+    hhmodel$load_parameter_list(!!!c(param_draws[i, , drop = FALSE], consts))
     hhmodel$evaluate_log_lik()
   }
   expect_equal(tot_log_lik[n_steps], housepi_eval(n_steps))

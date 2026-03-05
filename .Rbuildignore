@@ -10,7 +10,7 @@
 ^cleanup$
 ^cleanup.win$
 ^data-raw$
-^docs$
+^doc$
 ^pkgdown$
 ^public$
 ^README\.Rmd$
