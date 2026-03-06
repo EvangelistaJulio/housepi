@@ -190,7 +190,7 @@ namespace
     {
     public:
         ExposeFunction(std::string name_)
-            : ExposeBase(name_, "function", 
+            : ExposeBase(name_, "function",
                          {"custom", "transcendental", "arithmetic"}) {}
 
         Rcpp::NumericVector func(Rcpp::NumericVector x) const
@@ -336,11 +336,11 @@ namespace
     }
 
 #define MAKE_RCPP_IMPORT_METHOD(module, section_name)          \
-    void import_##module(Rcpp::XPtr<MCMC> engine, SEXP input)  \
+    void import_##module(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)  \
     {                                                          \
         try                                                    \
         {                                                      \
-            engine->module.build(rdataframe_to_strmap(input)); \
+            mcmc_ptr->module.build(rdataframe_to_strmap(input)); \
         }                                                      \
         catch (const std::exception &e)                        \
         {                                                      \
@@ -357,13 +357,13 @@ namespace
     MAKE_RCPP_IMPORT_METHOD(augm, "augmented")
 
     // UPDATE: this will be removed once automatized in C++ reflection
-    void import_multiplicity(Rcpp::XPtr<MCMC> engine, SEXP input)
+    void import_multiplicity(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
     {
         try
         {
-            engine->data_wide.multiplicity_build(
+            mcmc_ptr->data_wide.multiplicity_build(
                 rdataframe_to_strmap(input),
-                engine->augm.pRegistry->size() > 0);
+                mcmc_ptr->augm.pRegistry->size() > 0);
         }
         catch (const std::exception &e)
         {
@@ -371,11 +371,11 @@ namespace
         }
     }
 
-    void import_param_for_prediction(Rcpp::XPtr<MCMC> engine, SEXP input)
+    void import_param_for_prediction(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
     {
         try
         {
-            engine->param.build_for_expec(rdataframe_to_dblmap(input));
+            mcmc_ptr->param.build_for_expec(rdataframe_to_dblmap(input));
         }
         catch (const std::exception &e)
         {
@@ -416,10 +416,10 @@ namespace
     }
 
     /// Export current setup configurations to R List.
-    Rcpp::List export_setup(Rcpp::XPtr<MCMC> engine)
+    Rcpp::List export_setup(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         using namespace Rcpp;
-        const Setup &setup = engine->setup;
+        const Setup &setup = mcmc_ptr->setup;
 
         return List::create(_["steps"] = setup.n_steps,
                             _["burnin"] = setup.n_burnin,
@@ -432,17 +432,17 @@ namespace
                             _["progress"] = setup.progress);
     }
 
-    Rcpp::List export_infec_profile(Rcpp::XPtr<MCMC> engine)
+    Rcpp::List export_infec_profile(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
-        return helper_export_infec_profile(engine->infec_profile);
+        return helper_export_infec_profile(mcmc_ptr->infec_profile);
     }
 
     /// Export to R all augmented variables at the current state.
-    Rcpp::DataFrame export_augmented_data_wide(Rcpp::XPtr<MCMC> engine)
+    Rcpp::DataFrame export_augmented_data_wide(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         using namespace Rcpp;
-        const DataWide &data_wide = engine->data_wide;
-        const Augmented &augm = engine->augm;
+        const DataWide &data_wide = mcmc_ptr->data_wide;
+        const Augmented &augm = mcmc_ptr->augm;
 
         size_t n_cols = augm.list_export.size();
         size_t n_rows = data_wide.report_indiv.total;
@@ -524,16 +524,16 @@ namespace
                        std::string(e.what()));
         }
     }
-    Rcpp::DataFrame export_data_wide(Rcpp::XPtr<MCMC> engine)
+    Rcpp::DataFrame export_data_wide(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
-        const DataWide &data_wide = engine->data_wide;
+        const DataWide &data_wide = mcmc_ptr->data_wide;
         return helper_export_data_wide(data_wide, data_wide.pRegistry->get_all(), true);
     }
 
-    Rcpp::DataFrame data_wide_for_simulation(Rcpp::XPtr<MCMC> engine)
+    Rcpp::DataFrame data_wide_for_simulation(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
-        const DataWide &data_wide = engine->data_wide;
-        const Augmented &augm = engine->augm;
+        const DataWide &data_wide = mcmc_ptr->data_wide;
+        const Augmented &augm = mcmc_ptr->augm;
 
         std::vector<std::string> export_names(augm.list_export.size());
         size_t i = 0;
@@ -548,11 +548,11 @@ namespace
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Export current data configurations to R DataFrame.
-    Rcpp::DataFrame export_data_long(Rcpp::XPtr<MCMC> engine)
+    Rcpp::DataFrame export_data_long(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         using namespace Rcpp;
-        const DataWide &data_wide = engine->data_wide;
-        const DataLong &data_long = engine->data_long;
+        const DataWide &data_wide = mcmc_ptr->data_wide;
+        const DataLong &data_long = mcmc_ptr->data_long;
 
         try
         {
@@ -605,10 +605,10 @@ namespace
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Export current data configurations to R DataFrame.
-    Rcpp::DataFrame summarise_cases(Rcpp::XPtr<MCMC> engine)
+    Rcpp::DataFrame summarise_cases(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         using namespace Rcpp;
-        const DataWide &data_wide = engine->data_wide;
+        const DataWide &data_wide = mcmc_ptr->data_wide;
         const ReportIndividual &report_indiv = data_wide.report_indiv;
         const ReportHousehold &report_house = data_wide.report_house;
 
@@ -665,10 +665,10 @@ namespace
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Export current data configurations to R DataFrame.
-    Rcpp::DataFrame summarise_house_sizes(Rcpp::XPtr<MCMC> engine)
+    Rcpp::DataFrame summarise_house_sizes(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         using namespace Rcpp;
-        const DataWide &data_wide = engine->data_wide;
+        const DataWide &data_wide = mcmc_ptr->data_wide;
         const ReportIndividual &report_indiv = data_wide.report_indiv;
         const ReportHouseSizes &report_hh_size = data_wide.report_hh_size;
 
@@ -712,10 +712,10 @@ namespace
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Export MCMC draws of total log-likelihood posterior samples.
-    Rcpp::NumericMatrix flush_total_log_lik_draws(Rcpp::XPtr<MCMC> engine)
+    Rcpp::NumericMatrix flush_total_log_lik_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         using namespace Rcpp;
-        TotalLogLike &tot_log_lik = engine->tot_log_lik;
+        TotalLogLike &tot_log_lik = mcmc_ptr->tot_log_lik;
 
         try
         {
@@ -732,11 +732,11 @@ namespace
     }
 
     /// Export MCMC draws of parameter values posterior samples.
-    Rcpp::NumericMatrix flush_param_draws(Rcpp::XPtr<MCMC> engine)
+    Rcpp::NumericMatrix flush_param_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         using namespace Rcpp;
-        Parameter &param = engine->param;
-        const TotalLogLike &tot_log_lik = engine->tot_log_lik;
+        Parameter &param = mcmc_ptr->param;
+        const TotalLogLike &tot_log_lik = mcmc_ptr->tot_log_lik;
 
         if (param.list_sample.empty())
             return NumericMatrix();
@@ -762,11 +762,11 @@ namespace
     }
 
     /// Export MCMC draws of parameter log-priors posterior samples.
-    Rcpp::NumericMatrix flush_param_lprior_draws(Rcpp::XPtr<MCMC> engine)
+    Rcpp::NumericMatrix flush_param_lprior_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         using namespace Rcpp;
-        Parameter &param = engine->param;
-        const TotalLogLike &tot_log_lik = engine->tot_log_lik;
+        Parameter &param = mcmc_ptr->param;
+        const TotalLogLike &tot_log_lik = mcmc_ptr->tot_log_lik;
 
         if (param.list_sample.empty())
             return NumericMatrix();
@@ -796,11 +796,11 @@ namespace
     }
 
     /// Export MCMC draws of augmented posterior samples.
-    Rcpp::NumericMatrix flush_augm_draws(Rcpp::XPtr<MCMC> engine)
+    Rcpp::NumericMatrix flush_augm_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         using namespace Rcpp;
-        Augmented &augm = engine->augm;
-        const TotalLogLike &tot_log_lik = engine->tot_log_lik;
+        Augmented &augm = mcmc_ptr->augm;
+        const TotalLogLike &tot_log_lik = mcmc_ptr->tot_log_lik;
 
         if (augm.smpl_values.empty())
             return NumericMatrix();
@@ -840,11 +840,11 @@ namespace
     }
 
     /// Export all sampled values of the log-likelihood for all household.
-    Rcpp::NumericMatrix flush_house_log_lik_draws(Rcpp::XPtr<MCMC> engine)
+    Rcpp::NumericMatrix flush_house_log_lik_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         using namespace Rcpp;
-        DataWide &data_wide = engine->data_wide;
-        const TotalLogLike &tot_log_lik = engine->tot_log_lik;
+        DataWide &data_wide = mcmc_ptr->data_wide;
+        const TotalLogLike &tot_log_lik = mcmc_ptr->tot_log_lik;
 
         try
         {
@@ -1111,24 +1111,24 @@ namespace
     }
 
     /// Export a list containing all relevant information for a debug.
-    Rcpp::List export_house_snapshot(Rcpp::XPtr<MCMC> engine, const std::string &house_id)
+    Rcpp::List export_house_snapshot(Rcpp::XPtr<MCMC> mcmc_ptr, const std::string &house_id)
     {
         using namespace Rcpp;
 
         try
         {
-            if (engine->data_wide.is_empty())
+            if (mcmc_ptr->data_wide.is_empty())
                 return List::create();
 
-            const Household &house = engine->data_wide.at(house_id);
+            const Household &house = mcmc_ptr->data_wide.at(house_id);
 
             return List::create(
-                _["param"] = helper_param_rcpp_snapshot(engine->param),
-                _["data_wide"] = helper_data_wide_rcpp_snapshot(engine->data_wide, house),
-                _["data_long"] = helper_data_long_rcpp_snapshot(engine->data_long, house),
-                _["group_rate"] = helper_group_rates_rcpp_snapshot(engine->group_rate, house),
-                _["infec_profile"] = helper_infec_profile_rcpp_snapshot(engine->infec_profile, house),
-                _["augm"] = helper_augm_rcpp_snapshot(engine->augm, house));
+                _["param"] = helper_param_rcpp_snapshot(mcmc_ptr->param),
+                _["data_wide"] = helper_data_wide_rcpp_snapshot(mcmc_ptr->data_wide, house),
+                _["data_long"] = helper_data_long_rcpp_snapshot(mcmc_ptr->data_long, house),
+                _["group_rate"] = helper_group_rates_rcpp_snapshot(mcmc_ptr->group_rate, house),
+                _["infec_profile"] = helper_infec_profile_rcpp_snapshot(mcmc_ptr->infec_profile, house),
+                _["augm"] = helper_augm_rcpp_snapshot(mcmc_ptr->augm, house));
         }
         catch (const std::exception &e)
         {
@@ -1142,11 +1142,11 @@ namespace
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Perform a unique repetition.
-    Rcpp::DataFrame helper_simulate_single_repetition(Rcpp::XPtr<MCMC> engine)
+    Rcpp::DataFrame helper_simulate_single_repetition_(MCMC &engine)
     {
         using namespace Rcpp;
-        const Augmented &augm = engine->augm;
-        DataWide &data_wide = engine->data_wide;
+        const Augmented &augm = engine.augm;
+        DataWide &data_wide = engine.data_wide;
         DataFrame output;
 
         try
@@ -1164,7 +1164,8 @@ namespace
             for (Household house : data_wide) // NOTE: deep copy of households
                 try
                 {
-                    engine->model.simulate_single_house(house);
+                    engine.model.simulate_single_house(house);
+
                     for (const Individual &member : house)
                     {
                         df_status[r] = member.status();
@@ -1188,33 +1189,33 @@ namespace
         }
         catch (const std::exception &e)
         {
-            engine->atomic_error.set_if_first(e);
+            engine.atomic_error.set_if_first(e);
         }
         return output;
     }
 
     /// Perform simulation and return simulated data.
-    Rcpp::List helper_simulate(Rcpp::XPtr<MCMC> engine, size_t n, bool is_expec_measure)
+    Rcpp::List helper_simulate_(Rcpp::XPtr<MCMC> mcmc_ptr, size_t n, bool is_expec_measure)
     {
         using namespace Rcpp;
-        Parameter &param = engine->param;
-        atomic::Error &atomic_error = engine->atomic_error;
+        MCMC &engine = *mcmc_ptr;
+        atomic::Error &atomic_error = engine.atomic_error;
 
         atomic_error.restore();
-
+        
         try
         {
             size_t n_rep = 1;
             // change execute mode
             // UPDATE: this could later enter in the loop
             if (is_expec_measure)
-                param.load_sample_values(n);
+                engine.param.load_sample_values(n);
             else
                 n_rep = n;
 
             // initialization
-            engine->helper_init_simulation();
-            engine->model.init_model_for_simulation();
+            engine.helper_init_simulation();
+            engine.model.init_model_for_simulation();
             List output(n_rep);
 
             // run simulations
@@ -1223,7 +1224,7 @@ namespace
             {
                 if (atomic_error.is_pending())
                     continue;
-                output[r] = helper_simulate_single_repetition(engine);
+                output[r] = helper_simulate_single_repetition_(engine);
             }
             atomic_error.throw_exception();
 
@@ -1235,13 +1236,13 @@ namespace
         }
     }
 
-    Rcpp::List run_simulation(Rcpp::XPtr<MCMC> engine, size_t n_rep)
+    Rcpp::List run_simulation(Rcpp::XPtr<MCMC> mcmc_ptr, size_t n_rep)
     {
-        return helper_simulate(engine, n_rep, false);
+        return helper_simulate_(mcmc_ptr, n_rep, false);
     }
-    Rcpp::List run_simulation_for_predict(Rcpp::XPtr<MCMC> engine, size_t n)
+    Rcpp::List run_simulation_for_predict(Rcpp::XPtr<MCMC> mcmc_ptr, size_t n)
     {
-        return helper_simulate(engine, n, true);
+        return helper_simulate_(mcmc_ptr, n, true);
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1257,7 +1258,7 @@ namespace
     /// Ref: Friel, N., Hurn, M. & Wyse, J.
     /// Improving power posterior estimation of statistical evidence.
     /// Stat Comput 24, 709–723 (2014).
-    Rcpp::List log_evidence(Rcpp::XPtr<MCMC> engine, const std::string &scheme, unsigned long n_rungs)
+    Rcpp::List log_evidence(Rcpp::XPtr<MCMC> mcmc_ptr, const std::string &scheme, unsigned long n_rungs)
     {
         using namespace Rcpp;
 
@@ -1308,29 +1309,29 @@ namespace
     }
 
     // UPDATE: this should be imported instead
-    void build_contact_rates(Rcpp::XPtr<MCMC> engine) { engine->contact_rate.build(); }
+    void build_contact_rates(Rcpp::XPtr<MCMC> mcmc_ptr) { mcmc_ptr->contact_rate.build(); }
 
-    double evaluate_log_lik(Rcpp::XPtr<MCMC> engine, std::string house_id)
+    double evaluate_log_lik(Rcpp::XPtr<MCMC> mcmc_ptr, std::string house_id)
     {
         try
         {
-            return engine->evaluate_log_lik(house_id);
+            return mcmc_ptr->evaluate_log_lik(house_id);
         }
         catch (const std::exception &e)
         {
-            engine->setup.prog_crash();
+            mcmc_ptr->setup.prog_crash();
             msg::error(e.what());
         }
     }
-    void run_inference(Rcpp::XPtr<MCMC> engine)
+    void run_inference(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         try
         {
-            engine->run_inference();
+            mcmc_ptr->run_inference();
         }
         catch (std::exception &e)
         {
-            engine->setup.prog_crash();
+            mcmc_ptr->setup.prog_crash();
             msg::error(e.what());
         }
     }

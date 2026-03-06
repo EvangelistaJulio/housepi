@@ -348,9 +348,10 @@ HousepiModel <- R6::R6Class(
       })
     },
 
+    # @description
     # Run measure function on posterior simulations.
     # UPDATE: this has to be improved with loops in C++
-    run_measure_ = function(param_table, apply_measure, progress) {
+    run_measure_ = function(param_table, apply_measure, obs_process, progress) {
       # attach param_table
       param_table <- private$helper_import_table_(param_table)
       .engine$import_param_for_prediction(private$mcmc_ptr_, param_table)
@@ -359,7 +360,7 @@ HousepiModel <- R6::R6Class(
       iterator <- seq_len(dim(param_table)[1])
       # if progress not provided, import from model
       progress <- ifelse(is.na(progress), self$setup$progress, progress)
-      # FIXME: can't manually set the frequency here
+      # UPDATE: can't manually set the frequency here
       if (is.numeric(progress)) progress <- TRUE
       if (isTRUE(progress)) iterator <- cli::cli_progress_along(
         iterator, name = "simulations", type = "tasks", clear = FALSE
@@ -367,13 +368,22 @@ HousepiModel <- R6::R6Class(
 
       # static data (not returned by simulation)
       static_df <- .engine$data_wide_for_simulation(private$mcmc_ptr_)
+      # refactor after binding to static
+      refactor <- function(x) private$refactor_data_wide_(cbind(static_df, x))
+
+      # combine observation process to measures
+      if (is.null(obs_process)) final_apply <- apply_measure
+      else if (!is.function(obs_process)) stop_h(
+        "Unrecognized function passed as observation process."
+      )
+      else final_apply <- function(x) apply_measure(obs_process(x))
+
       # run simulation and apply all measures
       # NOTE: simulate_for_expec from 0 to table_size - 1 !
       lapply(iterator, function(r) {
-        apply_measure(private$refactor_data_wide_(cbind(
-          static_df,
+        final_apply(refactor(
           .engine$run_simulation_for_predict(private$mcmc_ptr_, r - 1)[[1]]
-        )))
+        ))
       })
     },
 

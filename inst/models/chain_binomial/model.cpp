@@ -120,7 +120,7 @@ double Model::compute_house_obs_log_lik(Household &house)
 void Model::simulate_single_house(Household &house)
 {
 	double commu_esc_proba = std::exp(-community_risk());
-	double log_p2p_esc_proba = -person_to_person_risk();
+	double p2p_rate = person_to_person_risk();
 
 	//////////////////////////////////////////////////////////////////
 	/////////////  Generation 0 : infection by community  ////////////
@@ -139,20 +139,22 @@ void Model::simulate_single_house(Household &house)
 	size_t n_old_gen = 0;
 	size_t n_new_gen = house.n_infected_status();
 
-	std::vector<size_t> sus_hhindexes;
-	sus_hhindexes.reserve(house.n_susceptible_status());
 	while (house.n_infected_status() > 0 && n_new_gen > 0)
 	{
 		n_old_gen = n_new_gen;
 		n_new_gen = 0;
 
-		sus_hhindexes = house.susceptible_hhindexes();
-		for (size_t i : sus_hhindexes)
-			if (exponential() < -n_old_gen * log_p2p_esc_proba)
+		for (Individual &member_i : house)
+		{
+			if (member_i.is_infected_status())
+				continue;
+
+			if (exponential() < n_old_gen * p2p_rate)
 			{
-				house.set_infected_status(house.member(i));
+				house.set_infected_status(member_i);
 				++n_new_gen;
 			}
+		}
 	}
 }
 HOUSEPI_CLOSE_MODULE_NAMESPACE()

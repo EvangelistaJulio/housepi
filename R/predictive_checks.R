@@ -218,11 +218,6 @@ HousepiPrediction <- R6::R6Class(
                           obs_process = NULL,
                           progress = NA,
                           cri_level = 0.95) {
-      # set observation process to identity if not provided
-      if (is.null(obs_process)) obs_process <- function(x) x
-      else if (!is.function(obs_process)) stop_h(
-        "Unrecognized function passed as observation process."
-      )
       # associate credible interval
       private$cri_level_ <- ppc_set_cri_level(cri_level)
 
@@ -231,20 +226,20 @@ HousepiPrediction <- R6::R6Class(
       if (is.null(measure)) stop_h("No measure was provided.")
 
       # initialize with results from observed data as a test
-      store_observed <- lapply(measure, function(func) func(hhmodel$data_wide))
+      apply_measure <- function(x) lapply(measure, function(func) func(x))
+      store_observed <- apply_measure(hhmodel$data_wide)
+
+      # deep clone model before proceeding
+      hmc <- hhmodel$copy()
+      # NOTE: the only way I found is call to private HousepiModel method
+      hmc_pvt <- hmc$.__enclos_env__$private
+      hmc_pvt$build_full_()
 
       # run measures on posterior simulations
-      # deep clone model before proceeding and acc
-      hmc <- hhmodel$copy()
-      # cleanup at end
-      withr::defer(rm(hmc))
-      # run measures
-      # NOTE: the only way I found is a call to a private method of HousepiModel
-      output <- hmc$.__enclos_env__$private$run_measure_(
-        param_table,
-        function(x) lapply(measure, function(func) func(obs_process(x))),
-        progress
-      )
+      output <- hmc_pvt$run_measure_(param_table, apply_measure,
+                                     obs_process, progress)
+
+      # parse results
       output <- lapply(names(measure), function(x) lapply(output, `[[`, x))
       predictions <- lapply(output, ppc_extract_predicted_results,
                             cri = private$cri_level_)
@@ -522,7 +517,7 @@ PredictedCasesBySize <- R6::R6Class(
 #' @export
 predicted_measures <- function(hhmodel, param_table, ...,
                                obs_process = NULL, progress = NA) {
-  stopifnot(inherits(hhmodel, "HousepiModel"))
+  stopifnothousepi(hhmodel)
   HousepiPrediction$new(hhmodel, param_table, ...,
                         obs_process = obs_process, progress = progress)
 }
@@ -542,7 +537,7 @@ predicted_measures <- function(hhmodel, param_table, ...,
 #' @export
 predicted_cases_by_house_size <- function(hhmodel, param_table,
                                           obs_process = NULL, progress = NA) {
-  stopifnot(inherits(hhmodel, "HousepiModel"))
+  stopifnothousepi(hhmodel)
   PredictedCasesBySize$new(hhmodel, param_table,
                            obs_process = obs_process, progress = progress)
 }
