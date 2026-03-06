@@ -335,18 +335,18 @@ namespace
         std::vector<double>().swap(src);
     }
 
-#define MAKE_RCPP_IMPORT_METHOD(module, section_name)          \
+#define MAKE_RCPP_IMPORT_METHOD(module, section_name)            \
     void import_##module(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)  \
-    {                                                          \
-        try                                                    \
-        {                                                      \
+    {                                                            \
+        try                                                      \
+        {                                                        \
             mcmc_ptr->module.build(rdataframe_to_strmap(input)); \
-        }                                                      \
-        catch (const std::exception &e)                        \
-        {                                                      \
-            msg::error(std::string("While importing ") +       \
-                       section_name + ":\n" + e.what());       \
-        }                                                      \
+        }                                                        \
+        catch (const std::exception &e)                          \
+        {                                                        \
+            msg::error(std::string("While importing ") +         \
+                       section_name + ":\n" + e.what());         \
+        }                                                        \
     }
     MAKE_RCPP_IMPORT_METHOD(setup, "setup")
     MAKE_RCPP_IMPORT_METHOD(data_wide, "data-wide")
@@ -437,110 +437,95 @@ namespace
         return helper_export_infec_profile(mcmc_ptr->infec_profile);
     }
 
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////  MCMC : DataWide : exports  /////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+    Rcpp::List helper_export_data_wide(const DataWide &data_wide,
+                                       const std::vector<std::string> &columns, bool is_status)
+    {
+        try
+        {
+            if (data_wide.is_empty())
+                return Rcpp::List();
+
+            size_t n_rows = data_wide.report_indiv.total;
+            Rcpp::CharacterVector df_id = Rcpp::CharacterVector(n_rows);
+            Rcpp::CharacterVector df_house_id = Rcpp::CharacterVector(n_rows);
+            Rcpp::IntegerVector df_status = Rcpp::IntegerVector(n_rows);
+
+            // other non standard data columns
+            std::vector<Rcpp::NumericVector> df_double(columns.size());
+            for (size_t d = 0; d < columns.size(); ++d)
+                df_double[d] = Rcpp::NumericVector(n_rows);
+
+            size_t row = 0;
+            for (const Household &house : data_wide)
+                for (const Individual &member : house)
+                {
+                    df_id[row] = member.id();
+                    df_house_id[row] = house.house_id();
+                    df_status[row] = member.status();
+
+                    const std::vector<double> &data_vec = member.get_data_wide_vec();
+                    for (size_t d = 0; d < columns.size(); ++d)
+                        df_double[d][row] = hsp_to_rcpp(data_vec[d]);
+                    ++row;
+                }
+
+            Rcpp::List output;
+            output["id"] = df_id;
+            output["house_id"] = df_house_id;
+            if (is_status)
+                output["status"] = df_status;
+            for (size_t d = 0; d < columns.size(); ++d)
+                output[columns[d]] = df_double[d];
+
+            return output;
+        }
+        catch (const std::exception &e)
+        {
+            msg::error("While exporting data (wide):\n" + std::string(e.what()));
+        }
+    }
+
+    Rcpp::DataFrame export_data_wide(Rcpp::XPtr<MCMC> mcmc_ptr)
+    {
+        const DataWide &data_wide = mcmc_ptr->data_wide;
+        return Rcpp::DataFrame(helper_export_data_wide(data_wide, data_wide.pRegistry->get_all(), true));
+    }
+
     /// Export to R all augmented variables at the current state.
     Rcpp::DataFrame export_augmented_data_wide(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
-        using namespace Rcpp;
         const DataWide &data_wide = mcmc_ptr->data_wide;
         const Augmented &augm = mcmc_ptr->augm;
 
         size_t n_cols = augm.list_export.size();
         size_t n_rows = data_wide.report_indiv.total;
 
-        IntegerVector status_col(n_rows);
-        std::vector<NumericVector> augm_cols(n_cols);
+        std::vector<Rcpp::NumericVector> augm_cols(n_cols);
         for (size_t i = 0; i < n_cols; ++i)
-            augm_cols[i] = NumericVector(n_rows);
+            augm_cols[i] = Rcpp::NumericVector(n_rows);
+
+        const std::vector<std::string> data_names = data_wide.pRegistry->get_all() -
+                                                    augm.pRegistry->as_string(augm.list_export);
 
         size_t row = 0;
         for (const Household &house : data_wide)
             for (const Individual &member : house)
             {
-                status_col[row] = member.status();
-                size_t i = 0;
+                size_t c = 0;
                 for (size_t a : augm.list_export)
-                    augm_cols[i++][row] = hsp_to_rcpp(member.get_augm_variable(a));
+                    augm_cols[c++][row] = hsp_to_rcpp(member.get_augm_variable(a));
                 ++row;
             }
 
-        // create the ouput List
-        List output = List::create(_["status"] = status_col);
+        Rcpp::List output = helper_export_data_wide(data_wide, data_names, true);
         size_t i = 0;
         for (size_t a : augm.list_export)
             output[augm.pRegistry->as_string(a)] = augm_cols[i++];
-        return DataFrame(output);
-    }
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////  MCMC : DataWide : exports  /////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-    Rcpp::DataFrame helper_export_data_wide(const DataWide &data_wide,
-                                            const std::vector<std::string> &columns, bool is_status)
-    {
-        using namespace Rcpp;
-
-        try
-        {
-            if (data_wide.is_empty())
-                return DataFrame();
-
-            size_t n_rows = data_wide.report_indiv.total;
-            CharacterVector df_id = CharacterVector(n_rows);
-            CharacterVector df_house_id = CharacterVector(n_rows);
-            IntegerVector df_status = IntegerVector(n_rows);
-
-            // other non standard data columns
-            std::vector<NumericVector> df_double(columns.size());
-            for (size_t d = 0; d < columns.size(); ++d)
-                df_double[d] = NumericVector(n_rows);
-
-            size_t r = 0;
-            for (const Household &house : data_wide)
-                for (const Individual &member : house)
-                {
-                    df_id[r] = member.id();
-                    df_house_id[r] = house.house_id();
-                    df_status[r] = member.status();
-
-                    const std::vector<double> &data_vec = member.get_data_wide_vec();
-                    for (size_t d = 0; d < columns.size(); ++d)
-                        df_double[d][r] = hsp_to_rcpp(data_vec[d]);
-                    ++r;
-                }
-
-            DataFrame output = DataFrame::create(_["id"] = df_id,
-                                                 _["house_id"] = df_house_id);
-            if (is_status)
-                output.push_back(df_status, "status");
-            for (size_t d = 0; d < columns.size(); ++d)
-                output.push_back(df_double[d], columns[d]);
-
-            return output;
-        }
-        catch (const std::exception &e)
-        {
-            msg::error("While exporting data (wide):\n" +
-                       std::string(e.what()));
-        }
-    }
-    Rcpp::DataFrame export_data_wide(Rcpp::XPtr<MCMC> mcmc_ptr)
-    {
-        const DataWide &data_wide = mcmc_ptr->data_wide;
-        return helper_export_data_wide(data_wide, data_wide.pRegistry->get_all(), true);
-    }
-
-    Rcpp::DataFrame data_wide_for_simulation(Rcpp::XPtr<MCMC> mcmc_ptr)
-    {
-        const DataWide &data_wide = mcmc_ptr->data_wide;
-        const Augmented &augm = mcmc_ptr->augm;
-
-        std::vector<std::string> export_names(augm.list_export.size());
-        size_t i = 0;
-        for (size_t a : augm.list_export)
-            export_names[i++] = augm.pRegistry->as_string(a);
-
-        return helper_export_data_wide(data_wide, data_wide.pRegistry->get_all() - export_names, false);
+        return Rcpp::DataFrame(output);
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -550,14 +535,13 @@ namespace
     /// Export current data configurations to R DataFrame.
     Rcpp::DataFrame export_data_long(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
-        using namespace Rcpp;
         const DataWide &data_wide = mcmc_ptr->data_wide;
         const DataLong &data_long = mcmc_ptr->data_long;
 
         try
         {
             if (data_long.indiv_datalist.size() == 0)
-                return DataFrame();
+                return Rcpp::DataFrame();
 
             // retrieve total number of rows
             size_t n_rows = 0;
@@ -565,14 +549,14 @@ namespace
                 if (!tbl.empty())
                     n_rows += tbl.begin()->size();
 
-            CharacterVector datalist_index(n_rows);
+            Rcpp::CharacterVector datalist_index(n_rows);
 
             // other non standard data-long columns
-            std::vector<NumericVector> datalist_dbl(data_long.pRegistry->size());
+            std::vector<Rcpp::NumericVector> datalist_dbl(data_long.pRegistry->size());
             for (size_t d = 0; d < datalist_dbl.size(); ++d)
-                datalist_dbl[d] = NumericVector(n_rows);
+                datalist_dbl[d] = Rcpp::NumericVector(n_rows);
 
-            size_t r = 0;
+            size_t row = 0;
             for (const Household &house : data_wide)
                 for (const Individual &member : house)
                 {
@@ -580,19 +564,20 @@ namespace
                     if (ptr && !ptr->empty())
                         for (size_t k = 0; k < ptr->begin()->size(); ++k)
                         {
-                            datalist_index[r] = member.id();
+                            datalist_index[row] = member.id();
                             for (size_t d = 0; d < datalist_dbl.size(); ++d)
-                                datalist_dbl[d][r] = hsp_to_rcpp(ptr->at(d)[k]);
-                            ++r;
+                                datalist_dbl[d][row] = hsp_to_rcpp(ptr->at(d)[k]);
+                            ++row;
                         }
                 }
 
             // assign vectors to dataframe
-            auto output = DataFrame::create(_["id"] = datalist_index);
+            Rcpp::List output;
+            output["id"] = datalist_index;
             for (size_t d = 0; d < datalist_dbl.size(); ++d)
                 output.push_back(datalist_dbl[d], data_long.pRegistry->as_string(d));
 
-            return output;
+            return Rcpp::DataFrame(output);
         }
         catch (const std::exception &e)
         {
@@ -1142,25 +1127,27 @@ namespace
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Perform a unique repetition.
-    Rcpp::DataFrame helper_simulate_single_repetition_(MCMC &engine)
+    Rcpp::List helper_simulate_single_repetition_(MCMC &engine)
     {
-        using namespace Rcpp;
         const Augmented &augm = engine.augm;
         DataWide &data_wide = engine.data_wide;
-        DataFrame output;
+        Rcpp::List output;
+
+        const std::vector<std::string> data_names = data_wide.pRegistry->get_all() -
+                                                    augm.pRegistry->as_string(augm.list_export);
 
         try
         {
             size_t n_cols = augm.list_export.size();
             size_t n_rows = data_wide.report_indiv.total;
 
-            IntegerVector df_status(n_rows);
+            Rcpp::IntegerVector status_col(n_rows);
 
-            std::vector<NumericVector> df_double(n_cols);
+            std::vector<Rcpp::NumericVector> augm_cols(n_cols);
             for (size_t c = 0; c < n_cols; ++c)
-                df_double[c] = NumericVector(n_rows);
+                augm_cols[c] = Rcpp::NumericVector(n_rows);
 
-            size_t r = 0;
+            size_t row = 0;
             for (Household house : data_wide) // NOTE: deep copy of households
                 try
                 {
@@ -1168,11 +1155,11 @@ namespace
 
                     for (const Individual &member : house)
                     {
-                        df_status[r] = member.status();
+                        status_col[row] = member.status();
                         size_t c = 0;
                         for (size_t a : augm.list_export)
-                            df_double[c++][r] = hsp_to_rcpp(member.get_augm_variable(a));
-                        ++r;
+                            augm_cols[c++][row] = hsp_to_rcpp(member.get_augm_variable(a));
+                        ++row;
                     }
                 }
                 catch (const std::exception &e)
@@ -1182,10 +1169,11 @@ namespace
                         std::string(e.what()));
                 }
 
-            output = DataFrame::create(_["status"] = df_status);
-            size_t c = 0;
+            output = helper_export_data_wide(data_wide, data_names, false);
+            output["status"] = status_col;
+            size_t i = 0;
             for (size_t a : augm.list_export)
-                output.push_back(df_double[c++], augm.pRegistry->as_string(a));
+                output[augm.pRegistry->as_string(a)] = augm_cols[i++];
         }
         catch (const std::exception &e)
         {
@@ -1197,12 +1185,10 @@ namespace
     /// Perform simulation and return simulated data.
     Rcpp::List helper_simulate_(Rcpp::XPtr<MCMC> mcmc_ptr, size_t n, bool is_expec_measure)
     {
-        using namespace Rcpp;
         MCMC &engine = *mcmc_ptr;
         atomic::Error &atomic_error = engine.atomic_error;
-
         atomic_error.restore();
-        
+
         try
         {
             size_t n_rep = 1;
@@ -1216,15 +1202,14 @@ namespace
             // initialization
             engine.helper_init_simulation();
             engine.model.init_model_for_simulation();
-            List output(n_rep);
+            Rcpp::List output(n_rep);
 
             // run simulations
-#pragma omp parallel for
             for (size_t r = 0; r < n_rep; ++r)
             {
                 if (atomic_error.is_pending())
                     continue;
-                output[r] = helper_simulate_single_repetition_(engine);
+                output[r] = Rcpp::DataFrame(helper_simulate_single_repetition_(engine));
             }
             atomic_error.throw_exception();
 
@@ -1370,7 +1355,6 @@ RCPP_MODULE(housepi)
 
     Rcpp::function("create_mcmc_runner", &create_mcmc_runner);
     Rcpp::function("run_inference", &run_inference);
-    Rcpp::function("data_wide_for_simulation", &data_wide_for_simulation);
     Rcpp::function("run_simulation", &run_simulation);
     Rcpp::function("run_simulation_for_predict", &run_simulation_for_predict);
     Rcpp::function("evaluate_log_lik", &evaluate_log_lik);

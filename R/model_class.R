@@ -366,24 +366,25 @@ HousepiModel <- R6::R6Class(
         iterator, name = "simulations", type = "tasks", clear = FALSE
       )
 
-      # static data (not returned by simulation)
-      static_df <- .engine$data_wide_for_simulation(private$mcmc_ptr_)
-      # refactor after binding to static
-      refactor <- function(x) private$refactor_data_wide_(cbind(static_df, x))
-
-      # combine observation process to measures
-      if (is.null(obs_process)) final_apply <- apply_measure
-      else if (!is.function(obs_process)) stop_h(
-        "Unrecognized function passed as observation process."
-      )
-      else final_apply <- function(x) apply_measure(obs_process(x))
+      # combine observation process to measures and refactor
+      if (is.null(obs_process)) {
+        final_apply <- function(x) {
+          apply_measure(private$refactor_data_wide_(x))
+        }
+      } else if (is.function(obs_process)) {
+        final_apply <- function(x) {
+          apply_measure(obs_process(private$refactor_data_wide_(x)))
+        }
+      } else {
+        stop_h("Unrecognized function passed as observation process.")
+      }
 
       # run simulation and apply all measures
       # NOTE: simulate_for_expec from 0 to table_size - 1 !
       lapply(iterator, function(r) {
-        final_apply(refactor(
+        final_apply(
           .engine$run_simulation_for_predict(private$mcmc_ptr_, r - 1)[[1]]
-        ))
+        )
       })
     },
 
@@ -905,8 +906,7 @@ HousepiModel <- R6::R6Class(
     #' @return `data.frame`
     export_augmented_data = function() {
       private$refactor_data_wide_(
-        cbind(.engine$data_wide_for_simulation(private$mcmc_ptr_),
-              .engine$export_augmented_data_wide(private$mcmc_ptr_))
+        .engine$export_augmented_data_wide(private$mcmc_ptr_)
       )
     },
 
@@ -947,24 +947,21 @@ HousepiModel <- R6::R6Class(
     run_simulation = function(nsim = 1, seed = NA_integer_,
                               obs_process = NULL) {
       # set observation process to identity if not provided
-      if (is.null(obs_process)) obs_process <- function(x) x
-      else if (!is.function(obs_process)) stop_h(
-        "Unrecognized function passed as observation process."
-      )
+      if (is.null(obs_process)) {
+        final_apply <- function(x) private$refactor_data_wide_(x)
+      } else if (is.function(obs_process)) {
+        final_apply <- function(x) obs_process(private$refactor_data_wide_(x))
+      } else {
+        stop_h("Unrecognized function passed as observation process.")
+      }
 
       # internal build function
       private$build_full_(seed = seed)
 
-      # refactor static data for simulation
-      static_df <- .engine$data_wide_for_simulation(private$mcmc_ptr_)
       # produce list of simulated dataframes
       # then bind simulated entries with static part
-      output <- lapply(
-        .engine$run_simulation(private$mcmc_ptr_, nsim),
-        function(x) {
-          obs_process(private$refactor_data_wide_(cbind(static_df, x)))
-        }
-      )
+      output <- lapply(.engine$run_simulation(private$mcmc_ptr_, nsim),
+                       final_apply)
       # return a single data.frame if single simulation
       if (nsim == 1) output <- output[[1]]
 
