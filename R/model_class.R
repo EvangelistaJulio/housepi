@@ -348,43 +348,40 @@ HousepiModel <- R6::R6Class(
       })
     },
 
+    # Helper with observation process import.
+    # Combine observation process to measures and refactor.
+    helper_obs_process_ = function(obs_process) {
+      if (is.null(obs_process)) {
+        private$refactor_data_wide_
+      } else if (is.function(obs_process)) {
+        function(x) obs_process(private$refactor_data_wide_(x))
+      } else {
+        stop_h("Unrecognized function passed as observation process.")
+      }
+    },
+
     # @description
     # Run measure function on posterior simulations.
     # UPDATE: this has to be improved with loops in C++
-    run_measure_ = function(param_table, apply_measure, obs_process, progress) {
+    run_measure_ = function(param_table,
+                            apply_measure,
+                            obs_process = NULL,
+                            seed = NA_integer_,
+                            progress = FALSE) {
+      standard_apply <- private$helper_obs_process_(obs_process)
+      final_apply <- function(x) apply_measure(standard_apply(x))
+
+      # internal build function
+      private$build_full_(seed = seed, progress = progress)
+
       # attach param_table
       param_table <- private$helper_import_table_(param_table)
       .engine$import_param_for_prediction(private$mcmc_ptr_, param_table)
 
-      # define iterator, eventually with progress bar
-      iterator <- seq_len(dim(param_table)[1])
-      # if progress not provided, import from model
-      progress <- ifelse(is.na(progress), self$setup$progress, progress)
-      # UPDATE: can't manually set the frequency here
-      if (is.numeric(progress)) progress <- TRUE
-      if (isTRUE(progress)) iterator <- cli::cli_progress_along(
-        iterator, name = "simulations", type = "tasks", clear = FALSE
-      )
-
-      # combine observation process to measures and refactor
-      if (is.null(obs_process)) {
-        final_apply <- function(x) {
-          apply_measure(private$refactor_data_wide_(x))
-        }
-      } else if (is.function(obs_process)) {
-        final_apply <- function(x) {
-          apply_measure(obs_process(private$refactor_data_wide_(x)))
-        }
-      } else {
-        stop_h("Unrecognized function passed as observation process.")
-      }
-
       # run simulation and apply all measures
-      # NOTE: simulate_for_expec from 0 to table_size - 1 !
+      iterator <- seq_len(dim(param_table)[1]) - 1
       lapply(iterator, function(r) {
-        final_apply(
-          .engine$run_simulation_for_predict(private$mcmc_ptr_, r - 1)[[1]]
-        )
+        final_apply(.engine$run_simulation(private$mcmc_ptr_, r)[[1]])
       })
     },
 
@@ -940,28 +937,35 @@ HousepiModel <- R6::R6Class(
     #' @description
     #' Run simulation to generate a household survey.
     #' It assumes the same community structure of the loaded data.
+    #' @param obs_process `r rd_simul_observ_`
     #' @param nsim `r rd_simul_nsim_`
     #' @param seed `r rd_seed_`
-    #' @param obs_process `r rd_simul_observ_`
     #' @return `data.frame`
-    run_simulation = function(nsim = 1, seed = NA_integer_,
-                              obs_process = NULL) {
-      # set observation process to identity if not provided
-      if (is.null(obs_process)) {
-        final_apply <- function(x) private$refactor_data_wide_(x)
-      } else if (is.function(obs_process)) {
-        final_apply <- function(x) obs_process(private$refactor_data_wide_(x))
-      } else {
-        stop_h("Unrecognized function passed as observation process.")
-      }
+    run_simulation = function(obs_process = NULL,
+                              nsim = 1,
+                              seed = NA_integer_) {
+      # combine observation process to measures and refactor
+      standard_apply <- private$helper_obs_process_(obs_process)
 
       # internal build function
-      private$build_full_(seed = seed)
+      private$build_full_(seed = seed, progress = FALSE)
 
-      # produce list of simulated dataframes
-      # then bind simulated entries with static part
-      output <- lapply(.engine$run_simulation(private$mcmc_ptr_, nsim),
-                       final_apply)
+      # attach param_table
+      if (dim(self$parameters)[1] > 0) {
+        param_table <- self$parameters |>
+          dplyr::select(name, value) |>
+          tidyr::pivot_wider(names_from = "name", values_from = "value") |>
+          dplyr::mutate(n = nsim) |>
+          tidyr::uncount(n) |>
+          private$helper_import_table_()
+        .engine$import_param_for_prediction(private$mcmc_ptr_, param_table)
+      }
+
+      # run simulations
+      iterator <- seq_len(nsim) - 1
+      output <- lapply(iterator, function(r) {
+        standard_apply(.engine$run_simulation(private$mcmc_ptr_, r)[[1]])
+      })
       # return a single data.frame if single simulation
       if (nsim == 1) output <- output[[1]]
 

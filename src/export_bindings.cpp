@@ -1064,19 +1064,17 @@ namespace
     /// Export to R a snapshot of current state of house augmented variables.
     Rcpp::DataFrame helper_augm_rcpp_snapshot(const Augmented &augm, const Household &house)
     {
-        using namespace Rcpp;
-
         size_t n_cols = augm.list_export.size();
 
         if (n_cols == 0)
-            return DataFrame::create();
+            return Rcpp::DataFrame::create();
 
         size_t n_rows = house.size();
-        CharacterVector df_id(n_rows);
+        Rcpp::CharacterVector df_id(n_rows);
 
-        std::vector<NumericVector> df_double(n_cols);
+        std::vector<Rcpp::NumericVector> df_double(n_cols);
         for (size_t c = 0; c < n_cols; ++c)
-            df_double[c] = NumericVector(n_rows);
+            df_double[c] = Rcpp::NumericVector(n_rows);
 
         for (size_t i = 0; i < house.size(); ++i)
         {
@@ -1087,12 +1085,13 @@ namespace
                 df_double[c++][i] = hsp_to_rcpp(member_i.get_augm_variable(a));
         }
 
-        auto output = DataFrame::create(_["id"] = df_id);
+        Rcpp::List output;
+        output["id"] = df_id;
         size_t i = 0;
         for (size_t a : augm.list_export)
             output.push_back(df_double[i++], augm.pRegistry->as_string(a));
 
-        return output;
+        return Rcpp::DataFrame(output);
     }
 
     /// Export a list containing all relevant information for a debug.
@@ -1127,7 +1126,7 @@ namespace
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Perform a unique repetition.
-    Rcpp::List helper_simulate_single_repetition_(MCMC &engine)
+    Rcpp::List helper_simulate_single_repetition_(MCMC &engine, size_t rep)
     {
         const Augmented &augm = engine.augm;
         DataWide &data_wide = engine.data_wide;
@@ -1138,6 +1137,8 @@ namespace
 
         try
         {
+            engine.param.load_sample_values(rep);
+            
             size_t n_cols = augm.list_export.size();
             size_t n_rows = data_wide.report_indiv.total;
 
@@ -1183,7 +1184,7 @@ namespace
     }
 
     /// Perform simulation and return simulated data.
-    Rcpp::List helper_simulate_(Rcpp::XPtr<MCMC> mcmc_ptr, size_t n, bool is_expec_measure)
+    Rcpp::List run_simulation(Rcpp::XPtr<MCMC> mcmc_ptr, size_t rep)
     {
         MCMC &engine = *mcmc_ptr;
         atomic::Error &atomic_error = engine.atomic_error;
@@ -1191,26 +1192,14 @@ namespace
 
         try
         {
-            size_t n_rep = 1;
-            // change execute mode
-            // UPDATE: this could later enter in the loop
-            if (is_expec_measure)
-                engine.param.load_sample_values(n);
-            else
-                n_rep = n;
-
             // initialization
             engine.helper_init_simulation();
             engine.model.init_model_for_simulation();
-            Rcpp::List output(n_rep);
+            Rcpp::List output(1);
 
             // run simulations
-            for (size_t r = 0; r < n_rep; ++r)
-            {
-                if (atomic_error.is_pending())
-                    continue;
-                output[r] = Rcpp::DataFrame(helper_simulate_single_repetition_(engine));
-            }
+            output[0] = Rcpp::DataFrame(helper_simulate_single_repetition_(engine, rep));
+
             atomic_error.throw_exception();
 
             return output;
@@ -1219,15 +1208,6 @@ namespace
         {
             msg::error(e.what());
         }
-    }
-
-    Rcpp::List run_simulation(Rcpp::XPtr<MCMC> mcmc_ptr, size_t n_rep)
-    {
-        return helper_simulate_(mcmc_ptr, n_rep, false);
-    }
-    Rcpp::List run_simulation_for_predict(Rcpp::XPtr<MCMC> mcmc_ptr, size_t n)
-    {
-        return helper_simulate_(mcmc_ptr, n, true);
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1356,7 +1336,6 @@ RCPP_MODULE(housepi)
     Rcpp::function("create_mcmc_runner", &create_mcmc_runner);
     Rcpp::function("run_inference", &run_inference);
     Rcpp::function("run_simulation", &run_simulation);
-    Rcpp::function("run_simulation_for_predict", &run_simulation_for_predict);
     Rcpp::function("evaluate_log_lik", &evaluate_log_lik);
     Rcpp::function("import_data_wide", &import_data_wide);
     Rcpp::function("import_data_long", &import_data_long);

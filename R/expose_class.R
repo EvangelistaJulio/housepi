@@ -486,17 +486,18 @@ run_inference <- function(hhmodel,
 #' Run simulation to generate a household survey.
 #' It assumes the same community structure of the loaded data.
 #' @param hhmodel `r rd_model_in_`
+#' @param obs_process `r rd_simul_observ_`
 #' @param nsim `r rd_simul_nsim_`
 #' @param seed `r rd_seed_`
-#' @param obs_process `r rd_simul_observ_`
 #' @return `data.frame`
 #' @export
 run_simulation <- function(hhmodel,
-                           nsim = 1, seed = NA_integer_,
-                           obs_process = NULL) {
+                           obs_process = NULL,
+                           nsim = 1,
+                           seed = NA_integer_) {
   stopifnothousepi(hhmodel)
-  hhmodel$run_simulation(nsim = nsim, seed = seed,
-                         obs_process = obs_process)
+  hhmodel$run_simulation(obs_process = obs_process,
+                         nsim = nsim, seed = seed)
 }
 
 #' @title Estimate logevidence of housepi model
