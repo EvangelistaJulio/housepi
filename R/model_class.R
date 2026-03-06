@@ -381,7 +381,7 @@ HousepiModel <- R6::R6Class(
       # run simulation and apply all measures
       iterator <- seq_len(dim(param_table)[1]) - 1
       lapply(iterator, function(r) {
-        final_apply(.engine$run_simulation(private$mcmc_ptr_, r)[[1]])
+        .engine$run_simulation(private$mcmc_ptr_, final_apply, r)[[1]]
       })
     },
 
@@ -964,7 +964,7 @@ HousepiModel <- R6::R6Class(
       # run simulations
       iterator <- seq_len(nsim) - 1
       output <- lapply(iterator, function(r) {
-        standard_apply(.engine$run_simulation(private$mcmc_ptr_, r)[[1]])
+        .engine$run_simulation(private$mcmc_ptr_, standard_apply, r)[[1]]
       })
       # return a single data.frame if single simulation
       if (nsim == 1) output <- output[[1]]

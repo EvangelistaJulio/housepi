@@ -879,20 +879,19 @@ namespace
     /// NOTE: there are not private parameters so far.
     Rcpp::NumericVector helper_param_rcpp_snapshot(const Parameter &param)
     {
-        using namespace Rcpp;
         size_t n = param.pRegistry->size();
 
         if (n == 0)
-            return NumericVector::create();
+            return Rcpp::NumericVector::create();
 
-        NumericVector output(n);
-        CharacterVector headers(n);
+        Rcpp::NumericVector output(n);
+        Rcpp::CharacterVector headers(n);
         for (size_t p = 0; p < n; ++p)
         {
             output[p] = param.at(p).value();
             headers[p] = std::string(param.at(p).name());
         }
-        output.names() = CharacterVector(headers);
+        output.names() = Rcpp::CharacterVector(headers);
 
         return output;
     }
@@ -938,10 +937,8 @@ namespace
     Rcpp::DataFrame helper_data_long_rcpp_snapshot(const DataLong &data_long,
                                                    const Household &house)
     {
-        using namespace Rcpp;
-
         if (data_long.indiv_datalist.empty())
-            return DataFrame::create();
+            return Rcpp::DataFrame::create();
 
         size_t n_rows = 0;
         for (const Individual &member : house)
@@ -951,10 +948,10 @@ namespace
                 n_rows += ptr->begin()->size();
         }
 
-        CharacterVector datalist_id(n_rows);
-        std::vector<NumericVector> df_double(data_long.pRegistry->size());
+        Rcpp::CharacterVector datalist_id(n_rows);
+        std::vector<Rcpp::NumericVector> df_double(data_long.pRegistry->size());
         for (size_t d = 0; d < df_double.size(); ++d)
-            df_double[d] = NumericVector(n_rows);
+            df_double[d] = Rcpp::NumericVector(n_rows);
 
         size_t r = 0;
         for (const Individual &member : house)
@@ -970,30 +967,29 @@ namespace
         }
 
         // assign vectors to dataframe
-        auto output = DataFrame::create(_["id"] = std::move(datalist_id));
+        Rcpp::List output; 
+        output["id"] = datalist_id;
         for (size_t d = 0; d < df_double.size(); ++d)
-            output.push_back(df_double[d], data_long.pRegistry->as_string(d));
+            output[data_long.pRegistry->as_string(d)] = df_double[d];
 
-        return output;
+        return Rcpp::DataFrame(output);
     }
 
     /// Export to R a snapshot of current state of house augmented variables.
     Rcpp::DataFrame helper_group_rates_rcpp_snapshot(const GroupRate &group_rate,
                                                      const Household &house)
     {
-        using namespace Rcpp;
-
         const std::vector<std::string> &headers = group_rate.pRegistry->get_all();
 
         if (headers.empty())
-            return DataFrame::create();
+            return Rcpp::DataFrame::create();
 
         size_t n_rows = house.size();
-        CharacterVector df_id(n_rows);
+        Rcpp::CharacterVector df_id(n_rows);
 
-        std::vector<NumericVector> df_double(headers.size());
+        std::vector<Rcpp::NumericVector> df_double(headers.size());
         for (size_t c = 0; c < headers.size(); ++c)
-            df_double[c] = NumericVector(n_rows);
+            df_double[c] = Rcpp::NumericVector(n_rows);
 
         for (const Individual &member : house)
         {
@@ -1004,11 +1000,12 @@ namespace
                 df_double[c][i] = hsp_to_rcpp(member.get_group_rate_attribute(c));
         }
 
-        auto output = DataFrame::create(_["id"] = df_id);
+        Rcpp::List output; 
+        output["id"] = df_id;
         for (size_t c = 0; c < headers.size(); ++c)
             output.push_back(df_double[c], headers[c]);
 
-        return output;
+        return Rcpp::DataFrame(output);
     }
 
     /// Export to R a snapshot of current state of house infectivity profile.
@@ -1126,11 +1123,13 @@ namespace
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Perform a unique repetition.
-    Rcpp::List helper_simulate_single_repetition_(MCMC &engine, size_t rep)
+    Rcpp::DataFrame helper_simulate_single_repetition_(MCMC &engine,
+                                                       Rcpp::List shared_df,
+                                                       size_t rep)
     {
         const Augmented &augm = engine.augm;
-        DataWide &data_wide = engine.data_wide;
-        Rcpp::List output;
+        const DataWide &data_wide = engine.data_wide;
+        Rcpp::List output = shared_df;
 
         const std::vector<std::string> data_names = data_wide.pRegistry->get_all() -
                                                     augm.pRegistry->as_string(augm.list_export);
@@ -1138,7 +1137,7 @@ namespace
         try
         {
             engine.param.load_sample_values(rep);
-            
+
             size_t n_cols = augm.list_export.size();
             size_t n_rows = data_wide.report_indiv.total;
 
@@ -1170,7 +1169,6 @@ namespace
                         std::string(e.what()));
                 }
 
-            output = helper_export_data_wide(data_wide, data_names, false);
             output["status"] = status_col;
             size_t i = 0;
             for (size_t a : augm.list_export)
@@ -1180,25 +1178,34 @@ namespace
         {
             engine.atomic_error.set_if_first(e);
         }
-        return output;
+        return Rcpp::DataFrame(output);
     }
 
     /// Perform simulation and return simulated data.
-    Rcpp::List run_simulation(Rcpp::XPtr<MCMC> mcmc_ptr, size_t rep)
+    Rcpp::List run_simulation(Rcpp::XPtr<MCMC> mcmc_ptr, 
+                              Rcpp::Function post_process,
+                              size_t rep)
     {
         MCMC &engine = *mcmc_ptr;
         atomic::Error &atomic_error = engine.atomic_error;
-        atomic_error.restore();
+        const Augmented &augm = engine.augm;
+        const DataWide &data_wide = engine.data_wide;
+
+        // column names of data shared across simulations
+        const std::vector<std::string> shared_names = data_wide.pRegistry->get_all() -
+                                                      augm.pRegistry->as_string(augm.list_export);
 
         try
         {
-            // initialization
             engine.helper_init_simulation();
             engine.model.init_model_for_simulation();
+            Rcpp::List shared_df = helper_export_data_wide(data_wide, shared_names, false);
+
             Rcpp::List output(1);
 
+            atomic_error.restore();
             // run simulations
-            output[0] = Rcpp::DataFrame(helper_simulate_single_repetition_(engine, rep));
+            output[0] = post_process(helper_simulate_single_repetition_(engine, shared_df, rep));
 
             atomic_error.throw_exception();
 
