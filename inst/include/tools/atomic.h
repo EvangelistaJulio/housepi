@@ -35,10 +35,7 @@ namespace hsp::atomic
         }
         void set_if_first(const std::exception &e) { set_if_first(e.what()); }
         /// Wheter it should be skipped or not.
-        bool is_pending()
-        {
-            return has_error_.load(std::memory_order_relaxed);
-        }
+        bool is_pending() { return has_error_.load(std::memory_order_relaxed); }
         /// If an error was caught in critical scope, throw an exception.
         void throw_exception() const
         {

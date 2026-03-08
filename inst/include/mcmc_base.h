@@ -80,16 +80,6 @@ namespace hsp
 						   const std::vector<std::string> &group_rate_keys,
 						   const std::vector<std::string> &augm_keys);
 
-		/// Auxiliary method to initialize simulations.
-		/// UPDATE: once I allow for multi-treading and a flag other than n_chains = 0, I can drop this.
-		void helper_init_simulation()
-		{
-			data_wide.assert_non_empty(); // check if data is empty
-			setup.n_chains = 0;			  // use 0 chains as a state variable
-			setup.n_threads = 1;		  // impose no parallelization
-			setup.set_n_threads();		  // change accordingly
-		}
-
 	protected:
 		///////////////////////////////////
 		//////  METROPOLIS-HASTINGS  //////

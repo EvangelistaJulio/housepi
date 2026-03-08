@@ -217,8 +217,7 @@ namespace hsp
     {
         init_monte_carlo_();             // initialize mcmc sampling
         init_evaluate_(false);           // initialize for evaluation
-        setup.prog_declare();            // declare current progress bar
-        setup.prog_open_for_inference(); // open progress bar
+        setup.prog_open_for_mcmc_sample(); // open progress bar
         run_monte_carlo_();              // run Monte Carlo
         setup.prog_close();              // close progress bar
     }
@@ -515,7 +514,6 @@ namespace hsp
         double old_inv_T = setup.inv_T;   // save user setup
         init_monte_carlo_();              // initialize mcmc sampling
         init_evaluate_(false);            // initialize for evaluation
-        setup.prog_declare();             // declare current progress bar
         setup.prog_open_for_power_post(); // print progress bar
 
         // thermodynamic ladder estimates

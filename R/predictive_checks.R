@@ -210,6 +210,7 @@ HousepiPrediction <- R6::R6Class(
     #' @param param_table `r rd_param_table_`
     #' @param ... `r rd_measure_dots_`
     #' @param obs_process `r rd_simul_observ_`
+    #' @param threads `r rd_thread_`
     #' @param seed `r rd_seed_`
     #' @param progress `r rd_progress_`
     #' @param cri_level `r rd_smpl_cri_level_`
@@ -217,8 +218,9 @@ HousepiPrediction <- R6::R6Class(
                           param_table,
                           ...,
                           obs_process = NULL,
+                          threads = 1,
                           seed = NA_integer_,
-                          progress = NA,
+                          progress = TRUE,
                           cri_level = 0.95) {
       # associate credible interval
       private$cri_level_ <- ppc_set_cri_level(cri_level)
@@ -231,12 +233,12 @@ HousepiPrediction <- R6::R6Class(
       apply_measure <- function(x) lapply(measure, function(func) func(x))
       store_observed <- apply_measure(hhmodel$data_wide)
 
-      # deep clone model before proceeding
-      hmc <- hhmodel$copy()
       # run measures on posterior simulations
       # NOTE: the only way I found is call to private HousepiModel method
-      output <-  hmc$.__enclos_env__$private$run_measure_(
-        param_table, apply_measure, obs_process,
+      output <-  hhmodel$.__enclos_env__$private$run_measure_(
+        param_table, apply_measure,
+        obs_process = obs_process,
+        threads = threads, seed = seed,
         progress = progress
       )
 
@@ -456,23 +458,23 @@ PredictedCasesBySize <- R6::R6Class(
     #' @param hhmodel `r rd_model_in_`
     #' @param param_table `r rd_param_table_`
     #' @param obs_process `r rd_simul_observ_`
+    #' @param threads `r rd_thread_`
     #' @param seed `r rd_seed_`
     #' @param progress `r rd_progress_`
     #' @param cri_level `r rd_smpl_cri_level_`
     initialize = function(hhmodel,
                           param_table,
                           obs_process = NULL,
+                          threads = 1,
                           seed = NA_integer_,
-                          progress = NA,
+                          progress = TRUE,
                           cri_level = 0.95) {
       # ininitialize parent class HousepiPrediction
-      super$initialize(hhmodel = hhmodel,
-                       param_table = param_table,
+      super$initialize(hhmodel = hhmodel, param_table = param_table,
                        cases_table_by_size = measure_cases_by_house_size,
                        sec_attack_rate = measure_sar_by_house_size,
                        obs_process = obs_process,
-                       seed = seed,
-                       progress = progress,
+                       threads = threads, seed = seed, progress = progress,
                        cri_level = cri_level)
       private$counts_ <- helper_count_non_zero_cases(hhmodel$data_wide)
 
@@ -518,6 +520,8 @@ PredictedCasesBySize <- R6::R6Class(
 #' @param param_table `r rd_param_table_`
 #' @param ... `r rd_measure_dots_`
 #' @param obs_process `r rd_simul_observ_`
+#' @param threads `r rd_thread_`
+#' @param seed `r rd_seed_`
 #' @param progress `r rd_progress_`
 #' @return An object of class
 #' [HousepiPrediction][housepi::HousepiPrediction].
@@ -526,11 +530,14 @@ predicted_measures <- function(hhmodel,
                                param_table,
                                ...,
                                obs_process = NULL,
+                               threads = 1,
                                seed = NA_character_,
-                               progress = NA) {
+                               progress = TRUE) {
   stopifnothousepi(hhmodel)
-  HousepiPrediction$new(hhmodel, param_table, ...,
-                        obs_process = obs_process, progress = progress)
+  HousepiPrediction$new(hhmodel$copy(), param_table, ...,
+                        obs_process = obs_process,
+                        threads = threads, seed = seed,
+                        progress = progress)
 }
 
 #' @title Common measures predicted by the model by household size
@@ -540,6 +547,7 @@ predicted_measures <- function(hhmodel,
 #' @param hhmodel `r rd_model_in_`
 #' @param param_table `r rd_param_table_`
 #' @param obs_process `r rd_simul_observ_`
+#' @param threads `r rd_thread_`
 #' @param seed `r rd_seed_`
 #' @param progress `r rd_progress_`
 #' @return
@@ -550,11 +558,14 @@ predicted_measures <- function(hhmodel,
 predicted_cases_by_house_size <- function(hhmodel,
                                           param_table,
                                           obs_process = NULL,
+                                          threads = 1,
                                           seed = NA_character_,
-                                          progress = NA) {
+                                          progress = TRUE) {
   stopifnothousepi(hhmodel)
-  PredictedCasesBySize$new(hhmodel, param_table,
-                           obs_process = obs_process, progress = progress)
+  PredictedCasesBySize$new(hhmodel$copy(), param_table,
+                           obs_process = obs_process,
+                           threads = threads, seed = seed,
+                           progress = progress)
 }
 
 #' Format credible intervals into printable strings

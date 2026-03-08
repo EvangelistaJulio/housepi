@@ -461,7 +461,7 @@ evaluate_log_lik <- function(hhmodel,
 #' @param thin `r rd_smpl_thin_`
 #' @param adapt `r rd_smpl_adapt_`
 #' @param chains `r rd_smpl_chain_`
-#' @param threads `r rd_smpl_thread_`
+#' @param threads `r rd_thread_`
 #' @param id_draws `r rd_smpl_iddrw_`
 #' @param seed `r rd_seed_`
 #' @param progress `r rd_progress_`
@@ -512,7 +512,7 @@ run_simulation <- function(hhmodel,
 #' @param thin `r rd_smpl_thin_`
 #' @param adapt `r rd_smpl_adapt_`
 #' @param chains `r rd_smpl_chain_`
-#' @param threads `r rd_smpl_thread_`
+#' @param threads `r rd_thread_`
 #' @param seed `r rd_seed_`
 #' @param progress `r rd_progress_`
 #' @references

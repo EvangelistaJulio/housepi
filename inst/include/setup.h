@@ -67,11 +67,9 @@ namespace hsp
         void set_n_threads();
 
         /// Build Setup configuration from input table.
-        /// @param input Key-value pairs matching `file_headers`.
         void build(const hsp::str_table &input);
 
         /// Validate MCMC setup parameters for consistency and feasibility.
-        /// @throws std::out_of_range if parameters are invalid.
         void assert_mcmc_setup();
 
         /// Remove adaptive phase parameters after burn-in completion.
@@ -81,8 +79,9 @@ namespace hsp
         //////  FLAGS  //////
         /////////////////////
 
+        /// Check if running standard sample.
+        bool is_mcmc_sample() const { return n_steps > 1; }
         /// Check if running power posterior analysis.
-        /// @return true if n_rungs > 0 (multiple temperature rungs configured).
         bool is_power_post() const { return n_rungs > 0; }
 
         //////////////////////
@@ -91,49 +90,34 @@ namespace hsp
 
         /// Initialize random number generator with configured seed.
         void set_prng_seed();
-
         /// Get reference to the active pseudo-random number generator.
-        /// @return Reference to PRNG for current thread.
         hsp::rnd_gen &prng() const;
 
         /// Sample a uniform-distributed variable in [0, 1).
-        /// @return Uniform random value.
         double uniform() const { return uniform_(prng()); }
-
         /// Sample an exponential-distributed variable with rate 1.
-        /// @return Exponential random value in [0, inf).
         double exponential() const { return exponential_(prng()); }
 
         ////////////////////////////
         //////  PROGRESS-BAR  //////
         ////////////////////////////
 
-        /// Declare and initialize progress bar with optional label.
-        /// @param text Optional description to display.
-        void prog_declare(const std::string &text = "");
-
         /// Update progress bar display text.
-        /// @param text New text to display.
-        void prog_set_text(const std::string &text = "");
+        void prog_set_text(std::string text = "");
 
-        /// Open progress bar for standard MCMC inference.
-        void prog_open_for_inference();
-
+        /// Open progress bar for standard MCMC sample.
+        void prog_open_for_mcmc_sample();
         /// Open progress bar for power posterior analysis.
         void prog_open_for_power_post();
+        /// Open progress bar for simulation.
+        void prog_open_for_simulation();
 
         /// Increment progress bar by one iteration.
         void prog_update();
-
         /// Close and finalize progress bar display.
         void prog_close();
-
         /// Mark progress bar as crashed/interrupted.
         void prog_crash();
-
-        /// Formatted progress text for display.
-        /// @return Formatted string with current MCMC/power posterior state.
-        std::string fmt_progtxt();
 
     private:
         mutable std::vector<hsp::rnd_gen> prng_parallel_ = {};      /// Thread-local PRNGs for parallel chains.

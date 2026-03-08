@@ -246,8 +246,8 @@ namespace hsp
         std::ofstream ofs = open_ofstream_datawide(pathtofile,
                                                    data_wide.pRegistry->get_all(),
                                                    augm.pRegistry->as_string(augm.list_export));
-        engine.helper_init_simulation();
-        engine.model.init_model_for_simulation();
+        data_wide.assert_non_empty();             // check if data is empty
+        engine.model.init_model_for_simulation(); // model specific initialization
 
         for (Household house : data_wide) // NOTE: deep copy of household
             try
@@ -407,7 +407,7 @@ namespace hsp
 
         try
         {
-            if (opts.is_log_lik) 
+            if (opts.is_log_lik)
                 std::cout << engine.evaluate_log_lik("") << std::endl;
             if (opts.is_simulate)
                 print_simulated_data_wide(engine, opts.file.output);

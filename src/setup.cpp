@@ -74,9 +74,15 @@ namespace hsp
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////// *** Bar : Impl : class *** ///////////////////////////////////
+    ////////////////////////////////// *** ProgressBar : class *** //////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    namespace ansi
+    {
+        constexpr const char *reset = "\033[39m";
+        constexpr const char *green = "\033[32m";
+    }
 
     /// Implementation class for progress bar.
     ///
@@ -116,15 +122,8 @@ namespace hsp
         /// Set description text of progress bar.
         void set_text(const std::string &text) { text_ = text; }
 
-        /// Set description text of progress bar.
-        void set_thintime(unsigned long thintime)
-        {
-            verbose_ = thintime > 0;
-            thintime_ = thintime - 1;
-        }
-
         /// Start progressbar clock and display firs message.
-        void open(unsigned long total)
+        void open(unsigned long total, unsigned long thintime)
         {
             check_user_interrupt_();
             if (total == 0)
@@ -137,6 +136,8 @@ namespace hsp
             lastprint_ = start_;
             state_ = 0;
             is_bar_print_ = false;
+            verbose_ = thintime > 0;
+            thintime_ = thintime - 1;
         }
 
         /// Update progress bar given the progress state.
@@ -150,25 +151,22 @@ namespace hsp
             const double progress = static_cast<double>(state_) / static_cast<double>(total_);
             const auto now = steady_clock::now();
             const auto elapsed = duration_cast<seconds>(now - start_);
-            const auto missing = duration_cast<seconds>(elapsed * (1. / progress - 1.));
+            const auto missing = duration_cast<seconds>(elapsed * (1. - progress) / progress);
 
-            // skip if expected to finish soon
-            if (missing.count() < 1)
+            // skip if expected to finish soon (less than 2 seconds)
+            if (missing.count() < 2)
                 return;
 
-            // print update message
+            // print update message if time since last print greater than thin-time
             if (static_cast<unsigned long>(duration_cast<seconds>(now - lastprint_).count()) > thintime_)
             {
-                const unsigned where = progress * barwidth_;
                 std::ostringstream oss;
-                oss << text_ << " |";
-                for (unsigned u = 0; u < where; ++u)
-                    oss << symbol_;
-                oss << std::string(barwidth_ - where, ' ') << "| "
+                oss << text_
+                    << bar_(progress)
                     << std::fixed << std::setprecision(0) << 100. * progress << "% "
                     << format_time_(elapsed) << "<" << format_time_(missing)
                     << std::string(10, ' ');
-                bar_(oss.str());
+                print_(oss.str());
 
                 lastprint_ = steady_clock::now();
                 is_bar_print_ = true;
@@ -177,7 +175,7 @@ namespace hsp
             {
                 // eventually print initial message
                 std::ostringstream oss;
-                oss << text_ << " |" << std::string(barwidth_, ' ') << "| 0% ";
+                oss << text_ << " ...";
                 if (mode_ == Mode::Static)
                     oss << "\n";
                 msg::info(oss.str());
@@ -208,14 +206,13 @@ namespace hsp
             if (static_cast<unsigned long>(elapsed.count()) > thintime_)
             {
                 std::ostringstream oss;
-                oss << text_ << " |";
-                for (unsigned u = 0; u < barwidth_; u++)
-                    oss << symbol_;
-                oss << "| " << format_time_(elapsed)
+                oss << text_
+                    << bar_(1)
+                    << format_time_(elapsed)
                     << std::string(25, ' ');
                 if (mode_ == Mode::Interactive)
                     oss << "\n";
-                bar_(oss.str());
+                print_(oss.str());
             }
         }
 
@@ -232,8 +229,24 @@ namespace hsp
         steady_clock::time_point lastprint_;
         unsigned long thintime_ = 0;
 
+        /// Colored progress bar.
+        std::string bar_(double progress) const
+        {
+            const unsigned where = progress * barwidth_;
+            std::ostringstream oss;
+            oss << " ";
+            if (mode_ == Mode::Interactive)
+                oss << ansi::green;
+            for (unsigned u = 0; u < where; ++u)
+                oss << symbol_;
+            if (mode_ == Mode::Interactive)
+                oss << ansi::reset;
+            oss << std::string(barwidth_ - where, ' ') << " ";
+            return oss.str();
+        }
+
         /// Function to display the progress bar.
-        void bar_(const std::string &sms) const
+        void print_(const std::string &sms) const
         {
             switch (mode_)
             {
@@ -440,24 +453,34 @@ namespace hsp
         c_n_sweeps += c_sample_size;
     }
 
-    /// The text to print in the Markov chian progress bar.
-    std::string Setup::fmt_progtxt()
+    void Setup::prog_set_text(std::string text)
     {
-        if (is_power_post())
-            return "power post " + std::to_string(rung) + "/" + std::to_string(n_rungs);
-        if (n_chains > 1)
-            return "sample " + std::to_string(chain) + "/" + std::to_string(n_chains);
-        return "sample";
+        if (!na::is(text))
+            ;
+        else if (is_power_post())
+            text = "power post " + std::to_string(rung) + "/" + std::to_string(n_rungs);
+        else if (n_chains > 1)
+            text = "sample " + std::to_string(chain) + "/" + std::to_string(n_chains);
+        else
+            text = "sample";
+        progressbar_->set_text(text);
+    }
+    void Setup::prog_open_for_mcmc_sample()
+    {
+        prog_set_text();
+        progressbar_->open(c_n_sweeps * n_chains, progress);
+    }
+    void Setup::prog_open_for_power_post()
+    {
+        prog_set_text();
+        progressbar_->open(c_n_sweeps * n_chains * (n_rungs + 1), progress);
+    }
+    void Setup::prog_open_for_simulation()
+    {
+        prog_set_text("simulate");
+        progressbar_->open(n_steps, progress);
     }
 
-    void Setup::prog_declare(const std::string &text)
-    {
-        prog_set_text(text);
-        progressbar_->set_thintime(progress);
-    }
-    void Setup::prog_set_text(const std::string &text) { progressbar_->set_text(na::is(text) ? fmt_progtxt() : text); }
-    void Setup::prog_open_for_inference() { progressbar_->open(c_n_sweeps * n_chains); }
-    void Setup::prog_open_for_power_post() { progressbar_->open(c_n_sweeps * n_chains * (n_rungs + 1)); }
     void Setup::prog_update() { progressbar_->update(); }
     void Setup::prog_close() { progressbar_->close(); }
     void Setup::prog_crash() { progressbar_->crash(); }

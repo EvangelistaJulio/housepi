@@ -37,8 +37,7 @@ hhmodel <- new_housepi_model("chain_binomial") |>
 
 # estimate parameters
 results <- hhmodel |>
-  run_inference(steps = 1000, thin = 10, adapt = 500, 
-                chains = 3, threads = 1, progress = FALSE)
+  run_inference(steps = 1000, thin = 10, adapt = 500, chains = 3)
 estimates <- get_param_draws(results) |>
   posterior::summarise_draws()
 estimates
@@ -51,7 +50,7 @@ We do so by computing the predicted numbers of cases per household size accordin
 
 ```{r}
 # run simulations according to posterior traces to compute predictions
-ppc <- predicted_cases_by_house_size(hhmodel, results, progress = FALSE)
+ppc <- predicted_cases_by_house_size(hhmodel, results, progress = 3)
 ```
 
 To show both observed and predicted cases by size, we can extract the formatted cases table from our output object as follows.

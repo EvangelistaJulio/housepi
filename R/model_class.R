@@ -366,23 +366,24 @@ HousepiModel <- R6::R6Class(
     run_measure_ = function(param_table,
                             apply_measure,
                             obs_process = NULL,
+                            threads = 1,
                             seed = NA_integer_,
-                            progress = FALSE) {
+                            progress = TRUE) {
       standard_apply <- private$helper_obs_process_(obs_process)
       final_apply <- function(x) apply_measure(standard_apply(x))
 
+      param_table <- private$helper_import_table_(param_table)
+      nsim <- dim(param_table)[1]
+
       # internal build function
-      private$build_full_(seed = seed, progress = progress)
+      private$build_full_(steps = nsim, threads = threads,
+                          seed = seed, progress = progress)
 
       # attach param_table
-      param_table <- private$helper_import_table_(param_table)
       .engine$import_param_for_prediction(private$mcmc_ptr_, param_table)
 
       # run simulation and apply all measures
-      iterator <- seq_len(dim(param_table)[1]) - 1
-      lapply(iterator, function(r) {
-        .engine$run_simulation(private$mcmc_ptr_, final_apply, r)[[1]]
-      })
+      .engine$run_simulation(private$mcmc_ptr_, final_apply)
     },
 
     # @description
@@ -396,7 +397,7 @@ HousepiModel <- R6::R6Class(
     # @param thin `r rd_smpl_thin_`
     # @param adapt `r rd_smpl_adapt_`
     # @param chains `r rd_smpl_chain_`
-    # @param threads `r rd_smpl_thread_`
+    # @param threads `r rd_thread_`
     # @param seed `r rd_seed_`
     # @param progress `r rd_progress_`
     #
@@ -879,7 +880,7 @@ HousepiModel <- R6::R6Class(
     #' @param thin `r rd_smpl_thin_`
     #' @param adapt `r rd_smpl_adapt_`
     #' @param chains `r rd_smpl_chain_`
-    #' @param threads `r rd_smpl_thread_`
+    #' @param threads `r rd_thread_`
     #' @param id_draws `r rd_smpl_iddrw_`
     #' @param seed `r rd_seed_`
     #' @param progress `r rd_progress_`
@@ -948,7 +949,7 @@ HousepiModel <- R6::R6Class(
       standard_apply <- private$helper_obs_process_(obs_process)
 
       # internal build function
-      private$build_full_(seed = seed, progress = FALSE)
+      private$build_full_(steps = nsim, seed = seed, progress = FALSE)
 
       # attach param_table
       if (dim(self$parameters)[1] > 0) {
@@ -962,10 +963,7 @@ HousepiModel <- R6::R6Class(
       }
 
       # run simulations
-      iterator <- seq_len(nsim) - 1
-      output <- lapply(iterator, function(r) {
-        .engine$run_simulation(private$mcmc_ptr_, standard_apply, r)[[1]]
-      })
+      output <- .engine$run_simulation(private$mcmc_ptr_, standard_apply)
       # return a single data.frame if single simulation
       if (nsim == 1) output <- output[[1]]
 

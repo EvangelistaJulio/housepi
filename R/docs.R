@@ -150,7 +150,8 @@ rd_smpl_burn_ <- "`integer(1)` Number of initial steps to discard."
 rd_smpl_thin_ <- "`integer(1)` Number of steps to skip between samples."
 rd_smpl_adapt_ <- "`integer(1)` Number of adaptation steps before sampling."
 rd_smpl_chain_ <- "`integer(1)` Number of independent MCMC chains to run."
-rd_smpl_thread_ <- "`integer(1)` Number of threads to run in parallel."
+
+rd_thread_ <- "`integer(1)` Number of threads for parallel household runs."
 
 rd_smpl_rndin_ <- "`logical(1)` Control random initialization of variables:\\cr
 - If `TRUE` initial values are drawn from respective models (default);\\cr
