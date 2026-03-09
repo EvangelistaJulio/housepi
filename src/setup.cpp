@@ -9,6 +9,7 @@
 #include <iomanip>
 #include <sstream>
 
+#include <cstdint>
 #include <chrono>
 #include <memory>
 #include <random>

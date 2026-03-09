@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <cmath>
 #include <memory>
 #include <stdexcept>
