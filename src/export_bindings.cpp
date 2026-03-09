@@ -1271,7 +1271,8 @@ namespace
 
     Rcpp::XPtr<MCMC> create_mcmc_runner(ModelXPtr model_xptr)
     {
-        return Rcpp::XPtr<MCMC>(new MCMC(*model_xptr), true);
+        Rcpp::Shield<SEXP> shield_model(model_xptr);
+        return Rcpp::XPtr<MCMC>(new MCMC(*model_xptr), true, shield_model);
     }
 
     // UPDATE: this should be imported instead

@@ -30,7 +30,7 @@ run_inference(
 
 \item{chains}{\code{integer(1)} Number of independent MCMC chains to run.}
 
-\item{threads}{\code{integer(1)} Number of threads to run in parallel.}
+\item{threads}{\code{integer(1)} Number of threads for parallel household runs.}
 
 \item{id_draws}{\code{character()} Individuals identifiers.\cr
 Store draws of public augmented variables for the chosen individuals.}

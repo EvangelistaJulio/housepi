@@ -953,12 +953,14 @@ HousepiModel <- R6::R6Class(
 
       # attach param_table
       if (dim(self$parameters)[1] > 0) {
-        param_table <- self$parameters |>
-          dplyr::select(name, value) |>
-          tidyr::pivot_wider(names_from = "name", values_from = "value") |>
-          dplyr::mutate(n = nsim) |>
-          tidyr::uncount(n) |>
-          private$helper_import_table_()
+        param_table <- self$parameters
+        param_table <- dplyr::select(param_table, name, value)
+        param_table <- tidyr::pivot_wider(param_table,
+                                          names_from = "name",
+                                          values_from = "value")
+        param_table <- dplyr::mutate(param_table, n = nsim)
+        param_table <- tidyr::uncount(param_table, n)
+        param_table <- private$helper_import_table_(param_table)
         .engine$import_param_for_prediction(private$mcmc_ptr_, param_table)
       }
 
