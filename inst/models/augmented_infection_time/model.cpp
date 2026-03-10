@@ -99,7 +99,7 @@ public:
 	double compute_house_obs_log_lik(Household &house) override final;
 
 	/// Poisson point process to simulate outbreak in a single household.
-	void simulate_single_house(Household &house) override final;
+	Household simulate_single_house(Household house) override final;
 	/// Instantaneous risk of Infection for individual i. Used in simulation.
 	double roi_inst_simulation(
 		const Household &house, const Individual &member_i,
@@ -331,7 +331,7 @@ void Model::update_member_cache_dependecies(Household &house, Individual &member
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Model::simulate_single_house(Household &house)
+Household Model::simulate_single_house(Household house)
 {
 #ifdef _HOUSEPI_DISCRETE_TIME
 	const double Dt = 1;
@@ -356,7 +356,7 @@ void Model::simulate_single_house(Household &house)
 	init_missing_augm(member_0);
 
 	if (house.size() < 2)
-		return;
+		return house;
 
 	// set all to susceptible except from introduction
 	for (Individual &member : house)
@@ -388,6 +388,7 @@ void Model::simulate_single_house(Household &house)
 				init_missing_augm(member_i);
 			}
 		}
+	return house;
 }
 
 double Model::roi_inst_simulation(const Household &house, const Individual &member_i,

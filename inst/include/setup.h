@@ -117,7 +117,7 @@ namespace hsp
         /// Close and finalize progress bar display.
         void prog_close();
         /// Mark progress bar as crashed/interrupted.
-        void prog_crash();
+        [[noreturn]] void crash(const std::exception &e);
 
     private:
         mutable std::vector<hsp::rnd_gen> prng_parallel_ = {};      /// Thread-local PRNGs for parallel chains.

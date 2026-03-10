@@ -486,14 +486,6 @@ namespace hsp::read
         return output;
     }
 
-    /// Get number of rows in CSV table.
-    size_t csv_n_rows(const str_table &table) noexcept
-    {
-        if (table.empty())
-            return 0;
-        return table.begin()->second.size();
-    }
-
     /// Read csv table in pathtofile and store it parsed in csv_parsed_table.
     str_table csv_table(const std::string &pathtofile)
     {

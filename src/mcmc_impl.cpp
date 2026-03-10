@@ -198,7 +198,6 @@ namespace hsp
         // mode: single house evaluation
         if (!na::is(house_id))
         {
-            atomic_error.restore(); // reset atomic error
             infec_profile.update(); // eventually recompute infectivity profile
             double output = atomic_commit_house_log_lik_(data_wide.at(house_id), true);
             atomic_error.throw_exception(); // catch and throw if previous failed
@@ -215,11 +214,11 @@ namespace hsp
 
     void MCMC::run_inference()
     {
-        init_monte_carlo_();             // initialize mcmc sampling
-        init_evaluate_(false);           // initialize for evaluation
+        init_monte_carlo_();               // initialize mcmc sampling
+        init_evaluate_(false);             // initialize for evaluation
         setup.prog_open_for_mcmc_sample(); // open progress bar
-        run_monte_carlo_();              // run Monte Carlo
-        setup.prog_close();              // close progress bar
+        run_monte_carlo_();                // run Monte Carlo
+        setup.prog_close();                // close progress bar
     }
 
     //////////////////////////
@@ -260,7 +259,6 @@ namespace hsp
             infec_profile.update();
         }
 
-        atomic_error.restore();
 #pragma omp parallel for reduction(+ : new_ll)
         for (size_t R = 0; R < data_wide.restricted_size(); ++R)
         {
@@ -346,8 +344,8 @@ namespace hsp
         }
         catch (const std::exception &e)
         {
-            atomic_error.set_if_first("While computing log-likelihood for " +
-                                      house.err_name() + ":\n" + std::string(e.what()));
+            atomic_error.set("While computing log-likelihood for " +
+                             house.err_name() + ":\n" + std::string(e.what()));
         }
 
         return output;
@@ -382,10 +380,10 @@ namespace hsp
             commit_total_log_lik_(is_cache_depen);
 
             // perform Metropolis-Hastings to accept or not move
-            const double D_ll = setup.inv_T * tot_log_lik.log_ratio();
-            const double move_logratio = param.at(p).get_move_log_ratio();
+            const double D_ll = setup.inv_T * tot_log_lik.log_ratio() +
+                                param.at(p).get_move_log_ratio();
 
-            if (setup.exponential() > -(D_ll + move_logratio))
+            if (setup.exponential() > -D_ll)
                 return true; // accepted move
             recover_parameter_(p, is_cache_depen);
         }
@@ -395,7 +393,6 @@ namespace hsp
     void MCMC::move_all_augm_()
     {
         double delta_ll = 0.;
-        atomic_error.restore();
 
 #pragma omp parallel for reduction(+ : delta_ll)
         for (size_t H = 0; H < data_wide.report_house.total; ++H)
@@ -426,8 +423,8 @@ namespace hsp
         }
         catch (const std::exception &e)
         {
-            atomic_error.set_if_first("While sampling augmented variables for " +
-                                      house.err_name() + ":\n" + std::string(e.what()));
+            atomic_error.set("While sampling augmented variables for " +
+                             house.err_name() + ":\n" + std::string(e.what()));
         }
 
         return delta_ll;

@@ -63,6 +63,7 @@ namespace hsp
             throw std::invalid_argument(
                 "Found multiple definitions for the same parameter.");
 
+        init_param_vec_();
         clear_lists_();
         // load parameters from the row with options
         for (size_t k = 0; k < input.at("name").size(); ++k)
@@ -92,7 +93,7 @@ namespace hsp
                 list_non_adapt_sample_standard.push_back(p);
     }
 
-    void Parameter::build_for_expec(const dbl_table &input)
+    void Parameter::build_for_predic(const dbl_table &input)
     {
         if (input.empty())
             return;
@@ -104,7 +105,6 @@ namespace hsp
                 "Found multiple definitions for the same parameters.");
 
         clear_lists_();
-
         // update list of constant parameters to all parameters
         list_const = pRegistry->from_string(pRegistry->get_all());
 
@@ -119,7 +119,7 @@ namespace hsp
                 smpl_values.emplace_back(input.at(paramstr));
     }
 
-    void Parameter::clear_lists_()
+    void Parameter::init_param_vec_()
     {
         size_t n = pRegistry->size();
         param_vec_.clear();
@@ -129,7 +129,10 @@ namespace hsp
             param_vec_[p].name(pRegistry->as_string(p));
             param_vec_[p].set_err_type("parameter");
         }
+    }
 
+    void Parameter::clear_lists_()
+    {
         list_const.clear();
         list_sample.clear();
         list_sample_standard.clear();
@@ -335,7 +338,7 @@ namespace hsp
             if (parse::is_data_wide(node.type))
             {
                 size_t d = pDataWideRegistry_->from_string(node.value);
-                storage_.init_numeric(member_ptr->get_data_wide_vec()[d]);
+                storage_.init_numeric(member_ptr->data(d));
                 storage_.name(node.value);
                 storage_.set_err_type("data");
             }

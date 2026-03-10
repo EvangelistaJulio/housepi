@@ -19,13 +19,13 @@ namespace hsp::atomic
     {
     public:
         /// Restore error of the critical scope.
-        void restore()
+        void restore() noexcept
         {
             has_error_.exchange(false);
             message_.clear();
         }
-        /// Store first error encountered (thread-safe)
-        void set_if_first(const std::string &message)
+        /// Thread-safe set for first error encountered.
+        void set(const std::string &message)
         {
             if (!has_error_.exchange(true, std::memory_order_relaxed))
             {
@@ -33,14 +33,18 @@ namespace hsp::atomic
                 message_ = message;
             }
         }
-        void set_if_first(const std::exception &e) { set_if_first(e.what()); }
+        /// Overload for exception.
+        void set(const std::exception &e) { set(e.what()); }
         /// Wheter it should be skipped or not.
-        bool is_pending() { return has_error_.load(std::memory_order_relaxed); }
+        bool is_pending() const noexcept { return has_error_.load(std::memory_order_relaxed); }
         /// If an error was caught in critical scope, throw an exception.
-        void throw_exception() const
+        void throw_exception()
         {
-            if (has_error_)
-                throw std::runtime_error(message_);
+            if (!has_error_)
+                return;
+            std::string sms = message_;
+            restore();
+            throw std::runtime_error(sms);
         }
 
     private:

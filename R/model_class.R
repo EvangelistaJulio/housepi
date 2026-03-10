@@ -337,9 +337,10 @@ HousepiModel <- R6::R6Class(
     helper_import_table_ = function(param_table) {
       # extract parameter draws from table
       if (inherits(param_table, "HousepiPosteriorDraws")) {
-        return(posterior::as_draws_matrix(param_table$param_draws))
-      } else if (posterior::is_draws(param_table)) {
-        return(posterior::as_draws_matrix(param_table))
+        param_table <- param_table$param_draws
+      }
+      if (posterior::is_draws(param_table)) {
+        param_table <- posterior::as_draws_matrix(param_table)
       }
       tryCatch({
         return(as.data.frame(param_table))
