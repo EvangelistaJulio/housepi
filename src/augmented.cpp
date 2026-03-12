@@ -564,7 +564,7 @@ namespace hsp
         parse::Definition parser(deftable_["model"][k]);
         xaugm.init_distr(parser.root.func);
 
-        if (!xaugm.is_model())
+        if (!xaugm.has_model())
             return;
 
         for (const auto &child : parser.root.children)
@@ -617,7 +617,7 @@ namespace hsp
     ///////////////////////////////////  Augmented : user reset  ////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    void Augmented::user_reset(rnd_gen &prng, AugmContainer &member)
+    void Augmented::user_reset(rnd_gen &prng, Individual &member)
     {
         for (size_t a : status_blocks_[member.augm_idx_].sample)
             member.augm_vec_[a].user_reset(prng);
@@ -640,38 +640,65 @@ namespace hsp
     ///////////////////////////////////  Augmented : log-likelihood  //////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    const std::vector<size_t> &Augmented::list_sample(const AugmContainer &member) const
+    const std::vector<size_t> &Augmented::list_sample(const Individual &member) const
     {
         return status_blocks_[member.augm_idx_].sample;
     }
-    const std::vector<size_t> &Augmented::list_draws(const AugmContainer &member) const
+    const std::vector<size_t> &Augmented::list_draws(const Individual &member) const
     {
         return status_blocks_[member.augm_idx_].draws;
     }
-
-    double Augmented::commit_augm_model_log_lik(AugmContainer &member)
+    const std::vector<size_t> &Augmented::list_models(const Individual &member) const
     {
-        const StatusBlock_ &block = status_blocks_[member.augm_idx_];
-        if (block.models.empty())
-            return 0.;
-        double new_ll = 0.0;
-        for (size_t a : block.models)
-            new_ll += member.augm_vec_[a].get_distr_log_pdf();
-        member.augm_log_lik_.set(new_ll);
-        return new_ll;
+        return status_blocks_[member.augm_idx_].models;
     }
 
-    double Augmented::commit_augm_model_log_ratio(AugmContainer &member, size_t a)
+    std::string format_exception_for(Individual &member, const std::exception &e)
     {
-        const StatusBlock_ &block = status_blocks_[member.augm_idx_];
-        if (block.depen[a].empty())
-            return 0.;
-        double delta_ll = 0;
-        // NOTE: vector of dependencies 'depen' includes also 'a'
-        for (size_t b : block.depen[a])
-            delta_ll += member.augm_vec_[b].get_distr_log_ratio();
-        member.augm_log_lik_.increment(delta_ll);
-        return delta_ll;
+        std::string sms = e.what();
+        if (!sms.empty() && sms.back() == '.')
+            sms.pop_back();
+        return sms + " for " + member.err_name() + ".";
+    }
+
+    double Augmented::commit_augm_model_log_lik(Individual &member)
+    {
+        try
+        {
+            const std::vector<size_t> &models = list_models(member);
+
+            if (models.empty())
+                return 0.;
+            double new_ll = 0.0;
+            for (size_t a : models)
+                new_ll += member.augm_vec_[a].get_distr_log_pdf();
+            member.augm_log_lik_.set(new_ll);
+            return new_ll;
+        }
+        catch (const std::exception &e)
+        {
+            throw std::runtime_error(format_exception_for(member, e));
+        }
+    }
+
+    double Augmented::commit_augm_model_log_ratio(Individual &member, size_t a)
+    {
+        try
+        {
+            const StatusBlock_ &block = status_blocks_[member.augm_idx_];
+            if (block.depen[a].empty())
+                return 0.;
+            double delta_ll = 0;
+            // NOTE: vector of dependencies 'depen' includes also 'a'
+            for (size_t b : block.depen[a])
+                delta_ll += member.augm_vec_[b].get_distr_log_ratio();
+            member.augm_log_lik_.increment(delta_ll);
+            return delta_ll;
+        }
+        catch (const std::exception &e)
+        {
+            throw std::runtime_error(format_exception_for(member, e));
+        }
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -741,7 +768,7 @@ namespace hsp
 
         for (size_t i = 0; i < smpl_individuals.size(); ++i)
         {
-            const AugmContainer &member_ptr = *smpl_individuals[i];
+            const Individual &member_ptr = *smpl_individuals[i];
             auto &member_matrix = smpl_values[i];
 
             size_t c = 0;

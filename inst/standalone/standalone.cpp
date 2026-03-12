@@ -141,8 +141,8 @@ namespace hsp
 
         // header augmented variable of id trace
         if (augm.is_any_draw())
-            for (const AugmContainer *member_ptr : augm.smpl_individuals)
-                for (const size_t a : augm.list_draws(*member_ptr))
+            for (const Individual *member_ptr : augm.smpl_individuals)
+                for (size_t a : augm.list_draws(*member_ptr))
                     ofs << read::DELIMITER << member_ptr->id()
                         << "_" << augm.pRegistry->as_string(a);
 

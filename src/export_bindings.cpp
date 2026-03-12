@@ -794,7 +794,7 @@ namespace
         try
         {
             size_t n_cols = 0;
-            for (const AugmContainer *member : augm.smpl_individuals)
+            for (const Individual *member : augm.smpl_individuals)
                 n_cols += augm.list_draws(*member).size();
 
             CharacterVector headers(n_cols);
@@ -803,7 +803,7 @@ namespace
             size_t col = 0;
             for (size_t i = 0; i < augm.smpl_values.size(); ++i)
             {
-                const AugmContainer &member = *augm.smpl_individuals[i];
+                const Individual &member = *augm.smpl_individuals[i];
                 auto &member_matrix = augm.smpl_values[i];
 
                 size_t j = 0;
@@ -1058,6 +1058,43 @@ namespace
                             _["max"] = infprof_max);
     }
 
+    Rcpp::DataFrame helper_augm_log_lik_rcpp_snapshot(const Augmented &augm, const Household &house)
+    {
+        size_t n_cols = augm.list_export.size();
+
+        if (n_cols == 0)
+            return Rcpp::DataFrame::create();
+
+        size_t n_rows = house.size();
+        Rcpp::CharacterVector id_col(n_rows);
+
+        std::vector<Rcpp::NumericVector> df_double(n_cols);
+        for (size_t c = 0; c < n_cols; ++c)
+            df_double[c] = Rcpp::NumericVector(n_rows, NA_REAL);
+
+        for (size_t i = 0; i < house.size(); ++i)
+        {
+            const Individual &member_i = house.member(i);
+            id_col[i] = member_i.id();
+
+            size_t c = 0;
+            for (size_t a : augm.list_export)
+            {
+                const Variable &xaugm = member_i.get_augm_variable(a);
+                if (xaugm.has_model())
+                    df_double[c++][i] = hsp_to_rcpp(xaugm.get_distr_log_pdf());
+            }
+        }
+
+        Rcpp::List output;
+        output["id"] = id_col;
+        size_t c = 0;
+        for (size_t a : augm.list_export)
+            output.push_back(df_double[c++], augm.pRegistry->as_string(a));
+
+        return Rcpp::DataFrame(output);
+    }
+
     /// Export to R a snapshot of current state of house augmented variables.
     Rcpp::DataFrame helper_augm_rcpp_snapshot(const Augmented &augm, const Household &house)
     {
@@ -1104,6 +1141,8 @@ namespace
             const Household &house = mcmc_ptr->data_wide.at(house_id);
 
             return List::create(
+                _["obs_log_lik"] = house.obs_log_lik(),
+                _["augm_log_lik"] = helper_augm_log_lik_rcpp_snapshot(mcmc_ptr->augm, house),
                 _["param"] = helper_param_rcpp_snapshot(mcmc_ptr->param),
                 _["data_wide"] = helper_data_wide_rcpp_snapshot(mcmc_ptr->data_wide, house),
                 _["data_long"] = helper_data_long_rcpp_snapshot(mcmc_ptr->data_long, house),

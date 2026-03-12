@@ -74,7 +74,7 @@ namespace hsp
 		////////////////////
 
 		size_t hhindex() const noexcept { return hhindex_; }
-		std::string err_name() const { return "individual '" + id_ + "'"; }
+		std::string err_name() const { return "individual '" + id() + "'"; }
 
 	private:
 		size_t index_ = 0;										/// housepi internal index

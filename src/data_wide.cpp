@@ -429,7 +429,7 @@ namespace hsp
         for (size_t R = 0; R < restricted_size(); ++R)
         {
             Household &house = restricted(R);
-            double x = house.obs_log_lik_.value();
+            double x = house.obs_log_lik();
             for (size_t i : house.infected_hhindexes())
                 x += house.member(i).augm_log_lik_.value();
             smpl_values[R][smpl_count] = x;

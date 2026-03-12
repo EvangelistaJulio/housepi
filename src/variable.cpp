@@ -334,7 +334,7 @@ namespace hsp
 
     void Variable::init_func_reshaping(bool discr)
     {
-        if (is_model())
+        if (has_model())
             discr = pDistr_->is_discrete();
         if (discr)
             pFunc_->init_discretization();
@@ -358,7 +358,7 @@ namespace hsp
 
     void Variable::init_distr_reshaping(bool is_discr)
     {
-        if (!is_model())
+        if (!has_model())
             return;
 
         if (is_discr)
@@ -454,7 +454,7 @@ namespace hsp
         if (is_constant())
             return;
 
-        if (is_model())
+        if (has_model())
             set(pDistr_->rand(prng));
 
         if (pProp_)
@@ -494,8 +494,8 @@ namespace hsp
         pProp_ = nullptr;
     }
 
-    bool Variable::is_discrete() const noexcept { return is_model() ? pDistr_->is_discrete() : Attribute::is_discrete(); }
-    bool Variable::is_model() const noexcept { return pDistr_ != nullptr; }
+    bool Variable::is_discrete() const noexcept { return has_model() ? pDistr_->is_discrete() : Attribute::is_discrete(); }
+    bool Variable::has_model() const noexcept { return pDistr_ != nullptr; }
     bool Variable::is_adaptable() const noexcept { return pProp_ && pProp_->is_adaptable(); }
 
     void Variable::propose(rnd_gen &prng) { set(pProp_->propose(prng, value_)); }
@@ -521,6 +521,6 @@ namespace hsp
 
     std::string Variable::str_summary() const
     {
-        return Attribute::str_summary() + (is_model() ? " | ~" + pDistr_->str_summary(false) : "");
+        return Attribute::str_summary() + (has_model() ? " | ~" + pDistr_->str_summary(false) : "");
     }
 }

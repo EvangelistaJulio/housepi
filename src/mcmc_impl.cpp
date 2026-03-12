@@ -172,16 +172,15 @@ namespace hsp
               { return model.init_contact_rates(h, k, i); },
               &data_wide, &param)
     {
-        init_registry(
-            model.get_DataKey(),
-            model.get_HHsizeKey(),
-            model.get_HHsizevecKey(),
-            model.get_HHdoublevecKey(),
-            model.get_HHdoublemtxKey(),
-            model.get_LongKey(),
-            model.get_ParamKey(),
-            model.get_GroupRateKey(),
-            model.get_AugmKey());
+        init_registry(model.get_DataKey(),
+                      model.get_HHsizeKey(),
+                      model.get_HHsizevecKey(),
+                      model.get_HHdoublevecKey(),
+                      model.get_HHdoublemtxKey(),
+                      model.get_LongKey(),
+                      model.get_ParamKey(),
+                      model.get_GroupRateKey(),
+                      model.get_AugmKey());
         model.bind_solver(&param, &data_wide, &setup, &infec_profile, &augm);
         model.init_advanced_setup();
     }
