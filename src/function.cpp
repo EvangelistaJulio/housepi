@@ -430,13 +430,28 @@ namespace
 {
     using namespace hsp;
 
-    /// Minus Function.
+#define MAKE_REAL_TO_INTEGER_FUNCTION(Name, call)                                    \
+    class Name final : public Function                                               \
+    {                                                                                \
+    public:                                                                          \
+        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Name)                                 \
+        HOUSEPI_OVERRIDE_NAME_METHOD(call)                                           \
+        bool is_discrete() const noexcept override final { return true; }            \
+                                                                                     \
+    protected:                                                                       \
+        double raw_function_(double x) const override final { return std::call(x); } \
+    };                                                                               \
+    HOUSEPI_REGISTER_FUNCTION(Name, Arithmetic)
+    
+    MAKE_REAL_TO_INTEGER_FUNCTION(Round_, round)
+    MAKE_REAL_TO_INTEGER_FUNCTION(Ceil_, ceil)
+    MAKE_REAL_TO_INTEGER_FUNCTION(Floor_, floor)
+
     class Minus_ final : public Function
     {
     public:
         HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Minus_)
         HOUSEPI_OVERRIDE_NAME_METHOD(minus)
-
         bool is_discrete() const noexcept override final { return x_arg_.is_discrete(); }
 
     protected:
@@ -444,14 +459,12 @@ namespace
     };
     HOUSEPI_REGISTER_FUNCTION(Minus_, Arithmetic)
 
-    /// Subtraction function.
     class Subtraction_ final : public Function
     {
     public:
         Subtraction_() : Function({{"x2", na::DOUBLE}}) {}
         HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Subtraction_)
         HOUSEPI_OVERRIDE_NAME_METHOD(sub)
-
         bool is_discrete() const noexcept override final { return arguments_[0].is_discrete() && x_arg_.is_discrete(); }
 
     protected:
@@ -459,7 +472,6 @@ namespace
     };
     HOUSEPI_REGISTER_FUNCTION(Subtraction_, Arithmetic)
 
-    /// Division Function.
     class Division_ final : public Function
     {
     public:
@@ -472,14 +484,12 @@ namespace
     };
     HOUSEPI_REGISTER_FUNCTION(Division_, Arithmetic)
 
-    /// Power Function.
     class Power_ final : public Function
     {
     public:
         Power_() : Function({{"x2", na::DOUBLE}}) {}
         HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Power_)
         HOUSEPI_OVERRIDE_NAME_METHOD(pow)
-
         bool is_discrete() const noexcept override final { return Function::is_discrete() || (arguments_[0].is_discrete() && x_arg_.is_discrete()); }
 
     protected:
@@ -495,14 +505,12 @@ namespace
     };
     HOUSEPI_REGISTER_FUNCTION(Power_, Transcendental)
 
-    /// SquareRoot Function.
     class SquareRoot_ final : public Function
     {
     public:
         SquareRoot_() : Function({}, 0.) {}
         HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(SquareRoot_)
         HOUSEPI_OVERRIDE_NAME_METHOD(sqrt)
-
         void init_truncation() override final { helper_init_range_min_(); }
 
     protected:
@@ -513,7 +521,6 @@ namespace
     };
     HOUSEPI_REGISTER_FUNCTION(SquareRoot_, Transcendental)
 
-    /// Exponential Function.
     class Exponential_ final : public Function
     {
     public:
@@ -528,14 +535,12 @@ namespace
     };
     HOUSEPI_REGISTER_FUNCTION(Exponential_, Transcendental)
 
-    /// Logarithm Function.
     class Logarithm_ final : public Function
     {
     public:
         Logarithm_() : Function({}, 0.) { below_mode_ = Mode::Interval::Open; }
         HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Logarithm_)
         HOUSEPI_OVERRIDE_NAME_METHOD(log)
-
         void init_truncation() override final { helper_init_range_min_(0., true); }
 
     protected:
@@ -546,7 +551,6 @@ namespace
     };
     HOUSEPI_REGISTER_FUNCTION(Logarithm_, Transcendental)
 
-    /// Sine Function.
     class Sine_ final : public Function
     {
     public:
@@ -561,7 +565,6 @@ namespace
     };
     HOUSEPI_REGISTER_FUNCTION(Sine_, Transcendental)
 
-    /// Cosine Function.
     class Cosine_ final : public Function
     {
     public:
@@ -576,7 +579,6 @@ namespace
     };
     HOUSEPI_REGISTER_FUNCTION(Cosine_, Transcendental)
 
-    /// Tangent Function.
     class Tangent_ final : public Function
     {
     public:

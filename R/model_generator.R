@@ -125,12 +125,13 @@ HousepiGenerator <- R6::R6Class(
     # @description
     # Wheter user flags are the same as existing dll.
     has_same_flags_as_dll_ = function() {
+      # FIXME: this is simply wrong!
       if (is.null(private$mcmc_ptr_)) {
         if (length(private$last_flags_) == 0) return(TRUE)
         else return(FALSE)
       }
       m <- get_rcpp_module(private$dll_, private$name_)
-      flags_dll <- .engine$compile_flags(m)
+      flags_dll <- .engine$compile_flags(m$new_model())
       setequal(private$last_flags_, flags_dll)
     },
 
@@ -141,8 +142,6 @@ HousepiGenerator <- R6::R6Class(
     # @description
     # Initialize custom model loading path to model source code.
     init_custom_model_ = function(choice, as_template, force) {
-      # UPDATE: storing should happen after assert source!
-      # otherwise idiot warning...
       private$store_source_and_filter_flags_(choice)
       private$dll_ <- template_dll_file(choice)
       if (force ||
