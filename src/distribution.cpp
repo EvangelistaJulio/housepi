@@ -235,16 +235,20 @@ namespace
     }
 
 // Macro for left discretization when min = 0 (close).
-#define INIT_DISCR_LEFT_MIN_ZERO_CLOSE()       \
-    void init_discretization() override final  \
-    {                                          \
-        discr_mode_ = Mode::Discrete::Left;    \
-    }                                          \
-    void init_truncation() override final      \
-    {                                          \
-        if (helper_init_range_min_(0., false)) \
-            helper_init_distr_truncation_();   \
+#define INIT_DISCR_LEFT_MIN_ZERO_(is_open)       \
+    void init_discretization() override final    \
+    {                                            \
+        discr_mode_ = Mode::Discrete::Left;      \
+    }                                            \
+    void init_truncation() override final        \
+    {                                            \
+        if (helper_init_range_min_(0., is_open)) \
+            helper_init_distr_truncation_();     \
     }
+#define INIT_DISCR_LEFT_MIN_ZERO_CLOSE() \
+    INIT_DISCR_LEFT_MIN_ZERO_(false)
+#define INIT_DISCR_LEFT_MIN_ZERO_OPEN() \
+    INIT_DISCR_LEFT_MIN_ZERO_(true)
 
 // Macro for discrete defined when min = 0 (close).
 #define INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()      \
@@ -332,7 +336,7 @@ namespace
         double raw_log_ratio_(double xo, double xn) const override final
         {
             const double sd = arg(1);
-            return (0.5 * xo * xo + (xn - xo) * arg(0) - 0.5 * xn * xn) / (sd * sd);
+            return (0.5 * (xo * xo - xn * xn) + (xn - xo) * arg(0)) / (sd * sd);
         }
         double raw_quantile_(double p) const override final
         {
@@ -359,7 +363,7 @@ namespace
         HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Lognormal_)
         HOUSEPI_OVERRIDE_NAME_METHOD(lognormal)
 
-        INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
+        INIT_DISCR_LEFT_MIN_ZERO_OPEN()
 
     protected:
         mutable std::normal_distribution<double> norm_gen;
@@ -384,9 +388,8 @@ namespace
         {
             const double lxo = log(xo);
             const double lxn = log(xn);
-            const double meanlog = arg(0);
             const double sdlog = arg(1);
-            return 0.5 * ((lxo - meanlog) * lxo - (lxn - meanlog) * lxn) / (sdlog * sdlog) + lxo - lxn;
+            return (0.5 * (lxo * lxo - lxn * lxn) + (lxn - lxo) * arg(0)) / (sdlog * sdlog) + lxo - lxn;
         }
         double raw_quantile_(double p) const override final
         {

@@ -379,10 +379,10 @@ namespace hsp
             commit_total_log_lik_(is_cache_depen);
 
             // perform Metropolis-Hastings to accept or not move
-            const double D_ll = setup.inv_T * tot_log_lik.log_ratio() +
-                                param.at(p).get_move_log_ratio();
+            const double r = setup.inv_T * tot_log_lik.log_ratio() +
+                             param.at(p).get_move_log_ratio();
 
-            if (setup.exponential() > -D_ll)
+            if (setup.exponential() > -r)
                 return true; // accepted move
             recover_parameter_(p, is_cache_depen);
         }
@@ -432,6 +432,7 @@ namespace hsp
     double MCMC::metropolis_augm_single_move_(Household &house, Individual &member, size_t a)
     {
         Variable &xaugm = member.get_augm_variable(a);
+
         xaugm.propose(setup.prng()); // propose new value and save old
 
         // proceed only if the new value is consistent
@@ -443,10 +444,10 @@ namespace hsp
             model.update_member_cache_dependecies(house, member);
 
             // Metropolis-Hastings
-            const double delta_ll = setup.inv_T * (commit_house_obs_log_ratio_(house) +
-                                                   augm.commit_augm_model_log_ratio(member, a));
+            const double delta_ll = commit_house_obs_log_ratio_(house) +
+                                    augm.commit_augm_model_log_ratio(member, a);
 
-            if (setup.exponential() > xaugm.get_propose_log_ratio() - delta_ll)
+            if (setup.exponential() > xaugm.get_propose_log_ratio() - setup.inv_T * delta_ll)
                 return delta_ll;
 
             // else recover cached values
