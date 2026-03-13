@@ -163,6 +163,10 @@ namespace hsp::na
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846264338327950288 /// pi
+#endif
+
 namespace hsp::str
 {
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -222,6 +226,9 @@ namespace hsp::str
     {
         if (na::is(input))
             return na::DOUBLE;
+        // UPDATE: maube not the most robust approach...
+        if (input == "pi")
+            return M_PI;
         return converter_(static_cast<double (*)(const std::string &, size_t *)>(std::stod), input, errtxt, nullptr);
     }
 

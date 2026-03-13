@@ -5,6 +5,9 @@
 ## See the LICENSE file for details.
 ##
 
+# Reserved constant names forbidden as definition names.
+.reserved_math_consts <- c("pi")
+
 # Helper to check type definitions and set defaults.
 helper_default_source <- function(types, values) {
   valid_sources_lst <- list("A" = "augmented",
@@ -20,12 +23,18 @@ helper_default_source <- function(types, values) {
     # explicit type checking
     if (is.na(k)) {
       # no explicit type provided, then format for default types
-      if (is.na(y)) types[i] <- NA_character_
-      else if (is.numeric(y)) types[i] <- "N"
-      else if (is.character(y)) types[i] <- ifelse(
-        is.na(suppressWarnings(as.numeric(y))), "A", "N"
-      )
-      else types[i] <- "A"
+      if (is.na(y)) {
+        types[i] <- NA_character_
+      } else if (is.numeric(y)) {
+        types[i] <- "N"
+      } else if (is.character(y)) {
+        if (!is.na(suppressWarnings(as.numeric(y)))) types[i] <- "N"
+        else if (y %in% .reserved_math_consts) types[i] <- "N"
+        else types[i] <- "A"
+      } else {
+        stop_h(sprintf("Unsupported definition type value %s", typeof(y)))
+      }
+
     } else if (!(toupper(k) %in% names(valid_sources_lst))) {
       stop_h(
         paste0("Invalid type '", k, "' for value '", y, "'."),

@@ -97,10 +97,13 @@ assert_valid_definition_name <- function(x, family, is_implicit = FALSE) {
     )
   } else if (!grepl("^[A-Za-z0-9_.]+$", x)) {
     sms <- c(
-      sprintf("Definition %s name '%s' contained invalid characters.",
+      sprintf("Definition name of %s '%s' contained invalid characters.",
               family, x),
       "Only letters, numbers, underscores '_' and dots '.' are allowed."
     )
+  } else if (x %in% .reserved_math_consts) {
+    sms <- sprintf("Definition name of %s '%s' is reserved for constants.",
+                   family, x)
   }
   if (!is.null(sms)) stop_h(sms)
 }

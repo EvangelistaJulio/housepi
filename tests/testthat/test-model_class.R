@@ -118,7 +118,7 @@ test_that("Nested definitions works as expected", {
     norm = list(model = "normal"),
     u1 = list(model = "uniform"),
     u2 = list(model = "uniform"),
-    z0 = sqrt(- 2 * log(u1)) * cos(6.283185 * u2)
+    z0 = sqrt(- 2 * log(u1)) * cos(2 * pi * u2)
   )
 
   results <- hhmodel$run_inference(steps = 1e5, progress = 0)
