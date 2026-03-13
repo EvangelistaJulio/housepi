@@ -11,6 +11,7 @@
 #include <string>
 #include <unordered_set>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "tools/random.h"
@@ -162,6 +163,9 @@ namespace hsp
         std::vector<size_t> get_unsorted_definition_rows_(int status) const;
         /// Set sample map and relative usage list.
         void set_sample_list_for_(int status, size_t k);
+
+        /// Inspect if constant definition.
+        std::pair<bool, bool> set_sample_list_for_function_(int status, size_t k);
 
         /// Deal with the definition of augmented variable with a model.
         /// NOTE: process models only for posterior sampling, not simulations.

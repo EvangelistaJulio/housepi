@@ -68,13 +68,13 @@ namespace hsp
         // load parameters from the row with options
         for (size_t k = 0; k < input.at("name").size(); ++k)
         {
-            const std::string &paramstr = input.at("name")[k]; // parameter name
+            const std::string &pstr = input.at("name")[k]; // parameter name
 
-            if (!pRegistry->count(paramstr))
+            if (!pRegistry->count(pstr))
             {
-                pRegistry->add(paramstr);
+                pRegistry->add(pstr);
                 param_vec_.emplace_back();
-                param_vec_.back().name(paramstr);
+                param_vec_.back().name(pstr);
                 param_vec_.back().set_err_type("parameter");
             }
 
@@ -112,11 +112,11 @@ namespace hsp
         smpl_values.clear();
 
         // reset definition dictionary to all constants NAs.
-        for (const std::string &paramstr : pRegistry->get_all())
-            if (std::find(headers.begin(), headers.end(), paramstr) == headers.end())
+        for (const std::string &pstr : pRegistry->get_all())
+            if (std::find(headers.begin(), headers.end(), pstr) == headers.end())
                 smpl_values.emplace_back();
             else
-                smpl_values.emplace_back(input.at(paramstr));
+                smpl_values.emplace_back(input.at(pstr));
     }
 
     void Parameter::init_param_vec_()
@@ -148,14 +148,14 @@ namespace hsp
 
     void Parameter::helper_build_constant_(const str_table &input, size_t k)
     {
-        const std::string &paramstr = input.at("name")[k]; // parameter name
+        const std::string &pstr = input.at("name")[k]; // parameter name
 
         if (na::is(input.at("value")[k]))
             throw std::invalid_argument(
-                "Constant parameter '" + paramstr + "' had undefined value.");
+                "Constant parameter '" + pstr + "' had undefined value.");
 
         // assign constant parameter to the set of variables
-        size_t p = pRegistry->from_string(paramstr);
+        size_t p = pRegistry->from_string(pstr);
         param_vec_[p].transfer(read_numeric(input.at("value")[k]));
         // check if discrete as requested
         if (user_discrete_set_.count(p) && !param_vec_[p].is_discrete())
@@ -169,15 +169,15 @@ namespace hsp
 
     void Parameter::helper_build_to_sample_(const str_table &input, size_t k)
     {
-        const std::string &paramstr = input.at("name")[k]; // parameter name
+        const std::string &pstr = input.at("name")[k]; // parameter name
 
         // assert parameter to sample has a valid value initialization
         if (na::is(input.at("value")[k]) && na::is(input.at("prior")[k]))
             throw std::invalid_argument(
-                "Non-constant parameter '" + paramstr + "' had undefined prior.");
+                "Non-constant parameter '" + pstr + "' had undefined prior.");
 
         // create a new parameter Variable
-        size_t p = pRegistry->from_string(paramstr);
+        size_t p = pRegistry->from_string(pstr);
         Variable &xparam = at(p);
         xparam.transfer(read_numeric(input.at("value")[k]));
 

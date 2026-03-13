@@ -106,6 +106,7 @@ namespace hsp
         Variable &at(size_t p) { return param_vec_[p]; }
         /// Get reference to parameter constant Variable class.
         const Variable &at(size_t p) const { return param_vec_[p]; }
+        /// Get reference to parameter constant Variable class.
 
         /// Flag to check if there are parameters to sample.
         bool is_any_sample() const noexcept { return !list_sample.empty(); }
