@@ -442,7 +442,7 @@ namespace
         double raw_function_(double x) const override final { return std::call(x); } \
     };                                                                               \
     HOUSEPI_REGISTER_FUNCTION(Name, Arithmetic)
-    
+
     MAKE_REAL_TO_INTEGER_FUNCTION(Round_, round)
     MAKE_REAL_TO_INTEGER_FUNCTION(Ceil_, ceil)
     MAKE_REAL_TO_INTEGER_FUNCTION(Floor_, floor)
@@ -631,48 +631,101 @@ namespace
             arguments_.emplace_back();
             return arguments_.back();
         }
+
+        // If any constant, erase all other constants arguments.
+        void remove_if_not_first_const(Attribute *first_const)
+        {
+            if (!first_const)
+                return;
+
+            arguments_.erase(
+                std::remove_if(arguments_.begin(), arguments_.end(),
+                               [&first_const](Attribute &attr)
+                               {
+                                   return attr.is_constant() && &attr != first_const;
+                               }),
+                arguments_.end());
+        }
     };
 
-#define MAKE_VARIADIC_ALGEBRAIC(Class_, name_, symbol)      \
-    class Class_ final : public VariadicFunction            \
-    {                                                       \
-    public:                                                 \
-        Class_() : VariadicFunction() {}                    \
-        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Class_)      \
-        HOUSEPI_OVERRIDE_NAME_METHOD(name_)                 \
-                                                            \
-    protected:                                              \
-        double raw_function_(double x) const override final \
-        {                                                   \
-            for (const Attribute &attr : arguments_)        \
-                x symbol attr.value();                      \
-            return x;                                       \
-        }                                                   \
+#define MAKE_VARIADIC_ALGEBRAIC(Class_, name_, symbol)                              \
+    class Class_ final : public VariadicFunction                                    \
+    {                                                                               \
+    public:                                                                         \
+        Class_() : VariadicFunction() {}                                            \
+        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Class_)                              \
+        HOUSEPI_OVERRIDE_NAME_METHOD(name_)                                         \
+                                                                                    \
+        void optimize() override                                                    \
+        {                                                                           \
+            Function::optimize();                                                   \
+            Attribute *first_const = nullptr;                                       \
+            if (x_arg_.is_constant())                                               \
+                first_const = &x_arg_;                                              \
+            for (Attribute &attr : arguments_)                                      \
+                if (attr.is_constant())                                             \
+                {                                                                   \
+                    if (first_const)                                                \
+                        first_const->set(attr.value() symbol first_const->value()); \
+                    else                                                            \
+                        first_const = &attr;                                        \
+                }                                                                   \
+            remove_if_not_first_const(first_const);                                 \
+        }                                                                           \
+                                                                                    \
+    protected:                                                                      \
+        double raw_function_(double x) const override final                         \
+        {                                                                           \
+            for (const Attribute &attr : arguments_)                                \
+                x = x symbol attr.value();                                          \
+            return x;                                                               \
+        }                                                                           \
     };
-    MAKE_VARIADIC_ALGEBRAIC(Summation_, sum, +=)
+    MAKE_VARIADIC_ALGEBRAIC(Summation_, sum, +)
     HOUSEPI_REGISTER_FUNCTION(Summation_, Arithmetic)
-    MAKE_VARIADIC_ALGEBRAIC(Product_, prod, *=)
+    MAKE_VARIADIC_ALGEBRAIC(Product_, prod, *)
     HOUSEPI_REGISTER_FUNCTION(Product_, Arithmetic)
 
-#define MAKE_VARIADIC_MIN_MAX(Class_, name_, symbol)        \
-    class Class_ final : public VariadicFunction            \
-    {                                                       \
-    public:                                                 \
-        Class_() : VariadicFunction() {}                    \
-        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Class_)      \
-        HOUSEPI_OVERRIDE_NAME_METHOD(name_)                 \
-                                                            \
-    protected:                                              \
-        double raw_function_(double x) const override final \
-        {                                                   \
-            for (const Attribute &attr : arguments_)        \
-            {                                               \
-                const double new_val = attr.value();        \
-                if (new_val symbol x)                       \
-                    x = new_val;                            \
-            }                                               \
-            return x;                                       \
-        }                                                   \
+#define MAKE_VARIADIC_MIN_MAX(Class_, name_, symbol)             \
+    class Class_ final : public VariadicFunction                 \
+    {                                                            \
+    public:                                                      \
+        Class_() : VariadicFunction() {}                         \
+        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Class_)           \
+        HOUSEPI_OVERRIDE_NAME_METHOD(name_)                      \
+                                                                 \
+        void optimize() override                                 \
+        {                                                        \
+            Function::optimize();                                \
+            Attribute *first_const = nullptr;                    \
+            if (x_arg_.is_constant())                            \
+                first_const = &x_arg_;                           \
+            for (Attribute &attr : arguments_)                   \
+                if (attr.is_constant())                          \
+                {                                                \
+                    if (first_const)                             \
+                    {                                            \
+                        const double new_val = attr.value();     \
+                        if (new_val symbol first_const->value()) \
+                            first_const->set(new_val);           \
+                    }                                            \
+                    else                                         \
+                        first_const = &attr;                     \
+                }                                                \
+            remove_if_not_first_const(first_const);              \
+        }                                                        \
+                                                                 \
+    protected:                                                   \
+        double raw_function_(double x) const override final      \
+        {                                                        \
+            for (const Attribute &attr : arguments_)             \
+            {                                                    \
+                const double new_val = attr.value();             \
+                if (new_val symbol x)                            \
+                    x = new_val;                                 \
+            }                                                    \
+            return x;                                            \
+        }                                                        \
     };
     MAKE_VARIADIC_MIN_MAX(Minimum_, min, <)
     HOUSEPI_REGISTER_FUNCTION(Minimum_, Arithmetic)
