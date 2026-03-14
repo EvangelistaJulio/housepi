@@ -163,6 +163,10 @@ namespace hsp::na
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846264338327950288 /// pi
+#endif
+
 namespace hsp::str
 {
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -222,6 +226,9 @@ namespace hsp::str
     {
         if (na::is(input))
             return na::DOUBLE;
+        // UPDATE: maube not the most robust approach...
+        if (input == "pi")
+            return M_PI;
         return converter_(static_cast<double (*)(const std::string &, size_t *)>(std::stod), input, errtxt, nullptr);
     }
 
@@ -484,14 +491,6 @@ namespace hsp::read
         while (std::getline(args_ss, tmp, LIST_DELIMITER))
             output.push_back(tmp);
         return output;
-    }
-
-    /// Get number of rows in CSV table.
-    size_t csv_n_rows(const str_table &table) noexcept
-    {
-        if (table.empty())
-            return 0;
-        return table.begin()->second.size();
     }
 
     /// Read csv table in pathtofile and store it parsed in csv_parsed_table.

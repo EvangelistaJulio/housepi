@@ -232,14 +232,17 @@ HousepiPrediction <- R6::R6Class(
       # initialize with results from observed data as a test
       apply_measure <- function(x) lapply(measure, function(func) func(x))
       store_observed <- apply_measure(hhmodel$data_wide)
+      # check measures
+      if (any(lapply(store_observed, NROW) == 0)) stop_h(sprintf(
+        "Measure %s returned empty observation.",
+        character_to_string_list(names(y[unlist(y)]))
+      ))
 
       # run measures on posterior simulations
       # NOTE: the only way I found is call to private HousepiModel method
       output <-  hhmodel$.__enclos_env__$private$run_measure_(
-        param_table, apply_measure,
-        obs_process = obs_process,
-        threads = threads, seed = seed,
-        progress = progress
+        param_table, apply_measure, obs_process = obs_process,
+        threads = threads, seed = seed, progress = progress
       )
 
       # parse results

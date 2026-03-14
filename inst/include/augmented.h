@@ -11,6 +11,7 @@
 #include <string>
 #include <unordered_set>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "tools/random.h"
@@ -32,7 +33,6 @@ namespace hsp
     struct DataWide;
     struct Parameter;
     struct InfecProfile;
-    class AugmContainer;
     class Individual;
 
     struct Augmented
@@ -43,7 +43,7 @@ namespace hsp
         std::vector<size_t> list_export = {};
 
         // optional augmented posterior sample
-        std::vector<const AugmContainer *> smpl_individuals = {};
+        std::vector<const Individual *> smpl_individuals = {};
         std::vector<std::vector<std::vector<double>>> smpl_values = {};
 
         ///////////////////////////
@@ -75,7 +75,7 @@ namespace hsp
         void request_discrete(size_t a) { user_discrete_set_.emplace(a); }
 
         /// Reset augmented initial values for given individual.
-        void user_reset(rnd_gen &prng, AugmContainer &member);
+        void user_reset(rnd_gen &prng, Individual &member);
         /// Initialize augmented initial values for all individuals.
         void user_reset(rnd_gen &prng);
 
@@ -90,14 +90,15 @@ namespace hsp
         //////  GETTER  //////
         //////////////////////
 
-        const std::vector<size_t> &list_sample(const AugmContainer &member) const;
-        const std::vector<size_t> &list_draws(const AugmContainer &member) const;
+        const std::vector<size_t> &list_sample(const Individual &member) const;
+        const std::vector<size_t> &list_draws(const Individual &member) const;
+        const std::vector<size_t> &list_models(const Individual &member) const;
 
         /// Compute and store log-likelihood associated to augmented variable models.
         /// NOTE: to be called only if any model is defined.
-        double commit_augm_model_log_lik(AugmContainer &member);
+        double commit_augm_model_log_lik(Individual &member);
         /// Change in log-likelihood associated to given augmented.
-        double commit_augm_model_log_ratio(AugmContainer &member, size_t a);
+        double commit_augm_model_log_ratio(Individual &member, size_t a);
 
         /////////////////////
         //////  FLAGS  //////
@@ -162,6 +163,9 @@ namespace hsp
         std::vector<size_t> get_unsorted_definition_rows_(int status) const;
         /// Set sample map and relative usage list.
         void set_sample_list_for_(int status, size_t k);
+
+        /// Inspect if constant definition.
+        std::pair<bool, bool> set_sample_list_for_function_(int status, size_t k);
 
         /// Deal with the definition of augmented variable with a model.
         /// NOTE: process models only for posterior sampling, not simulations.

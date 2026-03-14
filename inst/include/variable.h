@@ -104,7 +104,7 @@ namespace hsp
         /// Wheter the variable is discrete.
         bool is_discrete() const noexcept override final;
         /// Wheter the variable has a prior or a model associated.
-        bool is_model() const noexcept;
+        bool has_model() const noexcept;
         /// Wheter the variable has an adaptable parametric proposal rule.
         bool is_adaptable() const noexcept;
 

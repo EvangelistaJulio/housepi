@@ -44,10 +44,11 @@ public:
 	double compute_house_obs_log_lik(Household &) override final { return 0.; }
 
 	/// Augmented variable initialization.
-	void simulate_single_house(Household &house) override final
+	Household simulate_single_house(Household house) override final
 	{
 		for (size_t i : house.infected_hhindexes())
 			init_missing_augm(house.member(i));
+		return house;
 	}
 };
 HOUSEPI_CLOSE_MODULE_NAMESPACE()

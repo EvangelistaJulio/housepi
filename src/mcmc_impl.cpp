@@ -165,25 +165,24 @@ namespace hsp
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    MCMC::MCMC(ModelBase &m)
-        : model(m),
+    MCMC::MCMC(std::unique_ptr<ModelBase> m)
+        : model(std::move(m)),
           contact_rate(
               [this](Household &h, const Individual &k, const Individual &i) -> std::string
-              { return model.init_contact_rates(h, k, i); },
+              { return model->init_contact_rates(h, k, i); },
               &data_wide, &param)
     {
-        init_registry(
-            model.get_DataKey(),
-            model.get_HHsizeKey(),
-            model.get_HHsizevecKey(),
-            model.get_HHdoublevecKey(),
-            model.get_HHdoublemtxKey(),
-            model.get_LongKey(),
-            model.get_ParamKey(),
-            model.get_GroupRateKey(),
-            model.get_AugmKey());
-        model.bind_solver(&param, &data_wide, &setup, &infec_profile, &augm);
-        model.init_advanced_setup();
+        init_registry(model->get_DataKey(),
+                      model->get_HHsizeKey(),
+                      model->get_HHsizevecKey(),
+                      model->get_HHdoublevecKey(),
+                      model->get_HHdoublemtxKey(),
+                      model->get_LongKey(),
+                      model->get_ParamKey(),
+                      model->get_GroupRateKey(),
+                      model->get_AugmKey());
+        model->bind_solver(&param, &data_wide, &setup, &infec_profile, &augm);
+        model->init_advanced_setup();
     }
 
     //////////////////////////
@@ -198,7 +197,6 @@ namespace hsp
         // mode: single house evaluation
         if (!na::is(house_id))
         {
-            atomic_error.restore(); // reset atomic error
             infec_profile.update(); // eventually recompute infectivity profile
             double output = atomic_commit_house_log_lik_(data_wide.at(house_id), true);
             atomic_error.throw_exception(); // catch and throw if previous failed
@@ -215,11 +213,11 @@ namespace hsp
 
     void MCMC::run_inference()
     {
-        init_monte_carlo_();             // initialize mcmc sampling
-        init_evaluate_(false);           // initialize for evaluation
+        init_monte_carlo_();               // initialize mcmc sampling
+        init_evaluate_(false);             // initialize for evaluation
         setup.prog_open_for_mcmc_sample(); // open progress bar
-        run_monte_carlo_();              // run Monte Carlo
-        setup.prog_close();              // close progress bar
+        run_monte_carlo_();                // run Monte Carlo
+        setup.prog_close();                // close progress bar
     }
 
     //////////////////////////
@@ -238,14 +236,14 @@ namespace hsp
             augm.user_reset(setup.prng());  // initialize non constant augmented
         }
 
-        model.init_model_for_evaluation(); // user initialization of model for inference
+        model->init_model_for_evaluation(); // user initialization of model for inference
 
         // init cache dependencies for all households and individuals
         data_wide.allocate_all_cache();
         for (size_t R = 0; R < data_wide.restricted_size(); ++R)
         {
             Household &house = data_wide.restricted(R);
-            model.init_house_for_evaluation(house);
+            model->init_house_for_evaluation(house);
         }
     }
 
@@ -260,7 +258,6 @@ namespace hsp
             infec_profile.update();
         }
 
-        atomic_error.restore();
 #pragma omp parallel for reduction(+ : new_ll)
         for (size_t R = 0; R < data_wide.restricted_size(); ++R)
         {
@@ -334,7 +331,7 @@ namespace hsp
         {
             // save all household cache dependencies
             if (is_cache_depen)
-                model.update_house_cache_dependecies(house);
+                model->update_house_cache_dependecies(house);
 
             // compute and set household observation log-likelihood
             output = commit_house_obs_log_lik_(house);
@@ -346,8 +343,8 @@ namespace hsp
         }
         catch (const std::exception &e)
         {
-            atomic_error.set_if_first("While computing log-likelihood for " +
-                                      house.err_name() + ":\n" + std::string(e.what()));
+            atomic_error.set("While computing log-likelihood for " +
+                             house.err_name() + ":\n" + std::string(e.what()));
         }
 
         return output;
@@ -382,10 +379,10 @@ namespace hsp
             commit_total_log_lik_(is_cache_depen);
 
             // perform Metropolis-Hastings to accept or not move
-            const double D_ll = setup.inv_T * tot_log_lik.log_ratio();
-            const double move_logratio = param.at(p).get_move_log_ratio();
+            const double r = setup.inv_T * tot_log_lik.log_ratio() +
+                             param.at(p).get_move_log_ratio();
 
-            if (setup.exponential() > -(D_ll + move_logratio))
+            if (setup.exponential() > -r)
                 return true; // accepted move
             recover_parameter_(p, is_cache_depen);
         }
@@ -395,7 +392,6 @@ namespace hsp
     void MCMC::move_all_augm_()
     {
         double delta_ll = 0.;
-        atomic_error.restore();
 
 #pragma omp parallel for reduction(+ : delta_ll)
         for (size_t H = 0; H < data_wide.report_house.total; ++H)
@@ -426,8 +422,8 @@ namespace hsp
         }
         catch (const std::exception &e)
         {
-            atomic_error.set_if_first("While sampling augmented variables for " +
-                                      house.err_name() + ":\n" + std::string(e.what()));
+            atomic_error.set("While sampling augmented variables for " +
+                             house.err_name() + ":\n" + std::string(e.what()));
         }
 
         return delta_ll;
@@ -436,6 +432,7 @@ namespace hsp
     double MCMC::metropolis_augm_single_move_(Household &house, Individual &member, size_t a)
     {
         Variable &xaugm = member.get_augm_variable(a);
+
         xaugm.propose(setup.prng()); // propose new value and save old
 
         // proceed only if the new value is consistent
@@ -444,13 +441,13 @@ namespace hsp
             size_t i = member.hhindex();
             // update dependencies to perform computations
             data_wide.save_member_cache(house, i);
-            model.update_member_cache_dependecies(house, member);
+            model->update_member_cache_dependecies(house, member);
 
             // Metropolis-Hastings
-            const double delta_ll = setup.inv_T * (commit_house_obs_log_ratio_(house) +
-                                                   augm.commit_augm_model_log_ratio(member, a));
+            const double delta_ll = commit_house_obs_log_ratio_(house) +
+                                    augm.commit_augm_model_log_ratio(member, a);
 
-            if (setup.exponential() > xaugm.get_propose_log_ratio() - delta_ll)
+            if (setup.exponential() > xaugm.get_propose_log_ratio() - setup.inv_T * delta_ll)
                 return delta_ll;
 
             // else recover cached values

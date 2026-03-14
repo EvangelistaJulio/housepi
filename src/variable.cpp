@@ -95,6 +95,9 @@ namespace hsp
     ///////////////////////////////  *** AdaptableProposal : class ***  ///////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+    /// Threshold for proposal scale.
+    constexpr double PROPOSAL_XTOL_SCALE = 1.e-8;
+
     /// Adaptable version of Metropolis proposals.
     class AdaptableProposal : public Proposal
     {
@@ -155,8 +158,13 @@ namespace hsp
         double accept_rate_ = 0.;              /// acceptance rate
         unsigned long n_proposed_ = 0;         /// n. of proposed moves
 
-        /// Factor used for adaptation, with target accept rate set to 25%.
-        double factor_(double ratio) { return 1. + (1. - ratio) * (accept_rate_ - 0.25); }
+        /// Adapt (positive) scale with target accept rate set to 25%.
+        /// Ref: Andrieu and Thomas (2008)
+        double adapt_scale_(double xold, double ratio)
+        {
+            xold *= 1. + (1. - ratio) * (accept_rate_ - 0.25);
+            return (xold < PROPOSAL_XTOL_SCALE) ? PROPOSAL_XTOL_SCALE : xold;
+        }
     };
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -181,9 +189,9 @@ namespace hsp
 
         void adapt(double ratio) override final
         {
-            const double m = factor_(ratio);
-            pDistr_->set_lower(m * pDistr_->lower().value());
-            pDistr_->set_upper(m * pDistr_->upper().value());
+            const double m = adapt_scale_(pDistr_->upper().value(), ratio);
+            pDistr_->set_lower(-m);
+            pDistr_->set_upper(m);
         }
     };
 
@@ -208,7 +216,7 @@ namespace hsp
         double log_ratio(double, double) const override final { return 0.; }
 
         /// Adapt standard deviation.
-        void adapt(double ratio) override final { pDistr_->set_arg(1, factor_(ratio) * pDistr_->arg(1)); }
+        void adapt(double ratio) override final { pDistr_->set_arg(1, adapt_scale_(pDistr_->arg(1), ratio)); }
     };
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -248,7 +256,7 @@ namespace hsp
         double log_ratio(double xo, double xn) const override final { return (this->*logratio_)(xo, xn); }
 
         /// Adapt log of standard deviation.
-        void adapt(double ratio) override final { pDistr_->set_arg(1, factor_(ratio) * pDistr_->arg(1)); }
+        void adapt(double ratio) override final { pDistr_->set_arg(1, adapt_scale_(pDistr_->arg(1), ratio)); }
 
     private:
         const Attribute *pAttr_loc_ = nullptr; /// pointer to attribute location
@@ -334,7 +342,7 @@ namespace hsp
 
     void Variable::init_func_reshaping(bool discr)
     {
-        if (is_model())
+        if (has_model())
             discr = pDistr_->is_discrete();
         if (discr)
             pFunc_->init_discretization();
@@ -358,7 +366,7 @@ namespace hsp
 
     void Variable::init_distr_reshaping(bool is_discr)
     {
-        if (!is_model())
+        if (!has_model())
             return;
 
         if (is_discr)
@@ -454,7 +462,7 @@ namespace hsp
         if (is_constant())
             return;
 
-        if (is_model())
+        if (has_model())
             set(pDistr_->rand(prng));
 
         if (pProp_)
@@ -494,8 +502,8 @@ namespace hsp
         pProp_ = nullptr;
     }
 
-    bool Variable::is_discrete() const noexcept { return is_model() ? pDistr_->is_discrete() : Attribute::is_discrete(); }
-    bool Variable::is_model() const noexcept { return pDistr_ != nullptr; }
+    bool Variable::is_discrete() const noexcept { return has_model() ? pDistr_->is_discrete() : Attribute::is_discrete(); }
+    bool Variable::has_model() const noexcept { return pDistr_ != nullptr; }
     bool Variable::is_adaptable() const noexcept { return pProp_ && pProp_->is_adaptable(); }
 
     void Variable::propose(rnd_gen &prng) { set(pProp_->propose(prng, value_)); }
@@ -521,6 +529,6 @@ namespace hsp
 
     std::string Variable::str_summary() const
     {
-        return Attribute::str_summary() + (is_model() ? " | ~" + pDistr_->str_summary(false) : "");
+        return Attribute::str_summary() + (has_model() ? " | ~" + pDistr_->str_summary(false) : "");
     }
 }

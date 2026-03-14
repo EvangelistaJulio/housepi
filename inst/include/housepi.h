@@ -62,13 +62,11 @@ namespace hsp::key
 #ifdef _STANDALONE
 #define HOUSEPI_EXTRA_FLAG_SUPPORT()
 #define HOUSEPI_RCPP_MODEL_FACTORY()
-#define HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE_IMPL_(module_name) \
-    int main(int argc, char *argv[])                              \
-    {                                                             \
-        using namespace hsp::module_name;                         \
-        Model model = Model();                                    \
-        hsp::MCMC engine(model);                                  \
-        return standalone(engine, argc, argv);                    \
+#define HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE_IMPL_(module)    \
+    int main(int argc, char *argv[])                            \
+    {                                                           \
+        hsp::MCMC engine(std::make_unique<hsp::module::Model>); \
+        return standalone(engine, argc, argv);                  \
     }
 
 #else
@@ -85,19 +83,18 @@ namespace hsp::key
         return ModelXPtr(new Model(), true); \
     }
 
-#define HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE_IMPL_(module_name) \
-    RCPP_MODULE(module_name)                                      \
-    {                                                             \
-        using namespace hsp::module_name;                         \
-        Rcpp::function("new_model", &new_model);                  \
+#define HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE_IMPL_(module)  \
+    RCPP_MODULE(module)                                       \
+    {                                                         \
+        Rcpp::function("new_model", &hsp::module::new_model); \
     }
 #endif
 
 #define HOUSEPI_REGISTER_MODULE_INTERFACE() \
     HOUSEPI_REGISTER_RCPP_MODULE_INTERFACE_IMPL_(_HOUSEPI_MODULE)
 
-#define HOUSEPI_OPEN_MODULE_NAMESPACE_IMPL_(module_name) \
-    namespace hsp::module_name                           \
+#define HOUSEPI_OPEN_MODULE_NAMESPACE_IMPL_(module) \
+    namespace hsp::module                           \
     {
 #define HOUSEPI_OPEN_MODULE_NAMESPACE() \
     HOUSEPI_OPEN_MODULE_NAMESPACE_IMPL_(_HOUSEPI_MODULE)

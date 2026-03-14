@@ -65,6 +65,11 @@ Thumbs.db
 !vignettes/generate_delays.R
 !vignettes/theme.R
 
+# Claude files #
+################
+CLAUDE.md
+.claude/
+
 # housepi files #
 #################
 src/model_*.cpp

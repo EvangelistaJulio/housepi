@@ -141,8 +141,8 @@ namespace hsp
 
         // header augmented variable of id trace
         if (augm.is_any_draw())
-            for (const AugmContainer *member_ptr : augm.smpl_individuals)
-                for (const size_t a : augm.list_draws(*member_ptr))
+            for (const Individual *member_ptr : augm.smpl_individuals)
+                for (size_t a : augm.list_draws(*member_ptr))
                     ofs << read::DELIMITER << member_ptr->id()
                         << "_" << augm.pRegistry->as_string(a);
 
@@ -213,7 +213,7 @@ namespace hsp
 
     /// Print all augmented variables of each individual.
     void update_ofstream_datawide(std::ofstream &ofs,
-                                  Household &house,
+                                  const Household &house,
                                   size_t data_wide_size,
                                   const std::vector<size_t> &augm_export)
     {
@@ -226,7 +226,7 @@ namespace hsp
                 << read::DELIMITER << house.house_id()
                 << read::DELIMITER << member.status();
             for (size_t d = 0; d < data_wide_size; ++d)
-                ofs << read::DELIMITER << member.get_data_wide_vec()[d];
+                ofs << read::DELIMITER << member.data(d);
             for (size_t a : augm_export)
             {
                 const Variable &xaugm = member.get_augm_variable(a);
@@ -249,12 +249,11 @@ namespace hsp
         data_wide.assert_non_empty();             // check if data is empty
         engine.model.init_model_for_simulation(); // model specific initialization
 
-        for (Household house : data_wide) // NOTE: deep copy of household
+        for (const Household &house : data_wide)
             try
             {
-                engine.model.simulate_single_house(house);
-                // print the simulated data
-                update_ofstream_datawide(ofs, house,
+                update_ofstream_datawide(ofs,
+                                         engine.model.simulate_single_house(house),
                                          data_wide.pRegistry->size(),
                                          augm.list_export);
             }
@@ -421,8 +420,7 @@ namespace hsp
         }
         catch (const std::exception &e)
         {
-            engine.setup.prog_crash();
-            msg::error(e.what());
+            engine.setup.crash(e);
         }
 
         return EXIT_SUCCESS;

@@ -15,8 +15,5 @@
 ^public$
 ^README\.Rmd$
 ^LICENSE\.md$
-^inst/--developer$
 ^inst/standalone$
-
-^doc$
 ^Meta$

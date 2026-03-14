@@ -74,7 +74,7 @@ namespace hsp
         /// Assign parameter definitions to dictionary.
         void build(const str_table &deftable);
         /// Build parameter dictionaries for expected measure on posterior sample.
-        void build_for_expec(const dbl_table &deftable);
+        void build_for_predic(const dbl_table &deftable);
         /// Adjust lists of parameters to be inferred making parameter as dependent on cache.
         void make_cache_dependent(size_t p);
         /// Adjust lists of parameters to be inferred making parameter as dependent on cache.
@@ -106,6 +106,7 @@ namespace hsp
         Variable &at(size_t p) { return param_vec_[p]; }
         /// Get reference to parameter constant Variable class.
         const Variable &at(size_t p) const { return param_vec_[p]; }
+        /// Get reference to parameter constant Variable class.
 
         /// Flag to check if there are parameters to sample.
         bool is_any_sample() const noexcept { return !list_sample.empty(); }
@@ -140,6 +141,8 @@ namespace hsp
         std::vector<Variable> param_vec_ = {};              /// parameters vector
         std::unordered_set<size_t> user_discrete_set_ = {}; /// user defined discrete parameters
 
+        /// Initialize parameter vector.
+        void init_param_vec_();
         /// Drop current lists of parameters.
         void clear_lists_();
         /// Helper to build constant parameter.

@@ -46,10 +46,10 @@ namespace hsp
 		//////  CONSTRUCTOR  //////
 		///////////////////////////
 
-		ModelBase &model;
+		std::unique_ptr<ModelBase> model;
 		ContactRate contact_rate; // UPDATE: move to base
 
-		MCMC(ModelBase &model);
+		explicit MCMC(std::unique_ptr<ModelBase> m);
 
 		//////////////////////////
 		//////  EVALUATION  //////
@@ -87,7 +87,7 @@ namespace hsp
 		/// Compute and set value of observation log-likelihood for given household.
 		double commit_house_obs_log_lik_(Household &house)
 		{
-			double output = model.compute_house_obs_log_lik(house);
+			double output = model->compute_house_obs_log_lik(house);
 			house.obs_log_lik_.set(output);
 			return output;
 		}

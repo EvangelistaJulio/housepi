@@ -24,12 +24,12 @@ namespace hsp
         /// Raise exception if new value is a NaN.
         void set(double new_ll)
         {
+            old_ = value_;
+            value_ = new_ll;
+
             if (hsp::na::is(new_ll))
                 throw std::runtime_error(
                     "Log-likelihood computation returned NaN value.");
-
-            old_ = value_;
-            value_ = new_ll;
         }
         /// Increment log-likelihood by a delta. Store old value.
         /// Raise exception if new value is a NaN.

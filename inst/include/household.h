@@ -74,6 +74,8 @@ namespace hsp
 
 		double contact_rate(size_t from, size_t to) const { return contact_rates_[from][to].value(); }
 
+		double obs_log_lik() const { return obs_log_lik_.value(); }
+
 		/////////////////////////
 		//////  ITERATORS  //////
 		/////////////////////////

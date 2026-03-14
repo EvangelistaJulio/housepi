@@ -54,15 +54,15 @@ namespace
         str::assert_no_missing_entries(headers, file_headers);
         str::assert_no_unused_entries(headers, file_headers);
 
-        for (const std::string &augmstr : input.at("name"))
+        for (const std::string &astr : input.at("name"))
         {
-            if (na::is(augmstr))
+            if (na::is(astr))
                 throw std::invalid_argument(
                     "Found an augmented variable with undefined name.");
-            if (augmstr == infprof::AUGM_FUNC)
+            if (astr == infprof::AUGM_FUNC)
                 throw std::invalid_argument(
                     "Tried to use the reserved augmented name '" +
-                    augmstr + "'.\nPlease, choose a different one.");
+                    astr + "'.\nPlease, choose a different one.");
         }
     }
 
@@ -198,8 +198,8 @@ namespace hsp
         for (size_t k = 0; k < deftable_["name"].size(); ++k)
         {
             // fill registry with optional augmented definitions
-            const std::string augmstr = deftable_["name"][k];
-            pRegistry->add(augmstr);
+            const std::string astr = deftable_["name"][k];
+            pRegistry->add(astr);
 
             // check associated status
             int status = status::MISSING;
@@ -209,7 +209,7 @@ namespace hsp
                 status = str::toi(s, "augmented status");
                 if (!status::is_infected(status))
                     throw std::invalid_argument(
-                        "Impossible to associate augmented '" + augmstr +
+                        "Impossible to associate augmented '" + astr +
                         "' for non infectious status " + s + ".");
             }
             map_status_to_def_row_[status].push_back(k); // store status to definition row index
@@ -309,12 +309,12 @@ namespace hsp
             status_blocks_.emplace_back(status);
 
             // Ignore spurios private definition if no public definition depends on it
-            // NOTE: ensure private infectivity is stored.
-            for (const std::string &augmstr : extract_all_dependencies_order(tree))
-                if (augmstr == infprof::AUGM_FUNC ||
-                    !str::is_private(augmstr) ||
-                    !str::drop_private(extract_dependents_order(augmstr, tree)).empty())
-                    status_blocks_.back().order.emplace_back(name_to_row[augmstr]);
+            // NOTE: but ensure private infectivity is stored.
+            for (const std::string &astr : extract_all_dependencies_order(tree))
+                if (astr == infprof::AUGM_FUNC ||
+                    !str::is_private(astr) ||
+                    !str::drop_private(extract_dependents_order(astr, tree)).empty())
+                    status_blocks_.back().order.emplace_back(name_to_row[astr]);
 
             // define usage lists respecting definition order
             for (size_t k : status_blocks_.back().order)
@@ -348,10 +348,49 @@ namespace hsp
         return allrows;
     }
 
+    std::pair<bool, bool> Augmented::set_sample_list_for_function_(int status, size_t k)
+    {
+        bool is_to_export = true;
+        bool is_to_draw = true;
+
+        // NOTE: value definition has priority over function
+        const std::string &str_val = deftable_["value"][k];
+        const parse::Definition parser(na::is(str_val) ? deftable_["func"][k] : str_val);
+
+        // NOTE: don't store draws if just equal to something else
+        if (parser.is_terminal())
+            return {is_to_export, false};
+
+        // NOTE: do not export if not callable (otherwise crashes)
+        if (!parser.is_callable_implicitly("x"))
+            is_to_export = false;
+
+        bool all_consts = true; // start assuming all constants
+        for (const std::string &pstr : parser.list_parameter_depen())
+        {
+            size_t p = pParameter_->pRegistry->from_string(pstr);
+            all_consts &= pParameter_->at(p).is_constant();
+        }
+
+        // inspect status specific augmented definitions and check if to draw (i. e. not const)
+        // NOTE: taking advatange of the order!
+        for (const std::string &bstr : parser.list_augmented_depen())
+        {
+            const std::vector<size_t> &v = status_blocks_[map_status_to_block_.at(status)].draws;
+            if (std::find(v.begin(), v.end(), pRegistry->from_string(bstr)) != v.end())
+                all_consts = false;
+        }
+
+        // to draw if not all constant dependencies
+        is_to_draw = !all_consts;
+
+        return {is_to_export, is_to_draw};
+    }
+
     void Augmented::set_sample_list_for_(int status, size_t k)
     {
-        const std::string &augmstr = deftable_["name"][k];
-        size_t a = pRegistry->from_string(augmstr);
+        const std::string &astr = deftable_["name"][k];
+        size_t a = pRegistry->from_string(astr);
 
         bool is_to_export = true;
         bool is_to_draw = true;
@@ -362,25 +401,20 @@ namespace hsp
         }
         else if (!(na::is(deftable_["func"][k]) && na::is(deftable_["value"][k])))
         {
-            const std::string &str_val = deftable_["value"][k];
-            const parse::Definition parser(na::is(str_val) ? deftable_["func"][k] : str_val);
-
-            // NOTE: don't store draws if just equal to something else
-            if (parser.is_terminal())
-                is_to_draw = false;
-            else if (!parser.is_callable_implicitly("x"))
-                is_to_export = false;
+            auto [is_to_export_, is_to_draw_] = set_sample_list_for_function_(status, k);
+            is_to_export = is_to_export_;
+            is_to_draw = is_to_draw_;
         }
         else if (na::is(deftable_["value"][k]) && na::is(deftable_["model"][k]))
         {
             throw std::invalid_argument(
-                "Impossible to initialize augmented '" + augmstr + "'  without a value or model");
+                "Impossible to initialize augmented '" + astr + "'  without a value or model");
         }
         else if (na::is(deftable_["proposal"][k]))
         {
             throw std::runtime_error(
                 "No proposal was provided for non-constant definition of augmented '" +
-                augmstr + "'");
+                astr + "'");
         }
         else
         {
@@ -388,7 +422,7 @@ namespace hsp
             status_blocks_[map_status_to_block_.at(status)].sample.emplace_back(a);
         }
 
-        if (!str::is_private(augmstr) && is_to_export)
+        if (!str::is_private(astr) && is_to_export)
         {
             if (std::find(list_export.begin(), list_export.end(), a) == list_export.end())
                 list_export.emplace_back(a);
@@ -431,8 +465,8 @@ namespace hsp
                 is_any_model_ = true;
                 block.models = pRegistry->from_string(read::extract_keys(ordered_models));
 
-                for (const auto &[augmstr, others] : ordered_models)
-                    block.depen[pRegistry->from_string(augmstr)] = pRegistry->from_string(others);
+                for (const auto &[astr, others] : ordered_models)
+                    block.depen[pRegistry->from_string(astr)] = pRegistry->from_string(others);
             }
         }
     }
@@ -516,8 +550,8 @@ namespace hsp
 
     void Augmented::helper_init_attributes_(Individual &member, size_t k)
     {
-        const std::string &augmstr = deftable_["name"][k];
-        size_t a = pRegistry->from_string(augmstr);
+        const std::string &astr = deftable_["name"][k];
+        size_t a = pRegistry->from_string(astr);
 
         try
         {
@@ -551,7 +585,7 @@ namespace hsp
         catch (const std::exception &e)
         {
             throw std::runtime_error(
-                "While initializing augmented '" + augmstr + "' for " +
+                "While initializing augmented '" + astr + "' for " +
                 member.err_name() + " (status " + std::to_string(member.status()) + "):\n" +
                 std::string(e.what()));
         }
@@ -559,12 +593,12 @@ namespace hsp
 
     void Augmented::helper_init_model_attributes_(Individual &member, size_t k)
     {
-        const std::string &augmstr = deftable_["name"][k];
-        Variable &xaugm = member.augm_vec_[pRegistry->from_string(augmstr)];
+        const std::string &astr = deftable_["name"][k];
+        Variable &xaugm = member.augm_vec_[pRegistry->from_string(astr)];
         parse::Definition parser(deftable_["model"][k]);
         xaugm.init_distr(parser.root.func);
 
-        if (!xaugm.is_model())
+        if (!xaugm.has_model())
             return;
 
         for (const auto &child : parser.root.children)
@@ -578,8 +612,8 @@ namespace hsp
 
     void Augmented::helper_init_func_attributes_(Individual &member, size_t k)
     {
-        const std::string &augmstr = deftable_["name"][k];
-        Variable &xaugm = member.augm_vec_[pRegistry->from_string(augmstr)];
+        const std::string &astr = deftable_["name"][k];
+        Variable &xaugm = member.augm_vec_[pRegistry->from_string(astr)];
         std::string str_val = deftable_["value"][k];
         parse::Definition parser(na::is(str_val) ? deftable_["func"][k] : str_val);
 
@@ -617,7 +651,7 @@ namespace hsp
     ///////////////////////////////////  Augmented : user reset  ////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    void Augmented::user_reset(rnd_gen &prng, AugmContainer &member)
+    void Augmented::user_reset(rnd_gen &prng, Individual &member)
     {
         for (size_t a : status_blocks_[member.augm_idx_].sample)
             member.augm_vec_[a].user_reset(prng);
@@ -640,38 +674,65 @@ namespace hsp
     ///////////////////////////////////  Augmented : log-likelihood  //////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    const std::vector<size_t> &Augmented::list_sample(const AugmContainer &member) const
+    const std::vector<size_t> &Augmented::list_sample(const Individual &member) const
     {
         return status_blocks_[member.augm_idx_].sample;
     }
-    const std::vector<size_t> &Augmented::list_draws(const AugmContainer &member) const
+    const std::vector<size_t> &Augmented::list_draws(const Individual &member) const
     {
         return status_blocks_[member.augm_idx_].draws;
     }
-
-    double Augmented::commit_augm_model_log_lik(AugmContainer &member)
+    const std::vector<size_t> &Augmented::list_models(const Individual &member) const
     {
-        const StatusBlock_ &block = status_blocks_[member.augm_idx_];
-        if (block.models.empty())
-            return 0.;
-        double new_ll = 0.0;
-        for (size_t a : block.models)
-            new_ll += member.augm_vec_[a].get_distr_log_pdf();
-        member.augm_log_lik_.set(new_ll);
-        return new_ll;
+        return status_blocks_[member.augm_idx_].models;
     }
 
-    double Augmented::commit_augm_model_log_ratio(AugmContainer &member, size_t a)
+    std::string format_exception_for(Individual &member, const std::exception &e)
     {
-        const StatusBlock_ &block = status_blocks_[member.augm_idx_];
-        if (block.depen[a].empty())
-            return 0.;
-        double delta_ll = 0;
-        // NOTE: vector of dependencies 'depen' includes also 'a'
-        for (size_t b : block.depen[a])
-            delta_ll += member.augm_vec_[b].get_distr_log_ratio();
-        member.augm_log_lik_.increment(delta_ll);
-        return delta_ll;
+        std::string sms = e.what();
+        if (!sms.empty() && sms.back() == '.')
+            sms.pop_back();
+        return sms + " for " + member.err_name() + ".";
+    }
+
+    double Augmented::commit_augm_model_log_lik(Individual &member)
+    {
+        try
+        {
+            const std::vector<size_t> &models = list_models(member);
+
+            if (models.empty())
+                return 0.;
+            double new_ll = 0.0;
+            for (size_t a : models)
+                new_ll += member.augm_vec_[a].get_distr_log_pdf();
+            member.augm_log_lik_.set(new_ll);
+            return new_ll;
+        }
+        catch (const std::exception &e)
+        {
+            throw std::runtime_error(format_exception_for(member, e));
+        }
+    }
+
+    double Augmented::commit_augm_model_log_ratio(Individual &member, size_t a)
+    {
+        try
+        {
+            const StatusBlock_ &block = status_blocks_[member.augm_idx_];
+            if (block.depen[a].empty())
+                return 0.;
+            double delta_ll = 0;
+            // NOTE: vector of dependencies 'depen' includes also 'a'
+            for (size_t b : block.depen[a])
+                delta_ll += member.augm_vec_[b].get_distr_log_ratio();
+            member.augm_log_lik_.increment(delta_ll);
+            return delta_ll;
+        }
+        catch (const std::exception &e)
+        {
+            throw std::runtime_error(format_exception_for(member, e));
+        }
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -741,7 +802,7 @@ namespace hsp
 
         for (size_t i = 0; i < smpl_individuals.size(); ++i)
         {
-            const AugmContainer &member_ptr = *smpl_individuals[i];
+            const Individual &member_ptr = *smpl_individuals[i];
             auto &member_matrix = smpl_values[i];
 
             size_t c = 0;

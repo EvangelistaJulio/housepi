@@ -50,7 +50,6 @@ namespace hsp
 		//////////////////////
 
 		double data(size_t d) const { return data_vec_[d]; }
-		const std::vector<double> &get_data_wide_vec() const noexcept { return data_vec_; }
 
 		/// Return associated data long format.
 		/// NOTE: return a reference to a static empty vector when no datalong is attached.
@@ -75,7 +74,7 @@ namespace hsp
 		////////////////////
 
 		size_t hhindex() const noexcept { return hhindex_; }
-		std::string err_name() const { return "individual '" + id_ + "'"; }
+		std::string err_name() const { return "individual '" + id() + "'"; }
 
 	private:
 		size_t index_ = 0;										/// housepi internal index

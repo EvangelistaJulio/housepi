@@ -87,7 +87,7 @@ namespace hsp
 		/// Simulation specific initialization (e. g. cache variables, lookup tables, etc).
 		virtual void init_model_for_simulation() {}
 		/// Simulation for a single household.
-		virtual void simulate_single_house(Household &) = 0;
+		virtual Household simulate_single_house(Household) = 0;
 
 		//////////////////////
 		//////  SETTER  //////

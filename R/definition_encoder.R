@@ -5,6 +5,9 @@
 ## See the LICENSE file for details.
 ##
 
+# Reserved constant names forbidden as definition names.
+.reserved_math_consts <- c("pi")
+
 # Helper to check type definitions and set defaults.
 helper_default_source <- function(types, values) {
   valid_sources_lst <- list("A" = "augmented",
@@ -20,12 +23,18 @@ helper_default_source <- function(types, values) {
     # explicit type checking
     if (is.na(k)) {
       # no explicit type provided, then format for default types
-      if (is.na(y)) types[i] <- NA_character_
-      else if (is.numeric(y)) types[i] <- "N"
-      else if (is.character(y)) types[i] <- ifelse(
-        is.na(suppressWarnings(as.numeric(y))), "A", "N"
-      )
-      else types[i] <- "A"
+      if (is.na(y)) {
+        types[i] <- NA_character_
+      } else if (is.numeric(y)) {
+        types[i] <- "N"
+      } else if (is.character(y)) {
+        if (!is.na(suppressWarnings(as.numeric(y)))) types[i] <- "N"
+        else if (y %in% .reserved_math_consts) types[i] <- "N"
+        else types[i] <- "A"
+      } else {
+        stop_h(sprintf("Unsupported definition type value %s", typeof(y)))
+      }
+
     } else if (!(toupper(k) %in% names(valid_sources_lst))) {
       stop_h(
         paste0("Invalid type '", k, "' for value '", y, "'."),
@@ -59,21 +68,53 @@ housepi_format_call <- function(func_name, func_args) {
          collapse = "|")
 }
 
+# Helper to unwrap from useless parenthesis.
+strip_useless_parens <- function(x) {
+  while (rlang::is_call(x) &&
+           rlang::call_name(x) == "(" &&
+           length(rlang::call_args(x)) == 1) {
+    inner_arg <- rlang::call_args(x)[[1]]
+    if (rlang::is_symbol(inner_arg)) x <- inner_arg
+    else if (rlang::call_name(inner_arg) == "@") x <- inner_arg
+    else break
+  }
+  x
+}
+
+# Collect leaf operands by flattening chains of the same binary operator.
+collect_flat_args <- function(node, op) {
+  node_args <- lapply(rlang::call_args(node), strip_useless_parens)
+  result <- list()
+  for (a in node_args) {
+    if (rlang::is_call(a) && rlang::call_name(a) == op &&
+          length(rlang::call_args(a)) == 2) {
+      result <- c(result, collect_flat_args(a, op))
+    } else {
+      result <- c(result, list(a))
+    }
+  }
+  result
+}
+
+
+
 # Helper to extract functin from call.
 housepi_func_from_call <- function(call) {
-  # Helper to unwrap from useless parenthesis.
-  strip_useless_parens <- function(x) {
-    while (rlang::is_call(x) &&
-             rlang::call_name(x) == "(" &&
-             length(rlang::call_args(x)) == 1) {
-      inner_arg <- rlang::call_args(x)[[1]]
-      if (rlang::is_symbol(inner_arg)) x <- inner_arg
-      else if (rlang::call_name(inner_arg) == "@") x <- inner_arg
-      else break
-    }
-    x
-  }
   args <- lapply(rlang::call_args(call), strip_useless_parens)
+
+  # map to function name
+  func_name <- switch(rlang::call_name(call),
+                      `+` = if (length(args) == 1) NA_character_ else "sum",
+                      `-` = if (length(args) == 1) "minus" else "sub",
+                      `*` = "prod",
+                      `/` = "div",
+                      `^` = "pow",
+                      rlang::call_name(call))
+
+  # flatten variadic operators to avoid nested chains
+  if (func_name %in% c("sum", "prod")) {
+    args <- collect_flat_args(call, rlang::call_name(call))
+  }
 
   # list operands as literals
   func_args <- character()
@@ -88,15 +129,6 @@ housepi_func_from_call <- function(call) {
     }
     names(func_args)[1] <- "x"
   }
-
-  # map to function name
-  func_name <- switch(rlang::call_name(call),
-                      `+` = if (length(args) == 1) NA_character_ else "sum",
-                      `-` = if (length(args) == 1) "minus" else "sub",
-                      `*` = "prod",
-                      `/` = "div",
-                      `^` = "pow",
-                      rlang::call_name(call))
 
   if (is.na(func_name)) housepi_format_sources(func_args)
   else if (length(func_args) == 0) func_name

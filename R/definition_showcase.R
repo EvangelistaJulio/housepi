@@ -23,6 +23,8 @@ showcaser_extract_numeric <- function(x) {
     if (!is.character(element)) return(element)
     z <- strsplit(element, "\\|")[[1]]
     if (length(z) != 2 || z[2] != "N") return(element)
+
+    if (z[1] %in% .reserved_math_consts) return(get(z[1]))
     as.numeric(z[1])
   }, USE.NAMES = FALSE)
 }

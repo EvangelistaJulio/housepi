@@ -281,8 +281,8 @@ namespace hsp
         /// Initialize function attribute by assigning from another one.
         void init_attr(std::string_view key, const Attribute &attr);
 
-        /// Optimizing pruning indirections and setting constants to numeric.
-        void optimize();
+        /// Optimize by pruning indirections and setting constants to numeric.
+        virtual void optimize();
 
         //////////////////////
         //////  GETTER  //////

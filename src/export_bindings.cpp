@@ -375,7 +375,7 @@ namespace
     {
         try
         {
-            mcmc_ptr->param.build_for_expec(rdataframe_to_dblmap(input));
+            mcmc_ptr->param.build_for_predic(rdataframe_to_dblmap(input));
         }
         catch (const std::exception &e)
         {
@@ -442,7 +442,8 @@ namespace
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     Rcpp::List helper_export_data_wide(const DataWide &data_wide,
-                                       const std::vector<std::string> &columns, bool is_status)
+                                       const std::vector<std::string> &columns,
+                                       bool is_status)
     {
         try
         {
@@ -450,36 +451,36 @@ namespace
                 return Rcpp::List();
 
             size_t n_rows = data_wide.report_indiv.total;
-            Rcpp::CharacterVector df_id = Rcpp::CharacterVector(n_rows);
-            Rcpp::CharacterVector df_house_id = Rcpp::CharacterVector(n_rows);
-            Rcpp::IntegerVector df_status = Rcpp::IntegerVector(n_rows);
+            Rcpp::CharacterVector id_col = Rcpp::CharacterVector(n_rows);
+            Rcpp::CharacterVector house_id_col = Rcpp::CharacterVector(n_rows);
+            Rcpp::IntegerVector status_col = Rcpp::IntegerVector(n_rows);
 
             // other non standard data columns
-            std::vector<Rcpp::NumericVector> df_double(columns.size());
+            std::vector<size_t> list_export = data_wide.pRegistry->from_string(columns);
+            std::vector<Rcpp::NumericVector> data_col(columns.size());
             for (size_t d = 0; d < columns.size(); ++d)
-                df_double[d] = Rcpp::NumericVector(n_rows);
+                data_col[d] = Rcpp::NumericVector(n_rows);
 
             size_t row = 0;
             for (const Household &house : data_wide)
                 for (const Individual &member : house)
                 {
-                    df_id[row] = member.id();
-                    df_house_id[row] = house.house_id();
-                    df_status[row] = member.status();
+                    id_col[row] = member.id();
+                    house_id_col[row] = house.house_id();
+                    status_col[row] = member.status();
 
-                    const std::vector<double> &data_vec = member.get_data_wide_vec();
                     for (size_t d = 0; d < columns.size(); ++d)
-                        df_double[d][row] = hsp_to_rcpp(data_vec[d]);
+                        data_col[d][row] = hsp_to_rcpp(member.data(list_export[d]));
                     ++row;
                 }
 
             Rcpp::List output;
-            output["id"] = df_id;
-            output["house_id"] = df_house_id;
+            output["id"] = id_col;
+            output["house_id"] = house_id_col;
             if (is_status)
-                output["status"] = df_status;
+                output["status"] = status_col;
             for (size_t d = 0; d < columns.size(); ++d)
-                output[columns[d]] = df_double[d];
+                output[columns[d]] = data_col[d];
 
             return output;
         }
@@ -793,7 +794,7 @@ namespace
         try
         {
             size_t n_cols = 0;
-            for (const AugmContainer *member : augm.smpl_individuals)
+            for (const Individual *member : augm.smpl_individuals)
                 n_cols += augm.list_draws(*member).size();
 
             CharacterVector headers(n_cols);
@@ -802,7 +803,7 @@ namespace
             size_t col = 0;
             for (size_t i = 0; i < augm.smpl_values.size(); ++i)
             {
-                const AugmContainer &member = *augm.smpl_individuals[i];
+                const Individual &member = *augm.smpl_individuals[i];
                 auto &member_matrix = augm.smpl_values[i];
 
                 size_t j = 0;
@@ -904,9 +905,9 @@ namespace
         const std::vector<std::string> &headers = data_wide.pRegistry->get_all();
 
         size_t n_rows = house.size();
-        CharacterVector df_id = CharacterVector(n_rows);
-        CharacterVector df_house_id = CharacterVector(n_rows);
-        IntegerVector df_status = IntegerVector(n_rows);
+        CharacterVector id_col = CharacterVector(n_rows);
+        CharacterVector house_id_col = CharacterVector(n_rows);
+        IntegerVector status_col = IntegerVector(n_rows);
 
         std::vector<NumericVector> df_double(headers.size());
         for (size_t d = 0; d < headers.size(); ++d)
@@ -915,18 +916,17 @@ namespace
         for (const Individual &member : house)
         {
             size_t i = member.hhindex();
-            df_id[i] = member.id();
-            df_house_id[i] = house.house_id();
-            df_status[i] = member.status();
+            id_col[i] = member.id();
+            house_id_col[i] = house.house_id();
+            status_col[i] = member.status();
 
-            const std::vector<double> &data_vec = member.get_data_wide_vec();
             for (size_t d = 0; d < headers.size(); ++d)
-                df_double[d][i] = hsp_to_rcpp(data_vec[d]);
+                df_double[d][i] = hsp_to_rcpp(member.data(d));
         }
 
-        auto output = DataFrame::create(_["id"] = std::move(df_id),
-                                        _["house_id"] = std::move(df_house_id),
-                                        _["status"] = std::move(df_status));
+        auto output = DataFrame::create(_["id"] = std::move(id_col),
+                                        _["house_id"] = std::move(house_id_col),
+                                        _["status"] = std::move(status_col));
         for (size_t d = 0; d < headers.size(); ++d)
             output.push_back(df_double[d], headers[d]);
 
@@ -985,7 +985,7 @@ namespace
             return Rcpp::DataFrame::create();
 
         size_t n_rows = house.size();
-        Rcpp::CharacterVector df_id(n_rows);
+        Rcpp::CharacterVector id_col(n_rows);
 
         std::vector<Rcpp::NumericVector> df_double(headers.size());
         for (size_t c = 0; c < headers.size(); ++c)
@@ -994,14 +994,14 @@ namespace
         for (const Individual &member : house)
         {
             size_t i = member.hhindex();
-            df_id[i] = member.id();
+            id_col[i] = member.id();
 
             for (size_t c = 0; c < headers.size(); ++c)
                 df_double[c][i] = hsp_to_rcpp(member.get_group_rate_attribute(c));
         }
 
         Rcpp::List output;
-        output["id"] = df_id;
+        output["id"] = id_col;
         for (size_t c = 0; c < headers.size(); ++c)
             output.push_back(df_double[c], headers[c]);
 
@@ -1018,7 +1018,7 @@ namespace
             return List::create();
 
         size_t n_rows = house.size();
-        CharacterVector df_id(n_rows);
+        CharacterVector id_col(n_rows);
 
         CharacterVector infprof_name(n_rows, NA_STRING);
         LogicalVector infprof_discr(n_rows, NA_LOGICAL);
@@ -1027,7 +1027,7 @@ namespace
         NumericVector infprof_max(n_rows, NA_REAL);
 
         for (size_t i = 0; i < house.size(); ++i)
-            df_id[i] = house.member(i).id();
+            id_col[i] = house.member(i).id();
 
         for (size_t i : house.infected_hhindexes())
             if (infec_profile.is_augmented())
@@ -1050,12 +1050,49 @@ namespace
                 infprof_max[i] = as<double>(generic["max"]);
             }
 
-        return List::create(_["id"] = df_id,
+        return List::create(_["id"] = id_col,
                             _["discr"] = infprof_discr,
                             _["func"] = infprof_name,
                             _["func_args"] = infprof_args,
                             _["min"] = infprof_min,
                             _["max"] = infprof_max);
+    }
+
+    Rcpp::DataFrame helper_augm_log_lik_rcpp_snapshot(const Augmented &augm, const Household &house)
+    {
+        size_t n_cols = augm.list_export.size();
+
+        if (n_cols == 0)
+            return Rcpp::DataFrame::create();
+
+        size_t n_rows = house.size();
+        Rcpp::CharacterVector id_col(n_rows);
+
+        std::vector<Rcpp::NumericVector> df_double(n_cols);
+        for (size_t c = 0; c < n_cols; ++c)
+            df_double[c] = Rcpp::NumericVector(n_rows, NA_REAL);
+
+        for (size_t i = 0; i < house.size(); ++i)
+        {
+            const Individual &member_i = house.member(i);
+            id_col[i] = member_i.id();
+
+            size_t c = 0;
+            for (size_t a : augm.list_export)
+            {
+                const Variable &xaugm = member_i.get_augm_variable(a);
+                if (xaugm.has_model())
+                    df_double[c++][i] = hsp_to_rcpp(xaugm.get_distr_log_pdf());
+            }
+        }
+
+        Rcpp::List output;
+        output["id"] = id_col;
+        size_t c = 0;
+        for (size_t a : augm.list_export)
+            output.push_back(df_double[c++], augm.pRegistry->as_string(a));
+
+        return Rcpp::DataFrame(output);
     }
 
     /// Export to R a snapshot of current state of house augmented variables.
@@ -1067,7 +1104,7 @@ namespace
             return Rcpp::DataFrame::create();
 
         size_t n_rows = house.size();
-        Rcpp::CharacterVector df_id(n_rows);
+        Rcpp::CharacterVector id_col(n_rows);
 
         std::vector<Rcpp::NumericVector> df_double(n_cols);
         for (size_t c = 0; c < n_cols; ++c)
@@ -1076,14 +1113,14 @@ namespace
         for (size_t i = 0; i < house.size(); ++i)
         {
             const Individual &member_i = house.member(i);
-            df_id[i] = member_i.id();
+            id_col[i] = member_i.id();
             size_t c = 0;
             for (size_t a : augm.list_export)
                 df_double[c++][i] = hsp_to_rcpp(member_i.get_augm_variable(a));
         }
 
         Rcpp::List output;
-        output["id"] = df_id;
+        output["id"] = id_col;
         size_t i = 0;
         for (size_t a : augm.list_export)
             output.push_back(df_double[i++], augm.pRegistry->as_string(a));
@@ -1104,6 +1141,8 @@ namespace
             const Household &house = mcmc_ptr->data_wide.at(house_id);
 
             return List::create(
+                _["obs_log_lik"] = house.obs_log_lik(),
+                _["augm_log_lik"] = helper_augm_log_lik_rcpp_snapshot(mcmc_ptr->augm, house),
                 _["param"] = helper_param_rcpp_snapshot(mcmc_ptr->param),
                 _["data_wide"] = helper_data_wide_rcpp_snapshot(mcmc_ptr->data_wide, house),
                 _["data_long"] = helper_data_long_rcpp_snapshot(mcmc_ptr->data_long, house),
@@ -1123,14 +1162,14 @@ namespace
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Perform a single repetition.
-    Rcpp::DataFrame helper_simulate_single_repe_(MCMC &engine, const Rcpp::List shared_df)
+    Rcpp::DataFrame helper_simulate_single_repe_(MCMC &engine, Rcpp::List shared_df)
     {
         const Augmented &augm = engine.augm;
         const DataWide &data_wide = engine.data_wide;
-        Rcpp::List output = shared_df;
+        Rcpp::List output = Rcpp::clone(shared_df);
 
-        size_t n_cols = augm.list_export.size();
-        size_t n_rows = data_wide.report_indiv.total;
+        const size_t n_cols = augm.list_export.size();
+        const size_t n_rows = data_wide.report_indiv.total;
 
         Rcpp::IntegerVector status_col(n_rows);
 
@@ -1139,8 +1178,7 @@ namespace
             augm_cols[c] = Rcpp::NumericVector(n_rows);
 
         size_t row = 0;
-        engine.atomic_error.restore();
-        
+
 #pragma omp parallel for
         for (size_t H = 0; H < data_wide.report_house.total; ++H)
             try
@@ -1148,10 +1186,8 @@ namespace
                 if (engine.atomic_error.is_pending())
                     continue;
 
-                Household house = data_wide.at(H); // NOTE: deep copy of household
-                engine.model.simulate_single_house(house);
-
-                for (const Individual &member : house)
+                // NOTE: deep copy of household
+                for (const Individual &member : engine.model->simulate_single_house(data_wide.at(H)))
                 {
                     status_col[row] = member.status();
                     size_t c = 0;
@@ -1162,15 +1198,16 @@ namespace
             }
             catch (const std::exception &e)
             {
-                engine.atomic_error.set_if_first(
+                engine.atomic_error.set(
                     "While simulating " + data_wide.at(H).err_name() + ":\n" +
                     std::string(e.what()));
             }
+        engine.atomic_error.throw_exception();
 
         output["status"] = status_col;
-        size_t i = 0;
+        size_t c = 0;
         for (size_t a : augm.list_export)
-            output[augm.pRegistry->as_string(a)] = augm_cols[i++];
+            output[augm.pRegistry->as_string(a)] = augm_cols[c++];
 
         return Rcpp::DataFrame(output);
     }
@@ -1190,7 +1227,7 @@ namespace
                                                           augm.pRegistry->as_string(augm.list_export);
 
             data_wide.assert_non_empty();             // check if data is empty
-            engine.model.init_model_for_simulation(); // model specific initialization
+            engine.model->init_model_for_simulation(); // model specific initialization
             Rcpp::List output(setup.n_steps);         // allocate memory for results
             const Rcpp::List shared_df = helper_export_data_wide(data_wide, shared_names, false);
 
@@ -1206,8 +1243,7 @@ namespace
         }
         catch (std::exception &e)
         {
-            setup.prog_crash();
-            msg::error(e.what());
+            setup.crash(e);
         }
     }
 
@@ -1271,8 +1307,9 @@ namespace
 
     Rcpp::XPtr<MCMC> create_mcmc_runner(ModelXPtr model_xptr)
     {
-        Rcpp::Shield<SEXP> shield_model(model_xptr);
-        return Rcpp::XPtr<MCMC>(new MCMC(*model_xptr), true, shield_model);
+        ModelBase* raw = model_xptr.get();
+        R_ClearExternalPtr(model_xptr);
+        return Rcpp::XPtr<MCMC>(new MCMC(std::unique_ptr<ModelBase>(raw)), true);
     }
 
     // UPDATE: this should be imported instead
@@ -1286,8 +1323,7 @@ namespace
         }
         catch (const std::exception &e)
         {
-            mcmc_ptr->setup.prog_crash();
-            msg::error(e.what());
+            mcmc_ptr->setup.crash(e);
         }
     }
     void run_inference(Rcpp::XPtr<MCMC> mcmc_ptr)
@@ -1298,8 +1334,7 @@ namespace
         }
         catch (std::exception &e)
         {
-            mcmc_ptr->setup.prog_crash();
-            msg::error(e.what());
+            mcmc_ptr->setup.crash(e);
         }
     }
 }

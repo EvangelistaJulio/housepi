@@ -337,9 +337,10 @@ HousepiModel <- R6::R6Class(
     helper_import_table_ = function(param_table) {
       # extract parameter draws from table
       if (inherits(param_table, "HousepiPosteriorDraws")) {
-        return(posterior::as_draws_matrix(param_table$param_draws))
-      } else if (posterior::is_draws(param_table)) {
-        return(posterior::as_draws_matrix(param_table))
+        param_table <- param_table$param_draws
+      }
+      if (posterior::is_draws(param_table)) {
+        param_table <- posterior::as_draws_matrix(param_table)
       }
       tryCatch({
         return(as.data.frame(param_table))
@@ -529,8 +530,7 @@ HousepiModel <- R6::R6Class(
       obj_encl <- obj$.__enclos_env__$private
       for (field in names(obj_encl)) {
         val <- private[[field]]
-        if (!field %in% c("model_ptr_", "mcmc_ptr_") &&
-              !is.function(val)) {
+        if (!field %in% c("mcmc_ptr_") && !is.function(val)) {
           obj_encl[[field]] <- helper_clone(val)
         }
       }
@@ -566,8 +566,7 @@ HousepiModel <- R6::R6Class(
         sms, "Model is set to {.emph discrete time} mode."
       )
       if (length(private$get_all_required_data_wide_()) > 0) sms <- c(sms,
-        fmt_assert_cli("Data", private$assert_data_wide_(FALSE),
-                       minor = length(private$cols_data_wide_) == 0)
+        fmt_assert_cli("Data", private$assert_data_wide_(FALSE))
       )
       if (length(private$get_all_required_param_()) > 0) sms <- c(sms,
         fmt_assert_cli("Parameters", private$assert_param_(FALSE))

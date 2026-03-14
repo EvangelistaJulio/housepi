@@ -154,8 +154,8 @@ namespace hsp
             const auto elapsed = duration_cast<seconds>(now - start_);
             const auto missing = duration_cast<seconds>(elapsed * (1. - progress) / progress);
 
-            // skip if expected to finish soon (less than 2 seconds)
-            if (missing.count() < 2)
+            // skip if expected to finish soon (less than 1 second)
+            if (missing.count() < 1)
                 return;
 
             // print update message if time since last print greater than thin-time
@@ -484,5 +484,9 @@ namespace hsp
 
     void Setup::prog_update() { progressbar_->update(); }
     void Setup::prog_close() { progressbar_->close(); }
-    void Setup::prog_crash() { progressbar_->crash(); }
+    void Setup::crash(const std::exception &e)
+    {
+        progressbar_->crash();
+        msg::error(e.what());
+    }
 }

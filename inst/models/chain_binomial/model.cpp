@@ -49,7 +49,7 @@ public:
 	double compute_house_obs_log_lik(Household &house) override final;
 
 	/// Simulate the infection within a household.
-	void simulate_single_house(Household &house) override final;
+	Household simulate_single_house(Household house) override final;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -117,7 +117,7 @@ double Model::compute_house_obs_log_lik(Household &house)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Model::simulate_single_house(Household &house)
+Household Model::simulate_single_house(Household house)
 {
 	double commu_esc_proba = std::exp(-community_risk());
 	double p2p_rate = person_to_person_risk();
@@ -156,5 +156,6 @@ void Model::simulate_single_house(Household &house)
 			}
 		}
 	}
+	return house;
 }
 HOUSEPI_CLOSE_MODULE_NAMESPACE()
