@@ -35,7 +35,6 @@ HousepiGenerator <- R6::R6Class(
     cache_dir_ = NA_character_,
     source_dir_ = NA_character_,
     needs_compile_ = FALSE,
-    model_ptr_ = NULL,
     mcmc_ptr_ = NULL,
     last_flags_ = character(),
 
@@ -58,13 +57,6 @@ HousepiGenerator <- R6::R6Class(
     # @field info_data_long_ `list`\cr
     # List of levels of the factors in the data long.
     info_data_long_ = NULL,
-
-    # @description
-    # Finalize by deleting MCMC first (holds Model reference).
-    finalize = function() {
-      private$mcmc_ptr_  <- NULL
-      private$model_ptr_ <- NULL
-    },
 
     ############################################################################
     ############################################################################
@@ -379,9 +371,9 @@ HousepiGenerator <- R6::R6Class(
     # @description Initialize new Rcpp pointers to Model and MCMC.
     create_new_pointers_ = function() {
       if (!is.null(private$mcmc_ptr_)) return(invisible())
-      private$model_ptr_ <- get_rcpp_module(private$dll_,
-                                            private$name_)$new_model()
-      private$mcmc_ptr_ <- .engine$create_mcmc_runner(private$model_ptr_)
+      model_ptr_ <- get_rcpp_module(private$dll_,
+                                    private$name_)$new_model()
+      private$mcmc_ptr_ <- .engine$create_mcmc_runner(model_ptr_)
     },
 
     ############################################################################
@@ -494,8 +486,8 @@ HousepiGenerator <- R6::R6Class(
 
       # if necessary, recompile only the model script
       if (private$needs_compile_) {
-        # drop previous Rcpp model object
-        private$finalize()
+        # drop previous object
+        private$mcmc_ptr_  <- NULL
         do.call(private$compile_, user_options)
         private$needs_compile_ <- FALSE
       }

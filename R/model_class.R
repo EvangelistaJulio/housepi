@@ -530,8 +530,7 @@ HousepiModel <- R6::R6Class(
       obj_encl <- obj$.__enclos_env__$private
       for (field in names(obj_encl)) {
         val <- private[[field]]
-        if (!field %in% c("model_ptr_", "mcmc_ptr_") &&
-              !is.function(val)) {
+        if (!field %in% c("mcmc_ptr_") && !is.function(val)) {
           obj_encl[[field]] <- helper_clone(val)
         }
       }

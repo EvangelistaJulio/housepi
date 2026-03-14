@@ -1187,7 +1187,7 @@ namespace
                     continue;
 
                 // NOTE: deep copy of household
-                for (const Individual &member : engine.model.simulate_single_house(data_wide.at(H)))
+                for (const Individual &member : engine.model->simulate_single_house(data_wide.at(H)))
                 {
                     status_col[row] = member.status();
                     size_t c = 0;
@@ -1227,7 +1227,7 @@ namespace
                                                           augm.pRegistry->as_string(augm.list_export);
 
             data_wide.assert_non_empty();             // check if data is empty
-            engine.model.init_model_for_simulation(); // model specific initialization
+            engine.model->init_model_for_simulation(); // model specific initialization
             Rcpp::List output(setup.n_steps);         // allocate memory for results
             const Rcpp::List shared_df = helper_export_data_wide(data_wide, shared_names, false);
 
@@ -1307,8 +1307,9 @@ namespace
 
     Rcpp::XPtr<MCMC> create_mcmc_runner(ModelXPtr model_xptr)
     {
-        Rcpp::Shield<SEXP> shield_model(model_xptr);
-        return Rcpp::XPtr<MCMC>(new MCMC(*model_xptr), true, shield_model);
+        ModelBase* raw = model_xptr.get();
+        R_ClearExternalPtr(model_xptr);
+        return Rcpp::XPtr<MCMC>(new MCMC(std::unique_ptr<ModelBase>(raw)), true);
     }
 
     // UPDATE: this should be imported instead

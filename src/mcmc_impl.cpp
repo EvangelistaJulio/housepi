@@ -165,24 +165,24 @@ namespace hsp
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    MCMC::MCMC(ModelBase &m)
-        : model(m),
+    MCMC::MCMC(std::unique_ptr<ModelBase> m)
+        : model(std::move(m)),
           contact_rate(
               [this](Household &h, const Individual &k, const Individual &i) -> std::string
-              { return model.init_contact_rates(h, k, i); },
+              { return model->init_contact_rates(h, k, i); },
               &data_wide, &param)
     {
-        init_registry(model.get_DataKey(),
-                      model.get_HHsizeKey(),
-                      model.get_HHsizevecKey(),
-                      model.get_HHdoublevecKey(),
-                      model.get_HHdoublemtxKey(),
-                      model.get_LongKey(),
-                      model.get_ParamKey(),
-                      model.get_GroupRateKey(),
-                      model.get_AugmKey());
-        model.bind_solver(&param, &data_wide, &setup, &infec_profile, &augm);
-        model.init_advanced_setup();
+        init_registry(model->get_DataKey(),
+                      model->get_HHsizeKey(),
+                      model->get_HHsizevecKey(),
+                      model->get_HHdoublevecKey(),
+                      model->get_HHdoublemtxKey(),
+                      model->get_LongKey(),
+                      model->get_ParamKey(),
+                      model->get_GroupRateKey(),
+                      model->get_AugmKey());
+        model->bind_solver(&param, &data_wide, &setup, &infec_profile, &augm);
+        model->init_advanced_setup();
     }
 
     //////////////////////////
@@ -236,14 +236,14 @@ namespace hsp
             augm.user_reset(setup.prng());  // initialize non constant augmented
         }
 
-        model.init_model_for_evaluation(); // user initialization of model for inference
+        model->init_model_for_evaluation(); // user initialization of model for inference
 
         // init cache dependencies for all households and individuals
         data_wide.allocate_all_cache();
         for (size_t R = 0; R < data_wide.restricted_size(); ++R)
         {
             Household &house = data_wide.restricted(R);
-            model.init_house_for_evaluation(house);
+            model->init_house_for_evaluation(house);
         }
     }
 
@@ -331,7 +331,7 @@ namespace hsp
         {
             // save all household cache dependencies
             if (is_cache_depen)
-                model.update_house_cache_dependecies(house);
+                model->update_house_cache_dependecies(house);
 
             // compute and set household observation log-likelihood
             output = commit_house_obs_log_lik_(house);
@@ -441,7 +441,7 @@ namespace hsp
             size_t i = member.hhindex();
             // update dependencies to perform computations
             data_wide.save_member_cache(house, i);
-            model.update_member_cache_dependecies(house, member);
+            model->update_member_cache_dependecies(house, member);
 
             // Metropolis-Hastings
             const double delta_ll = commit_house_obs_log_ratio_(house) +
