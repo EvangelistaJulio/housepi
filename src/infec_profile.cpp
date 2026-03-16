@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "tools/keys.h"
 #include "tools/messages.h"
 #include "tools/parser.h"
 #include "tools/read.h"
@@ -18,6 +19,7 @@
 
 #include "infec_profile.h"
 #include "augm_container.h"
+#include "data_wide.h"
 #include "distribution.h"
 #include "function.h"
 #include "parameter.h"
@@ -30,8 +32,22 @@
 
 namespace hsp
 {
-    InfecProfile::InfecProfile(Parameter *paramptr)
-        : pParameter_(paramptr) {}
+    namespace infprof
+    {
+        void LookUpTable::materialize_()
+        {
+            for (size_t i = 1; i < size_; ++i)
+            {
+                double x = generic_ptr_->pdf(i);
+                value_.inst[i] = x;
+                value_.cumul[i] = x + value_.cumul[i - 1];
+            }
+        }
+    }
+
+    InfecProfile::InfecProfile(DataWide *dataptr,
+                               Parameter *paramptr)
+        : pDataWide_(dataptr), pParameter_(paramptr) {}
     InfecProfile::~InfecProfile() = default;
 
     /// Set model template while constructiing model.
@@ -87,17 +103,6 @@ namespace hsp
         for (const auto &[key, val] : input)
             new_input[key] = {val};
         init_template(std::move(new_input));
-    }
-
-    bool InfecProfile::LookUpTable::is_constant() const noexcept { return generic_ptr_->is_constant(); }
-    void InfecProfile::LookUpTable::materialize_()
-    {
-        for (size_t i = 1; i < size_; ++i)
-        {
-            double x = generic_ptr_->pdf(i);
-            value_.inst[i] = x;
-            value_.cumul[i] = x + value_.cumul[i - 1];
-        }
     }
 
     /// Build infectivity profile distribution.
@@ -176,8 +181,11 @@ namespace hsp
 
         // use helper to check profile name and discretization
         for (size_t r = 0; r < read::csv_n_rows(input); ++r)
-            helper_build_({{"func", {parse::Definition(input.at("func")[r]).root.func}},
-                           {"discr", {input.at("discr")[r]}}});
+        {
+            parse::Definition parser(input.at("func")[r]);
+            helper_build_({{"func", {parser.root.func}}, {"discr", {input.at("discr")[r]}}});
+            pDataWide_->set_multiplicity_data(parser.list_data_wide_depen());
+        }
 
         // match infectivity profile and augmented variable definition
         for (size_t r = 0; r < read::csv_n_rows(input); ++r)

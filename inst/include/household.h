@@ -95,7 +95,7 @@ namespace hsp
 
 	private:
 		std::string house_id_ = "";							/// User house id
-		size_t restricted_ = -1;							/// Restricted unique index
+		size_t ridx_ = -1;							/// Restricted unique index
 		std::vector<Individual> members_ = {};				/// Household members
 		std::vector<size_t> infected_list_;					/// hh indexes of infected members
 		std::vector<size_t> healthy_list_;					/// hh indexes of susceptible members

@@ -104,12 +104,14 @@ namespace hsp
         //////  FLAGS  //////
         /////////////////////
 
-        /// Flag if there are non-constant augmented definitions.
+        /// Whether there are non-constant augmented definitions.
         bool is_any_sample() const noexcept { return is_any_sample_; }
-        /// Flag if there are augmented definitions with a model.
+        /// Whether there are augmented definitions with a model.
         bool is_any_model() const noexcept { return is_any_model_; }
-        /// Flag if augmented draws are stored.
+        /// Whether augmented draws are stored.
         bool is_any_draw() const noexcept { return !smpl_individuals.empty(); }
+        /// Whether there are any augmented definitions rather than augmented functions.
+        bool is_any() const noexcept { return is_any_sample_ || is_any_model_; }
 
     private:
         DataWide *pDataWide_;         /// pointer to external DataWide struct

@@ -31,8 +31,79 @@ namespace hsp
         constexpr const char *AUGM_FUNC = ".infec_prof_augm_func";
         /// Default size for lookup table for discrete case
         constexpr unsigned LOOKUP_SIZE = 30;
+
+        /// Helper module to deal with the case of discrete time lookup table.
+        struct LookUpTable
+        {
+            //////////////////////
+            //////  SETTER  //////
+            //////////////////////
+
+            /// Initialize lookuup table.
+            void init(const Distribution *ptr, size_t n)
+            {
+                generic_ptr_ = ptr;
+                size_ = n;
+                value_.assign(n, 0);
+                old_.assign(n, 0);
+                materialize_();
+            }
+            /// Clear infectivity profile lookup table.
+            void clear() noexcept
+            {
+                value_.clear();
+                old_.clear();
+            }
+            /// Recover old state if generic is not constant.
+            void recover() noexcept
+            {
+                if (!generic_ptr_->is_constant())
+                    std::swap(value_, old_);
+            }
+            /// Update lookup table if generic is not constant.
+            void update()
+            {
+                if (!generic_ptr_->is_constant())
+                {
+                    std::swap(value_, old_);
+                    materialize_();
+                }
+            }
+
+            //////////////////////
+            //////  GETTER  //////
+            //////////////////////
+
+            double inst(size_t t) const { return t < size_ ? value_.inst[t] : 0.; }
+            double cumul(size_t t) const { return t < size_ ? value_.cumul[t] : value_.cumul[size_ - 1]; }
+
+        private:
+            size_t size_ = 0;                 /// size of look up table
+            const Distribution *generic_ptr_; /// non-owning pointer to generic
+
+            struct Table_
+            {
+                std::vector<double> inst = {};  /// instantaneous
+                std::vector<double> cumul = {}; /// cumulative
+
+                void clear() noexcept
+                {
+                    inst.clear();
+                    cumul.clear();
+                }
+                void assign(size_t n, double v)
+                {
+                    inst.assign(n, v);
+                    cumul.assign(n, v);
+                }
+            } value_, old_;
+
+            /// Recompute all values of the table.
+            void materialize_();
+        };
     }
 
+    struct DataWide;
     struct Parameter;
 
     struct InfecProfile
@@ -41,14 +112,15 @@ namespace hsp
 
     public:
         std::unique_ptr<Distribution> generic; /// generic profile
-        str_table augm_definitions = {};  /// augmented definitions
+        str_table augm_definitions = {};       /// augmented definitions
         size_t augm_key;                       /// augmented key
 
         ///////////////////////////
         //////  CONSTRUCTOR  //////
         ///////////////////////////
 
-        InfecProfile(Parameter *paramptr);
+        InfecProfile(DataWide *dataptr,
+                     Parameter *paramptr);
         ~InfecProfile();
 
         //////////////////////
@@ -141,6 +213,7 @@ namespace hsp
             LookUp     /// generic infectivity profile
         } mode_ = Mode::Generic;
 
+        DataWide *pDataWide_;                /// pointer to external DataWide struct
         Parameter *pParameter_;              /// pointer to external Parameter struct
         bool is_discrete_requested_ = false; /// wheter is requested as discrete
 
@@ -152,68 +225,6 @@ namespace hsp
         /// Helper to build profile.
         std::unique_ptr<Distribution> helper_build_(const str_table &input);
 
-        /// Helper module to deal with the case of discrete time lookup table.
-        struct LookUpTable
-        {
-            /// Initialize lookuup table.
-            void init(const Distribution *ptr, size_t n)
-            {
-                generic_ptr_ = ptr;
-                size_ = n;
-                value_.assign(n, 0);
-                old_.assign(n, 0);
-                materialize_();
-            }
-            /// Clear infectivity profile lookup table.
-            void clear() noexcept
-            {
-                value_.clear();
-                old_.clear();
-            }
-            /// Recover old state if generic is not constant.
-            void recover() noexcept
-            {
-                if (!is_constant())
-                    std::swap(value_, old_);
-            }
-            /// Update lookup table if generic is not constant.
-            void update()
-            {
-                if (!is_constant())
-                {
-                    std::swap(value_, old_);
-                    materialize_();
-                }
-            }
-
-            double inst(size_t t) const { return t < size_ ? value_.inst[t] : 0.; }
-            double cumul(size_t t) const { return t < size_ ? value_.cumul[t] : value_.cumul[size_ - 1]; }
-
-            bool is_constant() const noexcept;
-
-        private:
-            size_t size_ = 0;                 /// size of look up table
-            const Distribution *generic_ptr_; /// non-owning pointer to generic
-
-            struct Table_
-            {
-                std::vector<double> inst = {};  /// instantaneous
-                std::vector<double> cumul = {}; /// cumulative
-
-                void clear() noexcept
-                {
-                    inst.clear();
-                    cumul.clear();
-                }
-                void assign(size_t n, double v)
-                {
-                    inst.assign(n, v);
-                    cumul.assign(n, v);
-                }
-            } value_, old_;
-
-            /// Recompute all values of the table.
-            void materialize_();
-        } lookup_;
+        infprof::LookUpTable lookup_;
     };
 }

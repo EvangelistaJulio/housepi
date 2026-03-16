@@ -64,7 +64,7 @@ test_that("Missing function arguments raise errors", {
 
   # non default arguments
   expect_error(
-    hhmodel$add_augmented(name = "proba", func = "gamma"), 
+    hhmodel$add_augmented(name = "proba", func = "gamma"),
     regexp = "Missing non default"
   )
 
@@ -153,12 +153,16 @@ test_that("Augmented aliasing works as expected", {
 })
 
 test_that("Augmentation example on incubation from delays is coherent", {
+  shape <- 1.95
+  scale <- 1.13
+  exact_val <- function(x, shape, scale) {
+    sum(log(stats::dgamma(x, shape = shape, scale = scale)))
+  }
+
   # log-likelihood from simulated delays
-  shape <- 2.0
-  scale <- 1.1
+
   df <- data.frame(status = 1,
                    ip = rgamma(223, shape = shape, scale = scale))
-  exact <- sum(log(stats::dgamma(df$ip, shape = shape, scale = scale)))
 
   # generate an instance of the household model class
   hhmodel <- new_housepi_model("augmented_example")
@@ -169,7 +173,12 @@ test_that("Augmentation example on incubation from delays is coherent", {
   # warning for no structure
   expect_warning(hhmodel$add_data_wide(df),
                  regexp = "Ignored household structure")
-  expect_equal(hhmodel$evaluate_log_lik(), exact)
+  expect_equal(hhmodel$evaluate_log_lik(), exact_val(df$ip, shape, scale))
+
+  # repeat with degenerated ip values to trigger multiplicity
+  df$ip <- floor(df$ip)
+  hhmodel$add_data_wide(df)
+  expect_equal(hhmodel$evaluate_log_lik(), exact_val(df$ip, shape, scale))
 })
 
 test_that("Known errors are unchanged", {

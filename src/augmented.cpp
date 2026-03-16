@@ -357,6 +357,9 @@ namespace hsp
         const std::string &str_val = deftable_["value"][k];
         const parse::Definition parser(na::is(str_val) ? deftable_["func"][k] : str_val);
 
+        // Set potentially multiplicity data
+        pDataWide_->set_multiplicity_data(parser.list_data_wide_depen());
+
         // NOTE: don't store draws if just equal to something else
         if (parser.is_terminal())
             return {is_to_export, false};

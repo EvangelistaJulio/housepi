@@ -54,8 +54,7 @@ namespace hsp
             return;
 
         // set headers to be multiplicity-relevat
-        for (size_t d : pDataWide_->pRegistry->from_string(data_headers))
-            pDataWide_->set_multiplicity_data(d);
+        pDataWide_->set_multiplicity_data(data_headers);
 
         // loop over all household members
         size_t n_rows = read::csv_n_rows(input);
