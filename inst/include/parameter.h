@@ -28,7 +28,7 @@ namespace hsp
 {
     namespace key
     {
-        class Registry;
+        struct Registry;
     }
 
     class Individual;

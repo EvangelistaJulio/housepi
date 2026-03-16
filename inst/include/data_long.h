@@ -23,7 +23,7 @@ namespace hsp
 {
     namespace key
     {
-        class Registry;
+        struct Registry;
     }
     struct DataWide;
 

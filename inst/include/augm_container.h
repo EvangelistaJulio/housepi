@@ -80,10 +80,10 @@ namespace hsp
 
 	protected:
 		std::string id_ = "";				  /// user id
-		int status_ = status::MISSING;	  /// status of the individual
+		int status_ = status::MISSING;		  /// status of the individual
 		size_t augm_idx_;					  /// index of status specific augmented definition
 		std::vector<Variable> augm_vec_ = {}; /// dictionary of augmented definitions
-		LogLike augm_log_lik_;			  /// augmented model log-likelihood
+		LogLike augm_log_lik_;				  /// augmented model log-likelihood
 
 		AugmContainer() = default;
 	};

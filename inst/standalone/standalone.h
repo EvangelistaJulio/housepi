@@ -29,7 +29,6 @@ namespace hsp
             std::string data_long = "";
             std::string group_rate = "";
             std::string infec_profile = "";
-            std::string multiplicity = "";
             std::string output = "";
             std::string param = "";
             std::string setup = "";
@@ -44,7 +43,6 @@ namespace hsp
         void read_infec_profile(MCMCBase &engine);
         void read_group_rate(MCMCBase &engine);
         void read_augm(MCMCBase &engine);
-        void read_multiplicity(MCMCBase &engine);
 
         bool is_log_evidence() const noexcept { return num_rungs > 0; }
         void assert();

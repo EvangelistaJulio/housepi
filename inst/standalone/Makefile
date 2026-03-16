@@ -11,8 +11,7 @@ STD_IN := -A augm.csv \
 -G group_rates.csv \
 -I infec.csv \
 -P param.csv \
--S setup.csv \
--M multiplicity.csv
+-S setup.csv
 
 # Lost of source files with exclusions
 SRC := ../../src

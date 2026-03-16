@@ -6,6 +6,9 @@
  */
 
 #include <algorithm>
+#include <functional>
+#include <map>
+#include <numeric>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -111,6 +114,10 @@ namespace hsp
 
         if (input.empty())
             return;
+
+        // initialize multiplicity-relevant data entries to only model dependent
+        for (size_t d = 0; pRegistry->size(); ++d)
+            set_multiplicity_data(d);
 
         helper_build_clear_data_();        // drop previous data and lists
         helper_build_data_headers_(input); // extract headers
@@ -256,48 +263,93 @@ namespace hsp
         }
     }
 
-    void DataWide::multiplicity_build(const str_table &input, bool is_any_augm)
+    namespace
     {
-        size_t n_houses = report_house.total;
+        /// Using golden ratio fractional part to ensure bit distribution.
+        /// Ref:
+        /// https://www.boost.org/doc/libs/latest/libs/container_hash/doc/html/hash.html#notes_hash_combine
+        inline void hash_combine(size_t &seed, size_t h)
+        {
+#if __x86_64__ || __ppc64__ || __aarch64__ || _WIN64
+            seed ^= h + 0x9e3779b97f4a7c15ULL + (seed << 12) + (seed >> 4);
+#else
+            seed ^= h + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+#endif
+        }
+    }
 
+    void DataWide::multiplicity_build(bool is_any_augm)
+    {
         mode_ = Mode::Unique;
         multiplicity_.clear();
-        multiplicity_class_.clear();
 
         // initialize household indexes
         for (Household &house : house_vector_)
             house.restricted_ = hhid_to_index_[house.house_id()];
 
-        // note: multiplicities are not compatible with data augmentation
-        if (input.size() == 0 || is_any_augm)
+        // NOTE: multiplicity incompatible with sampling augmented data
+        if (house_vector_.empty() || is_any_augm)
             return;
 
-        // UPDATE: this error is purely internal
-        if (input.at("house_id").size() != n_houses)
-            throw std::out_of_range(
-                "Multiplicity definitions had different dimensions than data.");
+        // List of data relevant for multiplicity groups
+        // FIXME: not all data contribute to this!
+        // probably just group rates and model dependencies
+        const std::unordered_set<size_t> data_list = multiplicity_data_;
 
-        mode_ = Mode::Multiple;
-        multiplicity_.reserve(n_houses);
-        multiplicity_class_.reserve(n_houses);
-
-        dict<size_t> hhid_to_restricted = {};
-        for (size_t r = 0; r < n_houses; ++r)
+        // comparison functor: sort members by (status, data[0], data[1], ...)
+        auto member_less = [data_list](const Individual &a, const Individual &b)
         {
-            const std::string &house_id = input.at("house_id")[r];
-            const std::string &house_id_0 = input.at("class_id")[r];
-            unsigned long m = str::toul(input.at("multiplicity")[r]);
+            if (a.status() != b.status())
+                return a.status() < b.status();
+            for (size_t d : data_list)
+                if (a.data(d) != b.data(d))
+                    return a.data(d) < b.data(d);
+            return false;
+        };
 
-            if (house_id == house_id_0)
+        // compute multiplicity-relevant hash for each household
+        std::map<size_t, std::vector<size_t>> hash_groups;
+
+        for (size_t H = 0; H < report_house.total; ++H)
+        {
+            const Household &house = at(H);
+
+            // sorted member indices
+            std::vector<size_t> order(house.size());
+            std::iota(order.begin(), order.end(), 0);
+            std::sort(order.begin(), order.end(),
+                      [&house, &member_less](size_t i, size_t j)
+                      { return member_less(house.member(i), house.member(j)); });
+
+            // combine hashes over sorted members
+            size_t seed = std::hash<size_t>{}(house.size());
+            for (size_t i : order)
             {
-                hhid_to_restricted.emplace(house_id, hhid_to_restricted.size());
-                multiplicity_.push_back(m);
-                multiplicity_class_.push_back(hhid_to_index_[house_id]);
+                const Individual &member = house.member(i);
+                hash_combine(seed, std::hash<int>{}(member.status()));
+                for (size_t d : data_list)
+                    hash_combine(seed, std::hash<double>{}(member.data(d)));
             }
-            at(house_id).restricted_ = hhid_to_restricted[house_id_0];
+            hash_groups[seed].emplace_back(H);
+        }
+
+        // skip if all unique households
+        if (house_vector_.size() == hash_groups.size())
+            return;
+
+        // build multiplicity structures
+        mode_ = Mode::Multiple;
+        multiplicity_.reserve(hash_groups.size());
+
+        for (const auto &[hash, group] : hash_groups)
+        {
+            const size_t refer_restrict = multiplicity_.size();
+            for (size_t H : group)
+                at(H).restricted_ = refer_restrict;
+
+            multiplicity_.emplace_back(group);
         }
         multiplicity_.shrink_to_fit();
-        multiplicity_class_.shrink_to_fit();
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -317,32 +369,35 @@ namespace hsp
             Cached_ &prev = old_[R];
 
             // size_t
-            curr.size_.assign(p_size_Registry->size(), 0);
-            prev.size_.assign(p_size_Registry->size(), 0);
+            size_t s_size = p_size_Registry->size();
+            curr.size_.assign(s_size, 0);
+            prev.size_.assign(s_size, 0);
 
             // size_t vector
-            curr.size_vec_.resize(p_size_vec_Registry->size());
-            prev.size_vec_.resize(p_size_vec_Registry->size());
-            for (size_t e = 0; e < p_size_vec_Registry->size(); ++e)
+            size_t s_size_vec = p_size_Registry->size();
+            curr.size_vec_.resize(s_size_vec);
+            prev.size_vec_.resize(s_size_vec);
+            for (size_t e = 0; e < s_size_vec; ++e)
             {
                 curr.size_vec_[e].assign(hh_size, 0);
                 prev.size_vec_[e].assign(hh_size, 0);
             }
 
             // double vector
-            curr.dbl_vec_.resize(p_double_vec_Registry->size());
-            prev.dbl_vec_.resize(p_double_vec_Registry->size());
-            for (size_t e = 0; e < p_double_vec_Registry->size(); ++e)
+            size_t s_double_vec = p_double_vec_Registry->size();
+            curr.dbl_vec_.resize(s_double_vec);
+            prev.dbl_vec_.resize(s_double_vec);
+            for (size_t e = 0; e < s_double_vec; ++e)
             {
-
                 curr.dbl_vec_[e].assign(hh_size, 0);
                 prev.dbl_vec_[e].assign(hh_size, 0);
             }
 
             // double matrix
-            curr.dbl_mtx_.resize(p_double_mtx_Registry->size());
-            prev.dbl_mtx_.resize(p_double_mtx_Registry->size());
-            for (size_t e = 0; e < p_double_mtx_Registry->size(); ++e)
+            size_t s_double_mtx = p_double_mtx_Registry->size();
+            curr.dbl_mtx_.resize(s_double_mtx);
+            prev.dbl_mtx_.resize(s_double_mtx);
+            for (size_t e = 0; e < s_double_mtx; ++e)
             {
                 curr.dbl_mtx_[e].assign(hh_size, std::vector<double>(hh_size, 0.));
                 prev.dbl_mtx_[e].assign(hh_size, std::vector<double>(hh_size, 0.));
@@ -366,7 +421,7 @@ namespace hsp
             for (size_t j = 0; j < house.size(); ++j)
             {
                 prev.dbl_mtx_[e][i][j] = curr.dbl_mtx_[e][i][j];
-                if (i != j)
+                if (j != i)
                     prev.dbl_mtx_[e][j][i] = curr.dbl_mtx_[e][j][i];
             }
     }

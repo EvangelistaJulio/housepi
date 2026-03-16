@@ -47,17 +47,18 @@ namespace hsp
     {
         pRegistry->clear();
 
-        size_t n_rows = 0;
         std::vector<std::string> data_headers = {};
         if (!input.empty())
-        {
             data_headers = helper_assert_definitions_(input);
-            n_rows = input.begin()->second.size();
-        }
-        else if (pRegistry->size() == 0)
+        else if (pRegistry->empty())
             return;
 
+        // set headers to be multiplicity-relevat
+        for (size_t d : pDataWide_->pRegistry->from_string(data_headers))
+            pDataWide_->set_multiplicity_data(d);
+
         // loop over all household members
+        size_t n_rows = read::csv_n_rows(input);
         for (Household &house : *pDataWide_)
             for (Individual &member : house)
             {
@@ -78,6 +79,7 @@ namespace hsp
 
                 helper_init_all_rates_(member, these_rates);
             }
+        
     }
 
     std::vector<std::string> GroupRate::helper_assert_definitions_(const str_table &input)

@@ -13,22 +13,22 @@
 
 namespace hsp::key
 {
-    /// UPDATE: enforce string_view once Variable constructor is fixed
-    class Registry
+    struct Registry
     {
     public:
         ///////////////////////////
         //////  CONSTRUCTOR  //////
         ///////////////////////////
 
-        Registry(const std::vector<std::string> &keys) : declared_(keys) { clear(); }
+        Registry(const std::vector<std::string> &keys) : declared_(keys) {}
 
         //////////////////////
         //////  SETTER  //////
         //////////////////////
 
+        /// Drop all optional definitions.
         void clear() { optional_.clear(); }
-
+        /// Add a new definition.
         void add(std::string_view name)
         {
             if (!count(name))
@@ -39,13 +39,17 @@ namespace hsp::key
         //////  GETTER  //////
         //////////////////////
 
+        /// Total number of definition names.
         size_t size() const noexcept { return declared_.size() + optional_.size(); }
 
+        /// Return all definition names.
         std::vector<std::string> get_all() const;
 
+        /// Convert index to definition name.
         std::string as_string(size_t index) const;
         std::vector<std::string> as_string(std::vector<size_t> indexes);
 
+        /// Convert definition name to index.
         size_t from_string(std::string_view name) const;
         std::vector<size_t> from_string(const std::vector<std::string> &names) const;
 
@@ -53,10 +57,13 @@ namespace hsp::key
         //////  FLAGS  //////
         /////////////////////
 
+        /// Whether no definition has been provided.
+        bool empty() const noexcept { return size() == 0; };
+        /// Wheter a given definition is registred.
         bool count(std::string_view name) const;
 
     private:
-        std::vector<std::string> declared_;
-        std::vector<std::string> optional_;
+        std::vector<std::string> declared_ = {}; /// Model declared definitions
+        std::vector<std::string> optional_ = {}; /// User optional definitions
     };
 }

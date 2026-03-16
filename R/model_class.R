@@ -55,6 +55,7 @@ HousepiModel <- R6::R6Class(
       output <- template_extract_keys(refer_file, "DataKey")
       required <- set_source_name_(output, "model")
       c(required,                             # by the model
+        private$group_rates_$data_required,   # by group rates
         private$augm_$data_required,          # by augmented
         private$infec_profile_$data_required) # by infec profile
     },
@@ -127,64 +128,6 @@ HousepiModel <- R6::R6Class(
     # Get template or previously implemented infectiviyt profile.
     get_internal_infec_profile_ = function() {
       .engine$export_infec_profile(private$mcmc_ptr_)
-    },
-
-    # @description
-    # Generate multiplicity definitions
-    # UPDATE: this will be moved inside C++ standalone in a future version.
-    #
-    # @return `data.frame`
-    get_multiplicity_ = function() {
-      # skip if augmented definitions are required
-      if (length(private$get_all_required_augm_()) > 0) return(NULL)
-      # skip if augmented definitions are provided
-      # UPDATE: there could be the case of all constants...
-      if (length(dim(private$augm_$defs)[1]) > 0) return(NULL)
-
-      # load data_wide
-      # UPDATE: this "back & forth" of data_wide is not optimal!
-      data_wide <- self$data_wide
-
-      headers <- c(
-        # data headers required by implementation
-        private$get_all_required_data_wide_(),
-        # data headers required by group rates
-        unlist(lapply(
-          private$group_rates_$logic_tables,
-          function(x) unlist(lapply(x, names))
-        ))
-      )
-      # remove logic tables auxiliary column names
-      headers <- setdiff(unique(headers), c("n", "param_name"))
-
-      # list of splitted data by house_id
-      split_data <- split(data_wide[c("status", headers)], data_wide$house_id)
-      # sort individuals in each household by all columns
-      sorted_data <- lapply(split_data, function(x) {
-        x[do.call(order, x), , drop = FALSE]
-      })
-      # create hash strings from sorted rows
-      hashes <- sapply(sorted_data, function(x) {
-        paste(apply(x, 1, paste, collapse = "-"), collapse = "|")
-      })
-      # regroup households by hash
-      hash_groups <- split(names(hashes), hashes)
-
-      # create summary table with class_id and multiplicity
-      mult_hhtable <- data.frame(class_id = sapply(hash_groups, `[`, 1),
-                                 multiplicity = lengths(hash_groups))
-
-      # use hashes to produce multiplicity table
-      defs <- data.frame(house_id = unique(data_wide$house_id),
-                         multiplicity = 0,
-                         class_id = NA_integer_)
-      rownames(defs) <- defs$house_id
-      defs[mult_hhtable$class_id, "multiplicity"] <- mult_hhtable$multiplicity
-
-      for (i in seq_len(nrow(mult_hhtable))) {
-        defs[hash_groups[[i]], "class_id"] <- mult_hhtable$class_id[i]
-      }
-      defs
     },
 
     ############################################################################
@@ -293,10 +236,6 @@ HousepiModel <- R6::R6Class(
       # import augmented variables
       .engine$import_augm(private$mcmc_ptr_,
                           private$augm_$defs)
-
-      # associate multiplicity engine
-      .engine$import_multiplicity(private$mcmc_ptr_,
-                                  private$get_multiplicity_())
       invisible(self)
     },
 
@@ -308,9 +247,6 @@ HousepiModel <- R6::R6Class(
 
       write.csv(.engine$export_data_wide(private$mcmc_ptr_),
                 file.path(outpath, "data_wide.csv"),
-                quote = FALSE, row.names = FALSE)
-      write.csv(private$get_multiplicity_(),
-                file.path(outpath, "multiplicity.csv"),
                 quote = FALSE, row.names = FALSE)
       write.csv(.engine$export_data_long(private$mcmc_ptr_),
                 file.path(outpath, "data_long.csv"),

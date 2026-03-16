@@ -91,21 +91,6 @@ namespace hsp
     STANDALONE_MAKE_READ_METHOD_(infec_profile, "infectivity profile")
     STANDALONE_MAKE_READ_METHOD_(augm, "augmented")
 
-    // UPDATE: this will be removed once automatized in C++ reflection
-    void Options::read_multiplicity(MCMCBase &model)
-    {
-        try
-        {
-            model.data_wide.multiplicity_build(
-                read::csv_table(file.multiplicity),
-                model.augm.pRegistry->size() > 0);
-        }
-        catch (const std::exception &e)
-        {
-            msg::error(std::string("While reading ") + "multiplicity" + " definitions:\n" + e.what());
-        }
-    }
-
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////  MCMC : print infer state  /////////////////////////////////////
@@ -246,14 +231,14 @@ namespace hsp
         std::ofstream ofs = open_ofstream_datawide(pathtofile,
                                                    data_wide.pRegistry->get_all(),
                                                    augm.pRegistry->as_string(augm.list_export));
-        data_wide.assert_non_empty();             // check if data is empty
-        engine.model.init_model_for_simulation(); // model specific initialization
+        data_wide.assert_non_empty();              // check if data is empty
+        engine.model->init_model_for_simulation(); // model specific initialization
 
         for (const Household &house : data_wide)
             try
             {
                 update_ofstream_datawide(ofs,
-                                         engine.model.simulate_single_house(house),
+                                         engine.model->simulate_single_house(house),
                                          data_wide.pRegistry->size(),
                                          augm.list_export);
             }
@@ -322,9 +307,6 @@ namespace hsp
 
             else if (toup(carg) == "-I" || tolow(carg) == "--infec-profile")
                 file.infec_profile = argv[++carg_i];
-
-            else if (toup(carg) == "-M" || tolow(carg) == "--multiplicity")
-                file.multiplicity = argv[++carg_i];
 
             else if (toup(carg) == "-O" || tolow(carg) == "--output")
                 file.output = argv[++carg_i];
@@ -398,7 +380,6 @@ namespace hsp
         opts.read_group_rate(engine);    // 5) Load Group Rates
         engine.contact_rate.build();     // ... and Contact Rates UPDATE: read instead!
         opts.read_augm(engine);          // 6) Load Augmented Variables
-        opts.read_multiplicity(engine);  // 7) Load Multiplicities
 
         //////////////////////////////
         ////////  EXECUTION  /////////

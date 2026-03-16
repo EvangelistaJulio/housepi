@@ -438,7 +438,7 @@ namespace hsp
 
     void Augmented::init()
     {
-        if (pRegistry->size() == 0)
+        if (pRegistry->empty())
             return;
 
         helper_init_model_list_();
@@ -662,7 +662,7 @@ namespace hsp
 
     void Augmented::user_reset(rnd_gen &prng)
     {
-        if (pRegistry->size() == 0)
+        if (pRegistry->empty())
             return;
 
         for (Household &house : *pDataWide_)
