@@ -226,9 +226,10 @@ namespace hsp
 
     void MCMC::init_evaluate_(bool is_reset)
     {
-        data_wide.assert_non_empty();              // check if data is empty
-        data_wide.assert_not_all_missing_status(); // warn if all missing status
-        augm.init();                               // initialize individual augmented relations
+        data_wide.assert_non_empty();                       // check if data is empty
+        data_wide.assert_not_all_missing_status();          // warn if all missing status
+        augm.init();                                        // initialize individual augmented relations
+        data_wide.multiplicity_build(augm.is_any_sample()); // multiplicity
 
         if (is_reset)
         {

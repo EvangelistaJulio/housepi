@@ -211,6 +211,14 @@ HousepiGroupRate <- R6::R6Class(
       new_params
     },
 
+    #' @field data_required `character()`. Data required by group rates.
+    data_required = function(value) {
+      if (!missing(value)) stop_h("'data_required' is read only.")
+      required <- unique(unlist(lapply(self$defs, `[[`, "by")))
+      required <- required[!is.na(required)]
+      set_source_name_(required, self$family)
+    },
+
     #' @field param_required `character()`. Parameters required by group rates.
     param_required = function(value) {
       if (!missing(value)) stop_h("'param_required' is read only.")
@@ -220,8 +228,8 @@ HousepiGroupRate <- R6::R6Class(
           required <- c(required, this_table$param_name)
         }
       }
-      output <- setdiff(unique(required), c(".reference"))
-      set_source_name_(output, self$family)
+      required <- setdiff(unique(required), c(".reference"))
+      set_source_name_(required, self$family)
     },
 
     #' @field tidy_table `data.frame()`.

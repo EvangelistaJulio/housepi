@@ -356,21 +356,6 @@ namespace
     MAKE_RCPP_IMPORT_METHOD(infec_profile, "infectivity profile")
     MAKE_RCPP_IMPORT_METHOD(augm, "augmented")
 
-    // UPDATE: this will be removed once automatized in C++ reflection
-    void import_multiplicity(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
-    {
-        try
-        {
-            mcmc_ptr->data_wide.multiplicity_build(
-                rdataframe_to_strmap(input),
-                mcmc_ptr->augm.pRegistry->size() > 0);
-        }
-        catch (const std::exception &e)
-        {
-            msg::error(std::string("While importing ") + "multiplicity" + ":\n" + e.what());
-        }
-    }
-
     void import_param_for_prediction(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
     {
         try
@@ -880,11 +865,10 @@ namespace
     /// NOTE: there are not private parameters so far.
     Rcpp::NumericVector helper_param_rcpp_snapshot(const Parameter &param)
     {
-        size_t n = param.pRegistry->size();
-
-        if (n == 0)
+        if (param.pRegistry->empty())
             return Rcpp::NumericVector::create();
 
+        size_t n = param.pRegistry->size();
         Rcpp::NumericVector output(n);
         Rcpp::CharacterVector headers(n);
         for (size_t p = 0; p < n; ++p)
@@ -1376,7 +1360,6 @@ RCPP_MODULE(housepi)
     Rcpp::function("evaluate_log_lik", &evaluate_log_lik);
     Rcpp::function("import_data_wide", &import_data_wide);
     Rcpp::function("import_data_long", &import_data_long);
-    Rcpp::function("import_multiplicity", &import_multiplicity);
     Rcpp::function("import_group_rate", &import_group_rate);
     Rcpp::function("import_setup", &import_setup);
     Rcpp::function("import_param", &import_param);

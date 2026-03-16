@@ -5,6 +5,7 @@
  * See the LICENSE file for details.
  */
 
+#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <stdexcept>

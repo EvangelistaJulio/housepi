@@ -37,7 +37,7 @@ namespace hsp
 
     namespace key
     {
-        class Registry;
+        struct Registry;
     }
 
     struct DataWide
@@ -48,11 +48,11 @@ namespace hsp
         std::unique_ptr<key::Registry> p_double_vec_Registry;
         std::unique_ptr<key::Registry> p_double_mtx_Registry;
 
-        std::vector<std::vector<double>> smpl_values = {};
-
         ReportIndividual report_indiv;
         ReportHousehold report_house;
         ReportHouseSizes report_hh_size;
+
+        std::vector<std::vector<double>> smpl_values = {};
 
         ///////////////////////////
         //////  CONSTRUCTOR  //////
@@ -73,9 +73,11 @@ namespace hsp
 
         /// Assign data (wide format).
         void build(const str_table &input);
-        /// Build multiplicities.
-        /// UPDATE: I should find a way to deal internally with multiplicity.
-        void multiplicity_build(const str_table &input, bool is_any_augm);
+
+        /// Set a new multiplicity-relevant data entry.
+        void set_multiplicity_data(size_t d) { multiplicity_data_.emplace(d); }
+        /// Build multiplicities from household data.
+        void multiplicity_build(bool is_any_augm);
 
         /// Initialize cached structeres according to household size.
         void allocate_all_cache();
@@ -90,6 +92,7 @@ namespace hsp
         /// Recover member old values of cached member depedencies and member attributes.
         void recover_member_old_cached(Household &house, size_t i);
 
+        /// Raise error log-likelihood is not finite.
         void assert_finite_log_lik() const;
 
         /// Initialize posterior sample of parameters.
@@ -106,17 +109,19 @@ namespace hsp
         Household &at(std::string_view house_id) { return at(house_id_to_index_(house_id)); }
         const Household &at(std::string_view house_id) const { return at(house_id_to_index_(house_id)); }
 
-        unsigned multiplicity(size_t R) const
+        /// Number of households in the multiplicity group.
+        size_t multiplicity(size_t R) const
         {
             switch (mode_)
             {
             case Mode::Unique:
                 return 1;
             case Mode::Multiple:
-                return multiplicity_[R];
+                return multiplicity_[R].value_;
             }
             __builtin_unreachable();
         }
+        /// Index to household multiplicity group.
         size_t get_restricted_index(size_t H) const
         {
             switch (mode_)
@@ -128,6 +133,7 @@ namespace hsp
             }
             __builtin_unreachable();
         }
+        /// Number of household multiplicity groups.
         size_t restricted_size() const noexcept
         {
             switch (mode_)
@@ -135,10 +141,11 @@ namespace hsp
             case Mode::Unique:
                 return report_house.total;
             case Mode::Multiple:
-                return multiplicity_class_.size();
+                return multiplicity_.size();
             }
             __builtin_unreachable();
         }
+        /// Restrict to head of household multiplicity group.
         Household &restricted(size_t R)
         {
             switch (mode_)
@@ -146,7 +153,7 @@ namespace hsp
             case Mode::Unique:
                 return at(R);
             case Mode::Multiple:
-                return at(multiplicity_class_[R]);
+                return at(multiplicity_[R].head_);
             }
             __builtin_unreachable();
         }
@@ -157,7 +164,7 @@ namespace hsp
             case Mode::Unique:
                 return at(R);
             case Mode::Multiple:
-                return at(multiplicity_class_[R]);
+                return at(multiplicity_[R].head_);
             }
             __builtin_unreachable();
         }
@@ -209,17 +216,36 @@ namespace hsp
         auto end() const noexcept { return house_vector_.end(); }
 
     private:
+        ////////////////////
+        //////  DATA  //////
+        ////////////////////
+
+        std::vector<Household> house_vector_ = {}; /// All households in data
+        dict<size_t> hhid_to_index_ = {};          /// Map house-id to internal index
+
+        ////////////////////////////
+        //////  MULTIPLICITY  //////
+        ////////////////////////////
+
         enum class Mode : std::uint8_t
         {
             Multiple,
             Unique
         } mode_ = Mode::Unique;
 
-        std::vector<Household> house_vector_ = {};
-        dict<size_t> hhid_to_index_ = {};
+        struct Multiplicity_
+        {
+            Multiplicity_(const std::vector<size_t> &group) : head_(group.front()),
+                                                              value_(group.size()) {}
+            size_t head_;
+            size_t value_;
+        };
+        std::unordered_set<size_t> multiplicity_data_ = {}; /// Multiplicity-relevant data
+        std::vector<Multiplicity_> multiplicity_ = {};      /// Multiplicity groups
 
-        std::vector<unsigned> multiplicity_ = {};
-        std::vector<size_t> multiplicity_class_ = {};
+        //////////////////////
+        //////  CACHED  //////
+        //////////////////////
 
         struct Cached_
         {
@@ -230,6 +256,10 @@ namespace hsp
         };
         std::vector<Cached_> cached_ = {};
         std::vector<Cached_> old_ = {};
+
+        ///////////////////////
+        //////  HELPERS  //////
+        ///////////////////////
 
         /// Get housepi household index from house_id.
         size_t house_id_to_index_(std::string_view house_id) const;
