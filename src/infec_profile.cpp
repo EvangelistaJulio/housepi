@@ -45,9 +45,8 @@ namespace hsp
         }
     }
 
-    InfecProfile::InfecProfile(DataWide *dataptr,
-                               Parameter *paramptr)
-        : pDataWide_(dataptr), pParameter_(paramptr) {}
+    InfecProfile::InfecProfile(Parameter *paramptr)
+        : pParameter_(paramptr) {}
     InfecProfile::~InfecProfile() = default;
 
     /// Set model template while constructiing model.
@@ -181,11 +180,8 @@ namespace hsp
 
         // use helper to check profile name and discretization
         for (size_t r = 0; r < read::csv_n_rows(input); ++r)
-        {
-            parse::Definition parser(input.at("func")[r]);
-            helper_build_({{"func", {parser.root.func}}, {"discr", {input.at("discr")[r]}}});
-            pDataWide_->set_multiplicity_data(parser.list_data_wide_depen());
-        }
+            helper_build_({{"func", {parse::Definition(input.at("func")[r]).root.func}},
+                           {"discr", {input.at("discr")[r]}}});
 
         // match infectivity profile and augmented variable definition
         for (size_t r = 0; r < read::csv_n_rows(input); ++r)

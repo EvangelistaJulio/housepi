@@ -283,7 +283,7 @@ namespace hsp
             multiplicity_data_.emplace(d);
     }
 
-    void DataWide::multiplicity_build(bool is_any_augm)
+    void DataWide::init_multiplicity(bool is_any_augm)
     {
         mode_ = Mode::Unique;
         multiplicity_.clear();

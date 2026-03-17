@@ -168,6 +168,9 @@ test_that("Symbolic definitions are equivalent", {
     some_func = list(func = "gamma",
                      func_args = c(shape = ~ shape, scale = ~ scale))
   )
+  expect_error(aux_load(augm, external),
+               regexp = "forgot rlang injection")
+
   aux_load(augm, !!!external)
   expect_equal(augm$defs$func, "gamma|shape:scale|{shape|A}:{scale|A}")
 })

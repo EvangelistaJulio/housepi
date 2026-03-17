@@ -110,8 +110,6 @@ namespace hsp
         bool is_any_model() const noexcept { return is_any_model_; }
         /// Whether augmented draws are stored.
         bool is_any_draw() const noexcept { return !smpl_individuals.empty(); }
-        /// Whether there are any augmented definitions rather than augmented functions.
-        bool is_any() const noexcept { return is_any_sample_ || is_any_model_; }
 
     private:
         DataWide *pDataWide_;         /// pointer to external DataWide struct

@@ -103,7 +103,6 @@ namespace hsp
         };
     }
 
-    struct DataWide;
     struct Parameter;
 
     struct InfecProfile
@@ -119,8 +118,7 @@ namespace hsp
         //////  CONSTRUCTOR  //////
         ///////////////////////////
 
-        InfecProfile(DataWide *dataptr,
-                     Parameter *paramptr);
+        InfecProfile(Parameter *paramptr);
         ~InfecProfile();
 
         //////////////////////
@@ -213,18 +211,15 @@ namespace hsp
             LookUp     /// generic infectivity profile
         } mode_ = Mode::Generic;
 
-        DataWide *pDataWide_;                /// pointer to external DataWide struct
-        Parameter *pParameter_;              /// pointer to external Parameter struct
         bool is_discrete_requested_ = false; /// wheter is requested as discrete
+        Parameter *pParameter_;              /// pointer to external Parameter struct
+        infprof::LookUpTable lookup_;        /// discrete time lookup table
 
-        /// Build for generic infectivity profile.
-        /// NOTE: no status dependence allowed here.
+        /// Build for generic infectivity profile (no status dependence).
         void build_generic_(const str_table &input);
         /// Build for individual augmented function infectivity profile.
         void build_augmented_(const str_table &input);
         /// Helper to build profile.
         std::unique_ptr<Distribution> helper_build_(const str_table &input);
-
-        infprof::LookUpTable lookup_;
     };
 }

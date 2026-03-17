@@ -71,7 +71,7 @@ test_that("Single infected member log-likelihood is correct", {
   p2p_esc_rate <- par$beta * house$infectivity %o% house$susceptibility
 
   # susceptible member
-  log_lik <- - commu_esc_rate[2] - p2p_esc_rate[1, 2] + 
+  log_lik <- - commu_esc_rate[2] - p2p_esc_rate[1, 2] +
     log1p(-exp(-commu_esc_rate[1]))
 
   # define housepi model
@@ -80,7 +80,7 @@ test_that("Single infected member log-likelihood is correct", {
   hhmodel$load_group_rate_list(community = "class",
                                susceptibility = "class",
                                infectivity = "class")
-  hhmodel$load_parameter_list(alpha = !!par$alpha, 
+  hhmodel$load_parameter_list(alpha = !!par$alpha,
                               beta = !!par$beta,
                               com_class_b = !!com_class_b,
                               sus_class_b = !!sus_class_b,

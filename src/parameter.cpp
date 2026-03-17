@@ -238,13 +238,13 @@ namespace hsp
             at(p).optimize();
     }
 
-    void Parameter::load_sample_values(size_t n)
+    void Parameter::load_sample_values(size_t r)
     {
         for (size_t p = 0; p < pRegistry->size(); ++p)
         {
             const std::vector<double> &vec = smpl_values[p];
             if (!vec.empty())
-                at(p).set(vec[n]);
+                at(p).set(vec[r]);
         }
     }
 

@@ -29,7 +29,7 @@ template_dll_file <- function(path) {
 
 # Return template name choice with spaces.
 spaced_template_choice <- function(x) {
-  tolower(gsub("\\s+", " ", gsub("-|_| ", " ", x)))
+  trimws(tolower(gsub("\\s+", " ", gsub("-|_| ", " ", x))))
 }
 
 # Returns the directory to all housepi template models.
@@ -231,9 +231,6 @@ template_household_model <- function(name = NA_character_,
   else if (name == "blank" && is.na(path)) warning_h(
     "The 'blank' model has no description available.",
     "It comes without any predefined structure and it is used only for tests."
-  )
-  else if (name == "blank" && !is.na(path)) stop_h(
-    "The 'blank' model template is not copyable."
   )
   else if (is.na(get_template_dir(name))) stop_h(
     sprintf("Model '%s' was not a known template.", name),

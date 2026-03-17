@@ -160,16 +160,15 @@ test_that("Custom models and shares function registries", {
 })
 
 test_that("Modules do not get overwritten", {
-  # NOTE: use profile as model status flag
-  
+  # NOTE: I use profile as model status flag
   hhmodel_1 <- new_housepi_model("augmented_infection_time")
   out_1 <- hhmodel_1$infec_profile
   expect_gt(length(out_1), 0)
-  
+
   hhmodel_2 <- new_housepi_model("chain_binomial")
   out_2 <- hhmodel_2$infec_profile
   expect_length(out_2, 0)
-  
+
   # reload first model base Model again
   hhmodel_3 <- new_housepi_model("augmented_infection_time")
   out_3 <- hhmodel_3$infec_profile

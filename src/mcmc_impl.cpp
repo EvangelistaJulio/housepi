@@ -42,7 +42,7 @@ namespace hsp
     MCMCBase::MCMCBase()
         : data_long(&data_wide),
           group_rate(&data_wide, &param),
-          infec_profile(&data_wide, &param),
+          infec_profile(&param),
           augm(&data_wide, &param, &infec_profile) {}
     MCMCBase::~MCMCBase() = default;
 
@@ -226,10 +226,10 @@ namespace hsp
 
     void MCMC::init_evaluate_(bool is_reset)
     {
-        data_wide.assert_non_empty();                // check if data is empty
-        data_wide.assert_not_all_missing_status();   // warn if all missing status
-        augm.init();                                 // initialize individual augmented relations
-        data_wide.multiplicity_build(augm.is_any()); // multiplicity
+        data_wide.assert_non_empty();                      // check if data is empty
+        data_wide.assert_not_all_missing_status();         // warn if all missing status
+        augm.init();                                       // initialize individual augmented relations
+        data_wide.init_multiplicity(augm.is_any_sample()); // multiplicity
 
         if (is_reset)
         {

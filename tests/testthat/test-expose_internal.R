@@ -2,12 +2,12 @@ library(testthat)
 
 test_that("Expose function has no leaks", {
   mem_used_mb <- function() gc()["Vcells", "(Mb)"]
-  
+
   fun <- expose_function("sin")
   rm(fun)
   invisible(gc())
   mem_before <- mem_used_mb()
-  
+
   # heavy allocation loop
   for (i in cli::cli_progress_along(seq_len(200))) {
     fun <- expose_function("sin")

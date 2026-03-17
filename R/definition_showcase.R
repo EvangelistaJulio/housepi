@@ -102,13 +102,12 @@ housepi_defin_showcaser <- function(defs) {
         col_args <- stats::setNames(col_args, paste0(col, "_args"))
       }
 
-      right_side_table <- cbind(
+      right_side <- cbind(
         stats::setNames(list(showcaser_extract_func(output[[col]])), col),
-        col_args,
-        output[(pos + 1):ncol(output)]
+        col_args, output[(pos + 1):ncol(output)]
       )
-      if (pos > 1) output <- cbind(output[1:(pos - 1)], right_side_table)
-      else output <- right_side_table
+      if (pos > 1) output <- cbind(output[1:(pos - 1)], right_side)
+      else output <- right_side
     }
   }
   output

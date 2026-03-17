@@ -258,7 +258,7 @@ IndividualSampler <- R6::R6Class(
           output[[col]] <- c(NaN, enc$x, NaN)[1 + feats %% private$num_feats_[[col]]]
 
         } else if (enc$type == "levels") {
-          aux_dict <- stats::setNames(enc$x, seq_along(length(enc$x)))
+          aux_dict <- stats::setNames(enc$x, seq_along(enc$x))
           output[[col]] <- sapply(
             feats %% private$num_feats_[[col]],
             function(x) ifelse(x > 0, aux_dict[[x]], NaN)
@@ -424,7 +424,7 @@ HousepiSampler <- R6::R6Class(
       ocols <- 3:length(colnames(freqs$other))
 
       # normalize hhsize and other
-      for (i in seq_along(nrow(freqs$joint))) {
+      for (i in seq_len(nrow(freqs$joint))) {
         norm <- max(1, sum(freqs$other[i, ocols]))
         freqs$other[i, ocols] <- freqs$other[i, ocols] / norm
 

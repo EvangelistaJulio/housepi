@@ -77,7 +77,7 @@ namespace hsp
         /// Set a new multiplicity-relevant data entry.
         void set_multiplicity_data(const std::vector<std::string> &data_list);
         /// Build multiplicities from household data.
-        void multiplicity_build(bool is_any_augm);
+        void init_multiplicity(bool is_any_augm);
 
         /// Initialize cached structeres according to household size.
         void allocate_all_cache();

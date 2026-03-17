@@ -67,7 +67,7 @@ measure_cases_by_house_size <- function(data_wide) {
                           0L, .data$n)
   )
   # reshape to wide format
-  y <- tidyr::pivot_wider(y, names_from = .data$cases, values_from = .data$n)
+  y <- tidyr::pivot_wider(y, names_from = "cases", values_from = "n")
   as.data.frame(y)
 }
 
@@ -235,7 +235,7 @@ HousepiPrediction <- R6::R6Class(
       # check measures
       if (any(lapply(store_observed, NROW) == 0)) stop_h(sprintf(
         "Measure %s returned empty observation.",
-        character_to_string_list(names(y[unlist(y)]))
+        character_to_string_list(names(store_observed[unlist(store_observed)]))
       ))
 
       # run measures on posterior simulations

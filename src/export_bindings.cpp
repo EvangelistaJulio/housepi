@@ -1197,7 +1197,8 @@ namespace
     }
 
     /// Perform simulation and return simulated data.
-    Rcpp::List run_simulation(Rcpp::XPtr<MCMC> mcmc_ptr, Rcpp::Function post_process)
+    Rcpp::List run_simulation(Rcpp::XPtr<MCMC> mcmc_ptr,
+                              Rcpp::Function post_process_wide)
     {
         MCMC &engine = *mcmc_ptr;
         const Augmented &augm = engine.augm;
@@ -1210,16 +1211,17 @@ namespace
             const std::vector<std::string> shared_names = data_wide.pRegistry->get_all() -
                                                           augm.pRegistry->as_string(augm.list_export);
 
-            data_wide.assert_non_empty();             // check if data is empty
+            data_wide.assert_non_empty();              // check if data is empty
             engine.model->init_model_for_simulation(); // model specific initialization
-            Rcpp::List output(setup.n_steps);         // allocate memory for results
+            Rcpp::List output(setup.n_steps);          // allocate memory for results
             const Rcpp::List shared_df = helper_export_data_wide(data_wide, shared_names, false);
 
             setup.prog_open_for_simulation();
-            for (size_t rep = 0; rep < setup.n_steps; ++rep, setup.prog_update())
+            for (size_t r = 0; r < setup.n_steps; ++r, setup.prog_update())
             {
-                engine.param.load_sample_values(rep);
-                output[rep] = post_process(helper_simulate_single_repe_(engine, shared_df));
+                engine.param.load_sample_values(r);
+                Rcpp::DataFrame simul_wide = helper_simulate_single_repe_(engine, shared_df);
+                output[r] = post_process_wide(simul_wide);
             }
             setup.prog_close();
 
@@ -1291,7 +1293,7 @@ namespace
 
     Rcpp::XPtr<MCMC> create_mcmc_runner(ModelXPtr model_xptr)
     {
-        ModelBase* raw = model_xptr.get();
+        ModelBase *raw = model_xptr.get();
         R_ClearExternalPtr(model_xptr);
         return Rcpp::XPtr<MCMC>(new MCMC(std::unique_ptr<ModelBase>(raw)), true);
     }
