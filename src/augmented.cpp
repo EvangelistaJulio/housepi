@@ -79,7 +79,7 @@ namespace
 
         if (std::find(recursion_stack.begin(), recursion_stack.end(), entry) != recursion_stack.end())
             throw std::invalid_argument(
-                "Found inadmissible cyclic definitions for augmented '" + entry + "'");
+                "Found inadmissible cyclic definition for augmented '" + entry + "'");
 
         if (std::find(visited.begin(), visited.end(), entry) != visited.end())
             return;
@@ -256,7 +256,7 @@ namespace hsp
         // NOTE: NA (i. e. generic) does not necessarily need checking
         for (auto &[status, vec] : map_status_to_def_row_)
             if (status::is_infected(status))
-                set_definition_dependency_order_for_(status);
+                set_definition_dependency_order_for_(status, status);
 
         // associate observed status to corresponding status block
         // if not defined specifically, then associate to generic
@@ -264,7 +264,7 @@ namespace hsp
             if (!map_status_to_block_.count(status))
             {
                 if (!map_status_to_block_.count(status::MISSING))
-                    set_definition_dependency_order_for_(status::MISSING);
+                    set_definition_dependency_order_for_(status::MISSING, status);
                 map_status_to_block_.emplace(status, map_status_to_block_.at(status::MISSING));
             }
 
@@ -273,10 +273,10 @@ namespace hsp
         if (all_infected_statuses.empty() ||
             (map_status_to_def_row_.size() == 1 &&
              status::is_missing(map_status_to_def_row_.begin()->first)))
-            set_definition_dependency_order_for_(status::MISSING);
+            set_definition_dependency_order_for_(status::MISSING, status::MISSING);
     }
 
-    void Augmented::set_definition_dependency_order_for_(int status)
+    void Augmented::set_definition_dependency_order_for_(int status, int err_status)
     {
         // skip if already passed
         if (map_status_to_block_.count(status))
@@ -321,8 +321,12 @@ namespace hsp
         }
         catch (const std::exception &e)
         {
-            throw std::invalid_argument(
-                std::string(e.what()) + " for status " + std::to_string(status) + ".");
+            std::string sms = e.what();
+            if (status::is_missing(err_status))
+                sms += "\nCheck your generic definitions.";
+            else
+                sms += " for status " + std::to_string(err_status) + ".";
+            throw std::invalid_argument(sms);
         }
     }
 
@@ -419,10 +423,6 @@ namespace hsp
 
         // Set potentially multiplicity data
         pDataWide_->set_multiplicity_data(parser.list_data_wide_depen());
-
-        // NOTE: don't store draws if just equal to something else
-        if (parser.is_terminal())
-            return {is_to_export, false};
 
         // NOTE: do not export if not callable (otherwise crashes)
         if (!parser.is_callable_implicitly("x"))

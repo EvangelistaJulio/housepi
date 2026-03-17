@@ -178,6 +178,9 @@ rd_param_table_ <- "One between\\cr
 rd_measure_dots_ <- "Named arguments. `function`s to compute respective measures from data.\\cr
 Each function should return one between `numeric()`, `list` or `data.frame`."
 
+rd_ppc_observ_ <- paste(rd_simul_observ_,
+                        "This applies only on simulations, not on data.")
+
 ############################################################################
 ############################################################################
 ############################################################################

@@ -33,10 +33,11 @@ helper_augmented_core <- function(opts, value, func, func_args) {
 # process model arguments
 helper_augmented_model <- function(opts, args) {
   if (is.null(args)) return(opts)
-  if (is.na(opts$model)) stop_h(
-    sprintf("Spare arguments for augmented '%s'.%s", opts$name,
-            ifelse(is.na(opts$func), "", "Did you mean 'func_args'?"))
-  )
+  if (is.na(opts$model)) {
+    sms <- sprintf("Spare arguments for augmented '%s'.", opts$name)
+    if (!is.na(opts$func)) sms <- c(sms, "Did you mean 'func_args'?")
+    stop_h(sms)
+  }
   opts$model <- housepi_combine_to_call(opts$model, args)
   opts
 }
@@ -271,8 +272,8 @@ HousepiAugmented <- R6::R6Class(
       if (.warn_over) template_overwrite_warn(rmv_name, self$family)
       else self$store_warn_over <- c(self$store_warn_over, rmv_name)
 
-      opts <- helper_augmented_model(opts, args)
       opts <- helper_augmented_core(opts, value, func, func_args)
+      opts <- helper_augmented_model(opts, args)
       opts <- helper_augmented_move(opts, proposal_scale)
 
       # domain

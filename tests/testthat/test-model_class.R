@@ -150,6 +150,38 @@ test_that("Load augmented list works fine for external lists", {
   expect_equal(tmp, hhmodel$augmented)
 })
 
+test_that("Augmented traces export only relevant variables", {
+  hhmodel <- new_housepi_model("blank")
+  infec_df <- subset(hhmodel$data_wide, status > 0)
+  hhmodel$load_parameter_list(alpha = 1, beta = list(prior = "uniform"))
+  hhmodel$load_augmented_list(
+    # constants
+    blocked = 42,
+    # private variables
+    .hidden = list(model = "uniform"),
+    .secret = list(model = "normal"),
+    # public non constant function
+    layer = .secret - .hidden,
+    # equal to parameters
+    alpha = alpha@P,
+    alpha_beta = alpha@P + beta@P,
+    # equal to other augmented objects
+    dummy = blocked,
+    alias = layer,
+    # implicit function
+    impl = list(func = "gamma", func_args = c(shape = 3)),
+    # constant function
+    invar = list(func = "gamma", func_args = c(x = dummy, shape = 3)),
+    # function
+    expl = list(func = "gamma", func_args = c(x = alias, shape = 3))
+  )
+  result <- hhmodel$run_inference(id_draws = infec_df$id)
+  expect_equal(
+    posterior::variables(result$augm_draws), 
+    paste(infec_df$id, c("layer", "alias", "alpha_beta", "expl"), sep = "_")
+  )
+})
+
 test_that("Custom models and shares function registries", {
   hhmodel_0 <- new_housepi_model("blank")
   expect_error(expose_function("growth"), regexp = "Unknown function")

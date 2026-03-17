@@ -19,7 +19,7 @@ test_that("Nested definitions raise errors", {
   expect_error(
     hhmodel$load_augmented_list(.dummy = proba,
                                 proba = .dummy)$evaluate_log_lik(),
-    regexp = "cyclic definitions"
+    regexp = "cyclic definition"
   )
 
   # triangular nest
@@ -27,7 +27,7 @@ test_that("Nested definitions raise errors", {
     hhmodel$load_augmented_list(proba = .layer,
                                 .layer = .dummy,
                                 .dummy = proba)$evaluate_log_lik(),
-    regexp = "cyclic definitions"
+    regexp = "cyclic definition"
   )
 
   # first generation of definitions

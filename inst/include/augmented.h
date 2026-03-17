@@ -158,7 +158,7 @@ namespace hsp
 
         /// Set dependecies ordering for ininitializiation fo given status.
         /// At the same time assert that definition are complet and acyclic.
-        void set_definition_dependency_order_for_(int status);
+        void set_definition_dependency_order_for_(int status, int err_status);
         /// Extract status-specific definitions row indexes.
         std::vector<size_t> get_unsorted_definition_rows_(int status) const;
         /// Set sample and draws list for given status.
