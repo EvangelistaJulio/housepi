@@ -317,8 +317,7 @@ namespace hsp
                     status_blocks_.back().order.emplace_back(name_to_row[astr]);
 
             // define usage lists respecting definition order
-            for (size_t k : status_blocks_.back().order)
-                set_sample_list_for_(status, k);
+            set_sample_list_(status);
         }
         catch (const std::exception &e)
         {
@@ -346,6 +345,67 @@ namespace hsp
                     allrows.push_back(k);
 
         return allrows;
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////  Augmented : sample lists  //////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+    void Augmented::set_sample_list_(int status)
+    {
+        StatusBlock_ &block = status_blocks_[map_status_to_block_.at(status)];
+        for (size_t k : block.order)
+            set_sample_list_for_single_defininition_(status, k);
+
+        // NOTE: by construction of draws list, I am forced to drop private at the end
+        list_export = pRegistry->from_string(str::drop_private(pRegistry->as_string(list_export)));
+        block.draws = pRegistry->from_string(str::drop_private(pRegistry->as_string(block.draws)));
+    }
+
+    void Augmented::set_sample_list_for_single_defininition_(int status, size_t k)
+    {
+        const std::string &astr = deftable_["name"][k];
+        size_t a = pRegistry->from_string(astr);
+
+        bool is_to_export = true;
+        bool is_to_draw = true;
+
+        if (str::tobool(deftable_["const"][k]))
+        {
+            is_to_draw = false;
+        }
+        else if (!(na::is(deftable_["func"][k]) && na::is(deftable_["value"][k])))
+        {
+            auto [is_to_export_, is_to_draw_] = set_sample_list_for_function_(status, k);
+            is_to_export = is_to_export_;
+            is_to_draw = is_to_draw_;
+        }
+        else if (na::is(deftable_["value"][k]) && na::is(deftable_["model"][k]))
+        {
+            throw std::invalid_argument(
+                "Impossible to initialize augmented '" + astr + "'  without a value or model");
+        }
+        else if (na::is(deftable_["proposal"][k]))
+        {
+            throw std::runtime_error(
+                "No proposal was provided for non-constant definition of augmented '" +
+                astr + "'");
+        }
+        else
+        {
+            is_any_sample_ = true;
+            status_blocks_[map_status_to_block_.at(status)].sample.emplace_back(a);
+        }
+
+        // nothing to do if not to export
+        if (!is_to_export)
+            return;
+
+        if (std::find(list_export.begin(), list_export.end(), a) == list_export.end())
+            list_export.emplace_back(a);
+
+        if (is_to_draw)
+            status_blocks_[map_status_to_block_.at(status)].draws.emplace_back(a);
     }
 
     std::pair<bool, bool> Augmented::set_sample_list_for_function_(int status, size_t k)
@@ -388,51 +448,6 @@ namespace hsp
         is_to_draw = !all_consts;
 
         return {is_to_export, is_to_draw};
-    }
-
-    void Augmented::set_sample_list_for_(int status, size_t k)
-    {
-        const std::string &astr = deftable_["name"][k];
-        size_t a = pRegistry->from_string(astr);
-
-        bool is_to_export = true;
-        bool is_to_draw = true;
-
-        if (str::tobool(deftable_["const"][k]))
-        {
-            is_to_draw = false;
-        }
-        else if (!(na::is(deftable_["func"][k]) && na::is(deftable_["value"][k])))
-        {
-            auto [is_to_export_, is_to_draw_] = set_sample_list_for_function_(status, k);
-            is_to_export = is_to_export_;
-            is_to_draw = is_to_draw_;
-        }
-        else if (na::is(deftable_["value"][k]) && na::is(deftable_["model"][k]))
-        {
-            throw std::invalid_argument(
-                "Impossible to initialize augmented '" + astr + "'  without a value or model");
-        }
-        else if (na::is(deftable_["proposal"][k]))
-        {
-            throw std::runtime_error(
-                "No proposal was provided for non-constant definition of augmented '" +
-                astr + "'");
-        }
-        else
-        {
-            is_any_sample_ = true;
-            status_blocks_[map_status_to_block_.at(status)].sample.emplace_back(a);
-        }
-
-        if (!str::is_private(astr) && is_to_export)
-        {
-            if (std::find(list_export.begin(), list_export.end(), a) == list_export.end())
-                list_export.emplace_back(a);
-
-            if (is_to_draw)
-                status_blocks_[map_status_to_block_.at(status)].draws.emplace_back(a);
-        }
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////

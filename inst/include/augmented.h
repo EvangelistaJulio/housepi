@@ -161,8 +161,10 @@ namespace hsp
         void set_definition_dependency_order_for_(int status);
         /// Extract status-specific definitions row indexes.
         std::vector<size_t> get_unsorted_definition_rows_(int status) const;
-        /// Set sample map and relative usage list.
-        void set_sample_list_for_(int status, size_t k);
+        /// Set sample and draws list for given status.
+        void set_sample_list_(int status);
+        /// Set sample and draws list for given definition.
+        void set_sample_list_for_single_defininition_(int status, size_t k);
 
         /// Inspect if constant definition.
         std::pair<bool, bool> set_sample_list_for_function_(int status, size_t k);
