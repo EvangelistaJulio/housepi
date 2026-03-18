@@ -109,7 +109,8 @@ namespace hsp
         {
 #ifndef _STANDALONE
             check_user_interrupt_();
-            barwidth_ = Rcpp::as<unsigned>(Rcpp::Function("getOption")("width")) / 2;
+            unsigned width = Rcpp::as<unsigned>(Rcpp::Function("getOption")("width"));
+            barwidth_ = std::min(width, 80u) / 2;
             if (!Rcpp::as<bool>(Rcpp::Function("interactive")()))
                 mode_ = Mode::Static;
 #endif

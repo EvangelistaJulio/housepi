@@ -32,6 +32,13 @@ CXXFLAGS := -std=c++17 -D_STANDALONE\
 -Wno-unknown-pragmas
 LDFLAGS :=
 
+ifneq ($(filter debug,$(MAKECMDGOALS)),)
+  DEBUG := 1
+endif
+ifneq ($(filter profile,$(MAKECMDGOALS)),)
+  PROFILE := 1
+endif
+
 ifdef DEBUG
 CXXFLAGS += -g3 -O0 \
 -Werror -Wuninitialized -Wunused \
@@ -98,23 +105,21 @@ clean:
 	$(RM) {$(MODEL),$(SRC),../models/*}/*.{o,tmp,exe,so,dll}
 
 # Run make in debugging mode
-debug:
-	$(MAKE) DEBUG=1
+debug: all
 
 # Run make in profiling mode
-profile:
-	$(MAKE) PROFILE=1
+profile: all
 
-# Test log-likelihood evaluation 
-test-log-lik:
+# Test log-likelihood evaluation
+test-log-lik: $(EXECUTABLE)
 	$(EXECUTABLE) $(STD_IN) --log-lik
 
-# Test inference 
-test-infer:
+# Test inference
+test-infer: $(EXECUTABLE)
 	$(EXECUTABLE) $(STD_IN) --infer -O out.csv
 
-# Test simulation 
-test-simulate:
+# Test simulation
+test-simulate: $(EXECUTABLE)
 	$(EXECUTABLE) $(STD_IN) --simulate -O out.csv
 
 .PHONY: all clean debug profile test-log-lik test-infer test-simulate

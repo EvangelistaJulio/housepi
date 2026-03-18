@@ -671,11 +671,11 @@ namespace hsp
 
     void Augmented::user_reset(rnd_gen &prng, Individual &member)
     {
-        for (size_t a : status_blocks_[member.augm_idx_].sample)
+        for (size_t a : list_sample(member))
             member.augm_vec_[a].user_reset(prng);
-
-        for (size_t a = 0; a < pRegistry->size(); ++a)
-            member.augm_vec_[a].optimize();
+        
+        for (Variable &xaugm : member.augm_vec_)
+            xaugm.optimize();
     }
 
     void Augmented::user_reset(rnd_gen &prng)

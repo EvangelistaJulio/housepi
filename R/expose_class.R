@@ -487,16 +487,19 @@ run_inference <- function(hhmodel,
 #' It assumes the same community structure of the loaded data.
 #' @param hhmodel `r rd_model_in_`
 #' @param obs_process `r rd_simul_observ_`
+#' @param obs_process_long `r rd_simul_obs_long_`
 #' @param nsim `r rd_simul_nsim_`
 #' @param seed `r rd_seed_`
-#' @return `data.frame`
+#' @return `data.frame` or `list` (when `obs_process_long` is provided)
 #' @export
 run_simulation <- function(hhmodel,
                            obs_process = NULL,
+                           obs_process_long = NULL,
                            nsim = 1,
                            seed = NA_integer_) {
   stopifnothousepi(hhmodel)
   hhmodel$run_simulation(obs_process = obs_process,
+                         obs_process_long = obs_process_long,
                          nsim = nsim, seed = seed)
 }
 

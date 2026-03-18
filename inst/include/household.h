@@ -36,7 +36,6 @@ namespace hsp
 		///////////////////////////
 
 		Household() = default;
-		~Household() = default;
 
 		//////////////////////
 		//////  SETTER  //////
@@ -51,9 +50,7 @@ namespace hsp
 		void set_infected_status(Individual &member, int new_status)
 		{
 			if (!status::is_infected(new_status))
-				throw std::invalid_argument(
-					"Tried to set as infected status " + std::to_string(new_status) +
-					" to " + err_name() + ".\nInfected status must be an integer greater than 0.");
+				raise_set_non_infec_status_(new_status);
 			helper_set_status_(member, new_status);
 		}
 
@@ -106,5 +103,7 @@ namespace hsp
 		/// Change_status of individual i to new status (without controls).
 		///	NOTE: this introduces augmented variables -> it requires RJMCMC in case of inference.
 		void helper_set_status_(Individual &member, int new_status);
+		/// Raise error if status doesn't satisfy infected convention.
+		[[noreturn]] void raise_set_non_infec_status_(int new_status) const;
 	};
 }

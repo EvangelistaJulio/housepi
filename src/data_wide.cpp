@@ -81,6 +81,13 @@ namespace hsp
             missing_list_.emplace_back(i);
     }
 
+    void Household::raise_set_non_infec_status_(int new_status) const
+    {
+        throw std::invalid_argument(
+            "Tried to set as infected status " + std::to_string(new_status) +
+            " to " + err_name() + ".\nInfected status must be an integer greater than 0.");
+    }
+
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////  *** DataWide : struct ***  ///////////////////////////////////

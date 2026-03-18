@@ -301,13 +301,14 @@ HousepiModel <- R6::R6Class(
     # Run measure function on posterior simulations.
     # UPDATE: this has to be improved with loops in C++
     run_measure_ = function(param_table,
-                            apply_measure,
-                            obs_process = NULL,
+                            apply_wide,
+                            apply_long = NULL,
+                            obs_proc_wide = NULL,
+                            obs_proc_long = NULL,
                             threads = 1,
                             seed = NA_integer_,
                             progress = TRUE) {
-      standard_apply <- private$helper_obs_process_(obs_process)
-      final_apply <- function(x) apply_measure(standard_apply(x))
+      standard_apply <- private$helper_obs_process_(obs_proc_wide)
 
       param_table <- private$helper_import_table_(param_table)
       nsim <- dim(param_table)[1]
@@ -319,8 +320,16 @@ HousepiModel <- R6::R6Class(
       # attach param_table
       .engine$import_param_for_prediction(private$mcmc_ptr_, param_table)
 
-      # run simulation and apply all measures
-      .engine$run_simulation(private$mcmc_ptr_, final_apply)
+      if (!is.null(apply_long) &&
+            (is.null(obs_proc_long) || !is.function(obs_proc_long))) stop_h(
+        "'obs_process_long' must be a function."
+      )
+      .engine$run_simulation(
+        private$mcmc_ptr_,
+        function(x) apply_wide(standard_apply(x)),
+        if (is.null(apply_long)) NULL
+        else function(x) apply_long(obs_proc_long(standard_apply(x)))
+      )
     },
 
     # @description
@@ -874,10 +883,12 @@ HousepiModel <- R6::R6Class(
     #' Run simulation to generate a household survey.
     #' It assumes the same community structure of the loaded data.
     #' @param obs_process `r rd_simul_observ_`
+    #' @param obs_process_long `r rd_simul_obs_long_`
     #' @param nsim `r rd_simul_nsim_`
     #' @param seed `r rd_seed_`
-    #' @return `data.frame`
+    #' @return `data.frame` or `list` (when `obs_process_long` is provided)
     run_simulation = function(obs_process = NULL,
+                              obs_process_long = NULL,
                               nsim = 1,
                               seed = NA_integer_) {
       # combine observation process to measures and refactor
@@ -900,9 +911,20 @@ HousepiModel <- R6::R6Class(
       }
 
       # run simulations
-      output <- .engine$run_simulation(private$mcmc_ptr_, standard_apply)
-      # return a single data.frame if single simulation
-      if (nsim == 1) output <- output[[1]]
+      output <- .engine$run_simulation(
+        private$mcmc_ptr_,
+        standard_apply,
+        if (is.null(obs_process_long)) NULL
+        else function(x) obs_process_long(standard_apply(x))
+      )
+
+      # drop empty wide/long
+      if (length(output$wide) == 0) output$wide <- NULL
+      if (length(output$long) == 0) output$long <- NULL
+      if (length(output) == 1) {
+        output <- output[[1]]
+        if (nsim == 1) output <- output[[1]]
+      }
 
       output
     },

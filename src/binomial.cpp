@@ -166,7 +166,7 @@ namespace hsp::bino
     {
         return Num_Gener_LookupTable[n_positive];
     }
-    std::vector<unsigned> get_generation_vector(unsigned n_positive, unsigned long i)
+    const std::vector<unsigned> &get_generation_vector(unsigned n_positive, unsigned long i)
     {
         return Generations_LookupTable[n_positive][i];
     }
@@ -466,8 +466,9 @@ namespace hsp::bino
         else if (N_star > 1) // multiple cases
         {
             // flatten sub-matrix with only seropositives
-            // UPDATE: can I avoid this allocation?
-            vector<double> escape_matrix((N_star + 1) * N_star, 1.);
+            // UPDATE: can I avoid this re-allocation?
+            thread_local vector<double> escape_matrix;
+            escape_matrix.assign((N_star + 1) * N_star, 1.);
 
             for (unsigned i = 0; i < N_star; ++i)
             {

@@ -263,20 +263,18 @@ namespace
     /// Convert R dataframe map of string vectors.
     str_table rdataframe_to_strmap(SEXP input)
     {
-        using namespace Rcpp;
-
         if (Rf_isNull(input))
             return {};
 
-        DataFrame df(input);
-        CharacterVector colnames = df.names();
+        Rcpp::DataFrame df(input);
+        Rcpp::CharacterVector colnames = df.names();
         str_table output;
 
         for (R_xlen_t i = 0; i < df.size(); ++i)
         {
-            CharacterVector col = df[i];
+            Rcpp::CharacterVector col = df[i];
             std::vector<std::string> col_data(col.begin(), col.end());
-            output[as<std::string>(colnames[i])] = std::move(col_data);
+            output[Rcpp::as<std::string>(colnames[i])] = std::move(col_data);
         }
 
         return output;
@@ -285,20 +283,18 @@ namespace
     /// Convert R dataframe map of double vectors.
     dbl_table rdataframe_to_dblmap(SEXP input)
     {
-        using namespace Rcpp;
-
         if (Rf_isNull(input))
             return {};
 
-        DataFrame df(input);
-        CharacterVector colnames = df.names();
+        Rcpp::DataFrame df(input);
+        Rcpp::CharacterVector colnames = df.names();
         dbl_table output;
 
         for (R_xlen_t i = 0; i < df.size(); ++i)
         {
-            NumericVector col = df[i];
+            Rcpp::NumericVector col = df[i];
             std::vector<double> col_data(col.begin(), col.end());
-            output[as<std::string>(colnames[i])] = std::move(col_data);
+            output[Rcpp::as<std::string>(colnames[i])] = std::move(col_data);
         }
 
         return output;
@@ -307,11 +303,9 @@ namespace
     /// Export Function argument list to R.
     Rcpp::NumericVector rcpp_export_args(const Function *func)
     {
-        using namespace Rcpp;
-
         size_t n_args = func->n_args();
-        NumericVector vals(n_args);
-        CharacterVector keys(n_args);
+        Rcpp::NumericVector vals(n_args);
+        Rcpp::CharacterVector keys(n_args);
         for (size_t k = 0; k < n_args; ++k)
         {
             vals[k] = func->arg(k);
@@ -378,43 +372,42 @@ namespace
     /// Export to R definitions of infectivity profile.
     Rcpp::List helper_export_infec_profile(const InfecProfile &infec_profile)
     {
-        using namespace Rcpp;
-
         if (infec_profile.is_augmented())
             /// FIXME: I need to reverse parser here + cast to numeric
-            return List::create(
-                _["func"] = CharacterVector(wrap(infec_profile.augm_definitions.at("func"))),
-                _["func_args"] = CharacterVector(wrap(infec_profile.augm_definitions.at("func"))),
-                _["min"] = CharacterVector(wrap(infec_profile.augm_definitions.at("min"))),
-                _["max"] = CharacterVector(wrap(infec_profile.augm_definitions.at("max"))),
-                _["discr"] = CharacterVector(wrap(infec_profile.augm_definitions.at("discr"))));
+            return Rcpp::List::create(
+                Rcpp::_["func"] = Rcpp::CharacterVector(Rcpp::wrap(infec_profile.augm_definitions.at("func"))),
+                Rcpp::_["func_args"] = Rcpp::CharacterVector(Rcpp::wrap(infec_profile.augm_definitions.at("func"))),
+                Rcpp::_["min"] = Rcpp::CharacterVector(Rcpp::wrap(infec_profile.augm_definitions.at("min"))),
+                Rcpp::_["max"] = Rcpp::CharacterVector(Rcpp::wrap(infec_profile.augm_definitions.at("max"))),
+                Rcpp::_["discr"] = Rcpp::CharacterVector(Rcpp::wrap(infec_profile.augm_definitions.at("discr"))));
 
         if (!infec_profile.generic)
-            return List::create();
+            return Rcpp::List::create();
 
         // NOTE: arguments should not be polymorphic when called here
-        return List::create(_["func"] = std::string(infec_profile.generic->name()),
-                            _["func_args"] = rcpp_export_args(infec_profile.generic.get()),
-                            _["min"] = hsp_to_rcpp(infec_profile.generic->lower()),
-                            _["max"] = hsp_to_rcpp(infec_profile.generic->upper()),
-                            _["discr"] = infec_profile.generic->is_discrete());
+        return Rcpp::List::create(
+            Rcpp::_["func"] = std::string(infec_profile.generic->name()),
+            Rcpp::_["func_args"] = rcpp_export_args(infec_profile.generic.get()),
+            Rcpp::_["min"] = hsp_to_rcpp(infec_profile.generic->lower()),
+            Rcpp::_["max"] = hsp_to_rcpp(infec_profile.generic->upper()),
+            Rcpp::_["discr"] = infec_profile.generic->is_discrete());
     }
 
     /// Export current setup configurations to R List.
     Rcpp::List export_setup(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
-        using namespace Rcpp;
         const Setup &setup = mcmc_ptr->setup;
 
-        return List::create(_["steps"] = setup.n_steps,
-                            _["burnin"] = setup.n_burnin,
-                            _["thin"] = setup.n_thin,
-                            _["adapt"] = setup.n_adapt,
-                            _["chains"] = setup.n_chains,
-                            _["threads"] = setup.n_threads,
-                            _["id_draws"] = CharacterVector(wrap(setup.id_draws)),
-                            _["seed"] = setup.seed,
-                            _["progress"] = setup.progress);
+        return Rcpp::List::create(
+            Rcpp::_["steps"] = setup.n_steps,
+            Rcpp::_["burnin"] = setup.n_burnin,
+            Rcpp::_["thin"] = setup.n_thin,
+            Rcpp::_["adapt"] = setup.n_adapt,
+            Rcpp::_["chains"] = setup.n_chains,
+            Rcpp::_["threads"] = setup.n_threads,
+            Rcpp::_["id_draws"] = Rcpp::CharacterVector(Rcpp::wrap(setup.id_draws)),
+            Rcpp::_["seed"] = setup.seed,
+            Rcpp::_["progress"] = setup.progress);
     }
 
     Rcpp::List export_infec_profile(Rcpp::XPtr<MCMC> mcmc_ptr)
@@ -578,7 +571,6 @@ namespace
     /// Export current data configurations to R DataFrame.
     Rcpp::DataFrame summarise_cases(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
-        using namespace Rcpp;
         const DataWide &data_wide = mcmc_ptr->data_wide;
         const ReportIndividual &report_indiv = data_wide.report_indiv;
         const ReportHousehold &report_house = data_wide.report_house;
@@ -588,13 +580,12 @@ namespace
             if (data_wide.is_empty())
                 msg::warning("Called 'summarise_cases' on empty data.");
 
-            CharacterVector type = wrap(std::vector<std::string>(4, "individual") +
-                                        std::vector<std::string>(4, "household"));
-            size_t n_rows = type.size();
-            CharacterVector comment = {"total", "missing", "not infected", "infected",
-                                       "total", "no cases", "at least 1 case", "at least 2 cases"};
-            IntegerVector counts(n_rows);
-            NumericVector pct(n_rows);
+            Rcpp::CharacterVector type = Rcpp::wrap(std::vector<std::string>(4, "individual") +
+                                                    std::vector<std::string>(4, "household"));
+            Rcpp::CharacterVector comment = {"total", "missing", "not infected", "infected",
+                                             "total", "no cases", "at least 1 case", "at least 2 cases"};
+            Rcpp::IntegerVector counts(type.size());
+            Rcpp::NumericVector pct(type.size());
 
             counts[0] = report_indiv.total;
             pct[0] = 100.;
@@ -619,10 +610,11 @@ namespace
             counts[7] = report_house.at_least_2_cases;
             pct[7] = format_percentage(report_house.at_least_2_cases, report_house.total);
 
-            return DataFrame::create(_["type"] = std::move(type),
-                                     _["comment"] = std::move(comment),
-                                     _["counts"] = std::move(counts),
-                                     _["pct"] = std::move(pct));
+            return Rcpp::DataFrame::create(
+                Rcpp::_["type"] = std::move(type),
+                Rcpp::_["comment"] = std::move(comment),
+                Rcpp::_["counts"] = std::move(counts),
+                Rcpp::_["pct"] = std::move(pct));
         }
         catch (const std::exception &e)
         {
@@ -638,17 +630,16 @@ namespace
     /// Export current data configurations to R DataFrame.
     Rcpp::DataFrame summarise_house_sizes(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
-        using namespace Rcpp;
         const DataWide &data_wide = mcmc_ptr->data_wide;
         const ReportIndividual &report_indiv = data_wide.report_indiv;
         const ReportHouseSizes &report_hh_size = data_wide.report_hh_size;
 
         try
         {
-            CharacterVector comment({"max cases", "max miss", "min size", "max size"});
-            size_t n_rows = comment.size();
-            IntegerVector value(n_rows), counts(n_rows);
-            NumericVector pct(n_rows);
+            Rcpp::CharacterVector comment({"max cases", "max miss", "min size", "max size"});
+            R_xlen_t n_rows = comment.size();
+            Rcpp::IntegerVector value(n_rows), counts(n_rows);
+            Rcpp::NumericVector pct(n_rows);
 
             value[0] = report_hh_size.max_cases.first;
             counts[0] = report_hh_size.max_cases.second;
@@ -666,10 +657,11 @@ namespace
             counts[3] = report_hh_size.max_size.second;
             pct[3] = format_percentage(counts[3], report_indiv.total);
 
-            return DataFrame::create(_["comment"] = std::move(comment),
-                                     _["value"] = std::move(value),
-                                     _["counts"] = std::move(counts),
-                                     _["pct"] = std::move(pct));
+            return Rcpp::DataFrame::create(
+                Rcpp::_["comment"] = std::move(comment),
+                Rcpp::_["value"] = std::move(value),
+                Rcpp::_["counts"] = std::move(counts),
+                Rcpp::_["pct"] = std::move(pct));
         }
         catch (const std::exception &e)
         {
@@ -685,14 +677,13 @@ namespace
     /// Export MCMC draws of total log-likelihood posterior samples.
     Rcpp::NumericMatrix flush_total_log_lik_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
-        using namespace Rcpp;
         TotalLogLike &tot_log_lik = mcmc_ptr->tot_log_lik;
 
         try
         {
-            NumericMatrix output(tot_log_lik.count(), 1);
-            helper_vector_flush(output(_, 0), tot_log_lik.smpl_values);
-            colnames(output) = CharacterVector({"log_lik"});
+            Rcpp::NumericMatrix output(tot_log_lik.count(), 1);
+            helper_vector_flush(output(Rcpp::_, 0), tot_log_lik.smpl_values);
+            colnames(output) = Rcpp::CharacterVector({"log_lik"});
             return output;
         }
         catch (const std::exception &e)
@@ -705,21 +696,20 @@ namespace
     /// Export MCMC draws of parameter values posterior samples.
     Rcpp::NumericMatrix flush_param_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
-        using namespace Rcpp;
         Parameter &param = mcmc_ptr->param;
         const TotalLogLike &tot_log_lik = mcmc_ptr->tot_log_lik;
 
         if (param.list_sample.empty())
-            return NumericMatrix();
+            return Rcpp::NumericMatrix();
 
         try
         {
             size_t n_cols = param.list_sample.size();
-            CharacterVector headers = wrap(param.pRegistry->as_string(param.list_sample));
-            NumericMatrix output(tot_log_lik.count(), n_cols);
+            Rcpp::CharacterVector headers = Rcpp::wrap(param.pRegistry->as_string(param.list_sample));
+            Rcpp::NumericMatrix output(tot_log_lik.count(), n_cols);
 
             for (size_t c = 0; c < n_cols; ++c)
-                helper_vector_flush(output(_, c), param.smpl_values[c]);
+                helper_vector_flush(output(Rcpp::_, c), param.smpl_values[c]);
 
             colnames(output) = std::move(headers);
             param.smpl_values.clear();
@@ -735,24 +725,23 @@ namespace
     /// Export MCMC draws of parameter log-priors posterior samples.
     Rcpp::NumericMatrix flush_param_lprior_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
-        using namespace Rcpp;
         Parameter &param = mcmc_ptr->param;
         const TotalLogLike &tot_log_lik = mcmc_ptr->tot_log_lik;
 
         if (param.list_sample.empty())
-            return NumericMatrix();
+            return Rcpp::NumericMatrix();
 
         try
         {
             size_t n_cols = param.list_sample.size();
-            CharacterVector headers(n_cols);
-            NumericMatrix output(tot_log_lik.count(), n_cols);
+            Rcpp::CharacterVector headers(n_cols);
+            Rcpp::NumericMatrix output(tot_log_lik.count(), n_cols);
 
             size_t c = 0;
             for (size_t p : param.list_sample)
             {
                 headers[c] = "lprior_" + param.pRegistry->as_string(p);
-                helper_vector_flush(output(_, c), param.smpl_priors[c]);
+                helper_vector_flush(output(Rcpp::_, c), param.smpl_priors[c]);
                 ++c;
             }
             colnames(output) = std::move(headers);
@@ -769,12 +758,11 @@ namespace
     /// Export MCMC draws of augmented posterior samples.
     Rcpp::NumericMatrix flush_augm_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
-        using namespace Rcpp;
         Augmented &augm = mcmc_ptr->augm;
         const TotalLogLike &tot_log_lik = mcmc_ptr->tot_log_lik;
 
         if (augm.smpl_values.empty())
-            return NumericMatrix();
+            return Rcpp::NumericMatrix();
 
         try
         {
@@ -782,8 +770,8 @@ namespace
             for (const Individual *member : augm.smpl_individuals)
                 n_cols += augm.list_draws(*member).size();
 
-            CharacterVector headers(n_cols);
-            NumericMatrix output(tot_log_lik.count(), n_cols);
+            Rcpp::CharacterVector headers(n_cols);
+            Rcpp::NumericMatrix output(tot_log_lik.count(), n_cols);
 
             size_t col = 0;
             for (size_t i = 0; i < augm.smpl_values.size(); ++i)
@@ -795,7 +783,7 @@ namespace
                 for (size_t a : augm.list_draws(member))
                 {
                     headers[col] = member.id() + "_" + augm.pRegistry->as_string(a);
-                    helper_vector_flush(output(_, col++), member_matrix[j++]);
+                    helper_vector_flush(output(Rcpp::_, col++), member_matrix[j++]);
                 }
             }
 
@@ -813,19 +801,18 @@ namespace
     /// Export all sampled values of the log-likelihood for all household.
     Rcpp::NumericMatrix flush_house_log_lik_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
-        using namespace Rcpp;
         DataWide &data_wide = mcmc_ptr->data_wide;
         const TotalLogLike &tot_log_lik = mcmc_ptr->tot_log_lik;
 
         try
         {
             if (data_wide.smpl_values.empty())
-                return NumericMatrix();
+                return Rcpp::NumericMatrix();
 
             // create a NumericMatrix with n_house columns
             size_t n_houses = data_wide.report_house.total;
-            NumericMatrix output(tot_log_lik.count(), n_houses);
-            CharacterVector headers(n_houses);
+            Rcpp::NumericMatrix output(tot_log_lik.count(), n_houses);
+            Rcpp::CharacterVector headers(n_houses);
 
             // retrieve restricted index by general index of multiplicity head class
             size_t n_classes = data_wide.restricted_size();
@@ -843,7 +830,7 @@ namespace
                 std::vector<double> &src = data_wide.smpl_values[R];
 
                 for (size_t H : house_classes[R])
-                    std::copy(src.begin(), src.end(), output(_, H).begin());
+                    std::copy(src.begin(), src.end(), output(Rcpp::_, H).begin());
                 std::vector<double>().swap(src);
             }
             colnames(output) = std::move(headers);
@@ -885,17 +872,16 @@ namespace
     Rcpp::DataFrame helper_data_wide_rcpp_snapshot(const DataWide &data_wide,
                                                    const Household &house)
     {
-        using namespace Rcpp;
         const std::vector<std::string> &headers = data_wide.pRegistry->get_all();
 
         size_t n_rows = house.size();
-        CharacterVector id_col = CharacterVector(n_rows);
-        CharacterVector house_id_col = CharacterVector(n_rows);
-        IntegerVector status_col = IntegerVector(n_rows);
+        Rcpp::CharacterVector id_col(n_rows);
+        Rcpp::CharacterVector house_id_col(n_rows);
+        Rcpp::IntegerVector status_col(n_rows);
 
-        std::vector<NumericVector> df_double(headers.size());
+        std::vector<Rcpp::NumericVector> df_double(headers.size());
         for (size_t d = 0; d < headers.size(); ++d)
-            df_double[d] = NumericVector(n_rows);
+            df_double[d] = Rcpp::NumericVector(n_rows);
 
         for (const Individual &member : house)
         {
@@ -908,9 +894,10 @@ namespace
                 df_double[d][i] = hsp_to_rcpp(member.data(d));
         }
 
-        auto output = DataFrame::create(_["id"] = std::move(id_col),
-                                        _["house_id"] = std::move(house_id_col),
-                                        _["status"] = std::move(status_col));
+        auto output = Rcpp::DataFrame::create(
+            Rcpp::_["id"] = std::move(id_col),
+            Rcpp::_["house_id"] = std::move(house_id_col),
+            Rcpp::_["status"] = std::move(status_col));
         for (size_t d = 0; d < headers.size(); ++d)
             output.push_back(df_double[d], headers[d]);
 
@@ -996,19 +983,17 @@ namespace
     Rcpp::List helper_infec_profile_rcpp_snapshot(const InfecProfile &infec_profile,
                                                   const Household &house)
     {
-        using namespace Rcpp;
-
         if (!infec_profile.generic && !infec_profile.is_augmented())
-            return List::create();
+            return Rcpp::List::create();
 
         size_t n_rows = house.size();
-        CharacterVector id_col(n_rows);
+        Rcpp::CharacterVector id_col(n_rows);
 
-        CharacterVector infprof_name(n_rows, NA_STRING);
-        LogicalVector infprof_discr(n_rows, NA_LOGICAL);
-        List infprof_args(n_rows, NumericVector(0));
-        NumericVector infprof_min(n_rows, NA_REAL);
-        NumericVector infprof_max(n_rows, NA_REAL);
+        Rcpp::CharacterVector infprof_name(n_rows, NA_STRING);
+        Rcpp::LogicalVector infprof_discr(n_rows, NA_LOGICAL);
+        Rcpp::List infprof_args(n_rows, Rcpp::NumericVector(0));
+        Rcpp::NumericVector infprof_min(n_rows, NA_REAL);
+        Rcpp::NumericVector infprof_max(n_rows, NA_REAL);
 
         for (size_t i = 0; i < house.size(); ++i)
             id_col[i] = house.member(i).id();
@@ -1026,20 +1011,21 @@ namespace
             }
             else
             {
-                List generic = helper_export_infec_profile(infec_profile);
-                infprof_name[i] = as<std::string>(generic["func"]);
-                infprof_discr[i] = as<bool>(generic["discr"]);
+                Rcpp::List generic = helper_export_infec_profile(infec_profile);
+                infprof_name[i] = Rcpp::as<std::string>(generic["func"]);
+                infprof_discr[i] = Rcpp::as<bool>(generic["discr"]);
                 infprof_args[i] = generic["func_args"];
-                infprof_min[i] = as<double>(generic["min"]);
-                infprof_max[i] = as<double>(generic["max"]);
+                infprof_min[i] = Rcpp::as<double>(generic["min"]);
+                infprof_max[i] = Rcpp::as<double>(generic["max"]);
             }
 
-        return List::create(_["id"] = id_col,
-                            _["discr"] = infprof_discr,
-                            _["func"] = infprof_name,
-                            _["func_args"] = infprof_args,
-                            _["min"] = infprof_min,
-                            _["max"] = infprof_max);
+        return Rcpp::List::create(
+            Rcpp::_["id"] = id_col,
+            Rcpp::_["discr"] = infprof_discr,
+            Rcpp::_["func"] = infprof_name,
+            Rcpp::_["func_args"] = infprof_args,
+            Rcpp::_["min"] = infprof_min,
+            Rcpp::_["max"] = infprof_max);
     }
 
     Rcpp::DataFrame helper_augm_log_lik_rcpp_snapshot(const Augmented &augm, const Household &house)
@@ -1115,24 +1101,22 @@ namespace
     /// Export a list containing all relevant information for a debug.
     Rcpp::List export_house_snapshot(Rcpp::XPtr<MCMC> mcmc_ptr, const std::string &house_id)
     {
-        using namespace Rcpp;
-
         try
         {
             if (mcmc_ptr->data_wide.is_empty())
-                return List::create();
+                return Rcpp::List::create();
 
             const Household &house = mcmc_ptr->data_wide.at(house_id);
 
-            return List::create(
-                _["obs_log_lik"] = house.obs_log_lik(),
-                _["augm_log_lik"] = helper_augm_log_lik_rcpp_snapshot(mcmc_ptr->augm, house),
-                _["param"] = helper_param_rcpp_snapshot(mcmc_ptr->param),
-                _["data_wide"] = helper_data_wide_rcpp_snapshot(mcmc_ptr->data_wide, house),
-                _["data_long"] = helper_data_long_rcpp_snapshot(mcmc_ptr->data_long, house),
-                _["group_rate"] = helper_group_rates_rcpp_snapshot(mcmc_ptr->group_rate, house),
-                _["infec_profile"] = helper_infec_profile_rcpp_snapshot(mcmc_ptr->infec_profile, house),
-                _["augm"] = helper_augm_rcpp_snapshot(mcmc_ptr->augm, house));
+            return Rcpp::List::create(
+                Rcpp::_["obs_log_lik"] = house.obs_log_lik(),
+                Rcpp::_["augm_log_lik"] = helper_augm_log_lik_rcpp_snapshot(mcmc_ptr->augm, house),
+                Rcpp::_["param"] = helper_param_rcpp_snapshot(mcmc_ptr->param),
+                Rcpp::_["data_wide"] = helper_data_wide_rcpp_snapshot(mcmc_ptr->data_wide, house),
+                Rcpp::_["data_long"] = helper_data_long_rcpp_snapshot(mcmc_ptr->data_long, house),
+                Rcpp::_["group_rate"] = helper_group_rates_rcpp_snapshot(mcmc_ptr->group_rate, house),
+                Rcpp::_["infec_profile"] = helper_infec_profile_rcpp_snapshot(mcmc_ptr->infec_profile, house),
+                Rcpp::_["augm"] = helper_augm_rcpp_snapshot(mcmc_ptr->augm, house));
         }
         catch (const std::exception &e)
         {
@@ -1196,9 +1180,10 @@ namespace
         return Rcpp::DataFrame(output);
     }
 
-    /// Perform simulation and return simulated data.
+    /// Perform simulation and return simulated data with separate wide and long post-processing.
     Rcpp::List run_simulation(Rcpp::XPtr<MCMC> mcmc_ptr,
-                              Rcpp::Function post_process_wide)
+                              Rcpp::Nullable<Rcpp::Function> apply_wide,
+                              Rcpp::Nullable<Rcpp::Function> apply_long)
     {
         MCMC &engine = *mcmc_ptr;
         const Augmented &augm = engine.augm;
@@ -1213,19 +1198,38 @@ namespace
 
             data_wide.assert_non_empty();              // check if data is empty
             engine.model->init_model_for_simulation(); // model specific initialization
-            Rcpp::List output(setup.n_steps);          // allocate memory for results
             const Rcpp::List shared_df = helper_export_data_wide(data_wide, shared_names, false);
+
+            // UPDATE: only work-around I found for NULL functions...
+            std::unique_ptr<Rcpp::Function> func_wide, func_long;
+            // allocate memory for results
+            Rcpp::List out_wide, out_long;
+            if (!apply_wide.isNull())
+            {
+                out_wide = Rcpp::List(setup.n_steps);
+                func_wide = std::make_unique<Rcpp::Function>(apply_wide);
+            }
+            if (!apply_long.isNull())
+            {
+                out_long = Rcpp::List(setup.n_steps);
+                func_long = std::make_unique<Rcpp::Function>(apply_long);
+            }
 
             setup.prog_open_for_simulation();
             for (size_t r = 0; r < setup.n_steps; ++r, setup.prog_update())
             {
                 engine.param.load_sample_values(r);
-                Rcpp::DataFrame simul_wide = helper_simulate_single_repe_(engine, shared_df);
-                output[r] = post_process_wide(simul_wide);
+                Rcpp::DataFrame simulated = helper_simulate_single_repe_(engine, shared_df);
+
+                if (func_wide)
+                    out_wide[r] = (*func_wide)(simulated);
+                if (func_long)
+                    out_long[r] = (*func_long)(simulated);
             }
             setup.prog_close();
 
-            return output;
+            return Rcpp::List::create(Rcpp::_["wide"] = out_wide,
+                                      Rcpp::_["long"] = out_long);
         }
         catch (std::exception &e)
         {
@@ -1248,27 +1252,27 @@ namespace
     /// Stat Comput 24, 709–723 (2014).
     Rcpp::List log_evidence(Rcpp::XPtr<MCMC> mcmc_ptr, const std::string &scheme, unsigned long n_rungs)
     {
-        using namespace Rcpp;
-
-        double output = 0;
-        const auto pp = engine->power_posteriors(scheme, n_rungs);
+        MCMC &engine = *mcmc_ptr;
+        const auto pp = engine.power_posteriors(scheme, n_rungs);
         const std::vector<double> &inv_tem = pp[0];
         const std::vector<double> &avg_vec = pp[1];
         const std::vector<double> &var_vec = pp[2];
 
-        for (unsigned long k = 0; k < engine->setup.n_rungs; ++k)
+        double output = 0;
+        for (unsigned long k = 0; k < engine.setup.n_rungs; ++k)
         {
             double d_inv_tem = inv_tem[k + 1] - inv_tem[k];
             output += (avg_vec[k + 1] + avg_vec[k]) * d_inv_tem / 2.;
             output += (var_vec[k] - var_vec[k + 1]) * d_inv_tem * d_inv_tem / 12.;
         }
 
-        return List::create(_["estimate"] = output,
-                            _["scheme"] = scheme,
-                            _["n_rungs"] = engine->setup.c_sample_size,
-                            _["inv_temper"] = wrap(inv_tem),
-                            _["mean_log_lik"] = wrap(avg_vec),
-                            _["var_log_lik"] = wrap(var_vec));
+        return Rcpp::List::create(
+            Rcpp::_["estimate"] = output,
+            Rcpp::_["scheme"] = scheme,
+            Rcpp::_["n_rungs"] = engine->setup.c_sample_size,
+            Rcpp::_["inv_temper"] = Rcpp::wrap(inv_tem),
+            Rcpp::_["mean_log_lik"] = Rcpp::wrap(avg_vec),
+            Rcpp::_["var_log_lik"] = Rcpp::wrap(var_vec));
     }
     */
 

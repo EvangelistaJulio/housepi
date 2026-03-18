@@ -28,8 +28,7 @@ namespace hsp
             value_ = new_ll;
 
             if (hsp::na::is(new_ll))
-                throw std::runtime_error(
-                    "Log-likelihood computation returned NaN value.");
+                raise_nan_error_();
         }
         /// Increment log-likelihood by a delta. Store old value.
         /// Raise exception if new value is a NaN.
@@ -41,5 +40,12 @@ namespace hsp
     protected:
         double value_ = 0.; /// Current log-likelihood
         double old_ = 0.;   /// Old log-likelihood
+
+    private:
+        [[noreturn]] void raise_nan_error_() const
+        {
+            throw std::runtime_error(
+                "Log-likelihood computation returned NaN value.");
+        }
     };
 }

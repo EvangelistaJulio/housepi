@@ -86,5 +86,9 @@ namespace hsp
 		LogLike augm_log_lik_;				  /// augmented model log-likelihood
 
 		AugmContainer() = default;
+		AugmContainer(const AugmContainer &) = default;
+		AugmContainer &operator=(const AugmContainer &) = default;
+		AugmContainer(AugmContainer &&) = default;
+		AugmContainer &operator=(AugmContainer &&) = default;
 	};
 }

@@ -251,4 +251,23 @@ namespace hsp
                 "Attempted to initialize function attribute of " + err_name() + ".");
         }
     }
+
+    void Attribute::raise_set_error_() const
+    {
+        std::string sms = "Tried to change non numeric ";
+        if (na::is(name()))
+            sms += "empty " + err_type_;
+        else 
+            sms += err_name();
+        throw std::runtime_error(sms + ".");
+    }
+    void Attribute::raise_get_error_() const
+    {
+        std::string sms = "Impossible to return value for ";
+        if (na::is(name()))
+            sms += "empty " + err_type_;
+        else 
+            sms += err_name();
+        throw std::runtime_error(sms + ".");
+    }
 }

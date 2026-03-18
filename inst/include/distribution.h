@@ -10,7 +10,6 @@
 #include <cstdint>
 #include <memory>
 #include <random>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -75,26 +74,22 @@ namespace hsp
 
 		/// Raw random sampling method of the distribution.
 		/// @param prng : pseudo-random number generator.
-		virtual double raw_rand_(rnd_gen &) const { throw std::invalid_argument(
-			"Called undefined method 'rand' of " + err_name() + "."); }
+		virtual double raw_rand_(rnd_gen &) const { raise_undefined_call_err_("rand"); }
 
 		/// Raw probability density/mass function of the distribution.
 		virtual double raw_pdf_(double) const = 0;
 
 		/// Raw log-probability density/mass function of the distribution.
-		virtual double raw_log_pdf_(double) const { throw std::invalid_argument(
-			"Called to undefined method 'log_pdf' of " + err_name() + "."); }
+		virtual double raw_log_pdf_(double) const { raise_undefined_call_err_("log_pdf"); }
 
 		/// Raw cumulative distribution function.
 		virtual double raw_cdf_(double) const = 0;
 
 		/// Raw quantile.
-		virtual double raw_quantile_(double) const { throw std::invalid_argument(
-			"Called to undefined method 'quantile' of " + err_name() + "."); }
+		virtual double raw_quantile_(double) const { raise_undefined_call_err_("quantile"); }
 
 		/// Raw method to call.
-		double raw_function_(double) const override final { throw std::runtime_error(
-			"Forbbiden call to raw_function_ for " + err_name() + "\n"); }
+		double raw_function_(double) const override final { raise_undefined_call_err_("function"); }
 
 		/// Polymorphic function method.
 		double function_(double x) const override final

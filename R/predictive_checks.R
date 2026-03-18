@@ -208,16 +208,20 @@ HousepiPrediction <- R6::R6Class(
     #' performs simulation and compute predicted values of a set of measures.
     #' @param hhmodel `r rd_model_in_`
     #' @param param_table `r rd_param_table_`
-    #' @param ... `r rd_measure_dots_`
     #' @param obs_process `r rd_simul_observ_`
+    #' @param obs_process_long `r rd_simul_obs_long_`
+    #' @param ... `r rd_measure_dots_`
+    #' @param measures_long `r rd_measure_long_`
     #' @param threads `r rd_thread_`
     #' @param seed `r rd_seed_`
     #' @param progress `r rd_progress_`
     #' @param cri_level `r rd_smpl_cri_level_`
     initialize = function(hhmodel,
                           param_table,
-                          ...,
                           obs_process = NULL,
+                          obs_process_long = NULL,
+                          ...,
+                          measures_long = NULL,
                           threads = 1,
                           seed = NA_integer_,
                           progress = TRUE,
@@ -225,38 +229,78 @@ HousepiPrediction <- R6::R6Class(
       # associate credible interval
       private$cri_level_ <- ppc_set_cri_level(cri_level)
 
-      # load measure functions
-      measure <- list(...)
-      if (is.null(measure)) stop_h("No measure was provided.")
+      # load and classify measure functions (wide vs long)
+      m_wide <- list(...)
+      has_wide <- length(m_wide) > 0
+      # FIXME this breaks if it's already list
+      m_long <- list()
+      if (!is.null(measures_long)) m_long <- list(measures_long)
+      has_long <- length(m_long) > 0
 
-      # initialize with results from observed data as a test
-      apply_measure <- function(x) lapply(measure, function(func) func(x))
-      store_observed <- apply_measure(hhmodel$data_wide)
+      if (has_wide && has_long) stop_h("No measure was provided.")
+      # FIXME: temporary forcing obs process long
+      if (has_long && is.null(obs_process_long)) stop_h(
+        "obs_process_long is required when long measures are provided."
+      )
+
+      # store (and test) results from observed data wide and/or long
+      observations <- list()
+
+      # wide-measure application
+      apply_wide <- NULL
+      if (has_wide) {
+        observations <- c(
+          observations, lapply(m_wide, function(func) func(hhmodel$data_wide))
+        )
+        apply_wide <- function(x) lapply(m_wide, function(func) func(x))
+      }
+      # long-measure application
+      apply_long <- NULL
+      if (has_long) {
+        observations <- c(
+          observations, lapply(m_long, function(func) func(hhmodel$data_long))
+        )
+        apply_long <- function(x) lapply(m_long, function(func) func(x))
+      }
+
       # check measures
-      if (any(lapply(store_observed, NROW) == 0)) stop_h(sprintf(
-        "Measure %s returned empty observation.",
-        character_to_string_list(names(store_observed[unlist(store_observed)]))
-      ))
+      if (any(lapply(observations, NROW) == 0)) stop_h(
+        "One or more measures returned empty observation on data."
+      )
 
       # run measures on posterior simulations
-      # NOTE: the only way I found is call to private HousepiModel method
-      output <-  hhmodel$.__enclos_env__$private$run_measure_(
-        param_table, apply_measure, obs_process = obs_process,
-        threads = threads, seed = seed, progress = progress
+      output <- hhmodel$.__enclos_env__$private$run_measure_(
+        param_table,
+        apply_wide = apply_wide,
+        apply_long = apply_long,
+        obs_proc_wide = obs_process,
+        obs_proc_long = obs_process_long,
+        threads = threads,
+        seed = seed,
+        progress = progress
       )
 
       # parse results
-      output <- lapply(names(measure), function(x) lapply(output, `[[`, x))
-      predictions <- lapply(output, ppc_extract_predicted_results,
+      all_measure_names <- c(names(m_wide), names(m_long))
+
+      parsed <- c()
+      if (has_wide) parsed <- c(parsed,
+        lapply(names(m_wide), function(x) lapply(output$wide, `[[`, x))
+      )
+      if (has_long) parsed <- c(parsed,
+        lapply(names(m_long), function(x) lapply(output$long, `[[`, x))
+      )
+      names(parsed) <- all_measure_names # UPDATE: not necessary...?
+
+      predictions <- lapply(parsed, ppc_extract_predicted_results,
                             cri = private$cri_level_)
-      names(predictions) <- names(measure)
 
       # change environment according to measures
-      for (measure_name in names(measure)) self[[measure_name]] <- list(
-        observed = store_observed[[measure_name]],
-        predicted = predictions[[measure_name]]$predicted,
-        cri_lower = predictions[[measure_name]]$cri_lower,
-        cri_upper = predictions[[measure_name]]$cri_upper
+      for (mn in all_measure_names) self[[mn]] <- list(
+        observed = observations[[mn]],
+        predicted = predictions[[mn]]$predicted,
+        cri_lower = predictions[[mn]]$cri_lower,
+        cri_upper = predictions[[mn]]$cri_upper
       )
       # restore locked environment
       lockEnvironment(self, bindings = TRUE)
@@ -265,7 +309,7 @@ HousepiPrediction <- R6::R6Class(
         hhmodel$name,
         inherits(param_table, "HousepiPosteriorDraws") ||
           posterior::is_draws(param_table),
-        names(measure),
+        all_measure_names,
         private$cri_level_
       )
 
@@ -523,6 +567,7 @@ PredictedCasesBySize <- R6::R6Class(
 #' @param param_table `r rd_param_table_`
 #' @param ... `r rd_measure_dots_`
 #' @param obs_process `r rd_simul_observ_`
+#' @param obs_process_long `r rd_simul_obs_long_`
 #' @param threads `r rd_thread_`
 #' @param seed `r rd_seed_`
 #' @param progress `r rd_progress_`
@@ -533,12 +578,14 @@ predicted_measures <- function(hhmodel,
                                param_table,
                                ...,
                                obs_process = NULL,
+                               obs_process_long = NULL,
                                threads = 1,
                                seed = NA_character_,
                                progress = TRUE) {
   stopifnothousepi(hhmodel)
   HousepiPrediction$new(hhmodel$copy(), param_table, ...,
                         obs_process = obs_process,
+                        obs_process_long = obs_process_long,
                         threads = threads, seed = seed,
                         progress = progress)
 }

@@ -34,7 +34,6 @@ namespace hsp
 		///////////////////////////
 
 		Individual() = default;
-		~Individual() = default;
 
 		/////////////////////////
 		//////  OPERATORS  //////

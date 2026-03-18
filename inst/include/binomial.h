@@ -15,7 +15,7 @@ namespace hsp::bino
     void init_generations_lookuptable(unsigned max_N);
 
     unsigned long get_num_generations(unsigned n_positive);
-    std::vector<unsigned> get_generation_vector(unsigned n_positive, unsigned long i);
+    const std::vector<unsigned> &get_generation_vector(unsigned n_positive, unsigned long i);
     unsigned long get_generation_multipl(unsigned n_positive, unsigned long i);
 
     /// Recursive likelihood formulation lookuptable.

@@ -10,7 +10,6 @@
 #include <cstdint>
 #include <cmath>
 #include <memory>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -85,8 +84,7 @@ namespace hsp
                 return;
             case Mode::Pointer:
             case Mode::Function:
-                throw std::runtime_error(
-                    "Tried to change non numeric " + err_name() + ".");
+                raise_set_error_();
             }
             __builtin_unreachable();
         }
@@ -182,6 +180,9 @@ namespace hsp
         double value_ = na::DOUBLE;                 /// internal value
         const Attribute *pAttr_ = nullptr;          /// pointer to attribute
         std::unique_ptr<Function> pFunc_ = nullptr; /// pointer to function
+
+        [[noreturn]] void raise_set_error_() const;
+        [[noreturn]] void raise_get_error_() const;
     };
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -252,8 +253,7 @@ namespace hsp
         //////////////////////
 
         /// Virtual function to initialize discretization.
-        virtual void init_discretization() { throw std::invalid_argument(
-            "Called undefined method discretization of " + err_name() + "."); }
+        virtual void init_discretization() { raise_undefined_call_err_("discretization"); }
 
         /// Virtual function to initialize truncation.
         /// NOTE: always to be called ONLY after init_discretization.
@@ -393,7 +393,11 @@ namespace hsp
         Attribute lower_ = Attribute();         /// lower bound
         Attribute upper_ = Attribute();         /// upper bound
 
-        /// Find attribute and return. If doesn't exists, return an empty attribute.
+        /// Helper to raise call if undefined virtual methods are called.
+        [[noreturn]] void raise_undefined_call_err_(const std::string &call_name) const;
+
+        /// Find attribute and return its reference.
+        /// If doesn't exists, return an empty attribute.
         virtual Attribute &find_arg_(std::string_view arg_name);
 
         /////////////////////////////////////////////////////////////////////////////////////////////
@@ -403,11 +407,9 @@ namespace hsp
         /// Raw method to call.
         virtual double raw_function_(double) const = 0;
         /// Raw method to call log-function.
-        virtual double raw_log_func_(double) const { throw std::invalid_argument(
-            "Called undefined method 'log_func' of " + err_name() + "."); }
+        virtual double raw_log_func_(double) const { raise_undefined_call_err_("log_func"); }
         /// Raw primitive method.
-        virtual double raw_primitive_(double) const { throw std::invalid_argument(
-            "Called undefined method 'primitive' of " + err_name() + "."); }
+        virtual double raw_primitive_(double) const { raise_undefined_call_err_("primitive"); }
         /// Raw log-ratio method. NOTE: empty function return 0 by convention.
         virtual double raw_log_ratio_(double, double) const { return 0.; }
 
@@ -557,8 +559,7 @@ namespace hsp
         switch (mode_)
         {
         case Mode::Empty:
-            throw std::runtime_error(
-                "Impossible to return value for " + err_name() + ".");
+            raise_get_error_();
         case Mode::Numeric:
             return value_;
         case Mode::Pointer:
