@@ -17,6 +17,8 @@
 #include "tools/random.h"
 #include "tools/types.h"
 
+#include "indiv_storage.h"
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  *** Augmented : struct ***  /////////////////////////////////
@@ -64,9 +66,10 @@ namespace hsp
         /// Assign augmented variables to all individuals.
         void build(const str_table &input);
 
-        /// Assign augmented variables only if missing.
-        /// If force is true, re-initialize all augmented variables.
-        void init_missing(Individual &member, bool force = false);
+        /// Set all definition to empty. Used in simulations.
+        void clear_all();
+        /// Initialize augmented variables only if missing.
+        void init_missing(Individual &member);
         /// Initialize augmented dependecies for evaluations.
         /// NOTE: not to be called before simulation which builds on demand.
         void init();
@@ -112,10 +115,13 @@ namespace hsp
         bool is_any_draw() const noexcept { return !smpl_individuals.empty(); }
 
     private:
+        std::vector<Indiv::Augm> indiv_augm_; /// External storage for individual augmented data
+
         DataWide *pDataWide_;         /// pointer to external DataWide struct
         Parameter *pParameter_;       /// pointer to external Parameter struct
         InfecProfile *pInfecProfile_; /// pointer to external InfecProfile struct
-        str_table deftable_ = {};     /// store definition table
+
+        str_table deftable_ = {}; /// store definition table (no names)
 
         bool is_any_sample_ = false; /// whether at least one augmented model is provided
         bool is_any_model_ = false;  /// whether at least one augmented model is provided
@@ -143,6 +149,12 @@ namespace hsp
             std::vector<std::vector<size_t>> depen = {}; /// keys for respective dependecies
         };
         std::vector<StatusBlock_> status_blocks_;
+
+        /// Allocate external augmented storage and set paugm_ pointers on all individuals.
+        void helper_build_allocate_storage_();
+
+        /// Check augmented names and assert no reserved names are used.
+        void helper_assert_augm_input_(const str_table &input);
 
         /// Eventually append infectivity profile definitions.
         void helper_build_append_infec_profile_();

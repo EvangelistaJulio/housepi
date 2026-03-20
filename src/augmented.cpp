@@ -23,7 +23,6 @@
 #include "tools/types.h"
 
 #include "augmented.h"
-#include "augm_container.h"
 #include "data_wide.h"
 #include "function.h"
 #include "household.h"
@@ -41,30 +40,6 @@
 namespace
 {
     using namespace hsp;
-
-    /// Check augmented names and assert no reserved names are used.
-    void helper_assert_augm_input(const str_table &input)
-    {
-        const std::vector<std::string> file_headers = {"name", "status",
-                                                       "func", "fcumul",
-                                                       "value", "const", "discr",
-                                                       "model", "min", "max",
-                                                       "proposal", "proposal_scale"};
-        const std::vector<std::string> headers = read::extract_keys(input);
-        str::assert_no_missing_entries(headers, file_headers);
-        str::assert_no_unused_entries(headers, file_headers);
-
-        for (const std::string &astr : input.at("name"))
-        {
-            if (na::is(astr))
-                throw std::invalid_argument(
-                    "Found an augmented variable with undefined name.");
-            if (astr == infprof::AUGM_FUNC)
-                throw std::invalid_argument(
-                    "Tried to use the reserved augmented name '" +
-                    astr + "'.\nPlease, choose a different one.");
-        }
-    }
 
     /// Helper to build augmented definition order and assert for acyclic.
     void walk_dependency_tree(const std::string &entry,
@@ -156,21 +131,58 @@ namespace hsp
         is_any_sample_ = false;
         is_any_model_ = false;
 
+        indiv_augm_.clear();
         pRegistry->clear();
         map_status_to_def_row_.clear();
         map_status_to_block_.clear();
         status_blocks_.clear();
         list_export.clear();
 
+        // UPDATE: I am allocating augmented storage even if no definitions...
+        helper_build_allocate_storage_();
+
         // skip if no augmented definitions
         if (input.empty() && !pInfecProfile_->is_augmented())
             return;
 
-        helper_assert_augm_input(input);      // check entries
-        deftable_ = input;                    // store user definitions
+        helper_assert_augm_input_(input);     // check entries
         helper_build_append_infec_profile_(); // add infectivity profile
         helper_build_definition_by_status_(); // process definition by status
         helper_build_allocation_order_();     // allocation and order
+    }
+
+    void Augmented::helper_build_allocate_storage_()
+    {
+        indiv_augm_.resize(pDataWide_->report_indiv.total);
+        for (Household &house : *pDataWide_)
+            for (Individual &member : house)
+                member.paugm_ = &indiv_augm_[member.index_];
+    }
+
+    /// Check augmented names and assert no reserved names are used.
+    void Augmented::helper_assert_augm_input_(const str_table &input)
+    {
+        const std::vector<std::string> file_headers = {"name", "status",
+                                                       "func", "fcumul",
+                                                       "value", "const", "discr",
+                                                       "model", "min", "max",
+                                                       "proposal", "proposal_scale"};
+        const std::vector<std::string> headers = read::extract_keys(input);
+        str::assert_no_missing_entries(headers, file_headers);
+        str::assert_no_unused_entries(headers, file_headers);
+
+        for (const std::string &astr : input.at("name"))
+        {
+            if (na::is(astr))
+                throw std::invalid_argument(
+                    "Found an augmented variable with undefined name.");
+            if (astr == infprof::AUGM_FUNC)
+                throw std::invalid_argument(
+                    "Tried to use the reserved augmented name '" +
+                    astr + "'.\nPlease, choose a different one.");
+        }
+
+        deftable_ = input; // store user definitions
     }
 
     void Augmented::helper_build_append_infec_profile_()
@@ -237,16 +249,17 @@ namespace hsp
     {
         std::unordered_set<int> all_infected_statuses = {};
 
+        // NOTE: storage already allocated and pointers set by helper_build_allocate_storage_()
         size_t n = pRegistry->size();
         for (Household &house : *pDataWide_)
             for (Individual &member : house)
             {
-                // UPDATE: this could be reserved during member construction
-                member.augm_vec_.resize(n);
+                Indiv::Augm &iaugm = *member.paugm_;
+                iaugm.augm_vec.resize(n);
                 for (size_t a = 0; a < n; ++a)
                 {
-                    member.augm_vec_[a].name(pRegistry->as_string(a));
-                    member.augm_vec_[a].set_err_type("augmented");
+                    iaugm.augm_vec[a].name(pRegistry->as_string(a));
+                    iaugm.augm_vec[a].set_err_type("augmented");
                 }
                 if (member.is_infected_status())
                     all_infected_statuses.emplace(member.status());
@@ -461,9 +474,14 @@ namespace hsp
 
         helper_init_model_list_();
 
+        // define augmented variables for all augmented individuals in ordefr
         for (Household &house : *pDataWide_)
             for (size_t i : house.infected_hhindexes())
-                init_missing(house.member(i), true);
+            {
+                Individual &member = house.member(i);
+                for (size_t k : helper_materialize_definition_order_(member))
+                    helper_init_attributes_(member, k);
+            }
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -525,11 +543,18 @@ namespace hsp
     /////////////////////////////////  Augmented : init missing attribute  ////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    void Augmented::init_missing(Individual &member, bool force)
+    void Augmented::clear_all()
     {
-        // loop over augmented variable definitions to assign placheholders
+        for (Household &house : *pDataWide_)
+            for (size_t i : house.infected_hhindexes())
+                for (Variable &xaugm : house.member(i).paugm_->augm_vec)
+                    xaugm.clear();
+    }
+
+    void Augmented::init_missing(Individual &member)
+    {
         for (size_t k : helper_materialize_definition_order_(member))
-            if (force || member.augm_vec_[pRegistry->from_string(deftable_["name"][k])].is_empty())
+            if (member.paugm_->augm_vec[pRegistry->from_string(deftable_["name"][k])].is_empty())
                 helper_init_attributes_(member, k);
     }
 
@@ -542,7 +567,7 @@ namespace hsp
         if (it != map_status_to_block_.end())
         {
             const size_t i = it->second;
-            member.augm_idx_ = i;
+            member.paugm_->augm_idx = i;
             return status_blocks_[i].order;
         }
 
@@ -552,7 +577,7 @@ namespace hsp
         {
             const size_t i = generic_it->second;
             map_status_to_block_.emplace(status, i);
-            member.augm_idx_ = i;
+            member.paugm_->augm_idx = i;
             return status_blocks_[i].order;
         }
 
@@ -573,8 +598,8 @@ namespace hsp
 
         try
         {
-            Variable &xaugm = member.augm_vec_[a];
-            xaugm.clear();
+            Variable &xaugm = member.paugm_->augm_vec[a];
+            // xaugm.clear(); UPDATE: is this necessaryy? I think no
 
             if (str::tobool(deftable_["const"][k]))
             {
@@ -612,7 +637,7 @@ namespace hsp
     void Augmented::helper_init_model_attributes_(Individual &member, size_t k)
     {
         const std::string &astr = deftable_["name"][k];
-        Variable &xaugm = member.augm_vec_[pRegistry->from_string(astr)];
+        Variable &xaugm = member.paugm_->augm_vec[pRegistry->from_string(astr)];
         parse::Definition parser(deftable_["model"][k]);
         xaugm.init_distr(parser.root.func);
 
@@ -631,7 +656,7 @@ namespace hsp
     void Augmented::helper_init_func_attributes_(Individual &member, size_t k)
     {
         const std::string &astr = deftable_["name"][k];
-        Variable &xaugm = member.augm_vec_[pRegistry->from_string(astr)];
+        Variable &xaugm = member.paugm_->augm_vec[pRegistry->from_string(astr)];
         std::string str_val = deftable_["value"][k];
         parse::Definition parser(na::is(str_val) ? deftable_["func"][k] : str_val);
 
@@ -672,9 +697,9 @@ namespace hsp
     void Augmented::user_reset(rnd_gen &prng, Individual &member)
     {
         for (size_t a : list_sample(member))
-            member.augm_vec_[a].user_reset(prng);
-        
-        for (Variable &xaugm : member.augm_vec_)
+            member.paugm_->augm_vec[a].user_reset(prng);
+
+        for (Variable &xaugm : member.paugm_->augm_vec)
             xaugm.optimize();
     }
 
@@ -694,15 +719,15 @@ namespace hsp
 
     const std::vector<size_t> &Augmented::list_sample(const Individual &member) const
     {
-        return status_blocks_[member.augm_idx_].sample;
+        return status_blocks_[member.paugm_->augm_idx].sample;
     }
     const std::vector<size_t> &Augmented::list_draws(const Individual &member) const
     {
-        return status_blocks_[member.augm_idx_].draws;
+        return status_blocks_[member.paugm_->augm_idx].draws;
     }
     const std::vector<size_t> &Augmented::list_models(const Individual &member) const
     {
-        return status_blocks_[member.augm_idx_].models;
+        return status_blocks_[member.paugm_->augm_idx].models;
     }
 
     std::string format_exception_for(Individual &member, const std::exception &e)
@@ -723,8 +748,8 @@ namespace hsp
                 return 0.;
             double new_ll = 0.0;
             for (size_t a : models)
-                new_ll += member.augm_vec_[a].get_distr_log_pdf();
-            member.augm_log_lik_.set(new_ll);
+                new_ll += member.paugm_->augm_vec[a].get_distr_log_pdf();
+            member.paugm_->augm_log_lik.set(new_ll);
             return new_ll;
         }
         catch (const std::exception &e)
@@ -737,14 +762,14 @@ namespace hsp
     {
         try
         {
-            const StatusBlock_ &block = status_blocks_[member.augm_idx_];
+            const StatusBlock_ &block = status_blocks_[member.paugm_->augm_idx];
             if (block.depen[a].empty())
                 return 0.;
             double delta_ll = 0;
             // NOTE: vector of dependencies 'depen' includes also 'a'
             for (size_t b : block.depen[a])
-                delta_ll += member.augm_vec_[b].get_distr_log_ratio();
-            member.augm_log_lik_.increment(delta_ll);
+                delta_ll += member.paugm_->augm_vec[b].get_distr_log_ratio();
+            member.paugm_->augm_log_lik.increment(delta_ll);
             return delta_ll;
         }
         catch (const std::exception &e)
@@ -825,10 +850,7 @@ namespace hsp
 
             size_t c = 0;
             for (size_t a : list_draws(member_ptr))
-            {
-                const Variable &xaugm = member_ptr.augm_vec_[a];
-                member_matrix[c++][smpl_count] = xaugm.value();
-            }
+                member_matrix[c++][smpl_count] = member_ptr.paugm_->augm_vec[a].value();
         }
     }
 }

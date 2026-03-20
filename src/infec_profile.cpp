@@ -18,7 +18,7 @@
 #include "tools/types.h"
 
 #include "infec_profile.h"
-#include "augm_container.h"
+#include "individual.h"
 #include "data_wide.h"
 #include "distribution.h"
 #include "function.h"
@@ -34,6 +34,44 @@ namespace hsp
 {
     namespace infprof
     {
+        void LookUpTable::init(const Distribution *ptr, size_t n)
+        {
+            generic_ptr_ = ptr;
+            size_ = n;
+            value_.assign(n, 0);
+            old_.assign(n, 0);
+            materialize_();
+        }
+        void LookUpTable::clear() noexcept
+        {
+            value_.clear();
+            old_.clear();
+        }
+        void LookUpTable::recover() noexcept
+        {
+            if (generic_ptr_->is_constant())
+                return;
+            std::swap(value_, old_);
+        }
+        void LookUpTable::update()
+        {
+            if (generic_ptr_->is_constant())
+                return;
+            std::swap(value_, old_);
+            materialize_();
+        }
+
+        void LookUpTable::Table_::clear() noexcept
+        {
+            inst.clear();
+            cumul.clear();
+        }
+        void LookUpTable::Table_::assign(size_t n, double v)
+        {
+            inst.assign(n, v);
+            cumul.assign(n, v);
+        }
+
         void LookUpTable::materialize_()
         {
             for (size_t i = 1; i < size_; ++i)

@@ -14,9 +14,10 @@
 #include <unordered_set>
 #include <vector>
 
+#include "tools/data_reports.h"
 #include "tools/types.h"
 
-#include "tools/data_reports.h"
+#include "indiv_storage.h"
 #include "household.h"
 
 namespace hsp
@@ -99,6 +100,9 @@ namespace hsp
         void init_draws(unsigned long sample_size);
         /// Store current sample of log-likelihood for restricted households.
         void store_draws(unsigned long smpl_count);
+
+        /// Recover all status.
+        void recover_all_status() noexcept;
 
         //////////////////////
         //////  GETTER  //////
@@ -220,6 +224,7 @@ namespace hsp
         //////  DATA  //////
         ////////////////////
 
+        std::vector<Indiv::Wide> indiv_data_;      /// External storage for individual data
         std::vector<Household> house_vector_ = {}; /// All households in data
         dict<size_t> hhid_to_index_ = {};          /// Map house-id to internal index
 

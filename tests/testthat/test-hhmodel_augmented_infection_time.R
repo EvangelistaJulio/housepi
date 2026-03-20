@@ -108,11 +108,8 @@ test_that("Simulations behave as expected", {
   obs_process <- function(df) {
     dplyr::mutate(df, onset_time = infec_time + incub_period)
   }
-
   # simulate just introduction cases
   simulated <- hhsimul$run_simulation(obs_process = obs_process)
-  simulated <- dplyr::mutate(simulated,
-                             onset_time = infec_time + incub_period)
   expect_identical(
     length(unique(simulated$house_id)),
     sum(simulated$onset_time == 0, na.rm = TRUE)

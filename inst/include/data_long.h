@@ -13,6 +13,8 @@
 
 #include "tools/types.h"
 
+#include "indiv_storage.h"
+
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////  *** DataLong : struct ***  ///////////////////////////////
@@ -33,7 +35,7 @@ namespace hsp
         std::unique_ptr<key::Registry> pRegistry; /// pointer to registry
 
         std::vector<std::string> headers = {};
-        std::vector<std::vector<std::vector<double>>> indiv_datalist = {};
+        std::vector<Indiv::Long> indiv_datalist = {};
 
         ///////////////////////////
         //////  CONSTRUCTOR  //////

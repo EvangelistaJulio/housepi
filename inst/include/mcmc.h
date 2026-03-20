@@ -35,7 +35,6 @@
 
 namespace hsp
 {
-	class AugmContainer;
 	class Individual;
 	class Household;
 

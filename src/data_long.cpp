@@ -76,11 +76,11 @@ namespace hsp
 
             // append (since vector is initialized to empty)
             auto &idat = indiv_datalist[id_to_index.at(id)];
-            idat.resize(pRegistry->size());
+            idat.data_vec.resize(pRegistry->size());
             for (size_t d = 0; d < pRegistry->size(); ++d)
             {
                 const std::string &datastring = pRegistry->as_string(d);
-                idat[d].emplace_back(
+                idat.data_vec[d].emplace_back(
                     str::tod(input.at(datastring)[r], "data long format '" + datastring + "'"));
             }
         }
@@ -89,7 +89,7 @@ namespace hsp
         c = 0;
         for (Household &house : *pDataWide_)
             for (Individual &member : house)
-                member.pdatalong_ = &indiv_datalist.at(c++);
+                member.plong_ = &indiv_datalist.at(c++);
     }
 
     void DataLong::helper_build_clear_data_()

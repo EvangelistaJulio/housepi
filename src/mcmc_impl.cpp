@@ -119,7 +119,7 @@ namespace hsp
 
             if (augm.is_any_sample())
                 for (size_t i : house.infected_hhindexes())
-                    house.member(i).augm_log_lik_.recover();
+                    house.member(i).paugm_->augm_log_lik.recover();
         }
 
         if (is_cache_depen)
@@ -452,7 +452,7 @@ namespace hsp
                 return delta_ll;
 
             // else recover cached values
-            member.augm_log_lik_.recover();
+            member.paugm_->augm_log_lik.recover();
             house.obs_log_lik_.recover();
             data_wide.recover_member_old_cached(house, i);
         }

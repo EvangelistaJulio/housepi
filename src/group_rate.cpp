@@ -46,6 +46,7 @@ namespace hsp
     void GroupRate::build(const str_table &input)
     {
         pRegistry->clear();
+        indiv_group_rates_.clear();
 
         std::vector<std::string> data_headers = {};
         if (!input.empty())
@@ -56,11 +57,15 @@ namespace hsp
         // set headers to be multiplicity-relevat
         pDataWide_->set_multiplicity_data(data_headers);
 
+        // allocate external group rate storage
+        indiv_group_rates_.resize(pDataWide_->report_indiv.total);
+
         // loop over all household members
         size_t n_rows = read::csv_n_rows(input);
         for (Household &house : *pDataWide_)
             for (Individual &member : house)
             {
+                member.pgroup_rate_ = &indiv_group_rates_[member.index_];
                 str_table these_rates = {};
 
                 for (size_t r = 0; r < n_rows; ++r)
@@ -69,7 +74,7 @@ namespace hsp
                     bool is_this_class = true;
                     for (const std::string &d : data_headers)
                         if (!na::is(input.at(d)[r]))
-                            is_this_class &= member.data_vec_[pDataWide_->pRegistry->from_string(d)] == str::tod(input.at(d)[r]);
+                            is_this_class &= member.pwide_->data_vec[pDataWide_->pRegistry->from_string(d)] == str::tod(input.at(d)[r]);
 
                     // if it's the case, add the parameter name
                     if (is_this_class)
@@ -112,14 +117,15 @@ namespace hsp
 
     void GroupRate::helper_init_all_rates_(Individual &member, const str_table &these_rates)
     {
-        // initialize group rates to reference
-        member.group_rate_vec_.clear();
-        member.group_rate_vec_.reserve(pRegistry->size());
+        // initialize group rates to reference (access storage directly)
+        Indiv::Group &igr = indiv_group_rates_[member.index_];
+        igr.group_rate_vec.clear();
+        igr.group_rate_vec.reserve(pRegistry->size());
         for (size_t g = 0; g < pRegistry->size(); ++g)
         {
-            member.group_rate_vec_.emplace_back(rates::VALUE_REFERENCE);
-            member.group_rate_vec_.back().name(pRegistry->as_string(g));
-            member.group_rate_vec_.back().set_err_type("group rate");
+            igr.group_rate_vec.emplace_back(rates::VALUE_REFERENCE);
+            igr.group_rate_vec.back().name(pRegistry->as_string(g));
+            igr.group_rate_vec.back().set_err_type("group rate");
         }
 
         // assign custom definitions
@@ -141,7 +147,7 @@ namespace hsp
             if (!param_pointers.empty())
             {
                 size_t g = pRegistry->from_string(groupstr);
-                member.group_rate_vec_[g].init_product(param_pointers);
+                igr.group_rate_vec[g].init_product(param_pointers);
             }
         }
     }

@@ -67,7 +67,7 @@ public:
 	double compute_house_obs_log_lik(Household &house) override final;
 
 	/// Simulate the infection within a household.
-	Household simulate_single_house(Household house) override final;
+	void simulate_single_house(Household &house) override final;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -126,7 +126,7 @@ void Model::fill_house_escape_matrix(Household &house)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Household Model::simulate_single_house(Household house)
+void Model::simulate_single_house(Household &house)
 {
 	const double commu_rate = community_risk();
 	const double p2p_rate = person_to_person_risk();
@@ -174,6 +174,5 @@ Household Model::simulate_single_house(Household house)
 			}
 		}
 	}
-	return house;
 }
 HOUSEPI_CLOSE_MODULE_NAMESPACE()

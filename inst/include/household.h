@@ -42,8 +42,7 @@ namespace hsp
 		//////////////////////
 
 		/// Emplace a new individual in the household.
-		void init_member(size_t index, const std::string &id,
-						 int status, const std::vector<double> &data);
+		void init_member(size_t index, const std::string &id, const Indiv::Wide *data_ptr);
 
 		void set_susceptible_status(Individual &member) { helper_set_status_(member, status::SUSCEPTIBLE); }
 		void set_infected_status(Individual &member) { helper_set_status_(member, status::INFECTED); }

@@ -58,7 +58,7 @@ namespace hsp
 
     /// Print all augmented variables of each individual.
     void update_ofstream_datawide(std::ofstream &ofs,
-                                  Household &house,
+                                  const Household &house,
                                   size_t data_wide_size,
                                   const std::vector<size_t> &augm_export);
 

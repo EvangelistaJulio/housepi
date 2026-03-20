@@ -182,7 +182,7 @@ test_that("Augmented traces export only relevant variables", {
   )
 })
 
-test_that("Custom models and shares function registries", {
+test_that("Custom models shares function registries", {
   hhmodel_0 <- new_housepi_model("blank")
   expect_error(expose_function("growth"), regexp = "Unknown function")
 

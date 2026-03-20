@@ -224,7 +224,7 @@ namespace hsp
 
     void print_simulated_data_wide(MCMC &engine, const std::string &pathtofile)
     {
-        const DataWide &data_wide = engine.data_wide;
+        DataWide &data_wide = engine.data_wide;
         const Augmented &augm = engine.augm;
 
         // initialization
@@ -234,11 +234,11 @@ namespace hsp
         data_wide.assert_non_empty();              // check if data is empty
         engine.model->init_model_for_simulation(); // model specific initialization
 
-        for (const Household &house : data_wide)
+        for (Household &house : data_wide)
             try
             {
-                update_ofstream_datawide(ofs,
-                                         engine.model->simulate_single_house(house),
+                engine.model->simulate_single_house(house);
+                update_ofstream_datawide(ofs, house,
                                          data_wide.pRegistry->size(),
                                          augm.list_export);
             }

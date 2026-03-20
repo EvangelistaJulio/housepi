@@ -50,11 +50,10 @@ public:
     }
 
     /// Augmented variable initialization.
-    Household simulate_single_house(Household house) override final
+    void simulate_single_house(Household &house) override final
     {
         for (size_t i : house.infected_hhindexes())
             init_missing_augm(house.member(i));
-        return house;
     }
 };
 HOUSEPI_CLOSE_MODULE_NAMESPACE()

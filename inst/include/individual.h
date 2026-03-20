@@ -10,8 +10,9 @@
 #include <string>
 #include <vector>
 
-#include "function.h"
-#include "augm_container.h"
+#include "tools/status.h"
+
+#include "indiv_storage.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -22,11 +23,17 @@
 namespace hsp
 {
 	/// Class for individual household study member.
-	class Individual final : public AugmContainer
+	/// Acts as a lightweight viewer over externally-stored sub-objects
+	/// (data, augmented, group rates) owned by their respective domain classes.
+	class Individual final
 	{
 		friend class Household;
 		friend struct DataLong;
+		friend struct DataWide;
 		friend struct GroupRate;
+		friend struct Augmented;
+		friend class MCMCBase;
+		friend class MCMC;
 
 	public:
 		///////////////////////////
@@ -45,17 +52,29 @@ namespace hsp
 		bool operator!=(const Individual &other) const noexcept { return index_ != other.index_; }
 
 		//////////////////////
+		//////  SETTER  //////
+		//////////////////////
+
+		/// Unique identifier as provided in data.
+		const std::string &id() const noexcept { return id_; }
+		/// Associated status.
+		int status() const noexcept { return status_; }
+
+		/// Set numeric value of augmented variable. If not allowed, raise exception.
+		void set_augm_value(size_t a, double x) { paugm_->augm_vec[a].set(x); }
+
+		//////////////////////
 		//////  GETTER  //////
 		//////////////////////
 
-		double data(size_t d) const { return data_vec_[d]; }
+		double data(size_t d) const { return pwide_->data_vec[d]; }
 
 		/// Return associated data long format.
 		/// NOTE: return a reference to a static empty vector when no datalong is attached.
 		const std::vector<double> &data_long(size_t d) const
 		{
-			if (pdatalong_)
-				return (*pdatalong_)[d];
+			if (plong_)
+				return plong_->data_vec[d];
 
 			static const std::vector<double> EMPTY_DATA_LONG_VEC = std::vector<double>();
 			return EMPTY_DATA_LONG_VEC;
@@ -63,10 +82,22 @@ namespace hsp
 
 		/// Return associated data long format.
 		/// NOTE: return a reference to a static empty vector when no datalong is attached
-		const std::vector<std::vector<double>> *get_data_long_ptr() const noexcept { return pdatalong_; }
+		const std::vector<std::vector<double>> *get_data_long_ptr() const noexcept { return &plong_->data_vec; }
 
-		double group_rate(size_t g) const { return group_rate_vec_[g].value(); }
-		const Attribute &get_group_rate_attribute(size_t g) const { return group_rate_vec_[g]; }
+		double aug(size_t a) const { return paugm_->augm_vec[a].value(); }
+		Variable &get_augm_variable(size_t a) { return paugm_->augm_vec[a]; }
+		const Variable &get_augm_variable(size_t a) const { return paugm_->augm_vec[a]; }
+
+		double group_rate(size_t g) const { return pgroup_rate_->group_rate_vec[g].value(); }
+		const Attribute &get_group_rate_attribute(size_t g) const { return pgroup_rate_->group_rate_vec[g]; }
+
+		/////////////////////
+		//////  FLAGS  //////
+		/////////////////////
+
+		bool is_infected_status() const noexcept { return status::is_infected(status_); }
+		bool is_susceptible_status() const noexcept { return status::is_susceptible(status_); }
+		bool is_missing_status() const noexcept { return status::is_missing(status_); }
 
 		////////////////////
 		//////  SHOW  //////
@@ -76,10 +107,18 @@ namespace hsp
 		std::string err_name() const { return "individual '" + id() + "'"; }
 
 	private:
-		size_t index_ = 0;										/// housepi internal index
-		size_t hhindex_ = 0;									/// household relative index
-		std::vector<double> data_vec_ = {};						/// data
-		std::vector<Attribute> group_rate_vec_ = {};			/// group rates
-		std::vector<std::vector<double>> *pdatalong_ = nullptr; /// data long format associated
+		/// Identity (owned)
+		size_t index_ = 0;	  /// housepi internal index
+		size_t hhindex_ = 0;  /// household relative index
+		std::string id_ = ""; /// user id
+
+		/// status of the individual
+		int status_ = status::MISSING;
+
+		/// External sub-object pointers
+		const Indiv::Wide *pwide_ = nullptr;		/// wide-format data (see DataWide)
+		const Indiv::Long *plong_ = nullptr;		/// long-format data (see DataLong)
+		const Indiv::Group *pgroup_rate_ = nullptr; /// group rates (see GroupRate)
+		Indiv::Augm *paugm_ = nullptr;				/// augmented variables (see Augmented)
 	};
 }

@@ -36,8 +36,7 @@ namespace hsp
 {
     void Household::init_member(size_t index,
                                 const std::string &id,
-                                int status,
-                                const std::vector<double> &data)
+                                const Indiv::Wide *data_ptr)
     {
         size_t hhindex = size();
         members_.emplace_back();
@@ -46,13 +45,13 @@ namespace hsp
         last.index_ = index;
         last.hhindex_ = hhindex;
         last.id_ = id;
-        last.status_ = status;
-        last.data_vec_ = data;
+        last.status_ = data_ptr->status;
+        last.pwide_ = data_ptr;
 
         // update status lists within the household
         if (last.is_infected_status())
             infected_list_.emplace_back(hhindex);
-        else if (last.is_healthy_status())
+        else if (last.is_susceptible_status())
             healthy_list_.emplace_back(hhindex);
         else
             missing_list_.emplace_back(hhindex);
@@ -60,22 +59,23 @@ namespace hsp
 
     void Household::helper_set_status_(Individual &member, int new_status)
     {
-        if (new_status == member.status())
+        int old_status = member.status();
+        if (new_status == old_status)
             return;
 
+        member.status_ = new_status; // change member status
         size_t i = member.hhindex(); // get within house index
 
-        if (member.is_infected_status())
+        if (status::is_infected(old_status))
             infected_list_.erase(std::find(infected_list_.begin(), infected_list_.end(), i));
-        else if (member.is_healthy_status())
+        else if (status::is_susceptible(old_status))
             healthy_list_.erase(std::find(healthy_list_.begin(), healthy_list_.end(), i));
         else
             missing_list_.erase(std::find(missing_list_.begin(), missing_list_.end(), i));
 
-        member.status_ = new_status; // change member status
-        if (member.is_infected_status())
+        if (status::is_infected(new_status))
             infected_list_.emplace_back(i);
-        else if (member.is_healthy_status())
+        else if (status::is_susceptible(new_status))
             healthy_list_.emplace_back(i);
         else
             missing_list_.emplace_back(i);
@@ -129,6 +129,9 @@ namespace hsp
         helper_build_data_headers_(input); // extract headers
         report_indiv.total = read::csv_n_rows(input);
 
+        // pre-allocate external data storage
+        indiv_data_.resize(report_indiv.total);
+
         // store households
         for (size_t i = 0; i < report_indiv.total; ++i)
         {
@@ -157,12 +160,14 @@ namespace hsp
                     status = str::toi(input.at("status")[i], "individual status");
             }
 
-            // read individual data
-            std::vector<double> data(pRegistry->size());
-            for (size_t d = 0; d < data.size(); ++d)
+            // read individual data into external storage
+            Indiv::Wide &idata = indiv_data_[i];
+            idata.status = status;
+            idata.data_vec.resize(pRegistry->size());
+            for (size_t d = 0; d < idata.data_vec.size(); ++d)
             {
                 const std::string datastring = pRegistry->as_string(d);
-                data[d] = str::tod(input.at(datastring)[i], "data '" + datastring + "'");
+                idata.data_vec[d] = str::tod(input.at(datastring)[i], "data '" + datastring + "'");
             }
 
             // if household index doesn't exist, add new household
@@ -179,7 +184,7 @@ namespace hsp
             Household &house = house_vector_.at(hhid_to_index_.at(house_id));
 
             // assign the individual the respective household
-            house.init_member(i, id, status, data);
+            house.init_member(i, id, &idata);
         }
 
         // update report for data
@@ -199,6 +204,7 @@ namespace hsp
     {
         house_vector_.clear();
         hhid_to_index_.clear();
+        indiv_data_.clear();
         report_indiv = ReportIndividual();
         report_house = ReportHousehold();
         report_hh_size = ReportHouseSizes();
@@ -470,7 +476,7 @@ namespace hsp
             const Household &house = restricted(R);
 
             for (size_t i : house.infected_hhindexes())
-                if (house.member(i).augm_log_lik_.is_inf())
+                if (house.member(i).paugm_->augm_log_lik.is_inf())
                     throw std::runtime_error(
                         "Initial augmented log-likelihood computation returned infinity for " +
                         house.member(i).err_name() + ".");
@@ -498,7 +504,7 @@ namespace hsp
             Household &house = restricted(R);
             double x = house.obs_log_lik();
             for (size_t i : house.infected_hhindexes())
-                x += house.member(i).augm_log_lik_.value();
+                x += house.member(i).paugm_->augm_log_lik.value();
             smpl_values[R][smpl_count] = x;
         }
     }
@@ -522,5 +528,12 @@ namespace hsp
         if (report_indiv.missing > 0)
             throw std::length_error(
                 "Individual with missing status are incompatible with current model.");
+    }
+
+    void DataWide::recover_all_status() noexcept
+    {
+        for(Household &house: house_vector_)
+            for(Individual &member : house)
+                house.helper_set_status_(member, member.pwide_->status);
     }
 }

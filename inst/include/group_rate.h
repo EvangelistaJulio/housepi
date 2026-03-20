@@ -13,6 +13,8 @@
 
 #include "tools/types.h"
 
+#include "indiv_storage.h"
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////  *** GroupRate : struct ***  ////////////////////////////////
@@ -54,6 +56,8 @@ namespace hsp
         void build(const str_table &deftable);
 
     private:
+        std::vector<Indiv::Group> indiv_group_rates_; /// External storage for individual group rates
+
         DataWide *pDataWide_;         /// pointer to external DataWide struct
         const Parameter *pParameter_; /// pointer to external Parameter struct
 

@@ -525,8 +525,8 @@ namespace
             // retrieve total number of rows
             size_t n_rows = 0;
             for (const auto &tbl : data_long.indiv_datalist)
-                if (!tbl.empty())
-                    n_rows += tbl.begin()->size();
+                if (!tbl.data_vec.empty())
+                    n_rows += tbl.data_vec.begin()->size();
 
             Rcpp::CharacterVector datalist_index(n_rows);
 
@@ -1133,7 +1133,7 @@ namespace
     Rcpp::DataFrame helper_simulate_single_repe_(MCMC &engine, Rcpp::List shared_df)
     {
         const Augmented &augm = engine.augm;
-        const DataWide &data_wide = engine.data_wide;
+        DataWide &data_wide = engine.data_wide;
         Rcpp::List output = Rcpp::clone(shared_df);
 
         const size_t n_cols = augm.list_export.size();
@@ -1154,8 +1154,10 @@ namespace
                 if (engine.atomic_error.is_pending())
                     continue;
 
-                // NOTE: deep copy of household
-                for (const Individual &member : engine.model->simulate_single_house(data_wide.at(H)))
+                Household &house = data_wide.at(H);
+                engine.model->simulate_single_house(house);
+
+                for (const Individual &member : house)
                 {
                     status_col[row] = member.status();
                     size_t c = 0;
@@ -1186,9 +1188,9 @@ namespace
                               Rcpp::Nullable<Rcpp::Function> apply_long)
     {
         MCMC &engine = *mcmc_ptr;
+        Setup &setup = engine.setup;
         const Augmented &augm = engine.augm;
         const DataWide &data_wide = engine.data_wide;
-        Setup &setup = engine.setup;
 
         try
         {
@@ -1218,6 +1220,8 @@ namespace
             setup.prog_open_for_simulation();
             for (size_t r = 0; r < setup.n_steps; ++r, setup.prog_update())
             {
+                engine.augm.clear_all();
+                engine.data_wide.recover_all_status();
                 engine.param.load_sample_values(r);
                 Rcpp::DataFrame simulated = helper_simulate_single_repe_(engine, shared_df);
 

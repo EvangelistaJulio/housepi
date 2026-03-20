@@ -15,7 +15,7 @@
 #include "tools/types.h"
 
 #include "distribution.h"
-#include "augm_container.h"
+#include "individual.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -40,35 +40,13 @@ namespace hsp
             //////////////////////
 
             /// Initialize lookuup table.
-            void init(const Distribution *ptr, size_t n)
-            {
-                generic_ptr_ = ptr;
-                size_ = n;
-                value_.assign(n, 0);
-                old_.assign(n, 0);
-                materialize_();
-            }
+            void init(const Distribution *ptr, size_t n);
             /// Clear infectivity profile lookup table.
-            void clear() noexcept
-            {
-                value_.clear();
-                old_.clear();
-            }
+            void clear() noexcept;
             /// Recover old state if generic is not constant.
-            void recover() noexcept
-            {
-                if (!generic_ptr_->is_constant())
-                    std::swap(value_, old_);
-            }
+            void recover() noexcept;
             /// Update lookup table if generic is not constant.
-            void update()
-            {
-                if (!generic_ptr_->is_constant())
-                {
-                    std::swap(value_, old_);
-                    materialize_();
-                }
-            }
+            void update();
 
             //////////////////////
             //////  GETTER  //////
@@ -86,16 +64,8 @@ namespace hsp
                 std::vector<double> inst = {};  /// instantaneous
                 std::vector<double> cumul = {}; /// cumulative
 
-                void clear() noexcept
-                {
-                    inst.clear();
-                    cumul.clear();
-                }
-                void assign(size_t n, double v)
-                {
-                    inst.assign(n, v);
-                    cumul.assign(n, v);
-                }
+                void clear() noexcept;
+                void assign(size_t n, double v);
             } value_, old_;
 
             /// Recompute all values of the table.
@@ -168,7 +138,7 @@ namespace hsp
         //////  GETTER  //////
         //////////////////////
 
-        double inst(const AugmContainer *member_ptr, double t) const
+        double inst(const Individual *member_ptr, double t) const
         {
             switch (mode_)
             {
@@ -181,7 +151,7 @@ namespace hsp
             }
             __builtin_unreachable();
         }
-        double cumul(const AugmContainer *member_ptr, double t) const
+        double cumul(const Individual *member_ptr, double t) const
         {
             switch (mode_)
             {

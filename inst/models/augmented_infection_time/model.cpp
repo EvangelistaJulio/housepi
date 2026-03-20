@@ -11,7 +11,6 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "tools/messages.h" // FLAG
 #include "housepi.h"
 
 #ifndef _HOUSEPI_MODULE
@@ -100,7 +99,7 @@ public:
 	double compute_house_obs_log_lik(Household &house) override final;
 
 	/// Poisson point process to simulate outbreak in a single household.
-	Household simulate_single_house(Household house) override final;
+	void simulate_single_house(Household &house) override final;
 	/// Instantaneous risk of Infection for individual i. Used in simulation.
 	double roi_inst_simulation(
 		const Household &house, const Individual &member_i,
@@ -332,7 +331,7 @@ void Model::update_member_cache_dependecies(Household &house, Individual &member
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Household Model::simulate_single_house(Household house)
+void Model::simulate_single_house(Household &house)
 {
 #ifdef _HOUSEPI_DISCRETE_TIME
 	const double Dt = 1;
@@ -353,11 +352,12 @@ Household Model::simulate_single_house(Household house)
 		// amongst all members
 		i0 = uniform() * house.size();
 	Individual &member_0 = house.member(i0);
+
 	house.set_infected_status(member_0);
 	init_missing_augm(member_0);
 
 	if (house.size() < 2)
-		return house;
+		return;
 
 	// set all to susceptible except from introduction
 	for (Individual &member : house)
@@ -389,7 +389,6 @@ Household Model::simulate_single_house(Household house)
 				init_missing_augm(member_i);
 			}
 		}
-	return house;
 }
 
 double Model::roi_inst_simulation(const Household &house, const Individual &member_i,

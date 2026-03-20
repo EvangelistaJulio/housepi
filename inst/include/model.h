@@ -87,7 +87,7 @@ namespace hsp
 		/// Simulation specific initialization (e. g. cache variables, lookup tables, etc).
 		virtual void init_model_for_simulation() {}
 		/// Simulation for a single household.
-		virtual Household simulate_single_house(Household) = 0;
+		virtual void simulate_single_house(Household &) = 0;
 
 		//////////////////////
 		//////  SETTER  //////
@@ -96,10 +96,13 @@ namespace hsp
 		virtual void init_advanced_setup() {}
 
 		void init_infec_profile_template(dict<std::string> x) { infec_profile_->init_template(x); }
+		
 		/// User call. Initialize all augmented variables of given individual.
+		/// If a variable has been set by the user, it's skipped.
+		/// NOTE: simulations assignments must be order independent.
 		void init_missing_augm(Individual &member)
 		{
-			augm_->init_missing(member, false);
+			augm_->init_missing(member); 
 			augm_->user_reset(setup_->prng(), member);
 		}
 
