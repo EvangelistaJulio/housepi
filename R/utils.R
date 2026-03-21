@@ -91,26 +91,9 @@ overwrite <- function(from, to, ...) {
   )
 }
 
-# Define a custom get function (like in Python dictionaries)
-get_val_ <- function(lst, key, default = NA) {
-  if (key %in% names(lst)) lst[[key]]
-  else default
-}
-
 ############################################################################
 ############################################################################
 ############################################################################
-
-# Generate a random string
-rnd_string <- function(size = 8) {
-  paste0(sample(c(letters, LETTERS, 0:9), size, replace = TRUE),
-         collapse = "")
-}
-
-# Source code files
-source_files <- function(path) {
-  file.path(path, "model.cpp")
-}
 
 # return time of modification truncated
 trunc_mtime <- function(path) {
@@ -126,7 +109,7 @@ trunc_mtime <- function(path) {
 #' @keywords internal
 #' @noRd
 untracked_changes <- function(source_dir, dll) {
-  last_mod <- trunc_mtime(source_files(source_dir))
+  last_mod <- trunc_mtime(file.path(source_dir, "model.cpp"))
 
   # last changed should be older than installation time
   housepi_dir <- system.file("template", package = "housepi")

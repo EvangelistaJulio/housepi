@@ -442,14 +442,11 @@ load_infec_profile_list <- function(hhmodel, ..., append = FALSE) {
 #' @param hhmodel `r rd_model_in_`
 #' @param house_id `r rd_house_id_`
 #' If `NA` (default) it computes for the whole data.
-#' @param seed `r rd_seed_`
 #' @return `numeric(1)`
 #' @export
-evaluate_log_lik <- function(hhmodel,
-                             house_id = NA_character_,
-                             seed = NA_integer_) {
+evaluate_log_lik <- function(hhmodel, house_id = NA_character_) {
   stopifnothousepi(hhmodel)
-  hhmodel$evaluate_log_lik(house_id = house_id, seed = seed)
+  hhmodel$evaluate_log_lik(house_id = house_id)
 }
 
 #' @title Run inference for housepi model
@@ -463,7 +460,6 @@ evaluate_log_lik <- function(hhmodel,
 #' @param chains `r rd_smpl_chain_`
 #' @param threads `r rd_thread_`
 #' @param id_draws `r rd_smpl_iddrw_`
-#' @param seed `r rd_seed_`
 #' @param progress `r rd_progress_`
 #' @return An object of class `HousepiPosteriorDraws`.
 #' @export
@@ -471,13 +467,13 @@ run_inference <- function(hhmodel,
                           steps = 200, burnin = 0,
                           thin = 1, adapt = 0,
                           chains = 1, threads = 1,
-                          id_draws = NULL, seed = NA_integer_,
+                          id_draws = NULL,
                           progress = TRUE) {
   stopifnothousepi(hhmodel)
   hhmodel$run_inference(steps = steps, burnin = burnin,
                         thin = thin, adapt = adapt,
                         chains = chains, threads = threads,
-                        id_draws = id_draws, seed = seed,
+                        id_draws = id_draws,
                         progress = progress)
 }
 
@@ -489,18 +485,16 @@ run_inference <- function(hhmodel,
 #' @param obs_process `r rd_simul_observ_`
 #' @param obs_process_long `r rd_simul_obs_long_`
 #' @param nsim `r rd_simul_nsim_`
-#' @param seed `r rd_seed_`
 #' @return `data.frame` or `list` (when `obs_process_long` is provided)
 #' @export
 run_simulation <- function(hhmodel,
                            obs_process = NULL,
                            obs_process_long = NULL,
-                           nsim = 1,
-                           seed = NA_integer_) {
+                           nsim = 1) {
   stopifnothousepi(hhmodel)
   hhmodel$run_simulation(obs_process = obs_process,
                          obs_process_long = obs_process_long,
-                         nsim = nsim, seed = seed)
+                         nsim = nsim)
 }
 
 #' @title Estimate logevidence of housepi model
@@ -516,7 +510,6 @@ run_simulation <- function(hhmodel,
 #' @param adapt `r rd_smpl_adapt_`
 #' @param chains `r rd_smpl_chain_`
 #' @param threads `r rd_thread_`
-#' @param seed `r rd_seed_`
 #' @param progress `r rd_progress_`
 #' @references
 #' Friel N, Hurn M, Wyse J.
@@ -530,11 +523,11 @@ run_simulation <- function(hhmodel,
 #                         steps = 5000, burnin = 0,
 #                         thin = 1, adapt = 0,
 #                         chains = 1, threads = 1,
-#                         seed = NA_integer_, progress = TRUE) {
+#                         progress = TRUE) {
 #   stopifnothousepi(hhmodel)
 #   hhmodel$logevidence(scheme = scheme, rungs = rungs,
 #                       steps = steps, burnin = burnin,
 #                       thin = thin, adapt = adapt,
 #                       chains = chains, threads = threads,
-#                       seed = seed, progress = progress)
+#                       progress = progress)
 # }

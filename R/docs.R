@@ -125,8 +125,6 @@ If `FALSE` features are combined (default)."
 ############################################################################
 ############################################################################
 
-rd_seed_ <- "`integer(1)` Seed for the random number generator.\\cr
-If `NA` uses current R seed (default)."
 rd_progress_ <- "`integer(1)` | `logical(1)` Control progressbar visualization.\\cr
 One between:\\cr
 - If `integer`, prints progress every `progress` seconds;\\cr

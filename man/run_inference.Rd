@@ -13,7 +13,6 @@ run_inference(
   chains = 1,
   threads = 1,
   id_draws = NULL,
-  seed = NA_integer_,
   progress = TRUE
 )
 }
@@ -34,9 +33,6 @@ run_inference(
 
 \item{id_draws}{\code{character()} Individuals identifiers.\cr
 Store draws of public augmented variables for the chosen individuals.}
-
-\item{seed}{\code{integer(1)} Seed for the random number generator.\cr
-If \code{NA} uses current R seed (default).}
 
 \item{progress}{\code{integer(1)} | \code{logical(1)} Control progressbar visualization.\cr
 One between:\cr

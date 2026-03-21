@@ -179,12 +179,11 @@ HousepiGenerator <- R6::R6Class(
     # @description
     # Assert source files exist.
     assert_source_files_ = function() {
-      for (file_name in source_files(private$source_dir_)) {
-        if (!file.exists(file_name)) stop_h(
-          sprintf("File '%s' was not found.", file_name),
-          "Check your model directory."
-        )
-      }
+      file_name <- file.path(private$source_dir_, "model.cpp")
+      if (!file.exists(file_name)) stop_h(
+        sprintf("File '%s' was not found.", file_name),
+        "Check your model directory."
+      )
       invisible(self)
     },
 
@@ -301,9 +300,8 @@ HousepiGenerator <- R6::R6Class(
       # copy model specific source files in the new folder
       dir.create(file.path(private$cache_dir_, "src"),
                  showWarnings = FALSE, recursive = TRUE)
-      for (f in source_files(private$source_dir_)) {
-        overwrite(f, file.path(private$cache_dir_, "src", basename(f)))
-      }
+      overwrite(file.path(private$source_dir_, "model.cpp"),
+                file.path(private$cache_dir_, "src", "model.cpp"))
 
       # copy helper files in the output directory
       for (f in helper_files(private$source_dir_)) {
@@ -408,26 +406,12 @@ HousepiGenerator <- R6::R6Class(
     ############################################################################
     ############################################################################
 
-    # @description Adjust RNG seed.
-    # @param seed `integer(1)`
-    # @return `integer(1)`
-    adjust_seed_ = function(seed) {
-      max_r_int <- .Machine$integer.max
-      if (is.na(seed)) seed <- sample.int(max_r_int, 1)
-      else seed <- abs(as.integer(seed))
-
-      # control that seed is 32bit (for custom seed)
-      if (seed > max_r_int) stop_h(
-        "Supplied seed is not supported.",
-        sprintf("Maximum value for an integer in R is %.0f.", max_r_int)
-      )
-      seed
-    },
-
+    # UPDATE: I shall drop necessity for refactoring with variant data.
     refactor_data_wide_ = function(x) {
       cpp_data_refactor(x, private$info_data_wide_, private$cols_data_wide_)
     },
 
+    # UPDATE: I shall drop necessity for refactoring with variant data.
     refactor_data_long_ = function(x) {
       cpp_data_refactor(x, private$info_data_long_, private$cols_data_long_)
     }
@@ -466,7 +450,6 @@ HousepiGenerator <- R6::R6Class(
     #' @param ... `r rd_mdl_flags_`
     initialize = function(choice = NA_character_, as_template = FALSE,
                           force = FALSE, quiet = FALSE, ...) {
-      withr::local_preserve_seed()
       # assign name to the model
       choice <- private$helper_init_choice_(choice)
 

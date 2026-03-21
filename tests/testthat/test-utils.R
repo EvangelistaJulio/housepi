@@ -33,14 +33,18 @@ test_that("Find closest match suggests close options", {
   expect_null(housepi:::find_closest_match("alpa", c("alpha"), min_dist = 0))
 
   # no close match returns available options
-  result <- housepi:::find_closest_match("zzzzz", c("alpha", "beta"))
+  result <- housepi:::find_closest_match("ocelot", c("alpha", "beta"))
   expect_true(any(grepl("Available option", result)))
 
   # empty options
   expect_equal(housepi:::find_closest_match("x", character(0)), c())
 })
 
-test_that("helper_clone deep clones data.frame, list, and scalars", {
+test_that("Deep clone helper work as expected on default types", {
+  # scalar passthrough
+  expect_equal(housepi:::helper_clone(42), 42)
+  expect_equal(housepi:::helper_clone("hello"), "hello")
+
   # data.frame independence
   original <- data.frame(x = 1:3)
   cloned <- housepi:::helper_clone(original)
@@ -52,32 +56,22 @@ test_that("helper_clone deep clones data.frame, list, and scalars", {
   cloned_lst <- housepi:::helper_clone(lst)
   cloned_lst$a$x[1] <- 99
   expect_equal(lst$a$x[1], 1)
-
-  # scalar passthrough
-  expect_equal(housepi:::helper_clone(42), 42)
-  expect_equal(housepi:::helper_clone("hello"), "hello")
 })
 
-test_that("get_val_ retrieves from list with default", {
-  lst <- list(a = 1, b = "two")
-  expect_equal(housepi:::get_val_(lst, "a"), 1)
-  expect_equal(housepi:::get_val_(lst, "b"), "two")
-  expect_true(is.na(housepi:::get_val_(lst, "c")))
-  expect_equal(housepi:::get_val_(lst, "c", default = 0), 0)
-})
+# UPDATE: I will move factorization in cpp
+df_factory <- function() {
+  data.frame(id = c("p1", "p2"),
+             house_id = c("h1", "h1"),
+             status = c(1, 0),
+             date_col = as.Date(c("2024-01-01", "2024-01-02")),
+             char_col = c("male", "female"),
+             logic_col = c(TRUE, FALSE),
+             num_col = c(1.5, 2.5),
+             stringsAsFactors = FALSE)
+}
 
-test_that("cpp_data_factorize handles dates, factors, characters, logicals", {
-  df <- data.frame(
-    id = c("p1", "p2"),
-    house_id = c("h1", "h1"),
-    status = c(1, 0),
-    date_col = as.Date(c("2024-01-01", "2024-01-02")),
-    char_col = c("male", "female"),
-    logic_col = c(TRUE, FALSE),
-    num_col = c(1.5, 2.5),
-    stringsAsFactors = FALSE
-  )
-
+test_that("cpp data factorization handles default types", {
+  df <- df_factory()
   result <- housepi:::cpp_data_factorize(df)
 
   # structure
@@ -110,23 +104,15 @@ test_that("cpp_data_factorize handles dates, factors, characters, logicals", {
   expect_equal(result$cols, colnames(df))
 })
 
-test_that("cpp_data_refactor restores original types", {
-  df <- data.frame(
-    id = c("p1", "p2"),
-    house_id = c("h1", "h1"),
-    status = c(1, 0),
-    date_col = as.Date(c("2024-01-01", "2024-01-02")),
-    char_col = c("male", "female"),
-    logic_col = c(TRUE, FALSE),
-    stringsAsFactors = FALSE
-  )
-
+test_that("cpp data refactor restores original types", {
+  df <- df_factory()
   factored <- housepi:::cpp_data_factorize(df)
-  # simulate what C++ returns: numeric data.frame
   cpp_data <- suppressWarnings(data.frame(lapply(factored$data, as.numeric)))
   colnames(cpp_data) <- colnames(factored$data)
 
-  restored <- housepi:::cpp_data_refactor(cpp_data, factored$info, factored$cols)
+  restored <- housepi:::cpp_data_refactor(cpp_data,
+                                          factored$info,
+                                          factored$cols)
 
   expect_equal(restored$date_col, df$date_col)
   expect_equal(restored$char_col, df$char_col)
@@ -135,14 +121,37 @@ test_that("cpp_data_refactor restores original types", {
   expect_equal(colnames(restored)[seq_along(factored$cols)], factored$cols)
 })
 
-test_that("stop_h and warning_h format multi-line messages", {
+test_that("housepi stop and warning format multi-line messages", {
   expect_error(housepi:::stop_h("line1", "line2"), regexp = "line1\nline2")
   expect_warning(housepi:::warning_h("w1", "w2"), regexp = "w1\nw2")
 })
 
-test_that("rnd_string produces string of correct length", {
-  expect_equal(nchar(housepi:::rnd_string()), 8)
-  expect_equal(nchar(housepi:::rnd_string(12)), 12)
-  # different calls produce different strings (with high probability)
-  expect_false(housepi:::rnd_string() == housepi:::rnd_string())
+test_that("Char setup input formats setup options correctly", {
+  # id_draws with multiple values
+  setup <- list(steps = 100L, burnin = 10L, thin = 1L,
+                chains = 1L, id_draws = c("id1", "id2"))
+  result <- housepi:::char_setup_input_(setup)
+  expect_true(is.data.frame(result))
+  expect_equal(result$id_draws, "id1:id2")
+
+  # id_draws NULL
+  setup2 <- list(steps = 100L, id_draws = NULL)
+  result2 <- housepi:::char_setup_input_(setup2)
+  expect_true(is.na(result2$id_draws))
+
+  # all columns are character
+  expect_true(all(sapply(result, is.character)))
+})
+
+# UPDATE: once data becomes variant, no need to cast to character
+test_that("Char data input handles NULL and data.frame", {
+  expect_null(housepi:::char_data_input_(NULL))
+  df <- data.frame(x = 1:3, y = c(4.5, 5.5, 6.5))
+  result <- housepi:::char_data_input_(df)
+  expect_true(is.data.frame(result))
+  expect_true(all(sapply(result, is.character)))
+})
+
+test_that("housepi_theme_set is called without errors", {
+  expect_no_error(housepi_theme_set())
 })

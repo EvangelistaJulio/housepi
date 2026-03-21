@@ -213,7 +213,6 @@ HousepiPrediction <- R6::R6Class(
     #' @param ... `r rd_measure_dots_`
     #' @param measures_long `r rd_measure_long_`
     #' @param threads `r rd_thread_`
-    #' @param seed `r rd_seed_`
     #' @param progress `r rd_progress_`
     #' @param cri_level `r rd_smpl_cri_level_`
     initialize = function(hhmodel,
@@ -223,7 +222,6 @@ HousepiPrediction <- R6::R6Class(
                           ...,
                           measures_long = NULL,
                           threads = 1,
-                          seed = NA_integer_,
                           progress = TRUE,
                           cri_level = 0.95) {
       # associate credible interval
@@ -237,7 +235,7 @@ HousepiPrediction <- R6::R6Class(
       if (!is.null(measures_long)) m_long <- list(measures_long)
       has_long <- length(m_long) > 0
 
-      if (has_wide && has_long) stop_h("No measure was provided.")
+      if (!has_wide && !has_long) stop_h("No measure was provided.")
       # FIXME: temporary forcing obs process long
       if (has_long && is.null(obs_process_long)) stop_h(
         "obs_process_long is required when long measures are provided."
@@ -276,7 +274,6 @@ HousepiPrediction <- R6::R6Class(
         obs_proc_wide = obs_process,
         obs_proc_long = obs_process_long,
         threads = threads,
-        seed = seed,
         progress = progress
       )
 
@@ -506,14 +503,12 @@ PredictedCasesBySize <- R6::R6Class(
     #' @param param_table `r rd_param_table_`
     #' @param obs_process `r rd_simul_observ_`
     #' @param threads `r rd_thread_`
-    #' @param seed `r rd_seed_`
     #' @param progress `r rd_progress_`
     #' @param cri_level `r rd_smpl_cri_level_`
     initialize = function(hhmodel,
                           param_table,
                           obs_process = NULL,
                           threads = 1,
-                          seed = NA_integer_,
                           progress = TRUE,
                           cri_level = 0.95) {
       # ininitialize parent class HousepiPrediction
@@ -521,7 +516,7 @@ PredictedCasesBySize <- R6::R6Class(
                        cases_table_by_size = measure_cases_by_house_size,
                        sec_attack_rate = measure_sar_by_house_size,
                        obs_process = obs_process,
-                       threads = threads, seed = seed, progress = progress,
+                       threads = threads, progress = progress,
                        cri_level = cri_level)
       private$counts_ <- helper_count_non_zero_cases(hhmodel$data_wide)
 
@@ -569,7 +564,6 @@ PredictedCasesBySize <- R6::R6Class(
 #' @param obs_process `r rd_simul_observ_`
 #' @param obs_process_long `r rd_simul_obs_long_`
 #' @param threads `r rd_thread_`
-#' @param seed `r rd_seed_`
 #' @param progress `r rd_progress_`
 #' @return An object of class
 #' [HousepiPrediction][housepi::HousepiPrediction].
@@ -580,13 +574,12 @@ predicted_measures <- function(hhmodel,
                                obs_process = NULL,
                                obs_process_long = NULL,
                                threads = 1,
-                               seed = NA_character_,
                                progress = TRUE) {
   stopifnothousepi(hhmodel)
   HousepiPrediction$new(hhmodel$copy(), param_table, ...,
                         obs_process = obs_process,
                         obs_process_long = obs_process_long,
-                        threads = threads, seed = seed,
+                        threads = threads,
                         progress = progress)
 }
 
@@ -598,7 +591,6 @@ predicted_measures <- function(hhmodel,
 #' @param param_table `r rd_param_table_`
 #' @param obs_process `r rd_simul_observ_`
 #' @param threads `r rd_thread_`
-#' @param seed `r rd_seed_`
 #' @param progress `r rd_progress_`
 #' @return
 #' An object of class
@@ -609,12 +601,11 @@ predicted_cases_by_house_size <- function(hhmodel,
                                           param_table,
                                           obs_process = NULL,
                                           threads = 1,
-                                          seed = NA_character_,
                                           progress = TRUE) {
   stopifnothousepi(hhmodel)
   PredictedCasesBySize$new(hhmodel$copy(), param_table,
                            obs_process = obs_process,
-                           threads = threads, seed = seed,
+                           threads = threads,
                            progress = progress)
 }
 

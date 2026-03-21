@@ -19,7 +19,11 @@ template_name <- function(path) {
 
 # Add random string to templated name
 random_name <- function(path) {
-  paste0(template_name(path), rnd_string())
+  # generate a random string
+  str_len <- 8
+  str_name <- paste0(sample(c(letters, LETTERS, 0:9), str_len, replace = TRUE),
+                     collapse = "")
+  paste0(template_name(path), str_name)
 }
 
 # DLL fyle with templated name convention
@@ -111,8 +115,9 @@ find_closest_template_name <- function(x) {
   flat_choice <- spaced_template_choice(x)
   options <- list.files(template_models_dir(), full.names = FALSE)
   flat_options <- spaced_template_choice(options)
+  # NOTE: avoid to attempt a suggestion for silly mistakes
   sms <- find_closest_match(flat_choice, flat_options, 5)
-  if (stringr::str_ends(sms, "\\?")) return(sms)
+  if (stringr::str_ends(sms, "\\?") && nchar(flat_choice) > 3) return(sms)
   c("Show available templates calling 'template_household_model' alone.")
 }
 
@@ -126,8 +131,7 @@ find_closest_template_name <- function(x) {
 show_model_names <- function() {
   model_names <- list.files(template_models_dir())
   formatted_names <- tolower(gsub("-|_", " ", model_names))
-  sms <- c(i = "Available template models:",
-           paste0(cli::symbol$bullet, " blank"))
+  sms <- c(i = "Available template models:")
   for (m in formatted_names) sms <- c(sms, paste0(cli::symbol$bullet, " ", m))
   cli::cli_inform(sms)
 }
@@ -239,7 +243,7 @@ template_household_model <- function(name = NA_character_,
   # asking for template model description
   else if (is.na(path)) open_model_helper_(get_template_dir(name))
   # asking for copying template to folder with model
-  else if (all(file.exists(source_files(path)), !replace)) warning_h(
+  else if (file.exists(file.path(path, "model.cpp")) && !replace) warning_h(
     "A model already exists in the specified folder.",
     "If you want to replace it, run again with option 'replace = TRUE'."
   )

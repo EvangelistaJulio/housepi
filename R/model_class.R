@@ -188,7 +188,7 @@ HousepiModel <- R6::R6Class(
                            burnin = 0, thin = 1,
                            chains = 1, threads = 1,
                            id_draws = NULL,
-                           seed = NA_integer_, progress = FALSE) {
+                           progress = FALSE) {
       # import setup
       .engine$import_setup(private$mcmc_ptr_, char_setup_input_(list(
         steps = as.integer(steps),
@@ -198,7 +198,8 @@ HousepiModel <- R6::R6Class(
         chains = as.integer(chains),
         threads = as.integer(threads),
         id_draws = private$get_blank_id_draws_(id_draws),
-        seed = private$adjust_seed_(seed),
+        # generate a seed for Cpp random number generator
+        seed = sample.int(.Machine$integer.max, 1L),
         progress = as.integer(progress)
       )))
 
@@ -287,13 +288,17 @@ HousepiModel <- R6::R6Class(
 
     # Helper with observation process import.
     # Combine observation process to measures and refactor.
+    # UPDATE: I shall drop necessity for refactoring with variant data.
     helper_obs_process_ = function(obs_process) {
       if (is.null(obs_process)) {
         private$refactor_data_wide_
       } else if (is.function(obs_process)) {
         function(x) obs_process(private$refactor_data_wide_(x))
       } else {
-        stop_h("Unrecognized function passed as observation process.")
+        stop_h(sprintf(
+          "Observation process must be a function, not a '%s'.",
+          typeof(obs_process)
+        ))
       }
     },
 
@@ -306,19 +311,15 @@ HousepiModel <- R6::R6Class(
                             obs_proc_wide = NULL,
                             obs_proc_long = NULL,
                             threads = 1,
-                            seed = NA_integer_,
                             progress = TRUE) {
-      standard_apply <- private$helper_obs_process_(obs_proc_wide)
-
       param_table <- private$helper_import_table_(param_table)
       nsim <- dim(param_table)[1]
 
       # internal build function
-      private$build_full_(steps = nsim, threads = threads,
-                          seed = seed, progress = progress)
+      private$build_full_(steps = nsim, threads = threads, progress = progress)
 
       # attach param_table
-      .engine$import_param_for_prediction(private$mcmc_ptr_, param_table)
+      .engine$import_param_table(private$mcmc_ptr_, param_table)
 
       if (!is.null(apply_long) &&
             (is.null(obs_proc_long) || !is.function(obs_proc_long))) stop_h(
@@ -326,9 +327,10 @@ HousepiModel <- R6::R6Class(
       )
       .engine$run_simulation(
         private$mcmc_ptr_,
-        function(x) apply_wide(standard_apply(x)),
+        private$helper_obs_process_(obs_proc_wide),
+        apply_wide,
         if (is.null(apply_long)) NULL
-        else function(x) apply_long(obs_proc_long(standard_apply(x)))
+        else function(x) apply_long(obs_proc_long(x))
       )
     },
 
@@ -344,7 +346,6 @@ HousepiModel <- R6::R6Class(
     # @param adapt `r rd_smpl_adapt_`
     # @param chains `r rd_smpl_chain_`
     # @param threads `r rd_thread_`
-    # @param seed `r rd_seed_`
     # @param progress `r rd_progress_`
     #
     # @return `numeric(1)`
@@ -352,7 +353,7 @@ HousepiModel <- R6::R6Class(
                             steps = 10000, burnin = 0,
                             thin = 1, adapt = 0,
                             chains = 1, threads = 1,
-                            seed = NA_integer_, progress = TRUE) {
+                            progress = TRUE) {
       warning_h(
         "[Internal] This method is currently under development.",
         "Its usage is deprecated."
@@ -362,7 +363,7 @@ HousepiModel <- R6::R6Class(
       private$build_full_(steps = steps, burnin = burnin,
                           thin = thin, adapt = adapt,
                           chains = chains, threads = threads,
-                          seed = seed, progress = progress)
+                          progress = progress)
       # load options
       scheme <- as.character(scheme)
       rungs <- as.integer(rungs)
@@ -551,13 +552,11 @@ HousepiModel <- R6::R6Class(
     #' @description Store a copy of provided household data.
     #' @param data_wide `r rd_add_data_wide_`
     add_data_wide = function(data_wide) {
-      if (length(data_wide) == 0) return(invisible(self))
-
       # check that data_wide type is correct
       if (!is.data.frame(data_wide)) stop_h(
-        "Unsupported type for data_wide.",
-        "Dataset should be a data.frame."
+        sprintf("Unsupported type '%s' for data_wide.", typeof(data_wide))
       )
+      if (dim(data_wide)[[1]] == 0) stop_h("Provided data_wide is empty.")
 
       # convert factors
       embed <- cpp_data_factorize(data_wide)
@@ -597,7 +596,7 @@ HousepiModel <- R6::R6Class(
     #' @param data_long `r rd_add_data_long_`
     add_data_long = function(data_long) {
       if (!is.data.frame(data_long)) stop_h(
-        "Unsupported type for data_long.",
+        sprintf("Unsupported type '%s' for data_long.", typeof(data_long)),
         "Datalist should be a data.frame."
       )
 
@@ -811,10 +810,9 @@ HousepiModel <- R6::R6Class(
     #' @description Evaluate the log-likelihood.
     #' @param house_id `r rd_house_id_`
     #' If `NA` (default) it computes for the whole data.
-    #' @param seed `r rd_seed_`
     #' @return `numeric(1)`
-    evaluate_log_lik = function(house_id = NA_character_, seed = NA_integer_) {
-      private$build_full_(seed = seed)
+    evaluate_log_lik = function(house_id = NA_character_) {
+      private$build_full_()
       .engine$evaluate_log_lik(private$mcmc_ptr_, house_id)
     },
 
@@ -826,19 +824,17 @@ HousepiModel <- R6::R6Class(
     #' @param chains `r rd_smpl_chain_`
     #' @param threads `r rd_thread_`
     #' @param id_draws `r rd_smpl_iddrw_`
-    #' @param seed `r rd_seed_`
     #' @param progress `r rd_progress_`
     #' @return An object of class `HousepiPosteriorDraws`.
     run_inference = function(steps = 200, burnin = 0,
                              thin = 1, adapt = 0,
                              chains = 1, threads = 1,
                              id_draws = NULL,
-                             seed = NA_integer_,
                              progress = TRUE) {
       private$build_full_(steps = steps, burnin = burnin,
                           thin = thin, adapt = adapt,
                           chains = chains, threads = threads,
-                          id_draws = id_draws, seed = seed, progress = progress)
+                          id_draws = id_draws, progress = progress)
       .engine$run_inference(private$mcmc_ptr_)
       HousepiPosteriorDraws$new(private$name_, private$mcmc_ptr_)
     },
@@ -885,19 +881,17 @@ HousepiModel <- R6::R6Class(
     #' @param obs_process `r rd_simul_observ_`
     #' @param obs_process_long `r rd_simul_obs_long_`
     #' @param nsim `r rd_simul_nsim_`
-    #' @param seed `r rd_seed_`
     #' @return `data.frame` or `list` (when `obs_process_long` is provided)
     run_simulation = function(obs_process = NULL,
                               obs_process_long = NULL,
-                              nsim = 1,
-                              seed = NA_integer_) {
+                              nsim = 1) {
       # combine observation process to measures and refactor
       standard_apply <- private$helper_obs_process_(obs_process)
 
       # internal build function
-      private$build_full_(steps = nsim, seed = seed, progress = FALSE)
+      private$build_full_(steps = nsim, progress = FALSE)
 
-      # attach param_table
+      # attach table with parameters
       if (dim(self$parameters)[1] > 0) {
         param_table <- self$parameters
         param_table <- dplyr::select(param_table, name, value)
@@ -906,16 +900,17 @@ HousepiModel <- R6::R6Class(
                                           values_from = "value")
         param_table <- dplyr::mutate(param_table, n = nsim)
         param_table <- tidyr::uncount(param_table, n)
-        param_table <- private$helper_import_table_(param_table)
-        .engine$import_param_for_prediction(private$mcmc_ptr_, param_table)
+        .engine$import_param_table(private$mcmc_ptr_,
+                                   private$helper_import_table_(param_table))
       }
 
       # run simulations
       output <- .engine$run_simulation(
         private$mcmc_ptr_,
-        standard_apply,
-        if (is.null(obs_process_long)) NULL
-        else function(x) obs_process_long(standard_apply(x))
+        # combine observation process to measures and refactor
+        private$helper_obs_process_(obs_process),
+        NULL, # wide measure
+        obs_process_long
       )
 
       # drop empty wide/long
@@ -924,6 +919,9 @@ HousepiModel <- R6::R6Class(
       if (length(output) == 1) {
         output <- output[[1]]
         if (nsim == 1) output <- output[[1]]
+      } else if (nsim == 1) {
+        output$wide <- output$wide[[1]]
+        output$long <- output$long[[1]]
       }
 
       output

@@ -4,16 +4,13 @@
 \alias{evaluate_log_lik}
 \title{Evaluate log-likelihood of housepi model}
 \usage{
-evaluate_log_lik(hhmodel, house_id = NA_character_, seed = NA_integer_)
+evaluate_log_lik(hhmodel, house_id = NA_character_)
 }
 \arguments{
 \item{hhmodel}{\code{HousepiModel} object.}
 
 \item{house_id}{\code{character(1)} ID of the household of interest.
 If \code{NA} (default) it computes for the whole data.}
-
-\item{seed}{\code{integer(1)} Seed for the random number generator.\cr
-If \code{NA} uses current R seed (default).}
 }
 \value{
 \code{numeric(1)}

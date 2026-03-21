@@ -177,7 +177,7 @@ test_that("Augmented traces export only relevant variables", {
   )
   result <- hhmodel$run_inference(id_draws = infec_df$id)
   expect_equal(
-    posterior::variables(result$augm_draws), 
+    posterior::variables(result$augm_draws),
     paste(infec_df$id, c("layer", "alias", "alpha_beta", "expl"), sep = "_")
   )
 })
@@ -205,4 +205,101 @@ test_that("Modules do not get overwritten", {
   hhmodel_3 <- new_housepi_model("augmented_infection_time")
   out_3 <- hhmodel_3$infec_profile
   expect_identical(out_1, out_3)
+})
+
+test_that("Print behavior works as expected", {
+  # with data and parameters
+  hhmodel <- new_housepi_model("chain_binomial")
+  hhmodel$add_data_wide(housepi::survey)
+  hhmodel$load_parameter_template()
+  expect_snapshot(print(hhmodel))
+
+  # without parameters
+  hhmodel2 <- new_housepi_model("chain_binomial")
+  hhmodel2$add_data_wide(housepi::survey)
+  expect_snapshot(print(hhmodel2))
+
+  # blank model
+  expect_snapshot(print(new_housepi_model("blank")))
+})
+
+test_that("Active fields are read-only", {
+  hhmodel <- new_housepi_model("chain_binomial")
+  hhmodel$add_data_wide(housepi::survey)
+  expect_error(hhmodel$data_wide <- "La", regexp = "read only")
+  expect_error(hhmodel$data_long <- "Li", regexp = "read only")
+  expect_error(hhmodel$parameters <- "Lu", regexp = "read only")
+  expect_error(hhmodel$augmented <- "Le", regexp = "read only")
+  expect_error(hhmodel$infec_profile <- "Lo", regexp = "read only")
+  expect_error(hhmodel$group_rates <- "The", regexp = "read only")
+  expect_error(hhmodel$name <- "Patriots", regexp = "read only")
+  expect_error(hhmodel$setup <- "Cipher", regexp = "read only")
+})
+
+test_that("Add data type errors are conserved", {
+  hhmodel <- new_housepi_model("blank")
+  expect_error(hhmodel$add_data_wide(data.frame()), regexp = "empty")
+  expect_error(hhmodel$add_data_wide("ground"), regexp = "Unsupported type")
+  expect_error(hhmodel$add_data_long("zero"), regexp = "Unsupported type")
+})
+
+############################################################################
+## run_simulation with obs_process and nsim
+############################################################################
+
+test_that("Simulation with observation process is correct", {
+  hhmodel <- new_housepi_model("chain_binomial")
+  hhmodel$load_parameter_template()
+  hhmodel$add_data_wide(housepi::survey)
+  rand_observ <- function(x) dplyr::mutate(dplyr::rowwise(x), flag = runif(1))
+  withr::with_seed(1,
+    result1 <- hhmodel$run_simulation(obs_process = rand_observ)
+  )
+  # ensure simulation is correct
+  expect_true("flag" %in% colnames(result1))
+  withr::with_seed(1,
+    result1encore <- hhmodel$run_simulation(obs_process = rand_observ)
+  )
+  expect_identical(result1, result1encore)
+})
+
+test_that("Run simulation with nsim > 1 returns list of dataframes", {
+  hhmodel <- new_housepi_model("chain_binomial")
+  hhmodel$add_data_wide(housepi::survey)
+  hhmodel$load_parameter_template()
+  nsim <- 3
+  result <- hhmodel$run_simulation(nsim = nsim)
+  expect_true(is.list(result))
+  expect_length(result, nsim)
+  expect_true(is.data.frame(result[[1]]))
+})
+
+############################################################################
+## export_augmented_data and export_house_snapshot
+############################################################################
+
+test_that("export_augmented_data works after evaluate_log_lik", {
+  hhmodel <- new_housepi_model("augmented_example")
+  hhmodel$add_data_wide(
+    data.frame(house_id = 1, id = c("a", "b"), status = c(1, 0))
+  )
+  hhmodel$add_augmented(name = "proba", model = "uniform")
+  hhmodel$evaluate_log_lik()
+  result <- hhmodel$export_augmented_data()
+  expect_true(is.data.frame(result))
+  expect_true("proba" %in% colnames(result))
+})
+
+test_that("export_house_snapshot returns correct structure", {
+  hhmodel <- new_housepi_model("chain_binomial")
+  hhmodel$add_data_wide(housepi::survey)
+  hhmodel$load_parameter_template()
+  hhmodel$evaluate_log_lik()
+
+  hid <- housepi::survey$house_id[1]
+  snapshot <- hhmodel$export_house_snapshot(hid)
+  expect_true(is.list(snapshot))
+  expect_true("data_wide" %in% names(snapshot))
+  expect_true("param" %in% names(snapshot))
+  expect_true(is.data.frame(snapshot$data_wide))
 })

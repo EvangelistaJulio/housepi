@@ -200,7 +200,7 @@ test_that("Augmented moves preserve log-likelihood", {
   id_draws <- house[house$status > 0, ]$id
   results <- hhmodel |>
     run_inference(steps = n_steps, thin = 1, adapt = 0, chain = 1,
-                  progress = FALSE, seed = 2, id_draws = id_draws)
+                  progress = FALSE, id_draws = id_draws)
 
   tot_log_lik <- get_total_log_lik_draws(results)$log_lik
   expect_equal(tot_log_lik, get_log_lik_draws(results)$hh01)

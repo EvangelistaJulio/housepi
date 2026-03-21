@@ -350,7 +350,7 @@ namespace
     MAKE_RCPP_IMPORT_METHOD(infec_profile, "infectivity profile")
     MAKE_RCPP_IMPORT_METHOD(augm, "augmented")
 
-    void import_param_for_prediction(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
+    void import_param_table(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
     {
         try
         {
@@ -1184,6 +1184,7 @@ namespace
 
     /// Perform simulation and return simulated data with separate wide and long post-processing.
     Rcpp::List run_simulation(Rcpp::XPtr<MCMC> mcmc_ptr,
+                              Rcpp::Nullable<Rcpp::Function> obs_process,
                               Rcpp::Nullable<Rcpp::Function> apply_wide,
                               Rcpp::Nullable<Rcpp::Function> apply_long)
     {
@@ -1202,19 +1203,21 @@ namespace
             engine.model->init_model_for_simulation(); // model specific initialization
             const Rcpp::List shared_df = helper_export_data_wide(data_wide, shared_names, false);
 
+            Rcpp::List out_wide(setup.n_steps); // allocate memory for wide results
+            Rcpp::List out_long;                // long results are optional
+
             // UPDATE: only work-around I found for NULL functions...
-            std::unique_ptr<Rcpp::Function> func_wide, func_long;
-            // allocate memory for results
-            Rcpp::List out_wide, out_long;
+            std::unique_ptr<Rcpp::Function> f_obs_process = nullptr, f_wide = nullptr, f_long = nullptr;
+
+            if (!obs_process.isNull())
+                f_obs_process = std::make_unique<Rcpp::Function>(obs_process);
             if (!apply_wide.isNull())
-            {
-                out_wide = Rcpp::List(setup.n_steps);
-                func_wide = std::make_unique<Rcpp::Function>(apply_wide);
-            }
+                f_wide = std::make_unique<Rcpp::Function>(apply_wide);
+
             if (!apply_long.isNull())
             {
                 out_long = Rcpp::List(setup.n_steps);
-                func_long = std::make_unique<Rcpp::Function>(apply_long);
+                f_long = std::make_unique<Rcpp::Function>(apply_long);
             }
 
             setup.prog_open_for_simulation();
@@ -1223,12 +1226,20 @@ namespace
                 engine.augm.clear_all();
                 engine.data_wide.recover_all_status();
                 engine.param.load_sample_values(r);
-                Rcpp::DataFrame simulated = helper_simulate_single_repe_(engine, shared_df);
 
-                if (func_wide)
-                    out_wide[r] = (*func_wide)(simulated);
-                if (func_long)
-                    out_long[r] = (*func_long)(simulated);
+                Rcpp::DataFrame simulated;
+                if (f_obs_process)
+                    simulated = (*f_obs_process)(helper_simulate_single_repe_(engine, shared_df));
+                else
+                    simulated = helper_simulate_single_repe_(engine, shared_df);
+
+                if (f_wide)
+                    out_wide[r] = (*f_wide)(simulated);
+                else 
+                    out_wide[r] = simulated;
+
+                if (f_long)
+                    out_long[r] = (*f_long)(simulated);
             }
             setup.prog_close();
 
@@ -1375,7 +1386,7 @@ RCPP_MODULE(housepi)
     Rcpp::function("import_param", &import_param);
     Rcpp::function("import_infec_profile", &import_infec_profile);
     Rcpp::function("import_augm", &import_augm);
-    Rcpp::function("import_param_for_prediction", &import_param_for_prediction);
+    Rcpp::function("import_param_table", &import_param_table);
     Rcpp::function("build_contact_rates", &build_contact_rates);
     Rcpp::function("export_data_wide", &export_data_wide);
     Rcpp::function("export_data_long", &export_data_long);

@@ -30,7 +30,6 @@ performs simulation and compute predicted values of a set of measures.
   ...,
   measures_long = NULL,
   threads = 1,
-  seed = NA_integer_,
   progress = TRUE,
   cri_level = 0.95
 )}\if{html}{\out{</div>}}
@@ -62,9 +61,6 @@ Each function should return one between \code{numeric()}, \code{list} or \code{d
 \item{\code{measures_long}}{\code{function} | \code{list} of \code{function}s. Applied to \code{data_long} (derived via \code{obs_process_long}).}
 
 \item{\code{threads}}{\code{integer(1)} Number of threads for parallel household runs.}
-
-\item{\code{seed}}{\code{integer(1)} Seed for the random number generator.\cr
-If \code{NA} uses current R seed (default).}
 
 \item{\code{progress}}{\code{integer(1)} | \code{logical(1)} Control progressbar visualization.\cr
 One between:\cr

@@ -1,0 +1,8 @@
+# print works without error
+
+    Code
+      print(local_results)
+    Message
+      i Posterior draws of model chain binomial.
+      20 iterations, 1 chain, 2 parameters.
+

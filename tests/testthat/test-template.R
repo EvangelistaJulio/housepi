@@ -1,16 +1,5 @@
 library(testthat)
 
-test_that("spaced_template_choice normalizes template names", {
-  expect_equal(housepi:::spaced_template_choice("Chain-Binomial"),
-               "chain binomial")
-  expect_equal(housepi:::spaced_template_choice("chain_binomial"),
-               "chain binomial")
-  expect_equal(housepi:::spaced_template_choice(" chain binoMial "),
-               "chain binomial")
-  result <- housepi:::spaced_template_choice("CHAIN BINOMIAL")
-  expect_equal(result, "chain binomial")
-})
-
 test_that("set_source_name_ assigns names to vector", {
   result <- housepi:::set_source_name_(c("a", "b"), "param")
   expect_equal(names(result), c("param", "param"))
@@ -126,14 +115,55 @@ test_that("fmt_assert_cli formats messages correctly", {
   expect_true(any(grepl("can be specified", result)))
 })
 
-test_that("template_household_model validates input", {
+test_that("Template household model branches inform correctly", {
+  # print existing templates
+  expect_snapshot(template_household_model())
   # non-character name
   expect_error(template_household_model(42),
                regexp = "not a character")
   # blank with no path: warning about no description
   expect_warning(template_household_model("blank"),
                  regexp = "no description")
-  # unknown name: error with suggestion
-  expect_error(template_household_model(name = ""),
+  # unknown name
+  expect_error(template_household_model("foxhound"),
                regexp = "not a known template")
+})
+
+test_that("Template name normalization", {
+  model_name <- "chain binomial"
+  expect_equal(housepi:::spaced_template_choice("Chain-Binomial"),
+               model_name)
+  expect_equal(housepi:::spaced_template_choice("chain_binomial"),
+               model_name)
+  expect_equal(housepi:::spaced_template_choice(" chain binoMial "),
+               model_name)
+  result <- housepi:::spaced_template_choice("CHAIN BINOMIAL")
+  expect_equal(result, model_name)
+
+  result <- housepi:::find_closest_template_name("chain binomia")
+  expect_true(any(grepl("Did you mean", result)))
+
+  result2 <- housepi:::find_closest_template_name("")
+  expect_true(any(grepl("template_household_model", result2)))
+})
+
+test_that("Template extract keys from model.cpp", {
+  model_dir <- housepi:::get_template_dir("chain_binomial")
+  model_cpp <- file.path(model_dir, "model.cpp")
+  # DataKey should return empty character vector
+  result <- housepi:::template_extract_keys(model_cpp, "DataKey")
+  expect_true(is.character(result))
+
+  # non-existent key returns empty
+  result2 <- housepi:::template_extract_keys(model_cpp, "Raiden")
+  expect_equal(result2, character(0))
+})
+
+test_that("Template overwrite warn handles many elements", {
+  expect_warning(
+    housepi:::template_overwrite_warn(
+      letters[1:10], "parameter", max_print = 3
+    ),
+    regexp = "more than 3"
+  )
 })

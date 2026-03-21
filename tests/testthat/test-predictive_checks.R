@@ -1,12 +1,9 @@
 library(testthat)
 
 test_that("measure_sar_by_house_size computes SAR correctly", {
-  # household of size 2: 2 cases => SAR = (2-1)/(2-1) = 1
-  # household of size 3: 1 case  => excluded (0 cases after filtering)
-  # household of size 2: 1 case  => SAR = (1-1)/(2-1) = 0
   data_wide <- data.frame(
     id = paste0("p", 1:7),
-    house_id = c("hh1", "hh1", "hh2", "hh2", "hh2", "hh3", "hh3"),
+    house_id = c(rep("hh1", 2), rep("hh2", 3), rep("hh3", 2)),
     status = c(1, 1, 1, 0, 0, 1, 0)
   )
 
@@ -27,7 +24,7 @@ test_that("measure_sar_by_house_size computes SAR correctly", {
 test_that("measure_cases_by_house_size produces correct contingency table", {
   data_wide <- data.frame(
     id = paste0("p", 1:5),
-    house_id = c("hh1", "hh1", "hh2", "hh2", "hh2"),
+    house_id = c(rep("hh1", 2), rep("hh2", 3)),
     status = c(1, 1, 1, 0, 0)
   )
 
@@ -143,4 +140,196 @@ test_that("format_credible_intervals formats vectors correctly", {
   result <- format_credible_intervals(mn, lo, up)
   expect_true(is.data.frame(result))
   expect_equal(dim(result), dim(mn))
+
+  # mismatched data.frame dimensions
+  lo_bad <- data.frame(a = c(0))
+  expect_error(format_credible_intervals(mn, lo_bad, up),
+               regexp = "same dimensions")
+
+  # mean == 0 branch for digit calculation
+  result <- format_credible_intervals(0, -0.1, 0.1)
+  expect_true(is.character(result))
+})
+
+############################################################################
+## ppc_helper_print
+############################################################################
+
+test_that("ppc_helper_print formats messages correctly", {
+  sms <- housepi:::ppc_helper_print("test_model", TRUE, c("sar", "cases"), 0.95)
+  expect_true(is.character(sms))
+  expect_true(any(grepl("Posterior predictions", sms)))
+  expect_true(any(grepl("test_model", sms)))
+  expect_true(any(grepl("sar", sms)))
+  expect_true(any(grepl("cases", sms)))
+  expect_true(any(grepl("95%", sms)))
+
+  # non-posterior
+  sms2 <- housepi:::ppc_helper_print("m", FALSE, "sar", 0.8)
+  expect_true(any(grepl("Predictions", sms2)))
+  expect_true(any(grepl("80%", sms2)))
+})
+
+############################################################################
+## ppc_extract_predicted_results
+############################################################################
+
+test_that("ppc_extract_predicted_results returns correct structure", {
+  df1 <- data.frame(a = c(1, 2))
+  df2 <- data.frame(a = c(3, 4))
+  df3 <- data.frame(a = c(5, 6))
+  result <- housepi:::ppc_extract_predicted_results(list(df1, df2, df3),
+                                                    cri = 0.95)
+  expect_true(is.list(result))
+  expect_true(all(c("predicted", "cri_lower", "cri_upper") %in% names(result)))
+  expect_true(is.data.frame(result$predicted))
+})
+
+############################################################################
+## helper_count_non_zero_cases
+############################################################################
+
+test_that("helper_count_non_zero_cases counts correctly", {
+  df <- data.frame(
+    house_id = c(rep("hh1", 2), rep("hh2", 3), rep("hh3", 2)),
+    status = c(1, 1, 1, 0, 0, 1, 0)
+  )
+  df$id <- paste(df$house_id, seq_len(dim(df)[2]), sep = "_")
+  result <- housepi:::helper_count_non_zero_cases(df)
+  expect_true(is.data.frame(result))
+  expect_true(all(c("house_size", "count") %in% colnames(result)))
+  # hh1 (size 2, 2 cases) and hh2 (size 3, 1 case) and hh3 (size 2, 1 case)
+  expect_equal(result$count[result$house_size == 2], 2)
+  expect_equal(result$count[result$house_size == 3], 1)
+})
+
+############################################################################
+## helper_get_name_convention
+############################################################################
+
+test_that("helper_get_name_convention renames correctly", {
+  x <- c("predicted", "cri_lower", "cri_upper")
+  result <- housepi:::helper_get_name_convention(x, cri = 0.95)
+  expect_equal(result, c("mean", "q5", "q95"))
+
+  result2 <- housepi:::helper_get_name_convention(x, cri = 0.9)
+  expect_equal(result2, c("mean", "q10", "q90"))
+})
+
+############################################################################
+## helper_filter_tables
+############################################################################
+
+test_that("helper_filter_tables filters by max_house_size", {
+  obs <- data.frame(house_size = 2:4,
+                    `0` = c(1, 2, 3), `1` = c(4, 5, 0), `2` = c(0, 1, 0),
+                    check.names = FALSE)
+  pred <- obs * 1.1
+  pred$house_size <- obs$house_size
+  cri_lo <- obs * 0.9
+  cri_lo$house_size <- obs$house_size
+  cri_up <- obs * 1.2
+  cri_up$house_size <- obs$house_size
+
+  tbl <- list(observed = obs, predicted = pred,
+              cri_lower = cri_lo, cri_upper = cri_up)
+
+  # no filter
+  result <- housepi:::helper_filter_tables(tbl, NA)
+  expect_equal(nrow(result$observed), 3)
+
+  # filter to max size 3
+  result2 <- housepi:::helper_filter_tables(tbl, 3)
+  expect_true(all(result2$observed$house_size <= 3))
+})
+
+############################################################################
+## helper_combine_obs_pred
+############################################################################
+
+test_that("helper_combine_obs_pred interleaves rows", {
+  obsdf <- data.frame(house_size = c(2, 3), `0` = c(1, 2), `1` = c(3, 4),
+                      check.names = FALSE)
+  preddf <- data.frame(`0` = c(1.1, 2.1), `1` = c(3.1, 4.1),
+                        check.names = FALSE)
+  result <- housepi:::helper_combine_obs_pred(obsdf, preddf)
+  expect_true(is.data.frame(result))
+  expect_true("distr" %in% colnames(result))
+  expect_true("house_size" %in% colnames(result))
+  # alternating rows
+  expect_equal(result$distr, c("Observed", "Predicted",
+                                "Observed", "Predicted"))
+  expect_equal(nrow(result), 4)
+})
+
+############################################################################
+## HousepiPrediction errors when no measure provided
+############################################################################
+
+test_that("predicted_measures errors when no measure is provided", {
+  hhmodel <- new_housepi_model("chain_binomial") |>
+    load_parameter_template() |>
+    add_data_wide(housepi::survey)
+  results <- run_inference(hhmodel, steps = 5, progress = FALSE)
+  expect_error(
+    predicted_measures(hhmodel, results, progress = FALSE),
+    regexp = "No measure was provided"
+  )
+})
+
+############################################################################
+## Integration: PPC with chain_binomial model
+############################################################################
+
+test_that("predicted_cases_by_house_size works end-to-end", {
+  hhmodel <- new_housepi_model("chain_binomial") |>
+    load_parameter_template() |>
+    add_data_wide(housepi::survey)
+
+  results <- run_inference(hhmodel, steps = 10, progress = FALSE)
+
+  ppc <- predicted_cases_by_house_size(hhmodel, results, progress = FALSE)
+  expect_s3_class(ppc, "PredictedCasesBySize")
+
+  # formatted_sec_attack_rate
+  sar <- ppc$formatted_sec_attack_rate
+  expect_true(is.data.frame(sar))
+  expect_true("house_size" %in% colnames(sar))
+  expect_true("observed" %in% colnames(sar))
+
+  # formatted_cases_table
+  ct <- ppc$formatted_cases_table
+  expect_true(is.list(ct))
+  expect_true(length(ct) == 3)
+
+  # set_max_house_size and drop
+  ppc$set_max_house_size(3)
+  sar2 <- ppc$formatted_sec_attack_rate
+  expect_true(all(sar2$house_size <= 3))
+  ppc$drop_max_house_size()
+
+  # chisq_test
+  chi <- ppc$chisq_test()
+  expect_true(is.list(chi))
+  expect_true(all(c("chisq_value", "ddof", "p_value") %in% names(chi)))
+
+  # print
+  expect_snapshot(print(ppc))
+})
+
+test_that("predicted_measures works with custom measure", {
+  hhmodel <- new_housepi_model("chain_binomial") |>
+    load_parameter_template() |>
+    add_data_wide(housepi::survey)
+
+  results <- run_inference(hhmodel, steps = 10, progress = FALSE)
+
+  ppc <- predicted_measures(hhmodel, results,
+                            sar = measure_sar_by_house_size,
+                            progress = FALSE)
+  expect_s3_class(ppc, "HousepiPrediction")
+  expect_true(!is.null(ppc$sar))
+  expect_true("observed" %in% names(ppc$sar))
+  expect_true("predicted" %in% names(ppc$sar))
+  expect_snapshot(print(ppc))
 })

@@ -1,6 +1,6 @@
 library(testthat)
 
-add_add <- function(self, func, status = NA_integer_,
+aux_add <- function(self, func, status = NA_integer_,
                     discr = FALSE, ..., max = NULL) {
   self$add_quo(func = func, status = status, discr = discr,
                rlang::enquos(...), max = rlang::enquo(max))
@@ -17,7 +17,7 @@ test_that("Default infectivity profile definitions are correct", {
   infec <- housepi:::HousepiInfecProfile$new()
 
   # Add a profile with default arguments
-  add_add(infec, func = "dummy", discr = FALSE, a = 1, b = 2, max = 10)
+  aux_add(infec, func = "dummy", discr = FALSE, a = 1, b = 2, max = 10)
 
   expect_equal(infec$defs$func, "dummy|a:b|{1|N}:{2|N}")
   expect_equal(infec$defs$status, NA_integer_)
@@ -29,7 +29,7 @@ test_that("Infectivity profile with discrete values is correct", {
   infec <- housepi:::HousepiInfecProfile$new()
 
   # Add a discrete profile
-  add_add(infec, func = "discrete_profile", discr = TRUE,
+  aux_add(infec, func = "discrete_profile", discr = TRUE,
           x = 5, max = 20)
 
   expect_equal(infec$defs$func, "discrete_profile|x|{5|N}")
@@ -41,17 +41,17 @@ test_that("Error handling in infectivity profile definitions", {
   infec <- housepi:::HousepiInfecProfile$new()
 
   # Missing function name
-  expect_error(add_add(infec, func = NA, discr = FALSE, a = 1),
+  expect_error(aux_add(infec, func = NA, discr = FALSE, a = 1),
                regexp = "Incomplete definition")
 })
 
 test_that("Status specific definition work fine", {
   infec <- housepi:::HousepiInfecProfile$new()
 
-  add_add(infec, func = "discrete_profile", discr = TRUE,
+  aux_add(infec, func = "discrete_profile", discr = TRUE,
           x = 5, max = 20)
 
-  expect_warning(add_add(infec, func = "another_generic"),
+  expect_warning(aux_add(infec, func = "another_generic"),
                  regexp = "Overwriting")
 
   aux_load(infec,

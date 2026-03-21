@@ -4,13 +4,7 @@
 \alias{run_simulation}
 \title{Run simulation for housepi model}
 \usage{
-run_simulation(
-  hhmodel,
-  obs_process = NULL,
-  obs_process_long = NULL,
-  nsim = 1,
-  seed = NA_integer_
-)
+run_simulation(hhmodel, obs_process = NULL, obs_process_long = NULL, nsim = 1)
 }
 \arguments{
 \item{hhmodel}{\code{HousepiModel} object.}
@@ -24,9 +18,6 @@ Expexts processed \code{data_wide} and returns a \code{data_long} data.frame.\cr
 When provided, each simulation returns \code{list(wide = ..., long = ...)}.}
 
 \item{nsim}{\code{integer(1)} Number of simulated outbreaks.}
-
-\item{seed}{\code{integer(1)} Seed for the random number generator.\cr
-If \code{NA} uses current R seed (default).}
 }
 \value{
 \code{data.frame} or \code{list} (when \code{obs_process_long} is provided)

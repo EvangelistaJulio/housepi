@@ -106,11 +106,15 @@ test_that("Augmented log-likelihood seeding is fine", {
     .layer = list(model = "uniform")
   )
 
-  ll1 <- hhmodel$evaluate_log_lik(seed = 1)
-  ll2 <- hhmodel$evaluate_log_lik(seed = 2)
+  withr::with_seed(1, ll1 <- hhmodel$evaluate_log_lik())
+  # check if result is correct
+  expect_equal(ll1, sum(log(hhmodel$export_augmented_data()$proba)))
+  # verify it's different if different seed
+  withr::with_seed(2, ll2 <- hhmodel$evaluate_log_lik())
   expect_true(ll1 != ll2)
-  expect_equal(ll2, hhmodel$evaluate_log_lik(seed = 2))
-  expect_equal(ll2, sum(log(hhmodel$export_augmented_data()$proba)))
+  # opposite if same seed
+  withr::with_seed(2, ll2encore <- hhmodel$evaluate_log_lik())
+  expect_identical(ll2, ll2encore)
 })
 
 test_that("Augmented aliasing works as expected", {

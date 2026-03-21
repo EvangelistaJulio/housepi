@@ -11,7 +11,6 @@ predicted_measures(
   obs_process = NULL,
   obs_process_long = NULL,
   threads = 1,
-  seed = NA_character_,
   progress = TRUE
 )
 }
@@ -37,9 +36,6 @@ Expexts processed \code{data_wide} and returns a \code{data_long} data.frame.\cr
 When provided, each simulation returns \code{list(wide = ..., long = ...)}.}
 
 \item{threads}{\code{integer(1)} Number of threads for parallel household runs.}
-
-\item{seed}{\code{integer(1)} Seed for the random number generator.\cr
-If \code{NA} uses current R seed (default).}
 
 \item{progress}{\code{integer(1)} | \code{logical(1)} Control progressbar visualization.\cr
 One between:\cr

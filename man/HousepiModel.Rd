@@ -588,7 +588,7 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 \subsection{Method \code{evaluate_log_lik()}}{
 Evaluate the log-likelihood.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$evaluate_log_lik(house_id = NA_character_, seed = NA_integer_)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$evaluate_log_lik(house_id = NA_character_)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -596,9 +596,6 @@ Evaluate the log-likelihood.
 \describe{
 \item{\code{house_id}}{\code{character(1)} ID of the household of interest.
 If \code{NA} (default) it computes for the whole data.}
-
-\item{\code{seed}}{\code{integer(1)} Seed for the random number generator.\cr
-If \code{NA} uses current R seed (default).}
 }
 \if{html}{\out{</div>}}
 }
@@ -620,7 +617,6 @@ Run inference with Bayesian Markov chain Monte Carlo.
   chains = 1,
   threads = 1,
   id_draws = NULL,
-  seed = NA_integer_,
   progress = TRUE
 )}\if{html}{\out{</div>}}
 }
@@ -642,9 +638,6 @@ Run inference with Bayesian Markov chain Monte Carlo.
 
 \item{\code{id_draws}}{\code{character()} Individuals identifiers.\cr
 Store draws of public augmented variables for the chosen individuals.}
-
-\item{\code{seed}}{\code{integer(1)} Seed for the random number generator.\cr
-If \code{NA} uses current R seed (default).}
 
 \item{\code{progress}}{\code{integer(1)} | \code{logical(1)} Control progressbar visualization.\cr
 One between:\cr
@@ -703,8 +696,7 @@ It assumes the same community structure of the loaded data.
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$run_simulation(
   obs_process = NULL,
   obs_process_long = NULL,
-  nsim = 1,
-  seed = NA_integer_
+  nsim = 1
 )}\if{html}{\out{</div>}}
 }
 
@@ -720,9 +712,6 @@ Expexts processed \code{data_wide} and returns a \code{data_long} data.frame.\cr
 When provided, each simulation returns \code{list(wide = ..., long = ...)}.}
 
 \item{\code{nsim}}{\code{integer(1)} Number of simulated outbreaks.}
-
-\item{\code{seed}}{\code{integer(1)} Seed for the random number generator.\cr
-If \code{NA} uses current R seed (default).}
 }
 \if{html}{\out{</div>}}
 }
