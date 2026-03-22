@@ -271,7 +271,7 @@ HousepiModel <- R6::R6Class(
     },
 
     # Helper with parameter table import.
-    helper_import_table_ = function(param_table) {
+    helper_read_param_table_ = function(param_table) {
       # extract parameter draws from table
       if (inherits(param_table, "HousepiPosteriorDraws")) {
         param_table <- param_table$param_draws
@@ -284,6 +284,47 @@ HousepiModel <- R6::R6Class(
       }, error = function(e) {
         stop_h("Type of param_table not supported.")
       })
+    },
+
+    # Helper with simulation build.
+    # FIXME: If there's a param table, build should change
+    helper_simulation_build_ = function(param_table = NULL,
+                                        nsim = NA_integer_) {
+      # read param table
+      if (is.null(param_table)) {
+        if (is.na(NA_integer_)) nsim <- 1
+        else if (!is.numeric(nsim) || nsim < 0) stop_h(
+          "Number of simulations should be a positive integer."
+        )
+      } else {
+        param_table <- private$helper_read_param_table_(param_table)
+        nsim <- dim(param_table)[1]
+        # don't overwrite
+        if (dim(self$parameters)[1] == 0) {
+          param_dummy_list <- as.list(utils::head(param_table, 1))
+          self$load_parameter_list(!!!param_dummy_list)
+        }
+      }
+
+      # internal build function
+      private$build_full_(steps = nsim, progress = FALSE)
+
+      # NOTE: there might be not parameters at all
+      if (dim(self$parameters)[1] == 0) return(nsim)
+
+      # attach table with parameters
+      if (is.null(param_table)) {
+        param_table <- self$parameters
+        param_table <- dplyr::select(param_table, name, value)
+        param_table <- tidyr::pivot_wider(param_table,
+                                          names_from = "name",
+                                          values_from = "value")
+        param_table <- dplyr::mutate(param_table, n = nsim)
+        param_table <- tidyr::uncount(param_table, n)
+      }
+      .engine$import_param_table(private$mcmc_ptr_, param_table)
+
+      nsim
     },
 
     # Helper with observation process import.
@@ -312,7 +353,7 @@ HousepiModel <- R6::R6Class(
                             obs_proc_long = NULL,
                             threads = 1,
                             progress = TRUE) {
-      param_table <- private$helper_import_table_(param_table)
+      param_table <- private$helper_read_param_table_(param_table)
       nsim <- dim(param_table)[1]
 
       # internal build function
@@ -880,29 +921,19 @@ HousepiModel <- R6::R6Class(
     #' It assumes the same community structure of the loaded data.
     #' @param obs_process `r rd_simul_observ_`
     #' @param obs_process_long `r rd_simul_obs_long_`
+    #' @param param_table `r rd_param_table_`
     #' @param nsim `r rd_simul_nsim_`
     #' @return `data.frame` or `list` (when `obs_process_long` is provided)
     run_simulation = function(obs_process = NULL,
                               obs_process_long = NULL,
+                              param_table = NULL,
                               nsim = 1) {
       # combine observation process to measures and refactor
       standard_apply <- private$helper_obs_process_(obs_process)
 
-      # internal build function
-      private$build_full_(steps = nsim, progress = FALSE)
-
-      # attach table with parameters
-      if (dim(self$parameters)[1] > 0) {
-        param_table <- self$parameters
-        param_table <- dplyr::select(param_table, name, value)
-        param_table <- tidyr::pivot_wider(param_table,
-                                          names_from = "name",
-                                          values_from = "value")
-        param_table <- dplyr::mutate(param_table, n = nsim)
-        param_table <- tidyr::uncount(param_table, n)
-        .engine$import_param_table(private$mcmc_ptr_,
-                                   private$helper_import_table_(param_table))
-      }
+      # simulation specific build
+      nsim <- private$helper_simulation_build_(param_table = param_table,
+                                               nsim = nsim)
 
       # run simulations
       output <- .engine$run_simulation(

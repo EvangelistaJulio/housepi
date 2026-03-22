@@ -484,16 +484,19 @@ run_inference <- function(hhmodel,
 #' @param hhmodel `r rd_model_in_`
 #' @param obs_process `r rd_simul_observ_`
 #' @param obs_process_long `r rd_simul_obs_long_`
+#' @param param_table `r rd_param_table_`
 #' @param nsim `r rd_simul_nsim_`
 #' @return `data.frame` or `list` (when `obs_process_long` is provided)
 #' @export
 run_simulation <- function(hhmodel,
                            obs_process = NULL,
                            obs_process_long = NULL,
+                           param_table = NULL,
                            nsim = 1) {
   stopifnothousepi(hhmodel)
   hhmodel$run_simulation(obs_process = obs_process,
                          obs_process_long = obs_process_long,
+                         param_table = param_table,
                          nsim = nsim)
 }
 

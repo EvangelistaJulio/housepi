@@ -696,6 +696,7 @@ It assumes the same community structure of the loaded data.
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$run_simulation(
   obs_process = NULL,
   obs_process_long = NULL,
+  param_table = NULL,
   nsim = 1
 )}\if{html}{\out{</div>}}
 }
@@ -711,7 +712,15 @@ If \code{NULL}, observation process is ignored.}
 Expexts processed \code{data_wide} and returns a \code{data_long} data.frame.\cr
 When provided, each simulation returns \code{list(wide = ..., long = ...)}.}
 
-\item{\code{nsim}}{\code{integer(1)} Number of simulated outbreaks.}
+\item{\code{param_table}}{One between\cr
+\itemize{
+\item \code{data.frame};
+\item \code{posterior::draws};
+\item \link[=HousepiPosteriorDraws]{HousepiPosteriorDraws}.
+}}
+
+\item{\code{nsim}}{\code{integer(1)} Number of simulated outbreaks.\cr
+Ignored if \code{param_table} is provided, else simulations share parameters.}
 }
 \if{html}{\out{</div>}}
 }

@@ -4,7 +4,13 @@
 \alias{run_simulation}
 \title{Run simulation for housepi model}
 \usage{
-run_simulation(hhmodel, obs_process = NULL, obs_process_long = NULL, nsim = 1)
+run_simulation(
+  hhmodel,
+  obs_process = NULL,
+  obs_process_long = NULL,
+  param_table = NULL,
+  nsim = 1
+)
 }
 \arguments{
 \item{hhmodel}{\code{HousepiModel} object.}
@@ -17,7 +23,15 @@ If \code{NULL}, observation process is ignored.}
 Expexts processed \code{data_wide} and returns a \code{data_long} data.frame.\cr
 When provided, each simulation returns \code{list(wide = ..., long = ...)}.}
 
-\item{nsim}{\code{integer(1)} Number of simulated outbreaks.}
+\item{param_table}{One between\cr
+\itemize{
+\item \code{data.frame};
+\item \code{posterior::draws};
+\item \link[=HousepiPosteriorDraws]{HousepiPosteriorDraws}.
+}}
+
+\item{nsim}{\code{integer(1)} Number of simulated outbreaks.\cr
+Ignored if \code{param_table} is provided, else simulations share parameters.}
 }
 \value{
 \code{data.frame} or \code{list} (when \code{obs_process_long} is provided)
