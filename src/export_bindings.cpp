@@ -1129,64 +1129,102 @@ namespace
     //////////////////////////////////////////  MCMC : simulate ///////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /// Perform a single repetition.
-    Rcpp::DataFrame helper_simulate_single_repe_(MCMC &engine, Rcpp::List shared_df)
+    namespace simulate
     {
-        const Augmented &augm = engine.augm;
-        DataWide &data_wide = engine.data_wide;
-        Rcpp::List output = Rcpp::clone(shared_df);
+        // pre-compute per-household row offsets (fixes OpenMP race on row counter)
+        std::vector<size_t> get_row_offsets(const DataWide &data_wide)
+        {
+            std::vector<size_t> output(data_wide.report_house.total + 1, 0);
+            for (size_t H = 0; H < data_wide.report_house.total; ++H)
+                output[H + 1] = output[H] + data_wide.at(H).size();
+            return output;
+        }
 
-        const size_t n_cols = augm.list_export.size();
-        const size_t n_rows = data_wide.report_indiv.total;
+        // pre-compute per-household row offsets (fixes OpenMP race on row counter)
+        std::vector<std::string> get_col_names(const Augmented &augm,
+                                               const std::vector<std::string> &static_data_names)
+        {
+            // pre-build the column name vector for the per-iteration shallow list
+            const size_t n_shared = static_data_names.size();
+            const size_t n_augm_cols = augm.list_export.size();
 
-        Rcpp::IntegerVector status_col(n_rows);
+            std::vector<std::string> output(2 + n_shared + 1 + n_augm_cols);
 
-        std::vector<Rcpp::NumericVector> augm_cols(n_cols);
-        for (size_t c = 0; c < n_cols; ++c)
-            augm_cols[c] = Rcpp::NumericVector(n_rows);
+            output[0] = "id";
+            output[1] = "house_id";
+            for (size_t i = 0; i < n_shared; ++i)
+                output[2 + i] = static_data_names[i];
+            
+            output[2 + n_shared] = "status";
+            for (size_t c = 0; c < n_augm_cols; ++c)
+                output[3 + n_shared + c] = augm.pRegistry->as_string(augm.list_export[c]);
 
-        size_t row = 0;
+            return output;
+        }
+
+        /// Perform a single repetition.
+        void single_repetition(MCMC &engine,
+                               Rcpp::IntegerVector &status_col,
+                               std::vector<Rcpp::NumericVector> &augm_cols,
+                               const std::vector<size_t> &row_offsets)
+        {
+            DataWide &data_wide = engine.data_wide;
+            const Augmented &augm = engine.augm;
 
 #pragma omp parallel for
-        for (size_t H = 0; H < data_wide.report_house.total; ++H)
-            try
-            {
-                if (engine.atomic_error.is_pending())
-                    continue;
-
-                Household &house = data_wide.at(H);
-                engine.model->simulate_single_house(house);
-
-                for (const Individual &member : house)
+            for (size_t H = 0; H < data_wide.report_house.total; ++H)
+                try
                 {
-                    status_col[row] = member.status();
-                    size_t c = 0;
-                    for (size_t a : augm.list_export)
-                        augm_cols[c++][row] = hsp_to_rcpp(member.get_augm_variable(a));
-                    ++row;
+                    if (engine.atomic_error.is_pending())
+                        continue;
+
+                    Household &house = data_wide.at(H);
+                    engine.model->simulate_single_house(house);
+
+                    size_t row = row_offsets[H]; // thread-local: no shared counter
+                    for (const Individual &member : house)
+                    {
+                        status_col[row] = member.status();
+                        size_t c = 0;
+                        for (size_t a : augm.list_export)
+                            augm_cols[c++][row] = hsp_to_rcpp(member.get_augm_variable(a));
+                        ++row;
+                    }
                 }
-            }
-            catch (const std::exception &e)
-            {
-                engine.atomic_error.set(
-                    "While simulating " + data_wide.at(H).err_name() + ":\n" +
-                    std::string(e.what()));
-            }
-        engine.atomic_error.throw_exception();
+                catch (const std::exception &e)
+                {
+                    engine.atomic_error.set(
+                        "While simulating " + data_wide.at(H).err_name() + ":\n" +
+                        std::string(e.what()));
+                }
+            engine.atomic_error.throw_exception();
+        }
 
-        output["status"] = status_col;
-        size_t c = 0;
-        for (size_t a : augm.list_export)
-            output[augm.pRegistry->as_string(a)] = augm_cols[c++];
-
-        return Rcpp::DataFrame(output);
+        // pre-compute per-household row offsets (fixes OpenMP race on row counter)
+        Rcpp::DataFrame build_simulated(const Rcpp::List &shared_df,
+                                        const Rcpp::IntegerVector &status_col,
+                                        const std::vector<Rcpp::NumericVector> &augm_cols,
+                                        const Rcpp::CharacterVector &sim_names)
+        {
+            // build simulated list
+            const size_t n_shared(shared_df.size());
+            const size_t n_augm_cols(augm_cols.size());
+            Rcpp::List sim_list(n_shared + 1 + n_augm_cols);
+            for (int i = 0; i < n_shared; ++i)
+                sim_list[i] = shared_df[i];
+            sim_list[n_shared] = status_col;
+            for (size_t c = 0; c < n_augm_cols; ++c)
+                sim_list[n_shared + 1 + static_cast<int>(c)] = augm_cols[c];
+            sim_list.attr("names") = sim_names;
+            return Rcpp::DataFrame(sim_list);
+        }
     }
 
     /// Perform simulation and return simulated data with separate wide and long post-processing.
     Rcpp::List run_simulation(Rcpp::XPtr<MCMC> mcmc_ptr,
                               Rcpp::Nullable<Rcpp::Function> obs_process,
                               Rcpp::Nullable<Rcpp::Function> apply_wide,
-                              Rcpp::Nullable<Rcpp::Function> apply_long)
+                              Rcpp::Nullable<Rcpp::Function> obs_process_and_apply_long)
     {
         MCMC &engine = *mcmc_ptr;
         Setup &setup = engine.setup;
@@ -1195,16 +1233,16 @@ namespace
 
         try
         {
-            // column names of data shared across simulations
-            const std::vector<std::string> shared_names = data_wide.pRegistry->get_all() -
-                                                          augm.pRegistry->as_string(augm.list_export);
+            //////////////////////////
+            //////  Assertions  //////
+            //////////////////////////
 
             data_wide.assert_non_empty();              // check if data is empty
             engine.model->init_model_for_simulation(); // model specific initialization
-            const Rcpp::List shared_df = helper_export_data_wide(data_wide, shared_names, false);
 
-            Rcpp::List out_wide(setup.n_steps); // allocate memory for wide results
-            Rcpp::List out_long;                // long results are optional
+            //////////////////////////////////////////////
+            //////  Observation Process & Measures  //////
+            //////////////////////////////////////////////
 
             // UPDATE: only work-around I found for NULL functions...
             std::unique_ptr<Rcpp::Function> f_obs_process = nullptr, f_wide = nullptr, f_long = nullptr;
@@ -1213,12 +1251,38 @@ namespace
                 f_obs_process = std::make_unique<Rcpp::Function>(obs_process);
             if (!apply_wide.isNull())
                 f_wide = std::make_unique<Rcpp::Function>(apply_wide);
+            if (!obs_process_and_apply_long.isNull())
+                f_long = std::make_unique<Rcpp::Function>(obs_process_and_apply_long);
 
-            if (!apply_long.isNull())
-            {
+            //////////////////////////////
+            //////  Initialization  //////
+            //////////////////////////////
+
+            Rcpp::List out_wide(setup.n_steps); // allocate memory for wide results
+            Rcpp::List out_long;                // long results are optional
+            if (f_long)
                 out_long = Rcpp::List(setup.n_steps);
-                f_long = std::make_unique<Rcpp::Function>(apply_long);
-            }
+
+            // column names of data shared across simulations
+            const std::vector<std::string> static_data_names = data_wide.pRegistry->get_all() -
+                                                               augm.pRegistry->as_string(augm.list_export);
+            const Rcpp::List shared_df = helper_export_data_wide(data_wide, static_data_names, false);
+
+            // simulated data column name vector
+            Rcpp::CharacterVector sim_names = Rcpp::wrap(simulate::get_col_names(augm, static_data_names));
+
+            // row offsets for house parallelization
+            const std::vector<size_t> row_offsets = simulate::get_row_offsets(data_wide);
+
+            // pre-allocate mutable output columns once (reused across iterations)
+            Rcpp::IntegerVector status_col(data_wide.report_indiv.total);
+            std::vector<Rcpp::NumericVector> augm_cols(augm.list_export.size());
+            for (size_t c = 0; c < augm_cols.size(); ++c)
+                augm_cols[c] = Rcpp::NumericVector(data_wide.report_indiv.total);
+
+            ///////////////////////////
+            //////  Simulations  //////
+            ///////////////////////////
 
             setup.prog_open_for_simulation();
             for (size_t r = 0; r < setup.n_steps; ++r, setup.prog_update())
@@ -1227,17 +1291,24 @@ namespace
                 engine.data_wide.recover_all_status();
                 engine.param.load_sample_values(r);
 
-                Rcpp::DataFrame simulated;
-                if (f_obs_process)
-                    simulated = (*f_obs_process)(helper_simulate_single_repe_(engine, shared_df));
-                else
-                    simulated = helper_simulate_single_repe_(engine, shared_df);
+                // run single repetition
+                simulate::single_repetition(
+                    engine, status_col, augm_cols, row_offsets);
 
+                // build simulated list
+                Rcpp::DataFrame simulated(simulate::build_simulated(
+                    shared_df, status_col, augm_cols, sim_names));
+
+                // observation process
+                if (f_obs_process)
+                    simulated = (*f_obs_process)(simulated);
+
+                // apply measure to data-wide or store it
                 if (f_wide)
                     out_wide[r] = (*f_wide)(simulated);
-                else 
-                    out_wide[r] = simulated;
-
+                else
+                    out_wide[r] = Rcpp::clone(simulated); // clone when storing
+                // long observation process and apply measure
                 if (f_long)
                     out_long[r] = (*f_long)(simulated);
             }

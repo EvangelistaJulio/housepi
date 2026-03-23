@@ -292,7 +292,7 @@ HousepiModel <- R6::R6Class(
                                         nsim = NA_integer_) {
       # read param table
       if (is.null(param_table)) {
-        if (is.na(NA_integer_)) nsim <- 1
+        if (is.na(nsim)) nsim <- 1
         else if (!is.numeric(nsim) || nsim < 0) stop_h(
           "Number of simulations should be a positive integer."
         )
@@ -302,7 +302,7 @@ HousepiModel <- R6::R6Class(
         # don't overwrite
         if (dim(self$parameters)[1] == 0) {
           param_dummy_list <- as.list(utils::head(param_table, 1))
-          self$load_parameter_list(!!!param_dummy_list)
+          do.call(self$load_parameter_list, param_dummy_list)
         }
       }
 
@@ -928,9 +928,6 @@ HousepiModel <- R6::R6Class(
                               obs_process_long = NULL,
                               param_table = NULL,
                               nsim = 1) {
-      # combine observation process to measures and refactor
-      standard_apply <- private$helper_obs_process_(obs_process)
-
       # simulation specific build
       nsim <- private$helper_simulation_build_(param_table = param_table,
                                                nsim = nsim)
