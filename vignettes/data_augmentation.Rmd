@@ -1,22 +1,23 @@
 ---
 title: "Data augmentation"
-output: 
+output:
   rmarkdown::html_vignette:
     toc: true
-    toc_depth: 3
+    toc-depth: 3
 vignette: >
   %\VignetteIndexEntry{Data augmentation}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
-editor_options: 
-  markdown: 
+editor_options:
+  markdown:
     wrap: sentence
 ---
 
 ```{r child = "helpers/_setup.Rmd"}
 ```
 
-```{r library}
+```{r}
+#| label: library
 #| include: false
 options(housepi.footer.sample = TRUE)
 library(housepi)
@@ -41,7 +42,7 @@ We here explain how to associate individual augmented variables in housepi for m
 
 # Build augmented variables
 
-Similarly to parameter, augmented variables require definitions for models and proposals needed for the Bayesian Monte Carlo.
+Similarly to parameters, augmented variables require definitions for models and proposals needed for the Bayesian Monte Carlo.
 In many applications, augmented variable definitions can also depend on the dataset or on model parameters to be inferred.
 
 # Link arguments to source
@@ -50,8 +51,8 @@ We can declare the source of any argument value according to the convention usin
 $$
 {\rm argument@source}
 $$
-which reads "argument at source". 
-E. g. "visit_day\@D" will source the value from individual data "visit_day", "beta\@P" from the current value for the parameter "beta", etc.
+which reads "argument at source".
+E.g. "visit_day\@D" will source the value from individual data "visit_day", "beta\@P" from the current value for the parameter "beta", etc.
 
 
 <div style="display: flex; justify-content: center;">
@@ -69,18 +70,18 @@ E. g. "visit_day\@D" will source the value from individual data "visit_day", "be
 </div>
 
 Notice that a variable name without explicit source will automatically be assumed to be an augmented variable^[However sometimes it could be necessary to disambiguate, which can be done with the source \@A.].
-Similarly, there's no need to specify the source of a numeric value. 
+Similarly, there's no need to specify the source of a numeric value.
 
 More in general, definition arguments `value`, `min` and `max` can be linked to external values in the following ways
 
 # Status specific definitions
 
-In many applications, the same augmented variable has to be augmented according to different rules according to the individual. 
+In many applications, the same augmented variable has to be augmented according to different rules depending on the individual.
 This is the case for example of infection times for symptomatic and asymptomatic members.
 We can address this issue in housepi using status specific definitions, as opposed to generic definitions valid for all positive status individuals.
 Let's consider the case of a survey that reported symptoms within a follow-up period and tested every household member only when a first individual showed symptoms and after 10 days.
-Let's use `status = 1` to tag symptomatic individuals and `status = 2` to tag asymptomatic. 
-We decide to augment infection times of symptomatic members as shown in [Get Started](housepi.html), i. e. informed by reported onset date.
+Let's use `status = 1` to tag symptomatic individuals and `status = 2` to tag asymptomatic.
+We decide to augment infection times of symptomatic members as shown in [Get Started](housepi.html), i.e. informed by reported onset date.
 For asymptomatic members we draw the infection time uniformly within the period of the follow-up.
 
 ```{r}
@@ -93,31 +94,31 @@ hhmodel <- new_housepi_model("augmented_infection_time") |>
                            status = c(1, 2),
                            onset_time = c(onset_tommy, NA),
                            house_id = "house_1",
-                           end_followup = onset_tommy + 10)) |> 
-  load_parameter_list(alpha = 0.001, beta = 0.07, gamma = 0.9, size_ref = 4) |> 
+                           end_followup = onset_tommy + 10)) |>
+  load_parameter_list(alpha = 0.001, beta = 0.07, gamma = 0.9, size_ref = 4) |>
 
   # associate augmented definitions
   load_augmented_list(
-    # augmented infection time for symptomatic members 
+    # augmented infection time for symptomatic members
     # here we use a generic definition
     infec_time = onset_time@D - incub_period,
     incub_period = list(model = "gamma", shape = 2, scale = 1),
 
     # augmented infection time for asymptomatic members
     # here we use a status specific definition, with priority over generic
-    infec_time = list(status = 2, model = "uniform", 
+    infec_time = list(status = 2, model = "uniform",
                       min = !!onset_tommy, max = end_followup@D)
   )
 ```
 
 ```{r}
-#| fig.alt: >
+#| fig-alt: >
 #|  Density plots of augmented infection times for two household members.
 # run inference following traces of specific individuals
-hhmodel |> 
-  run_inference(steps = 500, id_draws = c("tommy", "gina")) |> 
-  get_augm_draws() |> 
-  posterior::subset_draws(variable = "infec_time$", regex = TRUE) |> 
+hhmodel |>
+  run_inference(steps = 500, id_draws = c("tommy", "gina")) |>
+  get_augm_draws() |>
+  posterior::subset_draws(variable = "infec_time$", regex = TRUE) |>
   bayesplot::mcmc_dens(facet_args = list(ncol = 1)) +
   geom_vline(data = data.frame(xintercept = onset_tommy),
              aes(xintercept = xintercept), linetype = 2) +
@@ -137,7 +138,7 @@ source("generate_delays.R")
 # generate delays according to a gamma distribution
 true_mean <- 2.2
 true_var <- 1.4
-dataset <- generate_delays_report(223, mean = true_mean, var = true_var, 
+dataset <- generate_delays_report(223, mean = true_mean, var = true_var,
                                   report_error = 0.73)
 head(dataset)
 ```
@@ -159,18 +160,18 @@ hhmodel <- new_housepi_model("augmented_example") |>
   load_augmented_list(
     # explicit declaration of incubation period likelihood
     proba = list(
-      func = "gamma_meanvar",         # gamma distribution by mean/variamce
+      func = "gamma_meanvar",         # gamma distribution by mean/variance
       func_args = c(x = incub_period, # compute from individual 'incub_period'
                     mean = mean@P,    # use model parameter 'mean'
                     var = var@P),     # and 'var'
       max = 14 # truncate to given maximum
     ),
-    
+
     # declare 'incub_period' as the difference
     # between augmented onset and infection times
     incub_period = .onset_time - .infec_time,
-    
-    
+
+
     # add 'onset_time' time definition
     # here we correct right censoring of maximum values
     # to allow for the event to occur during the whole day
@@ -203,32 +204,32 @@ hhmodel <- new_housepi_model("augmented_example") |>
 # Extract augmented variable draws
 
 We could run the inference and extract the results as usual.
-However, sometimes we might be interested in extracting also  to check if augmented variables evolve as expected.
+However, sometimes we might be interested in extracting augmented variable draws to check if they evolve as expected.
 We can do so by providing the `id` of individuals whose augmented variables we want to store through the argument `id_draws` of `run_inference()`.
 
 ```{r}
-#| fig.height: 3
+#| fig-height: 3
 #| message: false
 #| warning: false
-#| fig.alt: >
+#| fig-alt: >
 #|  Trace plots for mean and variance parameters with three parallel chains.
 #|  Overlaying orange lines indicate the values used for the simulation.
 results <- hhmodel |>
   add_data_wide(dataset) |>
   run_inference(steps = 1000, thin = 5, chains = 3, adapt = 500,
                 # store augmented draws of "7" and "13"
-                id_draws = c("7", "13"), 
+                id_draws = c("7", "13"),
                 progress = FALSE)
 
 # plot traces of parameter draws
 bayesplot::mcmc_trace(get_param_draws(results)) +
-  geom_hline(data = data.frame(parameter = c("mean", "var"), 
+  geom_hline(data = data.frame(parameter = c("mean", "var"),
                                simulated = c(true_mean, true_var)),
              aes(yintercept = simulated))
 ```
 
 ```{r}
-#| fig.alt: >
+#| fig-alt: >
 #|  Trace plots for individual augmented variables across three MCMC chains.
 #|  Incubation period and associated probability for two subjects (IDs 7 and 13).
 # plot traces of augmented draws
@@ -260,15 +261,15 @@ results <- new_housepi_model("blank") |>
 ```
 
 ```{r}
-#| fig.height: 2
-#| fig.alt: >
+#| fig-height: 2
+#| fig-alt: >
 #|  Trace plot of a single augmented variable sampled from the model.
 bayesplot::mcmc_trace(get_augm_draws(results))
 ```
 
 ```{r}
-#| fig.height: 2
-#| fig.alt: >
+#| fig-height: 2
+#| fig-alt: >
 #|  Trace plot of the corresponding model contribution to the log-likelihood.
 bayesplot::mcmc_trace(get_total_log_lik_draws(results))
 ```

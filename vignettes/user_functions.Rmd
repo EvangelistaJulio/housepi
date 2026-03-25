@@ -1,128 +1,138 @@
 ---
 title: "User functions"
-output: 
+output:
   rmarkdown::html_vignette:
     toc: true
-    toc_depth: 3
+    toc-depth: 3
 vignette: >
   %\VignetteIndexEntry{User functions}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
-editor_options: 
-  markdown: 
+editor_options:
+  markdown:
     wrap: sentence
 ---
 
 ```{r child = "helpers/_setup.Rmd"}
 ```
 
-```{r library}
+```{r}
+#| label: library
 #| include: false
 knitr::opts_chunk$set(fig.width = 5, fig.height = 3)
 library(housepi)
 set.seed(42)
 ```
 
-Sometimes your case study requires to use a function, distribution or infectivity profile not immediately available in housepi.
-In this vignette we describe an advanced developer‑level extension to add them.
-These added custom function classes, can then be registered and made them available to models and R. 
+Sometimes your case study requires a function, distribution or infectivity profile not immediately available in housepi.
+In this vignette we describe an advanced developer-level extension to add them.
+Custom function classes can be registered and made available to models and R.
 It is intended for users who are comfortable reading and editing C++ code, and working with custom housepi models.
 However, if appropriate, authors will evaluate requests to add missing functions to the official package.
 
-User functions are added in the C++ source code by inheriting from a base class
-`Function`, and overriding one or more of their virtual methods.
+We illustrate this with a concrete example from `inst/examples/custom/model.cpp`, which ships with the package.
 
-Once our function class is defined, we can register it using the macro `REGISTER_USER_FUNCTION`, making the new function available to the model system and to R by its register name.
+# The full custom model source
 
-In our simplified example, we define a custom "monomial" function. 
-This is done by providing a constructor with the register name, its argument names and default valued, and by overriding the `raw_call_` method as follows 
-```{Rcpp, eval=FALSE}
-// inside path/to/mymodel/
-class MyMonomialFunction : public Function {
-public:
-    MyMonomialFunction()          // constructor
-        : Function("my_monomial", // function name used in registers
-                   {"a", "b"},    // names of arguments
-                   {1.0, 1.0},    // default values
-                   0.0) {}        // value of the minimum
-  
-protected:
-    // internal method called when the function is evaluated
-    double raw_call_(double x) const override final {
-        const double a = arg(0); // arguments order is by definition
-        const double b = arg(1);
-        return a * std::pow(x, b);
-    }
-};
-
-// register user function so that it can be used in the analysis
-REGISTER_USER_FUNCTION(CustomSquareFunction)
-```
-
-# How it works
-
-1. Inheritance and Constructor:
-The class `MyMonomialFunction` inherits from `Function`. 
-In the constructor, we define:
-+ The register name of the function;
-+ A list of argument names (note that "x" is reserved);
-+ A list of default argument values;
-+ Information about minimum and maximum value.
-
-2. Overriding methods:
-The `raw_call_` method is overridden to implement the core computation. 
-
-3. Macro Registration:
-The `REGISTER_USER_FUNCTION` macro at the end registers the custom function. 
-This makes the "my_monomial" function available to the framework and allows you to associate directly from R.
-
-Once the new model has been generated, the function will be visible from its environment and you will be able to test it as follows
-
+The complete source file defines both a custom user function and a minimal augmented model:
 ```{r}
-#| eval: false
-#| include: true
-hhmodel <- new_housepi_model("path/to/mymodel/")
-x <- seq(0, 5, 0.5)
-test_function("my_monomial", a = 2, b = 3, model = hhmodel)$func(x)
+custom_model <- system.file("examples", "custom", package = "housepi")
 ```
 
 ```{r}
-#| eval: true
-#| include: false
-x <- seq(0, 5, 0.5)
-a <- 2
-b <- 3
-cat(a * x ^ b)
+#| echo: false
+#| results: asis
+custom_src <- file.path(custom_model, "model.cpp")
+cat("```cpp\n")
+cat("HOUSEPI_OPEN_MODULE_NAMESPACE()", sep = "\n")
+cat("\n")
+
+lines <- readLines(custom_src)
+start <- grep("class Growth_", lines)
+end <- start + 1
+cat(lines[start:end], sep = "\n")
+cat("...\n")
+end <- grep("HOUSEPI_REGISTER_FUNCTION", lines)[1]
+start <- end - 2
+cat(lines[start:end], sep = "\n")
+cat("\n")
+
+start <- grep("class Model", lines)
+end <- start + 1
+cat(lines[start:end], sep = "\n")
+cat("...\n")
+end <- grep("HOUSEPI_CLOSE_MODULE", lines)[1]
+start <- end - 1
+cat(lines[start:start], sep = "\n")
+cat("\n")
+
+cat("HOUSEPI_CLOSE_MODULE_NAMESPACE()", sep = "\n")
+cat("```\n")
 ```
 
-# Discretization, distributions
+Let's walk through each component.
 
-Optionally, we can enable discretization by overriding `init_discretization` and providing a primitive (cumulative function) via `raw_primitive_`. 
-This is useful if your function is later integrated or used in a discretized setting.
+# Custom user functions
 
-4. Provide a primitive:
-Implement `raw_primitive_` if you need a cumulative version of your function (or another primitive), for example when integrating the function over time.
-5. Initialize reshaping:
-If discretization is needed, override `init_discretization`. In our case, we call the helper `init_discr_helper_` with a flag (e. g. `HSP_DISCR_LEFT`) to tell the framework that our function should be rearranged according to a given discretization scheme (e. g. left discretization). 
-If it's not discrete defined (flag `HSP_DISCR_DEFINED`), a primitive must be provided.
+User functions are added in the C++ source code by inheriting from the base class `Function`
+and overriding one or more of its virtual methods.
 
-```{Rcpp, eval=FALSE}
-class MyCustomFunction : public Function {
-public:
-    // constructor...
-    
-    // enable left discretization
-    void init_discretization() { init_discr_helper_(HSP_DISCR_LEFT); } 
+The `Growth_` class in the example defines an exponential growth function $f(x) = I_0 \cdot e^{r x}$:
 
-protected:
-    //  raw_call_ ...
-    
-    // internal method called when the function is evaluated
-    double raw_primitive_(double x) const override final {
-        const double a = arg(0), b_plus_1 = arg(1) + 1;
-        return a * std::pow(x, b_plus_1) / (b_plus_1);
-    }
-};
+```{r}
+#| echo: false
+#| results: asis
+lines <- readLines(custom_src)
+# extract the Growth_ class and its registration macro
+start <- grep("class Growth_", lines)
+end <- grep("HOUSEPI_REGISTER_FUNCTION", lines)[1]
+cat("```cpp\n")
+cat(lines[start:end], sep = "\n")
+cat("\n```\n")
+```
+
+Here is what each part does:
+
+1. **Inheritance and constructor**: `Growth_` inherits from `Function`. The constructor defines:
+    - A list of argument names and default values (`"initial"` = 1, `"rate"` = 1);
+    - The minimum value of the function (0.0).
+
+2. **Name macro**: `HOUSEPI_OVERRIDE_NAME_METHOD(growth)` sets the register name to `"growth"`.
+
+3. **Discretization**: `init_discretization()` is overridden to enable discretization with a minimum range of 0.
+
+4. **Core computation**: `raw_function_()` implements the actual function. Arguments are accessed by position with `arg(0)`, `arg(1)`, etc. (note that `x` is reserved as the function input).
+
+5. **Registration**: `HOUSEPI_REGISTER_FUNCTION(Growth_, Custom)` registers the function under the `Custom` category, making `"growth"` available to the framework and callable from R.
+
+# The custom model
+
+The `Model` class defines a minimal augmented model with a single augmented variable `proba` and a single parameter `alpha`:
+
+```{r}
+#| echo: false
+#| results: asis
+start <- grep("class Model", lines)
+end <- grep("HOUSEPI_CLOSE_MODULE", lines)[1]
+cat("```cpp\n")
+cat(lines[start:end], sep = "\n")
+cat("\n```\n")
+```
+
+Key elements:
+
+- **Register keys**: `HOUSEPI_DECLARE_REGISTER_KEYS` declares named keys for augmented variables (`proba`) and parameters (`alpha`). Empty key macros are used for unused slots (data, group rates, etc.).
+- **Log-likelihood**: `compute_house_obs_log_lik()` sums the log of each infected member's `proba` value, offset by `-alpha`.
+- **Initialization**: `simulate_single_house()` initializes missing augmented variables for each infected member.
+
+# Testing user functions from R
+
+Once the custom model has been compiled, the registered function is visible from its environment and can be tested as follows:
+
+```{r}
+hhmodel <- new_housepi_model(custom_model)
+x <- seq(0, 5, 0.5)
+expose_function("growth", initial = 2, rate = 0.5)$func(x)
 ```
 
 ```{r child = "helpers/_footer.Rmd"}

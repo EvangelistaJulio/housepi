@@ -1,7 +1,7 @@
 Package: housepi
 Type: Package
 Title: Household Epidemiological Modeling and Analysis
-Version: 0.9.06
+Version: 0.9.07
 Authors@R: c(person("Francesco", "Camaglia", role = c("aut", "cre"), 
                     email = "francesco.camaglia@pasteur.fr", comment = c(ORCID = "0000-0003-4810-2631")),
              person("Simon", "Cauchemez", role = "aut", comment = c(ORCID = "0000-0001-9186-4549")))
@@ -27,13 +27,13 @@ LinkingTo:
     BH (>= 1.0.0)
 Roxygen: list(markdown = TRUE, r6 = TRUE)
 RoxygenNote: 7.3.3
-Suggests: 
+Suggests:
     bayesplot,
     BH,
     flextable,
     ggplot2,
     knitr,
-    loo, 
+    loo,
     pkgdown,
     priorsense,
     rmarkdown,

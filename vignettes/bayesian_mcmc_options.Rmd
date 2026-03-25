@@ -1,22 +1,23 @@
 ---
 title: "Bayesian MCMC options"
-output: 
+output:
   rmarkdown::html_vignette:
     toc: true
-    toc_depth: 3
+    toc-depth: 3
 vignette: >
   %\VignetteIndexEntry{Bayesian MCMC options}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
-editor_options: 
-  markdown: 
+editor_options:
+  markdown:
     wrap: sentence
 ---
 
 ```{r child = "helpers/_setup.Rmd"}
 ```
 
-```{r library}
+```{r}
+#| label: library
 #| include: false
 options(housepi.footer.sample = TRUE)
 library(housepi)
@@ -24,15 +25,15 @@ housepi_theme_set()
 set.seed(42)
 ```
 
-In this vignette we present all available options for the choice of the prior and Monte Carlo proposal in housepi. 
+In this vignette we present all available options for the choice of the prior and Monte Carlo proposal in housepi.
 
 # Continuous priors
 
-To perform the sampling we consider the "blank" model, i. e. a data independent template model, with log-likelihood always equal to zero.
+To perform the sampling we consider the "blank" model, i.e. a data independent template model, with log-likelihood always equal to zero.
 Here's the full list of available continuous distributions present in housepi:
 ```{r}
 #| warning: false
-#| fig.alt: >
+#| fig-alt: >
 #|  Density plots for prior distributions available in housepi for Bayesian inference: uniform, normal, lognormal, gamma, Weibull, Rayleigh, beta and exponential.
 #|  Each panel displays the estimated probability density function in blue obtained from MCMC sampling.
 # create an instance of the blank model
@@ -59,14 +60,14 @@ For certain distributions, default arguments are also available according to bas
 
 # Provide a custom range
 
-Here we test various examples to show how to select a custom range for the variables. 
+Here we test various examples to show how to select a custom range for the variables.
 This will automatically impose a truncation of the prior of the parameter.
-We do this with the arguments `min` (minimum) and `max` (maximum). 
+We do this with the arguments `min` (minimum) and `max` (maximum).
 
 ```{r}
 #| warning: false
 #| message: false
-#| fig.alt: >
+#| fig-alt: >
 #|  Four density plots demonstrating truncation options for normal distribution.
 #|  Orange dashed lines indicate truncation boundaries applied to distributions.
 library(ggplot2)
@@ -92,7 +93,7 @@ All functions and distributions in housepi allow for a location parameter `loc` 
 
 ```{r}
 #| warning: false
-#| fig.alt: >
+#| fig-alt: >
 #|  Density plots showing gamma distributions with different location parameters.
 #|  Four panels display gamma distributions with location parameters set to 0, 1, 2, and 3 respectively.
 #|  Vertical dashed lines indicate the minimum of each shifted support.
@@ -105,7 +106,7 @@ new_housepi_model("blank") |>
   ) |>
   run_inference() |>
   get_param_draws() |>
-  bayesplot::mcmc_dens() + 
+  bayesplot::mcmc_dens() +
   coord_cartesian(xlim = c(0, NA)) +
   geom_vline(
     data = data.frame(Parameter = c("gamma_0", "gamma_1", "gamma_2", "gamma_3"),
@@ -124,7 +125,7 @@ bayesplot::color_scheme_set(scheme = "orange")
 Here's the full list of available discrete distributions present in housepi:
 
 ```{r}
-#| fig.alt: >
+#| fig-alt: >
 #|  Four histograms displaying discrete prior distributions available in housepi: Poisson, binomial, negative binomial, and geometric.
 #|  Orange bars represent probability mass functions for integer-valued outcomes obtained from MCMC sampling.
 
@@ -146,7 +147,7 @@ new_housepi_model("blank") |>
 Previous continuous priors can be chosen to be discretized using the argument `discr`.
 
 ```{r}
-#| fig.alt: >
+#| fig-alt: >
 #|  Seven histograms showing discretized versions of continuous prior distributions: uniform, normal, lognormal, gamma, Weibull, Rayleigh, and exponential.
 
 new_housepi_model("blank") |>
@@ -164,7 +165,7 @@ new_housepi_model("blank") |>
   bayesplot::mcmc_hist(binwidth = 1)
 ```
 
-Note that here we dropped all arguments that allow for default values. 
+Note that here we dropped all arguments that allow for default values.
 
 # Discretization in practice
 
@@ -177,16 +178,16 @@ With this scheme normalization is respected, however the shape of the distributi
 You can use the function `expose_distribution` to return a Distribution object from housepi and explore its methods.
 
 ```{r}
-#| fig.width: 6
-#| fig.height: 3
-#| fig.alt: >
+#| fig-width: 6
+#| fig-height: 3
+#| fig-alt: >
 #|  Histogram illustrating the discretization scheme as average probability.
 gamma_cont <- expose_distribution("gamma", shape = 2, scale = 1)
 gamma_discr <- expose_distribution("gamma", shape = 2, scale = 1, discr = TRUE)
 
 ggplot(dplyr::tibble(x = seq(0, 9, 1), y = gamma_discr$pdf(x),
                      z1 = gamma_cont$cdf(x + 1), z0 = gamma_cont$cdf(x))) +
-  geom_rect(aes(xmin  = x, xmax  = x + 1, 
+  geom_rect(aes(xmin  = x, xmax  = x + 1,
                 ymin  = 0, ymax  = z1 - z0, fill  = "average_prob"),
             color = "coral") +
   geom_point(aes(x = x, y = y, color = "discretised")) +
@@ -199,15 +200,15 @@ ggplot(dplyr::tibble(x = seq(0, 9, 1), y = gamma_discr$pdf(x),
 
 # Monte Carlo proposals
 
-MCMC proposals determine how candidate parameter values are drawn at each step. 
-We provides a small set of common mechanisms:
+MCMC proposals determine how candidate parameter values are drawn at each step.
+We provide a small set of common mechanisms:
 
 * **sample**: direct sampling from the prior^[Or from model if an augmented variable.];
 * **uniform**: draws uniformly around the current value inside a window;
 * **normal**: Gaussian perturbations of the current value;
 * **lognormal**: multiplicative log-normal proposals (not appropriate for negative values).
 
-Parametric proposals (all except sample) require a `proposal_scale` (default is `1`). 
+Parametric proposals (all except sample) require a `proposal_scale` (default is `1`).
 
 ```{r}
 #| include: false
@@ -215,9 +216,9 @@ bayesplot::color_scheme_set(scheme = "brightblue")
 ```
 
 ```{r}
-#| fig.alt: >
+#| fig-alt: >
 #|  Four trace plots comparing MCMC proposal mechanisms: sample, uniform, normal, and lognormal.
-#|  Sampling show poor mixing for all except mechanisms except sample.
+#|  Sampling shows poor mixing for all mechanisms except sample.
 
 prop_scale <- 100
 hhmodel <- new_housepi_model("blank") |>
@@ -240,13 +241,13 @@ hhmodel |>
 
 # Role of finite adaptation
 
-We use finite adaptation to adjusts proposal scales of parametric mechanisms with a target of 25\% acceptance rate.
+We use finite adaptation to adjust proposal scales of parametric mechanisms with a target of 25% acceptance rate.
 In housepi this is enabled by supplying `adapt = N` to `run_inference()`, where `N` is the number of finite adaptation steps preceding the MCMC `steps`.
 
 ```{r}
-#| fig.alt: >
+#| fig-alt: >
 #|  Four trace plots comparing the same MCMC proposal mechanisms as before.
-#|  Mixing for parametric mechanisms shows improvement. 
+#|  Mixing for parametric mechanisms shows improvement.
 
 hhmodel |>
   run_inference(adapt = 500) |>

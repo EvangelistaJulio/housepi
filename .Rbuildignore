@@ -7,6 +7,7 @@
 ^\.gitlab-ci-local$
 ^.*\.Rproj$
 ^\.Rproj\.user$
+^.claude$
 ^cleanup$
 ^cleanup.win$
 ^data-raw$
@@ -15,5 +16,6 @@
 ^public$
 ^README\.Rmd$
 ^LICENSE\.md$
+^CLAUDE\.md$
 ^inst/standalone$
 ^Meta$

@@ -1,22 +1,23 @@
 ---
 title: "Sample dataset"
-output: 
+output:
   rmarkdown::html_vignette:
     toc: true
-    toc_depth: 3
+    toc-depth: 3
 vignette: >
   %\VignetteIndexEntry{Sample dataset}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
-editor_options: 
-  markdown: 
+editor_options:
+  markdown:
     wrap: sentence
 ---
 
 ```{r child = "helpers/_setup.Rmd"}
 ```
 
-```{r library}
+```{r}
+#| label: library
 #| include: false
 options(housepi.footer.sample = TRUE)
 library(housepi)
@@ -24,9 +25,9 @@ housepi_theme_set()
 set.seed(42)
 ```
 
-We provide a simple model to generate synthetic household dataset. 
+We provide a simple model to generate synthetic household datasets.
 Let's assume that each individual can be represented with a single variable $\theta$, encoding for the provided covariates.
-We declare the covariates of interests when we generate an new sampler calling `new_household_sampler`.
+We declare the covariates of interest when we generate a new sampler calling `new_household_sampler`.
 
 ```{r}
 # define individual features from dataset covariates assumed not independent
@@ -37,13 +38,13 @@ hhsampler <- new_household_sampler(
   age = list(breaks = c(0, 15, 25, 50))
 )
 
-# internal encoding and associated hierachy
+# internal encoding and associated hierarchy
 hhsampler$hierarchy
 ```
 
 The order of the definition is important, setting a "hierarchy" across covariates (this will be used for the modelling, see next section).
-Here sex `"F"` has priority on `"M"`, and ages `[25, 50)`  have priority on ages `[0,15)`.
-Also, encoding implies an implicit representation of a dataset, e. g.
+Here sex `"F"` has priority on `"M"`, and ages `[25, 50)` have priority on ages `[0,15)`.
+Also, encoding implies an implicit representation of a dataset, e.g.
 
 ```{r}
 # example house dataset
@@ -51,13 +52,13 @@ eg_house <- data.frame(house_id = "HH_1",
                        age = c(43, 39, 12, 7),
                        sex = c("M", "F", "F", "M"))
 
-# underlining representation of data
+# underlying representation of data
 hhsampler$decode(hhsampler$encode(eg_house))
 ```
 
 We now define a model able to extract distributions of such features within a household, with the final goal to sample from it.
 
-# Hierarchichal model definition
+# Hierarchical model definition
 
 In order to capture at the same time covariate marginals and a realistic generational-based structure within household,
 we propose the following assumptions on the structure of households.
@@ -69,7 +70,7 @@ P[\lbrace\theta\rbrace] =
 P(\theta\vert{n=1})
 $$
 
-For larger households ($n\geq{2}$), we assume a hierachical structure as follows:
+For larger households ($n\geq{2}$), we assume a hierarchical structure as follows:
 
 * two household members $\theta_{1}$, $\theta_{2}$ are considered "principal" according to the hierarchy of the features;
 * size $n$ is considered conditioned on the encodings of principal members;
@@ -81,7 +82,7 @@ $$
 P[\lbrace\theta_{1},\dots,{\theta}_{n}\rbrace] =
 P({\theta_{1}},{\theta_{2}})
 P(n\vert {\theta_{1}},{\theta_{2}})
-\prod_{k=2}^{n} P({\theta_{k}}\vert{\theta_{1}},{\theta_{2}}) 
+\prod_{k=2}^{n} P({\theta_{k}}\vert{\theta_{1}},{\theta_{2}})
 $$
 
 For a generic household in our dataset, the probability reads

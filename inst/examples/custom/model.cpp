@@ -5,6 +5,8 @@
 #include "registry.h"
 
 HOUSEPI_OPEN_MODULE_NAMESPACE()
+
+/// Custom function
 class Growth_ : public Function
 {
 public:
@@ -23,13 +25,23 @@ protected:
         const double r = arg(1);
         return I0 * std::exp(r * x);
     }
+
+    /// Internal method called when the primitive is evaluated.
+    double raw_primitive_(double x) const override final
+    {
+        const double I0 = arg(0);
+        const double r = arg(1);
+        return I0 * std::exp(r * x) / r;
+    }
 };
 /// Register user function so that it can be used in the analysis.
 HOUSEPI_REGISTER_FUNCTION(Growth_, Custom)
 
+/// Custom model.
 class Model : public ModelBase
 {
 public:
+    /// Model specific registries of mandatory definitions
     HOUSEPI_DECLARE_REGISTER_KEYS(AugmKey, proba)
     HOUSEPI_DECLARE_EMPTY_KEYS(DataKey)
     HOUSEPI_DECLARE_EMPTY_KEYS(LongKey)
@@ -56,4 +68,5 @@ public:
             init_missing_augm(house.member(i));
     }
 };
+
 HOUSEPI_CLOSE_MODULE_NAMESPACE()

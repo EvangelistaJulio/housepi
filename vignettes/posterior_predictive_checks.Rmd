@@ -1,31 +1,30 @@
 ---
 title: "Posterior predictive checks"
-output: 
+output:
   rmarkdown::html_vignette:
     toc: true
-    toc_depth: 3
+    toc-depth: 3
 vignette: >
   %\VignetteIndexEntry{Posterior predictive checks}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
-editor_options: 
-  markdown: 
+editor_options:
+  markdown:
     wrap: sentence
 ---
 
 ```{r child = "helpers/_setup.Rmd"}
 ```
 
-```{r library}
+```{r}
+#| label: library
 #| include: false
 options(housepi.footer.sample = TRUE)
 library(housepi)
 housepi_theme_set()
 ```
 
-In this vignette we show how to compute common household measures according to the model posterior distribution.
-This is generally referred to as Posterior Predictive Checks (PPC).
-We use the same chain binomial example presented in [Get started](housepi.html):
+In this vignette we show how to compute common household measures according to the model posterior distribution. This is generally referred to as Posterior Predictive Checks (PPC). We use the same chain binomial example presented in [Get started](housepi.html):
 
 ```{r}
 # repeat inference as in vignette 'Get Started'
@@ -43,10 +42,9 @@ estimates <- get_param_draws(results) |>
 estimates
 ```
 
-# Predicted cases by size 
+# Predicted cases by size
 
-We can use the simulation process to challenge the validity of the inferred model on top of the original dataset.
-We do so by computing the predicted numbers of cases per household size according to our posterior distribution (i. e. by producing simulations according to posterior values).
+We can use the simulation process to challenge the validity of the inferred model on top of the original dataset. We do so by computing the predicted numbers of cases per household size according to our posterior distribution (i.e. by producing simulations according to posterior values).
 
 ```{r}
 # run simulations according to posterior traces to compute predictions
@@ -97,16 +95,16 @@ We can perform a Chi-Squared test on the shown distribution as follows:
 ppc$chisq_test()
 ```
 
-The $p$-value tells us that there is no significant difference between the distribution ($p > 0.05$), thus we can trust our inference process.
+The $p$-value tells us that there is no significant difference between the distributions ($p > 0.05$), thus we can trust our inference process.
 
 # Secondary attack rate
 
-We can have a quick look at secondary attack rates of observed vs predicted cases using the fields `$sar`:
+We can have a quick look at secondary attack rates of observed vs predicted cases using the field `$sar`:
 
 ```{r}
 #| message: false
-#| waring: false
-#| fig.alt: >
+#| warning: false
+#| fig-alt: >
 #|  Secondary attack rates by household size comparing posterior estimates (orange) with observed data (black points with sample sizes).
 #|  Predicted values show mean posterior estimates with 95% credible intervals, stratified by household size from 2 to 7 members.
 
@@ -118,7 +116,7 @@ library(ggplot2)
 col_dict <- c(Predicted = "coral", Observed = "black")
 
 # extract values for secondary attack rate
-ggplot(ppc$formatted_sec_attack_rate, 
+ggplot(ppc$formatted_sec_attack_rate,
        aes(x = house_size, y = observed, label = sprintf("[%s]", counts))) +
   # predicted SAR
   geom_point(aes(y = mean, color = "Predicted")) +
@@ -131,8 +129,64 @@ ggplot(ppc$formatted_sec_attack_rate,
   labs(x = "Household Size", y = "Secondary Attack Rate", color = "")
 ```
 
-# Other custom posterior measures (advanced)
-Vignette under development.
+# Other posterior measures
+
+The `predicted_measures()` function provides a flexible way to compute any custom measure on simulated data and compare it against the observed values. It accepts one or more named measure functions as arguments, where each function takes a `data_wide` data.frame and returns a summary (e.g. a data.frame or a numeric vector).
+
+The package provides two built-in measure functions:
+
+-   `measure_sar_by_house_size`: secondary attack rate by household size;
+-   `measure_cases_by_house_size`: contingency table of cases by household size.
+
+Here we show how to use `predicted_measures()` with the built-in SAR measure:
+
+```{r}
+# compute predicted SAR using predicted_measures
+ppc_sar <- predicted_measures(hhmodel, results,
+                              sar = measure_sar_by_house_size)
+ppc_sar
+```
+
+The returned `HousepiPrediction` object stores `observed`, `predicted`, `cri_lower` and `cri_upper` for each measure, accessible by name:
+
+```{r}
+# observed secondary attack rates
+ppc_sar$sar$observed
+
+# predicted (posterior mean) secondary attack rates
+ppc_sar$sar$predicted
+```
+
+You can also pass multiple measures at once, as well as your own custom functions. A custom measure function should accept a `data_wide` data.frame and return a `data.frame`, a `list`, or a `numeric` vector:
+
+```{r}
+# define a custom measure: overall attack rate
+measure_overall_attack_rate <- function(data_wide) {
+  n_infected <- sum(data_wide$status > 0, na.rm = TRUE)
+  n_total <- nrow(data_wide)
+  c(attack_rate = n_infected / n_total)
+}
+
+# compute both built-in and custom measures together
+ppc_multi <- predicted_measures(hhmodel, results,
+                                sar = measure_sar_by_house_size,
+                                overall = measure_overall_attack_rate)
+ppc_multi
+```
+
+```{r}
+# compare observed vs predicted overall attack rate
+ggplot(data.frame(ppc_multi$overall)) +
+  geom_point(aes(x = "observed", y = observed),
+             color = "black") +
+  geom_errorbar(aes(x = "predicted", y = observed,
+                    ymin = cri_lower, ymax = cri_upper),
+                color = "coral") + 
+  geom_point(aes(x = "predicted", y = predicted),
+             color = "coral") +
+  labs(x = NULL, y = "Attack rate")
+
+```
 
 ```{r child = "helpers/_footer.Rmd"}
 ```

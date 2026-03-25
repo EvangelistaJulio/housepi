@@ -1,22 +1,23 @@
 ---
 title: "Get started with housepi"
-output: 
+output:
   rmarkdown::html_vignette:
     toc: true
-    toc_depth: 3
+    toc-depth: 3
 vignette: >
   %\VignetteIndexEntry{Get started with housepi}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
-editor_options: 
-  markdown: 
+editor_options:
+  markdown:
     wrap: sentence
 ---
 
 ```{r child = "helpers/_setup.Rmd"}
 ```
 
-```{r library}
+```{r}
+#| label: library
 #| include: false
 options(housepi.footer.sample = TRUE)
 ```
@@ -52,9 +53,8 @@ To see the complete list of available template models, from within RStudio just 
 template_household_model()
 ```
 
-Each template comes with its template definitions that can be used straight away or changed^[Note that in names both underscores and spaces are accepted, i. e. "chain_binomial" is equivalent to "chain binomial".].
-To know more about each model, choose a name from the previous list and run, e.
-g.
+Each template comes with its template definitions that can be used straight away or changed^[Note that in names both underscores and spaces are accepted, i.e. "chain_binomial" is equivalent to "chain binomial".].
+To know more about each model, choose a name from the previous list and run, e.g.
 
 ```{r}
 #| eval: false
@@ -85,8 +85,8 @@ knitr::kable(housepi:::template_blank_data_wide_())
 A column `"id"` with individual identifiers is provided to keep track of changes and make errors more readable; otherwise housepi will automatically tag individuals with row numbers.
 
 To group individuals in households, a column `"house_id"` with the respective household tag needs to be present.
-Individuals with the same households id will then be considered to belong to same household.
-No household id implies that all individuals in the data are living separately. 
+Individuals with the same household id will then be considered to belong to same household.
+No household id implies that all individuals in the data are living separately.
 
 To perform model inference, a `"status"` must be provided for each individual $i$.
 Status $s_{i}$ should be an integer value satisfying the following convention:
@@ -103,8 +103,8 @@ Status $s_{i}$ should be an integer value satisfying the following convention:
 </div>
 </div>
 
-In this way we can use the status as a label for different classes of infectious household members. 
-E. g. we could say that $s_{i} = 1$ refers to symptomatic individuals, and $s_{i} = 2$ for asymptomatic.
+In this way we can use the status as a label for different classes of infectious household members.
+E.g. we could say that $s_{i} = 1$ refers to symptomatic individuals, and $s_{i} = 2$ for asymptomatic.
 This is used in advanced augmented definitions, see [Data augmentation](data_augmentation.html) for an example.
 
 # Data importation
@@ -115,7 +115,7 @@ If you are more comfortable with R6, another way to associate data (and definiti
 
 ```{r}
 # import data in wide format using R6 active field
-hhmodel <- hhmodel |> 
+hhmodel <- hhmodel |>
   add_data_wide(housepi::survey)
 ```
 
@@ -133,7 +133,7 @@ summarise_cases(hhmodel) |>
   flextable::autofit()
 ```
 
-Here we manipulated the housepi table with  [flextable](https://CRAN.R-project.org/package=flextable).
+Here we manipulated the housepi table with [flextable](https://CRAN.R-project.org/package=flextable).
 
 At any moment we can re-export the loaded data by calling `get_data_wide`.
 
@@ -162,10 +162,10 @@ For further information on the available options for the definition of the param
 # Run inference
 
 After having provided all necessary definitions, we can perform inference calling `run_inference()`.
-With housepi we can perform inference using Bayesian Markov chain Monte Carlo (MCMC) with the Metropolis-Hastings algorithm. 
+With housepi we can perform inference using Bayesian Markov chain Monte Carlo (MCMC) with the Metropolis-Hastings algorithm.
 Standard options for the MCMC can be provided at this stage, including controls on the number of threads^[Multi-threading is implemented with *openMP* which is unfortunately not supported on latest macOS distributions.
 The option `threads` is disabled on such systems.].
-This will return an object which collects all the relevant MCMC draws. 
+This will return an object which collects all the relevant MCMC draws.
 The draws come as [posterior](https://CRAN.R-project.org/package=posterior) objects that can be accessed to compute estimates.
 
 ```{r}
@@ -187,7 +187,7 @@ We can proceed as usual with other popular R packages for Bayesian analysis.
 For example, we can extract the parameters draws by calling `get_param_draws` and plot traces with [bayesplot](https://CRAN.R-project.org/package=bayesplot)
 
 ```{r}
-#| fig.alt: >
+#| fig-alt: >
 #|  Trace plots for alpha and beta parameters across MCMC iterations with three parallel chains overlaid.
 # visualize the traces of the first chain with 'bayesplot'
 get_param_draws(results) |>
@@ -197,8 +197,8 @@ get_param_draws(results) |>
 or of the total log-likelihood by calling `get_total_log_lik_draws`:
 
 ```{r}
-#| fig.height: 2.5
-#| fig.alt: >
+#| fig-height: 2.5
+#| fig-alt: >
 #|  Trace plots for total log-likelihood across MCMC iterations with three parallel chains overlaid.
 get_total_log_lik_draws(results) |>
   bayesplot::mcmc_trace()
@@ -231,17 +231,17 @@ get_parameters(hhsimul)
 
 # Simulate an outbreak
 
-We propose the following definitions for the augmented variables, 
+We propose the following definitions for the augmented variables,
 associated from a list by calling `load_augmented_list()`.
 
 ```{r}
 hhsimul <- hhsimul |>
   load_augmented_list(
-    # define default infection times of introduction cases 
+    # define default infection times of introduction cases
     # so that they all have symptom onset on day 30
     # secondary infection times are taken care by the simulation
     infec_time = 30 - incub_period,
-    
+
     # define an incubation period for each individual
     # arguments are linked to parameters
     incub_period = list(model = "gamma",
@@ -250,11 +250,11 @@ hhsimul <- hhsimul |>
   )
 ```
 
-When dealing with many different nested definitions it is not unusual to loose track of which definition are missing. 
+When dealing with many different nested definitions it is not unusual to lose track of which definitions are missing.
 We can inspect the state of the current loaded model definitions just by printing the model:
 
 ```{r}
-# print current state of definitions 
+# print current state of definitions
 hhsimul
 ```
 
@@ -262,9 +262,9 @@ This tells us that in order to proceed we need to provide the missing parameters
 
 ```{r}
 # append missing parameters for incubation period
-hhsimul <- hhsimul |> 
+hhsimul <- hhsimul |>
   load_parameter_list(inc_shape = 2, inc_scale = 1,
-                      # set 'append' to TRUE to keep previous definitions 
+                      # set 'append' to TRUE to keep previous definitions
                       append = TRUE)
 ```
 
@@ -274,7 +274,7 @@ Similarly, we can use the infectivity profile template for the sake of demonstra
 Provide a custom definition following the vignette [Infectivity profiles](infectivity_profiles.html).
 
 We then run a simulation with the method `run_simulation`, using the same community structure from the survey, but dropping cases.
-In this configuration, introductions are sampled randomly. 
+In this configuration, introductions are sampled randomly.
 Simulation will associate augmented incubation periods and onset times in addition to status.
 We then propose a simple observation process, where we assume onsets after 6 PM (18/24) are reported to next day. We also want to drop unobserved quantities. We can do both by assigning such a function to the argument `obs_process`:
 
@@ -288,7 +288,7 @@ obs_process <- function(x) {
 
 # run simulation using as structure an existing data set
 simulated <- hhsimul |>
-  add_data_wide(dplyr::mutate(housepi::survey, 
+  add_data_wide(dplyr::mutate(housepi::survey,
                               status = NA,
                               end_followup = 45)) |>
   run_simulation(obs_process = obs_process)
@@ -319,8 +319,8 @@ We can visualize traces vs expected values as follows
 
 ```{r}
 #| message: false
-#| warning: false 
-#| fig.alt: >
+#| warning: false
+#| fig-alt: >
 #|  Trace plots for alpha, beta, and gamma parameters with three chains.
 #|  Overlaying orange lines indicate the values used for the simulation.
 library(ggplot2)
@@ -330,8 +330,8 @@ param_draws <- get_param_draws(results)
 
 # select original parameters used for the simulation
 simul_parameters <- get_parameters(hhsimul) |>
-  dplyr::select(name, value) |> 
-  dplyr::filter(name %in% posterior::variables(param_draws)) |> 
+  dplyr::select(name, value) |>
+  dplyr::filter(name %in% posterior::variables(param_draws)) |>
   dplyr::rename(parameter = name, simulated = value)
 
 # use bayesplot to plot the posterior draws
@@ -342,9 +342,9 @@ bayesplot::mcmc_trace(param_draws, facet_args = list(ncol = 1)) +
 and we can perform R-hat diagnostics
 
 ```{r}
-#| fig.width: 5
-#| fig.height: 2.5
-#| fig.alt: >
+#| fig-width: 5
+#| fig-height: 2.5
+#| fig-alt: >
 #|  R-hat convergence diagnostics for alpha, beta, and gamma parameters with color-coded thresholds.
 #|  Color intensity represents R-hat values (≤1.05, ≤1.1, >1.1). Points near 1.0 indicate convergence.
 # compute Rhat values associated to inferred parameters
@@ -371,7 +371,7 @@ posterior::summarise_draws(param_draws) |>
   flextable::autofit()
 ```
 
-Due to the stochastic nature of this kind of simulation, limiting to re-infer parameters is a limiting check. 
+Due to the stochastic nature of this kind of simulation, limiting to re-infer parameters is a limiting check.
 In [Posterior predictive checks](posterior_predictive_checks.html) we show how to compute common household measures according to the model posterior distribution.
 
 ```{r child = "helpers/_footer.Rmd"}
