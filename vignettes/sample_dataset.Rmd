@@ -100,7 +100,7 @@ where $p_1$ is the probability of finding a household with a single member in ou
 ```{r}
 hhsampler |>
   # compute marginal distributions
-  compute_household_marginals(housepi::survey) |>
+  compute_household_marginals(housepi::sarscov2_2021_icofs) |>
   # sample 5 households
   sample_households(5)
 ```

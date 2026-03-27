@@ -116,7 +116,7 @@ If you are more comfortable with R6, another way to associate data (and definiti
 ```{r}
 # import data in wide format using R6 active field
 hhmodel <- hhmodel |>
-  add_data_wide(housepi::survey)
+  add_data_wide(housepi::flu_1918_frederick)
 ```
 
 The housepi package comes with a few public datasets to be used for testing.
@@ -279,6 +279,11 @@ Simulation will associate augmented incubation periods and onset times in additi
 We then propose a simple observation process, where we assume onsets after 6 PM (18/24) are reported to next day. We also want to drop unobserved quantities. We can do both by assigning such a function to the argument `obs_process`:
 
 ```{r}
+# load a dataset for the data structure
+community_structure <- housepi::sarscov2_2021_icofs |> 
+  dplyr::select(id, house_id, age, sex) |> 
+  dplyr::mutate(status = NA, end_followup = 45)
+
 # define an observation process after the outbreak simulation
 obs_process <- function(x) {
   onset_date = floor(x$infec_time + x$incub_period + 0.25)
@@ -288,9 +293,7 @@ obs_process <- function(x) {
 
 # run simulation using as structure an existing data set
 simulated <- hhsimul |>
-  add_data_wide(dplyr::mutate(housepi::survey,
-                              status = NA,
-                              end_followup = 45)) |>
+  add_data_wide(community_structure) |>
   run_simulation(obs_process = obs_process)
 
 head(simulated)
@@ -313,7 +316,7 @@ hhmodel <- hhsimul |>
 
 results <- hhmodel |>
   add_data_wide(simulated) |>
-  run_inference(chains = 3, steps = 1000, adapt = 500, thin = 5)
+  run_inference(chains = 3, steps = 1000, adapt = 500, thin = 10)
 ```
 We can visualize traces vs expected values as follows
 
