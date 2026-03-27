@@ -13,7 +13,7 @@ editor_options:
     wrap: sentence
 ---
 
-```{r child = "helpers/_setup.Rmd"}
+```{r setup-child, child = "helpers/_setup.Rmd"}
 ```
 
 ```{r}
@@ -36,10 +36,12 @@ We illustrate this with a concrete example from `inst/examples/custom/model.cpp`
 
 The complete source file defines both a custom user function and a minimal augmented model:
 ```{r}
+#| label: load-custom-model
 custom_model <- system.file("examples", "custom", package = "housepi")
 ```
 
 ```{r}
+#| label: display-model-source
 #| echo: false
 #| results: asis
 custom_src <- file.path(custom_model, "model.cpp")
@@ -80,6 +82,7 @@ and overriding one or more of its virtual methods.
 The `Growth_` class in the example defines an exponential growth function $f(x) = I_0 \cdot e^{r x}$:
 
 ```{r}
+#| label: display-growth-class
 #| echo: false
 #| results: asis
 lines <- readLines(custom_src)
@@ -110,6 +113,7 @@ Here is what each part does:
 The `Model` class defines a minimal augmented model with a single augmented variable `proba` and a single parameter `alpha`:
 
 ```{r}
+#| label: display-model-class
 #| echo: false
 #| results: asis
 start <- grep("class Model", lines)
@@ -130,10 +134,11 @@ Key elements:
 Once the custom model has been compiled, the registered function is visible from its environment and can be tested as follows:
 
 ```{r}
+#| label: test-user-function
 hhmodel <- new_housepi_model(custom_model)
 x <- seq(0, 5, 0.5)
 expose_function("growth", initial = 2, rate = 0.5)$func(x)
 ```
 
-```{r child = "helpers/_footer.Rmd"}
+```{r footer-child, child = "helpers/_footer.Rmd"}
 ```

@@ -13,7 +13,7 @@ editor_options:
     wrap: sentence
 ---
 
-```{r child = "helpers/_setup.Rmd"}
+```{r setup-child, child = "helpers/_setup.Rmd"}
 ```
 
 ```{r}
@@ -85,6 +85,7 @@ We decide to augment infection times of symptomatic members as shown in [Get Sta
 For asymptomatic members we draw the infection time uniformly within the period of the follow-up.
 
 ```{r}
+#| label: status-specific-augmented
 #| warning: false
 library(ggplot2)
 
@@ -112,6 +113,7 @@ hhmodel <- new_housepi_model("augmented_infection_time") |>
 ```
 
 ```{r}
+#| label: augmented-infection-time-plot
 #| fig-alt: >
 #|  Density plots of augmented infection times for two household members.
 # run inference following traces of specific individuals
@@ -133,6 +135,7 @@ For simplicity, we start testing data augmentation on a dataset which is not a h
 Instead we consider a simulated report documenting the days when a number of cases were exposed to infection and the days of symptom onset.
 
 ```{r}
+#| label: generate-delays-data
 # use an example script for generate delays
 source("generate_delays.R")
 # generate delays according to a gamma distribution
@@ -153,6 +156,7 @@ We propose the incubation period to be distributed as a gamma distribution, with
 Then, we define the augmented variables `infec_time` and `onset_time` as uniformly distributed in the ranges of exposure and onset times, respectively.
 
 ```{r}
+#| label: augmented-example-setup
 # generate an instance of the household model class
 hhmodel <- new_housepi_model("augmented_example") |>
 
@@ -208,6 +212,7 @@ However, sometimes we might be interested in extracting augmented variable draws
 We can do so by providing the `id` of individuals whose augmented variables we want to store through the argument `id_draws` of `run_inference()`.
 
 ```{r}
+#| label: inference-traces
 #| fig-height: 3
 #| message: false
 #| warning: false
@@ -229,6 +234,7 @@ bayesplot::mcmc_trace(get_param_draws(results)) +
 ```
 
 ```{r}
+#| label: augmented-draws-traces
 #| fig-alt: >
 #|  Trace plots for individual augmented variables across three MCMC chains.
 #|  Incubation period and associated probability for two subjects (IDs 7 and 13).
@@ -242,6 +248,7 @@ The prefix `.` we added to the names is a convention to ensure that housepi will
 # More about models and proposals
 
 ```{r}
+#| label: color-scheme-augmented
 #| include: false
 bayesplot::color_scheme_set(scheme = "orange")
 ```
@@ -252,6 +259,7 @@ As shown in [Bayesian MCMC options](bayesian_mcmc_options.html), we do the testi
 We always recommend a visual assessment before choosing a new move.
 
 ```{r}
+#| label: augmented-sample-model
 #| warning: false
 
 # with model (default sample)
@@ -261,6 +269,7 @@ results <- new_housepi_model("blank") |>
 ```
 
 ```{r}
+#| label: trace-augmented-sample
 #| fig-height: 2
 #| fig-alt: >
 #|  Trace plot of a single augmented variable sampled from the model.
@@ -268,11 +277,12 @@ bayesplot::mcmc_trace(get_augm_draws(results))
 ```
 
 ```{r}
+#| label: trace-log-likelihood
 #| fig-height: 2
 #| fig-alt: >
 #|  Trace plot of the corresponding model contribution to the log-likelihood.
 bayesplot::mcmc_trace(get_total_log_lik_draws(results))
 ```
 
-```{r child = "helpers/_footer.Rmd"}
+```{r footer-child, child = "helpers/_footer.Rmd"}
 ```

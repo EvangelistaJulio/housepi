@@ -13,7 +13,7 @@ editor_options:
     wrap: sentence
 ---
 
-```{r child = "helpers/_setup.Rmd"}
+```{r setup-child, child = "helpers/_setup.Rmd"}
 ```
 
 ```{r}
@@ -30,6 +30,7 @@ Such models allow for a number of group rates which can then be changed accordin
 We provide an example here with the heterogeneous version of the chain binomial model.
 
 ```{r}
+#| label: load-heterogeneous-model
 # load heterogeneous version of chain binomial
 hhmodel <- new_housepi_model("chain_binomial_heterogeneous") |>
   load_parameter_template() # use templated parameters
@@ -44,6 +45,7 @@ Suppose our analysis wants to explore age and/or gender-based effects within a h
 We start by creating categorical groupings to stratify individuals based on their age, sex, etc. and then associate individual group rates.
 
 ```{r}
+#| label: format-age-data
 # change age in survey as a binary group child/adult
 new_survey <- housepi::survey |>
   dplyr::mutate(age = dplyr::if_else(age < 16, "child", "adult"))
@@ -59,6 +61,7 @@ By default, all group rates without a definition will be treated as associated t
 By default, the definition assumes the reference group to be the one with the largest number of counts.
 
 ```{r}
+#| label: susceptibility-by-age
 hhmodel |>
   # associate susceptibility group rate by column age
   add_group_rate("susceptibility", by = "age") |>
@@ -76,6 +79,7 @@ In this example we show how to provide more covariates and a custom reference.
 Manually set a `reference` by providing the corresponding group factor values:
 
 ```{r}
+#| label: susceptibility-by-sex-age
 hhmodel |>
   # independent group rates, adult female chosen as reference
   add_group_rate("susceptibility", c("sex", "age"),
@@ -88,6 +92,7 @@ By default, parameters associated to each grouping are assumed independent,
 i.e. the group rate is the product of the two parameters.
 
 ```{r}
+#| label: susceptibility-dependent
 hhmodel |>
   # here covariates are not assumed independent
   add_group_rate("susceptibility", c("sex", "age"),
@@ -104,6 +109,7 @@ By default, group rate assumes lognormal prior (`meanlog = 0` and `sdlog = 3`) a
 This can be customized at the moment of the definition of the group rate similarly to parameters (see documentation).
 
 ```{r}
+#| label: group-rate-parameters
 # default parameter associated to group rates
 hhmodel |>
   add_group_rate("susceptibility", c("sex", "age"), prefix = "") |>
@@ -124,6 +130,7 @@ Note that direct definition of a parameter has the priority, even if a parameter
 We can proceed with the inference as shown in [Get started](housepi.html):
 
 ```{r}
+#| label: inference-group-rates
 #| fig-alt: >
 #|  Six trace plots displaying MCMC sampling behaviour for model parameters: alpha, beta, infection age for children, and age-sex-stratified susceptibility parameters.
 #|  Multiple chains (1-3) are overlaid across iterations, showing convergence diagnostics and mixing properties of the Markov chains.
@@ -151,6 +158,7 @@ estimates to prior specifications and potential prior-data conflicts.
 To do so, we need to extract draws from results complete of pointwise log-likelihood values and log-priors with `get_complete_draws`
 
 ```{r}
+#| label: prior-sensitivity
 get_complete_draws(results) |>
   priorsense::powerscale_sensitivity()
 ```
@@ -160,6 +168,7 @@ get_complete_draws(results) |>
 Finally, we propose the following approach to visualize the difference between the estimates for the susceptibility with respect to the reference group:
 
 ```{r}
+#| label: compare-group-rates-plot
 #| warning: false
 #| message: false
 #| fig-alt: >
@@ -195,5 +204,5 @@ get_param_draws(results) |>
   labs(x = "", y = ylabel)
 ```
 
-```{r child = "helpers/_footer.Rmd"}
+```{r footer-child, child = "helpers/_footer.Rmd"}
 ```

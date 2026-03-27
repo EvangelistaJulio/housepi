@@ -13,7 +13,7 @@ editor_options:
     wrap: sentence
 ---
 
-```{r child = "helpers/_setup.Rmd"}
+```{r setup-child, child = "helpers/_setup.Rmd"}
 ```
 
 ```{r}
@@ -27,6 +27,7 @@ housepi_theme_set()
 In this vignette we show how to compute common household measures according to the model posterior distribution. This is generally referred to as Posterior Predictive Checks (PPC). We use the same chain binomial example presented in [Get started](housepi.html):
 
 ```{r}
+#| label: inference-setup
 # repeat inference as in vignette 'Get Started'
 set.seed(42)
 hhmodel <- new_housepi_model("chain_binomial") |>
@@ -47,6 +48,7 @@ estimates
 We can use the simulation process to challenge the validity of the inferred model on top of the original dataset. We do so by computing the predicted numbers of cases per household size according to our posterior distribution (i.e. by producing simulations according to posterior values).
 
 ```{r}
+#| label: compute-predictions
 # run simulations according to posterior traces to compute predictions
 ppc <- predicted_cases_by_house_size(hhmodel, results, progress = 3)
 ```
@@ -54,6 +56,7 @@ ppc <- predicted_cases_by_house_size(hhmodel, results, progress = 3)
 To show both observed and predicted cases by size, we can extract the formatted cases table from our output object as follows.
 
 ```{r}
+#| label: format-cases-table
 # for this part of the analysis we consider only house sizes up to 5
 ppc$set_max_house_size(5)
 
@@ -91,6 +94,7 @@ flextable::flextable(combined) |>
 We can perform a Chi-Squared test on the shown distribution as follows:
 
 ```{r}
+#| label: chisq-test
 # perform a Chi-Squared test
 ppc$chisq_test()
 ```
@@ -102,6 +106,7 @@ The $p$-value tells us that there is no significant difference between the distr
 We can have a quick look at secondary attack rates of observed vs predicted cases using the field `$sar`:
 
 ```{r}
+#| label: sar-plot
 #| message: false
 #| warning: false
 #| fig-alt: >
@@ -141,6 +146,7 @@ The package provides two built-in measure functions:
 Here we show how to use `predicted_measures()` with the built-in SAR measure:
 
 ```{r}
+#| label: predicted-measures-sar
 # compute predicted SAR using predicted_measures
 ppc_sar <- predicted_measures(hhmodel, results,
                               sar = measure_sar_by_house_size)
@@ -150,6 +156,7 @@ ppc_sar
 The returned `HousepiPrediction` object stores `observed`, `predicted`, `cri_lower` and `cri_upper` for each measure, accessible by name:
 
 ```{r}
+#| label: extract-sar-components
 # observed secondary attack rates
 ppc_sar$sar$observed
 
@@ -160,6 +167,7 @@ ppc_sar$sar$predicted
 You can also pass multiple measures at once, as well as your own custom functions. A custom measure function should accept a `data_wide` data.frame and return a `data.frame`, a `list`, or a `numeric` vector:
 
 ```{r}
+#| label: predicted-measures-custom
 # define a custom measure: overall attack rate
 measure_overall_attack_rate <- function(data_wide) {
   n_infected <- sum(data_wide$status > 0, na.rm = TRUE)
@@ -175,6 +183,7 @@ ppc_multi
 ```
 
 ```{r}
+#| label: plot-overall-attack-rate
 # compare observed vs predicted overall attack rate
 ggplot(data.frame(ppc_multi$overall)) +
   geom_point(aes(x = "observed", y = observed),
@@ -188,5 +197,5 @@ ggplot(data.frame(ppc_multi$overall)) +
 
 ```
 
-```{r child = "helpers/_footer.Rmd"}
+```{r footer-child, child = "helpers/_footer.Rmd"}
 ```

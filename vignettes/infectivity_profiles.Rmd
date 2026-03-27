@@ -13,7 +13,7 @@ editor_options:
     wrap: sentence
 ---
 
-```{r child = "helpers/_setup.Rmd"}
+```{r setup-child, child = "helpers/_setup.Rmd"}
 ```
 
 ```{r}
@@ -56,6 +56,7 @@ For example, consider the model "augmented infection time" introduced in [Get st
 The model template comes in continuous time and with a templated generic profile which is chosen to be a gamma distribution parametrized with `mean` and `var`:
 
 ```{r}
+#| label: load-continuous-profile
 hhcontinuos <- new_housepi_model("augmented infection time")
 # extract current loaded profile definitions
 defs <- get_infec_profile(hhcontinuos)
@@ -68,6 +69,7 @@ defs$func_args
 Here we accessed the definition associated to the model by calling `get_infec_profile`. We can "expose" the behaviour of housepi functions by calling `expose_infec_profile`. This will generate an object holding the infectivity profile definitions to be used to compute instantaneous and cumulative values of the profile
 
 ```{r}
+#| label: plot-continuous-profile
 #| fig-alt: >
 #|  Instantaneous infectivity profile as a function of the generation time in black.
 #|  On a second axis in orange, the corresponding cumulative infectivity profile.
@@ -112,6 +114,7 @@ To move to discrete time we need to specify it at the moment of the model genera
 This model requires compilation as for all custom models.
 
 ```{r}
+#| label: load-discrete-model
 hhdiscrete <- new_housepi_model("augmented infection time",
                                 discr = TRUE, quiet = TRUE)
 defs <- get_infec_profile(hhdiscrete)
@@ -123,6 +126,7 @@ This is done to avoid transmission to occur on day 0 of infection.
 The discrete profile is now a discretized gamma with the same parameters^[Since the distribution is truncated the actual mean value will typically be different than the parameter `mean`.].
 
 ```{r}
+#| label: plot-discrete-profile
 #| fig-alt: >
 #|  Discrete instantaneous infectivity profile as a function of the generation day in black.
 #|  On a second axis in orange, the corresponding cumulative infectivity profile.
@@ -137,6 +141,7 @@ In this simple hypothesis all individuals will share the same profile which depe
 We can provide a custom infectivity profile calling `add_infec_profile()` as follows:
 
 ```{r}
+#| label: add-custom-profile
 hhdiscrete <- hhdiscrete |>
   add_infec_profile("gamma", shape = 4, scale = 1.3)
 defs <- get_infec_profile(hhdiscrete)
@@ -144,6 +149,7 @@ defs
 ```
 
 ```{r}
+#| label: plot-custom-profile
 #| fig-alt: >
 #|  Custom discrete instantaneous infectivity profile in black.
 #|  On a second axis in orange, the corresponding cumulative infectivity profile.
@@ -154,5 +160,5 @@ plot_profile_demo(profile)
 If the profiles, distributions or functions currently loaded in housepi are not sufficient to deal with your case study, we provide a mechanism to define custom user functions^[Unfortunately, this requires some programming knowledge in C++.].
 We show how to deal with [user functions](user_functions.html) in the namesake vignette.
 
-```{r child = "helpers/_footer.Rmd"}
+```{r footer-child, child = "helpers/_footer.Rmd"}
 ```

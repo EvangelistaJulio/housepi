@@ -13,7 +13,7 @@ editor_options:
     wrap: sentence
 ---
 
-```{r child = "helpers/_setup.Rmd"}
+```{r setup-child, child = "helpers/_setup.Rmd"}
 ```
 
 ```{r}
@@ -30,6 +30,7 @@ Let's assume that each individual can be represented with a single variable $\th
 We declare the covariates of interest when we generate a new sampler calling `new_household_sampler`.
 
 ```{r}
+#| label: define-sampler
 # define individual features from dataset covariates assumed not independent
 hhsampler <- new_household_sampler(
   # categorical data: levels to be considered
@@ -47,6 +48,7 @@ Here sex `"F"` has priority on `"M"`, and ages `[25, 50)` have priority on ages 
 Also, encoding implies an implicit representation of a dataset, e.g.
 
 ```{r}
+#| label: encode-decode-example
 # example house dataset
 eg_house <- data.frame(house_id = "HH_1",
                        age = c(43, 39, 12, 7),
@@ -98,6 +100,7 @@ where $p_1$ is the probability of finding a household with a single member in ou
 # Compute marginals and generate datasets
 
 ```{r}
+#| label: compute-marginals-sample
 hhsampler |>
   # compute marginal distributions
   compute_household_marginals(housepi::sarscov2_2021_icofs) |>
@@ -105,5 +108,5 @@ hhsampler |>
   sample_households(5)
 ```
 
-```{r child = "helpers/_footer.Rmd"}
+```{r footer-child, child = "helpers/_footer.Rmd"}
 ```

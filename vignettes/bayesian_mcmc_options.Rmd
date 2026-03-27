@@ -13,7 +13,7 @@ editor_options:
     wrap: sentence
 ---
 
-```{r child = "helpers/_setup.Rmd"}
+```{r setup-child, child = "helpers/_setup.Rmd"}
 ```
 
 ```{r}
@@ -32,6 +32,7 @@ In this vignette we present all available options for the choice of the prior an
 To perform the sampling we consider the "blank" model, i.e. a data independent template model, with log-likelihood always equal to zero.
 Here's the full list of available continuous distributions present in housepi:
 ```{r}
+#| label: continuous-priors-density
 #| warning: false
 #| fig-alt: >
 #|  Density plots for prior distributions available in housepi for Bayesian inference: uniform, normal, lognormal, gamma, Weibull, Rayleigh, beta and exponential.
@@ -65,6 +66,7 @@ This will automatically impose a truncation of the prior of the parameter.
 We do this with the arguments `min` (minimum) and `max` (maximum).
 
 ```{r}
+#| label: truncation-demo
 #| warning: false
 #| message: false
 #| fig-alt: >
@@ -92,6 +94,7 @@ new_housepi_model("blank") |>
 All functions and distributions in housepi allow for a location parameter `loc` to translate the support of the distribution:
 
 ```{r}
+#| label: location-parameter-demo
 #| warning: false
 #| fig-alt: >
 #|  Density plots showing gamma distributions with different location parameters.
@@ -118,6 +121,7 @@ new_housepi_model("blank") |>
 # Discrete priors
 
 ```{r}
+#| label: color-scheme-discrete
 #| include: false
 bayesplot::color_scheme_set(scheme = "orange")
 ```
@@ -125,6 +129,7 @@ bayesplot::color_scheme_set(scheme = "orange")
 Here's the full list of available discrete distributions present in housepi:
 
 ```{r}
+#| label: discrete-priors-hist
 #| fig-alt: >
 #|  Four histograms displaying discrete prior distributions available in housepi: Poisson, binomial, negative binomial, and geometric.
 #|  Orange bars represent probability mass functions for integer-valued outcomes obtained from MCMC sampling.
@@ -147,6 +152,7 @@ new_housepi_model("blank") |>
 Previous continuous priors can be chosen to be discretized using the argument `discr`.
 
 ```{r}
+#| label: discretized-priors-hist
 #| fig-alt: >
 #|  Seven histograms showing discretized versions of continuous prior distributions: uniform, normal, lognormal, gamma, Weibull, Rayleigh, and exponential.
 
@@ -178,6 +184,7 @@ With this scheme normalization is respected, however the shape of the distributi
 You can use the function `expose_distribution` to return a Distribution object from housepi and explore its methods.
 
 ```{r}
+#| label: discretization-scheme-plot
 #| fig-width: 6
 #| fig-height: 3
 #| fig-alt: >
@@ -211,11 +218,13 @@ We provide a small set of common mechanisms:
 Parametric proposals (all except sample) require a `proposal_scale` (default is `1`).
 
 ```{r}
+#| label: color-scheme-proposals
 #| include: false
 bayesplot::color_scheme_set(scheme = "brightblue")
 ```
 
 ```{r}
+#| label: proposals-trace
 #| fig-alt: >
 #|  Four trace plots comparing MCMC proposal mechanisms: sample, uniform, normal, and lognormal.
 #|  Sampling shows poor mixing for all mechanisms except sample.
@@ -245,6 +254,7 @@ We use finite adaptation to adjust proposal scales of parametric mechanisms with
 In housepi this is enabled by supplying `adapt = N` to `run_inference()`, where `N` is the number of finite adaptation steps preceding the MCMC `steps`.
 
 ```{r}
+#| label: adaptation-trace
 #| fig-alt: >
 #|  Four trace plots comparing the same MCMC proposal mechanisms as before.
 #|  Mixing for parametric mechanisms shows improvement.
@@ -257,5 +267,5 @@ hhmodel |>
 
 We can say that we obtained a better mixing, but at the cost of additional MCMC steps.
 
-```{r child = "helpers/_footer.Rmd"}
+```{r footer-child, child = "helpers/_footer.Rmd"}
 ```

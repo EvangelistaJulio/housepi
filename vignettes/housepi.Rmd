@@ -13,7 +13,7 @@ editor_options:
     wrap: sentence
 ---
 
-```{r child = "helpers/_setup.Rmd"}
+```{r setup-child, child = "helpers/_setup.Rmd"}
 ```
 
 ```{r}
@@ -31,6 +31,7 @@ The central element of the package is the [R6 class](https://r6.r-lib.org/articl
 We show how to generate a new instance of such a class with a template model, the chain binomial:
 
 ```{r}
+#| label: load-model
 # import the library housepi
 library(housepi)
 # set general seed
@@ -49,6 +50,7 @@ At any moment we can retrieve the template model description by using the method
 To see the complete list of available template models, from within RStudio just run
 
 ```{r}
+#| label: list-templates
 # present the list of template model name
 template_household_model()
 ```
@@ -57,6 +59,7 @@ Each template comes with its template definitions that can be used straight away
 To know more about each model, choose a name from the previous list and run, e.g.
 
 ```{r}
+#| label: model-help
 #| eval: false
 # show model description in RStudio help window
 template_household_model("chain_binomial")
@@ -75,6 +78,7 @@ Note that this dataset comes automatically with the model "blank", used for test
 <div>
 
 ```{r}
+#| label: blank-data-table
 #| echo: false
 knitr::kable(housepi:::template_blank_data_wide_())
 ```
@@ -114,6 +118,7 @@ This will return a copy of the original object, which can then be used for pipin
 If you are more comfortable with R6, another way to associate data (and definitions in general) is to use active methods like `$data_wide`.].
 
 ```{r}
+#| label: import-data
 # import data in wide format using R6 active field
 hhmodel <- hhmodel |>
   add_data_wide(housepi::flu_1918_frederick)
@@ -123,6 +128,7 @@ The housepi package comes with a few public datasets to be used for testing.
 We can extract summary information about current loaded data with `summarise_cases()`:
 
 ```{r}
+#| label: summarise-cases
 # show a summary of cases as a `flextable`
 summarise_cases(hhmodel) |>
   flextable::flextable() |>
@@ -143,6 +149,7 @@ Here we show how to provide a single parameter definition (prior and proposal ne
 We can call `add_parameter()` as follows:
 
 ```{r}
+#| label: add-parameters
 # alpha : community transmission rate
 hhmodel <- hhmodel |>
   add_parameter("alpha",                # name matching the model source
@@ -169,6 +176,7 @@ This will return an object which collects all the relevant MCMC draws.
 The draws come as [posterior](https://CRAN.R-project.org/package=posterior) objects that can be accessed to compute estimates.
 
 ```{r}
+#| label: run-inference
 # run the Monte Carlo specifying setup options
 results <- hhmodel |>
   run_inference(steps = 1000, # MCMC steps per chain
@@ -187,6 +195,7 @@ We can proceed as usual with other popular R packages for Bayesian analysis.
 For example, we can extract the parameters draws by calling `get_param_draws` and plot traces with [bayesplot](https://CRAN.R-project.org/package=bayesplot)
 
 ```{r}
+#| label: param-traces
 #| fig-alt: >
 #|  Trace plots for alpha and beta parameters across MCMC iterations with three parallel chains overlaid.
 # visualize the traces of the first chain with 'bayesplot'
@@ -197,6 +206,7 @@ get_param_draws(results) |>
 or of the total log-likelihood by calling `get_total_log_lik_draws`:
 
 ```{r}
+#| label: log-lik-traces
 #| fig-height: 2.5
 #| fig-alt: >
 #|  Trace plots for total log-likelihood across MCMC iterations with three parallel chains overlaid.
@@ -208,6 +218,7 @@ Similarly, we can call functions from [loo](https://CRAN.R-project.org/package=l
 We extract the sample of pointwise log-likelihood for each household and compute for example the leave-one-out cross-validation as follows
 
 ```{r}
+#| label: loo-cv
 # LOO-CV (leave-one-out cross-validation)
 get_log_lik_draws(results) |>
   posterior::as_draws_matrix() |>
@@ -222,6 +233,7 @@ Here we present a case study, using the template model "augmented_infection_time
 We load the parameter definitions directly from the model template.
 
 ```{r}
+#| label: load-augmented-model
 hhsimul <- new_housepi_model("augmented_infection_time") |>
   load_parameter_template()
 
@@ -235,6 +247,7 @@ We propose the following definitions for the augmented variables,
 associated from a list by calling `load_augmented_list()`.
 
 ```{r}
+#| label: load-augmented-definitions
 hhsimul <- hhsimul |>
   load_augmented_list(
     # define default infection times of introduction cases
@@ -254,6 +267,7 @@ When dealing with many different nested definitions it is not unusual to lose tr
 We can inspect the state of the current loaded model definitions just by printing the model:
 
 ```{r}
+#| label: print-model-state
 # print current state of definitions
 hhsimul
 ```
@@ -261,6 +275,7 @@ hhsimul
 This tells us that in order to proceed we need to provide the missing parameters which can be done appending to the existing ones via
 
 ```{r}
+#| label: append-parameters
 # append missing parameters for incubation period
 hhsimul <- hhsimul |>
   load_parameter_list(inc_shape = 2, inc_scale = 1,
@@ -279,6 +294,7 @@ Simulation will associate augmented incubation periods and onset times in additi
 We then propose a simple observation process, where we assume onsets after 6 PM (18/24) are reported to next day. We also want to drop unobserved quantities. We can do both by assigning such a function to the argument `obs_process`:
 
 ```{r}
+#| label: run-simulation
 # load a dataset for the data structure
 community_structure <- housepi::sarscov2_2021_icofs |> 
   dplyr::select(id, house_id, age, sex) |> 
@@ -305,6 +321,7 @@ It is important to validate our approach checking that inference is able to reco
 
 
 ```{r}
+#| label: inference-simulated
 hhmodel <- hhsimul |>
   # loading definitions from list drops previous by default
   load_augmented_list(
@@ -321,6 +338,7 @@ results <- hhmodel |>
 We can visualize traces vs expected values as follows
 
 ```{r}
+#| label: validation-traces
 #| message: false
 #| warning: false
 #| fig-alt: >
@@ -345,6 +363,7 @@ bayesplot::mcmc_trace(param_draws, facet_args = list(ncol = 1)) +
 and we can perform R-hat diagnostics
 
 ```{r}
+#| label: rhat-diagnostics
 #| fig-width: 5
 #| fig-height: 2.5
 #| fig-alt: >
@@ -364,6 +383,7 @@ bayesplot::mcmc_rhat(rhat_values) +
 Finally we wrap all together to compare to the parameters used for simulation.
 
 ```{r}
+#| label: parameter-comparison-table
 posterior::summarise_draws(param_draws) |>
   dplyr::reframe(parameter = variable,
                  inferred = format_credible_intervals(mean, q5, q95)) |>
@@ -377,5 +397,5 @@ posterior::summarise_draws(param_draws) |>
 Due to the stochastic nature of this kind of simulation, limiting to re-infer parameters is a limiting check.
 In [Posterior predictive checks](posterior_predictive_checks.html) we show how to compute common household measures according to the model posterior distribution.
 
-```{r child = "helpers/_footer.Rmd"}
+```{r footer-child, child = "helpers/_footer.Rmd"}
 ```
